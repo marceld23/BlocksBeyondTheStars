@@ -424,6 +424,22 @@ player's streaming radius, inside a ±70° cone around the yaw and with a sightl
 which species are awake. Bite + aggro ranges grow gently with species size past 2 (bite capped at
 the player's own 6-block attack reach).
 
+**Spawning on loaded ground (#2960, `GameServerFaunaSeed.cs`).** Every rule of `SpawnSpotClear` reads real blocks, and
+an unloaded chunk reads as air. Two things keep the spawner from judging air it has not loaded:
+
+- **The spawner loads the ground it judges.** Before probing, every placement (the ring leader and each herd member)
+  loads the chunks of its column's surface band (`LoadSpawnGround`). That is one chunk, two at a chunk border. During
+  play they are already loaded. Cave spots keep their own probe, which does not load chunks (#1719).
+- **The first batch after a join or a landing waits.** It used to run inline in the join and landing handlers, before
+  the first streaming pass. Now those handlers only mark it as due (`QueueFaunaSeed`). The creature tick places it once
+  the surface chunks of every spawn-ring slot are loaded, or after 6 s at the latest (`TickFaunaSeeds`). This runs
+  before the tick's early return for "everybody is aboard", so a player still in the cockpit arrives to a living world.
+  By then the walls of a yard have usually streamed in too, so the walled-yard fill sees them.
+
+Before #2960, this first batch put land animals on a paved spaceport after every load. The floor rule saw no floor, and
+the feet fell back to the generator surface, which is exactly the top of the paving. During play the ring was loaded,
+so nothing came back.
+
 **Motion classes (#1331–#1334):** every species moves in one of five mechanical classes,
 **derived from the traits it already has** (`CreatureMotion.ClassOf` — no generator roll, so
 pre-existing worlds keep their species bit-for-bit): **Swimmer** (water species), **Flier** (winged

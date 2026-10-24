@@ -231,6 +231,14 @@ public sealed partial class GameServer
         // is out of reach ends — and its player is told, so the taming panel never holds the controls for nothing.
         SweepTameAttempts();
 
+        // #2960: the first batch of animals for a player who just joined or landed, placed once the ground around them has
+        // streamed in. This comes before every early return below: a void world drops the mark, and a player still aboard
+        // gets the batch.
+        if (TickFaunaSeeds(dt))
+        {
+            BroadcastCreatures();
+        }
+
         // Orbital stations (void worlds) have no wildlife at all — only peaceful NPCs.
         if (_world.Planet.Void)
         {
@@ -515,6 +523,7 @@ public sealed partial class GameServer
         int x = (int)System.Math.Floor(player.Position.X) + dx;
         int z = (int)System.Math.Floor(player.Position.Z) + dz;
         int surface = _generator.SurfaceHeight(_world.Planet, x, z);
+        LoadSpawnGround(x, z, surface); // #2960: judge the spot by its real blocks, never by an unloaded chunk's air
         int biome = _generator.BiomeIndexAt(_world.Planet, x, z);
         int share = SpeciesShare(cap);
 
@@ -833,6 +842,7 @@ public sealed partial class GameServer
         int mx = x + (int)System.Math.Round(System.Math.Cos(a) * dist);
         int mz = z + (int)System.Math.Round(System.Math.Sin(a) * dist);
         int surface = _generator.SurfaceHeight(_world.Planet, mx, mz);
+        LoadSpawnGround(mx, mz, surface); // #2960: a member's own column, as the leader's
 
         float y;
         if (sp.Habitat == CreatureHabitat.Water || sp.Habitat == CreatureHabitat.Amphibian)

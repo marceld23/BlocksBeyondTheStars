@@ -3049,7 +3049,8 @@ called **stories**:
   animals stay out of a base's sealed rooms and of a **closed ring of walls** (at least 2 blocks high, closed all
   round at feet level) as far out as you have built around the core — at least 48 blocks, at most 192. **No ground
   animal ever spawns on a floor you built** (any solid block you placed, base or no base — water you poured and plants
-  that grew back don't count). A wild animal that gets in
+  that grew back don't count). That includes the first animals that appear when you load a world or land: the game
+  waits a moment until the ground around you has loaded, then places them. A wild animal that gets in
   anyway — through an open gate or a gap, or before a far wall had loaded — **leaves again while nobody is looking
   at it**: one standing on your floor or inside your walled yard or sealed rooms simply isn't there any more when
   you turn back. That includes wild animals in a pen on your base floor: they wander off when nobody looks — tame

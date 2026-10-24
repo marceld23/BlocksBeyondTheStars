@@ -99,6 +99,11 @@ public sealed class PlayerSession
     /// <summary>What was streamed to this client: chunks, the settled view, the look-ahead, far-terrain tiles.</summary>
     public PlayerSessionStreaming Streaming { get; } = new();
 
+    /// <summary>#2960: the arrival burst of wildlife is due for this player (set by the join and by a landing), and how
+    /// long it has waited so far for the ground of the spawn ring to stream in. See <c>GameServerFaunaSeed</c>.</summary>
+    public bool FaunaSeedDue { get; set; }
+    public double FaunaSeedWaited { get; set; }
+
     /// <summary>The app-level heartbeat and this player's pause-menu hold (#964, #973).</summary>
     public PlayerSessionLiveness Liveness { get; } = new();
 

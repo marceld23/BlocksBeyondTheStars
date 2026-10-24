@@ -1135,7 +1135,7 @@ public sealed partial class GameServer
         {
             // Observers watch the world as it is: they neither seed fauna around themselves nor bring pets
             // along, both of which would be visible changes made by an invisible person (issue #487).
-            PopulateCreaturesNear(session.State, CreatureCapPerPlayer); // arrive to a living world, not an empty one
+            QueueFaunaSeed(session); // arrive to a living world, once its ground has streamed in (#2960)
             SpawnCompanionsForSession(session); // re-materialise the player's pets if this is their companions' home world
         }
 
@@ -4241,7 +4241,7 @@ public sealed partial class GameServer
         SendPlanetPois(session);
         SendOwnedShips(session);
         SendEnvironment(session);
-        PopulateCreaturesNear(state, CreatureCapPerPlayer); // seed fauna so the world feels alive on entry
+        QueueFaunaSeed(session); // seed fauna so the world feels alive on entry, once its ground has streamed in (#2960)
         if (ApplyBondDecay(state))
         {
             _repo.SavePlayer(state); // #1225: the days away are charged once, here, and written straight back

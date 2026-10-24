@@ -639,17 +639,19 @@ public sealed class TravelTests : IDisposable
     }
 
     [Fact]
-    public void Travel_SeedsFaunaImmediately_OnALivingWorld()
+    public void Travel_SeedsFaunaOnArrival_OnALivingWorld()
     {
         var server = Started(out var repo);
         using (repo)
         {
-            server.AddLocalPlayer("Pilot");
+            var pilot = server.AddLocalPlayer("Pilot");
             server.Ship.Modules.Add("jump_generator");
             string origin = server.ActiveLocationId;
 
-            // Travel until we reach a world that actually has fauna; it must be populated on arrival
-            // (no ticking) so a freshly-entered planet feels alive instead of empty.
+            // Travel until we reach a world that actually has fauna. It must come alive on arrival, with the pilot still in
+            // the ship, so a freshly-entered planet feels alive instead of empty. #2960: the first batch waits for the
+            // ground around the landing to stream in. That takes a few ticks, at most the seed's 6 s timeout. Placed before
+            // that, the batch ignored the player's floors and walls.
             foreach (var b in server.Galaxy.AllBodies().Where(b =>
                          b.Kind == CelestialKind.Planet
                          && !string.IsNullOrEmpty(b.PlanetType)
@@ -659,6 +661,12 @@ public sealed class TravelTests : IDisposable
                 server.Travel("Pilot", b.Id);
                 if (server.SpeciesRoster.Count > 0)
                 {
+                    for (int i = 0; i < 70 && server.Creatures.Count == 0; i++)
+                    {
+                        server.Tick(0.1);
+                    }
+
+                    Assert.True(pilot.State.AboardShip, "the pilot never stepped out: the arrival batch did this alone");
                     Assert.NotEmpty(server.Creatures);
                     return;
                 }

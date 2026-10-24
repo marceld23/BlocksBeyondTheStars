@@ -24,6 +24,28 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player report 2026-10-24, evening (Lyxette, v2026.10.25) — land animals on the spaceport, but only right after loading — #2960, branch fix/fauna-seed-streamed-ground — ✅ done 2026-10-24 (⚠ playtest open; server-only, no generation, save or protocol change)
+
+The report: land animals still stand on the floor of her walled spaceport, but only when the world has just loaded and
+she first steps out of the ship. Once she has hunted them, none come back during play. This is a follow-up to #2521.
+
+- **Cause, reproduced headless with a real network rejoin:** the first batch of animals (`PopulateCreaturesNear`) ran
+  inline in the join and landing handlers, before the first streaming pass. Every rule of `SpawnSpotClear` reads real
+  blocks, and an unloaded chunk reads as air. So the floor rule saw no floor, the walled-yard fill saw gaps, the body
+  checks saw nothing, and the feet fell back to the generator surface, which is the top of the paving. In the repro,
+  8 of 15 land animals stood on the floor after the rejoin, against 0 of 42 in 300 s of play.
+- **Fix (`GameServerFaunaSeed.cs`):**
+  - Every placement first loads its column's surface chunks (`LoadSpawnGround`). These are already loaded during play.
+  - Join and landing only mark the first batch as due (`QueueFaunaSeed`). The creature tick places it once the surface
+    chunks of every spawn-ring slot are loaded, or after 6 s at the latest. This runs before the tick's early return for
+    "everybody is aboard", so a player in the cockpit still arrives to a living world.
+
+Tests: `FaunaSeedTests` (a paved world reloaded with a real network join puts no wild ground animal on the floor — 8
+without the fix; a player still aboard gets the first batch within the timeout), `TravelTests.Travel_SeedsFaunaOnArrival_OnALivingWorld`
+(a few ticks after the landing instead of none). Docs: WORLD_GENERATION.md (spawning on loaded ground), USER_MANUAL.md.
+
+---
+
 ### 📬 Player reports 2026-10-24, afternoon (Justus as Layex + Jonah as Screelit, LAN world "J&J", v2026.10.25) — jellyfish blinking over a frozen sea, ice gone from the far view, a medkit that "does nothing", every tree the standard kind — #2955–#2958, branch fix/reports-2026-10-24b — ✅ done 2026-10-24 (⚠ playtest open; no generation or save-version change, no protocol bump)
 
 Four reports from a LAN afternoon: two jellyfish over the frozen tundra sea "blink all the time" (the kids: they jump
