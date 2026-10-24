@@ -6430,7 +6430,7 @@
   "srv.crystal.clone_dust": "Klon tankı madde tozu ister — bir klon için iki, bir melez için dört — yanındaki sandıkta veya cebinde.",
   "vega.hint.sample_case_full": "Numune kutun dolu. Yer açmak için numuneleri bir Biyo Laboratuvarında kullan veya ihtiyacın olmayan bir türü at (envanter → Numuneler).",
   "vega.hint.first_sample": "Bir numune! Topladığın her şey numune kutunda bir numune de bırakır. Bir biyo laboratuvar içinde ne olduğunu söyleyebilir — Biyo Laboratuvarı planını kokpitte araştır.",
-  "vega.hint.backpack_pickup": "Bulduğun şey sırt çantana gitti — içinde zaten bundan bir yığın vardı ya da hızlı çubuk doluydu. {key:UiMenu} tuşuna bas ve envanteri aç, yanında taşıdığın her şeyi gör. Bir eşyaya, sonra hızlı çubukta bir yuvaya tıkla, böylece elinin altında olur.",
+  "vega.hint.backpack_pickup": "Bulduğun şey sırt çantana gitti: içinde zaten bundan bir yığın vardı ya da hızlı çubuk doluydu. {key:UiMenu} tuşuna bas, envanteri aç – önce eşyaya, sonra hızlı çubukta bir yuvaya tıkla.",
   "vega.hint.first_analysis": "Artık ne yaptığı belli. Laboratuvarda karıştır — tek bir numune bile kullanabileceğin bir özüt verir.",
   "vega.hint.first_effect": "İşe yarıyor. Her etki, kalan süresiyle birlikte göstergelerinin altında yazar — aynı anda en fazla üç etki olabilir.",
   "vega.hint.plant_refused": "Yetiştirilmiş bir bitki temiz toprak ve hava ister. Üssündeki bir hidroponik tepsi veya çiçek saksısı her yerde işe yarar.",

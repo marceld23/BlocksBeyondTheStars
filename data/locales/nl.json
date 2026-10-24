@@ -6430,7 +6430,7 @@
   "srv.crystal.clone_dust": "Het kloonvat heeft materiestof nodig — twee voor een kloon, vier voor een kruising — in de krat ernaast of in je zak.",
   "vega.hint.sample_case_full": "Je monsterkoffer is vol. Gebruik monsters in een biolab, of gooi een soort weg die je niet nodig hebt (inventaris → Monsters), om ruimte te maken.",
   "vega.hint.first_sample": "Een monster! Alles wat je oogst laat ook een monster achter in je monsterkoffer. Een bio-lab kan je vertellen wat erin zit — onderzoek de blauwdruk Bio-lab bij de cockpit.",
-  "vega.hint.backpack_pickup": "Je vondst zit in je rugzak — er lag al een stapel van in, of de snelbalk was vol. Druk op {key:UiMenu} en open de inventaris om alles te zien wat je bij je hebt. Klik op een ding en dan op een plek in de snelbalk, dan heb je het bij de hand.",
+  "vega.hint.backpack_pickup": "Je vondst zit in je rugzak: er lag al een stapel van in, of de snelbalk was vol. Druk op {key:UiMenu} en open de inventaris – klik op de vondst en dan op een plek in de snelbalk.",
   "vega.hint.first_analysis": "Nu weten we wat het doet. Meng het in het lab — één monster alleen geeft al een extract dat je kunt innemen.",
   "vega.hint.first_effect": "Het werkt. Elk effect staat onder je waarden met de tijd die het nog heeft — er kunnen er maximaal drie tegelijk actief zijn.",
   "vega.hint.plant_refused": "Een gekweekte plant heeft schone grond en lucht nodig. Een hydroponische bak of een bloempot in je basis werkt overal.",

@@ -6430,7 +6430,7 @@
   "srv.crystal.clone_dust": "The clone tank needs matter dust — two for a clone, four for a cross — in the crate beside it or in your pocket.",
   "vega.hint.sample_case_full": "Your sample case is full. Use samples in a bio lab, or throw away a kind you do not need (inventory → Samples), to make room.",
   "vega.hint.first_sample": "A sample! Everything you harvest also leaves a sample in your sample case. A bio lab can tell you what is in it — research the Bio Lab blueprint at the cockpit.",
-  "vega.hint.backpack_pickup": "Your find went into your backpack — a stack of it was already in there, or the quick-bar was full. Press {key:UiMenu} and open the inventory to see everything you carry. Click a thing, then a quick-bar slot, and you have it at hand.",
+  "vega.hint.backpack_pickup": "Your find went into your backpack: a stack of it was already there, or the quick-bar was full. Press {key:UiMenu} and open the inventory — click the find, then a quick-bar slot.",
   "vega.hint.first_analysis": "Now we know what it does. Mix it in the lab — one sample alone gives an extract you can take.",
   "vega.hint.first_effect": "It is working. Every effect is listed under your vitals with the time it has left — up to three can run at once.",
   "vega.hint.plant_refused": "A bred plant needs clean soil and air. A hydro tray or a flower pot inside your base works everywhere.",

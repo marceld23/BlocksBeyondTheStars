@@ -6430,7 +6430,7 @@
   "srv.crystal.clone_dust": "O tanque de clone precisa de pó de matéria — dois para um clone, quatro para um cruzamento — no caixote ao lado ou no seu bolso.",
   "vega.hint.sample_case_full": "Seu estojo de amostras está cheio. Use amostras em um Laboratório Biológico ou jogue fora um tipo que você não precise (inventário → Amostras) para liberar espaço.",
   "vega.hint.first_sample": "Uma amostra! Tudo o que você colhe também deixa uma amostra no seu estojo de amostras. Um laboratório biológico pode dizer o que tem nela — pesquise a planta Laboratório Biológico no cockpit.",
-  "vega.hint.backpack_pickup": "O que você encontrou foi para a sua mochila — já havia uma pilha disso lá dentro, ou a barra rápida estava cheia. Aperte {key:UiMenu} e abra o inventário para ver tudo o que você carrega. Clique em um item e depois em um espaço da barra rápida, e ele fica à mão.",
+  "vega.hint.backpack_pickup": "O que você encontrou foi para a mochila: já havia uma pilha disso lá, ou a barra rápida estava cheia. Aperte {key:UiMenu} e abra o inventário — clique no item e depois em um espaço da barra rápida.",
   "vega.hint.first_analysis": "Agora sabemos o que faz. Misture no laboratório — uma amostra sozinha dá um extrato que você pode tomar.",
   "vega.hint.first_effect": "Está funcionando. Cada efeito aparece abaixo dos seus indicadores com o tempo que resta — até três podem estar ativos ao mesmo tempo.",
   "vega.hint.plant_refused": "Uma planta cultivada precisa de solo limpo e ar. Uma bandeja hidropônica ou um vaso de flor dentro da sua base funciona em qualquer lugar.",

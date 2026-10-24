@@ -6430,7 +6430,7 @@
   "srv.crystal.clone_dust": "La cuve à clones a besoin de poussière de matière — deux pour un clone, quatre pour un croisement — dans la caisse à côté ou dans ta poche.",
   "vega.hint.sample_case_full": "Ta boîte d'échantillons est pleine. Utilise des échantillons dans un laboratoire biologique, ou jette un type dont tu n'as pas besoin (inventaire → Échantillons), pour faire de la place.",
   "vega.hint.first_sample": "Un échantillon ! Tout ce que tu récoltes laisse aussi un échantillon dans ta boîte d'échantillons. Un labo bio peut te dire ce qu'il contient — recherche le plan Laboratoire biologique au cockpit.",
-  "vega.hint.backpack_pickup": "Ta trouvaille est dans ton sac à dos : il y en avait déjà une pile dedans, ou la barre rapide était pleine. Appuie sur {key:UiMenu} et ouvre l'inventaire pour voir tout ce que tu portes. Clique sur un objet, puis sur une case de la barre rapide, et tu l'as sous la main.",
+  "vega.hint.backpack_pickup": "Ta trouvaille est dans ton sac à dos : il y en avait déjà une pile, ou la barre rapide était pleine. Appuie sur {key:UiMenu} et ouvre l'inventaire – clique dessus, puis sur une case de la barre rapide.",
   "vega.hint.first_analysis": "Maintenant on sait ce que ça fait. Mélange-le au labo — un seul échantillon donne un extrait que tu peux prendre.",
   "vega.hint.first_effect": "Ça marche. Chaque effet est affiché sous tes jauges avec le temps qu'il lui reste — jusqu'à trois peuvent être actifs en même temps.",
   "vega.hint.plant_refused": "Une plante cultivée a besoin de terre propre et d'air. Un plateau hydroponique ou un pot de fleurs dans ta base fonctionne partout.",
