@@ -11,6 +11,38 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.27] — 2026-10-25
+
+The backpack release: a small fix from a playtest on the evening of the explorer release. When something you mine tops up
+a stack in your **backpack**, the game now **tells you where it went** instead of leaving the hotbar unchanged. The
+2026.10.26 **"What's new?" notes are now in all fourteen languages**.
+
+ℹ️ **Compatibility:** nothing changes for saves. The **save version stays 6**, the **terrain generation stays 29** and
+the network protocol stays at **version 11**. There are no new blocks. As always, keep game and server on the same
+version: the desktop game updates itself at start, and the browser is always current.
+
+### 🎒 Your find is in the backpack (#2964)
+
+- **What happened:** after cutting a pale birch, the **Pale wood log** seemed never to arrive, even with a free
+  quick-bar slot. Nothing was lost. A find first tops up a stack of the same thing you already carry, and that stack
+  was in the backpack. The hotbar stayed as it was, and the pickup icon still flew into it.
+- **Now:** the pickup row above the hotbar reads **"+1 Pale wood log · in your backpack"** whenever the item has no stack
+  on the quick-bar. The first time it happens, **VEGA tells you once** where your find went and how to put it on the
+  quick-bar (it stays quiet if you have switched VEGA's hints off). The manual explains where a find goes.
+
+### 🌍 What's new? in every language (#2227)
+
+- The 2026.10.26 entry of the in-game **"What's new?"** feed now reads in all twelve community languages, not only in
+  German and English (#2963).
+
+### 🛠️ For tinkerers
+
+- **Backpack hint (#2964):** `InventoryDiff.OnlyInBackpack` (Client.Core) drives the feed suffix `hud.pickup.backpack`.
+  The server's `GameServerBackpackHint.cs` raises the once-only advisor hint `vega.hint.backpack_pickup`. Its once-flag
+  is `vega:hint:backpack_pickup`.
+- **For hosters:** the release ships the usual dedicated-server image; WorldHost, report-host and AI backend images are
+  rolled as built on `main`.
+
 ## [2026.10.26] — 2026-10-24
 
 The explorer release. You can now give the **systems, planets and moons you have visited a name of your own** — only you
@@ -9096,7 +9128,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.26...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.27...HEAD
+[2026.10.27]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.26...v2026.10.27
 [2026.10.26]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.25...v2026.10.26
 [2026.10.25]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.24...v2026.10.25
 [2026.10.24]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.23...v2026.10.24

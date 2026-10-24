@@ -43,6 +43,8 @@ The report: cutting a birch, the pale logs never showed up in the inventory, eve
 Tests: `BackpackPickupHintTests` (a top-up of a backpack stack hints once and never again, a quick-bar find says nothing,
 variants count), `InventoryDiffTests.OnlyInBackpack_IsTrueWithoutAQuickBarStack`. Docs: USER_MANUAL.md (where a find goes).
 
+**Released** in **v2026.10.27** "the backpack release" (2026-10-25).
+
 ---
 
 ### 📬 Player report 2026-10-24, evening (Lyxette, v2026.10.25) — land animals on the spaceport, but only right after loading — #2960, branch fix/fauna-seed-streamed-ground — ✅ done 2026-10-24 (⚠ playtest open; server-only, no generation, save or protocol change)
