@@ -11,6 +11,92 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.26] — 2026-10-24
+
+The explorer release. You can now give the **systems, planets and moons you have visited a name of your own** — only you
+see it. **Every kind of tree drops its own wood and leaves**, and every wood recipe takes any log. Jellyfish no longer
+**jump back and forth over a frozen sea**, frozen seas and snowy peaks **show as ice and snow in the far view**, and the
+**Field Medkit says why** when nobody near you is hurt. Lamp light no longer **stops at a chunk border** after you build,
+guardian drones stay **out of your tunnels**, and land animals no longer stand **on your spaceport floor right after
+loading**. Thanks to Lyxette, Justus and Jonah, who is now in the credits.
+
+ℹ️ **Compatibility:** nothing changes for saves. The **save version stays 6**, the **terrain generation stays 29**, the
+network protocol stays at **version 11**, and there are no new blocks — four tree blocks just drop their own items now. As always, keep game and server on the same version: the
+desktop game updates itself at start, and the browser is always current.
+
+### 🪐 Your own names for the places you discover (#2952)
+
+- **Name it:** Justus wished for planet names of his own — "you are the explorer, after all!" A system you have entered
+  and a planet or moon you have landed on can now get **your own name** in **Tab → Map** ("Your own name — only you see
+  it"; leave it empty for the original name).
+- **Everywhere you look:** the name shows on the map list and detail (with the real name small underneath), the flight
+  chart, the radar, the scanner, the target lock, the HUD location, the loading screen, the planet map and the arrival
+  message. Names are private and stored with your player, up to 24 characters each.
+
+### 🌲 Every tree its own wood (#2958)
+
+- **Own items for every tree kind:** cutting a pale birch-like tree gave the standard **Wood Log**, and the second and
+  third kinds of leaves and the blossom crowns gave plain **Leaves**. They now drop **Pale wood log**, **Leaves (kind 2)**,
+  **Leaves (kind 3)** and **Blossom leaves**, which place their own block again.
+- **Any log will do:** all 18 wood recipes, the field kitchen's research and the firewood wish take **Logs (any kind)** —
+  the standard log is used up first. The crafting, research and vendor lists show the group, and VEGA's tips and the
+  missing-materials line count it too.
+
+### ❄️ Frozen seas and the far view — thanks to Justus and Jonah (#2955, #2956)
+
+- **Calm jellyfish over a frozen sea (#2955):** two jellyfish over a deep frozen tundra sea seemed to blink — they jumped
+  between the ice and the seabed every tick, because the game did not look through the ice to the water's real top. They
+  now float calmly over the ice, and they spawn over it instead of under it. An open deep sea got the same fix.
+- **Ice in the far view (#2956):** the **Far view** drew every frozen sea, pond and river as open water, and far
+  mountains had no snow. Frozen water now shows as ice, and far land wears the same snow and ice as the near chunks.
+
+### 🩹 The Field Medkit says why (#2957)
+
+- When everyone in reach is at full health, the **Field Medkit** is refused with "Everyone near you is already healthy
+  — the medkit only heals injuries." It no longer costs energy or starts its cooldown for nothing. The manual has a
+  medkit paragraph now.
+
+### 💡 Light, drones and animals — thanks to Lyxette and Justus (#2950, #2951, #2960)
+
+- **Lamp light crosses chunk borders (#2951):** after you built near a lamp, its light could stop dead at a chunk
+  border. Placing, mining or recolouring a lamp, or opening and closing cells in its reach, now redraws every chunk the
+  light reaches. Loaded chunks with lamps refresh their neighbours too.
+- **Guardian drones stay out of your tunnels (#2950):** Lyxette raised the ground of his spaceport by five or six blocks
+  and found a guardian drone patrolling inside his tunnels, its body in the roof. A drone now measures from the real
+  ground, never flies or gets knocked into blocks, and a buried drone is lifted out. A drone whose spot lies under a roof
+  or a floating platform now appears on top of it.
+- **No animals on your floor after loading (#2960):** land animals still stood on Lyxette's walled spaceport, but only
+  right after he loaded the world. The first animals were placed before the ground around you was loaded, so the game
+  could not see your floor. They now wait for the ground (at most six seconds), so the floor rules hold from the first
+  animal on.
+
+### 🖥️ Menus
+
+- **System Check in line (#2953):** the main menu's **// SYSTEM CHECK** box and title sit on the menu column's line, and
+  the loading screen and the save/host screen's title follow the same lines.
+
+### 🙏 Credits
+
+- **Jonah** is now in the README and the in-game Credits — his F1 reports calmed the jellyfish over the frozen sea and
+  taught the medkit to say why.
+
+### 🛠️ For tinkerers
+
+- **Recipe groups (#2958):** an item can belong to a group (`ItemDefinition.Group`), and a recipe ingredient, a research
+  cost or a wish can name one (`{ "item": "wood_log", "group": "logs" }` — the item is the representative, used up
+  first). `MaterialPool`, `CraftGate` and `BlueprintResearch` are group-aware; the content validator rejects unknown
+  groups, a representative outside its group and two ingredients drawing on one item. `tools/merge_recipe.py` writes the
+  group of an editor recipe's log. Items are stored by key, so no save-version change.
+- **Private place names (#2952):** `PlayerState.PlaceNames`, `SetPlaceNameIntent` (NetCodec 305), and per receiver
+  `NetBody.CustomName` / `NetStarSystem.CustomName`; the generated `Name` stays every key.
+- **Light reach (#2951):** `ClientWorld.LightReachThrough` + `LightReach.ChunksTouched` (Client.Core) decide which chunks
+  an edit re-meshes.
+- **Creatures (#2955, #2960):** `FluidRestY` rests a fluid probe on an ice lid (`GameServerCreatureIceLid.cs`); the first
+  fauna batch after a join or landing is queued (`QueueFaunaSeed`) until the spawn ring's ground is loaded
+  (`GameServerFaunaSeed.cs`). Drone clearance lives in `GameServerDroneClearance.cs`.
+- **For hosters:** the WorldHost and report host images were rebuilt for the shared-model changes and roll with this
+  release; the AI backend image is the same as in 2026.10.25.
+
 ## [2026.10.25] — 2026-10-24
 
 The housekeeping release. Lyxette's reports bring **64 Power Relays** for the rim of a big spaceport, **torch light that
@@ -9010,7 +9096,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.25...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.26...HEAD
+[2026.10.26]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.25...v2026.10.26
 [2026.10.25]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.24...v2026.10.25
 [2026.10.24]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.23...v2026.10.24
 [2026.10.23]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.22...v2026.10.23

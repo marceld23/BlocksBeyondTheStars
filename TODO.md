@@ -44,6 +44,8 @@ Tests: `FaunaSeedTests` (a paved world reloaded with a real network join puts no
 without the fix; a player still aboard gets the first batch within the timeout), `TravelTests.Travel_SeedsFaunaOnArrival_OnALivingWorld`
 (a few ticks after the landing instead of none). Docs: WORLD_GENERATION.md (spawning on loaded ground), USER_MANUAL.md.
 
+**Released** in **v2026.10.26** "the explorer release" (2026-10-24).
+
 ---
 
 ### 📬 Player reports 2026-10-24, afternoon (Justus as Layex + Jonah as Screelit, LAN world "J&J", v2026.10.25) — jellyfish blinking over a frozen sea, ice gone from the far view, a medkit that "does nothing", every tree the standard kind — #2955–#2958, branch fix/reports-2026-10-24b — ✅ done 2026-10-24 (⚠ playtest open; no generation or save-version change, no protocol bump)
@@ -78,6 +80,11 @@ and cutting a tree always gives the one standard log and leaves.
 Tests: `CreatureFrozenSeaTests` (4), `FarTerrainTests` (frozen sea + cold land vs. chunks), `ActionFxTests` (medkit
 refusal), `TreeVariantItemTests` (7), `CraftGateTests` + `BlueprintResearchTests` (group parity). Texts in all 14 languages.
 Docs: USER_MANUAL.md (medkit, far view, tree wood, boat), WORLD_GENERATION.md, WILDERNESS_FOLK.md, CRAFTING_TECH_SHIP_UI.md.
+
+Credits: **Jonah** (Screelit this round — the medkit and jellyfish reports) is in the README playtester list and the
+in-game Credits (`ui.credits.body`, all 14 languages) since the 2026.10.26 release PR.
+
+**Released** in **v2026.10.26** "the explorer release" (2026-10-24).
 
 ---
 
@@ -118,6 +125,8 @@ Tests: `DroneClearanceTests` (4; the spawn, roof-push and buried cases red witho
 Client.Tests), `PlaceNamesTests` (5) + `PlaceNamesClientTests` (5, real wire, both codecs), NetCodec golden list,
 `IntentDispatchRegistryTests` 155 → 156.
 Docs: USER_MANUAL.md (scan-drones, your own names), ENTITY_MOTION.md, ADVANCED_GRAPHICS.md.
+
+**Released** in **v2026.10.26** "the explorer release" (2026-10-24).
 
 ---
 
