@@ -11,6 +11,82 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.28] — 2026-10-25
+
+The duel release, made from four wishes in one day's reports. Players can now **fight each other on foot** — but only
+when the world says so: the world admin picks **Off, Duels only, Crew vs crew or On**, and a **Friendly fire** switch
+decides whether allies can hit each other. **Nobody loses anything** to another player, and **nobody dies in a duel**.
+The **Codex has an Enemies chapter** that fills in as you meet each kind. The **giant tree is now mahogany**, so a trunk
+you mined by accident can be patched seamlessly. Builders in **Sandbox and Creative** go **back to their ship without
+waiting**, and the planet-type page got **"Only this"**, **"All normal"** and a **% share** per row. Thanks to Lyxette and
+Justus.
+
+ℹ️ **Compatibility:** nothing changes for saves. The **save version stays 6**, the **terrain generation stays 29** and
+the network protocol stays at **version 11**. There are no new blocks — the giant trunk just drops itself now. As always,
+keep game and server on the same version: the desktop game updates itself at start, and the browser is always current.
+
+### ⚔️ PvP and duels — players against players (#2972, thanks to Justus)
+
+- **Off unless the world wants it:** Justus wanted to switch weapons and friendly fire on and off in the world settings.
+  The switches already existed, but nothing used them: players could not hurt each other at all. Now the world admin
+  sets **PvP** in **Tab → Character → World rules**: **Off** (the default) · **Duels only** · **Crew vs crew** (players
+  of different crews) · **On**. **Friendly fire** next to it decides whether allies and crew mates can hit each other too
+  (default off). Both can be changed live.
+- **How it works:** look at another player with a weapon (or your fists) and attack as you would a machine. The crosshair
+  turns red only on a player you may hit right now.
+- **Safe places:** nobody can be hit aboard a ship, in a space station, in space or on a spacewalk, in a speeder or train,
+  in god mode or in Sandbox/Creative, or in their first 10 seconds after joining or after being defeated.
+- **Kid-friendly:** a player defeated by another player **keeps every item**, whatever the death penalty says, and
+  respawns at the heal tank; everybody reads *"X defeated Y"*.
+- **Duels:** the **Alliances** tab has a **Duels** section with a **Challenge** button for every online player. The other
+  player can accept or decline. **Nobody dies in a duel:** whoever goes down first loses, gets straight back up and both
+  read who won. **Give up** ends it, and so do leaving or 5 minutes.
+- PvP is set in the game, not on the world-creation page, which has no room left for it.
+
+### 📖 Codex → Enemies (#2971, thanks to Justus)
+
+- **A tablet with all the enemies:** Justus wished for a page with every enemy, from UFOs and spaceships to drones, with
+  damage, health and names. The **Codex** now has an **Enemies** chapter: space drones, UFOs, cruisers and raider ships in
+  space, and scan drones, Guardian robots, hunters and robbers on the ground. Each entry shows the enemy's **health**,
+  **damage** (and its stronger kind's), its **loot**, what it is and **a tip how to beat it**.
+- **Meet it to fill it in:** an entry reads **???** until the enemy has come within weapon reach of you, on foot or in
+  your ship. The first meeting says *"New Codex entry: …"*. The numbers are the game's own, so they are always right.
+- **Side fix:** robbers' close-range damage now uses each robber's own strength.
+
+### 🌳 The giant tree is mahogany (#2968, thanks to Lyxette)
+
+- **Patch it seamlessly:** Lyxette wanted wood in different colours, above all a dark mahogany from the giant tree,
+  because a trunk part mined by accident could not be repaired without a different colour showing. Mining a **Giant
+  mahogany trunk** now gives **two Giant mahogany logs**, which place the same trunk again — same colour, same grain.
+- **One colour everywhere:** the giant tree's bark is the same dark red-brown on every planet. Common trunks keep their
+  planet's own colour, and the pale birch stays light.
+- **Any recipe:** a giant mahogany log is a log like any other, so every wood recipe takes it.
+
+### 🏗️ For builders and world makers (#2969, #2970, thanks to Justus)
+
+- **Back to my ship without waiting (#2969):** in a **Sandbox** or **Creative** world, or when the world admin set you to
+  Creative, the 3-minute wait on **Back to my ship** is gone. Use it as often as you like.
+- **Planet types & frequency (#2970):** Justus wanted to set how common each planet type is, and to put one at 100 % so
+  only that kind appears. The page, now called **"Planet types & frequency…"**, shows each type's **share of the planets
+  in %**. **Only this** on a row leaves just that type, **All normal** gives an even mix, and **Reset** goes back to the
+  game's own mix. Your home planet stays a varied world. This applies to new worlds.
+
+### 🛠️ For tinkerers
+
+- **Enemy data (#2971):** `data/enemies.json` (9 kinds, tiers normal/elite/camp) is what the server builds every drone,
+  UFO, cruiser, raider ship, Guardian machine and robber from (`GameServer.NewEnemy`); the built-in `EnemyCatalog`
+  defaults equal the old constants, and a test pins the file to them, so balance is unchanged. Meetings are
+  `PlayerState.EnemiesMet` (persisted) and `EnemyLog` (NetCodec 306); the chapter is drawn by `EnemyCodexText`
+  (Client.Core).
+- **PvP (#2972):** `PvpRules.Refusal` holds the rule table; `GameServerPvp` adds the guards and duels;
+  `GameServerSwing` (cooldown, energy, damage) was extracted from `AttackCombatEntity`. `Respawn.SparedByPvp` keeps a PvP
+  defeat free of loss. New messages `PvpTargets` (307), `DuelIntent` / `DuelNotice` (308/309); an older peer drops them,
+  so no protocol bump.
+- **Wood (#2968):** `giant_log` is now an item of the `logs` group that drops itself ×2; `FloraTints.Mahogany` is fixed.
+- **Planet mix (#2970):** `PlanetTypeMix` (Client.Core) computes the shares and the two shortcuts.
+- **For hosters:** the WorldHost and report-host images were rebuilt for the shared-model changes and roll with this
+  release; the AI backend image is unchanged.
+
 ## [2026.10.27] — 2026-10-25
 
 The backpack release: a small fix from a playtest on the evening of the explorer release. When something you mine tops up
@@ -9128,7 +9204,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.27...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.28...HEAD
+[2026.10.28]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.27...v2026.10.28
 [2026.10.27]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.26...v2026.10.27
 [2026.10.26]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.25...v2026.10.26
 [2026.10.25]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.24...v2026.10.25

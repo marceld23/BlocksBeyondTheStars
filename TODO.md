@@ -52,6 +52,8 @@ could not hurt each other — so "friendly fire on/off" first needed on-foot PvP
 - **Open:** playtest — mahogany look on an old and a new world, Sandbox return, "Only this", Codex entries filling in,
   a LAN PvP round (On / duel / friendly fire). Parked idea: wood types that keep their colour across planets.
 
+**Released** in **v2026.10.28** "the duel release" (2026-10-25).
+
 ### 📬 Player report 2026-10-24, night (Marcel, v2026.10.26) — mined wood "does not arrive in the inventory" — #2964, branch fix/reports-2026-10-24d — ✅ done 2026-10-24 (⚠ playtest open; no generation, save or protocol change)
 
 The report: cutting a birch, the pale logs never showed up in the inventory, even with room for them.
