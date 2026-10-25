@@ -44,6 +44,7 @@ namespace BlocksBeyondTheStars.Client
             "creatures.json",
             "derelict_logs.json",
             "dialogs.json",
+            "enemies.json", // #2971
             "items.json",
             "locale_coverage.json",
             "locales/de.json",
