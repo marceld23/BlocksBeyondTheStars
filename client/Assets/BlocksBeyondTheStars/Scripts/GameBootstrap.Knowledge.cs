@@ -189,6 +189,10 @@ namespace BlocksBeyondTheStars.Client
         public readonly System.Collections.Generic.Dictionary<string, (string Body, string System)> DiscoveryWhere
             = new System.Collections.Generic.Dictionary<string, (string Body, string System)>();
 
+        /// <summary>The enemies this player has met (#2971) — the Codex's "Enemies" chapter fills their entries. Mirrors the
+        /// server's <c>PlayerState.EnemiesMet</c>.</summary>
+        public readonly System.Collections.Generic.HashSet<string> EnemiesMet = new System.Collections.Generic.HashSet<string>();
+
         /// <summary>Persisted explored-map cells per body (#1113), as the server sent them on arrival —
         /// the planet map draws these as "remembered" ground under its live fog. Keyed by body id so an
         /// out-of-order WorldReset can never show another body's fog.</summary>
@@ -268,6 +272,7 @@ namespace BlocksBeyondTheStars.Client
             Network.ExploredMapReceived += m => { if (!string.IsNullOrEmpty(m.BodyId)) ExploredMaps[m.BodyId] = m; };
             Network.MissionsReceived += m => Missions = m;
             Network.AllianceListReceived += m => Alliances = m ?? new AllianceList();
+            WirePvp(); // #2972: whom this player may hit, and duels
             Network.CrewListReceived += m => Crew = m ?? new CrewList();
             Network.CrewInviteReceived += m =>
             {
@@ -358,6 +363,22 @@ namespace BlocksBeyondTheStars.Client
                     if (bodyName.Length > 0 || systemName.Length > 0)
                     {
                         DiscoveryWhere[entries[i]] = (bodyName, systemName);
+                    }
+                }
+            };
+            Network.EnemyLogReceived += m =>
+            {
+                if (m.Full)
+                {
+                    EnemiesMet.Clear(); // the join snapshot replaces whatever a previous session left
+                }
+
+                foreach (var key in m.Keys ?? System.Array.Empty<string>())
+                {
+                    if (EnemiesMet.Add(key) && !m.Full && Content != null && Localizer != null)
+                    {
+                        // #2971: a first meeting says so — the Codex has a new page.
+                        LastMessage = string.Format(Localizer.Get("ui.wiki.enemies.new"), Localizer.Get(Content.Enemy(key).NameKey));
                     }
                 }
             };

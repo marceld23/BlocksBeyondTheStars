@@ -18,4 +18,8 @@ public sealed class PlayerSessionRespawn
     public bool PendingRespawnSalvaged { get; set; }
     public bool PendingRespawnSameWorld { get; set; }
     public string PendingRespawnReason { get; set; } = string.Empty;
+
+    /// <summary>#2972: set only around the respawn of a player defeated by another player — that respawn keeps every item,
+    /// whatever the world's death penalty says.</summary>
+    public bool SparedByPvp { get; set; }
 }

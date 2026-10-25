@@ -2547,7 +2547,7 @@ public sealed partial class GameServer
         EndShipVisitsOf(session);
 
         var p = session.State;
-        bool dropSalvage = !Rules.KeepInventoryOnDeath &&
+        bool dropSalvage = !Rules.KeepInventoryOnDeath && !session.Respawn.SparedByPvp && // #2972: a PvP defeat costs nothing
                            Rules.DeathPenalty is DeathPenalty.Normal or DeathPenalty.Hard;
 
         bool salvaged = false;
@@ -6886,6 +6886,7 @@ public sealed partial class GameServer
         {
             GameMode = r.ModeFor(over).ToString(),
             Pvp = r.Pvp.ToString(),
+            FriendlyFire = r.FriendlyFire ? "On" : "Off", // #2972 (empty = a server without on-foot PvP)
             AggressiveAliens = r.AggressiveAliens.ToString(),
             EnvironmentalHazards = r.EnvironmentalHazards.ToString(),
             DeathPenalty = r.DeathPenalty.ToString(),
@@ -6942,20 +6943,10 @@ public sealed partial class GameServer
         Apply(intent.SpaceNpcEnemies, v => Rules.SpaceNpcEnemies = v);
         Apply(intent.AlienUfos, v => Rules.AlienUfos = v);
         Apply(intent.Bandits, v => Rules.Bandits = v);
-        if (!string.IsNullOrEmpty(intent.InstantTravel))
-        {
-            Rules.InstantTravel = intent.InstantTravel.Equals("On", System.StringComparison.OrdinalIgnoreCase);
-        }
-
-        if (!string.IsNullOrEmpty(intent.KeepInventoryOnDeath))
-        {
-            Rules.KeepInventoryOnDeath = intent.KeepInventoryOnDeath.Equals("On", System.StringComparison.OrdinalIgnoreCase);
-        }
-
-        if (!string.IsNullOrEmpty(intent.KeepShipOnDeath))
-        {
-            Rules.KeepShipOnDeath = intent.KeepShipOnDeath.Equals("On", System.StringComparison.OrdinalIgnoreCase);
-        }
+        ApplyOnOff(intent.InstantTravel, v => Rules.InstantTravel = v);
+        ApplyOnOff(intent.KeepInventoryOnDeath, v => Rules.KeepInventoryOnDeath = v);
+        ApplyOnOff(intent.KeepShipOnDeath, v => Rules.KeepShipOnDeath = v);
+        ApplyPvpRules(intent); // #2972: the PvP mode + friendly fire
 
         // Environmental hazards (#670): the live switch for the temperature hazard — Off disables it
         // on a running world without CLI flags, Light/Hard soften/sharpen it.
@@ -7055,7 +7046,7 @@ public sealed partial class GameServer
         _log.Info($"World rules updated by '{session.State.Name}': creatures={Rules.CreatureAbundance}, " +
                   $"planet={Rules.PlanetEnemies}, space={Rules.SpaceNpcEnemies}, ufos={Rules.AlienUfos}, " +
                   $"bandits={Rules.Bandits}, instantTravel={Rules.InstantTravel}, hazards={Rules.EnvironmentalHazards}, " +
-                  $"autoAim={Rules.AutoAim}, starterTeleporter={Rules.StarterTeleporter}, returnToShip={Rules.ReturnToShip}, " +
+                  $"autoAim={Rules.AutoAim}, starterTeleporter={Rules.StarterTeleporter}, returnToShip={Rules.ReturnToShip}, pvp={Rules.Pvp}/ff={Rules.FriendlyFire}, " +
                   $"friendlyVisitors={Rules.FriendlyVisitors}, tutorial={Rules.TutorialPolicy}, storyDensity={Rules.StoryDensity}.");
     }
 

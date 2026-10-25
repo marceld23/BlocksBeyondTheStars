@@ -30,6 +30,13 @@ namespace BlocksBeyondTheStars.Client
         private const float AdvancedListH = 676f;
         private const float AdvancedRowPitch = 56f;
 
+        /// <summary>The planet-type rows (#2970): slider row, share column and "Only this" button, two columns — the second
+        /// column's button must end inside the 1580 px viewport (WorldOptionsLayoutTests).</summary>
+        private const float AdvancedSliderW = 600f;
+        private const float AdvancedShareW = 55f;
+        private const float AdvancedOnlyW = 100f;
+        private const float AdvancedSecondColumnX = 805f;
+
         /// <summary>The Stories page (#2472): column headers, the first choice row, the main-story choice rows (height and
         /// pitch; at most <see cref="WorldStoryOptions.MaxChoices"/>), the chosen story's description box under them, and the
         /// tutorial rule's rows (they start <see cref="StoriesTutorialOffset"/> under the list top, below the tutorial's own
@@ -386,6 +393,20 @@ namespace BlocksBeyondTheStars.Client
             var content = BuildAdvancedViewport(parent);
             int perColumn = Mathf.Max(1, Mathf.CeilToInt(types.Count / 2f));
             content.sizeDelta = new Vector2(0f, perColumn * AdvancedRowPitch);
+
+            // #2970 (Justus: "if I put one at 100 %, all the others are at 0 %"): every row shows its share of the mix and
+            // has an "Only this" button; the footer adds "All normal". The arithmetic is PlanetTypeMix (Client.Core, tested).
+            var mixRows = types.Select(t => new PlanetTypeMix.Row(t.Key, t.SpawnWeight, t.Exotic)).ToList();
+            var shareTexts = new Dictionary<string, Text>();
+            void RefreshShares()
+            {
+                var shares = PlanetTypeMix.SharesPercent(opt.PlanetTypes, mixRows, opt.Exotic);
+                foreach (var kv in shareTexts)
+                {
+                    kv.Value.text = shares.TryGetValue(kv.Key, out var pct) && pct > 0 ? pct + " %" : "–";
+                }
+            }
+
             const float FirstRowY = 4f;
             float x = 30f, y = FirstRowY;
             int row = 0;
@@ -393,23 +414,41 @@ namespace BlocksBeyondTheStars.Client
             {
                 string key = p.Key;
                 string label = shell.L(p.NameKey) + (p.Exotic ? " ◆" : string.Empty);
-                AddSliderRow(content, x, y, 740f, label, freqSteps,
+                AddSliderRow(content, x, y, AdvancedSliderW, label, freqSteps,
                     () => opt.PlanetTypes.TryGetValue(key, out var v) ? v : DefaultIndex(p.SpawnWeight),
-                    v => opt.PlanetTypes[key] = v,
+                    v =>
+                    {
+                        opt.PlanetTypes[key] = v;
+                        RefreshShares();
+                    },
                     rebuilders);
+                shareTexts[key] = UiKit.AddText(content, x + AdvancedSliderW + 5f, y, AdvancedShareW, 40f, string.Empty, 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                UiKit.AddButton(content, x + AdvancedSliderW + AdvancedShareW + 10f, y + 2f, AdvancedOnlyW, 36f, shell.L("ui.worldopt.only_this"), () =>
+                {
+                    PlanetTypeMix.OnlyThis(opt.PlanetTypes, mixRows, key);
+                    Refresh();
+                });
 
                 y += AdvancedRowPitch;
                 if (++row == perColumn)
                 {
-                    x = 820f;
+                    x = AdvancedSecondColumnX;
                     y = FirstRowY;
                 }
             }
+
+            rebuilders.Add(RefreshShares); // Reset, All normal, Only this and a changed exotic slider all land here
+            RefreshShares();
 
             // Reset also moves the sliders back — before, the map was cleared but every row kept showing its override.
             UiKit.AddButton(parent, 30f, FooterY, 420f, 48f, shell.L("ui.worldopt.advanced_reset"), () =>
             {
                 opt.PlanetTypes.Clear();
+                Refresh();
+            });
+            UiKit.AddButton(parent, 470f, FooterY, 380f, 48f, shell.L("ui.worldopt.all_normal"), () =>
+            {
+                PlanetTypeMix.AllNormal(opt.PlanetTypes, mixRows);
                 Refresh();
             });
             return Refresh;

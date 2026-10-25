@@ -57,6 +57,7 @@ namespace BlocksBeyondTheStars.Client
             ("modules", "ui.wiki.modules"),
             ("planets", "ui.wiki.planets"),
             ("discoveries", "ui.wiki.discoveries"), // what THIS player has scanned (#484)
+            ("enemies", "ui.wiki.enemies"),         // the hostiles THIS player has met (#2971)
             ("substances", "ui.wiki.substances"),   // the bio lab's research book (#2203): species analysed…
             ("compounds", "ui.wiki.compounds"),     // …mixes tried…
             ("materials", "ui.wiki.materials"),     // …deposits analysed and tools and gear changed
@@ -312,12 +313,9 @@ namespace BlocksBeyondTheStars.Client
         private string BuildChapterText(string chapter) => chapter switch
         {
             "guide" => BuildGuide(),
-            // Items/Tech/Ships/Modules carry a DescriptionKey (shown under each name); Blocks/Planets have no
-            // description text in the content data yet, so they list names only (pass a null description selector).
-            // Blocks/Planets carry no DescriptionKey in their definitions, but the locale tables now hold
-            // block.*.desc / planet.*.desc entries authored alongside the names — derive the key by convention
-            // (".name" → ".desc") so they show a description line. Desc() still renders nothing for any key
-            // that has no locale entry, so undescribed (cosmetic) blocks stay name-only.
+            // Items/Tech/Ships/Modules carry a DescriptionKey (shown under each name). Blocks/Planets have none in their
+            // definitions, but the locale tables hold block.*.desc / planet.*.desc — derived by convention (".name" →
+            // ".desc"); Desc() renders nothing for a key without a locale entry, so cosmetic blocks stay name-only.
             "blocks" => BuildEntries(L("ui.wiki.blocks"), Entries(Game?.Content?.Blocks?.Values, d => d.NameKey, d => ToDescKey(d.NameKey))),
             "items" => BuildEntries(L("ui.wiki.items"), Entries(Game?.Content?.Items?.Values, d => d.NameKey, d => d.DescriptionKey)),
             "tech" => BuildEntries(L("ui.wiki.tech"), Entries(Game?.Content?.Blueprints?.Values, d => d.NameKey, d => d.DescriptionKey)),
@@ -325,6 +323,7 @@ namespace BlocksBeyondTheStars.Client
             "modules" => BuildEntries(L("ui.wiki.modules"), Entries(Game?.Content?.ShipModules?.Values, d => d.NameKey, d => d.DescriptionKey)),
             "planets" => BuildEntries(L("ui.wiki.planets"), PlanetEntries()),
             "discoveries" => BuildDiscoveries(),
+            "enemies" => Game?.Content == null ? string.Empty : EnemyCodexText.Build(Game.Content.Enemies, Game.EnemiesMet, L, k => L(Game.Content.GetItem(k)?.NameKey ?? k)),
             "substances" => BuildSubstances(),
             "compounds" => BuildCompounds(),
             "materials" => BuildMaterials(),

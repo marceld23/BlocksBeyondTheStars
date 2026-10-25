@@ -176,7 +176,7 @@ public sealed class GiantTreeTests
         Assert.NotNull(leaves);
         Assert.False(log!.Flammable); // #2872: a ground fire leaves the giant standing
         Assert.True(leaves!.Flammable);
-        Assert.Contains(log.Drops, d => d.Item == "wood_log"); // a felled giant is ordinary wood in the hand
+        Assert.Contains(log.Drops, d => d.Item == "giant_log"); // #2968: a felled giant is its own mahogany — a trunk can be patched
         Assert.Empty(leaves.Drops);
     }
 }

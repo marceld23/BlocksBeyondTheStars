@@ -793,6 +793,8 @@ public sealed partial class GameContent
             }
         }
 
+        ValidateEnemies(problems); // #2971: data/enemies.json
+
         if (problems.Count > 0)
         {
             throw new ContentValidationException(problems);

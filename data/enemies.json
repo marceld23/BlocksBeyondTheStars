@@ -1,0 +1,47 @@
+// The hostiles (#2971): the server builds every drone, UFO, cruiser, raider ship, Guardian machine and robber from
+// these tiers, and the Codex's "Enemies" chapter shows the same numbers. Order = the Codex's order.
+// hull: health; hullMax: the most a scaling tier reaches (a bigger raider hull), 0 = always hull;
+// damagePerSecond: while in reach and attacking; loot: what it drops when defeated.
+// Tiers: "normal" (every enemy), "elite" (the Guardian gauntlet), "camp" (a bandit camp's guard).
+[
+  { "key": "space_drone", "nameKey": "enemy.space_drone.name", "descriptionKey": "enemy.space_drone.desc", "tipKey": "enemy.space_drone.tip", "where": "space",
+    "tiers": {
+      "normal": { "hull": 40, "damagePerSecond": 5, "loot": [ { "item": "data_fragment", "count": 1 } ] },
+      "elite":  { "hull": 70, "damagePerSecond": 7, "loot": [ { "item": "data_fragment", "count": 2 } ] }
+    } },
+  { "key": "ufo", "nameKey": "enemy.ufo.name", "descriptionKey": "enemy.ufo.desc", "tipKey": "enemy.ufo.tip", "where": "space",
+    "tiers": {
+      "normal": { "hull": 40, "damagePerSecond": 4, "loot": [ { "item": "data_fragment", "count": 3 } ] },
+      "elite":  { "hull": 95, "damagePerSecond": 8, "loot": [ { "item": "data_fragment", "count": 4 } ] }
+    } },
+  { "key": "cruiser", "nameKey": "enemy.cruiser.name", "descriptionKey": "enemy.cruiser.desc", "tipKey": "enemy.cruiser.tip", "where": "space",
+    "tiers": {
+      "normal": { "hull": 260, "damagePerSecond": 10, "loot": [ { "item": "data_fragment", "count": 8 } ] }
+    } },
+  { "key": "bandit_ship", "nameKey": "enemy.bandit_ship.name", "descriptionKey": "enemy.bandit_ship.desc", "tipKey": "enemy.bandit_ship.tip", "where": "space",
+    "tiers": {
+      "normal": { "hull": 55, "hullMax": 120, "damagePerSecond": 5, "loot": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 2 } ] }
+    } },
+  { "key": "scan_drone", "nameKey": "enemy.scan_drone.name", "descriptionKey": "enemy.scan_drone.desc", "tipKey": "enemy.scan_drone.tip", "where": "planet",
+    "tiers": {
+      "normal": { "hull": 25, "damagePerSecond": 2, "loot": [ { "item": "carbon", "count": 2 } ] }
+    } },
+  { "key": "guardian_robot", "nameKey": "enemy.guardian_robot.name", "descriptionKey": "enemy.guardian_robot.desc", "tipKey": "enemy.guardian_robot.tip", "where": "planet",
+    "tiers": {
+      "normal": { "hull": 30, "damagePerSecond": 4, "loot": [ { "item": "carbon", "count": 2 } ] }
+    } },
+  { "key": "hunter", "nameKey": "enemy.hunter.name", "descriptionKey": "enemy.hunter.desc", "tipKey": "enemy.hunter.tip", "where": "planet",
+    "tiers": {
+      "normal": { "hull": 60, "damagePerSecond": 6, "loot": [ { "item": "carbon", "count": 2 } ] }
+    } },
+  { "key": "bandit", "nameKey": "enemy.bandit.name", "descriptionKey": "enemy.bandit.desc", "tipKey": "enemy.bandit.tip", "where": "planet",
+    "tiers": {
+      "normal": { "hull": 35, "damagePerSecond": 5, "loot": [ { "item": "iron_plate", "count": 2 } ] },
+      "camp":   { "hull": 35, "damagePerSecond": 5, "loot": [ { "item": "iron_plate", "count": 2 }, { "item": "carbon", "count": 2 } ] }
+    } },
+  { "key": "bandit_gunner", "nameKey": "enemy.bandit_gunner.name", "descriptionKey": "enemy.bandit_gunner.desc", "tipKey": "enemy.bandit_gunner.tip", "where": "planet",
+    "tiers": {
+      "normal": { "hull": 35, "damagePerSecond": 3, "loot": [ { "item": "iron_plate", "count": 2 } ] },
+      "camp":   { "hull": 35, "damagePerSecond": 3, "loot": [ { "item": "iron_plate", "count": 2 }, { "item": "carbon", "count": 2 } ] }
+    } }
+]

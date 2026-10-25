@@ -144,6 +144,7 @@ public sealed partial class GameServer
         On<TeleportToShipIntent>(map, (gs, s, _) => gs.HandleTeleportToShip(s));
         On<TeleportToPlayerIntent>(map, (gs, s, m) => gs.HandleTeleportToPlayer(s, m));
         On<ReturnToShipIntent>(map, (gs, s, _) => gs.HandleReturnToShip(s)); // #2286
+        On<DuelIntent>(map, (gs, s, m) => gs.HandleDuel(s, m)); // #2972
         On<ToggleStealthIntent>(map, (gs, s, _) => gs.HandleToggleStealth(s));
         On<SetJetpackIntent>(map, (gs, s, m) => gs.HandleSetJetpack(s, m));
         On<SetGlidingIntent>(map, (gs, s, m) => gs.HandleSetGliding(s, m)); // #2296

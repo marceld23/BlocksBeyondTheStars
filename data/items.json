@@ -4,6 +4,7 @@
   { "key": "grass",           "nameKey": "item.grass.name",           "category": "block",      "maxStack": 1024, "placesBlock": "grass", "descriptionKey": "item.grass.desc" },
   { "key": "wood_log",        "nameKey": "item.wood_log.name",        "category": "block",      "maxStack": 1024, "placesBlock": "wood_log", "group": "logs" },
   { "key": "wood_log_b",      "nameKey": "item.wood_log_b.name",      "category": "block",      "maxStack": 1024, "descriptionKey": "item.wood_log_b.desc", "placesBlock": "wood_log_b", "group": "logs" },
+  { "key": "giant_log",       "nameKey": "item.giant_log.name",       "category": "block",      "maxStack": 1024, "descriptionKey": "item.giant_log.desc", "placesBlock": "giant_log", "group": "logs" },
   { "key": "basalt",          "nameKey": "item.basalt.name",          "category": "block",      "maxStack": 1024, "placesBlock": "basalt" },
   { "key": "ice",             "nameKey": "item.ice.name",             "category": "block",      "maxStack": 1024, "placesBlock": "ice" },
   { "key": "iron_ore",        "nameKey": "item.iron_ore.name",        "category": "material",   "maxStack": 1024, "labTraits": { "hard": 2, "heavy": 2, "magnetic": 1 } },

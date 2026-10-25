@@ -20,10 +20,6 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private const float BanditShipHull = 55f;      // the least a raider has (a scout hull); bigger hulls carry more (#2357)
-    private const float BanditShipHullMax = 120f;  // …up to this (a hammerhead) — still a short fight for a starter laser
-    private const float BanditShipDps = 5f;
-
     /// <summary>Structure id prefix of a raider's voxel hull (#2357): <c>ship:bandit:&lt;entityId&gt;</c>. Kind "ship"
     /// and ownerless like a trader's, so the join-time cross-send hands it to late pilots; the client looks it up as
     /// <c>RemoteShipDesignFor("bandit:&lt;entityId&gt;")</c>.</summary>
@@ -252,19 +248,10 @@ public sealed partial class GameServer
             instance.ShipPosition.Y + (float)(_banditRng.NextDouble() * 20.0 - 10.0),
             instance.ShipPosition.Z + (float)System.Math.Sin(ang) * BanditWarpInDistance);
 
-        var raider = new CombatEntity
-        {
-            Id = NextEntityId(),
-            Kind = CombatEntityKind.BanditShip,
-            Name = NameGenerator.Person(_banditRng),
-            Hostile = false, // it talks first
-            Hull = BanditShipHull,
-            HullMax = BanditShipHull,
-            Position = pos,
-            DamagePerSecond = BanditShipDps,
-            BanditPhase = BanditPhase.Approach,
-            Loot = { new ItemAmount("data_fragment", 2), new ItemAmount("titanium_plate", 2) },
-        };
+        var raider = NewEnemy(EnemyCatalog.BanditShip, EnemyTiers.Normal, CombatEntityKind.BanditShip, pos); // #2971: data/enemies.json
+        raider.Name = NameGenerator.Person(_banditRng);
+        raider.Hostile = false; // it talks first
+        raider.BanditPhase = BanditPhase.Approach;
         FaceCourse(raider, instance.ShipPosition.X - pos.X, instance.ShipPosition.Z - pos.Z);
 
         // #2357: a REAL hull from the content ship designs (the trader path), in raider livery; its hull points grow
@@ -277,7 +264,8 @@ public sealed partial class GameServer
             {
                 ApplyRaiderLivery(hull);
                 hull.Position = pos;
-                raider.Hull = raider.HullMax = System.Math.Clamp(40f + hull.Cells.Count / 6f, BanditShipHull, BanditShipHullMax);
+                var tier = _content.Enemy(EnemyCatalog.BanditShip).Tier(EnemyTiers.Normal);
+                raider.Hull = raider.HullMax = System.Math.Clamp(40f + hull.Cells.Count / 6f, tier.Hull, System.Math.Max(tier.Hull, tier.HullMax));
             }
             else
             {

@@ -24,6 +24,34 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player reports 2026-10-25 (Lyxette + Justus as Screelit, v2026.10.27) — giant mahogany, Sandbox return without waiting, planet-type shortcuts, an enemies Codex, on-foot PvP with friendly fire — #2968–#2972, branch feat/reports-2026-10-25 — ✅ done 2026-10-25 (⚠ playtest open; no generation or save-version change, no protocol bump)
+
+Four wishes (8 inbox rows). The analysis found that the world rules `Pvp` and `FriendlyFire` had no reader at all — players
+could not hurt each other — so "friendly fire on/off" first needed on-foot PvP.
+
+- **#2968 (Lyxette) giant tree = mahogany:** `giant_log` drops `giant_log ×2` (was `wood_log ×2`), a new item `giant_log`
+  (group `logs`, places the block) so a giant trunk is patched seamlessly; `FloraTints.Mahogany` — one fixed dark red-brown
+  bark on every world. No new block → no id shift, no save bump. Parked: wood that keeps its colour on another planet.
+- **#2969 (Justus) Back to my ship without the 3 minutes** for a builder: a Sandbox or Creative world, or a per-player
+  Creative override (`ReturnToShipWithoutCooldown`); the state update reports 0 so the button is never greyed out.
+- **#2970 (Justus) planet-type page:** "Only this" per row, "All normal" in the footer, a live % share per row
+  (`PlanetTypeMix`, Client.Core, tested); the main page's button reads "Planet types & frequency…". New worlds only.
+- **#2971 (Justus) Codex → Enemies:** `data/enemies.json` (9 kinds, tiers normal/elite/camp) is what the server builds
+  every drone, UFO, cruiser, raider ship, Guardian machine and robber from (`NewEnemy`; built-in defaults =
+  `EnemyCatalog`, a test pins the file to them — balance unchanged). Meeting an enemy (within a hand weapon's 32 / a ship
+  weapon's 160 reach, 1 Hz) fills its entry (`PlayerState.EnemiesMet`, persisted, `EnemyLog` msg 306); `EnemyCodexText`
+  draws the chapter. Side fix: the robbers' damage aura used constants instead of the robber's own `DamagePerSecond`.
+- **#2972 (Justus) on-foot PvP + friendly fire:** `PvpRules.Refusal` (Off / DuelsOnly / GroupBased = crew vs crew / On;
+  allies spared unless friendly fire), guards (aboard, station, space/EVA, vehicle, god mode/Sandbox, 10 s after a join
+  or a PvP defeat), the same swing as against machines (`GameServerSwing`: cooldown, energy, damage — extracted from
+  `AttackCombatEntity`). A PvP defeat never costs an item (`Respawn.SparedByPvp`); a duel never kills (loser back to 100).
+  `PvpTargets` (307) tells each client whom it may aim at; `DuelIntent`/`DuelNotice` (308/309); the admin switches PvP
+  and friendly fire live (Character → world rules). The world-creation page has no room (left column full, like
+  auto-aim), so PvP is set in-game. USER_MANUAL: *PvP and duels*; the misleading alliance sentence fixed.
+- Texts in all 14 languages (73 keys machine-translated + hand QA).
+- **Open:** playtest — mahogany look on an old and a new world, Sandbox return, "Only this", Codex entries filling in,
+  a LAN PvP round (On / duel / friendly fire). Parked idea: wood types that keep their colour across planets.
+
 ### 📬 Player report 2026-10-24, night (Marcel, v2026.10.26) — mined wood "does not arrive in the inventory" — #2964, branch fix/reports-2026-10-24d — ✅ done 2026-10-24 (⚠ playtest open; no generation, save or protocol change)
 
 The report: cutting a birch, the pale logs never showed up in the inventory, even with room for them.

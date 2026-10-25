@@ -63,9 +63,12 @@ Last updated: 2026-10-04.
 - **World options** ("Weltoptionen") at world creation: pick a preset (**Friedlich / Standard /
   Feindselig**) or tune sliders — life & threats (creatures, planet enemies, enemy ships, UFOs),
   survival (oxygen, hunger, hazards, death penalty), generated world (flora, ore, settlements,
-  wrecks, vaults, stations, wormholes, exotic worlds, universe size), plus an **advanced page** with a frequency
-  slider per planet type. The world *owns* its rules from then on; the world admin can live-edit the
-  creature/enemy activity later in-game (Character tab → "World rules" / "Weltregeln").
+  wrecks, vaults, stations, wormholes, exotic worlds, universe size), plus the page **"Planet types & frequency…"**
+  with a frequency slider per planet type (Off · Very rare · Rare · Normal · Frequent). Each row shows its **share of
+  the planets in %**; **Only this** on a row leaves just that type (all others Off — 100 % of the planets), **All
+  normal** gives an even mix, and **Reset overrides** goes back to the game's own mix plus the *Exotic worlds* slider.
+  Your home planet stays a varied world. The world *owns* its rules from then on; the world admin can live-edit the
+  creature/enemy activity and PvP later in-game (Character tab → "World rules" / "Weltregeln").
 - **Stories** ("Geschichten") at world creation: the row **"Stories: VEGA · Tutorial Auto ›"** at the bottom of the
   world options opens its own page with three choices:
   - **Main story** — the story this world tells: **The VEGA Protocol** (default; a line under the list says what it is
@@ -432,6 +435,11 @@ separate unlock; admins can still disable it through server world rules.
   above the list names the block you need (with its icon), how far away the nearest one is and in which
   direction; **Show** marks it on your compass, **Craft one →** jumps to its recipe when you don't own one yet.
   Hand recipes work anywhere.
+- **Codex → Enemies** (#2971) — every kind of enemy, from space drones, UFOs, cruisers and raider ships to the scan
+  drones, Guardian robots, hunters and robbers on the ground: its **health**, **damage per second** (and the stronger
+  kind's), its **loot**, what it is and a tip how to beat it. An entry fills in once you have **met** that enemy — it
+  came within a weapon's reach, on foot or in your ship; until then it reads **???**. A first meeting says so
+  (*New Codex entry: …*). The numbers are the game's own (`data/enemies.json`), so they are always right.
 - **Codex and DataQubes screens** — use the top-right **Close** button, **Esc**, or **Tab** to return to play.
   **< Menu** returns from the full-screen screen to the normal Tab menu.
 
@@ -1829,8 +1837,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   player), and **Radio / Funk** (a live chat scrollback with a transmit box, the radio you wear and its reach, the
   push-to-talk key — see §7).
 - Allies gain **access to each other's built space stations and planet bases** (boarding and building inside the
-  base's protection zone), and **cannot harm one another** even with PvP enabled. Player-built **stations are
-  private** — only the owner and their allies can board them.
+  base's protection zone), and **cannot hurt one another** in PvP unless the world turns **friendly fire** on (see
+  *PvP and duels* below). Player-built **stations are private** — only the owner and their allies can board them.
 - The **base core / station core** itself stays **owner-only** (an ally can't dissolve your base or rename your
   station).
 - **Crews (named groups):** the **Crew** view in the Alliances tab holds a named group of up to **8 players**.
@@ -1876,6 +1884,26 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   teleporter — switching it on also gives one to everybody online. It stays an ordinary item (unlike the
   protected starter kit) and is off by default, so singleplayer progression is unchanged.
 
+### PvP and duels (players against players)
+- **Off by default.** Players only hurt each other when the world admin switches **PvP** on (Tab → Character → world
+  rules): **Off** · **Duels only** · **Crew vs crew** · **On**. The **Friendly fire** switch next to it decides
+  whether allies and crew mates can hurt each other too (default **off**).
+  - **Duels only** — the only fight between players is a duel both agreed to.
+  - **Crew vs crew** — players of **different crews** fight; a player without a crew takes no part.
+  - **On** — everybody, except allies and crew mates while friendly fire is off.
+- **How:** look at another player with a weapon (or your fists) and attack as you would a machine. Your crosshair turns
+  red only on a player you may hit right now; the server checks every hit again.
+- **Never hit:** a player **aboard a ship**, in a **space station**, in **space** or on a **spacewalk**, in a **speeder**
+  or a **train**, in **god mode** or playing **Sandbox/Creative**, and anyone in their first **10 seconds** after joining
+  or after being defeated by a player.
+- **Kid-friendly:** a player defeated by another player **keeps every item**, whatever the death penalty says, and
+  respawns at the heal tank as usual; everybody in the world reads *"X defeated Y"*.
+- **Duels:** in the **Alliances** tab, the **Duels** section lists the online players with a **Challenge** button (only
+  while the world's PvP is not Off). The other player gets *"X challenges you to a duel"* and **Accept** / **Decline**
+  there (a challenge waits 30 seconds). A duel is fought in every PvP mode, allies too. **Nobody dies in a duel:** the
+  first one down loses, gets straight back up and both read who won. **Give up** ends it, and so does leaving or
+  5 minutes.
+
 ### Back to my ship (stuck on foot)
 - Lost, trapped in a cave you can't dig out of, stranded on a summit above the air? Open the pause menu (**Esc**; pad
   **Menu** → *Pause menu*) and press **Back to my ship**: you are put back aboard your ship at its heal tank — no
@@ -1890,6 +1918,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   **3 minutes**; the button shows that time too and is greyed out meanwhile (this wait pauses with the world). The
   menu stays open until you are aboard: if the trip is refused, the reason appears right under the buttons. The
   suit teleporter stays the quicker way once you have crafted it (30 s cooldown, 10 energy).
+- **No waiting for builders** (#2969): in a **Sandbox** or **Creative** world — or when the world admin set you to
+  Creative — the 3 minutes don't apply; use the button as often as you like.
 - World rule **"Back to my ship" in the pause menu** (Tab → Character → world rules, world admin; or launch with
   `--return-to-ship false`): **on by default**, **off on the `dangerous` preset** — a hard world keeps the walk back.
 
@@ -3022,8 +3052,11 @@ called **stories**:
   **blossom leaves** — placed again, they look like the tree you cut (a leaf kind takes the look of that kind on the
   planet you place it on). Every recipe that asks for wood takes **any log**: the crafting card lists it as **Logs (any
   kind)** and counts all of them, and your common logs are used up first, so the pale ones you cut to build with stay.
-  The same goes for a blueprint's research cost and for a villager who wants firewood. The giant tree's trunk still
-  gives two common logs.
+  The same goes for a blueprint's research cost and for a villager who wants firewood.
+- **The giant tree is mahogany** (#2968): its trunk has the same **dark red-brown** bark on every planet, and mining it
+  gives **two giant mahogany logs** (it used to give two common logs). Place one to **patch a giant trunk seamlessly** —
+  same colour, same grain — or build with it: it is a log like any other, so every recipe that asks for wood takes it.
+  The common trunk keeps its planet's own bark colour, and the pale birch trunk stays light.
 - **Not every planet glows** (terrain generation 29): on about four in ten planets no glowing plant grows on the surface,
   on three in ten you find one glowing kind, on two in ten a few — and one in ten is a **luminous world** full of glowing
   plants, where **lantern trees** hang their glowing golden fruit (always edible, it grows back after two minutes).

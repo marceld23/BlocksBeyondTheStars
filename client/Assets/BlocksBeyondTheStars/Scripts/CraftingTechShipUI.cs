@@ -367,13 +367,11 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Live radio scrollback: keep the Funk view current without a rebuild (preserves typing focus).
-            if (_mode == Mode.Alliances && _category == "crew")
+            if (_mode == Mode.Alliances && _category != "funk" && _category != "find")
             {
-                // The crew state changes under an open view (an invite answered, a member joining): rebuild
-                // when the server pushes a different roster, so the buttons always match reality (#1216).
-                var c = Game?.Crew;
-                string stamp = c == null ? string.Empty
-                    : c.CrewId + "|" + c.Name + "|" + c.OwnerId + "|" + (c.Members?.Length ?? 0) + "|" + (c.Invites?.Length ?? 0);
+                // The crew state (#1216) or a duel (#2972) changes under an open view: rebuild when the server pushes a
+                // different roster or duel, so the buttons always match reality (AlliancesLiveStamp).
+                string stamp = AlliancesLiveStamp();
                 if (stamp != _crewStamp)
                 {
                     _crewStamp = stamp;

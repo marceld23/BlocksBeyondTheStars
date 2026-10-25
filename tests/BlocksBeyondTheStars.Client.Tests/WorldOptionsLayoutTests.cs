@@ -195,4 +195,22 @@ public sealed class WorldOptionsLayoutTests
             sliderH + handleExtra <= LabelH - MinClearance,
             $"The slider handle is {sliderH + handleExtra} px tall, but a row is {LabelH} px — stacked handles would touch.");
     }
+
+    /// <summary>#2970: each planet-type row is a slider row, a share column and an "Only this" button. The two columns must
+    /// not overlap, and the second column's button must end inside the 1580 px viewport (the inline scrollbar sits on its
+    /// right edge).</summary>
+    [Fact]
+    public void AdvancedPage_RowsWithShareAndOnlyThis_FitTwoColumns()
+    {
+        string source = Source();
+        float slider = Constant(source, @"const float AdvancedSliderW = ([0-9.]+)f;", "AdvancedSliderW");
+        float share = Constant(source, @"const float AdvancedShareW = ([0-9.]+)f;", "AdvancedShareW");
+        float only = Constant(source, @"const float AdvancedOnlyW = ([0-9.]+)f;", "AdvancedOnlyW");
+        float second = Constant(source, @"const float AdvancedSecondColumnX = ([0-9.]+)f;", "AdvancedSecondColumnX");
+        float rowW = slider + share + 10f + only; // the button starts at x + slider + share + 10
+
+        Assert.True(30f + rowW + MinClearance <= second, $"The first column ends at x={30f + rowW}, into the second at x={second}.");
+        Assert.True(second + rowW + MinClearance <= 1580f, $"The second column ends at x={second + rowW}, past the 1580 px viewport.");
+        Assert.Contains("UiKit.AddButton(content, x + AdvancedSliderW + AdvancedShareW + 10f, y + 2f, AdvancedOnlyW, 36f", source, StringComparison.Ordinal);
+    }
 }

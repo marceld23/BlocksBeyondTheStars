@@ -11,6 +11,10 @@ public sealed class ServerRules
 {
     public string GameMode { get; set; } = string.Empty;
     public string Pvp { get; set; } = string.Empty;
+
+    /// <summary>#2972: allies and crew mates can hurt each other in PvP. EMPTY from a server that predates on-foot PvP — the
+    /// client then hides the PvP rows.</summary>
+    public string FriendlyFire { get; set; } = string.Empty;
     public string AggressiveAliens { get; set; } = string.Empty;
     public string EnvironmentalHazards { get; set; } = string.Empty;
     public string DeathPenalty { get; set; } = string.Empty;
@@ -133,6 +137,12 @@ public sealed class SetWorldRulesIntent
 
     /// <summary>"Back to my ship" toggle (#2286): "On"/"Off" to set it, empty to leave unchanged.</summary>
     public string ReturnToShip { get; set; } = string.Empty;
+
+    /// <summary>#2972: the PvP mode — "Off"/"DuelsOnly"/"GroupBased"/"On" — empty to leave unchanged.</summary>
+    public string Pvp { get; set; } = string.Empty;
+
+    /// <summary>#2972: friendly fire, "On"/"Off" to set it, empty to leave unchanged.</summary>
+    public string FriendlyFire { get; set; } = string.Empty;
 
     /// <summary>#2269: the machines' catch-up in minutes (one of <c>CrystalNetRules.CatchUpChoicesMinutes</c>); -1 = unchanged.</summary>
     public int MachineCatchUpMinutes { get; set; } = -1;

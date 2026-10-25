@@ -166,6 +166,9 @@ public static class ContentLoader
             ? JsonSerializer.Deserialize<DerelictLogDefinition>(File.ReadAllText(derelictLogFile), JsonOptions)
             : null);
 
+        // The enemies (#2971) are optional the same way: no enemies.json → the numbers that shipped before it.
+        content.SetEnemies(LoadArray<EnemyDefinition>(Path.Combine(dataDir, "enemies.json")));
+
         content.Validate();
         return content;
     }

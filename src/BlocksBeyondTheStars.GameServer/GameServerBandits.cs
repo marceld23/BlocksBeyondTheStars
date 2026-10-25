@@ -28,9 +28,6 @@ public sealed partial class GameServer
     private const double BanditDemandTimeout = 25.0;   // seconds to answer; silence counts as a refusal
     private const float BanditMeleeRange = 4f;         // blade bandit damage aura (matches machine proximity)
     private const float BanditGunRange = 8f;           // gunner damage aura — longer, but cover still blocks it (LOS)
-    private const float BanditMeleeDps = 5f;
-    private const float BanditGunDps = 3f;
-    private const float BanditHull = 35f;
     private const float BanditGiveUpRange = 45f;       // a fleeing mark further than this for a while shakes the bandit
     private const double BanditGiveUpSeconds = 8.0;
     private const double BanditApproachPatience = 60.0; // seconds a bandit keeps walking toward an unreachable mark
@@ -144,7 +141,7 @@ public sealed partial class GameServer
             }
 
             float range = bandit.Kind == CombatEntityKind.BanditGunner ? BanditGunRange : BanditMeleeRange;
-            float dps = bandit.Kind == CombatEntityKind.BanditGunner ? BanditGunDps : BanditMeleeDps;
+            float dps = bandit.DamagePerSecond; // #2971: data/enemies.json, per robber (blade or gun)
             foreach (var session in targets)
             {
                 var p = session.State;
@@ -271,20 +268,11 @@ public sealed partial class GameServer
         }
 
         bool gunner = _banditRng.NextDouble() < 0.4;
-        var bandit = new CombatEntity
-        {
-            Id = NextEntityId(),
-            Kind = gunner ? CombatEntityKind.BanditGunner : CombatEntityKind.Bandit,
-            Name = NameGenerator.Person(_banditRng),
-            Hostile = false, // talks first — hostility is earned
-            Hull = BanditHull,
-            HullMax = BanditHull,
-            Position = new Vector3f(ex, ey, ez),
-            DamagePerSecond = gunner ? BanditGunDps : BanditMeleeDps,
-            BanditPhase = BanditPhase.Approach,
-            BanditTargetId = player.PlayerId,
-            Loot = { new ItemAmount("iron_plate", 2) },
-        };
+        var bandit = NewBandit(gunner, EnemyTiers.Normal, new Vector3f(ex, ey, ez));
+        bandit.Name = NameGenerator.Person(_banditRng);
+        bandit.Hostile = false; // talks first — hostility is earned
+        bandit.BanditPhase = BanditPhase.Approach;
+        bandit.BanditTargetId = player.PlayerId;
         if (_banditRng.NextDouble() < 0.3)
         {
             bandit.Loot.Add(new ItemAmount("gold_ingot", 1)); // some robbers carry earlier spoils
@@ -305,24 +293,15 @@ public sealed partial class GameServer
             }
 
             bool gunner = rng.NextDouble() < 0.5;
-            _bandits.Add(new CombatEntity
-            {
-                Id = NextEntityId(),
-                Kind = gunner ? CombatEntityKind.BanditGunner : CombatEntityKind.Bandit,
-                Name = NameGenerator.Person(rng),
-                Hostile = true,
-                Hull = BanditHull,
-                HullMax = BanditHull,
-                // Camp markers sit centred in the air cell above the floor (+0.5 from the cell-centre
-                // conversion); Floor() puts the guard's feet on the floor surface (#711).
-                Position = new Vector3f(pos.X, (float)System.Math.Floor(pos.Y), pos.Z),
-                DamagePerSecond = gunner ? BanditGunDps : BanditMeleeDps,
-                BanditPhase = BanditPhase.None,
-                CampKey = camp.Key,
-                PatrolInitialized = true,
-                PatrolCenter = camp.Center,
-                Loot = { new ItemAmount("iron_plate", 2), new ItemAmount("carbon", 2) },
-            });
+            // Camp markers sit centred in the air cell above the floor (+0.5 from the cell-centre
+            // conversion); Floor() puts the guard's feet on the floor surface (#711).
+            var guard = NewBandit(gunner, EnemyTiers.Camp, new Vector3f(pos.X, (float)System.Math.Floor(pos.Y), pos.Z));
+            guard.Name = NameGenerator.Person(rng);
+            guard.BanditPhase = BanditPhase.None;
+            guard.CampKey = camp.Key;
+            guard.PatrolInitialized = true;
+            guard.PatrolCenter = camp.Center;
+            _bandits.Add(guard);
         }
     }
 
@@ -992,20 +971,12 @@ public sealed partial class GameServer
     /// <summary>Test/util: spawn a lone robber approaching a specific player, skipping the pacing rolls.</summary>
     public void SpawnBanditAtForTest(Vector3f at, string targetPlayerId, bool gunner = false)
     {
-        _bandits.Add(new CombatEntity
-        {
-            Id = NextEntityId(),
-            Kind = gunner ? CombatEntityKind.BanditGunner : CombatEntityKind.Bandit,
-            Name = "Test Robber",
-            Hostile = false,
-            Hull = BanditHull,
-            HullMax = BanditHull,
-            Position = at,
-            DamagePerSecond = gunner ? BanditGunDps : BanditMeleeDps,
-            BanditPhase = BanditPhase.Approach,
-            BanditTargetId = targetPlayerId,
-            Loot = { new ItemAmount("iron_plate", 2) },
-        });
+        var bandit = NewBandit(gunner, EnemyTiers.Normal, at);
+        bandit.Name = "Test Robber";
+        bandit.Hostile = false;
+        bandit.BanditPhase = BanditPhase.Approach;
+        bandit.BanditTargetId = targetPlayerId;
+        _bandits.Add(bandit);
     }
 
     /// <summary>Test seam (#2586): one lone robber placed near a player exactly as an ambush roll places it — no pacing,

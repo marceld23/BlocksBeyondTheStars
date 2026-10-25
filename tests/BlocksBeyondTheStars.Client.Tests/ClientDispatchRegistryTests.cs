@@ -29,7 +29,7 @@ public sealed class ClientDispatchRegistryTests
     {
         var types = NetworkClient.HandledMessageTypesForTest.ToHashSet();
 
-        Assert.Equal(136, types.Count);
+        Assert.Equal(139, types.Count); // #2971 EnemyLog, #2972 PvpTargets + DuelNotice
         Assert.Contains(typeof(JoinAccepted), types);           // the switch's first arm
         Assert.Contains(typeof(BanditEncounterResult), types);  // and its last
         Assert.Contains(typeof(VoiceFrame), types);             // the one message both sides handle

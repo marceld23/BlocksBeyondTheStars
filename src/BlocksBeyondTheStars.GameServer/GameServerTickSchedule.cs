@@ -89,6 +89,7 @@ public sealed partial class GameServer
         {
             TickStep.Dt("TickSpace", TickSpace), // space instances are keyed by location and handle their own players
             TickStep.Dt("Transits", TickTransits), // #1614: per player, wherever they fly
+            TickStep.Dt("SpaceEnemyEncounters", TickSpaceEnemyEncounters), // #2971: the Codex's enemies met in space (1 Hz; sets the ground beat)
         };
     }
 
@@ -104,6 +105,7 @@ public sealed partial class GameServer
             TickStep.Dt("TickEnvironment", TickEnvironment),
             TickStep.Dt("TickEnemies", TickEnemies),
             TickStep.Dt("TickBandits", TickBandits),
+            TickStep.Plain("TickEnemyEncounters", TickEnemyEncounters), // #2971: the Codex's enemies met on the ground (1 Hz)
             TickStep.Dt("TickPresence", TickPresence),
             TickStep.Dt("TickMarkerPings", TickMarkerPings), // expire "look here" pings (#1217)
             TickStep.Dt("TickFluids", TickFluids),
@@ -160,6 +162,7 @@ public sealed partial class GameServer
         return new TickStep[]
         {
             TickStep.Plain("DerelictSpacewalks", TickDerelictSpacewalks), // #2636: boarders the void check found outside a derelict's hull step out (a world change, so after the loop)
+            TickStep.Dt("TickPvp", TickPvp), // #2972: whom each player may hit, duel timeouts, spawn protection (1 Hz)
             TickStep.Dt("ShipVisits", TickShipVisits), // #2723: guests who walked out go home; the 1 Hz check of every docking visit
             TickStep.Dt("TickStoryOutsideWorlds", TickStoryOutsideWorlds), // #2477: the 1 Hz story pass for players no loaded world reaches
             TickStep.Plain("TickCutscenes", TickCutscenes), // #2468: queued cutscenes for every joined player, wherever they are (space too)

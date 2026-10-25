@@ -100,7 +100,8 @@ refreshed 2026-10-23.
   lock, the world option, the transit gates and pose, the scanner reading, and the rift shader and transit effect.
 - [DEBRIS_FIELDS.md](DEBRIS_FIELDS.md) — debris fields (#2351): seed-pure placement after the generator, the field in
   flight (marker, fragments, capsules), the once-per-galaxy salvage ledger shared with the space wreck, the shield taps,
-  combat debris, raiders with real hulls, and the `data/space_salvage.json` data file.
+  combat debris, raiders with real hulls, and the `data/space_salvage.json` data file. The hostiles' stats (drones, UFOs,
+  cruisers, raiders, Guardian machines, robbers) are `data/enemies.json` (#2971) — see SPACE_COMBAT_CONCEPT.md.
 - [DERELICT_STATIONS.md](DERELICT_STATIONS.md) — derelict stations (#2632–#2636): one broken old station guaranteed in
   every start system, rarely 1–3 elsewhere; the decay pass (sealed and breached rooms, doors, broken trading posts),
   vacuum, mining with the hull seen from space following, seed + deltas persistence, the old supply crates with their

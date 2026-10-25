@@ -633,6 +633,14 @@ public static class NetCodec
 
         // #2952 a private name for a visited system, planet or moon. No protocol bump — an older server drops the request.
         Register(305, typeof(SetPlaceNameIntent));           // Client -> Server
+
+        // #2971 the Codex's "Enemies" chapter: the enemies a player has met. No protocol bump — an older client drops it.
+        Register(306, typeof(EnemyLog));                     // Server -> Client
+
+        // #2972 on-foot PvP: who may be hit, and duels. No protocol bump — an older peer drops them (PvP stays off for it).
+        Register(307, typeof(PvpTargets));                   // Server -> Client
+        Register(308, typeof(DuelIntent));                   // Client -> Server
+        Register(309, typeof(DuelNotice));                   // Server -> Client
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

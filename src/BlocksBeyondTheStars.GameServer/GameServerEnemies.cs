@@ -1176,21 +1176,14 @@ public sealed partial class GameServer
     /// <paramref name="tougher"/>) the hunter — shared by the surface spawner and a derelict's guardian bay (#2635).</summary>
     private CombatEntity NewPlanetMachine(Vector3f at, bool asDrone, bool tougher, float damageFactor = 1f)
     {
-        float hull = asDrone ? 25f : (tougher ? 60f : 30f);
-        return new CombatEntity
-        {
-            Id = NextEntityId(),
-            Kind = asDrone ? CombatEntityKind.ScanDrone : (tougher ? CombatEntityKind.AlienMonster : CombatEntityKind.Creature),
-            Hostile = true,
-            Hull = hull,
-            HullMax = hull,
-            Position = at,
-            // The drone's 3/s was written for an aura it could never enter; now that it really does hurt from
-            // its firing range it is in reach for most of an encounter, so it drops to 2/s — roughly 50 s of
-            // being ignored before it kills you, which is pressure without being a young player's ambush.
-            DamagePerSecond = (asDrone ? 2f : (tougher ? 6f : 4f)) * damageFactor,
-            Loot = { new ItemAmount("carbon", 2) }, // all Guardian machines drop salvage carbon
-        };
+        // #2971: the stats are data/enemies.json's. The scan drone's 3/s was written for an aura it could never enter; now
+        // that it really does hurt from its firing range it is in reach for most of an encounter, so it is 2/s — roughly
+        // 50 s of being ignored before it kills you, which is pressure without being a young player's ambush.
+        var machine = asDrone ? NewEnemy(EnemyCatalog.ScanDrone, EnemyTiers.Normal, CombatEntityKind.ScanDrone, at)
+            : tougher ? NewEnemy(EnemyCatalog.Hunter, EnemyTiers.Normal, CombatEntityKind.AlienMonster, at)
+            : NewEnemy(EnemyCatalog.GuardianRobot, EnemyTiers.Normal, CombatEntityKind.Creature, at);
+        machine.DamagePerSecond *= damageFactor; // a wreck's machines are angrier
+        return machine;
     }
 
     private const float WreckCouplingRange = 64f; // bias spawns to a wreck within this of the player (P5)
@@ -1209,6 +1202,12 @@ public sealed partial class GameServer
         }
 
         var dir = new Vector3f(dirX, dirY, dirZ);
+        if (PvpRules.TryPlayerId(entityId, out var victim))
+        {
+            AttackPlayer(session, victim, dir); // #2972: on-foot PvP, under the world's PvP rules
+            return;
+        }
+
         if (_planetEnemies.FirstOrDefault(e => e.Id == entityId) is { } enemy)
         {
             AttackCombatEntity(session, enemy, _planetEnemies, isCreature: false, dir);
@@ -1229,9 +1228,6 @@ public sealed partial class GameServer
             return;
         }
 
-        // Player-vs-player combat is not implemented yet: only creatures/NPCs are valid targets. When players do
-        // become targetable (on foot here, or ship-vs-ship in FireWeapon), gate the damage on the alliance —
-        // allies must never harm one another, even on a PVP server: `if (AreAllied(playerId, targetId)) reject`.
         Reject(session, "attack", "@srv.attack.no_target");
     }
 
@@ -1255,38 +1251,9 @@ public sealed partial class GameServer
 
         var tool = ActiveTool(p);
         bool isWeapon = tool.Kind == ToolKind.Weapon;
-
-        // A weapon swings on a cooldown, so it can't be spammed (B44). The per-weapon cooldown comes from the
-        // item (machete = 1.5s); an energy-free melee weapon with no explicit cooldown falls back to the default.
-        // Ranged energy weapons without a cooldown are still rate-limited by their suit-energy cost.
-        if (isWeapon)
+        if (!SwingReady(session, tool, isWeapon)) // the weapon's cooldown or the hand's rhythm (GameServerSwing)
         {
-            double cd = (tool.CooldownSeconds > 0f ? tool.CooldownSeconds : (tool.EnergyPerUse <= 0f ? MeleeCooldown : 0.0))
-                * Shared.Bio.PlayerEffects.CooldownFactor(p.Effects); // #2202: a reflex preparation shortens it
-            if (cd > 0.0)
-            {
-                if (_meleeReadyAt.TryGetValue(p.PlayerId, out var readyAt) && _uptime < readyAt)
-                {
-                    return; // still on cooldown — ignore the swing (no reject spam)
-                }
-
-                _meleeReadyAt[p.PlayerId] = _uptime + cd;
-            }
-        }
-        else
-        {
-            // #2280: the bare hand has its own, slower rhythm — it used to punch as fast as the player could click.
-            // Its own entry, so switching to a weapon right after a punch is not held back by it (and vice versa).
-            // A punch up to MeleeRules.FistJitterToleranceSeconds early still lands: the client gates on the exact
-            // cooldown, so an early arrival is network jitter, not a faster fist. #2306: a drill, a scanner or a
-            // gadget is a punch too (MeleeRules.IsPunch) and shares this timer — tools dig, weapons fight.
-            double cd = MeleeRules.FistCooldownSeconds * Shared.Bio.PlayerEffects.CooldownFactor(p.Effects);
-            if (_fistReadyAt.TryGetValue(p.PlayerId, out var readyAt) && _uptime < readyAt - MeleeRules.FistJitterToleranceSeconds)
-            {
-                return; // too soon — ignore the punch (no reject spam), like a weapon on cooldown
-            }
-
-            _fistReadyAt[p.PlayerId] = _uptime + cd;
+            return;
         }
 
         // A ranged weapon's longer reach extends the default; a melee weapon never *reduces* it below the
@@ -1320,31 +1287,12 @@ public sealed partial class GameServer
             return;
         }
 
-        // Energy weapons (laser/plasma) draw suit energy per shot.
-        if (isWeapon && tool.EnergyPerUse > 0f)
+        if (!PayShot(session, tool, isWeapon)) // energy weapons draw suit energy per shot
         {
-            if (p.SuitEnergy < tool.EnergyPerUse)
-            {
-                Reject(session, "attack", "@srv.attack.no_energy");
-                return;
-            }
-
-            p.SuitEnergy -= tool.EnergyPerUse;
-            SendPlayerState(session);
+            return;
         }
 
-        // A crafted weapon uses its own damage; everything else is a punch at the fist's damage (#2280, #2306,
-        // MeleeRules) — the bare hand and every tool that is not a weapon alike. The old 15 + tier · 10 fallback made
-        // the titanium drill a 35-damage, uncooled, energy-free weapon; it costs no suit energy either way.
-        float damage = isWeapon
-            ? (tool.Damage > 0f ? tool.Damage : 20f + tool.Tier * 15f)
-            : MeleeRules.FistDamage;
-        if (!MeleeRules.IsRanged(tool))
-        {
-            damage *= Shared.Bio.PlayerEffects.MeleeFactor(p.Effects); // #2202: strength is in the arm, not in a gun
-        }
-
-        target.Hull -= damage;
+        target.Hull -= SwingDamage(p, tool, isWeapon);
         NoteCombat(session); // #2286: a blow landed — "Back to my ship" waits out the fight
 
         // 2026-09 (Valuma): a hit turns the shapeshifter on its attacker; at zero its disguise breaks instead of it dying.

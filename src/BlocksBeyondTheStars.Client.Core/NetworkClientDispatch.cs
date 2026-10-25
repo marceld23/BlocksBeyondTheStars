@@ -14,6 +14,10 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public sealed partial class NetworkClient
     {
+        /// <summary>The enemies this player has met (#2971), for the Codex's "Enemies" chapter: the full list on join, then a
+        /// one-key delta per first meeting.</summary>
+        public event Action<EnemyLog>? EnemyLogReceived;
+
         /// <summary>
         /// Server → client message type → the typed event it raises, built once per process. No reflection, so IL2CPP
         /// and managed stripping in the Unity player cannot remove anything. The lookup is by the message's exact type,
@@ -149,6 +153,9 @@ namespace BlocksBeyondTheStars.Client
             On<PlanetScanResult>(map, (c, m) => c.PlanetScanReceived?.Invoke(m));
             On<WeatherForecast>(map, (c, m) => c.WeatherForecastReceived?.Invoke(m));
             On<DiscoveryLog>(map, (c, m) => c.DiscoveryLogReceived?.Invoke(m));
+            On<EnemyLog>(map, (c, m) => c.EnemyLogReceived?.Invoke(m));
+            On<PvpTargets>(map, (c, m) => c.PvpTargetsReceived?.Invoke(m));
+            On<DuelNotice>(map, (c, m) => c.DuelNoticeReceived?.Invoke(m));
             On<AchievementList>(map, (c, m) => c.AchievementsReceived?.Invoke(m));
             On<AchievementUnlocked>(map, (c, m) => c.AchievementUnlockedReceived?.Invoke(m));
             On<AchievementRewardDeferred>(map, (c, m) => c.AchievementRewardDeferredReceived?.Invoke(m));

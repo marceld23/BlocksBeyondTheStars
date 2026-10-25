@@ -46,7 +46,7 @@ namespace BlocksBeyondTheStars.Client
         private float BuildAllyList()
         {
             var a = Game.Alliances ?? new AllianceList();
-            float y = 0f;
+            float y = BuildDuelSection(0f); // #2972: a challenge, the running duel, or whom to challenge
 
             if (a.Incoming != null && a.Incoming.Length > 0)
             {

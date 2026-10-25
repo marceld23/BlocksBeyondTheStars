@@ -181,21 +181,13 @@ public sealed partial class GameServer
         for (int i = 0; i < ScoutsPerVisit; i++)
         {
             bool gunner = i == 1; // one of each, like a patrol would
-            _bandits.Add(new CombatEntity
-            {
-                Id = NextEntityId(),
-                Kind = gunner ? CombatEntityKind.BanditGunner : CombatEntityKind.Bandit,
-                Name = NameGenerator.Person(_banditRng),
-                Hostile = false, // looking, not fighting — hostility is earned exactly as for a robber
-                Hull = BanditHull,
-                HullMax = BanditHull,
-                Position = spots[i],
-                DamagePerSecond = gunner ? BanditGunDps : BanditMeleeDps,
-                BanditPhase = BanditPhase.Scouting,
-                BanditTargetId = owner.State.PlayerId,
-                ScoutBaseId = b.Id,
-                Loot = { new ItemAmount("iron_plate", 2) },
-            });
+            var scout = NewBandit(gunner, EnemyTiers.Normal, spots[i]);
+            scout.Name = NameGenerator.Person(_banditRng);
+            scout.Hostile = false; // looking, not fighting — hostility is earned exactly as for a robber
+            scout.BanditPhase = BanditPhase.Scouting;
+            scout.BanditTargetId = owner.State.PlayerId;
+            scout.ScoutBaseId = b.Id;
+            _bandits.Add(scout);
         }
 
         string baseName = string.IsNullOrEmpty(b.Name) ? owner.State.Name ?? "?" : b.Name;

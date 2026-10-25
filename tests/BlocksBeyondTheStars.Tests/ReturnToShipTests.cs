@@ -163,6 +163,42 @@ public sealed class ReturnToShipTests : IDisposable
         Assert.True(p.State.AboardShip);
     }
 
+    [Theory]
+    [InlineData("sandbox")]
+    [InlineData("override")]
+    public void ABuilder_GoesBackAgainAndAgain_WithoutTheCooldown(string how)
+    {
+        // #2969 (Justus, a Sandbox world): "no limit on the Back to my ship button in Sandbox". A Sandbox world, or a
+        // per-player Creative override in a survival world, skips the three minutes — the other gates stay.
+        var transport = new RecordingTransport();
+        var server = Started("rts_free_" + how, transport, rules =>
+        {
+            if (how == "sandbox")
+            {
+                rules.GameMode = GameMode.Creative;
+            }
+        });
+        var p = OnFoot(server, "Builder");
+        if (how == "override")
+        {
+            p.State.ModeOverride = PlayerModeOverride.Creative;
+        }
+
+        var outside = p.State.Position;
+        for (int i = 0; i < 3; i++)
+        {
+            p.State.AboardShip = false;
+            p.State.Position = outside;
+            Assert.Null(server.ReturnToShipRefusalForTest("Builder"));
+            server.ReturnToShip("Builder");
+            Assert.True(p.State.AboardShip);
+        }
+
+        // The pause menu never greys the button out.
+        Assert.DoesNotContain(transport.Sent, x => x.Msg is PlayerStateUpdate u && u.PlayerId == "Builder" && u.ReturnToShipCooldownSeconds > 0f);
+        Assert.DoesNotContain(transport.Sent, x => x.Msg is ActionRejected r && r.Action == "return_ship");
+    }
+
     [Fact]
     public void InAFight_IsRefused_UntilTheGraceHasPassed()
     {

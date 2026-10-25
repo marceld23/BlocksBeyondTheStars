@@ -78,4 +78,19 @@ public sealed class WoodTintTests
             }
         }
     }
+
+    [Fact]
+    public void GiantLog_IsTheSameDarkMahogany_OnEveryWorld()
+    {
+        // #2968: a giant log carried from one giant tree has to patch any other without a seam, so its bark is one fixed
+        // red-brown, dark like the common bark — while the common and the pale trunk keep their per-world colours.
+        var first = FloraTints.ForWood(1, "world-0", "giant_log");
+        Assert.True(first.R > first.G && first.G > first.B, $"mahogany is red-brown: {first}");
+        Assert.True(System.Math.Max(first.R, System.Math.Max(first.G, first.B)) < 0.59f, $"mahogany is dark: {first}");
+        for (int w = 0; w < 20; w++)
+        {
+            Assert.Equal(first, FloraTints.ForWood(w * 13 + 5, $"world-{w}", "giant_log"));
+            Assert.Equal(FloraTints.ForWood(w * 13 + 5, $"world-{w}"), FloraTints.ForWood(w * 13 + 5, $"world-{w}", "wood_log"));
+        }
+    }
 }

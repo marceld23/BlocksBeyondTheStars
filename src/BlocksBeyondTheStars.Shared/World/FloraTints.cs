@@ -64,12 +64,22 @@ public static class FloraTints
         return HsvToRgb(hue, sat, val);
     }
 
-    /// <summary>The bark colour of one trunk block on a world (#2851): the common trunks (<c>wood_log</c>,
-    /// <c>giant_log</c>) wear <see cref="ForWood(long, string)"/> unchanged; the pale bark slot (<c>wood_log_b</c>) rolls
-    /// its own LIGHT, nearly colourless band (value 0.80..0.98, saturation 0.04..0.20) — white birches, silvery aspens,
-    /// cream paper bark — so it never reads like the dark trunks around it.</summary>
+    /// <summary>The giant tree's mahogany (#2968): ONE dark red-brown on every world (hue 9°, saturation 0.62, value 0.45),
+    /// so a giant log carried from one giant tree patches any other without a seam.</summary>
+    public static readonly (float R, float G, float B) Mahogany = HsvToRgb(9f / 360f, 0.62f, 0.45f);
+
+    /// <summary>The bark colour of one trunk block on a world (#2851): the common trunk (<c>wood_log</c>) wears
+    /// <see cref="ForWood(long, string)"/> unchanged; the pale bark slot (<c>wood_log_b</c>) rolls its own LIGHT, nearly
+    /// colourless band (value 0.80..0.98, saturation 0.04..0.20) — white birches, silvery aspens, cream paper bark — so it
+    /// never reads like the dark trunks around it. The giant tree (<c>giant_log</c>) is <see cref="Mahogany"/> everywhere
+    /// (#2968).</summary>
     public static (float R, float G, float B) ForWood(long worldSeed, string locationKey, string blockKey)
     {
+        if (blockKey == BlocksBeyondTheStars.Shared.Definitions.TreeWood.GiantLogKey)
+        {
+            return Mahogany;
+        }
+
         if (blockKey != BlocksBeyondTheStars.Shared.Definitions.TreeWood.PaleLogKey)
         {
             return ForWood(worldSeed, locationKey);

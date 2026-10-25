@@ -351,6 +351,10 @@ public sealed class NetCodecTests
         [303] = typeof(BaseResidentList),        // #2717
         [304] = typeof(VisitShipIntent),         // #2723
         [305] = typeof(SetPlaceNameIntent),      // #2952
+        [306] = typeof(EnemyLog),                // #2971
+        [307] = typeof(PvpTargets),              // #2972
+        [308] = typeof(DuelIntent),              // #2972
+        [309] = typeof(DuelNotice),              // #2972
 
     };
 

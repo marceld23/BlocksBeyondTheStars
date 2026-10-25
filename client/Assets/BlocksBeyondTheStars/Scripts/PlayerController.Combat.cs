@@ -225,6 +225,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            AimPlayers(o, dir, ref best, ref id, ref pos); // #2972: another player, when the world's PvP rules allow
             return id != null;
         }
 
@@ -295,6 +296,11 @@ namespace BlocksBeyondTheStars.Client
 
                 var cp = Game.ScenePos(c.X, c.Y, c.Z);
                 Consider(c.Id, cp, cp + Vector3.up * 1.5f);
+            }
+
+            foreach (var (pid, pp) in PvpTargetsInScene()) // #2972: another player, when the world's PvP rules allow
+            {
+                Consider(pid, pp, pp + Vector3.up * 1.5f);
             }
 
             pos = bestPos;

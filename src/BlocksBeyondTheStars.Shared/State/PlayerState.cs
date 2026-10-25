@@ -130,6 +130,10 @@ public sealed class PlayerState
     /// embed a body id (<c>place:</c>, <c>monument:</c>). Written on the FIRST scan only. Persisted.</summary>
     public Dictionary<string, ScanSite> ScannedWhere { get; set; } = new();
 
+    /// <summary>The enemies this player has met (#2971, <see cref="Definitions.EnemyCatalog"/> keys) — each fills its entry in
+    /// the Codex's "Enemies" chapter; the rest show "???". Persisted.</summary>
+    public HashSet<string> EnemiesMet { get; set; } = new();
+
     /// <summary>Suit ration dispenser: food loaded here is auto-eaten when hunger runs low. Small capacity.</summary>
     public Inventory RationStore { get; set; } = new(RationStoreSlots);
 

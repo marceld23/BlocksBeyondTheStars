@@ -180,6 +180,14 @@ namespace BlocksBeyondTheStars.Client
             RuleRow(L("ui.worldopt.space_npcs"), rules?.SpaceNpcEnemies ?? "Normal", v => Game?.Network?.SendSetWorldRules(spaceNpcs: v));
             RuleRow(L("ui.worldopt.ufos"), rules?.AlienUfos ?? "Off", v => Game?.Network?.SendSetWorldRules(ufos: v));
             RuleRow(L("ui.worldopt.bandits"), rules?.Bandits ?? "Normal", v => Game?.Network?.SendSetWorldRules(bandits: v));
+            // #2972: on-foot PvP and friendly fire, live. An older server sends no friendly-fire value — then neither row shows.
+            if (!string.IsNullOrEmpty(rules?.FriendlyFire))
+            {
+                StepRow(L("ui.worldopt.pvp"), new[] { "Off", "DuelsOnly", "GroupBased", "On" }, "ui.worldopt.pvp.", rules.Pvp,
+                    v => Game?.Network?.SendSetPvpRules(pvp: v));
+                StepRow(L("ui.worldopt.friendly_fire"), new[] { "Off", "On" }, "ui.worldopt.ff.", rules.FriendlyFire,
+                    v => Game?.Network?.SendSetPvpRules(friendlyFire: v));
+            }
             // Environmental hazards (#670): the live switch for the temperature survival hazard — Off
             // disables it on a running world, Light/Hard soften/sharpen the drain and exposure damage.
             StepRow(L("ui.worldopt.hazards"), WorldCreationOptions.HazardSteps, "ui.worldopt.hz.",

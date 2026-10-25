@@ -37,7 +37,7 @@ public enum CombatEntityKind
 }
 
 /// <summary>A server-authoritative combat entity (space object or planet enemy).</summary>
-public sealed class CombatEntity
+public sealed partial class CombatEntity
 {
     public string Id { get; set; } = string.Empty;
     public CombatEntityKind Kind { get; set; }
@@ -1001,38 +1001,20 @@ public sealed partial class GameServer
                     // drone's (reduced) aggro range so its patrol drift can never reach the launch point.
                     float ang = -0.71f + flight * 2.39996f + i * 0.35f;
                     float rad = 205f + (i % 3) * 18f;
-                    instance.Entities.Add(new CombatEntity
-                    {
-                        Id = NextEntityId(),
-                        Kind = CombatEntityKind.Drone,
-                        Hostile = true,
-                        Hull = 40f,
-                        HullMax = 40f,
-                        Position = new Vector3f(rad * (float)System.Math.Cos(ang),
+                    instance.Entities.Add(NewEnemy(EnemyCatalog.SpaceDrone, EnemyTiers.Normal, CombatEntityKind.Drone, // #2971: data/enemies.json
+                        new Vector3f(rad * (float)System.Math.Cos(ang),
                             10f + ((i + flight) % 3 - 1) * 8f,
-                            rad * (float)System.Math.Sin(ang)),
-                        DamagePerSecond = 5f,
-                        Loot = { new ItemAmount("data_fragment", 1) },
-                    });
+                            rad * (float)System.Math.Sin(ang))));
                 }
 
                 if (Rules.AlienUfos != AlienActivity.Off && archetype != SystemArchetype.Desolate
                     && remnantSpace && wave.UfosKilled == 0)
                 {
                     float uang = 2.42f + flight * 2.39996f; // roughly opposite the drone fan, rotating per flight
-                    instance.Entities.Add(new CombatEntity
-                    {
-                        Id = NextEntityId(),
-                        Kind = CombatEntityKind.Ufo,
-                        Hostile = true,
-                        // Softened for a forgiving PvE feel: was 70 hull / 8 dps, which killed an unshielded ship in
-                        // ~12s and took a long time to down. Now closer to a drone so UFOs read as a light threat.
-                        Hull = 40f,
-                        HullMax = 40f,
-                        Position = new Vector3f(230f * (float)System.Math.Cos(uang), 14f, 230f * (float)System.Math.Sin(uang)),
-                        DamagePerSecond = 4f,
-                        Loot = { new ItemAmount("data_fragment", 3) },
-                    });
+                    // Softened for a forgiving PvE feel (data/enemies.json): was 70 hull / 8 dps, which killed an unshielded
+                    // ship in ~12s and took a long time to down. Now closer to a drone so UFOs read as a light threat.
+                    instance.Entities.Add(NewEnemy(EnemyCatalog.Ufo, EnemyTiers.Normal, CombatEntityKind.Ufo,
+                        new Vector3f(230f * (float)System.Math.Cos(uang), 14f, 230f * (float)System.Math.Sin(uang))));
                 }
             }
         }
@@ -1170,48 +1152,20 @@ public sealed partial class GameServer
         {
             float ang = i * 2.39996f;
             float rad = 150f + (i % 3) * 22f;
-            instance.Entities.Add(new CombatEntity
-            {
-                Id = NextEntityId(),
-                Kind = CombatEntityKind.Drone,
-                Hostile = true,
-                Hull = 70f,
-                HullMax = 70f,
-                Position = new Vector3f(rad * (float)System.Math.Cos(ang), (i % 5 - 2) * 12f, rad * (float)System.Math.Sin(ang)),
-                DamagePerSecond = 7f,
-                Loot = { new ItemAmount("data_fragment", 2) },
-            });
+            instance.Entities.Add(NewEnemy(EnemyCatalog.SpaceDrone, EnemyTiers.Elite, CombatEntityKind.Drone,
+                new Vector3f(rad * (float)System.Math.Cos(ang), (i % 5 - 2) * 12f, rad * (float)System.Math.Sin(ang))));
         }
 
         // Elite UFO escorts.
         for (int i = 0; i < 3; i++)
         {
             float ang = i * 2.094f + 0.7f;
-            instance.Entities.Add(new CombatEntity
-            {
-                Id = NextEntityId(),
-                Kind = CombatEntityKind.Ufo,
-                Hostile = true,
-                Hull = 95f,
-                HullMax = 95f,
-                Position = new Vector3f(210f * (float)System.Math.Cos(ang), 18f, 210f * (float)System.Math.Sin(ang)),
-                DamagePerSecond = 8f,
-                Loot = { new ItemAmount("data_fragment", 4) },
-            });
+            instance.Entities.Add(NewEnemy(EnemyCatalog.Ufo, EnemyTiers.Elite, CombatEntityKind.Ufo,
+                new Vector3f(210f * (float)System.Math.Cos(ang), 18f, 210f * (float)System.Math.Sin(ang))));
         }
 
         // The gauntlet's heavy cruiser — the toughest single ship the player will face before the core.
-        instance.Entities.Add(new CombatEntity
-        {
-            Id = NextEntityId(),
-            Kind = CombatEntityKind.Cruiser,
-            Hostile = true,
-            Hull = 260f,
-            HullMax = 260f,
-            Position = new Vector3f(0f, 26f, -240f),
-            DamagePerSecond = 10f,
-            Loot = { new ItemAmount("data_fragment", 8) },
-        });
+        instance.Entities.Add(NewEnemy(EnemyCatalog.Cruiser, EnemyTiers.Normal, CombatEntityKind.Cruiser, new Vector3f(0f, 26f, -240f)));
     }
 
     // ---------------- Weapons ----------------

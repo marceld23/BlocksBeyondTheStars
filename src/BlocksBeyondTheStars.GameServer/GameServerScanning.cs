@@ -454,6 +454,7 @@ public sealed partial class GameServer
             SystemNames = systemNames,
             Full = true,
         });
+        SendEnemyLog(session); // #2971: the Codex's other per-player chapter rides along with the join snapshot
     }
 
     /// <summary>A one-entry ledger delta (#1843): the key, its display name and — when known — where it was

@@ -8,7 +8,8 @@ namespace BlocksBeyondTheStars.Shared.Definitions;
 /// <summary>
 /// The trunks of the generated trees — the counterpart of <see cref="TreeFoliage"/>. They take the world's bark colour
 /// (the block shader's bark mode) and show end grain on their cut faces. The pale bark slot (#2851, generation 29) gets a
-/// LIGHT bark colour band, so birches and bottle trees stand out against the dark trunks of the same wood.
+/// LIGHT bark colour band, so birches and bottle trees stand out against the dark trunks of the same wood. The giant tree's
+/// trunk is mahogany on every world (#2968) and drops itself, so a giant trunk can be patched without a seam.
 /// </summary>
 public static class TreeWood
 {

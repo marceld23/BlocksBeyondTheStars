@@ -71,6 +71,9 @@ public sealed class PlayerSnapshot
     /// <summary>Where each <see cref="Scanned"/> entry was found (#1843): body + system ids and names captured
     /// at scan time. Absent in saves written before it existed — those entries just have no site.</summary>
     public Dictionary<string, ScanSite> ScannedWhere { get; set; } = new();
+
+    /// <summary>The enemies met (#2971), the Codex's "Enemies" chapter. Absent in older saves ⇒ none met yet.</summary>
+    public List<string> EnemiesMet { get; set; } = new();
     public List<InventorySlotDto> RationStore { get; set; } = new();
     public List<InventorySlotDto> Inventory { get; set; } = new();
 
@@ -267,6 +270,7 @@ public static class StateMapper
         Scanned = p.Scanned.ToList(),
         ScannedNames = new Dictionary<string, string>(p.ScannedNames),
         ScannedWhere = CloneScanSites(p.ScannedWhere),
+        EnemiesMet = p.EnemiesMet.ToList(),
         RationStore = DumpInventory(p.RationStore),
         Inventory = DumpInventory(p.Inventory),
         Equipment = DumpInventory(p.Equipment),
@@ -575,6 +579,7 @@ public static class StateMapper
         Scanned = new HashSet<string>(s.Scanned ?? new List<string>()),
         ScannedNames = new Dictionary<string, string>(s.ScannedNames ?? new Dictionary<string, string>()),
         ScannedWhere = CloneScanSites(s.ScannedWhere ?? new Dictionary<string, ScanSite>()),
+        EnemiesMet = new HashSet<string>(s.EnemiesMet ?? new List<string>()),
         RationStore = RestoreInventory(BlocksBeyondTheStars.Shared.State.PlayerState.RationStoreSlots, s.RationStore ?? new List<InventorySlotDto>()),
         Missions = s.Missions.Select(CloneProgress).ToList(),
         Milestones = new HashSet<string>(s.Milestones ?? new List<string>()),

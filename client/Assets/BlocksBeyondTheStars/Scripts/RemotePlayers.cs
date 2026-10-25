@@ -88,6 +88,20 @@ namespace BlocksBeyondTheStars.Client
             return false;
         }
 
+        /// <summary>#2972: where another player's avatar stands now (feet, scene space) — false when they are not drawn here
+        /// (timed out, up in space, behind a stealth field).</summary>
+        public bool TryGetPosition(string playerId, out Vector3 position)
+        {
+            position = default;
+            if (string.IsNullOrEmpty(playerId) || !_remotes.TryGetValue(playerId, out var r) || r.TimedOut || r.Hidden || r.Go == null)
+            {
+                return false;
+            }
+
+            position = r.Go.transform.position;
+            return true;
+        }
+
         /// <summary>#2725: whether another player is here with us right now — their presence still streams in (not timed out)
         /// and they are not hidden (up in space, or behind a stealth field). The host of a docking visit reads "Tom is
         /// visiting" from it while the guest walks in the host's ship.</summary>

@@ -12,7 +12,7 @@ namespace BlocksBeyondTheStars.GameServer;
 /// stranded on a summit above the atmosphere. Server-authoritative and free of any device or energy, gated instead by
 /// the situation (<see cref="ReturnToShipRules"/>): the world rule <c>GameRules.ReturnToShip</c> must be on, the player
 /// must be on foot, their own ship must be landed on the body they stand on, they must not be in a fight or falling,
-/// and one use arms a three-minute cooldown. The arrival is the ship's heal tank — the same spot the suit teleporter
+/// and one use arms a three-minute cooldown (not for a builder, #2969: see <see cref="ReturnToShipWithoutCooldown"/>). The arrival is the ship's heal tank — the same spot the suit teleporter
 /// and a respawn use — delivered on the <see cref="RespawnNotice"/> snap channel (a plain state position would be
 /// overwritten by the client's next move report, #414 N17).
 /// <para>
@@ -63,7 +63,11 @@ public sealed partial class GameServer
         }
 
         var p = session.State;
-        _returnToShipReadyAt[p.PlayerId] = _uptime + ReturnToShipRules.CooldownSeconds;
+        if (!ReturnToShipWithoutCooldown(session))
+        {
+            _returnToShipReadyAt[p.PlayerId] = _uptime + ReturnToShipRules.CooldownSeconds;
+        }
+
         p.Position = _healTank; // the heal tank of the ship parked on this body — where a respawn and the teleporter land too
         p.AboardShip = true;
         session.AwaitingSpawnAdopt = true; // #865: the client still streams its stuck-spot pose for a beat — it must not drag the player back outside
@@ -125,13 +129,21 @@ public sealed partial class GameServer
             return "@srv.return_ship.falling";
         }
 
-        if (_returnToShipReadyAt.TryGetValue(p.PlayerId, out var readyAt) && _uptime < readyAt)
+        if (!ReturnToShipWithoutCooldown(session) && _returnToShipReadyAt.TryGetValue(p.PlayerId, out var readyAt) && _uptime < readyAt)
         {
             return "@srv.return_ship.cooldown:" + ReturnToShipRules.FormatRemaining(readyAt - _uptime);
         }
 
         return null;
     }
+
+    /// <summary>#2969: a player who builds rather than survives — a Sandbox world, a Creative world, or a per-player Creative
+    /// override — uses "Back to my ship" without the three-minute cooldown. Nothing there is worth waiting out: the
+    /// cooldown keeps a survival world's walk home meaningful, which a world with free flight or no needs does not have.
+    /// The other gates (on foot, own ship landed here, not in a fight or falling) stay.</summary>
+    private bool ReturnToShipWithoutCooldown(PlayerSession session)
+        => Rules.ModeFor(session.State.ModeOverride) == Shared.Configuration.GameMode.Creative
+            || CurrentWorldMode() != WorldModeExplorer;
 
     /// <summary>The player was part of a blow less than the grace ago, or a robber is still waiting for their answer.
     /// The grace runs on <see cref="GateClock"/>, so it also runs out behind the pause menu (#2558).</summary>
@@ -175,7 +187,8 @@ public sealed partial class GameServer
 
     /// <summary>Seconds until this player may use "Back to my ship" again (0 = ready) — for the state update.</summary>
     private float ReturnToShipCooldownLeft(PlayerSession session)
-        => _returnToShipReadyAt.TryGetValue(session.State.PlayerId, out var readyAt) && readyAt > _uptime
+        => !ReturnToShipWithoutCooldown(session)
+            && _returnToShipReadyAt.TryGetValue(session.State.PlayerId, out var readyAt) && readyAt > _uptime
             ? (float)(readyAt - _uptime)
             : 0f;
 

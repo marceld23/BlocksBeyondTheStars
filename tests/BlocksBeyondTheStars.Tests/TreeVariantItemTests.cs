@@ -25,7 +25,7 @@ public sealed class TreeVariantItemTests : IDisposable
 {
     private static readonly (string Key, string Group)[] Variants =
     {
-        ("wood_log_b", "logs"), ("tree_leaves_b", "leaves"), ("tree_leaves_c", "leaves"), ("blossom_leaves", "leaves"),
+        ("wood_log_b", "logs"), ("giant_log", "logs"), ("tree_leaves_b", "leaves"), ("tree_leaves_c", "leaves"), ("blossom_leaves", "leaves"),
     };
 
     private readonly string _root;
@@ -76,9 +76,9 @@ public sealed class TreeVariantItemTests : IDisposable
         }
 
         // The common kind leads its group: it is what a list names and what is used up first.
-        Assert.Equal(new[] { "wood_log", "wood_log_b" }, _content.ItemGroupMembers("logs"));
+        Assert.Equal(new[] { "wood_log", "wood_log_b", "giant_log" }, _content.ItemGroupMembers("logs"));
         Assert.Equal("tree_leaves", _content.ItemGroupMembers("leaves")[0]);
-        Assert.Equal(2, Assert.Single(_content.GetBlock("giant_log")!.Drops, d => d.Item == "wood_log").Count); // the common bark
+        Assert.Equal(2, Assert.Single(_content.GetBlock("giant_log")!.Drops).Count); // #2968: two mahogany logs, the old yield
     }
 
     [Fact]

@@ -161,7 +161,11 @@ ring). A server-aware lock (a `TargetLockIntent`) only becomes worth it with hom
 
 ## Deferred (explicitly not in M19)
 
-- Per-player / multiple ships and **PvP ship combat** (needs a ship-ownership model first).
+- Per-player / multiple ships and **PvP ship combat** (needs a ship-ownership model first). On-foot PvP exists since
+  #2972 (`GameServerPvp`, `PvpRules`: the `Pvp` modes, `FriendlyFire`, duels, kid-friendly guards); it stops at the
+  ship's hull — nobody aboard, in space or on a spacewalk can be hit by a player.
+- The hostiles' numbers (hull, damage, loot per tier) live in `data/enemies.json` since #2971 (`EnemyDefinition`,
+  `GameServer.NewEnemy`); the Codex's *Enemies* chapter shows the same file.
 - Large cruisers / boss events (§10.5), Alien UFO special behaviour (§10.4 beyond a flag).
 - Module-level damage, overheating, ammo types beyond a simple energy cost (§7.6, §8.4).
 - Salvage / boarding of defeated ships (§8.5 hard-PvP path).
