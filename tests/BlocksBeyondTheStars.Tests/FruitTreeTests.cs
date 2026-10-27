@@ -440,7 +440,7 @@ public sealed class FruitTreeTests : IDisposable
         for (int seed = 1; seed <= 12 && server == null; seed++)
         {
             var s = Started(out var r, "fruit-sapling-" + seed, seed);
-            if (s.FruitShapeForTest(TreeKind.Broadleaf) != null)
+            if (s.FruitForTreeForTest(TreeKind.Broadleaf, 50, 50) != null)
             {
                 server = s;
                 repo = r;
@@ -473,8 +473,9 @@ public sealed class FruitTreeTests : IDisposable
             server.Tick(100.0); // > SaplingGrowSeconds
             Assert.Equal(_content.GetBlock("wood_log")!.NumericId.Value, server.World.GetBlock(cell).Value);
 
-            var fruitId = _content.GetBlock(server.FruitShapeForTest(TreeKind.Broadleaf)!)!.NumericId.Value;
-            int tint = server.FruitTintForTest(TreeKind.Broadleaf);
+            var borne = server.FruitForTreeForTest(TreeKind.Broadleaf, cell.X, cell.Z)!.Value; // #2976: per tree from generation 30
+            var fruitId = _content.GetBlock(borne.Shape)!.NumericId.Value;
+            int tint = borne.Tint;
             var leaf = _content.GetBlock("tree_leaves")!.NumericId.Value;
             int n = 0;
             for (int dx = -3; dx <= 3; dx++)

@@ -31,6 +31,7 @@ public static class FruitRules
     private const long ShapeSalt = 0x5A9E7F;
     private const long TintSalt = 0x71A7C0;
     private const long TreeSalt = 0x7EE7F0;
+    private const long ShapeTintSalt = 0x5A7C01;
 
     /// <summary>True for a tree kind that can bear fruit: the leafy crowns. Dead snags, bamboo, saguaros, mushroom
     /// and crystal trees bear none. Of the generation-29 kinds (#2853) the oak, birch, ball, bottle and umbrella trees bear
@@ -73,6 +74,65 @@ public static class FruitRules
         }
 
         return ShapeFor(rosterSeed, kind, activeFruitKeys);
+    }
+
+    /// <summary>The fruit one tree hangs and its colour — the single entry point world generation and the server share.
+    /// Up to generation 29 that is the tree KIND's roll (<see cref="ShapeFor(long, TreeKind, IReadOnlyList{string}, string?)"/>,
+    /// <see cref="TintFor"/>). From <see cref="BlocksBeyondTheStars.Shared.World.WorldDescription.MultiFruitGeneration"/>
+    /// (#2976) every tree picks its own fruit from the world's active shapes by its <paramref name="treeHash"/> (palms and
+    /// jungle trees of a world with a guaranteed fruit keep bearing it), and the colour is the fruit's
+    /// (<see cref="TintForShape"/>). Null when the kind bears none or the world grows no fruit.</summary>
+    public static (string Shape, int Tint)? FruitForTree(long rosterSeed, TreeKind kind, ulong treeHash,
+        IReadOnlyList<string> activeFruitKeys, string? guaranteedFruit, int terrainGeneration)
+    {
+        if (terrainGeneration < BlocksBeyondTheStars.Shared.World.WorldDescription.MultiFruitGeneration)
+        {
+            return ShapeFor(rosterSeed, kind, activeFruitKeys, guaranteedFruit) is { } rolled
+                ? (rolled, TintFor(rosterSeed, kind))
+                : null;
+        }
+
+        if (!BearsFruit(kind) || activeFruitKeys.Count == 0)
+        {
+            return null;
+        }
+
+        string shape = guaranteedFruit != null && BearsGuaranteedFruit(kind) && Contains(activeFruitKeys, guaranteedFruit)
+            ? guaranteedFruit
+            : activeFruitKeys[(int)(Mix(unchecked((long)treeHash), (long)kind, ShapeSalt) % (ulong)activeFruitKeys.Count)];
+        return (shape, TintForShape(rosterSeed, shape));
+    }
+
+    /// <summary>The colour (0xRRGGBB) of one fruit shape on the world of <paramref name="rosterSeed"/> (#2976, generation 30;
+    /// also the planted fruit trees' colour on every world, #2977): all apples of a world share it, the same fruit on another
+    /// world differs. Same flora band as <see cref="TintFor"/>.</summary>
+    public static int TintForShape(long rosterSeed, string fruitBlockKey)
+    {
+        var keys = FloraCatalog.FruitKeys();
+        int index = 0;
+        for (int i = 0; i < keys.Count; i++)
+        {
+            if (keys[i] == fruitBlockKey)
+            {
+                index = i + 1;
+                break;
+            }
+        }
+
+        return TintFromHash(Mix(rosterSeed, index, ShapeTintSalt));
+    }
+
+    private static bool Contains(IReadOnlyList<string> keys, string key)
+    {
+        foreach (var k in keys)
+        {
+            if (k == key)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>The tree kinds that always bear a world's guaranteed fruit (#2084): the palms and the jungle trees — the
@@ -153,10 +213,15 @@ public static class FruitRules
         }
 
         string? guaranteed = GuaranteedFruitFor(planet, terrainGeneration);
+        bool multiFruit = terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.MultiFruitGeneration;
         var borne = new HashSet<string>();
         foreach (var kind in kinds)
         {
-            if (ShapeFor(rosterSeed, kind, active, guaranteed) is { } shape)
+            if (multiFruit && BearsFruit(kind))
+            {
+                borne.UnionWith(active); // #2976: every fruit-bearing tree may hang any of the world's fruit
+            }
+            else if (!multiFruit && ShapeFor(rosterSeed, kind, active, guaranteed) is { } shape)
             {
                 borne.Add(shape);
             }
@@ -176,9 +241,10 @@ public static class FruitRules
     /// <summary>The colour (0xRRGGBB) of every fruit this tree kind bears on the world of <paramref name="rosterSeed"/>:
     /// any hue, in the flora band (saturation 0.45–0.85, value 0.85–1.0) so a fruit reads as ripe on any world and the
     /// dye recolour never blows out.</summary>
-    public static int TintFor(long rosterSeed, TreeKind kind)
+    public static int TintFor(long rosterSeed, TreeKind kind) => TintFromHash(Mix(rosterSeed, (long)kind, TintSalt));
+
+    private static int TintFromHash(ulong h)
     {
-        ulong h = Mix(rosterSeed, (long)kind, TintSalt);
         float hue = (h % 3600UL) / 3600f;
         float sat = 0.45f + ((h >> 12) % 1000UL) / 1000f * 0.40f;
         float val = 0.85f + ((h >> 24) % 1000UL) / 1000f * 0.15f;

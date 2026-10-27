@@ -83,6 +83,15 @@ TEXTURES = [
     ("flora_bush", "round leafy green bush with small red berries, top-down"),
     # #1774: the plantable sapling — a young tree, read as a small plant billboard like the other flora_* tiles.
     ("flora_sapling", "small young tree sapling with a thin brown stem and a few fresh bright green leaves, seen from the side, on a plain flat background"),
+    # #2977–#2980: the sapling kinds — one young tree per kind, a side-view plant on black rooted on the bottom edge
+    # (cut by the dark-ground bake like the meadow plants, not chroma-keyed like the classic sapling).
+    ("flora_sapling_conifer", f"side view of one small young fir tree sapling, a thin brown stem with a few tiers of short dark green needle branches forming a little cone, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}"),
+    ("flora_sapling_fruit_round", f"side view of one small young fruit tree sapling, a thin brown stem with a few fresh bright green leaves and two tiny round red apples hanging from it, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}"),
+    ("flora_sapling_fruit_long", f"side view of one small young fruit tree sapling, a thin brown stem with a few fresh bright green leaves and two small long slender yellow-green pods hanging from it, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}"),
+    ("flora_sapling_fruit_grape", f"side view of one small young fruit tree sapling, a thin brown stem with a few fresh bright green leaves and one small cluster of round purple grapes hanging from it, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}"),
+    ("flora_sapling_fruit_banana", f"side view of one small young banana palm sapling, a short brown stem with a few broad arching bright green fronds and one tiny bunch of yellow bananas, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}"),
+    ("flora_sapling_fifi", f"side view of one small young sapling with a thin bright green stem, a little round crown of lemon-yellow leaves and one small glowing hot-pink blossom on top, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}"),
+    ("flora_sapling_mahogany", f"side view of one small young mahogany tree sapling, a sturdy dark reddish-brown stem with a few large broad dark green leaves with pale veins, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}"),
     ("flora_vine", "tangled green climbing vines with leaves, top-down"),
     ("flora_mushroom", "cluster of small mushrooms with red caps and white stems, top-down"),
     ("flora_cactus", "green desert cactus with spines and small flowers, top-down"),

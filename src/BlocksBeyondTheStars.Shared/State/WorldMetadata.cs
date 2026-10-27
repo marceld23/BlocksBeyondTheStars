@@ -39,9 +39,11 @@ public sealed class WorldMetadata
     /// force field, the campfire and the forge). 4 = the derelict stations' guardian bay (#2635, <c>guardian_spawner</c>).
     /// 5 = the twelve wild plants of the mixed meadows (#2833, generation 28: <c>flora_berrybush</c> … <c>flora_lupine</c>).
     /// 6 = the tree variety (#2850, #2851, #2853, generation 29: <c>tree_leaves_b</c>, <c>tree_leaves_c</c>,
-    /// <c>blossom_leaves</c>, <c>wood_log_b</c>, <c>saguaro</c>, <c>flora_lantern_fruit</c>).</para>
+    /// <c>blossom_leaves</c>, <c>wood_log_b</c>, <c>saguaro</c>, <c>flora_lantern_fruit</c>). 7 = the sapling kinds
+    /// (#2977–#2980: <c>flora_sapling_conifer</c>, the four <c>flora_sapling_fruit_*</c>, <c>flora_sapling_fifi</c>,
+    /// <c>flora_sapling_mahogany</c>).</para>
     /// </summary>
-    public const int CurrentSaveVersion = 6;
+    public const int CurrentSaveVersion = 7;
 
     /// <summary>The save version of the build that last opened this world — see <see cref="CurrentSaveVersion"/>.
     /// Absent in the JSON ⇒ 1, the version every save carried before the check existed.</summary>

@@ -336,6 +336,14 @@
   { "key": "seed_shroom",  "station": "hand", "inputs": [ { "item": "mushroom_cap", "count": 2 } ], "outputs": [ { "item": "shroom_seed", "count": 2 } ] },
   // Saplings (#1774): a log and some fibre make two young trees by hand — leaves drop one now and then as well.
   { "key": "sapling",      "station": "hand", "inputs": [ { "item": "wood_log", "group": "logs", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "sapling", "count": 2 } ] },
+  // The conifer sapling (#2978): a log, a handful of needles and some fibre; pine needles drop one now and then as well.
+  { "key": "sapling_conifer", "station": "hand", "inputs": [ { "item": "wood_log", "group": "logs", "count": 1 }, { "item": "pine_needles", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "sapling_conifer", "count": 2 } ] },
+  // Fruit-tree saplings (#2977): a clean fruit, a log and some fibre make a young tree that always bears that fruit — on
+  // every world, whatever its own trees grow. No recipe for the Fifi or the mahogany sapling: their leaves drop them.
+  { "key": "sapling_fruit_round", "station": "hand", "inputs": [ { "item": "fruit_round", "count": 1 }, { "item": "wood_log", "group": "logs", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "sapling_fruit_round", "count": 1 } ] },
+  { "key": "sapling_fruit_long", "station": "hand", "inputs": [ { "item": "fruit_long", "count": 1 }, { "item": "wood_log", "group": "logs", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "sapling_fruit_long", "count": 1 } ] },
+  { "key": "sapling_fruit_grape", "station": "hand", "inputs": [ { "item": "fruit_grape", "count": 1 }, { "item": "wood_log", "group": "logs", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "sapling_fruit_grape", "count": 1 } ] },
+  { "key": "sapling_fruit_banana", "station": "hand", "inputs": [ { "item": "fruit_banana", "count": 1 }, { "item": "wood_log", "group": "logs", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "sapling_fruit_banana", "count": 1 } ] },
   // The hydroponic tray the high-tech greenhouses grow crops in — the one host block that is not soil.
   { "key": "hydro_tray",   "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 1 }, { "item": "glass", "count": 1 }, { "item": "plant_fiber", "count": 2 }, { "item": "brass_fitting", "count": 1 } ], "outputs": [ { "item": "hydro_tray", "count": 2 } ] },
 

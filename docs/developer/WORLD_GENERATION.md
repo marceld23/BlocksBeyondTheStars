@@ -2952,3 +2952,36 @@ plants cast light in their world colour (`PlantGlowLight`). `wood_log_b` has end
 margins and determinism of every builder, slot blocks, saguaro by generation, mushroom/crystal trees on corrupted and
 fungal worlds, lantern trees only when luminous, slot species), `GlowLevelTests`, `FifiWorldShareTests`,
 `TreeTintJitterTests`, `PlantGlowLightTintTests`, and the goldens `meadowlands-gen29`, `jungle-gen29`, `desert-gen29`.
+
+## 47. Generation 30 — several fruits per world, and the sapling kinds (#2976–#2980, 2026-10-27)
+
+**Several fruits (#2976, behind `WorldDescription.MultiFruitGeneration` = 30).** Up to generation 29 a world rolled one
+fruit shape per tree KIND (`FruitRules.ShapeFor`) and one colour per kind (`TintFor`), and a roster could activate a
+single fruit shape or none. From generation 30:
+
+- `FloraGenerator.EnsureSeveralFruits` switches on inactive tree fruit shapes, starting at a seeded shape and walking the
+  catalog order, until a world with trees has `FloraGenerator.MinActiveFruitShapes` (3) of the four. The activation rolls
+  are drawn as before, so no other species' stream moves; every other roster entry is unchanged.
+- `FruitRules.FruitForTree` is the one entry point world generation (`FruitRecorderFor`) and the server (a sapling's tree)
+  share. Below 30 it returns the kind's roll; from 30 a fruit-bearing tree picks its fruit from the world's active shapes
+  by a second mix of its tree hash (palms and jungle trees of a world with a guaranteed fruit keep bearing it), and the
+  colour is `TintForShape(rosterSeed, shape)` — one colour per fruit and world.
+- `FruitRules.CleanFruitItems` lists every active clean fruit when any fruit-bearing kind grows on the world.
+- Which trees bear fruit at all (`TreeBearsFruit`, 35 %) and where it hangs (`PickFruitCells`) are unchanged.
+
+**The sapling kinds (#2977–#2980).** `SaplingCatalog` (Shared) lists the plantable saplings — block, item, the
+`SaplingShape` they grow, the blocks of the tree, the fruit it always bears, the growing time. `SaplingTrees`
+(WorldGeneration) is the pure shape of each tree relative to the sapling cell: the classic broadleaf (unchanged), a
+conifer (5–6 logs, needle rings, a tip), a palm (5–6 logs, four drooping fronds and four short diagonals), the Fifi
+plant's own smaller shape (`FifiPlantRules.ShapeFor` at size 0.8, blossoms and berries included) and the young giant (a
+2×2 trunk 9–11 high under an ellipsoid crown; `Mirrors` lets the server grow it into the first quarter around the sapling
+that has ground and room). `GameServerSaplings` grows them: the trunk needs free cells (and ground at height 0 for the
+giant's foot), crown and blossoms fill air only, then the fruit — the Fifi plant's own berry cells, a fruit-tree
+sapling's fruit (3–5, `TintForShape`, on every world), or for the classic sapling what the world's broadleaf bears
+(`FruitForTree`). Where saplings come from is data: `pine_needles`, `fifi_leaf` and `giant_leaves` drop their own
+sapling (`randomDrops`), and hand recipes make the fir and the four fruit-tree saplings. Seven blocks → save version 7.
+Older worlds keep their wild fruit as it was; the saplings work on every world.
+
+**Tests:** `SaplingKindsTests` (catalog, recipes, drops, shapes, every kind grown on the real server, the giant's
+quarter, the roster top-up and the unchanged generation-29 roster, `FruitForTree` per generation, `TintForShape`,
+`CleanFruitItems`).

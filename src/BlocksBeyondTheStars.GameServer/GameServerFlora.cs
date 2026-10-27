@@ -25,9 +25,8 @@ public sealed partial class GameServer
 {
     private const double FloraRegrowSeconds = 30.0;
 
-    /// <summary>Seconds a planted sapling takes to become a tree (#1774), and how long it waits before looking
-    /// again when the room above it is taken.</summary>
-    private const double SaplingGrowSeconds = 150.0;
+    /// <summary>How long a sapling waits before looking again when the room for its tree is taken (#1774; how long it
+    /// takes to grow is its kind's, <see cref="BlocksBeyondTheStars.Shared.Definitions.SaplingKind.GrowSeconds"/>).</summary>
     private const double SaplingRetrySeconds = 30.0;
 
     private readonly HashSet<ushort> _floraIds = new();
@@ -45,12 +44,6 @@ public sealed partial class GameServer
     private Dictionary<Vector3i, (ushort FloraId, double Timer, int Tint)> _floraRegrow => _worlds.Active.FloraRegrow;
 
     private readonly HashSet<ushort> _floraHangingIds = new(); // #1759: species whose host is the block above
-
-    // #1774: the sapling — flora for placement and harvest (host + hull rules), but no catalog species: it sits in
-    // no world roster, no greenhouse grows it, and instead of regrowing it turns into a tree.
-    private ushort _saplingId;
-    private ushort _saplingLogId;
-    private ushort _saplingLeafId;
 
     // #2038: the fruit shapes (they regrow slowly and in their colour), this world's active ones in catalog order and
     // the roster seed FruitRules rolls the per-kind shape and colour from — the same seed worldgen used. #2226: the
@@ -90,15 +83,7 @@ public sealed partial class GameServer
             }
         }
 
-        _saplingId = 0;
-        if (_content.GetBlock("flora_sapling") is { } sapling && sapling.NumericId.Value != 0)
-        {
-            _saplingId = sapling.NumericId.Value;
-            _floraIds.Add(_saplingId);
-            _floraHostIds[_saplingId] = HostIds("dirt", "grass", "mud");
-            _saplingLogId = _content.GetBlock("wood_log")?.NumericId.Value ?? 0;
-            _saplingLeafId = _content.GetBlock("tree_leaves")?.NumericId.Value ?? 0;
-        }
+        InitSaplings(); // #1774, #2977–#2980: every sapling kind (GameServerSaplings)
 
         // #2209: the bred plant — flora for harvest, regrowth and the hull rule, but no catalog species: what stands in
         // a cell is the player's own species (GameServerBioBreeding), and its soil rule is its own (BredHostValid).
@@ -206,28 +191,6 @@ public sealed partial class GameServer
 
     private bool IsFlora(ushort id) => id != 0 && _floraIds.Contains(id);
 
-    /// <summary>The planted young tree (#1774): flora that grows UP instead of back.</summary>
-    private bool IsSapling(ushort id) => id != 0 && id == _saplingId;
-
-    /// <summary>Test seam (#2038): the fruit shape this world's trees of a kind bear (null = none).</summary>
-    public string? FruitShapeForTest(BlocksBeyondTheStars.Shared.Definitions.TreeKind kind)
-        => BlocksBeyondTheStars.WorldGeneration.FruitRules.ShapeFor(_fruitRosterSeed, kind, _activeFruitKeys, _guaranteedFruit);
-
-    /// <summary>Test seam (#2038): the colour every fruit of a tree kind carries on this world.</summary>
-    public int FruitTintForTest(BlocksBeyondTheStars.Shared.Definitions.TreeKind kind)
-        => BlocksBeyondTheStars.WorldGeneration.FruitRules.TintFor(_fruitRosterSeed, kind);
-
-    /// <summary>A sapling was planted: its growth rides the regrow queue (persisted like a harvest), so a tree
-    /// planted before a restart still comes. No sprout cue — the sapling itself is the cue.</summary>
-    private void ScheduleSaplingGrowth(Vector3i pos)
-    {
-        _floraRegrow[pos] = (_saplingId, SaplingGrowSeconds, 0);
-        _repo.SaveFloraRegrow(_world.LocationId, pos, _saplingId, SaplingGrowSeconds);
-    }
-
-    /// <summary>A sapling picked up before it grew is gone for good (it is in the pocket now) — drop its timer.</summary>
-    private void ForgetSaplingGrowth(Vector3i pos) => ForgetFloraRegrow(pos);
-
     /// <summary>Drops a cell's growth timer — a regrow or a sapling's clock — from the queue and the save (#2532: also
     /// when the ground a waiting plant would root in is gone).</summary>
     private void ForgetFloraRegrow(Vector3i pos)
@@ -238,123 +201,13 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>#2532: a sapling whose ground is gone — air or a fluid under it — grows nothing: no floating tree.</summary>
-    private bool SaplingLostGround(Vector3i pos)
-    {
-        var below = _world.GetBlock(new Vector3i(pos.X, pos.Y - 1, pos.Z));
-        return below.IsAir || IsFluid(below.Value) || IsLiquid(below);
-    }
+    /// <summary>Test seam (#2038): the fruit shape this world's trees of a kind bear (null = none).</summary>
+    public string? FruitShapeForTest(BlocksBeyondTheStars.Shared.Definitions.TreeKind kind)
+        => BlocksBeyondTheStars.WorldGeneration.FruitRules.ShapeFor(_fruitRosterSeed, kind, _activeFruitKeys, _guaranteedFruit);
 
-    /// <summary>Test seam (#1774): how the world's tree from a sapling is shaped at a cell.</summary>
-    public bool TryGrowTreeForTest(int x, int y, int z) => TryGrowTree(new Vector3i(x, y, z));
-
-    /// <summary>Turns the sapling at <paramref name="pos"/> into a small tree (#1774): a trunk of four or five
-    /// logs and a round crown of leaves, the shape the world generator's broadleaf uses. The trunk column must
-    /// be free (a ceiling two blocks up keeps the sapling waiting); leaves only ever fill air, so a crown pressed
-    /// against a wall is simply flatter on that side. On a void world the trunk top must sit inside the hull
-    /// like any planted cell. Returns false when the tree could not grow yet.</summary>
-    private bool TryGrowTree(Vector3i pos)
-    {
-        if (_saplingLogId == 0 || _saplingLeafId == 0 || _world.GetBlock(pos).Value != _saplingId || SaplingLostGround(pos))
-        {
-            return false; // #2532: without ground under it a sapling grows no tree
-        }
-
-        int height = 4 + (System.Math.Abs(pos.X * 31 + pos.Z * 17 + pos.Y) % 2); // 4 or 5, fixed per cell
-        for (int dy = 1; dy < height; dy++)
-        {
-            var c = new Vector3i(pos.X, pos.Y + dy, pos.Z);
-            if (!_world.GetBlock(c).IsAir || ShipInteriorContains(new Vector3f(c.X, c.Y, c.Z)))
-            {
-                return false; // no room for the trunk yet
-            }
-        }
-
-        // #1835: on a void world the hall must hold the tree — judged at the SAPLING's cell, which has the floor the
-        // enclosure probe starts from. The old check ran the probe at the crown cell, whose "floor" is the trunk
-        // column just verified to be air, so it read every sapling on a station as "opens to the void" and retried
-        // for ever ("Warum werden die Setzlinge nicht größer?"). The crown column itself is checked for room above.
-        if (!IsFloraEnclosedForVoidWorld(pos))
-        {
-            return false; // a station hall must hold the tree as well
-        }
-
-        var top = new Vector3i(pos.X, pos.Y + height - 1, pos.Z);
-
-        var log = new BlockId(_saplingLogId);
-        var leaf = new BlockId(_saplingLeafId);
-        var treeCells = new HashSet<(int X, int Y, int Z)>();   // #2038: what the tree wrote — the fruit hangs under its lowest leaves
-        var leafCells = new List<(int X, int Y, int Z)>();      // every leaf the crown tried to grow, in crown order
-        for (int dy = 0; dy < height; dy++)
-        {
-            var c = new Vector3i(pos.X, pos.Y + dy, pos.Z);
-            treeCells.Add((c.X, c.Y, c.Z));
-            _world.SetBlock(c, log);
-            MirrorStationCellDeferred(c, log); // #1857: a tree grown aboard a player station is part of its build
-            BroadcastToWorld(new BlockChanged { X = c.X, Y = c.Y, Z = c.Z, Block = log.Value });
-        }
-
-        // The crown: two full rings around the top two trunk cells (corners clipped), a smaller ring above, a cap.
-        for (int dy = -1; dy <= 2; dy++)
-        {
-            int r = dy <= 0 ? 2 : dy == 1 ? 1 : 0;
-            for (int dx = -r; dx <= r; dx++)
-                for (int dz = -r; dz <= r; dz++)
-                {
-                    if (r == 2 && System.Math.Abs(dx) == 2 && System.Math.Abs(dz) == 2)
-                    {
-                        continue; // clipped corners keep the crown round
-                    }
-
-                    var c = new Vector3i(top.X + dx, top.Y + dy, top.Z + dz);
-                    leafCells.Add((c.X, c.Y, c.Z));
-                    if (!_world.GetBlock(c).IsAir || ShipInteriorContains(new Vector3f(c.X, c.Y, c.Z)))
-                    {
-                        continue; // leaves fill air only — never the trunk, a wall or a neighbour's crown
-                    }
-
-                    treeCells.Add((c.X, c.Y, c.Z));
-                    _world.SetBlock(c, leaf);
-                    MirrorStationCellDeferred(c, leaf); // #1857
-                    BroadcastToWorld(new BlockChanged { X = c.X, Y = c.Y, Z = c.Z, Block = leaf.Value });
-                }
-        }
-
-        HangFruitOnGrownTree(pos, leafCells, treeCells);
-        FlushMirroredStationCells(); // #1857: one row write + one design refresh for the whole tree
-        return true;
-    }
-
-    /// <summary>#2038: a tree grown from a sapling bears fruit like a stamped broadleaf — the shape and colour this
-    /// world rolled for the broadleaf kind, 2–5 pieces under the lowest leaves, only on a generation-14 world and
-    /// only where the roster gave the kind a shape. Fruit fills air only, under a leaf that really grew.</summary>
-    private void HangFruitOnGrownTree(Vector3i pos, List<(int X, int Y, int Z)> leafCells, HashSet<(int X, int Y, int Z)> treeCells)
-    {
-        const BlocksBeyondTheStars.Shared.Definitions.TreeKind kind = BlocksBeyondTheStars.Shared.Definitions.TreeKind.Broadleaf;
-        if (_meta.Description.TerrainGeneration < BlocksBeyondTheStars.Shared.World.WorldDescription.FruitTreesGeneration
-            || BlocksBeyondTheStars.WorldGeneration.FruitRules.ShapeFor(_fruitRosterSeed, kind, _activeFruitKeys, _guaranteedFruit) is not { } shape
-            || _content.GetBlock(shape) is not { } fruitDef || fruitDef.NumericId.Value == 0)
-        {
-            return;
-        }
-
-        var fruit = fruitDef.NumericId;
-        int tint = BlocksBeyondTheStars.WorldGeneration.FruitRules.TintFor(_fruitRosterSeed, kind);
-        ulong hash = BlocksBeyondTheStars.WorldGeneration.FruitRules.TreeHash(_meta.Seed, pos.X, pos.Z);
-        foreach (var (x, y, z) in BlocksBeyondTheStars.WorldGeneration.FruitRules.PickFruitCells(leafCells, treeCells, hash))
-        {
-            var c = new Vector3i(x, y, z);
-            if (!_world.GetBlock(c).IsAir || ShipInteriorContains(new Vector3f(c.X, c.Y, c.Z))
-                || _world.GetBlock(new Vector3i(x, y + 1, z)).Value != _saplingLeafId)
-            {
-                continue; // fruit fills air only, under a leaf that really grew
-            }
-
-            _world.SetBlock(c, fruit, tint);
-            MirrorStationCellDeferred(c, fruit);
-            BroadcastToWorld(new BlockChanged { X = c.X, Y = c.Y, Z = c.Z, Block = fruit.Value, Tint = tint });
-        }
-    }
+    /// <summary>Test seam (#2038): the colour every fruit of a tree kind carries on this world.</summary>
+    public int FruitTintForTest(BlocksBeyondTheStars.Shared.Definitions.TreeKind kind)
+        => BlocksBeyondTheStars.WorldGeneration.FruitRules.TintFor(_fruitRosterSeed, kind);
 
     /// <summary>True if the flora may be planted at the cell — the block below must be a valid host (for a hanging
     /// species, #1759, the block ABOVE).</summary>

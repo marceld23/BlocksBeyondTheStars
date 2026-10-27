@@ -1004,6 +1004,7 @@ public sealed class SaveCompatibilityTests : IDisposable
         [4] = "07bf8919f5d6d7f1", // the derelict stations' guardian bay (#2635): guardian_spawner
         [5] = "4eda69f2b9ee2343", // the mixed meadows (#2833): twelve wild plants, flora_berrybush … flora_lupine
         [6] = "3d95fd830ec41f4b", // the tree variety (#2850/#2851/#2853): leaf slots, blossom crown, pale bark, saguaro, lantern fruit
+        [7] = "3c9be21d2581a4e5", // the sapling kinds (#2977–#2980): conifer, four fruit trees, Fifi plant, giant mahogany
     };
 
     [Fact]
