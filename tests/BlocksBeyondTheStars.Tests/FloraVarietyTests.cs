@@ -242,6 +242,13 @@ public sealed class FloraVarietyTests
             }
         }
 
+        // #2977–#2980: the sapling kinds are a young tree on black, baked like the meadow plants; the classic sapling's
+        // tile carries its own chroma-keyed alpha and stays out.
+        foreach (var kind in SaplingCatalog.All.Skip(1))
+        {
+            expected.Add(kind.BlockKey);
+        }
+
         Assert.Empty(expected.Except(listed));                  // every leafy species is baked
         Assert.Empty(listed.Except(expected).Except(accepted)); // nothing solid or unknown is baked
     }
