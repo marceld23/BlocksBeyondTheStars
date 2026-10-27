@@ -24,10 +24,10 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 📬 Player report 2026-10-26 (Lyxette, v2026.10.28) — sapling kinds for the garden, several fruits per world — #2976–#2980, branch feat/reports-2026-10-26 — ✅ done 2026-10-27 (⚠ playtest open; terrain generation 30, save version 7, no protocol bump)
+### 📬 Player report 2026-10-26 (Lyxette, v2026.10.28) — sapling kinds for the garden, several fruits per world — #2976–#2980, branch feat/reports-2026-10-26 — ✅ done 2026-10-27 in PR #2981 (`c9151cca`) (⚠ playtest open; terrain generation 30, save version 7, no protocol bump)
 
 One report (2 inbox rows). Its "wrong wood" picture was no bug: the patch in front of the mahogany trunk was `wood_log`
-mined before #2968 (her inventory held no `giant_log`). The wish — "one or two more saplings, apple trees, the Fifi tree"
+mined before #2968 (his inventory held no `giant_log`). The wish — "one or two more saplings, apple trees, the Fifi tree"
 — became, by Marcel's decision, several fruits per world plus a sapling for every fruit.
 
 - **#2976 several fruits per world (generation 30, `MultiFruitGeneration`):** at least three of the four tree fruit
@@ -46,8 +46,11 @@ mined before #2968 (her inventory held no `giant_log`). The wish — "one or two
   moved out of `GameServerFlora` and made per kind; a base counts every kind). Seven new blocks → ids shift, save version 7.
 - Seven OpenAI sapling tiles (`gen_textures.py`, dark-ground bake, NOTICES). Texts in all 14 languages. Docs:
   USER_MANUAL (gardening, food), WORLD_GENERATION §47. Tests: `SaplingKindsTests`.
+- Lyxette got the reply after the merge (both inbox rows done, fixed in 2026.10.29).
 - **Open:** playtest — plant each kind, fruit colour on a new world, the giant in a tight spot, a generation-30 world's
-  mixed fruit; reply to Lyxette after the merge.
+  mixed fruit.
+
+**Released** in **v2026.10.29** "the garden release" (2026-10-27).
 
 ### 📬 Player reports 2026-10-25 (Lyxette + Justus as Screelit, v2026.10.27) — giant mahogany, Sandbox return without waiting, planet-type shortcuts, an enemies Codex, on-foot PvP with friendly fire — #2968–#2972, branch feat/reports-2026-10-25 — ✅ done 2026-10-25 (⚠ playtest open; no generation or save-version change, no protocol bump)
 

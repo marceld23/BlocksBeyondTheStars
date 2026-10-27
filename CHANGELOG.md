@@ -11,6 +11,61 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.29] — 2026-10-27
+
+The garden release, made from one wish of Lyxette's: more saplings for her garden. There is now a **sapling for every
+tree you can grow fruit on** — round fruit, long fruit, grape cluster and a banana palm — plus a **fir**, the **Fifi
+plant** and a **young giant mahogany**. A fruit sapling is made by hand from its fruit, so whatever a tree in your
+garden bears, you can plant more of it. And **new worlds grow several kinds of fruit at once**, with every tree bearing
+its own. The 2026.10.28 **"What's new?" notes are now in all fourteen languages**. Thanks to Lyxette.
+
+ℹ️ **Compatibility:** seven new sapling blocks, so the **save version goes up to 7**. Your worlds are converted the
+first time you open them, but **after that an older game can no longer open them**. The **terrain generation goes up to
+30** for new worlds only: existing worlds keep their wild trees as they are, and the new saplings work there too. The
+network protocol stays at **version 11**. As always, keep game and server on the same version: the desktop game updates
+itself at start, and the browser is always current.
+
+### 🌱 A sapling for every tree (#2977–#2980, thanks to Lyxette)
+
+- **Fruit trees (#2977):** Lyxette wished for "one or two more saplings — apple trees, or the Fifi tree with the
+  grapes". There are now four **fruit-tree saplings**: **Round Fruit**, **Long Fruit**, **Grape Cluster** and the
+  **Banana Palm Sapling**. You make one by hand from **1 of the fruit, 1 log and 2 plant fibre**. The tree always bears
+  **3 to 5 of its fruit**, on every world, whatever the wild trees there grow. The banana grows into a small palm.
+- **Fir (#2978):** when you clear **pine needles**, you now and then find a **Fir Sapling** instead of the common one. It
+  can also be made by hand (**1 log, 1 pine needles and 2 plant fibre → 2**) and grows into a small fir with rings of
+  needles.
+- **Fifi plant (#2979):** the "tree with the grapes" is the Fifi plant, and its "grapes" are Fifi berries. The **Fifi
+  Plant Sapling** comes **only from the leaves of a Fifi plant**, so you find it where the plant grows, but you can take
+  it anywhere and plant it there. It grows the plant with its yellow leaves, glowing blossoms and berries.
+- **Giant mahogany (#2980):** clearing **giant tree leaves** now and then gives a **Giant Mahogany Sapling**. Give it a
+  **free 2×2 patch of ground** around it and **plenty of room above**, and after about five minutes a **young giant**
+  grows from it, with a thick trunk of the same mahogany as the old giants. So the wood for your patches grows back.
+- Every sapling is planted like the old one: on soil, grass or mud with room above it, on a planet or in a sealed
+  station hall.
+
+### 🍎 Several fruits on every world (#2976)
+
+- So far each new world grew just one kind of fruit per kind of tree. **New worlds now grow at least three of the four
+  tree fruits**, and **every tree decides for itself** which one it bears. Each fruit keeps its own colour on that
+  world, so you can tell them apart from a distance.
+- This changes the trees of new worlds only. On a world you already play, the wild trees stay as they are; plant a
+  fruit sapling to bring in the fruit you miss.
+
+### 🛠️ For tinkerers
+
+- **Saplings:** `SaplingCatalog` (Shared) lists every kind with its block, item, tree shape, tree blocks, fruit and
+  growing time; `SaplingTrees` (WorldGeneration) holds the pure tree shapes; `GameServerSaplings` grows them on the
+  server (the sapling code moved out of `GameServerFlora` and works per kind; a base counts every kind). Seven new blocks
+  `flora_sapling_*` and items `sapling_*`, with seven new OpenAI tiles.
+- **Fruit:** terrain generation 30 (`MultiFruitGeneration`) activates at least three fruit shapes
+  (`FloraGenerator.EnsureSeveralFruits`) and picks the fruit per tree (`FruitRules.FruitForTree`, shared by world
+  generation and the server); the colour belongs to the fruit (`TintForShape`). Generation 29 and older are unchanged
+  bit for bit.
+- **Save version 7:** the block ids shift with the seven new blocks; the save remap converts block edits, regrowing
+  flora and the ship hull. A client with a different block set is refused at join, so there is no protocol bump.
+- **For hosters:** the WorldHost and report-host images were rebuilt for the shared-model changes and roll with this
+  release; the AI backend image is unchanged.
+
 ## [2026.10.28] — 2026-10-25
 
 The duel release, made from four wishes in one day's reports. Players can now **fight each other on foot** — but only
@@ -9204,7 +9259,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.28...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.29...HEAD
+[2026.10.29]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.28...v2026.10.29
 [2026.10.28]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.27...v2026.10.28
 [2026.10.27]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.26...v2026.10.27
 [2026.10.26]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.25...v2026.10.26
