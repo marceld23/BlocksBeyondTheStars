@@ -99,13 +99,15 @@ public sealed partial class WorldGenerator
         }
 
         ResolveFlora(planet); // memoised — the active fruit shapes of this world
-        string? shape = FruitRules.ShapeFor(RosterSeed, kind, _activeFruitKeys, FruitRules.GuaranteedFruitFor(planet, _terrainGeneration));
-        if (shape == null || _content.GetBlock(shape) is not { } fruit || fruit.NumericId.IsAir)
+        // #2976: up to generation 29 the kind's roll, from generation 30 the tree's own pick among the world's fruit
+        if (FruitRules.FruitForTree(RosterSeed, kind, h, _activeFruitKeys, FruitRules.GuaranteedFruitFor(planet, _terrainGeneration),
+                _terrainGeneration) is not { } borne
+            || _content.GetBlock(borne.Shape) is not { } fruit || fruit.NumericId.IsAir)
         {
             return null;
         }
 
-        return new FruitRecorder(inner, foliage, fruit.NumericId, FruitRules.TintFor(RosterSeed, kind));
+        return new FruitRecorder(inner, foliage, fruit.NumericId, borne.Tint);
     }
 
     /// <summary>Hangs the recorded tree's fruit: the cells <see cref="FruitRules.PickFruitCells"/> chose, written into this

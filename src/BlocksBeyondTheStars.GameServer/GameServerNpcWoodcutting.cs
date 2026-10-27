@@ -417,7 +417,7 @@ public sealed partial class GameServer
         _world.SetBlock(cell, sapling);
         MirrorStationCellDeferred(cell, sapling);
         BroadcastToWorld(new BlockChanged { X = cell.X, Y = cell.Y, Z = cell.Z, Block = _saplingId });
-        ScheduleSaplingGrowth(cell);
+        ScheduleSaplingGrowth(cell, _saplingId);
     }
 
     /// <summary>

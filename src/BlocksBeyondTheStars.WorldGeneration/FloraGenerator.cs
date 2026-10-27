@@ -139,12 +139,50 @@ public static class FloraGenerator
                 }
             }
         }
+        EnsureSeveralFruits(list, planet, planetSeed, terrainGeneration);
         if (caveWave)
         {
             EnsureCaveCoverage(list, terrainGeneration);
         }
 
         return list;
+    }
+
+    /// <summary>Fewest tree fruit shapes a generation-30 world with trees grows (#2976).</summary>
+    public const int MinActiveFruitShapes = 3;
+
+    /// <summary>#2976 (generation 30): a world with trees grows several fruits, not one or none — the rolled roster stays,
+    /// and while fewer than <see cref="MinActiveFruitShapes"/> tree fruit shapes are active the inactive ones are switched
+    /// on, starting at a seeded shape and walking the catalog order. Every roll above is drawn as before, so no species'
+    /// stream moves, and older generations never get here.</summary>
+    private static void EnsureSeveralFruits(List<FloraSpecies> list, PlanetType planet, long planetSeed, int terrainGeneration)
+    {
+        if (terrainGeneration < BlocksBeyondTheStars.Shared.World.WorldDescription.MultiFruitGeneration || planet.TreeDensity is <= 0.0)
+        {
+            return;
+        }
+
+        var fruit = new List<FloraSpecies>();
+        int active = 0;
+        foreach (var fs in list)
+        {
+            if (FloraCatalog.IsFruit(fs.BlockKey) && !FloraCatalog.KeepsOwnColour(fs.BlockKey))
+            {
+                fruit.Add(fs);
+                active += fs.Active ? 1 : 0;
+            }
+        }
+
+        int start = fruit.Count == 0 ? 0 : (int)((ulong)unchecked(planetSeed ^ 0x5F4E17L) % (ulong)fruit.Count);
+        for (int n = 0; n < fruit.Count && active < MinActiveFruitShapes; n++)
+        {
+            var fs = fruit[(start + n) % fruit.Count];
+            if (!fs.Active)
+            {
+                fs.Active = true;
+                active++;
+            }
+        }
     }
 
     /// <summary>The share of barren / airless worlds (generation 11) whose caves grow plants at all.</summary>

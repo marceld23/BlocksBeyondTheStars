@@ -639,7 +639,9 @@ costs no frame rate.
   the rate (*Satiety* slows it, a *Hungry* catch speeds it up). Below ~15 the suit auto-eats stored/loose rations. Food that hurts
   (contaminated meat, spoiled food, toxic berries) never goes into the suit's ration dispenser — eat it by hand, if at all.
   Food sources: hunt creatures (meat), harvest berry flora (replantable via seeds), pick the **fruit** that hangs
-  under tree crowns on newer worlds (it grows back; toxic exactly when its tree is — scan first), pick the berries under
+  under tree crowns on newer worlds (it grows back; toxic exactly when its tree is — scan first; worlds created after the
+  sapling update grow at least three kinds of fruit and every tree carries its own — or plant a fruit-tree sapling for
+  the kind you like), pick the berries under
   a **Fifi plant** (Sophie's tree-sized plant from the school club: green trunk, yellow leaves, glowing pink blossoms that
   light up the night; it stands in groups on green worlds created from 2026-09-27 on — on worlds created from
   2026-10-20 on only on about every third planet — and its berries are always edible and grow back after two minutes),
@@ -2139,6 +2141,20 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   shape a canopy by hand — and a sapling
   planted on the dirt floor of a sealed station hall grows just like one on a planet, so an arboretum in orbit
   is a matter of dirt, saplings and headroom. A sapling you pick up stays a sapling.
+- **More kinds of sapling.** Every sapling grows its own tree, and you pick it up as itself:
+  - **Fir sapling** — pine needles drop it now and then, or craft it by hand (1 log + 1 pine needles + 2 plant fibre →
+    2). It grows into a small fir with rings of needles (five free blocks above).
+  - **Fruit-tree saplings** — one for each fruit: round fruit, long fruit, grape cluster and banana. Craft one by hand
+    from **that fruit** (a clean one, not a toxic one) + 1 log + 2 plant fibre. The tree **always** bears 3–5 of its
+    fruit, on any world, even where no tree grows that fruit wild; the banana sapling grows a small palm. The fruit
+    takes the colour that fruit has on the world you plant it on, and grows back after you pick it, like wild fruit.
+  - **Fifi plant sapling** — only the leaves of a Fifi plant drop it, so you find it only where the Fifi plant grows
+    (there is no recipe). You can take it with you and plant it on another world. It grows into a Fifi plant with
+    glowing pink blossoms and berries you can always eat (five free blocks above).
+  - **Giant mahogany sapling** — giant tree leaves drop one now and then. It needs a free **2×2 patch of soil**
+    around it (it grows its trunk into whichever corner has room) and about eleven free blocks above, and it takes
+    longer. It grows into a young giant tree of **mahogany trunks**, the same wood as the old giants, so you can grow
+    matching wood for repairs.
 - **Plants and lamps need something to stand on.** Dig away the block under a plant, a sapling, a torch or a
   lantern — or the block a hanging plant or a fruit hangs from — and it falls: a wild plant is simply gone, while a
   fruit, a sapling, a bred plant (as its seedling), a torch or a lantern lies on the ground for you to pick up. A torch or

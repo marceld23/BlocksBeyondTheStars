@@ -180,7 +180,7 @@ public sealed partial class GameServer
     private void TendGardenSite(ServerNpc npc, ServerBase b, BaseIndex idx, Vector3i site)
     {
         var canonical = WorldConstants.CanonicalBlock(site, _world.Circumference);
-        if (_floraRegrow.TryGetValue(canonical, out var regrow) && regrow.FloraId == _saplingId)
+        if (_floraRegrow.TryGetValue(canonical, out var regrow) && IsSapling(regrow.FloraId))
         {
             double t = System.Math.Max(1.0, regrow.Timer - GardenerSaplingBoostSeconds);
             _floraRegrow[canonical] = (regrow.FloraId, t, regrow.Tint);

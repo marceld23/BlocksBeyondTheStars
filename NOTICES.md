@@ -118,7 +118,9 @@ same OpenAI usage terms. Block-backed materials reuse their in-game block atlas 
 `held_bone`, `held_carbon`; 2026-10-19) and the 28 tree-variety tiles of #2850/#2851/#2853/#2855 (the leaf slots
 `tree_leaves_b` and `tree_leaves_c`, the leaf pool `tree_leaves_look13`…`_look24`, the blossom crown `blossom_leaves` with
 `blossom_leaves_look2`…`_look4`, the bark looks `wood_log_look2`…`_look6`, the pale bark `wood_log_b` with
-`wood_log_b_look2`…`_look3`, the `saguaro` cactus and the lantern tree's `flora_lantern_fruit`; 2026-10-20)) are
+`wood_log_b_look2`…`_look3`, the `saguaro` cactus and the lantern tree's `flora_lantern_fruit`; 2026-10-20) and the seven sapling kinds of #2977–#2980
+(`flora_sapling_conifer`, `flora_sapling_fruit_round`, `flora_sapling_fruit_long`, `flora_sapling_fruit_grape`,
+`flora_sapling_fruit_banana`, `flora_sapling_fifi`, `flora_sapling_mahogany`; 2026-10-27)) are
 **AI-generated** with the same **OpenAI** image API (`gpt-image-1-mini`, 64px pixel-art tiles — see
 `tools/ai-assets/gen_textures.py`, bundled as raw bytes by `bundle_textures.py`), loaded into the
 block atlas at runtime via `Texture2D.LoadRawTextureData`; same OpenAI usage terms.

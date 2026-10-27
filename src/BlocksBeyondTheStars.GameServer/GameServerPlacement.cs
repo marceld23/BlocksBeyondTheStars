@@ -652,7 +652,7 @@ public sealed partial class GameServer
     {
         if (IsSapling(r.BlockDef.NumericId.Value))
         {
-            ScheduleSaplingGrowth(r.Pos); // #1774: a planted sapling starts its clock
+            ScheduleSaplingGrowth(r.Pos, r.BlockDef.NumericId.Value); // #1774: a planted sapling starts its clock
         }
 
         if (IsFlora(r.BlockDef.NumericId.Value))

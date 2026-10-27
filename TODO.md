@@ -24,6 +24,31 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player report 2026-10-26 (Lyxette, v2026.10.28) — sapling kinds for the garden, several fruits per world — #2976–#2980, branch feat/reports-2026-10-26 — ✅ done 2026-10-27 (⚠ playtest open; terrain generation 30, save version 7, no protocol bump)
+
+One report (2 inbox rows). Its "wrong wood" picture was no bug: the patch in front of the mahogany trunk was `wood_log`
+mined before #2968 (her inventory held no `giant_log`). The wish — "one or two more saplings, apple trees, the Fifi tree"
+— became, by Marcel's decision, several fruits per world plus a sapling for every fruit.
+
+- **#2976 several fruits per world (generation 30, `MultiFruitGeneration`):** at least three of the four tree fruit
+  shapes are active on a world with trees (`FloraGenerator.EnsureSeveralFruits`, rolls still drawn); each fruit-bearing
+  tree picks its own fruit (`FruitRules.FruitForTree`, shared by world generation and the server), the colour belongs to
+  the fruit (`TintForShape`); `CleanFruitItems` lists every active clean fruit. Generation ≤ 29 unchanged.
+- **#2977 fruit-tree saplings** for round fruit, long fruit, grape cluster and banana (hand: the clean fruit + 1 log +
+  2 fibre → 1); the tree always bears 3–5 of its fruit on every world, the banana grows a small palm.
+- **#2978 fir sapling:** pine needles drop it instead of the classic sapling, hand recipe 1 log + 1 needles + 2 fibre → 2;
+  a small fir of needle rings.
+- **#2979 Fifi plant sapling:** only Fifi leaves drop it (no recipe, no trader); it grows the wild plant's smaller shape
+  with blossoms and berries.
+- **#2980 giant mahogany sapling:** giant leaves drop it 1-in-20; a young giant (2×2 `giant_log` trunk 9–11 high, wide
+  crown) into whichever quarter around it has soil and room; 300 s.
+- Code: `SaplingCatalog` (Shared), `SaplingTrees` (pure shapes, WorldGeneration), `GameServerSaplings` (the sapling code
+  moved out of `GameServerFlora` and made per kind; a base counts every kind). Seven new blocks → ids shift, save version 7.
+- Seven OpenAI sapling tiles (`gen_textures.py`, dark-ground bake, NOTICES). Texts in all 14 languages. Docs:
+  USER_MANUAL (gardening, food), WORLD_GENERATION §47. Tests: `SaplingKindsTests`.
+- **Open:** playtest — plant each kind, fruit colour on a new world, the giant in a tight spot, a generation-30 world's
+  mixed fruit; reply to Lyxette after the merge.
+
 ### 📬 Player reports 2026-10-25 (Lyxette + Justus as Screelit, v2026.10.27) — giant mahogany, Sandbox return without waiting, planet-type shortcuts, an enemies Codex, on-foot PvP with friendly fire — #2968–#2972, branch feat/reports-2026-10-25 — ✅ done 2026-10-25 (⚠ playtest open; no generation or save-version change, no protocol bump)
 
 Four wishes (8 inbox rows). The analysis found that the world rules `Pvp` and `FriendlyFire` had no reader at all — players

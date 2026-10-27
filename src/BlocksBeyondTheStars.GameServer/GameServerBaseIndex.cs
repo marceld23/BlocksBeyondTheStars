@@ -96,7 +96,8 @@ public sealed partial class GameServer
 
     private readonly Dictionary<int, BaseIndex> _baseIndex = new();
 
-    private ushort _ixBed, _ixVendor, _ixBoard, _ixWorkbench, _ixForge, _ixTray, _ixSapling, _ixSentry;
+    private ushort _ixBed, _ixVendor, _ixBoard, _ixWorkbench, _ixForge, _ixTray, _ixSentry;
+    private readonly HashSet<ushort> _ixSaplings = new(); // #2977–#2980: every sapling kind counts as a planted sapling
     private readonly HashSet<ushort> _ixCrops = new();
     private readonly HashSet<ushort> _ixContainers = new();
     private readonly Dictionary<ushort, string> _ixProfessionPosts = new(); // post block id → profession job
@@ -117,7 +118,12 @@ public sealed partial class GameServer
         _ixWorkbench = Id("workbench");
         _ixForge = Id("forge");
         _ixTray = Id("hydro_tray");
-        _ixSapling = Id("flora_sapling");
+        _ixSaplings.Clear();
+        foreach (var kind in BlocksBeyondTheStars.Shared.Definitions.SaplingCatalog.All)
+        {
+            _ixSaplings.Add(Id(kind.BlockKey));
+        }
+
         _ixSentry = Id(SentryBlockKey);
         foreach (var key in new[] { "flora_cropberry", "flora_cropgrain", "flora_cropshroom" })
         {
@@ -146,7 +152,8 @@ public sealed partial class GameServer
             }
         }
 
-        var all = new HashSet<ushort> { _ixBed, _ixVendor, _ixBoard, _ixWorkbench, _ixForge, _ixTray, _ixSapling, _ixSentry };
+        var all = new HashSet<ushort> { _ixBed, _ixVendor, _ixBoard, _ixWorkbench, _ixForge, _ixTray, _ixSentry };
+        all.UnionWith(_ixSaplings);
         all.UnionWith(_ixProfessionPosts.Keys);
         all.UnionWith(_ixCrops);
         all.UnionWith(_ixContainers);
@@ -356,7 +363,7 @@ public sealed partial class GameServer
 
         int form = ShapeCode.ShapeOf(shape);
         bool crop = _ixCrops.Contains(block);
-        bool sapling = block == _ixSapling;
+        bool sapling = block != 0 && _ixSaplings.Contains(block);
 
         // A flora cell is itself the air an NPC would stand beside; everything else is judged by the cell above it.
         // #2653: what counted as inside before keeps counting while the same block stands there (the bulkhead rule).
