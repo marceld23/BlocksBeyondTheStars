@@ -13,7 +13,7 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [2026.10.29] — 2026-10-27
 
-The garden release, made from one wish of Lyxette's: more saplings for her garden. There is now a **sapling for every
+The garden release, made from one wish of Lyxette's: more saplings for his garden. There is now a **sapling for every
 tree you can grow fruit on** — round fruit, long fruit, grape cluster and a banana palm — plus a **fir**, the **Fifi
 plant** and a **young giant mahogany**. A fruit sapling is made by hand from its fruit, so whatever a tree in your
 garden bears, you can plant more of it. And **new worlds grow several kinds of fruit at once**, with every tree bearing
