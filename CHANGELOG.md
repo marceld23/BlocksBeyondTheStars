@@ -11,6 +11,66 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.30] — 2026-10-28
+
+The roof-garden release, made from Lyxette's four reports of one evening — one of them a picture of his roof garden
+with the new fruit trees and a bathing pond on a floor of clear glass. **You no longer fall through a glass floor**
+when you step into water on it. **A bed a villager is sleeping in stays theirs**, and **every tavern now keeps a guest
+bed** for travellers. **Lead is now available in every world**: any trader and your ship's console sell it for iron
+ore, and a new world's home system always holds lead and uranium. The 2026.10.29 **"What's new?" notes are now in all
+fourteen languages**. Thanks to Lyxette.
+
+ℹ️ **Compatibility:** the **save version stays 7** and the network protocol stays at **version 11**. The **terrain
+generation goes up to 31** for new worlds only: existing worlds keep their planets and asteroids as they are, and the
+new lead trade works there right away. As always, keep game and server on the same version: the desktop game updates
+itself at start, and the browser is always current.
+
+### 🪟 A glass floor holds under water (#2984, thanks to Lyxette)
+
+- Lyxette built a pond on a roof with a floor of **clear glass** so you can look into the room below — and fell
+  through the glass as soon as he stepped into the water. A see-through block only got its solid side toward air, so
+  glass with **water, a torch or a plant** on it had nothing to stand on there.
+- Glass, and every other see-through block you can stand on, now **holds you from every side**, whatever sits next to
+  it. Panes of glass side by side still look seamless.
+
+### 🛏️ Beds and guest beds (#2985, #2986, thanks to Lyxette)
+
+- **One bed, one sleeper (#2985):** pressing **E** on a bed a villager is already sleeping in no longer lays you down
+  next to them. You get *"Someone is already sleeping here."* and stay on your feet — just like a chair someone is
+  sitting on.
+- **Guest beds in the tavern (#2986):** Lyxette's idea. Every **tavern** now keeps a **guest bed** for travellers where
+  its room has space. No villager ever sleeps in it, so you can always rest there and make it your home spawn. The bed
+  comes as the last piece of the room: the rest of the tavern's furniture stays where it was, and villages keep the
+  same number of residents.
+
+### ⚛️ Lead in every world (#2987, #2988, thanks to Lyxette)
+
+- Lyxette asked: *"Lead? From where, if I can't mine it?"* His home system had no world that grows lead, and no trader
+  there sold it — but the **jump generator's reactor fuel** needs lead. So you could get stuck in your first system.
+- **A trade for every world (#2987):** **every trader** and **your ship's trade console** now sell **1 lead ore for 5
+  iron ore**. This works at once in the worlds you already play. The lead ore description now names all four kinds of
+  world it grows on, the **badlands** included.
+- **The home system carries lead and uranium (#2988):** in a **newly created world**, the home system always holds
+  **lead and uranium** on one of its planets, moons or asteroid fields, so the jump generator is in reach. **Metallic
+  asteroids** now grow lead too.
+
+### 🛠️ For tinkerers
+
+- **Collision (#2984):** `ChunkMesher` recorded collision faces only for the faces it drew, and a see-through solid drew
+  its faces only toward air. The collision face now goes toward every neighbour that does not hold the player up itself
+  (`SeeThroughNeighbourOpensCollider`). New EditMode test `ChunkMesherSeeThroughColliderEditModeTests`; the mesher golden
+  is re-pinned.
+- **Beds (#2985, #2986):** the client checks for a lying NPC in either bed half (`ui.rest.bed_taken`). A tavern room's
+  bed is marked `guest_bed` by `FurnishAuthoredRooms`; the server leaves it out of `SettlementBeds` and treats it as
+  taken in every NPC bed search (`LoadedWorld.GuestBeds`).
+- **Lead (#2987, #2988):** new themeless market deal `market_iron_to_lead`. Terrain generation 31:
+  `OreVein.MinTerrainGeneration` gates a vein by generation (a gated vein goes last in its list, so every other vein
+  keeps its seed), metallic asteroids grow lead, and `UniverseGenerator.EnsureStartSystemJumpOres` retypes one other
+  body of a fresh world's start system to an ordinary type of its own family when a jump ore is missing. Generation 30
+  and older are unchanged bit for bit. See WORLD_GENERATION §48.
+- **For hosters:** the WorldHost image was rebuilt for the shared-model changes and rolls with this release; the AI
+  backend image is unchanged.
+
 ## [2026.10.29] — 2026-10-27
 
 The garden release, made from one wish of Lyxette's: more saplings for his garden. There is now a **sapling for every
@@ -9259,7 +9319,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.29...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.30...HEAD
+[2026.10.30]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.29...v2026.10.30
 [2026.10.29]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.28...v2026.10.29
 [2026.10.28]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.27...v2026.10.28
 [2026.10.27]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.26...v2026.10.27
