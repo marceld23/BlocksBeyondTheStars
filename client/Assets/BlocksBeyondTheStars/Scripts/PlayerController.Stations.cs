@@ -170,7 +170,13 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network?.SendSetSpawnPoint(tankHit.x, tankHit.y, tankHit.z);
                 ClientAudio.Instance?.Cue("heal");
-                if (tankKey != "heal_tank")
+                if (tankKey != "heal_tank" && BedLooksTaken(tankHit))
+                {
+                    // #2985 (Lyxette: "Ich kuschle hier mit einem Siedler"): a villager sleeps in it — say so instead of
+                    // laying the player down beside them.
+                    Game.ShowMessage(Game.Localizer?.Get("ui.rest.bed_taken") ?? "Someone is already sleeping here.");
+                }
+                else if (tankKey != "heal_tank")
                 {
                     TryLieDown(tankHit, onShip: false);
                 }

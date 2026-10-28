@@ -59,7 +59,8 @@ public static class RoomFurnisher
         /// <summary>A hall or hub: a terminal, a plant, a table — no bed.</summary>
         Hall,
 
-        /// <summary>A settlement tavern (#1885): a counter, tables with chairs, a barrel crate, lights — no bed.</summary>
+        /// <summary>A settlement tavern (#1885): a counter, tables with chairs, a barrel crate, lights — and, last, a guest
+        /// bed for travellers (#2986) that no villager claims.</summary>
         Tavern,
 
         /// <summary>A settlement workshop (#1885): a workbench, a forge, crates, a light.</summary>
@@ -174,7 +175,9 @@ public static class RoomFurnisher
     private static readonly Piece[] StoragePieces = { Piece.Storage, Piece.Storage, Piece.Storage, Piece.Storage, Piece.Light };
     private static readonly Piece[] MedbayPieces = { Piece.Bed, Piece.Light, Piece.Terminal, Piece.Storage };
     private static readonly Piece[] HallPieces = { Piece.Terminal, Piece.Plant, Piece.Light, Piece.Table };
-    private static readonly Piece[] TavernPieces = { Piece.Counter, Piece.Table, Piece.Table, Piece.Storage, Piece.Light, Piece.Table, Piece.Plant };
+    // #2986: the guest bed comes LAST, so every tavern keeps the furniture it stood with and simply gains the bed where its
+    // room has space left.
+    private static readonly Piece[] TavernPieces = { Piece.Counter, Piece.Table, Piece.Table, Piece.Storage, Piece.Light, Piece.Table, Piece.Plant, Piece.Bed };
     private static readonly Piece[] WorkshopPieces = { Piece.Workbench, Piece.Forge, Piece.Storage, Piece.Light, Piece.Storage, Piece.Table };
 
     /// <summary>

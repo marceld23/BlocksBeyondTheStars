@@ -1446,6 +1446,16 @@ namespace BlocksBeyondTheStars.Client
 
                     if (!drawFace)
                     {
+                        // #2984 (Lyxette's pond on a clear-glass floor): a see-through solid draws its faces only toward
+                        // air, but the collision face must not follow the picture — under water, a torch or a plant the
+                        // glass top was neither drawn nor collided, and the player sank through the floor. Collide
+                        // toward every neighbour that does not hold the player up itself (no collider, or a plant/prop
+                        // that never fills its cell); glass beside glass or a wall still gets no inner face.
+                        if (collidable && transparent && !isWater && !nb.IsAir && SeeThroughNeighbourOpensCollider(traits.FlagsOf(nb)))
+                        {
+                            colliderFaces[WorldConstants.LocalIndex(x, y, z)] |= (byte)(1 << f);
+                        }
+
                         continue; // face hidden
                     }
 
@@ -2836,6 +2846,12 @@ namespace BlocksBeyondTheStars.Client
 
         private static bool IsClearGlassSlow(GameContent content, BlockId id)
             => !id.IsAir && content.BlockById(id)?.Key == "glass_clear";
+
+        /// <summary>#2984: whether a see-through solid needs a collision face toward a neighbour with these trait flags
+        /// although it draws none there — the neighbour has no collider (water, gas, fire, a gate, an open twin) or never
+        /// fills its cell (a plant, a crown, a torch, a lantern, a ladder).</summary>
+        private static bool SeeThroughNeighbourOpensCollider(uint neighbourFlags)
+            => (neighbourFlags & TraitCollidable) == 0 || (neighbourFlags & (TraitFlora | TraitFoliage | TraitSlimProp)) != 0;
 
         // #1528: block-trait flags. Every predicate the mesher's inner loops used to derive from the block KEY
         // (string compares, StartsWith, HashSet lookups, switches — ~100 string operations per solid voxel) is

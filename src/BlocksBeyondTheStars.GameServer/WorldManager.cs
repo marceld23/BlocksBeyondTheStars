@@ -205,6 +205,7 @@ internal sealed class LoadedWorld
     public List<ServerSpeeder> Speeders { get; } = new(); // deployed hover speeders (materialised per present owner)
     public List<GameServer.ServerNetFragment> NetFragments { get; } = new(); // story net fragments scattered on the surface (P2)
     public List<(string Type, Vector3f Pos)> SettlementMarkers { get; } = new(); // union of EVERY settlement's markers (doors + proximity)
+    public HashSet<Vector3i> GuestBeds { get; } = new(); // #2986: canonical head cells of the taverns' guest beds — no NPC takes them
 
     /// <summary>
     /// #1986/#1994: the door a stamped structure asks for, by its block cell — the wall it was cut into and

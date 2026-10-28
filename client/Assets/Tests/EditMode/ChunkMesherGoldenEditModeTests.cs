@@ -45,10 +45,14 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         // moved; the deep chunk was already stale from the ids alone — 18 blocks came with texture and tree variety
         // (#2840, #2871), and the pre-#2881 mesher gives the same new deep value (its lamp is walled into rock and lights
         // nothing). The sky chunk is empty and unchanged.
+        // Re-pinned 2026-10-28 (#2984): both chunks were stale on main already from the ids alone (the giant mahogany and
+        // the seven sapling blocks, #2968/#2977–#2980: main's mesher gives deep 0xbf001a6f0ba83a81, surface
+        // 0x55dfde912240bb51), and see-through solids now keep their collision face toward water, plants and props, so the
+        // collider tris of both chunks moved on top of that.
         private static readonly Dictionary<string, ulong> Pinned = new Dictionary<string, ulong>
         {
-            ["deep (5,1,7)"] = 0x0b604195dd33a4edUL,
-            ["surface (5,2,7)"] = 0xcceb2b41df0c4b65UL,
+            ["deep (5,1,7)"] = 0xe51227e6279bdfe9UL,
+            ["surface (5,2,7)"] = 0x423839b66cccff67UL,
             ["sky (5,3,7)"] = 0xd6a8cf1a27eab505UL,
         };
 

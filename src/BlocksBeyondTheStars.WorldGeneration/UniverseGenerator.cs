@@ -1250,6 +1250,92 @@ public sealed class UniverseGenerator
         return station;
     }
 
+    /// <summary>The ores reactor fuel is made of — the jump generator, the way out of the start system, needs that fuel.</summary>
+    public static readonly string[] JumpOres = { "lead_ore", "uranium_ore" };
+
+    /// <summary>#2988 (Lyxette 2026-10-28, "Blei? Woher, wenn ich es nicht abbauen kann?", generation 31): the start system
+    /// carries the <see cref="JumpOres"/> on some body. While an ore grows on no body of the system (by its type's ore table
+    /// at this generation), one other body of it — a planet, a moon or an asteroid field that is not visited, no landmark,
+    /// guaranteed type, city world or gas giant, and carries no jump ore yet — takes the ordinary type of its own family
+    /// (planet types for planets and moons, asteroid types for asteroid fields) carrying the most of the missing ores; the
+    /// body whose type covers the most wins, the smallest seed hash breaks a tie. Called by the server right after it picks
+    /// the start body and before it pins the body types (#468), for a world whose types are not pinned yet: the pins keep the
+    /// result from then on. The retyped type is never the start type (the start body lacks that ore), so the start pick
+    /// stays where it is. Returns the retyped bodies; a no-op below generation 31.</summary>
+    public static List<CelestialBody> EnsureStartSystemJumpOres(StarSystem system, CelestialBody start, long seed,
+        WorldDescription description, GameContent content)
+    {
+        var retyped = new List<CelestialBody>();
+        int generation = description.TerrainGeneration;
+        if (generation < WorldDescription.StartSystemJumpOresGeneration || start.SystemId != system.Id)
+        {
+            return retyped;
+        }
+
+        for (int round = 0; round < JumpOres.Length; round++)
+        {
+            var missing = JumpOres.Where(ore => !system.Bodies.Any(b => GrowsJumpOre(content, b.PlanetType, ore, generation))).ToList();
+            if (missing.Count == 0 || JumpOreCandidate(system, start, seed, content, missing, generation) is not { } pick)
+            {
+                break;
+            }
+
+            pick.Body.PlanetType = pick.Type;
+            retyped.Add(pick.Body);
+        }
+
+        return retyped;
+    }
+
+    private static bool GrowsJumpOre(GameContent content, string? type, string ore, int generation)
+        => type is not null && content.GetPlanet(type) is { } p && p.Ores.Exists(o => o.Block == ore && o.GrowsAt(generation));
+
+    /// <summary>The ordinary type of a family (spawnable, not exotic, no landmark or city world, open at this generation)
+    /// carrying the most of <paramref name="missing"/> — the highest spawn weight, then the key, breaks a tie — with how many
+    /// it carries; null when none carries any.</summary>
+    private static (string Key, int Count)? JumpOreType(GameContent content, List<string> missing, int generation, bool asteroid)
+        => content.Planets.Values
+            .Where(p => p.SpawnWeight > 0 && !p.Exotic && !p.OncePerGalaxy && !p.GuaranteedOnce && p.CityWorld.Length == 0
+                        && p.MinTerrainGeneration <= generation && WorldConstants.IsAsteroidType(p.Key) == asteroid)
+            .Select(p => (Type: p, Count: missing.Count(ore => GrowsJumpOre(content, p.Key, ore, generation))))
+            .Where(c => c.Count > 0)
+            .OrderByDescending(c => c.Count).ThenByDescending(c => c.Type.SpawnWeight).ThenBy(c => c.Type.Key, System.StringComparer.Ordinal)
+            .Select(c => ((string Key, int Count)?)(c.Type.Key, c.Count))
+            .FirstOrDefault();
+
+    /// <summary>The body of <paramref name="system"/> a missing jump ore goes to, with its new type — see
+    /// <see cref="EnsureStartSystemJumpOres"/>. Null when no body may take one.</summary>
+    private static (CelestialBody Body, string Type)? JumpOreCandidate(StarSystem system, CelestialBody start, long seed,
+        GameContent content, List<string> missing, int generation)
+    {
+        (CelestialBody Body, string Type)? best = null;
+        int bestCount = 0;
+        ulong bestHash = ulong.MaxValue;
+        for (int bi = 0; bi < system.Bodies.Count; bi++)
+        {
+            var body = system.Bodies[bi];
+            var current = body.PlanetType is { } t ? content.GetPlanet(t) : null;
+            if (body.Kind is not (CelestialKind.Planet or CelestialKind.Moon or CelestialKind.AsteroidField)
+                || ReferenceEquals(body, start) || body.Status == GenerationStatus.Visited
+                || current is null || current.OncePerGalaxy || current.GuaranteedOnce || current.SpawnWeight == 0 || current.CityWorld.Length > 0
+                || JumpOres.Any(ore => GrowsJumpOre(content, current.Key, ore, generation))
+                || JumpOreType(content, missing, generation, WorldConstants.IsAsteroidType(current.Key)) is not { } type)
+            {
+                continue; // a landmark, a guaranteed type, a city world, the gas giant, a jump-ore carrier — or no type fits
+            }
+
+            ulong h = Noise.Hash(seed ^ 0x2988, bi, 0, (int)(WorldGenerator.StableHash(system.Id) & 0x7FFFFFFF));
+            if (type.Count > bestCount || (type.Count == bestCount && h < bestHash))
+            {
+                bestCount = type.Count;
+                bestHash = h;
+                best = (body, type.Key);
+            }
+        }
+
+        return best;
+    }
+
     /// <summary>Start-planet proper name (#678): the world you spawn on is a landmark — it deserves a
     /// real name, not "Tharion II". Called by the server right after it picks (and possibly retypes)
     /// the start body, mirroring <see cref="EnsureStartPlanetRings"/>. Deterministic from the body id

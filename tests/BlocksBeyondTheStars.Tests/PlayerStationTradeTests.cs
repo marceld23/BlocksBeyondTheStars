@@ -181,14 +181,14 @@ public sealed class PlayerStationTradeTests : IDisposable
         Assert.Equal("medics", doctor.Theme);
 
         // The screen's rows (the client lists MarketStock.ListFor of the vendor it is bound to): his medicine first, then
-        // the two swaps every vendor has.
+        // the swaps every vendor has (#2987: iron for lead too, so every world can fuel a jump generator).
         long day = s.Server.MarketDayForTest;
         var rows = MarketStock.ListFor(Content.Recipes.Values, doctor.Theme, day);
         int common = rows.FindIndex(r => r.MarketTheme.Length == 0);
         Assert.True(common >= 3, $"the doctor's own goods come first ({string.Join(", ", rows.Select(r => r.Key))})");
         Assert.All(rows.Take(common), r => Assert.Equal("medics", r.MarketTheme));
         Assert.All(rows.Skip(common), r => Assert.Equal(string.Empty, r.MarketTheme));
-        Assert.Equal(new[] { "market_iron_to_titanium", "market_titanium_to_iron" }, rows.Skip(common).Select(r => r.Key));
+        Assert.Equal(new[] { "market_iron_to_titanium", "market_titanium_to_iron", "market_iron_to_lead" }, rows.Skip(common).Select(r => r.Key));
 
         // Beside him the server takes every row of it.
         Stock(s.Player);

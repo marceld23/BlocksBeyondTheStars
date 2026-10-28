@@ -52,6 +52,14 @@ public sealed class OreVein
     public int MinDepth { get; set; }
     public int MaxDepth { get; set; } = 256;
 
+    /// <summary>The first terrain generation that grows this vein (#2988: the metallic asteroids' lead from generation 31);
+    /// 0 = every generation. An older world neither places nor surveys it, and every other vein keeps its seed (the seed
+    /// follows the vein's place in the list, so a gated vein goes at the END of its list).</summary>
+    public int MinTerrainGeneration { get; set; }
+
+    /// <summary>Whether a world of terrain <paramref name="generation"/> grows this vein.</summary>
+    public bool GrowsAt(int generation) => MinTerrainGeneration <= generation;
+
     /// <summary>Computed at content load, never from data (#1122): true when the ore's block needs a
     /// tier-2 tool (titanium/cobalt/uranium/platinum/tungsten/neodymium/diamond class) — exactly these
     /// veins get the frontier richness boost in outer star systems.</summary>

@@ -51,6 +51,25 @@ public sealed class MarketTests : IDisposable
         }
     }
 
+    /// <summary>#2987 (Lyxette: "Blei? Woher, wenn ich es nicht abbauen kann?"): lead is the gate to reactor fuel and so to
+    /// the jump generator, but only four planet types and the miners' vendors carry it — the ship's own console trades iron
+    /// for it in every world.</summary>
+    [Fact]
+    public void Market_TradesIronForLead_AtTheShipConsole()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Trader"); // aboard by default
+            p.State.Inventory.Add("iron_ore", 5, 99);
+
+            server.Craft("Trader", "market_iron_to_lead");
+
+            Assert.Equal(0, p.State.Inventory.CountOf("iron_ore"));
+            Assert.Equal(1, p.State.Inventory.CountOf("lead_ore"));
+        }
+    }
+
     [Fact]
     public void Market_RequiresBeingAboard()
     {

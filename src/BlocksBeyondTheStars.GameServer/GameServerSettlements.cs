@@ -506,6 +506,7 @@ public sealed partial class GameServer
         // Phase C — record instances, markers (world space), missions + ruin loot.
         _settlements.Clear();
         _settlementMarkers.Clear();
+        _worlds.Active.GuestBeds.Clear(); // #2986: rebuilt with the markers below
         _worlds.Active.SettlementDoorFits.Clear(); // #1986/#1994: rebuilt with the markers below
         foreach (var p in placed)
         {
@@ -527,6 +528,11 @@ public sealed partial class GameServer
                 var pos = new Vector3f(p.Origin.X + m.LocalPos.X + 0.5f, p.GroundY + m.LocalPos.Y + 0.5f, p.Origin.Z + m.LocalPos.Z + 0.5f);
                 inst.Markers.Add((m.Type, pos));
                 _settlementMarkers.Add((m.Type, pos));
+                if (m.Type == SettlementGenerator.GuestBedMarker)
+                {
+                    _worlds.Active.GuestBeds.Add(WorldConstants.CanonicalBlock(
+                        new Vector3i(p.Origin.X + m.LocalPos.X, p.GroundY + m.LocalPos.Y, p.Origin.Z + m.LocalPos.Z), _world.Circumference));
+                }
 
                 // #1986/#1994: the structure knows its own doorway — the wall the generator cut it into, and
                 // how wide the opening is, measured on the layout that is in hand right now. Remembered by

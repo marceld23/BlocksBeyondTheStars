@@ -2985,3 +2985,30 @@ Older worlds keep their wild fruit as it was; the saplings work on every world.
 **Tests:** `SaplingKindsTests` (catalog, recipes, drops, shapes, every kind grown on the real server, the giant's
 quarter, the roster top-up and the unchanged generation-29 roster, `FruitForTree` per generation, `TintForShape`,
 `CleanFruitItems`).
+
+## 48. Generation 31 — the start system carries the jump ores (#2988, 2026-10-28)
+
+**Why.** Lyxette's report: "Blei? Woher, wenn ich es nicht abbauen kann?" The way out of the start system is the jump
+generator, its reactor fuel needs **lead and uranium**, and only a handful of planet types grow them (lead: rocky, swamp,
+fungal, badlands). A start system without one of them, and without a miners' vendor, left the player stuck.
+
+**Per-vein generation gate.** `OreVein.MinTerrainGeneration` (data: `"minTerrainGeneration"` on an ore entry) keeps a vein
+out of older worlds: `BuildOreSlots` skips it and `SurveyResources` does not report it. Every vein's noise seed follows its
+place in the list (`seed + 100 + i * 31`), so a gated vein goes at the **end** of its list and the others keep their seeds.
+From generation 31 `asteroid_metallic` carries a lead vein this way.
+
+**`UniverseGenerator.EnsureStartSystemJumpOres` (behind `WorldDescription.StartSystemJumpOresGeneration` = 31).** Called by
+the server right after it picks the start body and before it pins the body types (#468), and only while the start body
+is not pinned yet (a fresh world). While a jump ore (`JumpOres`: `lead_ore`, `uranium_ore`) grows on no body of the start
+system at this generation, one other body — a planet, moon or asteroid field that is not visited, carries no jump ore
+yet and is no landmark, guaranteed type, city world or gas giant — takes the ordinary type of its own family (planet
+types for planets and moons, asteroid types for asteroid fields) that carries the most missing ores (then the highest
+spawn weight, then the key). The body whose type covers the most wins; a seed hash breaks a tie. The new type never is
+the start type (the start body lacks the ore), so the start pick of the next load is the same body. The pins keep the
+result. Older generations keep every type.
+
+**Every world, old ones too:** a themeless market deal `market_iron_to_lead` (5 iron ore → 1 lead ore) trades at every
+vendor and at the ship's console (#2987).
+
+**Tests:** `StartSystemJumpOresTests` (80 seeds: both ores in every start system, the start stays put, idempotent; an
+older generation unchanged; the metallic asteroids' gated lead vein; a fresh server pins the retyped system).

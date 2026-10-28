@@ -1186,7 +1186,8 @@
       { "block": "neodymium_ore", "rarity": 0.025, "minDepth": 34, "maxDepth": 2048 },
       { "block": "gold_ore", "rarity": 0.025, "minDepth": 18, "maxDepth": 2048 },
       { "block": "silicate", "rarity": 0.03, "minDepth": 2, "maxDepth": 2048 },
-      { "block": "copper_ore", "rarity": 0.04, "minDepth": 4, "maxDepth": 2048 }
+      { "block": "copper_ore", "rarity": 0.04, "minDepth": 4, "maxDepth": 2048 },
+      { "block": "lead_ore", "rarity": 0.03, "minDepth": 6, "maxDepth": 2048, "minTerrainGeneration": 31 }
     ]
   },
   {

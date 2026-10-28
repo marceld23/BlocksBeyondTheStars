@@ -24,6 +24,28 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player reports 2026-10-28 (Lyxette, v2026.10.29) — glass floor under water, bed occupancy, tavern guest beds, lead — #2984–#2988, branch fix/lyxette-reports-2026-10-28 — ✅ done 2026-10-28 (⚠ playtest open; terrain generation 31, no save-version or protocol bump)
+
+Four reports (8 inbox rows); the fourth was praise for her roof garden with the new fruit trees.
+
+- **#2984 falling through a glass floor under water:** `ChunkMesher` drew a see-through solid's faces only toward air and
+  recorded collision faces only for drawn faces — glass under water, a torch or a plant had no collider on that side.
+  The collision face now goes toward every neighbour that does not hold the player up itself
+  (`SeeThroughNeighbourOpensCollider`); glass beside glass still has no inner face. EditMode test
+  `ChunkMesherSeeThroughColliderEditModeTests`.
+- **#2985 lying down in a villager's bed:** E on a bed with a sleeping NPC (lying pose in either half) now says
+  *"Someone is already sleeping here."* (`ui.rest.bed_taken`, 14 languages) instead of laying the player beside them —
+  the bed twin of the chairs' #2122 check.
+- **#2986 tavern guest beds:** a tavern room gets a bed as its LAST piece (existing taverns keep their furniture), marked
+  `guest_bed` by `FurnishAuthoredRooms`; the server leaves it out of `SettlementBeds` and treats it as taken in every NPC
+  bed search (`LoadedWorld.GuestBeds`). Resident counts unchanged.
+- **#2987 lead in every world:** themeless `market_iron_to_lead` (5 iron ore → 1 lead ore) at every vendor and the ship's
+  console; `block.lead_ore.desc` names the badlands and the trade (14 languages, the 12 community ones hand-written —
+  the machine translation turned "sells it for iron ore" around).
+- **#2988 start system carries lead and uranium (terrain generation 31):** `OreVein.MinTerrainGeneration` gates a vein
+  per generation (metallic asteroids grow lead from 31); `UniverseGenerator.EnsureStartSystemJumpOres` retypes one other
+  body of a fresh world's start system to an ordinary type of its family when a jump ore is missing. WORLD_GENERATION §48.
+
 ### 📬 Player report 2026-10-26 (Lyxette, v2026.10.28) — sapling kinds for the garden, several fruits per world — #2976–#2980, branch feat/reports-2026-10-26 — ✅ done 2026-10-27 in PR #2981 (`c9151cca`) (⚠ playtest open; terrain generation 30, save version 7, no protocol bump)
 
 One report (2 inbox rows). Its "wrong wood" picture was no bug: the patch in front of the mahogany trunk was `wood_log`

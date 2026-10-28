@@ -635,6 +635,17 @@ public sealed partial class GameServer
             // #2691: from generation 26 the start planet is never a small world (a size floor, re-derived on every load like
             // the ring). Before LoadWorld, so the world is built at that size.
             UniverseGenerator.EnsureStartPlanetSize(startSystem, start, _meta.Seed, _meta.Description);
+
+            // #2988: from generation 31 the start system carries lead and uranium (the jump generator's fuel) — only while
+            // its types are not pinned yet (a fresh world); the pins below keep the retype from then on.
+            if (startSystem is not null && !_meta.BodyPlanetTypes.ContainsKey(start.Id))
+            {
+                foreach (var ore in UniverseGenerator.EnsureStartSystemJumpOres(startSystem, start, _meta.Seed, _meta.Description, _content))
+                {
+                    _log.Info($"Start system '{startSystem.Name}' lacked a jump ore — '{ore.Name}' ({ore.Id}) is now '{ore.PlanetType}'.");
+                }
+            }
+
             if (start.Status != GenerationStatus.Visited)
             {
                 start.Status = GenerationStatus.Visited;
@@ -921,6 +932,7 @@ public sealed partial class GameServer
         _dataCubes.Clear();
         _settlements.Clear();
         _settlementMarkers.Clear();
+        _worlds.Active.GuestBeds.Clear(); // #2986
         _baseMarkers.Clear(); // #1865: rebuilt with the residents by the next base-life scan
         _wreckMarkers.Clear();
         _floraRegrow.Clear();

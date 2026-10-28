@@ -173,6 +173,7 @@
 
   { "key": "market_iron_to_titanium",  "station": "market", "inputs": [ { "item": "iron_ore", "count": 5 } ],      "outputs": [ { "item": "titanium_ore", "count": 1 } ] },
   { "key": "market_titanium_to_iron",  "station": "market", "inputs": [ { "item": "titanium_ore", "count": 1 } ],  "outputs": [ { "item": "iron_ore", "count": 4 } ] },
+  { "key": "market_iron_to_lead",      "station": "market", "inputs": [ { "item": "iron_ore", "count": 5 } ],      "outputs": [ { "item": "lead_ore", "count": 1 } ] },
 
   { "key": "market_copper_to_silicate","station": "market", "marketTheme": "traders", "inputs": [ { "item": "copper_ore", "count": 3 } ],    "outputs": [ { "item": "silicate", "count": 4 } ] },
   { "key": "market_sell_crystal",      "station": "market", "marketTheme": "traders", "inputs": [ { "item": "crystal", "count": 2 } ],       "outputs": [ { "item": "titanium_ore", "count": 1 }, { "item": "iron_ore", "count": 3 } ] },

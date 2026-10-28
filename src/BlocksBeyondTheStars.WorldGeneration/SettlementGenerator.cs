@@ -174,6 +174,11 @@ public static class SettlementGenerator
     /// are the residents' evening seats.</summary>
     public const string TavernMarker = "tavern";
 
+    /// <summary>The head cell of a tavern's guest bed (#2986, Lyxette: "ein paar Gästebetten in der Stadt"): written by the
+    /// furnisher, read by the server, which leaves the bed out of the residents' beds and every NPC's bed search — a free bed
+    /// for a travelling player.</summary>
+    public const string GuestBedMarker = "guest_bed";
+
     /// <summary>The craftsman's post in a workshop (#1885); the room is furnished as a workshop.</summary>
     public const string WorkshopMarker = "workshop";
 
@@ -245,9 +250,9 @@ public static class SettlementGenerator
             }
         }
 
-        FurnishAuthoredRooms((x, y, z) => blocks[(x * h + y) * l + z], w, h, l, markers,
+        markers.AddRange(FurnishAuthoredRooms((x, y, z) => blocks[(x * h + y) * l + z], w, h, l, markers,
             RoomFurnisher.PaletteFor(RoomFurnisher.StyleFor(t.Tier, alien: false), content),
-            (long)WorldGenerator.StableHash("furnish:" + t.Key), SinkFor(blocks, w, h, l, mods, shapes));
+            (long)WorldGenerator.StableHash("furnish:" + t.Key), SinkFor(blocks, w, h, l, mods, shapes))); // #2986: + guest beds
 
         // Fallback vendor for templates without one — in a FREE cell (#480, was ST-9): the old fixed centre
         // spot could sit inside a wall, burying the vendor. Scan upward at the centre for the first air cell
@@ -966,8 +971,8 @@ public static class SettlementGenerator
             }
         }
 
-        FurnishAuthoredRooms((x, y, z) => get(ox + x, oy + y, oz + z), w, h, l, local, furniture, furnishSeed,
-            (x, y, z, b, shape, tint, glow) => setCell(ox + x, oy + y, oz + z, b, shape, tint, glow));
+        local.AddRange(FurnishAuthoredRooms((x, y, z) => get(ox + x, oy + y, oz + z), w, h, l, local, furniture, furnishSeed,
+            (x, y, z, b, shape, tint, glow) => setCell(ox + x, oy + y, oz + z, b, shape, tint, glow))); // #2986: + guest beds
 
         foreach (var m in local)
         {
@@ -1041,11 +1046,14 @@ public static class SettlementGenerator
     /// stands on (<see cref="RoomFurnisher.FloodRoom"/>), every other marker cell in that room and every door lane on its
     /// floor stay free (<see cref="RoomFurnisher.DoorLaneAt"/>, #1901), and the room's role follows the marker found
     /// inside it — a vendor makes a market, a mission board an office, anything else a home. Coordinates are those of
-    /// the markers.
+    /// the markers. Returns a <see cref="GuestBedMarker"/> on the head cell of every tavern's guest bed (#2986) for the
+    /// caller to add to the structure's markers.
     /// </summary>
-    internal static void FurnishAuthoredRooms(System.Func<int, int, int, ushort> get, int w, int h, int l,
+    internal static List<SettlementMarker> FurnishAuthoredRooms(System.Func<int, int, int, ushort> get, int w, int h, int l,
         IReadOnlyList<SettlementMarker> markers, RoomFurnisher.Palette furniture, long seed, RoomFurnisher.CellSink setCell)
     {
+        var guestBeds = new List<SettlementMarker>();
+
         // #1886 / #1901: a doorway keeps two rooms apart — the flood reads its gap as the wall the closed door will be —
         // and its lane (two rows each side, measured on the authored blocks before anything is furnished) stays clear.
         var doors = new List<Vector3i>();
@@ -1134,8 +1142,20 @@ public static class SettlementGenerator
             }
 
             var rng = new System.Random(unchecked((int)(seed ^ (seed >> 32)) ^ (n * 7919)));
-            RoomFurnisher.Furnish(setCell, region, room.LocalPos.Y, clearance, furniture, role, reserved, rng);
+            var sink = role != RoomFurnisher.RoomRole.Tavern ? setCell : (x, y, z, b, shape, tint, glow) =>
+            {
+                // #2986: the bed a tavern room gets is its guest bed — marked on the head cell (a one-cell bed is its own head).
+                if (b == furniture.Bed && b != 0 && ShapeCode.ShapeOf(shape) != (int)BlockShape.BedFoot)
+                {
+                    guestBeds.Add(new SettlementMarker(GuestBedMarker, new Vector3i(x, y, z)));
+                }
+
+                setCell(x, y, z, b, shape, tint, glow);
+            };
+            RoomFurnisher.Furnish(sink, region, room.LocalPos.Y, clearance, furniture, role, reserved, rng);
         }
+
+        return guestBeds;
     }
 
     /// <summary>Wall height of a greenhouse (the y of its ceiling row): a village garden house is low enough
