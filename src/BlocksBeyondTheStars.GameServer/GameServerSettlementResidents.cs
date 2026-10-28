@@ -151,7 +151,8 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>The head cells of every bed in a settlement's stamped layout, in world space and scan order.</summary>
+    /// <summary>The head cells of every bed in a settlement's stamped layout, in world space and scan order — but for the
+    /// taverns' guest beds (#2986): those are the travellers', so they neither house a resident nor raise the count.</summary>
     private static List<Vector3i> SettlementBeds(SettlementInstance settlement, ushort bedId)
     {
         var beds = new List<Vector3i>();
@@ -161,13 +162,17 @@ public sealed partial class GameServer
             return beds;
         }
 
+        var guest = new HashSet<Vector3i>(settlement.Markers
+            .Where(m => m.Type == SettlementGenerator.GuestBedMarker)
+            .Select(m => m.Pos.ToBlock()));
         for (int x = 0; x < s.Width; x++)
             for (int z = 0; z < s.Length; z++)
                 for (int y = 0; y < s.Height; y++)
                 {
-                    if (s.Get(x, y, z) == bedId && ShapeCode.ShapeOf(s.GetShape(x, y, z)) != (int)BlockShape.BedFoot)
+                    var cell = new Vector3i(settlement.Min.X + x, settlement.GroundY + y, settlement.Min.Z + z);
+                    if (s.Get(x, y, z) == bedId && ShapeCode.ShapeOf(s.GetShape(x, y, z)) != (int)BlockShape.BedFoot && !guest.Contains(cell))
                     {
-                        beds.Add(new Vector3i(settlement.Min.X + x, settlement.GroundY + y, settlement.Min.Z + z));
+                        beds.Add(cell);
                     }
                 }
 

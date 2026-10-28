@@ -108,6 +108,36 @@ namespace BlocksBeyondTheStars.Client
             return Remotes != null && Remotes.AnySeatedOn(cell.x, cell.y, cell.z);
         }
 
+        /// <summary>#2985: whether a villager sleeps in the bed at <paramref name="cell"/> as far as this client knows — the bed
+        /// twin of <see cref="SeatLooksTaken"/>. A sleeper lies across the seam between the head and the foot half, so a lying
+        /// NPC in either half counts; a one-cell bed has only its own cell.</summary>
+        private bool BedLooksTaken(Vector3Int cell)
+        {
+            if (Game == null || Game.Npcs == null || RestBedKey(cell, false, out int descriptor) != "bed")
+            {
+                return false;
+            }
+
+            var other = cell;
+            if (FurnitureShapes.TryBedPartnerOffset(descriptor, out int dx, out int dz))
+            {
+                other = new Vector3Int(cell.x + dx, cell.y, cell.z + dz);
+            }
+
+            int circ = Game.Circumference;
+            foreach (var n in Game.Npcs)
+            {
+                if (n != null && n.Pose == 2
+                    && (SeatCells.Covers(n.X, n.Y, n.Z, cell.x, cell.y, cell.z, circ)
+                        || SeatCells.Covers(n.X, n.Y, n.Z, other.x, other.y, other.z, circ)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         /// <summary>Stands the player back up from a chair (#806) and re-enables normal movement.</summary>
         private void StandUp()
         {

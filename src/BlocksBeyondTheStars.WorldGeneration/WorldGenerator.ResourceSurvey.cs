@@ -75,6 +75,11 @@ public sealed partial class WorldGenerator
 
         foreach (var ore in planet.Ores)
         {
+            if (!ore.GrowsAt(_terrainGeneration))
+            {
+                continue; // #2988: not grown at this world's generation (= BuildOreSlots)
+            }
+
             double rarity = ore.RareTier ? ore.Rarity * frontierOreBoost : ore.Rarity; // = BuildOreSlots
             survey.Veins.Add(new SurveyedVein
             {

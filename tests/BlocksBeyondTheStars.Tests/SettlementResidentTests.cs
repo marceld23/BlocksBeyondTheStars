@@ -111,6 +111,40 @@ public sealed class SettlementResidentTests : IDisposable
         throw new Xunit.Sdk.XunitException("No modular settlement with a tavern found across 60 seeds.");
     }
 
+    /// <summary>#2986 (Lyxette: "sollten vielleicht ein paar Gästebetten in der Stadt sein"): a tavern keeps a guest bed for
+    /// travellers — a real bed in the world that houses no resident and that no villager takes later on.</summary>
+    [Fact]
+    public void ATavern_KeepsAGuestBed_NoVillagerSleepsIn()
+    {
+        ushort bedId = Content.GetBlock("bed")!.NumericId.Value;
+        for (long seed = 1; seed <= 60; seed++)
+        {
+            var server = Start(seed, "jungle", out var repo);
+            using (repo)
+            {
+                var guest = server.SettlementMarkers.Where(m => m.Type == BlocksBeyondTheStars.WorldGeneration.SettlementGenerator.GuestBedMarker)
+                    .Select(m => m.Pos.ToBlock()).ToList();
+                if (guest.Count == 0)
+                {
+                    continue;
+                }
+
+                for (int i = 0; i < 40; i++)
+                {
+                    server.TickForTest(0.5); // the routine passes and their furniture searches
+                }
+
+                Assert.All(guest, g => Assert.Equal(bedId, server.World.GetBlock(g).Value));
+                var held = server.SettlementResidentsForTest.SelectMany(s => s.Residents)
+                    .Where(r => r.Bed.HasValue).Select(r => r.Bed!.Value).ToHashSet();
+                Assert.All(guest, g => Assert.DoesNotContain(g, held));
+                return;
+            }
+        }
+
+        throw new Xunit.Sdk.XunitException("No tavern with a guest bed found across 60 seeds.");
+    }
+
     [Fact]
     public void ABedlessSettlement_KeepsItsVendorAndQuartermaster()
     {

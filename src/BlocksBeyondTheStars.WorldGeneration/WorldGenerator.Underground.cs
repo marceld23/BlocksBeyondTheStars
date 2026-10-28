@@ -386,18 +386,23 @@ public sealed partial class WorldGenerator
 
     private OreSlot[] BuildOreSlots(PlanetType planet, long seed, double richness)
     {
-        var slots = new OreSlot[planet.Ores.Count];
-        for (int i = 0; i < slots.Length; i++)
+        var slots = new List<OreSlot>(planet.Ores.Count);
+        for (int i = 0; i < planet.Ores.Count; i++)
         {
             var ore = planet.Ores[i];
+            if (!ore.GrowsAt(_terrainGeneration))
+            {
+                continue; // #2988: a vein of a later generation — the others keep their seeds (they follow i)
+            }
+
             bool shallow = ore.MinDepth <= 8;
             double rarity = ore.RareTier ? ore.Rarity * _frontierOreBoost : ore.Rarity;
-            slots[i] = new OreSlot(ore.MinDepth, ore.MaxDepth, shallow ? 0.30 : 0.15, shallow ? 0.08 : 0.05,
+            slots.Add(new OreSlot(ore.MinDepth, ore.MaxDepth, shallow ? 0.30 : 0.15, shallow ? 0.08 : 0.05,
                 rarity * richness, shallow, seed + 100 + i * 31, seed + OreFineFieldSalt + i * 31,
-                _content.GetBlock(ore.Block)?.NumericId);
+                _content.GetBlock(ore.Block)?.NumericId));
         }
 
-        return slots;
+        return slots.ToArray();
     }
 
     // --- Per-world interior variety (item 21): two worlds of the same TYPE still differ underground — one is

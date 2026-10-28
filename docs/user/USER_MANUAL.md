@@ -760,7 +760,9 @@ costs no frame rate.
   cosy moment: time does not pass faster and there is no bonus (a bed still heals you slowly while you are near it).
   To get up, move, jump or press **E** again (on a gamepad: the left stick, Jump or Use; crouch works too). Dying, a
   teleport, travelling, or the bed being removed gets you up automatically. With *Camera motion* off or *Reduced
-  effects* on, the view cuts to the pillow instead of gliding there.
+  effects* on, the view cuts to the pillow instead of gliding there. A bed someone is already sleeping in stays
+  theirs: you get *"Someone is already sleeping here."* and stay on your feet — a tavern's **guest bed** is always free
+  for travellers.
 - **Warning tones at home.** Aboard your ship or under the roof of your own base, a vital that runs low beeps
   once instead of every few seconds; its bar keeps blinking.
 - **Campfire** (hand-crafted from logs + stone): a contained flame that never spreads. It lights the camp
@@ -1297,6 +1299,8 @@ players.
 - **Reactor fuel** (uranium + lead at the refinery) is a **one-time build cost** of the big things: the three
   capital ships (Thunderbolt 2, Hammerhead 3, Deathblock 4), the heavy laser cannon and the jump generator ignite
   their reactors with it once. Nothing burns fuel while running — every device carries its own energy cell.
+  **Lead** grows on rocky, swamp, fungal and badlands worlds (and, in newly created worlds, in metallic asteroids); any vendor and your ship's trade console also sell it for iron ore (**5 iron ore → 1 lead ore**). A new
+  world's home system always holds lead and uranium on one of its bodies.
 
 ### Building your own ship (keel → commissioning)
 - Unlock the **Shipwright** blueprint (Blueprints tab), craft a **Ship Keel** at a workshop and place it on open,
@@ -1692,7 +1696,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   shopkeeper, the quartermaster, the innkeeper and the gardener sleep in a back room of their building. A settlement
   houses as many people as it has beds — at most 6 in a hamlet, 10 in a village, 20 in a town, 32 in a city and 80 in
   the G.D.S. city. Settlements that already stand in your world keep their buildings exactly as they are; their people
-  now follow the beds that are there.
+  now follow the beds that are there. Every **tavern** also keeps a **guest bed** for travellers where its room has
+  space: no villager ever sleeps in it, so you can rest there and make it your home spawn.
 - **Gravity ends at the hull**: inside your station's box (plus a few blocks around it) you walk; step or fall
   past that and the suit **floats** — jump rises, crouch sinks, so you drift back to the deck or build the
   outer hull from outside. Drift very far away and you are set back beside the station core. **U** always returns you to
@@ -2616,7 +2621,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   again) to open that vendor's **trade screen** (*you give → you get*). A vendor's themed goods only trade while that
   vendor stands right beside you (the grocer only inside his shop). Barter trades there swap your raw resources for
   goods. **Aboard your ship** the Crafting tab's **Market** page lists what the ship's trade console itself trades
-  (iron ↔ titanium) — the vendors' themed goods are not offered there; its cards read *Can trade* and the button
+  (iron ↔ titanium, iron → lead) — the vendors' themed goods are not offered there; its cards read *Can trade* and the button
   *Trade*. Vendors have **themes**: miners sell iron,
   copper and lead ore for silicate, traders buy crystal, gold and silver, researchers buy refined uranium and
   sell data fragments and circuit boards, settlers trade food.

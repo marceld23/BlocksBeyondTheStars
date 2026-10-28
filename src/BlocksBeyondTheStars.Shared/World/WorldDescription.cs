@@ -207,8 +207,16 @@ public sealed class WorldDescription
     /// #2694 the hash-variety package: world-seeded body sizes and mixed sky/flora/water colour families, gravity, settlement
     /// trades and quest-giver names, #2738 sea ice counts as wet for structure placement, #2739 world-seeded station
     /// quartermasters and vendor themes, #2833 twelve more wild plant species and mixed meadows, #2848–#2859 the tree
-    /// variety and glow package, #2976 several fruits per world, picked per tree).</summary>
-    public const int CurrentTerrainGeneration = 30;
+    /// variety and glow package, #2976 several fruits per world, picked per tree, #2988 the start system carries lead and
+    /// uranium).</summary>
+    public const int CurrentTerrainGeneration = 31;
+
+    /// <summary>The generation of the start-system ore guarantee (#2988, Lyxette 2026-10-28): the way out of the start system
+    /// is the jump generator, its reactor fuel needs lead and uranium, and only a handful of planet types carry them — so a
+    /// start system none of whose bodies carries one of them gets another of its bodies retyped to a type of its family that
+    /// does (<c>UniverseGenerator.EnsureStartSystemJumpOres</c>), and the metallic asteroids grow a lead vein
+    /// (<c>OreVein.MinTerrainGeneration</c>). Older generations keep every body's type and vein.</summary>
+    public const int StartSystemJumpOresGeneration = 31;
 
     /// <summary>The generation of the fruit variety (#2976, 2026-10): a world with trees grows at least three of the four tree
     /// fruit shapes (<c>FloraGenerator.MinActiveFruitShapes</c>), every fruit-bearing tree picks its own fruit from them by

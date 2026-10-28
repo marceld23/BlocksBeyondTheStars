@@ -371,6 +371,8 @@ public sealed partial class GameServer
             }
         }
 
+        takenBeds.UnionWith(_worlds.Active.GuestBeds); // #2986: a tavern's guest bed is for travellers — never an NPC's
+
         var station = ActiveStationInterior();
         bool stationCrewBeds = station is { Kit: null } && !npc.CabinBed; // #2657: the whole station, not the reach
         var anchor = (npc.CabinBed || !npc.HasWork ? npc.Rest : npc.Work).ToBlock();
