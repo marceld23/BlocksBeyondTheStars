@@ -247,18 +247,22 @@ public sealed partial class GameServer
     }
 
     /// <summary>A player picks up a net fragment they're standing at (press E). Validates it exists and is in
-    /// reach, reveals its archive text, advances the shared story, then removes it (gone for everyone).</summary>
+    /// reach, reveals its archive text, advances the shared story, then removes it (gone for everyone). A refused
+    /// pickup re-sends the player's fragment list (#3010): the client pressed E at a fragment we don't have there —
+    /// a ghost from the previous body (#3009) or a stale position — and the true list puts it right instead of
+    /// leaving E a silent no-op.</summary>
     private void HandleNetFragmentFound(PlayerSession session, NetFragmentFoundIntent intent)
     {
-        var frag = _netFragments.FirstOrDefault(f => f.Id == intent.FragmentId);
-        if (frag is null || !StoryActive)
+        if (!StoryActive)
         {
-            return; // unknown fragment (stale client / wrong world), or the story is switched off (#2506: it stays for later)
+            return; // the story is switched off (#2506: the fragments stay for later, the client shows none)
         }
 
-        if (WrapDistSq(session.State.Position, frag.Pos) > NetFragmentReach * NetFragmentReach)
+        var frag = _netFragments.FirstOrDefault(f => f.Id == intent.FragmentId);
+        if (frag is null || WrapDistSq(session.State.Position, frag.Pos) > NetFragmentReach * NetFragmentReach)
         {
-            return; // too far to reach
+            SendNetFragments(session); // unknown fragment (stale client / wrong world) or too far to reach
+            return;
         }
 
         _netFragments.Remove(frag);
