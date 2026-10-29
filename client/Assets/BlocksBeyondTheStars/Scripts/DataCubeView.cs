@@ -41,7 +41,9 @@ namespace BlocksBeyondTheStars.Client
         private bool _subscribed;
         private int _hummingId; // the cube we last played the proximity hum for (so it triggers once per approach)
 
-        private const float Reach = 3.2f;   // matches the server's DataCubeReach
+        /// <summary>How close to stand to download a cube — the server's DataCubeReach. The prompt and E both use it
+        /// (#3010: the prompt used to show 0.6 m further out, where E did nothing).</summary>
+        public const float Reach = 3.2f;
         private const float Size = 0.95f;
         private const float RestHeight = Size * 0.5f; // an owned cube sits on the ground (#2874)
 
@@ -55,6 +57,7 @@ namespace BlocksBeyondTheStars.Client
             if (!_subscribed && Game?.Network != null)
             {
                 Game.Network.DataCubesReceived += OnCubes;
+                Game.Network.WorldResetReceived += OnWorldReset;
                 _subscribed = true;
             }
 
@@ -91,13 +94,41 @@ namespace BlocksBeyondTheStars.Client
 
         private bool Owned(string gameKey) => !string.IsNullOrEmpty(gameKey) && Game != null && Game.UnlockedGames.Contains(gameKey);
 
+        /// <summary>Travelling wipes the world: cube ids are per world and restart at 1 on the destination body, so every
+        /// held cube is stale — a recycled id kept the previous body's cube at its old coordinates (#3009, the doors'
+        /// #1429). The server re-sends the destination's cubes after every WorldReset.</summary>
+        private void OnWorldReset(WorldReset m)
+        {
+            foreach (var c in _cubes.Values)
+            {
+                if (c.Go != null)
+                {
+                    Destroy(c.Go);
+                }
+            }
+
+            _cubes.Clear();
+            _hummingId = 0;
+        }
+
+        /// <summary>True when the incoming record still describes the cube we hold for its id. A mismatch means the id
+        /// was recycled for a different cube (see <see cref="OnWorldReset"/>) and it must be rebuilt (#3009).</summary>
+        public static bool SameCube(Vector3 world, long seed, NetDataCube nc)
+            => seed == nc.Seed && (world - new Vector3(nc.X, nc.Y, nc.Z)).sqrMagnitude < 0.01f;
+
         private void OnCubes(DataCubeList m)
         {
             var seen = new HashSet<int>();
             foreach (var nc in m.Cubes)
             {
                 seen.Add(nc.Id);
-                if (!_cubes.TryGetValue(nc.Id, out var c))
+                if (_cubes.TryGetValue(nc.Id, out var held) && !SameCube(held.World, held.Seed, nc))
+                {
+                    Destroy(held.Go);
+                    _cubes.Remove(nc.Id);
+                }
+
+                if (!_cubes.ContainsKey(nc.Id))
                 {
                     _cubes[nc.Id] = Build(nc);
                 }
@@ -224,7 +255,7 @@ namespace BlocksBeyondTheStars.Client
             var cam = Camera.main;
             if (cam == null || Game == null || ScreenLabelLayer.Instance == null) return;
 
-            int near = NearestDataCube(Game.PlayerPosition, Reach + 0.6f, out _, out bool owned);
+            int near = NearestDataCube(Game.PlayerPosition, Reach, out _, out bool owned); // #3010: only where E works
             if (near == 0 || !_cubes.TryGetValue(near, out var c)) { _hummingId = 0; return; }
 
             // Gentle hum once per approach (when the nearest cube changes) — a recovered cube stays silent (#2874).
@@ -250,7 +281,11 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnDestroy()
         {
-            if (_subscribed && Game?.Network != null) Game.Network.DataCubesReceived -= OnCubes;
+            if (_subscribed && Game?.Network != null)
+            {
+                Game.Network.DataCubesReceived -= OnCubes;
+                Game.Network.WorldResetReceived -= OnWorldReset;
+            }
         }
     }
 }
