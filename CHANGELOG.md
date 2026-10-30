@@ -11,6 +11,99 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.32] — 2026-10-30
+
+The lantern release. **You choose your festivals now**: by default the big festivals of the whole world plus the
+festivals of your own language, or all of them, only yours, none — or you tick them one by one in the new **My
+festivals** list. The festive mood keeps to a festival's **first days**, so the special days feel special again (about
+forty a year instead of one in every two). **Halloween** and **Christmas** get **challenges of their own** — sixty
+pumpkins, and twenty-five different fir trees to scan — and four **festival decorations** arrive: the **gift box**, the
+**paper lantern**, the little **diya lamp** and **marigolds** to plant. A short **jingle** greets each festival,
+**Orthodox Christmas** joins the calendar, pumpkins no longer grow on your lawn, and the "More festivals" list no longer
+hides behind the menu's buttons.
+
+ℹ️ **Compatibility:** the decorations are new blocks, so the **save version goes up to 9**: your save is converted the
+first time you open it, and after that an older version can no longer open it. The terrain generation stays at **32** and
+the network protocol at **version 11**. As always, keep game and server on the same version: the desktop game updates
+itself at start, and the browser is always current.
+
+### 🎁 My festivals (#3021, #3022)
+
+- **You choose which festivals you celebrate.** By default these are the **big world festivals** — New Year, Lunar New
+  Year, Carnival, Holi, Eid al-Fitr, Easter, Hanami, Midsummer, the Mid-Autumn Festival, Halloween, Día de los Muertos,
+  Diwali, Hanukkah and Christmas — **plus the festivals of your language**. **Settings → Comfort & wellbeing → My
+  festivals** switches between **Big festivals + my language**, **All festivals**, **Only my language** and **None**;
+  **Choose festivals…** (or **More festivals** on the menu card) lists every festival with its explanation and a
+  **Celebrate** switch.
+- Your choice holds for every world you play and takes effect at once. It decides the menu card, the chip, the mood,
+  VEGA's greeting, the challenges and the pumpkins around you. A festival the world admin switches on by hand
+  (`/festival <key>`) is for everybody.
+- **Fewer festive days:** the mood — petals, lamplight, fog, snow caps, the festive tune — now shows on a festival's
+  first days only (the whole Halloween week, Advent's Sundays). The menu card and the chip still show the whole festival.
+  With the default choice that is about forty festive days a year instead of 163.
+- When two festivals meet, **Halloween** and **Christmas** lead the chip and the mood.
+
+### 🎄 Halloween's and Christmas' own challenges (#3023)
+
+- **Halloween:** harvest sixty pumpkins — and, if you like, put up three pumpkin lanterns.
+- **Christmas:** find and scan **twenty-five different fir trees** on the cold worlds. Every tree counts once, however
+  many of its needles you scan — and, if you like, put up ten lights. Two new achievements count your fir trees: **Fir
+  finder** (25) and **Forest ranger** (100).
+- The **harvest festivals'** challenge now counts every plant you harvest — berries, grain, fruit, mushrooms,
+  pumpkins — so it works on every green world. **Pumpkins** also grow at **Sukkot** and the **autumn equinox** now.
+- Each challenge still runs once, and its present is a decoration — now often one of the new ones.
+
+### 🏮 Festival decorations, jingles and Orthodox Christmas (#3024–#3026)
+
+- **Gift box** — a present in white paper with a red ribbon; dye the paper any colour. Made by hand from plant fibre and
+  wood.
+- **Paper lantern** — a round lantern with a warm light inside, like at the Lantern Festival or a lantern walk. Plant
+  fibre and a torch.
+- **Diya lamp** — a small clay oil lamp, like the rows of lights at Diwali. Dirt and a torch.
+- **Marigolds** — bright orange flowers, planted from **marigold seeds** on grass, soil, a hydroponic tray or in a flower
+  pot; the seeds come from the gatherers' market and from every marigold you harvest.
+- Each festival now greets you with a short **jingle** when it begins (Halloween has its own).
+- **Orthodox Christmas** (7 January) is in the calendar, with its explanation in all fourteen languages.
+
+### 🛠️ Fixes (#3017, #3020)
+
+- **The "More festivals" list** drew its own button and the menu's bottom bar ("What's new?", "Join in") over itself,
+  and they stayed clickable through it. Fixed.
+- **Pumpkins** no longer grow on ground a player laid or dug, in villages, or right beside a player, a villager or an
+  animal.
+- In the **browser**, switching festivals off had no effect on your own world. Your festival choice now works there too.
+- The marigold of Día de los Muertos is the **Tagetes**: eight languages named the calendula instead — corrected, also in
+  Día de los Muertos' explanation.
+
+### 🙏 Credits
+
+- **Jafar** from the school club "Building Games with AI" is now in the credits — in the game and in the README.
+
+### 🛠️ For tinkerers
+
+- **My festivals (#3021):** Shared `FestivalSelection` (presets `BigAndLanguage`, `All`, `Language`, `None`, `Custom`)
+  over the new `festivals.json` fields `big` and `locales`; the selection rides on the join (`JoinRequest.FestivalPreset` /
+  `FestivalCustom`) and on the new `SetFestivalPrefsIntent` (tag 313, served while the singleplayer pause holds the
+  world). `ActiveFestivalsFor(session)` drives each player's `ServerRules.ActiveFestivals` (now that player's list in
+  priority order, plus `FestivalForced`), VEGA's greeting, the story predicates and the spawner. The bundled host no
+  longer gets `--festivals off` from the client; the operator override stays for operators.
+- **Core days (#3022):** `effects.coreDays` / `coreWeekday` and `FestivalCalendar.IsCoreDay`; `priority` in
+  `festivals.json`.
+- **Challenges (#3023):** packs `festival_halloween` and `festival_christmas` with `world:festival_halloween|christmas`;
+  a festival's `pack` keeps it out of its theme pack. New story events `scan:tree` (the trunk's foot is the tree's
+  identity, `PlayerState.ScannedTrees`) and `harvest:any`; achievements `conifer_25` / `conifer_100` on
+  `scan_tree:conifer`.
+- **Decorations (#3024):** `gift_box`, `paper_lantern`, `diya_lamp` (the flower pot's form), `flora_marigold` (an
+  *authored* catalog species — in no world roster and no greenhouse, so world generation does not change) and
+  `marigold_seed`; block ids shift → save version 9 with the usual remap.
+- **Guards (#3020):** the spawner asks `HasPlayerBlockEdits` for the box around a candidate, skips settlements and keeps
+  two blocks from bodies; `scan:block` / `scan:tree` count only a loaded cell within reach that holds the named block.
+- **Docs:** docs/developer/FESTIVALS.md, ADR 0020 addendum, USER_MANUAL "Festivals", SOUND_DESIGN §24. Nine new
+  ElevenLabs jingles, four tiles and four icons (OpenAI) — see NOTICES.md.
+- **What's new? (#3016):** the 2026.10.31 notes in the twelve community languages.
+- **For hosters:** the WorldHost image was rebuilt and rolls with this release. The AI backend and the report inbox are
+  unchanged.
+
 ## [2026.10.31] — 2026-10-30
 
 The festival release, just in time for Halloween week. The game now knows **fifty-two festivals of the real calendar**
@@ -9434,7 +9527,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.31...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.32...HEAD
+[2026.10.32]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.31...v2026.10.32
 [2026.10.31]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.30...v2026.10.31
 [2026.10.30]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.29...v2026.10.30
 [2026.10.29]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.28...v2026.10.29
