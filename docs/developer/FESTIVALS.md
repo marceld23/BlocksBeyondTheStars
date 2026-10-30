@@ -77,7 +77,9 @@ Order of authority, evaluated in `ComputeActiveFestivals`:
 `TickFestivals` (a pre-world tick step) looks every 30 s of uptime; a change re-sends `ServerRules` to everyone online and
 VEGA greets the festivals that began. `ServerRules.Festivals` ("On"/"Off", empty from an older server),
 `ServerRules.FestivalPick` and `ServerRules.ActiveFestivals` (primary first) are additive fields — no protocol bump.
-The wall clock sits behind `SetFestivalClockForTest`, like the NPCs' welcome-back clock.
+The wall clock sits behind `SetFestivalClockForTest`, like the NPCs' welcome-back clock; the server test assembly pins every
+server's default clock to a quiet day (`TestFestivalClock.QuietDay`, 1 May 2031, via `GameServer.FestivalClockDefaultForTest`)
+so the suite never depends on the real date, and the client harness passes `FestivalsOverride = "off"` for the same reason.
 
 **VEGA's greeting** is once per player and festival-year (milestone `festival:<key>:<year>`), kind 3 (system) so the hints
 mute never swallows it; the line key is `festival.<key>.vega`. **Story predicates** `world:festival_any` and

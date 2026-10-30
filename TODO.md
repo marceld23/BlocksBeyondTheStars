@@ -74,6 +74,9 @@ bundle is the schedule**; existing saves get festivals through runtime layers on
     `festival`, decoration presents) + lifetime tiers on `mine:flora_pumpkin`; `scan:block` once per cell per player
     (`ScanIntent.HasCell/CellX..Z`, `PlayerState.ScannedCells` bounded + persisted) and a 0.5 s hand-scanner throttle; packs
     in all 14 languages and in the browser fallback manifest. Tests: `PumpkinContentTests`, `FestivalSpawnTests`, `ScanBlockTests`.
+  - **Date-independent tests:** the first CI run fell on Halloween week — the calendar started the harvest challenge for every
+    joining test player (chip, pack list). Every test server now reads the calendar at `TestFestivalClock.QuietDay` (module
+    initializer → `GameServer.FestivalClockDefaultForTest`); `FestivalCalendarTests` guards that the day stays quiet.
 - **Open:** #3008 native-speaker review of the festival texts (help wanted, stays open).
 
 ### 🧭 Coordinates, teleporter destinations + Quantum Teleporter, several bases per world with discovery, settlers in the planet scan, base and station yield — epic #2992 (#2993–#2999), branch feat/teleporter-coords-multibase-yield — ✅ done 2026-10-30 (⚠ playtest open; protocol tags 310–312 additive, no save-version bump)

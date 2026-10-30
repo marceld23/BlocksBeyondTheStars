@@ -113,6 +113,15 @@ public sealed class SideStoryPilotTests : IDisposable, IClassFixture<SidePilotDa
 
     private static bool Has(PlayerSession p, string milestone) => p.State.Milestones.Contains(milestone);
 
+    /// <summary>The Journal's pack list without the shipped festival challenges (#3007): they ride along in every list, and on a day
+    /// without a festival (<see cref="TestFestivalClock"/>) none is started or startable, so the Journal lists none of them.</summary>
+    private static NetStoryPack[] PacksWithoutFestivals(SvGameServer server, PlayerSession p)
+    {
+        var all = server.StoryPackStatesForTest(p).Packs;
+        Assert.All(all.Where(x => x.Id.StartsWith("festival_", StringComparison.Ordinal)), x => Assert.False(x.Started || x.Startable));
+        return all.Where(x => !x.Id.StartsWith("festival_", StringComparison.Ordinal)).ToArray();
+    }
+
     /// <summary>The argument of the chapter card <c>pilot.part</c> bound to <paramref name="chapter"/>: the chapter's title key,
     /// its place among the pack's chapters and their count (<see cref="CutsceneArgs.For"/>).</summary>
     private static string ChapterArg(string chapter, int place)
@@ -280,11 +289,11 @@ public sealed class SideStoryPilotTests : IDisposable, IClassFixture<SidePilotDa
         Assert.Equal(Tutorial, server.ObjectivePackForTest(id));
         Assert.Equal(ObjectiveSources.Tutorial, server.ObjectiveSourceForTest(id));
 
-        var states = server.StoryPackStatesForTest(p);
-        Assert.Equal(new[] { Tutorial, Vega, P }, states.Packs.Select(x => x.Id)); // Journal order: tutorials, the world story, the rest
-        Assert.Equal(new[] { StoryRegistry.KindTutorial, StoryRegistry.KindStory, StoryRegistry.KindSide }, states.Packs.Select(x => x.Kind));
-        Assert.Equal(new[] { StoryRegistry.ScopePlayer, StoryRegistry.ScopeWorld, StoryRegistry.ScopePlayer }, states.Packs.Select(x => x.Scope));
-        Assert.True(states.Packs[2].Enabled && states.Packs[2].Startable && !states.Packs[2].Started);
+        var packs = PacksWithoutFestivals(server, p);
+        Assert.Equal(new[] { Tutorial, Vega, P }, packs.Select(x => x.Id)); // Journal order: tutorials, the world story, the rest
+        Assert.Equal(new[] { StoryRegistry.KindTutorial, StoryRegistry.KindStory, StoryRegistry.KindSide }, packs.Select(x => x.Kind));
+        Assert.Equal(new[] { StoryRegistry.ScopePlayer, StoryRegistry.ScopeWorld, StoryRegistry.ScopePlayer }, packs.Select(x => x.Scope));
+        Assert.True(packs[2].Enabled && packs[2].Startable && !packs[2].Started);
 
         // The Journal's "Start" (earlyOptIn): the side story starts now, its narrator speaks — the chip stays the training's,
         // the objective list carries both (VEGA has no row before its track starts).
@@ -328,11 +337,11 @@ public sealed class SideStoryPilotTests : IDisposable, IClassFixture<SidePilotDa
         Assert.Equal(new[] { Vega }, server.ObjectiveListForTest(p).Items.Select(i => i.PackId));
 
         // One Journal with three stories in their states; each story speaks with its own narrator.
-        states = server.StoryPackStatesForTest(p);
-        Assert.Equal(new[] { Tutorial, Vega, P }, states.Packs.Select(x => x.Id));
-        Assert.False(states.Packs[0].MandatoryRunning);
-        Assert.True(states.Packs[1].Started);
-        Assert.True(states.Packs[2].Done && states.Packs[2].Badge);
+        packs = PacksWithoutFestivals(server, p);
+        Assert.Equal(new[] { Tutorial, Vega, P }, packs.Select(x => x.Id));
+        Assert.False(packs[0].MandatoryRunning);
+        Assert.True(packs[1].Started);
+        Assert.True(packs[2].Done && packs[2].Badge);
         Assert.All(transport.PackLines(p, P), l => Assert.Equal(Juno, l.Speaker));
         Assert.All(transport.PackLines(p, Tutorial), l => Assert.Equal(StoryNarrator.DefaultId, l.Speaker));
 
