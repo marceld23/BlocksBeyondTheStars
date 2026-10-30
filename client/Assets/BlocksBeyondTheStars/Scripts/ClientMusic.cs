@@ -710,7 +710,9 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            if (mode == MusicMode.Tracks && want != Combat)
+            // #3004: in Tracks mode a festival's synth piece alternates with the library — every other resolve falls through.
+            bool festiveTurn = FestivalMusicFlavour(game) != null && (want == MusicLibrary.Menu || MusicLibrary.IsPlanet(want)) && (_festiveAlternate = !_festiveAlternate);
+            if (mode == MusicMode.Tracks && want != Combat && !festiveTurn)
             {
                 if (_arrivalPending && MusicLibrary.IsPlanet(want) && !_missingTracks.Contains(MusicLibrary.ArrivalTrack))
                 {
@@ -728,9 +730,23 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            // Synth path: Synth mode, combat (always synth), or a Tracks pool whose files are missing.
+            return SynthPiece(want, game);
+        }
+
+        /// <summary>The synth path: Synth mode, combat (always synth), or a Tracks pool whose files are missing — and, #3004, the
+        /// Festive mood while a festival with a music flavour is on (the menu and the planets; in Tracks mode every other piece,
+        /// so the library still plays).</summary>
+        private (string name, bool loop) SynthPiece(string want, GameBootstrap game)
+        {
             var mood = MoodFor(want);
             string flavor = MusicLibrary.IsPlanet(want) ? want : null;
+            string festive = FestivalMusicFlavour(game);
+            if (festive != null && (want == MusicLibrary.Menu || MusicLibrary.IsPlanet(want)))
+            {
+                mood = SynthMood.Festive;
+                flavor = festive;
+            }
+
             int seed = _rng.Next();
             string id = $"{SynthPrefix}{mood}:{flavor}:{seed}";
             _synthSpecs[id] = (mood, flavor, seed);
@@ -750,6 +766,16 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return list;
+        }
+
+        private bool _festiveAlternate;
+
+        /// <summary>#3004: the Festive flavour of the festival that is on — the server's list in a game, the client's own
+        /// calendar on the menu — or null when none is on, it has no music, or the player switched the festival mood off.</summary>
+        private string FestivalMusicFlavour(GameBootstrap game)
+        {
+            var fx = game != null ? FestivalMood.Effects(game) : FestivalMood.MenuEffects(Shell);
+            return fx != null && !string.IsNullOrEmpty(fx.Music) ? fx.Music : null;
         }
 
         private static SynthMood MoodFor(string want) => want switch

@@ -813,6 +813,33 @@ public static class StoryWorldPredicates
     /// <summary>#2482: the world generates crashed wrecks on planets (the world option is not off).</summary>
     public const string PlanetWrecks = "planet_wrecks";
 
+    /// <summary>#3001: some festival of the real-world calendar is on (or switched on by hand).</summary>
+    public const string FestivalAny = "festival_any";
+
+    /// <summary>#3001: a festival of the harvest theme is on (Halloween, Erntedank, Chuseok, Thanksgiving …).</summary>
+    public const string FestivalHarvest = "festival_harvest";
+
+    /// <summary>#3001: a festival of lights is on (Diwali, St. Martin, Hanukkah, Advent, Christmas, the Lantern Festival …).</summary>
+    public const string FestivalLights = "festival_lights";
+
+    /// <summary>#3001: a new-year festival is on (New Year, Lunar New Year, Seollal, Tết, Nowruz, Songkran).</summary>
+    public const string FestivalNewYear = "festival_newyear";
+
+    /// <summary>#3001: a blossom festival is on (Hanami, Easter, Earth Day).</summary>
+    public const string FestivalBlossoms = "festival_blossoms";
+
+    /// <summary>#3001: a festival of colours is on (Holi, Carnival, Maslenitsa).</summary>
+    public const string FestivalColours = "festival_colours";
+
+    /// <summary>#3001: a star festival is on (Tanabata, Qixi, the Perseids, World Space Week …).</summary>
+    public const string FestivalStars = "festival_stars";
+
+    /// <summary>#3001: a midsummer festival is on (Midsummer, Ivan Kupala, the Dragon Boat Festival).</summary>
+    public const string FestivalMidsummer = "festival_midsummer";
+
+    /// <summary>#3001: a children's day is on.</summary>
+    public const string FestivalChildren = "festival_children";
+
     /// <summary>Every known predicate, in documentation order.</summary>
     public static readonly IReadOnlyList<string> All = new[]
     {
@@ -828,5 +855,7 @@ public static class StoryWorldPredicates
         FactoryNear, FactoryHere, AccessCode, FactoryOwned, MachineCircuit, MachineCatchUp,
         Creatures, TameableNear, HerdBegging, CompanionOwned, SeedCarried, SettlementNear, HostileNear, BanditHail, Climbing,
         TrainHere, Multiplayer, RadioWorn, RuinNear, TreasureNear, WreckSignal, PlanetWrecks,
+        FestivalAny, FestivalHarvest, FestivalLights, FestivalNewYear, FestivalBlossoms, FestivalColours, FestivalStars,
+        FestivalMidsummer, FestivalChildren,
     };
 }

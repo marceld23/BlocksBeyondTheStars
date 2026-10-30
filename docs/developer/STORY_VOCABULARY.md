@@ -250,7 +250,7 @@ condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 
 ### World predicates (`world:<predicate>`)
 
-75 predicates (`StoryWorldPredicates.All`, held equal to the server's registry by
+84 predicates (`StoryWorldPredicates.All`, held equal to the server's registry by
 `StoryConditionTests`). A predicate reads the player's own body and system, never another player's.
 
 | Predicate | Holds when |
@@ -278,6 +278,15 @@ condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 | `world:factory_here` | A spawned factory stands on the player's world. |
 | `world:factory_near` | VEGA's tip check found a factory's terminal close to the player in its last pass (the moment the "Factory and automation" course is offered at — the tips' own once-a-second sweep, no extra probe). |
 | `world:factory_owned` | The player has claimed a factory (anywhere in the save). |
+| `world:festival_any` | Some festival of the real-world calendar is on (or switched on by hand). |
+| `world:festival_blossoms` | A blossom festival is on (Hanami, Easter, Earth Day). |
+| `world:festival_children` | A children's day is on. |
+| `world:festival_colours` | A festival of colours is on (Holi, Carnival, Maslenitsa). |
+| `world:festival_harvest` | A festival of the harvest theme is on (Halloween, Erntedank, Chuseok, Thanksgiving …). |
+| `world:festival_lights` | A festival of lights is on (Diwali, St. Martin, Hanukkah, Advent, Christmas, the Lantern Festival …). |
+| `world:festival_midsummer` | A midsummer festival is on (Midsummer, Ivan Kupala, the Dragon Boat Festival). |
+| `world:festival_newyear` | A new-year festival is on (New Year, Lunar New Year, Seollal, Tết, Nowruz, Songkran). |
+| `world:festival_stars` | A star festival is on (Tanabata, Qixi, the Perseids, World Space Week …). |
 | `world:food_plants_near` | A plant whose harvest is food (berries …) grows within a short walk of the player — the berry lesson's feasibility (a bounded probe of the loaded blocks, evaluated when a step activates). |
 | `world:forge_ready` | The player can refine — a forge crafted before or carried, or a refinery fitted to their ship. |
 | `world:fragment_on_world` | A story net fragment lies on the player's body. |

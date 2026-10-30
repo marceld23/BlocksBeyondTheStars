@@ -81,6 +81,11 @@ public sealed partial class GameServer
         // world management, not a cheat (d3 §6.8) — family worlds keep cheats off. The role is the gate.
         ["tutorial"] = new(AdminCommandGate.Role, static (s, session, cmd) => s.HandleTutorialAdmin(session, cmd)),
 
+        // Festivals (#3001): "/festival" reports, "/festival <key>" switches one on by hand (no FOMO: any festival at any
+        // time), "/festival calendar" hands back to the calendar, "/festival off|on" the world rule. World management, not
+        // a cheat — the role is the gate.
+        ["festival"] = new(AdminCommandGate.Role, static (s, session, cmd) => s.AdminFestival(session, cmd.StringArg)),
+
         // The story report (#2466: now with the player packs) — read-only, like the reports above.
         ["story_status"] = new(AdminCommandGate.Role, static (s, session, cmd) => s.AdminStoryStatus(session, cmd.TargetPlayer)),
 

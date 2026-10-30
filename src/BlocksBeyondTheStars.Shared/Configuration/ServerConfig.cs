@@ -224,6 +224,13 @@ public sealed class ServerConfig
     /// (a public kids' fleet). Never persisted into a save — it is the operator's, not the world's.</summary>
     public Moderation.ChatFilterLevel ChatFilter { get; set; } = Moderation.ChatFilterLevel.Mask;
 
+    /// <summary>Operator-level festival override (#3001, <c>BBS_FESTIVALS</c> / <c>--festivals</c>): empty (default) lets
+    /// each world's <see cref="GameRules.Festivals"/> rule and the calendar decide, <c>off</c> switches the festivals off
+    /// for every world on this server (the bundled singleplayer host passes the client's global setting this way, so an
+    /// existing save is never touched), a festival key forces that festival on everywhere. Never persisted into a
+    /// save — it is the operator's, not the world's.</summary>
+    public string FestivalsOverride { get; set; } = string.Empty;
+
     /// <summary>Chat hate/slur list — a matching line is dropped (<c>BBS_CHAT_BLOCKED_WORDS</c> EXTENDS the
     /// defaults; whole-token matching, long entries also as substrings). See <see cref="Moderation.ChatScreen"/>.</summary>
     public List<string> ChatBlockedWords { get; set; } = new(Moderation.ChatScreen.DefaultBlockedWords);

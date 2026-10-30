@@ -114,6 +114,9 @@ refreshed 2026-10-23.
   woodcutting with replanting, hunting — and animals that notice hunters), wanderers, and the client side.
 - [VILLAGE_LIFE.md](VILLAGE_LIFE.md) — "the village lives" (epic #2589): the shared rules (data, AI two-mode lines,
   no sound jumble, no FOMO), the village festival (#2604) and the villagers' personal wishes (#2601).
+- [FESTIVALS.md](FESTIVALS.md) — the real-world calendar's festivals (epic #3000): `data/festivals.json` (fixed, weekday and
+  dated windows), the order of authority (operator override → world rule → `/festival` pick → calendar), VEGA's greeting,
+  the menu card, HUD chip and the client-side mood; fifty-two multicultural festivals with kid-friendly explanations.
 - [MATTER_CONVERTER.md](MATTER_CONVERTER.md) — the Transmuter station: craft scarce ore from spare
   terrain (lossy `matter_dust` intermediate, no Tier-3 output).
 - [CRYSTAL_NET.md](CRYSTAL_NET.md) — the Crystal Net (#2045): crystal conduits carrying a visible ON/OFF
@@ -193,3 +196,4 @@ ones are marked, not deleted.
 - [0017 — Endless water by class, finite still water, and falls that keep their level](adr/0017-water-classes-finite-still-water-and-bounded-falls.md)
 - [0018 — Every closed room breathes: one air engine for bases and stations, doors are bulkheads](adr/0018-every-closed-room-breathes-one-air-engine.md)
 - [0019 — GameServer subsystems: top-level classes behind compiler-derived host interfaces](adr/0019-gameserver-subsystems.md)
+- [0020 — Seasonal festivals: the calendar sets the default, nothing can be missed](adr/0020-seasonal-festivals-calendar-sets-defaults-no-fomo.md)

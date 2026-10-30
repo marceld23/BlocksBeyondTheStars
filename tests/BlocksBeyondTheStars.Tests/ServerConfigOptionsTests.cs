@@ -18,7 +18,7 @@ namespace BlocksBeyondTheStars.Tests;
 [Collection(ServerConfigEnvironmentCollection.Name)]
 public sealed class ServerConfigOptionsTests
 {
-    /// <summary>The 52 environment variables <see cref="ServerConfig.ApplyEnvironment"/> reads, in the order it applies and
+    /// <summary>The 53 environment variables <see cref="ServerConfig.ApplyEnvironment"/> reads, in the order it applies and
     /// reports them.</summary>
     private static readonly string[] HistoricalEnvironmentOrder =
     {
@@ -29,7 +29,7 @@ public sealed class ServerConfigOptionsTests
         "BBS_CHUNK_GEN_WORKERS", "BBS_BACKUP_INTERVAL_MINUTES", "BBS_BACKUP_KEEP", "BBS_TICK_TIMING_LOG_SECONDS",
         "BBS_FREE_FLIGHT", "BBS_SPACE_COMBAT", "BBS_SHIP_WEAPONS", "BBS_SPACE_NPCS", "BBS_BANDITS", "BBS_AI_LEVEL",
         "BBS_AI_BACKEND_URL", "BBS_AI_TIMEOUT_SECONDS", "BBS_AI_LINES_PER_MINUTE", "BBS_CRASH_REPORT_ENDPOINT",
-        "BBS_CRASH_REPORT_KEY", "BBS_NOTIFY_URL", "BBS_BLOCKED_WORDS", "BBS_WATCH_WORDS", "BBS_CHAT_FILTER",
+        "BBS_CRASH_REPORT_KEY", "BBS_NOTIFY_URL", "BBS_BLOCKED_WORDS", "BBS_WATCH_WORDS", "BBS_CHAT_FILTER", "BBS_FESTIVALS",
         "BBS_CHAT_BLOCKED_WORDS", "BBS_CHAT_MASKED_WORDS", "BBS_CHAT_WATCH_WORDS", "BBS_CHAT_ALLOW_WORDS", "BBS_VOICE",
         "BBS_IDLE_SHUTDOWN_MINUTES", "BBS_JOIN_TOKEN_SECRET", "BBS_WORLD_OWNER", "BBS_NO_PLAYER_ADMINS", "BBS_ANNOUNCE_TOKEN",
     };
@@ -44,7 +44,7 @@ public sealed class ServerConfigOptionsTests
     };
 
     /// <summary>Every switch spelling the command line accepts (canonical names and aliases, lower-case, without <c>--</c>).</summary>
-    private static readonly string[] HistoricalSwitches95 =
+    private static readonly string[] HistoricalSwitches96 =
     {
         "port", "gameplay-port", "admin-port", "saves", "saves-root", "data", "data-dir", "usercontent", "user-content",
         "no-config", "stdin-stop", "database", "database-provider", "postgres", "postgres-connection",
@@ -52,7 +52,7 @@ public sealed class ServerConfigOptionsTests
         "view-distance-chunks", "chunk-stream-per-tick", "chunk-stream-budget-ms", "chunk-budget-ms", "chunk-gen-workers",
         "backup-interval-minutes", "backup-keep", "free-flight", "space-combat", "ship-weapons", "space-npcs", "password",
         "admins", "admin-players", "fleet-admins", "no-player-admins", "seed", "start-planet", "admin-bind", "game-mode",
-        "creative-flight", "admin-cheats", "voice", "voice-chat", "chat-filter", "chat-mode", "unlock-all-blueprints",
+        "creative-flight", "admin-cheats", "voice", "voice-chat", "chat-filter", "festivals", "chat-mode", "unlock-all-blueprints",
         "start-all-ships", "creative-kit", "guarantee-start-cube", "creatures", "planet-enemies", "ufos", "bandits", "oxygen",
         "hunger", "hazards", "death-penalty", "keep-inventory", "keep-ship", "auto-aim", "world-textures",
         "starter-teleporter", "return-to-ship", "friendly-visitors", "machine-catchup", "story", "story-density", "tutorial",
@@ -110,6 +110,7 @@ public sealed class ServerConfigOptionsTests
         { "voice", "true", "voice" },
         { "voice-chat", "true", "voice" },
         { "chat-filter", "Off", "chat-filter" },
+        { "festivals", "off", "festivals" },
         { "chat-mode", "Safe", "chat-mode" },
         { "unlock-all-blueprints", "true", "unlock-all-blueprints" },
         { "start-all-ships", "true", "start-all-ships" },
@@ -174,8 +175,8 @@ public sealed class ServerConfigOptionsTests
     {
         var covered = HistoricalSwitches().Select(row => (string)row[0]).ToList();
 
-        Assert.Equal(93, covered.Count);
-        Assert.Equal(HistoricalSwitches95.Except(new[] { "no-config", "stdin-stop" }).OrderBy(s => s, StringComparer.Ordinal),
+        Assert.Equal(94, covered.Count);
+        Assert.Equal(HistoricalSwitches96.Except(new[] { "no-config", "stdin-stop" }).OrderBy(s => s, StringComparer.Ordinal),
             covered.OrderBy(s => s, StringComparer.Ordinal));
     }
 
@@ -423,8 +424,8 @@ public sealed class ServerConfigOptionsTests
     [Fact]
     public void Environment_AppliesEveryHistoricalVariableInTheHistoricalOrder()
     {
-        Assert.Equal(52, HistoricalEnvironmentOrder.Length);
-        Assert.Equal(52, HistoricalEnvironmentOrder.Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(53, HistoricalEnvironmentOrder.Length);
+        Assert.Equal(53, HistoricalEnvironmentOrder.Distinct(StringComparer.Ordinal).Count());
 
         // Sample values: valid for each parser. Any non-empty value counts as applied, so the order assertion is
         // unaffected. The classes that reload the config through AdminService.LoadConfig (AdminServiceTests,
@@ -474,6 +475,7 @@ public sealed class ServerConfigOptionsTests
             ["BBS_BLOCKED_WORDS"] = "A, B",
             ["BBS_WATCH_WORDS"] = "A, B",
             ["BBS_CHAT_FILTER"] = "Off",
+            ["BBS_FESTIVALS"] = "off",
             ["BBS_CHAT_BLOCKED_WORDS"] = "A, B",
             ["BBS_CHAT_MASKED_WORDS"] = "A, B",
             ["BBS_CHAT_WATCH_WORDS"] = "A, B",
@@ -608,9 +610,9 @@ public sealed class ServerConfigOptionsTests
     // --- The option table itself (ServerConfigOptions.All) ---
 
     [Fact]
-    public void Table_HasExactly105Rows_EachWithANameAndHelp()
+    public void Table_HasExactly106Rows_EachWithANameAndHelp()
     {
-        Assert.Equal(105, ServerConfigOptions.All.Count);
+        Assert.Equal(106, ServerConfigOptions.All.Count);
         foreach (var option in ServerConfigOptions.All)
         {
             Assert.True(option.CommandLineName is not null || option.EnvironmentName is not null, "a row needs a switch or a variable");
@@ -638,12 +640,12 @@ public sealed class ServerConfigOptionsTests
             .SelectMany(option => option.CommandLineAliases.Prepend(option.CommandLineName!))
             .ToList();
 
-        Assert.Equal(95, HistoricalSwitches95.Length);
-        Assert.Equal(95, spellings.Count);
+        Assert.Equal(96, HistoricalSwitches96.Length);
+        Assert.Equal(96, spellings.Count);
         Assert.Equal(spellings.Count, spellings.Distinct(StringComparer.Ordinal).Count());
         Assert.All(spellings, name => Assert.Equal(name.ToLowerInvariant(), name));
-        Assert.Equal(HistoricalSwitches95.OrderBy(s => s, StringComparer.Ordinal), spellings.OrderBy(s => s, StringComparer.Ordinal));
-        Assert.Equal(82, ServerConfigOptions.All.Count(option => option.CommandLineName is not null));
+        Assert.Equal(HistoricalSwitches96.OrderBy(s => s, StringComparer.Ordinal), spellings.OrderBy(s => s, StringComparer.Ordinal));
+        Assert.Equal(83, ServerConfigOptions.All.Count(option => option.CommandLineName is not null));
     }
 
     [Fact]
@@ -662,7 +664,7 @@ public sealed class ServerConfigOptionsTests
         Assert.DoesNotContain(HistoricalFallbacks.Values, fallback => HistoricalEnvironmentOrder.Contains(fallback, StringComparer.Ordinal));
 
         // 56 distinct variable names in all: 52 canonical + 4 fallbacks.
-        Assert.Equal(56, rows.SelectMany(option => option.EnvironmentFallbacks.Prepend(option.EnvironmentName!)).Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(57, rows.SelectMany(option => option.EnvironmentFallbacks.Prepend(option.EnvironmentName!)).Distinct(StringComparer.Ordinal).Count());
     }
 
     [Fact]

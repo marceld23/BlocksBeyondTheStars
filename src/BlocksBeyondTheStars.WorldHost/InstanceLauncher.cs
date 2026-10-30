@@ -165,6 +165,13 @@ public sealed class DockerCliLauncher : IInstanceLauncher
             args.AddRange(new[] { "-e", $"BBS_FLEET_ADMINS={config.FleetAdmins}" });
         }
 
+        // Festivals (#3001): the operator's fleet-wide override — "off" switches the calendar's festivals off on every world,
+        // a festival key forces that one everywhere. Never stored in a save; a world sees a change on its next wake.
+        if (!string.IsNullOrEmpty(config.Festivals))
+        {
+            args.AddRange(new[] { "-e", $"BBS_FESTIVALS={config.Festivals}" });
+        }
+
         // Server crash reports (#363): with the write key set, a crashed instance uploads its queued
         // crash reports on its next start. The endpoint stays the server's built-in default (the
         // official ReportHost inbox) unless a self-hosted fleet overrides it.

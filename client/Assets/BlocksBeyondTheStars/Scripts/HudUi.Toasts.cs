@@ -114,7 +114,7 @@ namespace BlocksBeyondTheStars.Client
             if (_researchAge < 0f)
             {
                 bool cutscene = GameBootstrap.CutsceneActive || (Game.Views.Director != null && Game.Views.Director.Playing);
-                if ((Game.ResearchAvailable.Count == 0 && Game.AchievementsUnlocked.Count == 0)
+                if ((Game.ResearchAvailable.Count == 0 && Game.AchievementsUnlocked.Count == 0 && Game.FestivalsBegan.Count == 0)
                     || _canvas == null || !_canvas.enabled || cutscene)
                 {
                     return;
@@ -124,9 +124,13 @@ namespace BlocksBeyondTheStars.Client
                 {
                     StartResearchToast(Game.ResearchAvailable.Dequeue());
                 }
-                else
+                else if (Game.AchievementsUnlocked.Count > 0)
                 {
                     StartAchievementToast(Game.AchievementsUnlocked.Dequeue());
+                }
+                else
+                {
+                    StartFestivalToast(Game.FestivalsBegan.Dequeue()); // #3003
                 }
             }
 
@@ -217,6 +221,38 @@ namespace BlocksBeyondTheStars.Client
 
             _toastHoldNow = AchievementHold;
             _toastGlow = AchievementGold;
+            _researchGo.SetActive(true);
+            _researchAge = 0f;
+            _researchFade.alpha = UiKit.ReducedMotion ? 0f : 1f;
+            _researchRect.localScale = UiKit.ReducedMotion ? Vector3.one : Vector3.one * 0.75f;
+            ClientAudio.Instance?.Cue("ui_success", 0.9f);
+        }
+
+        private static readonly Color FestivalAmber = new Color(1f, 0.72f, 0.35f);
+
+        /// <summary>#3003: the festival banner — the third queue of the celebration slot. "FESTIVAL" over the festival's glyph and
+        /// name in a warm amber, the star icon, the achievement's hold and sound. Shown when a festival begins while the player
+        /// is online; a festival already on at join is VEGA's greeting instead.</summary>
+        private void StartFestivalToast(string key)
+        {
+            EnsureResearchToast();
+            var loc = Game.Localizer;
+            var festival = Game.Content?.FindFestival(key);
+            _researchHead.text = loc.Get("ui.festival.toast_head").ToUpperInvariant();
+            _researchName.text = festival == null ? key : (festival.Glyph + " " + loc.Get(festival.NameKey)).Trim();
+            _researchHead.color = new Color(FestivalAmber.r * 0.85f, FestivalAmber.g * 0.85f, FestivalAmber.b * 0.85f);
+            _researchName.color = FestivalAmber;
+            var star = UiKit.Icon("map_mark_star");
+            _researchIcon.enabled = star != null;
+            if (star != null)
+            {
+                _researchIcon.texture = star.texture;
+                _researchIcon.uvRect = new Rect(0, 0, 1, 1);
+                _researchIcon.color = FestivalAmber;
+            }
+
+            _toastHoldNow = AchievementHold;
+            _toastGlow = FestivalAmber;
             _researchGo.SetActive(true);
             _researchAge = 0f;
             _researchFade.alpha = UiKit.ReducedMotion ? 0f : 1f;

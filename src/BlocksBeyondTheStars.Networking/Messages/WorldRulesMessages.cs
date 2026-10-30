@@ -76,6 +76,17 @@ public sealed class ServerRules
     /// client does not know the word and hides the row). EMPTY from a server that predates it.</summary>
     public string TutorialPolicy { get; set; } = string.Empty;
 
+    /// <summary>The festivals world rule (#3001): "On" or "Off". EMPTY from a server that predates the festivals — the client
+    /// then hides the world-rules row, the HUD chip and the mood.</summary>
+    public string Festivals { get; set; } = string.Empty;
+
+    /// <summary>The festival the world admin switched on by hand (#3001, <c>/festival</c>), or empty for "the calendar".</summary>
+    public string FestivalPick { get; set; } = string.Empty;
+
+    /// <summary>The festivals on right now (#3001), the primary one first — after the operator's override, the world rule, a
+    /// manual pick and the calendar. Empty when none is on (or from an older server).</summary>
+    public string[] ActiveFestivals { get; set; } = System.Array.Empty<string>();
+
     /// <summary>The world's story pace (#2472): "Sparse", "Normal" or "Dense" (<c>GameRules.StoryDensity</c>). EMPTY from a
     /// server that predates the live edit — the client then hides the world-rules row.</summary>
     public string StoryDensity { get; set; } = string.Empty;
@@ -161,6 +172,13 @@ public sealed class SetWorldRulesIntent
 
     /// <summary>The tutorial rule (#2466): "Auto"/"OptIn"/"Off"/"Courses" (#2498) to set it, empty to leave unchanged.</summary>
     public string TutorialPolicy { get; set; } = string.Empty;
+
+    /// <summary>The festivals rule (#3001): "On"/"Off" to set it, empty to leave unchanged.</summary>
+    public string Festivals { get; set; } = string.Empty;
+
+    /// <summary>The manual festival pick (#3001): a festival key to switch that one on, "calendar" to let the calendar decide
+    /// again, empty to leave unchanged.</summary>
+    public string FestivalPick { get; set; } = string.Empty;
 
     /// <summary>The story pace (#2472): "Sparse"/"Normal"/"Dense" to set it, empty to leave unchanged.</summary>
     public string StoryDensity { get; set; } = string.Empty;

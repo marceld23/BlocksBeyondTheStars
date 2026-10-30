@@ -105,6 +105,33 @@ namespace BlocksBeyondTheStars.Client
         private static readonly AmbientMoteStyle BlackSand = new AmbientMoteStyle("black_sand", 0.58f, 0.56f, 0.60f, 0.80f, 0.62f, 0.45f, rate: 0.8f, rise: -0.01f);
         private static readonly AmbientMoteStyle Crystal = new AmbientMoteStyle("crystal", 0.85f, 0.80f, 1.00f, 0.75f, 0.95f, 1.00f, rise: 0.02f);
         private static readonly AmbientMoteStyle Marsh = new AmbientMoteStyle("marsh", 0.80f, 0.90f, 0.48f, 0.66f, 0.80f, 0.42f, rate: 1.2f, rise: 0.02f, life: 7f);
+
+        /// <summary>A style by its name (#3004: a festival's <c>effects.motes</c> — petals, lamplight, embers, frost, seeds …),
+        /// or null for an unknown or empty name.</summary>
+        public static AmbientMoteStyle? ByName(string? name)
+        {
+            switch ((name ?? string.Empty).Trim().ToLowerInvariant())
+            {
+                case "dust": return Dust;
+                case "lamplight": return Lamplight;
+                case "frost": return Frost;
+                case "sulfur_frost": return SulfurFrost;
+                case "embers": return Embers;
+                case "ash": return Ash;
+                case "toxic": return Toxic;
+                case "pollen": return Pollen;
+                case "meadow_pollen": return MeadowPollen;
+                case "petals": return Petals;
+                case "seeds": return Seeds;
+                case "sand": return Sand;
+                case "rust_dust": return RustDust;
+                case "salt": return Salt;
+                case "black_sand": return BlackSand;
+                case "crystal": return Crystal;
+                case "marsh": return Marsh;
+                default: return null;
+            }
+        }
         private static readonly AmbientMoteStyle Spores = new AmbientMoteStyle("spores", 0.78f, 0.62f, 1.00f, 0.92f, 0.76f, 1.00f, rate: 1.3f, rise: 0.10f, size: 1.4f, life: 9f);
         private static readonly AmbientMoteStyle Alien = new AmbientMoteStyle("alien", 0.62f, 1.00f, 0.84f, 0.88f, 0.62f, 1.00f, rise: 0.04f, size: 1.1f, life: 7f);
 

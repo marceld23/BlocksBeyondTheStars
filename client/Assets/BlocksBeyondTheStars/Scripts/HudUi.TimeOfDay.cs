@@ -95,7 +95,7 @@ namespace BlocksBeyondTheStars.Client
             string gravStr = env.GravityFactor > 0.01f && Mathf.Abs(env.GravityFactor - 1f) > 0.05f && !Game.OnFootInSpace
                 ? "  " + string.Format(loc.Get("ui.hud.gravity"), env.GravityFactor.ToString("0.0"))
                 : string.Empty;
-            _todText.text = $"{(day ? loc.Get("ui.hud.day") : loc.Get("ui.hud.night")).ToUpperInvariant()}  {mm}:{ss:00}  {tempStr}{WeatherChip(loc, env)}{gravStr}";
+            _todText.text = $"{(day ? loc.Get("ui.hud.day") : loc.Get("ui.hud.night")).ToUpperInvariant()}  {mm}:{ss:00}  {tempStr}{WeatherChip(loc, env)}{FestivalChip(loc)}{gravStr}";
             _todMarker.anchoredPosition = new Vector2(10 + 150 * t, _todMarker.anchoredPosition.y);
         }
 
@@ -119,6 +119,20 @@ namespace BlocksBeyondTheStars.Client
 
             string label = $"{icon} {loc.Get("weather." + state)}";
             return "  " + (colour is null ? label : $"<color={colour}>{label}</color>");
+        }
+
+        /// <summary>The festival chip (#3003): the primary festival's glyph and name in a warm gold next to the weather chip,
+        /// from the server's list (<c>ServerRules.ActiveFestivals</c>) — a forced <c>/festival</c> shows it on any date. Nothing
+        /// while no festival is on, or while the player switched the festival mood off.</summary>
+        private string FestivalChip(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
+        {
+            if (!FestivalMood.Enabled || Game.Rules == null || Game.Rules.ActiveFestivals == null || Game.Rules.ActiveFestivals.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            string label = BlocksBeyondTheStars.Client.Festivals.FestivalCard.Chip(Game.Content, Game.Rules.ActiveFestivals, loc.Get);
+            return label.Length == 0 ? string.Empty : $"  <color=#ffd27a>{label}</color>";
         }
 
         /// <summary>Temperature readout tinted by comfort (#666): icy blue below the band, hot orange above

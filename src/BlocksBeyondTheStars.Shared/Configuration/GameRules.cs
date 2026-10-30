@@ -280,6 +280,18 @@ public sealed class GameRules
     /// Live-editable by the world admin. Old saves deserialize without the field and keep the ON default.</summary>
     public bool ReturnToShip { get; set; } = true;
 
+    /// <summary>Festivals (world option, default ON — #3001): the real-world calendar's festivals bring a mood, a few extra
+    /// things in the world and a kid-friendly explanation (<c>data/festivals.json</c>). OFF switches all of that off for
+    /// this world. Live-editable by the world admin; old saves deserialize without the field and keep the ON default, so
+    /// every existing world gets the festivals without a lift. The operator's <c>--festivals</c> override sits above it.</summary>
+    public bool Festivals { get; set; } = true;
+
+    /// <summary>A festival the world admin switched on by hand (#3001, <c>/festival &lt;key&gt;</c>): its key, or empty for
+    /// "the calendar decides". The no-FOMO rule made this one: nothing in a festival can be missed, because any festival
+    /// can be played at any time. Persisted with the world's rules — a Halloween switched on in May stays on until
+    /// <c>/festival calendar</c>. Ignored while <see cref="Festivals"/> is off.</summary>
+    public string FestivalPick { get; set; } = string.Empty;
+
     /// <summary>Machines catch up (world option, minutes, default 60 — issue #2269): machines of the Crystal Net that were
     /// running when their world stopped ticking (nobody there) are credited the gap when it runs again, at most this many
     /// minutes — the drill has dug, the fabricator has crafted, bounded per machine. 0 = off. Old saves deserialize

@@ -26,6 +26,10 @@ namespace BlocksBeyondTheStars.Client
         public MissionList Missions { get; private set; }
         public ServerRules Rules { get; private set; }
 
+        /// <summary>#3003: festivals that began while this player was online (keys), for the HUD's celebration banner. A
+        /// festival on at join is VEGA's to announce, not the banner's.</summary>
+        public readonly Queue<string> FestivalsBegan = new Queue<string>();
+
         /// <summary>The mission with this id from the last mission list (active first, then available), or null.</summary>
         private NetMission FindMission(string missionId)
         {
@@ -387,7 +391,24 @@ namespace BlocksBeyondTheStars.Client
             Network.MissionResultReceived += m => LastMessage = m.Success
                 ? MissionToast.Text(m, FindMission(m.MissionId), key => Localizer?.Get(key) ?? key, key => Localizer?.Has(key) ?? false)
                 : ServerMessageText(m.Reason);
-            Network.ServerRulesReceived += m => { Rules = m; LastMessage = $"Mode: {m.GameMode} · PvP: {m.Pvp}"; };
+            Network.ServerRulesReceived += m =>
+            {
+                // #3003: a festival that begins while we are online gets the celebration banner (the first rules of a join
+                // announce nothing — VEGA greets those).
+                if (Rules != null)
+                {
+                    foreach (string began in BlocksBeyondTheStars.Client.Festivals.FestivalCard.Began(Rules.ActiveFestivals, m.ActiveFestivals))
+                    {
+                        if (FestivalsBegan.Count < AchievementBannerQueueCap)
+                        {
+                            FestivalsBegan.Enqueue(began);
+                        }
+                    }
+                }
+
+                Rules = m;
+                LastMessage = $"Mode: {m.GameMode} · PvP: {m.Pvp}";
+            };
         }
     }
 }

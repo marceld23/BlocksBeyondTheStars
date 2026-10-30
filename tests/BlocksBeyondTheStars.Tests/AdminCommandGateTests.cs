@@ -295,9 +295,9 @@ public sealed class AdminCommandGateTests : IDisposable
         }
     }
 
-    /// <summary>The command table: the forty verbs and the gate each one sits behind. A new verb is a line here too.</summary>
+    /// <summary>The command table: the forty-one verbs and the gate each one sits behind. A new verb is a line here too.</summary>
     [Fact]
-    public void Table_ListsExactlyTheFortyVerbsWithTheirGates()
+    public void Table_ListsExactlyTheFortyOneVerbsWithTheirGates()
     {
         var expected = new Dictionary<string, SvGameServer.AdminCommandGate>(StringComparer.Ordinal)
         {
@@ -319,6 +319,7 @@ public sealed class AdminCommandGateTests : IDisposable
             ["set_mode"] = SvGameServer.AdminCommandGate.Role,
             ["set_world_mode"] = SvGameServer.AdminCommandGate.Role,
             ["tutorial"] = SvGameServer.AdminCommandGate.Role,
+            ["festival"] = SvGameServer.AdminCommandGate.Role, // #3001
             ["story_status"] = SvGameServer.AdminCommandGate.Role,
             ["cutscene"] = SvGameServer.AdminCommandGate.Role,
             ["spectate"] = SvGameServer.AdminCommandGate.FleetAdmin,
@@ -344,8 +345,8 @@ public sealed class AdminCommandGateTests : IDisposable
         };
         var actual = SvGameServer.AdminCommandTableForTest().ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
 
-        Assert.Equal(40, expected.Count);
-        Assert.Equal(40, actual.Count);
+        Assert.Equal(41, expected.Count);
+        Assert.Equal(41, actual.Count);
         Assert.Equal(expected.Keys.OrderBy(k => k, StringComparer.Ordinal), actual.Keys.OrderBy(k => k, StringComparer.Ordinal));
         foreach (var (verb, gate) in expected)
         {

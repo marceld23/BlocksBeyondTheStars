@@ -369,6 +369,14 @@ is **`BBS_WH_MAX_ACTIVE` × rate** lines per minute (plus each world's bucket of
 per minute with the shipped defaults. Like the other forwarded settings, running worlds pick a change up on their
 next wake.
 
+## Fleet festivals (optional)
+
+`BBS_WH_FESTIVALS` (default empty) is forwarded to every world instance as `BBS_FESTIVALS` — the operator's
+override over the festivals of the real-world calendar ([FESTIVALS.md](FESTIVALS.md)): `off` switches them off
+on the whole fleet, a festival key (`halloween`, `diwali`, …) forces that one on every world, empty lets each
+world's rule and the calendar decide. Like every forwarded variable it reaches a world on its next wake (the
+always-awake arcade pool needs a recycle); it is never written into a save.
+
 ## Fleet crash reports (optional)
 
 When `BBS_WH_CRASH_REPORT_KEY` is set (the ReportHost deployment's write key), WorldHost forwards it

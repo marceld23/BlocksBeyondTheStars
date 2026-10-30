@@ -184,6 +184,7 @@ namespace BlocksBeyondTheStars.Client
             PinWorkingDirectory();
             MigrateRenamedPersistentData();
             Settings = ClientSettings.Load();
+            FestivalMood.Enabled = Settings.FestivalMood; // #3004: the scene scripts read the mirror
             // Which graphics API this run got — in the browser that is WebGPU or the WebGL 2 fallback (#2390).
             Debug.Log($"[Graphics] {SystemInfo.graphicsDeviceType} — {SystemInfo.graphicsDeviceVersion} on {SystemInfo.graphicsDeviceName}");
 
@@ -877,7 +878,8 @@ namespace BlocksBeyondTheStars.Client
             // would freeze the menu so "nothing happens" before the loading screen appears.
             if (_localServer.Prepare(LocalServerLauncher.DefaultPort, Settings.ViewDistanceChunks, worldName, seed,
                     creativeUnlockAll, creativeAllShips, creativeKit, sandbox, worldOptions?.ToArgs(),
-                    maxPlayers, password, hosting ? worldName : "Singleplayer", PlayerName, creativeFlight))
+                    maxPlayers, password, hosting ? worldName : "Singleplayer", PlayerName, creativeFlight,
+                    festivalsOff: !Settings.Festivals)) // #3001: the global setting as the bundled host's operator override
             {
                 Host = _localServer.Host;
                 Port = _localServer.Port.ToString();

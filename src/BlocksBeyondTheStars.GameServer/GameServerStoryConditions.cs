@@ -128,6 +128,17 @@ public sealed partial class GameServer
         [StoryWorldPredicates.TreasureNear] = s => s.Vega.VegaTipLive.Contains("treasure_near"),
         [StoryWorldPredicates.WreckSignal] = s => s.Vega.VegaTipLive.Contains("wreck_signal") || s.Vega.VegaTipLive.Contains("wreck_signal_manual"),
         [StoryWorldPredicates.PlanetWrecks] = _ => _meta.Description.PlanetWrecks != Frequency.Off,
+
+        // #3001: the festivals of the real-world calendar (GameServerFestivals.cs) — any, and one per theme for the packs.
+        [StoryWorldPredicates.FestivalAny] = _ => ActiveFestivals.Count > 0,
+        [StoryWorldPredicates.FestivalHarvest] = _ => FestivalThemeActive(Shared.Festivals.FestivalThemes.Harvest),
+        [StoryWorldPredicates.FestivalLights] = _ => FestivalThemeActive(Shared.Festivals.FestivalThemes.Lights),
+        [StoryWorldPredicates.FestivalNewYear] = _ => FestivalThemeActive(Shared.Festivals.FestivalThemes.NewYear),
+        [StoryWorldPredicates.FestivalBlossoms] = _ => FestivalThemeActive(Shared.Festivals.FestivalThemes.Blossoms),
+        [StoryWorldPredicates.FestivalColours] = _ => FestivalThemeActive(Shared.Festivals.FestivalThemes.Colours),
+        [StoryWorldPredicates.FestivalStars] = _ => FestivalThemeActive(Shared.Festivals.FestivalThemes.Stars),
+        [StoryWorldPredicates.FestivalMidsummer] = _ => FestivalThemeActive(Shared.Festivals.FestivalThemes.Midsummer),
+        [StoryWorldPredicates.FestivalChildren] = _ => FestivalThemeActive(Shared.Festivals.FestivalThemes.Children),
     };
 
     /// <summary><c>world:forge_ready</c> (#2479): the player can refine — they crafted a forge before (the achievement

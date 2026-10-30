@@ -198,6 +198,11 @@ public sealed class WorldHostConfig
     /// flavour text but no auto-published AI missions — the right fleet default.</summary>
     public string AiLevel { get; set; } = "TextOnly";
 
+    /// <summary>Fleet-wide festival override passed to world instances as <c>BBS_FESTIVALS</c> (#3001, <c>BBS_WH_FESTIVALS</c>):
+    /// empty (default) = each world's rule and the calendar decide, <c>off</c> = no festivals on the fleet, a festival key =
+    /// that festival on every world. Never written into a save.</summary>
+    public string Festivals { get; set; } = string.Empty;
+
     /// <summary>#2619: the per-world AI line budget passed to world instances as <c>BBS_AI_LINES_PER_MINUTE</c>
     /// (BBS_WH_AI_LINES_PER_MINUTE) — the refill rate of each world's token bucket for AI NPC/VEGA lines. Null (default)
     /// = not forwarded, so every world keeps the server default (4 per minute); 0 = authored lines only. Forwarded only
@@ -446,6 +451,7 @@ public sealed class WorldHostConfig
         if (Env("BBS_WH_CRASH_REPORT_ENDPOINT") is { } crashEndpoint) { c.CrashReportEndpoint = crashEndpoint; }
         if (Env("BBS_WH_AI_BACKEND_URL") is { } aiUrl) { c.AiBackendUrl = aiUrl; }
         if (Env("BBS_WH_AI_LEVEL") is { } aiLevel) { c.AiLevel = aiLevel; }
+        if (Env("BBS_WH_FESTIVALS") is { } festivals) { c.Festivals = festivals.Trim(); }
         c.AiLinesPerMinute = ParseAiLinesPerMinute(Env("BBS_WH_AI_LINES_PER_MINUTE"));
         if (Env("BBS_WH_INSTANCE_MEMORY") is { } mem) { c.InstanceMemory = mem == "none" ? string.Empty : mem; }
         if (Env("BBS_WH_INSTANCE_CPUS") is { } cpus) { c.InstanceCpus = cpus == "none" ? string.Empty : cpus; }

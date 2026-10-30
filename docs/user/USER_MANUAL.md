@@ -2802,6 +2802,27 @@ called **stories**:
   opt-in *Frontier danger* tier — and raiders keep their havens, so the station **raider bounty** can still
   be earned. Worlds with planet enemies *Off* (the family presets) stay peaceful as before.
 
+### Festivals (the real-world calendar)
+- **What happens:** at certain times of the year the game plays with a slightly different mood — a cosy-spooky
+  **Halloween** week, lantern-lit **December** nights (St. Martin, Advent, Hanukkah, Christmas, Kwanzaa …), petals at
+  **Hanami**, shooting stars at **Tanabata** and during the **Perseids**, colours at **Holi** and **Carnival**, lanterns at
+  **Diwali**, the **Mid-Autumn Festival** and **Loy Krathong**. Fifty-two festivals from many cultures; each comes with a
+  short explanation of what people celebrate and where.
+- **Where you see it:** the **main menu card** ("Today: ✦ Halloween" or "In 3 days: ✧ Diwali", with the explanation; "More
+  festivals" lists the next sixty days), a **chip** next to the weather in the HUD while a festival is on, **VEGA's greeting**
+  once per festival each year, and a **banner** when a festival begins while you play. The mood — petals, lamplight, a warm or
+  dusky tint, a soft fog, snow caps on the roofs, a festive tune — is cosmetic and never changes the game's rules.
+- **Nothing to miss:** the calendar only sets the default. The **world admin** (in singleplayer: you) can switch any festival on
+  at any time with `/festival <key>` (for example `/festival hanami`), hand back to the calendar with `/festival calendar`,
+  or switch festivals off for the world with `/festival off`; `/festival` alone reports what is on. The keys are the ones in
+  `data/festivals.json` (`halloween`, `diwali`, `lunar_new_year`, `hanami`, …). The Character tab's world rules have the same
+  **Festivals** switch.
+- **Settings → Comfort:** **Festivals (calendar)** switches festivals off in your own worlds (and hides the menu card) — it
+  applies to every world you host, old saves included, without touching them; **Festival mood** switches off the cosmetic
+  side on this client only. On a world somebody else hosts, that world's rule decides.
+- **Dedicated servers:** `--festivals off` or a festival key as the operator's override, see
+  [SELF_HOSTING.md](../developer/SELF_HOSTING.md). The hosted fleet can be set with `BBS_WH_FESTIVALS`.
+
 ### Scanning & knowledge
 - **Which scanner does what:** the **hand scanner** (starter kit, quick-bar **2**) identifies the one thing you aim
   at — what a block yields and which tool it needs, a plant's species, a creature's traits; it finds no ore. The

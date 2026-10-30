@@ -24,6 +24,43 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🎉 Seasonal festivals — the real-world calendar in the game, multicultural, no FOMO — epic #3000, #3001–#3004 (+ #3008 community review), branch feat/seasonal-festivals — ✅ done 2026-10-30 (⚠ playtest open; no generation, save-version or protocol change; #3005–#3007 pumpkin · spawns · challenges follow in the second PR)
+
+Marcel's wish (2026-10-29): at certain times of the real year the game should play with a slightly different mood and slightly
+different worlds — Halloween week, Christmas, the seasons — switchable in the settings, announced in the main menu, active on
+existing saves too, with a small incentive each; and (same day) festivals of the non-Western, non-Christian communities as
+well. Decisions (ADR 0020): the calendar sets the **default only** — any festival can be switched on by hand any day
+(`/festival <key>`), rewards are decoration, nothing can be missed (the mission's no-FOMO rule); **individual festivals with a
+kid-friendly two-sentence explanation**, framed culturally, never through religious iconography; **server is the truth, the
+bundle is the schedule**; existing saves get festivals through runtime layers only.
+
+- **Data `data/festivals.json`** (#3002): 52 festivals — fixed dates (Halloween, Tanabata, St. Martin, Christmas, Kwanzaa, Nowruz,
+  Hanami, Songkran, children's days, World Space Week …), weekday rules (Erntedank, the two Thanksgivings, Advent) and dated
+  ranges 2027–2028 for the lunar, Hebrew, Islamic and Easter-bound calendars (Lunar New Year, Seollal, Tết, Lantern Festival,
+  Holi, Ramadan nights, Eid al-Fitr, Vesak, Dragon Boat, Qixi, Chilseok, Chuseok, Mid-Autumn, Sukkot, Diwali, Loy Krathong,
+  Hanukkah, Easter, Orthodox Easter, Carnival, Maslenitsa). Eight themes (harvest, lights, newyear, blossoms, colours, stars,
+  midsummer, children). `FestivalCalendar` (Shared) is the pure calendar; content validation checks every window and the
+  dated coverage; `FestivalContentTests` turns red on 1 January of `datesThrough` as the reminder to add the next year.
+  Texts `festival.<key>.name|explain|vega` in all 14 languages (machine pass + a hand QA of the names in ja/zh/ko/uk/ru …).
+- **Server** (#3001): world rule `GameRules.Festivals` (default on → every existing save), manual pick `GameRules.FestivalPick`,
+  operator override `ServerConfig.FestivalsOverride` (`--festivals`/`BBS_FESTIVALS`, never saved; the bundled singleplayer host
+  passes the client's global setting this way; WorldHost forwards `BBS_WH_FESTIVALS`), `GameServerFestivals.cs` (30 s calendar
+  tick behind a test clock, `ActiveFestivals` primary-first, `/festival <key>|calendar|on|off`), additive `ServerRules.Festivals`
+  / `FestivalPick` / `ActiveFestivals`, VEGA's greeting once per festival-year on the system channel, story predicates
+  `world:festival_any` + one per theme.
+- **Client** (#3003, #3004): main-menu card (`UiFestivalCard`, today's or the next festival within 14 days + "More festivals"
+  for 60 days; built onto the menu canvas, nothing without content so the hierarchy golden stands), HUD chip beside the
+  weather, celebration banner when a festival begins while online, Character-tab world-rules row, Settings → Comfort
+  "Festivals (calendar)" + "Festival mood"; `FestivalMood` drives motes (`AmbientParticles`), grade and fog (`Sky`), snow caps,
+  `ShootingStars` and the new `SynthMood.Festive` (cosy/spooky/bright/calm; in Tracks mode every other piece).
+- **Docs:** docs/developer/FESTIVALS.md, ADR 0020, USER_MANUAL "Festivals", SELF_HOSTING (`--festivals`), HOSTED_WORLDS
+  (`BBS_WH_FESTIVALS`), deploy compose + .env.example. Tests: `FestivalCalendarTests`, `FestivalContentTests`,
+  `FestivalServerTests`, `FestivalCardTests`, pins updated (`ServerConfigOptionsTests` 106 rows / 53 variables / 96 switches,
+  `AdminCommandGateTests` 41 verbs, `StoryConditionTests`, `STORY_VOCABULARY.md`).
+- **Open:** #3005 pumpkin (fruit + crop + wild species, terrain generation 32, save version 8), #3006 festival spawns (snow
+  pattern), #3007 challenges (theme packs, `scan:block`, decoration rewards) — second PR; #3008 native-speaker review of the
+  festival texts (help wanted, stays open).
+
 ### 📬 Player reports 2026-10-28 (Lyxette, v2026.10.29) — glass floor under water, bed occupancy, tavern guest beds, lead — #2984–#2988, branch fix/lyxette-reports-2026-10-28 — ✅ done 2026-10-28 in PR #2989 (`154568c3`) (⚠ playtest open; terrain generation 31, no save-version or protocol bump)
 
 Four reports (8 inbox rows); the fourth was praise for his roof garden with the new fruit trees.

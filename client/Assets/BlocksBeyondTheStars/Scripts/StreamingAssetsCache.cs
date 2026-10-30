@@ -45,6 +45,7 @@ namespace BlocksBeyondTheStars.Client
             "derelict_logs.json",
             "dialogs.json",
             "enemies.json", // #2971
+            "festivals.json", // #3001
             "items.json",
             "locale_coverage.json",
             "locales/de.json",

@@ -225,6 +225,7 @@ namespace BlocksBeyondTheStars.Client
         {
             string biome = Game.Environment?.Biome ?? string.Empty;
             string theme = _mode == AmbientMoteMode.Lamplight ? string.Empty : Game.Content?.GetPlanet(biome)?.FloraTheme ?? string.Empty;
+            theme += "|" + (FestivalMood.Effects(Game)?.Motes ?? string.Empty); // #3004: a festival's motes re-key the cache
             if (_styleValid && _styleMode == _mode && _styleBiome == biome && _styleTheme == theme)
             {
                 return;
@@ -234,7 +235,9 @@ namespace BlocksBeyondTheStars.Client
             _styleMode = _mode;
             _styleBiome = biome;
             _styleTheme = theme;
-            _style = _mode == AmbientMoteMode.Lamplight ? AmbientMotes.Lamplight : AmbientMotes.StyleFor(biome, theme);
+            // #3004: a festival's motes (petals at Hanami, lamplight in the lights festivals …) replace the world's own outdoors.
+            var festival = _mode == AmbientMoteMode.Lamplight ? null : AmbientMotes.ByName(FestivalMood.Effects(Game)?.Motes);
+            _style = festival ?? (_mode == AmbientMoteMode.Lamplight ? AmbientMotes.Lamplight : AmbientMotes.StyleFor(biome, theme));
 
             float alpha = _mode == AmbientMoteMode.Lamplight ? LampAlpha : OutdoorAlpha;
             _tintA = FxKit.Lin(new Color(_style.R, _style.G, _style.B, alpha));

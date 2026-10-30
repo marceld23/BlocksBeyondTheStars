@@ -620,6 +620,23 @@ public sealed class WorldHostTests : IDisposable
         Assert.Equal(config.ServerImage, args[^1]); // image stays the last argv entry
     }
 
+    /// <summary>#3001: the fleet-wide festival override rides as BBS_FESTIVALS — and only when set, so a world's own rule and
+    /// the calendar decide by default.</summary>
+    [Fact]
+    public void BuildRunArgs_ForwardsTheFestivalOverride_OnlyWhenSet()
+    {
+        var world = new WorldRecord("abc123abc123", "acct", "My World", "secret", 32001, WorldStatus.Stopped, "", 0, 0);
+
+        string plain = string.Join(" ", DockerCliLauncher.BuildRunArgs(new WorldHostConfig(), world, "/tmp/saves"));
+        Assert.DoesNotContain("BBS_FESTIVALS", plain);
+
+        string off = string.Join(" ", DockerCliLauncher.BuildRunArgs(new WorldHostConfig { Festivals = "off" }, world, "/tmp/saves"));
+        Assert.Contains("BBS_FESTIVALS=off", off);
+
+        string forced = string.Join(" ", DockerCliLauncher.BuildRunArgs(new WorldHostConfig { Festivals = "diwali" }, world, "/tmp/saves"));
+        Assert.Contains("BBS_FESTIVALS=diwali", forced);
+    }
+
 
     [Fact]
     public void BuildRunArgs_SkipsClientInstallerFetch_AndMountsOnlySaves()

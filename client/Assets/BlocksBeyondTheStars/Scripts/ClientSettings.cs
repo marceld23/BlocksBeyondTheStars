@@ -648,6 +648,16 @@ namespace BlocksBeyondTheStars.Client
         /// always shows until the tutorial is finished or skipped; this mutes the optional coaching.</summary>
         public bool VegaHints = true;
 
+        /// <summary>#3001 Festivals (calendar): the real-world calendar's festivals in the player's own worlds. Off is passed to
+        /// the bundled singleplayer server as the operator override (<c>--festivals off</c>), so an existing save is never
+        /// touched and the setting is global for every world this client hosts; it also hides the main menu's festival
+        /// card. On a world somebody else hosts the world's own rule decides.</summary>
+        public bool Festivals = true;
+
+        /// <summary>#3004 Festival mood: the cosmetic side of a festival on this client — petals, lamplight, a warm or dusky
+        /// grade, a cosy fog, snow caps, the festive music. Off keeps the world's own look while a festival is on.</summary>
+        public bool FestivalMood = true;
+
         /// <summary>#2468 "Story text: wait for me": story-pack cutscene captions (subtitles, VEGA's speaker box, reading
         /// frames) wait page by page until the player continues — kids read slowly (d4 §2.3). Off: each page turns by
         /// itself after its reading time. Title cards always run on their own. Default on.</summary>

@@ -598,6 +598,15 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var (tint, sat, contrast) = _grade;
+            // #3004: a festival's warmth and saturation fold into the grade — a warm wash for the lights festivals, a dusky
+            // one for Halloween, more colour for Holi. Cosmetic and cheap: two lerps on the cached biome grade.
+            var festival = FestivalMood.Effects(Game);
+            if (festival != null)
+            {
+                tint = Color.Lerp(tint, festival.Warmth >= 0f ? FestivalMood.WarmTint : FestivalMood.CoolTint, Mathf.Clamp01(Mathf.Abs(festival.Warmth)) * 0.6f);
+                sat *= Mathf.Clamp(festival.Saturation, 0.5f, 1.6f);
+            }
+
             float m = Mathf.Max(sunColor.r, Mathf.Max(sunColor.g, sunColor.b));
             Color norm = m > 0.001f ? new Color(sunColor.r / m, sunColor.g / m, sunColor.b / m) : Color.white;
             // The star's hue folds into the grade so each system visibly tints its worlds (0.4 keeps it a
@@ -739,6 +748,11 @@ namespace BlocksBeyondTheStars.Client
 
             RenderSettings.fogColor = sky;
             RenderSettings.fogMode = FogMode.Linear;
+            var festivalFx = FestivalMood.Effects(Game); // #3004: a cosmetic fog tint (Halloween's violet-grey, Hanami's pink)
+            if (festivalFx != null && FestivalMood.TryParseTint(festivalFx.FogTint, out var festivalTint))
+            {
+                RenderSettings.fogColor = Color.Lerp(sky, festivalTint, 0.5f);
+            }
 
             // Scale the fog to the actual render distance (view-distance chunks × 16-block chunk), so the haze
             // engages WITHIN the streamed terrain instead of beyond it (the old fixed 240 m sat past the ~32 m
@@ -764,6 +778,12 @@ namespace BlocksBeyondTheStars.Client
             if (string.Equals(Game?.Environment?.Weather, "fog", System.StringComparison.Ordinal))
             {
                 far = Mathf.Min(far, renderDist * Mathf.Lerp(0.5f, 0.28f, Mathf.Clamp01(weatherIntensity)));
+            }
+
+            // #3004: a festival's cosy haze pulls the fog in a little (never a pea-souper: at most 40 % nearer).
+            if (festivalFx != null && festivalFx.FogBoost > 0f)
+            {
+                far *= 1f - 0.4f * Mathf.Clamp01(festivalFx.FogBoost);
             }
 
             // Sandstorms / ash storms CRUSH visibility — a wall of dust you can get lost in.
@@ -894,6 +914,11 @@ namespace BlocksBeyondTheStars.Client
 
             float temp = env.Temperature;
             float snowTarget = snowing ? Mathf.Clamp01(0.4f + strength) : (temp < 0.5f ? _snow : 0f);
+            if (FestivalMood.Effects(Game)?.SnowCap == true)
+            {
+                snowTarget = Mathf.Max(snowTarget, 0.55f); // #3004: the winter festivals dust the roofs even on a warm world
+            }
+
             float snowRate = snowing ? 1f / 60f : 1f / 240f;
             _snow = snap ? snowTarget : Mathf.MoveTowards(_snow, snowTarget, dt * snowRate);
 

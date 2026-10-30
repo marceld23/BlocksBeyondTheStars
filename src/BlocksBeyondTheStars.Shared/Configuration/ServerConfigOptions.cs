@@ -244,6 +244,7 @@ public static class ServerConfigOptions
         Variable("BBS_BLOCKED_WORDS", ExtendNames(c => c.BlockedNameWords), "Comma-separated words added to the name block list."),
         Variable("BBS_WATCH_WORDS", ExtendNames(c => c.WatchNameWords), "Comma-separated words added to the name watch list."),
         Both("chat-filter", "BBS_CHAT_FILTER", Choice<ChatFilterLevel>((c, v) => c.ChatFilter = v), "Operator chat screening level: Off, Mask or Strict (#1207)."),
+        Both("festivals", "BBS_FESTIVALS", Text((c, v) => c.FestivalsOverride = v.Trim().ToLowerInvariant()), "Operator festival override (#3001): empty = each world's rule and the calendar decide, off = none on this server, a festival key = that one everywhere. Never saved into a world."),
         Variable("BBS_CHAT_BLOCKED_WORDS", ExtendNames(c => c.ChatBlockedWords), "Comma-separated words added to the chat block list."),
         Variable("BBS_CHAT_MASKED_WORDS", ExtendNames(c => c.ChatMaskedWords), "Comma-separated words added to the chat mask list."),
         Variable("BBS_CHAT_WATCH_WORDS", ExtendNames(c => c.ChatWatchWords), "Comma-separated words added to the chat watch list."),
