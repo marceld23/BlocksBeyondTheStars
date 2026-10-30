@@ -55,6 +55,10 @@ jingles wherever they fit; Orthodox Christmas added. ADR 0020 addendum, docs/dev
   machine pass picked in eight languages (also fixed in v2026.10.31's Día de los Muertos text in it/ko/nl/fr).
 - **Open:** playtest (presets, picker, mood days, Halloween/Christmas tasks, fir counting, decorations, jingles); #3008 review of
   the `locales` mapping.
+- **Credits (release PR, Marcel 2026-10-30):** Jafar added to the school club's children in the in-game credits (all 14
+  locales) and the README.
+
+**Released** in **v2026.10.32** "the lantern release" (2026-10-30).
 
 ### 🎉 Seasonal festivals — the real-world calendar in the game, multicultural, no FOMO — epic #3000, #3001–#3007 (+ #3008 community review), branches feat/seasonal-festivals + feat/festival-pumpkins — ✅ done 2026-10-30 in PR #3012 (`e16b6736`) and PR #3015 (`0a144741`) (⚠ playtest open; the second PR — pumpkin · spawns · challenges — raises the terrain generation to 32 and the save version to 8, no protocol bump)
 
@@ -115,6 +119,7 @@ bundle is the schedule**; existing saves get festivals through runtime layers on
 - **Fix #3017 — ✅ done 2026-10-30 (Marcel's report on v2026.10.31):** the "More festivals" button and the menu's bottom bar
   ("What's new?", "Join in") drew over the open festival list and stayed clickable through its scrim — the overlay was built
   before both. `UiFestivalCard.Build` now returns the overlay and `UiMainMenu.Build` moves it to the end of the canvas.
+  (Released in v2026.10.32; #3021 then replaced the overlay by the "My festivals" picker.)
 - **Open:** #3008 native-speaker review of the festival texts (help wanted, stays open).
 
 **Released** in **v2026.10.31** "the festival release" (2026-10-30).
