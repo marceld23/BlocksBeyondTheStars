@@ -14,8 +14,10 @@ namespace BlocksBeyondTheStars.Client
     /// typing never leaks into movement/placement. The label is free-form; the server trims + clamps it.
     /// <para>#2717: at your own base core (<see cref="OpenBase"/>) a panel under the card lists who lives at the base —
     /// asked from the server when the screen opens and filled in when the answer arrives (<see cref="BaseResidentText"/>).</para>
+    /// <para>#2996: a player may have several bases on one body — the screen names its base by the core cell. #2999: at a base
+    /// core and at the own station's core a strip above the card shows the yield ready to collect (<c>BeaconLabelUi.Yield.cs</c>).</para>
     /// </summary>
-    public sealed class BeaconLabelUi : UiPanel
+    public sealed partial class BeaconLabelUi : UiPanel
     {
         private Text _title;
         private InputField _input;
@@ -29,6 +31,7 @@ namespace BlocksBeyondTheStars.Client
         private Text _info;
         private NetworkClient _residentsSource; // the client whose BaseResidentsReceived this listens to
         private string _residentsBody = string.Empty;
+        private Vector3Int _residentsCell;
 
         protected override string CanvasName => "BeaconLabelUI";
 
@@ -40,6 +43,7 @@ namespace BlocksBeyondTheStars.Client
             if (_residentsSource != null)
             {
                 _residentsSource.BaseResidentsReceived -= OnBaseResidents;
+                _residentsSource.YieldStatusReceived -= OnYieldStatus;
                 _residentsSource = null;
             }
 
@@ -53,6 +57,7 @@ namespace BlocksBeyondTheStars.Client
             EnsureCanvas();
             _residentsBody = string.Empty; // a beacon or a station has no resident list
             SetInfo(null);
+            ClearYield(); // #2999: only a base core or the own station's core shows its yield
             _onConfirm = onConfirm;
             _title.text = title;
             _input.text = current ?? string.Empty;
@@ -69,31 +74,54 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>#2717: the base core screen — the rename field, and under it who lives at the base on
-        /// <paramref name="bodyId"/>. The list is asked from the server now and shows when the answer arrives (an older
-        /// server never answers: the screen stays the rename field alone).</summary>
-        public void OpenBase(string title, string current, string bodyId, System.Action<string> onConfirm)
+        /// <summary>#2717: the base core screen — the rename field, and under it who lives at the base whose core stands at
+        /// <paramref name="cell"/> on <paramref name="bodyId"/> (#2996). The list is asked from the server now and shows when
+        /// the answer arrives (an older server never answers: the screen stays the rename field alone). #2999: the yield strip
+        /// above the card is asked for too.</summary>
+        public void OpenBase(string title, string current, string bodyId, Vector3Int cell, System.Action<string> onConfirm)
         {
             Open(title, current, onConfirm);
-            var net = Game != null ? Game.Network : null;
+            var net = ListenTo();
             if (net == null)
             {
                 return;
             }
 
-            if (!ReferenceEquals(_residentsSource, net))
-            {
-                if (_residentsSource != null)
-                {
-                    _residentsSource.BaseResidentsReceived -= OnBaseResidents;
-                }
+            _residentsBody = bodyId ?? string.Empty;
+            _residentsCell = cell;
+            net.SendRequestBaseResidents(_residentsBody, cell.x, cell.y, cell.z);
+            ShowBaseYield(_residentsBody, cell);
+        }
 
-                _residentsSource = net;
-                net.BaseResidentsReceived += OnBaseResidents;
+        /// <summary>#2999: the own station's core screen — the rename field and the yield strip.</summary>
+        public void OpenStation(string title, string current, string stationId, System.Action<string> onConfirm)
+        {
+            Open(title, current, onConfirm);
+            if (ListenTo() != null)
+            {
+                ShowStationYield(stationId);
+            }
+        }
+
+        /// <summary>Subscribes once to the current client's answers (resident list, yield status).</summary>
+        private NetworkClient ListenTo()
+        {
+            var net = Game != null ? Game.Network : null;
+            if (net == null || ReferenceEquals(_residentsSource, net))
+            {
+                return net;
             }
 
-            _residentsBody = bodyId ?? string.Empty;
-            net.SendRequestBaseResidents(_residentsBody);
+            if (_residentsSource != null)
+            {
+                _residentsSource.BaseResidentsReceived -= OnBaseResidents;
+                _residentsSource.YieldStatusReceived -= OnYieldStatus;
+            }
+
+            _residentsSource = net;
+            net.BaseResidentsReceived += OnBaseResidents;
+            net.YieldStatusReceived += OnYieldStatus;
+            return net;
         }
 
         private void OnBaseResidents(BaseResidentList list)
@@ -101,6 +129,12 @@ namespace BlocksBeyondTheStars.Client
             if (!Shown || list == null || _residentsBody.Length == 0 || list.BodyId != _residentsBody)
             {
                 return; // closed, or the answer for another screen
+            }
+
+            bool cellKnown = list.CellX != 0 || list.CellY != 0 || list.CellZ != 0; // an older server sends no cell
+            if (cellKnown && (list.CellX != _residentsCell.x || list.CellY != _residentsCell.y || list.CellZ != _residentsCell.z))
+            {
+                return; // the answer for another of the player's bases on this body (#2996)
             }
 
             SetInfo(BaseResidentText.Format(list, L));
@@ -168,6 +202,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _onConfirm = null;
             _residentsBody = string.Empty;
+            ClearYield();
             HideCanvas();
 
             SetMenuOwned(false); // arbiter re-locks only once NO other panel is open (#413)
@@ -220,6 +255,8 @@ namespace BlocksBeyondTheStars.Client
             _info.horizontalOverflow = HorizontalWrapMode.Wrap;
             _info.verticalOverflow = VerticalWrapMode.Overflow;
             _infoPanel.SetActive(false);
+
+            BuildYieldStrip(root, y); // #2999: above the card
         }
     }
 }

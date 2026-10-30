@@ -108,6 +108,39 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>True if THIS player has founded a base on the given body.</summary>
         public bool HasMyBase(string bodyId) => MyBaseName(bodyId) != null;
 
+        /// <summary>#2996: every base THIS player founded on the given body (several may share one), in the server's order.</summary>
+        public System.Collections.Generic.List<NetMapBase> MyBasesOn(string bodyId)
+        {
+            var result = new System.Collections.Generic.List<NetMapBase>();
+            foreach (var b in StarMap?.MyBases ?? System.Array.Empty<NetMapBase>())
+            {
+                if (b != null && b.BodyId == bodyId)
+                {
+                    result.Add(b);
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>#2996: the travel screen's base badge — "Base here: Home" for one base, "3 bases here" for several, or
+        /// null without one.</summary>
+        public string MyBasesLabel(string bodyId, System.Func<string, string> localize)
+        {
+            var bases = MyBasesOn(bodyId);
+            if (bases.Count == 0)
+            {
+                return null;
+            }
+
+            if (bases.Count == 1)
+            {
+                return localize("ui.map.base_here") + (string.IsNullOrEmpty(bases[0].Name) ? string.Empty : ": " + bases[0].Name);
+            }
+
+            return localize("ui.map.bases_here").Replace("{n}", bases.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
         private StarMapData _shownLocMap;
         private string _shownLocFor, _shownLoc, _shownLocOriginal = string.Empty;
 

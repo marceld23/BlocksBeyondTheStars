@@ -3,20 +3,22 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
 
 namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
-/// Suit teleporter — a craftable device with two destinations: it recalls the player to their ship (the
-/// heal-tank / landing-zone respawn point), or beams them to an <b>allied</b> player standing on the same
-/// body (#1056). Server-authoritative: both need the device, enough suit energy, and share one cooldown;
-/// neither works while flying in space.
+/// Suit teleporter — a craftable device: it recalls the player to their ship (the heal-tank / landing-zone respawn
+/// point), beams them to an <b>allied</b> player standing on the same body (#1056) and, since #2994, to the fixed places of
+/// this body (<c>GameServerTeleportPoints.cs</c>). The Quantum Teleporter (#2995) does the same and jumps to free
+/// coordinates too. Server-authoritative: every jump needs a device, enough suit energy, and they share one cooldown
+/// (<see cref="TeleportRules"/>); none works while flying in space.
 /// </summary>
 public sealed partial class GameServer
 {
-    private const string TeleporterItem = "suit_teleporter";
-    private const double TeleportCooldownSeconds = 30.0;
-    private const float TeleportEnergyCost = 10f;
+    private const string TeleporterItem = TeleportRules.SuitTeleporterItem;
+    private const double TeleportCooldownSeconds = TeleportRules.SuitCooldownSeconds;
+    private const float TeleportEnergyCost = TeleportRules.SuitEnergyCost;
 
     private readonly Dictionary<string, double> _teleportCooldown = new();
 
@@ -114,14 +116,22 @@ public sealed partial class GameServer
         UpdateAboard(session); // arriving on/off a parked ship must flip the aboard state now, not on the next move
     }
 
-    /// <summary>The device gates every teleporter use shares: carrying the item, not in space flight, off
-    /// cooldown, enough suit energy. Sends the matching reject toast and returns false when one fails.</summary>
-    private bool TeleporterReady(PlayerSession session)
+    /// <summary>The device gates every teleporter use shares: carrying a teleporter (the Quantum Teleporter for a free point,
+    /// #2995), not in space flight, off cooldown, enough suit energy for the jump of <paramref name="kind"/> (null = a
+    /// fixed-place jump). Sends the matching reject toast and returns false when one fails.</summary>
+    private bool TeleporterReady(PlayerSession session, string? kind = null)
     {
         var p = session.State;
-        if (!p.Inventory.Has(TeleporterItem, 1))
+        bool quantum = p.Inventory.Has(TeleportRules.QuantumTeleporterItem, 1);
+        if (!quantum && !p.Inventory.Has(TeleporterItem, 1))
         {
             Reject(session, "teleport", "@srv.tp.no_teleporter");
+            return false;
+        }
+
+        if (TeleportRules.IsQuantumKind(kind) && !quantum)
+        {
+            Reject(session, "teleport", "@srv.tp.needs_quantum");
             return false;
         }
 
@@ -137,7 +147,7 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (p.SuitEnergy < TeleportEnergyCost)
+        if (p.SuitEnergy < TeleportRules.EnergyCostOf(kind))
         {
             Reject(session, "teleport", "@srv.tp.no_energy");
             return false;
@@ -162,7 +172,8 @@ public sealed partial class GameServer
         }
 
         var p = session.State;
-        if (p.Inventory.Has(TeleporterItem, 1) || _content.GetItem(TeleporterItem) is null)
+        if (p.Inventory.Has(TeleporterItem, 1) || p.Inventory.Has(TeleportRules.QuantumTeleporterItem, 1)
+            || _content.GetItem(TeleporterItem) is null)
         {
             return false;
         }

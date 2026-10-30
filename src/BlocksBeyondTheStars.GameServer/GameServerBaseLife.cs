@@ -219,7 +219,7 @@ public sealed partial class GameServer
         // slot 0 is saved with the plan).
         bool founded = plan.Any(r => r.Slot == 0);
         int desired = founded || BaseEarnsFirstSettler(b, idx)
-            ? System.Math.Min(BaseResidentCap, 1 + idx.BedHeads.Count)
+            ? System.Math.Min(BaseResidentRoom(b), 1 + idx.BedHeads.Count) // #2996: the cap is per player per body
             : 0;
 
         bool changed = false;
@@ -340,8 +340,8 @@ public sealed partial class GameServer
 
         string player = session.State.PlayerId;
         var cell = WorldConstants.CanonicalBlock(head, _world.Circumference);
-        var b = _bases.FirstOrDefault(x => x.Planet == _world.LocationId && x.OwnerId == player && WithinBaseWallReach(x, cell))
-            ?? _bases.FirstOrDefault(x => x.Planet == _world.LocationId && AreAllied(x.OwnerId, player) && WithinBaseWallReach(x, cell));
+        // #2996: of several bases the one the bed belongs to — the same rule the index counts by.
+        var b = BaseCountingCell(cell, player);
         if (b is null)
         {
             return;
@@ -358,13 +358,13 @@ public sealed partial class GameServer
         int residents = BaseResidentCount(b);
         string key = !idx.BedHeads.Contains(cell) ? residents > 0 ? "srv.base.bed_outside" : "srv.base.bed_outside_no_settler"
             : !wasFounded ? "srv.base.bed_founds"
-            : 1 + idx.BedHeads.Count > BaseResidentCap ? "srv.base.bed_full"
+            : 1 + idx.BedHeads.Count > BaseResidentRoom(b) ? "srv.base.bed_full"
             : "srv.base.bed_counts";
 
         // Resolved here in the player's language: the line carries two numbers, one "@srv.*:arg" token only one.
         string text = Localize(session.Locale, key)
             .Replace("{n}", residents.ToString(System.Globalization.CultureInfo.InvariantCulture))
-            .Replace("{max}", BaseResidentCap.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            .Replace("{max}", BaseResidentRoom(b).ToString(System.Globalization.CultureInfo.InvariantCulture));
         Send(session, new ServerMessage { Text = text });
     }
 
@@ -1114,7 +1114,7 @@ public sealed partial class GameServer
                 // #2596: no radio in reach (or its cadence) — VEGA passes the news on instead of losing it.
                 if (slot == 0)
                 {
-                    RelayBaseNewsViaVega(owner, callKey, "vega.news.settler_first", new[] { npc.Name, b.Name, InvariantText(BaseResidentCap) });
+                    RelayBaseNewsViaVega(owner, callKey, "vega.news.settler_first", new[] { npc.Name, b.Name, InvariantText(BaseResidentRoom(b)) });
                 }
                 else
                 {
@@ -1137,7 +1137,7 @@ public sealed partial class GameServer
         }
 
         string text = Localize(owner.Locale, "npc.call.settler") + " "
-            + Localize(owner.Locale, "npc.call.settler_beds").Replace("{max}", InvariantText(BaseResidentCap));
+            + Localize(owner.Locale, "npc.call.settler_beds").Replace("{max}", InvariantText(BaseResidentRoom(b))); // #2996
         return TryNpcRadioCallText(owner, npcKey, npc.Name, b.Name, b.Planet, callKey, text, isMission: false);
     }
 

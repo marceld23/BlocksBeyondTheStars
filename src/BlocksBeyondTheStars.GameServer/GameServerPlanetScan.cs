@@ -93,7 +93,7 @@ public sealed partial class GameServer
         }
 
         reason = string.Empty;
-        return new PlanetScanResult
+        var report = new PlanetScanResult
         {
             BodyId = body.Id,
             BodyName = body.Name,
@@ -120,6 +120,8 @@ public sealed partial class GameServer
             CraterMetals = resources && survey.CraterMetals,
             GasWorld = survey.GasWorld,
         };
+        AddPlanetSettlers(session, report, scanner.Tier); // #2998: who built here; a Quantum scan pins their bases (#2997)
+        return report;
     }
 
     /// <summary>The location the player's ship is at: the body a flight instance is anchored to ("space:&lt;body&gt;") —

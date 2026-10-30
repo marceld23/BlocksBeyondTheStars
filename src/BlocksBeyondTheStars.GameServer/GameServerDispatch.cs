@@ -120,6 +120,7 @@ public sealed partial class GameServer
         On<BeamTeleportIntent>(map, (gs, s, m) => gs.HandleBeamTeleport(s, m));
         On<SetCrystalDeviceIntent>(map, (gs, s, m) => gs.HandleSetCrystalDevice(s, m)); // #2046: toggle / press / configure a device
         On<SetBaseNameIntent>(map, (gs, s, m) => gs.HandleSetBaseName(s, m));
+        On<YieldIntent>(map, (gs, s, m) => gs.HandleYield(s, m)); // #2999: the base/station yield store — read or collect
         On<SetStationNameIntent>(map, (gs, s, m) => gs.HandleSetStationName(s, m));
         On<SetPlaceNameIntent>(map, (gs, s, m) => gs.HandleSetPlaceName(s, m)); // #2952
         On<RequestLandingPadsIntent>(map, (gs, s, m) => gs.HandleRequestLandingPads(s, m));
@@ -143,6 +144,7 @@ public sealed partial class GameServer
         On<LoadRationIntent>(map, (gs, s, m) => gs.HandleLoadRation(s, m));
         On<TeleportToShipIntent>(map, (gs, s, _) => gs.HandleTeleportToShip(s));
         On<TeleportToPlayerIntent>(map, (gs, s, m) => gs.HandleTeleportToPlayer(s, m));
+        On<TeleportToPointIntent>(map, (gs, s, m) => gs.HandleTeleportToPoint(s, m)); // #2994/#2995: bases, pads, beacons, markers, coordinates
         On<ReturnToShipIntent>(map, (gs, s, _) => gs.HandleReturnToShip(s)); // #2286
         On<DuelIntent>(map, (gs, s, m) => gs.HandleDuel(s, m)); // #2972
         On<ToggleStealthIntent>(map, (gs, s, _) => gs.HandleToggleStealth(s));

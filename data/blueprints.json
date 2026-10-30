@@ -386,6 +386,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 6 } ]
   },
   {
+    "key": "quantum_teleporter", "nameKey": "blueprint.quantum_teleporter.name", "descriptionKey": "blueprint.quantum_teleporter.desc",
+    "category": "Suit", "prerequisites": [ "suit_teleporter", "quantum_scanner" ], "knowledgeCost": 140,
+    "unlockCost": [ { "item": "data_fragment", "count": 6 }, { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 6 } ]
+  },
+  {
     "key": "oxygen_extractor", "nameKey": "blueprint.oxygen_extractor.name", "descriptionKey": "blueprint.oxygen_extractor.desc",
     "category": "Suit", "prerequisites": [ "oxygen_tank_2" ], "knowledgeCost": 45,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "iron_plate", "count": 10 }, { "item": "cable", "count": 5 } ]

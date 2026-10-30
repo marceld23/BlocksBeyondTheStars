@@ -169,7 +169,7 @@ Last updated: 2026-10-04.
 | **Space ×2** | **Creative/Sandbox worlds only:** toggle free flight — then Space rises, Ctrl/C sinks, and you keep colliding with the world (so you can still land and build). Touching down turns it off |
 | **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included — on a parked ship's decks and roof and in a monorail wagon too); climb **down** ladders; **drop off a wall you are climbing**; descend in zero-g. Other players see you **squat** (and their heads follow where they look) — your own avatar squats in the third-person view too |
 | **Left-click** | Mine the targeted block (or **scan** it when a scanner is selected; **shoot** the energy rope with the rope gun selected, see §5) |
-| **Right-click** | Place the selected hotbar block (or **use** the selected gadget, e.g. the terrain scanner; with the **suit teleporter** selected it opens the destination picker — back to ship / to an ally, see §5; with the **energy rope gun** selected, **hold** it to reel yourself in along the rope) |
+| **Right-click** | Place the selected hotbar block (or **use** the selected gadget, e.g. the terrain scanner; with the **suit teleporter** or the **Quantum Teleporter** selected it opens the destination picker — ship, allies, bases, beam blocks, beacons and map markers, and with the Quantum Teleporter typed coordinates or the map waypoint, see §5; with the **energy rope gun** selected, **hold** it to reel yourself in along the rope) |
 | **Mouse wheel** | Cycle hotbar slot |
 | **1 – 9** | Select hotbar slot |
 | **Middle mouse** | **Hotbar slot actions** on the selected slot: swap it against any backpack item, and for a building material also colour it (dye / glow / own pattern) or re-form it — see §5 → Hotbar slot actions (rebindable) |
@@ -589,7 +589,10 @@ costs no frame rate.
   the Inventory's **Cargo Hold** transfer controls are hidden (the hold is only reachable from aboard the ship).
 - **World map (M)** — top-down view of explored terrain (fog-of-war), with player/ship/station markers and
   click-to-set waypoints. The map **remembers where you have been**: ground you explored earlier — even in a
-  previous session — stays lifted in a lighter tone, while live terrain around you draws in full colour.
+  previous session — stays lifted in a lighter tone, while live terrain around you draws in full colour. The info box
+  names where you stand in the world's own block coordinates (**X · Y · Z**, the numbers the Quantum Teleporter takes,
+  #2993); **Settings → Comfort → Show coordinates** (off by default) adds the same line under the clock, and typing
+  **`/pos`** in the chat prints it too. Coordinates exist on a surface only — not aboard, in a station or in space.
 - **HUD** — health/oxygen/hunger/energy, hotbar, location, compass, scan readout (bottom-left), and the
   wreck panel (right) when near a repairable wreck.
 - **Compass** (bottom-right, on foot) — a heading-up dial: the top is the way you look, and the **N** that
@@ -1276,7 +1279,10 @@ players.
   **card on the right** (about 18 s):
   - **planets and moons** — the **overview card**: gravity, weather, lava, plants, animals, machines, the terrain
     and an overall **danger** level, so you know what waits down there before you land. The same report opens from
-    **Map tab → pick a body → Planet scan** and from the Ship tab, for every ship; VEGA explains the colours once;
+    **Map tab → pick a body → Planet scan** and from the Ship tab, for every ship; VEGA explains the colours once.
+    Under it the **settlers** (#2998): every player who built there, with their bases (⌂) and stations (◆), **most bases
+    first** (*"Nobody has built here yet."* otherwise) — a count, not a location. A **Quantum scanner** scan also marks
+    every base of that world on your planet map;
   - **asteroids, stations, wrecks, life pods, bandits and machines** — a short readout of what it is (a wreck lists
     its contents, a machine says how dangerous it is), its threat and the knowledge it paid;
   - **anomalies** (only the scanner reads them — knowledge and a field record) and **wormholes** (where they lead).
@@ -1663,6 +1669,10 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   was offline hears it, and gets the achievement, the next time they join). **Docking puts you beside the station
   core** — in a sealed room with air when the station has one (the core's own room first), however far its wings
   reach.
+- **Your station gathers too** (#2999): a commissioned station collects ice, ore, scrap metal, silicate, carbon and
+  now and then a data fragment from its orbit — 6 per hour, plus 2 per hour for each crew member aboard (up to 8),
+  64 at most, even while you are away. Aboard, aim at the **station core** and press **E**: the strip above the
+  rename card shows what is ready, **Collect** puts it into your backpack. The world rule *Base yield* scales it.
 - **Doors on your station are real doors** (2026-10): a door you build onto your station on a spacewalk hangs in
   its doorway like on the ground — you see its frame and door while aiming, it is drawn as a door from outside (an
   energy door with its blue field), it opens and closes aboard, and mining it on a spacewalk gives it back. It is the
@@ -1751,8 +1761,23 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - Craft a **Base Core** at a workshop (`stone` ×6 + `iron_plate` ×2 — available from the start) and **place**
   it on a planet, moon or asteroid to **found a base**. It's the surface counterpart to a space station: the
   stone is the base's **position marker on the planet map** (key **M**), shown as a teal **⌂** with its name.
-- **One base per world** per player. **Mining** the base core removes the base. Walk up and press **E** on the
-  stone to **name or rename** it (only the owner can).
+- **Several bases per world** (#2996): up to **5 base cores** per player on one planet, moon or asteroid field — the
+  world admin picks 1, 2, 3, 5, 8 or 12 (*Bases per world*, Character tab → world rules; `--bases-per-world`). Bases may stand right
+  next to each other. A bed, crate, post or machine inside two of your (or your allies') bases counts for the one
+  whose core is **nearest**, so nothing is counted twice. All your bases on one world hold up to **32 residents
+  together**; every base keeps at least its founding settler. **Mining** a base core removes that base. Walk up and
+  press **E** on a stone to **name or rename** that base and see who lives there (only the owner can).
+- **Who sees your base** (#2997): you, your allies and your crew mates always see it on the planet map. Anyone else
+  sees it only once they have **found** it — by coming within about **48 blocks** of its core, or with a **Quantum
+  scanner** planet scan of the world (*"You found a base: …"*). Found bases stay on the map. Colours: your own **teal**,
+  an ally's **green**, a found stranger's **amber** with the owner's name. Anyone may still walk in and breathe there.
+- **The base gathers** (#2999): every base core collects resources of **its own world** over time — the common ores
+  the planet scanner lists (never the rare ones) — **even while you are away or the game is closed**: **6 per hour**,
+  plus **2 per hour for each resident** (up to 8). Press **E** at the core: a strip above the rename card shows what
+  is ready (*"Ready to collect: 14 of 64 · 10 per hour"*) and **Collect** puts it into your backpack — what does not
+  fit stays. The store holds **64**; a full store simply waits for you, nothing is lost. Aiming at your core shows
+  *"Ready to collect: n"*. Mining a core hands you what lay ready. The world admin can set the yield to *Off / Half /
+  Normal / Double* (*Base yield*, Character tab → world rules; `--base-yield 0|50|100|200`).
 - **A base always has air**: the base core projects a **life-support field** over its whole zone (the same
   cube where the base protects your blocks — about 8 blocks in every direction from the stone). Inside it your
   **oxygen refills** even on toxic or airless worlds — the HUD marks the O2 bar with *(base life support)* and
@@ -1836,7 +1861,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - **Residents, posts and jobs**: beds bring people, and a trading post or mission board at home is staffed by
   one of them — see *People you know* and *Daily routines & jobs* below.
 - On **Tab → Map**, a world where you have a base (or a station orbiting it) is **marked** and its details note
-  *"You have a base/station here"*; you can also rename the base from there.
+  *"You have a base/station here"* (*"You have 3 bases here"* for several); every base there gets its own rename row.
 
 ### Alliances (shared access + no friendly fire)
 - Two players can form an **alliance** from the **Alliances** menu tab. It has three views: **Allies**
@@ -1874,6 +1899,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - Beaming costs **6 suit energy** with a **6 s cooldown**. Each pad shows its name on the planet map (key **M**)
   and as a floating label in the world. Only the owner can rename a pad; mining it removes it. A pad glows teal
   and softly lights the room around it.
+- The **suit teleporter** reaches your and your allies' pads too, from anywhere on the world — without standing on a
+  pad, at the teleporter's price (see below). Pad to pad stays the cheap way.
 
 ### Suit teleporter (back to ship · to an ally)
 - Craft the **suit teleporter** (`suit_teleporter`; blueprint *Suit Teleporter* in the Suit category, then a
@@ -1884,8 +1911,21 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   - **Allies on this planet** — one row per **allied** player who is currently on the same world (name + distance
     when they're in view; *out of sight* otherwise). **Beam** puts you down **beside** them, facing them.
     Non-allied players are never listed, and the server checks the alliance again on every jump.
-- Both jumps cost **10 suit energy** and share a **30 s cooldown**; neither works while flying in space, and the
+  - **The places of this world** (#2994) — your own and your allies' **bases** (you land beside the core), **beam
+    blocks** (on top of the pad), **radio beacons** (beside them) and **map markers** (yours and the ones allies
+    share; you land on the surface there — the suit teleporter reaches markers on ground **you have explored**, the
+    Quantum Teleporter every marker), nearest first, up to eight per kind. A stranger's base or pad, a ping, a
+    VEGA goal flag and a wish mark are never destinations.
+- Every jump costs **10 suit energy** and they share a **30 s cooldown**; none works while flying in space, and the
   ally jump is refused while that ally is **aboard their ship** (ships stay private) or on **another body**.
+- **Quantum Teleporter** (#2995): the upgrade of the suit teleporter — blueprint *Quantum Teleporter* (Suit
+  category, after the suit teleporter and the Quantum scanner), then a workshop recipe that **turns your suit
+  teleporter into it** (+ 2 quantum sensors, 4 energy cells, 4 crystals). It does everything the suit teleporter does,
+  at the same price, and adds **free jumps** on the world you stand on: type **X** and **Z** (Y is found for you — the
+  ground there, climbing out of buildings) or pick the **map waypoint** you clicked on the planet map. A free jump
+  costs **20 suit energy** and a **60 s cooldown** (shared), and is refused over lava — so does a jump to a marker on
+  ground you have never explored. Read your coordinates on the
+  planet map, with *Show coordinates* or with `/pos`.
 - **Multiplayer hosts:** the world rule **Starter teleporter for everyone** (Tab → Character → world rules,
   world admin; or launch with `--starter-teleporter true`) hands every player who joins without one a suit
   teleporter — switching it on also gives one to everybody online. It stays an ordinary item (unlike the
@@ -2911,6 +2951,8 @@ called **stories**:
   **named marker**: label (up to 24 characters, screened), one of **8 icons** (flag, home, ore, danger, water,
   star, heart, question) and one of **6 colours**. **8 markers per world**; each row in the map's marker list
   offers **Navigate** (sets the compass waypoint) and **Delete**.
+- Saved markers — yours and the ones allies share — are **teleporter destinations** (#2994; for the suit teleporter
+  only on ground you have explored), and markers are kept in the world's own coordinates.
 - A marker saved as **"Visible to allies & crew"** appears on the map and compass of every ally / crew mate on
   the **same world** — **also while you are offline**, so the family meeting point does not vanish when you
   log off. The list refreshes on its own the moment an alliance forms or ends or a crew changes. Private
@@ -3797,6 +3839,8 @@ reminds you.
 - Press **Enter**, type, **Enter** to send (scrollback in the chat panel). Normal chat requires a **radio
   worn** in a module slot of your suit (**Inventory → Suit**) — in your hand, on the quick-bar or in the backpack it
   does nothing, and the server says so ("Your radio must be worn …"). Messages are rate-limited and length-capped.
+- **`/pos`** (#2993) prints where you are: the world's name and your block coordinates (**X · Y · Z**). It needs no
+  radio and works offline; aboard, in a station or in space it says there are no coordinates there.
 - **Tab → Alliances → Radio** sends a line too and shows your radio: the one you wear and how far it reaches, or a
   warning when none is worn — with a radio in your backpack (or, aboard, in the hold) a **Wear …** button puts it
   into a free module slot right there.

@@ -54,6 +54,12 @@ public sealed class ServerRules
     /// that predates the rule — the client then hides the row.</summary>
     public int MachineCatchUpMinutes { get; set; } = -1;
 
+    /// <summary>#2996: base cores one player may found on one body; -1 from a server that predates the rule (row hidden).</summary>
+    public int BasesPerWorld { get; set; } = -1;
+
+    /// <summary>#2999: the base and station yield in percent (0 = off); -1 from a server that predates the rule (row hidden).</summary>
+    public int BaseYieldPercent { get; set; } = -1;
+
     /// <summary>World textures (#1958): "Admins" when the world's admins may publish textures for everyone,
     /// "Off" when the world has them switched off. EMPTY from a server that predates the feature — the client
     /// then hides everything about world textures.</summary>
@@ -146,6 +152,12 @@ public sealed class SetWorldRulesIntent
 
     /// <summary>#2269: the machines' catch-up in minutes (one of <c>CrystalNetRules.CatchUpChoicesMinutes</c>); -1 = unchanged.</summary>
     public int MachineCatchUpMinutes { get; set; } = -1;
+
+    /// <summary>#2996: bases per world (one of <c>BaseRules.BasesPerWorldChoices</c>); -1 = unchanged.</summary>
+    public int BasesPerWorld { get; set; } = -1;
+
+    /// <summary>#2999: the base yield in percent (one of <c>BaseRules.YieldChoicesPercent</c>); -1 = unchanged.</summary>
+    public int BaseYieldPercent { get; set; } = -1;
 
     /// <summary>World-textures toggle (#1958): "On"/"Off" to set it, empty to leave unchanged.</summary>
     public string WorldTextures { get; set; } = string.Empty;

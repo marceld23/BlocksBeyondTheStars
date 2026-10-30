@@ -641,6 +641,12 @@ public static class NetCodec
         Register(307, typeof(PvpTargets));                   // Server -> Client
         Register(308, typeof(DuelIntent));                   // Client -> Server
         Register(309, typeof(DuelNotice));                   // Server -> Client
+
+        // #2994/#2995 teleporter destinations (bases, pads, beacons, markers, coordinates) and #2999 the base/station yield.
+        // No protocol bump — an older peer drops them.
+        Register(310, typeof(TeleportToPointIntent));        // Client -> Server
+        Register(311, typeof(YieldIntent));                  // Client -> Server
+        Register(312, typeof(YieldStatus));                  // Server -> Client
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

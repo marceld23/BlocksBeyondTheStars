@@ -16,6 +16,7 @@
   { "id": "trading" },
   { "id": "settlements" },
   { "id": "stations" },
+  { "id": "bases" },
   { "id": "base-air" },
   { "id": "crystal-net" },
   { "id": "crystal-devices" },

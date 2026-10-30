@@ -696,6 +696,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Show a small "session / total playtime" readout in the in-game HUD.</summary>
         public bool ShowSessionTime = true;
 
+        /// <summary>#2993: show the player's block coordinates (X · Y · Z) under the clock — default off, for builders and
+        /// the Quantum Teleporter.</summary>
+        public bool ShowCoordinates = false;
+
         /// <summary>Let VEGA remind you to take a break after a long unbroken session, repeating each interval.</summary>
         public bool PlaytimeReminder = true;
 

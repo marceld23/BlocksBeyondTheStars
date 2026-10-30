@@ -139,7 +139,8 @@ namespace BlocksBeyondTheStars.Client
             int rows = r.Rows.Length;
             bool showOres = !r.ResourcesLocked && r.Ores != null;
             int oreLines = showOres ? Mathf.Min(6, Mathf.Max(1, r.Ores.Length)) : 1;
-            float height = 96f + rows * RowHeight + 34f + oreLines * 22f + 12f;
+            var settlers = PlanetSettlerText.Lines(r, k => L(game, k, k)); // #2998: who built here
+            float height = 96f + rows * RowHeight + 34f + oreLines * 22f + 12f + (settlers.Count > 0 ? 34f + settlers.Count * 22f : 0f);
             root.sizeDelta = new Vector2(CardWidth, height);
             UiKit.AddPanel(root, 0f, 0f, CardWidth, height, UiKit.Panel);
 
@@ -203,7 +204,25 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            AddSettlers(root, game, settlers, y + (showOres && r.Ores.Length > 0 ? 6f : 28f)); // past the one-line notice otherwise
             Reveal();
+        }
+
+        /// <summary>#2998: the settler block under the resources — a heading and one line per player.</summary>
+        private static void AddSettlers(RectTransform root, GameBootstrap game, System.Collections.Generic.List<string> lines, float y)
+        {
+            if (lines.Count == 0)
+            {
+                return;
+            }
+
+            UiKit.AddText(root, 16f, y, CardWidth - 32f, 24f, L(game, "ui.overview.settlers", "Settlers"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 28f;
+            foreach (string line in lines)
+            {
+                UiKit.AddText(root, 16f, y, CardWidth - 32f, 22f, line, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
+                y += 22f;
+            }
         }
 
         /// <summary>#2247: a space object's readout. A refusal (out of range, recharging, nothing to read) carries no

@@ -97,6 +97,7 @@ ITEMS = [
     ("oxygen_tank_1", "a small cyan compressed oxygen gas canister"),
     # Suit / wearable components
     ("suit_teleporter", "a glowing belt teleporter device with swirling portal energy"),
+    ("quantum_teleporter", "an upgraded belt teleporter device with violet quantum crystals and a glowing coordinate dial, swirling portal energy"),  # #2995
     ("oxygen_extractor", "a compact atmospheric oxygen extractor device"),
     ("stealth_suit", "a sleek dark stealth cloaking bodysuit"),
     ("armor_chest", "an armored chest breastplate"),

@@ -156,6 +156,9 @@ public sealed class PlayerSnapshot
     /// <summary>Named map markers (#1217) — per world, restored on reload. Absent in older saves ⇒ empty.</summary>
     public List<PlayerMarker> Markers { get; set; } = new();
 
+    /// <summary>#2997: other players' bases this player found ("&lt;body&gt;|x|y|z"). Absent in older saves ⇒ empty.</summary>
+    public List<string> DiscoveredBases { get; set; } = new();
+
     /// <summary>Player notes (#1844) — restored on reload. Absent in older saves ⇒ empty.</summary>
     public List<PlayerNote> Notes { get; set; } = new();
 
@@ -293,6 +296,7 @@ public static class StateMapper
         Shield = p.Shield,
         DeployedSpeeders = p.DeployedSpeeders.Select(CloneSpeeder).ToList(),
         Markers = p.Markers.Select(CloneMarker).ToList(),
+        DiscoveredBases = p.DiscoveredBases.ToList(),
         Notes = p.Notes.Select(CloneNote).ToList(),
         LandingPadIndex = p.LandingPadIndex,
         FleetShipIds = new List<string>(p.FleetShipIds),
@@ -601,6 +605,7 @@ public static class StateMapper
         Shield = s.Shield,
         DeployedSpeeders = (s.DeployedSpeeders ?? new List<DeployedSpeeder>()).Select(CloneSpeeder).ToList(),
         Markers = (s.Markers ?? new List<PlayerMarker>()).Select(CloneMarker).ToList(),
+        DiscoveredBases = new HashSet<string>(s.DiscoveredBases ?? new List<string>()),
         Notes = (s.Notes ?? new List<PlayerNote>()).Select(CloneNote).ToList(),
         LandingPadIndex = s.LandingPadIndex,
         FleetShipIds = new List<string>(s.FleetShipIds ?? new List<string>()),

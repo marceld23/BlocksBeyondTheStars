@@ -352,6 +352,11 @@ public sealed class PlayerState
     /// Shared ones are shown to allies + crew on the same body while this player is online. Persisted.</summary>
     public List<PlayerMarker> Markers { get; set; } = new();
 
+    /// <summary>#2997: other players' bases this player has found — "&lt;body&gt;|x|y|z" of the core cell. Only a discovered base
+    /// (and every own or allied one) is in the base list the server sends. A key whose base is gone is simply never matched.
+    /// Persisted, additive.</summary>
+    public HashSet<string> DiscoveredBases { get; set; } = new();
+
     /// <summary>Titled free-text notes this player wrote (#1844) — private, capped server-side at 20. Persisted.</summary>
     public List<PlayerNote> Notes { get; set; } = new();
 

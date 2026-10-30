@@ -123,20 +123,9 @@ public sealed partial class GameServer
     /// <summary>True if the player stands at a staffed mission board of a planet base (#1865).</summary>
     public bool NearBaseMissionBoard(PlayerState player) => NearBaseMarker(player, "mission_board", BasePostReach, out _);
 
-    /// <summary>The base (on the active world) whose reach box holds the player, or null.</summary>
+    /// <summary>The base (on the active world) whose reach box holds the player — of several (#2996), the nearest core — or null.</summary>
     private ServerBase? BaseAround(PlayerState player)
-    {
-        var cell = WorldConstants.CanonicalBlock(player.Position.ToBlock(), _world.Circumference);
-        foreach (var b in _bases)
-        {
-            if (b.Planet == _world.LocationId && WithinBaseWallReach(b, cell))
-            {
-                return b;
-            }
-        }
-
-        return null;
-    }
+        => NearestBaseCovering(WorldConstants.CanonicalBlock(player.Position.ToBlock(), _world.Circumference), _ => true);
 
     /// <summary>Keeps the base board of the base the player stands in stocked (#1865) — the settlement window's rules:
     /// three deliveries, one build job, one survey.</summary>
@@ -174,7 +163,8 @@ public sealed partial class GameServer
         }
 
         var cell = WorldConstants.CanonicalBlock(pos, _world.Circumference);
-        var b = _bases.FirstOrDefault(x => x.Planet == _world.LocationId && WithinBaseWallReach(x, cell));
+        // #2996: of overlapping bases the one the index gives the post to (the builder's group), else the nearest core.
+        var b = (session != null ? BaseCountingCell(cell, session.State.PlayerId) : null) ?? NearestBaseCovering(cell, _ => true);
         if (b is null)
         {
             if (placed && session != null)
