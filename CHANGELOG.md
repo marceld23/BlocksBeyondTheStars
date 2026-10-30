@@ -15,19 +15,23 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 The festival release, just in time for Halloween week. The game now knows **fifty-two festivals of the real calendar**
 from all over the world, with a card in the main menu, a short explanation for each, VEGA's greeting and a festive mood
-in the worlds — and nothing you can miss, because the world admin can switch on any festival at any time. You can now
+in the worlds. **Pumpkins** grow around you at Halloween — every one its own colour — and become seeds or a **pumpkin
+lantern**, and each festival brings a small **challenge** with a decoration present. Nothing is ever missed, because the
+world admin can switch on any festival at any time. You can now
 found **several bases on one world**, and every **base core and station gathers resources** for you while you are away.
 Other players' bases show up once you **find** them, and the **planet scan lists the settlers**. The planet map shows
 **real coordinates**, the **suit teleporter** jumps to your bases, beam blocks, beacons and markers, and the new
 **Quantum Teleporter** jumps to any point you type in. **Net fragments from the last planet no longer haunt the next
 one**. The 2026.10.30 **"What's new?" notes are now in all fourteen languages**. Thanks to Lyxette and Justus.
 
-ℹ️ **Compatibility:** the **save version stays 7**, the network protocol stays at **version 11** and the **terrain
-generation stays 31** — your worlds carry on as they are, and they get the festivals, several bases and the base yield
-right away. As always, keep game and server on the same version: the desktop game updates itself at start, and the
+ℹ️ **Compatibility:** the pumpkin brings new blocks, so the **save version goes up to 8**: your save is converted the
+first time you open it, and after that an older version can no longer open it. The **terrain generation goes up to 32**
+for new worlds only — wild pumpkins grow on the green worlds of a new world; your existing worlds keep their planets and
+get pumpkins at festival time, the festivals, several bases and the base yield right away. The network protocol stays at
+**version 11**. As always, keep game and server on the same version: the desktop game updates itself at start, and the
 browser is always current.
 
-### 🎃 Festivals from all over the world (#3001–#3004)
+### 🎃 Festivals from all over the world (#3001–#3007)
 
 - The game now knows the **festivals of the real calendar**: fifty-two of them from many cultures, side by side —
   **Halloween**, **Día de los Muertos**, **St. Martin's Day**, **Diwali**, **Hanukkah**, the **Lunar New Year**,
@@ -40,8 +44,17 @@ browser is always current.
   **festive tune** of its own. It only decorates and never changes the rules of the game.
 - **Nothing to miss:** the calendar only picks the default. The world admin — in singleplayer that is you — can
   switch on any festival at any time with **`/festival <key>`** (for example `/festival hanami`), hand back to the
-  calendar with `/festival calendar`, or switch festivals off with `/festival off`. **Settings → Comfort** has
-  **Festivals (calendar)** and **Festival mood**.
+  calendar with `/festival calendar`, or switch festivals off with `/festival off`. **Settings → Comfort & wellbeing**
+  has **Festivals (calendar)** and **Festival mood**.
+- **Pumpkins (#3005, #3006):** during the harvest festivals — Halloween week, Erntedank and the two Thanksgivings —
+  **pumpkins** grow around you, orange, yellow, green, white or blue-grey, every one its own colour. They vanish again
+  after the festival unless you harvest them. A pumpkin is a filling fruit: cut it into **pumpkin seeds** and plant them
+  on grass, soil or a hydroponic tray, or carve it with a torch into a **pumpkin lantern**, a warm light you can dye.
+  On the green worlds of a new world, pumpkins also grow wild all year.
+- **Festival challenges (#3007):** while a festival is on, VEGA offers a small task in the Journal — harvest sixty
+  pumpkins, place thirty lights, plant twenty-five plants, dye ten things, scan five worlds, build three campfires, eat
+  ten treats or craft twenty-five things. Finishing it pays a **decoration present** (pumpkin lanterns, coloured lamps,
+  light strips, flower pots, rugs, torches), never a power-up. The pumpkin harvest also has three achievements.
 
 ### 🏡 Several bases per world, and what they gather (#2996–#2999, thanks to Lyxette and Justus)
 
@@ -63,7 +76,7 @@ browser is always current.
 ### 🧭 Coordinates and teleporter places (#2993, #2994, #2995)
 
 - **Coordinates (#2993):** the planet map now shows the world's real block coordinates (**X · Y · Z**) — before, it
-  could print a wrong position once you had walked once around the world. **Settings → Comfort → Show coordinates**
+  could print a wrong position once you had walked once around the world. **Settings → Comfort & wellbeing → Show coordinates**
   adds a line under the clock, and the chat command **`/pos`** tells you where you are.
 - **More places for the suit teleporter (#2994):** besides your ship and your allies, it now jumps to your own and your
   allies' **bases**, **beam blocks**, **radio beacons** and **map markers** on this world, nearest first. Markers work
@@ -90,6 +103,14 @@ browser is always current.
   `ServerRules` fields, the admin command `/festival`, story conditions `world:festival_any` and one per theme, and the
   new music mood `SynthMood.Festive`. A content test turns red on 1 January of `datesThrough` as the reminder to add the
   next year's movable dates. See ADR 0020 and `docs/developer/FESTIVALS.md`.
+- **Pumpkin, spawns and challenges (#3005–#3007):** `flora_pumpkin` is a solid wild species from terrain generation 32
+  with a colour palette (`FloraPalettes.Pumpkin`, mesher `TraitPaletteFlora`, no stored tint); new blocks shift the block
+  ids → save version 8 with the usual remap, goldens re-pinned. `GameServerFestivalSpawns.cs` places a festival's
+  `spawn` block near players on the weather-snow pattern, with the `weather_deposit` table as its ledger: cleanup when
+  the festival ends (own cells only), and a harvested deposit never regrows. Eight theme packs
+  `data/stories/festival_<theme>/` with `festival` achievements; new story event `scan:block` fires once per cell per
+  player (`ScanIntent` names the aimed cell, `PlayerState.ScannedCells`), the hand scanner is throttled to two scans a
+  second.
 - **Teleports and bases (#2993–#2999):** new messages `TeleportToPointIntent` (310), `YieldIntent` (311) and
   `YieldStatus` (312); everything else is additive fields, so the protocol stays at 11. The server resolves every
   teleporter place by kind and cell or marker id (`TeleportRules`). The yield is a lazy wall-clock store in
