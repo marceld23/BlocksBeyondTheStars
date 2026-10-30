@@ -77,6 +77,9 @@ bundle is the schedule**; existing saves get festivals through runtime layers on
   - **Date-independent tests:** the first CI run fell on Halloween week — the calendar started the harvest challenge for every
     joining test player (chip, pack list). Every test server now reads the calendar at `TestFestivalClock.QuietDay` (module
     initializer → `GameServer.FestivalClockDefaultForTest`); `FestivalCalendarTests` guards that the day stays quiet.
+- **Community locales (release PR #3014):** the second PR's 33 game keys (pumpkin items and blocks, the `festival`
+  achievement category and rows) were topped up into the twelve community locales with `translate_locale.py` + a hand QA
+  of the lantern names (uk "ліхтар", not "ліхтарня" = lighthouse).
 - **Open:** #3008 native-speaker review of the festival texts (help wanted, stays open).
 
 **Released** in **v2026.10.31** "the festival release" (2026-10-30).
