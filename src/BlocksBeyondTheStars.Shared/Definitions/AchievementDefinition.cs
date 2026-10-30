@@ -74,6 +74,10 @@ public static class AchievementCounters
     /// <summary>A first-time monument (rune) scan.</summary>
     public const string ScanMonument = "scan:monument";
 
+    /// <summary>#3023: a tree scanned for the first time, by its kind — <c>scan_tree:conifer</c> counts different conifers
+    /// (the <c>scan:tree</c> event's once-per-tree rule).</summary>
+    public static string ScanTree(string kind) => "scan_tree:" + kind;
+
     /// <summary>A blueprint researched at the cockpit.</summary>
     public const string ResearchAny = "research:any";
 

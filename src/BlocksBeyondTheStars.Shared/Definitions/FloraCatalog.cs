@@ -263,6 +263,12 @@ public static class FloraCatalog
         // before the crops like every wave. ---
         new Species(PumpkinKey, new[] { "grass", "dirt", "mud" }, Tags: FloraTag.Lush, LateHosts: new[] { "hydro_tray" }, Solid: true, MinGeneration: 32, Palette: FloraPalettes.Pumpkin), // the tray only for sowing (a late host counts for planting, not for the roster coverage)
 
+        // --- The marigold (#3024): the festivals' orange flower (Día de los Muertos, Diwali garlands), planted from seeds on
+        // soil, in a tray or a flower pot. Authored, so it is in no world roster and no greenhouse grows it (CultivatedKeys
+        // stays as it was) — no world generation changes. Appended before the crops like every wave; its MinGeneration (the
+        // pumpkin's 32) only marks the wave — nothing reads it for an authored species, and planting works on every world. ---
+        new Species(MarigoldKey, new[] { "grass", "dirt", "mud" }, Tags: FloraTag.Lush, LateHosts: new[] { "hydro_tray", "flower_pot" }, MinGeneration: 32, Authored: true),
+
         // --- Cultivated crops (#627): farmed, not wild. Grown in settlement/station greenhouses and by the
         // player from seeds. Excluded from every world roster (see FloraGenerator), so the berries are edible
         // on every world; the host list is what the greenhouse beds and hydroponic trays are made of.
@@ -326,6 +332,9 @@ public static class FloraCatalog
 
     /// <summary>The pumpkin's block key (#3005).</summary>
     public const string PumpkinKey = "flora_pumpkin";
+
+    /// <summary>#3024: the festivals' marigold — a planted flower only, never wild.</summary>
+    public const string MarigoldKey = "flora_marigold";
 
     /// <summary>The palette of a species whose every plant picks its colour from a short authored list by its cell (#3005,
     /// the pumpkin; <see cref="BlocksBeyondTheStars.Shared.World.FloraTints.PaletteAt"/>), or null for every other species.</summary>

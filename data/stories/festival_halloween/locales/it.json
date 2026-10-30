@@ -1,0 +1,15 @@
+{
+  "story.festival_halloween.name": "Halloween",
+  "story.festival_halloween.short": "Halloween",
+  "story.festival_halloween.desc": "Una sfida di Halloween: raccogli sessanta zucche e intaglia qualche lanterna.",
+  "story.festival_halloween.ch.c1": "Raccolto di zucche",
+  "story.festival_halloween.ch.c1.sum": "Durante la settimana di Halloween, sulle terre verdi crescono zucche tutto intorno. Raccogliene sessanta.",
+  "story.festival_halloween.r1.start": "Settimana di Halloween! Sulle terre verdi le zucche crescono tutt'intorno — arancioni, gialle, verdi, anche bianche. Raccogliene sessanta e ho un regalo per la tua base.",
+  "story.festival_halloween.graduated": "Un raccolto spaventosamente buono! Ecco: lanterne di zucca intagliate e qualche lanterna per la porta.",
+  "story.festival_halloween.d1.start": "Raccogli sessanta zucche. Qualunque colore va bene — anche quelle tossiche: il disintossicatore le pulisce.",
+  "story.festival_halloween.d1.chip": "Raccogli 60 zucche",
+  "story.festival_halloween.d1.done": "Sessanta zucche! Il raccolto è a posto.",
+  "story.festival_halloween.d2.start": "Intaglia una zucca con una torcia trasformandola in una lanterna di zucca e posiziane tre.",
+  "story.festival_halloween.d2.chip": "Posiziona 3 lanterne di zucca",
+  "story.festival_halloween.d2.done": "Tre lanterne sorridenti — che accoglienza!"
+}

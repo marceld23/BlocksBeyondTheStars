@@ -1,12 +1,12 @@
 {
   "story.festival_harvest.name": "Hasat festivali",
   "story.festival_harvest.short": "Hasat",
-  "story.festival_harvest.desc": "Bir hasat festivali görevi: festival sürerken altmış balkabağı topla.",
-  "story.festival_harvest.ch.c1": "Balkabağı hasadı",
-  "story.festival_harvest.ch.c1.sum": "Hasat festivalleri sırasında çevrende balkabakları yetişir. Altmış tane hasat et.",
-  "story.festival_harvest.r1.start": "Bir hasat festivali var! Çevrendeki tarlalarda balkabakları büyüyor — turuncu, sarı, yeşil, hatta beyaz olanlar. Altmış tane hasat et, üs için bir hediye vereceğim.",
-  "story.festival_harvest.graduated": "Gurur duyulacak bir hasat. Al bak: oymalı balkabağı fenerleri ve kapın için birkaç lamba.",
-  "story.festival_harvest.d1.start": "Altmış balkabağı hasat et. Her renk sayılır — toksik olanlar da, detoks cihazı onları temizler.",
-  "story.festival_harvest.d1.chip": "60 balkabağı hasat et",
-  "story.festival_harvest.d1.done": "Altmış balkabağı! Hasat tamam."
+  "story.festival_harvest.desc": "Hasat festivali görevi: altmış bitki getir — meyve, tahıl, çiçek, kabak.",
+  "story.festival_harvest.ch.c1": "Hasat",
+  "story.festival_harvest.ch.c1.sum": "Hasat festivalinde altmış bitki topla — dünyanda ne yetişiyorsa sayılır.",
+  "story.festival_harvest.r1.start": "Bir Hasat festivali var! Dünyanın her yerinden insanlar hasadı birlikte topluyor. Altmış bitki topla — yemiş, tahıl, meyve, ne yetişiyorsa — ve sana bir hediye vereceğim.",
+  "story.festival_harvest.graduated": "Gurur duyulacak bir hasat. İşte: bahçen için fenerler ve kadife çiçeği tohumları.",
+  "story.festival_harvest.d1.start": "Altmış bitki topla. Sana bir şey veren her bitki sayılır — yaban mersini, tahıl, meyve, mantar, kabaklar.",
+  "story.festival_harvest.d1.chip": "60 bitki topla",
+  "story.festival_harvest.d1.done": "Altmış bitki! Hasat tamam."
 }

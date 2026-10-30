@@ -1,0 +1,15 @@
+{
+  "story.festival_christmas.name": "Weihnachten",
+  "story.festival_christmas.short": "Weihnacht",
+  "story.festival_christmas.desc": "Eine Weihnachtsaufgabe: Finde und scanne fünfundzwanzig verschiedene Tannen und bring dann deine Basis zum Leuchten.",
+  "story.festival_christmas.ch.c1": "Tannenbäume",
+  "story.festival_christmas.ch.c1.sum": "Tannen wachsen auf den kalten Welten. Scanne fünfundzwanzig verschiedene.",
+  "story.festival_christmas.r1.start": "Frohe Weihnachten! In vielen Wohnzimmern steht heute Abend ein Tannenbaum voller Lichter. Finde fünfundzwanzig verschiedene Tannen und scanne sie – dann habe ich Geschenke für dich.",
+  "story.festival_christmas.graduated": "Frohe Weihnachten! Hier sind Geschenke zum Verpacken und bunte Lampen für deine Basis.",
+  "story.festival_christmas.d1.start": "Tannen wachsen auf den kalten Welten – Tundra, Taiga, Gletscher. Scanne fünfundzwanzig verschiedene mit dem Handscanner; jeder Baum zählt einmal.",
+  "story.festival_christmas.d1.chip": "Scanne 25 Tannen",
+  "story.festival_christmas.d1.done": "Fünfundzwanzig Tannen! Ein ganzer Weihnachtswald.",
+  "story.festival_christmas.d2.start": "Stell zehn Lichter an deiner Basis auf – Laternen, bunte Lampen, Papierlaternen, Lichtleisten.",
+  "story.festival_christmas.d2.chip": "Stell 10 Lichter auf",
+  "story.festival_christmas.d2.done": "Zehn Lichter – deine Basis strahlt."
+}

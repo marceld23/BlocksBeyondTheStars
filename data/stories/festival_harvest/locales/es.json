@@ -1,12 +1,12 @@
 {
   "story.festival_harvest.name": "Festival de la cosecha",
   "story.festival_harvest.short": "Cosecha",
-  "story.festival_harvest.desc": "Un desafío del festival de la cosecha: trae sesenta calabazas mientras dure el festival.",
-  "story.festival_harvest.ch.c1": "Cosecha de calabazas",
-  "story.festival_harvest.ch.c1.sum": "Las calabazas crecen a tu alrededor durante los festivales de la cosecha. Cosecha sesenta.",
-  "story.festival_harvest.r1.start": "¡Hay un festival de la cosecha! Las calabazas crecen en los campos a tu alrededor — naranjas, amarillas, verdes e incluso blancas. Cosecha sesenta y tengo un regalo para tu base.",
-  "story.festival_harvest.graduated": "Una cosecha de la que estar orgulloso. Toma: linternas de calabaza tallada y algunas linternas para tu puerta.",
-  "story.festival_harvest.d1.start": "Cosecha sesenta calabazas. Cualquier color cuenta — incluso las tóxicas, el desintoxicador las limpia.",
-  "story.festival_harvest.d1.chip": "Cosecha 60 calabazas",
-  "story.festival_harvest.d1.done": "¡Sesenta calabazas! La cosecha está lista."
+  "story.festival_harvest.desc": "Un reto del festival de la cosecha: trae sesenta plantas — frutas, cereales, flores, calabazas.",
+  "story.festival_harvest.ch.c1": "La cosecha",
+  "story.festival_harvest.ch.c1.sum": "Cosecha sesenta plantas durante el Festival de la cosecha — todo lo que crezca en tu mundo cuenta.",
+  "story.festival_harvest.r1.start": "¡Hay un Festival de la cosecha! Gente de todo el mundo cosecha junta. Cosecha sesenta plantas — bayas, granos, fruta, lo que crezca — y te tengo un regalo.",
+  "story.festival_harvest.graduated": "Una cosecha de la que sentirse orgulloso. Toma: linternas y semillas de cempasúchil para tu jardín.",
+  "story.festival_harvest.d1.start": "Cosecha sesenta plantas. Cada planta que te dé algo cuenta — bayas, cereales, frutas, setas, calabazas.",
+  "story.festival_harvest.d1.chip": "Cosecha 60 plantas",
+  "story.festival_harvest.d1.done": "¡Sesenta plantas! La cosecha está en."
 }

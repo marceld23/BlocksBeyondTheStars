@@ -1,0 +1,15 @@
+{
+  "story.festival_christmas.name": "Navidad",
+  "story.festival_christmas.short": "Navidad",
+  "story.festival_christmas.desc": "Un desafío navideño: encuentra y escanea veinticinco abetos distintos, luego ilumina tu base.",
+  "story.festival_christmas.ch.c1": "Abetos",
+  "story.festival_christmas.ch.c1.sum": "Los abetos crecen en mundos fríos. Escanea veinticinco diferentes.",
+  "story.festival_christmas.r1.start": "¡Feliz Navidad! En muchas casas hoy hay un abeto lleno de luces en la sala. Encuentra veinticinco abetos distintos y escanéa­los — luego tengo regalos para ti.",
+  "story.festival_christmas.graduated": "¡Feliz Navidad! Aquí tienes regalos para envolver y lámparas de colores para tu base.",
+  "story.festival_christmas.d1.start": "Los abetos crecen en mundos fríos — tundra, taiga, glaciar. Escanea veinticinco distintos con el Escáner de Mano; cada árbol cuenta una vez.",
+  "story.festival_christmas.d1.chip": "Escanea 25 abetos",
+  "story.festival_christmas.d1.done": "¡Veinticinco abetos! Un bosque entero de Navidad.",
+  "story.festival_christmas.d2.start": "Coloca diez luces en tu base — faroles, lámparas de colores, linternas de papel, tiras de luz.",
+  "story.festival_christmas.d2.chip": "Coloca 10 luces",
+  "story.festival_christmas.d2.done": "Diez luces — tu base brilla."
+}

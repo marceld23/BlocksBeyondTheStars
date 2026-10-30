@@ -1,0 +1,15 @@
+{
+  "story.festival_halloween.name": "Halloween",
+  "story.festival_halloween.short": "Halloween",
+  "story.festival_halloween.desc": "Eine Halloween-Aufgabe: Bring sechzig Kürbisse ein und schnitz ein paar Laternen.",
+  "story.festival_halloween.ch.c1": "Kürbisernte",
+  "story.festival_halloween.ch.c1.sum": "In der Halloween-Woche wachsen auf den grünen Welten Kürbisse um dich herum. Ernte sechzig davon.",
+  "story.festival_halloween.r1.start": "Halloween-Woche! Auf den grünen Welten wachsen überall um dich herum Kürbisse – orange, gelbe, grüne, sogar weiße. Ernte sechzig, dann habe ich ein Geschenk für deine Basis.",
+  "story.festival_halloween.graduated": "Eine schaurig-schöne Ernte! Hier: geschnitzte Kürbislaternen und ein paar Laternen für deine Tür.",
+  "story.festival_halloween.d1.start": "Ernte sechzig Kürbisse. Jede Farbe zählt – auch giftige, der Entgifter wäscht sie.",
+  "story.festival_halloween.d1.chip": "Ernte 60 Kürbisse",
+  "story.festival_halloween.d1.done": "Sechzig Kürbisse! Die Ernte ist eingebracht.",
+  "story.festival_halloween.d2.start": "Schnitz einen Kürbis mit einer Fackel zu einer Kürbislaterne und stell drei davon auf.",
+  "story.festival_halloween.d2.chip": "Stell 3 Kürbislaternen auf",
+  "story.festival_halloween.d2.done": "Drei grinsende Laternen – wie gemütlich!"
+}

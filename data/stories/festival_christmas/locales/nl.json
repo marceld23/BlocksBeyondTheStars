@@ -1,0 +1,15 @@
+{
+  "story.festival_christmas.name": "Kerst",
+  "story.festival_christmas.short": "Kerst",
+  "story.festival_christmas.desc": "Een kerstuitdaging: vind en scan vijfentwintig verschillende sparren, en versier daarna je basis met lampjes.",
+  "story.festival_christmas.ch.c1": "Sparren",
+  "story.festival_christmas.ch.c1.sum": "Sparren groeien op koude werelden. Scan vijfentwintig verschillende exemplaren.",
+  "story.festival_christmas.r1.start": "Vrolijk kerstfeest! In veel huizen staat vanavond een verlichte spar in de woonkamer. Vind vijfentwintig verschillende sparren en scan ze — dan heb ik cadeautjes voor je.",
+  "story.festival_christmas.graduated": "Vrolijk kerstfeest! Hier zijn cadeautjes om in te pakken en gekleurde lampen voor je basis.",
+  "story.festival_christmas.d1.start": "Sparren groeien op koude werelden — toendra, taiga, gletsjer. Scan vijfentwintig verschillende met de handscanner; elke boom telt één keer.",
+  "story.festival_christmas.d1.chip": "Scan 25 sparren",
+  "story.festival_christmas.d1.done": "Vijfentwintig sparren! Een heel kerstbos.",
+  "story.festival_christmas.d2.start": "Zet tien lichtjes op in je basis — lantaarns, gekleurde lampen, papieren lantaarns, lichtstrips.",
+  "story.festival_christmas.d2.chip": "Zet 10 lichtjes op",
+  "story.festival_christmas.d2.done": "Tien lichtjes — je basis straalt."
+}

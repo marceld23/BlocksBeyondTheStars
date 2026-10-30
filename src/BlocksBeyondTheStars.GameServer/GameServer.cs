@@ -3902,6 +3902,7 @@ public sealed partial class GameServer
         // pause menu only took effect at the next join.
         SetNpcCallsIntent or SkipOnboardingIntent or RequestStoryResolutionIntent or StorySelectIntent
             or SetPlaceNameIntent => true, // #2952: a private place name only changes the player's own ledger
+        SetFestivalPrefsIntent => true, // #3021: "My festivals" is a settings row the pause menu opens; it moves nothing
         // #2466 (synthesis §5.7): the pack controls change only the player's own ledger — "skipPack" is the first tutorial
         // card's "I know the game", shown during a singleplayer hold; #2467 watching a scene again changes nothing; #2470
         // "Start the story now" starts the player's own story track. #2471 (issue: "every action is pause-whitelisted"): the
@@ -4202,6 +4203,8 @@ public sealed partial class GameServer
                 session.ClientFeatures.Add(feature); // #2466: what the client understands (packs1 …) — bounded, it is client input
             }
         }
+
+        ApplyFestivalPrefs(session, join.FestivalPreset, join.FestivalCustom, join.Locale); // #3021: before the join greets
 
         // #2460 (B01): newcomer or veteran is decided HERE, once, before anything below can pay knowledge or
         // blueprints into the state (the spawn-system mapping, the Creative grants, the story beat catch-up).
@@ -5295,6 +5298,11 @@ public sealed partial class GameServer
         {
             if (pool is not null) { pool.Add(drop.Item, drop.Count + bloomBonus); } else { bank?.Invoke(drop.Item, drop.Count + bloomBonus); }
             RaiseGameEvent(session, GameEventKeys.ItemGained, ItemKey.Base(drop.Item), drop.Count + bloomBonus); // #2469: e.g. the berry lesson
+        }
+
+        if (floraHarvest && fixedDrops > 0 && !IsSapling(current.Value))
+        {
+            RaiseGameEvent(session, GameEventKeys.HarvestAny, def.Key); // #3023: "bring in sixty plants" — every plant that gave something
         }
 
         // #2201: what a player breaks also yields a sample of its species (a plant, a tree) or of its deposit (an ore).
@@ -6931,7 +6939,8 @@ public sealed partial class GameServer
             TutorialPolicy = r.TutorialPolicy.ToString(), // #2466
             Festivals = r.Festivals ? "On" : "Off", // #3001 (empty = a server without festivals)
             FestivalPick = r.FestivalPick ?? string.Empty,
-            ActiveFestivals = ActiveFestivals.ToArray(), // #3001: primary first
+            ActiveFestivals = ActiveFestivalsFor(session).ToArray(), // #3021: this player's festivals, the leading one first
+            FestivalForced = FestivalsForced, // #3022: a hand-picked festival shows for everybody, its mood every day
             StoryDensity = r.StoryDensity.ToString(), // #2472 (empty = a server without the live edit)
             MainStory = session.State.IsAdmin ? _storyState.StoryId : string.Empty, // #2506: the admins' "Main story" row
             VoiceChatEnabled = _config.VoiceChatEnabled,

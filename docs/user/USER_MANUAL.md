@@ -2847,32 +2847,50 @@ called **stories**:
 - **What happens:** at certain times of the year the game plays with a slightly different mood — a cosy-spooky
   **Halloween** week, lantern-lit **December** nights (St. Martin, Advent, Hanukkah, Christmas, Kwanzaa …), petals at
   **Hanami**, shooting stars at **Tanabata** and during the **Perseids**, colours at **Holi** and **Carnival**, lanterns at
-  **Diwali**, the **Mid-Autumn Festival** and **Loy Krathong**. Fifty-two festivals from many cultures; each comes with a
-  short explanation of what people celebrate and where.
-- **Where you see it:** the **main menu card** ("Today: ✦ Halloween" or "In 3 days: ✧ Diwali", with the explanation; "More
-  festivals" lists the next sixty days), a **chip** next to the weather in the HUD while a festival is on, **VEGA's greeting**
-  once per festival each year, and a **banner** when a festival begins while you play. The mood — petals, lamplight, a warm or
-  dusky tint, a soft fog, snow caps on the roofs, a festive tune — is cosmetic and never changes the game's rules.
+  **Diwali**, the **Mid-Autumn Festival** and **Loy Krathong**. Fifty-three festivals from many cultures (Orthodox
+  Christmas on 7 January among them); each comes with a short explanation of what people celebrate and where.
+- **My festivals:** you choose which festivals you celebrate. By default these are the **big world festivals** (New Year,
+  Lunar New Year, Carnival, Holi, Eid al-Fitr, Easter, Hanami, Midsummer, the Mid-Autumn Festival, Halloween, Día de los
+  Muertos, Diwali, Hanukkah, Christmas) **plus the festivals of your language**. You can pick **All**, **Only my language**,
+  **None**, or tick festivals one by one: **More festivals** on the menu card (or **Settings → Comfort → Choose festivals…**)
+  lists every festival with its explanation and a **Celebrate** switch. The choice holds for every world you play, takes
+  effect at once, and decides the card, the chip, the mood, VEGA's greeting, the challenges and the pumpkins around you.
+- **Where you see it:** the **main menu card** ("Today: ✦ Halloween" or "In 3 days: ✧ Diwali", with the explanation), a
+  **chip** next to the weather in the HUD while a festival you celebrate is on, **VEGA's greeting** once per festival each
+  year, and a **banner** with a short festive jingle when a festival begins while you play. The mood — petals, lamplight, a
+  warm or dusky tint, a soft fog, snow caps on the roofs, a festive tune — shows on a festival's first days (the whole
+  Halloween week, Advent's Sundays); it is cosmetic and never changes the game's rules. When two festivals meet, Halloween
+  and Christmas lead.
 - **Nothing to miss:** the calendar only sets the default. The **world admin** (in singleplayer: you) can switch any festival on
   at any time with `/festival <key>` (for example `/festival hanami`), hand back to the calendar with `/festival calendar`,
   or switch festivals off for the world with `/festival off`; `/festival` alone reports what is on. The keys are the ones in
-  `data/festivals.json` (`halloween`, `diwali`, `lunar_new_year`, `hanami`, …). The Character tab's world rules have the same
-  **Festivals** switch.
-- **Settings → Comfort:** **Festivals (calendar)** switches festivals off in your own worlds (and hides the menu card) — it
-  applies to every world you host, old saves included, without touching them; **Festival mood** switches off the cosmetic
-  side on this client only. On a world somebody else hosts, that world's rule decides.
+  `data/festivals.json` (`halloween`, `diwali`, `lunar_new_year`, `hanami`, …). A festival switched on this way is for
+  **everybody** on the world, whatever they chose under My festivals, and shows its mood every day. The Character tab's world
+  rules have the same **Festivals** switch.
+- **Settings → Comfort:** **My festivals** cycles the four choices (big festivals + my language, all, only my language, none),
+  **Choose festivals…** opens the list; **Festival mood** switches off the cosmetic side on this client only. A world's
+  own rule (the admin's switch) stands above your choice.
 - **Dedicated servers:** `--festivals off` or a festival key as the operator's override, see
   [SELF_HOSTING.md](../developer/SELF_HOSTING.md). The hosted fleet can be set with `BBS_WH_FESTIVALS`.
-- **Pumpkins:** during the harvest festivals (Halloween week, Erntedank, the Thanksgivings) **pumpkins** grow around you —
-  orange, yellow, green, white, every plant its own colour — and vanish again after the festival unless you harvest them. A
+- **Pumpkins:** during the harvest festivals you celebrate (Halloween week, Erntedank, the Thanksgivings, Sukkot, the autumn
+  equinox) **pumpkins** grow around you on the open, untouched ground of the green worlds — never on your own lawn or path,
+  and never right beside anybody — orange, yellow, green, white, every plant its own colour, and vanish again after the
+  festival unless you harvest them. A
   pumpkin is a filling fruit; cut it into **seeds** by hand and plant them on grass, soil or a hydroponic tray, or carve it with
   a torch into a **pumpkin lantern**, a warm dyeable light for your doorstep. On the green worlds pumpkins also grow wild all
   year (new worlds only; a toxic world's pumpkins need the detoxifier).
-- **Festival challenges:** while a festival is on, VEGA offers a small task in the Journal — harvest sixty pumpkins, place thirty
-  lights (and scan ten conifers if you find some), plant twenty-five plants, dye ten things, scan five worlds, build three
-  campfires, eat ten treats, craft twenty-five things. Finishing it pays a **decoration present** (pumpkin lanterns, coloured
-  lamps, light strips, flower pots, rugs, torches) — never a power-up, and never something you can miss: switch the festival
-  on any day and the task is there. The pumpkin harvest also has three lifetime achievements.
+- **Festival challenges:** while a festival you celebrate is on, VEGA offers a small task in the Journal. **Halloween:**
+  harvest sixty pumpkins (and put up three pumpkin lanterns). **Christmas:** find and scan twenty-five **different fir trees**
+  on the cold worlds — every tree counts once, however many needles you scan (and put up ten lights). The other festivals
+  share a task per kind: bring in sixty plants (every harvest counts), place thirty lights, plant twenty-five plants, dye ten
+  things, scan five worlds, build three campfires, eat ten treats, craft twenty-five things. Each task runs once. Finishing it
+  pays a **decoration present** — never a power-up, and never something you can miss: switch the festival on any day and the
+  task is there. The pumpkin harvest has three lifetime achievements, the fir trees two (25 and 100).
+- **Festival decorations:** the **gift box** (white paper and a red ribbon — dye the paper any colour), the **paper lantern**
+  and the little **diya lamp** (warm lights you can dye), and **marigolds**, orange flowers you plant from **marigold seeds**
+  on grass, soil, a hydroponic tray or in a flower pot. Craft them by hand (gift box: plant fibre + wood; paper lantern:
+  plant fibre + torch; diya: dirt + torch); marigold seeds come from the gatherers' market and from every marigold you
+  harvest — and they are the challenges' presents.
 
 ### Scanning & knowledge
 - **Which scanner does what:** the **hand scanner** (starter kit, quick-bar **2**) identifies the one thing you aim

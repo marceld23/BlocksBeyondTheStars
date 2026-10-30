@@ -1,0 +1,15 @@
+{
+  "story.festival_halloween.name": "할로윈",
+  "story.festival_halloween.short": "할로윈",
+  "story.festival_halloween.desc": "할로윈 도전: 호박 60개를 가져와 랜턴을 몇 개 만들어 보세요.",
+  "story.festival_halloween.ch.c1": "호박 수확",
+  "story.festival_halloween.ch.c1.sum": "할로윈 주간 동안 초록 세계 주변에 호박이 자랍니다. 호박 60개를 수확하세요.",
+  "story.festival_halloween.r1.start": "할로윈 주간입니다! 초록 세계에서는 주위에 호박이 자라고 있어요 — 주황, 노랑, 초록, 심지어 흰 호박도요. 60개를 수확하면 기지에 선물을 드릴게요.",
+  "story.festival_halloween.graduated": "으스스하면서도 훌륭한 수확이에요! 여기: 호박 랜턴 몇 개와 문에 걸 수 있는 랜턴들을 드릴게요.",
+  "story.festival_halloween.d1.start": "호박 60개를 수확하세요. 색깔은 상관없어요 — 독성 호박도 괜찮아요, 해독기가 씻어줍니다.",
+  "story.festival_halloween.d1.chip": "호박 60개 수확",
+  "story.festival_halloween.d1.done": "호박 60개! 수확이 완료되었습니다.",
+  "story.festival_halloween.d2.start": "횃불로 호박을 깎아 호박 랜턴을 만들고 그중 3개를 걸어 두세요.",
+  "story.festival_halloween.d2.chip": "호박 랜턴 3개 걸기",
+  "story.festival_halloween.d2.done": "웃는 얼굴의 랜턴 3개 — 참 아늑하네요!"
+}

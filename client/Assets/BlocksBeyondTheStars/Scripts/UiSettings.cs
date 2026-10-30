@@ -307,9 +307,22 @@ namespace BlocksBeyondTheStars.Client
             // #2518: the view's motion lives with the other comfort switches, where players look for it (it sat under
             // Controls). Same settings keys and saved values as before — only the row moved.
             Toggle(ref y, L("ui.settings.camera_motion"), S.CameraMotion, () => { S.CameraMotion = !S.CameraMotion; ApplyLiveWorld(); Rebuild(); });
-            // #3001: the real-world calendar's festivals (the bundled singleplayer server gets it as its operator override at the
-            // next launch; the menu card follows at once) and, #3004, the cosmetic mood they bring on this client.
-            Toggle(ref y, L("ui.settings.festivals"), S.Festivals, () => { S.Festivals = !S.Festivals; Rebuild(); });
+            // #3021 "My festivals": which festivals of the real-world calendar this player celebrates — a preset (the row cycles
+            // big + my language → all → my language → none) or the own list of "Choose festivals…". Sent to a joined game's
+            // server at once; the menu card follows. #3004: the cosmetic mood they bring on this client.
+            Cycle(ref y, L("ui.settings.festivals"), L("ui.festival.preset." + (int)FestivalMood.Preset(S)), () =>
+            {
+                S.FestivalPreset = ((int)FestivalMood.Preset(S) + 1) % 4; // the own list is chosen in the picker, not here
+                FestivalMood.SendPrefs(S);
+                _shell.RefreshMainMenu();
+                Rebuild();
+            });
+            UiKit.AddButton(_content, _x + CtrlX, y, _rowW - CtrlX, 44, L("ui.settings.festival_choose"),
+                () => UiFestivalPicker.Open(_shell, _root, () => { _shell.RefreshMainMenu(); Rebuild(); }));
+            y += 52f;
+            UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 44, L("ui.settings.festivals_hint"), 14, UiKit.CyanDim, TextAnchor.UpperLeft)
+                .horizontalOverflow = HorizontalWrapMode.Wrap;
+            y += 50f;
             Toggle(ref y, L("ui.settings.festival_mood"), S.FestivalMood, () => { S.FestivalMood = !S.FestivalMood; FestivalMood.Enabled = S.FestivalMood; Rebuild(); });
             // #2152: how hard hits, weapon kicks and explosions rattle the view (0–100 %, 10 % steps).
             Stepper(ref y, L("ui.settings.screen_shake"), Mathf.Clamp01(S.ScreenShake), 0, 1,

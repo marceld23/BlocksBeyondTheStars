@@ -146,17 +146,18 @@ public sealed partial class GameServer
             }
 
             SendRules(s);
-            foreach (var key in began)
+            var celebrated = ActiveFestivalsFor(s); // #3021: only the festivals this player celebrates (or a forced one)
+            foreach (var key in began.Where(k => celebrated.Contains(k, StringComparer.Ordinal)))
             {
                 FestivalGreet(s, key);
             }
         }
     }
 
-    /// <summary>Join tail: VEGA greets every festival that is on, once per festival-year.</summary>
+    /// <summary>Join tail: VEGA greets every festival that is on and the player celebrates, once per festival-year.</summary>
     private void FestivalsOnJoin(PlayerSession session)
     {
-        foreach (var key in ActiveFestivals)
+        foreach (var key in ActiveFestivalsFor(session))
         {
             FestivalGreet(session, key);
         }

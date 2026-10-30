@@ -162,6 +162,11 @@ public sealed class PlayerSession
     /// player (<c>AddLocalPlayer</c>) runs in this build and gets <c>packs1</c>. Session-scoped.</summary>
     public HashSet<string> ClientFeatures { get; } = new(System.StringComparer.Ordinal);
 
+    /// <summary>#3021 "My festivals": the festival keys this player celebrates (the resolved preset, own list and language),
+    /// or null until resolved — then the default (the big world festivals + the join locale's) applies. Session-scoped: the
+    /// selection is the client's setting, sent at join and on every change.</summary>
+    public HashSet<string>? CelebratedFestivals { get; set; }
+
     /// <summary>#2466: the client understands story packs (<c>packs1</c>); without it the legacy tutorial mode applies
     /// (old keys, server-composed text, no pack chips).</summary>
     public bool SupportsPacks => ClientFeatures.Contains(Networking.Messages.ClientFeatures.Packs1);

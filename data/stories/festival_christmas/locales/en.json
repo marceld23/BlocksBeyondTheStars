@@ -1,0 +1,15 @@
+{
+  "story.festival_christmas.name": "Christmas",
+  "story.festival_christmas.short": "Christmas",
+  "story.festival_christmas.desc": "A Christmas challenge: find and scan twenty-five different fir trees, then light up your base.",
+  "story.festival_christmas.ch.c1": "Fir trees",
+  "story.festival_christmas.ch.c1.sum": "Fir trees grow on the cold worlds. Scan twenty-five different ones.",
+  "story.festival_christmas.r1.start": "Merry Christmas! In many homes a fir tree full of lights stands in the living room tonight. Find twenty-five different fir trees and scan them — then I have presents for you.",
+  "story.festival_christmas.graduated": "Merry Christmas! Here are presents to wrap and coloured lamps for your base.",
+  "story.festival_christmas.d1.start": "Fir trees grow on the cold worlds — tundra, taiga, glacier. Scan twenty-five different ones with the hand scanner; every tree counts once.",
+  "story.festival_christmas.d1.chip": "Scan 25 fir trees",
+  "story.festival_christmas.d1.done": "Twenty-five fir trees! A whole Christmas forest.",
+  "story.festival_christmas.d2.start": "Put up ten lights at your base — lanterns, coloured lamps, paper lanterns, light strips.",
+  "story.festival_christmas.d2.chip": "Put up 10 lights",
+  "story.festival_christmas.d2.done": "Ten lights — your base is shining."
+}

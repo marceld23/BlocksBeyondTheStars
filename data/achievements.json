@@ -67,15 +67,21 @@
 
   // The festivals (#3007, epic #3000): each theme pack's graduation (data/stories/festival_<theme>, counter festival:<theme>)
   // pays a decoration present — never a power — and the pumpkin harvest has lifetime tiers. Nothing here is time-limited: a
-  // festival can be switched on by hand any day (/festival <key>), so no present can be missed (ADR 0020).
-  { "key": "festival_harvest",       "counter": "festival:harvest",         "target": 1,   "category": "festival", "rewards": [ { "item": "pumpkin_lantern", "count": 4 }, { "item": "lantern", "count": 6 } ] },
-  { "key": "festival_lights",        "counter": "festival:lights",          "target": 1,   "category": "festival", "rewards": [ { "item": "light_red", "count": 8 }, { "item": "light_green", "count": 8 }, { "item": "strip_light_warm", "count": 4 } ] },
-  { "key": "festival_newyear",       "counter": "festival:newyear",         "target": 1,   "category": "festival", "rewards": [ { "item": "light_red", "count": 6 }, { "item": "lantern", "count": 4 } ] },
-  { "key": "festival_blossoms",      "counter": "festival:blossoms",        "target": 1,   "category": "festival", "rewards": [ { "item": "flower_pot", "count": 6 }, { "item": "berry_seed", "count": 8 } ] },
+  // festival can be switched on by hand any day (/festival <key>), so no present can be missed (ADR 0020). #3023/#3024: Halloween
+  // and Christmas have packs of their own, the fir trees count per tree (scan_tree:conifer), and the presents bring the
+  // festival decorations where they fit (gift boxes, paper lanterns, diyas, marigold seeds).
+  { "key": "festival_harvest",       "counter": "festival:harvest",         "target": 1,   "category": "festival", "rewards": [ { "item": "lantern", "count": 4 }, { "item": "marigold_seed", "count": 6 } ] },
+  { "key": "festival_halloween",     "counter": "festival:halloween",       "target": 1,   "category": "festival", "rewards": [ { "item": "pumpkin_lantern", "count": 4 }, { "item": "lantern", "count": 6 } ] },
+  { "key": "festival_lights",        "counter": "festival:lights",          "target": 1,   "category": "festival", "rewards": [ { "item": "paper_lantern", "count": 6 }, { "item": "diya_lamp", "count": 6 }, { "item": "strip_light_warm", "count": 4 } ] },
+  { "key": "festival_christmas",     "counter": "festival:christmas",       "target": 1,   "category": "festival", "rewards": [ { "item": "gift_box", "count": 6 }, { "item": "light_red", "count": 6 }, { "item": "light_green", "count": 6 } ] },
+  { "key": "festival_newyear",       "counter": "festival:newyear",         "target": 1,   "category": "festival", "rewards": [ { "item": "paper_lantern", "count": 6 }, { "item": "light_red", "count": 4 } ] },
+  { "key": "festival_blossoms",      "counter": "festival:blossoms",        "target": 1,   "category": "festival", "rewards": [ { "item": "flower_pot", "count": 6 }, { "item": "marigold_seed", "count": 6 } ] },
   { "key": "festival_colours",       "counter": "festival:colours",         "target": 1,   "category": "festival", "rewards": [ { "item": "rug", "count": 4 }, { "item": "flower_pot", "count": 4 } ] },
   { "key": "festival_stars",         "counter": "festival:stars",           "target": 1,   "category": "festival", "rewards": [ { "item": "strip_light_cyan", "count": 6 }, { "item": "light_white", "count": 4 } ] },
   { "key": "festival_midsummer",     "counter": "festival:midsummer",       "target": 1,   "category": "festival", "rewards": [ { "item": "torch", "count": 16 }, { "item": "lantern", "count": 4 } ] },
-  { "key": "festival_children",      "counter": "festival:children",        "target": 1,   "category": "festival", "rewards": [ { "item": "flower_pot", "count": 4 }, { "item": "light_white", "count": 6 } ] },
+  { "key": "festival_children",      "counter": "festival:children",        "target": 1,   "category": "festival", "rewards": [ { "item": "gift_box", "count": 4 }, { "item": "light_white", "count": 6 } ] },
+  { "key": "conifer_25",             "counter": "scan_tree:conifer",        "target": 25,  "category": "festival", "rewards": [ { "item": "gift_box", "count": 4 } ] },
+  { "key": "conifer_100",            "counter": "scan_tree:conifer",        "target": 100, "category": "festival", "rewards": [ { "item": "gift_box", "count": 8 }, { "item": "paper_lantern", "count": 6 } ] },
   { "key": "pumpkin_60",             "counter": "mine:flora_pumpkin",       "target": 60,  "category": "festival", "rewards": [ { "item": "pumpkin_lantern", "count": 2 } ] },
   { "key": "pumpkin_250",            "counter": "mine:flora_pumpkin",       "target": 250, "category": "festival", "rewards": [ { "item": "pumpkin_lantern", "count": 6 }, { "item": "lantern", "count": 6 } ] },
   { "key": "pumpkin_500",            "counter": "mine:flora_pumpkin",       "target": 500, "category": "festival", "rewards": [ { "item": "pumpkin_lantern", "count": 12 }, { "item": "strip_light_warm", "count": 6 } ] }

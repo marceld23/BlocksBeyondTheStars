@@ -1,12 +1,12 @@
 {
   "story.festival_harvest.name": "Oogstfeest",
   "story.festival_harvest.short": "Oogst",
-  "story.festival_harvest.desc": "Een oogstfeest-uitdaging: lever zestig pompoenen in terwijl het festival duurt.",
-  "story.festival_harvest.ch.c1": "Pompoenoogst",
-  "story.festival_harvest.ch.c1.sum": "Pompoenen groeien om je heen tijdens de oogstfeesten. Oogst er zestig.",
-  "story.festival_harvest.r1.start": "Er is een oogstfeest! Pompoenen groeien in de velden om je heen — oranje, geel, groen, zelfs witte. Oogst zestig en ik heb een cadeautje voor je basis.",
-  "story.festival_harvest.graduated": "Een oogst om trots op te zijn. Hier: uitgehouwen pompoenlantaarns en een paar lantaarns voor je deur.",
-  "story.festival_harvest.d1.start": "Oogst zestig pompoenen. Elke kleur telt — ook giftige, de ontgifter reinigt ze.",
-  "story.festival_harvest.d1.chip": "Oogst 60 pompoenen",
-  "story.festival_harvest.d1.done": "Zestig pompoenen! De oogst is binnen."
+  "story.festival_harvest.desc": "Een Oogstfeest-uitdaging: verzamel zestig planten — fruit, graan, bloemen, pompoenen.",
+  "story.festival_harvest.ch.c1": "De oogst",
+  "story.festival_harvest.ch.c1.sum": "Oogst zestig planten tijdens het Oogstfeest — alles wat op jouw wereld groeit telt.",
+  "story.festival_harvest.r1.start": "Er is een Oogstfeest! Mensen overal op de wereld brengen samen de oogst binnen. Oogst zestig planten — bessen, graan, fruit, alles wat groeit — en ik heb een cadeautje voor je.",
+  "story.festival_harvest.graduated": "Een oogst om trots op te zijn. Hier: lantaarns en afrikaantjeszaden voor je tuin.",
+  "story.festival_harvest.d1.start": "Oogst zestig planten. Elke plant die iets oplevert telt — bessen, graan, fruit, paddenstoelen, pompoenen.",
+  "story.festival_harvest.d1.chip": "Oogst 60 planten",
+  "story.festival_harvest.d1.done": "Zestig planten! De oogst is binnen."
 }

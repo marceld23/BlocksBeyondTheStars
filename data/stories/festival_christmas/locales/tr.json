@@ -1,0 +1,15 @@
+{
+  "story.festival_christmas.name": "Noel",
+  "story.festival_christmas.short": "Noel",
+  "story.festival_christmas.desc": "Bir Noel görevi: yirmi beş farklı çam ağacı bulup tarayın, sonra üssünüzü ışıklandırın.",
+  "story.festival_christmas.ch.c1": "Çam ağaçları",
+  "story.festival_christmas.ch.c1.sum": "Çam ağaçları soğuk dünyalarda yetişir. Yirmi beş farklı çam tarayın.",
+  "story.festival_christmas.r1.start": "Mutlu Noeller! Bu gece birçok evin oturma odasında ışıklarla dolu bir çam ağacı durur. Yirmi beş farklı çam bulun ve tarayın — sonra size hediyelerim var.",
+  "story.festival_christmas.graduated": "Mutlu Noeller! İşte sarılacak hediyeler ve üssünüz için renkli lambalar.",
+  "story.festival_christmas.d1.start": "Çam ağaçları soğuk dünyalarda — tundra, tayga, buzullar — yetişir. El Tarayıcı ile yirmi beş farklı çamı tara; her ağaç bir kere sayılır.",
+  "story.festival_christmas.d1.chip": "25 çam ağacı tara",
+  "story.festival_christmas.d1.done": "Yirmi beş çam! Tam bir Noel ormanı.",
+  "story.festival_christmas.d2.start": "Üssünüze on ışık asın — fenerler, renkli lambalar, kağıt fenerler, ışık şeritleri.",
+  "story.festival_christmas.d2.chip": "10 ışık as",
+  "story.festival_christmas.d2.done": "On ışık — üssünüz parlıyor."
+}

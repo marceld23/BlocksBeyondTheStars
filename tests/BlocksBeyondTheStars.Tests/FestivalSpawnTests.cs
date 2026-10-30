@@ -21,7 +21,8 @@ public sealed class FestivalSpawnTests
 
     private static DateTime Utc(int y, int m, int d) => new(y, m, d, 12, 0, 0, DateTimeKind.Utc);
 
-    /// <summary>A breathable world (the spawner never lays a pumpkin into vacuum) with a grass pad around the player.</summary>
+    /// <summary>A breathable world (the spawner never lays a pumpkin into vacuum) with a grass pad around the player — natural
+    /// ground with no owner, since #3020 keeps festival plants off what players built.</summary>
     private static NpcLifeWorld World(string name)
     {
         string planet = Content.Value.Planets.Values.First(p => string.Equals(p.Atmosphere, "breathable", StringComparison.OrdinalIgnoreCase) && !p.Void).Key;
@@ -36,7 +37,7 @@ public sealed class FestivalSpawnTests
         {
             for (int dz = -14; dz <= 14; dz++)
             {
-                w.Set(NpcLifeWorld.Cx + dx, w.PadY, NpcLifeWorld.Cz + dz, "grass");
+                w.Server.World.SetBlock(new Vector3i(NpcLifeWorld.Cx + dx, w.PadY, NpcLifeWorld.Cz + dz), Content.Value.GetBlock("grass")!.NumericId);
             }
         }
 

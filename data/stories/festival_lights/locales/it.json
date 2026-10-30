@@ -1,15 +1,12 @@
 {
   "story.festival_lights.name": "Festival delle luci",
   "story.festival_lights.short": "Luci",
-  "story.festival_lights.desc": "Una sfida del festival delle luci: illumina la tua base con trenta luci; scansiona gli abeti se ne trovi.",
+  "story.festival_lights.desc": "Una sfida del Festival delle luci: illumina la tua base con trenta luci.",
   "story.festival_lights.ch.c1": "Trenta luci",
-  "story.festival_lights.ch.c1.sum": "Posiziona trenta luci nella tua base. Su un mondo freddo, scansiona dieci conifere per il registro delle punte.",
+  "story.festival_lights.ch.c1.sum": "Posiziona trenta luci nella tua base — lanterne, lampade, lanterne di carta, diya.",
   "story.festival_lights.r1.start": "C'è il festival delle luci! In tutto il mondo stasera si appendono lampade e lanterne. Illumina la tua base con trenta luci e ti darò lampade colorate.",
-  "story.festival_lights.graduated": "Bellissimo. Lampade rosse e verdi e strisce luminose calde per il prossimo festival delle luci.",
+  "story.festival_lights.graduated": "Bellissimo. Lanterne di carta, piccole lampade diya e strisce luminose calde per il prossimo Festival delle luci.",
   "story.festival_lights.d1.start": "Posiziona trenta luci: lanterne, torce, lampade colorate, strisce luminose, un falò — qualsiasi cosa che emetta luce.",
   "story.festival_lights.d1.chip": "Posiziona 30 luci",
-  "story.festival_lights.d1.done": "Trenta luci! La tua base si vede dall'orbita.",
-  "story.festival_lights.d2.start": "Le conifere crescono sui mondi freddi — tundra, boreale, ghiacciaio. Scansiona dieci diverse con lo Scanner portatile.",
-  "story.festival_lights.d2.chip": "Scansiona 10 conifere",
-  "story.festival_lights.d2.done": "Dieci conifere scansionate. Abeti al festival delle luci — perfetto."
+  "story.festival_lights.d1.done": "Trenta luci! La tua base si vede dall'orbita."
 }

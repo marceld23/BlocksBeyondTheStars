@@ -257,7 +257,25 @@ namespace BlocksBeyondTheStars.Client
             _researchAge = 0f;
             _researchFade.alpha = UiKit.ReducedMotion ? 0f : 1f;
             _researchRect.localScale = UiKit.ReducedMotion ? Vector3.one : Vector3.one * 0.75f;
-            ClientAudio.Instance?.Cue("ui_success", 0.9f);
+            ClientAudio.Instance?.Cue(FestivalJingle(key, festival?.Theme), 0.9f);
+        }
+
+        /// <summary>#3025: the festival's own jingle (<c>festival_halloween</c>), else its theme's (<c>festival_lights</c>), else
+        /// the plain success chime — and the plain chime when the player switched the festival mood off.</summary>
+        private static string FestivalJingle(string key, string theme)
+        {
+            var audio = ClientAudio.Instance;
+            if (audio == null || !FestivalMood.Enabled)
+            {
+                return "ui_success";
+            }
+
+            if (audio.Has("festival_" + key))
+            {
+                return "festival_" + key;
+            }
+
+            return !string.IsNullOrEmpty(theme) && audio.Has("festival_" + theme) ? "festival_" + theme : "ui_success";
         }
 
         /// <summary>Builds the toast hierarchy once: panel + glow disc + icon + two text lines + the

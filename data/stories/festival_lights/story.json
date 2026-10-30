@@ -2,7 +2,8 @@
 // on (world:festival_lights); its counter step is kid-sized, nothing is skippable (a skipped pack must not pay), and the
 // graduation counter festival:lights pays a decoration present through data/achievements.json. The calendar only sets the
 // default — any festival can be switched on by hand (/festival <key>), so nothing here can be missed. Generated from the
-// maintainer's texts; the twelve other languages come from tools/translate_locale.py.
+// maintainer's texts; the twelve other languages come from tools/translate_locale.py. #3023: the fir-tree step moved to
+// Christmas' own pack (festival_christmas), which Christmas starts instead of this one; the new paper lantern and diya count.
 {
   "id": "festival_lights",
   "nameKey": "story.festival_lights.name",
@@ -47,29 +48,13 @@
           "skippable": false,
           "objective": {
             "event": "build:any",
-            "arg": "lantern|torch|light_white|light_red|light_green|strip_light_cyan|strip_light_warm|pumpkin_lantern|campfire",
+            "arg": "lantern|torch|light_white|light_red|light_green|strip_light_cyan|strip_light_warm|pumpkin_lantern|paper_lantern|diya_lamp|campfire",
             "required": 30
           },
           "explain": {
             "startKey": "story.festival_lights.d1.start",
             "chipKey": "story.festival_lights.d1.chip",
             "doneKey": "story.festival_lights.d1.done"
-          }
-        },
-        {
-          "id": "d2",
-          "kind": "do",
-          "tier": "opt",
-          "skippable": false,
-          "objective": {
-            "event": "scan:block",
-            "arg": "pine_needles",
-            "required": 10
-          },
-          "explain": {
-            "startKey": "story.festival_lights.d2.start",
-            "chipKey": "story.festival_lights.d2.chip",
-            "doneKey": "story.festival_lights.d2.done"
           }
         }
       ]

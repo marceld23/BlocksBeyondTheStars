@@ -1,15 +1,12 @@
 {
   "story.festival_lights.name": "Lichterfest",
   "story.festival_lights.short": "Lichter",
-  "story.festival_lights.desc": "Eine Lichterfest-Aufgabe: Beleuchte deine Basis mit dreißig Lichtern; scanne Tannen, wenn du welche findest.",
+  "story.festival_lights.desc": "Eine Lichterfest-Aufgabe: Bring deine Basis mit dreißig Lichtern zum Leuchten.",
   "story.festival_lights.ch.c1": "Dreißig Lichter",
-  "story.festival_lights.ch.c1.sum": "Stell dreißig Lichter an deiner Basis auf. Auf einer kalten Welt scanne zehn Nadelbäume für das Logbuch.",
+  "story.festival_lights.ch.c1.sum": "Stell dreißig Lichter an deiner Basis auf – Laternen, Lampen, Papierlaternen, Diyas.",
   "story.festival_lights.r1.start": "Ein Lichterfest hat begonnen! Überall auf der Welt hängen die Menschen heute Nacht Lampen und Laternen auf. Beleuchte deine Basis mit dreißig Lichtern, dann habe ich bunte für dich.",
-  "story.festival_lights.graduated": "Wunderschön. Rote und grüne Lampen und warme Lichtleisten für das nächste Lichterfest.",
+  "story.festival_lights.graduated": "Wunderschön. Papierlaternen, kleine Diya-Lämpchen und warme Lichtleisten für das nächste Lichterfest.",
   "story.festival_lights.d1.start": "Stell dreißig Lichter auf: Laternen, Fackeln, bunte Lampen, Lichtleisten, ein Lagerfeuer – alles, was leuchtet.",
   "story.festival_lights.d1.chip": "Stell 30 Lichter auf",
-  "story.festival_lights.d1.done": "Dreißig Lichter! Deine Basis sieht man aus dem Orbit.",
-  "story.festival_lights.d2.start": "Nadelbäume wachsen auf den kalten Welten – Tundra, Taiga, Gletscher. Scanne zehn verschiedene mit dem Handscanner.",
-  "story.festival_lights.d2.chip": "Scanne 10 Nadelbäume",
-  "story.festival_lights.d2.done": "Zehn Nadelbäume gescannt. Tannen zum Lichterfest – perfekt."
+  "story.festival_lights.d1.done": "Dreißig Lichter! Deine Basis sieht man aus dem Orbit."
 }

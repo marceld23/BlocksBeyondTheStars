@@ -50,9 +50,18 @@ public static class GameEventKeys
     public const string ScanAny = "scan:any";
 
     /// <summary>#3007: a block, plant or tree scanned with the hand scanner, once per CELL per player (a client that names the
-    /// cell; an older one raises nothing here). Arg: the block key (<c>pine_needles</c> for a conifer's crown) — "scan ten
-    /// conifers" counts ten trees, not one tree ten times.</summary>
+    /// cell; an older one raises nothing here; since #3020 only for a cell within the scanner's reach that really holds the
+    /// block). Arg: the block key. To count trees use <see cref="ScanTree"/> — a crown has many cells.</summary>
     public const string ScanBlock = "scan:block";
+
+    /// <summary>#3023: a tree scanned with the hand scanner, once per TREE per player — the server walks from the scanned
+    /// leaf or log to the trunk's foot and remembers that; a crown without a natural trunk does not count. Arg: the tree's
+    /// kind by its crown — <c>conifer</c> (pine needles), <c>broadleaf</c>, <c>palm</c>, or the crown's block key.</summary>
+    public const string ScanTree = "scan:tree";
+
+    /// <summary>#3023: a plant was harvested (broken by hand: a fruit, a crop, a flower, a festival pumpkin). Arg: the
+    /// plant's block key. "Bring in sixty plants" counts every harvest, whatever grows on the world.</summary>
+    public const string HarvestAny = "harvest:any";
 
     /// <summary>A blueprint was researched. Arg: the blueprint key.</summary>
     public const string ResearchAny = "research:any";
@@ -542,6 +551,7 @@ public static class GameEventKeys
         var keys = new List<string>
         {
             MineAny, BuildAny, BuildRotated, CraftAny, CraftShape, CraftTint, CraftPaint, EatAny, ScanPerformed, ScanAny, ScanBlock,
+            ScanTree, HarvestAny,
             ResearchAny, SpaceEnter, StationBoarded, TradeBarter, TradePlayer, MissionAccepted, MissionTurnedIn,
             TravelLanded, VisitBody, VisitSystem, HyperjumpAny, ModuleBuilt, ShipCommissioned, StationCommissioned,
             BaseFounded, TameAny, LootAny, DefeatAny, WormholeAny, RelayCommissioned, LaneLinked, StoryFragment,

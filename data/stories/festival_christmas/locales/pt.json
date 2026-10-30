@@ -1,0 +1,15 @@
+{
+  "story.festival_christmas.name": "Natal",
+  "story.festival_christmas.short": "Natal",
+  "story.festival_christmas.desc": "Um desafio de Natal: encontre e escaneie vinte e cinco diferentes pinheiros, depois ilumine sua base.",
+  "story.festival_christmas.ch.c1": "Pinheiros",
+  "story.festival_christmas.ch.c1.sum": "Pinheiros crescem em mundos frios. Escaneie vinte e cinco diferentes.",
+  "story.festival_christmas.r1.start": "Feliz Natal! Em muitas casas um pinheiro cheio de luzes está na sala hoje à noite. Encontre vinte e cinco pinheiros diferentes e escaneie-os — depois tenho presentes para você.",
+  "story.festival_christmas.graduated": "Feliz Natal! Aqui estão presentes para embrulhar e lâmpadas coloridas para sua base.",
+  "story.festival_christmas.d1.start": "Pinheiros crescem em mundos frios — tundra, taiga, geleira. Escaneie vinte e cinco diferentes com o Hand Scanner; cada árvore conta uma vez.",
+  "story.festival_christmas.d1.chip": "Escanear 25 pinheiros",
+  "story.festival_christmas.d1.done": "Vinte e cinco pinheiros! Uma floresta inteira de Natal.",
+  "story.festival_christmas.d2.start": "Coloque dez luzes na sua base — lanternas, lâmpadas coloridas, lanternas de papel, fitas de luz.",
+  "story.festival_christmas.d2.chip": "Colocar 10 luzes",
+  "story.festival_christmas.d2.done": "Dez luzes — sua base está brilhando."
+}

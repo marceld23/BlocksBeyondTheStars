@@ -1,0 +1,15 @@
+{
+  "story.festival_halloween.name": "Cadılar Bayramı",
+  "story.festival_halloween.short": "Cadılar Bayramı",
+  "story.festival_halloween.desc": "Bir Cadılar Bayramı görevi: altmış balkabağı getir ve birkaç fener oyu.",
+  "story.festival_halloween.ch.c1": "Balkabağı hasadı",
+  "story.festival_halloween.ch.c1.sum": "Cadılar Bayramı haftasında yeşil dünyalarda etrafında balkabakları yetişiyor. Altmış tane topla.",
+  "story.festival_halloween.r1.start": "Cadılar Bayramı haftası! Yeşil dünyalarda etrafında balkabakları yetişiyor — turuncu, sarı, yeşil, hatta beyaz olanlar. Altmış topla, üssün için bir hediyem var.",
+  "story.festival_halloween.graduated": "Tüyler ürperten harika bir hasat! Al: oymalı balkabağı fenerleri ve kapın için birkaç lamba.",
+  "story.festival_halloween.d1.start": "Altmış balkabağı topla. Her renk sayılır — toksik olanlar da dahil, detoksifikatör onları temizler.",
+  "story.festival_halloween.d1.chip": "60 balkabağı topla",
+  "story.festival_halloween.d1.done": "Altmış balkabağı! Hasat tamam.",
+  "story.festival_halloween.d2.start": "Bir meşaleyle balkabağını oyarak balkabağı feneri yap ve üç tanesini as.",
+  "story.festival_halloween.d2.chip": "3 balkabağı feneri as",
+  "story.festival_halloween.d2.done": "Üç sırıtkan fener — ne kadar sıcak!"
+}

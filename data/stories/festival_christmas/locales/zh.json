@@ -1,0 +1,15 @@
+{
+  "story.festival_christmas.name": "圣诞节",
+  "story.festival_christmas.short": "圣诞节",
+  "story.festival_christmas.desc": "圣诞节挑战：寻找并扫描25棵不同的冷杉树，然后点亮你的基地。",
+  "story.festival_christmas.ch.c1": "冷杉树",
+  "story.festival_christmas.ch.c1.sum": "冷杉树生长在寒冷行星。扫描25棵不同的冷杉树。",
+  "story.festival_christmas.r1.start": "圣诞快乐！今晚许多家庭的客厅里会摆上一棵挂满彩灯的冷杉树。找到并扫描25棵不同的冷杉树——然后我会给你准备礼物。",
+  "story.festival_christmas.graduated": "圣诞快乐！这是可以包装的礼物和给基地用的彩色灯饰。",
+  "story.festival_christmas.d1.start": "冷杉树生长在寒冷世界——苔原、针叶林、冰川。用手持扫描器扫描25棵不同的冷杉树；每棵树只算一次。",
+  "story.festival_christmas.d1.chip": "扫描25棵冷杉树",
+  "story.festival_christmas.d1.done": "25棵冷杉树！一整片圣诞森林。",
+  "story.festival_christmas.d2.start": "在基地挂上10盏灯——灯笼、彩色灯、纸灯笼、灯带都算数。",
+  "story.festival_christmas.d2.chip": "挂上10盏灯",
+  "story.festival_christmas.d2.done": "10盏灯——你的基地闪亮起来了。"
+}

@@ -54,7 +54,7 @@ public sealed class FestivalServerTests
 
         var sent = w.Transport.Sent.Select(s => s.Msg).OfType<ServerRules>().Last();
         Assert.Equal("On", sent.Festivals);
-        Assert.Equal(new[] { "kwanzaa", "christmas" }, sent.ActiveFestivals);
+        Assert.Equal(new[] { "christmas", "kwanzaa" }, sent.ActiveFestivals); // #3021/#3022: this player's list, Christmas leads
     }
 
     [Fact]

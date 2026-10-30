@@ -648,11 +648,18 @@ namespace BlocksBeyondTheStars.Client
         /// always shows until the tutorial is finished or skipped; this mutes the optional coaching.</summary>
         public bool VegaHints = true;
 
-        /// <summary>#3001 Festivals (calendar): the real-world calendar's festivals in the player's own worlds. Off is passed to
-        /// the bundled singleplayer server as the operator override (<c>--festivals off</c>), so an existing save is never
-        /// touched and the setting is global for every world this client hosts; it also hides the main menu's festival
-        /// card. On a world somebody else hosts the world's own rule decides.</summary>
+        /// <summary>#3001 Festivals (calendar) — superseded by <see cref="FestivalPreset"/> (#3021): a stored Off migrates to the
+        /// "None" preset once at load, after which this stays on. Kept so an older settings file still reads.</summary>
         public bool Festivals = true;
+
+        /// <summary>#3021 "My festivals": which festivals this player celebrates — a <c>FestivalPreset</c> number (0 big world
+        /// festivals + my language, the default; 1 all; 2 my language; 3 none; 4 my own list in <see cref="FestivalCustom"/>).
+        /// Per installation, so it holds for every world: sent with the join and on every change, and "None" also goes to the
+        /// bundled singleplayer host as before. The old <see cref="Festivals"/> switch off migrates to "None" once.</summary>
+        public int FestivalPreset;
+
+        /// <summary>#3021: the own list (preset 4) — comma-separated festival keys.</summary>
+        public string FestivalCustom = string.Empty;
 
         /// <summary>#3004 Festival mood: the cosmetic side of a festival on this client — petals, lamplight, a warm or dusky
         /// grade, a cosy fog, snow caps, the festive music. Off keeps the world's own look while a festival is on.</summary>
@@ -1015,6 +1022,14 @@ namespace BlocksBeyondTheStars.Client
             // view every time. A saved V moves to Caps Lock once; the flag keeps a V the player picks later on purpose.
             settings.PushToTalkKey = PushToTalkKeys.Migrate(settings.PushToTalkKey, settings.PushToTalkMigrated);
             settings.PushToTalkMigrated = true;
+
+            // Migration (#3021): v2026.10.31's "Festivals (calendar): Off" becomes the "None" preset of "My festivals" once;
+            // the old switch stays on from then on and only the preset decides.
+            if (!settings.Festivals)
+            {
+                settings.FestivalPreset = (int)BlocksBeyondTheStars.Shared.Festivals.FestivalPreset.None;
+                settings.Festivals = true;
+            }
 
             if (freshInstall)
             {

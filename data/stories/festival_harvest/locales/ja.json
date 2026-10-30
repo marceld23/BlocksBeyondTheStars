@@ -1,12 +1,12 @@
 {
   "story.festival_harvest.name": "収穫祭",
   "story.festival_harvest.short": "収穫",
-  "story.festival_harvest.desc": "収穫祭チャレンジ：祭りの間にかぼちゃを60個集めてください。",
-  "story.festival_harvest.ch.c1": "かぼちゃの収穫",
-  "story.festival_harvest.ch.c1.sum": "収穫祭の間、周りの畑にかぼちゃが育ちます。60個収穫しましょう。",
-  "story.festival_harvest.r1.start": "収穫祭が始まりました！畑にかぼちゃが育っています — オレンジ、黄色、緑、白まで。60個集めれば基地にプレゼントを贈ります。",
-  "story.festival_harvest.graduated": "誇れる収穫でした。さあ：彫ったかぼちゃのランタンと玄関用のランタンをいくつかどうぞ。",
-  "story.festival_harvest.d1.start": "かぼちゃを60個収穫してください。色は問いません — 毒性のあるものも大丈夫です。解毒装置で洗浄します。",
-  "story.festival_harvest.d1.chip": "かぼちゃを60個収穫",
-  "story.festival_harvest.d1.done": "かぼちゃ60個！収穫が完了しました。"
+  "story.festival_harvest.desc": "収穫祭のチャレンジ：植物を60個集めて — 果実、穀物、花、カボチャなど。",
+  "story.festival_harvest.ch.c1": "収穫",
+  "story.festival_harvest.ch.c1.sum": "収穫祭の間に植物を60個収穫する — あなたの世界で育つものは何でもカウントされます。",
+  "story.festival_harvest.r1.start": "収穫祭が開かれています！世界中の人たちが一緒に収穫を祝います。ベリー、穀物、果物、育つものなら何でも合計で60個の植物を収穫すると、プレゼントを差し上げます。",
+  "story.festival_harvest.graduated": "立派な収穫だったね。さあ：ランタンとマリーゴールドの種を庭にどうぞ。",
+  "story.festival_harvest.d1.start": "植物を60個収穫しよう。収穫物をくれる植物はすべてカウントされるよ — ベリー、穀物、果実、キノコ、カボチャなど。",
+  "story.festival_harvest.d1.chip": "植物を60個収穫する",
+  "story.festival_harvest.d1.done": "60個の植物を収穫した！ 収穫完了だ。"
 }

@@ -1,0 +1,15 @@
+{
+  "story.festival_halloween.name": "Halloween",
+  "story.festival_halloween.short": "Halloween",
+  "story.festival_halloween.desc": "Um desafio de Halloween: traga sessenta abóboras e esculpa algumas lanternas.",
+  "story.festival_halloween.ch.c1": "Colheita de abóboras",
+  "story.festival_halloween.ch.c1.sum": "Abóboras crescem ao seu redor nos mundos verdes durante a semana de Halloween. Colha sessenta delas.",
+  "story.festival_halloween.r1.start": "Semana de Halloween! Nos mundos verdes abóboras estão crescendo ao seu redor — laranjas, amarelas, verdes, até brancas. Colha sessenta e eu tenho um presente para sua base.",
+  "story.festival_halloween.graduated": "Uma colheita arrepiante e excelente! Aqui: lanternas de abóbora esculpidas e algumas lanternas para sua porta.",
+  "story.festival_halloween.d1.start": "Colha sessenta abóboras. Qualquer cor conta — as tóxicas também, o detoxificador as limpa.",
+  "story.festival_halloween.d1.chip": "Colha 60 abóboras",
+  "story.festival_halloween.d1.done": "Sessenta abóboras! A colheita está completa.",
+  "story.festival_halloween.d2.start": "Escale uma abóbora com uma tocha em uma lanterna de abóbora e coloque três delas.",
+  "story.festival_halloween.d2.chip": "Coloque 3 lanternas de abóbora",
+  "story.festival_halloween.d2.done": "Três lanternas sorridentes — que aconchegante!"
+}

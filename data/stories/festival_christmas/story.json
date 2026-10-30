@@ -1,0 +1,79 @@
+// Festival challenge pack (#3023, epic #3019): Christmas' own challenge. Starts for a player who celebrates Christmas while it
+// is on (world:festival_christmas — the lights pack no longer starts for Christmas); scan twenty-five different fir trees
+// (scan:tree with the arg conifer counts each tree once, however many needle blocks its crown has), optionally put up ten
+// lights. Nothing is skippable (a skipped pack must not pay); the graduation counter festival:christmas pays a decoration
+// present through data/achievements.json, once per player. Christmas can be switched on by hand any day
+// (/festival christmas), so nothing here can be missed.
+{
+  "id": "festival_christmas",
+  "nameKey": "story.festival_christmas.name",
+  "shortNameKey": "story.festival_christmas.short",
+  "descriptionKey": "story.festival_christmas.desc",
+  "kind": "side",
+  "scope": "player",
+  "priority": 5,
+  "defaultEnabled": true,
+  "narrator": {
+    "id": "vega"
+  },
+  "start": {
+    "after": [
+      "world:festival_christmas"
+    ]
+  },
+  "graduation": {
+    "lineKey": "story.festival_christmas.graduated",
+    "counter": "festival:christmas"
+  },
+  "chapters": [
+    {
+      "id": "c1",
+      "titleKey": "story.festival_christmas.ch.c1",
+      "summaryKey": "story.festival_christmas.ch.c1.sum",
+      "skippable": false,
+      "steps": [
+        {
+          "id": "r1",
+          "kind": "read",
+          "tier": "must",
+          "skippable": false,
+          "explain": {
+            "startKey": "story.festival_christmas.r1.start"
+          }
+        },
+        {
+          "id": "d1",
+          "kind": "do",
+          "tier": "must",
+          "skippable": false,
+          "objective": {
+            "event": "scan:tree",
+            "arg": "conifer",
+            "required": 25
+          },
+          "explain": {
+            "startKey": "story.festival_christmas.d1.start",
+            "chipKey": "story.festival_christmas.d1.chip",
+            "doneKey": "story.festival_christmas.d1.done"
+          }
+        },
+        {
+          "id": "d2",
+          "kind": "do",
+          "tier": "opt",
+          "skippable": false,
+          "objective": {
+            "event": "build:any",
+            "arg": "lantern|torch|light_white|light_red|light_green|strip_light_cyan|strip_light_warm|pumpkin_lantern|paper_lantern|diya_lamp",
+            "required": 10
+          },
+          "explain": {
+            "startKey": "story.festival_christmas.d2.start",
+            "chipKey": "story.festival_christmas.d2.chip",
+            "doneKey": "story.festival_christmas.d2.done"
+          }
+        }
+      ]
+    }
+  ]
+}

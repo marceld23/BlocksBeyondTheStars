@@ -2,7 +2,9 @@
 
 **Status:** shipped 2026-10 (epic [#3000](https://github.com/marceld23/BlocksBeyondTheStars/issues/3000); foundation
 #3001, calendar content #3002, announcement #3003, mood #3004; the pumpkin #3005, festival spawns #3006 and the
-challenges #3007 follow in the second PR). Player-facing description: [USER_MANUAL.md](../user/USER_MANUAL.md)
+challenges #3007 follow in the second PR). Follow-up epic [#3019](https://github.com/marceld23/BlocksBeyondTheStars/issues/3019):
+spawner and scanner guards #3020, "My festivals" #3021, core days and priority #3022, Halloween's and Christmas' own
+challenges #3023, decorations #3024, jingles #3025, Orthodox Christmas #3026. Player-facing description: [USER_MANUAL.md](../user/USER_MANUAL.md)
 § "Festivals". Decision record: [ADR 0020](adr/0020-seasonal-festivals-calendar-sets-defaults-no-fomo.md).
 
 ## What it is
@@ -58,7 +60,21 @@ Two rules shaped the design (see the ADR):
   draws no colour emoji.
 - **Effects** (client, cosmetic): `motes` (an `AmbientMotes` style by name), `warmth` (−1 … 1 grade shift), `saturation`
   (multiplier), `fogTint` + `fogBoost` (a cosy haze, at most 40 % nearer), `snowCap` (the snow-cap shader global, no snow
-  blocks), `shootingStars`, `music` (the Festive synth flavour: cosy, spooky, bright, calm).
+  blocks), `shootingStars`, `music` (the Festive synth flavour: cosy, spooky, bright, calm), and since #3022 `coreDays`
+  (the mood shows on the window's first N days only, default 3, `0` = never, a large number = the whole window) or
+  `coreWeekday` (Advent: its Sundays). Card, chip, greeting and challenges keep the whole window.
+- **Selection fields** (#3021, #3022, #3023): `big` marks the fourteen big world festivals (New Year, Lunar New Year, Carnival,
+  Holi, Eid al-Fitr, Easter, Hanami, Midsummer, Mid-Autumn, Halloween, Día de los Muertos, Diwali, Hanukkah, Christmas);
+  `locales` the language communities that mainly celebrate a festival (`*` = everybody) — an estimate the native-speaker
+  review (#3008) keeps honest; `priority` lets a festival lead the chip and the mood over one that started later (Halloween
+  and Christmas: 10); `pack` names a challenge pack of the festival's own (`festival_<key>`), which then no longer counts
+  for its theme's pack. The content validation checks the codes, the core fields and the pack name.
+
+### How often (#3019)
+
+With all 53 festivals a festive mood would be on 163 days of 2027. "My festivals" and the core days bring that to about
+37–43 days for a player with the default selection (2027, depending on the language); the calendar card still names every
+celebrated festival a fortnight ahead.
 
 ## Server (`GameServerFestivals.cs`)
 
@@ -83,19 +99,46 @@ so the suite never depends on the real date, and the client harness passes `Fest
 
 **VEGA's greeting** is once per player and festival-year (milestone `festival:<key>:<year>`), kind 3 (system) so the hints
 mute never swallows it; the line key is `festival.<key>.vega`. **Story predicates** `world:festival_any` and
-`world:festival_<theme>` let a pack start while a festival of its theme is on.
+`world:festival_<theme>` let a pack start while a festival of its theme is on; `world:festival_halloween` and
+`world:festival_christmas` (#3023) start those two festivals' own packs, and a festival with its own pack no longer counts
+for its theme's predicate.
+
+### My festivals (#3021, `GameServerFestivalPrefs.cs`)
+
+Each player celebrates their own selection of what is on: a `FestivalPreset` (Shared `FestivalSelection`) — `BigAndLanguage`
+(the default: the big world festivals plus the ones of the player's language), `All`, `Language`, `None` — or their own list
+(`Custom`). The client keeps it per installation (`ClientSettings.FestivalPreset`/`FestivalCustom`) and sends it with the
+join (`JoinRequest.FestivalPreset`/`FestivalCustom`, so the join's own greeting already follows it) and on every change
+(`SetFestivalPrefsIntent`, tag 313, served while the singleplayer pause holds the world). It is never saved on the server;
+an older client that sends nothing gets the default for its join locale.
+
+`ActiveFestivalsFor(session)` is what one player sees of the world's list: the festivals they celebrate, ordered by
+`priority`, then the one that started last. It feeds that player's `ServerRules.ActiveFestivals` (chip, banner, mood), VEGA's
+greeting (a festival that becomes celebrated while it is on is greeted at once), the story predicates (all of them take the
+player) and the spawner. A festival switched on by hand (`/festival <key>`, the operator's key) is **forced**: it shows for
+everybody whatever their selection, its mood on every day (`ServerRules.FestivalForced`). The world rule and the operator
+override stay above everything. The bundled singleplayer host no longer gets an operator override from the client — the
+selection does that job live, in the desktop host and the browser's alike (#3020).
 
 ## Client
 
 - **Main menu card** (`UiFestivalCard`, built onto the menu canvas by `UiMainMenu.Build` before the overlays): "Today: ✦
-  Halloween" with the explanation, or the next festival within fourteen days; "More festivals" lists the next sixty days.
-  Nothing is built without content or a festival near, so the Editor's hierarchy golden is unaffected.
+  Halloween" with the explanation, or the next celebrated festival within fourteen days. Nothing is built without content or
+  a celebrated festival near, so the Editor's hierarchy golden is unaffected. "More festivals" opens **My festivals**
+  (`UiFestivalPicker`, #3021): every festival by its next start with its explanation and a "Celebrate" switch, the four
+  presets on top; built as the canvas' last child when pressed, so nothing draws over it (#3017). Settings → Comfort has the
+  same as a preset row and "Choose festivals…".
 - **HUD chip** next to the weather chip, the **celebration banner** when a festival begins while the player is online
   (`GameBootstrap.FestivalsBegan`), the Character tab's **world-rules row** (value = the festival that is on).
 - **Mood** (`FestivalMood`, from `ServerRules.ActiveFestivals` in a game, the client calendar on the menu): motes in
   `AmbientParticles`, grade and fog in `Sky`, snow caps in `TickWeatherTraces`, `ShootingStars`, the `SynthMood.Festive`
-  piece in `ClientMusic` (in Tracks mode every other piece). Settings → Comfort: **Festivals (calendar)** (global, passed
-  to the bundled host) and **Festival mood** (this client's cosmetics).
+  piece in `ClientMusic` (in Tracks mode every other piece). Since #3022 only on the leading festival's core days
+  (`FestivalCalendar.IsCoreDay`), every day for a forced one; the answer is cached per rules message and UTC day, since the
+  scene scripts ask every frame. Settings → Comfort: **My festivals** (#3021) and **Festival mood** (this client's
+  cosmetics).
+- **Jingles** (#3025): the festival banner plays `festival_<key>` (Halloween has its own), else `festival_<theme>` — eight
+  short sounds in `client/Assets/Resources/audio`, about 49 KB each — and the plain success chime when the festival mood is
+  off.
 - `FestivalCard` (Client.Core, Unity-free) holds the card model, the chip text and the began-diff; `FestivalCardTests`.
 
 ## The pumpkin (#3005)
@@ -113,16 +156,21 @@ rigid solid body like the saguaro (bark mode 4). The tile stays a plain mid-oran
 
 ## Festival spawns (#3006, `GameServerFestivalSpawns.cs`)
 
-A festival with a `spawn` block (the harvest festivals: Halloween, Erntedank, the two Thanksgivings) lays that block down on
-**existing** worlds at runtime, on the weather snow's pattern — never through world generation, so natural blocks stay as
-they are and old saves get the festival:
+A festival with a `spawn` block (the harvest festivals: Halloween, Erntedank, the two Thanksgivings, and since #3023 Sukkot
+and the autumn equinox) lays that block down on **existing** worlds at runtime, on the weather snow's pattern — never through
+world generation, so natural blocks stay as they are and old saves get the festival:
 
-- every 3 s per world, at most `perPass` cells near each player on foot, never more than `cap` per world, loaded chunks
-  only, breathable worlds only, never in a base zone or a ship, only the air cell on a host block (`hosts`) under the open sky;
+- every 3 s per world, at most `perPass` cells near each player on foot **who celebrates that festival** (#3021), never more
+  than `cap` per world, loaded chunks only, breathable worlds only, never in a base zone or a ship, only the air cell on a
+  host block (`hosts`) under the open sky;
+- **never on what players made** (#3020): no player edit in the 3×3×3 box around the cell and its host (`HasPlayerBlockEdits`,
+  one box query per candidate), not in a settlement, and at least two blocks away from a player, an NPC or a creature — a
+  pumpkin is solid;
 - every placement is broadcast (`BlockChanged`) and written to the `weather_deposit` table — the same ledger as the snow,
   told apart by the block (`LoadWeatherDeposits` routes the rows into `FestivalDeposits`); the block-palette remap covers it;
-- **cleanup:** while no festival spawns that block, the pass removes a few of its own deposits per pass — only cells still
-  holding the festival block, so a player's own pumpkin is never touched;
+- **cleanup:** while no player here celebrates a festival that spawns that block, the pass removes a few of its own deposits
+  per pass — only cells still holding the festival block, so a player's own pumpkin is never touched; with nobody on the
+  world the world's own festivals decide, so nothing is cleared overnight;
 - **the harvest stays harvested:** a mined deposit leaves the ledger (`ForgetFestivalDeposit`) instead of entering the
   regrow queue.
 
@@ -130,24 +178,43 @@ Cost: one pass per 3 s, 6 cells, one transaction; nothing while no festival spaw
 
 ## Challenges (#3007)
 
-Eight theme packs under `data/stories/festival_<theme>/` (side, player-scoped, `start.after: world:festival_<theme>`,
-nothing skippable — a skipped pack must not pay): one `read` step that names the challenge and one counter step, kid-sized
-(harvest 60 pumpkins; place 30 lights and, optionally, scan 10 conifers; craft 25 things; plant 25 plants; dye 10 things;
-scan 5 bodies; build 3 campfires; eat 10 things). The graduation counter `festival:<theme>` is watched by an
-`achievements.json` row of the `festival` category that pays a **decoration present** (pumpkin lanterns, coloured lamps,
-light strips, flower pots, rugs, torches); the pumpkin harvest also has lifetime tiers on `mine:flora_pumpkin` (60 / 250 /
-500). A pack runs once per player; the festival it belongs to can be switched on any day, so no present can be missed.
+Eight theme packs under `data/stories/festival_<theme>/` plus, since #3023, **Halloween's and Christmas' own packs**
+(`festival_halloween`, `festival_christmas`, started by `world:festival_halloween` / `world:festival_christmas` — those two
+festivals no longer start their theme's pack). All are side packs, player-scoped, nothing skippable (a skipped pack must not
+pay): one `read` step that names the challenge and kid-sized counter steps — Halloween: harvest 60 pumpkins (optionally put
+up 3 pumpkin lanterns); Christmas: scan 25 different fir trees (optionally put up 10 lights); harvest: bring in 60 plants
+(`harvest:any`, every harvest counts — Chuseok, Mid-Autumn and the equinox have no pumpkins on an older world); lights: place
+30 lights; new year: craft 25 things; blossoms: plant 25 plants; colours: dye 10 things; stars: scan 5 bodies; midsummer:
+build 3 campfires; children: eat 10 things. The graduation counter `festival:<pack>` is watched by an `achievements.json` row
+of the `festival` category that pays a **decoration present** (the festival decorations below, pumpkin lanterns, coloured
+lamps, light strips, flower pots, rugs, torches); the pumpkin harvest has lifetime tiers on `mine:flora_pumpkin` (60 / 250 /
+500), the fir trees on `scan_tree:conifer` (25 / 100). A pack runs **once per player** — no yearly restart (decided
+2026-10-30); the festival it belongs to can be switched on any day, so no present can be missed.
 
 **Distinct scans:** `scan:block` (`GameEventKeys.ScanBlock`) carries the scanned block key and fires once per *cell* per
 player — `ScanIntent` names the aimed cell (`HasCell`/`CellX..Z`, nothing from an older client), `PlayerState.ScannedCells`
-remembers the cells (bounded, persisted), and the hand scanner is throttled to two scans a second. Conifers are
-`pine_needles`, the crown block only they use.
+remembers the cells (bounded, persisted), and the hand scanner is throttled to two scans a second. Since #3020 the server
+counts only a loaded cell within reach that really holds the named block. **Trees, not cells** (#3023, `GameServerScanTrees.cs`):
+`scan:tree` walks from a scanned leaf or log to its trunk's foot (the nearest log column under the crown, then down) and fires
+once per tree per player (`PlayerState.ScannedTrees`, bounded, persisted) with the tree's kind by its crown — `conifer` for
+`pine_needles`, `broadleaf`, `palm`. A crown without a trunk, or a trunk whose foot a player placed, counts nothing.
+
+## Festival decorations (#3024)
+
+Four blocks that belong to many festivals, in one change (block ids shift once — save version 9, the usual palette remap):
+the **gift box** (white paper with a red ribbon, dyeable), the **paper lantern** and the **diya lamp** (warm dyeable lights;
+the diya sits on the flower pot's form), and the **marigold** (`flora_marigold`, a flower planted from `marigold_seed` on
+grass, soil, a tray or a flower pot). The marigold is an *authored* catalog species: in no world roster and no greenhouse
+(`CultivatedKeys` unchanged), so no world generation changes. All craft by hand from early things; marigold seeds also come
+from the gatherers' market and from every marigold harvested. They are the presents of the challenges where they fit.
 
 ## Tests
 
 `FestivalCalendarTests` (windows, overlap, upcoming, parsers), `FestivalContentTests` (file shape, en/de texts, secular
 wording, the yearly reminder), `FestivalServerTests` (old-save default, order of authority, live edit, `/festival`,
-persistence, the greeting), `FestivalCardTests` (client card and chip). The pinned tables (`ServerConfigOptionsTests`,
+persistence, the greeting), `FestivalCardTests` (client card and chip, the celebrated-only card, the "My festivals" list),
+`FestivalFollowUpTests` (#3019: presets, core days, the per-player list, forced festivals, the greeting of a newly celebrated
+festival, the intent during the pause, the own packs' predicates, the spawner's guards, trees counted once, `harvest:any`). The pinned tables (`ServerConfigOptionsTests`,
 `AdminCommandGateTests`, `StoryConditionTests`, `STORY_VOCABULARY.md`) carry the new rows.
 
 ## Adding a festival

@@ -1,0 +1,15 @@
+{
+  "story.festival_christmas.name": "Noël",
+  "story.festival_christmas.short": "Noël",
+  "story.festival_christmas.desc": "Un défi de Noël : trouve et scanne vingt-cinq sapins différents, puis illumine ta base.",
+  "story.festival_christmas.ch.c1": "Sapin",
+  "story.festival_christmas.ch.c1.sum": "Les sapins poussent sur les mondes froids. Scanne vingt-cinq sapins différents.",
+  "story.festival_christmas.r1.start": "Joyeux Noël ! Dans beaucoup de foyers, un sapin décoré de lumières trône ce soir dans le salon. Trouve vingt-cinq sapins différents et scanne-les — ensuite j'ai des cadeaux pour toi.",
+  "story.festival_christmas.graduated": "Joyeux Noël ! Voici des cadeaux à emballer et des lampes colorées pour ta base.",
+  "story.festival_christmas.d1.start": "Les sapins poussent sur les mondes froids — toundra, taïga, glacier. Scanne vingt-cinq sapins différents avec le Scanner à main ; chaque arbre ne compte qu'une fois.",
+  "story.festival_christmas.d1.chip": "Scanner 25 sapins",
+  "story.festival_christmas.d1.done": "Vingt-cinq sapins ! Toute une forêt de Noël.",
+  "story.festival_christmas.d2.start": "Installe dix lumières à ta base — lanternes, lampes colorées, lanternes en papier, guirlandes lumineuses.",
+  "story.festival_christmas.d2.chip": "Installer 10 lumières",
+  "story.festival_christmas.d2.done": "Dix lumières — ta base brille."
+}

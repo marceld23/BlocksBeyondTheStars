@@ -30,7 +30,7 @@ public sealed class IntentDispatchRegistryTests : IDisposable
     {
         var types = SvGameServer.HandledIntentTypesForTest.ToHashSet();
 
-        Assert.Equal(159, types.Count); // #2972 added DuelIntent; #2994 TeleportToPointIntent, #2999 YieldIntent
+        Assert.Equal(160, types.Count); // #2972 added DuelIntent; #2994 TeleportToPointIntent, #2999 YieldIntent; #3021 SetFestivalPrefsIntent
         Assert.Contains(typeof(MoveIntent), types);                    // the switch's first arm
         Assert.Contains(typeof(RequestStoryResolutionIntent), types);  // and its last
         Assert.Contains(typeof(SelectHotbarIntent), types);            // the two arms that had an inline body

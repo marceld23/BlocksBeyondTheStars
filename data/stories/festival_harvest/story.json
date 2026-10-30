@@ -2,7 +2,9 @@
 // on (world:festival_harvest); its counter step is kid-sized, nothing is skippable (a skipped pack must not pay), and the
 // graduation counter festival:harvest pays a decoration present through data/achievements.json. The calendar only sets the
 // default — any festival can be switched on by hand (/festival <key>), so nothing here can be missed. Generated from the
-// maintainer's texts; the twelve other languages come from tools/translate_locale.py.
+// maintainer's texts; the twelve other languages come from tools/translate_locale.py. #3023: every harvested plant counts
+// (harvest:any) — Chuseok, the Mid-Autumn Festival and the equinox have no pumpkins on an older world — and Halloween has a
+// pack of its own (festival_halloween), so it no longer starts this one.
 {
   "id": "festival_harvest",
   "nameKey": "story.festival_harvest.name",
@@ -46,8 +48,7 @@
           "tier": "must",
           "skippable": false,
           "objective": {
-            "event": "item:gained",
-            "arg": "pumpkin|toxic_pumpkin",
+            "event": "harvest:any",
             "required": 60
           },
           "explain": {

@@ -41,6 +41,38 @@ public sealed partial class GameContent
             }
 
             ValidateFestivalWindow(problems, ctx, f.Window);
+            ValidateFestivalSelectionFields(problems, ctx, f);
+        }
+    }
+
+    /// <summary>#3021/#3022/#3023: the selection and mood fields — locale codes (two letters or <c>*</c>), mood core days
+    /// that are not negative, a core weekday the calendar can parse, and an own pack named <c>festival_&lt;key&gt;</c>.</summary>
+    private static void ValidateFestivalSelectionFields(List<string> problems, string ctx, FestivalDefinition f)
+    {
+        foreach (var code in f.Locales ?? System.Array.Empty<string>())
+        {
+            if (code != "*" && (code is not { Length: 2 } || !IsSnakeCaseKey(code)))
+            {
+                problems.Add($"{ctx}: locale '{code}' must be a two-letter language code or '*'.");
+            }
+        }
+
+        if (f.Effects is { } e)
+        {
+            if (e.CoreDays < 0)
+            {
+                problems.Add($"{ctx}: coreDays must be 0 or more.");
+            }
+
+            if (!string.IsNullOrEmpty(e.CoreWeekday) && !FestivalCalendar.TryParseWeekday(e.CoreWeekday, out _))
+            {
+                problems.Add($"{ctx}: coreWeekday '{e.CoreWeekday}' is not a day of the week.");
+            }
+        }
+
+        if (!string.IsNullOrEmpty(f.Pack) && f.Pack != "festival_" + f.Key)
+        {
+            problems.Add($"{ctx}: its own pack must be named 'festival_{f.Key}' (the world:festival_<key> predicate starts it).");
         }
     }
 

@@ -66,6 +66,7 @@ FOLIAGE = [
     "flora_clover", "flora_daisy", "flora_thistle", "flora_herb", "flora_foxtail", "flora_lupine",
     # the sapling kinds (#2977–#2980): a young tree on black, rooted on the bottom edge
     "flora_sapling_conifer", "flora_sapling_fruit_round", "flora_sapling_fruit_long", "flora_sapling_fruit_grape", "flora_sapling_fruit_banana", "flora_sapling_fifi", "flora_sapling_mahogany",
+    "flora_marigold",  # the festival marigold (#3024), a flower clump on black like the daisy
     # flora_sapling (#1774) is NOT here: its tile ships with a chroma-keyed alpha (the plant on a plain tan ground),
     # so the darkness cut would remove the stem, not the background.
 ]
@@ -85,6 +86,7 @@ DARK_GROUND = {
     "flora_clover", "flora_daisy", "flora_thistle", "flora_herb", "flora_foxtail", "flora_lupine",
     # the sapling kinds (#2977–#2980): a young tree on black, rooted on the bottom edge
     "flora_sapling_conifer", "flora_sapling_fruit_round", "flora_sapling_fruit_long", "flora_sapling_fruit_grape", "flora_sapling_fruit_banana", "flora_sapling_fifi", "flora_sapling_mahogany",
+    "flora_marigold",  # #3024
 }
 DARK_GROUND_CUTOFF = 0.12  # brightness at or below this = the black ground (a dark stem sits well above it)
 

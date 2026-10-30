@@ -1,0 +1,15 @@
+{
+  "story.festival_halloween.name": "Halloween",
+  "story.festival_halloween.short": "Halloween",
+  "story.festival_halloween.desc": "Un défi d'Halloween : rapporte soixante citrouilles et sculpte quelques lanternes.",
+  "story.festival_halloween.ch.c1": "Récolte de citrouilles",
+  "story.festival_halloween.ch.c1.sum": "Pendant la semaine d'Halloween, des citrouilles poussent autour de toi sur les mondes verts. Récolte-en soixante.",
+  "story.festival_halloween.r1.start": "Semaine d'Halloween ! Sur les mondes verts, des citrouilles poussent tout autour — orange, jaune, verte, même blanches. Récolte soixante citrouilles et j'ai un cadeau pour ta base.",
+  "story.festival_halloween.graduated": "Quelle récolte terrifiante ! Voilà : des lanternes-citrouille sculptées et quelques lanternes pour ta porte.",
+  "story.festival_halloween.d1.start": "Récolte soixante citrouilles. Toutes les couleurs comptent — même les toxiques, le détoxifiant les nettoie.",
+  "story.festival_halloween.d1.chip": "Récolte 60 citrouilles",
+  "story.festival_halloween.d1.done": "Soixante citrouilles ! La récolte est rentrée.",
+  "story.festival_halloween.d2.start": "Sculpte une citrouille avec une torche en lanterne-citrouille et accroche-en trois.",
+  "story.festival_halloween.d2.chip": "Accroche 3 lanternes-citrouille",
+  "story.festival_halloween.d2.done": "Trois lanternes grimaçantes — comme c'est cosy !"
+}

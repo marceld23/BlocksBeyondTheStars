@@ -130,15 +130,19 @@ public sealed partial class GameServer
         [StoryWorldPredicates.PlanetWrecks] = _ => _meta.Description.PlanetWrecks != Frequency.Off,
 
         // #3001: the festivals of the real-world calendar (GameServerFestivals.cs) — any, and one per theme for the packs.
-        [StoryWorldPredicates.FestivalAny] = _ => ActiveFestivals.Count > 0,
-        [StoryWorldPredicates.FestivalHarvest] = _ => FestivalThemeActive(Shared.Festivals.FestivalThemes.Harvest),
-        [StoryWorldPredicates.FestivalLights] = _ => FestivalThemeActive(Shared.Festivals.FestivalThemes.Lights),
-        [StoryWorldPredicates.FestivalNewYear] = _ => FestivalThemeActive(Shared.Festivals.FestivalThemes.NewYear),
-        [StoryWorldPredicates.FestivalBlossoms] = _ => FestivalThemeActive(Shared.Festivals.FestivalThemes.Blossoms),
-        [StoryWorldPredicates.FestivalColours] = _ => FestivalThemeActive(Shared.Festivals.FestivalThemes.Colours),
-        [StoryWorldPredicates.FestivalStars] = _ => FestivalThemeActive(Shared.Festivals.FestivalThemes.Stars),
-        [StoryWorldPredicates.FestivalMidsummer] = _ => FestivalThemeActive(Shared.Festivals.FestivalThemes.Midsummer),
-        [StoryWorldPredicates.FestivalChildren] = _ => FestivalThemeActive(Shared.Festivals.FestivalThemes.Children),
+        // #3021: what THIS player celebrates of them ("My festivals"); #3023: a festival with a pack of its own (Halloween,
+        // Christmas) starts that pack, not its theme's.
+        [StoryWorldPredicates.FestivalAny] = s => ActiveFestivalsFor(s).Count > 0,
+        [StoryWorldPredicates.FestivalHarvest] = s => FestivalThemeActiveFor(s, Shared.Festivals.FestivalThemes.Harvest),
+        [StoryWorldPredicates.FestivalLights] = s => FestivalThemeActiveFor(s, Shared.Festivals.FestivalThemes.Lights),
+        [StoryWorldPredicates.FestivalNewYear] = s => FestivalThemeActiveFor(s, Shared.Festivals.FestivalThemes.NewYear),
+        [StoryWorldPredicates.FestivalBlossoms] = s => FestivalThemeActiveFor(s, Shared.Festivals.FestivalThemes.Blossoms),
+        [StoryWorldPredicates.FestivalColours] = s => FestivalThemeActiveFor(s, Shared.Festivals.FestivalThemes.Colours),
+        [StoryWorldPredicates.FestivalStars] = s => FestivalThemeActiveFor(s, Shared.Festivals.FestivalThemes.Stars),
+        [StoryWorldPredicates.FestivalMidsummer] = s => FestivalThemeActiveFor(s, Shared.Festivals.FestivalThemes.Midsummer),
+        [StoryWorldPredicates.FestivalChildren] = s => FestivalThemeActiveFor(s, Shared.Festivals.FestivalThemes.Children),
+        [StoryWorldPredicates.FestivalHalloween] = s => ActiveFestivalsFor(s).Contains("halloween", StringComparer.Ordinal),
+        [StoryWorldPredicates.FestivalChristmas] = s => ActiveFestivalsFor(s).Contains("christmas", StringComparer.Ordinal),
     };
 
     /// <summary><c>world:forge_ready</c> (#2479): the player can refine — they crafted a forge before (the achievement

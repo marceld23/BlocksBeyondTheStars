@@ -48,6 +48,13 @@ public sealed class JoinRequest
     /// words. A client without <see cref="ClientFeatures.Packs1"/> gets the legacy tutorial mode (old keys, no pack lines
     /// it cannot localize). Additive on a contractless codec: an older client sends none.</summary>
     public string[] Features { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>#3021 "My festivals": the player's festival preset at join (see <see cref="SetFestivalPrefsIntent"/>), so the
+    /// join's own greeting and challenge start already follow it. −1 = none sent (an older client: the default).</summary>
+    public int FestivalPreset { get; set; } = -1;
+
+    /// <summary>#3021: the player's own festival list (preset custom only).</summary>
+    public string[] FestivalCustom { get; set; } = System.Array.Empty<string>();
 }
 
 /// <summary>The words of <see cref="JoinRequest.Features"/> (#2466).</summary>

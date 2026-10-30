@@ -1,12 +1,12 @@
 {
   "story.festival_harvest.name": "Festiwal plonów",
   "story.festival_harvest.short": "Zbiory",
-  "story.festival_harvest.desc": "Wyzwanie festiwalu plonów: przynieś sześćdziesiąt dyni, dopóki trwa festiwal.",
-  "story.festival_harvest.ch.c1": "Zbiór dyni",
-  "story.festival_harvest.ch.c1.sum": "Podczas festiwalu wokół ciebie rosną dynie. Zbierz sześćdziesiąt z nich.",
-  "story.festival_harvest.r1.start": "Trwa festiwal plonów! W polach wokół ciebie rosną dynie — pomarańczowe, żółte, zielone, nawet białe. Zbierz sześćdziesiąt, a dam coś dla twojej bazy.",
-  "story.festival_harvest.graduated": "Dumna żniwa. Oto: rzeźbione lampiony z dyni i kilka lamp przy drzwiach.",
-  "story.festival_harvest.d1.start": "Zbierz sześćdziesiąt dyni. Liczy się każdy kolor — także toksyczne, detoksyfikator je oczyszcza.",
-  "story.festival_harvest.d1.chip": "Zbierz 60 dyni",
-  "story.festival_harvest.d1.done": "Sześćdziesiąt dyni! Zbiory zakończone."
+  "story.festival_harvest.desc": "Wyzwanie Święto plonów: przynieś sześćdziesiąt roślin — owoce, ziarno, kwiaty, dynie.",
+  "story.festival_harvest.ch.c1": "Żniwa",
+  "story.festival_harvest.ch.c1.sum": "Zbierz sześćdziesiąt roślin podczas Święta plonów — liczy się wszystko, co rośnie na twoim świecie.",
+  "story.festival_harvest.r1.start": "Jest święto plonów! Ludzie z całego świata zbierają plony razem. Zbierz sześćdziesiąt roślin — jagody, zboże, owoce, wszystko, co rośnie — a mam dla ciebie prezent.",
+  "story.festival_harvest.graduated": "Udane żniwa. Oto: lampiony i nasiona aksamitek do ogrodu.",
+  "story.festival_harvest.d1.start": "Zbierz sześćdziesiąt roślin. Każda roślina dająca plon się liczy — jagody, ziarno, owoce, grzyby, dynie.",
+  "story.festival_harvest.d1.chip": "Zbierz 60 roślin",
+  "story.festival_harvest.d1.done": "Sześćdziesiąt roślin! Plony zebrane."
 }

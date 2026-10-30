@@ -157,6 +157,7 @@ public sealed partial class GameServer
         On<RequestKnownNpcsIntent>(map, (gs, s, _) => gs.HandleRequestKnownNpcs(s)); // #1118: "People you know"
         On<RequestBaseResidentsIntent>(map, (gs, s, m) => gs.HandleRequestBaseResidents(s, m)); // #2717: who lives at the base
         On<SetNpcCallsIntent>(map, (gs, s, m) => gs.HandleSetNpcCalls(s, m)); // #1119: call preference
+        On<SetFestivalPrefsIntent>(map, (gs, s, m) => gs.HandleSetFestivalPrefs(s, m)); // #3021: "My festivals"
         On<SetSeatedIntent>(map, (gs, s, m) => gs.HandleSetSeated(s, m));
         On<SetEvaIntent>(map, (gs, s, m) => gs.HandleSetEva(s, m));
         On<StructureEditIntent>(map, (gs, s, m) => gs.HandleStructureEdit(s, m));
