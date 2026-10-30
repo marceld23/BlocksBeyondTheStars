@@ -4,10 +4,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using BlocksBeyondTheStars.Networking;
+using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Geometry;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -29,9 +32,11 @@ public sealed class GameServerNetFragmentTests : IDisposable
     }
 
     private void Run(string world, long seed, Action<SvGameServer> body)
+        => Run(world, seed, new LoopbackServerTransport(new LoopbackLink()), body);
+
+    private void Run(string world, long seed, IServerTransport st, Action<SvGameServer> body)
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, world));
-        var st = new LoopbackServerTransport(new LoopbackLink());
         var config = new ServerConfig
         {
             WorldName = world,
@@ -139,6 +144,52 @@ public sealed class GameServerNetFragmentTests : IDisposable
                 Assert.True(s.StorySnapshot.Fragments >= 1); // the earlier find persisted
             });
             tested = true;
+        }
+
+        Assert.True(tested, "no seed in 1..50 placed a net fragment on the start world");
+    }
+
+    [Fact]
+    public void A_refused_pickup_resends_the_fragment_list_and_changes_nothing()
+    {
+        // #3010: E at a fragment the server does not have there — a ghost from the previous body (#3009) or a stale
+        // position — used to be dropped without a word; the true list now puts the client right.
+        bool tested = false;
+        for (long seed = 1; seed <= 50 && !tested; seed++)
+        {
+            var transport = new RecordingTransport();
+            Run("refuse_" + seed, seed, transport, s =>
+            {
+                if (s.NetFragmentCount == 0)
+                {
+                    return;
+                }
+
+                s.HandlePayloadForTest(1, NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Lyx" }));
+                var player = s.Sessions[1];
+                var frag = s.NetFragmentSnapshots[0];
+                int found = s.StorySnapshot.Fragments;
+
+                List<NetFragmentList> PickUp(int id, Vector3f at)
+                {
+                    player.State.Position = at;
+                    transport.Sent.Clear();
+                    s.HandlePayloadForTest(1, NetCodec.Encode(new NetFragmentFoundIntent { FragmentId = id }));
+                    return transport.To<NetFragmentList>(player);
+                }
+
+                Assert.Single(PickUp(9999, frag.Pos)); // an id this world does not have
+                var list = Assert.Single(PickUp(frag.Id, new Vector3f(frag.Pos.X + 40f, frag.Pos.Y, frag.Pos.Z))); // out of reach
+                Assert.Contains(list.Fragments, f => f.Id == frag.Id && f.X == frag.Pos.X && f.Z == frag.Pos.Z);
+                Assert.Empty(transport.To<NetFragmentRevealed>(player));
+                Assert.Contains(s.NetFragmentSnapshots, f => f.Id == frag.Id);
+                Assert.Equal(found, s.StorySnapshot.Fragments);
+
+                PickUp(frag.Id, frag.Pos); // in reach, the same E recovers it
+                Assert.Single(transport.To<NetFragmentRevealed>(player));
+                Assert.DoesNotContain(s.NetFragmentSnapshots, f => f.Id == frag.Id);
+                tested = true;
+            });
         }
 
         Assert.True(tested, "no seed in 1..50 placed a net fragment on the start world");

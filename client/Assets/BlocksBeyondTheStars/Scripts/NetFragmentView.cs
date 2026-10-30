@@ -30,7 +30,9 @@ namespace BlocksBeyondTheStars.Client
         private readonly Dictionary<int, Frag> _frags = new Dictionary<int, Frag>();
         private bool _subscribed;
 
-        private const float Reach = 3.2f; // matches the server's NetFragmentReach
+        /// <summary>How close to stand to recover a fragment — the server's NetFragmentReach. The prompt and E both use
+        /// it (#3010: the prompt used to show 0.6 m further out, where E did nothing).</summary>
+        public const float Reach = 3.2f;
         private const float Size = 0.8f;
 
         private void Update()
@@ -38,6 +40,7 @@ namespace BlocksBeyondTheStars.Client
             if (!_subscribed && Game?.Network != null)
             {
                 Game.Network.NetFragmentsReceived += OnFragments;
+                Game.Network.WorldResetReceived += OnWorldReset;
                 _subscribed = true;
             }
 
@@ -57,13 +60,41 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Travelling wipes the world: fragment ids are per world and restart at 1 on the destination body, so
+        /// every held fragment is stale. Without this a recycled id kept the previous body's fragment at its old
+        /// coordinates — a ghost whose prompt showed while E did nothing (#3009, the doors' #1429). The server re-sends
+        /// the destination's fragments after every WorldReset.</summary>
+        private void OnWorldReset(WorldReset m)
+        {
+            foreach (var f in _frags.Values)
+            {
+                if (f.Go != null)
+                {
+                    Destroy(f.Go);
+                }
+            }
+
+            _frags.Clear();
+        }
+
+        /// <summary>True when the incoming record still describes the fragment we hold for its id. A mismatch means the
+        /// id was recycled for a different fragment (see <see cref="OnWorldReset"/>) and it must be rebuilt (#3009).</summary>
+        public static bool SameFragment(Vector3 world, string category, NetStoryFragment nf)
+            => category == nf.Category && (world - new Vector3(nf.X, nf.Y, nf.Z)).sqrMagnitude < 0.01f;
+
         private void OnFragments(NetFragmentList m)
         {
             var seen = new HashSet<int>();
             foreach (var nf in m.Fragments)
             {
                 seen.Add(nf.Id);
-                if (!_frags.TryGetValue(nf.Id, out _))
+                if (_frags.TryGetValue(nf.Id, out var held) && !SameFragment(held.World, held.Category, nf))
+                {
+                    Destroy(held.Go);
+                    _frags.Remove(nf.Id);
+                }
+
+                if (!_frags.ContainsKey(nf.Id))
                 {
                     _frags[nf.Id] = Build(nf);
                 }
@@ -192,7 +223,7 @@ namespace BlocksBeyondTheStars.Client
             var cam = Camera.main;
             if (cam == null || Game == null || ScreenLabelLayer.Instance == null) return;
 
-            int near = NearestNetFragment(Game.PlayerPosition, Reach + 0.6f, out _);
+            int near = NearestNetFragment(Game.PlayerPosition, Reach, out _); // #3010: only where E recovers it
             if (near == 0 || !_frags.TryGetValue(near, out var f)) return;
 
             // #2502: "{key:Interact}: Recover net fragment" — the use button of the device in hand.
@@ -202,7 +233,11 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnDestroy()
         {
-            if (_subscribed && Game?.Network != null) Game.Network.NetFragmentsReceived -= OnFragments;
+            if (_subscribed && Game?.Network != null)
+            {
+                Game.Network.NetFragmentsReceived -= OnFragments;
+                Game.Network.WorldResetReceived -= OnWorldReset;
+            }
         }
     }
 }

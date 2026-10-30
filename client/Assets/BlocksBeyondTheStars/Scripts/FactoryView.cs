@@ -60,6 +60,7 @@ namespace BlocksBeyondTheStars.Client
             if (!_subscribed && Game?.Network != null)
             {
                 Game.Network.FactoriesReceived += OnFactories;
+                Game.Network.WorldResetReceived += OnWorldReset;
                 _subscribed = true;
             }
 
@@ -159,12 +160,39 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Travelling wipes the world: factory ids are per world and restart at 1 on the destination body, so
+        /// every held factory is stale — a recycled id kept the previous body's machines at their old coordinates
+        /// (#3009, the doors' #1429). The server re-sends the destination's factories after every WorldReset.</summary>
+        private void OnWorldReset(WorldReset m)
+        {
+            foreach (var f in _factories.Values)
+            {
+                if (f.Go != null)
+                {
+                    Destroy(f.Go);
+                }
+            }
+
+            _factories.Clear();
+        }
+
+        /// <summary>True when the incoming record still describes the factory we hold for its id (its terminal has not
+        /// moved). A mismatch means the id was recycled for a different factory and it must be rebuilt (#3009).</summary>
+        public static bool SameFactory(Vector3 terminal, NetFactory nf)
+            => (terminal - new Vector3(nf.TerminalX, nf.TerminalY, nf.TerminalZ)).sqrMagnitude < 0.01f;
+
         private void OnFactories(FactoryList msg)
         {
             var seen = new HashSet<int>();
             foreach (var nf in msg.Factories)
             {
                 seen.Add(nf.Id);
+                if (_factories.TryGetValue(nf.Id, out var held) && !SameFactory(held.Terminal, nf))
+                {
+                    Destroy(held.Go);
+                    _factories.Remove(nf.Id);
+                }
+
                 if (!_factories.TryGetValue(nf.Id, out var existing))
                 {
                     _factories[nf.Id] = Build(nf);
@@ -426,7 +454,11 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnDestroy()
         {
-            if (_subscribed && Game?.Network != null) Game.Network.FactoriesReceived -= OnFactories;
+            if (_subscribed && Game?.Network != null)
+            {
+                Game.Network.FactoriesReceived -= OnFactories;
+                Game.Network.WorldResetReceived -= OnWorldReset;
+            }
         }
     }
 }

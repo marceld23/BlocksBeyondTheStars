@@ -221,7 +221,7 @@ namespace BlocksBeyondTheStars.Client
             // A data cube within reach downloads its minigame into the Arcade collection (item: arcade).
             if (Game.Views.DataCubes != null)
             {
-                int cube = Game.Views.DataCubes.NearestDataCube(transform.position, 3.2f, out string gameKey, out bool owned);
+                int cube = Game.Views.DataCubes.NearestDataCube(transform.position, DataCubeView.Reach, out string gameKey, out bool owned);
                 if (cube != 0)
                 {
                     if (owned)
@@ -269,7 +269,7 @@ namespace BlocksBeyondTheStars.Client
             // A net fragment within reach → recover it (text-only story find; reveals its archive + advances the story).
             if (Game.Views.NetFragments != null)
             {
-                int frag = Game.Views.NetFragments.NearestNetFragment(transform.position, 3.2f, out _);
+                int frag = Game.Views.NetFragments.NearestNetFragment(transform.position, NetFragmentView.Reach, out _);
                 if (frag != 0)
                 {
                     Game.Network?.SendNetFragmentFound(frag);

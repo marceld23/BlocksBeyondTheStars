@@ -24,6 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+<<<<<<< HEAD
 ### 🎉 Seasonal festivals — the real-world calendar in the game, multicultural, no FOMO — epic #3000, #3001–#3004 (+ #3008 community review), branch feat/seasonal-festivals, PR #3012 — ✅ done 2026-10-30 (⚠ playtest open; no generation, save-version or protocol change; #3005–#3007 pumpkin · spawns · challenges follow in the second PR)
 
 Marcel's wish (2026-10-29): at certain times of the real year the game should play with a slightly different mood and slightly
@@ -60,6 +61,23 @@ bundle is the schedule**; existing saves get festivals through runtime layers on
 - **Open:** #3005 pumpkin (fruit + crop + wild species, terrain generation 32, save version 8), #3006 festival spawns (snow
   pattern), #3007 challenges (theme packs, `scan:block`, decoration rewards) — second PR; #3008 native-speaker review of the
   festival texts (help wanted, stays open).
+=======
+### 📬 Player report 2026-10-29 (Lyxette, v2026.10.30) — a net fragment E would not recover — #3009–#3010, branch fix/ghost-net-fragments — ✅ done 2026-10-30 (⚠ playtest open; no generation, save or protocol change)
+
+Lyxette built a stone platform up to a net fragment hanging in the air over the asteroid Spuyyrk; the HUD read
+*"E: Recover net fragment"*, and E did nothing. Spuyyrk's real fragments lay hundreds of blocks away — the one in front
+of him was a ghost from an earlier body.
+
+- **#3009 ghosts after travel:** net fragment, data cube and factory ids are per world and restart at 1, but
+  `NetFragmentView`, `DataCubeView` and `FactoryView` kept an id they already held — at the previous body's coordinates —
+  and never wiped on `WorldReset`. All three now wipe on `WorldReset` and rebuild an id whose record moved
+  (`SameFragment` / `SameCube` / `SameFactory`), the doors' #1429 fix. EditMode test `WorldScopedViewsEditModeTests`.
+- **#3010 prompt vs. E, silent refusal:** the fragment and data-cube prompts showed 0.6 m further out than E worked; both
+  now use one `Reach` (the server's 3.2 m). A refused fragment pickup (unknown id or out of reach) re-sends that player's
+  `NetFragmentList`, so a client out of step is put right instead of E staying a silent no-op
+  (`GameServerNetFragmentTests.A_refused_pickup_resends_the_fragment_list_and_changes_nothing`).
+- **Open:** playtest — travel from a body with an uncollected fragment to another and recover the new body's fragment.
+>>>>>>> origin/main
 
 ### 📬 Player reports 2026-10-28 (Lyxette, v2026.10.29) — glass floor under water, bed occupancy, tavern guest beds, lead — #2984–#2988, branch fix/lyxette-reports-2026-10-28 — ✅ done 2026-10-28 in PR #2989 (`154568c3`) (⚠ playtest open; terrain generation 31, no save-version or protocol bump)
 
