@@ -1,0 +1,12 @@
+{
+  "story.festival_stars.name": "Sterrenfestival",
+  "story.festival_stars.short": "Sterren",
+  "story.festival_stars.desc": "Een sterrenfestival-uitdaging: scan vijf hemellichamen vanuit een baan.",
+  "story.festival_stars.ch.c1": "Vijf werelden",
+  "story.festival_stars.ch.c1.sum": "Tijdens het sterrenfestival kijk je omhoog. Scan vijf planeten of manen met de scheepsscanner.",
+  "story.festival_stars.r1.start": "Er is een sterrenfestival! Vanavond kijken mensen overal op Aarde naar de hemel. Kijk nog verder: scan vijf planeten of manen vanuit een baan en ik geef starlight voor je basis.",
+  "story.festival_stars.graduated": "In de sterren geschreven. Cyankleurige lichtstrepen en witte lampen, als een nachtelijke hemel.",
+  "story.festival_stars.d1.start": "Scan vijf planeten of manen vanuit een baan met de scheepsscanner.",
+  "story.festival_stars.d1.chip": "Scan 5 lichamen",
+  "story.festival_stars.d1.done": "Vijf werelden in kaart gebracht. De sterren zijn van jou."
+}

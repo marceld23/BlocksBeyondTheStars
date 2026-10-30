@@ -1,0 +1,12 @@
+{
+  "story.festival_children.name": "Dzień Dziecka",
+  "story.festival_children.short": "Dzieci",
+  "story.festival_children.desc": "Wyzwanie na Dzień Dziecka: urządz ucztę z dziesięciu rzeczy.",
+  "story.festival_children.ch.c1": "Uczta",
+  "story.festival_children.ch.c1.sum": "Dzień Dziecka to czas słodkości. Zjedz dziesięć rzeczy.",
+  "story.festival_children.r1.start": "To Dzień Dziecka! Dzień zabawy i smakołyków. Zjedz dziesięć rzeczy — jagody, owoce, gulasz — a dostaniesz coś do pokoju.",
+  "story.festival_children.graduated": "Wesołego Dnia Dziecka! Doniczki z kwiatami i białe lampy do twojego pokoju.",
+  "story.festival_children.d1.start": "Zjedz dziesięć rzeczy.",
+  "story.festival_children.d1.chip": "Zjedz 10 rzeczy",
+  "story.festival_children.d1.done": "Dziesięć smakołyków! To była prawdziwa uczta."
+}

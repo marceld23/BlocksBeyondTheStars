@@ -86,7 +86,8 @@ public static class FloraCatalog
         bool Rainbow = false,
         float Light = 0f,
         bool Fruit = false,
-        bool Authored = false)
+        bool Authored = false,
+        IReadOnlyList<(float R, float G, float B)>? Palette = null)
     {
         // Authored (#2085, generation 16): a plant a child of the school club designed — named, coloured and edible the same
         // on every world. Like a crop it never joins a world roster (no coined name, no toxic roll, so its drop is never
@@ -255,6 +256,13 @@ public static class FloraCatalog
         // light from data/blocks.json (emission + lightColor), like the Fifi plant's blossoms. Appended before the crops. ---
         new Species(LanternFruitKey, FruitHosts, Tags: FloraTag.Lush | FloraTag.Glow, Hanging: true, MinGeneration: 29, Fruit: true, Authored: true),
 
+        // --- The pumpkin (#3005, generation 32): a solid plant body like the saguaro, a wild species of the green worlds — in
+        // the roster like every other (Lush: 85 % on a lush world, 40 % elsewhere, toxic on a few) — and a crop from its seeds
+        // on soil or in a tray. Every plant takes its own colour from the pumpkin palette (orange mostly, yellow, green, white,
+        // blue-grey; FloraTints.PaletteAt from its cell, no traffic). The festivals' spawner multiplies it (#3006). Appended
+        // before the crops like every wave. ---
+        new Species(PumpkinKey, new[] { "grass", "dirt", "mud" }, Tags: FloraTag.Lush, LateHosts: new[] { "hydro_tray" }, Solid: true, MinGeneration: 32, Palette: FloraPalettes.Pumpkin), // the tray only for sowing (a late host counts for planting, not for the roster coverage)
+
         // --- Cultivated crops (#627): farmed, not wild. Grown in settlement/station greenhouses and by the
         // player from seeds. Excluded from every world roster (see FloraGenerator), so the berries are edible
         // on every world; the host list is what the greenhouse beds and hydroponic trays are made of.
@@ -315,6 +323,13 @@ public static class FloraCatalog
 
     /// <summary>True for a species whose every plant takes its own colour from its cell (generation 11).</summary>
     public static bool IsRainbow(string key) => Find(key)?.Rainbow == true;
+
+    /// <summary>The pumpkin's block key (#3005).</summary>
+    public const string PumpkinKey = "flora_pumpkin";
+
+    /// <summary>The palette of a species whose every plant picks its colour from a short authored list by its cell (#3005,
+    /// the pumpkin; <see cref="BlocksBeyondTheStars.Shared.World.FloraTints.PaletteAt"/>), or null for every other species.</summary>
+    public static IReadOnlyList<(float R, float G, float B)>? PaletteOf(string key) => Find(key)?.Palette;
 
     /// <summary>True for a fruit that hangs under a crown and ripens again slowly (#2038, see <see cref="Species.Fruit"/>) —
     /// the tree fruit shapes and the Fifi plant's authored berries (#2085).</summary>
@@ -380,4 +395,21 @@ public static class FloraCatalog
 
         return keys;
     }
+}
+
+/// <summary>The authored colour lists of the palette class (#3005): a plant picks one by its cell, the first entries more
+/// often than the last (<c>FloraTints.PaletteAt</c>). sRGB 0..1.</summary>
+public static class FloraPalettes
+{
+    /// <summary>The pumpkin: mostly orange, then deep orange and yellow, now and then pale green, white and a blue-grey.</summary>
+    public static readonly IReadOnlyList<(float R, float G, float B)> Pumpkin = new[]
+    {
+        (0.95f, 0.50f, 0.12f), // orange
+        (0.98f, 0.60f, 0.18f), // light orange
+        (0.86f, 0.36f, 0.08f), // deep orange
+        (0.96f, 0.80f, 0.25f), // yellow
+        (0.72f, 0.78f, 0.36f), // pale green
+        (0.93f, 0.91f, 0.84f), // white
+        (0.55f, 0.66f, 0.72f), // blue-grey
+    };
 }

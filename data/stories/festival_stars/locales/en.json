@@ -1,0 +1,12 @@
+{
+  "story.festival_stars.name": "Star festival",
+  "story.festival_stars.short": "Stars",
+  "story.festival_stars.desc": "A star-festival challenge: scan five bodies from orbit.",
+  "story.festival_stars.ch.c1": "Five worlds",
+  "story.festival_stars.ch.c1.sum": "The star festivals look up. Scan five planets or moons with the ship scanner.",
+  "story.festival_stars.r1.start": "A star festival is on! Tonight people all over Earth look up at the sky. Look further: scan five planets or moons from orbit and I have starlight for your base.",
+  "story.festival_stars.graduated": "Written in the stars. Cyan light strips and white lamps, like a night sky.",
+  "story.festival_stars.d1.start": "Scan five planets or moons from orbit with the ship scanner.",
+  "story.festival_stars.d1.chip": "Scan 5 bodies",
+  "story.festival_stars.d1.done": "Five worlds charted. The stars are yours."
+}

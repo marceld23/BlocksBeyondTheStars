@@ -1,0 +1,12 @@
+{
+  "story.festival_newyear.name": "新年",
+  "story.festival_newyear.short": "新年",
+  "story.festival_newyear.desc": "新年挑战：制作二十五样物品，迎接新的开始。",
+  "story.festival_newyear.ch.c1": "新的开始",
+  "story.festival_newyear.ch.c1.sum": "地球上的某个地方迎来新年。制作二十五样物品。",
+  "story.festival_newyear.r1.start": "新年开始了！是时候焕然一新。制作二十五样物品——无论是在工作台还是手工制作——红色灯具就归你了。",
+  "story.festival_newyear.graduated": "新年快乐！祝你好运，送上红色台灯和灯笼。",
+  "story.festival_newyear.d1.start": "制作二十五样物品，可手工或在任何工作台进行。",
+  "story.festival_newyear.d1.chip": "制作 25 样物品",
+  "story.festival_newyear.d1.done": "已制作二十五样物品。新年有个好开始。"
+}

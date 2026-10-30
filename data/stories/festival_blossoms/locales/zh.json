@@ -1,0 +1,12 @@
+{
+  "story.festival_blossoms.name": "花开节",
+  "story.festival_blossoms.short": "花开",
+  "story.festival_blossoms.desc": "一个花开节挑战：种下二十五株植物。",
+  "story.festival_blossoms.ch.c1": "二十五株植物",
+  "story.festival_blossoms.ch.c1.sum": "春天来了（某处）。种下二十五颗种子、幼苗或植物。",
+  "story.festival_blossoms.r1.start": "花开节开始了！花瓣像雪一样飘落。种下二十五样东西——种子、幼苗、花朵——你的基地将获得花盆。",
+  "story.festival_blossoms.graduated": "万物盛开。为你的花园获得花盆和种子。",
+  "story.festival_blossoms.d1.start": "种下二十五颗种子、幼苗或植物。",
+  "story.festival_blossoms.d1.chip": "种植 25 株植物",
+  "story.festival_blossoms.d1.done": "二十五株植物已种下。春天来到了你的基地。"
+}

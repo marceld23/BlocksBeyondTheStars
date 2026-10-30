@@ -1,0 +1,12 @@
+{
+  "story.festival_children.name": "Día de los niños",
+  "story.festival_children.short": "Niños",
+  "story.festival_children.desc": "Un desafío del día de los niños: disfruta de un festín de diez cosas.",
+  "story.festival_children.ch.c1": "Un festín",
+  "story.festival_children.ch.c1.sum": "El día de los niños es día de golosinas. Come diez cosas.",
+  "story.festival_children.r1.start": "¡Es el día de los niños! Un día para jugar y para golosinas. Come diez cosas — bayas, fruta, un guiso — y tengo algo para tu habitación.",
+  "story.festival_children.graduated": "¡Feliz día de los niños! Macetas con flores y lámparas blancas para tu habitación.",
+  "story.festival_children.d1.start": "Come diez cosas.",
+  "story.festival_children.d1.chip": "Come 10 cosas",
+  "story.festival_children.d1.done": "¡Diez golosinas! Eso sí fue un buen festín."
+}

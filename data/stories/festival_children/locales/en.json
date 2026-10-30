@@ -1,0 +1,12 @@
+{
+  "story.festival_children.name": "Children's day",
+  "story.festival_children.short": "Children",
+  "story.festival_children.desc": "A children's-day challenge: have a feast of ten things.",
+  "story.festival_children.ch.c1": "A feast",
+  "story.festival_children.ch.c1.sum": "Children's day is a day for treats. Eat ten things.",
+  "story.festival_children.r1.start": "It's children's day! A day for playing and for treats. Eat ten things — berries, fruit, a stew — and I have something for your room.",
+  "story.festival_children.graduated": "Happy children's day! Flower pots and white lamps for your room.",
+  "story.festival_children.d1.start": "Eat ten things.",
+  "story.festival_children.d1.chip": "Eat 10 things",
+  "story.festival_children.d1.done": "Ten treats! That was a proper feast."
+}

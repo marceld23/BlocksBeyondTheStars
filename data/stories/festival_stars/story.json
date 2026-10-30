@@ -1,0 +1,61 @@
+// Festival challenge pack (#3007, epic #3000): the stars theme. Starts for every player while a festival of this theme is
+// on (world:festival_stars); its counter step is kid-sized, nothing is skippable (a skipped pack must not pay), and the
+// graduation counter festival:stars pays a decoration present through data/achievements.json. The calendar only sets the
+// default — any festival can be switched on by hand (/festival <key>), so nothing here can be missed. Generated from the
+// maintainer's texts; the twelve other languages come from tools/translate_locale.py.
+{
+  "id": "festival_stars",
+  "nameKey": "story.festival_stars.name",
+  "shortNameKey": "story.festival_stars.short",
+  "descriptionKey": "story.festival_stars.desc",
+  "kind": "side",
+  "scope": "player",
+  "priority": 5,
+  "defaultEnabled": true,
+  "narrator": {
+    "id": "vega"
+  },
+  "start": {
+    "after": [
+      "world:festival_stars"
+    ]
+  },
+  "graduation": {
+    "lineKey": "story.festival_stars.graduated",
+    "counter": "festival:stars"
+  },
+  "chapters": [
+    {
+      "id": "c1",
+      "titleKey": "story.festival_stars.ch.c1",
+      "summaryKey": "story.festival_stars.ch.c1.sum",
+      "skippable": false,
+      "steps": [
+        {
+          "id": "r1",
+          "kind": "read",
+          "tier": "must",
+          "skippable": false,
+          "explain": {
+            "startKey": "story.festival_stars.r1.start"
+          }
+        },
+        {
+          "id": "d1",
+          "kind": "do",
+          "tier": "must",
+          "skippable": false,
+          "objective": {
+            "event": "planet:scanned",
+            "required": 5
+          },
+          "explain": {
+            "startKey": "story.festival_stars.d1.start",
+            "chipKey": "story.festival_stars.d1.chip",
+            "doneKey": "story.festival_stars.d1.done"
+          }
+        }
+      ]
+    }
+  ]
+}

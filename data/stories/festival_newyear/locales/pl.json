@@ -1,0 +1,12 @@
+{
+  "story.festival_newyear.name": "Nowy rok",
+  "story.festival_newyear.short": "Nowy rok",
+  "story.festival_newyear.desc": "Wyzwanie noworoczne: wykonaj dwadzieścia pięć przedmiotów na świeży start.",
+  "story.festival_newyear.ch.c1": "Świeży start",
+  "story.festival_newyear.ch.c1.sum": "Gdzieś na Ziemi zaczyna się nowy rok. Wykonaj dwadzieścia pięć przedmiotów.",
+  "story.festival_newyear.r1.start": "Zaczyna się nowy rok! Czas odnowy. Wykonaj dwadzieścia pięć rzeczy — cokolwiek przy stole warsztatowym lub ręcznie — a czerwone lampy będą twoje.",
+  "story.festival_newyear.graduated": "Szczęśliwego nowego roku! Czerwone lampy i latarnie na szczęście.",
+  "story.festival_newyear.d1.start": "Wykonaj dwadzieścia pięć przedmiotów, ręcznie lub przy dowolnej stacji.",
+  "story.festival_newyear.d1.chip": "Wykonaj 25 przedmiotów",
+  "story.festival_newyear.d1.done": "Dwadzieścia pięć przedmiotów wykonanych. Dobry początek roku."
+}

@@ -508,6 +508,14 @@ internal sealed class LoadedWorld
     /// <summary>Throttle for the snow accumulation/melt pass.</summary>
     public double SinceWeatherDeposit { get; set; }
 
+    /// <summary>Festival-placed cells on this world (#3006: the pumpkins of the harvest festivals) with the block each holds.
+    /// Tracked like the weather snow — in the same <c>weather_deposit</c> table, told apart by the block — so the cleanup pass
+    /// can NEVER remove a plant a player placed, and a harvested festival plant never regrows.</summary>
+    public Dictionary<Vector3i, ushort> FestivalDeposits { get; } = new();
+
+    /// <summary>Throttle for the festival spawn/cleanup pass.</summary>
+    public double SinceFestivalDeposit { get; set; }
+
     /// <summary>Seconds since this world's expiring drop packets were last checkpointed to the store (#1312, per world since #1367).</summary>
     public double SinceLootCheckpoint { get; set; }
 

@@ -346,6 +346,10 @@
   { "key": "sapling_fruit_long", "station": "hand", "inputs": [ { "item": "fruit_long", "count": 1 }, { "item": "wood_log", "group": "logs", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "sapling_fruit_long", "count": 1 } ] },
   { "key": "sapling_fruit_grape", "station": "hand", "inputs": [ { "item": "fruit_grape", "count": 1 }, { "item": "wood_log", "group": "logs", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "sapling_fruit_grape", "count": 1 } ] },
   { "key": "sapling_fruit_banana", "station": "hand", "inputs": [ { "item": "fruit_banana", "count": 1 }, { "item": "wood_log", "group": "logs", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "sapling_fruit_banana", "count": 1 } ] },
+  // The pumpkin (#3005): seeds by hand like the berry's, the carved lantern from a pumpkin and a torch, the toxic twin washed safe.
+  { "key": "seed_pumpkin",    "station": "hand", "inputs": [ { "item": "pumpkin", "count": 1 } ], "outputs": [ { "item": "pumpkin_seed", "count": 2 } ] },
+  { "key": "pumpkin_lantern", "station": "hand", "inputs": [ { "item": "pumpkin", "count": 1 }, { "item": "torch", "count": 1 } ], "outputs": [ { "item": "pumpkin_lantern", "count": 1 } ] },
+  { "key": "wash_pumpkin",    "station": "detoxifier", "requiredBlueprint": "bio_refining", "inputs": [ { "item": "toxic_pumpkin", "count": 2 }, { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "pumpkin", "count": 2 } ] },
   // The hydroponic tray the high-tech greenhouses grow crops in — the one host block that is not soil.
   { "key": "hydro_tray",   "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 1 }, { "item": "glass", "count": 1 }, { "item": "plant_fiber", "count": 2 }, { "item": "brass_fitting", "count": 1 } ], "outputs": [ { "item": "hydro_tray", "count": 2 } ] },
 

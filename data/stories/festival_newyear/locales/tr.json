@@ -1,0 +1,12 @@
+{
+  "story.festival_newyear.name": "Yeni yıl",
+  "story.festival_newyear.short": "Yeni yıl",
+  "story.festival_newyear.desc": "Yeni yıl meydan okuması: taze bir başlangıç için yirmi beş şey üret.",
+  "story.festival_newyear.ch.c1": "Taze bir başlangıç",
+  "story.festival_newyear.ch.c1.sum": "Dünyada bir yerde yeni bir yıl başlıyor. Yirmi beş şey üret.",
+  "story.festival_newyear.r1.start": "Yeni bir yıl başlıyor! Her şeyi yenileme zamanı. Tezgâhtan veya el ile—herhangi bir yerden—yirmi beş şey üret ve kırmızı ışıklar senin olsun.",
+  "story.festival_newyear.graduated": "Mutlu yıllar! Şans için kırmızı lambalar ve fenerler.",
+  "story.festival_newyear.d1.start": "Yirmi beş şey üret, el ile veya herhangi bir istasyonda.",
+  "story.festival_newyear.d1.chip": "25 şey üret",
+  "story.festival_newyear.d1.done": "Yirmi beş şey yapıldı. Yıl için iyi bir başlangıç."
+}

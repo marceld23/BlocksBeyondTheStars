@@ -1,0 +1,12 @@
+{
+  "story.festival_blossoms.name": "Blütenfest",
+  "story.festival_blossoms.short": "Blüten",
+  "story.festival_blossoms.desc": "Eine Blütenfest-Aufgabe: Pflanze fünfundzwanzig Pflanzen.",
+  "story.festival_blossoms.ch.c1": "Fünfundzwanzig Pflanzen",
+  "story.festival_blossoms.ch.c1.sum": "Irgendwo ist Frühling. Pflanze fünfundzwanzig Samen, Setzlinge oder Pflanzen.",
+  "story.festival_blossoms.r1.start": "Ein Blütenfest hat begonnen! Die Blütenblätter fallen wie Schnee. Pflanze fünfundzwanzig Dinge – Samen, Setzlinge, Blumen – und deine Basis bekommt Blumentöpfe.",
+  "story.festival_blossoms.graduated": "Alles blüht. Blumentöpfe und Samen für deinen Garten.",
+  "story.festival_blossoms.d1.start": "Pflanze fünfundzwanzig Samen, Setzlinge oder Pflanzen.",
+  "story.festival_blossoms.d1.chip": "Pflanze 25 Pflanzen",
+  "story.festival_blossoms.d1.done": "Fünfundzwanzig Pflanzen in der Erde. Der Frühling ist an deiner Basis angekommen."
+}

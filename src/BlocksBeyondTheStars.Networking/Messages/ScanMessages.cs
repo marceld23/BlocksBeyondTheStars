@@ -12,6 +12,16 @@ public sealed class ScanIntent
     /// <summary>The aimed creature's entity id for a creature scan (#1926, empty from older clients): lets the server read
     /// the one individual under the crosshair — the Sreekmakra's disguise — instead of guessing from the species.</summary>
     public string EntityId { get; set; } = string.Empty;
+
+    /// <summary>#3007: the aimed block's world cell for a block scan, so the server can count distinct things ("scan ten
+    /// conifers") instead of one tree ten times. <see cref="HasCell"/> false from an older client — then no cell is known.</summary>
+    public bool HasCell { get; set; }
+
+    public int CellX { get; set; }
+
+    public int CellY { get; set; }
+
+    public int CellZ { get; set; }
 }
 
 /// <summary>Client scans a space entity (asteroid) with the ship scanner to reveal its resources.</summary>

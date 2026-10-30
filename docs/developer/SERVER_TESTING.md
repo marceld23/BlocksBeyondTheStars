@@ -92,6 +92,13 @@ runs (`WorldHostApp.Create` / `ReportHostApp.Create`) in-process on a loopback p
   structures stamped after them (rail, ruins, camps, factories …), which only read the settlement list.
   Use it for sweeps over many seeds (#2456); a sweep of independent boots can also split its seeds over
   `Parallel.Invoke` workers, each with its own `GameContent` (see `SettlementRuinSkewTests`).
+- **The festivals' clock is pinned.** Every `GameServer` a test builds reads the festival calendar (#3001) at
+  [`TestFestivalClock.QuietDay`](../../tests/BlocksBeyondTheStars.Tests/TestFestivalClock.cs) — a day with no festival, set
+  once by a module initializer through `GameServer.FestivalClockDefaultForTest` — so the suite never depends on the real date
+  (on a festival day the calendar would start a festival pack for every joining player, take the chip and spawn pumpkins).
+  A festival test pins its own date with `server.SetFestivalClockForTest(…)`, picks a festival through
+  `Metadata.RulesOverride.FestivalPick` or sets `ServerConfig.FestivalsOverride`; `FestivalCalendarTests` guards that the
+  quiet day stays quiet. The client suite's `ClientServerHarness` passes `FestivalsOverride = "off"` for the same reason.
 - **`*ForTest` seams.** Tests reach server internals through members named `…ForTest` on `GameServer`
   (`AdvanceUptimeForTest`, `BaseAirForTest`, …); the test project also sees `internal` members
   (`InternalsVisibleTo`), so a seam may be `internal`. A feature that moved into a subsystem class

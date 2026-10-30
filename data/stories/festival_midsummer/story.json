@@ -1,0 +1,62 @@
+// Festival challenge pack (#3007, epic #3000): the midsummer theme. Starts for every player while a festival of this theme is
+// on (world:festival_midsummer); its counter step is kid-sized, nothing is skippable (a skipped pack must not pay), and the
+// graduation counter festival:midsummer pays a decoration present through data/achievements.json. The calendar only sets the
+// default — any festival can be switched on by hand (/festival <key>), so nothing here can be missed. Generated from the
+// maintainer's texts; the twelve other languages come from tools/translate_locale.py.
+{
+  "id": "festival_midsummer",
+  "nameKey": "story.festival_midsummer.name",
+  "shortNameKey": "story.festival_midsummer.short",
+  "descriptionKey": "story.festival_midsummer.desc",
+  "kind": "side",
+  "scope": "player",
+  "priority": 5,
+  "defaultEnabled": true,
+  "narrator": {
+    "id": "vega"
+  },
+  "start": {
+    "after": [
+      "world:festival_midsummer"
+    ]
+  },
+  "graduation": {
+    "lineKey": "story.festival_midsummer.graduated",
+    "counter": "festival:midsummer"
+  },
+  "chapters": [
+    {
+      "id": "c1",
+      "titleKey": "story.festival_midsummer.ch.c1",
+      "summaryKey": "story.festival_midsummer.ch.c1.sum",
+      "skippable": false,
+      "steps": [
+        {
+          "id": "r1",
+          "kind": "read",
+          "tier": "must",
+          "skippable": false,
+          "explain": {
+            "startKey": "story.festival_midsummer.r1.start"
+          }
+        },
+        {
+          "id": "d1",
+          "kind": "do",
+          "tier": "must",
+          "skippable": false,
+          "objective": {
+            "event": "build:any",
+            "arg": "campfire",
+            "required": 3
+          },
+          "explain": {
+            "startKey": "story.festival_midsummer.d1.start",
+            "chipKey": "story.festival_midsummer.d1.chip",
+            "doneKey": "story.festival_midsummer.d1.done"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🎉 Seasonal festivals — the real-world calendar in the game, multicultural, no FOMO — epic #3000, #3001–#3004 (+ #3008 community review), branch feat/seasonal-festivals — ✅ done 2026-10-30 in PR #3012 (`e16b6736`) (⚠ playtest open; no generation, save-version or protocol change; #3005–#3007 pumpkin · spawns · challenges follow in the second PR)
+### 🎉 Seasonal festivals — the real-world calendar in the game, multicultural, no FOMO — epic #3000, #3001–#3007 (+ #3008 community review), branches feat/seasonal-festivals + feat/festival-pumpkins — ✅ done 2026-10-30 in PR #3012 (`e16b6736`) and PR #3015 (`0a144741`) (⚠ playtest open; the second PR — pumpkin · spawns · challenges — raises the terrain generation to 32 and the save version to 8, no protocol bump)
 
 Marcel's wish (2026-10-29): at certain times of the real year the game should play with a slightly different mood and slightly
 different worlds — Halloween week, Christmas, the seasons — switchable in the settings, announced in the main menu, active on
@@ -57,9 +57,27 @@ bundle is the schedule**; existing saves get festivals through runtime layers on
   (`BBS_WH_FESTIVALS`), deploy compose + .env.example. Tests: `FestivalCalendarTests`, `FestivalContentTests`,
   `FestivalServerTests`, `FestivalCardTests`, pins updated (`ServerConfigOptionsTests` 106 rows / 53 variables / 96 switches,
   `AdminCommandGateTests` 41 verbs, `StoryConditionTests`, `STORY_VOCABULARY.md`).
-- **Open:** #3005 pumpkin (fruit + crop + wild species, terrain generation 32, save version 8), #3006 festival spawns (snow
-  pattern), #3007 challenges (theme packs, `scan:block`, decoration rewards) — second PR; #3008 native-speaker review of the
-  festival texts (help wanted, stays open).
+- **Second PR (#3005–#3007, branch feat/festival-pumpkins) — ✅ done 2026-10-30 (⚠ playtest open; terrain generation 32, save
+  version 8, no protocol bump):**
+  - **#3005 the pumpkin:** `flora_pumpkin`, a solid wild species of the green worlds from generation 32 (rolled into rosters like
+    every species, toxic on a few), harvested for `pumpkin`/`toxic_pumpkin` + `pumpkin_seed`, sown again on grass, soil or a
+    tray; `pumpkin_lantern` (pumpkin + torch), a warm dyeable light. Every pumpkin its own colour: the species' *palette*
+    (`FloraPalettes.Pumpkin`) + mesher `TraitPaletteFlora` + `FloraTints.PaletteAt` — no stored tint, no traffic. Two tiles and
+    four icons generated with the asset scripts; block ids shifted → save version 8, goldens and the atlas golden re-pinned.
+  - **#3006 festival spawns:** `GameServerFestivalSpawns.cs` on the snow pattern — every 3 s per world, `perPass` cells near
+    players on foot, `cap` per world, loaded chunks, breathable worlds, never in a base zone or a ship, air on a host block under
+    the sky; the `weather_deposit` table doubles as the ledger (rows told apart by block → `FestivalDeposits`); cleanup when no
+    festival spawns the block (own cells only); a harvested deposit never regrows. Halloween, Erntedank and the Thanksgivings
+    spawn pumpkins (`spawn` in festivals.json).
+  - **#3007 challenges:** eight theme packs `data/stories/festival_<theme>/` (side, player, `start.after: world:festival_<theme>`,
+    nothing skippable, kid-sized counters, graduation counter `festival:<theme>`) + `achievements.json` rows (category
+    `festival`, decoration presents) + lifetime tiers on `mine:flora_pumpkin`; `scan:block` once per cell per player
+    (`ScanIntent.HasCell/CellX..Z`, `PlayerState.ScannedCells` bounded + persisted) and a 0.5 s hand-scanner throttle; packs
+    in all 14 languages and in the browser fallback manifest. Tests: `PumpkinContentTests`, `FestivalSpawnTests`, `ScanBlockTests`.
+  - **Date-independent tests:** the first CI run fell on Halloween week — the calendar started the harvest challenge for every
+    joining test player (chip, pack list). Every test server now reads the calendar at `TestFestivalClock.QuietDay` (module
+    initializer → `GameServer.FestivalClockDefaultForTest`); `FestivalCalendarTests` guards that the day stays quiet.
+- **Open:** #3008 native-speaker review of the festival texts (help wanted, stays open).
 
 **Released** in **v2026.10.31** "the festival release" (2026-10-30).
 

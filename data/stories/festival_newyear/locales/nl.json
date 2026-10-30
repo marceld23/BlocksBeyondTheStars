@@ -1,0 +1,12 @@
+{
+  "story.festival_newyear.name": "Nieuwjaar",
+  "story.festival_newyear.short": "Nieuwjaar",
+  "story.festival_newyear.desc": "Een nieuwjaarsuitdaging: maak vijfentwintig dingen voor een frisse start.",
+  "story.festival_newyear.ch.c1": "Een frisse start",
+  "story.festival_newyear.ch.c1.sum": "Een nieuw jaar begint ergens op Aarde. Maak vijfentwintig dingen.",
+  "story.festival_newyear.r1.start": "Er begint een nieuw jaar! Tijd om dingen te vernieuwen. Maak vijfentwintig dingen — alles vanaf de werkbank of met de hand — en rode lampen zijn van jou.",
+  "story.festival_newyear.graduated": "Gelukkig nieuwjaar! Rode lampen en lantaarns voor veel geluk.",
+  "story.festival_newyear.d1.start": "Maak vijfentwintig dingen, met de hand of aan een station.",
+  "story.festival_newyear.d1.chip": "Maak 25 dingen",
+  "story.festival_newyear.d1.done": "Vijfentwintig dingen gemaakt. Een goede start van het jaar."
+}

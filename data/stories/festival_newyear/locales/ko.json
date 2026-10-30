@@ -1,0 +1,12 @@
+{
+  "story.festival_newyear.name": "새해",
+  "story.festival_newyear.short": "새해",
+  "story.festival_newyear.desc": "새로운 시작을 위한 새해 도전: 물건 스물다섯 개를 제작하세요.",
+  "story.festival_newyear.ch.c1": "새로운 시작",
+  "story.festival_newyear.ch.c1.sum": "어딘가 지구에서 새해가 시작됩니다. 물건 스물다섯 개를 제작하세요.",
+  "story.festival_newyear.r1.start": "새해가 시작돼요! 모든 것을 새롭게 만들 시간입니다. 작업대나 손으로 무엇이든 스물다섯 개를 제작하면 빨간 등불이 여러분의 것이에요.",
+  "story.festival_newyear.graduated": "새해 복 많이 받으세요! 행운을 기원하는 빨간 램프와 랜턴을 드립니다.",
+  "story.festival_newyear.d1.start": "손이나 어떤 스테이션에서든 물건 스물다섯 개를 제작하세요.",
+  "story.festival_newyear.d1.chip": "물건 25개 제작",
+  "story.festival_newyear.d1.done": "물건 스물다섯 개 제작 완료. 한 해의 좋은 시작이에요."
+}

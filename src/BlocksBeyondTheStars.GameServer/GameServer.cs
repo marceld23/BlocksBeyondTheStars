@@ -5316,6 +5316,10 @@ public sealed partial class GameServer
         {
             ForgetSaplingGrowth(pos); // #1774: a picked sapling is in the pocket, not regrowing
         }
+        else if (floraHarvest && ForgetFestivalDeposit(pos))
+        {
+            // #3006: a festival's plant stays harvested — the deposit is struck off, nothing regrows, the cell is plain air again.
+        }
         else if (floraHarvest)
         {
             ScheduleFloraRegrow(pos, current.Value, dropTint); // regrows if the host stays intact — a fruit in its colour (#2038)

@@ -1,0 +1,12 @@
+{
+  "story.festival_colours.name": "Фестиваль красок",
+  "story.festival_colours.short": "Краски",
+  "story.festival_colours.desc": "Задание «фестиваль красок»: покрась десять предметов.",
+  "story.festival_colours.ch.c1": "Десять красок",
+  "story.festival_colours.ch.c1.sum": "Цвет повсюду. Покрась десять строительных материалов.",
+  "story.festival_colours.r1.start": "Идёт фестиваль красок! Сегодня всё может быть ярко‑розовым, жёлтым и зелёным. Покрась десять предметов на верстаке, и у меня будет для тебя что‑то цветное.",
+  "story.festival_colours.graduated": "Превосходные краски. Ковры и цветочные горшки во всех оттенках.",
+  "story.festival_colours.d1.start": "Покрась десять строительных материалов — любой блок, любой цвет.",
+  "story.festival_colours.d1.chip": "Покрась 10 предметов",
+  "story.festival_colours.d1.done": "Десять красок! Твоя база никогда не выглядела так ярко."
+}

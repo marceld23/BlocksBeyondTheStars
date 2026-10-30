@@ -1,0 +1,12 @@
+{
+  "story.festival_colours.name": "Festiwal kolorów",
+  "story.festival_colours.short": "Kolory",
+  "story.festival_colours.desc": "Wyzwanie festiwalu kolorów: zabarw 10 przedmiotów.",
+  "story.festival_colours.ch.c1": "Dziesięć kolorów",
+  "story.festival_colours.ch.c1.sum": "Kolor wszędzie. Pofarbuj dziesięć materiałów budowlanych.",
+  "story.festival_colours.r1.start": "Festiwal kolorów trwa! Dziś wszystko może być jaskraworóżowe, żółte i zielone. Pofarbuj dziesięć rzeczy przy stole warsztatowym, a dam ci coś kolorowego.",
+  "story.festival_colours.graduated": "Wspaniałe kolory. Dywany i doniczki do malowania w każdym odcieniu.",
+  "story.festival_colours.d1.start": "Pofarbuj dziesięć materiałów budowlanych — dowolny blok, dowolny kolor.",
+  "story.festival_colours.d1.chip": "Pofarbuj 10 rzeczy",
+  "story.festival_colours.d1.done": "Dziesięć kolorów! Twoja baza nigdy nie wyglądała tak jasno."
+}

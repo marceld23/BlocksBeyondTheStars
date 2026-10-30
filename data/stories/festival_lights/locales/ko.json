@@ -1,0 +1,15 @@
+{
+  "story.festival_lights.name": "빛의 축제",
+  "story.festival_lights.short": "등불",
+  "story.festival_lights.desc": "빛의 축제 도전: 기지를 서른 개의 등불로 밝히세요. 전나무를 찾으면 핸드 스캐너로 스캔하세요.",
+  "story.festival_lights.ch.c1": "서른 개의 등불",
+  "story.festival_lights.ch.c1.sum": "기지에 서른 개의 등불을 설치하세요. 추운 행성에서는 전나무 10그루를 스캔해 팁 로그를 얻으세요.",
+  "story.festival_lights.r1.start": "빛의 축제가 열렸어요! 오늘 밤 전 세계 사람들이 등과 랜턴을 달아요. 기지를 서른 개의 등불로 밝히면 색등을 드릴게요.",
+  "story.festival_lights.graduated": "아름다워요. 다음 빛의 축제를 위해 빨간색과 초록색 등, 따뜻한 라이트 스트립을 받으세요.",
+  "story.festival_lights.d1.start": "서른 개의 등불을 설치하세요: 랜턴, 횃불, 색등, 라이트 스트립, 모닥불 — 빛나는 것이라면 무엇이든 좋아요.",
+  "story.festival_lights.d1.chip": "등불 30개 설치",
+  "story.festival_lights.d1.done": "서른 개의 등불 완성! 당신의 기지는 궤도에서도 보일 거예요.",
+  "story.festival_lights.d2.start": "전나무는 추운 행성들—툰드라, 타이가, 빙하—에서 자라요. 핸드 스캐너로 서로 다른 전나무 10그루를 스캔하세요.",
+  "story.festival_lights.d2.chip": "전나무 10그루 스캔",
+  "story.festival_lights.d2.done": "전나무 10그루 스캔 완료. 빛의 축제에 어울리는 전나무네요—완벽해요."
+}

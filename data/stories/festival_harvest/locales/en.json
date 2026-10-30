@@ -1,0 +1,12 @@
+{
+  "story.festival_harvest.name": "Harvest festival",
+  "story.festival_harvest.short": "Harvest",
+  "story.festival_harvest.desc": "A harvest-festival challenge: bring in sixty pumpkins while the festival is on.",
+  "story.festival_harvest.ch.c1": "Pumpkin harvest",
+  "story.festival_harvest.ch.c1.sum": "Pumpkins grow around you during the harvest festivals. Harvest sixty of them.",
+  "story.festival_harvest.r1.start": "A harvest festival is on! Pumpkins are growing in the fields around you — orange, yellow, green, even white ones. Harvest sixty and I have a present for your base.",
+  "story.festival_harvest.graduated": "A harvest to be proud of. Here: carved pumpkin lanterns and a few lanterns for your door.",
+  "story.festival_harvest.d1.start": "Harvest sixty pumpkins. Any colour counts — toxic ones too, the detoxifier washes them.",
+  "story.festival_harvest.d1.chip": "Harvest 60 pumpkins",
+  "story.festival_harvest.d1.done": "Sixty pumpkins! The harvest is in."
+}

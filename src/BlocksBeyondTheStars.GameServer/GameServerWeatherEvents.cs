@@ -459,9 +459,18 @@ public sealed partial class GameServer
     /// never melt (mirrors <c>LoadFloraRegrow</c>).</summary>
     private void LoadWeatherDeposits()
     {
+        // #3006: the table holds the weather snow AND the festivals' deposits (pumpkins …), told apart by the block.
+        ushort snow = _content.GetBlock("snow")?.NumericId.Value ?? 0;
         foreach (var d in _repo.ListWeatherDeposits(_world.LocationId))
         {
-            _worlds.Active.WeatherDeposits[d.WorldPosition] = d.Timer;
+            if (d.Block == snow || snow == 0)
+            {
+                _worlds.Active.WeatherDeposits[d.WorldPosition] = d.Timer;
+            }
+            else
+            {
+                _worlds.Active.FestivalDeposits[d.WorldPosition] = d.Block;
+            }
         }
     }
 

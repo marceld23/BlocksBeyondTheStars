@@ -1,0 +1,12 @@
+{
+  "story.festival_blossoms.name": "Фестиваль цветения",
+  "story.festival_blossoms.short": "Цветение",
+  "story.festival_blossoms.desc": "Испытание фестиваля цветения: посади двадцать пять Растений.",
+  "story.festival_blossoms.ch.c1": "Двадцать пять Растений",
+  "story.festival_blossoms.ch.c1.sum": "Где-то наступила весна. Посади двадцать пять семян, саженцев или Растений.",
+  "story.festival_blossoms.r1.start": "Проходит фестиваль цветения! Лепестки падают, как снег. Посади двадцать пять объектов — семена, саженцы, цветы — и на базе появятся цветочные горшки.",
+  "story.festival_blossoms.graduated": "Всё расцвело. Цветочные горшки и семена для твоего сада.",
+  "story.festival_blossoms.d1.start": "Посади двадцать пять семян, саженцев или Растений.",
+  "story.festival_blossoms.d1.chip": "Посади 25 Растений",
+  "story.festival_blossoms.d1.done": "Двадцать пять Растений посажены. Весна пришла на твою базу."
+}

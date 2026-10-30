@@ -1,0 +1,12 @@
+{
+  "story.festival_children.name": "День дітей",
+  "story.festival_children.short": "Діти",
+  "story.festival_children.desc": "Виклик до Дня дітей: влаштуй бенкет з десяти страв.",
+  "story.festival_children.ch.c1": "Бенкет",
+  "story.festival_children.ch.c1.sum": "День дітей — час частувань. З'їж десять речей.",
+  "story.festival_children.r1.start": "Сьогодні День дітей! Час гратись і частуватись. З'їж десять речей — ягоди, фрукти, рагу — і я приготую дещо для твоєї кімнати.",
+  "story.festival_children.graduated": "Зі святом дітей! Грядки для квітів і білі лампи для твоєї кімнати.",
+  "story.festival_children.d1.start": "З'їж десять речей.",
+  "story.festival_children.d1.chip": "З'їсти 10 речей",
+  "story.festival_children.d1.done": "Десять частувань! Це був справжній бенкет."
+}

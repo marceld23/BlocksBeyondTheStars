@@ -1,0 +1,12 @@
+{
+  "story.festival_blossoms.name": "꽃 축제",
+  "story.festival_blossoms.short": "꽃",
+  "story.festival_blossoms.desc": "꽃 축제 도전: 식물 25개를 심으세요.",
+  "story.festival_blossoms.ch.c1": "식물 25개",
+  "story.festival_blossoms.ch.c1.sum": "어딘가에 봄이 왔네요. 씨앗, 묘목 또는 식물 25개를 심으세요.",
+  "story.festival_blossoms.r1.start": "꽃 축제가 열렸어요! 꽃잎이 눈처럼 흩날려요. 씨앗, 묘목, 꽃 등 25개를 심으면 기지에 화분을 받을 거예요.",
+  "story.festival_blossoms.graduated": "모든 것이 만개했어요. 화분과 정원용 씨앗을 얻었습니다.",
+  "story.festival_blossoms.d1.start": "씨앗, 묘목 또는 식물 25개를 심으세요.",
+  "story.festival_blossoms.d1.chip": "식물 25개 심기",
+  "story.festival_blossoms.d1.done": "땅에 식물 25개가 심어졌습니다. 기지에 봄이 왔어요."
+}

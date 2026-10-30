@@ -1,0 +1,12 @@
+{
+  "story.festival_midsummer.name": "Середина лета",
+  "story.festival_midsummer.short": "Середина лета",
+  "story.festival_midsummer.desc": "Летний вызов: построй три костра.",
+  "story.festival_midsummer.ch.c1": "Три костра",
+  "story.festival_midsummer.ch.c1.sum": "Середина лета — время костров. Построй три костра.",
+  "story.festival_midsummer.r1.start": "Середина лета! Самый длинный день в году, и по вечерам везде зажигают огни. Построй три костра, и я дам факелы на ночь.",
+  "story.festival_midsummer.graduated": "Огонь и свет для самой короткой ночи. Факелы и фонари — для тебя.",
+  "story.festival_midsummer.d1.start": "Построй три костра.",
+  "story.festival_midsummer.d1.chip": "Построй 3 костра",
+  "story.festival_midsummer.d1.done": "Горят три костра. Ночь короткая и тёплая."
+}

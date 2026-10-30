@@ -1,0 +1,12 @@
+{
+  "story.festival_children.name": "Kinderdag",
+  "story.festival_children.short": "Kinderen",
+  "story.festival_children.desc": "Een kinderdag-uitdaging: eet tien dingen.",
+  "story.festival_children.ch.c1": "Een feestmaal",
+  "story.festival_children.ch.c1.sum": "Kinderdag is een dag voor lekkernijen. Eet tien dingen.",
+  "story.festival_children.r1.start": "Het is kinderdag! Een dag om te spelen en te snoepen. Eet tien dingen — bessen, fruit, een stoofpotje — en ik heb iets voor je kamer.",
+  "story.festival_children.graduated": "Fijne kinderdag! Bloempotten en witte lampen voor je kamer.",
+  "story.festival_children.d1.start": "Eet tien dingen.",
+  "story.festival_children.d1.chip": "Eet 10 dingen",
+  "story.festival_children.d1.done": "Tien lekkernijen! Dat was een echt feestmaal."
+}

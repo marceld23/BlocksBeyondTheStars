@@ -83,6 +83,11 @@ ITEMS = [
     ("toxic_fruit_long", "a single long slender smooth pod-like fruit with a short stem"),
     ("toxic_fruit_grape", "a small hanging cluster of round grapes with a short stem"),
     ("toxic_fruit_banana", "a single curved banana-shaped fruit with a short stem"),
+    # The pumpkin (#3005): the fruit, its toxic twin (uncoloured, the client tints it), its seeds and the carved lantern.
+    ("pumpkin", "a single plump round ribbed orange pumpkin with a short green stem"),
+    ("toxic_pumpkin", "a single plump round ribbed pumpkin with a short stem"),
+    ("pumpkin_seed", "a small heap of flat oval cream-white pumpkin seeds"),
+    ("pumpkin_lantern", "a carved orange pumpkin lantern with a friendly smiling face glowing warm yellow from inside, kid-friendly, not scary"),
     ("emergency_ration", "a sealed silver foil ration food pack"),
     ("algae_ration", "a pressed rectangular bar of green cultured algae with a subtle sheen, sci-fi survival food"),
     ("medpack", "a white medical kit box with a red cross"),

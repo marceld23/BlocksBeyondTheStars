@@ -1,0 +1,12 @@
+{
+  "story.festival_blossoms.name": "Festival dei fiori",
+  "story.festival_blossoms.short": "Fiori",
+  "story.festival_blossoms.desc": "Una sfida del festival dei fiori: pianta venticinque piante.",
+  "story.festival_blossoms.ch.c1": "Venticinque piante",
+  "story.festival_blossoms.ch.c1.sum": "La primavera è arrivata da qualche parte. Pianta venticinque semi, polloni o piante.",
+  "story.festival_blossoms.r1.start": "C'è un festival dei fiori! I petali cadono come neve. Pianta venticinque cose — semi, polloni, fiori — e la tua base riceve vasi per fiori.",
+  "story.festival_blossoms.graduated": "Tutto è in fiore. Vasi per fiori e semi per il tuo giardino.",
+  "story.festival_blossoms.d1.start": "Pianta venticinque semi, polloni o piante.",
+  "story.festival_blossoms.d1.chip": "Pianta 25 piante",
+  "story.festival_blossoms.d1.done": "Venticinque piante nel terreno. La primavera è arrivata alla tua base."
+}

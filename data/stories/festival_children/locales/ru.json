@@ -1,0 +1,12 @@
+{
+  "story.festival_children.name": "День детей",
+  "story.festival_children.short": "Дети",
+  "story.festival_children.desc": "Задание на День детей: устроить пир из десяти блюд.",
+  "story.festival_children.ch.c1": "Пир",
+  "story.festival_children.ch.c1.sum": "День детей — день угощений. Съешь десять вещей.",
+  "story.festival_children.r1.start": "Сегодня День детей! День игры и угощений. Съешь десять вещей — ягоды, фрукты, рагу — и я дам тебе что-то для комнаты.",
+  "story.festival_children.graduated": "Счастливого Дня детей! Горшки с цветами и белые лампы для твоей комнаты.",
+  "story.festival_children.d1.start": "Съешь десять вещей.",
+  "story.festival_children.d1.chip": "Съесть 10 вещей",
+  "story.festival_children.d1.done": "Десять угощений! Вот это был настоящий пир."
+}

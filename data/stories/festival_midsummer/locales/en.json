@@ -1,0 +1,12 @@
+{
+  "story.festival_midsummer.name": "Midsummer",
+  "story.festival_midsummer.short": "Midsummer",
+  "story.festival_midsummer.desc": "A midsummer challenge: build three campfires.",
+  "story.festival_midsummer.ch.c1": "Three fires",
+  "story.festival_midsummer.ch.c1.sum": "Midsummer is bonfire time. Build three campfires.",
+  "story.festival_midsummer.r1.start": "Midsummer! The longest day of the year, and everywhere people light fires at dusk. Build three campfires and I have torches for the night.",
+  "story.festival_midsummer.graduated": "Fire and light for the shortest night. Torches and lanterns for you.",
+  "story.festival_midsummer.d1.start": "Build three campfires.",
+  "story.festival_midsummer.d1.chip": "Build 3 campfires",
+  "story.festival_midsummer.d1.done": "Three fires burning. The night is short and warm."
+}

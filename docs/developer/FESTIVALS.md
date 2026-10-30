@@ -77,7 +77,9 @@ Order of authority, evaluated in `ComputeActiveFestivals`:
 `TickFestivals` (a pre-world tick step) looks every 30 s of uptime; a change re-sends `ServerRules` to everyone online and
 VEGA greets the festivals that began. `ServerRules.Festivals` ("On"/"Off", empty from an older server),
 `ServerRules.FestivalPick` and `ServerRules.ActiveFestivals` (primary first) are additive fields — no protocol bump.
-The wall clock sits behind `SetFestivalClockForTest`, like the NPCs' welcome-back clock.
+The wall clock sits behind `SetFestivalClockForTest`, like the NPCs' welcome-back clock; the server test assembly pins every
+server's default clock to a quiet day (`TestFestivalClock.QuietDay`, 1 May 2031, via `GameServer.FestivalClockDefaultForTest`)
+so the suite never depends on the real date, and the client harness passes `FestivalsOverride = "off"` for the same reason.
 
 **VEGA's greeting** is once per player and festival-year (milestone `festival:<key>:<year>`), kind 3 (system) so the hints
 mute never swallows it; the line key is `festival.<key>.vega`. **Story predicates** `world:festival_any` and
@@ -95,6 +97,51 @@ mute never swallows it; the line key is `festival.<key>.vega`. **Story predicate
   piece in `ClientMusic` (in Tracks mode every other piece). Settings → Comfort: **Festivals (calendar)** (global, passed
   to the bundled host) and **Festival mood** (this client's cosmetics).
 - `FestivalCard` (Client.Core, Unity-free) holds the card model, the chip text and the began-diff; `FestivalCardTests`.
+
+## The pumpkin (#3005)
+
+A real plant of the game, not a festival prop: `flora_pumpkin` is a **solid wild species** of the green worlds from terrain
+generation 32 (`WorldDescription.PumpkinGeneration`) — rolled into a world's roster like every species (`FloraTag.Lush`: 85 %
+on a lush world, 40 % elsewhere, toxic on a few), harvested for the fruit `pumpkin` (or `toxic_pumpkin`, which the detoxifier
+washes) and `pumpkin_seed`, planted again from the seeds on grass, soil or a hydroponic tray. `pumpkin_lantern` is the carved
+one: a warm, dyeable light block (pumpkin + torch by hand). Save version 8, block ids shifted (the usual palette remap).
+
+**Every pumpkin its own colour, with no traffic:** the species carries a *palette* (`FloraCatalog.Species.Palette`,
+`FloraPalettes.Pumpkin`: mostly orange, then yellow, pale green, white, blue-grey) and the mesher's `TraitPaletteFlora`
+colours each cell from `FloraTints.PaletteAt(cell, palette)` — the rainbow class's idea with an authored list, drawn as a
+rigid solid body like the saguaro (bark mode 4). The tile stays a plain mid-orange.
+
+## Festival spawns (#3006, `GameServerFestivalSpawns.cs`)
+
+A festival with a `spawn` block (the harvest festivals: Halloween, Erntedank, the two Thanksgivings) lays that block down on
+**existing** worlds at runtime, on the weather snow's pattern — never through world generation, so natural blocks stay as
+they are and old saves get the festival:
+
+- every 3 s per world, at most `perPass` cells near each player on foot, never more than `cap` per world, loaded chunks
+  only, breathable worlds only, never in a base zone or a ship, only the air cell on a host block (`hosts`) under the open sky;
+- every placement is broadcast (`BlockChanged`) and written to the `weather_deposit` table — the same ledger as the snow,
+  told apart by the block (`LoadWeatherDeposits` routes the rows into `FestivalDeposits`); the block-palette remap covers it;
+- **cleanup:** while no festival spawns that block, the pass removes a few of its own deposits per pass — only cells still
+  holding the festival block, so a player's own pumpkin is never touched;
+- **the harvest stays harvested:** a mined deposit leaves the ledger (`ForgetFestivalDeposit`) instead of entering the
+  regrow queue.
+
+Cost: one pass per 3 s, 6 cells, one transaction; nothing while no festival spawns and the ledger is empty.
+
+## Challenges (#3007)
+
+Eight theme packs under `data/stories/festival_<theme>/` (side, player-scoped, `start.after: world:festival_<theme>`,
+nothing skippable — a skipped pack must not pay): one `read` step that names the challenge and one counter step, kid-sized
+(harvest 60 pumpkins; place 30 lights and, optionally, scan 10 conifers; craft 25 things; plant 25 plants; dye 10 things;
+scan 5 bodies; build 3 campfires; eat 10 things). The graduation counter `festival:<theme>` is watched by an
+`achievements.json` row of the `festival` category that pays a **decoration present** (pumpkin lanterns, coloured lamps,
+light strips, flower pots, rugs, torches); the pumpkin harvest also has lifetime tiers on `mine:flora_pumpkin` (60 / 250 /
+500). A pack runs once per player; the festival it belongs to can be switched on any day, so no present can be missed.
+
+**Distinct scans:** `scan:block` (`GameEventKeys.ScanBlock`) carries the scanned block key and fires once per *cell* per
+player — `ScanIntent` names the aimed cell (`HasCell`/`CellX..Z`, nothing from an older client), `PlayerState.ScannedCells`
+remembers the cells (bounded, persisted), and the hand scanner is throttled to two scans a second. Conifers are
+`pine_needles`, the crown block only they use.
 
 ## Tests
 

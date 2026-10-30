@@ -1,0 +1,12 @@
+{
+  "story.festival_newyear.name": "Neujahr",
+  "story.festival_newyear.short": "Neujahr",
+  "story.festival_newyear.desc": "Eine Neujahrs-Aufgabe: Stell fünfundzwanzig Dinge her für einen frischen Start.",
+  "story.festival_newyear.ch.c1": "Ein frischer Start",
+  "story.festival_newyear.ch.c1.sum": "Irgendwo auf der Erde beginnt ein neues Jahr. Stell fünfundzwanzig Dinge her.",
+  "story.festival_newyear.r1.start": "Ein neues Jahr beginnt! Zeit, Dinge neu zu machen. Stell fünfundzwanzig Dinge her – an der Werkbank oder von Hand – und rote Lichter gehören dir.",
+  "story.festival_newyear.graduated": "Frohes neues Jahr! Rote Lampen und Laternen fürs Glück.",
+  "story.festival_newyear.d1.start": "Stell fünfundzwanzig Dinge her, von Hand oder an einer Station.",
+  "story.festival_newyear.d1.chip": "Stell 25 Dinge her",
+  "story.festival_newyear.d1.done": "Fünfundzwanzig Dinge gemacht. Ein guter Start ins Jahr."
+}

@@ -1,0 +1,12 @@
+{
+  "story.festival_blossoms.name": "花の祭り",
+  "story.festival_blossoms.short": "花祭り",
+  "story.festival_blossoms.desc": "花の祭りチャレンジ：植物を25個植えよう。",
+  "story.festival_blossoms.ch.c1": "植物を25個",
+  "story.festival_blossoms.ch.c1.sum": "どこかに春が来たみたい。種、苗、または植物を25個植えよう。",
+  "story.festival_blossoms.r1.start": "花の祭りが始まった！花びらが雪のように舞っている。種や苗、花を25個植えると、基地に植木鉢がもらえるよ。",
+  "story.festival_blossoms.graduated": "すべてが満開になった。植木鉢と庭用の種を獲得。",
+  "story.festival_blossoms.d1.start": "種、苗、または植物を25個植えよう。",
+  "story.festival_blossoms.d1.chip": "植物を25個植える",
+  "story.festival_blossoms.d1.done": "地面に植物を25個植えた。基地に春が訪れた。"
+}

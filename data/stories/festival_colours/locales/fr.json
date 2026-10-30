@@ -1,0 +1,12 @@
+{
+  "story.festival_colours.name": "Festival des couleurs",
+  "story.festival_colours.short": "Couleurs",
+  "story.festival_colours.desc": "Un défi festival-des-couleurs : teindre dix objets.",
+  "story.festival_colours.ch.c1": "Dix couleurs",
+  "story.festival_colours.ch.c1.sum": "De la couleur partout. Teins dix matériaux de construction.",
+  "story.festival_colours.r1.start": "Un festival des couleurs a commencé ! Aujourd'hui tout peut être rose vif, jaune et vert. Teins dix objets à l'Établi et j'ai quelque chose de coloré pour toi.",
+  "story.festival_colours.graduated": "Couleurs splendides. Tapis et pots de fleurs à peindre dans toutes les teintes.",
+  "story.festival_colours.d1.start": "Teins dix matériaux de construction — n'importe quel bloc, n'importe quelle couleur.",
+  "story.festival_colours.d1.chip": "Teindre 10 objets",
+  "story.festival_colours.d1.done": "Dix couleurs ! Ta base n'a jamais été aussi gaie."
+}

@@ -1,0 +1,12 @@
+{
+  "story.festival_children.name": "Dia das Crianças",
+  "story.festival_children.short": "Crianças",
+  "story.festival_children.desc": "Um desafio do Dia das Crianças: faça um banquete de dez coisas.",
+  "story.festival_children.ch.c1": "Um banquete",
+  "story.festival_children.ch.c1.sum": "O Dia das Crianças é dia de guloseimas. Coma dez coisas.",
+  "story.festival_children.r1.start": "É Dia das Crianças! Um dia para brincar e comer guloseimas. Coma dez coisas — frutas, bagas, um ensopado — e eu tenho algo para o seu quarto.",
+  "story.festival_children.graduated": "Feliz Dia das Crianças! Vasos de flores e lâmpadas brancas para o seu quarto.",
+  "story.festival_children.d1.start": "Coma dez coisas.",
+  "story.festival_children.d1.chip": "Coma 10 coisas",
+  "story.festival_children.d1.done": "Dez guloseimas! Isso foi um verdadeiro banquete."
+}

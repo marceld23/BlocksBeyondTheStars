@@ -1,0 +1,12 @@
+{
+  "story.festival_blossoms.name": "Çiçek Festivali",
+  "story.festival_blossoms.short": "Çiçekler",
+  "story.festival_blossoms.desc": "Bir çiçek festivali görevi: yirmi beş Bitki dik.",
+  "story.festival_blossoms.ch.c1": "Yirmi beş Bitki",
+  "story.festival_blossoms.ch.c1.sum": "Bahar bir yerde burada. Yirmi beş tohum, fidan veya Bitki dik.",
+  "story.festival_blossoms.r1.start": "Bir çiçek festivali başladı! Yapraklar kar gibi düşüyor. Yirmi beş şey — tohum, fidan, çiçek — dik ve üssüne çiçek saksıları kazan.",
+  "story.festival_blossoms.graduated": "Her şey çiçek açtı. Bahçen için çiçek saksıları ve tohumlar.",
+  "story.festival_blossoms.d1.start": "Yirmi beş tohum, fidan veya Bitki dik.",
+  "story.festival_blossoms.d1.chip": "25 Bitki dik",
+  "story.festival_blossoms.d1.done": "Toprağa yirmi beş Bitki dikildi. Bahar üssüne geldi."
+}
