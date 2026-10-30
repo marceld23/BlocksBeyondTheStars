@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🎉 Seasonal festivals — the real-world calendar in the game, multicultural, no FOMO — epic #3000, #3001–#3004 (+ #3008 community review), branch feat/seasonal-festivals — ✅ done 2026-10-30 (⚠ playtest open; no generation, save-version or protocol change; #3005–#3007 pumpkin · spawns · challenges follow in the second PR)
+### 🎉 Seasonal festivals — the real-world calendar in the game, multicultural, no FOMO — epic #3000, #3001–#3004 (+ #3008 community review), branch feat/seasonal-festivals, PR #3012 — ✅ done 2026-10-30 (⚠ playtest open; no generation, save-version or protocol change; #3005–#3007 pumpkin · spawns · challenges follow in the second PR)
 
 Marcel's wish (2026-10-29): at certain times of the real year the game should play with a slightly different mood and slightly
 different worlds — Halloween week, Christmas, the seasons — switchable in the settings, announced in the main menu, active on
