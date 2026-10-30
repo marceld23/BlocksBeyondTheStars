@@ -11,6 +11,100 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.31] — 2026-10-30
+
+The festival release, just in time for Halloween week. The game now knows **fifty-two festivals of the real calendar**
+from all over the world, with a card in the main menu, a short explanation for each, VEGA's greeting and a festive mood
+in the worlds — and nothing you can miss, because the world admin can switch on any festival at any time. You can now
+found **several bases on one world**, and every **base core and station gathers resources** for you while you are away.
+Other players' bases show up once you **find** them, and the **planet scan lists the settlers**. The planet map shows
+**real coordinates**, the **suit teleporter** jumps to your bases, beam blocks, beacons and markers, and the new
+**Quantum Teleporter** jumps to any point you type in. **Net fragments from the last planet no longer haunt the next
+one**. The 2026.10.30 **"What's new?" notes are now in all fourteen languages**. Thanks to Lyxette and Justus.
+
+ℹ️ **Compatibility:** the **save version stays 7**, the network protocol stays at **version 11** and the **terrain
+generation stays 31** — your worlds carry on as they are, and they get the festivals, several bases and the base yield
+right away. As always, keep game and server on the same version: the desktop game updates itself at start, and the
+browser is always current.
+
+### 🎃 Festivals from all over the world (#3001–#3004)
+
+- The game now knows the **festivals of the real calendar**: fifty-two of them from many cultures, side by side —
+  **Halloween**, **Día de los Muertos**, **St. Martin's Day**, **Diwali**, **Hanukkah**, the **Lunar New Year**,
+  **Hanami**, the **Mid-Autumn Festival**, **Loy Krathong** and many more. Each comes with a short explanation of what
+  people do and where, written for children.
+- **Where you see it:** a **card in the main menu** ("Today: ✦ Halloween", or "In 3 days: …", with the explanation —
+  **More festivals** lists the next sixty days), a **chip** next to the weather while a festival is on, **VEGA's
+  greeting** once per festival each year, and a **banner** when a festival begins while you play.
+- **The mood:** petals, lamplight, a warm or dusky tint, a soft fog, snow caps on the roofs, shooting stars and a
+  **festive tune** of its own. It only decorates and never changes the rules of the game.
+- **Nothing to miss:** the calendar only picks the default. The world admin — in singleplayer that is you — can
+  switch on any festival at any time with **`/festival <key>`** (for example `/festival hanami`), hand back to the
+  calendar with `/festival calendar`, or switch festivals off with `/festival off`. **Settings → Comfort** has
+  **Festivals (calendar)** and **Festival mood**.
+
+### 🏡 Several bases per world, and what they gather (#2996–#2999, thanks to Lyxette and Justus)
+
+- Lyxette dreamed of a little empire of his own across a planet. Justus decided how it should work: more bases, yes —
+  owning a whole planet, no, because a beautiful planet must not be taken away while its builder is offline.
+- **Several bases (#2996):** you can now found **up to 5 bases** on one planet, moon or asteroid field (the new world
+  rule **Bases per world** sets 1 to 12). Bases may touch. Up to 32 residents live with you on one body, across all
+  your bases.
+- **Found, not just seen (#2997):** other players' bases show on your planet map only **once you have found them** —
+  by coming within 48 blocks or with a Quantum planet scan. Your own and your allies' bases always show. Colours: your
+  own teal, allies green, found bases amber with the owner's name.
+- **Settlers in the planet scan (#2998):** the scan lists who has built bases and stations on a world, the one with the
+  most bases first.
+- **Base yield (#2999):** every **base core** and **player station** now gathers resources over time, even while you are
+  away — 6 an hour, plus 2 for each resident or crew member, up to 64. Open the core with **E** and press **Collect**.
+  Bases gather the planet's common ores, stations orbital salvage. The world rule **Base yield** sets Off, Half,
+  Normal or Double.
+
+### 🧭 Coordinates and teleporter places (#2993, #2994, #2995)
+
+- **Coordinates (#2993):** the planet map now shows the world's real block coordinates (**X · Y · Z**) — before, it
+  could print a wrong position once you had walked once around the world. **Settings → Comfort → Show coordinates**
+  adds a line under the clock, and the chat command **`/pos`** tells you where you are.
+- **More places for the suit teleporter (#2994):** besides your ship and your allies, it now jumps to your own and your
+  allies' **bases**, **beam blocks**, **radio beacons** and **map markers** on this world, nearest first. Markers work
+  on ground you have explored.
+- **The Quantum Teleporter (#2995):** a late upgrade of the suit teleporter. It also jumps to **any point of the
+  planet**: type its X- and Z-coordinates or pick your map waypoint. It costs 20 energy and recharges for a minute, and
+  it never drops you into lava. Beam blocks stay the cheap way to travel.
+
+### 👻 Net fragments and data cubes where they really are (#3009, #3010, thanks to Lyxette)
+
+- Lyxette built a stone platform up to a net fragment hanging in the air over an asteroid. The screen read
+  **"E: Recover net fragment"**, but pressing E did nothing: the fragment was a ghost left over from the body he had
+  visited before.
+- **After a trip (#3009):** net fragments, data cubes and factories of the body you left no longer linger at their old
+  spot. Each body shows only its own.
+- **The E hint (#3010):** the hint now appears exactly when E can reach the fragment or cube (it used to show a little
+  too early), and a refused pickup puts the fragment back where it really is instead of failing without a word.
+
+### 🛠️ For tinkerers
+
+- **Festivals (#3001–#3004):** server and client run the same `FestivalCalendar` over the bundled `data/festivals.json`
+  (fixed, weekday and dated windows, eight themes, per-festival effects), so nothing is fetched online. New world rule
+  `Festivals` with `FestivalPick`, the operator override `--festivals` / `BBS_FESTIVALS` (never saved), additive
+  `ServerRules` fields, the admin command `/festival`, story conditions `world:festival_any` and one per theme, and the
+  new music mood `SynthMood.Festive`. A content test turns red on 1 January of `datesThrough` as the reminder to add the
+  next year's movable dates. See ADR 0020 and `docs/developer/FESTIVALS.md`.
+- **Teleports and bases (#2993–#2999):** new messages `TeleportToPointIntent` (310), `YieldIntent` (311) and
+  `YieldStatus` (312); everything else is additive fields, so the protocol stays at 11. The server resolves every
+  teleporter place by kind and cell or marker id (`TeleportRules`). The yield is a lazy wall-clock store in
+  `WorldMetadata.BaseYields` with no tick cost; discovery is a per-recipient filter of the base list, saved in
+  `PlayerState.DiscoveredBases`. New world rules `BasesPerWorld` (`--bases-per-world`) and base yield (`--base-yield`).
+  New developer doc `docs/developer/BASES_AND_TELEPORTS.md`, Codex article *Your Bases*.
+- **Ghost views (#3009, #3010):** net fragment, data cube and factory ids are per world and restart at 1, so
+  `NetFragmentView`, `DataCubeView` and `FactoryView` kept an old body's coordinates for a known id. All three now wipe on
+  `WorldReset` and rebuild an id whose record moved (the `DoorView` pattern of #1429). The prompts use the same `Reach`
+  (3.2 m) as E and the server; a refused fragment pickup re-sends the player's `NetFragmentList`. New EditMode test
+  `WorldScopedViewsEditModeTests`.
+- **For hosters:** the WorldHost image was rebuilt and rolls with this release; it forwards the new optional
+  `BBS_WH_FESTIVALS` (empty = the calendar, `off` = none, a festival key = that one on every world) as `BBS_FESTIVALS`
+  to each world. The AI backend and the report inbox are unchanged.
+
 ## [2026.10.30] — 2026-10-28
 
 The roof-garden release, made from Lyxette's four reports of one evening — one of them a picture of his roof garden
@@ -9319,7 +9413,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.30...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.31...HEAD
+[2026.10.31]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.30...v2026.10.31
 [2026.10.30]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.29...v2026.10.30
 [2026.10.29]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.28...v2026.10.29
 [2026.10.28]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.27...v2026.10.28
