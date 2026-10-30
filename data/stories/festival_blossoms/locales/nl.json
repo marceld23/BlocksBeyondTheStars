@@ -1,0 +1,12 @@
+{
+  "story.festival_blossoms.name": "Bloesemfestival",
+  "story.festival_blossoms.short": "Bloesems",
+  "story.festival_blossoms.desc": "Een bloesemfestival-uitdaging: plant vijfentwintig Plants.",
+  "story.festival_blossoms.ch.c1": "Vijfentwintig Plants",
+  "story.festival_blossoms.ch.c1.sum": "De lente is ergens begonnen. Plant vijfentwintig zaden, zaailingen of Plants.",
+  "story.festival_blossoms.r1.start": "Er is een bloesemfestival! Bloesembladeren dwarrelen als sneeuw. Plant vijfentwintig dingen — zaden, zaailingen, bloemen — en je basis krijgt bloempotten.",
+  "story.festival_blossoms.graduated": "Alles staat in bloei. Bloempotten en zaden voor je tuin.",
+  "story.festival_blossoms.d1.start": "Plant vijfentwintig zaden, zaailingen of Plants.",
+  "story.festival_blossoms.d1.chip": "Plant 25 Plants",
+  "story.festival_blossoms.d1.done": "Vijfentwintig Plants in de grond. De lente is op je basis gearriveerd."
+}

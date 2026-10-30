@@ -1,0 +1,12 @@
+{
+  "story.festival_midsummer.name": "Yaz Ortası",
+  "story.festival_midsummer.short": "Yaz Ortası",
+  "story.festival_midsummer.desc": "Yaz ortası meydan okuması: üç kamp ateşi kur.",
+  "story.festival_midsummer.ch.c1": "Üç Ateş",
+  "story.festival_midsummer.ch.c1.sum": "Yaz ortası şölenidir. Üç kamp ateşi kur.",
+  "story.festival_midsummer.r1.start": "Yaz ortası! Yılın en uzun günü, her yerde insanlar alacakarı gün batımında yakıyor. Üç kamp ateşi kur ve gece için meşalelerim olacak.",
+  "story.festival_midsummer.graduated": "En kısa gece için ateş ve ışık. Senin için meşaleler ve fenerler.",
+  "story.festival_midsummer.d1.start": "Üç kamp ateşi kur.",
+  "story.festival_midsummer.d1.chip": "3 kamp ateşi kur",
+  "story.festival_midsummer.d1.done": "Üç ateş yanıyor. Gece kısa ve sıcak."
+}

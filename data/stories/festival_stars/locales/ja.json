@@ -1,0 +1,12 @@
+{
+  "story.festival_stars.name": "星祭り",
+  "story.festival_stars.short": "星",
+  "story.festival_stars.desc": "星祭りの挑戦：軌道上から5つの天体をスキャンします。",
+  "story.festival_stars.ch.c1": "五つの世界",
+  "story.festival_stars.ch.c1.sum": "星祭りでは空を見上げます。船のスキャナーで5つの惑星か月をスキャンしてください。",
+  "story.festival_stars.r1.start": "星祭りが始まりました！今夜、地球中の人々が空を見上げます。もっと遠くを見て：軌道上から5つの惑星か月をスキャンすれば、基地に星明かりをあげます。",
+  "story.festival_stars.graduated": "星に刻まれました。シアンの光る帯と白いランプが、夜空のようです。",
+  "story.festival_stars.d1.start": "船のスキャナーで軌道上から5つの惑星か月をスキャンしてください。",
+  "story.festival_stars.d1.chip": "天体を5つスキャンする",
+  "story.festival_stars.d1.done": "5つの世界を記録しました。星はあなたのものです。"
+}

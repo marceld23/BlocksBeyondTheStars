@@ -1,0 +1,12 @@
+{
+  "story.festival_blossoms.name": "Festival des fleurs",
+  "story.festival_blossoms.short": "Fleurs",
+  "story.festival_blossoms.desc": "Un défi du festival des fleurs : plante vingt-cinq Plantes.",
+  "story.festival_blossoms.ch.c1": "Vingt-cinq Plantes",
+  "story.festival_blossoms.ch.c1.sum": "Le printemps est sûrement arrivé quelque part. Plante vingt-cinq graines, jeunes plants ou Plantes.",
+  "story.festival_blossoms.r1.start": "Un festival des fleurs a commencé ! Les pétales tombent comme de la neige. Plante vingt-cinq choses — graines, jeunes plants, fleurs — et ta base recevra des pots de fleurs.",
+  "story.festival_blossoms.graduated": "Tout est en fleur. Des pots de fleurs et des graines pour ton jardin.",
+  "story.festival_blossoms.d1.start": "Plante vingt-cinq graines, jeunes plants ou Plantes.",
+  "story.festival_blossoms.d1.chip": "Plante 25 Plantes",
+  "story.festival_blossoms.d1.done": "Vingt-cinq Plantes en terre. Le printemps est arrivé à ta base."
+}

@@ -1,0 +1,12 @@
+{
+  "story.festival_midsummer.name": "Solstício de Verão",
+  "story.festival_midsummer.short": "Solstício",
+  "story.festival_midsummer.desc": "Um desafio de solstício: construa três fogueiras.",
+  "story.festival_midsummer.ch.c1": "Três fogueiras",
+  "story.festival_midsummer.ch.c1.sum": "O solstício é tempo de fogueiras. Construa três fogueiras.",
+  "story.festival_midsummer.r1.start": "Solstício! O dia mais longo do ano, e por toda parte as pessoas acendem fogueiras ao anoitecer. Construa três fogueiras e eu tenho tochas para a noite.",
+  "story.festival_midsummer.graduated": "Fogo e luz para a noite mais curta. Tochas e lanternas para você.",
+  "story.festival_midsummer.d1.start": "Construa três fogueiras.",
+  "story.festival_midsummer.d1.chip": "Construa 3 fogueiras",
+  "story.festival_midsummer.d1.done": "Três fogueiras acesas. A noite é curta e quente."
+}

@@ -1,0 +1,12 @@
+{
+  "story.festival_harvest.name": "추수 축제",
+  "story.festival_harvest.short": "추수",
+  "story.festival_harvest.desc": "추수 축제 도전 과제: 축제 기간 동안 호박 60개를 수확하세요.",
+  "story.festival_harvest.ch.c1": "호박 수확",
+  "story.festival_harvest.ch.c1.sum": "축제 기간에는 주변에 호박이 자랍니다. 호박 60개를 수확하세요.",
+  "story.festival_harvest.r1.start": "추수 축제가 열렸어요! 주변 들판에 호박들이 자라고 있어요 — 주황, 노랑, 초록, 심지어 흰 호박도요. 60개를 수확하면 기지를 위한 선물을 드릴게요.",
+  "story.festival_harvest.graduated": "자랑스러운 수확이에요. 여기: 조각한 호박 랜턴과 문에 달 수 있는 랜턴 몇 개예요.",
+  "story.festival_harvest.d1.start": "호박 60개를 수확하세요. 색깔은 상관없어요 — 독성 호박도 괜찮아요, 해독기가 씻어줍니다.",
+  "story.festival_harvest.d1.chip": "호박 60개 수확",
+  "story.festival_harvest.d1.done": "호박 60개! 수확이 끝났어요."
+}

@@ -1,0 +1,12 @@
+{
+  "story.festival_colours.name": "Renk festivali",
+  "story.festival_colours.short": "Renkler",
+  "story.festival_colours.desc": "Bir renk festivali meydan okuması: on şeyi boyayarak renklendir.",
+  "story.festival_colours.ch.c1": "On renk",
+  "story.festival_colours.ch.c1.sum": "Her yerde renk. On inşaat malzemesini boya.",
+  "story.festival_colours.r1.start": "Bir renk festivali var! Bugün her şey parlak pembe, sarı ve yeşil olabilir. Tezgahta on şeyi boya, sana renkli bir şey vereceğim.",
+  "story.festival_colours.graduated": "Muhteşem renkler. Boyanacak halılar ve çiçek saksıları her ton için hazır.",
+  "story.festival_colours.d1.start": "On inşaat malzemesini boya — herhangi bir blok, herhangi bir renk.",
+  "story.festival_colours.d1.chip": "10 şeyi boya",
+  "story.festival_colours.d1.done": "On renk! Üssün hiç bu kadar parlak görünmemişti."
+}

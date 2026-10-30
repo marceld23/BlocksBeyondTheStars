@@ -1,0 +1,61 @@
+// Festival challenge pack (#3007, epic #3000): the blossoms theme. Starts for every player while a festival of this theme is
+// on (world:festival_blossoms); its counter step is kid-sized, nothing is skippable (a skipped pack must not pay), and the
+// graduation counter festival:blossoms pays a decoration present through data/achievements.json. The calendar only sets the
+// default — any festival can be switched on by hand (/festival <key>), so nothing here can be missed. Generated from the
+// maintainer's texts; the twelve other languages come from tools/translate_locale.py.
+{
+  "id": "festival_blossoms",
+  "nameKey": "story.festival_blossoms.name",
+  "shortNameKey": "story.festival_blossoms.short",
+  "descriptionKey": "story.festival_blossoms.desc",
+  "kind": "side",
+  "scope": "player",
+  "priority": 5,
+  "defaultEnabled": true,
+  "narrator": {
+    "id": "vega"
+  },
+  "start": {
+    "after": [
+      "world:festival_blossoms"
+    ]
+  },
+  "graduation": {
+    "lineKey": "story.festival_blossoms.graduated",
+    "counter": "festival:blossoms"
+  },
+  "chapters": [
+    {
+      "id": "c1",
+      "titleKey": "story.festival_blossoms.ch.c1",
+      "summaryKey": "story.festival_blossoms.ch.c1.sum",
+      "skippable": false,
+      "steps": [
+        {
+          "id": "r1",
+          "kind": "read",
+          "tier": "must",
+          "skippable": false,
+          "explain": {
+            "startKey": "story.festival_blossoms.r1.start"
+          }
+        },
+        {
+          "id": "d1",
+          "kind": "do",
+          "tier": "must",
+          "skippable": false,
+          "objective": {
+            "event": "plant:any",
+            "required": 25
+          },
+          "explain": {
+            "startKey": "story.festival_blossoms.d1.start",
+            "chipKey": "story.festival_blossoms.d1.chip",
+            "doneKey": "story.festival_blossoms.d1.done"
+          }
+        }
+      ]
+    }
+  ]
+}

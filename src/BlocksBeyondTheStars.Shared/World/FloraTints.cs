@@ -42,6 +42,33 @@ public static class FloraTints
         }
     }
 
+    /// <summary>The palette class (#3005, the pumpkin): ONE plant's own colour from a short list of authored colours, picked
+    /// by its cell with a little brightness jitter — orange, yellow, green, white and blue-grey pumpkins side by side, the
+    /// first entries more often than the last. A pure function of the canonical cell like <see cref="RainbowAt"/>, so every
+    /// client agrees without traffic; the palette comes from <c>FloraCatalog.PaletteOf</c>.</summary>
+    public static (float R, float G, float B) PaletteAt(int x, int y, int z, IReadOnlyList<(float R, float G, float B)> palette)
+    {
+        if (palette is null || palette.Count == 0)
+        {
+            return (1f, 1f, 1f);
+        }
+
+        unchecked
+        {
+            ulong h = ((ulong)(uint)x * 0x9E3779B97F4A7C15UL) ^ ((ulong)(uint)y * 0xC2B2AE3D27D4EB4FUL)
+                ^ ((ulong)(uint)z * 0x165667B19E3779F9UL);
+            h ^= h >> 31;
+            h *= 0xBF58476D1CE4E5B9UL;
+            h ^= h >> 29;
+            // A square-law pick: the first colours of the list are the common ones, the last the rare ones.
+            float u = (h % 10000UL) / 10000f;
+            int index = Math.Min(palette.Count - 1, (int)(u * u * palette.Count));
+            float jitter = 0.92f + ((h >> 20) % 1000UL) / 1000f * 0.16f; // ±8 % brightness per plant
+            var c = palette[index];
+            return (Math.Min(1f, c.R * jitter), Math.Min(1f, c.G * jitter), Math.Min(1f, c.B * jitter));
+        }
+    }
+
     /// <summary>A colour (RGB 0..1) scaled by <paramref name="strength"/> as 0xRRGGBB — the dim light colour a glowing
     /// plant casts (a dim colour is a short reach in the client's light flood fill).</summary>
     public static int ToRgb24((float R, float G, float B) c, float strength)

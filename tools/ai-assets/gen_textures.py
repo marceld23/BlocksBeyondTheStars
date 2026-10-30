@@ -529,6 +529,10 @@ TEXTURES = [
     ], 2)],
     # #2850: the saguaro's own block — a ribbed cactus skin (solid, opaque) instead of tree leaves.
     ("saguaro", "ribbed green saguaro cactus skin with straight vertical ribs and small pale spine clusters along each rib, filling the whole image edge to edge"),
+    # #3005: the pumpkin — a solid plant body like the saguaro (opaque cube, recoloured per cell by the palette tint, so the
+    # skin stays a plain mid-orange with ribs) — and the carved pumpkin lantern, a friendly smiling face that glows from inside.
+    ("flora_pumpkin", "ribbed orange pumpkin skin with gentle vertical ribs and a smooth waxy surface, evenly lit, filling the whole image edge to edge"),
+    ("pumpkin_lantern", "a friendly smiling carved pumpkin lantern face with two round eyes and a wide happy smile glowing warm yellow from inside, on ribbed orange pumpkin skin filling the whole image edge to edge, cosy and kid-friendly, not scary"),
     # #2853: the lantern tree's glowing fruit, hanging under its crown (a fruit on black, cut like the fruit trees' fruit).
     ("flora_lantern_fruit", "a single round glowing warm golden-orange lantern-like fruit with soft luminous ribbed skin, hanging from a short dark stem at the top edge of the image, one small dark leaf at the stem, the entire rest of the image solid pitch-black #000000 with no gradient and no vignette, side view"),
     # #2836 (2026-10-19) held-tool materials: a part of a held tool, gun or gadget samples one of these, tinted by the part's

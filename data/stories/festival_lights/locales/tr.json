@@ -1,0 +1,15 @@
+{
+  "story.festival_lights.name": "Işık festivali",
+  "story.festival_lights.short": "Işıklar",
+  "story.festival_lights.desc": "Işık festivali görevi: üssünü otuz ışıkla aydınlat; eğer bulursan köknar ağaçlarını tara.",
+  "story.festival_lights.ch.c1": "Otuz ışık",
+  "story.festival_lights.ch.c1.sum": "Üssüne otuz ışık yerleştir. Soğuk bir gezegende 10 iğne yapraklı ağaç tarayarak günlük için uç dalları kaydet.",
+  "story.festival_lights.r1.start": "Bir ışık festivali var! Her yerde insanlar bu gece lambalar ve fenerler asıyor. Üssünü otuz ışıkla aydınlat, sana renkli olanlardan vereceğim.",
+  "story.festival_lights.graduated": "Güzel. Bir sonraki ışık festivali için kırmızı ve yeşil lambalar ile sıcak ışık şeritleri.",
+  "story.festival_lights.d1.start": "Otuz ışık yerleştir: fenerler, meşaleler, renkli lambalar, ışık şeritleri, kamp ateşi — parlayan her şey olur.",
+  "story.festival_lights.d1.chip": "30 ışık yerleştir",
+  "story.festival_lights.d1.done": "Otuz ışık! Üssün yörüngeden görülebilir.",
+  "story.festival_lights.d2.start": "İğne yapraklı ağaçlar soğuk dünyalarda yetişir — tundra, iğne ormanı, buzul. El Tarayıcı ile on farklı ağacı tara.",
+  "story.festival_lights.d2.chip": "10 iğne yapraklı ağaç tara",
+  "story.festival_lights.d2.done": "On iğne yapraklı ağaç tarandı. Işık festivalinde köknarlar — mükemmel."
+}

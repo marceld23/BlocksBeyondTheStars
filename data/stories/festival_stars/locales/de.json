@@ -1,0 +1,12 @@
+{
+  "story.festival_stars.name": "Sternenfest",
+  "story.festival_stars.short": "Sterne",
+  "story.festival_stars.desc": "Eine Sternenfest-Aufgabe: Scanne fünf Himmelskörper aus dem Orbit.",
+  "story.festival_stars.ch.c1": "Fünf Welten",
+  "story.festival_stars.ch.c1.sum": "Die Sternenfeste schauen nach oben. Scanne fünf Planeten oder Monde mit dem Schiffsscanner.",
+  "story.festival_stars.r1.start": "Ein Sternenfest hat begonnen! Heute Nacht schauen Menschen überall auf der Erde in den Himmel. Schau weiter: Scanne fünf Planeten oder Monde aus dem Orbit, dann habe ich Sternenlicht für deine Basis.",
+  "story.festival_stars.graduated": "In den Sternen geschrieben. Türkise Lichtleisten und weiße Lampen wie ein Nachthimmel.",
+  "story.festival_stars.d1.start": "Scanne fünf Planeten oder Monde aus dem Orbit mit dem Schiffsscanner.",
+  "story.festival_stars.d1.chip": "Scanne 5 Himmelskörper",
+  "story.festival_stars.d1.done": "Fünf Welten kartiert. Die Sterne gehören dir."
+}

@@ -1,0 +1,12 @@
+{
+  "story.festival_children.name": "어린이날",
+  "story.festival_children.short": "어린이",
+  "story.festival_children.desc": "어린이날 도전과제: 열 가지 음식을 먹어 보세요.",
+  "story.festival_children.ch.c1": "잔치",
+  "story.festival_children.ch.c1.sum": "어린이날은 간식을 즐기는 날이에요. 열 가지 음식을 먹으세요.",
+  "story.festival_children.r1.start": "어린이날이에요! 놀고 간식 먹는 날이죠. 열 가지를 드세요 — 베리, 과일, 스튜 등 — 그러면 방에 놓을 선물을 드릴게요.",
+  "story.festival_children.graduated": "행복한 어린이날이에요! 방에 놓을 화분과 흰색 램프를 드릴게요.",
+  "story.festival_children.d1.start": "열 가지 음식을 드세요.",
+  "story.festival_children.d1.chip": "음식 10개 먹기",
+  "story.festival_children.d1.done": "열 가지 간식! 제대로 된 잔치였어요."
+}

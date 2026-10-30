@@ -49,6 +49,11 @@ public static class GameEventKeys
     /// <summary>A first-time scan (a discovery — the achievement counter's moment). Arg: the readout kind.</summary>
     public const string ScanAny = "scan:any";
 
+    /// <summary>#3007: a block, plant or tree scanned with the hand scanner, once per CELL per player (a client that names the
+    /// cell; an older one raises nothing here). Arg: the block key (<c>pine_needles</c> for a conifer's crown) — "scan ten
+    /// conifers" counts ten trees, not one tree ten times.</summary>
+    public const string ScanBlock = "scan:block";
+
     /// <summary>A blueprint was researched. Arg: the blueprint key.</summary>
     public const string ResearchAny = "research:any";
 
@@ -536,7 +541,7 @@ public static class GameEventKeys
     {
         var keys = new List<string>
         {
-            MineAny, BuildAny, BuildRotated, CraftAny, CraftShape, CraftTint, CraftPaint, EatAny, ScanPerformed, ScanAny,
+            MineAny, BuildAny, BuildRotated, CraftAny, CraftShape, CraftTint, CraftPaint, EatAny, ScanPerformed, ScanAny, ScanBlock,
             ResearchAny, SpaceEnter, StationBoarded, TradeBarter, TradePlayer, MissionAccepted, MissionTurnedIn,
             TravelLanded, VisitBody, VisitSystem, HyperjumpAny, ModuleBuilt, ShipCommissioned, StationCommissioned,
             BaseFounded, TameAny, LootAny, DefeatAny, WormholeAny, RelayCommissioned, LaneLinked, StoryFragment,

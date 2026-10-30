@@ -1,0 +1,12 @@
+{
+  "story.festival_colours.name": "Farbenfest",
+  "story.festival_colours.short": "Farben",
+  "story.festival_colours.desc": "Eine Farbenfest-Aufgabe: Färbe zehn Dinge ein.",
+  "story.festival_colours.ch.c1": "Zehn Farben",
+  "story.festival_colours.ch.c1.sum": "Farbe überall. Färbe zehn Baumaterialien ein.",
+  "story.festival_colours.r1.start": "Ein Farbenfest hat begonnen! Heute darf alles knallpink, gelb und grün sein. Färbe zehn Dinge an der Werkbank ein, dann habe ich etwas Buntes für dich.",
+  "story.festival_colours.graduated": "Prächtige Farben. Teppiche und Blumentöpfe zum Anmalen in jedem Ton.",
+  "story.festival_colours.d1.start": "Färbe zehn Baumaterialien ein – jeder Block, jede Farbe.",
+  "story.festival_colours.d1.chip": "Färbe 10 Dinge",
+  "story.festival_colours.d1.done": "Zehn Farben! So bunt war deine Basis noch nie."
+}

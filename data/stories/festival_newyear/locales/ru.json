@@ -1,0 +1,12 @@
+{
+  "story.festival_newyear.name": "Новый год",
+  "story.festival_newyear.short": "Новый год",
+  "story.festival_newyear.desc": "Ново‑годний челлендж: создай двадцать пять предметов для нового начала.",
+  "story.festival_newyear.ch.c1": "Новое начало",
+  "story.festival_newyear.ch.c1.sum": "Где‑то на Земле начинается новый год. Создай двадцать пять предметов.",
+  "story.festival_newyear.r1.start": "Начинается новый год! Время обновлять вещи. Создай двадцать пять предметов — от верстака или вручную — и получишь красные фонари.",
+  "story.festival_newyear.graduated": "С Новым годом! Красные лампы и фонари на удачу.",
+  "story.festival_newyear.d1.start": "Создай двадцать пять предметов, вручную или на любой станции.",
+  "story.festival_newyear.d1.chip": "Создать 25 предметов",
+  "story.festival_newyear.d1.done": "Двадцать пять предметов создано. Хорошее начало года."
+}

@@ -1,0 +1,12 @@
+{
+  "story.festival_blossoms.name": "Фестиваль квітів",
+  "story.festival_blossoms.short": "Квіти",
+  "story.festival_blossoms.desc": "Виклик фестивалю квітів: висадь двадцять п'ять Рослин.",
+  "story.festival_blossoms.ch.c1": "Двадцять п'ять Рослин",
+  "story.festival_blossoms.ch.c1.sum": "Десь настав весняний час. Висади двадцять п'ять насінин, саджанців або Рослин.",
+  "story.festival_blossoms.r1.start": "Фестиваль квітів розпочався! Пелюстки сиплються, як сніг. Висади двадцять п'ять речей — насінин, саджанців, квітів — і твоя база отримає квіткові горщики.",
+  "story.festival_blossoms.graduated": "Усе розквітло. Квіткові горщики та насінини для твого саду.",
+  "story.festival_blossoms.d1.start": "Висади двадцять п'ять насінин, саджанців або Рослин.",
+  "story.festival_blossoms.d1.chip": "Висадити 25 Рослин",
+  "story.festival_blossoms.d1.done": "Двадцять п'ять Рослин у ґрунті. Весна прийшла на твою базу."
+}

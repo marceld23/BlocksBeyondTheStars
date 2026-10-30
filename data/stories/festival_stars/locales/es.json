@@ -1,0 +1,12 @@
+{
+  "story.festival_stars.name": "Festival de estrellas",
+  "story.festival_stars.short": "Estrellas",
+  "story.festival_stars.desc": "Un desafío del festival de estrellas: escanea cinco cuerpos desde órbita.",
+  "story.festival_stars.ch.c1": "Cinco mundos",
+  "story.festival_stars.ch.c1.sum": "En los festivales de estrellas miran hacia arriba. Escanea cinco planetas o lunas con el escáner de la nave.",
+  "story.festival_stars.r1.start": "¡Hay un festival de estrellas! Esta noche la gente en toda la Tierra mira al cielo. Mira más lejos: escanea cinco planetas o lunas desde órbita y te daré luz de estrellas para tu base.",
+  "story.festival_stars.graduated": "Escrito en las estrellas. Tiras de luz cian y lámparas blancas, como un cielo nocturno.",
+  "story.festival_stars.d1.start": "Escanea cinco planetas o lunas desde órbita con el escáner de la nave.",
+  "story.festival_stars.d1.chip": "Escanea 5 cuerpos",
+  "story.festival_stars.d1.done": "Cinco mundos cartografiados. Las estrellas son tuyas."
+}

@@ -1,0 +1,12 @@
+{
+  "story.festival_children.name": "こどもの日",
+  "story.festival_children.short": "子ども",
+  "story.festival_children.desc": "こどもの日のチャレンジ：10個の食べ物を食べよう。",
+  "story.festival_children.ch.c1": "ごちそう",
+  "story.festival_children.ch.c1.sum": "こどもの日はおやつの日。10個のものを食べよう。",
+  "story.festival_children.r1.start": "こどもの日だ！遊んだりおやつを楽しむ日だよ。ベリーや果物、シチューでもいいから10個食べてね—君の部屋に何かあげるよ。",
+  "story.festival_children.graduated": "よいこどもの日！部屋に置ける植木鉢と白いランプをあげるね。",
+  "story.festival_children.d1.start": "10個食べよう。",
+  "story.festival_children.d1.chip": "10個食べる",
+  "story.festival_children.d1.done": "おやつ10個！立派なごちそうだったね。"
+}

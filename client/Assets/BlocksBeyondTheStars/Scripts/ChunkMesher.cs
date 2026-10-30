@@ -834,6 +834,11 @@ namespace BlocksBeyondTheStars.Client
                 {
                     speciesTint = RainbowTint(origin.X + x, origin.Y + y, origin.Z + z);
                 }
+                // #3005, the palette class: the pumpkin's colour from its cell and the species' short list of colours.
+                if (floraTint != null && (tf & TraitPaletteFlora) != 0)
+                {
+                    speciesTint = PaletteTint(traits.Content, id, origin.X + x, origin.Y + y, origin.Z + z);
+                }
                 // #1716: a farmed crop is flora for everything BUT the tint. It carries no species colour (the
                 // tint map skips crops so a berry reads as ripe fruit on every world), and a black species tint
                 // in tint mode 1 made the shader fall back to the WORLD hue — violet berries on a violet world,
@@ -2443,6 +2448,16 @@ namespace BlocksBeyondTheStars.Client
             return LinearColorSpace ? new Color(SrgbToLinear(r), SrgbToLinear(g), SrgbToLinear(b)) : new Color(r, g, b);
         }
 
+        /// <summary>#3005, the palette class: the plant's colour from its cell and its species' authored list
+        /// (<see cref="FloraTints.PaletteAt"/>), converted like <see cref="RainbowTint"/>.</summary>
+        private static Color PaletteTint(GameContent content, BlockId id, int x, int y, int z)
+        {
+            string key = content?.BlockById(id)?.Key;
+            var palette = key != null ? BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.PaletteOf(key) : null;
+            var (r, g, b) = FloraTints.PaletteAt(x, y, z, palette ?? System.Array.Empty<(float, float, float)>());
+            return LinearColorSpace ? new Color(SrgbToLinear(r), SrgbToLinear(g), SrgbToLinear(b)) : new Color(r, g, b);
+        }
+
         private static float SrgbToLinear(float c)
             => c <= 0.04045f ? c / 12.92f : (float)System.Math.Pow((c + 0.055) / 1.055, 2.4);
 
@@ -2887,6 +2902,7 @@ namespace BlocksBeyondTheStars.Client
         private const uint TraitAccentFlora = 1u << 27;       // #2834: blossoms/berries take an accent colour of their own (BlockDefinition.Accent)
         private const uint TraitTintedBody = 1u << 28;        // #2851: a solid, opaque plant body (the saguaro) in its species' flora colour (bark mode 4, rigid)
         private const uint TraitGroveTint = 1u << 29;         // #2856: a tinted crown or a trunk — its colour drifts gently between groves
+        private const uint TraitPaletteFlora = 1u << 30;      // #3005: a solid plant body whose every cell picks its colour from the species' palette (the pumpkin)
 
         private sealed class BlockTraits
         {
@@ -2949,6 +2965,8 @@ namespace BlocksBeyondTheStars.Client
                     if (key == FloraForm.BlockKey) f |= TraitBredPlant;
                     if (content.BlockById(id)?.Accent == true) f |= TraitAccentFlora;
                     if (key == SaguaroKey) f |= TraitTintedBody;
+                    // #3005: the pumpkin — a rigid solid body like the saguaro (mode 4), coloured per cell from its palette.
+                    if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.PaletteOf(key) != null) f |= TraitTintedBody | TraitPaletteFlora;
                     if (BlocksBeyondTheStars.Shared.Definitions.TreeFoliage.IsTinted(key)
                         || BlocksBeyondTheStars.Shared.Definitions.TreeWood.IsKey(key)) f |= TraitGroveTint;
                     if ((f & (TraitTransparent | TraitFlora | TraitFoliage | TraitSlimProp)) != 0) f |= TraitExposesOpaqueFace;

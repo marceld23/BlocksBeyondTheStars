@@ -1,0 +1,12 @@
+{
+  "story.festival_colours.name": "色の祭り",
+  "story.festival_colours.short": "色彩",
+  "story.festival_colours.desc": "色の祭りチャレンジ：アイテムを10個染めましょう。",
+  "story.festival_colours.ch.c1": "十色",
+  "story.festival_colours.ch.c1.sum": "あちこちに色を。建築素材を10個染めてください。",
+  "story.festival_colours.r1.start": "色の祭りが始まったよ！今日は何でも明るいピンクや黄色、緑にできるよ。作業台で10個染めれば、カラフルなものをあげるね。",
+  "story.festival_colours.graduated": "見事な色合いだ。敷物や植木鉢があらゆる色に塗れるね。",
+  "story.festival_colours.d1.start": "建築素材を10個染めよう — ブロックは何でも、色は自由。",
+  "story.festival_colours.d1.chip": "アイテムを10個染める",
+  "story.festival_colours.d1.done": "十色達成！基地がこんなに鮮やかになったのは初めてだ。"
+}

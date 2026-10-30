@@ -89,7 +89,7 @@ Without a `type` the objective is a game event (`objective.event`, below).
 
 ## Game events (`objective.event`)
 
-104 event keys (`GameEventKeys.All`). The key names the verb, the argument the thing: a step
+105 event keys (`GameEventKeys.All`). The key names the verb, the argument the thing: a step
 names a key (or a `prefix*` pattern) and, optionally, the arguments it accepts (`"arg": "a|b"`); the amount
 adds up towards `required`. Nothing is raised for an observer, before the join is complete, or for a non-positive
 amount.
@@ -174,6 +174,7 @@ amount.
 | `salvage:found` | Salvage in space: a derelict or a debris field reached for the first time, or a salvage capsule emptied into the hold. Arg: `wreck`, `debris` or `capsule`. |
 | `sample:taken` | A sample went into the player's sample case — from a harvested plant or tree, an ore deposit, an animal (the sampler, a defeat, a companion's gift). Arg: `plant`, `animal` or `mineral`. |
 | `scan:any` | A first-time scan (a discovery — the achievement counter's moment). Arg: the readout kind. |
+| `scan:block` | A block, plant or tree scanned with the hand scanner, once per CELL per player (a client that names the cell; an older one raises nothing here). Arg: the block key (`pine_needles` for a conifer's crown) — "scan ten conifers" counts ten trees, not one tree ten times. |
 | `scan:performed` | Any scan, first or repeat (hand scanner, ship scanner). Arg: the readout kind (`flora`, `creature`, `block`, `monument`, `asteroid`, `anomaly`, `wreck`, `wormhole` …). |
 | `ship:commissioned` | A self-built ship was commissioned. Arg: the ship id. |
 | `ship:edited` | A block was built onto (or into) the player's parked ship on foot — the ship grows. Arg: the block key. |

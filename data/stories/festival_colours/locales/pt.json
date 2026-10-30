@@ -1,0 +1,12 @@
+{
+  "story.festival_colours.name": "Festival das cores",
+  "story.festival_colours.short": "Cores",
+  "story.festival_colours.desc": "Um desafio do festival das cores: tingir dez coisas.",
+  "story.festival_colours.ch.c1": "Dez cores",
+  "story.festival_colours.ch.c1.sum": "Cor por todo lado. Tinja dez materiais de construção.",
+  "story.festival_colours.r1.start": "O festival das cores começou! Hoje tudo pode ficar rosa, amarelo e verde. Tinja dez coisas no banco de trabalho e eu tenho algo colorido para você.",
+  "story.festival_colours.graduated": "Cores esplêndidas. Tapetes e vasos para pintar em todos os tons.",
+  "story.festival_colours.d1.start": "Tinja dez materiais de construção — qualquer bloco, qualquer cor.",
+  "story.festival_colours.d1.chip": "Tingir 10 coisas",
+  "story.festival_colours.d1.done": "Dez cores! Sua base nunca esteve tão brilhante."
+}

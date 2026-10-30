@@ -1,0 +1,15 @@
+{
+  "story.festival_lights.name": "Festival van de lampen",
+  "story.festival_lights.short": "Lampen",
+  "story.festival_lights.desc": "Een lampenfestival-uitdaging: verlicht je basis met dertig lampen; scan de sparren als je ze vindt.",
+  "story.festival_lights.ch.c1": "Dertig lampen",
+  "story.festival_lights.ch.c1.sum": "Plaats dertig lampen bij je basis. Op een koude planeet scan je tien naaldbomen voor het tipslogboek.",
+  "story.festival_lights.r1.start": "Het lampenfestival is begonnen! Overal hangen mensen vanavond lampen en lantaarns. Verlicht je basis met dertig lampen en ik geef je gekleurde exemplaren.",
+  "story.festival_lights.graduated": "Prachtig. Rode en groene lampen en warme lichtstrips voor het volgende lampenfestival.",
+  "story.festival_lights.d1.start": "Plaats dertig lampen: lantaarns, fakkels, gekleurde lampen, lichtstrips, een kampvuur — alles wat gloeit.",
+  "story.festival_lights.d1.chip": "Plaats 30 lampen",
+  "story.festival_lights.d1.done": "Dertig lampen! Je basis is zichtbaar vanaf de baan.",
+  "story.festival_lights.d2.start": "Naaldbomen groeien op koude werelden — toendra, boreaal, gletsjer. Scan tien verschillende met de handscanner.",
+  "story.festival_lights.d2.chip": "Scan 10 naaldbomen",
+  "story.festival_lights.d2.done": "Tien naaldbomen gescand. Sparren bij het lampenfestival — perfect."
+}

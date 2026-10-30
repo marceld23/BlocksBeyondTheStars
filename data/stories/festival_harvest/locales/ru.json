@@ -1,0 +1,12 @@
+{
+  "story.festival_harvest.name": "Праздник урожая",
+  "story.festival_harvest.short": "Урожай",
+  "story.festival_harvest.desc": "Испытание праздника урожая: принеси шестьдесят тыкв, пока длится фестиваль.",
+  "story.festival_harvest.ch.c1": "Сбор тыкв",
+  "story.festival_harvest.ch.c1.sum": "Во время фестиваля вокруг тебя растут тыквы. Собери шестьдесят.",
+  "story.festival_harvest.r1.start": "Идёт праздник урожая! В полях вокруг растут тыквы — оранжевые, жёлтые, зелёные и даже белые. Собери шестьдесят, и я принесу подарок для вашей базы.",
+  "story.festival_harvest.graduated": "Отличный урожай. Держи: вырезанные фонари из тыкв и несколько фонариков для двери.",
+  "story.festival_harvest.d1.start": "Собери шестьдесят тыкв. Подойдут любые — даже токсичные: детоксикатор их очищает.",
+  "story.festival_harvest.d1.chip": "Собрать 60 тыкв",
+  "story.festival_harvest.d1.done": "Шестьдесят тыкв! Урожай собран."
+}

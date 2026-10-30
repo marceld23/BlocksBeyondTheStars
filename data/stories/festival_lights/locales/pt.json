@@ -1,0 +1,15 @@
+{
+  "story.festival_lights.name": "Festival das luzes",
+  "story.festival_lights.short": "Luzes",
+  "story.festival_lights.desc": "Um desafio do festival das luzes: ilumine sua base com trinta luzes; escaneie os pinheiros se encontrar alguns.",
+  "story.festival_lights.ch.c1": "Trinta luzes",
+  "story.festival_lights.ch.c1.sum": "Coloque trinta luzes na sua base. Em um mundo frio, escaneie dez coníferas para o registro de copa.",
+  "story.festival_lights.r1.start": "O festival das luzes começou! Pelo mundo todo, pessoas penduram lâmpadas e lanternas esta noite. Ilumine sua base com trinta luzes e eu tenho lâmpadas coloridas para você.",
+  "story.festival_lights.graduated": "Lindo. Lâmpadas vermelhas e verdes e fitas de luz quentes para o próximo festival das luzes.",
+  "story.festival_lights.d1.start": "Coloque trinta luzes: lanternas, tochas, lâmpadas coloridas, fitas de luz, uma fogueira — qualquer coisa que brilhe.",
+  "story.festival_lights.d1.chip": "Colocar 30 luzes",
+  "story.festival_lights.d1.done": "Trinta luzes! Sua base pode ser vista em órbita.",
+  "story.festival_lights.d2.start": "Coníferas crescem em mundos frios — tundra, boreal, geleira. Escaneie dez diferentes com o Scanner de Mão.",
+  "story.festival_lights.d2.chip": "Escanear 10 coníferas",
+  "story.festival_lights.d2.done": "Dez coníferas escaneadas. Pinheiros no festival das luzes — perfeito."
+}

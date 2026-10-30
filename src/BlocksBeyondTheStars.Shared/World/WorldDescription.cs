@@ -208,8 +208,13 @@ public sealed class WorldDescription
     /// trades and quest-giver names, #2738 sea ice counts as wet for structure placement, #2739 world-seeded station
     /// quartermasters and vendor themes, #2833 twelve more wild plant species and mixed meadows, #2848–#2859 the tree
     /// variety and glow package, #2976 several fruits per world, picked per tree, #2988 the start system carries lead and
-    /// uranium).</summary>
-    public const int CurrentTerrainGeneration = 31;
+    /// uranium, #3005 the pumpkin as a wild species of the green worlds).</summary>
+    public const int CurrentTerrainGeneration = 32;
+
+    /// <summary>The generation of the pumpkin (#3005, epic #3000): a solid wild plant of the green worlds, rolled into the
+    /// roster like every species (<c>FloraCatalog</c> MinGeneration 32 — inactive on every older world; the festivals' spawner
+    /// brings it to those at runtime instead, #3006).</summary>
+    public const int PumpkinGeneration = 32;
 
     /// <summary>The generation of the start-system ore guarantee (#2988, Lyxette 2026-10-28): the way out of the start system
     /// is the jump generator, its reactor fuel needs lead and uranium, and only a handful of planet types carry them — so a

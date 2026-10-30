@@ -52,6 +52,7 @@ namespace BlocksBeyondTheStars.Client
             key = null;
             at = default;
             _scanEntityId = null;
+            _scanCell = null;
             if (Game == null || Camera == null)
             {
                 return false;
@@ -131,11 +132,14 @@ namespace BlocksBeyondTheStars.Client
                 kind = "block";
                 key = def.Key;
                 at = new Vector3(b.x + 0.5f, b.y + 0.5f, b.z + 0.5f);
+                _scanCell = (b.x, b.y, b.z); // #3007: the server counts distinct cells ("scan ten conifers")
                 return true;
             }
 
             return false;
         }
+
+        private (int X, int Y, int Z)? _scanCell; // the block cell TryFindScanTarget last aimed at (#3007), null for a creature
 
         private string _scanEntityId; // the creature TryFindScanTarget last picked (#1926)
 
@@ -149,7 +153,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (TryFindScanTarget(out string kind, out string key, out var at))
             {
-                Game.Network.SendScan(kind, key, kind == "creature" ? _scanEntityId : null);
+                Game.Network.SendScan(kind, key, kind == "creature" ? _scanEntityId : null, kind == "block" ? _scanCell : null);
                 // #2153: a light fan, a holographic bracket box with a sweeping scan plane, data motes streaming back
                 // and a short local wave — the scanner's own look instead of the shared ring of cubes.
                 string heldKey = Game.ItemInSlot(Game.SelectedHotbarSlot);

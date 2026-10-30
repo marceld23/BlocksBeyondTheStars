@@ -1,0 +1,12 @@
+{
+  "story.festival_colours.name": "色彩节",
+  "story.festival_colours.short": "色彩",
+  "story.festival_colours.desc": "色彩节挑战：把十样东西染色。",
+  "story.festival_colours.ch.c1": "十种颜色",
+  "story.festival_colours.ch.c1.sum": "到处都是颜色。把十种建材染色。",
+  "story.festival_colours.r1.start": "色彩节开始了！今天所有东西都可以是粉色、黄色或绿色。去工作台把十样东西染色，我会给你一些有色的东西作为奖励。",
+  "story.festival_colours.graduated": "颜色太棒了。地毯和花盆有各种颜色可画。",
+  "story.festival_colours.d1.start": "把十种建材染色——任意方块，任意颜色。",
+  "story.festival_colours.d1.chip": "染色 10 件物品",
+  "story.festival_colours.d1.done": "十种颜色！你的基地从未如此鲜艳。"
+}

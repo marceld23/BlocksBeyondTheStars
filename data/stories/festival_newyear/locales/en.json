@@ -1,0 +1,12 @@
+{
+  "story.festival_newyear.name": "New year",
+  "story.festival_newyear.short": "New year",
+  "story.festival_newyear.desc": "A new-year challenge: craft twenty-five things for a fresh start.",
+  "story.festival_newyear.ch.c1": "A fresh start",
+  "story.festival_newyear.ch.c1.sum": "A new year begins somewhere on Earth. Craft twenty-five things.",
+  "story.festival_newyear.r1.start": "A new year is beginning! Time to make things new. Craft twenty-five things — anything from the workbench or by hand — and red lights are yours.",
+  "story.festival_newyear.graduated": "Happy new year! Red lamps and lanterns for good luck.",
+  "story.festival_newyear.d1.start": "Craft twenty-five things, by hand or at any station.",
+  "story.festival_newyear.d1.chip": "Craft 25 things",
+  "story.festival_newyear.d1.done": "Twenty-five things made. A good start to the year."
+}

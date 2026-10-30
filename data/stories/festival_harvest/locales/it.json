@@ -1,0 +1,12 @@
+{
+  "story.festival_harvest.name": "Festival del raccolto",
+  "story.festival_harvest.short": "Raccolto",
+  "story.festival_harvest.desc": "Una sfida del festival del raccolto: raccogli sessanta zucche mentre il festival è in corso.",
+  "story.festival_harvest.ch.c1": "Raccolta di zucche",
+  "story.festival_harvest.ch.c1.sum": "Le zucche crescono intorno a te durante i festival del raccolto. Raccogliene sessanta.",
+  "story.festival_harvest.r1.start": "C'è un festival del raccolto! Le zucche stanno crescendo nei campi intorno a te — arancioni, gialle, verdi, anche bianche. Raccogliene sessanta e ho un regalo per la tua base.",
+  "story.festival_harvest.graduated": "Un raccolto di cui andare fieri. Ecco: lanterne di zucca intagliate e qualche lanterna per la tua porta.",
+  "story.festival_harvest.d1.start": "Raccogli sessanta zucche. Conta qualsiasi colore — anche quelle tossiche, il disintossicatore le pulisce.",
+  "story.festival_harvest.d1.chip": "Raccogli 60 zucche",
+  "story.festival_harvest.d1.done": "Sessanta zucche! Il raccolto è a posto."
+}

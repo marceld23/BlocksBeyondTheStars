@@ -1,0 +1,12 @@
+{
+  "story.festival_midsummer.name": "Midzomer",
+  "story.festival_midsummer.short": "Midzomer",
+  "story.festival_midsummer.desc": "Een midzomeruitdaging: bouw drie kampvuren.",
+  "story.festival_midsummer.ch.c1": "Drie vuren",
+  "story.festival_midsummer.ch.c1.sum": "Midzomer is vreugdevuur-tijd. Bouw drie kampvuren.",
+  "story.festival_midsummer.r1.start": "Midzomer! De langste dag van het jaar, en overal steken mensen bij schemering vuren aan. Bouw drie kampvuren en ik geef je fakkels voor de nacht.",
+  "story.festival_midsummer.graduated": "Vuur en licht voor de kortste nacht. Fakkels en lantaarns voor jou.",
+  "story.festival_midsummer.d1.start": "Bouw drie kampvuren.",
+  "story.festival_midsummer.d1.chip": "Bouw 3 kampvuren",
+  "story.festival_midsummer.d1.done": "Drie vuren branden. De nacht is kort en warm."
+}

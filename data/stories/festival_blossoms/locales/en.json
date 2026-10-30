@@ -1,0 +1,12 @@
+{
+  "story.festival_blossoms.name": "Blossom festival",
+  "story.festival_blossoms.short": "Blossoms",
+  "story.festival_blossoms.desc": "A blossom-festival challenge: plant twenty-five plants.",
+  "story.festival_blossoms.ch.c1": "Twenty-five plants",
+  "story.festival_blossoms.ch.c1.sum": "Spring is here somewhere. Plant twenty-five seeds, saplings or plants.",
+  "story.festival_blossoms.r1.start": "A blossom festival is on! Petals are falling like snow. Plant twenty-five things — seeds, saplings, flowers — and your base gets flower pots.",
+  "story.festival_blossoms.graduated": "Everything is in bloom. Flower pots and seeds for your garden.",
+  "story.festival_blossoms.d1.start": "Plant twenty-five seeds, saplings or plants.",
+  "story.festival_blossoms.d1.chip": "Plant 25 plants",
+  "story.festival_blossoms.d1.done": "Twenty-five plants in the ground. Spring has arrived at your base."
+}

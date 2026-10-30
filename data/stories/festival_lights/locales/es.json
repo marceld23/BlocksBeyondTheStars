@@ -1,0 +1,15 @@
+{
+  "story.festival_lights.name": "Festival de las luces",
+  "story.festival_lights.short": "Luces",
+  "story.festival_lights.desc": "Un desafío del festival de las luces: ilumina tu base con treinta luces; escanea los abetos si encuentras algunos.",
+  "story.festival_lights.ch.c1": "Treinta luces",
+  "story.festival_lights.ch.c1.sum": "Coloca treinta luces en tu base. En un mundo frío, escanea diez coníferas para la entrada del diario.",
+  "story.festival_lights.r1.start": "¡Hay un festival de las luces! Por todo el mundo la gente cuelga lámparas y faroles esta noche. Ilumina tu base con treinta luces y te daré unas de colores.",
+  "story.festival_lights.graduated": "Hermoso. Lámparas rojas y verdes y tiras de luz cálida para el próximo festival de las luces.",
+  "story.festival_lights.d1.start": "Coloca treinta luces: faroles, antorchas, lámparas de colores, tiras de luz, una fogata — cualquier cosa que brille.",
+  "story.festival_lights.d1.chip": "Coloca 30 luces",
+  "story.festival_lights.d1.done": "¡Treinta luces! Tu base puede verse desde la órbita.",
+  "story.festival_lights.d2.start": "Las coníferas crecen en mundos fríos — tundra, boreal, glaciar. Escanea diez diferentes con el Escáner de Mano.",
+  "story.festival_lights.d2.chip": "Escanea 10 coníferas",
+  "story.festival_lights.d2.done": "Diez coníferas escaneadas. Abetos en el festival de las luces — perfecto."
+}

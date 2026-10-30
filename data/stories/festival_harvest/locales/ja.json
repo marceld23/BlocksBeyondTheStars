@@ -1,0 +1,12 @@
+{
+  "story.festival_harvest.name": "収穫祭",
+  "story.festival_harvest.short": "収穫",
+  "story.festival_harvest.desc": "収穫祭チャレンジ：祭りの間にかぼちゃを60個集めてください。",
+  "story.festival_harvest.ch.c1": "かぼちゃの収穫",
+  "story.festival_harvest.ch.c1.sum": "収穫祭の間、周りの畑にかぼちゃが育ちます。60個収穫しましょう。",
+  "story.festival_harvest.r1.start": "収穫祭が始まりました！畑にかぼちゃが育っています — オレンジ、黄色、緑、白まで。60個集めれば基地にプレゼントを贈ります。",
+  "story.festival_harvest.graduated": "誇れる収穫でした。さあ：彫ったかぼちゃのランタンと玄関用のランタンをいくつかどうぞ。",
+  "story.festival_harvest.d1.start": "かぼちゃを60個収穫してください。色は問いません — 毒性のあるものも大丈夫です。解毒装置で洗浄します。",
+  "story.festival_harvest.d1.chip": "かぼちゃを60個収穫",
+  "story.festival_harvest.d1.done": "かぼちゃ60個！収穫が完了しました。"
+}

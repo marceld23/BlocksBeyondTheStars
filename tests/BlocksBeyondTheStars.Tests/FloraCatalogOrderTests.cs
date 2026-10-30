@@ -38,6 +38,7 @@ public sealed class FloraCatalogOrderTests
         "flora_berrybush", "flora_blossombush", "flora_featherbush", "flora_droopbush", "flora_needlebush",
         "flora_frostberry", "flora_clover", "flora_daisy", "flora_thistle", "flora_herb", "flora_foxtail", "flora_lupine",
         FloraCatalog.LanternFruitKey,
+        "flora_pumpkin", // #3005 (generation 32)
         "flora_cropberry", "flora_cropgrain", "flora_cropshroom",
     };
 
@@ -53,7 +54,7 @@ public sealed class FloraCatalogOrderTests
     public void All_KeysAreInTheExactCatalogOrder()
     {
         Assert.Equal(ExpectedOrder, FloraCatalog.All.Select(s => s.Key).ToArray());
-        Assert.Equal(68, FloraCatalog.All.Count);
+        Assert.Equal(69, FloraCatalog.All.Count); // #3005: the pumpkin
         Assert.Equal(FloraCatalog.All.Count, FloraCatalog.All.Select(s => s.Key).Distinct(StringComparer.Ordinal).Count());
     }
 

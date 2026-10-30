@@ -1,0 +1,12 @@
+{
+  "story.festival_stars.name": "Festiwal gwiazd",
+  "story.festival_stars.short": "Gwiazd",
+  "story.festival_stars.desc": "Wyzwanie festiwalu gwiazd: zeskanuj pięć ciał z orbity.",
+  "story.festival_stars.ch.c1": "Pięć światów",
+  "story.festival_stars.ch.c1.sum": "Festiwale gwiazd patrzą w górę. Zeskanuj pięć planet lub księżyców skanerem statku.",
+  "story.festival_stars.r1.start": "Festiwal gwiazd trwa! Dziś wieczorem ludzie na całej Ziemi patrzą w niebo. Spójrz dalej: zeskanuj pięć planet lub księżyców z orbity, a dostarczę światło gwiazd do twojej bazy.",
+  "story.festival_stars.graduated": "Napisane w gwiazdach. Błękitne paski świetlne i białe lampy, jak nocne niebo.",
+  "story.festival_stars.d1.start": "Zeskanuj pięć planet lub księżyców z orbity skanerem statku.",
+  "story.festival_stars.d1.chip": "Zeskanuj 5 ciał",
+  "story.festival_stars.d1.done": "Pięć światów zmapowanych. Gwiazdy należą do ciebie."
+}
