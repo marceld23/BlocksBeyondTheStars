@@ -39,6 +39,7 @@ namespace BlocksBeyondTheStars.Client
             b.BuildNativeMenu();
 #endif
             b.BuildWorldInfoPanel();
+            UiFestivalCard.Build(shell, canvas.transform); // #3003: today's or the next festival (nothing without content or a festival near)
             b.BuildBottomBar();
             b.BuildConnectDialog();
 #if !UNITY_WEBGL || UNITY_EDITOR

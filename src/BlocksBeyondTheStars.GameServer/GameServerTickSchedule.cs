@@ -87,6 +87,7 @@ public sealed partial class GameServer
     {
         return new TickStep[]
         {
+            TickStep.Dt("TickFestivals", TickFestivals), // #3001: the real-world calendar, checked every 30 s; a change re-sends the rules
             TickStep.Dt("TickSpace", TickSpace), // space instances are keyed by location and handle their own players
             TickStep.Dt("Transits", TickTransits), // #1614: per player, wherever they fly
             TickStep.Dt("SpaceEnemyEncounters", TickSpaceEnemyEncounters), // #2971: the Codex's enemies met in space (1 Hz; sets the ground beat)

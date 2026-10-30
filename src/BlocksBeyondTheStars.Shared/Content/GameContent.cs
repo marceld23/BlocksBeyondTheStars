@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.Festivals;
 using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.Missions;
 using BlocksBeyondTheStars.Shared.Primitives;
@@ -264,6 +265,48 @@ public sealed partial class GameContent
         }
 
         _lodges = list;
+    }
+
+    private IReadOnlyList<FestivalDefinition> _festivals = new List<FestivalDefinition>();
+    private Dictionary<string, FestivalDefinition> _festivalsByKey = new(StringComparer.Ordinal);
+
+    /// <summary>The festivals of the real-world calendar (#3000) in authored order — empty when <c>data/festivals.json</c>
+    /// is absent (the game then simply has no festivals).</summary>
+    public IReadOnlyList<FestivalDefinition> Festivals => _festivals;
+
+    /// <summary>The first and last year every dated festival must cover (<c>datesFrom</c>/<c>datesThrough</c>, #3002).</summary>
+    public int FestivalsDatesFrom { get; private set; }
+
+    public int FestivalsDatesThrough { get; private set; }
+
+    /// <summary>The festival with this key, or null.</summary>
+    public FestivalDefinition? FindFestival(string? key)
+        => !string.IsNullOrEmpty(key) && _festivalsByKey.TryGetValue(key!, out var f) ? f : null;
+
+    /// <summary>Installs the festival file (called by the content loader). Null rows and rows without a key are dropped, a
+    /// second row with the same key loses; the shape of every window is checked by <see cref="Validate"/>.</summary>
+    public void SetFestivals(FestivalCatalog? catalog)
+    {
+        var list = new List<FestivalDefinition>();
+        var byKey = new Dictionary<string, FestivalDefinition>(StringComparer.Ordinal);
+        foreach (var f in catalog?.Festivals ?? new List<FestivalDefinition>())
+        {
+            if (f is null || string.IsNullOrEmpty(f.Key) || byKey.ContainsKey(f.Key))
+            {
+                continue;
+            }
+
+            f.Theme ??= string.Empty;
+            f.Glyph ??= string.Empty;
+            f.Window ??= new FestivalWindow();
+            list.Add(f);
+            byKey[f.Key] = f;
+        }
+
+        _festivals = list;
+        _festivalsByKey = byKey;
+        FestivalsDatesFrom = catalog?.DatesFrom ?? 0;
+        FestivalsDatesThrough = catalog?.DatesThrough ?? 0;
     }
 
     private IReadOnlyList<WishTemplate> _wishes = new List<WishTemplate>();

@@ -704,6 +704,11 @@ Nothing about the line is logged beyond the matched list entry. Knobs:
 - `BBS_CHAT_FILTER` / `--chat-filter` — `mask` (default: the world rule decides), `off` (no screening on
   any world of this server — a private family LAN), `strict` (forces *Safe* on every world — a public
   kids' fleet). Never stored in a save.
+- `BBS_FESTIVALS` / `--festivals` — the festivals of the real-world calendar (#3001,
+  [FESTIVALS.md](FESTIVALS.md)): empty (default: each world's `Festivals` rule and the calendar decide), `off` (no
+  festivals on any world of this server), or a festival key such as `halloween` or `diwali` (that festival on every
+  world, whatever the date). Never stored in a save; the bundled singleplayer host passes the client's setting this
+  way. The world admin's `/festival <key>|calendar|on|off` sits below it.
 - `--chat-mode open|filtered|safe` — the WORLD rule (`GameRules.ChatMode`, persisted with the world; the
   `family` and `peaceful-creative` presets use `safe`). A `safe` launch rule is lifted onto an existing
   save that still carries the `filtered` default.

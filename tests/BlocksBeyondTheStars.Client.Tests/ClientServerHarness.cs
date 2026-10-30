@@ -62,6 +62,7 @@ public sealed class ClientServerHarness : IDisposable
             ViewDistanceChunks = 1,
             MaxPlayers = 4,
             PlaceStarterShip = false, // bare terrain at spawn, like the server integration tests
+            FestivalsOverride = "off", // #3001: no calendar festival greets a test client — tests stay date-independent (a test asks for one)
         };
         configure?.Invoke(config);
 

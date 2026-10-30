@@ -92,7 +92,8 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            bool shower = string.Equals(env.Weather, "meteor_shower", System.StringComparison.Ordinal);
+            bool shower = string.Equals(env.Weather, "meteor_shower", System.StringComparison.Ordinal)
+                          || FestivalMood.Effects(Game)?.ShootingStars == true; // #3004: the star festivals (Tanabata, the Perseids …)
             if (Time.time >= _nextAt)
             {
                 if (_rng.NextDouble() < 0.06 && _shipUntil < Time.time)

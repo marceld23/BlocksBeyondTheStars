@@ -4300,6 +4300,7 @@ public sealed partial class GameServer
         SendCustomShapes(session);      // …and the form registry, for the same reason (#843)
         QueueWorldTextures(session);    // #1958: the world's textures follow in pages, one per tick
         ShipAiOnJoin(session); // VEGA: tips quiet, the chip (#2470: the prologue played in StoryOnJoin; the training is the pack below)
+        FestivalsOnJoin(session); // #3001: VEGA greets a festival that is on, once per festival-year — before the packs, so a lesson's line stays the last word
         StoryPacksOnJoin(session); // #2466: player packs — migrate, start, advance, re-speak the step on the chip
         TryStartStoryTrack(session); // #2470: the story track starts here when the training is through or off (or for a veteran)
         StoryMissionsOnJoin(session); // #2476: a running story mission listens again
@@ -6924,6 +6925,9 @@ public sealed partial class GameServer
             BaseVisitors = r.BaseVisitors,
             FriendlyVisitors = r.FriendlyVisitors ? "On" : "Off", // #2602 (empty = a server without the rule)
             TutorialPolicy = r.TutorialPolicy.ToString(), // #2466
+            Festivals = r.Festivals ? "On" : "Off", // #3001 (empty = a server without festivals)
+            FestivalPick = r.FestivalPick ?? string.Empty,
+            ActiveFestivals = ActiveFestivals.ToArray(), // #3001: primary first
             StoryDensity = r.StoryDensity.ToString(), // #2472 (empty = a server without the live edit)
             MainStory = session.State.IsAdmin ? _storyState.StoryId : string.Empty, // #2506: the admins' "Main story" row
             VoiceChatEnabled = _config.VoiceChatEnabled,
@@ -7023,6 +7027,8 @@ public sealed partial class GameServer
             // #2602: off sends a guest already at a base home (its script sees the rule on the next step).
             Rules.FriendlyVisitors = intent.FriendlyVisitors.Equals("On", System.StringComparison.OrdinalIgnoreCase);
         }
+
+        ApplyFestivalRuleIntent(intent); // #3001: the festivals switch and the manual pick
 
         bool tutorialPolicyChanged = false;
         if (ServerConfig.TryParseTutorialPolicy(intent.TutorialPolicy, out var tutorialPolicy) && tutorialPolicy != Rules.TutorialPolicy)

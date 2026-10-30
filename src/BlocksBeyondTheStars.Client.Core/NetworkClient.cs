@@ -595,9 +595,11 @@ namespace BlocksBeyondTheStars.Client
             string autoAim = "", string starterTeleporter = "", string frontierDanger = "", string baseVisitors = "",
             string worldTextures = "", int machineCatchUpMinutes = -1, string returnToShip = "",
             string tutorialPolicy = "", string storyDensity = "", string friendlyVisitors = "",
-            int basesPerWorld = -1, int baseYieldPercent = -1)
+            string festivals = "", string festivalPick = "", int basesPerWorld = -1, int baseYieldPercent = -1)
             => Send(new SetWorldRulesIntent
             {
+                Festivals = festivals, // #3001: "On" | "Off", empty = unchanged
+                FestivalPick = festivalPick, // #3001: a festival key | "calendar", empty = unchanged
                 BasesPerWorld = basesPerWorld,       // #2996: -1 = unchanged
                 BaseYieldPercent = baseYieldPercent, // #2999: -1 = unchanged
                 FriendlyVisitors = friendlyVisitors, // #2602: "On" | "Off", empty = unchanged

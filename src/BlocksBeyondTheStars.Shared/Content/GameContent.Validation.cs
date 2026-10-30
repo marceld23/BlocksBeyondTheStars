@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.Festivals;
 using BlocksBeyondTheStars.Shared.Missions;
 
 namespace BlocksBeyondTheStars.Shared.Content;
@@ -10,6 +11,117 @@ namespace BlocksBeyondTheStars.Shared.Content;
 // unchanged block (its internals are earmarked for a later pass); the class <summary> lives in GameContent.cs.
 public sealed partial class GameContent
 {
+    /// <summary>#3001: the festivals — a snake_case key, a known theme, a glyph, a well-formed window (a real month/day, a
+    /// weekday the weekday kind can parse, parseable ranges that end after they start) and, for every dated festival, a
+    /// range in each year from <c>datesFrom</c> to <c>datesThrough</c>. Whether the <c>festival.&lt;key&gt;.name|explain|vega</c>
+    /// texts exist in English and German is checked by <c>FestivalContentTests</c> (the locale tables load lazily).</summary>
+    private void ValidateFestivals(List<string> problems)
+    {
+        if (_festivals.Count > 0 && (FestivalsDatesFrom < 2000 || FestivalsDatesThrough < FestivalsDatesFrom))
+        {
+            problems.Add($"Festivals: datesFrom/datesThrough ({FestivalsDatesFrom}/{FestivalsDatesThrough}) must name a year range.");
+        }
+
+        foreach (var f in _festivals)
+        {
+            string ctx = $"Festival '{f.Key}'";
+            if (!IsSnakeCaseKey(f.Key))
+            {
+                problems.Add($"{ctx}: the key must be lower-case letters, digits and underscores.");
+            }
+
+            if (!FestivalThemes.All.Contains(f.Theme))
+            {
+                problems.Add($"{ctx} has an unknown theme '{f.Theme}'.");
+            }
+
+            if (string.IsNullOrWhiteSpace(f.Glyph))
+            {
+                problems.Add($"{ctx} has no glyph.");
+            }
+
+            ValidateFestivalWindow(problems, ctx, f.Window);
+        }
+    }
+
+    private void ValidateFestivalWindow(List<string> problems, string ctx, FestivalWindow w)
+    {
+        string kind = (w.Kind ?? string.Empty).ToLowerInvariant();
+        if (w.DaysBefore < 0 || w.DaysBefore > 60 || w.DaysAfter < 0 || w.DaysAfter > 60)
+        {
+            problems.Add($"{ctx}: daysBefore/daysAfter must be 0…60.");
+        }
+
+        switch (kind)
+        {
+            case FestivalWindow.KindDates:
+                var years = new HashSet<int>();
+                foreach (var range in w.Ranges ?? System.Array.Empty<string[]>())
+                {
+                    if (range is not { Length: 2 } || !FestivalCalendar.TryParseDate(range[0], out var from)
+                        || !FestivalCalendar.TryParseDate(range[1], out var to) || to < from)
+                    {
+                        problems.Add($"{ctx}: a dates range must be [\"yyyy-MM-dd\", \"yyyy-MM-dd\"] with the end on or after the start.");
+                        continue;
+                    }
+
+                    years.Add(from.Year);
+                }
+
+                for (int y = FestivalsDatesFrom; y <= FestivalsDatesThrough && FestivalsDatesFrom >= 2000; y++)
+                {
+                    if (!years.Contains(y))
+                    {
+                        problems.Add($"{ctx}: no date range for {y} (datesFrom..datesThrough = {FestivalsDatesFrom}..{FestivalsDatesThrough}) — add next year's dates.");
+                    }
+                }
+
+                break;
+
+            case FestivalWindow.KindWeekday:
+            case FestivalWindow.KindFixed:
+                if (w.Month is < 1 or > 12 || w.Day < 1 || w.Day > System.DateTime.DaysInMonth(2001, System.Math.Clamp(w.Month, 1, 12)))
+                {
+                    problems.Add($"{ctx}: month/day {w.Month}/{w.Day} is not a date of every year.");
+                }
+
+                if (kind == FestivalWindow.KindWeekday && !FestivalCalendar.TryParseWeekday(w.Weekday, out _))
+                {
+                    problems.Add($"{ctx}: weekday '{w.Weekday}' is not a day of the week.");
+                }
+
+                if ((w.UntilMonth != 0 || w.UntilDay != 0)
+                    && (w.UntilMonth is < 1 or > 12 || w.UntilDay < 1 || w.UntilDay > System.DateTime.DaysInMonth(2001, System.Math.Clamp(w.UntilMonth, 1, 12))))
+                {
+                    problems.Add($"{ctx}: untilMonth/untilDay {w.UntilMonth}/{w.UntilDay} is not a date of every year.");
+                }
+
+                break;
+
+            default:
+                problems.Add($"{ctx} has an unknown window kind '{w.Kind}' (fixed, weekday or dates).");
+                break;
+        }
+    }
+
+    private static bool IsSnakeCaseKey(string key)
+    {
+        if (string.IsNullOrEmpty(key))
+        {
+            return false;
+        }
+
+        foreach (char c in key)
+        {
+            if (!(c is >= 'a' and <= 'z' || c is >= '0' and <= '9' || c == '_'))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /// <summary>#2640: the lodge professions — a unique key, a known work and yard kind, a held tool, an activity, a market
     /// theme that has market deals, a partner that is another known profession needing no yard of its own (never a miner,
     /// whose work is the lodge's own face), and weights over known traits that are not negative and not all zero. Whether
@@ -726,6 +838,7 @@ public sealed partial class GameContent
 
         ValidateWishes(problems, RequireItem);
         ValidateLodges(problems);
+        ValidateFestivals(problems);
 
         // #427: authored voxel ship layouts. The server used to turn an unknown cell id silently into hull
         // (`?? iron_wall`), so a data typo would ship invisibly — surface it at load like every other reference.

@@ -307,6 +307,10 @@ namespace BlocksBeyondTheStars.Client
             // #2518: the view's motion lives with the other comfort switches, where players look for it (it sat under
             // Controls). Same settings keys and saved values as before — only the row moved.
             Toggle(ref y, L("ui.settings.camera_motion"), S.CameraMotion, () => { S.CameraMotion = !S.CameraMotion; ApplyLiveWorld(); Rebuild(); });
+            // #3001: the real-world calendar's festivals (the bundled singleplayer server gets it as its operator override at the
+            // next launch; the menu card follows at once) and, #3004, the cosmetic mood they bring on this client.
+            Toggle(ref y, L("ui.settings.festivals"), S.Festivals, () => { S.Festivals = !S.Festivals; Rebuild(); });
+            Toggle(ref y, L("ui.settings.festival_mood"), S.FestivalMood, () => { S.FestivalMood = !S.FestivalMood; FestivalMood.Enabled = S.FestivalMood; Rebuild(); });
             // #2152: how hard hits, weapon kicks and explosions rattle the view (0–100 %, 10 % steps).
             Stepper(ref y, L("ui.settings.screen_shake"), Mathf.Clamp01(S.ScreenShake), 0, 1,
                 () => { S.ScreenShake = Mathf.Clamp01(Mathf.Round((S.ScreenShake - 0.1f) * 10f) / 10f); ApplyLiveWorld(); Rebuild(); },

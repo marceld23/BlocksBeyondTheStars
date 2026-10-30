@@ -193,7 +193,7 @@ namespace BlocksBeyondTheStars.Client
             bool sandbox = false,
             string worldOptionArgs = null,
             int maxPlayers = 1, string password = null, string serverName = "Singleplayer", string adminName = null,
-            bool creativeFlight = false)
+            bool creativeFlight = false, bool festivalsOff = false)
         {
 #if UNITY_WEBGL && !UNITY_EDITOR
             Debug.LogWarning("Local world hosting is unavailable in WebGL; browsers cannot launch the bundled server process.");
@@ -274,6 +274,9 @@ namespace BlocksBeyondTheStars.Client
             // World options (sliders at creation): non-default values only; the server bakes them into the
             // new save's rules/description, so later launches don't need to repeat them.
             string optionArgs = string.IsNullOrEmpty(worldOptionArgs) ? string.Empty : worldOptionArgs;
+            // #3001: the client's global "Festivals" setting rides as the OPERATOR override, never into the save — so it
+            // applies to every world this client hosts, old saves included, and switching it back on needs no lift.
+            string festivalArgs = festivalsOff ? " --festivals off" : string.Empty;
             // Multiplayer hosting: a join password + the host's name as a server-side admin.
             string hostArgs =
                 (string.IsNullOrEmpty(password) ? string.Empty : $" --password \"{password}\"") +
@@ -287,7 +290,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 FileName = exe,
                 Arguments = $"--port {Port} --name \"{serverName}\" --world \"{worldName}\" " +
-                            $"--max-players {Mathf.Max(1, maxPlayers)} --saves \"{saves}\" --data \"{data}\" --usercontent \"{userContent}\" --stdin-stop true" + viewArg + seedArg + spaceArgs + voiceArg + startCubeArg + cheatsArg + noConfigArg + creativeArgs + optionArgs + hostArgs,
+                            $"--max-players {Mathf.Max(1, maxPlayers)} --saves \"{saves}\" --data \"{data}\" --usercontent \"{userContent}\" --stdin-stop true" + viewArg + seedArg + spaceArgs + voiceArg + startCubeArg + cheatsArg + noConfigArg + creativeArgs + optionArgs + festivalArgs + hostArgs,
                 WorkingDirectory = Path.GetDirectoryName(exe),
                 UseShellExecute = false,
                 CreateNoWindow = true,

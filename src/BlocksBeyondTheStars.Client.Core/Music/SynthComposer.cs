@@ -7,13 +7,15 @@ using System.Collections.Generic;
 
 namespace BlocksBeyondTheStars.Client.Music
 {
-    /// <summary>The four moods of the Synth music style (unchanged from the original code-synth pads).</summary>
+    /// <summary>The moods of the Synth music style: the original four code-synth pads, and <see cref="Festive"/> (#3004) —
+    /// a festival's piece whose flavour (<c>cosy</c>, <c>spooky</c>, <c>bright</c>, <c>calm</c>) rides in the flavor argument.</summary>
     public enum SynthMood
     {
         Menu,
         Planet,
         Space,
         Combat,
+        Festive,
     }
 
     /// <summary>
@@ -171,6 +173,58 @@ namespace BlocksBeyondTheStars.Client.Music
                     score.DroneLevel = 0.10f;
                     score.Pulse = true;
                     score.PulseHz = 2f;
+                    break;
+                case SynthMood.Festive:
+                    // #3004: a festival's piece. cosy = a warm, slow major; spooky = a soft minor with room to breathe (kid-friendly,
+                    // never a chase); bright = a quick, sparkling lydian; calm = a still, drone-led major for the star festivals.
+                    switch ((flavor ?? string.Empty).ToLowerInvariant())
+                    {
+                        case "spooky":
+                            rootSemis = 2; // D
+                            (modeName, mode) = Pick(rng, ("dorian", Dorian), ("aeolian", Aeolian));
+                            progressions = SpaceProgressions;
+                            tempo = 50f + rng.Next(9);
+                            beatsPerChord = 8;
+                            restChance = 0.6f;
+                            score.PadLevel = 0.30f;
+                            score.ArpLevel = 0.05f;
+                            score.DroneLevel = 0.12f;
+                            break;
+                        case "bright":
+                            rootSemis = 7; // G
+                            (modeName, mode) = Pick(rng, ("lydian", Lydian), ("ionian", Ionian));
+                            progressions = MenuProgressions;
+                            tempo = 84f + rng.Next(13);
+                            beatsPerChord = 8;
+                            restChance = 0.25f;
+                            score.PadLevel = 0.32f;
+                            score.ArpLevel = 0.10f;
+                            score.DroneLevel = 0.07f;
+                            break;
+                        case "calm":
+                            rootSemis = 9; // A
+                            (modeName, mode) = Pick(rng, ("ionian", Ionian), ("mixolydian", Mixolydian));
+                            progressions = MenuProgressions;
+                            tempo = 48f + rng.Next(9);
+                            beatsPerChord = 8;
+                            restChance = 0.6f;
+                            score.PadLevel = 0.32f;
+                            score.ArpLevel = 0.04f;
+                            score.DroneLevel = 0.13f;
+                            break;
+                        default: // cosy
+                            rootSemis = 5; // F
+                            (modeName, mode) = Pick(rng, ("ionian", Ionian), ("mixolydian", Mixolydian));
+                            progressions = MenuProgressions;
+                            tempo = 64f + rng.Next(11);
+                            beatsPerChord = 8;
+                            restChance = 0.4f;
+                            score.PadLevel = 0.36f;
+                            score.ArpLevel = 0.07f;
+                            score.DroneLevel = 0.09f;
+                            break;
+                    }
+
                     break;
                 default:
                     (rootSemis, modeName, mode, octave) = PlanetFlavor(flavor);

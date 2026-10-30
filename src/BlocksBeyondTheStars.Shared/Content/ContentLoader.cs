@@ -169,6 +169,12 @@ public static class ContentLoader
         // The enemies (#2971) are optional the same way: no enemies.json → the numbers that shipped before it.
         content.SetEnemies(LoadArray<EnemyDefinition>(Path.Combine(dataDir, "enemies.json")));
 
+        // The festivals of the real-world calendar (#3000) are optional the same way: no festivals.json → no festivals.
+        string festivalsFile = Path.Combine(dataDir, "festivals.json");
+        content.SetFestivals(File.Exists(festivalsFile)
+            ? JsonSerializer.Deserialize<Festivals.FestivalCatalog>(File.ReadAllText(festivalsFile), JsonOptions)
+            : null);
+
         content.Validate();
         return content;
     }
