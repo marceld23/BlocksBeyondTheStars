@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🎁 Festivals follow-up — My festivals, fewer festive days, Halloween and Christmas tasks, decorations, jingles — epic #3019 (#3020–#3026), branch feat/festivals-follow-up — ✅ done 2026-10-30 (⚠ playtest open; save version 9 for four new blocks, no protocol bump — message tag 313 additive, no terrain-generation change)
+### 🎁 Festivals follow-up — My festivals, fewer festive days, Halloween and Christmas tasks, decorations, jingles — epic #3019 (#3020–#3026), branch feat/festivals-follow-up — ✅ done 2026-10-30 in PR #3027 (⚠ playtest open; save version 9 for four new blocks, no protocol bump — message tag 313 additive, no terrain-generation change)
 
 A review of v2026.10.31 against Marcel's original wish found gaps (the browser ignored "Festivals off", Christmas had no task
 of its own, firs were counted per needle block, the harvest task asked for pumpkins where none grow, the spawner put pumpkins
