@@ -1,0 +1,15 @@
+{
+  "story.festival_christmas.name": "Natale",
+  "story.festival_christmas.short": "Natale",
+  "story.festival_christmas.desc": "Una sfida di Natale: trova e scansiona venticinque diversi abeti, poi illumina la tua base.",
+  "story.festival_christmas.ch.c1": "Abeti",
+  "story.festival_christmas.ch.c1.sum": "Gli abeti crescono sui mondi freddi. Scansiona venticinque diversi.",
+  "story.festival_christmas.r1.start": "Buon Natale! In molte case stasera c'è un albero di Natale pieno di luci nel soggiorno. Trova venticinque abeti diversi e scansionalli — poi ho dei regali per te.",
+  "story.festival_christmas.graduated": "Buon Natale! Ecco dei regali da confezionare e lampade colorate per la tua base.",
+  "story.festival_christmas.d1.start": "Gli abeti crescono sui mondi freddi — tundra, taiga, ghiacciaio. Scansiona venticinque diversi con lo Scanner portatile; ogni albero conta una sola volta.",
+  "story.festival_christmas.d1.chip": "Scansiona 25 abeti",
+  "story.festival_christmas.d1.done": "Venticinque abeti! Un intero bosco di Natale.",
+  "story.festival_christmas.d2.start": "Metti dieci luci nella tua base — lanterne, lampade colorate, lanterne di carta, strisce luminose.",
+  "story.festival_christmas.d2.chip": "Metti 10 luci",
+  "story.festival_christmas.d2.done": "Dieci luci — la tua base brilla."
+}

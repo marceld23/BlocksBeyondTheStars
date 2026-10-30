@@ -49,3 +49,20 @@ blocks (goldens, the no-row optimisation) — so the content a festival puts int
 - Southern-hemisphere players see "Midsummer" in their winter; festivals are therefore named after what they are, not
   after a season.
 - Native speakers are invited to review the explanations ([#3008](https://github.com/marceld23/BlocksBeyondTheStars/issues/3008)).
+
+## Addendum 2026-10-30: every player chooses their festivals (#3019)
+
+With 52 (now 53) festivals the calendar alone would put a festive mood on 163 days of 2027 — the special day turns into
+the normal one. So:
+
+7. **"My festivals."** Each player celebrates a selection — by default the fourteen big world festivals plus the ones of
+   their language community, or all, only their language, none, or their own list. The server filters what it greets, the
+   challenge packs and the spawns per player; the world's list of what is on stays as decided above. A festival the admin
+   switches on by hand is forced and shows for everybody (decision 1 stands). The singleplayer host therefore no longer
+   needs the operator override from the client; it remains for operators.
+8. **The mood keeps to the core days** (the first days of a window, or Advent's Sundays); the card, chip, greeting and
+   challenges keep the whole window. Halloween and Christmas lead overlapping festivals (`priority`).
+9. **Challenges stay once per player** — no yearly restart. Halloween and Christmas get packs of their own; the theme packs
+   cover the rest.
+
+With the default selection and the core days a player sees a festive mood on about 37–43 days a year.

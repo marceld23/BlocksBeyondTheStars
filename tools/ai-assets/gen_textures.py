@@ -533,6 +533,12 @@ TEXTURES = [
     # skin stays a plain mid-orange with ribs) — and the carved pumpkin lantern, a friendly smiling face that glows from inside.
     ("flora_pumpkin", "ribbed orange pumpkin skin with gentle vertical ribs and a smooth waxy surface, evenly lit, filling the whole image edge to edge"),
     ("pumpkin_lantern", "a friendly smiling carved pumpkin lantern face with two round eyes and a wide happy smile glowing warm yellow from inside, on ribbed orange pumpkin skin filling the whole image edge to edge, cosy and kid-friendly, not scary"),
+    # #3024: the festival decorations — a wrapped gift (white paper + red ribbon, so a dye recolours the paper), a glowing paper
+    # lantern, the diya's painted clay (a small pot that glows) and the marigold, a flower billboard on black like the daisy.
+    ("gift_box", "the side of a wrapped present: smooth white wrapping paper with tiny pale silver stars and one wide bright red satin ribbon running straight across the middle both vertically and horizontally, filling the whole image edge to edge"),
+    ("paper_lantern", "the glowing surface of a round paper lantern: warm red paper lit softly from inside with thin dark vertical bamboo ribs and a narrow golden band along the top and bottom edge, filling the whole image edge to edge"),
+    ("diya_lamp", "warm terracotta clay pottery surface with a painted pattern of small white and yellow dots and tiny petals, softly lit by warm lamp light, filling the whole image edge to edge"),
+    ("flora_marigold", f"side view of one clump of marigolds with round ruffled bright orange and golden-yellow pompom blossoms on green stems with small feathery leaves, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}"),
     # #2853: the lantern tree's glowing fruit, hanging under its crown (a fruit on black, cut like the fruit trees' fruit).
     ("flora_lantern_fruit", "a single round glowing warm golden-orange lantern-like fruit with soft luminous ribbed skin, hanging from a short dark stem at the top edge of the image, one small dark leaf at the stem, the entire rest of the image solid pitch-black #000000 with no gradient and no vignette, side view"),
     # #2836 (2026-10-19) held-tool materials: a part of a held tool, gun or gadget samples one of these, tinted by the part's

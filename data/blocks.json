@@ -204,6 +204,14 @@
   // The carved pumpkin lantern (#3005): a friendly glowing face, a warm light block like the lantern, dyeable like every lamp;
   // top and bottom wear the plain pumpkin skin.
   { "key": "pumpkin_lantern", "nameKey": "block.pumpkin_lantern.name", "tintable": true, "category": "light", "hardness": 0.4, "requiredTool": "none", "minToolTier": 0, "emission": 0.75, "color": 16747520, "lightColor": 16750848, "lightRadius": 4, "flammable": true, "faces": [ { "side": "top", "tile": "flora_pumpkin" }, { "side": "bottom", "tile": "flora_pumpkin" } ], "drops": [ { "item": "pumpkin_lantern", "count": 1 } ] },
+  // The festival decorations (#3024): a wrapped present (white paper + a red ribbon, so a dye recolours the paper), a glowing
+  // paper lantern and a diya — a small clay oil lamp on the flower pot's form — both warm dyeable lights, and the marigold, an
+  // orange flower planted from seeds on soil, in a tray or a flower pot (never wild: FloraCatalog marks it authored, so no
+  // world roster and no greenhouse ever grows it and no world generation changes).
+  { "key": "gift_box",      "nameKey": "block.gift_box.name",      "tintable": true, "category": "building", "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "color": 15658734, "flammable": true, "drops": [ { "item": "gift_box", "count": 1 } ] },
+  { "key": "paper_lantern", "nameKey": "block.paper_lantern.name", "tintable": true, "category": "light", "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "emission": 0.8, "color": 13775910, "lightColor": 16750656, "lightRadius": 4, "flammable": true, "drops": [ { "item": "paper_lantern", "count": 1 } ] },
+  { "key": "diya_lamp",     "nameKey": "block.diya_lamp.name",     "tintable": true, "category": "light", "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "emission": 0.85, "color": 12933696, "lightColor": 16758855, "lightRadius": 4, "tileKind": "material", "drops": [ { "item": "diya_lamp", "count": 1 } ] },
+  { "key": "flora_marigold", "nameKey": "block.flora_marigold.name", "category": "flora", "hardness": 0.2, "requiredTool": "none", "minToolTier": 0, "solid": false, "color": 16750592, "flammable": true, "drops": [ { "item": "marigold_seed", "count": 2 } ] },
   { "key": "flora_sapling",   "nameKey": "block.flora_sapling.name", "category": "flora",    "hardness": 0.3, "requiredTool": "none",  "minToolTier": 0, "flammable": true, "drops": [ { "item": "sapling", "count": 1 } ] },
   // More saplings (#2977–#2980): each grows its own tree (SaplingCatalog) — one per fruit, the conifer from pine needles,
   // the Fifi plant from its leaves (only where it grows), the young giant mahogany from giant leaves.

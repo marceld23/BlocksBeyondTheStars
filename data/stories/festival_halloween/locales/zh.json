@@ -1,0 +1,15 @@
+{
+  "story.festival_halloween.name": "万圣节",
+  "story.festival_halloween.short": "万圣节",
+  "story.festival_halloween.desc": "万圣节挑战：带来六十个南瓜并雕出一些南瓜灯。",
+  "story.festival_halloween.ch.c1": "南瓜收获",
+  "story.festival_halloween.ch.c1.sum": "万圣节周期间，绿色世界到处都长着南瓜。收获六十个。",
+  "story.festival_halloween.r1.start": "万圣节周！在绿色世界周围到处都长着南瓜——橙色、黄色、绿色，甚至白色的也有。收获六十个，我会送你们基地一份礼物。",
+  "story.festival_halloween.graduated": "一个既诡异又丰收的季节！这是：雕刻好的南瓜灯和一些门用的灯笼。",
+  "story.festival_halloween.d1.start": "收获六十个南瓜。任何颜色都算——有毒的也可以，解毒器会清洗它们。",
+  "story.festival_halloween.d1.chip": "收获 60 个南瓜",
+  "story.festival_halloween.d1.done": "六十个南瓜！收成完成。",
+  "story.festival_halloween.d2.start": "用火炬把南瓜雕成南瓜灯并挂起三个。",
+  "story.festival_halloween.d2.chip": "挂上 3 个南瓜灯",
+  "story.festival_halloween.d2.done": "三盏笑脸灯——真温馨！"
+}

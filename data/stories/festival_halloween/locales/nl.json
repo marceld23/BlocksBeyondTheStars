@@ -1,0 +1,15 @@
+{
+  "story.festival_halloween.name": "Halloween",
+  "story.festival_halloween.short": "Halloween",
+  "story.festival_halloween.desc": "Een Halloween-uitdaging: lever zestig Pompoenen in en snijd er een paar Pompoenlantaarns uit.",
+  "story.festival_halloween.ch.c1": "Pompoenoogst",
+  "story.festival_halloween.ch.c1.sum": "Tijdens Halloween-week groeien er Pompoenen om je heen op de groene werelden. Oogst er zestig.",
+  "story.festival_halloween.r1.start": "Halloween-week! Op de groene werelden groeien overal Pompoenen — oranje, geel, groen en zelfs witte. Oogst zestig en ik heb een cadeautje voor je basis.",
+  "story.festival_halloween.graduated": "Een griezelig goede oogst! Hier: uitgehakte Pompoenlantaarns en een paar lantaarns voor je deur.",
+  "story.festival_halloween.d1.start": "Oogst zestig Pompoenen. Elke kleur telt — zelfs giftige; de ontgifter maakt ze schoon.",
+  "story.festival_halloween.d1.chip": "Oogst 60 Pompoenen",
+  "story.festival_halloween.d1.done": "Zestig Pompoenen! De oogst is binnen.",
+  "story.festival_halloween.d2.start": "Snijd een Pompoen met een fakkel om in een Pompoenlantaarn en zet er drie op.",
+  "story.festival_halloween.d2.chip": "Zet 3 Pompoenlantaarns neer",
+  "story.festival_halloween.d2.done": "Drie grijnzende lantaarns — wat gezellig!"
+}

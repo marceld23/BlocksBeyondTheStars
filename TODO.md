@@ -24,6 +24,38 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🎁 Festivals follow-up — My festivals, fewer festive days, Halloween and Christmas tasks, decorations, jingles — epic #3019 (#3020–#3026), branch feat/festivals-follow-up — ✅ done 2026-10-30 in PR #3027 (⚠ playtest open; save version 9 for four new blocks, no protocol bump — message tag 313 additive, no terrain-generation change)
+
+A review of v2026.10.31 against Marcel's original wish found gaps (the browser ignored "Festivals off", Christmas had no task
+of its own, firs were counted per needle block, the harvest task asked for pumpkins where none grow, the spawner put pumpkins
+on players' ground) and that a festival mood would be on 163 days of 2027. Decisions (Marcel, 2026-10-30): players choose
+their festivals (default: the big world festivals + their language), the mood keeps to core days, challenges stay once per
+player (no yearly restart), Halloween and Christmas get own tasks, pumpkins also at Sukkot and the equinox, decorations and
+jingles wherever they fit; Orthodox Christmas added. ADR 0020 addendum, docs/developer/FESTIVALS.md, USER_MANUAL "Festivals".
+
+- **#3020 guards:** the spawner skips cells near player edits (`HasPlayerBlockEdits` box), settlements and bodies (2 blocks); the
+  scanner counts only loaded cells in reach that hold the named block; the browser bug is gone with the per-player selection.
+- **#3021 My festivals:** Shared `FestivalSelection` (presets BigAndLanguage/All/Language/None/Custom), `festivals.json` `big` +
+  `locales`; `JoinRequest.FestivalPreset/FestivalCustom` + `SetFestivalPrefsIntent` (tag 313, paused-whitelisted);
+  `GameServerFestivalPrefs.cs` `ActiveFestivalsFor(session)` drives `ServerRules.ActiveFestivals` (+ `FestivalForced`), the
+  greeting, the story predicates and the spawner; client `ClientSettings.FestivalPreset/FestivalCustom` (old "Off" → None),
+  `UiFestivalPicker` (menu card "More festivals" + Settings "Choose festivals…"); no operator override from the client any more.
+- **#3022 core days + priority:** `effects.coreDays`/`coreWeekday`, `FestivalCalendar.IsCoreDay`, `priority` (Halloween,
+  Christmas 10); client mood cached per rules message and day. Mood days 2027: 163 → about 40 with the default.
+- **#3023 challenges:** packs `festival_halloween` (60 pumpkins, opt. 3 pumpkin lanterns) and `festival_christmas` (25 firs via
+  `scan:tree`, opt. 10 lights), `pack` field + predicates `world:festival_halloween|christmas`; harvest pack → `harvest:any` 60;
+  lights pack without the fir step; `GameServerScanTrees.cs` (trunk foot = tree id, `PlayerState.ScannedTrees`), achievements
+  `conifer_25/100`, `festival_halloween/christmas`; pumpkin spawns at Sukkot + autumn equinox.
+- **#3024 decorations:** `gift_box`, `paper_lantern`, `diya_lamp` (Pot form), `flora_marigold` + `marigold_seed` (authored species —
+  no roster, no greenhouse); hand recipes + gatherers' market seeds; presents switched to them; save version 9; textures + icons
+  generated (OpenAI), metas.
+- **#3025 jingles:** nine ElevenLabs stingers `festival_<theme>` + `festival_halloween` on the festival banner.
+- **#3026 Orthodox Christmas** (7 January, ru) in 14 languages.
+- **Locales:** 38 game keys + four packs × 14 languages; hand QA — marigold is the Tagetes (cempasúchil), not the calendula the
+  machine pass picked in eight languages (also fixed in v2026.10.31's Día de los Muertos text in it/ko/nl/fr).
+- **Open:** playtest (presets, picker, mood days, Halloween/Christmas tasks, fir counting, decorations, jingles); #3008 review of
+  the `locales` mapping.
+
 ### 🎉 Seasonal festivals — the real-world calendar in the game, multicultural, no FOMO — epic #3000, #3001–#3007 (+ #3008 community review), branches feat/seasonal-festivals + feat/festival-pumpkins — ✅ done 2026-10-30 in PR #3012 (`e16b6736`) and PR #3015 (`0a144741`) (⚠ playtest open; the second PR — pumpkin · spawns · challenges — raises the terrain generation to 32 and the save version to 8, no protocol bump)
 
 Marcel's wish (2026-10-29): at certain times of the real year the game should play with a slightly different mood and slightly

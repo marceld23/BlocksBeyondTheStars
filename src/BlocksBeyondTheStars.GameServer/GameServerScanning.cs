@@ -435,12 +435,21 @@ public sealed partial class GameServer
     private const double HandScanCooldownSeconds = 0.5;
 
     /// <summary>#3007: raises <c>scan:block</c> with the block key for a block, plant, crop or tree scan whose cell the client
-    /// named, once per cell per player (a bounded, persisted set — the oldest cells are forgotten first).</summary>
+    /// named, once per cell per player (a bounded, persisted set — the oldest cells are forgotten first). #3020: only for a
+    /// loaded cell within reach that really holds the named block — the counted events never take the client's word.
+    /// #3023: a tree also raises <c>scan:tree</c> once per tree.</summary>
     private void RaiseScanBlockOnce(PlayerSession session, ScanReadout readout)
     {
-        if (_scanCell is not { } cell || readout.Kind is not ("block" or "flora" or "tree" or "crops") || string.IsNullOrEmpty(readout.SubjectKey))
+        if (_scanCell is not { } cell || readout.Kind is not ("block" or "flora" or "tree" or "crops") || string.IsNullOrEmpty(readout.SubjectKey)
+            || _content.GetBlock(readout.SubjectKey) is not { } def || _world.GetBlockIfLoaded(cell).Value != def.NumericId.Value
+            || !WithinReach(session.State, cell))
         {
             return;
+        }
+
+        if (readout.Kind == "tree")
+        {
+            RaiseScanTreeOnce(session, cell, readout.SubjectKey);
         }
 
         long packed = ((long)cell.X << 42) ^ ((long)(cell.Y & 0xFFFFF) << 21) ^ (long)(cell.Z & 0x1FFFFF);

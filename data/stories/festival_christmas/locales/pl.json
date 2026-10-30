@@ -1,0 +1,15 @@
+{
+  "story.festival_christmas.name": "Boże Narodzenie",
+  "story.festival_christmas.short": "Boże Narodzenie",
+  "story.festival_christmas.desc": "Wyzwanie bożonarodzeniowe: znajdź i zeskanuj dwadzieścia pięć różnych jodeł, a potem udekoruj swoją bazę światłami.",
+  "story.festival_christmas.ch.c1": "Jodły",
+  "story.festival_christmas.ch.c1.sum": "Jodły rosną na zimnych światach. Zeskanuj dwadzieścia pięć różnych.",
+  "story.festival_christmas.r1.start": "Wesołych Świąt! W wielu domach dziś stoi w salonie jodła pełna świateł. Znajdź dwadzieścia pięć różnych jodeł i zeskanuj je — potem mam dla ciebie prezenty.",
+  "story.festival_christmas.graduated": "Wesołych Świąt! Oto prezenty do zapakowania i kolorowe lampy dla twojej bazy.",
+  "story.festival_christmas.d1.start": "Jodły rosną na zimnych światach — tundra, tajga, lodowiec. Zeskanuj dwadzieścia pięć różnych przy użyciu Skanera Ręcznego; każde drzewo liczy się tylko raz.",
+  "story.festival_christmas.d1.chip": "Zeskanuj 25 jodeł",
+  "story.festival_christmas.d1.done": "Dwadzieścia pięć jodeł! Cały bożonarodzeniowy las.",
+  "story.festival_christmas.d2.start": "Zawieś dziesięć świateł w swojej bazie — lampiony, kolorowe lampy, lampiony papierowe, taśmy świetlne.",
+  "story.festival_christmas.d2.chip": "Zawieś 10 świateł",
+  "story.festival_christmas.d2.done": "Dziesięć świateł — twoja baza świeci."
+}

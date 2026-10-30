@@ -1,0 +1,15 @@
+{
+  "story.festival_halloween.name": "Halloween",
+  "story.festival_halloween.short": "Halloween",
+  "story.festival_halloween.desc": "Halloweenowe wyzwanie: przynieś sześćdziesiąt dyni i wyrzeźb kilka lampionów.",
+  "story.festival_halloween.ch.c1": "Zbiór dyni",
+  "story.festival_halloween.ch.c1.sum": "W tygodniu Halloween na zielonych światach wokół rosną dynie. Zbierz sześćdziesiąt.",
+  "story.festival_halloween.r1.start": "Tydzień Halloween! Na zielonych światach dynie rosną wokół ciebie — pomarańczowe, żółte, zielone, nawet białe. Zbierz sześćdziesiąt, a dam coś twojej bazie.",
+  "story.festival_halloween.graduated": "Strasznie dobry zbiór! Proszę: wyrzeźbione lampiony z dyni i kilka lampek na drzwi.",
+  "story.festival_halloween.d1.start": "Zbierz sześćdziesiąt dyni. Każdy kolor się liczy — również trujące, odtruwacz je oczyszcza.",
+  "story.festival_halloween.d1.chip": "Zbierz 60 dyni",
+  "story.festival_halloween.d1.done": "Sześćdziesiąt dyni! Zbiór gotowy.",
+  "story.festival_halloween.d2.start": "Wyrzeźb dynię przy pomocy pochodni na Lampion z dyni i ustaw trzy z nich.",
+  "story.festival_halloween.d2.chip": "Ustaw 3 Lampiony z dyni",
+  "story.festival_halloween.d2.done": "Trzy uśmiechnięte lampiony — jak przytulnie!"
+}

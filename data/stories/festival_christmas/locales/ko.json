@@ -1,0 +1,15 @@
+{
+  "story.festival_christmas.name": "크리스마스",
+  "story.festival_christmas.short": "크리스마스",
+  "story.festival_christmas.desc": "크리스마스 도전 과제: 서로 다른 전나무 25그루를 찾아 스캔한 다음 기지에 불을 밝히세요.",
+  "story.festival_christmas.ch.c1": "전나무",
+  "story.festival_christmas.ch.c1.sum": "전나무는 추운 행성에 자랍니다. 서로 다른 전나무 25그루를 스캔하세요.",
+  "story.festival_christmas.r1.start": "메리 크리스마스! 오늘 밤 많은 집 거실에는 전구로 장식된 전나무가 서 있어요. 서로 다른 전나무 25그루를 찾아 스캔하면 선물을 드릴게요.",
+  "story.festival_christmas.graduated": "메리 크리스마스! 포장할 선물과 기지에 걸 색색의 전구를 드렸어요.",
+  "story.festival_christmas.d1.start": "전나무는 툰드라, 타이가, 빙하 같은 추운 세계에 자랍니다. 핸드 스캐너로 서로 다른 전나무 25그루를 스캔하세요; 각 나무는 한 번만 계산됩니다.",
+  "story.festival_christmas.d1.chip": "전나무 25그루 스캔",
+  "story.festival_christmas.d1.done": "전나무 25그루! 한가득 크리스마스 숲이네요.",
+  "story.festival_christmas.d2.start": "기지에 전등 10개를 걸어보세요 — 랜턴, 색등, 종이등, 라이트 스트립 모두 포함됩니다.",
+  "story.festival_christmas.d2.chip": "전등 10개 걸기",
+  "story.festival_christmas.d2.done": "전등 10개 — 기지가 반짝이네요."
+}

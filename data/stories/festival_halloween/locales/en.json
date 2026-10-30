@@ -1,0 +1,15 @@
+{
+  "story.festival_halloween.name": "Halloween",
+  "story.festival_halloween.short": "Halloween",
+  "story.festival_halloween.desc": "A Halloween challenge: bring in sixty pumpkins and carve a few lanterns.",
+  "story.festival_halloween.ch.c1": "Pumpkin harvest",
+  "story.festival_halloween.ch.c1.sum": "Pumpkins grow around you on the green worlds during Halloween week. Harvest sixty of them.",
+  "story.festival_halloween.r1.start": "Halloween week! On the green worlds pumpkins are growing all around you — orange, yellow, green, even white ones. Harvest sixty and I have a present for your base.",
+  "story.festival_halloween.graduated": "A spooky-good harvest! Here: carved pumpkin lanterns and a few lanterns for your door.",
+  "story.festival_halloween.d1.start": "Harvest sixty pumpkins. Any colour counts — toxic ones too, the detoxifier washes them.",
+  "story.festival_halloween.d1.chip": "Harvest 60 pumpkins",
+  "story.festival_halloween.d1.done": "Sixty pumpkins! The harvest is in.",
+  "story.festival_halloween.d2.start": "Carve a pumpkin with a torch into a pumpkin lantern and put up three of them.",
+  "story.festival_halloween.d2.chip": "Put up 3 pumpkin lanterns",
+  "story.festival_halloween.d2.done": "Three grinning lanterns — how cosy!"
+}

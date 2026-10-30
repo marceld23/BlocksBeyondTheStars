@@ -89,7 +89,7 @@ Without a `type` the objective is a game event (`objective.event`, below).
 
 ## Game events (`objective.event`)
 
-105 event keys (`GameEventKeys.All`). The key names the verb, the argument the thing: a step
+107 event keys (`GameEventKeys.All`). The key names the verb, the argument the thing: a step
 names a key (or a `prefix*` pattern) and, optionally, the arguments it accepts (`"arg": "a|b"`); the amount
 adds up towards `required`. Nothing is raised for an observer, before the join is complete, or for a non-positive
 amount.
@@ -136,6 +136,7 @@ amount.
 | `flight:flown` | The player's ship flew in space. Amount: whole flight units (a hyperjump or a warp never counts). |
 | `gadget:used` | A gadget did its work (the terrain scanner pulsed, the medkit healed …; a refused or empty use raises nothing). Arg: the gadget's item key. |
 | `gear:equipped` | The player put on a piece of gear. Arg: the base item key. |
+| `harvest:any` | A plant was harvested (broken by hand: a fruit, a crop, a flower, a festival pumpkin). Arg: the plant's block key. "Bring in sixty plants" counts every harvest, whatever grows on the world. |
 | `hotbar:select` | The player picked another quick-bar slot. Arg: the slot number, 1-based. |
 | `hyperjump:any` | A jump to another star system. Arg: the destination system id. |
 | `insight:companion_ward` | A companion made a Guardian machine stand down near the player (raised at most every `GameServer.InsightEventCooldownSeconds` while it lasts). Arg: empty. |
@@ -174,8 +175,9 @@ amount.
 | `salvage:found` | Salvage in space: a derelict or a debris field reached for the first time, or a salvage capsule emptied into the hold. Arg: `wreck`, `debris` or `capsule`. |
 | `sample:taken` | A sample went into the player's sample case — from a harvested plant or tree, an ore deposit, an animal (the sampler, a defeat, a companion's gift). Arg: `plant`, `animal` or `mineral`. |
 | `scan:any` | A first-time scan (a discovery — the achievement counter's moment). Arg: the readout kind. |
-| `scan:block` | A block, plant or tree scanned with the hand scanner, once per CELL per player (a client that names the cell; an older one raises nothing here). Arg: the block key (`pine_needles` for a conifer's crown) — "scan ten conifers" counts ten trees, not one tree ten times. |
+| `scan:block` | A block, plant or tree scanned with the hand scanner, once per CELL per player (a client that names the cell; an older one raises nothing here; since #3020 only for a cell within the scanner's reach that really holds the block). Arg: the block key. To count trees use `scan:tree` — a crown has many cells. |
 | `scan:performed` | Any scan, first or repeat (hand scanner, ship scanner). Arg: the readout kind (`flora`, `creature`, `block`, `monument`, `asteroid`, `anomaly`, `wreck`, `wormhole` …). |
+| `scan:tree` | A tree scanned with the hand scanner, once per TREE per player — the server walks from the scanned leaf or log to the trunk's foot and remembers that; a crown without a natural trunk does not count. Arg: the tree's kind by its crown — `conifer` (pine needles), `broadleaf`, `palm`, or the crown's block key. |
 | `ship:commissioned` | A self-built ship was commissioned. Arg: the ship id. |
 | `ship:edited` | A block was built onto (or into) the player's parked ship on foot — the ship grows. Arg: the block key. |
 | `ship:keel_placed` | A ship keel was laid: the construction site of a self-built ship. Arg: the new fleet id. |
@@ -251,7 +253,7 @@ condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 
 ### World predicates (`world:<predicate>`)
 
-84 predicates (`StoryWorldPredicates.All`, held equal to the server's registry by
+86 predicates (`StoryWorldPredicates.All`, held equal to the server's registry by
 `StoryConditionTests`). A predicate reads the player's own body and system, never another player's.
 
 | Predicate | Holds when |
@@ -282,7 +284,9 @@ condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 | `world:festival_any` | Some festival of the real-world calendar is on (or switched on by hand). |
 | `world:festival_blossoms` | A blossom festival is on (Hanami, Easter, Earth Day). |
 | `world:festival_children` | A children's day is on. |
+| `world:festival_christmas` | Christmas is on for this player — the Christmas pack's own start (Christmas no longer starts the lights pack). |
 | `world:festival_colours` | A festival of colours is on (Holi, Carnival, Maslenitsa). |
+| `world:festival_halloween` | Halloween is on for this player — the Halloween pack's own start (Halloween no longer starts the harvest pack). |
 | `world:festival_harvest` | A festival of the harvest theme is on (Halloween, Erntedank, Chuseok, Thanksgiving …). |
 | `world:festival_lights` | A festival of lights is on (Diwali, St. Martin, Hanukkah, Advent, Christmas, the Lantern Festival …). |
 | `world:festival_midsummer` | A midsummer festival is on (Midsummer, Ivan Kupala, the Dragon Boat Festival). |

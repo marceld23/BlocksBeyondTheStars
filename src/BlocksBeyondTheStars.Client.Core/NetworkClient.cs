@@ -450,6 +450,21 @@ namespace BlocksBeyondTheStars.Client
         /// older client sends none.</summary>
         public string[] Features { get; set; } = { ClientFeatures.Packs1 };
 
+        /// <summary>#3021 "My festivals": the festival preset the next <see cref="Join"/> announces (−1 = none, the server's
+        /// default) — set by the host before joining; <see cref="SendFestivalPrefs"/> keeps it current for a re-join.</summary>
+        public int FestivalPreset { get; set; } = -1;
+
+        /// <summary>#3021: the own festival list the next <see cref="Join"/> announces (preset custom).</summary>
+        public string[] FestivalCustom { get; set; } = System.Array.Empty<string>();
+
+        /// <summary>#3021: tells the server which festivals this player celebrates now (a settings change in game).</summary>
+        public void SendFestivalPrefs(int preset, string[] custom, string locale)
+        {
+            FestivalPreset = preset;
+            FestivalCustom = custom ?? System.Array.Empty<string>();
+            Send(new SetFestivalPrefsIntent { Preset = preset, Custom = FestivalCustom, Locale = locale ?? string.Empty });
+        }
+
         /// <summary>Whether this client announces <c>cutscenes1</c> (#2468): set by the Unity client when its cutscene
         /// director exists, before the join goes out; a headless test opts in or out the same way. Toggles the word in
         /// <see cref="Features"/>, keeping the rest of the list as it is.</summary>
@@ -493,7 +508,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         public void Join(string playerName, string? password = null, string locale = "en", string? token = null, int viewDistanceChunks = 0, string? hostedToken = null, string? installId = null)
-            => Send(new JoinRequest { PlayerName = playerName, Password = password, Locale = locale, Token = token, ViewDistanceChunks = viewDistanceChunks, HostedToken = hostedToken, InstallId = installId, ContentFingerprint = EffectiveContentFingerprint, Features = Features ?? System.Array.Empty<string>() });
+            => Send(new JoinRequest { PlayerName = playerName, Password = password, Locale = locale, Token = token, ViewDistanceChunks = viewDistanceChunks, HostedToken = hostedToken, InstallId = installId, ContentFingerprint = EffectiveContentFingerprint, Features = Features ?? System.Array.Empty<string>(), FestivalPreset = FestivalPreset, FestivalCustom = FestivalCustom ?? System.Array.Empty<string>() });
 
         /// <summary>#2222: set once this client refused the server it is connected to. Until the next
         /// <see cref="Connect"/>, <see cref="Poll"/> hands nothing on — a transport may still deliver what was on

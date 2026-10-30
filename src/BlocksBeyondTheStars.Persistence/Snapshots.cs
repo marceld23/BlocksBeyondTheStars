@@ -68,6 +68,10 @@ public sealed class PlayerSnapshot
     /// Absent in older saves ⇒ none remembered.</summary>
     public List<long> ScannedCells { get; set; } = new();
 
+    /// <summary>#3023: the trunk feet of the trees this player scanned (distinct trees for the Christmas challenge). Absent in
+    /// older saves ⇒ none remembered.</summary>
+    public List<long> ScannedTrees { get; set; } = new();
+
     /// <summary>Display name per <see cref="Scanned"/> entry, captured at scan time (#484). Absent in saves
     /// written before it existed — those entries just have no name.</summary>
     public Dictionary<string, string> ScannedNames { get; set; } = new();
@@ -276,6 +280,7 @@ public static class StateMapper
         ModeOverride = (int)p.ModeOverride,
         Scanned = p.Scanned.ToList(),
         ScannedCells = p.ScannedCells.ToList(),
+        ScannedTrees = p.ScannedTrees.ToList(),
         ScannedNames = new Dictionary<string, string>(p.ScannedNames),
         ScannedWhere = CloneScanSites(p.ScannedWhere),
         EnemiesMet = p.EnemiesMet.ToList(),
@@ -587,6 +592,7 @@ public static class StateMapper
             : Shared.Configuration.PlayerModeOverride.None,
         Scanned = new HashSet<string>(s.Scanned ?? new List<string>()),
         ScannedCells = (s.ScannedCells ?? new List<long>()).ToList(),
+        ScannedTrees = (s.ScannedTrees ?? new List<long>()).ToList(),
         ScannedNames = new Dictionary<string, string>(s.ScannedNames ?? new Dictionary<string, string>()),
         ScannedWhere = CloneScanSites(s.ScannedWhere ?? new Dictionary<string, ScanSite>()),
         EnemiesMet = new HashSet<string>(s.EnemiesMet ?? new List<string>()),

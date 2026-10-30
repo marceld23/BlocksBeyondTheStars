@@ -39,14 +39,10 @@ namespace BlocksBeyondTheStars.Client
             b.BuildNativeMenu();
 #endif
             b.BuildWorldInfoPanel();
-            var festivalList = UiFestivalCard.Build(shell, canvas.transform); // #3003: today's or the next festival (nothing without content or a festival near)
+            UiFestivalCard.Build(shell, canvas.transform); // #3003: today's or the next festival (nothing without content or a festival near)
             b.BuildBottomBar();
-            // The card's "More festivals" overlay goes after its own button and the bottom bar, or both draw over the
-            // open list and stay clickable through its scrim (#3017).
-            if (festivalList != null)
-            {
-                festivalList.transform.SetAsLastSibling();
-            }
+            // #3021: the card's "More festivals" opens "My festivals" at the END of the canvas when pressed, so neither the
+            // card's button nor the bottom bar draws over the open list or stays clickable through its scrim (#3017).
 
             b.BuildConnectDialog();
 #if !UNITY_WEBGL || UNITY_EDITOR

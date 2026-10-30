@@ -569,6 +569,9 @@ namespace BlocksBeyondTheStars.Client
                         Network.ShowsChoices = true;
                         // #2616 (dialog agent): NpcDialogUi closes on the server's "close" and sends the leave — dialogclose1.
                         Network.ClosesDialogs = true;
+                        // #3021 "My festivals": the selection rides on the join, so the join's own greeting already follows it.
+                        Network.FestivalPreset = (int)FestivalMood.Preset(Settings);
+                        Network.FestivalCustom = FestivalMood.Custom(Settings);
                         Network.Join(PlayerName, string.IsNullOrEmpty(Password) ? null : Password, Locale.Code(),
                             string.IsNullOrEmpty(Token) ? null : Token, ViewDistanceChunks,
                             string.IsNullOrEmpty(HostedToken) ? null : HostedToken,

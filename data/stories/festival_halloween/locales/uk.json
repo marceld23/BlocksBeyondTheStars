@@ -1,0 +1,15 @@
+{
+  "story.festival_halloween.name": "Хелловін",
+  "story.festival_halloween.short": "Хелловін",
+  "story.festival_halloween.desc": "Виклик Хелловіну: принеси шістдесят гарбузів і вирізь кілька ліхтарів.",
+  "story.festival_halloween.ch.c1": "Збір гарбузів",
+  "story.festival_halloween.ch.c1.sum": "Під час тижня Хелловіну на зелених світах навколо ростуть гарбузи. Збери шістдесят.",
+  "story.festival_halloween.r1.start": "Тиждень Хелловіну! На зелених світах навколо ростуть гарбузи — помаранчеві, жовті, зелені й навіть білі. Збери шістдесят, і я маю подарунок для твоєї бази.",
+  "story.festival_halloween.graduated": "Містично вдалий урожай! Ось: вирізьблені гарбузові ліхтарі та кілька ліхтарів для дверей.",
+  "story.festival_halloween.d1.start": "Збери шістдесят гарбузів. Будь-який колір підходить — навіть токсичні, детоксикатор їх очистить.",
+  "story.festival_halloween.d1.chip": "Збери 60 гарбузів",
+  "story.festival_halloween.d1.done": "Шістдесят гарбузів! Урожай зібрано.",
+  "story.festival_halloween.d2.start": "Виріж гарбуз за допомогою факела в гарбузовий ліхтар і розвісь три таких.",
+  "story.festival_halloween.d2.chip": "Розвісь 3 гарбузових ліхтарі",
+  "story.festival_halloween.d2.done": "Три усміхнені ліхтарі — як затишно!"
+}

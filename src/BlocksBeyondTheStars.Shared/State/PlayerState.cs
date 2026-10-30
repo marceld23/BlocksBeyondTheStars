@@ -124,6 +124,13 @@ public sealed class PlayerState
 
     public const int ScannedCellsCap = 4096;
 
+    /// <summary>#3023: the trees (the packed cell of each trunk's foot) this player scanned, so "scan 25 conifers" counts trees
+    /// and not the many needle cells of one crown. Bounded (<see cref="ScannedTreesCap"/>, the oldest forgotten) and persisted
+    /// additively.</summary>
+    public List<long> ScannedTrees { get; set; } = new();
+
+    public const int ScannedTreesCap = 2048;
+
     /// <summary>Display name captured at scan time per <see cref="Scanned"/> entry, backing the Codex
     /// "Discoveries" chapter (#484). Needed because creature/tree/flora species are generated PER WORLD
     /// (seed + planet type), so a species id scanned on one planet cannot be resolved to its coined name

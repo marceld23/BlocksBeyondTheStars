@@ -647,6 +647,7 @@ public static class NetCodec
         Register(310, typeof(TeleportToPointIntent));        // Client -> Server
         Register(311, typeof(YieldIntent));                  // Client -> Server
         Register(312, typeof(YieldStatus));                  // Server -> Client
+        Register(313, typeof(SetFestivalPrefsIntent));       // Client -> Server (#3021 "My festivals"; an older server drops it)
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

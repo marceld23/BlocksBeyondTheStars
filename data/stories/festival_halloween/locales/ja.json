@@ -1,0 +1,15 @@
+{
+  "story.festival_halloween.name": "ハロウィン",
+  "story.festival_halloween.short": "ハロウィン",
+  "story.festival_halloween.desc": "ハロウィンのチャレンジ：カボチャを60個集めて、いくつかランタンを彫ってみよう。",
+  "story.festival_halloween.ch.c1": "カボチャの収穫",
+  "story.festival_halloween.ch.c1.sum": "ハロウィンの週には緑の世界でカボチャがあちこちに育ちます。60個収穫しましょう。",
+  "story.festival_halloween.r1.start": "ハロウィンの週です！緑の世界ではカボチャがあちこちに育っています — オレンジ、黄色、緑、白まで。60個収穫すれば、基地にプレゼントを用意します。",
+  "story.festival_halloween.graduated": "おどろおどろしいほどの豊作！どうぞ：彫られたカボチャランタンと玄関用のランタンをいくつか。",
+  "story.festival_halloween.d1.start": "カボチャを60個収穫してください。色は問いません — 有毒なものも大丈夫、解毒装置で洗えます。",
+  "story.festival_halloween.d1.chip": "カボチャを60個収穫する",
+  "story.festival_halloween.d1.done": "カボチャ60個！収穫完了です。",
+  "story.festival_halloween.d2.start": "トーチでカボチャを彫ってカボチャランタンを作り、3つ飾ってください。",
+  "story.festival_halloween.d2.chip": "カボチャランタンを3つ飾る",
+  "story.festival_halloween.d2.done": "三つの笑うランタン — なんて居心地がいい！"
+}

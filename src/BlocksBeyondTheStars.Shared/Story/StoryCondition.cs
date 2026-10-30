@@ -840,6 +840,14 @@ public static class StoryWorldPredicates
     /// <summary>#3001: a children's day is on.</summary>
     public const string FestivalChildren = "festival_children";
 
+    /// <summary>#3023: Halloween is on for this player — the Halloween pack's own start (Halloween no longer starts the
+    /// harvest pack).</summary>
+    public const string FestivalHalloween = "festival_halloween";
+
+    /// <summary>#3023: Christmas is on for this player — the Christmas pack's own start (Christmas no longer starts the
+    /// lights pack).</summary>
+    public const string FestivalChristmas = "festival_christmas";
+
     /// <summary>Every known predicate, in documentation order.</summary>
     public static readonly IReadOnlyList<string> All = new[]
     {
@@ -856,6 +864,6 @@ public static class StoryWorldPredicates
         Creatures, TameableNear, HerdBegging, CompanionOwned, SeedCarried, SettlementNear, HostileNear, BanditHail, Climbing,
         TrainHere, Multiplayer, RadioWorn, RuinNear, TreasureNear, WreckSignal, PlanetWrecks,
         FestivalAny, FestivalHarvest, FestivalLights, FestivalNewYear, FestivalBlossoms, FestivalColours, FestivalStars,
-        FestivalMidsummer, FestivalChildren,
+        FestivalMidsummer, FestivalChildren, FestivalHalloween, FestivalChristmas,
     };
 }

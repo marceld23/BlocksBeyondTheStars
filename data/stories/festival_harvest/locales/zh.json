@@ -1,12 +1,12 @@
 {
   "story.festival_harvest.name": "丰收节",
   "story.festival_harvest.short": "丰收",
-  "story.festival_harvest.desc": "丰收节挑战：在节日期间采集六十个南瓜。",
-  "story.festival_harvest.ch.c1": "南瓜收获",
-  "story.festival_harvest.ch.c1.sum": "丰收节期间你周围会长出南瓜。收获六十个。",
-  "story.festival_harvest.r1.start": "丰收节开始了！田野里长满了南瓜——橙色、黄色、绿色，甚至还有白色的。收获六十个，我会给你的基地一份礼物。",
-  "story.festival_harvest.graduated": "值得骄傲的丰收。给你：雕刻南瓜灯和几盏门口用的灯笼。",
-  "story.festival_harvest.d1.start": "收获六十个南瓜。任何颜色都算——有毒的也算，解毒器可以清洗它们。",
-  "story.festival_harvest.d1.chip": "收获 60 个南瓜",
-  "story.festival_harvest.d1.done": "六十个南瓜！收成完成。"
+  "story.festival_harvest.desc": "丰收节挑战：收获六十株植物——水果、谷物、花朵、南瓜都算。",
+  "story.festival_harvest.ch.c1": "丰收",
+  "story.festival_harvest.ch.c1.sum": "在丰收节期间收获六十株植物——你星球上能种的都算。",
+  "story.festival_harvest.r1.start": "正在举行丰收节！全世界的人们一起收获庄稼。收集六十株植物——浆果、谷物、水果，任何能种植的东西——我会送你一份礼物。",
+  "story.festival_harvest.graduated": "值得骄傲的丰收。拿去：灯笼和万寿菊种子，给你的花园。",
+  "story.festival_harvest.d1.start": "收获六十株植物。任何能产出东西的植物都算——浆果、谷物、水果、蘑菇、南瓜。",
+  "story.festival_harvest.d1.chip": "收获 60 株植物",
+  "story.festival_harvest.d1.done": "六十株！丰收完成。"
 }

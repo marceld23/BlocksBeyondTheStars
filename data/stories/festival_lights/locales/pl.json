@@ -1,15 +1,12 @@
 {
   "story.festival_lights.name": "Festiwal świateł",
   "story.festival_lights.short": "Lampki",
-  "story.festival_lights.desc": "Wyzwanie festiwalu świateł: oświetl swoją bazę trzydziestoma światłami; przeskanuj świerki, jeśli takie znajdziesz.",
+  "story.festival_lights.desc": "Wyzwanie Festiwalu świateł: oświetl swoją bazę trzydziestoma źródłami światła.",
   "story.festival_lights.ch.c1": "Trzydzieści świateł",
-  "story.festival_lights.ch.c1.sum": "Umieść trzydzieści świateł w bazie. Na zimnym świecie zeskanuj dziesięć drzew iglastych dla zapisu czubków.",
+  "story.festival_lights.ch.c1.sum": "Umieść trzydzieści źródeł światła przy bazie — latarnie, lampy, lampiony papierowe, diyas.",
   "story.festival_lights.r1.start": "Festiwal świateł trwa! Ludzie na całym świecie dziś wieszają lampy i latarnie. Oświetl bazę trzydziestoma światłami, a dam ci kolorowe.",
-  "story.festival_lights.graduated": "Pięknie. Czerwone i zielone lampy oraz ciepłe taśmy świetlne na kolejny festiwal świateł.",
+  "story.festival_lights.graduated": "Pięknie. Lampiony papierowe, małe lampki diya i ciepłe paski świetlne na następny Festiwal świateł.",
   "story.festival_lights.d1.start": "Umieść trzydzieści świateł: latarnie, pochodnie, kolorowe lampy, taśmy świetlne, ognisko — cokolwiek świeci.",
   "story.festival_lights.d1.chip": "Umieść 30 świateł",
-  "story.festival_lights.d1.done": "Trzydzieści świateł! Twoja baza widoczna z orbity.",
-  "story.festival_lights.d2.start": "Drzewa iglaste rosną na zimnych światach — tundra, boreal, lodowiec. Zeskanuj dziesięć różnych takich drzew Skanerem Ręcznym.",
-  "story.festival_lights.d2.chip": "Zeskanuj 10 drzew iglastych",
-  "story.festival_lights.d2.done": "Zeskanowano dziesięć drzew iglastych. Świerki na festiwalu świateł — idealnie."
+  "story.festival_lights.d1.done": "Trzydzieści świateł! Twoja baza widoczna z orbity."
 }

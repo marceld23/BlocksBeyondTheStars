@@ -1,0 +1,15 @@
+{
+  "story.festival_christmas.name": "クリスマス",
+  "story.festival_christmas.short": "クリスマス",
+  "story.festival_christmas.desc": "クリスマスチャレンジ：25本の異なるモミの木を見つけてスキャンし、基地をライトアップしよう。",
+  "story.festival_christmas.ch.c1": "モミの木",
+  "story.festival_christmas.ch.c1.sum": "モミの木は寒い惑星に生えます。25本の異なる木をスキャンしましょう。",
+  "story.festival_christmas.r1.start": "メリークリスマス！今夜、多くの家の居間には光で飾られたモミの木が立っています。25本の異なるモミの木を見つけてスキャンして — そうすればプレゼントをあげます。",
+  "story.festival_christmas.graduated": "メリークリスマス！包む用のプレゼントと基地用の色付きランプをどうぞ。",
+  "story.festival_christmas.d1.start": "モミの木は寒い世界、ツンドラ、タイガ、氷河に生えます。ハンドスキャナーで25本の異なる木をスキャンしてください；同じ木は1回だけカウントされます。",
+  "story.festival_christmas.d1.chip": "モミの木を25本スキャンする",
+  "story.festival_christmas.d1.done": "25本のモミの木！まるでクリスマスの森です。",
+  "story.festival_christmas.d2.start": "基地にライトを10個取り付けよう — ランタン、色付きランプ、提灯、ライトストリップなど。",
+  "story.festival_christmas.d2.chip": "ライトを10個取り付ける",
+  "story.festival_christmas.d2.done": "ライト10個 — 基地が輝いています。"
+}

@@ -44,6 +44,35 @@ public sealed class FestivalDefinition
     /// <summary>The runtime deposit layer while the festival is on (#3006); null = the festival places nothing.</summary>
     public FestivalSpawn? Spawn { get; set; }
 
+    /// <summary>One of the big world festivals (#3021) — part of every player's default selection, whatever their language.</summary>
+    public bool Big { get; set; }
+
+    /// <summary>The language communities that mainly celebrate it (#3021, locale codes; <c>*</c> = everybody) — the
+    /// "my language" part of the default selection. An estimate the native-speaker review (#3008) keeps honest.</summary>
+    public string[] Locales { get; set; } = Array.Empty<string>();
+
+    /// <summary>Which of several festivals on at once leads the chip and the mood (#3022): higher first, then the one that
+    /// started last. Halloween and Christmas lead, so a festival that starts inside their week does not take them over.</summary>
+    public int Priority { get; set; }
+
+    /// <summary>A challenge pack of the festival's own (#3023, <c>festival_halloween</c>), or empty: such a festival starts its
+    /// own pack through <c>world:festival_&lt;key&gt;</c> and no longer counts for its theme's pack.</summary>
+    public string Pack { get; set; } = string.Empty;
+
+    /// <summary>Whether the language community <paramref name="locale"/> (a code like <c>de</c>) mainly celebrates it.</summary>
+    public bool CelebratedIn(string? locale)
+    {
+        foreach (var code in Locales ?? Array.Empty<string>())
+        {
+            if (code == "*" || string.Equals(code, locale, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>Locale key of the festival's name.</summary>
     public string NameKey => "festival." + Key + ".name";
 
@@ -115,6 +144,17 @@ public sealed class FestivalEffects
 
     /// <summary>The Festive synth mood's flavour (<c>cosy</c>, <c>spooky</c>, <c>bright</c>, <c>calm</c>); empty = the usual music.</summary>
     public string Music { get; set; } = string.Empty;
+
+    /// <summary>The mood's core days (#3022): it shows on the first <c>CoreDays</c> days of the window only (default
+    /// <see cref="DefaultCoreDays"/>; 0 = never; a number past the window's length = the whole window). The card, the chip,
+    /// the greeting and the challenges keep the whole window — only the look of the world gets rarer.</summary>
+    public int CoreDays { get; set; } = DefaultCoreDays;
+
+    /// <summary>Instead of the first days: the mood on this weekday only (<c>Sunday</c> — the four Advent Sundays).</summary>
+    public string CoreWeekday { get; set; } = string.Empty;
+
+    /// <summary>The core days of a window when the file names none.</summary>
+    public const int DefaultCoreDays = 3;
 }
 
 /// <summary>What a festival puts into the world at runtime (#3006), on the weather-snow deposit pattern.</summary>

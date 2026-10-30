@@ -92,6 +92,36 @@ public static class FestivalCalendar
         return list.OrderBy(s => s.Start).ToList();
     }
 
+    /// <summary>Whether <paramref name="utcNow"/> is one of the festival's mood days (#3022): inside its window and either on
+    /// <see cref="FestivalEffects.CoreWeekday"/> or within the first <see cref="FestivalEffects.CoreDays"/> days of the
+    /// window. False outside the window and for a festival without effects.</summary>
+    public static bool IsCoreDay(FestivalDefinition festival, DateTime utcNow)
+    {
+        var effects = festival.Effects;
+        if (effects is null)
+        {
+            return false;
+        }
+
+        var date = utcNow.Date;
+        foreach (var span in SpansAround(festival, date.Year))
+        {
+            if (!span.Contains(date))
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrEmpty(effects.CoreWeekday) && TryParseWeekday(effects.CoreWeekday, out var weekday))
+            {
+                return date.DayOfWeek == weekday;
+            }
+
+            return (date - span.Start).TotalDays < effects.CoreDays;
+        }
+
+        return false;
+    }
+
     /// <summary>Every occurrence of the festival that touches the years around <paramref name="year"/> (a window over New
     /// Year belongs to both years). Malformed windows yield nothing — the content validation names them.</summary>
     public static IEnumerable<FestivalSpan> SpansAround(FestivalDefinition festival, int year)

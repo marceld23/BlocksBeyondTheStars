@@ -350,6 +350,13 @@
   { "key": "seed_pumpkin",    "station": "hand", "inputs": [ { "item": "pumpkin", "count": 1 } ], "outputs": [ { "item": "pumpkin_seed", "count": 2 } ] },
   { "key": "pumpkin_lantern", "station": "hand", "inputs": [ { "item": "pumpkin", "count": 1 }, { "item": "torch", "count": 1 } ], "outputs": [ { "item": "pumpkin_lantern", "count": 1 } ] },
   { "key": "wash_pumpkin",    "station": "detoxifier", "requiredBlueprint": "bio_refining", "inputs": [ { "item": "toxic_pumpkin", "count": 2 }, { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "pumpkin", "count": 2 } ] },
+  // The festival decorations (#3024), all by hand from early things: a present wrapped in plant fibre around a bit of wood, a
+  // paper lantern of plant fibre around a torch, a diya of clay-like dirt and a torch's flame; marigold seeds from the
+  // gatherers' market (and from every marigold harvested).
+  { "key": "gift_box",        "station": "hand", "inputs": [ { "item": "plant_fiber", "count": 2 }, { "item": "wood_log", "group": "logs", "count": 1 } ], "outputs": [ { "item": "gift_box", "count": 2 } ] },
+  { "key": "paper_lantern",   "station": "hand", "inputs": [ { "item": "plant_fiber", "count": 2 }, { "item": "torch", "count": 1 } ], "outputs": [ { "item": "paper_lantern", "count": 1 } ] },
+  { "key": "diya_lamp",       "station": "hand", "inputs": [ { "item": "dirt", "count": 1 }, { "item": "torch", "count": 1 } ], "outputs": [ { "item": "diya_lamp", "count": 2 } ] },
+  { "key": "market_gatherers_marigold", "station": "market", "marketTheme": "gatherers", "inputs": [ { "item": "berries", "count": 4 } ], "outputs": [ { "item": "marigold_seed", "count": 3 } ] },
   // The hydroponic tray the high-tech greenhouses grow crops in — the one host block that is not soil.
   { "key": "hydro_tray",   "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 1 }, { "item": "glass", "count": 1 }, { "item": "plant_fiber", "count": 2 }, { "item": "brass_fitting", "count": 1 } ], "outputs": [ { "item": "hydro_tray", "count": 2 } ] },
 

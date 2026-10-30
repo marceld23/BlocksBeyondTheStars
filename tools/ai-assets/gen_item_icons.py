@@ -88,6 +88,11 @@ ITEMS = [
     ("toxic_pumpkin", "a single plump round ribbed pumpkin with a short stem"),
     ("pumpkin_seed", "a small heap of flat oval cream-white pumpkin seeds"),
     ("pumpkin_lantern", "a carved orange pumpkin lantern with a friendly smiling face glowing warm yellow from inside, kid-friendly, not scary"),
+    # The festival decorations (#3024): a present, a paper lantern, a diya oil lamp and the marigold's seeds.
+    ("gift_box", "a small wrapped gift box in white paper with a bright red ribbon and a bow on top"),
+    ("paper_lantern", "a round red paper lantern with golden top and bottom caps and a short red tassel, glowing softly"),
+    ("diya_lamp", "a small round terracotta clay oil lamp painted with white dots, with one tiny bright flame"),
+    ("marigold_seed", "a small heap of thin dark slender marigold seeds with pale tips"),
     ("emergency_ration", "a sealed silver foil ration food pack"),
     ("algae_ration", "a pressed rectangular bar of green cultured algae with a subtle sheen, sci-fi survival food"),
     ("medpack", "a white medical kit box with a red cross"),

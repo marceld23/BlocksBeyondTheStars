@@ -1,12 +1,12 @@
 {
   "story.festival_harvest.name": "Festival des récoltes",
   "story.festival_harvest.short": "Récolte",
-  "story.festival_harvest.desc": "Un défi du festival des récoltes : rapporte soixante citrouilles pendant la durée du festival.",
-  "story.festival_harvest.ch.c1": "Récolte de citrouilles",
-  "story.festival_harvest.ch.c1.sum": "Des citrouilles poussent autour de toi pendant les festivals des récoltes. Récolte-en soixante.",
-  "story.festival_harvest.r1.start": "Un festival des récoltes a commencé ! Des citrouilles poussent dans les champs autour de toi — orange, jaune, vert, même blanches. Récolte-en soixante et j'ai un cadeau pour ta base.",
-  "story.festival_harvest.graduated": "Une récolte dont être fier. Tiens : des lanternes citrouilles sculptées et quelques lanternes pour ta porte.",
-  "story.festival_harvest.d1.start": "Récolte soixante citrouilles. Toutes les couleurs comptent — même les toxiques, le détoxifiant les nettoie.",
-  "story.festival_harvest.d1.chip": "Récolte 60 citrouilles",
-  "story.festival_harvest.d1.done": "Soixante citrouilles ! La récolte est rentrée."
+  "story.festival_harvest.desc": "Un défi du Festival des récoltes : rapporte soixante plantes — fruits, céréales, fleurs, citrouilles.",
+  "story.festival_harvest.ch.c1": "La récolte",
+  "story.festival_harvest.ch.c1.sum": "Récolte soixante plantes pendant le Festival des récoltes — tout ce qui pousse sur ta planète compte.",
+  "story.festival_harvest.r1.start": "Il y a un Festival des récoltes ! Des personnes du monde entier récoltent ensemble. Récolte soixante plantes — baies, céréales, fruits, n’importe quoi qui pousse — et j’ai un cadeau pour toi.",
+  "story.festival_harvest.graduated": "Une récolte dont être fier. Voilà : des lanternes et des graines d'œillet d'Inde pour ton jardin.",
+  "story.festival_harvest.d1.start": "Récolte soixante plantes. Chaque plante qui te donne quelque chose compte — baies, céréales, fruits, champignons, citrouilles.",
+  "story.festival_harvest.d1.chip": "Récolte 60 plantes",
+  "story.festival_harvest.d1.done": "Soixante plantes ! La récolte est rentrée."
 }

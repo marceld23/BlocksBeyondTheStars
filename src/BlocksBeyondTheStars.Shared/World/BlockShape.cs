@@ -139,6 +139,7 @@ public static class PropShapes
         "campfire_off" => (int)BlockShape.Slab, // #2261: the unlit twin keeps the campfire's form
         "rug" => (int)BlockShape.Sheet,
         "flower_pot" => (int)BlockShape.Pot,
+        "diya_lamp" => (int)BlockShape.Pot,    // #3024: the festivals' small clay oil lamp sits on the flower pot's form
         "ladder" => (int)BlockShape.Panel,     // thin plate hugging a wall (#803 meshed this, #909 stores it)
         "stairs" => (int)BlockShape.Stairs,    // the crafted staircase used to place as a full cube (#909)
         "stretcher" => (int)BlockShape.Table,  // the doctor's stretcher (2026-09): a flat top on legs

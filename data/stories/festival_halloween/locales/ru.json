@@ -1,0 +1,15 @@
+{
+  "story.festival_halloween.name": "Хэллоуин",
+  "story.festival_halloween.short": "Хэллоуин",
+  "story.festival_halloween.desc": "Хэллоуинское задание: принеси шестьдесят тыкв и вырежи несколько фонарей.",
+  "story.festival_halloween.ch.c1": "Сбор тыкв",
+  "story.festival_halloween.ch.c1.sum": "Во время Хэллоуина на зелёных мирах вокруг тебя растут тыквы. Собери шестьдесят штук.",
+  "story.festival_halloween.r1.start": "Неделя Хэллоуина! На зелёных мирах вокруг тебя повсюду растут тыквы — оранжевые, жёлтые, зелёные и даже белые. Собери шестьдесят, и у меня будет подарок для твоей базы.",
+  "story.festival_halloween.graduated": "Зловеще-хороший урожай! Держи: вырезанные фонари-тыквы и несколько фонарей для двери.",
+  "story.festival_halloween.d1.start": "Собери шестьдесят тыкв. Подойдут тыквы любого цвета — даже токсичные, детоксификатор их очистит.",
+  "story.festival_halloween.d1.chip": "Собрать 60 тыкв",
+  "story.festival_halloween.d1.done": "Шестьдесят тыкв! Урожай собран.",
+  "story.festival_halloween.d2.start": "Вырежь тыкву с помощью факела в фонарь-тыкву и повесь три таких фонаря.",
+  "story.festival_halloween.d2.chip": "Повесить 3 фонаря-тыквы",
+  "story.festival_halloween.d2.done": "Три ухмыляющихся фонаря — как уютно!"
+}

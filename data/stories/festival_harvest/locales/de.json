@@ -1,12 +1,12 @@
 {
   "story.festival_harvest.name": "Erntefest",
   "story.festival_harvest.short": "Ernte",
-  "story.festival_harvest.desc": "Eine Erntefest-Aufgabe: Bring sechzig Kürbisse ein, solange das Fest läuft.",
-  "story.festival_harvest.ch.c1": "Kürbisernte",
-  "story.festival_harvest.ch.c1.sum": "Während der Erntefeste wachsen Kürbisse rund um dich. Ernte sechzig davon.",
-  "story.festival_harvest.r1.start": "Ein Erntefest hat begonnen! Auf den Feldern um dich herum wachsen Kürbisse – orange, gelbe, grüne, sogar weiße. Ernte sechzig, dann habe ich ein Geschenk für deine Basis.",
-  "story.festival_harvest.graduated": "Eine Ernte, auf die man stolz sein kann. Hier: geschnitzte Kürbislaternen und ein paar Laternen für deine Tür.",
-  "story.festival_harvest.d1.start": "Ernte sechzig Kürbisse. Jede Farbe zählt – auch giftige, der Entgifter wäscht sie.",
-  "story.festival_harvest.d1.chip": "Ernte 60 Kürbisse",
-  "story.festival_harvest.d1.done": "Sechzig Kürbisse! Die Ernte ist eingebracht."
+  "story.festival_harvest.desc": "Eine Erntefest-Aufgabe: Bring sechzig Pflanzen ein – Obst, Getreide, Blumen, Kürbisse.",
+  "story.festival_harvest.ch.c1": "Die Ernte",
+  "story.festival_harvest.ch.c1.sum": "Ernte während des Erntefests sechzig Pflanzen – alles, was auf deiner Welt wächst, zählt.",
+  "story.festival_harvest.r1.start": "Ein Erntefest hat begonnen! Überall auf der Welt bringen Menschen gemeinsam die Ernte ein. Ernte sechzig Pflanzen – Beeren, Getreide, Obst, alles, was wächst – dann habe ich ein Geschenk für dich.",
+  "story.festival_harvest.graduated": "Eine Ernte, auf die du stolz sein kannst. Hier: Laternen und Ringelblumensamen für deinen Garten.",
+  "story.festival_harvest.d1.start": "Ernte sechzig Pflanzen. Jede Pflanze, die dir etwas gibt, zählt – Beeren, Getreide, Obst, Pilze, Kürbisse.",
+  "story.festival_harvest.d1.chip": "Ernte 60 Pflanzen",
+  "story.festival_harvest.d1.done": "Sechzig Pflanzen! Die Ernte ist eingebracht."
 }

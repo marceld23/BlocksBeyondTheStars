@@ -1,12 +1,12 @@
 {
   "story.festival_harvest.name": "Festival da Colheita",
   "story.festival_harvest.short": "Colheita",
-  "story.festival_harvest.desc": "Um desafio do festival da colheita: traga sessenta abóboras enquanto o festival estiver acontecendo.",
-  "story.festival_harvest.ch.c1": "Colheita de abóboras",
-  "story.festival_harvest.ch.c1.sum": "Abóboras crescem ao seu redor durante os festivais de colheita. Colha sessenta delas.",
-  "story.festival_harvest.r1.start": "Um festival da colheita começou! Abóboras estão crescendo nos campos ao seu redor — laranjas, amarelas, verdes, até brancas. Colha sessenta e eu tenho um presente para sua base.",
-  "story.festival_harvest.graduated": "Uma colheita para se orgulhar. Aqui: lanternas de abóbora esculpida e algumas lanternas para sua porta.",
-  "story.festival_harvest.d1.start": "Colha sessenta abóboras. Qualquer cor conta — até as tóxicas, o desintoxicador as lava.",
-  "story.festival_harvest.d1.chip": "Colha 60 abóboras",
-  "story.festival_harvest.d1.done": "Sessenta abóboras! A colheita foi concluída."
+  "story.festival_harvest.desc": "Um desafio do Festival da colheita: traga sessenta plantas — frutas, grãos, flores, abóboras.",
+  "story.festival_harvest.ch.c1": "A colheita",
+  "story.festival_harvest.ch.c1.sum": "Colha sessenta plantas durante o Festival da colheita — tudo o que cresce no seu mundo conta.",
+  "story.festival_harvest.r1.start": "O Festival da colheita começou! Pessoas do mundo inteiro celebram a colheita juntas. Colha sessenta plantas — frutas silvestres, grãos, frutas, qualquer coisa que cresça — e eu tenho um presente para você.",
+  "story.festival_harvest.graduated": "Uma colheita da qual se orgulhar. Aqui: lanternas e sementes de cravo-de-defunto para seu jardim.",
+  "story.festival_harvest.d1.start": "Colha sessenta plantas. Toda planta que te dá algo conta — bagas, grãos, frutas, cogumelos, abóboras.",
+  "story.festival_harvest.d1.chip": "Colha 60 plantas",
+  "story.festival_harvest.d1.done": "Sessenta plantas! A colheita está dentro."
 }

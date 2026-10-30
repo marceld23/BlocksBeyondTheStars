@@ -878,8 +878,9 @@ namespace BlocksBeyondTheStars.Client
             // would freeze the menu so "nothing happens" before the loading screen appears.
             if (_localServer.Prepare(LocalServerLauncher.DefaultPort, Settings.ViewDistanceChunks, worldName, seed,
                     creativeUnlockAll, creativeAllShips, creativeKit, sandbox, worldOptions?.ToArgs(),
-                    maxPlayers, password, hosting ? worldName : "Singleplayer", PlayerName, creativeFlight,
-                    festivalsOff: !Settings.Festivals)) // #3001: the global setting as the bundled host's operator override
+                    maxPlayers, password, hosting ? worldName : "Singleplayer", PlayerName, creativeFlight))
+                    // #3021: no operator override any more — "My festivals" rides on the join and the live intent, so a change
+                    // takes effect at once, in this host and the browser's alike (#3020 fixed the browser by the same means).
             {
                 Host = _localServer.Host;
                 Port = _localServer.Port.ToString();
@@ -1105,6 +1106,17 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return true;
+        }
+
+        /// <summary>#3021: drops the main menu so the next frame builds it again — the festival card after "My festivals"
+        /// changed. Nothing happens outside the menu (the next return to it builds a fresh one anyway).</summary>
+        public void RefreshMainMenu()
+        {
+            if (Phase == ShellPhase.MainMenu && _uiMenu != null)
+            {
+                Destroy(_uiMenu);
+                _uiMenu = null;
+            }
         }
 
         public void Quit()

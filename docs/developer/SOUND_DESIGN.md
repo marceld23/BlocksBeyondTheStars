@@ -505,6 +505,16 @@ leads outside — the hatch, or a side door built into the outer wall (`ShipHatc
 leaves the hull on one side) — the synthetic airlock (`station_board`, `ProceduralAudio.Airlock`: a pressure hiss and a clunk)
 plays at the door 0.7 s after the slide. Doors between two rooms, hand doors and a friend's ship stay plain.
 
+## 24. Festival jingles (#3025) — *ElevenLabs clips*
+
+The festival banner (a festival the player celebrates begins while they play, `HudUi.Toasts`) plays a three-second jingle
+instead of the plain success chime: the festival's own clip when one exists (`festival_halloween`, cosy-spooky pizzicato and
+a friendly organ), else its theme's — `festival_harvest` (marimba, guitar), `festival_lights` (bells, glockenspiel),
+`festival_newyear` (a small fanfare, firework sparkle), `festival_blossoms` (wind chimes, flute), `festival_colours`
+(marimba, claps), `festival_stars` (shimmering synth bells), `festival_midsummer` (folk fiddle, hand drum),
+`festival_children` (toy xylophone, slide whistle). About 49 KB each in `Resources/audio` (the WebGL payload grows by
+~440 KB). With the festival mood off the plain chime plays.
+
 ---
 
 ## Totals & rollout

@@ -90,8 +90,14 @@ public sealed class ServerRules
     public string FestivalPick { get; set; } = string.Empty;
 
     /// <summary>The festivals on right now (#3001), the primary one first — after the operator's override, the world rule, a
-    /// manual pick and the calendar. Empty when none is on (or from an older server).</summary>
+    /// manual pick and the calendar. Empty when none is on (or from an older server). Since #3021 this is the RECEIVING
+    /// player's list: only the festivals they celebrate ("My festivals"), the one that leads the chip and the mood first
+    /// (#3022 priority).</summary>
     public string[] ActiveFestivals { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>#3021/#3022: the festival is switched on by hand (a world admin's <c>/festival &lt;key&gt;</c> or the operator's
+    /// key) — it shows for everybody whatever their selection, and its mood on every day, not only the core days.</summary>
+    public bool FestivalForced { get; set; }
 
     /// <summary>The world's story pace (#2472): "Sparse", "Normal" or "Dense" (<c>GameRules.StoryDensity</c>). EMPTY from a
     /// server that predates the live edit — the client then hides the world-rules row.</summary>
@@ -194,4 +200,20 @@ public sealed class SetWorldRulesIntent
 
     /// <summary>The story pace (#2472): "Sparse"/"Normal"/"Dense" to set it, empty to leave unchanged.</summary>
     public string StoryDensity { get; set; } = string.Empty;
+}
+
+/// <summary>Client → server (#3021, "My festivals"): which festivals the player celebrates. Sent at every join and whenever the
+/// setting changes, like <see cref="SetNpcCallsIntent"/>: the server greets, starts challenge packs and grows pumpkins, so it
+/// must know. Not saved (the selection is a per-installation setting). A client that never sends it gets the default
+/// (the big world festivals and the ones of its join locale).</summary>
+public sealed class SetFestivalPrefsIntent
+{
+    /// <summary>The preset number (<c>FestivalPreset</c>: 0 big + language, 1 all, 2 language, 3 none, 4 custom).</summary>
+    public int Preset { get; set; }
+
+    /// <summary>The player's own list of festival keys (preset custom only).</summary>
+    public string[] Custom { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>The language the "my language" part follows (the client's current locale); empty = the join locale.</summary>
+    public string Locale { get; set; } = string.Empty;
 }

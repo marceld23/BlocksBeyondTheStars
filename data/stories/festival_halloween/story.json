@@ -1,0 +1,79 @@
+// Festival challenge pack (#3023, epic #3019): Halloween's own challenge. Starts for a player who celebrates Halloween while
+// it is on (world:festival_halloween — the harvest pack no longer starts for Halloween); harvest sixty pumpkins (they grow
+// around the player on the green worlds that week), optionally put up three carved pumpkin lanterns. Nothing is skippable (a
+// skipped pack must not pay); the graduation counter festival:halloween pays a decoration present through
+// data/achievements.json, once per player. Halloween can be switched on by hand any day (/festival halloween), so nothing
+// here can be missed.
+{
+  "id": "festival_halloween",
+  "nameKey": "story.festival_halloween.name",
+  "shortNameKey": "story.festival_halloween.short",
+  "descriptionKey": "story.festival_halloween.desc",
+  "kind": "side",
+  "scope": "player",
+  "priority": 5,
+  "defaultEnabled": true,
+  "narrator": {
+    "id": "vega"
+  },
+  "start": {
+    "after": [
+      "world:festival_halloween"
+    ]
+  },
+  "graduation": {
+    "lineKey": "story.festival_halloween.graduated",
+    "counter": "festival:halloween"
+  },
+  "chapters": [
+    {
+      "id": "c1",
+      "titleKey": "story.festival_halloween.ch.c1",
+      "summaryKey": "story.festival_halloween.ch.c1.sum",
+      "skippable": false,
+      "steps": [
+        {
+          "id": "r1",
+          "kind": "read",
+          "tier": "must",
+          "skippable": false,
+          "explain": {
+            "startKey": "story.festival_halloween.r1.start"
+          }
+        },
+        {
+          "id": "d1",
+          "kind": "do",
+          "tier": "must",
+          "skippable": false,
+          "objective": {
+            "event": "item:gained",
+            "arg": "pumpkin|toxic_pumpkin",
+            "required": 60
+          },
+          "explain": {
+            "startKey": "story.festival_halloween.d1.start",
+            "chipKey": "story.festival_halloween.d1.chip",
+            "doneKey": "story.festival_halloween.d1.done"
+          }
+        },
+        {
+          "id": "d2",
+          "kind": "do",
+          "tier": "opt",
+          "skippable": false,
+          "objective": {
+            "event": "build:any",
+            "arg": "pumpkin_lantern",
+            "required": 3
+          },
+          "explain": {
+            "startKey": "story.festival_halloween.d2.start",
+            "chipKey": "story.festival_halloween.d2.chip",
+            "doneKey": "story.festival_halloween.d2.done"
+          }
+        }
+      ]
+    }
+  ]
+}

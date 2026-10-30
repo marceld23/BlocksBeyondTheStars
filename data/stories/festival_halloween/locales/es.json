@@ -1,0 +1,15 @@
+{
+  "story.festival_halloween.name": "Halloween",
+  "story.festival_halloween.short": "Halloween",
+  "story.festival_halloween.desc": "Un reto de Halloween: trae sesenta calabazas y talla algunas linternas.",
+  "story.festival_halloween.ch.c1": "Cosecha de calabazas",
+  "story.festival_halloween.ch.c1.sum": "Las calabazas crecen a tu alrededor en los mundos verdes durante la semana de Halloween. Cosecha sesenta.",
+  "story.festival_halloween.r1.start": "¡Semana de Halloween! En los mundos verdes las calabazas están creciendo por todas partes — naranjas, amarillas, verdes, incluso blancas. Cosecha sesenta y tengo un regalo para tu base.",
+  "story.festival_halloween.graduated": "¡Una cosecha espeluznantemente buena! Toma: linternas de calabaza talladas y algunas linternas para tu puerta.",
+  "story.festival_halloween.d1.start": "Cosecha sesenta calabazas. Cualquier color cuenta — incluso las tóxicas, el detoxificador las limpia.",
+  "story.festival_halloween.d1.chip": "Cosecha 60 calabazas",
+  "story.festival_halloween.d1.done": "¡Sesenta calabazas! La cosecha está dentro.",
+  "story.festival_halloween.d2.start": "Talla una calabaza con una antorcha en una linterna de calabaza y coloca tres de ellas.",
+  "story.festival_halloween.d2.chip": "Coloca 3 linternas de calabaza",
+  "story.festival_halloween.d2.done": "Tres linternas sonrientes — ¡qué acogedor!"
+}
