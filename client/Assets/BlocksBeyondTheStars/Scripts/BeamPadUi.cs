@@ -146,7 +146,8 @@ namespace BlocksBeyondTheStars.Client
 
             UiKit.AddText(root, x + 24, y + 58, w - 48, 24, L("ui.beam.destinations"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
             UiKit.AddText(root, x + 24, y + 58, w - 48, 24,
-                L("ui.beam.cost").Replace("{0}", "6").Replace("{1}", "6"), 14, UiKit.CyanDim, TextAnchor.MiddleRight);
+                L("ui.beam.cost").Replace("{0}", ((int)BlocksBeyondTheStars.Shared.Definitions.TeleportRules.BeamEnergyCost).ToString())
+                    .Replace("{1}", ((int)BlocksBeyondTheStars.Shared.Definitions.TeleportRules.BeamCooldownSeconds).ToString()), 14, UiKit.CyanDim, TextAnchor.MiddleRight); // #2994: the server's own numbers
 
             _list = UiKit.ScrollList(root, x + 16, y + 90, w - 32, h - 168, 6f);
 

@@ -172,6 +172,7 @@ namespace BlocksBeyondTheStars.Client
         public event Action<NpcStandingList>? NpcStandingsReceived;                  // NPC relationship stages (#1118)
         public event Action<KnownNpcList>? KnownNpcsReceived;                        // "People you know" roster (#1118)
         public event Action<BaseResidentList>? BaseResidentsReceived;                // who lives at the base, E at the core (#2717)
+        public event Action<YieldStatus>? YieldStatusReceived;                       // a base core's / station's yield store (#2999)
         public event Action<GuardianSystemRevealed>? GuardianSystemRevealedReceived; // finale system placed on the map
         public event Action<CoreHackProgress>? CoreHackProgressReceived;             // core-hack channel progress
         public event Action<CoreDialogueMessage>? CoreDialogueReceived;              // argument-duel node / win
@@ -594,11 +595,13 @@ namespace BlocksBeyondTheStars.Client
             string autoAim = "", string starterTeleporter = "", string frontierDanger = "", string baseVisitors = "",
             string worldTextures = "", int machineCatchUpMinutes = -1, string returnToShip = "",
             string tutorialPolicy = "", string storyDensity = "", string friendlyVisitors = "",
-            string festivals = "", string festivalPick = "")
+            string festivals = "", string festivalPick = "", int basesPerWorld = -1, int baseYieldPercent = -1)
             => Send(new SetWorldRulesIntent
             {
                 Festivals = festivals, // #3001: "On" | "Off", empty = unchanged
                 FestivalPick = festivalPick, // #3001: a festival key | "calendar", empty = unchanged
+                BasesPerWorld = basesPerWorld,       // #2996: -1 = unchanged
+                BaseYieldPercent = baseYieldPercent, // #2999: -1 = unchanged
                 FriendlyVisitors = friendlyVisitors, // #2602: "On" | "Off", empty = unchanged
                 TutorialPolicy = tutorialPolicy, // #2466/#2472/#2498: "Auto" | "Courses" | "OptIn" | "Off", empty = unchanged
                 StoryDensity = storyDensity,     // #2472: "Sparse" | "Normal" | "Dense", empty = unchanged
@@ -697,9 +700,40 @@ namespace BlocksBeyondTheStars.Client
         public void SendBeamTeleport(int sourceId, int targetId)
             => Send(new BeamTeleportIntent { SourceId = sourceId, TargetId = targetId });
 
-        /// <summary>Name/rename my base on a body (Grundstein) — by E at the stone, or the Map "Rename base" button.</summary>
-        public void SendSetBaseName(string bodyId, string name)
-            => Send(new SetBaseNameIntent { BodyId = bodyId ?? string.Empty, Name = name ?? string.Empty });
+        /// <summary>Name/rename my base on a body (Grundstein) — by E at the stone, or the Map "Rename base" button. #2996: a
+        /// player may have several bases on one body, so the core cell says which (without one the server takes the first).</summary>
+        public void SendSetBaseName(string bodyId, string name, int? cellX = null, int cellY = 0, int cellZ = 0)
+            => Send(new SetBaseNameIntent
+            {
+                BodyId = bodyId ?? string.Empty,
+                Name = name ?? string.Empty,
+                HasCell = cellX.HasValue,
+                CellX = cellX ?? 0,
+                CellY = cellY,
+                CellZ = cellZ,
+            });
+
+        /// <summary>#2999: reads (<paramref name="collect"/> false) or collects the yield store of my base core at a cell on a
+        /// body; the answer arrives as <see cref="YieldStatusReceived"/>.</summary>
+        public void SendBaseYield(string bodyId, int cellX, int cellY, int cellZ, bool collect)
+            => Send(new YieldIntent
+            {
+                Action = collect ? YieldIntent.ActionCollect : YieldIntent.ActionStatus,
+                Kind = YieldIntent.KindBase,
+                BodyId = bodyId ?? string.Empty,
+                CellX = cellX,
+                CellY = cellY,
+                CellZ = cellZ,
+            });
+
+        /// <summary>#2999: reads or collects the yield store of my station (aboard it, at its core).</summary>
+        public void SendStationYield(string stationId, bool collect)
+            => Send(new YieldIntent
+            {
+                Action = collect ? YieldIntent.ActionCollect : YieldIntent.ActionStatus,
+                Kind = YieldIntent.KindStation,
+                StationId = stationId ?? string.Empty,
+            });
 
         /// <summary>Rename a commissioned station I built — via the Map "Rename" button or E at the station core.</summary>
         public void SendSetStationName(string stationId, string name)
@@ -905,7 +939,15 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>#2717: asks who lives at the player's base on a body (E at the core); the answer arrives as
         /// <see cref="BaseResidentsReceived"/>.</summary>
-        public void SendRequestBaseResidents(string bodyId) => Send(new RequestBaseResidentsIntent { BodyId = bodyId ?? string.Empty });
+        public void SendRequestBaseResidents(string bodyId, int? cellX = null, int cellY = 0, int cellZ = 0)
+            => Send(new RequestBaseResidentsIntent
+            {
+                BodyId = bodyId ?? string.Empty,
+                HasCell = cellX.HasValue, // #2996: which of my bases on the body
+                CellX = cellX ?? 0,
+                CellY = cellY,
+                CellZ = cellZ,
+            });
 
         /// <summary>The preferences the server must know because it initiates what they silence: the NPC radio calls
         /// (#1119) and — since #2462 (B31) — VEGA's hints mute, so a muted hint is held back instead of burned unseen.
@@ -929,6 +971,11 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Suit teleporter: beam to an allied player on the same body (#1056; server validates everything).</summary>
         public void SendTeleportToPlayer(string targetPlayerId) => Send(new TeleportToPlayerIntent { TargetPlayerId = targetPlayerId });
+
+        /// <summary>#2994/#2995: the teleporter jumps to a place on this body — a base core, beam pad or beacon by its cell, a map
+        /// marker by its id, or (Quantum Teleporter) a free point by X/Z. The server finds and checks the place.</summary>
+        public void SendTeleportToPoint(string kind, float x, float y, float z, string targetId = "")
+            => Send(new TeleportToPointIntent { Kind = kind ?? string.Empty, X = x, Y = y, Z = z, TargetId = targetId ?? string.Empty });
 
         public void SendToggleStealth() => Send(new ToggleStealthIntent());
 

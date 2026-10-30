@@ -70,6 +70,9 @@ refreshed 2026-10-23.
 - [SPACE_COMBAT_CONCEPT.md](SPACE_COMBAT_CONCEPT.md) — space-combat MVP concept + what has since landed.
 - [CRAFTING_TECH_SHIP_UI.md](CRAFTING_TECH_SHIP_UI.md) — the crafting / tech / ship management screen.
 - [SHIP_REPAIR.md](SHIP_REPAIR.md) — own-ship repair (hull + EVA-carved cells).
+- [BASES_AND_TELEPORTS.md](BASES_AND_TELEPORTS.md) — several bases per world, discovery of other players' bases, the planet
+  scan's settlers, the lazy base/station yield store, the coordinates readout and the teleporter's places + the Quantum
+  Teleporter (#2992–#2999).
 - [BASE_LIFE_SUPPORT.md](BASE_LIFE_SUPPORT.md) — base and station air: the core zone and the shared air engine (one rule
   for bases and stations, every door a bulkhead, no size limit, vertical spans, time slicing, the emergency brake,
   unknown is not a leak, the leak named at its opening).

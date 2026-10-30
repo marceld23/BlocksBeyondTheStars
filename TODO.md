@@ -60,6 +60,38 @@ bundle is the schedule**; existing saves get festivals through runtime layers on
 - **Open:** #3005 pumpkin (fruit + crop + wild species, terrain generation 32, save version 8), #3006 festival spawns (snow
   pattern), #3007 challenges (theme packs, `scan:block`, decoration rewards) — second PR; #3008 native-speaker review of the
   festival texts (help wanted, stays open).
+### 🧭 Coordinates, teleporter destinations + Quantum Teleporter, several bases per world with discovery, settlers in the planet scan, base and station yield — epic #2992 (#2993–#2999), branch feat/teleporter-coords-multibase-yield — ✅ done 2026-10-30 (⚠ playtest open; protocol tags 310–312 additive, no save-version bump)
+
+Marcel's ideas of 2026-10-29 (Lyxette's "player empire" report, decided with Justus: several bases yes, a reward over time
+yes, owning a planet no — the most bases lead the scan instead). One PR; developer doc
+[docs/developer/BASES_AND_TELEPORTS.md](docs/developer/BASES_AND_TELEPORTS.md).
+
+- ✅ **#2993 coordinates:** `Client.Core/CoordinateText` (canonical X/Y/Z); the planet map's line printed the unbounded scene
+  position and had no Y; opt-in HUD line (*Settings → Comfort → Show coordinates*, default off; hidden aboard, in a station,
+  in space); local `/pos`; the server wraps map markers and normalises old ones on list/set.
+- ✅ **#2994 teleporter places:** `TeleportToPointIntent` (tag 310) — own/allied bases (beside the core), beam pads (on top),
+  beacons (beside), markers (own + allies' shared, on explored ground — elsewhere a Quantum free jump; never pings, story
+  flags, wish marks; refused over lava); the server resolves every place;
+  `TeleportRules` holds the costs (the two panels' hard-coded labels read them now); the picker sorts nearest first, 8 per kind.
+- ✅ **#2995 Quantum Teleporter:** item, blueprint (after `suit_teleporter` + `quantum_scanner`), workshop recipe consuming the
+  suit teleporter; typed X/Z or the map waypoint, Y from the surface column, 20 energy / 60 s (shared cooldown), refused over
+  lava; OpenAI icon `item_quantum_teleporter` (NOTICES.md).
+- ✅ **#2996 several bases per world:** world rule `BasesPerWorld` (1/2/3/5/8/12, default 5, `--bases-per-world`); touching
+  bases fine; nearest-core ownership of beds/posts/crates/machines within a partner group (`BaseOwnsCell`); 32 residents per
+  player per body (`BaseResidentRoom`, founder always); rename/residents/star map by core cell; Map tab one rename row per base.
+  Reverses the 2026-10-14 decision (#2546).
+- ✅ **#2997 discovery:** base list filtered per recipient (own/allied always, others once found — within 48 blocks or by a
+  Quantum planet scan); `PlayerState.DiscoveredBases` (+ player snapshot); `NetBase.Relation`; map teal / green / amber with
+  the owner; alliance and crew changes re-send the lists.
+- ✅ **#2998 settlers:** `PlanetScanResult.Settlers` sorted most bases → stations → you → allies → name; overview card + Map tab.
+- ✅ **#2999 yield:** lazy wall-clock store per base core / player station (`WorldMetadata.BaseYields`), 6/h + 2/h per
+  resident or crew member (≤ 8), capacity 64, world rule *Base yield* Off/Half/Normal/Double (`--base-yield`); bases yield the
+  body's non-rare ores, stations orbital salvage; core screen strip + Collect (`YieldIntent`/`YieldStatus`, tags 311/312);
+  mining a core hands the rest over; VEGA hint `base_yield`.
+- Codex: new article *Your Bases*, the teleporter paragraph of *Getting Around*; 51 game keys + 3 Codex keys in all 14
+  languages (machine pass + hand QA); `CRYSTAL_NET.md` beam-pad pairing corrected (cells, not ids).
+- Open: playtest (several bases side by side, the teleporter list on a busy world, collecting after a night away).
+
 ### 📬 Player report 2026-10-29 (Lyxette, v2026.10.30) — a net fragment E would not recover — #3009–#3010, branch fix/ghost-net-fragments — ✅ done 2026-10-30 (⚠ playtest open; no generation, save or protocol change)
 
 Lyxette built a stone platform up to a net fragment hanging in the air over the asteroid Spuyyrk; the HUD read

@@ -486,7 +486,7 @@ public sealed partial class GameServer
     {
         TravelIntent or HyperjumpSystemIntent or WormholeTransitIntent or LeaveSpaceIntent => "travel",
         BoardStationIntent => "station",
-        TeleportToShipIntent or TeleportToPlayerIntent or BeamTeleportIntent => "teleport",
+        TeleportToShipIntent or TeleportToPlayerIntent or TeleportToPointIntent or BeamTeleportIntent => "teleport",
         SwitchShipIntent => "switch_ship",
         _ => null,
     };

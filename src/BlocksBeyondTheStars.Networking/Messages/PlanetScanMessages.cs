@@ -69,6 +69,34 @@ public sealed class PlanetScanResult
 
     /// <summary>#2239: knowledge this report paid (the first overview of a body), 0 otherwise.</summary>
     public int KnowledgeGained { get; set; }
+
+    /// <summary>#2998: the players who built on the body — bases on it, stations orbiting it — most bases first (sorted by the
+    /// server). Every scanner tier. Additive: an older server sends none (the client then shows no settler block).</summary>
+    public NetPlanetSettler[] Settlers { get; set; } = System.Array.Empty<NetPlanetSettler>();
+
+    /// <summary>#2998/#2997: bases this (Quantum) scan revealed on the planet map — newly discovered by the player.</summary>
+    public int BasesRevealed { get; set; }
+
+    /// <summary>#2998: false from an older server (no settler block); true when <see cref="Settlers"/> is meaningful, empty
+    /// or not.</summary>
+    public bool SettlersKnown { get; set; }
+}
+
+/// <summary>#2998: one player in a <see cref="PlanetScanResult"/>'s settler list.</summary>
+public sealed class NetPlanetSettler
+{
+    /// <summary>The player's name (the player id is the display name).</summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Base cores the player founded on the body.</summary>
+    public int Bases { get; set; }
+
+    /// <summary>Commissioned stations of the player orbiting the body.</summary>
+    public int Stations { get; set; }
+
+    /// <summary>Whose they are for the scanning player: 0 = own, 1 = ally or crew mate, 2 = someone else
+    /// (<see cref="NetBase.RelationOwn"/> …).</summary>
+    public byte Relation { get; set; }
 }
 
 /// <summary>#2239: one row of the planet overview card — locale keys and a level, never prose.</summary>

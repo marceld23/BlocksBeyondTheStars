@@ -405,11 +405,12 @@ public sealed partial class GameServer
         return PlacementVerdict.Continue;
     }
 
-    /// <summary>Rule "base_core": a base core founds a base only on a real surface, one per body per player.</summary>
+    /// <summary>Rule "base_core": a base core founds a base only on a real surface, up to the world rule's count per body and
+    /// player (#2996).</summary>
     private PlacementVerdict BaseCoreRule(PlayerSession session, PlacementRequest r)
     {
-        // A base core founds a player base (Grundstein) — only on a real surface, and only one per body per player.
-        // Checked before any material is consumed so a refused founding costs nothing.
+        // A base core founds a player base (Grundstein) — only on a real surface, and at most BasesPerWorld per body and
+        // player (#2996; touching bases are fine). Checked before any material is consumed so a refused founding costs nothing.
         if (r.BlockDef.Key == BaseCoreBlock)
         {
             var hereBody = _galaxy?.FindBody(_world.LocationId);
@@ -419,9 +420,10 @@ public sealed partial class GameServer
                 return PlacementVerdict.Refuse("@srv.base.surface_only");
             }
 
-            if (PlayerHasBaseOn(session.State.PlayerId, _world.LocationId))
+            int limit = Math.Max(1, Rules.BasesPerWorld);
+            if (CountPlayerBasesOn(session.State.PlayerId, _world.LocationId) >= limit)
             {
-                return PlacementVerdict.Refuse("@srv.base.already_here");
+                return PlacementVerdict.Refuse(limit == 1 ? "@srv.base.already_here" : "@srv.base.limit_here:" + limit);
             }
         }
 

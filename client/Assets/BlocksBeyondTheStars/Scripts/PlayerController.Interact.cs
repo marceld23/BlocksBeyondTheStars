@@ -485,11 +485,12 @@ namespace BlocksBeyondTheStars.Client
                 // Right-click the held suit teleporter → the destination picker (#1056): back to the ship, or
                 // to an allied player on this body. (Until #1056 the click recalled instantly — the item had
                 // no client-side trigger at all before #414 N17.) The server validates ownership, suit energy,
-                // the cooldown and the alliance, and answers with a RespawnNotice snap (or a reject toast).
-                if (held == "suit_teleporter")
+                // the cooldown and the alliance, and answers with a RespawnNotice snap (or a reject toast). #2994/#2995:
+                // the picker lists this body's bases, pads, beacons and markers too; the Quantum Teleporter adds free points.
+                if (BlocksBeyondTheStars.Shared.Definitions.TeleportRules.IsTeleporter(held))
                 {
                     var teleporter = Game?.Context.Panel<TeleporterUi>();
-                    if (teleporter != null) teleporter.Open();
+                    if (teleporter != null) teleporter.Open(held == BlocksBeyondTheStars.Shared.Definitions.TeleportRules.QuantumTeleporterItem);
                     else Game.Network?.SendTeleportToShip();
                     return;
                 }

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -16,7 +17,50 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer : IMarkerHost
 {
-    private void HandleMarkerAction(PlayerSession session, MarkerActionIntent intent) => _markerSystem.HandleMarkerAction(session, intent);
+    private void HandleMarkerAction(PlayerSession session, MarkerActionIntent intent)
+    {
+        // #2993: markers and pings are kept in the canonical range (the map's waypoint is a scene position that runs on
+        // as the player laps the world); a marker saved before this is put right the next time the player lists or sets.
+        if (!_world.Planet.Void)
+        {
+            if (intent.Kind is "set" or "ping" && float.IsFinite(intent.X) && float.IsFinite(intent.Z))
+            {
+                intent.X = (float)WorldConstants.WrapX((double)intent.X, _world.Circumference);
+                intent.Z = (float)WorldConstants.WrapZ((double)intent.Z, _world.Circumference);
+            }
+
+            NormalizeOwnMarkers(session);
+        }
+
+        _markerSystem.HandleMarkerAction(session, intent);
+    }
+
+    /// <summary>#2993: wraps the player's markers on the current world into the canonical range (once per old marker).</summary>
+    private void NormalizeOwnMarkers(PlayerSession session)
+    {
+        bool changed = false;
+        foreach (var m in session.State.Markers)
+        {
+            if (m.LocationId != _world.LocationId || !float.IsFinite(m.X) || !float.IsFinite(m.Z))
+            {
+                continue;
+            }
+
+            float x = (float)WorldConstants.WrapX((double)m.X, _world.Circumference);
+            float z = (float)WorldConstants.WrapZ((double)m.Z, _world.Circumference);
+            if (x != m.X || z != m.Z)
+            {
+                m.X = x;
+                m.Z = z;
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            _repo.SavePlayer(session.State);
+        }
+    }
 
     /// <summary>A ping the SERVER raises for a player (#1668): the spot it chose for something of theirs — the
     /// vehicle it parked beside the ship when the inventory was full. Same lifetime and audience as a player's
@@ -35,7 +79,12 @@ public sealed partial class GameServer : IMarkerHost
 
     /// <summary>Re-sends the marker view to each of the given players that is online — the audience of a
     /// shared marker just changed (alliance formed/dissolved, crew membership moved, #1293).</summary>
-    private void RefreshMarkersFor(IEnumerable<string> playerIds) => _markerSystem.RefreshMarkersFor(playerIds);
+    private void RefreshMarkersFor(IEnumerable<string> playerIds)
+    {
+        var ids = playerIds.Distinct().ToList();
+        _markerSystem.RefreshMarkersFor(ids);
+        RefreshBasesFor(ids); // #2997: an ally's bases appear on (and an ex-ally's undiscovered ones leave) the map with the change
+    }
 
     /// <summary>A player joined: their loaded state is the truth for their shared markers.</summary>
     private void OnMarkerOwnerJoined(PlayerSession session) => _markerSystem.OnMarkerOwnerJoined(session);

@@ -216,6 +216,41 @@ namespace BlocksBeyondTheStars.Client
                 y += 40f;
             }
 
+            // #2996/#2999: how many base cores one player may found on one body, and how fast bases and stations gather. An
+            // older server sends no value (-1) — then the row is not there.
+            void IntRuleRow(string label, int[] steps, int current, int fallback, System.Func<int, string> name, System.Action<int> send, string hint)
+            {
+                int idx = System.Array.IndexOf(steps, current);
+                if (idx < 0) idx = System.Array.IndexOf(steps, fallback);
+                UiKit.AddText(_listContent, 16, y, 360, 56, label, 20, UiKit.TextCol, TextAnchor.MiddleLeft);
+                UiKit.AddText(_listContent, 380, y, 180, 56, name(steps[idx]), 20, UiKit.Cyan, TextAnchor.MiddleCenter);
+                UiKit.AddButton(_listContent, 570, y + 6, 80, 44, "−", () =>
+                {
+                    if (idx > 0) { send(steps[idx - 1]); Invoke(nameof(RebuildList), 0.35f); }
+                });
+                UiKit.AddButton(_listContent, 660, y + 6, 80, 44, "+", () =>
+                {
+                    if (idx < steps.Length - 1) { send(steps[idx + 1]); Invoke(nameof(RebuildList), 0.35f); }
+                });
+                y += 50f;
+                UiKit.AddText(_listContent, 16, y, 760, 30, hint, 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                y += 40f;
+            }
+
+            if (rules != null && rules.BasesPerWorld > 0)
+            {
+                IntRuleRow(L("ui.rules.bases_per_world"), BlocksBeyondTheStars.Shared.Definitions.BaseRules.BasesPerWorldChoices, rules.BasesPerWorld,
+                    BlocksBeyondTheStars.Shared.Definitions.BaseRules.BasesPerWorldDefault, n => n.ToString(),
+                    n => Game?.Network?.SendSetWorldRules(basesPerWorld: n), L("ui.rules.bases_per_world.hint"));
+            }
+
+            if (rules != null && rules.BaseYieldPercent >= 0)
+            {
+                IntRuleRow(L("ui.rules.base_yield"), BlocksBeyondTheStars.Shared.Definitions.BaseRules.YieldChoicesPercent, rules.BaseYieldPercent,
+                    BlocksBeyondTheStars.Shared.Definitions.BaseRules.YieldDefaultPercent, n => L("ui.rules.base_yield." + n),
+                    n => Game?.Network?.SendSetWorldRules(baseYieldPercent: n), L("ui.rules.base_yield.hint"));
+            }
+
             // #2472: the stories' world rules, live — the tutorial (Auto / Short courses only / On request / Off, #2498, with
             // the chosen rule's one-line explanation) and the story pace. The same words and order as the world-creation
             // Stories page (WorldStoryOptions); the server checks the admin role. An older server sends no value — then the

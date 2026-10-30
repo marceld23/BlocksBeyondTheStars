@@ -195,6 +195,7 @@ public sealed partial class GameServer
         {
             Send(owner, new ServerMessage { Text = "@srv.station.commissioned:" + s.Name });
             Send(owner, new ServerMessage { Text = "@srv.station.crew_hint" }); // #1472: crew comes with a crew space
+            AccrueStationYield(s.Id, out _); // #2999: the station's yield clock starts with the commission
             OnAchievementStationCommissioned(owner); // "Station Master" (#1102)
             owner.State.Milestones.Add(StationToldMilestone(s.Id)); // #2492: never told again at a join
             RaiseGameEvent(owner, GameEventKeys.StationCommissioned, s.Id); // #2465: the owner's, like the achievement

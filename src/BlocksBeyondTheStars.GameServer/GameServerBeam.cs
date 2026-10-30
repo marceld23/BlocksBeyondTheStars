@@ -20,8 +20,8 @@ namespace BlocksBeyondTheStars.GameServer;
 public sealed partial class GameServer
 {
     private const int BeamNameMaxLength = 24;   // a map label, not a paragraph — keep it short + readable
-    private const float BeamEnergyCost = 6f;    // suit energy per jump (cheaper than the suit teleporter's 10)
-    private const double BeamCooldownSeconds = 6.0;
+    private const float BeamEnergyCost = Shared.Definitions.TeleportRules.BeamEnergyCost;    // suit energy per jump (cheaper than the suit teleporter's 10)
+    private const double BeamCooldownSeconds = Shared.Definitions.TeleportRules.BeamCooldownSeconds;
 
     /// <summary>Per-player beam cooldown (seconds remaining), separate from the suit-teleporter cooldown.</summary>
     private readonly Dictionary<string, double> _beamCooldown = new();

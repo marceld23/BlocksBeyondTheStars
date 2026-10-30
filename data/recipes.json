@@ -139,6 +139,7 @@
   { "key": "nectar_lure", "station": "hand", "inputs": [ { "item": "berries", "count": 2 }, { "item": "salt", "count": 1 } ], "outputs": [ { "item": "nectar_lure", "count": 2 } ] },
 
   { "key": "suit_teleporter", "station": "workshop", "requiredBlueprint": "suit_teleporter", "inputs": [ { "item": "titanium_plate", "count": 4 }, { "item": "cable", "count": 6 }, { "item": "energy_cell_1", "count": 3 }, { "item": "data_fragment", "count": 2 } ], "outputs": [ { "item": "suit_teleporter", "count": 1 } ] },
+  { "key": "quantum_teleporter", "station": "workshop", "requiredBlueprint": "quantum_teleporter", "inputs": [ { "item": "suit_teleporter", "count": 1 }, { "item": "quantum_sensor", "count": 2 }, { "item": "energy_cell_1", "count": 4 }, { "item": "crystal", "count": 4 } ], "outputs": [ { "item": "quantum_teleporter", "count": 1 } ] },
 
   { "key": "oxygen_extractor", "station": "workshop", "requiredBlueprint": "oxygen_extractor", "inputs": [ { "item": "iron_plate", "count": 4 }, { "item": "cable", "count": 4 }, { "item": "glass", "count": 2 }, { "item": "energy_cell_1", "count": 2 }, { "item": "brass_fitting", "count": 1 } ], "outputs": [ { "item": "oxygen_extractor", "count": 1 } ] },
 

@@ -77,6 +77,12 @@ pots and trays) catch up for at most `rules.machineCatchUpMinutes` of the absenc
 The work is bounded per machine and spread over the first ticks after the return (32 block edits per tick, one
 transaction each), so a large base costs a short burst, never a long stall.
 
+**Bases per world (#2996) and base yield (#2999).** `rules.basesPerWorld` caps the base cores one player may found on one
+planet, moon or asteroid field (CLI `--bases-per-world 1|2|3|5|8|12`, default `5`; `1` is the old one-base rule; lowering it never
+removes a base that stands). `rules.baseYieldPercent` sets how fast base cores and player stations gather resources for their
+builder (CLI `--base-yield 0|50|100|200` — Off / Half / Normal (default) / Double, the same steps as in-game). The yield is computed from the wall clock when a store is read, so it costs nothing while nobody plays. World admins
+change both in-game under the world rules.
+
 **"Back to my ship" (#2286).** The pause menu's rescue teleport for a player stuck on foot: back aboard the own ship
 when it is landed on the same body, never in a fight or while falling, once every three minutes, no device or energy
 (the server checks every gate; see `GameServerReturnToShip.cs`). It is a world rule — `rules.returnToShip`, CLI

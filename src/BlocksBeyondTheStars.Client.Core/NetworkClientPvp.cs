@@ -22,6 +22,6 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>World admin: the PvP mode ("Off"/"DuelsOnly"/"GroupBased"/"On") and friendly fire ("On"/"Off"); empty =
         /// unchanged.</summary>
         public void SendSetPvpRules(string pvp = "", string friendlyFire = "")
-            => Send(new SetWorldRulesIntent { Pvp = pvp ?? string.Empty, FriendlyFire = friendlyFire ?? string.Empty, MachineCatchUpMinutes = -1 });
+            => Send(new SetWorldRulesIntent { Pvp = pvp ?? string.Empty, FriendlyFire = friendlyFire ?? string.Empty, MachineCatchUpMinutes = -1, BasesPerWorld = -1, BaseYieldPercent = -1 });
     }
 }

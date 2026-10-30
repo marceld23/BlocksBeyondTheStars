@@ -298,6 +298,17 @@ public sealed class GameRules
     /// without the field and get the default.</summary>
     public int MachineCatchUpMinutes { get; set; } = Definitions.CrystalNetRules.CatchUpDefaultMinutes;
 
+    /// <summary>Bases per world (world option, default 5 — issue #2996): how many base cores one player may found on one
+    /// planet, moon or asteroid field (one of <see cref="Definitions.BaseRules.BasesPerWorldChoices"/>; 1 = the rule before
+    /// 2026-10-29). Live-editable by the world admin; lowering it never removes a base that stands. Old saves deserialize
+    /// without the field and get the default.</summary>
+    public int BasesPerWorld { get; set; } = Definitions.BaseRules.BasesPerWorldDefault;
+
+    /// <summary>Base yield (world option, percent, default 100 — issue #2999): how fast every base core and player station
+    /// gathers resources (<see cref="Definitions.BaseRules.YieldChoicesPercent"/>: 0 = off, 50, 100, 200). Live-editable by
+    /// the world admin. Old saves deserialize without the field and get the default.</summary>
+    public int BaseYieldPercent { get; set; } = Definitions.BaseRules.YieldDefaultPercent;
+
     /// <summary>World textures (world option, default ON — issue #1958): when ON the world's admins may publish
     /// textures that every player of the save sees instead of the official ones; when OFF nothing may be
     /// published and the stored ones are not shown. Only admins ever publish — an override changes the world for

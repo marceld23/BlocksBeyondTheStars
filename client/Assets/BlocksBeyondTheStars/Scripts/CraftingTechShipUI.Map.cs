@@ -144,6 +144,26 @@ namespace BlocksBeyondTheStars.Client
             return scan != null ? AddPlanetScanReport(y, scan) : y;
         }
 
+        /// <summary>#2998: the settler block of a planet report — a heading and one line per player who built on the body.</summary>
+        private float AddSettlerLines(float y, BlocksBeyondTheStars.Networking.Messages.PlanetScanResult scan)
+        {
+            var lines = PlanetSettlerText.Lines(scan, L);
+            if (lines.Count == 0)
+            {
+                return y;
+            }
+
+            UiKit.AddText(_detail, 8, y, 620, 26, L("ui.overview.settlers"), 19, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+            y += 30f;
+            foreach (string line in lines)
+            {
+                UiKit.AddText(_detail, 20, y, 608, 26, line, 18, UiKit.TextCol, TextAnchor.UpperLeft);
+                y += 28f;
+            }
+
+            return y + 6f;
+        }
+
         /// <summary>The planet report: the overview rows (#2239), then the world's richness, every vein (how common,
         /// from which depth, which drill) and the extras — or, below the Deep scanner's tier, a line saying so.</summary>
         private float AddPlanetScanReport(float y, BlocksBeyondTheStars.Networking.Messages.PlanetScanResult scan)
@@ -174,6 +194,8 @@ namespace BlocksBeyondTheStars.Client
 
                 y += 8f;
             }
+
+            y = AddSettlerLines(y, scan); // #2998: who built here, most bases first
 
             if (scan.ResourcesLocked)
             {
@@ -324,10 +346,10 @@ namespace BlocksBeyondTheStars.Client
                     status += "   ◆ " + L("ui.map.station_here");
                 }
 
-                string mapBase = Game.MyBaseName(b.Id);
+                string mapBase = Game.MyBasesLabel(b.Id, L); // #2996: one base names itself, several say how many
                 if (mapBase != null)
                 {
-                    status += "   ⌂ " + L("ui.map.base_here") + (string.IsNullOrEmpty(mapBase) ? string.Empty : ": " + mapBase);
+                    status += "   ⌂ " + mapBase;
                 }
 
                 // Locked: a place you can't quick-travel to yet. Surfaces unlock by landing; stations by docking once.
@@ -565,13 +587,18 @@ namespace BlocksBeyondTheStars.Client
                 y += 32f;
             }
 
-            string myBase = Game.MyBaseName(body.Id);
-            if (myBase != null)
+            // #2996: one rename row per base the player founded here, each addressed by its core cell.
+            string myBases = Game.MyBasesLabel(body.Id, L);
+            if (myBases != null)
             {
-                string label = "⌂ " + L("ui.map.base_here") + (string.IsNullOrEmpty(myBase) ? string.Empty : ": " + myBase);
-                UiKit.AddText(_detail, 8, y, 620, 28, label, 20, UiKit.Cyan, TextAnchor.UpperLeft);
+                UiKit.AddText(_detail, 8, y, 620, 28, "⌂ " + myBases, 20, UiKit.Cyan, TextAnchor.UpperLeft);
                 y += 36f;
-                y = AddRenameRow(y, myBase, L("ui.map.rename_base"), name => Game.Network?.SendSetBaseName(body.Id, name));
+                foreach (var mine in Game.MyBasesOn(body.Id))
+                {
+                    var b = mine; // capture
+                    y = AddRenameRow(y, b.Name, L("ui.map.rename_base"),
+                        name => Game.Network?.SendSetBaseName(body.Id, name, b.CellX, b.CellY, b.CellZ));
+                }
             }
 
             // The system's derelict (#1664): not a place you travel to but one you fly to — its manifest is

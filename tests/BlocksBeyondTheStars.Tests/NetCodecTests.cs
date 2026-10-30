@@ -355,6 +355,9 @@ public sealed class NetCodecTests
         [307] = typeof(PvpTargets),              // #2972
         [308] = typeof(DuelIntent),              // #2972
         [309] = typeof(DuelNotice),              // #2972
+        [310] = typeof(TeleportToPointIntent),   // #2994
+        [311] = typeof(YieldIntent),             // #2999
+        [312] = typeof(YieldStatus),             // #2999
 
     };
 

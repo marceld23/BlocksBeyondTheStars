@@ -979,10 +979,10 @@ namespace BlocksBeyondTheStars.Client
                     lines.Add(L("ui.map.station_here"));
                 }
 
-                string baseName = Game.MyBaseName(b.Id);
-                if (!string.IsNullOrEmpty(baseName))
+                string bases = Game.MyBasesLabel(b.Id, L); // #2996: several bases say how many
+                if (!string.IsNullOrEmpty(bases))
                 {
-                    lines.Add(L("ui.map.base_here") + ": " + baseName);
+                    lines.Add(bases);
                 }
             }
 

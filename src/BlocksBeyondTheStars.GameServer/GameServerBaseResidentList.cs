@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 
@@ -21,16 +22,17 @@ public sealed partial class GameServer
     private const int ResidentListNearCore = 3;
 
     private void HandleRequestBaseResidents(PlayerSession session, RequestBaseResidentsIntent intent)
-        => Send(session, BaseResidentListFor(session.State.PlayerId, intent.BodyId ?? string.Empty));
+        => Send(session, BaseResidentListFor(session.State.PlayerId, intent.BodyId ?? string.Empty, intent.HasCell,
+            new Vector3i(intent.CellX, intent.CellY, intent.CellZ)));
 
-    /// <summary>The resident list of the player's base on a body, founding settler first; an empty list with
-    /// <c>Cap</c> 0 when they have no base there.</summary>
-    private BaseResidentList BaseResidentListFor(string playerId, string bodyId)
+    /// <summary>The resident list of the player's base on a body (#2996: the one at the core cell, or without a cell the
+    /// first), founding settler first; an empty list with <c>Cap</c> 0 when they have no such base.</summary>
+    private BaseResidentList BaseResidentListFor(string playerId, string bodyId, bool hasCell = false, Vector3i cell = default)
     {
-        var b = _bases.FirstOrDefault(x => x.OwnerId == playerId && x.Planet == bodyId);
+        var b = FindOwnBase(playerId, bodyId, hasCell, cell);
         if (b is null)
         {
-            return new BaseResidentList { BodyId = bodyId };
+            return new BaseResidentList { BodyId = bodyId, CellX = cell.X, CellY = cell.Y, CellZ = cell.Z };
         }
 
         var plan = _meta.BaseResidents.TryGetValue(BaseBoardKey(b), out var saved) ? saved : new List<BaseResidentRecord>();
@@ -80,9 +82,12 @@ public sealed partial class GameServer
         return new BaseResidentList
         {
             BodyId = bodyId,
+            CellX = b.Cell.X,
+            CellY = b.Cell.Y,
+            CellZ = b.Cell.Z,
             BaseName = b.Name,
             Beds = beds,
-            Cap = BaseResidentCap,
+            Cap = BaseResidentRoom(b), // #2996: the residents a player's bases on one body hold together
             People = people.ToArray(),
         };
     }

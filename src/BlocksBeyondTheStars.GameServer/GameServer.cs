@@ -3895,6 +3895,7 @@ public sealed partial class GameServer
         // The crew/marker envelopes (#1216/#1217) carry reads AND writes — only the read passes a pause.
         CrewActionIntent c => c.Kind == "list",
         MarkerActionIntent m => m.Kind == "list",
+        YieldIntent y => y.Action == YieldIntent.ActionStatus, // #2999: the core screen reads its yield store (a collect waits)
         // #2462 (B12): preferences, the tutorial and the story — sent from the Settings (which the pause menu opens),
         // the Tab menu's Story tab and admin tools. None moves the frozen world: they change this player's own
         // ledger or re-send state. SetNpcCallsIntent used to be dropped here, so a call preference changed from the
@@ -6917,6 +6918,8 @@ public sealed partial class GameServer
             StarterTeleporter = r.StarterTeleporter,
             ReturnToShip = r.ReturnToShip ? "On" : "Off", // #2286 (empty = a server without the rule)
             MachineCatchUpMinutes = r.MachineCatchUpMinutes, // #2269
+            BasesPerWorld = r.BasesPerWorld, // #2996
+            BaseYieldPercent = r.BaseYieldPercent, // #2999
             WorldTextures = r.WorldTextures ? "Admins" : "Off",
             FrontierDanger = r.FrontierDanger,
             BaseVisitors = r.BaseVisitors,
@@ -6990,6 +6993,17 @@ public sealed partial class GameServer
         if (System.Array.IndexOf(CrystalNetRules.CatchUpChoicesMinutes, intent.MachineCatchUpMinutes) >= 0)
         {
             Rules.MachineCatchUpMinutes = intent.MachineCatchUpMinutes; // #2269: only the offered steps
+        }
+
+        if (System.Array.IndexOf(BaseRules.BasesPerWorldChoices, intent.BasesPerWorld) >= 0)
+        {
+            Rules.BasesPerWorld = intent.BasesPerWorld; // #2996: lowering it never removes a base that stands
+        }
+
+        if (System.Array.IndexOf(BaseRules.YieldChoicesPercent, intent.BaseYieldPercent) >= 0 && intent.BaseYieldPercent != Rules.BaseYieldPercent)
+        {
+            AccrueAllYieldStores(); // #2999: the old rate pays the time it ran for
+            Rules.BaseYieldPercent = intent.BaseYieldPercent;
         }
 
         if (!string.IsNullOrEmpty(intent.FrontierDanger))

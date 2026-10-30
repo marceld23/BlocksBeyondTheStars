@@ -16,7 +16,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <b>base_core</b> block on a planet/moon/asteroid to found a named base. Like a beacon, the base_core IS a real
 /// voxel block (drawn + collided + persisted via the normal block-edit store); this entity carries the metadata the
 /// voxel grid can't — the owner and the player-typed name. The base marks its host body on the travel screen and the
-/// planet map. There is one base per body per player; mining the base_core removes the base. Bases are held
+/// planet map. A player may found up to <c>GameRules.BasesPerWorld</c> bases per body (#2996, <c>GameServerBasesMulti.cs</c>);
+/// mining the base_core removes the base. Bases are held
 /// server-wide (not per-world) so the travel screen can flag a player's bases on bodies that aren't currently loaded.
 /// </summary>
 public sealed partial class GameServer
@@ -42,10 +43,6 @@ public sealed partial class GameServer
     /// <summary>Base states (id/owner/name/body/cell) for tests + inspection.</summary>
     public IReadOnlyList<(int Id, string OwnerId, string Name, string Body)> BaseSnapshots
         => _bases.Select(b => (b.Id, b.OwnerId, b.Name, b.Planet)).ToList();
-
-    /// <summary>True if the player already owns a base on the given body (one base per body per player).</summary>
-    private bool PlayerHasBaseOn(string ownerId, string body)
-        => _bases.Any(b => b.OwnerId == ownerId && b.Planet == body);
 
     /// <summary>Half-extent (in blocks) of a base's protected build zone: a cube centred on the base_core. Owner +
     /// allies build/mine freely inside it; everyone else is blocked (place + mine + area tools). The same cube is
@@ -215,6 +212,8 @@ public sealed partial class GameServer
             Cell = pos,
         };
         _bases.Add(basePoint);
+        MarkPartnerIndexesDirty(body, owner); // #2996: a thing between this core and a neighbour may count here now
+        AccrueBaseYield(basePoint, out _); // #2999: the core's yield clock starts with the founding
         _repo.SaveBase(ToStored(basePoint));
         BroadcastBasesOn(body);
         SendStarMap(session); // the player's travel-screen badge for this body lights up
@@ -229,6 +228,7 @@ public sealed partial class GameServer
         }
 
         ShipAiHintOnce(session, "base_walls"); // #1315: the fence rule, told where the player can act on it
+        ShipAiHintOnce(session, "base_yield"); // #2999: the core gathers resources over time — collect them there
     }
 
     /// <summary>If a base entity sits at this cell (its base_core was just mined or blasted), drop + forget it.
@@ -242,7 +242,9 @@ public sealed partial class GameServer
             return;
         }
 
+        HandOverBaseYield(basePoint); // #2999: the owner takes what lay ready at the core
         _bases.Remove(basePoint);
+        MarkPartnerIndexesDirty(body, basePoint.OwnerId); // #2996: what this base counted may go to a neighbour now
         ForgetBaseAir(basePoint.Id); // the life-support field (cube + sealed rooms) dies with the core
         ForgetBaseWalls(basePoint.Id); // ...and so does the fence rule (#1315)
         ForgetBaseIndex(basePoint.Id); // ...and what its residents used (#1865) — they leave on the next scan
@@ -255,11 +257,12 @@ public sealed partial class GameServer
     }
 
     /// <summary>The owner renames their base on a body — pressing E at the stone (current body), or via the Map
-    /// detail "Rename base" button (an explicit body id, possibly not the active world). Owner-scoped by lookup.</summary>
+    /// detail "Rename base" button (an explicit body id, possibly not the active world). Owner-scoped by lookup; since
+    /// #2996 by the core cell (an older client without one renames the first base there).</summary>
     private void HandleSetBaseName(PlayerSession session, SetBaseNameIntent intent)
     {
         string body = string.IsNullOrEmpty(intent.BodyId) ? _world.LocationId : intent.BodyId;
-        var basePoint = _bases.FirstOrDefault(b => b.OwnerId == session.State.PlayerId && b.Planet == body);
+        var basePoint = FindOwnBase(session.State.PlayerId, body, intent.HasCell, new Vector3i(intent.CellX, intent.CellY, intent.CellZ));
         if (basePoint is null)
         {
             Reject(session, "base", "@srv.base.none_here");
@@ -296,10 +299,11 @@ public sealed partial class GameServer
     public void SetBaseNameForTest(PlayerSession session, string bodyId, string name)
         => HandleSetBaseName(session, new SetBaseNameIntent { BodyId = bodyId, Name = name });
 
-    /// <summary>Bodies where the given player has a base, with each base's current name (for the travel screen).</summary>
+    /// <summary>The given player's bases, each with its body, current name and core cell (for the travel screen; #2996: one
+    /// row per base, several may share a body).</summary>
     private NetMapBase[] MyBaseList(string ownerId)
         => _bases.Where(b => b.OwnerId == ownerId)
-            .Select(b => new NetMapBase { BodyId = b.Planet, Name = b.Name })
+            .Select(b => new NetMapBase { BodyId = b.Planet, Name = b.Name, CellX = b.Cell.X, CellY = b.Cell.Y, CellZ = b.Cell.Z })
             .ToArray();
 
     private void BroadcastBasesOn(string planet)
@@ -310,8 +314,25 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>The bases on the player's body that this player may see (#2997: own and allied always, anyone else's once
+    /// discovered), each with its relation to them and — for their own — the yield ready at the core (#2999).</summary>
     private void SendBases(PlayerSession session)
-        => Send(session, new BaseList { Bases = _bases.Where(b => b.Planet == session.CurrentLocationId).Select(ToNetBase).ToArray() });
+    {
+        string me = session.State.PlayerId;
+        Send(session, new BaseList
+        {
+            Bases = _bases.Where(b => b.Planet == session.CurrentLocationId && SeesBase(session, b))
+                .Select(b => ToNetBaseFor(b, me)).ToArray(),
+        });
+    }
+
+    private NetBase ToNetBaseFor(ServerBase b, string viewerId)
+    {
+        var net = ToNetBase(b);
+        net.Relation = BaseRelation(b, viewerId);
+        net.YieldReady = b.OwnerId == viewerId ? BaseYieldReady(b) : 0;
+        return net;
+    }
 
     private NetBase ToNetBase(ServerBase b)
     {
@@ -331,7 +352,7 @@ public sealed partial class GameServer
             AirCells = air?.Cells.Count ?? 0,
             SealedRooms = air?.Rooms ?? 0,
             Residents = BaseResidentCount(b), // #2679: the saved plan, so it is known on any world
-            ResidentCap = BaseResidentCap,
+            ResidentCap = BaseResidentRoom(b), // #2996: the residents a player's bases on one body hold together
         };
     }
 

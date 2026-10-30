@@ -283,6 +283,8 @@ public static class ServerConfigOptions
         Switch("return-to-ship", Bool((c, v) => c.Rules.ReturnToShip = v), "The pause menu's \"Back to my ship\" rescue teleport (#2286; default on)."),
         Switch("friendly-visitors", Bool((c, v) => c.Rules.FriendlyVisitors = v), "A neighbour, a travelling merchant or a lost traveller now and then visits a base (#2602; default on)."),
         Switch("machine-catchup", ApplyMachineCatchUp, "Minutes a world's running machines catch up when it runs again (#2269; >= 0, capped at 24 h; 0 = off)."),
+        Switch("bases-per-world", ApplyBasesPerWorld, "Base cores one player may found on one planet, moon or asteroid field (#2996; 1, 2, 3, 5, 8 or 12; default 5)."),
+        Switch("base-yield", ApplyBaseYield, "Percent speed at which base cores and player stations gather resources (#2999; 0 = off, 50, 100 = default, 200)."),
         Switch("story", Text((c, v) => c.Rules.StoryId = v), "Story pack id, \"none\" for sandbox, or \"default\"/empty."),
         Switch("story-density", Choice<StoryDensity>((c, v) => c.Rules.StoryDensity = v), "Story pace (Sparse, Normal, Dense)."),
         Switch("tutorial", ApplyTutorial, "Tutorial policy of a fresh world (#2466): auto, courses, optin or off."),
@@ -492,6 +494,34 @@ public static class ServerConfigOptions
         }
 
         config.Rules.MachineCatchUpMinutes = Math.Min(minutes, 24 * 60);
+        return true;
+    }
+
+    /// <summary><c>--bases-per-world</c> (#2996): one of the in-game steps (1, 2, 3, 5, 8, 12) — base cores one player may found
+    /// on one body. Only the steps, so the world rules row can always show and step the value.</summary>
+    private static bool ApplyBasesPerWorld(ServerConfig config, string value)
+    {
+        if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var count)
+            || Array.IndexOf(Definitions.BaseRules.BasesPerWorldChoices, count) < 0)
+        {
+            return false;
+        }
+
+        config.Rules.BasesPerWorld = count;
+        return true;
+    }
+
+    /// <summary><c>--base-yield</c> (#2999): one of the in-game steps in percent — 0 (off), 50, 100 (normal), 200 — how fast base
+    /// cores and player stations gather resources.</summary>
+    private static bool ApplyBaseYield(ServerConfig config, string value)
+    {
+        if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var percent)
+            || Array.IndexOf(Definitions.BaseRules.YieldChoicesPercent, percent) < 0)
+        {
+            return false;
+        }
+
+        config.Rules.BaseYieldPercent = percent;
         return true;
     }
 
