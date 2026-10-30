@@ -1,0 +1,12 @@
+{
+  "story.festival_children.name": "Çocuk Günü",
+  "story.festival_children.short": "Çocuklar",
+  "story.festival_children.desc": "Bir çocuk günü meydan okuması: on şey ye.",
+  "story.festival_children.ch.c1": "Bir ziyafet",
+  "story.festival_children.ch.c1.sum": "Çocuk günü ikramlar günü. On şey ye.",
+  "story.festival_children.r1.start": "Çocuk günü! Oyun ve ikram günü. On şey ye — yemişler, meyve, bir güveç — ve odan için bir şeyim var.",
+  "story.festival_children.graduated": "Mutlu Çocuk Günü! Odan için çiçek saksıları ve beyaz lambalar.",
+  "story.festival_children.d1.start": "On şey ye.",
+  "story.festival_children.d1.chip": "10 şey ye",
+  "story.festival_children.d1.done": "On ikram! Tam bir ziyafetti."
+}

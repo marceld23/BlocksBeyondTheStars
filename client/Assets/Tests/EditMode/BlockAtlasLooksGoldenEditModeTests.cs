@@ -46,6 +46,8 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         // colour (BlockTextureAtlas.BaseColor, else its authored blocks.json colour) or the shared grain/edge. The
         // "all blocks" pin covers every block in the content, so it ALSO moves when a block is added, removed or renamed,
         // or any block's colour changes; when the per-key pins still pass, that is the cause and re-pinning it is the fix.
+        // Re-pinned 2026-10-30 (#3005): "all blocks" only — the pumpkin and the pumpkin lantern joined the content; every
+        // per-key pin still passed.
         private static readonly Dictionary<string, ulong> Pinned = new Dictionary<string, ulong>
         {
             ["obsidian"] = 0x28231fc804c6b95aUL,
@@ -94,7 +96,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             ["light_white"] = 0x8ad9ac33d897e9d5UL,
             ["light_red"] = 0x532e9caef6687ac5UL,
             ["light_green"] = 0x6725b9a585b93bd5UL,
-            [AllBlocks] = 0x944d858bacbbec9eUL,
+            [AllBlocks] = 0xb376881c8964dad1UL,
         };
 
         private static GameContent LoadContentOrIgnore()

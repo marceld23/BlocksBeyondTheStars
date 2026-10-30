@@ -1,0 +1,12 @@
+{
+  "story.festival_colours.name": "색의 축제",
+  "story.festival_colours.short": "색깔",
+  "story.festival_colours.desc": "색의 축제 도전 과제: 물건 10개를 염색하세요.",
+  "story.festival_colours.ch.c1": "열 가지 색",
+  "story.festival_colours.ch.c1.sum": "어디나 색깔로 가득 채우세요. 건축 재료 10개를 염색하세요.",
+  "story.festival_colours.r1.start": "색의 축제가 열렸어요! 오늘은 모든 것이 선명한 분홍색, 노랑, 초록일 수 있어요. 작업대에서 물건 10개를 염색하면 제가 색다른 선물을 드릴게요.",
+  "story.festival_colours.graduated": "멋진 색들이에요. 깔개와 화분을 모든 색조로 칠해 보세요.",
+  "story.festival_colours.d1.start": "건축 재료 10개를 염색하세요 — 어떤 블록이든, 어떤 색이든 괜찮아요.",
+  "story.festival_colours.d1.chip": "물건 10개 염색",
+  "story.festival_colours.d1.done": "열 가지 색 완료! 기지는 이렇게 밝아본 적이 없어요."
+}

@@ -1,0 +1,12 @@
+{
+  "story.festival_children.name": "Fête des enfants",
+  "story.festival_children.short": "Enfants",
+  "story.festival_children.desc": "Un défi pour la fête des enfants : prendre un festin de dix choses.",
+  "story.festival_children.ch.c1": "Un festin",
+  "story.festival_children.ch.c1.sum": "La fête des enfants, c'est un jour de friandises. Mange dix choses.",
+  "story.festival_children.r1.start": "C'est la fête des enfants ! Un jour de jeu et de friandises. Mange dix choses — baies, fruits, un ragoût — et j'ai quelque chose pour ta chambre.",
+  "story.festival_children.graduated": "Joyeuse fête des enfants ! Des pots de fleurs et des lampes blanches pour ta chambre.",
+  "story.festival_children.d1.start": "Mange dix choses.",
+  "story.festival_children.d1.chip": "Mange 10 choses",
+  "story.festival_children.d1.done": "Dix friandises ! Quel vrai festin."
+}

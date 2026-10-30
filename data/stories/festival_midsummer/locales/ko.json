@@ -1,0 +1,12 @@
+{
+  "story.festival_midsummer.name": "한여름",
+  "story.festival_midsummer.short": "한여름",
+  "story.festival_midsummer.desc": "한여름 도전 과제: 모닥불 3개를 지으세요.",
+  "story.festival_midsummer.ch.c1": "모닥불 세 개",
+  "story.festival_midsummer.ch.c1.sum": "한여름은 모닥불의 계절이에요. 모닥불 3개를 지으세요.",
+  "story.festival_midsummer.r1.start": "한여름이에요! 1년 중 가장 긴 날이고, 해질녘이면 모두가 불을 밝힙니다. 모닥불 3개를 지으면 밤에 쓸 횃불을 드릴게요.",
+  "story.festival_midsummer.graduated": "짧고 따뜻한 밤을 위한 불과 빛. 횃불과 등불을 드립니다.",
+  "story.festival_midsummer.d1.start": "모닥불 3개를 지으세요.",
+  "story.festival_midsummer.d1.chip": "모닥불 3개 만들기",
+  "story.festival_midsummer.d1.done": "모닥불 세 개가 타올랐어요. 밤이 짧고 따뜻합니다."
+}

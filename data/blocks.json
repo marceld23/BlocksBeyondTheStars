@@ -197,6 +197,13 @@
   // Grain is the cereal the campfire meals will want; the mushroom bed yields the giant-cap material.
   { "key": "flora_cropgrain", "nameKey": "block.flora_cropgrain.name", "category": "flora",   "hardness": 0.3, "requiredTool": "none",  "minToolTier": 0, "color": 13214778, "flammable": true, "drops": [ { "item": "grain", "count": 2 }, { "item": "plant_fiber", "count": 1 } ] },
   { "key": "flora_cropshroom","nameKey": "block.flora_cropshroom.name", "category": "flora",  "hardness": 0.3, "requiredTool": "none",  "minToolTier": 0, "color": 12162154, "flammable": true, "drops": [ { "item": "mushroom_cap", "count": 2 }, { "item": "plant_fiber", "count": 1 } ] },
+  // The pumpkin (#3005): a solid plant body like the saguaro — a wild species of the green worlds from terrain generation 32
+  // and a crop from seeds, every plant its own colour from the pumpkin palette (FloraCatalog / FloraTints.PaletteAt; the tile
+  // stays a plain mid-orange the mesher recolours). Harvest yields the fruit and seeds; the toxic twin on a toxic world.
+  { "key": "flora_pumpkin",   "nameKey": "block.flora_pumpkin.name",   "category": "flora",   "hardness": 0.4, "requiredTool": "none",  "minToolTier": 0, "color": 15201818, "flammable": true, "drops": [ { "item": "pumpkin", "count": 1 }, { "item": "pumpkin_seed", "count": 1 } ] },
+  // The carved pumpkin lantern (#3005): a friendly glowing face, a warm light block like the lantern, dyeable like every lamp;
+  // top and bottom wear the plain pumpkin skin.
+  { "key": "pumpkin_lantern", "nameKey": "block.pumpkin_lantern.name", "tintable": true, "category": "light", "hardness": 0.4, "requiredTool": "none", "minToolTier": 0, "emission": 0.75, "color": 16747520, "lightColor": 16750848, "lightRadius": 4, "flammable": true, "faces": [ { "side": "top", "tile": "flora_pumpkin" }, { "side": "bottom", "tile": "flora_pumpkin" } ], "drops": [ { "item": "pumpkin_lantern", "count": 1 } ] },
   { "key": "flora_sapling",   "nameKey": "block.flora_sapling.name", "category": "flora",    "hardness": 0.3, "requiredTool": "none",  "minToolTier": 0, "flammable": true, "drops": [ { "item": "sapling", "count": 1 } ] },
   // More saplings (#2977–#2980): each grows its own tree (SaplingCatalog) — one per fruit, the conifer from pine needles,
   // the Fifi plant from its leaves (only where it grows), the young giant mahogany from giant leaves.

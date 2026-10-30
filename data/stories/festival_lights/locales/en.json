@@ -1,0 +1,15 @@
+{
+  "story.festival_lights.name": "Festival of lights",
+  "story.festival_lights.short": "Lights",
+  "story.festival_lights.desc": "A festival-of-lights challenge: light up your base with thirty lights; scan the fir trees if you find some.",
+  "story.festival_lights.ch.c1": "Thirty lights",
+  "story.festival_lights.ch.c1.sum": "Place thirty lights at your base. On a cold world, scan ten conifers for the tips log.",
+  "story.festival_lights.r1.start": "A festival of lights is on! All over the world people hang lamps and lanterns tonight. Light up your base with thirty lights and I have coloured ones for you.",
+  "story.festival_lights.graduated": "Beautiful. Red and green lamps and warm light strips for the next festival of lights.",
+  "story.festival_lights.d1.start": "Place thirty lights: lanterns, torches, coloured lamps, light strips, a campfire — anything that glows.",
+  "story.festival_lights.d1.chip": "Place 30 lights",
+  "story.festival_lights.d1.done": "Thirty lights! Your base can be seen from orbit.",
+  "story.festival_lights.d2.start": "Conifers grow on the cold worlds — tundra, boreal, glacier. Scan ten different ones with the hand scanner.",
+  "story.festival_lights.d2.chip": "Scan 10 conifers",
+  "story.festival_lights.d2.done": "Ten conifers scanned. Fir trees in the lights festival — perfect."
+}

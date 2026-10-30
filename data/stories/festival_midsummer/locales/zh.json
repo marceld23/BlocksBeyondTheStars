@@ -1,0 +1,12 @@
+{
+  "story.festival_midsummer.name": "仲夏",
+  "story.festival_midsummer.short": "仲夏",
+  "story.festival_midsummer.desc": "仲夏挑战：建造三处营火。",
+  "story.festival_midsummer.ch.c1": "三处营火",
+  "story.festival_midsummer.ch.c1.sum": "仲夏是篝火时刻。建造三处营火。",
+  "story.festival_midsummer.r1.start": "仲夏！一年中最长的一天，黄昏时到处点起篝火。建造三处营火，我会在夜里给你火把。",
+  "story.festival_midsummer.graduated": "火与光照亮最短的夜晚。火把和灯笼送给你。",
+  "story.festival_midsummer.d1.start": "建造三处营火。",
+  "story.festival_midsummer.d1.chip": "建造 3 处营火",
+  "story.festival_midsummer.d1.done": "三处篝火燃起。夜晚又短又暖。"
+}

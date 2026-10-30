@@ -1,0 +1,12 @@
+{
+  "story.festival_children.name": "Kindertag",
+  "story.festival_children.short": "Kinder",
+  "story.festival_children.desc": "Eine Kindertags-Aufgabe: Mach ein Festessen aus zehn Dingen.",
+  "story.festival_children.ch.c1": "Ein Festessen",
+  "story.festival_children.ch.c1.sum": "Der Kindertag ist ein Tag für Leckereien. Iss zehn Dinge.",
+  "story.festival_children.r1.start": "Es ist Kindertag! Ein Tag zum Spielen und für Leckereien. Iss zehn Dinge – Beeren, Obst, einen Eintopf – und ich habe etwas für dein Zimmer.",
+  "story.festival_children.graduated": "Schönen Kindertag! Blumentöpfe und weiße Lampen für dein Zimmer.",
+  "story.festival_children.d1.start": "Iss zehn Dinge.",
+  "story.festival_children.d1.chip": "Iss 10 Dinge",
+  "story.festival_children.d1.done": "Zehn Leckereien! Das war ein richtiges Festessen."
+}

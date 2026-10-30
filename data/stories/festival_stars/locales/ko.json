@@ -1,0 +1,12 @@
+{
+  "story.festival_stars.name": "별 축제",
+  "story.festival_stars.short": "별",
+  "story.festival_stars.desc": "별 축제 도전: 궤도에서 천체 5개를 스캔하세요.",
+  "story.festival_stars.ch.c1": "다섯 세계",
+  "story.festival_stars.ch.c1.sum": "별 축제를 올려다보세요. 함선 스캐너로 행성이나 위성 5개를 스캔하세요.",
+  "story.festival_stars.r1.start": "별 축제가 열렸어요! 오늘 밤 전 세계 사람들이 하늘을 올려다봅니다. 더 멀리 보세요: 궤도에서 행성이나 위성 5개를 스캔하면 기지에 별빛을 드릴게요.",
+  "story.festival_stars.graduated": "별에 새겨졌어요. 밤하늘 같은 청록색 빛 줄과 흰 등불들.",
+  "story.festival_stars.d1.start": "함선 스캐너로 궤도에서 행성이나 위성 5개를 스캔하세요.",
+  "story.festival_stars.d1.chip": "천체 5개 스캔",
+  "story.festival_stars.d1.done": "다섯 세계를 지도화했어요. 별은 당신 것."
+}

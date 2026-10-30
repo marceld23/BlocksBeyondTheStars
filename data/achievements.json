@@ -63,5 +63,20 @@
   { "key": "crystal_deep_driller",   "counter": "crystal:laser_deep",       "target": 1,   "category": "mining",   "rewards": [ { "item": "crystal", "count": 8 } ] },
   { "key": "crystal_secret_passage", "counter": "crystal:phase_open",       "target": 1,   "category": "building", "rewards": [ { "item": "crystal", "count": 3 } ] },
   { "key": "crystal_going_up",       "counter": "crystal:lift_ride",        "target": 1,   "category": "explore",  "rewards": [ { "item": "crystal", "count": 4 } ] },
-  { "key": "crystal_safecracker",    "counter": "crystal:vault",            "target": 1,   "category": "explore",  "rewards": [ { "item": "data_fragment", "count": 2 } ] }
+  { "key": "crystal_safecracker",    "counter": "crystal:vault",            "target": 1,   "category": "explore",  "rewards": [ { "item": "data_fragment", "count": 2 } ] },
+
+  // The festivals (#3007, epic #3000): each theme pack's graduation (data/stories/festival_<theme>, counter festival:<theme>)
+  // pays a decoration present — never a power — and the pumpkin harvest has lifetime tiers. Nothing here is time-limited: a
+  // festival can be switched on by hand any day (/festival <key>), so no present can be missed (ADR 0020).
+  { "key": "festival_harvest",       "counter": "festival:harvest",         "target": 1,   "category": "festival", "rewards": [ { "item": "pumpkin_lantern", "count": 4 }, { "item": "lantern", "count": 6 } ] },
+  { "key": "festival_lights",        "counter": "festival:lights",          "target": 1,   "category": "festival", "rewards": [ { "item": "light_red", "count": 8 }, { "item": "light_green", "count": 8 }, { "item": "strip_light_warm", "count": 4 } ] },
+  { "key": "festival_newyear",       "counter": "festival:newyear",         "target": 1,   "category": "festival", "rewards": [ { "item": "light_red", "count": 6 }, { "item": "lantern", "count": 4 } ] },
+  { "key": "festival_blossoms",      "counter": "festival:blossoms",        "target": 1,   "category": "festival", "rewards": [ { "item": "flower_pot", "count": 6 }, { "item": "berry_seed", "count": 8 } ] },
+  { "key": "festival_colours",       "counter": "festival:colours",         "target": 1,   "category": "festival", "rewards": [ { "item": "rug", "count": 4 }, { "item": "flower_pot", "count": 4 } ] },
+  { "key": "festival_stars",         "counter": "festival:stars",           "target": 1,   "category": "festival", "rewards": [ { "item": "strip_light_cyan", "count": 6 }, { "item": "light_white", "count": 4 } ] },
+  { "key": "festival_midsummer",     "counter": "festival:midsummer",       "target": 1,   "category": "festival", "rewards": [ { "item": "torch", "count": 16 }, { "item": "lantern", "count": 4 } ] },
+  { "key": "festival_children",      "counter": "festival:children",        "target": 1,   "category": "festival", "rewards": [ { "item": "flower_pot", "count": 4 }, { "item": "light_white", "count": 6 } ] },
+  { "key": "pumpkin_60",             "counter": "mine:flora_pumpkin",       "target": 60,  "category": "festival", "rewards": [ { "item": "pumpkin_lantern", "count": 2 } ] },
+  { "key": "pumpkin_250",            "counter": "mine:flora_pumpkin",       "target": 250, "category": "festival", "rewards": [ { "item": "pumpkin_lantern", "count": 6 }, { "item": "lantern", "count": 6 } ] },
+  { "key": "pumpkin_500",            "counter": "mine:flora_pumpkin",       "target": 500, "category": "festival", "rewards": [ { "item": "pumpkin_lantern", "count": 12 }, { "item": "strip_light_warm", "count": 6 } ] }
 ]

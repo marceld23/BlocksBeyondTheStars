@@ -33,8 +33,15 @@ public sealed partial class GameServer
     private bool _festivalsEvaluated;
     private string[] _activeFestivals = Array.Empty<string>();
 
-    /// <summary>The wall-clock UTC now the festivals read — a seam, like <c>WallUtcNow</c> (#2595), so a test can pin a date.</summary>
-    private DateTime FestivalUtcNow => _festivalClockForTest ?? DateTime.UtcNow;
+    /// <summary>The wall-clock UTC now the festivals read — a seam, like <c>WallUtcNow</c> (#2595), so a test can pin a date: the
+    /// server's own pin first (<see cref="SetFestivalClockForTest"/>), then the process-wide default, then the real clock.</summary>
+    private DateTime FestivalUtcNow => _festivalClockForTest ?? FestivalClockDefaultForTest ?? DateTime.UtcNow;
+
+    /// <summary>The clock every server reads until a test pins its own — null in the game (the real clock). The server test
+    /// assembly sets it once, before any test, to a day with no festival (<c>TestFestivalClock</c>), so the suite never depends on
+    /// the real date: on a festival day the calendar would otherwise start a festival pack for every joining test player, take
+    /// the objective chip and spawn pumpkins in tests that never asked for a festival (#3015's first CI run, Halloween week).</summary>
+    internal static DateTime? FestivalClockDefaultForTest { get; set; }
 
     /// <summary>The festivals on right now, the primary one first (evaluated on first use, then every 30 s and on every
     /// rule change).</summary>

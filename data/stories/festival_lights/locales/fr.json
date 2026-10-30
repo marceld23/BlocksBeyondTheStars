@@ -1,0 +1,15 @@
+{
+  "story.festival_lights.name": "Festival des lumières",
+  "story.festival_lights.short": "Lumières",
+  "story.festival_lights.desc": "Un défi du festival des lumières : illumine ta base avec trente lumières ; scanne les sapins si tu en trouves.",
+  "story.festival_lights.ch.c1": "Trente lumières",
+  "story.festival_lights.ch.c1.sum": "Place trente lumières à ta base. Sur un monde froid, scanne dix conifères pour le journal des repères.",
+  "story.festival_lights.r1.start": "C'est le festival des lumières ! Partout dans le monde, on accroche des lampes et des lanternes ce soir. Illumine ta base avec trente lumières et je t'offrirai des modèles colorés.",
+  "story.festival_lights.graduated": "Magnifique. Lampes rouges et vertes et bandes lumineuses chaudes pour le prochain festival des lumières.",
+  "story.festival_lights.d1.start": "Place trente lumières : lanternes, torches, lampes colorées, bandes lumineuses, un feu de camp — tout ce qui brille.",
+  "story.festival_lights.d1.chip": "Place 30 lumières",
+  "story.festival_lights.d1.done": "Trente lumières ! Ta base se voit depuis l'orbite.",
+  "story.festival_lights.d2.start": "Les conifères poussent sur les mondes froids — toundra, boréal, glacier. Scanne dix différents avec le Scanner à main.",
+  "story.festival_lights.d2.chip": "Scanne 10 conifères",
+  "story.festival_lights.d2.done": "Dix conifères scannés. Des sapins pour le festival des lumières — parfait."
+}

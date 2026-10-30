@@ -1002,8 +1002,17 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendDisassemble(string itemKey) => Send(new DisassembleIntent { ItemKey = itemKey });
 
-        public void SendScan(string subjectType, string subjectKey, string? entityId = null)
-            => Send(new ScanIntent { SubjectType = subjectType, SubjectKey = subjectKey, EntityId = entityId ?? string.Empty });
+        public void SendScan(string subjectType, string subjectKey, string? entityId = null, (int X, int Y, int Z)? cell = null)
+            => Send(new ScanIntent
+            {
+                SubjectType = subjectType,
+                SubjectKey = subjectKey,
+                EntityId = entityId ?? string.Empty,
+                HasCell = cell.HasValue, // #3007: the block's cell, so distinct scans can be told apart
+                CellX = cell?.X ?? 0,
+                CellY = cell?.Y ?? 0,
+                CellZ = cell?.Z ?? 0,
+            });
 
         public void SendScanEntity(string entityId) => Send(new ScanEntityIntent { EntityId = entityId });
 

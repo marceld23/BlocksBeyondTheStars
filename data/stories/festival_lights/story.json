@@ -1,0 +1,78 @@
+// Festival challenge pack (#3007, epic #3000): the lights theme. Starts for every player while a festival of this theme is
+// on (world:festival_lights); its counter step is kid-sized, nothing is skippable (a skipped pack must not pay), and the
+// graduation counter festival:lights pays a decoration present through data/achievements.json. The calendar only sets the
+// default — any festival can be switched on by hand (/festival <key>), so nothing here can be missed. Generated from the
+// maintainer's texts; the twelve other languages come from tools/translate_locale.py.
+{
+  "id": "festival_lights",
+  "nameKey": "story.festival_lights.name",
+  "shortNameKey": "story.festival_lights.short",
+  "descriptionKey": "story.festival_lights.desc",
+  "kind": "side",
+  "scope": "player",
+  "priority": 5,
+  "defaultEnabled": true,
+  "narrator": {
+    "id": "vega"
+  },
+  "start": {
+    "after": [
+      "world:festival_lights"
+    ]
+  },
+  "graduation": {
+    "lineKey": "story.festival_lights.graduated",
+    "counter": "festival:lights"
+  },
+  "chapters": [
+    {
+      "id": "c1",
+      "titleKey": "story.festival_lights.ch.c1",
+      "summaryKey": "story.festival_lights.ch.c1.sum",
+      "skippable": false,
+      "steps": [
+        {
+          "id": "r1",
+          "kind": "read",
+          "tier": "must",
+          "skippable": false,
+          "explain": {
+            "startKey": "story.festival_lights.r1.start"
+          }
+        },
+        {
+          "id": "d1",
+          "kind": "do",
+          "tier": "must",
+          "skippable": false,
+          "objective": {
+            "event": "build:any",
+            "arg": "lantern|torch|light_white|light_red|light_green|strip_light_cyan|strip_light_warm|pumpkin_lantern|campfire",
+            "required": 30
+          },
+          "explain": {
+            "startKey": "story.festival_lights.d1.start",
+            "chipKey": "story.festival_lights.d1.chip",
+            "doneKey": "story.festival_lights.d1.done"
+          }
+        },
+        {
+          "id": "d2",
+          "kind": "do",
+          "tier": "opt",
+          "skippable": false,
+          "objective": {
+            "event": "scan:block",
+            "arg": "pine_needles",
+            "required": 10
+          },
+          "explain": {
+            "startKey": "story.festival_lights.d2.start",
+            "chipKey": "story.festival_lights.d2.chip",
+            "doneKey": "story.festival_lights.d2.done"
+          }
+        }
+      ]
+    }
+  ]
+}

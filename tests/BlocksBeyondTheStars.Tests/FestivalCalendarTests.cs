@@ -122,4 +122,13 @@ public sealed class FestivalCalendarTests
         Assert.Empty(FestivalCalendar.SpansAround(unknown, 2027));
         Assert.Empty(FestivalCalendar.ActiveOn(new[] { bad, unknown }, Utc(2027, 1, 1)));
     }
+
+    [Fact]
+    public void TheSuitesQuietDay_HasNoFestival()
+    {
+        // TestFestivalClock pins every test server to this day; a festival that reached it would make the whole suite depend on
+        // the content again — move QuietDay to another quiet day rather than touching the festival.
+        Assert.Empty(FestivalCalendar.ActiveOn(Content.Value.Festivals, TestFestivalClock.QuietDay));
+        Assert.NotEmpty(FestivalCalendar.ActiveOn(Content.Value.Festivals, Utc(TestFestivalClock.QuietDay.Year, 10, 30))); // the year itself is not the reason
+    }
 }

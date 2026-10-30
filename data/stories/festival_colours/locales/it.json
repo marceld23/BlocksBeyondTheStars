@@ -1,0 +1,12 @@
+{
+  "story.festival_colours.name": "Festival dei colori",
+  "story.festival_colours.short": "Colori",
+  "story.festival_colours.desc": "Una sfida del festival dei colori: tingi dieci oggetti.",
+  "story.festival_colours.ch.c1": "Dieci colori",
+  "story.festival_colours.ch.c1.sum": "Colore ovunque. Tingi dieci materiali da costruzione.",
+  "story.festival_colours.r1.start": "C'è un festival dei colori! Oggi tutto può essere rosa acceso, giallo e verde. Tingi dieci oggetti al banco da lavoro e ho qualcosa di colorato per te.",
+  "story.festival_colours.graduated": "Colori splendidi. Tappeti e vasi da dipingere in ogni sfumatura.",
+  "story.festival_colours.d1.start": "Tingi dieci materiali da costruzione — qualsiasi blocco, qualsiasi colore.",
+  "story.festival_colours.d1.chip": "Tingi 10 oggetti",
+  "story.festival_colours.d1.done": "Dieci colori! La tua base non è mai stata così brillante."
+}

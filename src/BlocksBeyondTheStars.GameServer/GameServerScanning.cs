@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
@@ -36,13 +37,15 @@ public sealed partial class GameServer
 
     /// <summary>Handheld scan of a creature species ("creature") or a block/flora/material ("block").
     /// <paramref name="entityId"/> is the aimed creature when the client sends it (#1926).</summary>
-    public ScanResult ScanSubject(string playerId, string subjectType, string subjectKey, string? entityId = null)
+    public ScanResult ScanSubject(string playerId, string subjectType, string subjectKey, string? entityId = null, Vector3i? cell = null)
     {
         var session = FindSessionByPlayerId(playerId);
         if (session is null)
         {
             return Rejected(null, subjectKey, "ui.scan.no_scanner", "No scanner.");
         }
+
+        _scanCell = cell; // #3007: the aimed block's cell, read by Award for the once-per-cell scan event
 
         var readout = new ScanReadout { Kind = subjectType, SubjectKey = subjectKey, Display = subjectKey };
         int value;
@@ -418,7 +421,42 @@ public sealed partial class GameServer
         }
 
         RaiseGameEvent(session, GameEventKeys.ScanPerformed, readout.Kind); // #2465: every scan, first or repeat
+        RaiseScanBlockOnce(session, readout); // #3007: a block or plant, once per cell — "scan ten conifers" counts ten trees
         return result;
+    }
+
+    /// <summary>The cell of the scan being handled (#3007), set by <see cref="ScanSubject"/> for the duration of one call.</summary>
+    private Vector3i? _scanCell;
+
+    /// <summary>The last hand scan per connection (uptime seconds): a scan click is throttled to two a second, so a held
+    /// button cannot farm the scan events (#3007).</summary>
+    private readonly Dictionary<int, double> _lastHandScanAt = new();
+
+    private const double HandScanCooldownSeconds = 0.5;
+
+    /// <summary>#3007: raises <c>scan:block</c> with the block key for a block, plant, crop or tree scan whose cell the client
+    /// named, once per cell per player (a bounded, persisted set — the oldest cells are forgotten first).</summary>
+    private void RaiseScanBlockOnce(PlayerSession session, ScanReadout readout)
+    {
+        if (_scanCell is not { } cell || readout.Kind is not ("block" or "flora" or "tree" or "crops") || string.IsNullOrEmpty(readout.SubjectKey))
+        {
+            return;
+        }
+
+        long packed = ((long)cell.X << 42) ^ ((long)(cell.Y & 0xFFFFF) << 21) ^ (long)(cell.Z & 0x1FFFFF);
+        var cells = session.State.ScannedCells;
+        if (cells.Contains(packed))
+        {
+            return;
+        }
+
+        cells.Add(packed);
+        if (cells.Count > PlayerState.ScannedCellsCap)
+        {
+            cells.RemoveRange(0, cells.Count - PlayerState.ScannedCellsCap);
+        }
+
+        RaiseGameEvent(session, GameEventKeys.ScanBlock, readout.SubjectKey);
     }
 
     /// <summary>Sends the player's whole first-scan ledger — the Codex "Discoveries" snapshot on join.</summary>
@@ -541,7 +579,17 @@ public sealed partial class GameServer
     }
 
     private void HandleScan(PlayerSession session, ScanIntent intent)
-        => ScanSubject(session.State.PlayerId, intent.SubjectType, intent.SubjectKey, intent.EntityId);
+    {
+        // #3007: two hand scans a second at most — a held button must not farm the scan events.
+        if (_lastHandScanAt.TryGetValue(session.ConnectionId, out double last) && _uptime - last < HandScanCooldownSeconds)
+        {
+            return;
+        }
+
+        _lastHandScanAt[session.ConnectionId] = _uptime;
+        ScanSubject(session.State.PlayerId, intent.SubjectType, intent.SubjectKey, intent.EntityId,
+            intent.HasCell ? new Vector3i(intent.CellX, intent.CellY, intent.CellZ) : null);
+    }
 
     private void HandleScanEntity(PlayerSession session, ScanEntityIntent intent)
         => ScanSpaceEntity(session.State.PlayerId, intent.EntityId);

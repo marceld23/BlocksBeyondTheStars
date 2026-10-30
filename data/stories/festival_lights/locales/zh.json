@@ -1,0 +1,15 @@
+{
+  "story.festival_lights.name": "灯节",
+  "story.festival_lights.short": "灯光",
+  "story.festival_lights.desc": "灯节挑战：用三十盏灯把你的基地点亮；如果你找到杉树，就用手持扫描器扫描它们。",
+  "story.festival_lights.ch.c1": "三十盏灯",
+  "story.festival_lights.ch.c1.sum": "在你的基地放置三十盏灯。在寒冷的世界上，扫描十棵针叶树以获得树顶日志。",
+  "story.festival_lights.r1.start": "灯节来了！今晚全世界的人都在挂灯笼和灯饰。用三十盏灯点亮你的基地，我会给你彩色灯。",
+  "story.festival_lights.graduated": "漂亮。红绿灯和暖色灯带为下一个灯节准备好了。",
+  "story.festival_lights.d1.start": "放置三十盏灯：灯笼、火把、彩色灯、灯带、营火——任何会发光的东西。",
+  "story.festival_lights.d1.chip": "放置30盏灯",
+  "story.festival_lights.d1.done": "三十盏灯！你的基地从轨道上都能看见了。",
+  "story.festival_lights.d2.start": "针叶树生长在寒冷的世界——苔原、北方林地、冰川。用手持扫描器扫描十棵不同的针叶树。",
+  "story.festival_lights.d2.chip": "扫描10棵针叶树",
+  "story.festival_lights.d2.done": "十棵针叶树已扫描。灯节里的杉树——完美。"
+}

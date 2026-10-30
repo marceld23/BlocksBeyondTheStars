@@ -1,0 +1,12 @@
+{
+  "story.festival_blossoms.name": "Festival das Flores",
+  "story.festival_blossoms.short": "Flores",
+  "story.festival_blossoms.desc": "Um desafio do festival das flores: plante vinte e cinco Plantas.",
+  "story.festival_blossoms.ch.c1": "Vinte e cinco Plantas",
+  "story.festival_blossoms.ch.c1.sum": "A primavera chegou em algum lugar. Plante vinte e cinco sementes, mudas ou Plantas.",
+  "story.festival_blossoms.r1.start": "O festival das flores começou! Pétalas caem como neve. Plante vinte e cinco coisas — sementes, mudas, flores — e sua base ganhará vasos de flores.",
+  "story.festival_blossoms.graduated": "Tudo está em flor. Vasos de flores e sementes para o seu jardim.",
+  "story.festival_blossoms.d1.start": "Plante vinte e cinco sementes, mudas ou Plantas.",
+  "story.festival_blossoms.d1.chip": "Plante 25 Plantas",
+  "story.festival_blossoms.d1.done": "Vinte e cinco Plantas no solo. A primavera chegou à sua base."
+}

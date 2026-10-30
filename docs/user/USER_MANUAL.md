@@ -2170,7 +2170,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   **city** runs a two-tier **hydroponics bay** with grow lights and a sliding door, which is easy to spot at
   night. Space stations of any size above the smallest carry the same bay aboard.
 - There are three **crops**: the **crop berry** bush (berries), **crop grain** (tall golden ears → grain, edible
-  raw but meant for cooking) and the **crop mushroom** bed (mushroom caps). Each greenhouse grows one of them —
+  raw but meant for cooking) and the **crop mushroom** bed (mushroom caps) — and since the festivals the **pumpkin**, a wild
+  plant of the green worlds you can also sow from its seeds (see "Festivals"). Each greenhouse grows one of them —
   which one depends on the settlement, so a city with several houses serves a mixed harvest, and two stations
   need not grow the same thing.
 - Crops are farmed, not wild flora: they are safe to eat on every world, the scanner reads them as **Edible** under
@@ -2862,6 +2863,16 @@ called **stories**:
   side on this client only. On a world somebody else hosts, that world's rule decides.
 - **Dedicated servers:** `--festivals off` or a festival key as the operator's override, see
   [SELF_HOSTING.md](../developer/SELF_HOSTING.md). The hosted fleet can be set with `BBS_WH_FESTIVALS`.
+- **Pumpkins:** during the harvest festivals (Halloween week, Erntedank, the Thanksgivings) **pumpkins** grow around you —
+  orange, yellow, green, white, every plant its own colour — and vanish again after the festival unless you harvest them. A
+  pumpkin is a filling fruit; cut it into **seeds** by hand and plant them on grass, soil or a hydroponic tray, or carve it with
+  a torch into a **pumpkin lantern**, a warm dyeable light for your doorstep. On the green worlds pumpkins also grow wild all
+  year (new worlds only; a toxic world's pumpkins need the detoxifier).
+- **Festival challenges:** while a festival is on, VEGA offers a small task in the Journal — harvest sixty pumpkins, place thirty
+  lights (and scan ten conifers if you find some), plant twenty-five plants, dye ten things, scan five worlds, build three
+  campfires, eat ten treats, craft twenty-five things. Finishing it pays a **decoration present** (pumpkin lanterns, coloured
+  lamps, light strips, flower pots, rugs, torches) — never a power-up, and never something you can miss: switch the festival
+  on any day and the task is there. The pumpkin harvest also has three lifetime achievements.
 
 ### Scanning & knowledge
 - **Which scanner does what:** the **hand scanner** (starter kit, quick-bar **2**) identifies the one thing you aim

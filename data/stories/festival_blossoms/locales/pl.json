@@ -1,0 +1,12 @@
+{
+  "story.festival_blossoms.name": "Festiwal kwiatów",
+  "story.festival_blossoms.short": "Kwiaty",
+  "story.festival_blossoms.desc": "Wyzwanie festiwalu kwiatów: zasadź dwadzieścia pięć Roślin.",
+  "story.festival_blossoms.ch.c1": "Dwadzieścia pięć Roślin",
+  "story.festival_blossoms.ch.c1.sum": "Gdzieś nadeszła wiosna. Zasadź dwadzieścia pięć nasion, sadzonek lub Roślin.",
+  "story.festival_blossoms.r1.start": "Festiwal kwiatów się rozpoczął! Płatki spadają jak śnieg. Zasadź dwadzieścia pięć rzeczy — nasiona, sadzonki, kwiaty — a twoja baza dostanie doniczki.",
+  "story.festival_blossoms.graduated": "Wszystko rozkwitło. Doniczki i nasiona do ogrodu.",
+  "story.festival_blossoms.d1.start": "Zasadź dwadzieścia pięć nasion, sadzonek lub Roślin.",
+  "story.festival_blossoms.d1.chip": "Zasadź 25 Roślin",
+  "story.festival_blossoms.d1.done": "Dwadzieścia pięć Roślin posadzonych. Wiosna zawitała do twojej bazy."
+}

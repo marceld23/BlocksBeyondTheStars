@@ -1,0 +1,12 @@
+{
+  "story.festival_harvest.name": "Hasat festivali",
+  "story.festival_harvest.short": "Hasat",
+  "story.festival_harvest.desc": "Bir hasat festivali görevi: festival sürerken altmış balkabağı topla.",
+  "story.festival_harvest.ch.c1": "Balkabağı hasadı",
+  "story.festival_harvest.ch.c1.sum": "Hasat festivalleri sırasında çevrende balkabakları yetişir. Altmış tane hasat et.",
+  "story.festival_harvest.r1.start": "Bir hasat festivali var! Çevrendeki tarlalarda balkabakları büyüyor — turuncu, sarı, yeşil, hatta beyaz olanlar. Altmış tane hasat et, üs için bir hediye vereceğim.",
+  "story.festival_harvest.graduated": "Gurur duyulacak bir hasat. Al bak: oymalı balkabağı fenerleri ve kapın için birkaç lamba.",
+  "story.festival_harvest.d1.start": "Altmış balkabağı hasat et. Her renk sayılır — toksik olanlar da, detoks cihazı onları temizler.",
+  "story.festival_harvest.d1.chip": "60 balkabağı hasat et",
+  "story.festival_harvest.d1.done": "Altmış balkabağı! Hasat tamam."
+}

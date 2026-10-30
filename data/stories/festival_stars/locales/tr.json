@@ -1,0 +1,12 @@
+{
+  "story.festival_stars.name": "Yıldız festivali",
+  "story.festival_stars.short": "Yıldızlar",
+  "story.festival_stars.desc": "Bir yıldız festivali meydan okuması: yörüngeden beş gök cismi tara.",
+  "story.festival_stars.ch.c1": "Beş dünya",
+  "story.festival_stars.ch.c1.sum": "Yıldız festivalleri göğe bakar. Geminin tarayıcısıyla beş gezegeni veya ayı tara.",
+  "story.festival_stars.r1.start": "Bir yıldız festivali başladı! Bu gece Dünya'nın her yerinde insanlar gökyüzüne bakıyor. Daha uzağa bak: yörüngeden beş gezegen veya ay tara, üs için sana yıldız ışığı veririm.",
+  "story.festival_stars.graduated": "Yıldızlara yazıldı. Sanki gece gökyüzü gibi siyan ışık şeritleri ve beyaz lambalar.",
+  "story.festival_stars.d1.start": "Geminin tarayıcısıyla yörüngeden beş gezegeni veya ayı tara.",
+  "story.festival_stars.d1.chip": "5 gök cismi tara",
+  "story.festival_stars.d1.done": "Beş dünya haritalandı. Yıldızlar artık senin."
+}

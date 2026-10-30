@@ -1,0 +1,12 @@
+{
+  "story.festival_newyear.name": "Новий рік",
+  "story.festival_newyear.short": "Новий рік",
+  "story.festival_newyear.desc": "Новорічне випробування: створи двадцять п'ять предметів для свіжого початку.",
+  "story.festival_newyear.ch.c1": "Свіжий початок",
+  "story.festival_newyear.ch.c1.sum": "Десь на Землі починається новий рік. Створи двадцять п'ять предметів.",
+  "story.festival_newyear.r1.start": "Починається новий рік! Час оновлюватися. Створи двадцять п'ять речей — будь-де: за верстаком або вручну — і червоні лампи твої.",
+  "story.festival_newyear.graduated": "З Новим роком! Червоні лампи й ліхтарі на щастя.",
+  "story.festival_newyear.d1.start": "Створи двадцять п'ять предметів вручну або на будь-якій станції.",
+  "story.festival_newyear.d1.chip": "Створи 25 предметів",
+  "story.festival_newyear.d1.done": "Двадцять п'ять предметів виготовлено. Добрий початок року."
+}

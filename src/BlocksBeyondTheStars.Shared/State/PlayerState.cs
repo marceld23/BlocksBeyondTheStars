@@ -117,6 +117,13 @@ public sealed class PlayerState
     /// <summary>Subjects already scanned (e.g. "creature:sp0", "block:iron_ore") — only new scans pay knowledge.</summary>
     public HashSet<string> Scanned { get; set; } = new();
 
+    /// <summary>#3007: the cells (packed x/y/z) this player scanned a block or plant at, so a challenge counts distinct things
+    /// ("scan ten conifers") and not one tree ten times. Bounded (<see cref="ScannedCellsCap"/>, the oldest forgotten) and
+    /// persisted additively — an older build drops it, and a tree may then count once more.</summary>
+    public List<long> ScannedCells { get; set; } = new();
+
+    public const int ScannedCellsCap = 4096;
+
     /// <summary>Display name captured at scan time per <see cref="Scanned"/> entry, backing the Codex
     /// "Discoveries" chapter (#484). Needed because creature/tree/flora species are generated PER WORLD
     /// (seed + planet type), so a species id scanned on one planet cannot be resolved to its coined name

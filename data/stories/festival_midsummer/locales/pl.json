@@ -1,0 +1,12 @@
+{
+  "story.festival_midsummer.name": "Przesilenie",
+  "story.festival_midsummer.short": "Przesilenie",
+  "story.festival_midsummer.desc": "Wyzwanie przesilenia: zbuduj trzy ogniska.",
+  "story.festival_midsummer.ch.c1": "Trzy ognie",
+  "story.festival_midsummer.ch.c1.sum": "Przesilenie to czas ognisk. Zbuduj trzy ogniska.",
+  "story.festival_midsummer.r1.start": "Przesilenie! Najdłuższy dzień w roku, a o zmierzchu wszędzie ludzie palą ognie. Zbuduj trzy ogniska, a dam ci pochodnie na noc.",
+  "story.festival_midsummer.graduated": "Ogień i światło na najkrótszą noc. Pochodnie i lampiony dla ciebie.",
+  "story.festival_midsummer.d1.start": "Zbuduj trzy ogniska.",
+  "story.festival_midsummer.d1.chip": "Zbuduj 3 ogniska",
+  "story.festival_midsummer.d1.done": "Trzy ogniska płoną. Noc jest krótka i ciepła."
+}

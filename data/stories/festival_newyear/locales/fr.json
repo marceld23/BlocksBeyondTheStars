@@ -1,0 +1,12 @@
+{
+  "story.festival_newyear.name": "Nouvel an",
+  "story.festival_newyear.short": "Nouvel an",
+  "story.festival_newyear.desc": "Un défi du Nouvel An : fabriquer vingt-cinq objets pour bien commencer.",
+  "story.festival_newyear.ch.c1": "Un nouveau départ",
+  "story.festival_newyear.ch.c1.sum": "Une nouvelle année commence quelque part sur Terre. Fabrique vingt-cinq objets.",
+  "story.festival_newyear.r1.start": "La nouvelle année commence ! Il est temps de tout renouveler. Fabrique vingt-cinq objets — n'importe lesquels, à l'établi ou à la main — et les lampes rouges seront à toi.",
+  "story.festival_newyear.graduated": "Bonne année ! Des lampes et lanternes rouges pour porter chance.",
+  "story.festival_newyear.d1.start": "Fabrique vingt-cinq objets, à la main ou à n'importe quelle station.",
+  "story.festival_newyear.d1.chip": "Fabriquer 25 objets",
+  "story.festival_newyear.d1.done": "Vingt-cinq objets fabriqués. Un bon départ pour l'année."
+}

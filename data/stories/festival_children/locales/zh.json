@@ -1,0 +1,12 @@
+{
+  "story.festival_children.name": "儿童节",
+  "story.festival_children.short": "儿童",
+  "story.festival_children.desc": "儿童节挑战：吃十样东西。",
+  "story.festival_children.ch.c1": "盛宴",
+  "story.festival_children.ch.c1.sum": "儿童节是享受零食的日子。吃十样东西。",
+  "story.festival_children.r1.start": "这是儿童节！玩耍和零食的日子。吃十样东西——浆果、果实、炖菜——我会给你房间一点礼物。",
+  "story.festival_children.graduated": "儿童节快乐！房间里有花盆和白色灯。",
+  "story.festival_children.d1.start": "吃十样东西。",
+  "story.festival_children.d1.chip": "吃 10 样东西",
+  "story.festival_children.d1.done": "十样零食！真是一顿盛宴。"
+}

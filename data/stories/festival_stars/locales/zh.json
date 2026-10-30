@@ -1,0 +1,12 @@
+{
+  "story.festival_stars.name": "星节",
+  "story.festival_stars.short": "星辰",
+  "story.festival_stars.desc": "一个星节挑战：在轨道上扫描五个天体。",
+  "story.festival_stars.ch.c1": "五个世界",
+  "story.festival_stars.ch.c1.sum": "星节抬头仰望。用飞船扫描器从轨道上扫描五个行星或卫星。",
+  "story.festival_stars.r1.start": "星节开始了！今晚地球各地的人们都仰望天空。看得更远：用飞船扫描器从轨道上扫描五个行星或卫星，我会为你的基地带来星光。",
+  "story.festival_stars.graduated": "写在星空里。青色光带和白色灯饰，像夜空一样。",
+  "story.festival_stars.d1.start": "用飞船扫描器从轨道上扫描五个行星或卫星。",
+  "story.festival_stars.d1.chip": "扫描 5 个天体",
+  "story.festival_stars.d1.done": "五个世界已绘制。星星属于你。"
+}

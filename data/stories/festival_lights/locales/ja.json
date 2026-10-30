@@ -1,0 +1,15 @@
+{
+  "story.festival_lights.name": "光の祭り",
+  "story.festival_lights.short": "ライト",
+  "story.festival_lights.desc": "光の祭りチャレンジ：基地を30個のライトで飾ろう。もし見つけたらモミの木をスキャンしてね。",
+  "story.festival_lights.ch.c1": "三十のライト",
+  "story.festival_lights.ch.c1.sum": "基地に30個のライトを設置しよう。寒い惑星では、チップ用に10本の針葉樹をスキャンしてね。",
+  "story.festival_lights.r1.start": "光の祭りが始まったよ！今夜は世界中でランプや提灯が飾られている。基地を30個のライトで照らしてくれたら、色つきのランプを用意するよ。",
+  "story.festival_lights.graduated": "素敵だね。赤と緑のランプと暖色のライトストリップを次の光の祭りのために用意したよ。",
+  "story.festival_lights.d1.start": "ランタン、たいまつ、色つきランプ、ライトストリップ、たき火など、光るものを30個設置しよう。",
+  "story.festival_lights.d1.chip": "ライトを30個設置",
+  "story.festival_lights.d1.done": "30個のライト！君の基地は軌道からでも見えるよ。",
+  "story.festival_lights.d2.start": "針葉樹は寒い世界に育つ — ツンドラ、北方、氷原。ハンドスキャナーで10本の異なる木をスキャンしよう。",
+  "story.festival_lights.d2.chip": "針葉樹を10本スキャン",
+  "story.festival_lights.d2.done": "針葉樹を10本スキャンした。光の祭りにモミの木、完璧だね。"
+}

@@ -1,0 +1,61 @@
+// Festival challenge pack (#3007, epic #3000): the children theme. Starts for every player while a festival of this theme is
+// on (world:festival_children); its counter step is kid-sized, nothing is skippable (a skipped pack must not pay), and the
+// graduation counter festival:children pays a decoration present through data/achievements.json. The calendar only sets the
+// default — any festival can be switched on by hand (/festival <key>), so nothing here can be missed. Generated from the
+// maintainer's texts; the twelve other languages come from tools/translate_locale.py.
+{
+  "id": "festival_children",
+  "nameKey": "story.festival_children.name",
+  "shortNameKey": "story.festival_children.short",
+  "descriptionKey": "story.festival_children.desc",
+  "kind": "side",
+  "scope": "player",
+  "priority": 5,
+  "defaultEnabled": true,
+  "narrator": {
+    "id": "vega"
+  },
+  "start": {
+    "after": [
+      "world:festival_children"
+    ]
+  },
+  "graduation": {
+    "lineKey": "story.festival_children.graduated",
+    "counter": "festival:children"
+  },
+  "chapters": [
+    {
+      "id": "c1",
+      "titleKey": "story.festival_children.ch.c1",
+      "summaryKey": "story.festival_children.ch.c1.sum",
+      "skippable": false,
+      "steps": [
+        {
+          "id": "r1",
+          "kind": "read",
+          "tier": "must",
+          "skippable": false,
+          "explain": {
+            "startKey": "story.festival_children.r1.start"
+          }
+        },
+        {
+          "id": "d1",
+          "kind": "do",
+          "tier": "must",
+          "skippable": false,
+          "objective": {
+            "event": "eat:any",
+            "required": 10
+          },
+          "explain": {
+            "startKey": "story.festival_children.d1.start",
+            "chipKey": "story.festival_children.d1.chip",
+            "doneKey": "story.festival_children.d1.done"
+          }
+        }
+      ]
+    }
+  ]
+}

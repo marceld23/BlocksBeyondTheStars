@@ -1,0 +1,12 @@
+{
+  "story.festival_children.name": "Giornata dei bambini",
+  "story.festival_children.short": "Bambini",
+  "story.festival_children.desc": "Una sfida per la giornata dei bambini: fai una scorpacciata di dieci cose.",
+  "story.festival_children.ch.c1": "Una scorpacciata",
+  "story.festival_children.ch.c1.sum": "La giornata dei bambini è fatta per i dolcetti. Mangia dieci cose.",
+  "story.festival_children.r1.start": "È la giornata dei bambini! Un giorno di giochi e dolcetti. Mangia dieci cose — bacche, frutta, uno stufato — e ho qualcosa per la tua stanza.",
+  "story.festival_children.graduated": "Buona giornata dei bambini! Vasi di fiori e lampade bianche per la tua stanza.",
+  "story.festival_children.d1.start": "Mangia dieci cose.",
+  "story.festival_children.d1.chip": "Mangia 10 cose",
+  "story.festival_children.d1.done": "Dieci dolcetti! È stata una vera scorpacciata."
+}

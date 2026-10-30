@@ -114,6 +114,7 @@ public sealed partial class GameServer
             TickStep.Dt("TickFire", TickFire),
             TickStep.Dt("TickWeather", TickWeather),
             TickStep.Dt("TickFlora", TickFlora),
+            TickStep.Dt("TickFestivalSpawns", TickFestivalSpawns), // #3006: the festivals' deposit layer (pumpkins …), every 3 s, budgeted like the snow
             TickStep.Dt("TickNpcFelling", TickNpcFelling), // #2644: a woodcutter's tree comes down from the top, a few cells a tick
             TickStep.Dt("TickNpcRestores", TickNpcRestores), // #2643: mined quarry cells fill up again (1 Hz)
             TickStep.Dt("TickCreatures", TickCreatures),

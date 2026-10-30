@@ -49,10 +49,13 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         // the seven sapling blocks, #2968/#2977–#2980: main's mesher gives deep 0xbf001a6f0ba83a81, surface
         // 0x55dfde912240bb51), and see-through solids now keep their collision face toward water, plants and props, so the
         // collider tris of both chunks moved on top of that.
+        // Re-pinned 2026-10-30 (#3005): the pumpkin block shifted the ids again (flora_pumpkin sorts before the crops), so
+        // the synthetic world is built from other blocks; the mesher's only change is the palette tint of a species with a
+        // palette, which none of the synthetic blocks has. The sky chunk is empty and unchanged.
         private static readonly Dictionary<string, ulong> Pinned = new Dictionary<string, ulong>
         {
-            ["deep (5,1,7)"] = 0xe51227e6279bdfe9UL,
-            ["surface (5,2,7)"] = 0x423839b66cccff67UL,
+            ["deep (5,1,7)"] = 0x70fd3eea0f41b831UL,
+            ["surface (5,2,7)"] = 0x241a37dc2196121bUL,
             ["sky (5,3,7)"] = 0xd6a8cf1a27eab505UL,
         };
 

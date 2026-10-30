@@ -1,0 +1,12 @@
+{
+  "story.festival_harvest.name": "Festiwal plonów",
+  "story.festival_harvest.short": "Zbiory",
+  "story.festival_harvest.desc": "Wyzwanie festiwalu plonów: przynieś sześćdziesiąt dyni, dopóki trwa festiwal.",
+  "story.festival_harvest.ch.c1": "Zbiór dyni",
+  "story.festival_harvest.ch.c1.sum": "Podczas festiwalu wokół ciebie rosną dynie. Zbierz sześćdziesiąt z nich.",
+  "story.festival_harvest.r1.start": "Trwa festiwal plonów! W polach wokół ciebie rosną dynie — pomarańczowe, żółte, zielone, nawet białe. Zbierz sześćdziesiąt, a dam coś dla twojej bazy.",
+  "story.festival_harvest.graduated": "Dumna żniwa. Oto: rzeźbione lampiony z dyni i kilka lamp przy drzwiach.",
+  "story.festival_harvest.d1.start": "Zbierz sześćdziesiąt dyni. Liczy się każdy kolor — także toksyczne, detoksyfikator je oczyszcza.",
+  "story.festival_harvest.d1.chip": "Zbierz 60 dyni",
+  "story.festival_harvest.d1.done": "Sześćdziesiąt dyni! Zbiory zakończone."
+}

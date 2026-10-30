@@ -1,0 +1,12 @@
+{
+  "story.festival_newyear.name": "新年",
+  "story.festival_newyear.short": "新年",
+  "story.festival_newyear.desc": "新年のチャレンジ：さっぱり始めるために25個のものを作ろう。",
+  "story.festival_newyear.ch.c1": "さっぱり始める",
+  "story.festival_newyear.ch.c1.sum": "地球のどこかで新年が始まる。25個のものを作ろう。",
+  "story.festival_newyear.r1.start": "新しい年が始まるよ！ものを新しくしよう。作業台でも手作業でも何でもいいから25個作れば、赤いランプが君のものだ。",
+  "story.festival_newyear.graduated": "あけましておめでとう！幸運の赤いランプとランタンをどうぞ。",
+  "story.festival_newyear.d1.start": "手作業でもどのステーションでもいいから25個のものを作ろう。",
+  "story.festival_newyear.d1.chip": "25個のものを作る",
+  "story.festival_newyear.d1.done": "25個作成した。良い年の始まりだ。"
+}

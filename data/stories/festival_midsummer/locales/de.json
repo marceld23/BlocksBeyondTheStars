@@ -1,0 +1,12 @@
+{
+  "story.festival_midsummer.name": "Mittsommer",
+  "story.festival_midsummer.short": "Mittsommer",
+  "story.festival_midsummer.desc": "Eine Mittsommer-Aufgabe: Bau drei Lagerfeuer.",
+  "story.festival_midsummer.ch.c1": "Drei Feuer",
+  "story.festival_midsummer.ch.c1.sum": "Mittsommer ist Feuerzeit. Bau drei Lagerfeuer.",
+  "story.festival_midsummer.r1.start": "Mittsommer! Der längste Tag des Jahres, und überall zünden die Menschen in der Dämmerung Feuer an. Bau drei Lagerfeuer, dann habe ich Fackeln für die Nacht.",
+  "story.festival_midsummer.graduated": "Feuer und Licht für die kürzeste Nacht. Fackeln und Laternen für dich.",
+  "story.festival_midsummer.d1.start": "Bau drei Lagerfeuer.",
+  "story.festival_midsummer.d1.chip": "Bau 3 Lagerfeuer",
+  "story.festival_midsummer.d1.done": "Drei Feuer brennen. Die Nacht ist kurz und warm."
+}
