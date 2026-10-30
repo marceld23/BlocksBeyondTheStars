@@ -17,6 +17,9 @@ namespace BlocksBeyondTheStars.Client
     /// festivals" opens a small overlay with the next sixty days. Nothing is built when the client setting is off, when
     /// nothing is on or near, or when no content is loaded (the Editor's hierarchy test), so the menu stays as it was.
     /// </summary>
+    /// <remarks>The overlay is returned rather than left where it was built: the card's own button and the menu's bottom
+    /// bar are built after it, so <see cref="UiMainMenu.Build"/> moves it to the end of the canvas, or both would draw over
+    /// the open list and stay clickable through its scrim (#3017).</remarks>
     public static class UiFestivalCard
     {
         private const float X = 1290f, Y = 200f, W = 590f;
@@ -24,13 +27,15 @@ namespace BlocksBeyondTheStars.Client
         private const int ListMax = 7;
         private static readonly Color Amber = new Color(1f, 0.82f, 0.45f);
 
-        public static void Build(AppShell shell, Transform root)
+        /// <summary>Builds the card and its hidden "More festivals" overlay; returns the overlay, or null when no card is
+        /// shown.</summary>
+        public static GameObject Build(AppShell shell, Transform root)
         {
             var now = DateTime.UtcNow;
             if (shell == null || shell.Content == null || shell.Settings == null
                 || !FestivalCard.ShouldShow(shell.Content, now, shell.Settings.Festivals))
             {
-                return;
+                return null;
             }
 
             var active = FestivalCard.Active(shell.Content, now);
@@ -48,6 +53,7 @@ namespace BlocksBeyondTheStars.Client
 
             GameObject overlay = BuildList(shell, root);
             UiKit.AddButton(root, X + 24f, y + 4f, 280f, 46f, shell.L("ui.festival.more"), () => overlay.SetActive(true));
+            return overlay;
         }
 
         private static void AddLine(Transform root, AppShell shell, FestivalCard.Line line, float x, ref float y, float w)

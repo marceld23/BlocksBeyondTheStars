@@ -80,6 +80,9 @@ bundle is the schedule**; existing saves get festivals through runtime layers on
 - **Community locales (release PR #3014):** the second PR's 33 game keys (pumpkin items and blocks, the `festival`
   achievement category and rows) were topped up into the twelve community locales with `translate_locale.py` + a hand QA
   of the lantern names (uk "ліхтар", not "ліхтарня" = lighthouse).
+- **Fix #3017 — ✅ done 2026-10-30 (Marcel's report on v2026.10.31):** the "More festivals" button and the menu's bottom bar
+  ("What's new?", "Join in") drew over the open festival list and stayed clickable through its scrim — the overlay was built
+  before both. `UiFestivalCard.Build` now returns the overlay and `UiMainMenu.Build` moves it to the end of the canvas.
 - **Open:** #3008 native-speaker review of the festival texts (help wanted, stays open).
 
 **Released** in **v2026.10.31** "the festival release" (2026-10-30).
