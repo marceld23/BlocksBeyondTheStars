@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🎉 Seasonal festivals — the real-world calendar in the game, multicultural, no FOMO — epic #3000, #3001–#3004 (+ #3008 community review), branch feat/seasonal-festivals, PR #3012 — ✅ done 2026-10-30 (⚠ playtest open; no generation, save-version or protocol change; #3005–#3007 pumpkin · spawns · challenges follow in the second PR)
+### 🎉 Seasonal festivals — the real-world calendar in the game, multicultural, no FOMO — epic #3000, #3001–#3007 (+ #3008 community review), branches feat/seasonal-festivals + feat/festival-pumpkins — ✅ done 2026-10-30 in PR #3012 (`e16b6736`) and PR #3015 (`0a144741`) (⚠ playtest open; the second PR — pumpkin · spawns · challenges — raises the terrain generation to 32 and the save version to 8, no protocol bump)
 
 Marcel's wish (2026-10-29): at certain times of the real year the game should play with a slightly different mood and slightly
 different worlds — Halloween week, Christmas, the seasons — switchable in the settings, announced in the main menu, active on
@@ -77,9 +77,14 @@ bundle is the schedule**; existing saves get festivals through runtime layers on
   - **Date-independent tests:** the first CI run fell on Halloween week — the calendar started the harvest challenge for every
     joining test player (chip, pack list). Every test server now reads the calendar at `TestFestivalClock.QuietDay` (module
     initializer → `GameServer.FestivalClockDefaultForTest`); `FestivalCalendarTests` guards that the day stays quiet.
+- **Community locales (release PR #3014):** the second PR's 33 game keys (pumpkin items and blocks, the `festival`
+  achievement category and rows) were topped up into the twelve community locales with `translate_locale.py` + a hand QA
+  of the lantern names (uk "ліхтар", not "ліхтарня" = lighthouse).
 - **Open:** #3008 native-speaker review of the festival texts (help wanted, stays open).
 
-### 🧭 Coordinates, teleporter destinations + Quantum Teleporter, several bases per world with discovery, settlers in the planet scan, base and station yield — epic #2992 (#2993–#2999), branch feat/teleporter-coords-multibase-yield — ✅ done 2026-10-30 (⚠ playtest open; protocol tags 310–312 additive, no save-version bump)
+**Released** in **v2026.10.31** "the festival release" (2026-10-30).
+
+### 🧭 Coordinates, teleporter destinations + Quantum Teleporter, several bases per world with discovery, settlers in the planet scan, base and station yield — epic #2992 (#2993–#2999), branch feat/teleporter-coords-multibase-yield — ✅ done 2026-10-30 in PR #3013 (`3f1e61de`) (⚠ playtest open; protocol tags 310–312 additive, no save-version bump)
 
 Marcel's ideas of 2026-10-29 (Lyxette's "player empire" report, decided with Justus: several bases yes, a reward over time
 yes, owning a planet no — the most bases lead the scan instead). One PR; developer doc
@@ -111,7 +116,9 @@ yes, owning a planet no — the most bases lead the scan instead). One PR; devel
   languages (machine pass + hand QA); `CRYSTAL_NET.md` beam-pad pairing corrected (cells, not ids).
 - Open: playtest (several bases side by side, the teleporter list on a busy world, collecting after a night away).
 
-### 📬 Player report 2026-10-29 (Lyxette, v2026.10.30) — a net fragment E would not recover — #3009–#3010, branch fix/ghost-net-fragments — ✅ done 2026-10-30 (⚠ playtest open; no generation, save or protocol change)
+**Released** in **v2026.10.31** "the festival release" (2026-10-30).
+
+### 📬 Player report 2026-10-29 (Lyxette, v2026.10.30) — a net fragment E would not recover — #3009–#3010, branch fix/ghost-net-fragments — ✅ done 2026-10-30 in PR #3011 (`2ca51c0e`) (⚠ playtest open; no generation, save or protocol change)
 
 Lyxette built a stone platform up to a net fragment hanging in the air over the asteroid Spuyyrk; the HUD read
 *"E: Recover net fragment"*, and E did nothing. Spuyyrk's real fragments lay hundreds of blocks away — the one in front
@@ -126,6 +133,8 @@ of him was a ghost from an earlier body.
   `NetFragmentList`, so a client out of step is put right instead of E staying a silent no-op
   (`GameServerNetFragmentTests.A_refused_pickup_resends_the_fragment_list_and_changes_nothing`).
 - **Open:** playtest — travel from a body with an uncollected fragment to another and recover the new body's fragment.
+
+**Released** in **v2026.10.31** "the festival release" (2026-10-30).
 
 ### 📬 Player reports 2026-10-28 (Lyxette, v2026.10.29) — glass floor under water, bed occupancy, tavern guest beds, lead — #2984–#2988, branch fix/lyxette-reports-2026-10-28 — ✅ done 2026-10-28 in PR #2989 (`154568c3`) (⚠ playtest open; terrain generation 31, no save-version or protocol bump)
 
