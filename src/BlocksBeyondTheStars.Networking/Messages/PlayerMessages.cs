@@ -56,6 +56,32 @@ public sealed class TeleportToPlayerIntent
     public string TargetPlayerId { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Client → server (#2994, #2995): the teleporter jumps to a place on the body the player stands on. The client names the
+/// place, the server finds it and checks it — a client position is never trusted:
+/// <list type="bullet">
+/// <item><c>base</c>, <c>beam</c>, <c>beacon</c> — the canonical cell of the base core, beam pad or radio beacon (own, an
+/// ally's or a crew mate's);</item>
+/// <item><c>marker</c> — <see cref="TargetId"/> is the map marker's id (own, or shared by an ally);</item>
+/// <item><c>coords</c>, <c>waypoint</c> — <see cref="X"/>/<see cref="Z"/> of a free point (Quantum Teleporter only); the
+/// server wraps them and finds the surface.</item>
+/// </list>
+/// Device, energy and cooldown come from <c>TeleportRules</c>. Refusals arrive as <c>@srv.tp.*</c> toasts, the snap as a
+/// <see cref="RespawnNotice"/>. No protocol bump — an older server drops the unknown tag.
+/// </summary>
+public sealed class TeleportToPointIntent
+{
+    /// <summary><c>base</c>, <c>beam</c>, <c>beacon</c>, <c>marker</c>, <c>coords</c> or <c>waypoint</c>.</summary>
+    public string Kind { get; set; } = string.Empty;
+
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
+
+    /// <summary>The marker id for <c>marker</c>; empty otherwise.</summary>
+    public string TargetId { get; set; } = string.Empty;
+}
+
 /// <summary>Client toggles the stealth field (requires a stealth suit + energy).</summary>
 public sealed class ToggleStealthIntent { }
 

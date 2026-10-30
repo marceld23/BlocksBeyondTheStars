@@ -33,12 +33,13 @@ public sealed class PlanetBaseAndStationMapTests : IDisposable
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
     }
 
-    private SvGameServer NewServer(out SqliteWorldRepository repo, string name = "basemap")
+    private SvGameServer NewServer(out SqliteWorldRepository repo, string name = "basemap", int basesPerWorld = 5)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         var st = new LoopbackServerTransport(new LoopbackLink());
         var config = new ServerConfig { WorldName = name, Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
         config.Rules.FreeSpaceFlight = true;
+        config.Rules.BasesPerWorld = basesPerWorld;
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         return server;
@@ -144,16 +145,16 @@ public sealed class PlanetBaseAndStationMapTests : IDisposable
     }
 
     [Fact]
-    public void OnlyOneBasePerBody_SecondFoundingIsRefused()
+    public void WithTheRuleAtOne_SecondFoundingIsRefused()
     {
-        var server = NewServer(out var repo);
+        var server = NewServer(out var repo, basesPerWorld: 1);
         using (repo)
         {
             Builder(server);
             server.PlaceBlock("Builder", 1, 200, 0, "base_core");
             Assert.Single(server.BaseSnapshots);
 
-            // A second base core on the SAME body is refused (one base per body per player).
+            // #2996: with the world rule "bases per world" at 1 a second base core on the SAME body is refused.
             server.PlaceBlock("Builder", 3, 200, 0, "base_core");
             Assert.Single(server.BaseSnapshots);
             Assert.True(server.World.GetBlock(new Vector3i(3, 200, 0)).IsAir); // nothing placed

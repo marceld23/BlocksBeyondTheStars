@@ -168,6 +168,12 @@ public sealed class NetMapBase
 {
     public string BodyId { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>#2996: the base core's canonical cell — a player may have several bases on one body, the Map tab renames each
+    /// by its cell. Additive (an older server sends 0/0/0 and one row per body).</summary>
+    public int CellX { get; set; }
+    public int CellY { get; set; }
+    public int CellZ { get; set; }
 }
 
 /// <summary>Client → server: hyperjump into a (possibly never-visited) star system, arriving in FLIGHT mode

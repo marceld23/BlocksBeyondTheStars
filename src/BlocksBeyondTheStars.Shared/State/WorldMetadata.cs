@@ -247,6 +247,11 @@ public sealed class WorldMetadata
     /// build drops it, a missing entry means "no credit".</summary>
     public System.Collections.Generic.Dictionary<string, double> CrystalLastTicked { get; set; } = new();
 
+    /// <summary>#2999: the yield stores of the base cores ("base:&lt;body&gt;|x|y|z") and player stations ("station:&lt;id&gt;") —
+    /// what each gathered and when it was last read. Filled lazily from the wall clock. Additive: an older build drops it,
+    /// a missing entry starts a fresh store.</summary>
+    public System.Collections.Generic.Dictionary<string, BaseYieldStore> BaseYields { get; set; } = new();
+
     /// <summary>#2643: the cells NPC miners broke and that fill up again — per world (location id) → the pending refills,
     /// oldest first, at most <see cref="NpcRefillRecord.MaxPerWorld"/>. Persisted so a restart never leaves a hole in a
     /// quarry face. Additive: an older build drops it (the holes it leaves are ordinary mined cells), a missing entry means

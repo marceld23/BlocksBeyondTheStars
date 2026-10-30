@@ -91,14 +91,16 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // A planet base you own (Grundstein) that you're aiming at → rename it, and see who lives there (#2717).
-            if (TryAimOwnedBase(out string baseBodyId, out string baseName))
+            // A planet base you own (Grundstein) that you're aiming at → rename it, see who lives there (#2717) and what it
+            // gathered (#2999). #2996: several bases may stand on one body — the core cell says which one.
+            if (TryAimOwnedBase(out string baseBodyId, out string baseName, out var baseCell))
             {
                 Game?.Context.Panel<BeaconLabelUi>()?.OpenBase(
                     Game.Localizer?.Get("ui.base.rename_prompt") ?? "Rename base",
                     baseName,
                     baseBodyId,
-                    name => Game.Network?.SendSetBaseName(baseBodyId, name));
+                    baseCell,
+                    name => Game.Network?.SendSetBaseName(baseBodyId, name, baseCell.x, baseCell.y, baseCell.z));
                 return;
             }
 
@@ -108,9 +110,10 @@ namespace BlocksBeyondTheStars.Client
                 && Game.Content?.BlockById(Game.World.GetBlock(coreHit.x, coreHit.y, coreHit.z))?.Key == "station_core")
             {
                 string stationId = Game.CurrentStationId;
-                Game?.Context.Panel<BeaconLabelUi>()?.Open(
+                Game?.Context.Panel<BeaconLabelUi>()?.OpenStation( // #2999: with the station's yield strip
                     Game.Localizer?.Get("ui.map.rename") ?? "Rename",
                     Game.StationName,
+                    stationId,
                     name => Game.Network?.SendSetStationName(stationId, name));
                 return;
             }
@@ -438,11 +441,12 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>True if the player is looking at a base core (Grundstein) they own — returns its body id + the
         /// current base name so E can open the rename overlay. Only the owner gets the prompt; everyone sees the marker.</summary>
-        private bool TryAimOwnedBase(out string bodyId, out string name)
+        private bool TryAimOwnedBase(out string bodyId, out string name, out Vector3Int cell)
         {
             var b = AimedOwnedBase();
             bodyId = b?.BodyId ?? string.Empty;
             name = b?.Name ?? string.Empty;
+            cell = b == null ? default : new Vector3Int(Mathf.FloorToInt(b.X), Mathf.FloorToInt(b.Y), Mathf.FloorToInt(b.Z));
             return b != null;
         }
 

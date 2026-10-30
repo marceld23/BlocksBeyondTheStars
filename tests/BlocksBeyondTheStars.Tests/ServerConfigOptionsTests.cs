@@ -44,7 +44,7 @@ public sealed class ServerConfigOptionsTests
     };
 
     /// <summary>Every switch spelling the command line accepts (canonical names and aliases, lower-case, without <c>--</c>).</summary>
-    private static readonly string[] HistoricalSwitches95 =
+    private static readonly string[] HistoricalSwitches97 =
     {
         "port", "gameplay-port", "admin-port", "saves", "saves-root", "data", "data-dir", "usercontent", "user-content",
         "no-config", "stdin-stop", "database", "database-provider", "postgres", "postgres-connection",
@@ -55,7 +55,7 @@ public sealed class ServerConfigOptionsTests
         "creative-flight", "admin-cheats", "voice", "voice-chat", "chat-filter", "chat-mode", "unlock-all-blueprints",
         "start-all-ships", "creative-kit", "guarantee-start-cube", "creatures", "planet-enemies", "ufos", "bandits", "oxygen",
         "hunger", "hazards", "death-penalty", "keep-inventory", "keep-ship", "auto-aim", "world-textures",
-        "starter-teleporter", "return-to-ship", "friendly-visitors", "machine-catchup", "story", "story-density", "tutorial",
+        "starter-teleporter", "return-to-ship", "friendly-visitors", "machine-catchup", "bases-per-world", "base-yield", "story", "story-density", "tutorial",
         "flora", "ore", "settlements", "planet-wrecks", "vaults", "stations", "wormholes", "debris-fields", "derelicts",
         "exotic", "station-templates", "settlement-templates", "structure-packs", "systems", "planets-min", "planets-max",
         "moons-max", "variance", "belts", "continents", "terrain-generation", "galaxy-growth", "danger", "planet-types",
@@ -131,6 +131,8 @@ public sealed class ServerConfigOptionsTests
         { "return-to-ship", "true", "return-to-ship" },
         { "friendly-visitors", "true", "friendly-visitors" },
         { "machine-catchup", "7", "machine-catchup" },
+        { "bases-per-world", "3", "bases-per-world" },
+        { "base-yield", "200", "base-yield" },
         { "story", "none", "story" },
         { "story-density", "Dense", "story-density" },
         { "tutorial", "optin", "tutorial" },
@@ -174,8 +176,8 @@ public sealed class ServerConfigOptionsTests
     {
         var covered = HistoricalSwitches().Select(row => (string)row[0]).ToList();
 
-        Assert.Equal(93, covered.Count);
-        Assert.Equal(HistoricalSwitches95.Except(new[] { "no-config", "stdin-stop" }).OrderBy(s => s, StringComparer.Ordinal),
+        Assert.Equal(95, covered.Count);
+        Assert.Equal(HistoricalSwitches97.Except(new[] { "no-config", "stdin-stop" }).OrderBy(s => s, StringComparer.Ordinal),
             covered.OrderBy(s => s, StringComparer.Ordinal));
     }
 
@@ -608,9 +610,9 @@ public sealed class ServerConfigOptionsTests
     // --- The option table itself (ServerConfigOptions.All) ---
 
     [Fact]
-    public void Table_HasExactly105Rows_EachWithANameAndHelp()
+    public void Table_HasExactly107Rows_EachWithANameAndHelp()
     {
-        Assert.Equal(105, ServerConfigOptions.All.Count);
+        Assert.Equal(107, ServerConfigOptions.All.Count);
         foreach (var option in ServerConfigOptions.All)
         {
             Assert.True(option.CommandLineName is not null || option.EnvironmentName is not null, "a row needs a switch or a variable");
@@ -638,12 +640,12 @@ public sealed class ServerConfigOptionsTests
             .SelectMany(option => option.CommandLineAliases.Prepend(option.CommandLineName!))
             .ToList();
 
-        Assert.Equal(95, HistoricalSwitches95.Length);
-        Assert.Equal(95, spellings.Count);
+        Assert.Equal(97, HistoricalSwitches97.Length);
+        Assert.Equal(97, spellings.Count);
         Assert.Equal(spellings.Count, spellings.Distinct(StringComparer.Ordinal).Count());
         Assert.All(spellings, name => Assert.Equal(name.ToLowerInvariant(), name));
-        Assert.Equal(HistoricalSwitches95.OrderBy(s => s, StringComparer.Ordinal), spellings.OrderBy(s => s, StringComparer.Ordinal));
-        Assert.Equal(82, ServerConfigOptions.All.Count(option => option.CommandLineName is not null));
+        Assert.Equal(HistoricalSwitches97.OrderBy(s => s, StringComparer.Ordinal), spellings.OrderBy(s => s, StringComparer.Ordinal));
+        Assert.Equal(84, ServerConfigOptions.All.Count(option => option.CommandLineName is not null));
     }
 
     [Fact]

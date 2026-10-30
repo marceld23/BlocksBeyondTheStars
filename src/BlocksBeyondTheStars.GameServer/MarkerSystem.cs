@@ -354,6 +354,38 @@ internal sealed class MarkerSystem
         }
     }
 
+    /// <summary>#2994: the marker a teleporter may jump to — one of the viewer's own markers on their current world, or a
+    /// marker an ally or crew mate shared there. Pings, story flags and wish marks are never in here (they are not saved
+    /// markers), so they can never be jumped to.</summary>
+    internal PlayerMarker? FindJumpMarker(PlayerSession viewer, string id)
+    {
+        string me = viewer.State.PlayerId;
+        string loc = viewer.CurrentLocationId;
+        if (string.IsNullOrEmpty(loc) || string.IsNullOrEmpty(id))
+        {
+            return null;
+        }
+
+        if (viewer.State.Markers.FirstOrDefault(m => m.Id == id && m.LocationId == loc) is { } own)
+        {
+            return own;
+        }
+
+        EnsureSharedMarkerIndex();
+        if (_sharedMarkers.TryGetValue(loc, out var byOwner))
+        {
+            foreach (var kv in byOwner)
+            {
+                if (kv.Key != me && _host.AreAllied(me, kv.Key) && kv.Value.FirstOrDefault(m => m.Id == id) is { } shared)
+                {
+                    return shared;
+                }
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>Everything ONE player should see on their current world: their own markers, the shared markers
     /// of players they are allied or crewed with on the same body (online or not), and the live pings of that
     /// circle.</summary>

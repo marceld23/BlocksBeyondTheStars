@@ -726,6 +726,19 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>#2993: "/pos" — the body and the canonical block coordinates the Quantum Teleporter takes.</summary>
+        private string PositionLine()
+        {
+            if (Game.InSpace || Game.SpaceViewActive || Game.OnFootInSpace || Game.Aboard || !string.IsNullOrEmpty(Game.CurrentStationId))
+            {
+                return L("ui.chat.pos_none");
+            }
+
+            var p = Game.PlayerPosition;
+            string body = string.IsNullOrEmpty(Game.LocationName) ? "—" : Game.ShownLocationName;
+            return L("ui.chat.pos").Replace("{0}", body).Replace("{1}", CoordinateText.Format(p.x, p.y, p.z, Game.Circumference));
+        }
+
         /// <summary>
         /// Parses an admin/cheat slash-command typed in chat and sends it as an <c>AdminCommandIntent</c>
         /// (the server validates the player is an admin and that cheats are allowed, then replies with a
@@ -759,6 +772,11 @@ namespace BlocksBeyondTheStars.Client
 
                 case "/admin":
                     AdminHelp();
+                    return true;
+
+                // #2993: where am I — the body and the canonical block coordinates, for everyone, without the server.
+                case "/pos":
+                    LocalLine(PositionLine());
                     return true;
 
                 case "/give":

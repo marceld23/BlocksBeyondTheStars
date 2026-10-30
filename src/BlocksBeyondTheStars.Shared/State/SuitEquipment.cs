@@ -279,6 +279,7 @@ public static class SuitEquipment
             case "oxygen_extractor":
             case "stealth_suit":
             case "suit_teleporter":
+            case "quantum_teleporter":
             case "comm_radio":
             case "radar_scanner":
                 return true;

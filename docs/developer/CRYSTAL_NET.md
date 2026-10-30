@@ -210,7 +210,7 @@ drives its own network (#2092).
 | `matter_receiver` | MatterReceiver | listener (port) | — | — | 0.5 s pulse on arrival | label = its name |
 | every `category: light` block | Light | level listener | level | — | — | — (OFF swaps to `<key>_off`) |
 | `radio_beacon` | Beacon | level listener | level → alarm marker | — | ON while the owner is within 12 | — |
-| `beam_block` | BeamPad | edge listener | rising edge → beams whoever stands on it | — | 0.5 s pulse when someone arrives | config `pair=<beam id>` |
+| `beam_block` | BeamPad | edge listener | rising edge → beams whoever stands on it | — | 0.5 s pulse when someone arrives | config `pair=<x,y,z of the far pad>` |
 | `sentry_post` | Sentry | level listener | OFF = holds fire | — | ON while it has a target | — |
 | `thumper` | Thumper | edge listener | rising edge starts its run | — | — | — |
 | `water_spout` | Spout | level listener | OFF stops pouring | — | — | — |

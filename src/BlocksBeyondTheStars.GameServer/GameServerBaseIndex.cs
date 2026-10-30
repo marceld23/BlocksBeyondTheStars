@@ -231,9 +231,13 @@ public sealed partial class GameServer
         var stickyBefore = idx.StickyInside;
         idx.StickyInside = new Dictionary<Vector3i, ushort>();
         var roomCache = new Dictionary<Vector3i, bool>();
+        var partners = PartnerBasesOf(b); // #2996: once per rebuild
         foreach (var e in BaseIndexEdits(b, _ixBlocks!, SeatShapeIndices, BaseIndexRowLimit))
         {
-            ClassifyBaseIndexCell(b, idx, e.WorldPosition, e.Block, e.Shape, roomCache, stickyBefore);
+            if (BaseOwnsCell(b, e.WorldPosition, partners)) // #2996: a thing inside two bases of one group counts for the nearest core
+            {
+                ClassifyBaseIndexCell(b, idx, e.WorldPosition, e.Block, e.Shape, roomCache, stickyBefore);
+            }
         }
 
         // Deterministic order: residents take beds and seats in this order, the gardener walks its sites in it.
@@ -306,6 +310,7 @@ public sealed partial class GameServer
                 .Select(d => d.NumericId.Value).Where(id => id != 0).ToArray();
             int circ = _world.Circumference;
             var roomCache = new Dictionary<Vector3i, bool>();
+            var partners = PartnerBasesOf(b);
             foreach (var e in BaseIndexEdits(b, _foundingMachineIds, System.Array.Empty<int>(), FoundingMachineRowLimit))
             {
                 var cell = e.WorldPosition;
@@ -314,6 +319,7 @@ public sealed partial class GameServer
                     && System.Math.Abs(WorldConstants.WrapDeltaZ(cell.Z - b.Cell.Z, circ)) <= BaseProtectionRadius;
                 // #2728: a village's own machines (its lights and terminals) never found a base around it.
                 if (!inCoreZone && _world.GetBlockIfLoaded(cell).Value == e.Block && !IsSettlementProtected(cell, new BlockId(e.Block))
+                    && BaseOwnsCell(b, cell, partners)
                     && MachineCellInside(b, cell, roomCache) && ++count >= BaseSettlerMachineCount)
                 {
                     break; // the core zone was counted from the voxels above

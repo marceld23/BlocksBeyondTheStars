@@ -183,6 +183,7 @@ namespace BlocksBeyondTheStars.Client
             On<NpcStandingList>(map, (c, m) => c.NpcStandingsReceived?.Invoke(m));
             On<KnownNpcList>(map, (c, m) => c.KnownNpcsReceived?.Invoke(m));
             On<BaseResidentList>(map, (c, m) => c.BaseResidentsReceived?.Invoke(m));
+            On<YieldStatus>(map, (c, m) => c.YieldStatusReceived?.Invoke(m)); // #2999
             On<GuardianSystemRevealed>(map, (c, m) => c.GuardianSystemRevealedReceived?.Invoke(m));
             On<CoreHackProgress>(map, (c, m) => c.CoreHackProgressReceived?.Invoke(m));
             On<CoreDialogueMessage>(map, (c, m) => c.CoreDialogueReceived?.Invoke(m));

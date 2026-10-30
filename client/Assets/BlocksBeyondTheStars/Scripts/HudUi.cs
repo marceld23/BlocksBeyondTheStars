@@ -196,6 +196,7 @@ namespace BlocksBeyondTheStars.Client
             BuildHotbar(root);
             var compassGo = BuildCompass(root);
             BuildTimeOfDay(root);
+            BuildCoordinates(root); // #2993: the opt-in X · Y · Z line under the clock
 
             // Toast / indicators / prompts / hint.
             BuildToast(root);
@@ -294,6 +295,7 @@ namespace BlocksBeyondTheStars.Client
             RefreshGearStrip(loc); // #2290: after the hotbar — it hides with it
             RefreshTimeOfDay(loc);
             RefreshPlaytime(loc);
+            RefreshCoordinates();
 
             string toastMsg = Game.LastMessage ?? string.Empty;
             int toastSeq = Game.LastMessageSeq;
@@ -635,7 +637,9 @@ namespace BlocksBeyondTheStars.Client
                 : string.Empty;
             // #2717: E at the core also lists who lives here — said where the server knows residents at all.
             string key = b.ResidentCap > 0 ? "ui.base.core_hint" : "ui.base.rename_hint";
-            return $"{ExpandKeyTokens(loc, loc.Get(key))}  ·  {air}  ·  {here}{residents}"; // #2502: {key:Interact}
+            // #2999: what the core gathered and waits to be collected (as of the last base list).
+            string yield = b.YieldReady > 0 ? "  ·  " + loc.Get("ui.base.yield_ready").Replace("{n}", b.YieldReady.ToString()) : string.Empty;
+            return $"{ExpandKeyTokens(loc, loc.Get(key))}  ·  {air}  ·  {here}{residents}{yield}"; // #2502: {key:Interact}
         }
 
         /// <summary>#2018: the Feed prompt while food is held and a begging animal is near — it shares the loot line, and a herd

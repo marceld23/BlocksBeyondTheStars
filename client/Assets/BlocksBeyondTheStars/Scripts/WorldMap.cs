@@ -526,14 +526,24 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            // Player-founded bases (Grundstein): a teal house glyph at the base core + the base name beside it.
+            // Player-founded bases (Grundstein): a house glyph at the base core + the base name beside it. #2997: the server
+            // sends own and allied bases and the ones this player discovered — teal = own, green = an ally's, amber = someone
+            // else's (with the owner's name, so a found base says whose it is).
             if (Game.Bases != null)
             {
-                var baseCol = new Color(0.36f, 0.82f, 0.86f);
                 foreach (var bp in Game.Bases)
                 {
+                    bool own = bp.OwnerId == Game.LocalPlayerId; // (an older server sends relation 0 for every base)
+                    var baseCol = own ? new Color(0.36f, 0.82f, 0.86f)
+                        : bp.Relation == BlocksBeyondTheStars.Networking.Messages.NetBase.RelationAlly ? new Color(0.45f, 0.9f, 0.5f)
+                        : new Color(1f, 0.72f, 0.3f);
                     Marker(bp.X, bp.Z, 36f, baseCol, "⌂", "map_base");
                     string name = string.IsNullOrEmpty(bp.Name) ? L("ui.base.default") : bp.Name;
+                    if (!own && !string.IsNullOrEmpty(bp.OwnerId))
+                    {
+                        name += " (" + bp.OwnerId + ")";
+                    }
+
                     MarkerLabel(bp.X, bp.Z, name, baseCol);
                     float bd = GroundDistance(bp.X, bp.Z);
                     poiLines.Append($"\n⌂ {name}  —  {Mathf.RoundToInt(bd)} m");
@@ -607,7 +617,8 @@ namespace BlocksBeyondTheStars.Client
                     ? $"\n{L("ui.map.weather_here")}: {WeatherLook.Glyph(env.Weather)} {L("weather." + env.Weather)}"
                     : string.Empty;
                 _info.text =
-                    $"{L("ui.map.you")}: X {Mathf.RoundToInt(Game.PlayerPosition.x)}  Z {Mathf.RoundToInt(Game.PlayerPosition.z)}\n" +
+                    // #2993: the world's own block coordinates (the scene position runs on as the player laps the world).
+                    $"{L("ui.map.you")}: {CoordinateText.Format(Game.PlayerPosition.x, Game.PlayerPosition.y, Game.PlayerPosition.z, Game.Circumference)}\n" +
                     $"{L("ui.map.scale")}: ±{_radius} m{weatherHere}\n" +
                     $"{L("ui.map.click_hint")}{wp}{pois}";
             }
