@@ -197,7 +197,8 @@ public sealed class MaterialEconomyTests
 
         var endProducts = new[]
         {
-            "ai_memory_fragment", "access_code", "suit_teleporter", "oxygen_extractor", "stealth_suit", "armor_chest",
+            // #2995: the suit teleporter is no end product any more — the Quantum Teleporter is built from it.
+            "ai_memory_fragment", "access_code", "quantum_teleporter", "oxygen_extractor", "stealth_suit", "armor_chest",
             "armor_legs", "helmet", "oxygen_tank_3", "suit_liner_3", "suit_lamp", "jetpack", "radar_scanner", "galaxy_radio",
             "climbing_claws", // #2192: the top climbing module (the gloves go into it)
             // #2294-#2297 the second suit tier (the boots are no end product any more: the spring boots take them).
