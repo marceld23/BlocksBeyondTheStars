@@ -24,6 +24,18 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 💥 Crash report 2026-10-30 (automatic, v2026.10.32) — quitting during a cutscene threw out of `CutsceneDirector.OnDestroy` — #3046, branch fix/cutscene-teardown-on-quit — ✅ done 2026-10-31 (client only; no save-version, protocol or terrain-generation change)
+
+`NullReferenceException` in `CutsceneScreen.ShowContinue` ← `CutsceneDirector.TearDownScene` ← `OnDestroy`. At application
+quit Unity destroys the screen's root-level canvas in no fixed order. When it went before the director, the teardown reset a
+destroyed continue button. Nothing visible to the player (the game was closing), only inbox noise. The report was logged
+16 minutes before it arrived, so the next launch sent the spooled file. Leaving a world for the menu was never affected.
+
+- **#3046** `CutsceneScreen.Alive` + `ResetForClose()`: the screen resets its own widgets and touches none once its canvas
+  is gone. The director only calls that, and drops a closing screen whose canvas is gone; `SetWorldDim` never builds a new
+  dim canvas for a dead screen. Tests: `CutsceneScreenTeardownEditModeTests` (EditMode) and `CutsceneTeardownWiringTests`
+  (Client).
+
 ### 📬 Player reports 2026-10-30 (Justus as Screelit, v2026.10.32) — base focus (Market / Miner / Lumberjack / Radio centre), name tags, the enemy list with portraits, seasons — #3030–#3042, branch feat/reports-2026-10-30 — ✅ done 2026-10-31 in PR #3043 (`80d72cfc`) (⚠ playtest open; no save-version, protocol or terrain-generation change)
 
 Four wishes (8 inbox rows) plus a bug seen in the report screenshots. Analysis: the gate "an enemy fills in on first

@@ -1143,17 +1143,12 @@ namespace BlocksBeyondTheStars.Client
 
             _chartShown = false;
             _flash = 0f;
-            if (_screen != null)
+            if (_screen != null && _screen.ResetForClose()) // #3046: false once its canvas went first (application quit)
             {
-                _screen.SetFlash(0f);
-                _screen.HideChart();
-                _screen.ShowContinue(string.Empty, false);
-                _screen.SetHint(string.Empty, 0f);
-                _screen.Render(System.Array.Empty<CaptionView>(), null, false, 0f);
                 _closing.Add((_screen, ScreenCloseSeconds, _letterbox, _worldDim));
-                _screen = null;
             }
 
+            _screen = null;
             _worldDim = 0f;
         }
 
@@ -1168,7 +1163,7 @@ namespace BlocksBeyondTheStars.Client
                 screen.SetLetterbox(CinematicTimeline.EaseInOut(box * k));
                 screen.SetFade(0f);
                 screen.SetWorldDim(dim * k); // #2497
-                if (left <= 0f)
+                if (left <= 0f || !screen.Alive) // #3046: a screen whose canvas is gone has nothing left to ease out
                 {
                     screen.Destroy();
                     _closing.RemoveAt(i);

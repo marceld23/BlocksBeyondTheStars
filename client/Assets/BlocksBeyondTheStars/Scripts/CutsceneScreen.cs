@@ -276,6 +276,11 @@ namespace BlocksBeyondTheStars.Client
 
         public CinematicFrame Frame => _frame;
 
+        /// <summary>#3046: the screen is not torn down and its frame and canvas still exist (Unity's fake-null once destroyed).
+        /// At application quit Unity destroys the root-level canvas in no fixed order — possibly before the director that
+        /// owns this screen tears its scene down.</summary>
+        public bool Alive => !_destroyed && _frame != null && _root != null;
+
         /// <summary>Whether the screen is drawn (the frame's canvas and the world dim are root-level objects of their own).</summary>
         public bool Visible
         {
@@ -305,7 +310,7 @@ namespace BlocksBeyondTheStars.Client
             float a = Mathf.Clamp01(alpha);
             if (_worldDim == null)
             {
-                if (a <= 0.001f || _destroyed)
+                if (a <= 0.001f || !Alive) // #3046: a destroyed dim reads null too — never build a new canvas for a dead screen
                 {
                     return;
                 }
@@ -488,6 +493,26 @@ namespace BlocksBeyondTheStars.Client
                 Object.Destroy(_chart.gameObject);
                 _chart = null;
             }
+        }
+
+        /// <summary>#3046: clears what a scene left on screen — the flash, the chart, the continue button, the hint and every
+        /// caption — before the screen eases out, and returns true. A screen that is no longer <see cref="Alive"/> (its canvas
+        /// went first at application quit) touches no widget, finishes its own teardown and returns false: nothing is left
+        /// to ease out.</summary>
+        public bool ResetForClose()
+        {
+            if (!Alive)
+            {
+                Destroy();
+                return false;
+            }
+
+            SetFlash(0f);
+            HideChart();
+            ShowContinue(string.Empty, false);
+            SetHint(string.Empty, 0f);
+            Render(System.Array.Empty<CaptionView>(), null, false, 0f);
+            return true;
         }
 
         /// <summary>Tears the screen down (the frame's canvas and the world dim go with it).</summary>
