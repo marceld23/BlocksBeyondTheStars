@@ -11,6 +11,97 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.33] — 2026-10-31
+
+The seasons release — Justus' ideas, all of them. **Every planet with air now has spring, summer, autumn and winter**: the
+leaves turn amber and red in autumn, a cold winter brings frost, the blossoms open in spring, and plants grow back faster
+or slower with the season. **Every base gets a focus** you can switch for free — **Market**, **Miner**, **Lumberjack** or
+**Radio centre** — and travelling merchants now come only to a Market base. A **name tag** gives one of your companions a
+name that floats above it as a hologram, and the **Codex's enemy list** shows every enemy from the start, each with a
+**picture** drawn from the game's own model.
+
+ℹ️ **Compatibility:** no new blocks — the **save version stays at 9**, the terrain generation at **32** and the network
+protocol at **version 11**. Worlds keep their year from now on (the clock is saved). One change you may notice at once:
+**travelling merchants and trader ships no longer come to every base** — give a base the **Market** focus and they come
+again, more often than before. As always, keep game and server on the same version: the desktop game updates itself at
+start, and the browser is always current.
+
+### 🍂 Four seasons (#3041, #3042)
+
+- **Spring, summer, autumn and winter** on every world with air, each lasting **five days of that planet** (about 40 to
+  75 minutes). Every planet is at its own point of the year, so the next world may be in a different season. The clock
+  panel names the season beside the day bar, and the weather scanner's reading mentions it.
+- **Warmth:** summer is up to **8 °C warmer**, winter up to **8 °C colder**, spring and autumn in between — on a cold
+  world a winter can bring snow and a light **frost** on the tops.
+- **Plants:** in **spring** picked plants grow back faster and the **blossoms open**; in **autumn** the **leaves turn
+  amber, orange and red** and the grass goes straw-coloured; in **winter** plants grow back slowest and look pale.
+- The year runs on between sessions: the game now saves its clock, so a restart no longer starts every season — and the
+  wet and dry seasons — over.
+
+### 🏠 One focus per base (#3036–#3040)
+
+- Press **E** at a base core: a row of five buttons above the yield sets the base's **focus** — free, any time.
+- **None** — as before: the core gathers the world's common ores. **No travelling merchants come.**
+- **Market** — travelling merchants come by, twice as often, and sometimes **two at once**: the second brings one trade's
+  goods, and once both stand at your base they **trade with each other** ("Market day!") and stay a little longer. Trader
+  ships also land near a Market base.
+- **Miner** — dig a **shaft below the core**: the deeper it goes, the faster the core gathers (up to **three times**), and
+  once the shaft reaches a vein's depth, that ore joins — **rare ores too**. The core shows how deep you are and which ore
+  comes next.
+- **Lumberjack** — a free resident becomes the **woodcutter**: it fells trees around the base — never inside a base and
+  never a tree a player planted or built — and plants a sapling for each one. The core gathers **wood**.
+- **Radio centre** — in the base's star system you hear **every trader call** even without a radio, and about every
+  twenty minutes the radio catches an **old distress call** that names a space wreck you have not found yet and marks it
+  for your ship.
+
+### 🏷️ Name tags (#3034, #3035)
+
+- The **name tag** (by hand: 1 polymer + 1 crystal): use it on one of **your** companions, type a name — and from then on
+  the name floats above the animal as a **hologram**, cyan and softly flickering over a small projector ring. A wild
+  animal cannot wear one; tame it first.
+- Right after a tame, a small window now asks for the new companion's name.
+
+### 👾 The enemy list (#3031, #3032)
+
+- **Codex → Enemies** shows **every enemy from the start** with its health, damage, loot and a tip — no more "???". The
+  ones you have met carry a green **✓ met**.
+- Every enemy has a **picture** beside its entry, drawn by the game from the enemy's real model.
+- The **hunter** — the toughest Guardian on the ground — finally looks like it: a head taller than the robots, with a
+  visor, shoulder plates, a glowing reactor on its back and blades on its forearms.
+
+### 🧭 Smaller things (#3030, #3033, #3034)
+
+- **Show coordinates** (Settings → Comfort) now puts the **X · Y · Z** line right under your health, oxygen, energy and
+  hunger bars.
+- With a private name on a planet, the location panel showed a stray `</alpha>` behind it. Fixed.
+- Companion name tags now hide while a scene hides the HUD, and companion names lose stray control characters.
+
+### 🙏 Thanks
+
+- All of this comes from **Justus'** reports of 30 October — thank you!
+
+### 🛠️ For tinkerers
+
+- **Pull request:** everything above is PR #3043 (issues #3030–#3042).
+
+- **Base focus (#3036–#3040):** `Shared/Definitions/BaseFocus`; the focus is kept in the core's yield store
+  (`BaseYieldStore.Focus`, metadata JSON). `YieldIntent` gains the action `focus`; `YieldStatus` gains `Focus`, `Depth`,
+  `NextOre`, `NextOreDepth` and `NoTrees`; `NetBase` gains `Focus` — all additive. The Miner reads the shaft from the
+  lowest owned block edit under the core zone (`TryGetPlayerBlockEditBounds`). The Lumberjack uses the job `lumberjack`
+  on the shared `NpcWorkSystem` chop plan. Merchants and the trader-ship pull count Market bases only.
+- **Seasons (#3041/#3042):** `Shared/World/PlanetSeasons`; `WorldMetadata.SystemTimeDays`; `planets.json` field
+  `seasonTemperature` (default 8, 0 = none); `WorldEnvironment.Season`, `SeasonProgress` and `SeasonWarmth` (additive).
+  The client sets the shader global `_Sc_Season` (`FloraAccent.hlsl`, `ScatterLit`) — no chunk re-mesh.
+- **Name tag (#3035):** item `name_tag`; `SetCompanionNameIntent.UseNameTag`; `TamedCreature.NameTag` →
+  `NetCreature.NameTag`.
+- **Enemy portraits (#3032):** `EnemyPortraitRig` renders each kind once into a small RenderTexture — nothing is added to
+  the download.
+- **Docs:** USER_MANUAL (bases, companions, seasons, Codex, HUD), BASES_AND_TELEPORTS §7, CREATURE_TAMING,
+  PLANET_VIEW_AND_WEATHER §2a. One new item icon (OpenAI) — see NOTICES.md.
+- **What's new? (#3029):** the 2026.10.32 notes in the twelve community languages.
+- **For hosters:** the WorldHost image was rebuilt (shared code changed) and rolls with this release. The AI backend and
+  the report inbox are unchanged.
+
 ## [2026.10.32] — 2026-10-30
 
 The lantern release. **You choose your festivals now**: by default the big festivals of the whole world plus the
@@ -9527,7 +9618,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.32...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.33...HEAD
+[2026.10.33]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.32...v2026.10.33
 [2026.10.32]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.31...v2026.10.32
 [2026.10.31]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.30...v2026.10.31
 [2026.10.30]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.29...v2026.10.30

@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 📬 Player reports 2026-10-30 (Justus as Screelit, v2026.10.32) — base focus (Market / Miner / Lumberjack / Radio centre), name tags, the enemy list with portraits, seasons — #3030–#3042, branch feat/reports-2026-10-30 — 🚧 in progress
+### 📬 Player reports 2026-10-30 (Justus as Screelit, v2026.10.32) — base focus (Market / Miner / Lumberjack / Radio centre), name tags, the enemy list with portraits, seasons — #3030–#3042, branch feat/reports-2026-10-30 — ✅ done 2026-10-31 in PR #3043 (`80d72cfc`) (⚠ playtest open; no save-version, protocol or terrain-generation change)
 
 Four wishes (8 inbox rows) plus a bug seen in the report screenshots. Analysis: the gate "an enemy fills in on first
 contact" was our own twist on Justus' 10-25 wish; the coordinate readout he asks for exists since #2993 but sits top right
@@ -69,6 +69,9 @@ save-version change — the focus rides the metadata JSON, the name tag the play
   `EnemyCodexTextTests`.
 - **Open:** playtest — a Market base's market day, a Miner shaft's depth readout, the woodcutter at work, a distress call's
   waypoint, a whole year on one planet (autumn leaves, winter frost), the hunter's look and the Codex portraits in WebGL.
+- Replies to the 4 reports sent, all 8 inbox rows `done` (fixedInVersion 2026.10.33).
+
+**Released** in **v2026.10.33** "the seasons release" (2026-10-31).
 
 ---
 
