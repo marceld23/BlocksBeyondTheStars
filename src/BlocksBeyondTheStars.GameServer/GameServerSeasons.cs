@@ -18,7 +18,7 @@ public sealed partial class GameServer
     /// ("", 0, 0).</summary>
     private (string Season, double Progress, double Warmth) SeasonOf(string bodyId, PlanetType? planet, double dayLengthSeconds)
     {
-        if (!PlanetSeasons.HasSeasons(planet) || string.IsNullOrEmpty(bodyId))
+        if (SeasonsOffForTest || !PlanetSeasons.HasSeasons(planet) || string.IsNullOrEmpty(bodyId))
         {
             return (string.Empty, 0.0, 0.0);
         }
@@ -33,6 +33,10 @@ public sealed partial class GameServer
 
     /// <summary>Test seam (#3041): the active world's season.</summary>
     public (string Season, double Progress, double Warmth) ActiveSeasonForTest => ActiveSeason();
+
+    /// <summary>Test seam (#3041): no seasons on any world — for tests that time plant growth or temperatures to the second
+    /// and are about something else (the season's growth factor would otherwise depend on the world seed's year).</summary>
+    public bool SeasonsOffForTest { get; set; }
 
     /// <summary>Test seam (#3041): moves the system clock (the seasons run on it).</summary>
     public void SetSystemTimeDaysForTest(double days) => _systemTimeDays = days;
