@@ -592,11 +592,11 @@ costs no frame rate.
   click-to-set waypoints. The map **remembers where you have been**: ground you explored earlier — even in a
   previous session — stays lifted in a lighter tone, while live terrain around you draws in full colour. The info box
   names where you stand in the world's own block coordinates (**X · Y · Z**, the numbers the Quantum Teleporter takes,
-  #2993); **Settings → Comfort → Show coordinates** (off by default) adds the same line right under your health, oxygen,
+  #2993); **Settings → Comfort & wellbeing → Show coordinates** (off by default) adds the same line right under your health, oxygen,
   energy and hunger bars (#3033), and typing
   **`/pos`** in the chat prints it too. Coordinates exist on a surface only — not aboard, in a station or in space.
 - **HUD** — health/oxygen/hunger/energy, hotbar, location, compass, scan readout (bottom-left), and the
-  wreck panel (right) when near a repairable wreck. With **Settings → Comfort → Show coordinates** a line
+  wreck panel (right) when near a repairable wreck. With **Settings → Comfort & wellbeing → Show coordinates** a line
   **X · Y · Z** sits right under the health/oxygen/energy/hunger bars and changes with every block you step (#3033).
 - **Compass** (bottom-right, on foot) — a heading-up dial: the top is the way you look, and the **N** that
   moves around the dial marks north (the map is north-up, so the two agree). A blue **arrow on the rim** points

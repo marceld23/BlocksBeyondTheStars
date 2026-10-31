@@ -71,7 +71,7 @@ start, and the browser is always current.
 
 ### 🧭 Smaller things (#3030, #3033, #3034)
 
-- **Show coordinates** (Settings → Comfort) now puts the **X · Y · Z** line right under your health, oxygen, energy and
+- **Show coordinates** (Settings → Comfort & wellbeing) now puts the **X · Y · Z** line right under your health, oxygen, energy and
   hunger bars.
 - With a private name on a planet, the location panel showed a stray `</alpha>` behind it. Fixed.
 - Companion name tags now hide while a scene hides the HUD, and companion names lose stray control characters.
