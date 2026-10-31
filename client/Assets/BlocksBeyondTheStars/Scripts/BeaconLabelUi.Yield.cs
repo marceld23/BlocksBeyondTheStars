@@ -34,6 +34,7 @@ namespace BlocksBeyondTheStars.Client
             _yieldText.horizontalOverflow = HorizontalWrapMode.Wrap;
             _yieldCollect = UiKit.AddButton(panel.transform, w - 196f, 22f, 180f, 52f, L("ui.yield.collect"), Collect);
             _yieldPanel.SetActive(false);
+            BuildFocusRow(root, cardY - h - 12f); // #3036: the base's focus, above the strip
         }
 
         private void ClearYield()
@@ -42,6 +43,11 @@ namespace BlocksBeyondTheStars.Client
             if (_yieldPanel != null)
             {
                 _yieldPanel.SetActive(false);
+            }
+
+            if (_focusPanel != null)
+            {
+                _focusPanel.SetActive(false);
             }
         }
 
@@ -93,6 +99,7 @@ namespace BlocksBeyondTheStars.Client
             _yieldText.text = YieldText(s);
             _yieldCollect.interactable = s.Ready > 0;
             _yieldPanel.SetActive(true);
+            ShowFocus(s); // #3036
         }
 
         /// <summary>"Ready to collect: 14 of 64 · 10 per hour" and the items on a second line.</summary>

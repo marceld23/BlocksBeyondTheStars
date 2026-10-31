@@ -19,6 +19,12 @@ namespace BlocksBeyondTheStars.Client
         private GameObject _playtimePanel; // optional session/total playtime readout (top-right, under the clock)
         private TMP_Text _playtimeText;
         private RectTransform _todMarker;
+        private TMP_Text _todSeason;      // #3042: the season beside the day bar
+        private string _todSeasonShown;
+        private object _todSeasonLoc;
+
+        /// <summary>Width of the day/night bar (#3042: shorter, so the season fits beside it).</summary>
+        private const float TodBarW = 112f;
 
         private int _todKey = int.MinValue; // #1554 change keys of the formatted read-outs
         private string _todWeather, _todPrecip, _todFamily;
@@ -31,9 +37,11 @@ namespace BlocksBeyondTheStars.Client
             // Time of day + temperature.
             var tod = Panel(root, W - 210f, 140, 200, 56);
             _todText = UiText.Add(tod.transform, 10, 5, 184, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddImage(tod.transform, 10, 32, 150, 12, UiKit.SolidSprite, new Color(0.05f, 0.08f, 0.16f));
-            UiKit.AddImage(tod.transform, 10 + 150 * 0.25f, 32, 150 * 0.5f, 12, UiKit.SolidSprite, new Color(0.30f, 0.55f, 0.85f, 0.85f));
+            UiKit.AddImage(tod.transform, 10, 32, TodBarW, 12, UiKit.SolidSprite, new Color(0.05f, 0.08f, 0.16f));
+            UiKit.AddImage(tod.transform, 10 + (TodBarW * 0.25f), 32, TodBarW * 0.5f, 12, UiKit.SolidSprite, new Color(0.30f, 0.55f, 0.85f, 0.85f));
             _todMarker = UiKit.AddImage(tod.transform, 10, 30, 2, 16, UiKit.SolidSprite, UiKit.Cyan).rectTransform;
+            // #3042: the planet's season, right of the (shorter) day bar.
+            _todSeason = UiText.Add(tod.transform, 18 + TodBarW, 27, 184 - TodBarW - 8, 22, string.Empty, 12, UiKit.CyanDim, TextAnchor.MiddleLeft);
 
             // Optional playtime readout, tucked just under the clock (top-right). Hidden unless the comfort
             // setting is on; refreshed each frame in RefreshPlaytime.
@@ -60,11 +68,13 @@ namespace BlocksBeyondTheStars.Client
                 _todText.transform.parent.gameObject.SetActive(true);
                 _todMarker.gameObject.SetActive(false);
                 _todText.text = ColoredTemp(env.Temperature);
+                RefreshSeasonLabel(loc, string.Empty); // no season in the void
                 return;
             }
 
             _todText.transform.parent.gameObject.SetActive(true);
             _todMarker.gameObject.SetActive(true);
+            RefreshSeasonLabel(loc, env.Season); // #3042
             float t = Game.LocalTimeOfDay; // the player's local time (longitude-shifted), already 0..1
             bool day = Mathf.Sin((t - 0.25f) * Mathf.PI * 2f) > 0f;
             float nextEdge = day ? 0.75f : (t < 0.25f ? 0.25f : 1.25f);
@@ -79,7 +89,7 @@ namespace BlocksBeyondTheStars.Client
                 && ReferenceEquals(env.WeatherFamily, _todFamily) && env.SpaceSky == _todSpaceSky
                 && ReferenceEquals(loc, _todLoc))
             {
-                _todMarker.anchoredPosition = new Vector2(10 + 150 * t, _todMarker.anchoredPosition.y);
+                _todMarker.anchoredPosition = new Vector2(10 + (TodBarW * t), _todMarker.anchoredPosition.y);
                 return;
             }
 
@@ -96,7 +106,7 @@ namespace BlocksBeyondTheStars.Client
                 ? "  " + string.Format(loc.Get("ui.hud.gravity"), env.GravityFactor.ToString("0.0"))
                 : string.Empty;
             _todText.text = $"{(day ? loc.Get("ui.hud.day") : loc.Get("ui.hud.night")).ToUpperInvariant()}  {mm}:{ss:00}  {tempStr}{WeatherChip(loc, env)}{FestivalChip(loc)}{gravStr}";
-            _todMarker.anchoredPosition = new Vector2(10 + 150 * t, _todMarker.anchoredPosition.y);
+            _todMarker.anchoredPosition = new Vector2(10 + (TodBarW * t), _todMarker.anchoredPosition.y);
         }
 
         /// <summary>
@@ -124,6 +134,29 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The festival chip (#3003): the primary festival's glyph and name in a warm gold next to the weather chip,
         /// from the server's list (<c>ServerRules.ActiveFestivals</c>) — a forced <c>/festival</c> shows it on any date. Nothing
         /// while no festival is on, or while the player switched the festival mood off.</summary>
+        /// <summary>#3042 (Justus: "every planet should have spring, summer, autumn and winter"): the planet's season beside the
+        /// day bar, in its own colour — empty on a world without seasons.</summary>
+        private void RefreshSeasonLabel(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string season)
+        {
+            season ??= string.Empty;
+            if (season == _todSeasonShown && ReferenceEquals(loc, _todSeasonLoc))
+            {
+                return;
+            }
+
+            _todSeasonShown = season;
+            _todSeasonLoc = loc;
+            _todSeason.text = season.Length == 0 ? string.Empty : $"<color={SeasonColour(season)}>{loc.Get("ui.season." + season)}</color>";
+        }
+
+        private static string SeasonColour(string season) => season switch
+        {
+            BlocksBeyondTheStars.Shared.World.PlanetSeasons.Spring => "#9be58a",
+            BlocksBeyondTheStars.Shared.World.PlanetSeasons.Summer => "#ffd24a",
+            BlocksBeyondTheStars.Shared.World.PlanetSeasons.Autumn => "#ff9a3c",
+            _ => "#bfe6ff",
+        };
+
         private string FestivalChip(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
         {
             if (!FestivalMood.Enabled || Game.Rules == null || Game.Rules.ActiveFestivals == null || Game.Rules.ActiveFestivals.Length == 0)

@@ -77,7 +77,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A real drone model: an angular grey circuit-plated body with a glowing red sensor eye and
         /// side pods (Guardian plating, #1337), plus an unlit red equatorial threat strip so the grey core
         /// still reads against grey asteroid rock from any side (#1840, parity with the planet-side drone).</summary>
-        private GameObject BuildDroneModel(Transform parent)
+        internal static GameObject BuildDroneModel(Transform parent)
         {
             var root = new GameObject("Drone");
             root.transform.SetParent(parent, false);
@@ -97,7 +97,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A real UFO model: a chunky grey circuit-plated saucer (Guardian plating, #1337) with a hostile
         /// glowing red-orange dome, a deep underside hull and big red threat lights — reads as a clearly visible
         /// enemy, not the old flat, pale-green "peaceful" disc (nor the near-black gunmetal that followed it).</summary>
-        private GameObject BuildUfoModel(Transform parent)
+        internal static GameObject BuildUfoModel(Transform parent)
         {
             var root = new GameObject("Ufo");
             root.transform.SetParent(parent, false);
@@ -142,7 +142,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The bandit raider: an angular dark wedge with rust-red trim, a narrow cockpit slit and
         /// twin outrigger blades — clearly a different silhouette from the saucer UFO, reads as a predator.</summary>
-        private GameObject BuildBanditShipModel(Transform parent)
+        internal static GameObject BuildBanditShipModel(Transform parent)
         {
             var root = new GameObject("BanditShip");
             root.transform.SetParent(parent, false);
@@ -176,7 +176,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A real cruiser model: an elongated iron hull with a glass bridge and twin glowing engines. Its
         /// dark spine + engine blocks wear the Guardian circuit plating (#1337) so the finale gauntlet reads as one
         /// machine family; the pale iron hull stays as it was.</summary>
-        private GameObject BuildCruiserModel(Transform parent)
+        internal static GameObject BuildCruiserModel(Transform parent)
         {
             var root = new GameObject("Cruiser");
             root.transform.SetParent(parent, false);

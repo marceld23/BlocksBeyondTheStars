@@ -143,6 +143,27 @@ namespace BlocksBeyondTheStars.Client
                 : (System.Collections.Generic.IEnumerable<BlocksBeyondTheStars.Shared.Definitions.RecipeDefinition>)
                     System.Array.Empty<BlocksBeyondTheStars.Shared.Definitions.RecipeDefinition>();
 
+        /// <summary>A creature was tamed: the Companions tab gets its badge, and — #3034, the "tamed → name prompt" of
+        /// CREATURE_TAMING.md that never was — the name popup opens right away, filled with the name the server gave it. Enter
+        /// keeps a typed name (the server screens it like a rename), Esc keeps the given one.</summary>
+        private void OnCompanionTamed(TameResult m)
+        {
+            NewCompanionUnseen = true;
+            string id = m.CompanionId, given = m.CompanionName ?? string.Empty;
+            if (string.IsNullOrEmpty(id))
+            {
+                return;
+            }
+
+            Context.Panel<BeaconLabelUi>()?.Open(Localizer?.Get("ui.companion.name_prompt") ?? "Name your companion", given, name =>
+            {
+                if (!string.IsNullOrWhiteSpace(name) && name != given)
+                {
+                    Network?.SendSetCompanionName(id, name);
+                }
+            });
+        }
+
         /// <summary>Start's subscriptions for the world's entities: companions and taming, enemies, creatures, world
         /// effects and NPCs. Called once from <see cref="Start"/>, before the transport connects.</summary>
         private void WireEntities()
@@ -153,7 +174,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 TameState = null; // the ritual ended — close the HUD prompt
                 if (m == null) return;
-                if (m.Success) NewCompanionUnseen = true; // badge the Companions tab
+                if (m.Success) OnCompanionTamed(m); // badge the Companions tab, ask for its name (#3034)
                 if (!string.IsNullOrEmpty(m.MessageKey)) ShowMessage(Localizer?.Get(m.MessageKey) ?? m.MessageKey);
             };
             Network.PlanetEnemiesReceived += m =>

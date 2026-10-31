@@ -437,9 +437,10 @@ separate unlock; admins can still disable it through server world rules.
   Hand recipes work anywhere.
 - **Codex → Enemies** (#2971) — every kind of enemy, from space drones, UFOs, cruisers and raider ships to the scan
   drones, Guardian robots, hunters and robbers on the ground: its **health**, **damage per second** (and the stronger
-  kind's), its **loot**, what it is and a tip how to beat it. An entry fills in once you have **met** that enemy — it
-  came within a weapon's reach, on foot or in your ship; until then it reads **???**. A first meeting says so
-  (*New Codex entry: …*). The numbers are the game's own (`data/enemies.json`), so they are always right.
+  kind's), its **loot**, what it is and a tip how to beat it — every enemy from the start (#3031), each beside a
+  **picture** of it (#3032, drawn by the game from the real model). One you have **met** — it came within a weapon's
+  reach, on foot or in your ship — carries a green **✓ met**, and the head counts them. A first meeting says so
+  (*First met: …*). The numbers are the game's own (`data/enemies.json`), so they are always right.
 - **Codex and DataQubes screens** — use the top-right **Close** button, **Esc**, or **Tab** to return to play.
   **< Menu** returns from the full-screen screen to the normal Tab menu.
 
@@ -591,10 +592,12 @@ costs no frame rate.
   click-to-set waypoints. The map **remembers where you have been**: ground you explored earlier — even in a
   previous session — stays lifted in a lighter tone, while live terrain around you draws in full colour. The info box
   names where you stand in the world's own block coordinates (**X · Y · Z**, the numbers the Quantum Teleporter takes,
-  #2993); **Settings → Comfort → Show coordinates** (off by default) adds the same line under the clock, and typing
+  #2993); **Settings → Comfort → Show coordinates** (off by default) adds the same line right under your health, oxygen,
+  energy and hunger bars (#3033), and typing
   **`/pos`** in the chat prints it too. Coordinates exist on a surface only — not aboard, in a station or in space.
 - **HUD** — health/oxygen/hunger/energy, hotbar, location, compass, scan readout (bottom-left), and the
-  wreck panel (right) when near a repairable wreck.
+  wreck panel (right) when near a repairable wreck. With **Settings → Comfort → Show coordinates** a line
+  **X · Y · Z** sits right under the health/oxygen/energy/hunger bars and changes with every block you step (#3033).
 - **Compass** (bottom-right, on foot) — a heading-up dial: the top is the way you look, and the **N** that
   moves around the dial marks north (the map is north-up, so the two agree). A blue **arrow on the rim** points
   the way to your ship and stays readable however far off it is; the blue square inside the dial is the ship
@@ -1635,10 +1638,10 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   about half a minute. One landed trader per body at a time; they re-appear when you return to that world.
 - **Traders also come to you on the ground.** You don't have to fly to meet one: while you are on a planet or moon,
   a trader ship now and then comes in to land by itself — roughly every **15–25 minutes** in a busy system and
-  **30–45 minutes** in a quiet one (a bit sooner while you are home at your base), and even in a system without
-  any traffic about every **45–60 minutes** if you have a base there and are home. *"A trader ship is coming in to
-  land — look up!"* — about 20 seconds later it sets down on the free landing pad **nearest your base** (or nearest
-  you, away from home): *"Trader … has landed nearby — come and trade!"*, and the base owner gets the trader's radio
+  **30–45 minutes** in a quiet one (a bit sooner while you are home at a **Market** base, #3036), and even in a system
+  without any traffic about every **45–60 minutes** if you have a Market base there and are home. *"A trader ship is coming in to
+  land — look up!"* — about 20 seconds later it sets down on the free landing pad **nearest your Market base** (or
+  nearest you): *"Trader … has landed nearby — come and trade!"*, and the base owner gets the trader's radio
   hail (or VEGA passes it on if you wear no radio).
 - While a trader is landed, the **planet map (M)** shows a **gold ship marker** with its name at the pilot (and
   lists it with its distance), your **compass** shows a matching gold blip, and its pad shows as taken — so a
@@ -1778,6 +1781,23 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   fit stays. The store holds **64**; a full store simply waits for you, nothing is lost. Aiming at your core shows
   *"Ready to collect: n"*. Mining a core hands you what lay ready. The world admin can set the yield to *Off / Half /
   Normal / Double* (*Base yield*, Character tab → world rules; `--base-yield 0|50|100|200`).
+- **The base's focus** (#3036, an idea of Justus): every base can have **one** focus — pick it at the core (**E**) in the
+  row of five buttons above the yield strip. Switching is **free** and works any time; aiming at the core names it.
+  - **None** — the core gathers the common ores. **No travelling merchants come** to a base without the Market focus.
+  - **Market** (#3039) — travelling merchants come by, twice as often, and sometimes **two at once**: a second merchant
+    brings one trade's goods, and once both stand at your base they **trade with each other** (*"Market day! …"*) and stay
+    a little longer. Trader ships also like to land near a Market base.
+  - **Miner** (#3037) — dig a **shaft below the core** (anywhere in the core's zone, straight down): the deeper it goes, the
+    faster the core gathers (**+1× per 32 blocks**, at most **3×**), and once the shaft reaches a vein's depth, that ore
+    joins — **rare ores too**. The core screen shows *"Shaft: 34 m deep · next: Gold from 40 m"*.
+  - **Lumberjack** (#3038) — a **free resident** (one without a job) becomes the **woodcutter**: it fells trees up to 32
+    blocks around the base — never inside a base and never a tree a player planted or built — and plants a sapling for each.
+    The logs go into a crate in the base, else into the core. The core gathers **wood** instead of ore (on a world without
+    trees it keeps gathering ore and says so).
+  - **Radio centre** (#3040) — while you are in the base's star system you hear **every trader call and NPC call of that
+    system**, even without a radio, and every trader landing in it calls you. About every 20 minutes on the base's world
+    VEGA passes on an **old distress call**: it names a **space wreck** of the system you have not found yet and marks it
+    for your ship (radar and edge arrow).
 - **A base always has air**: the base core projects a **life-support field** over its whole zone (the same
   cube where the base protects your blocks — about 8 blocks in every direction from the stone). Inside it your
   **oxygen refills** even on toxic or airless worlds — the HUD marks the O2 bar with *(base life support)* and
@@ -1848,7 +1868,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
     lantern for a friend) — or, ask them *"Can I help you with anything?"*, one of their **wishes**. Their **"!"**
     and **"?"** come along: if you already carry what they wished for, press **E** at them and they take it right
     there — no need to walk to the village;
-  - a **travelling merchant** who opens a little market at your base for a few minutes (press **E** → *Trade*);
+  - a **travelling merchant** who opens a little market at your base for a few minutes (press **E** → *Trade*) —
+    only at a base with the **Market** focus (#3036, see above);
   - a **lost traveller** who asks the way to the village and thanks you with a few torches.
 
   They wave hello, wait a couple of minutes (longer while you stand with them), and then walk off and are gone. Each
@@ -3089,6 +3110,15 @@ called **stories**:
 - **Weather comes in episodes** — it swells, holds and fades rather than switching on and off, and every
   world has its own temper: some flip between squalls, others brood under one sky for minutes. Storms
   build through the afternoon, mist gathers around dawn, and a slow wet/dry season rides on top.
+- **Four seasons** (#3041/#3042, an idea of Justus): every world with air has **spring, summer, autumn and winter**, each
+  lasting **5 days of that planet** (about 40–75 minutes). Each planet is at its own point of the year, so the next world
+  may be in a different season. The clock panel names the season beside the day bar (and the weather scanner's reading).
+  - **Warmth:** summer is up to **8 °C warmer**, winter up to **8 °C colder** (it changes slowly; spring and autumn lie in
+    between) — on a cold world a winter can bring snow and frost on the tops.
+  - **Plants:** in **spring** picked plants grow back faster and the **blossoms open** (flowers glow brighter); in
+    **autumn** the **leaves turn amber, orange and red** and the grass goes straw-coloured; in **winter** plants grow back
+    slowest and look pale.
+  - The year keeps running between sessions (the clock is saved), and it pauses with the world.
 - **Weather is per position** — a stormy biome can rain while a neighbouring clear one stays sunny,
   mountain tops sit in cloud and snow while the valley below is clear, and **fronts drift across the
   world**, so you can watch a storm arrive and move on. Weather is hidden in caves/underground — but not silent:
@@ -3338,6 +3368,13 @@ called **stories**:
   name), re-appears whenever you return, and is hidden elsewhere. Manage them in the **Creatures** menu tab
   (rename, **feed**, release — each with a **bond bar**). Companions are peaceful and can't be hurt — nobody can
   attack one, yours or anyone else's (a tamer's pet included).
+- **Naming** (#3034): right after a tame a small window asks for the new companion's name (Enter keeps what you typed,
+  Esc the name it already has). Names are checked like every name other players can see.
+- **Name tag** (#3035, an idea of Justus; hand recipe: 1 polymer + 1 crystal): hold it and use it with the **right mouse
+  button** on one of **your** companions, type a name, and the tag is used up — from then on the name floats above the
+  animal as a **hologram** (cyan, softly flickering, over a small projector ring), for good. A wild animal cannot wear
+  one — tame it first. A companion that already wears a tag is simply renamed; the floating names hide while a scene
+  hides the HUD.
 - **Feed & bond:** every companion has a **bond** (0–100; a fresh tame starts around 40–60). **Feed** it from the
   Creatures tab — any bait (forage, meat or nectar) will do, one meal a minute, **+5 bond** each. Feeding
   happens **in person**: the animal has to be on your world within about six blocks of you, otherwise the

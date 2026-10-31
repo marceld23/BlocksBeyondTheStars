@@ -55,6 +55,11 @@ public sealed class WorldMetadata
     /// and the save picker. 0 on saves from before playtime tracking existed.</summary>
     public long CumulativePlaytimeSeconds { get; set; }
 
+    /// <summary>#3041: the system clock (system days of <c>PlanetSeasons.SystemDaySeconds</c>) — the orbits, the wet/dry season
+    /// (#900) and the four seasons run on it. Saved so a restart continues the year instead of starting every season over
+    /// (it was runtime-only before). 0 on older saves.</summary>
+    public double SystemTimeDays { get; set; }
+
     /// <summary>Real seconds this world was played — at least one player joined — since its last rotating backup
     /// (#2223). The backup interval (<c>ServerConfig.BackupIntervalMinutes</c>) is measured on it, and it is saved
     /// with the world, so the interval carries across server runs: a world played 45 minutes a day gets its copy

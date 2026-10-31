@@ -280,7 +280,8 @@ namespace BlocksBeyondTheStars.Client
                 place = string.IsNullOrEmpty(Game.LocationName) ? "—" : Game.ShownLocationName;
                 if (Game.ShownLocationOriginal.Length > 0)
                 {
-                    place += $" <size=80%><alpha=#99>({Game.ShownLocationOriginal})</alpha></size>"; // #2952: the real name, small
+                    // #2952: the real name, small. #3030: TMP has no closing alpha tag — another alpha tag resets it.
+                    place += $" <size=80%><alpha=#99>({Game.ShownLocationOriginal})<alpha=#FF></size>";
                 }
 
                 if (Game.Aboard) place += $"  ({loc.Get("ui.hud.aboard")})";
@@ -639,7 +640,10 @@ namespace BlocksBeyondTheStars.Client
             string key = b.ResidentCap > 0 ? "ui.base.core_hint" : "ui.base.rename_hint";
             // #2999: what the core gathered and waits to be collected (as of the last base list).
             string yield = b.YieldReady > 0 ? "  ·  " + loc.Get("ui.base.yield_ready").Replace("{n}", b.YieldReady.ToString()) : string.Empty;
-            return $"{ExpandKeyTokens(loc, loc.Get(key))}  ·  {air}  ·  {here}{residents}{yield}"; // #2502: {key:Interact}
+            // #3036: the base's focus, when it has one.
+            string focus = string.IsNullOrEmpty(b.Focus) ? string.Empty
+                : "  ·  " + loc.Get("ui.base.focus").Replace("{name}", loc.Get(BlocksBeyondTheStars.Shared.Definitions.BaseFocus.NameKey(b.Focus)));
+            return $"{ExpandKeyTokens(loc, loc.Get(key))}  ·  {air}  ·  {here}{residents}{yield}{focus}"; // #2502: {key:Interact}
         }
 
         /// <summary>#2018: the Feed prompt while food is held and a begging animal is near — it shares the loot line, and a herd

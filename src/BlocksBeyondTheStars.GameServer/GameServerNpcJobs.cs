@@ -102,6 +102,9 @@ public sealed partial class GameServer
             case "guard":
                 TickGuard(npc, b, targets);
                 break;
+            case BaseLumberjackJob:
+                TickBaseWoodcutter(npc, b, idx, targets); // #3038
+                break;
         }
     }
 

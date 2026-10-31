@@ -283,6 +283,7 @@ public sealed partial class GameServer
         var launchRules = _config.Rules.Clone();
         _meta = _repo.LoadMetadata() ?? CreateInitialMetadata();
         _meta.SaveVersion = WorldMetadata.CurrentSaveVersion; // #2223: this build wrote it from here on (a newer save was refused above; an older one was copied first, #2464)
+        _systemTimeDays = System.Math.Max(0.0, _meta.SystemTimeDays); // #3041: the year goes on where the save left it
 
         // World options: once created, the WORLD owns its rules — the save's override replaces the launch
         // config's rules (singleplayer passes creation options only once; dedicated restarts keep the set).
@@ -1893,6 +1894,7 @@ public sealed partial class GameServer
         // The shared orbital clock advances once per server tick — not once per occupied world, which ran it twice
         // as fast with two worlds loaded (#2173: the biome weather offsets the maps mirror rotate on it).
         _systemTimeDays += deltaSeconds / SystemDaySeconds;
+        _meta.SystemTimeDays = _systemTimeDays; // #3041: saved with the metadata, so a restart keeps the season
         RunTickSteps(_preWorldSchedule, deltaSeconds); // space instances + transits (GameServerTickSchedule.cs)
 
         // Tick each occupied world with the Active cursor set to it, so its environment/fauna/fluids/

@@ -37,10 +37,25 @@ float BbtsAccentPick(float leafCode)
     return round((leafCode - round(leafCode)) * 10.0);
 }
 
+// #3042: the planet's season, set every frame by Sky.cs (0 when unset): x = autumn (the leaves turn amber and red), y = winter
+// (the plants pale), z = spring (the blossoms glow stronger), w unused. A per-frame global like _Sc_FloraTint (outside any
+// per-material cbuffer, as both including passes keep their globals) — the season needs no remesh.
+float4 _Sc_Season;
+
+// #3042: a plant tint turned by the season — toward amber/orange of the same brightness in autumn, toward a pale grey-green in
+// winter.
+float3 BbtsSeasonTint(float3 tint)
+{
+    float lumT = dot(tint, float3(0.299, 0.587, 0.114));
+    tint = lerp(tint, lumT * float3(2.0, 1.0, 0.32), saturate(_Sc_Season.x) * 0.75);
+    return lerp(tint, lumT * float3(1.05, 1.1, 1.2), saturate(_Sc_Season.y) * 0.45);
+}
+
 // The re-tinted albedo of a wild plant: luminance x species tint (85 %), accent texels in their own colour.
 float3 BbtsFloraTint(float3 albedo, float3 tint, float leafCode)
 {
     float lum = dot(albedo, float3(0.299, 0.587, 0.114));
+    tint = BbtsSeasonTint(tint); // #3042
     float3 col = lum * tint * 1.6;
     float pick = BbtsAccentPick(leafCode);
     if (pick > 0.5)
@@ -57,6 +72,7 @@ float3 BbtsFloraTint(float3 albedo, float3 tint, float leafCode)
         float sat = mx > 1.0e-4 ? (mx - mn) / mx : 0.0;
         float green = g.g - max(g.r, g.b);
         float m = smoothstep(0.28, 0.5, sat) * smoothstep(0.32, 0.55, mx) * (1.0 - smoothstep(-0.04, 0.06, green));
+        m = saturate(m * (1.0 + saturate(_Sc_Season.z) * 0.8)); // #3042: spring — the blossoms open
 
         float3 hsv = BbtsRgbToHsv(tg);
         float baseHue = frac(hsv.x + 0.33 + (hsv.y - 0.45) * 0.8);

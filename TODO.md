@@ -24,6 +24,54 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player reports 2026-10-30 (Justus as Screelit, v2026.10.32) — base focus (Market / Miner / Lumberjack / Radio centre), name tags, the enemy list with portraits, seasons — #3030–#3042, branch feat/reports-2026-10-30 — 🚧 in progress
+
+Four wishes (8 inbox rows) plus a bug seen in the report screenshots. Analysis: the gate "an enemy fills in on first
+contact" was our own twist on Justus' 10-25 wish; the coordinate readout he asks for exists since #2993 but sits top right
+and is off by default; bases have no type at all and get travelling merchants by default; companions already carry names,
+but there is no tag item; only a wet/dry season exists and its clock restarts with every server start. Decisions (Marcel
+2026-10-30): a base's focus switches for free; everything else as proposed.
+
+- **#3030** HUD location panel prints a literal `</alpha>` after a private place name (TMP has no closing alpha tag).
+- **#3031** Codex enemies: every enemy with its values from the start; "✓ met" and the count stay.
+- **#3032** Codex enemies: an in-game rendered portrait per enemy; the hunter gets its own look.
+- **#3033** The coordinate readout under the vitals panel.
+- **#3034** Companions: a name prompt after taming; nameplates hide with the HUD; control characters stripped.
+- **#3035** Name tag item: name your companion, its name floats as a hologram.
+- **#3036** Base focus — one free-switchable specialisation per base; merchants only come to Market bases.
+- **#3037** Miner — the deeper the player digs below the core, the more and rarer ore the core gathers.
+- **#3038** Lumberjack — a resident fells trees around the base (never in a base zone, never player-edited, replants).
+- **#3039** Market — merchants visit more often, sometimes in pairs, and trade with each other.
+- **#3040** Radio centre — trader calls across the system without a worn radio; old distress calls lead to wrecks.
+- **#3041** Seasons (server) — a persisted system clock, four seasons per planet, season temperature, growth.
+- **#3042** Seasons (client) — autumn leaves, winter frost, spring blossoms, summer warmth, the season on the HUD.
+
+How it was built (no protocol bump — every wire field additive, `YieldIntent` gained an action instead of a new tag; no
+save-version change — the focus rides the metadata JSON, the name tag the player blob; no terrain-generation change):
+- Enemy list: `EnemyCodexText` hands out head / groups / entries; `WikiUI.Enemies` draws each entry beside a portrait that
+  `EnemyPortraitRig` renders once per kind from the game's own builders (the space ones made static, the planet ones take a
+  parent); the hunter (`AlienMonster`) wears a visor, a crest, shoulder plates, a back reactor and forearm blades.
+- Companions: `GameBootstrap.OnCompanionTamed` opens the name popup; `CreatureView` splits its plate code and hides plates under
+  `HudHidden`; `SanitizeName` strips control characters. Name tag: item `name_tag` (hand recipe, AI icon), the client picks
+  the aimed creature, `SetCompanionNameIntent.UseNameTag` lets the server take one tag and set `TamedCreature.NameTag`; the plate
+  becomes a flickering cyan hologram over an `FxRing` projector ring.
+- Base focus: `Shared/Definitions/BaseFocus`; `BaseYieldStore.Focus`; `GameServerBaseFocus` (switch, yield plan, shaft depth via
+  `TryGetPlayerBlockEditBounds`, the `lumberjack` job on the shared chop plan), `GameServerBaseMarket` (merchant weight 120, half
+  the quiet spell, a second themed merchant, the market-day scene), `GameServerBaseRadio` (system-wide reach, trader hails,
+  distress calls with `SpaceWaypointId`); merchants and trader-ship pull only for Market bases; the core screen's
+  `BeaconLabelUi.Focus` row; the aim readout names the focus.
+- Seasons: `Shared/World/PlanetSeasons`; `WorldMetadata.SystemTimeDays`; `GameServerSeasons` (warmth in `TemperatureAt`, growth
+  in `WeatherRegrowFactor`, `WorldEnvironment.Season/SeasonProgress/SeasonWarmth`); `planets.json` field `seasonTemperature`
+  (default 8 in code); `SeasonLook` (Client.Core) → `Sky.Seasons` sets `_Sc_Season` for `FloraAccent.hlsl` and `ScatterLit`;
+  frost on the snow channel in a cold winter; the grade; the season beside the HUD's day bar and in the forecast.
+- Texts in all 14 languages (37 keys machine-translated + hand QA). Docs: USER_MANUAL, BASES_AND_TELEPORTS §7, CREATURE_TAMING,
+  PLANET_VIEW_AND_WEATHER §2a. Tests: `BaseFocusTests`, `NameTagAndSeasonsTests`, `Reports20261030WiringTests`,
+  `EnemyCodexTextTests`.
+- **Open:** playtest — a Market base's market day, a Miner shaft's depth readout, the woodcutter at work, a distress call's
+  waypoint, a whole year on one planet (autumn leaves, winter frost), the hunter's look and the Codex portraits in WebGL.
+
+---
+
 ### 🎁 Festivals follow-up — My festivals, fewer festive days, Halloween and Christmas tasks, decorations, jingles — epic #3019 (#3020–#3026), branch feat/festivals-follow-up — ✅ done 2026-10-30 in PR #3027 (⚠ playtest open; save version 9 for four new blocks, no protocol bump — message tag 313 additive, no terrain-generation change)
 
 A review of v2026.10.31 against Marcel's original wish found gaps (the browser ignored "Festivals off", Christmas had no task

@@ -26,7 +26,7 @@ the device central rather than a re-skinned capture ball.
    berries / raw fruit (`GameServer.RawBaitsFor`, never the toxic twins) for `forage_bait` / `nectar_lure`, but a raw
    bite counts half — the first one leaves the creature hungry on the same step (`TameAttempt.HalfFed`,
    `creature.tame.msg.weakbait`), the second completes it. Crafted bait is always consumed first.
-3. **Repeat** until trust ≥ threshold → tamed → name prompt → the companion spawns.
+3. **Repeat** until trust ≥ threshold → tamed → name prompt (the client opens it on `TameResult`, #3034) → the companion spawns.
 
 **Difficulty + randomization.** Required trust and patience scale with **temperament** (Passive → Skittish →
 Territorial → Aggressive → PackHunter), exotic habitat (Cave/Lava/Air), glow and size. A per-individual seed
@@ -67,6 +67,14 @@ re-taming a known species gives only a small trickle, so progression can't be fa
 
 **Recognition.** `NetCreature` carries `OwnerId`/`CustomName` (implicit `Tamed`); the client renders a
 friendly green-cyan tint + a floating nameplate so companions are unmistakable vs. wild fauna.
+
+**Name tag (#3035).** The item `name_tag` (hand recipe: polymer + crystal) names one of the player's own companions for good:
+the client (`PlayerController.NameTag`) picks the creature on the view ray, opens the name popup and sends
+`SetCompanionNameIntent { CompanionId = the creature's id, UseNameTag = true }` (additive); the server maps the creature to the
+companion, takes one tag (not again for a companion that wears one), screens the name, and sets `TamedCreature.NameTag`
+(saved via `Snapshots.CloneTamed`) → `CombatEntity.NameTag` → `NetCreature.NameTag`. `CreatureView` draws such a name as a
+hologram: flickering cyan over a flat `FxRing` projector ring. A wild animal is refused (`creature.nametag.wild`). Every
+companion plate hides while a scene hides the HUD (#3034), and names lose control characters like base names.
 
 **Naming collision note.** The ship-AI VEGA already owns "companion panel" in the HUD, so creatures use the
 "Begleiter / Companions" wording for the tab to avoid confusion.

@@ -25,6 +25,10 @@ public sealed class BaseYieldStore
     /// <summary>What lies ready: item key → count.</summary>
     public Dictionary<string, int> Items { get; set; } = new();
 
+    /// <summary>#3036: the base's focus (<see cref="Definitions.BaseFocus"/>) — kept with the store because both belong to the
+    /// core and go with it. Empty = none (and every store of a player station).</summary>
+    public string Focus { get; set; } = string.Empty;
+
     /// <summary>How many items lie ready (a method, not a property: the store is saved as JSON).</summary>
     public int CountReady() => Items.Values.Sum();
 }

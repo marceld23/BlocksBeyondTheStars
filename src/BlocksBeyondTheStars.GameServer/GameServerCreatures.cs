@@ -3501,6 +3501,7 @@ public sealed partial class GameServer
             Staggered = IsStaggered(e), // #2278: dazed by a shock-glove push — client draws circling stars
             OwnerId = e.OwnerId,        // tamed companion → client draws friendly tint + nameplate
             CustomName = e.CustomName,
+            NameTag = e.IsCompanion && e.NameTag, // #3035: a hologram name
             Alerting = e.IsCompanion && _uptime < e.AlertUntil, // #1210: growling at a hostile in sight
 
             Hull = e.Hull,

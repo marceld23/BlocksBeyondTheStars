@@ -741,6 +741,20 @@ namespace BlocksBeyondTheStars.Client
                 CellZ = cellZ,
             });
 
+        /// <summary>#3036: sets my base core's focus (<c>BaseFocus</c>) — free, any time; the answer is a
+        /// <see cref="YieldStatusReceived"/> with the new focus.</summary>
+        public void SendBaseFocus(string bodyId, int cellX, int cellY, int cellZ, string focus)
+            => Send(new YieldIntent
+            {
+                Action = YieldIntent.ActionFocus,
+                Kind = YieldIntent.KindBase,
+                BodyId = bodyId ?? string.Empty,
+                CellX = cellX,
+                CellY = cellY,
+                CellZ = cellZ,
+                Focus = focus ?? string.Empty,
+            });
+
         /// <summary>#2999: reads or collects the yield store of my station (aboard it, at its core).</summary>
         public void SendStationYield(string stationId, bool collect)
             => Send(new YieldIntent
@@ -1284,8 +1298,8 @@ namespace BlocksBeyondTheStars.Client
             => Send(new BanditResponseIntent { DemandId = demandId, Comply = comply });
 
         /// <summary>Rename a companion I own.</summary>
-        public void SendSetCompanionName(string companionId, string name)
-            => Send(new SetCompanionNameIntent { CompanionId = companionId ?? string.Empty, Name = name ?? string.Empty });
+        public void SendSetCompanionName(string companionId, string name, bool useNameTag = false)
+            => Send(new SetCompanionNameIntent { CompanionId = companionId ?? string.Empty, Name = name ?? string.Empty, UseNameTag = useNameTag });
 
         /// <summary>Release a companion (untame it).</summary>
         public void SendReleaseCompanion(string companionId) => Send(new ReleaseCompanionIntent { CompanionId = companionId ?? string.Empty });

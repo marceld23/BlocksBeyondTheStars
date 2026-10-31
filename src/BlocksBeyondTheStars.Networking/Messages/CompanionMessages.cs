@@ -53,6 +53,10 @@ public sealed class SetCompanionNameIntent
 {
     public string CompanionId { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>#3035: the name is written on a name tag — the server takes one <c>name_tag</c> from the backpack and the
+    /// companion wears it for good (its name floats as a hologram). Additive: an older server ignores it and simply renames.</summary>
+    public bool UseNameTag { get; set; }
 }
 
 /// <summary>Client → server: release a companion (untame it — it returns to the wild).</summary>

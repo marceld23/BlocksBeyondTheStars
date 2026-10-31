@@ -49,9 +49,15 @@ public sealed partial class GameServer
     }
 
     /// <summary>Whether the player's radio tier reaches a location: galaxy = anywhere, system = the same
-    /// star system, comm = the same body. No radio, no call — the world can't reach a silent suit.</summary>
+    /// star system, comm = the same body. No radio, no call — the world can't reach a silent suit. #3040: an owner in the star
+    /// system of one of their Radio bases hears everything in that system, worn radio or not.</summary>
     private bool NpcRadioReaches(PlayerSession session, string bodyId)
     {
+        if (OwnsRadioBaseInSystem(session, bodyId))
+        {
+            return true; // #3040: a Radio base listens to its whole star system for its owner
+        }
+
         var inv = session.State.Equipment; // #2110: the worn radio
         if (inv.Has("galaxy_radio", 1))
         {
@@ -175,6 +181,7 @@ public sealed partial class GameServer
             ScanRaiderCalls(session);
             ScanFoodCalls(session);
             ScanThreadCalls(session);
+            TryRadioDistressCall(session); // #3040: a Radio base passes on an old distress call now and then
         }
     }
 

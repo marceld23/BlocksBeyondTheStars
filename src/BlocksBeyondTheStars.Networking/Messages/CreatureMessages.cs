@@ -37,6 +37,10 @@ public sealed class NetCreature
     /// <summary>The owner's chosen name for a tamed companion (empty for wild fauna).</summary>
     public string CustomName { get; set; } = string.Empty;
 
+    /// <summary>#3035: the companion wears a name tag — the client draws its name as a hologram over a projector ring.
+    /// Additive (contractless): an older client ignores it, an older server leaves it false.</summary>
+    public bool NameTag { get; set; }
+
     /// <summary>Companion payoff (#1210): true for a few seconds after a companion growled at a hostile in sight —
     /// the client draws the amber "!" nameplate pose. Always false for wild fauna.</summary>
     public bool Alerting { get; set; }

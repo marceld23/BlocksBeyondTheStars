@@ -181,6 +181,10 @@ public sealed class PlanetType
     /// <summary>How hard this planet type's wet/dry seasons swing, 0..0.5 (#900). 0 = no seasons.</summary>
     public double SeasonAmplitude { get; set; } = 0.35;
 
+    /// <summary>#3041: how many °C summer is warmer and winter colder than the year's middle on this planet type (the four
+    /// seasons, <c>PlanetSeasons</c>). 0 = no four seasons; an airless or void type never has them.</summary>
+    public double SeasonTemperature { get; set; } = 8.0;
+
     /// <summary>Per-type multipliers on the weather EVENT weights, keyed by state
     /// ("acid_rain", "gale", "spore_bloom", …). Missing keys keep the catalogue default; 0 rules an
     /// event out entirely. The hard gates (atmosphere, temperature) always apply first.</summary>

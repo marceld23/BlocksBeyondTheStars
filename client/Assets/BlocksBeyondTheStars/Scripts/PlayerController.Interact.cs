@@ -554,6 +554,12 @@ namespace BlocksBeyondTheStars.Client
                     return; // #2321: the rope gun's right button reels in (held, see Move()) — never a second shot
                 }
 
+                if (held == NameTagItem)
+                {
+                    UseNameTag(); // #3035: name your companion
+                    return;
+                }
+
                 // Right-click a held gadget (item 36) → use it: the medkit heals around you, the stasis
                 // projector + terrain blaster act at the aim point. The server validates energy + cooldown.
                 if (hdef?.Tool != null && hdef.Tool.Kind == BlocksBeyondTheStars.Shared.Definitions.ToolKind.Gadget)

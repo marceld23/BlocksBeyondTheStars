@@ -26,7 +26,7 @@ namespace BlocksBeyondTheStars.Client
     /// NOTE: layout (sidebar width, scroll sizing, wrapping) is tuned for 1920×1080 and wants an in-editor
     /// visual pass; the discovery-gated Systems/Worlds chapters are not ported yet.
     /// </summary>
-    public sealed class WikiUI : MonoBehaviour
+    public sealed partial class WikiUI : MonoBehaviour
     {
         public GameBootstrap Game;
         public GameMenu Menu;
@@ -57,7 +57,7 @@ namespace BlocksBeyondTheStars.Client
             ("modules", "ui.wiki.modules"),
             ("planets", "ui.wiki.planets"),
             ("discoveries", "ui.wiki.discoveries"), // what THIS player has scanned (#484)
-            ("enemies", "ui.wiki.enemies"),         // the hostiles THIS player has met (#2971)
+            ("enemies", "ui.wiki.enemies"),         // every hostile, the ones THIS player has met marked (#2971, #3031)
             ("substances", "ui.wiki.substances"),   // the bio lab's research book (#2203): species analysed…
             ("compounds", "ui.wiki.compounds"),     // …mixes tried…
             ("materials", "ui.wiki.materials"),     // …deposits analysed and tools and gear changed
@@ -202,6 +202,10 @@ namespace BlocksBeyondTheStars.Client
             if (_chapter == "guide")
             {
                 y = RenderGuide(content, textW, y); // #2259: the guide's articles may carry pictures
+            }
+            else if (_chapter == "enemies" && Game?.Content != null)
+            {
+                y = RenderEnemies(content, textW, y); // #3032: each enemy beside its portrait
             }
             else
             {
