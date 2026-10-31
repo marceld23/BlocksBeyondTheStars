@@ -732,6 +732,7 @@ public sealed partial class GameServer
             OwnerId = ownerId,
             CompanionId = tc.Id,
             CustomName = tc.Name,
+            NameTag = tc.NameTag, // #3035
         });
     }
 
@@ -821,31 +822,68 @@ public sealed partial class GameServer
     // Rename / release / roster (Companions menu).
     // ---------------------------------------------------------------------------------------------
 
+    /// <summary>The name tag's item key (#3035).</summary>
+    internal const string NameTagItem = "name_tag";
+
+    /// <summary>Renames a companion — from the Companions tab, the name prompt after a tame (#3034) or a name tag (#3035). A
+    /// name tag names the creature the player aimed at (<see cref="SetCompanionNameIntent.CompanionId"/> may then be that
+    /// creature's id): only the player's own companion can wear one, the first tag on a companion is taken from the backpack,
+    /// and from then on its name floats as a hologram (<see cref="TamedCreature.NameTag"/>).</summary>
     private void HandleSetCompanionName(PlayerSession session, SetCompanionNameIntent intent)
     {
-        var tc = session.State.TamedCreatures.FirstOrDefault(t => t.Id == intent.CompanionId);
+        var p = session.State;
+        var tc = p.TamedCreatures.FirstOrDefault(t => t.Id == intent.CompanionId)
+                 ?? (intent.UseNameTag ? CompanionOfCreature(p, intent.CompanionId) : null);
         if (tc is null)
         {
+            if (intent.UseNameTag)
+            {
+                Send(session, new ServerMessage { Text = "@creature.nametag.wild" });
+            }
+
+            return;
+        }
+
+        bool takeTag = intent.UseNameTag && !tc.NameTag; // a companion that wears one already is simply renamed
+        if (takeTag && !p.Inventory.Has(NameTagItem, 1))
+        {
+            Send(session, new ServerMessage { Text = "@creature.nametag.none" });
             return;
         }
 
         // A companion's name travels to everyone who sees the creature, so it is screened like any other
-        // player-written name (#1221). Refused: the companion keeps the name it had.
+        // player-written name (#1221). Refused: the companion keeps the name it had (and the tag stays in the bag).
         if (ScreenPlayerName(session, SanitizeName(intent.Name), "companion") is not { } name)
         {
             return;
         }
 
         tc.Name = name;
+        if (takeTag)
+        {
+            p.Inventory.Remove(NameTagItem, 1);
+            tc.NameTag = true;
+            SendInventory(session);
+            Send(session, new ServerMessage { Text = "@creature.nametag.applied:" + name });
+        }
+
         foreach (var c in _creatures.Where(c => c.CompanionId == tc.Id))
         {
             c.CustomName = tc.Name;
+            c.NameTag = tc.NameTag;
         }
 
-        _repo.SavePlayer(session.State);
+        _repo.SavePlayer(p);
         BroadcastCreatures();
         SendCompanions(session);
         RaiseGameEvent(session, GameEventKeys.CompanionCared, GameEventKeys.CompanionNamedArg); // #2482: the animal friends course
+    }
+
+    /// <summary>The player's companion behind a live creature id (the one a name tag was aimed at), or null for a wild one.</summary>
+    private TamedCreature? CompanionOfCreature(Shared.State.PlayerState p, string creatureId)
+    {
+        var creature = _creatures.FirstOrDefault(c => c.Id == creatureId && c.OwnerId == p.PlayerId && c.CompanionId.Length > 0);
+        return creature is null ? null : p.TamedCreatures.FirstOrDefault(t => t.Id == creature.CompanionId);
     }
 
     private void HandleReleaseCompanion(PlayerSession session, ReleaseCompanionIntent intent)
@@ -973,9 +1011,11 @@ public sealed partial class GameServer
         return n <= 1 ? baseName : $"{baseName} {n}";
     }
 
+    /// <summary>A companion name as one short line: control characters gone (#3034, as base and beacon names), trimmed, at most
+    /// 24 characters.</summary>
     private static string SanitizeName(string? name)
     {
-        name = (name ?? string.Empty).Trim();
+        name = StripControlChars(name).Trim();
         if (name.Length > 24)
         {
             name = name[..24];

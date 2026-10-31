@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Shared.Definitions;
 using UnityEngine;
 
 namespace BlocksBeyondTheStars.Client
@@ -93,9 +94,9 @@ namespace BlocksBeyondTheStars.Client
 
                 if (!_enemies.TryGetValue(e.Id, out var en))
                 {
-                    en = e.Kind == "ScanDrone" ? BuildDrone(e.Id)
-                        : e.Kind == "Bandit" || e.Kind == "BanditGunner" ? BuildBandit(e.Id, e.Kind == "BanditGunner")
-                        : Build(e.Id);
+                    en = e.Kind == "ScanDrone" ? BuildDrone(e.Id, transform)
+                        : e.Kind == "Bandit" || e.Kind == "BanditGunner" ? BuildBandit(e.Id, transform, e.Kind == "BanditGunner")
+                        : Build(e.Id, transform, hunter: e.Kind == "AlienMonster"); // #3032: the hunter has a look of its own
                     en.Settled = new Vector3(e.X, e.Y, e.Z);
                     _enemies[e.Id] = en;
                 }
@@ -460,25 +461,40 @@ namespace BlocksBeyondTheStars.Client
             en.Head.localRotation = Quaternion.Euler(-bodyPitch * 0.6f, headYaw, 0f); // head counteracts the hunch
         }
 
+        /// <summary>#3032: a still model of a planet enemy for the Codex portrait (<see cref="EnemyPortraitRig"/>) — the very
+        /// builders of the live ones, with a fixed id so the look never changes — under <paramref name="parent"/>.</summary>
+        internal static GameObject BuildPortraitModel(string enemyKey, Transform parent)
+        {
+            const string id = "codex-portrait";
+            var en = enemyKey switch
+            {
+                EnemyCatalog.ScanDrone => BuildDrone(id, parent),
+                EnemyCatalog.Hunter => Build(id, parent, hunter: true),
+                EnemyCatalog.Bandit => BuildBandit(id, parent, gunner: false),
+                EnemyCatalog.BanditGunner => BuildBandit(id, parent, gunner: true),
+                _ => Build(id, parent, hunter: false),
+            };
+            return en.Root;
+        }
+
         /// <summary>Builds the blocky alien fiend: hunched textured torso, horned head with glowing eyes,
-        /// clawed arms and digitigrade legs hanging from animation pivots. Per-enemy size/pitch variation.</summary>
-        private Entry Build(string id)
+        /// clawed arms and digitigrade legs hanging from animation pivots. Per-enemy size/pitch variation.
+        /// <para>#3032: the <paramref name="hunter"/> (the server's <c>AlienMonster</c>, "the toughest Guardian on the
+        /// ground") was the same robot with a random size; it now stands a head taller in heavier armour — shoulder
+        /// plates, a reactor on its back, one wide visor instead of the three eyes and blades along its forearms.</para></summary>
+        private static Entry Build(string id, Transform parent, bool hunter = false)
         {
             EnsureMaterials();
             int h = Hash(id);
-            // Per-individual size (a "bell" ±30% from the id, matching the fauna variance) so a pack reads as
-            // a mix of runts and big ones, most near the normal size.
-            uint uh = (uint)h;
-            float sa = (uh & 0xFF) / 255f, sb = ((uh >> 8) & 0xFF) / 255f;
-            float size = 1f + ((sa + sb) * 0.5f - 0.5f) * 2f * 0.30f; // ~0.7..1.3, centred 1.0
+            float size = RobotSize(h, hunter);
             var en = new Entry
             {
                 Seed = (h & 0x3ff) * 0.137f,
                 Pitch = 0.85f + ((h >> 5) % 17) / 17f * 0.35f,    // 0.85..1.2 voice variation
             };
 
-            var root = new GameObject("Enemy");
-            root.transform.SetParent(transform, true); // under the game root → not leaked into menus/editors
+            var root = new GameObject(hunter ? "Hunter" : "Enemy");
+            root.transform.SetParent(parent, true); // under the game root → not leaked into menus/editors
             root.transform.localScale = Vector3.one * size;
             en.Root = root;
 
@@ -496,9 +512,7 @@ namespace BlocksBeyondTheStars.Client
             Cube(en.Head, "Jaw", new Vector3(0f, -0.06f, 0.12f), new Vector3(0.3f, 0.12f, 0.24f), _hideDarkMat);
             Cube(en.Head, "HornL", new Vector3(-0.16f, 0.3f, -0.04f), new Vector3(0.08f, 0.22f, 0.08f), _clawMat);
             Cube(en.Head, "HornR", new Vector3(0.16f, 0.3f, -0.04f), new Vector3(0.08f, 0.22f, 0.08f), _clawMat);
-            Cube(en.Head, "EyeL", new Vector3(-0.1f, 0.12f, 0.2f), new Vector3(0.09f, 0.06f, 0.03f), _eyeMat);
-            Cube(en.Head, "EyeR", new Vector3(0.1f, 0.12f, 0.2f), new Vector3(0.09f, 0.06f, 0.03f), _eyeMat);
-            Cube(en.Head, "EyeC", new Vector3(0f, 0.2f, 0.2f), new Vector3(0.06f, 0.05f, 0.03f), _eyeMat);
+            AddRobotEyes(en.Head, hunter);
 
             // Clawed arms from shoulder pivots on the body.
             en.ArmL = Pivot(en.Body, new Vector3(-0.4f, 0.55f, 0f));
@@ -518,7 +532,48 @@ namespace BlocksBeyondTheStars.Client
             Cube(en.LegR, "ShinR", new Vector3(0f, -0.68f, -0.06f), new Vector3(0.16f, 0.4f, 0.16f), _hideDarkMat);
             Cube(en.LegR, "FootR", new Vector3(0f, -0.9f, 0.08f), new Vector3(0.2f, 0.1f, 0.3f), _clawMat);
 
+            if (hunter)
+            {
+                AddHunterArmour(en);
+            }
+
             return en;
+        }
+
+        /// <summary>Per-individual size from the id: a "bell" ±30 % (matching the fauna variance), so a pack reads as a mix of
+        /// runts and big ones, most near the normal size; the hunter (#3032) a head taller than any robot, with little spread.</summary>
+        private static float RobotSize(int h, bool hunter)
+        {
+            uint uh = (uint)h;
+            float sa = (uh & 0xFF) / 255f, sb = ((uh >> 8) & 0xFF) / 255f;
+            float bell = ((sa + sb) * 0.5f) - 0.5f;
+            return hunter ? 1.25f + (bell * 0.2f) : 1f + (bell * 2f * 0.30f); // ~0.7..1.3, centred 1.0
+        }
+
+        /// <summary>The robot's row of three red sensor eyes — or, on the hunter (#3032), one wide visor under a crest.</summary>
+        private static void AddRobotEyes(Transform head, bool hunter)
+        {
+            if (hunter)
+            {
+                Cube(head, "Visor", new Vector3(0f, 0.14f, 0.2f), new Vector3(0.34f, 0.07f, 0.03f), _eyeMat);
+                Cube(head, "Crest", new Vector3(0f, 0.3f, -0.02f), new Vector3(0.06f, 0.1f, 0.34f), _hideDarkMat);
+                return;
+            }
+
+            Cube(head, "EyeL", new Vector3(-0.1f, 0.12f, 0.2f), new Vector3(0.09f, 0.06f, 0.03f), _eyeMat);
+            Cube(head, "EyeR", new Vector3(0.1f, 0.12f, 0.2f), new Vector3(0.09f, 0.06f, 0.03f), _eyeMat);
+            Cube(head, "EyeC", new Vector3(0f, 0.2f, 0.2f), new Vector3(0.06f, 0.05f, 0.03f), _eyeMat);
+        }
+
+        /// <summary>#3032: the hunter's armour — shoulder plates, a glowing reactor on the back, blades along the forearms.</summary>
+        private static void AddHunterArmour(Entry en)
+        {
+            Cube(en.Body, "ShoulderL", new Vector3(-0.42f, 0.66f, 0f), new Vector3(0.3f, 0.14f, 0.36f), _hideDarkMat);
+            Cube(en.Body, "ShoulderR", new Vector3(0.42f, 0.66f, 0f), new Vector3(0.3f, 0.14f, 0.36f), _hideDarkMat);
+            Cube(en.Body, "Reactor", new Vector3(0f, 0.4f, -0.27f), new Vector3(0.3f, 0.3f, 0.12f), _hideDarkMat);
+            Cube(en.Body, "ReactorCore", new Vector3(0f, 0.4f, -0.34f), new Vector3(0.14f, 0.14f, 0.04f), _eyeMat);
+            Cube(en.ArmL, "BladeL", new Vector3(-0.1f, -0.42f, 0.08f), new Vector3(0.04f, 0.42f, 0.1f), _clawMat);
+            Cube(en.ArmR, "BladeR", new Vector3(0.1f, -0.42f, 0.08f), new Vector3(0.04f, 0.42f, 0.1f), _clawMat);
         }
 
         /// <summary>Builds the flying scan-drone (P4): a small dark hovering pod with a single glowing RED
@@ -527,7 +582,7 @@ namespace BlocksBeyondTheStars.Client
         /// vanished against grey asteroid rock (#1840), so it also carries self-lit red accents (same unlit
         /// <see cref="_eyeMat"/> — red is the Guardian colour, never blue): an equatorial threat strip that
         /// reads from every side, caps on the three fin tips, an emitter under the belly and a wider eye.</summary>
-        private Entry BuildDrone(string id)
+        private static Entry BuildDrone(string id, Transform parent)
         {
             EnsureMaterials();
             int h = Hash(id);
@@ -540,7 +595,7 @@ namespace BlocksBeyondTheStars.Client
             };
 
             var root = new GameObject("ScanDrone");
-            root.transform.SetParent(transform, true);
+            root.transform.SetParent(parent, true);
             root.transform.localScale = Vector3.one * size;
             en.Root = root;
 
@@ -578,7 +633,7 @@ namespace BlocksBeyondTheStars.Client
         /// Deliberately NO red on the head and no <see cref="_eyeMat"/> anywhere: that glowing red belongs to
         /// the Guardian machines, and a red band across the head reads as glowing eyes at distance (#601).
         /// Uses the same pivot skeleton as the robot so <see cref="Animate"/> drives it unchanged, just upright.</summary>
-        private Entry BuildBandit(string id, bool gunner)
+        private static Entry BuildBandit(string id, Transform parent, bool gunner)
         {
             EnsureMaterials();
             EnsureBanditMaterials();
@@ -593,7 +648,7 @@ namespace BlocksBeyondTheStars.Client
             };
 
             var root = new GameObject(gunner ? "BanditGunner" : "Bandit");
-            root.transform.SetParent(transform, true);
+            root.transform.SetParent(parent, true);
             root.transform.localScale = Vector3.one * size;
             en.Root = root;
 

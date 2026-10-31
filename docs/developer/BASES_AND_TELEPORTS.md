@@ -116,10 +116,37 @@ ticks while nobody plays and a singleplayer world earns while the game is closed
 **Why lazy and not a catch-up like #2269:** the machine catch-up has to *simulate* work (drills dig real blocks), so it runs on
 return under a per-tick budget. A yield store only counts, so it can be computed in O(1) at read time — no tick cost at all,
 which matters on a Raspberry Pi and in a browser tab. The economy rule "never mint rare metals from nothing" holds: only
-common, planet-native ores and salvage.
+common, planet-native ores and salvage — except a Miner base (§7), whose players dug down to the rare veins themselves.
+
+## 7. A base's focus (#3036–#3040)
+
+Justus (2026-10-30): "a base can only have one upgrade, which can be changed". `Shared/Definitions/BaseFocus` names the five
+(none, `market`, `miner`, `lumberjack`, `radio`) and their numbers; the server keeps the focus in the core's yield store
+(`BaseYieldStore.Focus`, saved with the metadata JSON — no schema or save-version change). The core screen's row of five
+buttons sends `YieldIntent` with action `focus` (additive, no new tag); switching is free (Marcel) and accrues the store
+first, so the old focus pays the time it ran for. `NetBase.Focus` and `YieldStatus.Focus/Depth/NextOre/NextOreDepth/NoTrees`
+are additive fields.
+
+- **No merchants by default** (#3036): the friendly-visitor roll gives the travelling merchant weight only at a Market base
+  (`PickGuestKind`), and the trader-ship pull of a base — base worlds preferred, the ×0.75 gap, "a base is the only reason in
+  a quiet system", the pad near the core — counts Market bases only (`GameServerSpaceTraders`).
+- **Market** (#3039, `GameServerBaseMarket`): merchants weigh 120 in the roll and the quiet spell halves; with 50 % a second
+  merchant with one trade's theme comes along, and once both wait at the base they "trade" — they face each other, show
+  *trading*, players near read *Market day!* and both stay two minutes longer.
+- **Miner** (#3037, `GameServerBaseFocus`): the shaft depth is the core's Y minus the lowest **owned** block edit in the
+  column under the core zone (`TryGetPlayerBlockEditBounds`, one query per seam piece, cached 10 s); the rate is
+  × `MinerRateFactor` (+1 per 32 blocks, ≤ 3) and the table every vein whose `minDepth` the shaft reaches (rare-tier too).
+- **Lumberjack** (#3038): `BaseJobs` puts the job `lumberjack` (not the lodges' `woodcutter`, so no lodge dialogue) first;
+  `TickBaseWoodcutter` runs the shared `NpcWorkSystem` chop plan round the core (radius 32; the felling core already keeps
+  out of every base zone and off player-edited trees, and replants). Logs go to a base crate, else the core's store. The
+  store's table is `LumberjackYield` on a living world, ore elsewhere (`NoTrees`).
+- **Radio centre** (#3040, `GameServerBaseRadio`): `NpcRadioReaches` is true for an owner in the system of their Radio base;
+  `NpcRadioOnTraderLanded` hails Radio-base owners across the system; every 20 minutes on the base's body a VEGA system line
+  names an unread, uncarved space wreck of the system with `ShipAiLine.SpaceWaypointId` = the wreck.
 
 ## Tests
 
 `TeleportToPointTests` (places, the Quantum gate, lava, cooldown sharing, canonical markers, content), `SeveralBasesTests`
 (the rule, touching bases, rename by cell, the nearest-core rule, the per-body cap, discovery, settlers, the yield store and
-collect), `NetCodecTests` (tags 310–312).
+collect), `NetCodecTests` (tags 310–312), `BaseFocusTests` (#3036–#3040: the free switch, merchants only at a Market base,
+the Miner's shaft, the woodcutter job, the Radio reach).

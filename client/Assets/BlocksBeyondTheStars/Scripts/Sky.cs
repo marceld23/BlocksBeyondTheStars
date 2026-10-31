@@ -13,7 +13,7 @@ namespace BlocksBeyondTheStars.Client
     /// advanced locally between the server's periodic updates. Suspended while the space view owns
     /// the camera.
     /// </summary>
-    public sealed class Sky : MonoBehaviour
+    public sealed partial class Sky : MonoBehaviour
     {
         public GameBootstrap Game;
         public Camera Camera;
@@ -377,6 +377,7 @@ namespace BlocksBeyondTheStars.Client
                 bool sway = WindSwayEnabled && !(Game.Environment?.SpaceSky ?? false);
                 Shader.SetGlobalVector(WindId, new Vector4(dir.x * Game.WindSpeed, _windTime, dir.y * Game.WindSpeed, sway ? 1f : 0f));
                 TickWeatherTraces(worldDt);
+                TickSeasonLook(worldDt); // #3042: autumn leaves, winter paleness, spring bloom (Sky.Seasons.cs)
             }
 
             float intensity = env?.Intensity ?? 0f;
@@ -606,6 +607,8 @@ namespace BlocksBeyondTheStars.Client
                 tint = Color.Lerp(tint, festival.Warmth >= 0f ? FestivalMood.WarmTint : FestivalMood.CoolTint, Mathf.Clamp01(Mathf.Abs(festival.Warmth)) * 0.6f);
                 sat *= Mathf.Clamp(festival.Saturation, 0.5f, 1.6f);
             }
+
+            (tint, sat) = SeasonGrade(tint, sat); // #3042: summer and autumn warm, winter cool (Sky.Seasons.cs)
 
             float m = Mathf.Max(sunColor.r, Mathf.Max(sunColor.g, sunColor.b));
             Color norm = m > 0.001f ? new Color(sunColor.r / m, sunColor.g / m, sunColor.b / m) : Color.white;
@@ -917,6 +920,11 @@ namespace BlocksBeyondTheStars.Client
             if (FestivalMood.Effects(Game)?.SnowCap == true)
             {
                 snowTarget = Mathf.Max(snowTarget, 0.55f); // #3004: the winter festivals dust the roofs even on a warm world
+            }
+
+            if (SeasonLook.Frost(env.Season, temp))
+            {
+                snowTarget = Mathf.Max(snowTarget, SeasonLook.FrostAmount); // #3042: a cold winter's frost on the tops
             }
 
             float snowRate = snowing ? 1f / 60f : 1f / 240f;

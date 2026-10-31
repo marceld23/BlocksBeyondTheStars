@@ -198,6 +198,9 @@ public sealed partial class CombatEntity
     /// <summary>A tamed companion's player-given name (drawn as a nameplate); empty for wild fauna.</summary>
     public string CustomName { get; set; } = string.Empty;
 
+    /// <summary>#3035: the companion wears a name tag (its name is drawn as a hologram).</summary>
+    public bool NameTag { get; set; }
+
     /// <summary>True when this entity is a tamed companion rather than wild fauna.</summary>
     public bool IsCompanion => OwnerId.Length > 0;
 

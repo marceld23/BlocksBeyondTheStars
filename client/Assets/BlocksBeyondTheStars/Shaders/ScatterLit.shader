@@ -29,6 +29,7 @@ Shader "BlocksBeyondTheStars/ScatterLit"
             float4 _Sc_Light;
             float4 _Sc_SunDir;
             float4 _Sc_GrassTint; // #2835: the world's grass-tuft colour (a > 0.5 = set); GameBootstrap.RebuildFloraTints
+            float4 _Sc_Season;    // #3042: x = autumn, y = winter (Sky.cs, per frame; FloraAccent.hlsl turns the plants the same way)
 
             // #2835: a tuft (vertex alpha 1) takes the world's grass colour like the flora shader re-tints a plant —
             // luminance x tint, 85 % — so the ground tufts match the grass billboards; pebbles (alpha 0) keep theirs.
@@ -46,7 +47,12 @@ Shader "BlocksBeyondTheStars/ScatterLit"
 #else
                 float lum = dot(c.rgb * c.rgb, float3(0.299, 0.587, 0.114));
 #endif
-                return lerp(c.rgb, lum * _Sc_GrassTint.rgb * 1.6, 0.85);
+                // #3042: the season turns the tufts with the plants — straw-coloured in autumn, pale in winter.
+                float3 g = _Sc_GrassTint.rgb;
+                float lg = dot(g, float3(0.299, 0.587, 0.114));
+                g = lerp(g, lg * float3(1.9, 1.35, 0.4), saturate(_Sc_Season.x) * 0.55);
+                g = lerp(g, lg * float3(1.05, 1.1, 1.2), saturate(_Sc_Season.y) * 0.5);
+                return lerp(c.rgb, lum * g * 1.6, 0.85);
             }
 
             struct Attributes
@@ -111,6 +117,7 @@ Shader "BlocksBeyondTheStars/ScatterLit"
             fixed4 _Sc_Light;
             float4 _Sc_SunDir;
             float4 _Sc_GrassTint; // #2835: see the URP pass
+            float4 _Sc_Season;    // #3042: see the URP pass
 
             float3 ScatterBase(float4 c)
             {
@@ -126,7 +133,12 @@ Shader "BlocksBeyondTheStars/ScatterLit"
 #else
                 float lum = dot(c.rgb * c.rgb, float3(0.299, 0.587, 0.114));
 #endif
-                return lerp(c.rgb, lum * _Sc_GrassTint.rgb * 1.6, 0.85);
+                // #3042: the season turns the tufts with the plants — straw-coloured in autumn, pale in winter.
+                float3 g = _Sc_GrassTint.rgb;
+                float lg = dot(g, float3(0.299, 0.587, 0.114));
+                g = lerp(g, lg * float3(1.9, 1.35, 0.4), saturate(_Sc_Season.x) * 0.55);
+                g = lerp(g, lg * float3(1.05, 1.1, 1.2), saturate(_Sc_Season.y) * 0.5);
+                return lerp(c.rgb, lum * g * 1.6, 0.85);
             }
 
             struct appdata

@@ -104,6 +104,7 @@ ITEMS = [
     ("forage_bait", "a small tied bundle of leafy green plant forage and seeds"),
     ("meat_bait", "a raw red strip of fresh meat on a small metal hook"),
     ("nectar_lure", "a small glass vial of glowing golden sweet nectar with a cork stopper"),
+    ("name_tag", "a small rounded blank pet name tag of pale metal on a short cord, with a tiny glowing cyan hologram projector chip on its face"),  # #3035
     ("oxygen_tank_1", "a small cyan compressed oxygen gas canister"),
     # Suit / wearable components
     ("suit_teleporter", "a glowing belt teleporter device with swirling portal energy"),

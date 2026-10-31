@@ -55,6 +55,7 @@ public sealed class PropSupportTests : IDisposable
         var config = new ServerConfig { WorldName = world, Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
+        server.SeasonsOffForTest = true; // #3041: plant growth timed to the second — the season's factor would depend on the seed
         return server;
     }
 

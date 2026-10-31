@@ -353,6 +353,7 @@ public sealed partial class GameServer
             SealedRooms = air?.Rooms ?? 0,
             Residents = BaseResidentCount(b), // #2679: the saved plan, so it is known on any world
             ResidentCap = BaseResidentRoom(b), // #2996: the residents a player's bases on one body hold together
+            Focus = BaseFocusOf(b),           // #3036
         };
     }
 

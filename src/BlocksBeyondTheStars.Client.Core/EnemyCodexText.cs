@@ -12,9 +12,11 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// The Codex's "Enemies" chapter (#2971, Justus: "a tablet with the enemies — from UFOs and spaceships to drones — with
     /// damage, health, abilities and names"). Unity-free, so the text is unit-tested; <c>WikiUI</c> only shows it. Space
-    /// first, then the ground; an enemy the player has met shows its name, health, damage, loot, what it is and how to beat
-    /// it — one not met yet is "???", so the chapter fills as the player gets around. The numbers are
-    /// <c>data/enemies.json</c>'s, the same the server fights with.
+    /// first, then the ground; every enemy shows its name, health, damage, loot, what it is and how to beat it from the
+    /// start (#3031, Justus: "you should not have to discover them first") — one the player has met carries a "✓ met" mark,
+    /// and the head counts them. The numbers are <c>data/enemies.json</c>'s, the same the server fights with. <c>WikiUI</c>
+    /// draws the head, each group's heading and each entry beside its portrait (#3032); <see cref="Build"/> is the chapter as
+    /// one text.
     /// </summary>
     public static class EnemyCodexText
     {
@@ -22,8 +24,22 @@ namespace BlocksBeyondTheStars.Client
         /// item key in the reader's language.</summary>
         public static string Build(IReadOnlyList<EnemyDefinition> enemies, ICollection<string> met, Func<string, string> l, Func<string, string> itemName)
         {
-            var sb = new StringBuilder();
-            sb.Append("<b><size=24>").Append(l("ui.wiki.enemies")).Append("</size></b>\n\n");
+            var sb = new StringBuilder(Head(enemies, met, l));
+            foreach (var group in Groups(enemies))
+            {
+                sb.Append(GroupHeading(group.Where, l));
+                foreach (var e in group.Enemies)
+                {
+                    sb.Append(Entry(e, met.Contains(e.Key), l, itemName));
+                }
+            }
+
+            return sb.ToString();
+        }
+
+        /// <summary>The chapter's title and the "x of n enemies met" line.</summary>
+        public static string Head(IReadOnlyList<EnemyDefinition> enemies, ICollection<string> met, Func<string, string> l)
+        {
             int known = 0;
             foreach (var e in enemies)
             {
@@ -33,33 +49,49 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            sb.Append(string.Format(CultureInfo.InvariantCulture, l("ui.wiki.enemies.count"), known, enemies.Count)).Append("\n\n");
+            return "<b><size=24>" + l("ui.wiki.enemies") + "</size></b>\n\n"
+                   + string.Format(CultureInfo.InvariantCulture, l("ui.wiki.enemies.count"), known, enemies.Count) + "\n\n";
+        }
+
+        /// <summary>The enemies by where they are met — space first, then the planets — in the file's order.</summary>
+        public static List<(string Where, List<EnemyDefinition> Enemies)> Groups(IReadOnlyList<EnemyDefinition> enemies)
+        {
+            var groups = new List<(string, List<EnemyDefinition>)>();
             foreach (var where in new[] { EnemyWhere.Space, EnemyWhere.Planet })
             {
-                sb.Append("<b><size=20>").Append(l("ui.wiki.enemies.where_" + where)).Append("</size></b>\n\n");
+                var list = new List<EnemyDefinition>();
                 foreach (var e in enemies)
                 {
                     if (e.Where == where)
                     {
-                        AppendEntry(sb, e, met.Contains(e.Key), l, itemName);
+                        list.Add(e);
                     }
                 }
+
+                groups.Add((where, list));
             }
 
-            return sb.ToString();
+            return groups;
         }
 
-        private static void AppendEntry(StringBuilder sb, EnemyDefinition e, bool met, Func<string, string> l, Func<string, string> itemName)
-        {
-            if (!met)
-            {
-                sb.Append("<b>???</b>\n  <color=#9fb4c8>").Append(l("ui.wiki.enemies.unknown")).Append("</color>\n\n");
-                return;
-            }
+        /// <summary>A group's heading ("In space", "On planets").</summary>
+        public static string GroupHeading(string where, Func<string, string> l)
+            => "<b><size=20>" + l("ui.wiki.enemies.where_" + where) + "</size></b>\n\n";
 
+        /// <summary>One enemy: its name (with "✓ met" when <paramref name="met"/>), health and damage (the stronger kind in
+        /// brackets), loot, what it is and the tip.</summary>
+        public static string Entry(EnemyDefinition e, bool met, Func<string, string> l, Func<string, string> itemName)
+        {
+            var sb = new StringBuilder();
             var normal = e.Tier(EnemyTiers.Normal);
             e.Tiers.TryGetValue(EnemyTiers.Elite, out var elite);
-            sb.Append("<b>").Append(l(e.NameKey)).Append("</b>\n");
+            sb.Append("<b>").Append(l(e.NameKey)).Append("</b>");
+            if (met)
+            {
+                sb.Append("  <color=#7fe0a8>✓ ").Append(l("ui.wiki.enemies.met")).Append("</color>");
+            }
+
+            sb.Append('\n');
             sb.Append("  ").Append(l("ui.wiki.enemies.health")).Append(": ").Append(Health(normal));
             if (elite is not null)
             {
@@ -87,6 +119,7 @@ namespace BlocksBeyondTheStars.Client
             AppendLine(sb, "  <i>", l(e.DescriptionKey), e.DescriptionKey, "</i>");
             AppendLine(sb, "  " + l("ui.wiki.enemies.tip") + ": ", l(e.TipKey), e.TipKey, string.Empty);
             sb.Append('\n');
+            return sb.ToString();
         }
 
         /// <summary>One optional line — skipped when its key has no text (an unlocalized key reads back as itself).</summary>

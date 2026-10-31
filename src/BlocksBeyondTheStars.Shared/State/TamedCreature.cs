@@ -50,4 +50,8 @@ public sealed class TamedCreature
 
     /// <summary>Server-stamped tame time (unix ms); 0 if unknown.</summary>
     public long TamedAtUtc { get; set; }
+
+    /// <summary>#3035: the companion wears a name tag — its name floats above it as a hologram. Set when a name tag was used on
+    /// it; it stays for good.</summary>
+    public bool NameTag { get; set; }
 }

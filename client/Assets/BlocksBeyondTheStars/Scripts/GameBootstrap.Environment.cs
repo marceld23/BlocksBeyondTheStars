@@ -396,6 +396,10 @@ namespace BlocksBeyondTheStars.Client
                 : Localizer?.Get("weather.forecast.no_front") ?? "No front nearby");
             sb.Append("  •  ").Append(Localizer?.Get(
                 m.SeasonWetness >= 0.5f ? "weather.forecast.season_wet" : "weather.forecast.season_dry") ?? string.Empty);
+            if (!string.IsNullOrEmpty(Environment?.Season))
+            {
+                sb.Append("  •  ").Append(Localizer?.Get("ui.season." + Environment.Season) ?? Environment.Season); // #3042
+            }
 
             LastMessage = sb.ToString();
         }

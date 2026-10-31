@@ -38,6 +38,7 @@ public sealed class PlanetTraderArrivalTests
             configure?.Invoke(c);
         });
         w.FoundBase();
+        w.SetBaseFocus(BlocksBeyondTheStars.Shared.Definitions.BaseFocus.Market); // #3036: only a Market base draws traders
         w.Server.ScanBaseLifeForTest(); // the settler's "moved in" news is out of the way before a trader comes
         return w;
     }

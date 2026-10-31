@@ -274,7 +274,7 @@ public sealed partial class GameServer
 
         // An index built over unloaded chunks cannot tell a post that went from a room it cannot see (nor a walled round from
         // open ground): it keeps the jobs the residents hold until the area is loaded and the index rebuilt.
-        AssignBaseJobs(plan, BaseJobs(idx, patrol), provisional: !idx.BuiltLoaded);
+        AssignBaseJobs(plan, BaseJobs(idx, patrol, BaseFocusOf(b)), provisional: !idx.BuiltLoaded);
         AssignBaseBeds(b, idx, plan, live, lostBed, patrol);
         foreach (var r in plan)
         {
@@ -369,10 +369,17 @@ public sealed partial class GameServer
     }
 
     /// <summary>The jobs a base offers, in priority order (#1868): trading post, mission board, the professions' posts,
-    /// guard (a walled base or a sentry post), gardener (crops, trays, saplings), craftsman (workbench, forge).</summary>
-    private static List<string> BaseJobs(BaseIndex idx, List<Vector3f>? patrol)
+    /// guard (a walled base or a sentry post), gardener (crops, trays, saplings), craftsman (workbench, forge). #3038: a Lumberjack
+    /// base (<paramref name="focus"/>) wants a woodcutter (<see cref="BaseLumberjackJob"/>) before all of them — it needs no
+    /// post, only a free resident.</summary>
+    private static List<string> BaseJobs(BaseIndex idx, List<Vector3f>? patrol, string focus = BaseFocus.None)
     {
         var jobs = new List<string>();
+        if (focus == BaseFocus.Lumberjack)
+        {
+            jobs.Add(BaseLumberjackJob);
+        }
+
         if (idx.VendorPosts.Count > 0)
         {
             jobs.Add("vendor");
@@ -737,6 +744,7 @@ public sealed partial class GameServer
         {
             "gardener" => "npc_hoe",
             "craftsman" => "npc_hammer",
+            BaseLumberjackJob => "npc_axe", // #3038
             "guard" => "blade",
             _ => profession?.Held ?? string.Empty,
         };
@@ -768,6 +776,7 @@ public sealed partial class GameServer
         "guard" => "npc.role.guard",
         "gardener" => "npc.role.gardener",
         "craftsman" => "npc.role.craftsman",
+        BaseLumberjackJob => "npc.role.woodcutter", // #3038
         _ => NpcProfessions.ByJob(job)?.NameKey ?? "npc.theme.settlers",
     };
 
@@ -1316,7 +1325,10 @@ public sealed partial class GameServer
         string bodyName = body?.Name ?? bodyId;
         foreach (var b in _bases)
         {
-            if (b.Planet != bodyId || FindSessionByPlayerId(b.OwnerId) is not { } owner)
+            // #3040: a Radio base's owner hears every trader setting down in the base's star system.
+            bool radio = b.Planet != bodyId && BaseFocusOf(b) == BaseFocus.Radio && body?.SystemId is { } sys
+                         && _galaxy?.FindBody(b.Planet)?.SystemId == sys;
+            if ((b.Planet != bodyId && !radio) || FindSessionByPlayerId(b.OwnerId) is not { } owner)
             {
                 continue;
             }

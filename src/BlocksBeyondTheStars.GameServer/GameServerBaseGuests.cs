@@ -23,7 +23,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// the friendship, the dialogue stage and the "People you know" roster are that person's. While visiting, the villager
 /// is absent from the village (<see cref="ServerNpc.VisitingAway"/>: not sent to clients, not moved, no routine, no
 /// passing hello) and is back home the moment the guest leaves.</item>
-/// <item><b>A travelling merchant</b> (weight 30, none while a trader ship is parked on the body): a vendor-role NPC
+/// <item><b>A travelling merchant</b> (#3036/#3039: only at a Market base, weight 120 there; none while a trader ship is parked on
+/// the body; sometimes with a second, specialised one — a market day, <c>GameServerBaseMarket.cs</c>): a vendor-role NPC
 /// with a bit of everything (#2630: the <see cref="MarketStock.MixedTheme"/> stock, one offer from each of several trades,
 /// new every day) — <see cref="MarketAvailable"/> and <see cref="ThemedMarketRefusal"/> accept barter beside it, and the
 /// client's "Trade or talk?" works as at any stall.</item>
@@ -268,6 +269,7 @@ public sealed partial class GameServer
 
         _baseGuestTickAt[world] = _uptime + BaseGuestTickInterval;
         StepBaseGuests();
+        StepMarketDays(); // #3039: two merchants at a Market base trade with each other
         TryScheduleBaseGuests();
     }
 
@@ -298,7 +300,9 @@ public sealed partial class GameServer
                 continue; // not yet, a guest is already there, or nobody is home — the window stays armed
             }
 
-            _nextGuestVisitAt[b.Id] = _uptime + BaseGuestCooldown() * (0.8 + _guestRng.NextDouble() * 0.4);
+            // #3039: a Market base has merchants at the door twice as often.
+            double spell = IsMarketBase(b) ? BaseFocus.MarketVisitSpellFactor : 1.0;
+            _nextGuestVisitAt[b.Id] = _uptime + BaseGuestCooldown() * spell * (0.8 + _guestRng.NextDouble() * 0.4);
             if (_guestRng.NextDouble() >= BaseGuestVisitChance)
             {
                 continue;
@@ -306,7 +310,10 @@ public sealed partial class GameServer
 
             if (PickGuestKind(b) is { } kind)
             {
-                SpawnBaseGuest(b, owner, kind);
+                if (SpawnBaseGuest(b, owner, kind) is not null && kind == BaseGuestKind.Merchant)
+                {
+                    MaybeBringMarketPartner(b, owner); // #3039: a market day — a second merchant comes along
+                }
             }
 
             return; // one visit per tick
@@ -354,8 +361,9 @@ public sealed partial class GameServer
                || _creatures.Any(c => c.Hostile && !c.IsCompanion && WrapDistSq(c.Position, at) <= r2);
     }
 
-    /// <summary>The weighted guest roll: a neighbour 50 (only with a villager to borrow), a merchant 30 (none while a
-    /// trader ship is parked on this body), a traveller 20.</summary>
+    /// <summary>The weighted guest roll: a neighbour 50 (only with a villager to borrow), a merchant (none while a trader ship
+    /// is parked on this body) — #3036/#3039: only at a Market base, and there the most common guest
+    /// (<see cref="BaseFocus.MarketMerchantWeight"/>) — and a traveller 20.</summary>
     private BaseGuestKind? PickGuestKind(ServerBase b)
     {
         if (_guestKindForTest is { } forced)
@@ -364,7 +372,7 @@ public sealed partial class GameServer
         }
 
         int neighbour = PickVisitingNeighbour(b).Source is not null ? 50 : 0;
-        int merchant = _landedTraders.ContainsKey(_world.LocationId) ? 0 : 30;
+        int merchant = !IsMarketBase(b) || _landedTraders.ContainsKey(_world.LocationId) ? 0 : BaseFocus.MarketMerchantWeight;
         const int traveller = 20;
         int roll = _guestRng.Next(neighbour + merchant + traveller);
         return roll < neighbour ? BaseGuestKind.Neighbour

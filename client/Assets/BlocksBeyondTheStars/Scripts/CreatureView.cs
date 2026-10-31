@@ -75,6 +75,7 @@ namespace BlocksBeyondTheStars.Client
             public bool Echo;     // cave dwellers' calls get a reverberant echo (item 21)
             public GameObject Nameplate; // floating name label shown above a tamed companion
             public TextMesh NameText;    // the label's text component (updated on rename)
+            public MeshRenderer TagRing; // #3035: the name tag's projector ring under the label (a child of it)
             public GameObject Zzz;       // floating "z z z" shown above a sleeping (off-phase) creature
             public TextMesh ZzzText;     // the sleep label's text component
             public CreatureAnimator Animator; // the rig's animator, looked up once at build (#1368) — not per frame
@@ -707,32 +708,18 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Shows a floating name label above a tamed companion (design: docs/developer/CREATURE_TAMING.md) so
         /// the player can pick their pet out of the wild fauna. Built lazily; billboarded to face the camera and
         /// kept under the game root (not the rotating creature rig) so the text stays upright + readable.</summary>
+        /// <para>#3034: hidden while a scene hides the HUD, like every other name tag. #3035: a companion that wears a name tag
+        /// shows its name as a hologram — cyan, flickering softly, over a small projector ring.</para>
         private void UpdateNameplate(Entry e, NetCreature c)
         {
             bool owned = !string.IsNullOrEmpty(c.OwnerId);
-            if (!owned)
+            if (!owned || GameBootstrap.HudHidden)
             {
-                if (e.Nameplate != null) e.Nameplate.SetActive(false);
+                if (e.Nameplate != null && e.Nameplate.activeSelf) e.Nameplate.SetActive(false);
                 return;
             }
 
-            if (e.Nameplate == null)
-            {
-                var np = new GameObject("CompanionName");
-                np.transform.SetParent(transform, true); // game root, not the creature rig (no inherited rotation)
-                var tm = np.AddComponent<TextMesh>();
-                tm.font = UiKit.Font;
-                var mr = np.GetComponent<MeshRenderer>();
-                if (mr != null && UiKit.Font != null) mr.sharedMaterial = WorldTextMaterial.Shared; // #2531: depth-tested, walls hide it
-                tm.fontSize = 48;
-                tm.characterSize = 0.05f;
-                tm.anchor = TextAnchor.LowerCenter;
-                tm.alignment = TextAlignment.Center;
-                tm.color = new Color(0.6f, 0.96f, 0.8f); // friendly green-cyan
-                e.Nameplate = np;
-                e.NameText = tm;
-            }
-
+            EnsureNameplate(e);
             float top = 1.5f * Mathf.Clamp(c.Size, 0.4f, 8f) + 0.4f; // 8: titans (#638) far exceed the old 3
             var platePos = e.Root.transform.position + Vector3.up * top;
 
@@ -760,17 +747,99 @@ namespace BlocksBeyondTheStars.Client
             if (c.Alerting) label = "! " + label + " !";
             if (e.NameText.text != label) e.NameText.text = label;
 
-            var col = c.Alerting
-                ? new Color(1f, 0.72f, 0.2f, alpha)    // alert amber
-                : new Color(0.6f, 0.96f, 0.8f, alpha); // friendly green-cyan, faded by distance
+            var col = NameplateColor(c, alpha, e.Pitch * 13f);
             if (e.NameText.color != col) e.NameText.color = col;
 
             if (c.Alerting) platePos += Vector3.up * (0.15f + 0.15f * Mathf.Sin(Time.time * 8f));
+            else if (c.NameTag) platePos += Vector3.up * (0.05f * Mathf.Sin(Time.time * 1.6f + e.Pitch * 13f)); // a hologram hovers
             e.Nameplate.transform.position = platePos;
             if (cam != null)
             {
                 e.Nameplate.transform.rotation = Quaternion.LookRotation(e.Nameplate.transform.position - cam.transform.position);
             }
+
+            UpdateTagRing(e, c.NameTag && !c.Alerting, platePos, alpha);
+        }
+
+        /// <summary>The label's colour: alert amber (#1210), a name tag's flickering hologram cyan (#3035), else the friendly
+        /// green-cyan — all faded by distance.</summary>
+        private static Color NameplateColor(NetCreature c, float alpha, float seed)
+        {
+            if (c.Alerting)
+            {
+                return new Color(1f, 0.72f, 0.2f, alpha);
+            }
+
+            if (c.NameTag)
+            {
+                float flicker = Mathf.PerlinNoise(Time.time * 4f, seed) > 0.82f ? 0.55f : 0.9f + 0.1f * Mathf.Sin(Time.time * 9f + seed);
+                return new Color(0.45f, 0.93f, 1f, alpha * flicker);
+            }
+
+            return new Color(0.6f, 0.96f, 0.8f, alpha);
+        }
+
+        /// <summary>Builds the label on first use, under the game root (not the rotating creature rig) so it stays upright.</summary>
+        private void EnsureNameplate(Entry e)
+        {
+            if (e.Nameplate != null)
+            {
+                return;
+            }
+
+            var np = new GameObject("CompanionName");
+            np.transform.SetParent(transform, true); // game root, not the creature rig (no inherited rotation)
+            var tm = np.AddComponent<TextMesh>();
+            tm.font = UiKit.Font;
+            var mr = np.GetComponent<MeshRenderer>();
+            if (mr != null && UiKit.Font != null) mr.sharedMaterial = WorldTextMaterial.Shared; // #2531: depth-tested, walls hide it
+            tm.fontSize = 48;
+            tm.characterSize = 0.05f;
+            tm.anchor = TextAnchor.LowerCenter;
+            tm.alignment = TextAlignment.Center;
+            tm.color = new Color(0.6f, 0.96f, 0.8f); // friendly green-cyan
+            e.Nameplate = np;
+            e.NameText = tm;
+        }
+
+        /// <summary>#3035: the name tag's projector — a small cyan ring lying flat just under the hologram name. A child of the
+        /// label, so it goes when the label goes.</summary>
+        private static void UpdateTagRing(Entry e, bool show, Vector3 platePos, float alpha)
+        {
+            if (!show)
+            {
+                if (e.TagRing != null && e.TagRing.gameObject.activeSelf) e.TagRing.gameObject.SetActive(false);
+                return;
+            }
+
+            if (e.TagRing == null)
+            {
+                var mat = FxKit.Cached("BlocksBeyondTheStars/FxRing", "nametag-ring", m =>
+                {
+                    m.SetColor("_Color", FxKit.Lin(new Color(0.45f, 0.93f, 1f)));
+                    m.SetFloat("_Intensity", 1.6f);
+                    m.SetFloat("_Lines", 2f);
+                });
+                if (mat == null)
+                {
+                    return; // the effect shader is missing (a stripped build): the hologram text alone
+                }
+
+                var ring = new GameObject("NameTagRing", typeof(MeshFilter), typeof(MeshRenderer));
+                ring.transform.SetParent(e.Nameplate.transform, false);
+                ring.GetComponent<MeshFilter>().sharedMesh = FxKit.QuadMesh;
+                e.TagRing = ring.GetComponent<MeshRenderer>();
+                e.TagRing.sharedMaterial = mat;
+                e.TagRing.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                e.TagRing.receiveShadows = false;
+            }
+
+            if (!e.TagRing.gameObject.activeSelf) e.TagRing.gameObject.SetActive(true);
+            var t = e.TagRing.transform;
+            t.position = platePos - Vector3.up * 0.08f;
+            t.rotation = Quaternion.LookRotation(Vector3.down); // lying flat, its face up
+            float r = 0.55f * Mathf.Clamp01(alpha + 0.2f);
+            t.localScale = new Vector3(r, r, 1f);
         }
 
         /// <summary>#2278: while the server reports the creature dazed by a shock-glove push, a few little stars circle over

@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.Weather;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -141,12 +142,14 @@ public sealed partial class GameServer
     // ---------------- Queries other systems ask ----------------
 
     /// <summary>How fast a harvested plant grows back here right now: rain waters the ground, a dry
-    /// season and a scorching sky slow it. 1 = the plain rate (#900).</summary>
+    /// season and a scorching sky slow it. 1 = the plain rate (#900). #3041: the four seasons on top — spring speeds it,
+    /// autumn and winter slow it (<see cref="PlanetSeasons.GrowthFactor"/>), on a world with or without changing weather.</summary>
     private double WeatherRegrowFactor(Vector3i pos)
     {
+        double season = PlanetSeasons.GrowthFactor(ActiveSeason().Season);
         if (_planetWeatherMode != "dynamic")
         {
-            return 1.0;
+            return season;
         }
 
         var at = new Vector3f(pos.X + 0.5f, pos.Y + 0.5f, pos.Z + 0.5f);
@@ -163,7 +166,7 @@ public sealed partial class GameServer
         };
 
         // The season leans on it too, so a dry spell is felt even between showers.
-        return factor * (0.85 + 0.3 * _sim.Wetness(_systemTimeDays));
+        return factor * (0.85 + 0.3 * _sim.Wetness(_systemTimeDays)) * season;
     }
 
     /// <summary>Test seam: how far a scan pulse reaches under the current sky (1 = unimpeded).</summary>

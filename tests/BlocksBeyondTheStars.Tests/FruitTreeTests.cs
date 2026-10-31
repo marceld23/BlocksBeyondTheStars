@@ -68,6 +68,7 @@ public sealed class FruitTreeTests : IDisposable
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
+        server.SeasonsOffForTest = true; // #3041: regrowth timed to the second — the season's factor would depend on the seed
         return server;
     }
 

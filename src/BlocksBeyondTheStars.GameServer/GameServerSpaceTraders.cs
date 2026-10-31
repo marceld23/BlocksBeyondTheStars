@@ -636,7 +636,7 @@ public sealed partial class GameServer
         var prefer = candidates.FirstOrDefault(b => b.Id == locationId);
         if (prefer is null)
         {
-            var baseWorlds = candidates.Where(b => _bases.Any(x => x.Planet == b.Id)).ToList();
+            var baseWorlds = candidates.Where(b => _bases.Any(x => x.Planet == b.Id && IsMarketBase(x))).ToList(); // #3036: Market bases
             if (baseWorlds.Count > 0 && _traderRng.Next(100) < 70)
             {
                 return baseWorlds[_traderRng.Next(baseWorlds.Count)].Id;
@@ -1150,7 +1150,8 @@ public sealed partial class GameServer
             return false;
         }
 
-        bool presentBase = _bases.Any(b => b.Planet == bodyId && present.Any(s => s.State.PlayerId == b.OwnerId));
+        // #3036: only a Market base is a reason for traders to come (a base does not draw them on its own any more).
+        bool presentBase = _bases.Any(b => b.Planet == bodyId && IsMarketBase(b) && present.Any(s => s.State.PlayerId == b.OwnerId));
         var rng = PlanetTraderRng(bodyId, schedule.Count);
         double gap = PlanetTraderGap(TrafficFor(body.SystemId), presentBase, rng.NextDouble());
         if (double.IsPositiveInfinity(gap))
@@ -1294,7 +1295,7 @@ public sealed partial class GameServer
     {
         foreach (var b in _bases)
         {
-            if (b.Planet == bodyId && ownerMatches(b.OwnerId))
+            if (b.Planet == bodyId && IsMarketBase(b) && ownerMatches(b.OwnerId)) // #3036: traders park by a Market base
             {
                 anchors.Add(new Vector3f(b.Cell.X + 0.5f, b.Cell.Y, b.Cell.Z + 0.5f));
             }

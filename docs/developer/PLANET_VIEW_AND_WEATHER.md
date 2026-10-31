@@ -82,6 +82,21 @@ slower, so `WorldMinimap` never bakes synchronously:
 The flight view used a hard-coded table of 15 type keys before #2170, so 33 of 51 types flew past without clouds.
 The haze rim takes the world's sky colour.
 
+## 2a. The four seasons (#3041/#3042)
+
+The system clock (`_systemTimeDays`, 600 s per system day) is saved since #3041 (`WorldMetadata.SystemTimeDays`), so a restart
+no longer starts the wet/dry season and the year over. `Shared/World/PlanetSeasons` derives a body's season from that clock,
+the body's day length and a phase seeded per world and body: 5 planet days per season, spring → summer → autumn → winter. A
+type with air, no void and `seasonTemperature > 0` (`planets.json`, default 8) has them. The server adds the warmth
+(± `seasonTemperature`, cosine over the year) in `TemperatureAt` — the active world, the landing-pad reading — so the suit,
+the precipitation form (winter snow on a cold world) and the HUD feel it; `WeatherRegrowFactor` multiplies the season's
+growth (spring 1.2, autumn 0.9, winter 0.6). `WorldEnvironment.Season/SeasonProgress/SeasonWarmth` (additive) carry it to
+the client: `SeasonLook` (Client.Core) turns season + progress into three targets that `Sky.Seasons` eases and sets as the
+global `_Sc_Season` every frame — `FloraAccent.hlsl` turns plant tints amber in autumn and pale in winter and strengthens
+the blossom accents in spring, `ScatterLit` turns the grass tufts the same way; no chunk is re-meshed (the far terrain keeps
+its baked colours). A cold winter adds a frost on the snow channel, the grade warms in summer/autumn and cools in winter,
+and the clock panel names the season.
+
 ## 3. Ambient weather (server)
 
 `GameServerAmbientWeather` keeps a `BodyWeather` for every Planet, Moon and AsteroidField body of a system with a

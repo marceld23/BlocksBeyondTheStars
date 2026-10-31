@@ -207,6 +207,8 @@ public sealed class MaterialEconomyTests
             "bio_sample", "mineral_sample", "prep_coating",
             // #2633: an old station log is read (inventory, Codex), never used up.
             "derelict_log",
+            // #3035: a name tag is used up on a companion, which no recipe lists.
+            "name_tag",
         };
         var unconsumedComponents = _c.Items.Values
             .Where(i => i.Category == ItemCategory.Component && !uses.ContainsKey(i.Key))

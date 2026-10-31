@@ -136,6 +136,19 @@ internal sealed class NpcLifeWorld : IDisposable
         return BaseId;
     }
 
+    /// <summary>#3036: sets the founded base's focus as the core screen would (a Market base draws merchants and traders).</summary>
+    public void SetBaseFocus(string focus)
+        => Server.YieldForTest(Player, new BlocksBeyondTheStars.Networking.Messages.YieldIntent
+        {
+            Action = BlocksBeyondTheStars.Networking.Messages.YieldIntent.ActionFocus,
+            Kind = BlocksBeyondTheStars.Networking.Messages.YieldIntent.KindBase,
+            BodyId = Server.ActiveLocationId,
+            CellX = Cx,
+            CellY = Feet,
+            CellZ = Cz,
+            Focus = focus,
+        });
+
     /// <summary>A two-cell bed: the head at the cell, the foot one block toward +Z (yaw 0).</summary>
     public Vector3i Bed(int x, int z, int? y = null)
     {

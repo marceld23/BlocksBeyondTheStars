@@ -12,8 +12,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// damage, health, abilities — with names"). Every drone, UFO, cruiser, raider ship, Guardian machine and robber is built
 /// by <see cref="NewEnemy"/> from its tier, so the numbers the Codex shows are the numbers the fight uses. A player MEETS an
 /// enemy when it comes within sight in a fight — within a ranged weapon's reach on the ground, within a ship weapon's
-/// reach in space — which also covers every hit either side lands. The first meeting fills the Codex entry
-/// (<see cref="Shared.State.PlayerState.EnemiesMet"/>, persisted); until then the Codex shows "???".
+/// reach in space — which also covers every hit either side lands. The first meeting marks the Codex entry "✓ met"
+/// (<see cref="Shared.State.PlayerState.EnemiesMet"/>, persisted); since #3031 every entry shows its numbers from the start.
 /// </summary>
 public sealed partial class GameServer
 {

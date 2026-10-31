@@ -46,6 +46,13 @@ public sealed class WorldEnvironment
     /// the shared clock, seeded per world; biases storm likelihood and how fast planted flora regrows.</summary>
     public float SeasonWetness { get; set; } = 0.5f;
 
+    /// <summary>#3041: the world's season (<c>PlanetSeasons</c>: spring, summer, autumn, winter; empty = a world without seasons),
+    /// how far into it the year is (0..1) and its warmth in °C (already part of <see cref="Temperature"/>). The client tints
+    /// the leaves, frosts the tops and names the season. Additive (contractless): an older client ignores them.</summary>
+    public string Season { get; set; } = string.Empty;
+    public float SeasonProgress { get; set; }
+    public float SeasonWarmth { get; set; }
+
     /// <summary>Air temperature at the player, in °C (base per world + weather + day/night). Shown in the HUD.</summary>
     public float Temperature { get; set; } = 15f;
 

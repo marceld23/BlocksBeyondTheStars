@@ -230,6 +230,7 @@ public sealed partial class GameServer
         "craftsman" => "npc.activity.working",
         "innkeeper" => "npc.activity.working", // #1887: the tavern's keeper behind the counter
         "gardener" => "npc.activity.tending",
+        BaseLumberjackJob => "npc.activity.chopping", // #3038
         "guard" => "npc.activity.patrolling",
         _ => NpcProfessions.ByJob(job)?.ActivityKey ?? string.Empty,
     };

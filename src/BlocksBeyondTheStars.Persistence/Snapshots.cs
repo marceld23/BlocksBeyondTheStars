@@ -397,6 +397,7 @@ public static class StateMapper
         Bond = t.Bond,
         LastFedUtc = t.LastFedUtc,
         TamedAtUtc = t.TamedAtUtc,
+        NameTag = t.NameTag, // #3035
     };
 
     private static MissionProgress CloneProgress(MissionProgress m) => new()

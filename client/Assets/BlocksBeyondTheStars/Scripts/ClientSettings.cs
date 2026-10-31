@@ -713,7 +713,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Show a small "session / total playtime" readout in the in-game HUD.</summary>
         public bool ShowSessionTime = true;
 
-        /// <summary>#2993: show the player's block coordinates (X · Y · Z) under the clock — default off, for builders and
+        /// <summary>#2993: show the player's block coordinates (X · Y · Z) under the vitals (#3033) — default off, for builders and
         /// the Quantum Teleporter.</summary>
         public bool ShowCoordinates = false;
 

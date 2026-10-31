@@ -54,14 +54,16 @@ public sealed partial class GameServer
         return store;
     }
 
-    /// <summary>The base's store, brought up to now.</summary>
+    /// <summary>The base's store, brought up to now — at the rate and from the table of the base's focus (#3036: a Miner gathers
+    /// by its shaft's depth, a Lumberjack wood; <see cref="BaseYieldPlan"/>).</summary>
     private BaseYieldStore AccrueBaseYield(ServerBase b, out int helpers)
     {
         helpers = Math.Min(BaseResidentCount(b), BaseRules.YieldHelperCap);
         var store = YieldStore(BaseYieldKey(b));
-        var table = BaseYieldTable(b.Planet);
+        var (table, factor) = BaseYieldPlan(b, store.Focus);
         string seed = BaseYieldKey(b);
-        BaseRules.Accrue(store, YieldNowUnix, BaseRules.YieldPerHour(helpers, Rules.BaseYieldPercent), i => BaseRules.PickWeighted(table, seed, i));
+        BaseRules.Accrue(store, YieldNowUnix, BaseRules.YieldPerHour(helpers, Rules.BaseYieldPercent) * factor,
+            i => BaseRules.PickWeighted(table, seed, i));
         return store;
     }
 
@@ -88,7 +90,39 @@ public sealed partial class GameServer
             return cached;
         }
 
-        var table = new List<KeyValuePair<string, int>>();
+        var result = YieldTableOf(BaseYieldVeins(body).Where(v => !v.Rare));
+        _baseYieldTables[body] = result;
+        return result;
+    }
+
+    /// <summary>The weighted table of <paramref name="veins"/>, or the fallback (stone) when there is none.</summary>
+    private static KeyValuePair<string, int>[] YieldTableOf(IEnumerable<BaseYieldVein> veins)
+    {
+        var table = veins.Select(v => new KeyValuePair<string, int>(v.Item, v.Weight)).ToList();
+        if (table.Count == 0)
+        {
+            table.Add(new KeyValuePair<string, int>(BaseRules.BaseYieldFallbackItem, 1));
+        }
+
+        return table.ToArray();
+    }
+
+    /// <summary>One ore vein of a body as the yield reads it: the item its block drops, its weight (density × 100), the depth
+    /// it starts at and whether it is rare-tier.</summary>
+    private readonly record struct BaseYieldVein(string Item, int Weight, int MinDepth, bool Rare);
+
+    /// <summary>Body id → its ore veins (the survey is pure but not free; it never changes for a body).</summary>
+    private readonly Dictionary<string, BaseYieldVein[]> _baseYieldVeins = new(StringComparer.Ordinal);
+
+    /// <summary>The body's ore veins as the planet scanner reads them, each with the item its block drops.</summary>
+    private BaseYieldVein[] BaseYieldVeins(string body)
+    {
+        if (_baseYieldVeins.TryGetValue(body, out var cached))
+        {
+            return cached;
+        }
+
+        var veins = new List<BaseYieldVein>();
         var celestial = _galaxy?.FindBody(body);
         var planet = celestial is null || string.IsNullOrEmpty(celestial.PlanetType) ? null : _content.GetPlanet(celestial.PlanetType!);
         if (celestial != null && planet != null && !planet.Void)
@@ -96,28 +130,28 @@ public sealed partial class GameServer
             bool airlessMoon = celestial.Kind == Shared.World.CelestialKind.Moon
                                && string.Equals(planet.Atmosphere, "none", StringComparison.OrdinalIgnoreCase);
             var survey = _generator.SurveyResources(planet, celestial.Id, FrontierOreBoostFor(FrontierTierForBody(celestial.Id)), airlessMoon);
-            foreach (var vein in survey.Veins.Where(v => !v.RareTier))
+            foreach (var vein in survey.Veins)
             {
                 string? item = _content.GetBlock(vein.Block)?.Drops.FirstOrDefault()?.Item;
                 if (item != null && _content.GetItem(item) != null)
                 {
-                    table.Add(new KeyValuePair<string, int>(item, (int)Math.Max(1, Math.Round(vein.Density * 100))));
+                    veins.Add(new BaseYieldVein(item, (int)Math.Max(1, Math.Round(vein.Density * 100)), vein.MinDepth, vein.RareTier));
                 }
             }
         }
 
-        if (table.Count == 0)
-        {
-            table.Add(new KeyValuePair<string, int>(BaseRules.BaseYieldFallbackItem, 1));
-        }
-
-        var result = table.ToArray();
-        _baseYieldTables[body] = result;
+        var result = veins.ToArray();
+        _baseYieldVeins[body] = result;
         return result;
     }
 
     private void HandleYield(PlayerSession session, YieldIntent intent)
     {
+        if (intent.Action == YieldIntent.ActionFocus && intent.Kind != YieldIntent.KindStation)
+        {
+            SetBaseFocus(session, intent.BodyId, new Vector3i(intent.CellX, intent.CellY, intent.CellZ), intent.Focus); // #3036
+        }
+
         bool collect = intent.Action == YieldIntent.ActionCollect;
         var status = intent.Kind == YieldIntent.KindStation
             ? StationYieldAction(session, intent.StationId ?? string.Empty, collect)
@@ -150,6 +184,7 @@ public sealed partial class GameServer
         }
 
         FillYieldStatus(reply, store, helpers);
+        FillFocusStatus(reply, b, store); // #3036: the focus, a Miner's depth, a Lumberjack without trees
         return reply;
     }
 
@@ -178,14 +213,14 @@ public sealed partial class GameServer
         return reply;
     }
 
-    private void FillYieldStatus(YieldStatus reply, BaseYieldStore store, int helpers)
+    private void FillYieldStatus(YieldStatus reply, BaseYieldStore store, int helpers, double factor = 1.0)
     {
         reply.Items = store.Items.Where(kv => kv.Value > 0).OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key, StringComparer.Ordinal)
             .Select(kv => new NetYieldItem { Item = kv.Key, Count = kv.Value }).ToArray();
         reply.Ready = store.CountReady();
         reply.Capacity = BaseRules.YieldCapacity;
         reply.Helpers = helpers;
-        reply.PerHour = (float)BaseRules.YieldPerHour(helpers, Rules.BaseYieldPercent);
+        reply.PerHour = (float)(BaseRules.YieldPerHour(helpers, Rules.BaseYieldPercent) * factor);
     }
 
     /// <summary>Moves what lies ready into the backpack as far as it holds; returns how many items moved.</summary>

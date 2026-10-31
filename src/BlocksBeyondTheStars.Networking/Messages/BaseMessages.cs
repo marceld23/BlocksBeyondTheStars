@@ -49,6 +49,9 @@ public sealed class NetBase
     /// <summary>#2999: items the base core's yield store holds ready to collect — filled for the owner only, 0 otherwise.</summary>
     public int YieldReady { get; set; }
 
+    /// <summary>#3036: the base's focus (<c>BaseFocus</c>; empty = none) — the aim readout and the map name it. Additive.</summary>
+    public string Focus { get; set; } = string.Empty;
+
     public const byte RelationOwn = 0;
     public const byte RelationAlly = 1;
     public const byte RelationOther = 2;
@@ -159,8 +162,11 @@ public sealed class BaseResidentList
 /// </summary>
 public sealed class YieldIntent
 {
-    /// <summary><c>status</c> or <c>collect</c>.</summary>
+    /// <summary><c>status</c>, <c>collect</c> or (#3036) <c>focus</c>.</summary>
     public string Action { get; set; } = string.Empty;
+
+    /// <summary>#3036: the focus to set with <see cref="ActionFocus"/> (<c>BaseFocus</c>: "", market, miner, lumberjack, radio). Additive.</summary>
+    public string Focus { get; set; } = string.Empty;
 
     /// <summary><c>base</c> (by <see cref="BodyId"/> + cell) or <c>station</c> (by <see cref="StationId"/>).</summary>
     public string Kind { get; set; } = string.Empty;
@@ -173,6 +179,9 @@ public sealed class YieldIntent
 
     public const string ActionStatus = "status";
     public const string ActionCollect = "collect";
+
+    /// <summary>#3036: set the base's focus to <see cref="Focus"/> (free, any time; base only).</summary>
+    public const string ActionFocus = "focus";
     public const string KindBase = "base";
     public const string KindStation = "station";
 }
@@ -212,4 +221,16 @@ public sealed class YieldStatus
     public int Helpers { get; set; }
 
     public int Collected { get; set; }
+
+    /// <summary>#3036: the base's focus (<c>BaseFocus</c>; empty = none, and always for a station). Additive.</summary>
+    public string Focus { get; set; } = string.Empty;
+
+    /// <summary>#3037: a Miner base's shaft — how many blocks below the core the players dug — and the next ore deeper down with
+    /// the depth it needs (empty = every ore of the body is reached). Additive.</summary>
+    public int Depth { get; set; }
+    public string NextOre { get; set; } = string.Empty;
+    public int NextOreDepth { get; set; }
+
+    /// <summary>#3038: a Lumberjack base on a body without trees gathers no wood (the core then gathers ore as before). Additive.</summary>
+    public bool NoTrees { get; set; }
 }

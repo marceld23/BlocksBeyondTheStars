@@ -46,8 +46,9 @@ public sealed partial class GameServer
     private const double SystemDaySeconds = 600.0;
 
     /// <summary>Monotonic total elapsed system-days, advanced every tick. Server-wide (not per-world) so the
-    /// orbital clock is shared by all players/worlds; runtime-only (a restart re-bases the phases, fine for
-    /// pure ambience). Sent to clients in <see cref="WorldEnvironment.SystemTimeDays"/>.</summary>
+    /// orbital clock is shared by all players/worlds. Since #3041 it is saved (<c>WorldMetadata.SystemTimeDays</c>) — the four
+    /// seasons run on it, and a restart must not start every year over. Sent to clients in
+    /// <see cref="WorldEnvironment.SystemTimeDays"/>.</summary>
     private double _systemTimeDays;
 
     private double _dayFraction { get => _worlds.Active.DayFraction; set => _worlds.Active.DayFraction = value; }
@@ -471,6 +472,7 @@ public sealed partial class GameServer
         var (state, intensity) = BiomeWeatherAt(pos);
         float temperature = CurrentTemperature(state, _dayFraction, pos);
         var def = WeatherCatalog.Find(state);
+        var season = ActiveSeason();
         return new WorldEnvironment
         {
             TimeOfDay = (float)_dayFraction,
@@ -483,6 +485,9 @@ public sealed partial class GameServer
             WindSpeed = _sim.WindSpeed,
             WindDirection = _sim.WindDirection,
             SeasonWetness = (float)_sim.Wetness(_systemTimeDays),
+            Season = season.Season,               // #3041
+            SeasonProgress = (float)season.Progress,
+            SeasonWarmth = (float)season.Warmth,
             Temperature = temperature,
             Precipitation = PrecipitationFor(state, temperature),
             SunColor = _sunColor,
@@ -522,14 +527,15 @@ public sealed partial class GameServer
             return CabinComfortC; // a ship / station cabin is climate-controlled — the one reading of a cabin (#2218)
         }
 
-        return TemperatureAt(planet, _sim, weather, timeOfDay, _breathable, pos);
+        return TemperatureAt(planet, _sim, weather, timeOfDay, _breathable, pos, ActiveSeason().Warmth); // #3041: the season too
     }
 
     /// <summary>The temperature formula of <see cref="CurrentTemperature"/> with explicit inputs, so the landing-pad
     /// weather (#2173) can read it for a body that is not the active world (the shared generator must be set to that
-    /// body). <paramref name="pos"/> = default reads at the reference altitude.</summary>
+    /// body). <paramref name="pos"/> = default reads at the reference altitude. <paramref name="seasonWarmth"/> is the body's
+    /// season (#3041, <see cref="SeasonOf"/>).</summary>
     private float TemperatureAt(PlanetType? planet, WeatherSim sim, string weather, double timeOfDay, bool breathable,
-        BlocksBeyondTheStars.Shared.Geometry.Vector3f pos)
+        BlocksBeyondTheStars.Shared.Geometry.Vector3f pos, double seasonWarmth = 0.0)
     {
         // The static part comes from the SAME per-world calibration worldgen uses (base + variation −
         // lapse·altitude). Empty position (world-level broadcasts) reads at the reference altitude.
@@ -546,7 +552,7 @@ public sealed partial class GameServer
         double weatherDelta = wdef is null ? 2.0 : wdef.TempDelta * (wdef.Key == "clear" ? 1.0 : envelope);
         double swing = breathable ? 6.0 : 16.0; // airless worlds swing hard between day and night
         double dayNight = System.Math.Cos((timeOfDay - 0.5) * 2.0 * System.Math.PI) * swing;
-        double t = baseT + weatherDelta + dayNight;
+        double t = baseT + weatherDelta + dayNight + seasonWarmth; // #3041: summer warmer, winter colder
 
         // Generation 8 (Titas): a hot zone reads its biome's own temperature (+100 °C), with a little of the day swing.
         if (hasPos && planet is { HotZoneShare: > 0.0 }
