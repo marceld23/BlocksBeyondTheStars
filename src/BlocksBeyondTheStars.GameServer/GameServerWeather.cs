@@ -18,16 +18,20 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    // Stellar colour anchors from hot to cool (blue-white → white → yellow → orange → red), each with a weight
-    // so most systems land near a natural sun-like white/yellow and blue/red stars are the rarer extremes.
+    // Stellar colour anchors from hot to cool (blue → blue-white → white → yellow → orange → red), each with a weight.
+    // #3077: flatter than before (it was 7/15/30/22/14/8 over six paler anchors — about 70 % of all systems read "normal
+    // yellow", a playtest jumped through four of them in a row): the sun-like star is still the single most common one,
+    // but blue and red-orange stars are as common as white ones now, and a little more saturated. The sun-like anchor
+    // stays FFF1CE — the client measures its light lift against it (Sky.SunLikeLuma, #1610).
     private static readonly (int Rgb, int Weight)[] StarRamp =
     {
-        (0xC9D4FF, 7),   // blue-white (hot O/B/A)
-        (0xFFF6F0, 15),  // white (F)
-        (0xFFF1CE, 30),  // yellow-white, sun-like (G)
-        (0xFFE6A0, 22),  // yellow (early K)
-        (0xFFC97E, 14),  // orange (late K)
-        (0xFFB074, 8),   // red-orange (M)
+        (0xAFC3FF, 12),  // blue (hot O/B)
+        (0xD6E1FF, 10),  // blue-white (A)
+        (0xFFF6F0, 12),  // white (F)
+        (0xFFF1CE, 20),  // yellow-white, sun-like (G)
+        (0xFFE2A0, 16),  // yellow (early K)
+        (0xFFC27A, 14),  // orange (late K)
+        (0xFF9E62, 12),  // red-orange (M)
     };
 
     private const double EnvBroadcastInterval = 5.0;

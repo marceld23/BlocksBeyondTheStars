@@ -85,9 +85,9 @@ public sealed class MeadowWiringTests
     public void Ranges_AgreeBetweenCSharpAndHlsl()
     {
         string shells = Script("GrassShells.cs");
-        Assert.Contains("public const float CarpetRange = 20f;", shells);
+        Assert.Contains("public const float CarpetRange = 16f;", shells); // #3078: was 20
         Assert.Contains("public const float FlowerRange = 28f;", shells);
-        Assert.Contains("#define BBTS_SHELL_FADE_END 20.0", Shader("GrassShellCommon.hlsl"));
+        Assert.Contains("#define BBTS_SHELL_FADE_END 16.0", Shader("GrassShellCommon.hlsl"));
         Assert.Contains("#define BBTS_FLOWER_FADE_END 28.0", Shader("MeadowFlowerCommon.hlsl"));
     }
 

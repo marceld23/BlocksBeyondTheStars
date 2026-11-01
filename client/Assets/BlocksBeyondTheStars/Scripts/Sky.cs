@@ -383,7 +383,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float intensity = env?.Intensity ?? 0f;
-            Color sun = env != null ? Rgb(env.SunColor) : new Color(1f, 0.96f, 0.88f); // match Space/Station fallback
+            // #3075: in flight the light is the star of the system flown in — the environment describes the world last landed on.
+            Color sun = env != null ? Rgb(Game.SpaceViewActive ? FlightStar.ColorOf(Game.StarMap, env.SunColor) : env.SunColor)
+                : new Color(1f, 0.96f, 0.88f); // match Space/Station fallback
             // Per-world daytime sky/atmosphere hue (server-seeded; blue → green → yellow → red). Only worlds with an
             // atmosphere actually show it (airless bodies go to the space sky below). Fallback = the old fixed blue.
             Color skyBase = env != null ? Rgb(env.SkyColor) : new Color(0.55f, 0.75f, 0.95f);
@@ -524,10 +526,10 @@ namespace BlocksBeyondTheStars.Client
                 Color overcast = Color.Lerp(new Color(0.6f, 0.62f, 0.68f), skyBase, 0.35f);
                 Color daySky = Color.Lerp(skyBase, overcast, weatherIntensity);
 
-                // Tint the daytime sky a touch toward the system star's hue, so a warm / red star gives a warmer
-                // sky and a blue-white star a cooler one (B37). Kept light (0.2) so the per-world atmosphere
+                // Tint the daytime sky toward the system star's hue, so a warm / red star gives a warmer sky and a
+                // blue-white star a cooler one (B37). Kept moderate (0.3, #3077: was 0.2) so the per-world atmosphere
                 // colour above reads through. The directional sun light + block diffuse already use the star colour.
-                daySky = Color.Lerp(daySky, daySky * sunHue, 0.2f);
+                daySky = Color.Lerp(daySky, daySky * sunHue, 0.3f);
 
                 // Night sky: a dark base nudged toward the world's atmosphere hue, so a green/red-skied world also
                 // tints its night instead of always reading the same blue-black.
@@ -614,9 +616,9 @@ namespace BlocksBeyondTheStars.Client
 
             float m = Mathf.Max(sunColor.r, Mathf.Max(sunColor.g, sunColor.b));
             Color norm = m > 0.001f ? new Color(sunColor.r / m, sunColor.g / m, sunColor.b / m) : Color.white;
-            // The star's hue folds into the grade so each system visibly tints its worlds (0.4 keeps it a
-            // light, atmospheric wash — raised from 0.25 so the per-system sun colour clearly reads).
-            Color blended = tint * Color.Lerp(Color.white, norm, 0.4f);
+            // The star's hue folds into the grade so each system visibly tints its worlds (0.55 keeps it an
+            // atmospheric wash — raised from 0.25, then 0.4 (#3077), so the per-system sun colour clearly reads).
+            Color blended = tint * Color.Lerp(Color.white, norm, 0.55f);
             blended.a = 0.7f; // grade strength
             // #1612: the old _Sc_GradeTint / _Sc_GradeParams shader globals are gone — no shader read them since
             // the grade moved onto the URP volume below.

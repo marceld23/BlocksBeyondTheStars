@@ -104,6 +104,11 @@ them**; between systems you hyperjump. This combines two originally separate ide
   per-system `StarColor` (#1604) — and offers the same `HyperjumpSystemIntent` from a selected star; the
   finale system is placed out past every other star (`GuardianFinaleMapPosition`, #1605) now that map
   positions are visible. Pure projection/name rules live in `Shared/World/GalaxyChartLayout.cs`.
+  *The star's colour in flight and in the cabin:* a jump in flight sends no `WorldEnvironment` — the environment keeps
+  describing the world last landed on — so the flight view (its star billboard, the lens flare and the light on the
+  ship) reads the colour of the star map's current system (`FlightStar`, Client.Core, #3075). Walking inside the
+  floating ship loads `shipint:<id>`, which is no galaxy body (its system name is empty) and stays resident across jumps,
+  so `TakeShipInteriorStar` sets its sun from the body under the flight each time someone steps in (#3076).
 - **Wormholes (#2242)** are the second way between systems: a `WormholeTransitIntent` (NetCodec 285) moves just
   that player's flight space to the twin system, next to the other rift, like a hyperjump without the module —
   see [WORMHOLES.md](WORMHOLES.md).

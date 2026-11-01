@@ -24,6 +24,8 @@ Shader "BlocksBeyondTheStars/GrassShell"
         {
             Name "GrassShellForward"
             Tags { "LightMode" = "UniversalForward" }
+            // #3078: the strand edge as MSAA coverage (BbtsShellCover keeps the hard cut where there is no MSAA).
+            AlphaToMask On
             HLSLPROGRAM
             #pragma vertex BbtsShellVert
             #pragma fragment frag
@@ -41,7 +43,8 @@ Shader "BlocksBeyondTheStars/GrassShell"
 
             half4 frag(ShellVaryings i) : SV_Target
             {
-                float4 s = BbtsShellClip(i);
+                float coverage;
+                float4 s = BbtsShellCover(i, coverage);
                 float2 st = BbtsShellTileSt(s.zw, i.info.y);
                 float3 albedo = SAMPLE_TEXTURE2D_LOD(_MainTex, sampler_MainTex, i.tile.xy + i.tile.zw * st, 0).rgb;
 
@@ -52,7 +55,7 @@ Shader "BlocksBeyondTheStars/GrassShell"
 
                 float gloss = 0.0;
                 BbtsWeatherSurface(albedo, gloss, i.wp, float3(0.0, 1.0, 0.0), i.info.x); // wet darkens, snow whitens (#2398)
-                return half4(BbtsMeadowShade(albedo, i.wp, i.info.x, i.bl, s.y), 1.0);
+                return half4(BbtsMeadowShade(albedo, i.wp, i.info.x, i.bl, s.y), coverage);
             }
             ENDHLSL
         }
