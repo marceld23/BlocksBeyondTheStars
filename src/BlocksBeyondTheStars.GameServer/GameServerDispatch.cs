@@ -206,8 +206,20 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>#3049: an explicit save (the pause menu's "Save game") runs <see cref="SaveAll"/> for every online player
+    /// on the tick thread, and any client may send it. One that ran this recently already holds everyone's state, so a
+    /// repeat inside the window is skipped — a spamming client can no longer stall the server with saves.</summary>
+    private const double ExplicitSaveCooldownSeconds = 5.0;
+    private double _lastExplicitSaveAt = double.NegativeInfinity;
+
     private void HandleSaveGame(PlayerSession session)
     {
+        if (_uptime - _lastExplicitSaveAt < ExplicitSaveCooldownSeconds)
+        {
+            return;
+        }
+
+        _lastExplicitSaveAt = _uptime;
         SaveAll();
         _log.Info($"Explicit save requested by '{session.State.Name}'.");
     }

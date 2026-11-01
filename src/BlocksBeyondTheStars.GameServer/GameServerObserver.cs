@@ -103,6 +103,8 @@ public sealed partial class GameServer : IObserverHost
 
     void IObserverHost.BroadcastLandingPads(PlayerSession? always) => BroadcastLandingPads(always);
 
+    void IObserverHost.BroadcastStarMap() => BroadcastStarMap();
+
     void IObserverHost.BroadcastFace(PlayerSession subject) => BroadcastFace(subject);
 
     string IObserverHost.Localize(string localeCode, string key) => Localize(localeCode, key);

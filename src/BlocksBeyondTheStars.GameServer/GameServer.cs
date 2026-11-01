@@ -6600,6 +6600,9 @@ public sealed partial class GameServer
         RaiseGameEvent(session, GameEventKeys.ChatSent); // #2482: the "Together" course
     }
 
+    internal const double VoiceFrameBurst = 15.0; // #3048: 300 ms of 20 ms frames — one tick's worth plus a stall
+    private const double VoiceFramesPerSecond = 60.0;
+
     /// <summary>Live voice relay (opt-in). A thin, opaque forwarder: the server never decodes the Opus payload —
     /// it stamps the speaker's id and relays the frame to the same tiered radio audience as text chat (world /
     /// system / galaxy by the best radio held), sent Unreliable for lowest latency. Gated on the same radio
@@ -6621,13 +6624,17 @@ public sealed partial class GameServer
 
         // Per-speaker frame-rate cap before the 1→N audience fan-out. Real voice is ~50 frames/s (20 ms
         // each); 60/s is generous. Without it a client could flood frames as fast as the socket allows,
-        // each amplified to the whole radio audience (audit 2026-07-05).
-        if (_uptime < session.Throttles.NextVoiceFrameAt)
+        // each amplified to the whole radio audience (audit 2026-07-05). #3048: a token bucket, not a "next
+        // frame at" gate — _uptime only moves once per tick, so a gate let one frame per tick through (15 of 50).
+        var t = session.Throttles;
+        t.VoiceBudget = System.Math.Min(VoiceFrameBurst, t.VoiceBudget + (System.Math.Max(0, _uptime - t.VoiceRefilledAt) * VoiceFramesPerSecond));
+        t.VoiceRefilledAt = _uptime;
+        if (t.VoiceBudget < 1.0)
         {
             return;
         }
 
-        session.Throttles.NextVoiceFrameAt = _uptime + (1.0 / 60.0);
+        t.VoiceBudget -= 1.0;
         frame.FromPlayerId = session.State.PlayerId; // authoritative sender id (don't trust the client's field)
         SendToRadioAudienceExcept(session, frame, DeliveryMode.Unreliable);
     }
@@ -6743,7 +6750,7 @@ public sealed partial class GameServer
         }).Select(sys => WithPlaceNames(sys, session.State)).ToArray(); // #2952: this player's own names, theirs alone
 
         var players = _sessions.Values
-            .Where(s => s.Joined)
+            .Where(s => s.Joined && (!s.Spectating || s == session)) // #3052: an observer is listed to nobody but themselves
             .Select(s => new NetPlayerLocation { Name = s.State.Name, LocationId = s.CurrentLocationId })
             .ToArray();
 

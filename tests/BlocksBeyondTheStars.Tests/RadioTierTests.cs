@@ -297,6 +297,47 @@ public sealed class RadioTierTests : IDisposable
         Assert.False(transport.Sent.Any(x => x.Msg is VoiceFrame), "An oversized voice frame must be dropped.");
     }
 
+    [Fact]
+    public void Voice_RealSpeech_IsRelayedWhole_AFloodStopsAtTheBurst()
+    {
+        // #3048: a client sends a 20 ms frame every 20 ms (50/s), and every frame of a tick is handled before the
+        // server's uptime moves on. The old "next frame at" gate let one frame per tick through — 15 of 50.
+        var transport = new RecordingTransport();
+        var server = NewServer("voice_rate", transport, c => c.VoiceChatEnabled = true);
+
+        var alice = server.AddLocalPlayer("Alice");
+        var bob = server.AddLocalPlayer("Bob");
+        TestGear.Wear(alice.State, "galaxy_radio");
+
+        // One second of speech at 15 Hz: the frames of each tick arrive together, then the uptime moves on.
+        transport.Sent.Clear();
+        int sent = 0;
+        for (int tick = 1; tick <= 15; tick++)
+        {
+            for (; sent < tick * 50 / 15; sent++)
+            {
+                server.SendVoice("Alice", new byte[] { 1, 2, 3 }, sequence: sent);
+            }
+
+            server.AdvanceUptimeForTest(1.0 / 15.0);
+        }
+
+        Assert.Equal(50, VoiceFramesTo(transport, bob));
+
+        // A flood in one instant still stops at the burst.
+        server.AdvanceUptimeForTest(1.0);
+        transport.Sent.Clear();
+        for (int i = 0; i < 200; i++)
+        {
+            server.SendVoice("Alice", new byte[] { 1, 2, 3 }, sequence: i);
+        }
+
+        Assert.Equal((int)SvGameServer.VoiceFrameBurst, VoiceFramesTo(transport, bob));
+    }
+
+    private static int VoiceFramesTo(RecordingTransport transport, BlocksBeyondTheStars.GameServer.PlayerSession to)
+        => transport.Sent.Count(x => x.Conn == to.ConnectionId && x.Msg is VoiceFrame);
+
     // ---------------- Helpers ----------------
 
     private static bool GotChat(RecordingTransport t, BlocksBeyondTheStars.GameServer.PlayerSession to, string text)
