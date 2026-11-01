@@ -25,6 +25,18 @@ public sealed class FarTerrainWorldInfo
     public int[] Pads { get; set; } = System.Array.Empty<int>();
 
     public const int PadStride = 8;
+
+    /// <summary>#3059: the farthest tile centre (blocks from the player, wrap-aware) this server answers
+    /// <see cref="FarTerrainTileRequest"/>s for; the client asks for nothing beyond it. Additive (contractless): an
+    /// older client ignores it, and an older server leaves it 0, which means <see cref="LegacyMaxTileRangeBlocks"/>.</summary>
+    public int MaxTileRangeBlocks { get; set; }
+
+    /// <summary>The slack a server adds to the largest far view it serves: the streamed view (16 chunks) plus one tile —
+    /// room for a requested tile's own extent and for the player's position lagging behind on the server.</summary>
+    public const int TileRangeSlackBlocks = 16 * 16 + FarTerrainTile.TileBlocks;
+
+    /// <summary>What a server from before #3059 answers: the old largest far view (1024 blocks) plus the slack.</summary>
+    public const int LegacyMaxTileRangeBlocks = 1024 + TileRangeSlackBlocks;
 }
 
 /// <summary>Client → server (#1821): which far-terrain tiles the client's far view needs. Tiles are

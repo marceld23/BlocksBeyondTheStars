@@ -96,6 +96,64 @@ renders in **linear colour space**, and the hand-written shaders are all dual-pi
     (`BbtsDraught`, #2819).
   - *Rest in bed* (#2823): `UrpScenePost.SetRest` warms, dims (−0.6 EV) and closes the vignette in a little.
   - *Menu blur* fades over ~0.25 s by walking the gaussian start/end in from far away (the radius cannot reach 0, #2810).
+- **High details** (2026-11, epic #3066) — the High preset is **desktop-class**: these extras run only on High on a
+  desktop client (`HighDetails.Active` = High and not WebGL/mobile, `ClientSettings.FarViewLightDevice`), each behind its
+  own switch in *Settings → Graphics → Details (High)* (`ClientSettings.HighDetails.cs`, `UiSettings.HighDetails.cs`,
+  #3061). The browser keeps the plain High look. Every technique is still one WebGL 2 allows (fragment shaders,
+  instancing, camera renders, meshes — ADR 0015 §3 unchanged); High simply may cost more than a browser tab can afford.
+  No new shader keywords: each branch is a uniform branch on a global (`_Sc_Relief`, `_Sc_RoomProbe.w`, …). The capture
+  tool's `-highDetails Off|All` (with `-preset High`) gives the before/after on one build;
+  `scripts/clip-manifests/high-details-check.json` holds the scenes.
+  - *Shadows* (#3054, no switch): 4 cascades (the asset's 4-split ≈ 10/30/70/150 m) out to 150 m, and the sun's
+    soft-shadow quality High (`Sky.HighDetails.cs`; the shaders' plain `_SHADOWS_SOFT` branches on it at runtime).
+    Every other preset keeps 2 cascades and its distance (`ClientSettings.ApplyShadowTier`).
+  - *Parallax occlusion mapping* (#3055): `BlockTextureAtlas.Height.cs` builds an R8 height atlas next to the normal
+    atlas (desktop only; per-tile luminance, 3×3 blur, normalised so the brightest texel is the face), bound as
+    `_HeightTex` through `BindNormals`. The per-face relief — `BlockDefinition.Relief` or `BlockRelief.Default`
+    (Client.Core: brick 1.0, rock/ore 0.8, metal 0.5, everything else flat) — rides in the packed `Normal.w` at
+    114/127 (`ChunkMeshData.ReliefScale`; w > 0.95 is what a mesh with 3-component normals reads, kept flat).
+    `BbtsReliefUv` marches 12 fixed layers + one secant step in tangent space (≈ 4 cm × relief deep), clamps inside the
+    atlas cell and fades out from 12 to 24 m; explicit-gradient samples only (WebGPU). Cube faces only — shaped
+    blocks, painted, cutout, flora and see-through faces stay flat. The mesher's tangent now follows the 90° UV
+    rotation of natural top faces (the parallax shift and the normal-map light point the way the texture does), and
+    the normal atlas wraps its neighbour lookups inside each tile (#3065 — it used to take every tile's border relief
+    from the neighbouring texture).
+  - *Grass carpet and flowers* (#3056): the mesher records every open-topped plain-cube `grass`/`alien_grass`/`mycelium`
+    top (`ChunkMeshData.GrassTops` + `GrassLight`, on every preset, so switching needs no remesh); `GrassShells`
+    draws an instanced stack of 10 shells (0–0.18 m) per top within 20 m — strands cut from a hash (32 per block edge),
+    colour from the very atlas texel the strand grows out of (variant tile and turn mirrored by `MeadowField`, so texture
+    packs work), the block shader's lighting for an upward face (sun + shadow map, skylight, placed block light,
+    headlamp, haze, wind, wet/snow — snow presses the carpet down), flattening and thinning over the last 6 m. Flowers:
+    one plain-grass top in nine (a hash of the canonical cell), out to 28 m, in the world's floral palette
+    (`FloraTints.For` of four floral species), denser in spring, few in autumn, none in winter, growing in and sinking
+    out instead of popping; the sprite is painted at runtime (`FlowerSprite`). Never shadow casters. #3063 alongside:
+    the T0 tufts (`ScatterLit`, Medium+) now receive the sun shadow and have a DepthOnly pass. **Instancing variants:**
+    every instanced shader here (`ScatterLit`, `GrassShell`, `MeadowFlower`) is drawn with a material made at runtime,
+    so with *Instancing Variants: Strip Unused* the build dropped their `INSTANCING_ON` variants and
+    `Graphics.DrawMeshInstanced` drew nothing — the T0 tufts and pebbles had been invisible in player builds, and the
+    first carpet capture showed 1661 instances and no blade. `GraphicsSettings.asset` keeps them now
+    (`m_InstancingStripping: 2`, pinned by `RuntimeShaderInclusionTests`). The T0 scatter stays out of caves (skylight
+    ≥ 0.5): `ScatterLit` lights like an open-sky face, and cave pebbles glowed.
+  - *Room reflections* (#3057): `RoomBounds` (Client.Core) flood-fills the open cells from the camera (≤ 4096 cells,
+    ≤ 40 per axis, a parked ship's hull counts as wall) — a closed cabin or base room yields its box, an open door
+    yields nothing. `RoomReflections` renders the room with a realtime `ReflectionProbe` (128² HDR, a face per frame,
+    into the back of two cubes, so a face never samples the texture it is drawn into) on entering, after block edits
+    and every 4 s, and publishes `_Sc_RoomCube/_Sc_RoomProbe/_Sc_RoomMin/_Sc_RoomMax`. `BlockAtlas` box-projects it
+    (roughness → mip) and blends it in as the environment colour inside the room without the skylight gate. #3064:
+    `steel_wall`, `steel_floor`, `metal_panel`, `iron_block` and the module panels got gloss/metal in `blocks.json`.
+  - *Decals* (#3058): voxel-face scorch marks and craters — see [VFX.md](VFX.md) § Decals.
+  - *Far view "Maximum"* (#3059): a 2048-block step (`FarViewRange.Effective` caps it at 1024 below desktop High, the
+    stored choice stays); the server serves far build tiles out to 2368 m and tells the client its range in
+    `FarTerrainWorldInfo.MaxTileRangeBlocks` (an older server reads 0 = the legacy 1344).
+  - *Volumetric sun light* (#3060): a fragment raymarch, no compute — `VolumetricSunLight` enqueues
+    `VolumetricLightPass` (Render Graph, after transparents, so water and glass do not wipe a beam) on the world
+    cameras. At half resolution 24 fixed steps march to min(scene depth, shadow distance), sampling the raw sun shadow
+    map × cloud shade; the density is the haze's own (`_Sc_Fog` base + `BbtsMistDensity` height fog) plus a little dust
+    aboard, at home and under a roof or canopy (`VolumetricLightPolicy`); Henyey-Greenstein phase toward the sun; a
+    depth-aware blur and an **additive** upsample (`Blend One One`) — it can only add light, never darken (the June
+    attempt's colour round-trip darkened the frame). Off at night, in space or on airless worlds, under water, with a menu
+    open; the light-shaft cards stand down while it runs. Only the sun casts beams — torches, lanterns and lava are the
+    baked flood-fill light (ADR 0003).
 
 ## Design rationale worth keeping
 
@@ -124,25 +182,18 @@ renders in **linear colour space**, and the hand-written shaders are all dual-pi
 
 Ordered by impact ÷ effort. These are the next polish milestones; each is preset-gated.
 
-- **Shell texturing** (fur / grass / turf): render a surface as N extruded shells, each clipping a
-  strand-noise texture, with wind sway. Biggest on-foot win on grass ground; also drives fur on furred
-  creatures (we already generate `creature_fur.bytes`) and short turf on mossy rocks / flora. Cap K by
-  preset, fade with distance, top faces near the player only.
-- **Parallax Occlusion Mapping** (POM): march a height channel (packed in the atlas tile alpha) in
-  tangent space for fake depth on rock/ore, metal/hull panels and player-built brick/wall — recessed
-  seams, embedded ore nuggets. Builds straight on the existing normal mapping; gate step count by preset
-  + distance, keep heightScale small (voxel faces are 1 unit).
-- **Sky / atmosphere / volumetrics:** denser per-system nebula skybox, Rayleigh-ish atmospheric
-  scattering (horizon glow + sunrise/sunset tints). (Height fog, sun-warmed haze and light-shaft cards shipped
-  with the atmosphere package; a true volumetric pass stays out — it needs WebGPU-only compute and the June
-  full-screen attempt darkened the frame.)
-- **Detail-scatter extensions:** flowers as a third scatter kind, pairing with grass shells (wind sway shipped
-  with the atmosphere package).
+- **Shell texturing beyond grass:** the grass carpet shipped with the High details (#3056); fur on furred creatures
+  (we already generate `creature_fur.bytes`) and short turf on mossy rocks / flora are still open.
+- **Parallax on shaped blocks:** POM shipped for cube faces (#3055); ramps, domes and cones need UVs that follow
+  their tangents first.
+- **Sky / atmosphere:** denser per-system nebula skybox, Rayleigh-ish atmospheric scattering (horizon glow +
+  sunrise/sunset tints). (Height fog, sun-warmed haze and light-shaft cards shipped with the atmosphere package; the
+  volumetric sun light shipped with the High details as a fragment raymarch, #3060 — beams from torches and lava
+  would need the FX lights as point sources in the march.)
 - **Translucency / fake SSS:** shipped for leaves and plants (atmosphere package); still open for thin fauna
   membranes, ice and crystal blocks.
-- **Reflections:** reflection probes per interior/station (extends the current Fresnel sky reflection);
-  SSR for wet floors / hull is deferred (risky full-screen pass, low ROI).
-- **Decals:** scorch marks, impact craters, scanner pings — extends the existing `WeaponFx` impacts.
+- **Reflections:** room probes shipped (#3057); SSR for wet floors / hull is deferred (risky full-screen pass, low ROI).
+- **Decals:** scorch marks and craters shipped (#3058); scanner pings are still open.
 - **Triplanar mapping** for sloped/carved faces — unblocked now that non-axis geometry exists (shaped
   blocks incl. ramps/domes/cones, mesh flora).
 
@@ -158,6 +209,11 @@ Ordered by impact ÷ effort. These are the next polish milestones; each is prese
 - `client/Assets/BlocksBeyondTheStars/Scripts/BlockTextureAtlas.cs` — procedural colour + normal atlas (the
   code-painted tiles' base colours and per-block looks in `BlockTextureAtlas.CodeTiles.cs`).
 - `client/Assets/BlocksBeyondTheStars/Scripts/ClientSettings.cs` — preset gating of every effect.
+- High details (#3066): `HighDetails.cs` (the gate), `ClientSettings.HighDetails.cs`, `BlockTextureAtlas.Height.cs`,
+  `ChunkMesher.HighDetails.cs`, `GrassShells*.cs` + `MeadowAssets.cs` + `GrassShell`/`MeadowFlower` shaders,
+  `RoomReflections.cs`, `FxDecals*.cs` + `Decal.shader`, `VolumetricSunLight.cs` + `VolumetricLightPass.cs` +
+  `VolumetricLight.shader`; Unity-free logic in Client.Core: `BlockRelief`, `RoomBounds`, `MeadowField`,
+  `FlowerSprite`, `DecalFaces`, `VoxelRay`, `DecalPatterns`, `VolumetricLightPolicy`.
 
 ## Open questions
 

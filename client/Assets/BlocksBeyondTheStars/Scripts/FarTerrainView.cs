@@ -25,7 +25,8 @@ namespace BlocksBeyondTheStars.Client
         public GameBootstrap Game;
         public Camera Camera;
 
-        /// <summary>The player's far-view setting in blocks (0 = off).</summary>
+        /// <summary>The player's far-view setting in blocks (0 = off) as stored; "Maximum" (2048) applies on desktop High
+        /// only (<see cref="FarViewRange.Effective"/>, #3059).</summary>
         public int RangeSetting;
 
         private const int MaskSize = 64;                 // chunk columns per side of the column mask
@@ -38,7 +39,7 @@ namespace BlocksBeyondTheStars.Client
         /// player reported it from the browser build, at a landing pad.</summary>
         private const int NearCoverChunks = 6;
         private const float TileRequestSeconds = 0.5f;
-        private const int MaxPatches = 400;
+        private const int MaxPatches = 480; // #3059: a 2048-block far view needs under 300
 
         private static readonly int MaskTexId = Shader.PropertyToID("_Sc_FarMask");
         private static readonly int MaskParamsId = Shader.PropertyToID("_Sc_FarMaskParams");
@@ -122,6 +123,9 @@ namespace BlocksBeyondTheStars.Client
                 _worker = new Thread(WorkerLoop) { IsBackground = true, Name = "far-terrain", Priority = System.Threading.ThreadPriority.BelowNormal };
                 _worker.Start();
             }
+
+            // #3059: switching the preset into or out of High turns "Maximum" (2048) on or back to 1024 at once.
+            HighDetails.Changed += ApplyInfo;
         }
 
         /// <summary>Forgets the current world (GameBootstrap.OnWorldReset) — the next world's info and tiles follow.</summary>
@@ -166,7 +170,7 @@ namespace BlocksBeyondTheStars.Client
             _info = info;
             _epoch++;
             ClearPatches();
-            _overlay.Reset(info.Circumference);
+            _overlay.Reset(info.Circumference, info.MaxTileRangeBlocks); // #3059: never ask past what the server answers
             _plannedRange = -1;
             ApplyInfo();
         }
@@ -187,7 +191,8 @@ namespace BlocksBeyondTheStars.Client
                 PrepareFloraWash();
             }
 
-            ActiveRange = _source == null ? 0 : FarViewRange.ClampToWorld(RangeSetting, _source.Circumference, _source.LatitudePeriod);
+            int range = FarViewRange.Effective(RangeSetting, HighDetails.Active); // #3059: 2048 on desktop High only
+            ActiveRange = _source == null ? 0 : FarViewRange.ClampToWorld(range, _source.Circumference, _source.LatitudePeriod);
             // #2415: the shader tells a water sea (recoloured from the world's tint, vertex alpha 0.5) from a lava sea
             // (the old continuous glow in the alpha) by this global, not by the interpolated alpha itself.
             Shader.SetGlobalFloat(SeaWaterId, _source != null && _source.SeaIsWater ? 1f : 0f);
@@ -688,6 +693,7 @@ namespace BlocksBeyondTheStars.Client
                 Monitor.PulseAll(_lock);
             }
 
+            HighDetails.Changed -= ApplyInfo;
             if (_subscribed && Game?.Network != null)
             {
                 Game.Network.FarTerrainWorldInfoReceived -= OnWorldInfo;

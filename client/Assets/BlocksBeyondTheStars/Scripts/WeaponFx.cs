@@ -15,9 +15,10 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public sealed class WeaponFx : MonoBehaviour
     {
-        /// <summary>The look of a held weapon/tool fired from <paramref name="muzzle"/> (#2154).</summary>
-        public void Fire(FxLook look, Vector3 muzzle, Vector3 target, bool impact, Vector3 normal, bool local)
-            => FxShots.Fire(look, muzzle, target, impact, normal, local);
+        /// <summary>The look of a held weapon/tool fired from <paramref name="muzzle"/> (#2154); <paramref name="terrain"/> = it
+        /// ends on a block face, which keeps a scorch mark (#3058).</summary>
+        public void Fire(FxLook look, Vector3 muzzle, Vector3 target, bool impact, Vector3 normal, bool local, bool terrain = false)
+            => FxShots.Fire(look, muzzle, target, impact, normal, local, terrain);
 
         /// <summary>A melee swing of a held weapon (#2154).</summary>
         public void Swing(FxLook look, Vector3 center, Vector3 forward, Vector3 up, bool hit, Vector3 hitPoint, bool local)

@@ -63,6 +63,47 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         }
 
         [Test]
+        public void Pack_KeepsAnimationCodesAboveTheHalfRangeExact()
+        {
+            // #3062: tint mode + 16·frames + 256·speed + 1024·stripStart — strips start at atlas slot 400 or higher, so a
+            // real code is ≥ 409 600, far beyond a half float's 65 504 (the Float16 channel clamped it to a wrong strip).
+            var data = MakeData(4);
+            try
+            {
+                float code = 1f + 16f * 4f + 256f * 2f + 1024f * 983f;
+                data.SkyUv[2] = new Vector2(0.5f, code);
+                data.Pack();
+                Assert.AreEqual(code, data.Packed[2].SkyY, "the animation code must survive bit-exact");
+            }
+            finally
+            {
+                data.Release();
+            }
+        }
+
+        [Test]
+        public void Pack_WritesTheRecordedReliefIntoTheNormalW()
+        {
+            // #3055: a quad's parallax relief rides in Normal.w (SNorm8), only for the quads that recorded one.
+            var data = MakeData(8);
+            try
+            {
+                data.MarkRelief(4, 0.5f);
+                data.MarkRelief(0, 0f); // flat faces record nothing
+                data.Pack();
+                for (int i = 0; i < 4; i++)
+                {
+                    Assert.AreEqual(0, data.Packed[i].Nw, $"vertex {i} stays flat");
+                    Assert.That(Unpack(data.Packed[i + 4].Nw), Is.EqualTo(0.5f * ChunkMeshData.ReliefScale).Within(1f / 127f), $"vertex {i + 4}");
+                }
+            }
+            finally
+            {
+                data.Release();
+            }
+        }
+
+        [Test]
         public void Norms_QuantiseWithinOneQuantumAndHitTheEndpointsExactly()
         {
             Assert.AreEqual(127, ChunkMeshData.SNorm(1f));
@@ -106,8 +147,9 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
                     Assert.AreEqual(-1f, Unpack(p.Tw), "tangent handedness");
                     Assert.That(Unpack(p.Cr), Is.EqualTo(0.2f).Within(1f / 255f));
                     Assert.That(Unpack(p.Ca), Is.EqualTo(0.8f).Within(1f / 255f), "emission lives in colour.a");
-                    Assert.AreEqual(0.5f, Mathf.HalfToFloat(p.SkyX), "skylight");
-                    Assert.AreEqual(4f, Mathf.HalfToFloat(p.SkyY), "tint mode");
+                    Assert.AreEqual(0.5f, p.SkyX, "skylight");
+                    Assert.AreEqual(4f, p.SkyY, "tint mode");
+                    Assert.AreEqual(0, p.Nw, "no relief recorded → flat");
                     Assert.AreEqual(0.75f, Mathf.HalfToFloat(p.LeafW));
                     Assert.AreEqual(3f, Mathf.HalfToFloat(p.BlZ), "block light above 1 must not clamp");
                     Assert.AreEqual(-1f, Unpack(p.Dy), "block-light direction");

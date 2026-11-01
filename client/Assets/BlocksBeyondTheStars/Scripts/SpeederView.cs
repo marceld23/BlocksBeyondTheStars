@@ -337,6 +337,7 @@ namespace BlocksBeyondTheStars.Client
                     _fx.Flash(at, new Color(1f, 0.6f, 0.2f), 1.4f);
                     _fx.Sparks(at, new Color(1f, 0.55f, 0.18f), 22);
                     _fx.Sparks(at, new Color(0.3f, 0.3f, 0.3f), 14);
+                    FxDecals.Crater(at, 2.5f, FxDecals.CraterKind.Wreck); // #3058: a scorched patch with embers (High only)
                 }
                 else if (fx.Kind == "splash") // a boat set onto the water (#1215)
                 {

@@ -24,7 +24,7 @@ namespace BlocksBeyondTheStars.Client
     ///
     /// Capture must run HEADED (a real audio device) — under <c>-batchmode -nographics</c> the audio is silent.
     /// </summary>
-    public sealed class ClipDirector : MonoBehaviour
+    public sealed partial class ClipDirector : MonoBehaviour
     {
         private const string WorldName = "ClipShots";
         private string _worldName; // the run's throwaway world, deleted on quit (#2417)
@@ -77,6 +77,7 @@ namespace BlocksBeyondTheStars.Client
             d._clipName = cfg.clipName;
             d._preset = cfg.preset;
             d._atmosphere = cfg.atmosphere;
+            d._highDetails = cfg.highDetails;
             d._cosiness = cfg.cosiness;
             d._readbackCheck = cfg.readbackCheck;
         }
@@ -91,6 +92,7 @@ namespace BlocksBeyondTheStars.Client
             public string clipName;
             public string preset;
             public string atmosphere;
+            public string highDetails;
             public float cosiness;
             public bool readbackCheck;
         }
@@ -130,6 +132,10 @@ namespace BlocksBeyondTheStars.Client
                 else if (string.Equals(a, "-atmosphere", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
                 {
                     cfg.atmosphere = args[i + 1];
+                }
+                else if (string.Equals(a, "-highDetails", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                {
+                    cfg.highDetails = args[i + 1]; // #3061: Off|All — the High details' before/after on one build
                 }
                 else if (string.Equals(a, "-cosiness", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length
                          && float.TryParse(args[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cozy))
@@ -243,6 +249,8 @@ namespace BlocksBeyondTheStars.Client
                 shell.Settings.Apply();
                 Debug.Log($"[Clip] atmosphere={atmo} (restored on exit)");
             }
+
+            ApplyHighDetailsCapture(shell.Settings);
 
             // Capture at a cosiness (#2820) — WorldRig hands it to the post volume when the world builds.
             if (_cosiness >= 0f)
@@ -1314,6 +1322,7 @@ namespace BlocksBeyondTheStars.Client
         {
             Time.captureFramerate = 0;
             var shell = FindAnyObjectByType<AppShell>();
+            RestoreHighDetailsCapture(shell != null ? shell.Settings : null);
             if ((_presetApplied || _atmoApplied || _cosinessApplied) && shell != null && shell.Settings != null)
             {
                 if (_presetApplied)

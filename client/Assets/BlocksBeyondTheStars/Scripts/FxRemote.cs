@@ -119,9 +119,14 @@ namespace BlocksBeyondTheStars.Client
             switch (m.Kind)
             {
                 case FxActionKinds.Shot:
-                    FxShots.Fire(look, from, to, m.Hit, Vector3.zero, local: false);
+                {
+                    // #3058: only from/to arrive — a voxel walk finds the block face the shot ended on (High only).
+                    bool terrain = FxDecals.TerrainHit(m.Hit, from, ref to, out var hitNormal);
+                    FxShots.Fire(look, from, to, m.Hit, hitNormal, local: false, terrain: terrain);
                     PlayShotCue(look, from);
                     break;
+                }
+
                 case FxActionKinds.Melee:
                 {
                     var dir = to - from;

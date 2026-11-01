@@ -506,6 +506,12 @@ namespace BlocksBeyondTheStars.Client
             shafts.Probe = probe;
             shafts.MaxCards = ShaftCardsFor(shell.Settings);
 
+            // Volumetric sun light (#3060): the real beams on High (desktop); the shaft cards stand down meanwhile.
+            var volumetric = root.AddComponent<VolumetricSunLight>();
+            volumetric.Game = boot;
+            volumetric.Camera = cam;
+            volumetric.Sky = sky;
+
             // Far terrain (#1820): the low-resolution horizon beyond the streamed chunks, and the haze that reaches it (#1822).
             var farView = root.AddComponent<FarTerrainView>();
             farView.Game = boot;
@@ -659,6 +665,7 @@ namespace BlocksBeyondTheStars.Client
             // Missing hull cells of the parked ship, outlined in the world while the repair panel is up (#1368).
             var hullBreach = root.AddComponent<HullBreachView>();
             hullBreach.Game = boot;
+            root.AddComponent<RoomReflections>().Game = boot; // #3057: High (desktop) — glossy room faces show the room
 
             // Flora spawn/regrow cue: a growing sprout marks a harvested cell while its plant regrows.
             var floraGrowthFx = root.AddComponent<FloraGrowthFx>();
@@ -674,6 +681,7 @@ namespace BlocksBeyondTheStars.Client
             remoteFx.Game = boot;
             remoteFx.Remotes = remotes;
             remoteFx.Player = pc;
+            root.AddComponent<FxDecals>().Game = boot; // #3058: High (desktop) — scorch marks and craters on the block faces
             root.GetComponent<LiftView>().Player = pc; // #2266: a player on a platform rides along
 
             // Jetpack thrust flames for the local third-person avatar would render via the player's own VFX.
@@ -682,10 +690,11 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>How many light-shaft cards (#2402) a preset affords: High 12, Medium 6, Potato/Low none — and 0
-        /// when the player switched the effect off.</summary>
+        /// when the player switched the effect off, or while the volumetric sun light draws the real beams (#3060: no
+        /// double beams; <see cref="HighDetails.Configure"/> has run inside <c>ClientSettings.Apply</c> by then).</summary>
         public static int ShaftCardsFor(ClientSettings s)
         {
-            if (!s.AtmosphereEffect(s.LightShafts, cheap: false))
+            if (!s.AtmosphereEffect(s.LightShafts, cheap: false) || HighDetails.VolumetricLight)
             {
                 return 0;
             }

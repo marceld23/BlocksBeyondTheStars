@@ -69,6 +69,10 @@ public sealed class BlockDefinition
     /// <summary>Self-illumination 0 (none) .. 1 (full glow), or null for the built-in look.</summary>
     public float? Emission { get; set; }
 
+    /// <summary>Parallax relief 0 (flat) .. 1 (deep) of the block's faces on the High preset (#3055), or null for the
+    /// built-in look (the client's <c>BlockRelief.Default</c>: rock and ore 0.8, brick 1.0, metal 0.5, else flat).</summary>
+    public float? Relief { get; set; }
+
     /// <summary>Base RGB tint (0xRRGGBB) used for the procedural texture + color fallback, or null for the built-in palette.</summary>
     public int? Color { get; set; }
 

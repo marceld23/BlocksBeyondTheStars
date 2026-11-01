@@ -42,12 +42,17 @@ internal interface IFarTerrainHost : IServerHost
 internal sealed class FarTerrainSystem
 {
     /// <summary>The farthest tile centre (blocks, wrap-aware) a client may ask about: the largest far-view setting
-    /// (1024) plus the streamed view (16 chunks) and a tile of slack.</summary>
-    private const double FarTileMaxRangeBlocks = 1024 + 16 * 16 + FarTerrainTile.TileBlocks;
+    /// ("Maximum", 2048 since #3059) plus the streamed view (16 chunks) and a tile of slack — sent to the client as
+    /// <see cref="FarTerrainWorldInfo.MaxTileRangeBlocks"/>. Only tiles a client asks for are built, so the load stays
+    /// request-driven and paced by the token bucket below.</summary>
+    internal const int FarTileMaxRangeBlocks = 2048 + FarTerrainWorldInfo.TileRangeSlackBlocks;
 
     private const double FarTileTokensPerSecond = 48;
     private const double FarTileTokenBurst = 160;
-    private const int FarTilesSentCap = 4096;
+
+    /// <summary>Held tiles remembered per session for the refresh (forgotten all at once beyond it): a 2048-block far
+    /// view holds about 3200 tiles (#3059).</summary>
+    internal const int FarTilesSentCap = 8192;
 
     /// <summary>#1871: wall-clock milliseconds one tick spends BUILDING tiles from the repository. A built-up world
     /// (a city, a big base) made every tile a repository query worth tens of milliseconds and the client asks for
@@ -356,6 +361,7 @@ internal sealed class FarTerrainSystem
             TerrainGeneration = _host.Metadata.Description.TerrainGeneration,
             Void = world.Planet.Void,
             Pads = packed,
+            MaxTileRangeBlocks = FarTileMaxRangeBlocks,
         };
     }
 

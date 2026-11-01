@@ -54,10 +54,13 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         // palette, which none of the synthetic blocks has. The sky chunk is empty and unchanged.
         // Re-pinned 2026-10-30 (#3024): the four festival decorations (gift_box, paper_lantern, diya_lamp, flora_marigold)
         // shifted the ids once more; the mesher itself did not change. The sky chunk is empty and unchanged.
+        // Re-pinned 2026-11-01 (#3055): the tangent of a natural top/bottom face now follows its 90° UV rotation (it stayed
+        // on the unrotated U axis), and tufts are strewn on plain cube tops with a skylight of 0.5 or more (not on cave
+        // floors). Vertex and triangle counts did not change (15838 / 12876 verts); the sky chunk is empty and unchanged.
         private static readonly Dictionary<string, ulong> Pinned = new Dictionary<string, ulong>
         {
-            ["deep (5,1,7)"] = 0xb5c2adccacdfeed1UL,
-            ["surface (5,2,7)"] = 0x0156433929af1583UL,
+            ["deep (5,1,7)"] = 0xdc002a051b56d05dUL,
+            ["surface (5,2,7)"] = 0x99143075903ac051UL,
             ["sky (5,3,7)"] = 0xd6a8cf1a27eab505UL,
         };
 

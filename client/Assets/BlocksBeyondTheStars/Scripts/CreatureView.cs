@@ -1292,6 +1292,7 @@ namespace BlocksBeyondTheStars.Client
 
                         audio?.At("giant_stomp", at, 0.7f, Mathf.Clamp01(fx.Strength)); // a real footfall (2026-09-26; was a thunder placeholder)
                         player?.AddCameraShake(Mathf.Clamp01(1f - dist / 60f) * 0.9f * fx.Strength);
+                        FxDecals.Crater(at, fx.Radius * 0.6f, FxDecals.CraterKind.Quake); // #3058: the ground cracks (High only)
                         break;
                     case "strike":
                         for (int i = 0; i < 6; i++)
@@ -1302,6 +1303,7 @@ namespace BlocksBeyondTheStars.Client
 
                         audio?.At("sandworm_strike", at, 0.7f, 1f); // the head coming down (2026-09-26; was a thunder placeholder)
                         player?.AddCameraShake(Mathf.Clamp01(1f - dist / 80f));
+                        FxDecals.Crater(at, fx.Radius * 0.6f, FxDecals.CraterKind.Quake); // #3058
                         break;
                     case "breach":
                         audio?.At("sandworm_breach", at, 0.7f, 1f); // sand bursting + the roar (was the rumble call)
@@ -1311,6 +1313,7 @@ namespace BlocksBeyondTheStars.Client
                         Fx?.Dust(at + Vector3.up * 0.4f, 12);
                         audio?.At("sandworm_swallow", at, 0.7f, 1f);
                         player?.AddCameraShake(Mathf.Clamp01(1f - dist / 40f) * 0.25f);
+                        FxDecals.Crater(at, 1.6f, FxDecals.CraterKind.Quake); // #3058
                         break;
                     case "laser": // #2108: the drill laser cut a cell — the beam runs from the device (Radius blocks above) down to it
                         Fx?.Shoot(at + Vector3.up * Mathf.Max(1f, fx.Radius), at, new Color(0.45f, 0.92f, 1f));
@@ -1321,6 +1324,7 @@ namespace BlocksBeyondTheStars.Client
                         Fx?.Dust(at + Vector3.up * 0.3f, 16);
                         audio?.At("sandworm_dive", at, 0.6f, 0.8f); // the sand collapsing into the hole (was a thunder placeholder)
                         player?.AddCameraShake(Mathf.Clamp01(1f - dist / 90f) * 0.35f);
+                        FxDecals.Crater(at, 2.2f, FxDecals.CraterKind.Quake); // #3058
                         break;
                     case "rumble":
                         audio?.At("sandworm_rumble", at, 0.45f, 0.5f * Mathf.Clamp01(fx.Strength)); // something huge moving under the sand

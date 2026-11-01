@@ -69,12 +69,12 @@ public sealed class FarTerrainTileTests : IDisposable
 
         var canon = Shared.World.WorldConstants.CanonicalBlock(new Vector3i(bx, 200, bz), circ);
         int tx = canon.X >> 6, tz = canon.Z >> 6;
-        Assert.True(circ >= 4000, "the test needs a world wide enough for an out-of-range tile");
-        var far = Shared.World.WorldConstants.CanonicalBlock(new Vector3i(feet.X + 1800, 200, bz), circ);
+        Assert.True(circ >= 5400, "the test needs a world wide enough for an out-of-range tile");
+        var far = Shared.World.WorldConstants.CanonicalBlock(new Vector3i(feet.X + 2600, 200, bz), circ);
         int farTx = far.X >> 6;
         server.FarTerrainTileRequestForTest(p, new FarTerrainTileRequest { Tiles = new[] { tx, tz, farTx, tz } });
 
-        // In range: answered; ~1.8 km away (beyond every far view): refused, nothing scanned or sent.
+        // In range: answered; ~2.6 km away (beyond every far view, "Maximum" included): refused, nothing scanned or sent.
         Assert.True(p.Streaming.FarTilesSent.ContainsKey((tx, tz)), "the in-range tile should have been answered");
         Assert.False(p.Streaming.FarTilesSent.ContainsKey((farTx, tz)), "a tile beyond every far view must be refused");
         int firstVersion = p.Streaming.FarTilesSent[(tx, tz)];
@@ -132,6 +132,58 @@ public sealed class FarTerrainTileTests : IDisposable
 
         var request = new FarTerrainTileRequest { WorldId = 3, Tiles = new[] { 1, 2, 3, 4 } };
         Assert.Equal(request.Tiles, Assert.IsType<FarTerrainTileRequest>(NetCodec.Decode(NetCodec.Encode(request))).Tiles);
+    }
+
+    // ---------------- #3059: the "Maximum" far view (2048 blocks) on desktop High ----------------
+
+    [Fact]
+    public void TheMaximumFarView_IsServed_AndTheWorldInfoTellsTheClientHowFarTilesGo()
+    {
+        // A tile ~2 km away — refused by servers before #3059, which stopped at 1344 blocks — is answered now.
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "maximum"));
+        var config = new ServerConfig { WorldName = "maximum", Seed = 5, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        var server = new SvGameServer(config, Content, new LoopbackServerTransport(new LoopbackLink()), repo);
+        server.Start();
+        var p = server.AddLocalPlayer("Watcher");
+        var feet = p.State.Position.ToBlock();
+        int circ = server.World.Circumference;
+        Assert.True(circ >= 4400, "the test needs a world wide enough for a tile 2 km away");
+        var origin = Shared.World.WorldConstants.CanonicalBlock(feet, circ);
+        var far = Shared.World.WorldConstants.CanonicalBlock(new Vector3i(feet.X + 2000, feet.Y, feet.Z), circ);
+        var key = (far.X >> 6, origin.Z >> 6);
+        server.FarTerrainTileRequestForTest(p, new FarTerrainTileRequest { Tiles = new[] { key.Item1, key.Item2 } });
+        Assert.True(p.Streaming.FarTilesSent.ContainsKey(key), "a tile 2 km away lies inside the Maximum far view");
+
+        // The world info tells the client how far it may ask, so it never re-asks for refused tiles forever.
+        var info = server.BuildFarTerrainWorldInfo();
+        Assert.Equal(2048 + FarTerrainWorldInfo.TileRangeSlackBlocks, info.MaxTileRangeBlocks);
+        Assert.Equal(1344, FarTerrainWorldInfo.LegacyMaxTileRangeBlocks); // the radius of every server before #3059
+        Assert.True(BlocksBeyondTheStars.GameServer.FarTerrainSystem.FarTilesSentCap > Math.PI * 33 * 33,
+            "the per-session memory of held tiles fits a whole Maximum far view (~3200 tiles)");
+        server.Stop();
+    }
+
+    [Fact]
+    public void AnOlderServersWorldInfo_DecodesWithoutATileRange_AndTheNewFieldRoundTrips()
+    {
+        // MaxTileRangeBlocks is contractless-additive: a server from before #3059 sends no such key, the client reads
+        // 0 and falls back to the legacy radius (FarTerrainOverlay); an older client simply ignores the key.
+        var oldBody = MessagePack.MessagePackSerializer.Serialize(
+            new Dictionary<string, object>
+            {
+                ["WorldId"] = 4,
+                ["LocationId"] = "sys0-p1",
+                ["PlanetType"] = "rocky",
+                ["Circumference"] = 9600,
+                ["Pads"] = Array.Empty<int>(),
+            },
+            MessagePack.MessagePackSerializerOptions.Standard.WithResolver(MessagePack.Resolvers.ContractlessStandardResolver.Instance));
+        var old = Assert.IsType<FarTerrainWorldInfo>(NetCodec.Decode(new byte[] { 239 }.Concat(oldBody).ToArray())); // 239 = FarTerrainWorldInfo
+        Assert.Equal(9600, old.Circumference);
+        Assert.Equal(0, old.MaxTileRangeBlocks);
+
+        var info = new FarTerrainWorldInfo { WorldId = 4, Circumference = 9600, MaxTileRangeBlocks = 2368 };
+        Assert.Equal(2368, Assert.IsType<FarTerrainWorldInfo>(NetCodec.Decode(NetCodec.Encode(info))).MaxTileRangeBlocks);
     }
 
     // ---------------- #1871: the far-tile query must never scan the planet, and builds are paced per tick ----------------

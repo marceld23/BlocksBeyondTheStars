@@ -113,6 +113,7 @@ namespace BlocksBeyondTheStars.Client
             Shader.SetGlobalVector(GrassTintId, grassTuft != null && map.TryGetValue(grassTuft.NumericId.Value, out var grass)
                 ? new Vector4(grass.r, grass.g, grass.b, 1f) : Vector4.zero);
             ApplyFloraLooks();
+            ApplyMeadowPalette(); // #3056: the High preset's meadow flowers bloom in this world's floral colours
         }
 
         private static readonly int GrassTintId = Shader.PropertyToID("_Sc_GrassTint");

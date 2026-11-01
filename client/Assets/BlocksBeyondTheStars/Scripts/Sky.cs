@@ -297,6 +297,8 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            ApplySunShadowQuality(); // #3054: High (desktop) shadows soften with the High PCF kernel
+
             // The space view manages its own dark background + body lighting. Don't bleed the planet's
             // day/night tint or the biome colour-grade into it — that turned the whole space view reddish.
             if (Game.SpaceViewActive)

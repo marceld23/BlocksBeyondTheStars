@@ -111,7 +111,7 @@ namespace BlocksBeyondTheStars.Client
                         ? targetPos + Vector3.up * 0.4f
                         : ct.position + ct.forward * Mathf.Min(reach, terrainDist);
                     var normal = terrain ? FaceNormal(target, ct.forward) : -ct.forward;
-                    Weapons.Fire(look, from, target, targetId != null || terrain, normal, local: true);
+                    Weapons.Fire(look, from, target, targetId != null || terrain, normal, local: true, terrain: terrain);
                     SendFx(BlocksBeyondTheStars.Shared.Definitions.FxActionKinds.Shot, heldKey, from, target, targetId != null || terrain);
                 }
             }
