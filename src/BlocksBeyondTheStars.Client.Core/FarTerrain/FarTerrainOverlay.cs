@@ -45,13 +45,26 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
 
         public int Circumference { get; private set; } = WorldConstants.Circumference;
 
+        /// <summary>#3059: the farthest tile centre the server answers (<see cref="FarTerrainWorldInfo.MaxTileRangeBlocks"/>;
+        /// a server from before #3059 sends none and answers out to <see cref="FarTerrainWorldInfo.LegacyMaxTileRangeBlocks"/>).</summary>
+        public int ServerTileRangeBlocks { get; private set; } = FarTerrainWorldInfo.LegacyMaxTileRangeBlocks;
+
+        /// <summary>The farthest <see cref="NextRequest"/> reaches, whatever range it is given: the server's radius less its
+        /// slack. Beyond it the server would drop every request and the client would re-ask for the same tiles every
+        /// <see cref="RetryAfterSeconds"/> forever.</summary>
+        public int RequestRangeLimit => Math.Max(0, ServerTileRangeBlocks - FarTerrainWorldInfo.TileRangeSlackBlocks);
+
         /// <summary>Tiles received so far (diagnostics / tests).</summary>
         public int TileCount => _tiles.Count;
 
-        /// <summary>Forgets everything (a new world).</summary>
-        public void Reset(int circumference)
+        /// <summary>Forgets everything (a new world); the server's tile radius falls back to the legacy one.</summary>
+        public void Reset(int circumference) => Reset(circumference, 0);
+
+        /// <summary>Forgets everything (a new world) and takes the server's tile radius from its world info (0 = legacy).</summary>
+        public void Reset(int circumference, int serverTileRangeBlocks)
         {
             Circumference = circumference > 0 ? circumference : WorldConstants.Circumference;
+            ServerTileRangeBlocks = serverTileRangeBlocks > 0 ? serverTileRangeBlocks : FarTerrainWorldInfo.LegacyMaxTileRangeBlocks;
             _tiles.Clear();
             _versions.Clear();
             _requested.Clear();
@@ -137,18 +150,20 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
             return any;
         }
 
-        /// <summary>Up to <paramref name="max"/> tiles within <paramref name="range"/> of a scene position that were never
-        /// asked for, or asked for more than <see cref="RetryAfterSeconds"/> ago without an answer — nearest first, as
-        /// flat (tx, tz) pairs, marked requested at <paramref name="now"/>.</summary>
+        /// <summary>Up to <paramref name="max"/> tiles within <paramref name="range"/> (never past
+        /// <see cref="RequestRangeLimit"/>) of a scene position that were never asked for, or asked for more than
+        /// <see cref="RetryAfterSeconds"/> ago without an answer — nearest first, as flat (tx, tz) pairs, marked requested
+        /// at <paramref name="now"/>.</summary>
         public int[] NextRequest(float sceneX, float sceneZ, int range, int max, double now)
         {
-            if (range <= 0 || max <= 0)
+            int reach = Math.Min(range, RequestRangeLimit);
+            if (reach <= 0 || max <= 0)
             {
                 return Array.Empty<int>();
             }
 
             int t = FarTerrainTile.TileBlocks;
-            int r = (range + t - 1) / t;
+            int r = (reach + t - 1) / t;
             int cx = (int)Math.Floor(sceneX / t);
             int cz = (int)Math.Floor(sceneZ / t);
             var candidates = new List<(int Tx, int Tz, int D)>();

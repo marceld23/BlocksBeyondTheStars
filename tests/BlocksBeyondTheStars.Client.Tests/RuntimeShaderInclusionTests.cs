@@ -114,4 +114,15 @@ public sealed class RuntimeShaderInclusionTests
             "Own shaders used at runtime but missing from GraphicsSettings.asset m_AlwaysIncludedShaders: "
             + string.Join(", ", missing));
     }
+
+    /// <summary>The instanced shaders (ScatterLit, GrassShell, MeadowFlower) are drawn with materials made at runtime, so no
+    /// material in the build enables instancing. "Strip Unused" (0) then drops their INSTANCING_ON variants and
+    /// Graphics.DrawMeshInstanced draws nothing — the first High-details capture showed 1661 carpet instances per frame and
+    /// not a single blade (#3056). Keep All (2) keeps them.</summary>
+    [Fact]
+    public void InstancingVariants_AreKept_ForTheRuntimeInstancedShaders()
+    {
+        string graphics = File.ReadAllText(Client("ProjectSettings", "GraphicsSettings.asset"));
+        Assert.Contains("m_InstancingStripping: 2", graphics, System.StringComparison.Ordinal);
+    }
 }

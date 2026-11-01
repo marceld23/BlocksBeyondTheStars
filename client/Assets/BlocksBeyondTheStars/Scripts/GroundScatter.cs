@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -40,6 +41,7 @@ namespace BlocksBeyondTheStars.Client
         private Matrix4x4[] _tufts;
         private Matrix4x4[] _pebbles;
         private Vector3 _worldCenter;
+        private Vector3 _bakedPos; // the chunk position the world matrices were baked at
         private bool _ready;
 
         /// <summary>Rebuilds the instance matrices from a chunk's scatter points (local chunk space; xyz = cell-top
@@ -92,6 +94,7 @@ namespace BlocksBeyondTheStars.Client
             pebbles.Clear();
             _worldCenter = transform.TransformPoint(new Vector3(
                 WorldConstants.ChunkSize * 0.5f, WorldConstants.ChunkSize * 0.5f, WorldConstants.ChunkSize * 0.5f));
+            _bakedPos = transform.position;
             _ready = true;
             enabled = true;
         }
@@ -130,6 +133,17 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // The chunk moved across the world's seam (RepositionChunks moves it without a remesh): the baked world
+            // matrices follow it, or the tufts would stay behind on the far side of the world.
+            var pos = transform.position;
+            if (pos != _bakedPos)
+            {
+                Shift(_tufts, pos - _bakedPos);
+                Shift(_pebbles, pos - _bakedPos);
+                _worldCenter += pos - _bakedPos;
+                _bakedPos = pos;
+            }
+
             // Per-chunk distance cull: a chunk half-diagonal (~14) beyond MaxDistance is safely out of view.
             float cull = MaxDistance + WorldConstants.ChunkSize;
             if ((_cam.transform.position - _worldCenter).sqrMagnitude > cull * cull)
@@ -148,16 +162,33 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // #3063: tufts and pebbles receive the sun's shadow but cast none (ScatterLit has no ShadowCaster pass), so they
+            // stay out of the shadow pass's culling altogether.
             if (matrices.Length <= BatchSize)
             {
-                Graphics.DrawMeshInstanced(mesh, 0, _material, matrices, matrices.Length);
+                Graphics.DrawMeshInstanced(mesh, 0, _material, matrices, matrices.Length, null, ShadowCastingMode.Off, true);
                 return;
             }
 
             for (int i = 0; i < matrices.Length; i += BatchSize)
             {
                 int count = Mathf.Min(BatchSize, matrices.Length - i);
-                Graphics.DrawMeshInstanced(mesh, 0, _material, Slice(matrices, i, count), count);
+                Graphics.DrawMeshInstanced(mesh, 0, _material, Slice(matrices, i, count), count, null, ShadowCastingMode.Off, true);
+            }
+        }
+
+        private static void Shift(Matrix4x4[] matrices, Vector3 delta)
+        {
+            if (matrices == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < matrices.Length; i++)
+            {
+                matrices[i].m03 += delta.x;
+                matrices[i].m13 += delta.y;
+                matrices[i].m23 += delta.z;
             }
         }
 

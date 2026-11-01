@@ -447,10 +447,7 @@ namespace BlocksBeyondTheStars.Client
             _avgColor.Clear();
             RebindNormals();
             Changed?.Invoke();
-            if (oldNormals != null)
-            {
-                UnityEngine.Object.Destroy(oldNormals); // after the owners re-bound the new one
-            }
+            DestroyRetired(oldNormals); // after the owners re-bound the new ones
         }
 
         /// <summary>The pixels in a block's slot right now (whatever layer won), as a raw RGBA32 frame with rows
@@ -533,7 +530,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            material.SetTexture(NormalTexId, NormalTexture);
+            SetDerivedTextures(material);
             _normalUsers.RemoveAll(m => m == null); // destroyed materials compare equal to null in Unity
             if (!_normalUsers.Contains(material))
             {
@@ -546,7 +543,7 @@ namespace BlocksBeyondTheStars.Client
             _normalUsers.RemoveAll(m => m == null);
             foreach (var m in _normalUsers)
             {
-                m.SetTexture(NormalTexId, NormalTexture);
+                SetDerivedTextures(m);
             }
         }
 
@@ -945,60 +942,6 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Texture.SetPixels(dx, dy, Tile, Tile, px);
-        }
-
-        /// <summary>Derives the normal atlas from the finished colour atlas: per pixel, the luminance
-        /// gradient (Sobel) becomes a surface normal (treating brighter = higher), encoded in RGB.</summary>
-        private void BuildNormalAtlas()
-        {
-            int w = Cols * Tile, h = Rows * Tile;
-            // linear: normals are data, not colour — without this flag a Linear-color-space build would
-            // sRGB-decode the encoded normals on sample and break the per-pixel lighting on every block.
-            NormalTexture = new Texture2D(w, h, TextureFormat.RGBA32, mipChain: true, linear: true)
-            {
-                filterMode = FilterMode.Point,
-                wrapMode = TextureWrapMode.Clamp,
-            };
-
-            // Color32 (4 B/px) instead of Color (16 B/px): the two float arrays were 2 × 16 MiB — the largest
-            // contiguous managed allocations in the shell, rebuilt on every menu return, and on the non-compacting
-            // Mono heap the first thing to fail with OutOfMemory in a long session (#1463). Now 2 × 4 MiB.
-            var src = Texture.GetPixels32();
-            var dst = new Color32[w * h];
-            const float strength = 1.6f;
-            const float inv255 = 1f / 255f;
-
-            float Lum(int x, int y)
-            {
-                x = x < 0 ? 0 : (x >= w ? w - 1 : x);
-                y = y < 0 ? 0 : (y >= h ? h - 1 : y);
-                var c = src[y * w + x];
-                return (c.r * 0.299f + c.g * 0.587f + c.b * 0.114f) * inv255;
-            }
-
-            for (int y = 0; y < h; y++)
-            {
-                for (int x = 0; x < w; x++)
-                {
-                    float dx = Lum(x + 1, y) - Lum(x - 1, y);
-                    float dy = Lum(x, y + 1) - Lum(x, y - 1);
-                    var n = new Vector3(-dx * strength, -dy * strength, 1f).normalized;
-                    // Cavity/crevice AO packed into the (otherwise unused) alpha: steep luminance edges —
-                    // painted cracks, seams, rivets, grain — read as shallow pits, so the block shader can
-                    // darken them a touch for texture-scale depth on top of the per-vertex AO.
-                    float cav = Mathf.Clamp01(1f - Mathf.Sqrt(dx * dx + dy * dy) * 2.0f);
-                    dst[y * w + x] = new Color32(
-                        (byte)Mathf.RoundToInt((n.x * 0.5f + 0.5f) * 255f),
-                        (byte)Mathf.RoundToInt((n.y * 0.5f + 0.5f) * 255f),
-                        (byte)Mathf.RoundToInt((n.z * 0.5f + 0.5f) * 255f),
-                        (byte)Mathf.RoundToInt(cav * 255f));
-                }
-            }
-
-            NormalTexture.SetPixels32(dst);
-            // #1523: nothing reads the normal atlas back → drop its CPU copy (-5 MiB). The colour atlas stays
-            // readable on purpose: AverageColor, the editor palette and the shape icons sample its tiles.
-            NormalTexture.Apply(updateMipmaps: true, makeNoLongerReadable: true);
         }
 
         private readonly System.Collections.Generic.Dictionary<ushort, Color> _avgColor = new();

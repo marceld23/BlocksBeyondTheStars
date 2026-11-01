@@ -1,0 +1,12 @@
+{
+  "clips": [
+    { "name": "hd_plains_noon",   "scene": "surface", "planet": "",       "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "pitchStart": 18, "pitchEnd": 18, "timeOfDay": 0.5,  "weather": "clear" },
+    { "name": "hd_plains_dawn",   "scene": "surface", "planet": "",       "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.27, "weather": "clear" },
+    { "name": "hd_ridge_far",     "scene": "surface", "planet": "",       "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -60, "yawEnd": 60, "timeOfDay": 0.35, "weather": "clear", "pose": "ridge" },
+    { "name": "hd_forest_beams",  "scene": "surface", "planet": "jungle", "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.3,  "weather": "clear", "pose": "forest" },
+    { "name": "hd_cave_mouth",    "scene": "surface", "planet": "",       "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -40, "yawEnd": 40, "timeOfDay": 0.5,  "weather": "clear", "pose": "cave" },
+    { "name": "hd_rock_close",    "scene": "surface", "planet": "",       "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -60, "yawEnd": 60, "pitchStart": 35, "pitchEnd": 35, "timeOfDay": 0.4,  "weather": "clear", "pose": "cave" },
+    { "name": "hd_cabin_day",     "scene": "cockpit",                     "lengthSeconds": 2, "fps": 2, "hud": false, "camera": "pan", "yawStart": 150, "yawEnd": 210, "pitchStart": 20, "pitchEnd": 20, "timeOfDay": 0.5,  "weather": "clear" },
+    { "name": "hd_cabin_floor",   "scene": "cockpit",                     "lengthSeconds": 2, "fps": 2, "hud": false, "camera": "pan", "yawStart": 120, "yawEnd": 240, "pitchStart": 40, "pitchEnd": 40, "timeOfDay": 0.3,  "weather": "clear" }
+  ]
+}

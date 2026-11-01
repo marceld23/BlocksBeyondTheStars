@@ -13,7 +13,7 @@ namespace BlocksBeyondTheStars.Client
     /// Built in code on a DPI-independent canvas (UiKit) and rebuilt on each change. Numeric options use
     /// −/+ steppers with a fill bar (robust, no Slider component); booleans toggle; preset/language cycle.
     /// </summary>
-    public sealed class UiSettings : MonoBehaviour
+    public sealed partial class UiSettings : MonoBehaviour
     {
         private static readonly Color[] Palette =
         {
@@ -110,10 +110,12 @@ namespace BlocksBeyondTheStars.Client
                 y += 28f;
             }
 
-            // #1820: the far terrain beyond the streamed chunks — Off / 512 / 1024 blocks, applied live.
-            Cycle(ref y, L("ui.settings.far_view"), FarViewLabel(S.FarViewBlocks), () =>
+            // #1820: the far terrain beyond the streamed chunks — Off / 512 / 1024 blocks (+ 2048 on desktop High, #3059;
+            // the label shows the range in effect), applied live.
+            int farViewInEffect = BlocksBeyondTheStars.Client.FarTerrain.FarViewRange.Effective(S.FarViewBlocks, HighDetails.Active);
+            Cycle(ref y, L("ui.settings.far_view"), FarViewLabel(farViewInEffect), () =>
             {
-                S.FarViewBlocks = BlocksBeyondTheStars.Client.FarTerrain.FarViewRange.Next(S.FarViewBlocks);
+                S.FarViewBlocks = BlocksBeyondTheStars.Client.FarTerrain.FarViewRange.Next(S.FarViewBlocks, HighDetails.Active);
                 var boot = _shell.CurrentBoot;
                 if (boot != null)
                 {
@@ -176,6 +178,7 @@ namespace BlocksBeyondTheStars.Client
                 AtmoToggle(ref y, "soft_particles", S.SoftParticles, v => S.SoftParticles = v);
             }
 
+            HighDetailRows(ref y); // #3061: the desktop-class extras of the High preset
             Head(ref y, L("ui.settings.audio"));
             VolRow(ref y, L("ui.settings.master_volume"), () => S.MasterVolume, v => S.MasterVolume = v);
             VolRow(ref y, L("ui.settings.music_volume"), () => S.MusicVolume, v => S.MusicVolume = v);

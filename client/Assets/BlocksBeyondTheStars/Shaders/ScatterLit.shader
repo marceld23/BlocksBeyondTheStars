@@ -1,7 +1,9 @@
 // GPU-instanced lit shader for the ground-detail scatter layer (T0: grass tufts + pebbles strewn on open
 // ground). Albedo comes from the mesh vertex colour (tufts baked green, pebbles grey); lighting reuses the
 // same sun globals as the block atlas (_Sc_Light colour, _Sc_SunDir), so scatter reads under the same sun as
-// the terrain. Cheap N·L diffuse + an ambient floor — no shadows/normal maps (it's tiny throwaway detail).
+// the terrain. Cheap N·L diffuse + an ambient floor, no normal maps (it's tiny throwaway detail). #3063: the sun term
+// receives the real-time shadow map (the block shader's formula: shadow-distance fade, cloud shade), so tufts darken in
+// the shade of trees and cliffs; a DepthOnly pass puts them into the depth prepass. They still cast no shadows.
 //
 // DUAL-PIPELINE like BlockAtlas: SubShader 1 = URP (HLSL), SubShader 2 = Built-in (CG). Both declare GPU
 // instancing so Graphics.DrawMeshInstanced replicates the mesh across per-chunk instance matrices in one call.
@@ -23,7 +25,11 @@ Shader "BlocksBeyondTheStars/ScatterLit"
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_instancing
+            // #3063: receive the sun's real-time shadow map (the block shader's keywords).
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
+            #pragma multi_compile_fragment _ _SHADOWS_SOFT
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             #include "AtmosphereCommon.hlsl" // atmosphere package (#2408): the shared haze (#2393) + cloud shadows (#2394)
 
             float4 _Sc_Light;
@@ -89,10 +95,61 @@ Shader "BlocksBeyondTheStars/ScatterLit"
             {
                 float3 light = (_Sc_Light.a < 0.5) ? float3(1, 1, 1) : _Sc_Light.rgb;
                 float3 N = normalize(i.wn);
-                float ndl = saturate(dot(N, normalize(_Sc_SunDir.xyz))) * BbtsCloudShade(i.wp);
-                float3 col = ScatterBase(i.color) * light * (0.45 + 0.55 * ndl);
+                float ndl = saturate(dot(N, normalize(_Sc_SunDir.xyz)));
+                // #3063: the block shader's shadow term — the shadow map blended toward lit by the shadow-distance fade,
+                // times the cloud shade; skipped where the sun cannot reach anyway.
+                float shadow = (ndl > 0.0)
+                    ? lerp(MainLightRealtimeShadow(TransformWorldToShadowCoord(i.wp)), 1.0, GetMainLightShadowFade(i.wp))
+                      * BbtsCloudShade(i.wp)
+                    : 0.0;
+                float3 col = ScatterBase(i.color) * light * (0.45 + 0.55 * ndl * shadow);
                 col = BbtsApplyHaze(col, i.wp, 1.0); // scatter sits on open ground
                 return half4(col, 1);
+            }
+            ENDHLSL
+        }
+
+        // #3063: the depth prepass. URP draws only shaders that have this pass into a prepass (WebGL with MSAA, depth
+        // priming, effects that need depth before the opaques), so without it the tufts were missing from the depth
+        // texture. Same instanced transform and wind sway as the forward pass.
+        Pass
+        {
+            Name "DepthOnly"
+            Tags { "LightMode" = "DepthOnly" }
+            ZWrite On
+            ColorMask R
+
+            HLSLPROGRAM
+            #pragma vertex depthVert
+            #pragma fragment depthFrag
+            #pragma multi_compile_instancing
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "AtmosphereCommon.hlsl" // the tufts' wind sway
+
+            struct DAttr
+            {
+                float4 positionOS : POSITION;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            struct DVary
+            {
+                float4 positionCS : SV_POSITION;
+            };
+
+            DVary depthVert(DAttr v)
+            {
+                DVary o = (DVary)0;
+                UNITY_SETUP_INSTANCE_ID(v);
+                float3 wp = TransformObjectToWorld(v.positionOS.xyz);
+                wp += BbtsWindSway(wp, false, true, saturate(v.positionOS.y / 0.4));
+                o.positionCS = TransformWorldToHClip(wp);
+                return o;
+            }
+
+            half4 depthFrag(DVary i) : SV_Target
+            {
+                return 0;
             }
             ENDHLSL
         }

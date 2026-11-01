@@ -246,6 +246,7 @@ namespace BlocksBeyondTheStars.Client
             FxKit.Burst(FxKit.Kind.Sparks, at, 26, Vector3.zero, 0f, 5f, 12f, 0.05f, 0.09f, 0.4f, 0.8f, look.Color, look.Color2);
             FxKit.Burst(FxKit.Kind.Smoke, at, 10, Vector3.up, 80f, 0.6f, 1.8f, 0.6f, 1.1f, 1.2f, 2.2f, new Color(0.45f, 0.42f, 0.4f));
             FxLights.Flash(at, look.Color, 3.5f, 11f, 0.45f);
+            FxDecals.Crater(at, 4f, FxDecals.CraterKind.Blast); // #3058: a scorched crater with embers (High only)
             var cam = Camera.main;
             if (cam != null)
             {

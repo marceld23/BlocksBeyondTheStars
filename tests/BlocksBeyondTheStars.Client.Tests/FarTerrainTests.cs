@@ -24,12 +24,95 @@ public sealed class FarTerrainTests
         Assert.Equal(512, FarViewRange.Normalize(FarViewRange.Unset, browserOrMobile: true));
         Assert.Equal(0, FarViewRange.Normalize(0, false));
         Assert.Equal(512, FarViewRange.Normalize(600, false));
-        Assert.Equal(1024, FarViewRange.Normalize(5000, false));
-        Assert.Equal(512, FarViewRange.Next(0));
-        Assert.Equal(1024, FarViewRange.Next(512));
-        Assert.Equal(0, FarViewRange.Next(1024));
+        Assert.Equal(1024, FarViewRange.Normalize(1200, false));
+        Assert.Equal(512, FarViewRange.Next(0, highDesktop: false));
+        Assert.Equal(1024, FarViewRange.Next(512, highDesktop: false));
+        Assert.Equal(0, FarViewRange.Next(1024, highDesktop: false));
         Assert.Equal(1024, FarViewRange.ClampToWorld(1024, 6000, WorldConstants.LatitudePeriodFor(6000)));
         Assert.True(FarViewRange.ClampToWorld(1024, 800, WorldConstants.LatitudePeriodFor(800)) < 400, "an asteroid must not wrap into itself");
+    }
+
+    [Fact]
+    public void FarViewRange_Maximum_AppliesOnDesktopHighOnly_KeepsTheStoredChoice_AndClampsPerPlanet()
+    {
+        // #3059: stored values snap to the nearest step, "Maximum" included — on every client, so a preset switch
+        // never loses the choice.
+        Assert.Equal(512, FarViewRange.Normalize(768, browserOrMobile: false));
+        Assert.Equal(1024, FarViewRange.Normalize(769, false));
+        Assert.Equal(1024, FarViewRange.Normalize(1536, false));
+        Assert.Equal(2048, FarViewRange.Normalize(1537, false));
+        Assert.Equal(2048, FarViewRange.Normalize(2048, true));
+        Assert.Equal(2048, FarViewRange.Normalize(5000, false));
+        Assert.Equal(1024, FarViewRange.Normalize(FarViewRange.Unset, false)); // the desktop default stays 1024
+
+        // In effect: 2048 on desktop High only; everywhere else the far view stops at 1024.
+        Assert.Equal(2048, FarViewRange.Effective(FarViewRange.Maximum, highDesktop: true));
+        Assert.Equal(1024, FarViewRange.Effective(FarViewRange.Maximum, highDesktop: false));
+        Assert.Equal(1024, FarViewRange.Effective(1024, false));
+        Assert.Equal(512, FarViewRange.Effective(512, false));
+        Assert.Equal(0, FarViewRange.Effective(0, true));
+
+        // The cycle offers Maximum on desktop High only, and counts from the range in effect.
+        Assert.Equal(new[] { 512, 1024, 2048, 0 }, Cycle(0, highDesktop: true));
+        Assert.Equal(new[] { 512, 1024, 0 }, Cycle(0, highDesktop: false));
+        Assert.Equal(0, FarViewRange.Next(2048, highDesktop: false)); // shown as 1024 there, so Off comes next
+
+        // Still clamped per planet: a start planet (≥ 9600) gets all of it, a 6000-block world less.
+        Assert.Equal(2048, FarViewRange.ClampToWorld(2048, 9600, WorldConstants.LatitudePeriodFor(9600)));
+        int small = FarViewRange.ClampToWorld(2048, 6000, WorldConstants.LatitudePeriodFor(6000));
+        Assert.InRange(small, 1025, 2047);
+
+        // The view's patch cap (FarTerrainView.MaxPatches = 480) never cuts the Maximum horizon short.
+        foreach (var (x, z) in new[] { (0f, 0f), (63.5f, -100.25f), (127.9f, 255.9f) })
+        {
+            Assert.InRange(FarTerrainLayout.Desired(x, z, FarViewRange.Maximum).Count, 1, 480);
+        }
+    }
+
+    /// <summary>The settings cycle from <paramref name="start"/> until it comes back round.</summary>
+    private static int[] Cycle(int start, bool highDesktop)
+    {
+        var seen = new List<int>();
+        int value = start;
+        do
+        {
+            value = FarViewRange.Next(value, highDesktop);
+            seen.Add(value);
+        }
+        while (value != start && seen.Count < 10);
+
+        return seen.ToArray();
+    }
+
+    [Fact]
+    public void TheOverlay_NeverAsksPastTheServersTileRange_AndAnOlderServerStopsAtTheOldFarView()
+    {
+        // #3059: tiles beyond the server's radius are dropped there; asked for anyway, they would be re-asked every
+        // 8 s forever. A server from before #3059 sends no radius (0) and answers out to 1344 blocks.
+        const float X = 4800.5f, Z = 0.5f; // the middle of a 9600 world: no seam within 2 km
+        var legacy = new FarTerrainOverlay();
+        legacy.Reset(9600, 0);
+        Assert.Equal(FarTerrainWorldInfo.LegacyMaxTileRangeBlocks, legacy.ServerTileRangeBlocks);
+        Assert.Equal(1024, legacy.RequestRangeLimit);
+        double legacyFarthest = Farthest(legacy.NextRequest(X, Z, FarViewRange.Maximum, 100_000, now: 1.0), X, Z);
+        Assert.InRange(legacyFarthest, 1000, FarTerrainWorldInfo.LegacyMaxTileRangeBlocks);
+
+        var current = new FarTerrainOverlay();
+        current.Reset(9600, 2048 + FarTerrainWorldInfo.TileRangeSlackBlocks);
+        Assert.Equal(2048, current.RequestRangeLimit);
+        double farthest = Farthest(current.NextRequest(X, Z, FarViewRange.Maximum, 100_000, now: 1.0), X, Z);
+        Assert.InRange(farthest, 2000, current.ServerTileRangeBlocks);
+
+        // The one-argument reset (a world change before the info arrives) falls back to the legacy radius.
+        current.Reset(9600);
+        Assert.Equal(1024, current.RequestRangeLimit);
+    }
+
+    /// <summary>The farthest tile centre of a request from a scene position (no seam in between).</summary>
+    private static double Farthest(int[] pairs, float x, float z)
+    {
+        Assert.NotEmpty(pairs);
+        return Pairs(pairs).Max(t => Math.Sqrt(Math.Pow(t.Item1 * 64 + 32 - x, 2) + Math.Pow(t.Item2 * 64 + 32 - z, 2)));
     }
 
     [Fact]

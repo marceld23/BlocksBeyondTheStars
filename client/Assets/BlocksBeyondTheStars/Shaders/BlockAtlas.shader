@@ -16,6 +16,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
     {
         _MainTex ("Atlas", 2D) = "white" {}
         _NormalTex ("Normal", 2D) = "bump" {}
+        _HeightTex ("Height", 2D) = "white" {}
         _LeafCutoff ("Leaf alpha cutoff", Range(0,1)) = 0.5
     }
 
@@ -48,8 +49,15 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
 
             TEXTURE2D(_MainTex);   SAMPLER(sampler_MainTex);
             TEXTURE2D(_NormalTex); SAMPLER(sampler_NormalTex);
+            TEXTURE2D(_HeightTex); SAMPLER(sampler_HeightTex); // #3055: per-texel height (1 = surface), High only
 
             // Globals fed by Sky/player via Shader.SetGlobal* — kept outside any per-material cbuffer.
+            float  _Sc_Relief;     // #3055: 1 = High-preset parallax on (desktop), else 0
+            // #3057: the room the camera stands in (RoomReflections.cs) — its cube, box and blend weight (w = 0: none).
+            TEXTURECUBE(_Sc_RoomCube); SAMPLER(sampler_Sc_RoomCube);
+            float4 _Sc_RoomProbe;  // xyz = probe position (world), w = weight 0..1
+            float4 _Sc_RoomMin;    // xyz = room box min (world)
+            float4 _Sc_RoomMax;    // xyz = room box max (world), w = the cube's last mip
             float4 _Sc_Light;
             float4 _Sc_SunDir;
             float4 _Sc_Sky;
@@ -70,7 +78,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             struct Attributes
             {
                 float4 positionOS : POSITION;
-                float3 normal : NORMAL;
+                float4 normal : NORMAL;  // xyz = face normal, w = parallax relief 0..1 (#3055; 0 on meshes without it)
                 float4 tangent : TANGENT;
                 float2 uv : TEXCOORD0;
                 float2 sky : TEXCOORD1;  // x = skylight, y = tint mode (1 flora, 2 hull paint, 3 player dye, 4 bark)
@@ -87,7 +95,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float3 wn : TEXCOORD1;
                 float3 wp : TEXCOORD2;
                 float4 wt : TEXCOORD3;
-                float2 skyl : TEXCOORD4;
+                float3 skyl : TEXCOORD4; // x = skylight, y = tint mode, z = parallax relief (#3055)
                 float4 leaf : TEXCOORD5;
                 float4 mat : TEXCOORD6;
                 float3 bl : TEXCOORD7;
@@ -124,10 +132,12 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // #2519: torches and lanterns stand rigid, sheltered plants stand still (BbtsBlockSway).
                 wp += BbtsBlockSway(wp, v.leaf.x, tintMode, v.sky.x, frac(v.uv.y * 32.0));
                 o.positionCS = TransformWorldToHClip(wp);
-                o.wn = TransformObjectToWorldNormal(v.normal);
+                o.wn = TransformObjectToWorldNormal(v.normal.xyz);
                 o.wt = float4(TransformObjectToWorldDir(v.tangent.xyz), v.tangent.w);
                 o.wp = wp;
-                o.skyl = float2(v.sky.x, tintMode); // the fragment stage sees the plain tint mode
+                // The fragment stage sees the plain tint mode. Relief is packed at 114/127 of its value (ChunkMeshData.
+                // ReliefScale): a mesh built with 3-component normals reads w = 1 here and must stay flat.
+                o.skyl = float3(v.sky.x, tintMode, v.normal.w > 0.95 ? 0.0 : v.normal.w * (127.0 / 114.0));
                 o.leaf = v.leaf;
                 o.mat = v.color;
                 o.bl = v.bl;
@@ -135,9 +145,87 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 return o;
             }
 
+            // #3055: parallax occlusion mapping (High preset, desktop). Marches the height atlas in the face's tangent
+            // space — 12 fixed layers plus one secant step — and returns the UV where the view ray meets the relief.
+            // One block face is one atlas cell (1/32 of the UV range) and 1 m, so a shift of s metres is s/32 in UV; the
+            // result stays inside the cell (no neighbouring tile bleeds in). Explicit-gradient samples only: WebGPU
+            // allows no implicit derivatives inside a loop. Fades out between 12 and 24 m, where it would only alias.
+            float2 BbtsReliefUv(float2 uv, float2 dUx, float2 dUy, float3 wn, float4 wt, float3 wp, float relief)
+            {
+                float scale = 0.04 * relief * (1.0 - smoothstep(12.0, 24.0, distance(_WorldSpaceCameraPos, wp)));
+                if (scale < 0.0005)
+                {
+                    return uv;
+                }
+
+                float3 gN = normalize(wn);
+                float3 T = normalize(wt.xyz);
+                float3 B = normalize(cross(gN, T) * wt.w);
+                float3 V = normalize(_WorldSpaceCameraPos - wp);
+                float3 vT = float3(dot(V, T), dot(V, B), dot(V, gN));
+                float2 shiftMax = -vT.xy / max(vT.z, 0.2) * (scale / 32.0);
+                float2 cell = floor(uv * 32.0);
+                float2 lo = (cell + 0.02) / 32.0; // ~1.3 texels inside the cell, so the bilinear height never reads the next tile
+                float2 hi = (cell + 0.98) / 32.0;
+
+                float prevLayer = 0.0;
+                float prevDepth = 0.0;
+                float hitLayer = 1.0;
+                bool found = false;
+                [unroll]
+                for (int s = 0; s <= 12; s++)
+                {
+                    float layer = s / 12.0;
+                    float2 p = clamp(uv + shiftMax * layer, lo, hi);
+                    float depth = 1.0 - SAMPLE_TEXTURE2D_GRAD(_HeightTex, sampler_HeightTex, p, dUx, dUy).r;
+                    if (!found && layer >= depth)
+                    {
+                        float a = prevDepth - prevLayer; // the ray was above the relief at the previous layer …
+                        float b = layer - depth;         // … and is at or below it now: the crossing lies between
+                        hitLayer = s == 0 ? 0.0 : lerp(prevLayer, layer, a / max(a + b, 1e-4));
+                        found = true;
+                    }
+
+                    prevLayer = layer;
+                    prevDepth = depth;
+                }
+
+                return clamp(uv + shiftMax * hitLayer, lo, hi);
+            }
+
+            // #3057: how much the room cube replaces the sky reflection at wp — the probe's weight inside the room box,
+            // fading out within 0.6 m beyond it (walls, floor and ceiling lie on the box faces).
+            float BbtsRoomWeight(float3 wp)
+            {
+                float3 d = max(_Sc_RoomMin.xyz - wp, wp - _Sc_RoomMax.xyz);
+                return _Sc_RoomProbe.w * saturate(1.0 - max(max(d.x, d.y), d.z) / 0.6);
+            }
+
+            // #3057: the room's reflection along R, box-projected (parallax-corrected) onto the room box and blurred by
+            // roughness through the cube's mips.
+            float3 BbtsRoomReflection(float3 wp, float3 R, float rough)
+            {
+                float3 Rs = R + 1e-5 * (step(0.0, R) * 2.0 - 1.0); // never 0: a face on the box would divide 0 by 0
+                float3 toMax = (_Sc_RoomMax.xyz - wp) / Rs;
+                float3 toMin = (_Sc_RoomMin.xyz - wp) / Rs;
+                float3 far3 = max(toMax, toMin);
+                float t = min(min(far3.x, far3.y), far3.z);
+                float3 dir = wp + R * max(t, 0.0) - _Sc_RoomProbe.xyz;
+                return SAMPLE_TEXTURECUBE_LOD(_Sc_RoomCube, sampler_Sc_RoomCube, dir, rough * _Sc_RoomMax.w).rgb;
+            }
+
             half4 frag(Varyings i) : SV_Target
             {
-                float4 texel = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
+                // Explicit gradients from the mesh UV: the parallax offset below must not change the mip selection.
+                float2 dUx = ddx(i.uv);
+                float2 dUy = ddy(i.uv);
+                float2 uv = i.uv;
+                if (_Sc_Relief > 0.5 && i.skyl.z > 0.004)
+                {
+                    uv = BbtsReliefUv(i.uv, dUx, dUy, i.wn, i.wt, i.wp, i.skyl.z);
+                }
+
+                float4 texel = SAMPLE_TEXTURE2D_GRAD(_MainTex, sampler_MainTex, uv, dUx, dUy);
                 if (i.leaf.x > 0.5)
                 {
                     clip(texel.a - _LeafCutoff);
@@ -187,7 +275,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float3 gN = normalize(i.wn);
                 float3 T = normalize(i.wt.xyz);
                 float3 B = normalize(cross(gN, T) * i.wt.w);
-                float4 nrm = SAMPLE_TEXTURE2D(_NormalTex, sampler_NormalTex, i.uv);
+                float4 nrm = SAMPLE_TEXTURE2D_GRAD(_NormalTex, sampler_NormalTex, uv, dUx, dUy);
                 float3 tn = nrm.xyz * 2.0 - 1.0;
                 float3 N = normalize(tn.x * T + tn.y * B + tn.z * gN);
 
@@ -274,12 +362,25 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
 
                 // Environment reflection of the sky colour, roughness-aware: metals reflect strongly (tinted by
                 // F0) even head-on, dielectrics mostly at grazing angles (Fresnel). Additive, faded by skylight.
+                // #3057: inside a ship or base room (High, desktop) the room itself is reflected instead — no skylight
+                // gate there, a polished floor shows the lamps and walls around it.
                 float3 envCol = (_Sc_Sky.a < 0.5) ? light : _Sc_Sky.rgb;
+                float envShare = sky;
+                if (_Sc_RoomProbe.w > 0.001)
+                {
+                    float roomW = BbtsRoomWeight(i.wp);
+                    if (roomW > 0.0)
+                    {
+                        envCol = lerp(envCol, BbtsRoomReflection(i.wp, reflect(-V, N), rough), roomW);
+                        envShare = lerp(sky, 1.0, roomW);
+                    }
+                }
+
                 float nv = saturate(dot(N, V));
                 float fres = pow(1.0 - nv, 5.0);
                 float gr = 1.0 - rough;
                 float3 Fr = F0 + (max(float3(gr, gr, gr), F0) - F0) * fres;
-                col += envCol * Fr * (saturate(gloss) * sky * 0.5);
+                col += envCol * Fr * (saturate(gloss) * envShare * 0.5);
 
                 // Lava surface (mode 5) flows: a slow procedural crust redistributes the glow — dark cooled
                 // slabs drift over bright cracks (viscous, ~1/3 water speed; average brightness ≈ unchanged so

@@ -45,6 +45,17 @@ namespace BlocksBeyondTheStars.Client
             "BlocksBeyondTheStars/FxSpaceDust",
             "BlocksBeyondTheStars/FxTunnel",
             "BlocksBeyondTheStars/Wormhole", // #2242: no hitch when the first rift comes into view
+            "BlocksBeyondTheStars/Decal", // #3058: the first scorch mark (High) compiles behind the loading veil
+        };
+
+        /// <summary>The ground detail only ever draws GPU-instanced, so its variants carry INSTANCING_ON next to the sun-shadow
+        /// keywords (#3063 tufts, #3056 meadow) — warmed so the first tuft or meadow in a tree's shade costs no hitch. The
+        /// meadow runs on desktop clients only, so the browser skips its shaders.</summary>
+        private static readonly (string Name, bool DesktopOnly)[] InstancedShaders =
+        {
+            ("BlocksBeyondTheStars/ScatterLit", false),
+            ("BlocksBeyondTheStars/GrassShell", true),
+            ("BlocksBeyondTheStars/MeadowFlower", true),
         };
 
         // Keyword axes as declared by the shaders' multi_compile lines (only the modes the game actually sets:
@@ -102,9 +113,39 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            added += AddInstanced(collection, keywords);
             if (added > 0)
             {
                 collection.WarmUp();
+            }
+
+            return added;
+        }
+
+        /// <summary>Adds the instanced × shadow × soft-shadow variants of <see cref="InstancedShaders"/>.</summary>
+        private static int AddInstanced(ShaderVariantCollection collection, List<string> keywords)
+        {
+            int added = 0;
+            foreach (var (name, desktopOnly) in InstancedShaders)
+            {
+                var shader = desktopOnly && !HighDetails.DesktopClass ? null : Shader.Find(name);
+                if (shader == null)
+                {
+                    continue;
+                }
+
+                foreach (var shadow in ShadowKeywords)
+                    foreach (var soft in SoftKeywords)
+                    {
+                        keywords.Clear();
+                        keywords.Add("INSTANCING_ON");
+                        if (shadow != null) keywords.Add(shadow);
+                        if (soft != null) keywords.Add(soft);
+                        if (TryAdd(collection, shader, PassType.ScriptableRenderPipeline, keywords.ToArray()))
+                        {
+                            added++;
+                        }
+                    }
             }
 
             return added;

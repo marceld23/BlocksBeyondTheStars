@@ -343,6 +343,32 @@ Successful gadget uses broadcast `ActionFx` with `Outcome = true` to everyone in
 
 **No protocol bump:** the messages are cosmetic, and an older peer's `NetCodec.Decode` returns null for an unknown tag (`UnknownOrMalformedExtendedFrames_AreDropped`).
 
+### Decals: scorch marks and craters (#3058, High on desktop)
+
+Only on the High preset of a desktop client (`HighDetails.Decals`, the *Scorch marks and craters* switch). The browser
+and the lower presets never create one.
+
+- **Voxel-face decals, not depth projection.** A mark is a small mesh laid on the visible faces of the solid cells in
+  its box: one quad per exposed cube face, lifted a few millimetres, pulled in at convex edges by the mesher's bevel,
+  UVs projected into the mark's own plane. So a mark never lands on a creature or a player (they are not cells), never
+  slides, and needs neither the depth texture nor a stencil. `DecalFaces` (Client.Core) picks the faces: angle to the
+  mark's direction, radius across its plane, depth off it; a crater only marks faces that see a point above its centre,
+  so a cave ceiling or the far side of a pillar stays clean. Shaped blocks, glass, liquids, lava and flora are skipped
+  (`FxDecals.Classify`).
+- **Sources.** `FxDecals.Shot` at the moment a shot's impact plays (`FxShots`, terrain hits only — the local player
+  knows the exact face). Other players' shots arrive as from/to only: `VoxelRay` (an exact voxel DDA) finds the surface,
+  accepted within 0.3 m of `to`, and moves the beam's end onto it. `FxDecals.Crater` for the terrain blaster
+  (`FxGadgets.Blast`, 4 m, embers), creature stomp/strike/dive/swallow (`CreatureView.PlayWorldFx`, cracked ring) and a
+  destroyed speeder (`SpeederView`, 2.5 m, embers).
+- **Look.** A procedural 256² atlas (`DecalPatterns`, Client.Core): scorch, dent with a crack star, cracked quake ring,
+  burnt crater; R = soot, G = embers. `Decal.shader` multiplies the soot in (`Blend DstColor Zero` — the surface keeps its
+  own lighting) and adds the embers in a second material (`One One`, HDR, so bloom picks them up), queue `Geometry+400`,
+  `Offset -1,-1`, faded toward the haze in the distance.
+- **Life.** At most 64 marks, the oldest recycled; a repeat hit on the same spot renews it. 45 s, then a 15 s fade
+  (craters 90 s). A block change in a mark's box rebuilds it after 80 ms — a blaster crater scorches the freshly carved
+  faces, a small mark follows its surface when the block is mined. A world reset or hyperjump clears all; hidden in the
+  flight view.
+
 ## Budgets
 
 | Preset | Particle density | FX lights | Notes |

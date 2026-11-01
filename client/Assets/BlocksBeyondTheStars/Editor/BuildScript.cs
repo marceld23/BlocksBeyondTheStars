@@ -45,6 +45,7 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             "BlocksBeyondTheStars/BlockAtlas",
             "BlocksBeyondTheStars/BlockAtlasTransparent",
             "BlocksBeyondTheStars/Cloud",
+            "BlocksBeyondTheStars/Decal",        // #3058: the High preset's scorch marks and craters (FxDecals)
             "BlocksBeyondTheStars/FarTerrain",
             "BlocksBeyondTheStars/FxBeam",   // VFX overhaul (#2152): beams, rings, shells, holograms, chips, dust, warp, cracks
             "BlocksBeyondTheStars/FxRing",
@@ -55,8 +56,10 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             "BlocksBeyondTheStars/FxTunnel",
             "BlocksBeyondTheStars/FxCrack",
             "BlocksBeyondTheStars/FxOutline", // #2556: the blue selection frame on the aimed block (MiningFx)
+            "BlocksBeyondTheStars/GrassShell",   // #3056: the High preset's grass carpet (GrassShells)
             "BlocksBeyondTheStars/HeatHaze",
             "BlocksBeyondTheStars/LitColor",
+            "BlocksBeyondTheStars/MeadowFlower", // #3056: the High preset's meadow flowers (GrassShells.Flowers)
             "BlocksBeyondTheStars/Nebula",
             "BlocksBeyondTheStars/Particle",
             "BlocksBeyondTheStars/ParticleAlpha",
@@ -72,6 +75,7 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             "BlocksBeyondTheStars/VertexColorOpaque",
             "BlocksBeyondTheStars/Visor",
             "BlocksBeyondTheStars/VisorGlass",
+            "BlocksBeyondTheStars/VolumetricLight", // #3060: the volumetric sun light (VolumetricSunLight, High on desktop)
             "BlocksBeyondTheStars/Wormhole",   // #2242: the tear in space-time and its glow (WormholeView)
             "BlocksBeyondTheStars/WorldText",  // #2531: depth-tested world TextMesh labels (WorldTextMaterial)
             "BlocksBeyondTheStars/UiHolo",   // shader-drawn HUD chrome (UiHolo.cs)

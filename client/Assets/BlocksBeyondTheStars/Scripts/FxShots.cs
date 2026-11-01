@@ -25,8 +25,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Fires the look of a ranged weapon from <paramref name="muzzle"/> toward <paramref name="target"/>.
         /// <paramref name="impact"/> = the shot ends on something (entity or terrain) rather than fizzling at max range;
         /// <paramref name="normal"/> is the surface normal there (zero = unknown). <paramref name="local"/> = it is the
-        /// player's own shot (camera kick and the charge-up run only then).</summary>
-        public static void Fire(FxLook look, Vector3 muzzle, Vector3 target, bool impact, Vector3 normal, bool local)
+        /// player's own shot (camera kick and the charge-up run only then). <paramref name="terrain"/> = the shot ends on a
+        /// block face (<paramref name="normal"/> its outward normal): the impact leaves a scorch mark (#3058, High only).</summary>
+        public static void Fire(FxLook look, Vector3 muzzle, Vector3 target, bool impact, Vector3 normal, bool local, bool terrain = false)
         {
             var dir = target - muzzle;
             if (dir.sqrMagnitude < 1e-4f)
@@ -43,23 +44,23 @@ namespace BlocksBeyondTheStars.Client
             switch (look.Style)
             {
                 case "rail":
-                    Rail(look, muzzle, target, dir, impact, normal, local);
+                    Rail(look, muzzle, target, dir, impact, normal, local, terrain);
                     break;
                 case "slug":
-                    Slug(look, muzzle, target, dir, impact, normal, local);
+                    Slug(look, muzzle, target, dir, impact, normal, local, terrain);
                     break;
                 case "plasma":
-                    Plasma(look, muzzle, target, dir, impact, normal, local);
+                    Plasma(look, muzzle, target, dir, impact, normal, local, terrain);
                     break;
                 default:
-                    Laser(look, muzzle, target, dir, impact, normal, local);
+                    Laser(look, muzzle, target, dir, impact, normal, local, terrain);
                     break;
             }
         }
 
         // ------------------------------------------------------------------ ranged
 
-        private static void Laser(FxLook look, Vector3 muzzle, Vector3 target, Vector3 dir, bool impact, Vector3 normal, bool local)
+        private static void Laser(FxLook look, Vector3 muzzle, Vector3 target, Vector3 dir, bool impact, Vector3 normal, bool local, bool terrain)
         {
             Muzzle(look, muzzle, dir, 0.32f);
             var mat = FxKit.BeamMaterial("laser", look.Color2, coreWidth: 0.34f, noiseScale: 1.4f, noiseSpeed: 16f, intensity: 3f);
@@ -72,6 +73,7 @@ namespace BlocksBeyondTheStars.Client
             if (impact)
             {
                 Impact(look, target, normal, dir, 1f);
+                ScorchIf(terrain, look, target, normal);
                 // A hot spot that cools: a lingering ember glow where the beam landed.
                 FxKit.Emit(FxKit.Kind.Glow, target + normal * 0.04f, Vector3.zero, 0.32f, 0.9f, Color.Lerp(look.Color, new Color(1f, 0.55f, 0.2f), 0.5f));
                 if (FxKit.Rich)
@@ -85,7 +87,7 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private static void Rail(FxLook look, Vector3 muzzle, Vector3 target, Vector3 dir, bool impact, Vector3 normal, bool local)
+        private static void Rail(FxLook look, Vector3 muzzle, Vector3 target, Vector3 dir, bool impact, Vector3 normal, bool local, bool terrain)
         {
             float charge = local ? Mathf.Clamp(look.Charge, 0f, 0.4f) : 0f;
             if (charge > 0f)
@@ -124,11 +126,12 @@ namespace BlocksBeyondTheStars.Client
                 if (impact)
                 {
                     Impact(look, target, normal, dir, 1.2f);
+                    ScorchIf(terrain, look, target, normal);
                 }
             });
         }
 
-        private static void Slug(FxLook look, Vector3 muzzle, Vector3 target, Vector3 dir, bool impact, Vector3 normal, bool local)
+        private static void Slug(FxLook look, Vector3 muzzle, Vector3 target, Vector3 dir, bool impact, Vector3 normal, bool local, bool terrain)
         {
             // A brass muzzle star: a flash plus a few fast streaks fanning forward.
             Muzzle(look, muzzle, dir, 0.3f);
@@ -144,12 +147,13 @@ namespace BlocksBeyondTheStars.Client
                 if (impact)
                 {
                     Impact(look, target, normal, dir, 0.9f);
+                    ScorchIf(terrain, look, target, normal);
                     FxKit.Burst(FxKit.Kind.Dust, target + normal * 0.08f, 4, normal, 50f, 0.4f, 1.2f, 0.12f, 0.22f, 0.4f, 0.8f, new Color(0.62f, 0.57f, 0.5f));
                 }
             });
         }
 
-        private static void Plasma(FxLook look, Vector3 muzzle, Vector3 target, Vector3 dir, bool impact, Vector3 normal, bool local)
+        private static void Plasma(FxLook look, Vector3 muzzle, Vector3 target, Vector3 dir, bool impact, Vector3 normal, bool local, bool terrain)
         {
             Muzzle(look, muzzle, dir, 0.42f);
             if (local)
@@ -167,6 +171,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 Impact(look, target, normal, dir, 1.4f);
+                ScorchIf(terrain, look, target, normal);
                 FxKit.Ring(target + normal * 0.05f, normal, look.Color, 0.15f, 1.6f, 0.45f, thickness: 0.22f, fill: 0.12f, intensity: 2.4f);
                 FxKit.Burst(FxKit.Kind.Motes, target, 10, normal, 70f, 0.6f, 2.2f, 0.04f, 0.08f, 0.5f, 0.9f, look.Color, look.Color2);
                 FxLights.Flash(target + normal * 0.4f, look.Color, 2.2f, 8f, 0.3f);
@@ -224,6 +229,15 @@ namespace BlocksBeyondTheStars.Client
             var bounce = Vector3.Reflect(dir, normal) * 0.6f + normal * 0.4f;
             FxKit.Burst(FxKit.Kind.Sparks, at + normal * 0.05f, Mathf.RoundToInt(10 * strength), bounce, 55f, 3f, 8.5f, 0.04f, 0.07f, 0.25f, 0.5f, look.Color, look.Color2);
             FxLights.Flash(at + normal * 0.5f, look.Color, 1.6f * strength, 5.5f, 0.16f);
+        }
+
+        /// <summary>#3058: a shot that ended on a block face leaves its mark there (Details (High) only — a no-op otherwise).</summary>
+        private static void ScorchIf(bool terrain, FxLook look, Vector3 at, Vector3 normal)
+        {
+            if (terrain)
+            {
+                FxDecals.Shot(look, at, normal);
+            }
         }
 
         // ------------------------------------------------------------------ melee

@@ -172,7 +172,7 @@ namespace BlocksBeyondTheStars.Client
     }
 
     [Serializable]
-    public sealed class ClientSettings
+    public sealed partial class ClientSettings
     {
         // Graphics
         public QualityPreset Preset = QualityPreset.Medium;
@@ -206,7 +206,8 @@ namespace BlocksBeyondTheStars.Client
         public const int DesktopDefaultViewDistanceChunks = 8;
 
         /// <summary>"Far view" (#1820): how far the low-resolution far terrain beyond the streamed chunks reaches, in
-        /// blocks — 0 (off), 512 or 1024. Stored as -1 until resolved: <see cref="Load"/> then picks the platform
+        /// blocks — 0 (off), 512, 1024 or 2048 ("Maximum", in effect on desktop High only — #3059,
+        /// <c>FarViewRange.Effective</c>). Stored as -1 until resolved: <see cref="Load"/> then picks the platform
         /// default (native desktop 1024; every browser build and phone/tablet 512) for new AND existing installs, and
         /// the resolved value is what gets saved from then on.</summary>
         public int FarViewBlocks = BlocksBeyondTheStars.Client.FarTerrain.FarViewRange.Unset;
@@ -1224,6 +1225,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.ReducedMotion = ReducedEffects; // UI transitions snap instantly for reduced-effects users
             UiKit.SetUserScale(UiScale);          // HUD canvases + the IMGUI leftovers follow the UI-scale setting
             FxKit.Configure(Preset, ReducedEffects, ScreenShake, ReduceFlashes, CameraMotion); // #2152: effect density + comfort
+            HighDetails.Configure(this); // #3066: the desktop-class extras of the High preset
 
             int levels = QualitySettings.names != null ? QualitySettings.names.Length : 0;
             if (levels > 0)
@@ -1237,18 +1239,12 @@ namespace BlocksBeyondTheStars.Client
             QualitySettings.vSyncCount = VSync ? 1 : 0;
             Application.targetFrameRate = (!VSync && FrameRateCap > 0) ? FrameRateCap : -1;
 
-            // URP: one pipeline asset serves every quality level, so scale the expensive part — shadow reach —
-            // by preset here (Potato: shadows off entirely; High: the full tuned distance).
+            // URP: one pipeline asset serves every quality level, so scale the expensive part — shadow reach,
+            // cascades and map size — by preset here (ClientSettings.HighDetails.cs).
             if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline
                 is UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset urp)
             {
-                urp.shadowDistance = Preset switch
-                {
-                    QualityPreset.Potato => 0f,
-                    QualityPreset.Low => 40f,
-                    QualityPreset.Medium => 70f,
-                    _ => 90f,
-                };
+                ApplyShadowTier(urp);
 
                 // MSAA / HDR / render scale live in the same single URP asset, so without this they were baked
                 // on for EVERY preset (4x MSAA + HDR even on Potato and WebGL). Scale them with the preset:
@@ -1268,12 +1264,6 @@ namespace BlocksBeyondTheStars.Client
                 urp.supportsHDR = Preset > QualityPreset.Potato && !webglLow;
                 UrpScenePost.Instance?.SetTonemapForHdr(urp.supportsHDR); // LDR gets Neutral, not ACES (#1457)
                 urp.renderScale = Preset == QualityPreset.Potato ? 0.75f : webglLow ? 0.8f : 1f;
-
-                // The shared asset bakes a 4096 main-light shadowmap for every level, but only High reaches far
-                // enough (90 m) to justify it — Medium and below cover 70 m or less, where 2048 is visually
-                // indistinguishable yet halves the shadow render cost. Keep High on 4096, drop the rest to 2048
-                // (irrelevant on Potato, which turns shadows off via shadowDistance 0 above).
-                urp.mainLightShadowmapResolution = Preset >= QualityPreset.High ? 4096 : 2048;
 
                 // Depth + opaque copies feed the screen-space effects (volumetric fog, SSR, water refraction).
                 // They cost a prepass + a colour copy, so the two weakest presets turn them off entirely —

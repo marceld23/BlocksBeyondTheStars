@@ -346,9 +346,6 @@ namespace BlocksBeyondTheStars.Client
             var blockLight = data.BlockLight; // TEXCOORD3: propagated coloured block-light at each vertex (0..1 rgb)
             var blockLightDir = data.BlockLightDir; // TEXCOORD4: dominant block-light direction (toward source), 0 = none
             var tangents = data.Tangents; // per-face tangents for normal mapping
-            // Ground-detail scatter points (not part of the mesh): xyz = local cell-top position, w = type
-            // (0 = grass tuft, 1 = pebble). GroundScatter draws them GPU-instanced, culled + quality-gated.
-            var scatter = data.Scatter;
 
             var origin = WorldConstants.ChunkOrigin(chunk.Coord);
             int n = WorldConstants.ChunkSize;
@@ -938,20 +935,14 @@ namespace BlocksBeyondTheStars.Client
                 float accentCode = floraTinted && !dyed && floraTint != null && (tf & TraitAccentFlora) != 0
                     ? AccentCodeAt(wx, wz) : 0f;
 
-                // Ground-detail scatter (T0): on planet chunks, strew a sparse deterministic set of tufts/
-                // pebbles on open-topped ground cells. Render-only decoration drawn instanced by GroundScatter
-                // (no collider, no mesh geometry) — a world-cell hash keeps it stable + identical on all clients.
-                if (atlas != null)
+                // Ground detail on open-topped planet ground cells: the T0 tufts/pebbles and the #3056 grass carpet.
+                // Render-only, drawn instanced (ChunkMesher.HighDetails.cs → GroundScatter / GrassShells).
+                // Plain cube tops only: on a grass slab or stair a tuft or the carpet would float above the shape.
+                if (atlas != null && (traits.ScatterOf(id) >= 0 || traits.CarpetOf(id)) && worldBlock(wx, wy + 1, wz).IsAir
+                    && ShapeCode.IsCube(chunk.GetShapeLocal(WorldConstants.LocalIndex(x, y, z))))
                 {
-                    int stype = traits.ScatterOf(id);
-                    if (stype >= 0 && worldBlock(wx, wy + 1, wz).IsAir)
-                    {
-                        int sh = unchecked(wx * 374761393 + wz * 668265263 + stype * 1013904223);
-                        if ((uint)sh % 7u == 0u)
-                        {
-                            scatter.Add(new Vector4(x + 0.5f, y + 1f, z + 0.5f, stype));
-                        }
-                    }
+                    AddGroundDetail(data, traits, id, x, y, z, wx, wz, Skylight(wx, wy + 1, wz),
+                        traits.CarpetOf(id) ? BlockLightAt(wx, wy + 1, wz) : Vector3.zero);
                 }
 
                 // Natural-block variation: a deterministic WORLD-position hash (stable across remeshes,
@@ -1524,6 +1515,7 @@ namespace BlocksBeyondTheStars.Client
                     AddFace(verts, designId != 0 ? trisP : transparent ? trisT : tris, colors, uvs, tangents, new Vector3(x, y, z), f,
                         c0, c1, c2, c3, designId != 0 ? designRect : faceUv,
                         designId != 0 ? 0 : faceRot, bevelQuad); // rotate only top/bottom faces — sides keep their up-orientation (painted faces never rotate)
+                    data.MarkRelief(verts.Count - 4, designId == 0 && !transparent ? traits.ReliefOf(id) : 0f); // #3055
                     if (collidable)
                     {
                         // Recorded as a direction bit; the greedy pass after the loop merges these into big
@@ -2904,7 +2896,7 @@ namespace BlocksBeyondTheStars.Client
         private const uint TraitGroveTint = 1u << 29;         // #2856: a tinted crown or a trunk — its colour drifts gently between groves
         private const uint TraitPaletteFlora = 1u << 30;      // #3005: a solid plant body whose every cell picks its colour from the species' palette (the pumpkin)
 
-        private sealed class BlockTraits
+        private sealed partial class BlockTraits
         {
             public readonly GameContent Content;
             private readonly uint[] _flags;
@@ -3076,14 +3068,14 @@ namespace BlocksBeyondTheStars.Client
             // Per-corner colours (AO in .b) in the same q0..q3 order as the verts/uvs below.
             colors.Add(col0); colors.Add(col1); colors.Add(col2); colors.Add(col3);
 
-            // Tangent = world-space U direction (q0→q3, matching the UV mapping below); w = bitangent
-            // handedness. Lets the shader transform the tangent-space normal map into world space.
-            // (A rotated UV set rotates the normal-map relief with it — for the noisy natural tiles
-            // that use uvRot the slight lighting rotation is invisible, so the tangent stays as-is.)
+            // Tangent = world-space direction of +u, w = handedness toward +v, for the UV mapping below: q0→q3 is +u and
+            // q0→q1 is +v, turned with the 90° UV rotation (#3055 — the parallax shift and the normal-map light of a
+            // rotated top face now point the way its texture does). Lets the shader work in the tile's tangent space.
             Vector3 e1 = q[1] - q[0], e3 = q[3] - q[0];
             Vector3 nrm = Vector3.Cross(e1, e3).normalized;
-            Vector3 tan = e3.normalized;
-            float hand = Vector3.Dot(Vector3.Cross(nrm, tan), e1) < 0f ? -1f : 1f;
+            Vector3 tan = ((uvRot & 3) switch { 1 => e1, 2 => -e3, 3 => -e1, _ => e3 }).normalized;
+            Vector3 vDir = (uvRot & 3) switch { 1 => -e3, 2 => -e1, 3 => e3, _ => e1 };
+            float hand = Vector3.Dot(Vector3.Cross(nrm, tan), vDir) < 0f ? -1f : 1f;
             var tv = new Vector4(tan.x, tan.y, tan.z, hand);
             tangents.Add(tv); tangents.Add(tv); tangents.Add(tv); tangents.Add(tv);
 
@@ -3294,7 +3286,7 @@ namespace BlocksBeyondTheStars.Client
     /// POOLED: instances come from <see cref="Rent"/> and the consumer MUST call <see cref="Release"/> once the
     /// data has been uploaded or discarded — the lists (and their large backing arrays) are then reused by the
     /// next build instead of becoming per-remesh garbage.</summary>
-    public sealed class ChunkMeshData
+    public sealed partial class ChunkMeshData
     {
         public readonly List<Vector3> Verts = new List<Vector3>();
         public readonly List<int> OpaqueTris = new List<int>();       // submesh 0 (BlockAtlas)
@@ -3313,6 +3305,7 @@ namespace BlocksBeyondTheStars.Client
         public Bounds Bounds;
         public Bounds ColliderBounds;
         public readonly List<Vector4> Scatter = new List<Vector4>();  // ground-detail scatter points (xyz = local pos, w = type); NOT uploaded to the mesh
+        public readonly List<Vector4> GrassTops = new List<Vector4>(); // #3056 carpet tops (xyz = local top centre, w = block id + skylight fraction); NOT uploaded
 
         /// <summary>The interleaved GPU vertex buffer produced by <see cref="Pack"/> — <see cref="PackedCount"/>
         /// valid entries (the array itself is grown geometrically and reused with the pooled instance).</summary>
@@ -3392,7 +3385,7 @@ namespace BlocksBeyondTheStars.Client
 
                 Verts.Clear(); OpaqueTris.Clear(); TransparentTris.Clear(); PaintTris.Clear(); ColliderTris.Clear(); ColliderVerts.Clear();
                 Colors.Clear(); Uvs.Clear(); SkyUv.Clear(); LeafUv.Clear();
-                BlockLight.Clear(); BlockLightDir.Clear(); Tangents.Clear(); Normals.Clear(); Scatter.Clear();
+                BlockLight.Clear(); BlockLightDir.Clear(); Tangents.Clear(); Normals.Clear(); Scatter.Clear(); GrassTops.Clear(); GrassLight.Clear(); ReliefRuns.Clear();
                 PackedCount = 0; // the array itself stays — it is the buffer the next build packs into
                 ColliderHash = 0;
                 Connectivity = BlocksBeyondTheStars.Client.ChunkVisibility.AllConnected;
@@ -3406,7 +3399,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>One vertex in the compact GPU layout (#966). The default Mesh API stores every channel as
         /// full floats — position + normal + tangent + colour + five UV sets came to 112 B/vertex, which at the
         /// ~1200 chunks a view distance of 8 keeps resident was the single largest block of client memory.
-        /// Quantising the channels that do not need float precision brings that to 56 B; combined with
+        /// Quantising the channels that do not need float precision brings that to 60 B; combined with
         /// <see cref="Mesh.UploadMeshData"/> dropping the system-RAM copy (see <see cref="ToMeshes"/>), chunk
         /// mesh memory falls to roughly a quarter of what it was.
         ///
@@ -3417,18 +3410,18 @@ namespace BlocksBeyondTheStars.Client
         public struct PackedVertex
         {
             public Vector3 Position;              // Float32x3 — block-local position, needs full precision
-            public sbyte Nx, Ny, Nz, Nw;          // SNorm8x4  — unit face normal (w unused)
+            public sbyte Nx, Ny, Nz, Nw;          // SNorm8x4  — unit face normal; w = parallax relief 0..1 (#3055)
             public sbyte Tx, Ty, Tz, Tw;          // SNorm8x4  — tangent xyz + handedness (all exactly ±1/0)
             public byte Cr, Cg, Cb, Ca;           // UNorm8x4  — gloss / metal / shade×AO / emission, all 0..1
             public Vector2 Uv;                    // Float32x2 — atlas coordinates, kept float (tile precision)
-            public ushort SkyX, SkyY;             // Float16x2 — skylight 0..1, tint/face mode (small integer)
+            public float SkyX, SkyY;              // Float32x2 — skylight 0..1, tint mode + animation code (up to ~10⁶: #3062, a half clamped it)
             public ushort LeafX, LeafY, LeafZ, LeafW;  // Float16x4 — foliage flag + tint, or the water-body data
             public ushort BlX, BlY, BlZ, BlW;     // Float16x4 — propagated block-light colour (may exceed 1)
             public sbyte Dx, Dy, Dz, Dw;          // SNorm8x4  — block-light direction (unit or zero)
         }
 
         /// <summary>The vertex stream layout matching <see cref="PackedVertex"/>, in VertexAttribute enum order
-        /// (Unity requires that within a stream). 56 B/vertex against the 112 B the plain Mesh setters use.</summary>
+        /// (Unity requires that within a stream). 60 B/vertex against the 112 B the plain Mesh setters use.</summary>
         private static readonly Rendering.VertexAttributeDescriptor[] VertexLayout =
         {
             new Rendering.VertexAttributeDescriptor(Rendering.VertexAttribute.Position, Rendering.VertexAttributeFormat.Float32, 3),
@@ -3436,7 +3429,7 @@ namespace BlocksBeyondTheStars.Client
             new Rendering.VertexAttributeDescriptor(Rendering.VertexAttribute.Tangent, Rendering.VertexAttributeFormat.SNorm8, 4),
             new Rendering.VertexAttributeDescriptor(Rendering.VertexAttribute.Color, Rendering.VertexAttributeFormat.UNorm8, 4),
             new Rendering.VertexAttributeDescriptor(Rendering.VertexAttribute.TexCoord0, Rendering.VertexAttributeFormat.Float32, 2),
-            new Rendering.VertexAttributeDescriptor(Rendering.VertexAttribute.TexCoord1, Rendering.VertexAttributeFormat.Float16, 2),
+            new Rendering.VertexAttributeDescriptor(Rendering.VertexAttribute.TexCoord1, Rendering.VertexAttributeFormat.Float32, 2),
             new Rendering.VertexAttributeDescriptor(Rendering.VertexAttribute.TexCoord2, Rendering.VertexAttributeFormat.Float16, 4),
             new Rendering.VertexAttributeDescriptor(Rendering.VertexAttribute.TexCoord3, Rendering.VertexAttributeFormat.Float16, 4),
             new Rendering.VertexAttributeDescriptor(Rendering.VertexAttribute.TexCoord4, Rendering.VertexAttributeFormat.SNorm8, 4),
@@ -3478,13 +3471,14 @@ namespace BlocksBeyondTheStars.Client
                     Tx = SNorm(tan.x), Ty = SNorm(tan.y), Tz = SNorm(tan.z), Tw = SNorm(tan.w),
                     Cr = UNorm(col.r), Cg = UNorm(col.g), Cb = UNorm(col.b), Ca = UNorm(col.a),
                     Uv = Uvs[i],
-                    SkyX = Half(sky.x), SkyY = Half(sky.y),
+                    SkyX = sky.x, SkyY = sky.y,
                     LeafX = Half(leaf.x), LeafY = Half(leaf.y), LeafZ = Half(leaf.z), LeafW = Half(leaf.w),
                     BlX = Half(bl.x), BlY = Half(bl.y), BlZ = Half(bl.z), BlW = 0,
                     Dx = SNorm(dir.x), Dy = SNorm(dir.y), Dz = SNorm(dir.z), Dw = 0,
                 };
             }
 
+            ApplyRelief(packed);
             PackedCount = n;
         }
 

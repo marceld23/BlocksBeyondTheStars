@@ -24,6 +24,35 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ✨ High details 2026-11 — sharper shadows, parallax, grass carpet and flowers, room reflections, decals, a further far view, volumetric light — epic #3066 (#3054–#3065), branch feat/high-preset-details — ✅ done 2026-11-01 (⚠ playtest open; no save-version, protocol or terrain-generation change — `FarTerrainWorldInfo` gains an additive field)
+
+Marcel asked whether "runs on a Raspberry Pi" and "the browser is functionally identical" hold the graphics back. The Pi
+only hosts the server; the browser rule (ADR 0015 §3) only forbids techniques, not expensive ones — so the High preset
+became **desktop-class**: these extras run on High on a desktop client only, each with its own switch, all still within
+what WebGL 2 can do. Details in docs/developer/ADVANCED_GRAPHICS.md § High details.
+
+- **#3054** Shadows on High: 4 cascades to 150 m, soft quality High (no switch).
+- **#3055** Parallax occlusion mapping on rock, ore, brick and metal — height atlas, `relief` per block (data or
+  default), the tangent now follows the UV rotation of natural tops.
+- **#3056** Grass carpet (10 shells within 20 m, colour from the block's own texel, lamp light at night) and meadow
+  flowers in the world's palette, by season.
+- **#3057** Box-projected reflections inside ship and base rooms (room flood-fill + a double-buffered realtime probe).
+- **#3058** Scorch marks and craters as voxel-face decals (shots — remote ones via a voxel ray — blaster, giant
+  stomps, speeder wrecks).
+- **#3059** Far view "Maximum" (2048); the server serves far build tiles to 2368 m and says so in the world info.
+- **#3060** Volumetric sun light as an additive half-resolution raymarch, incl. dust in rooms; replaces the shaft cards
+  while on.
+- **#3061** Settings group "Details (High)" with six switches, texts in all 14 languages; capture flag `-highDetails`.
+- Fixes: **#3062** animated pack/world textures on chunk faces — the animation code (≥ 409 600) sat in a Float16 vertex
+  channel and was clamped to 65 504 (now Float32; verified by arithmetic + a packing test, not reproduced in game);
+  **#3063** tufts receive the sun shadow + DepthOnly pass — and found on the way: the T0 tufts and pebbles were
+  invisible in every player build (`m_InstancingStripping` "Strip Unused" dropped the instancing variants of the
+  runtime-made materials; now "Keep All", guarded by a test), they stay out of caves now; **#3064** gloss/metal for steel wall/floor, metal panel,
+  iron block and the module panels; **#3065** the normal atlas no longer bleeds across tile borders.
+- Also: tufts and the carpet are only placed on plain cube tops (they floated over grass slabs and stairs).
+- Playtest: everything in the PR's test checklist; tuning values (volumetric strength, parallax depth, carpet density)
+  are first guesses checked on captures.
+
 ### 🔭 Scaling analysis 2026-11-01, side findings — voice frames, save spam, fleet compose, the 64-viewer presence wipe, the observer on the star map — #3048–#3052, branch fix/scaling-findings — ✅ done 2026-11-01 (server + deploy only; no save-version, protocol or terrain-generation change)
 
 Marcel asked what a much bigger galaxy and many more players per server would need (analysis only — the decision on that

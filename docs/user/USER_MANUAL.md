@@ -448,11 +448,14 @@ separate unlock; admins can still disable it through server world rules.
 
 - **View distance (chunks, 1–16)** — how far the real, walkable world streams around you. It costs the most:
   every step up loads many more chunks. It takes effect the next time a world starts.
-- **Far view (Off · 512 · 1024 blocks)** — a lightweight low-detail horizon *beyond* the streamed chunks: mountains,
-  valleys, seas and lava seas out to the chosen distance (a frozen sea, pond or river as ice, and cold land under its
-  snow and ice, as the chunks show it), plus cities, settlements, ruins and player builds as they
+- **Far view (Off · 512 · 1024 blocks, and 2048 on High)** — a lightweight low-detail horizon *beyond* the streamed
+  chunks: mountains, valleys, seas and lava seas out to the chosen distance (a frozen sea, pond or river as ice, and cold
+  land under its snow and ice, as the chunks show it), plus cities, settlements, ruins and player builds as they
   stand. You cannot walk or mine it; as you get closer, the real chunks replace it. It applies at once, even from the
-  pause menu. Defaults: **1024** on the desktop client, **512** in the browser and on tablets.
+  pause menu. Defaults: **1024** on the desktop client, **512** in the browser and on tablets. The **2048** step is
+  offered on the desktop client with the **High** preset; on a lower preset it shows 1024 but keeps your choice for the
+  next switch to High. Smaller worlds cap it at what fits around them, and on an older server builds show only out to
+  about 1 km.
 - With the far view on, the haze reaches farther: worlds with thin air show a long, clear horizon, airless moons are
   crisp to the edge, dense atmospheres still close in — and fog, sandstorms and ash storms still pull the view in hard.
 
@@ -551,6 +554,35 @@ preset also gets), **All** — or **Custom**, which opens one switch per effect.
 light shafts, the emitter light, soft particles, caustics) need the **Medium** preset or better regardless of the
 switch. **Reduce flashes** keeps the torchlight steady; **Reduced effects** makes the eye adaptation gentler. From
 orbit, planets with air show a lit atmosphere rim with a warm terminator and a dark night side.
+
+### Details (High) (Settings → Graphics → Details (High))
+
+On the **High** preset the desktop client (Windows, Linux) adds extra detail on top — things a browser tab or a tablet
+could not afford, so the browser keeps the plain High look and this group does not show there. Below High the group
+only says "Only on the High graphics level". Each detail has its own switch (all on by default) and applies at once:
+
+- **Sharper, softer shadows** (always on with High): crisp contact shadows near you, soft edges, and shadows out to
+  about 150 m.
+- **Surface depth (parallax)**: up close, brick mortar, ore nuggets, cracks in rock and the seams of metal plates have
+  real depth that shifts as you move your head. It fades out after about 20 m.
+- **Grass carpet** and **Flowers on meadows**: meadows grow a dense carpet of grass blades up to about 20 m around
+  you, swaying in the wind, darker in the shade, glowing next to a torch at night and pressed flat by snow. Small
+  flowers bloom in between, in this world's own flower colours — many in spring, few in autumn, none in winter. They
+  are only decoration and cannot be picked. (The small grass tufts and pebbles of the Medium and High presets show again
+  on open ground — in the desktop and browser builds they had gone missing — and darken in the shade.)
+- **Reflections in rooms**: in your ship's cabin or a closed base room, polished metal floors and walls show the room —
+  lamps, walls, the doorway. Step out through an open door and the reflection fades away.
+- **Scorch marks and craters**: shots leave small soot marks where they hit the ground or a wall, a terrain blaster
+  leaves a scorched crater ring with glowing embers, a giant's stomp cracks the ground and a wrecked speeder leaves a
+  burn mark. They lie only on blocks (never on creatures or players), move with the surface when you mine or build there,
+  and fade after about a minute (craters after about a minute and a half). Soot and cracks only.
+- **Volumetric light**: sunbeams you can see in the air — through a forest canopy in the morning, into a cave mouth,
+  through a ship's window or an open door, with a little dust floating in rooms. Only the sun casts beams (torches,
+  lanterns and lava do not); there are none at night, in space, on airless worlds, under water or with a menu open.
+  While it is on, it replaces the simpler light shafts of the atmosphere effects. It only ever adds light — the picture
+  never gets darker.
+
+The **Far view** row gains its **2048** step on High too (see *View distance and far view* above).
 
 ### Cosiness and home (Settings → Graphics → Cosiness)
 
