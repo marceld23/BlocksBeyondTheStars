@@ -219,7 +219,8 @@ namespace BlocksBeyondTheStars.Client
             DrawDayNightOverlay(mapGo.transform, mapW, mapH, Game != null ? Game.LandingPadsTimeOfDay : 0.35f);
 
             const float marker = 40f;
-            foreach (var p in pads)
+            var communal = BasePadView.Communal(pads); // #3070: base pads get one marker per base (DrawBaseMarkers), no number
+            foreach (var p in communal)
             {
                 // True position on the strip: u = longitude / circumference, v = latitude in the band
                 // (north up). Pads are scattered across BOTH longitude and latitude, so they spread over the
@@ -297,9 +298,11 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            DrawBaseMarkers(panel.transform, pads, pad, mapTop, mapW, mapH, circ, latP); // #3070
+
             string hint = loc != null ? loc.Get("ui.space.pad_full") : string.Empty;
-            bool anyFree = false;
-            foreach (var p in pads) { if (!p.Occupied) { anyFree = true; break; } }
+            bool anyFree = AnyBasePadLandable(pads);
+            foreach (var p in communal) { if (!p.Occupied) { anyFree = true; break; } }
             UiKit.AddText(panel.transform, 24, ph - 96, pw - 48, 22,
                 anyFree ? (loc != null ? loc.Get("ui.space.pad_choose") : "Click a free (green) pad to land")
                         : (loc != null ? loc.Get("ui.space.pad_full") : "All pads are occupied — wait for one to free up"),
@@ -489,6 +492,8 @@ namespace BlocksBeyondTheStars.Client
                 Destroy(_landMapGo);
                 _landMapGo = null;
             }
+
+            _basePadListGo = null; // #3070: went with the chooser panel
 
             if (_landWeather?.Tex != null)
             {

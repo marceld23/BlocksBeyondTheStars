@@ -118,6 +118,7 @@ public sealed class MemoryWorldSnapshot
     public List<StoredBeam> Beams { get; set; } = new();
     public List<StoredCrystalCell> CrystalCells { get; set; } = new(); // #2046
     public List<StoredBase> Bases { get; set; } = new();
+    public List<StoredBasePad> BasePads { get; set; } = new();
     public List<StoredPaintDesign> PaintDesigns { get; set; } = new();
     public List<StoredCustomShape> CustomShapes { get; set; } = new();
 
@@ -180,6 +181,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     private readonly Dictionary<(string Planet, int X, int Y, int Z), StoredBeam> _beams = new();
     private readonly Dictionary<(string Planet, int X, int Y, int Z), StoredCrystalCell> _crystalCells = new(); // #2046
     private readonly Dictionary<(string Planet, int X, int Y, int Z), StoredBase> _bases = new();
+    private readonly Dictionary<(string Planet, int X, int Y, int Z), StoredBasePad> _basePads = new();
     private readonly Dictionary<int, StoredPaintDesign> _paintDesigns = new();
     private readonly Dictionary<int, StoredCustomShape> _customShapes = new();
     private readonly Dictionary<string, StoredWorldTexture> _worldTextures = new(StringComparer.Ordinal);
@@ -273,6 +275,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
             Beams = _beams.Values.Select(CloneBeam).ToList(),
             CrystalCells = _crystalCells.Values.Select(CloneCrystalCell).ToList(),
             Bases = _bases.Values.Select(CloneBase).ToList(),
+            BasePads = _basePads.Values.Select(CloneBasePad).ToList(),
             PaintDesigns = _paintDesigns.Values.Select(ClonePaintDesign).ToList(),
             CustomShapes = _customShapes.Values.Select(CloneCustomShape).ToList(),
             WorldTextures = _worldTextures.Values.Select(CloneWorldTexture).ToList(),
@@ -380,6 +383,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
         _beacons.Clear();
         _beams.Clear();
         _bases.Clear();
+        _basePads.Clear();
         _paintDesigns.Clear();
         _customShapes.Clear(); // was missing: an import over a used repository kept the old forms
         _worldTextures.Clear();
@@ -466,6 +470,11 @@ public sealed class MemoryWorldRepository : IWorldRepository
         foreach (var basePoint in snapshot.Bases)
         {
             _bases[(basePoint.Planet, basePoint.X, basePoint.Y, basePoint.Z)] = CloneBase(basePoint);
+        }
+
+        foreach (var pad in snapshot.BasePads ?? new List<StoredBasePad>())
+        {
+            _basePads[(pad.Planet, pad.X, pad.Y, pad.Z)] = CloneBasePad(pad);
         }
 
         foreach (var design in snapshot.PaintDesigns)
@@ -1181,6 +1190,9 @@ public sealed class MemoryWorldRepository : IWorldRepository
     private static StoredBase CloneBase(StoredBase b)
         => new() { Planet = b.Planet, X = b.X, Y = b.Y, Z = b.Z, Name = b.Name, OwnerId = b.OwnerId };
 
+    private static StoredBasePad CloneBasePad(StoredBasePad p)
+        => new() { Planet = p.Planet, X = p.X, Y = p.Y, Z = p.Z, Name = p.Name, OwnerId = p.OwnerId, Access = p.Access };
+
     private static StoredPaintDesign ClonePaintDesign(StoredPaintDesign d)
         => new() { Id = d.Id, OwnerId = d.OwnerId, OwnerName = d.OwnerName, Pixels = d.Pixels };
 
@@ -1453,6 +1465,32 @@ public sealed class MemoryWorldRepository : IWorldRepository
         {
             _dirty = true;
             _bases.Remove((planet, x, y, z));
+        }
+    }
+
+    public void SaveBasePad(StoredBasePad pad)
+    {
+        lock (_gate)
+        {
+            _dirty = true;
+            _basePads[(pad.Planet, pad.X, pad.Y, pad.Z)] = CloneBasePad(pad);
+        }
+    }
+
+    public IReadOnlyList<StoredBasePad> ListAllBasePads()
+    {
+        lock (_gate)
+        {
+            return _basePads.Values.Select(CloneBasePad).ToList();
+        }
+    }
+
+    public void DeleteBasePad(string planet, int x, int y, int z)
+    {
+        lock (_gate)
+        {
+            _dirty = true;
+            _basePads.Remove((planet, x, y, z));
         }
     }
 

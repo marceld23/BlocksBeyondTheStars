@@ -14,7 +14,7 @@ namespace BlocksBeyondTheStars.Client
     /// as you explore (fog-of-war). Shows the player (with heading), the ship, ship stations and a
     /// click-to-set waypoint (which the HUD compass then points to). uGUI on a DPI-independent canvas.
     /// </summary>
-    public sealed class WorldMap : MonoBehaviour
+    public sealed partial class WorldMap : MonoBehaviour
     {
         public GameBootstrap Game;
 
@@ -84,6 +84,11 @@ namespace BlocksBeyondTheStars.Client
             if (_open && _weatherRaw != null && Game.SystemWeather.Version != _weatherSeen)
             {
                 RefreshWeatherLayer(); // #2178: a new weather snapshot arrived while the map is open
+            }
+
+            if (_open && Game.LandingPadBook.Version != _padsSeen)
+            {
+                Refresh(); // #3070: a pad was built, renamed, locked or taken while the map is open
             }
 
             if (InputMap.Down(InputAction.PlanetMap) && !Game.ChatTyping && !Game.AwaitingRespawnConfirm)
@@ -550,28 +555,8 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            // Fixed landing pads (item 38): ALWAYS shown — at true position when in view, else pinned to the map
-            // edge pointing the way (pads are spread round the body, so most sit outside this local window). Green
-            // = free, red = another player is on it, cyan = your own pad (#977). Also listed below with distance
-            // so every pad is findable. #2740: the pads of the body you are on — never the last list the flight pad
-            // chooser happened to ask about (a padless body, or the body you left). Before the first star map arrives
-            // there is only the world-entry list to go by.
-            var bodyPads = Game.StarMap != null ? Game.LandingPadsFor(Game.StarMap.ActiveLocationId) : Game.LandingPads;
-            if (bodyPads != null)
-            {
-                foreach (var pad in bodyPads)
-                {
-                    var col = pad.Mine ? new Color(0.45f, 0.85f, 1f)
-                        : pad.Occupied ? new Color(1f, 0.45f, 0.4f)
-                        : new Color(0.5f, 0.9f, 0.6f);
-                    PadMarker(pad.X, pad.Z, col);
-                    int dist = Mathf.RoundToInt(GroundDistance(pad.X, pad.Z));
-                    string occ = pad.Occupied || pad.Mine ? $" ({pad.Occupant})" : string.Empty;
-                    string wet = pad.Lava ? $" · {L("ui.space.pad_lava")}" // a pad standing in lava (old saves)
-                        : pad.Wet ? (pad.Depth > 0 ? $" · {L("ui.space.pad_wet")} · {pad.Depth} m" : $" · {L("ui.space.pad_wet")}") : string.Empty; // seabed pad + depth (#1454/#1622)
-                    poiLines.Append($"\n⊕ {L("ui.map.pad")} {pad.Index + 1}{occ}{wet}  —  {dist} m");
-                }
-            }
+            // Landing pads: the body's communal pads and the pads built at its bases (#3070) — WorldMap.BasePads.cs.
+            DrawLandingPads(poiLines);
 
             // A landed trader ship (#1904): live while it is parked here, at its pilot. Drawn after the pads so its
             // own (red, occupied) pad marker a few blocks away never covers it, and named like a beacon — the ship

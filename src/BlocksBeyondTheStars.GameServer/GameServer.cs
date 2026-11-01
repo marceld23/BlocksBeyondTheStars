@@ -348,6 +348,7 @@ public sealed partial class GameServer
         _generatorTemplate.SetContinentsEnabled(_meta.Description.TerrainContinents);
         _generatorTemplate.SetLavaCoreVolcanoes(_meta.Description.LavaCoreVolcanoes); // #1631: new worlds only, like continents
         _generatorTemplate.SetTerrainGeneration(_meta.Description.TerrainGeneration); // #1644: the wave this save was created with
+        _generatorTemplate.SetBuildWorkers(BuildWorkers); // #3068: a new world's river grid on several threads
         _worlds = new WorldManager(_content, _generatorTemplate, _repo);
         if (_content.GetPlanet(_meta.DefaultPlanetType) is { Void: true })
         {
@@ -362,6 +363,7 @@ public sealed partial class GameServer
             RegisterUniqueDerelict(); // #1129: "The Long Quiet" — the galaxy's one boardable derelict (derived)
             RegisterDerelicts();      // #2632: the broken old stations (seeded builds + their persisted edits)
             LoadAllBases();       // restore player-founded planet bases (Grundstein) server-wide for the travel screen
+            LoadAllBasePads();    // #3069: their landing pads, server-wide — the land chooser asks about any body
             LoadPaintDesigns();   // restore the save-global paint-design registry (painted blocks reference it by id)
             LoadCustomShapes();   // …and the player-designed form registry (shaped blocks/items reference it by index)
             LoadWorldTextures();  // …and the textures its admins published for everyone (#1958)
@@ -1042,7 +1044,7 @@ public sealed partial class GameServer
         // flight state. A full body (every pad occupied) refuses the landing here, leaving the player in flight.
         // An observer takes no pad (issue #487): pads are finite and communal, and being refused entry to a busy
         // world — the world most likely to need an operator's eyes — would be exactly backwards.
-        if (!session.Spectating && !ClaimPadOrReject(session, body.Id, intent.PadIndex))
+        if (!session.Spectating && !ClaimPadOrReject(session, body.Id, intent.PadIndex, PadCellOf(intent.HasPadCell, intent.PadCellX, intent.PadCellY, intent.PadCellZ)))
         {
             return false;
         }
@@ -1208,15 +1210,18 @@ public sealed partial class GameServer
             }
 
             int heldPad = session.AssignedPadIndex; // AllowNormalTravel claims the destination's pad up front
+            var heldBasePad = session.AssignedBasePad; // … or a base pad (#3069)
             if (!AllowNormalTravel(session, intent, quickTravel))
             {
                 return;
             }
 
-            BeginTransit(session, body.Id, crossSystem ? body.SystemId : null, intent.PadIndex);
+            BeginTransit(session, body.Id, crossSystem ? body.SystemId : null, intent.PadIndex,
+                PadCellOf(intent.HasPadCell, intent.PadCellX, intent.PadCellY, intent.PadCellZ));
             if (!session.Transit.AutomaticTransit)
             {
                 session.AssignedPadIndex = heldPad; // the take-off was refused — the ship still stands on its old pad
+                session.AssignedBasePad = heldBasePad;
             }
 
             return; // the transit path handles the travel, so the caller must not continue to land on it
@@ -1233,11 +1238,12 @@ public sealed partial class GameServer
     /// <see cref="TransitLaunchDoneIntent"/>, and <see cref="AdvanceTransit"/> takes it from there: a warp into
     /// <paramref name="systemId"/> when the trip leaves the system, then the landing on <paramref name="destinationBodyId"/>
     /// — or free flight in the new system when there is no destination ("Hyperjump to this system").</summary>
-    private void BeginTransit(PlayerSession session, string? destinationBodyId, string? systemId, int padIndex)
+    private void BeginTransit(PlayerSession session, string? destinationBodyId, string? systemId, int padIndex, Vector3i? basePad = null)
     {
         session.Transit.PendingTransitBodyId = destinationBodyId;
         session.Transit.PendingTransitSystemId = systemId;
         session.Transit.PendingTransitPadIndex = padIndex;
+        session.Transit.PendingTransitBasePad = basePad;
         session.Transit.AutomaticTransit = true;
         session.Transit.TransitLaunchTimer = 0;
 
@@ -1255,6 +1261,7 @@ public sealed partial class GameServer
         session.Transit.PendingTransitBodyId = null;
         session.Transit.PendingTransitSystemId = null;
         session.Transit.PendingTransitPadIndex = -1;
+        session.Transit.PendingTransitBasePad = null;
         session.Transit.AutomaticTransit = false;
         session.Transit.TransitLaunchTimer = 0;
     }
@@ -1278,6 +1285,7 @@ public sealed partial class GameServer
         string? destinationBodyId = session.Transit.PendingTransitBodyId;
         string? systemId = session.Transit.PendingTransitSystemId;
         int padIndex = session.Transit.PendingTransitPadIndex;
+        var basePad = session.Transit.PendingTransitBasePad; // #3069: a base pad picked for the trip
         session.Transit.TransitLaunchTimer = 0;
 
         if (!InSpace(playerId))
@@ -1323,7 +1331,7 @@ public sealed partial class GameServer
             _landingContextOverride = GameEventKeys.TravelQuick;
             try
             {
-                LandOnBody(playerId, destinationBodyId, padIndex);
+                LandOnBody(playerId, destinationBodyId, padIndex, basePad);
             }
             finally
             {
@@ -1447,6 +1455,20 @@ public sealed partial class GameServer
     /// released — the next <c>PlayerPad</c> call then hands out the first free one, as before this existed.</summary>
     private void RestoreLandingPad(PlayerSession session)
     {
+        if (session.AssignedBasePad is { } baseCell)
+        {
+            // #3069: a base pad held when the player left — kept while it still stands and nobody else holds it.
+            if (BasePadAt(session.CurrentLocationId, baseCell) is null || BasePadHolderName(session.CurrentLocationId, baseCell, session.State.PlayerId) is not null)
+            {
+                session.AssignedBasePad = null;
+            }
+            else
+            {
+                session.AssignedPadIndex = -1;
+                return;
+            }
+        }
+
         int idx = session.AssignedPadIndex;
         if (idx < 0)
         {
@@ -3905,6 +3927,7 @@ public sealed partial class GameServer
         SetNpcCallsIntent or SkipOnboardingIntent or RequestStoryResolutionIntent or StorySelectIntent
             or SetPlaceNameIntent => true, // #2952: a private place name only changes the player's own ledger
         SetFestivalPrefsIntent => true, // #3021: "My festivals" is a settings row the pause menu opens; it moves nothing
+        SetBasePadIntent => true, // #3069: a pad's name and access — its dialog may hold a singleplayer world; it moves nothing
         // #2466 (synthesis §5.7): the pack controls change only the player's own ledger — "skipPack" is the first tutorial
         // card's "I know the game", shown during a singleplayer hold; #2467 watching a scene again changes nothing; #2470
         // "Start the story now" starts the player's own story track. #2471 (issue: "every action is pause-whitelisted"): the
@@ -5097,6 +5120,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (BasePadBusy(pos))
+        {
+            Reject(session, "mine", "@srv.basepad.busy"); // #3069: a ship stands on (or holds) this landing pad
+            return;
+        }
+
         var def = _world.Definition(current);
         if (def is null || !def.Mineable)
         {
@@ -5277,6 +5306,10 @@ public sealed partial class GameServer
         {
             RemoveBeamAt(pos); // mining a beam block forgets its name/owner + map marker (teleporter pad)
         }
+        else if (def.Key == BasePadRules.BlockKey)
+        {
+            RemoveBasePadAt(pos); // #3069: mining a base landing pad forgets it (refused above while a ship holds it)
+        }
         else if (def.Key == ThumperBlockKey)
         {
             StopThumper(pos); // #2002: a thumper mined back stops thumping
@@ -5418,7 +5451,8 @@ public sealed partial class GameServer
            || IsGuardianCoreProtected(p) // #1830
            || (IsIntercityRailBlock(p) && !IsSettlementBoxBlock(p))
            || IsFactoryProtected(p, actorId, actorIsAdmin)
-           || IsBaseProtected(p, actorId, actorIsAdmin);
+           || IsBaseProtected(p, actorId, actorIsAdmin)
+           || BasePadBusy(p); // #3069: a landing pad that holds a ship
 
     /// <summary>Test seam for <see cref="IsBreakProtected"/> against the block currently in the cell.</summary>
     public bool BreakProtectedForTest(Vector3i p, string actorId, bool isAdmin = false)

@@ -128,6 +128,20 @@ public sealed class StoredBeam
     public string OwnerId { get; set; } = string.Empty;
 }
 
+/// <summary>A player-built landing pad next to a base (#3069), persisted by its world cell with its player-typed name, owner
+/// and access (<c>BasePadAccess</c>: 0 only the owner, 1 the owner and allies, 2 everyone). The base_pad block itself
+/// comes back via the normal block-edit store; this row carries the metadata.</summary>
+public sealed class StoredBasePad
+{
+    public string Planet { get; set; } = string.Empty;
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string OwnerId { get; set; } = string.Empty;
+    public int Access { get; set; }
+}
+
 /// <summary>A player-founded planet base (Grundstein), persisted by its world cell with its player-typed name +
 /// owner. The base_core block itself comes back via the normal block-edit store; this row carries the metadata.</summary>
 public sealed class StoredBase
@@ -577,6 +591,15 @@ public interface IWorldRepository : IDisposable
     IReadOnlyList<StoredBase> ListAllBases();
 
     void DeleteBase(string planet, int x, int y, int z);
+
+    /// <summary>Stores (inserts or replaces) a base landing pad (#3069), keyed by its world cell.</summary>
+    void SaveBasePad(StoredBasePad pad);
+
+    /// <summary>Lists every base landing pad across every body (restored at server start: the land chooser asks about any
+    /// body, loaded or not).</summary>
+    IReadOnlyList<StoredBasePad> ListAllBasePads();
+
+    void DeleteBasePad(string planet, int x, int y, int z);
 
     /// <summary>Stores (inserts or replaces) a player alliance, keyed by the normalised player-id pair.</summary>
     void SaveAlliance(StoredAlliance alliance);

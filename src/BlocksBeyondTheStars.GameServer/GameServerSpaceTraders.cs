@@ -124,6 +124,10 @@ public sealed partial class GameServer
         public uint SkinRgb;
         public uint OutfitRgb;
         public int PadIndex;
+
+        /// <summary>#3073: the base pad this trader set down on (a Market base's public pad), or null on a communal pad —
+        /// then <see cref="PadIndex"/> is -1.</summary>
+        public Vector3i? BasePad;
         public double ExpiresAt;
 
         /// <summary>Uptime the ship sets down (#2603): a trader the planet-side scheduler sent is on its 20 s approach
@@ -665,13 +669,14 @@ public sealed partial class GameServer
             return false;
         }
 
-        int pad = NearestFreeDryPad(t.DestBodyId, PlayersOnBodySurface(t.DestBodyId), hailedOwnersFirst: true); // respects player + NPC pad use
-        if (pad < 0)
+        var marketPad = MarketBasePadFor(t.DestBodyId, PlayersOnBodySurface(t.DestBodyId), hailedOwnersFirst: true); // #3073
+        int pad = marketPad is null ? NearestFreeDryPad(t.DestBodyId, PlayersOnBodySurface(t.DestBodyId), hailedOwnersFirst: true) : -1; // respects player + NPC pad use
+        if (pad < 0 && marketPad is null)
         {
             return false; // no dry pad is free — the trader can't set down
         }
 
-        var lt = RegisterLandedTrader(t, t.DestBodyId, pad, _uptime, _traderRng);
+        var lt = RegisterLandedTrader(t, t.DestBodyId, pad, _uptime, _traderRng, marketPad);
         lt.ArrivalFxPending = OccupiedLocations().Contains(t.DestBodyId); // descend with watchers present
 
         BroadcastWarpFx(instance, t.Pos, arriving: false); // it drops out of the flight scene to descend
@@ -684,7 +689,8 @@ public sealed partial class GameServer
     /// reserves the pad, gives the pilot a look derived from its name, and rolls the stay — <see cref="TraderLandDwellMin"/>
     /// to <see cref="TraderLandDwellMax"/> from <paramref name="touchdownAt"/> on (one draw of <paramref name="dwellRng"/>).
     /// The ship stands on the pad from <paramref name="touchdownAt"/> (the space path: now).</summary>
-    private NpcLandedTrader RegisterLandedTrader(NpcTrader t, string bodyId, int pad, double touchdownAt, System.Random dwellRng)
+    private NpcLandedTrader RegisterLandedTrader(NpcTrader t, string bodyId, int pad, double touchdownAt, System.Random dwellRng,
+        Vector3i? basePad = null)
     {
         var look = new System.Random(unchecked((int)WorldGenerator.StableHash("trader-look:" + t.Name)));
         uint[] skins = { 0xF2C9A0, 0xD9A066, 0x8D5524, 0xC68642, 0xFFDBAC };
@@ -698,7 +704,8 @@ public sealed partial class GameServer
             HullRgb = t.HullRgb,
             SkinRgb = skins[look.Next(skins.Length)],
             OutfitRgb = outfits[look.Next(outfits.Length)],
-            PadIndex = pad,
+            PadIndex = basePad is null ? pad : -1,
+            BasePad = basePad,
             TouchdownAt = touchdownAt,
             ExpiresAt = touchdownAt + TraderLandDwellMin + dwellRng.NextDouble() * (TraderLandDwellMax - TraderLandDwellMin),
         };
@@ -853,10 +860,10 @@ public sealed partial class GameServer
             return false; // already standing on this resident world
         }
 
-        LandingPad? pad = null;
+        LandingPad? pad = lt.BasePad is { } baseCell && BasePadAt(lt.BodyId, baseCell) is { } basePad ? AsLandingPad(basePad) : null;
         foreach (var p in _landingPads)
         {
-            if (p.Index == lt.PadIndex)
+            if (pad is null && p.Index == lt.PadIndex)
             {
                 pad = p;
                 break;
@@ -1218,14 +1225,15 @@ public sealed partial class GameServer
     /// <summary>Decides an arrival: the pad, the trader, the reservation and the "look up!" toast. False when no dry pad is free.</summary>
     private bool BringPlanetTraderIn(string bodyId, List<PlayerSession> present, System.Random rng)
     {
-        int pad = NearestFreeDryPad(bodyId, present);
-        if (pad < 0 || CoinTrader(rng) is not { } t)
+        var marketPad = MarketBasePadFor(bodyId, present); // #3073: a Market base's public pad first
+        int pad = marketPad is null ? NearestFreeDryPad(bodyId, present) : -1;
+        if ((pad < 0 && marketPad is null) || CoinTrader(rng) is not { } t)
         {
             return false;
         }
 
         t.DestBodyId = bodyId;
-        var lt = RegisterLandedTrader(t, bodyId, pad, _uptime + PlanetTraderApproachSeconds, rng);
+        var lt = RegisterLandedTrader(t, bodyId, pad, _uptime + PlanetTraderApproachSeconds, rng, marketPad);
         lt.ArrivalFxPending = true; // the descent plays at touchdown — the players are right here
         lt.AnnounceOnTouchdown = true;
         foreach (var s in present)
@@ -1288,6 +1296,23 @@ public sealed partial class GameServer
         }
 
         return best;
+    }
+
+    /// <summary>#3073: a free public (Everyone) pad of a Market base on the body, for an arriving trader — the bases of owners
+    /// standing there first, as for the communal pick; with <paramref name="hailedOwnersFirst"/> and nobody present, any joined
+    /// owner's. A fixed order by cell. Null when no Market base offers one: the trader takes a communal pad as before.</summary>
+    private Vector3i? MarketBasePadFor(string bodyId, List<PlayerSession> present, bool hailedOwnersFirst = false)
+    {
+        bool Present(string ownerId) => present.Any(s => s.State.PlayerId == ownerId);
+        bool Joined(string ownerId) => FindSessionByPlayerId(ownerId) is { Spectating: false };
+        var free = _basePads
+            .Where(p => p.Planet == bodyId && p.Access == BasePadAccess.Everyone && BasePadHolderName(bodyId, p.Cell, string.Empty) is null
+                        && BaseOfPad(p) is { } home && IsMarketBase(home))
+            .OrderBy(p => p.Cell.X).ThenBy(p => p.Cell.Y).ThenBy(p => p.Cell.Z)
+            .ToList();
+        var pick = free.FirstOrDefault(p => Present(p.OwnerId))
+                   ?? (hailedOwnersFirst ? free.FirstOrDefault(p => Joined(p.OwnerId)) : null);
+        return pick?.Cell;
     }
 
     /// <summary>Adds the core cell of every base on <paramref name="bodyId"/> whose owner passes <paramref name="ownerMatches"/>.</summary>

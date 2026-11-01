@@ -105,8 +105,31 @@ public sealed class RiverNetwork
         return false; // cycle / unreachable (should never happen on a connected torus with an ocean)
     }
 
+    /// <summary>The coarse grid a network of this size is traced on: cells around the world and pole to pole.</summary>
+    public static (int Width, int Height) GridSize(int circumference, int latitudePeriod, int cellSize)
+    {
+        if (cellSize < 1) cellSize = 1;
+        return (System.Math.Max(1, circumference / cellSize), System.Math.Max(1, latitudePeriod / cellSize));
+    }
+
+    /// <summary>Samples one grid row's terrain heights into <paramref name="into"/> (index = gz*gridW + gx) — the
+    /// heightfield <see cref="Build"/> traces. Rows are independent, so a caller may fill them on several threads
+    /// (#3068), each with its own sampler, and hand the result to <see cref="Build"/>.</summary>
+    public static void SampleRow(int gz, int circumference, int latitudePeriod, int cellSize, System.Func<int, int, int> height, int[] into)
+    {
+        if (cellSize < 1) cellSize = 1;
+        var (gridW, _) = GridSize(circumference, latitudePeriod, cellSize);
+        int worldZ = gz * cellSize - latitudePeriod / 2 + cellSize / 2; // centre of the cell in latitude domain
+        for (int gx = 0; gx < gridW; gx++)
+        {
+            into[gz * gridW + gx] = height(gx * cellSize + cellSize / 2, worldZ);
+        }
+    }
+
     /// <summary>Builds the network. <paramref name="height"/> maps (worldX, worldZ) → terrain surface Y
-    /// (e.g. <see cref="WorldGenerator.SurfaceHeight"/>). Pure + deterministic for fixed inputs.</summary>
+    /// (e.g. <see cref="WorldGenerator.SurfaceHeight"/>). Pure + deterministic for fixed inputs.
+    /// <paramref name="sampledHeights"/>, when given, is the grid <see cref="SampleRow"/> fills (#3068: sampled in
+    /// parallel by the caller) and replaces the row-by-row sampling here — the result is the same network.</summary>
     public static RiverNetwork Build(
         long seed,
         int circumference,
@@ -117,27 +140,26 @@ public sealed class RiverNetwork
         int sourceCount = 64,
         double upperHeightFraction = 0.45,
         int channelThreshold = 1,
-        int waterfallMinDrop = 4)
+        int waterfallMinDrop = 4,
+        int[]? sampledHeights = null)
     {
         if (cellSize < 1) cellSize = 1;
-        int gridW = System.Math.Max(1, circumference / cellSize);
-        int gridH = System.Math.Max(1, latitudePeriod / cellSize);
+        var (gridW, gridH) = GridSize(circumference, latitudePeriod, cellSize);
         int n = gridW * gridH;
-        int half = latitudePeriod / 2;
 
-        var h = new int[n];
-        var isSea = new bool[n];
-        for (int gz = 0; gz < gridH; gz++)
+        var h = sampledHeights is { } given && given.Length == n ? given : new int[n];
+        if (!ReferenceEquals(h, sampledHeights))
         {
-            int worldZ = gz * cellSize - half + cellSize / 2; // centre of the cell in latitude domain
-            for (int gx = 0; gx < gridW; gx++)
+            for (int gz = 0; gz < gridH; gz++)
             {
-                int worldX = gx * cellSize + cellSize / 2;
-                int v = height(worldX, worldZ);
-                int idx = gz * gridW + gx;
-                h[idx] = v;
-                isSea[idx] = v <= seaLevel;
+                SampleRow(gz, circumference, latitudePeriod, cellSize, height, h);
             }
+        }
+
+        var isSea = new bool[n];
+        for (int i = 0; i < n; i++)
+        {
+            isSea[i] = h[i] <= seaLevel;
         }
 
         var filled = new int[n];

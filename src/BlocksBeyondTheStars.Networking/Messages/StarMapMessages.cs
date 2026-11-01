@@ -24,6 +24,12 @@ public sealed class TravelIntent
 
     /// <summary>Which fixed landing pad to touch down on (item 38); -1 = auto-pick the first free pad.</summary>
     public int PadIndex { get; set; } = -1;
+    /// <summary>#3069: land on a player-built base pad instead — its cell on the destination body (<see cref="PadIndex"/> is
+    /// then ignored). Appended contractless fields: an older server reads a communal landing.</summary>
+    public bool HasPadCell { get; set; }
+    public int PadCellX { get; set; }
+    public int PadCellY { get; set; }
+    public int PadCellZ { get; set; }
 }
 
 /// <summary>#1614: the client has played the current stage of an automatic transit (the take-off, or the warp into

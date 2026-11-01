@@ -173,6 +173,7 @@ public sealed class PlayerSnapshot
     /// <summary>The landing pad held on <see cref="CurrentLocationId"/> (#848), or -1 for none. Absent in
     /// pre-#848 saves, which then fall back to the first free pad exactly as before.</summary>
     public int LandingPadIndex { get; set; } = -1;
+    public string LandingBasePad { get; set; } = string.Empty;
 
     /// <summary>The fleet index (#848): the ids of every owned ship, each stored under its own
     /// <c>ship_&lt;playerId&gt;#&lt;shipId&gt;</c> row, plus which one was active. Empty in pre-#848 saves,
@@ -309,6 +310,7 @@ public static class StateMapper
         DiscoveredBases = p.DiscoveredBases.ToList(),
         Notes = p.Notes.Select(CloneNote).ToList(),
         LandingPadIndex = p.LandingPadIndex,
+        LandingBasePad = p.LandingBasePad ?? string.Empty,
         FleetShipIds = new List<string>(p.FleetShipIds),
         ActiveShipId = p.ActiveShipId,
         FacePixels = p.FacePixels,
@@ -621,6 +623,7 @@ public static class StateMapper
         DiscoveredBases = new HashSet<string>(s.DiscoveredBases ?? new List<string>()),
         Notes = (s.Notes ?? new List<PlayerNote>()).Select(CloneNote).ToList(),
         LandingPadIndex = s.LandingPadIndex,
+        LandingBasePad = s.LandingBasePad ?? string.Empty,
         FleetShipIds = new List<string>(s.FleetShipIds ?? new List<string>()),
         ActiveShipId = s.ActiveShipId ?? string.Empty,
         FacePixels = s.FacePixels ?? string.Empty,

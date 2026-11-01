@@ -317,7 +317,8 @@ public sealed partial class GameServer
                     var p = WorldConstants.CanonicalBlock(new Vector3i(center.X + dx, center.Y + dy, center.Z + dz), _world.Circumference);
                     var b = _world.GetBlock(p);
                     if (b.IsAir || IsShipBlock(p) || IsSettlementBlock(p) || IsStationBlock(p)
-                        || IsBaseProtected(p, session.State.PlayerId, session.State.IsAdmin))
+                        || IsBaseProtected(p, session.State.PlayerId, session.State.IsAdmin)
+                        || BasePadBusy(p)) // #3069: a landing pad that holds a ship
                     {
                         continue;
                     }
@@ -342,6 +343,10 @@ public sealed partial class GameServer
                     if (d.Key == "beam_block")
                     {
                         RemoveBeamAt(p); // don't orphan a blasted beam block's name/marker (teleporter pad)
+                    }
+                    if (d.Key == BasePadRules.BlockKey)
+                    {
+                        RemoveBasePadAt(p); // #3069: don't leave a blasted landing pad registered
                     }
                     if (IsFluid(b.Value) || HasFluidNeighbor(p))
                     {

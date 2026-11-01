@@ -29,7 +29,7 @@ public sealed partial class GameServer
     /// <summary>Blocks a paste never places: they found server entities on placement (doors, containers,
     /// beacons, pads, bases, ship keels) — a pasted copy would be a dead block that looks like one.</summary>
     private static bool IsBlueprintSpecialBlock(string key)
-        => key is BaseCoreBlock or "radio_beacon" or "beam_block";
+        => key is BaseCoreBlock or "radio_beacon" or "beam_block" or BasePadRules.BlockKey;
 
     private void HandleCopyBuild(PlayerSession session, CopyBuildIntent intent)
     {

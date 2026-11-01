@@ -1804,6 +1804,30 @@ Note when reading boot timings on a **city** world: the pad search also warms th
 so removing it moves some cost into the `structures` pass that stamps the city. The gain is real but smaller
 there than on an ordinary world (`PadTest` meadowlands: ready 12.7 s → 6.7 s).
 
+**The first search got faster too (#3068, 2026-11-01).** A new world still paid 15–19 s for "landing pads" on its first
+boot. Measured on seed 12345 (start planet 11 200 blocks round, 12 pads, 14.8 s): **6.7 s** for the routed river network —
+the first water test of pad 0 builds it lazily, and its coarse grid is 700 × 350 = 245 000 `SurfaceHeight` samples on one
+thread —, **2 s** for rasterising the river field, and **~5 s** for the ring search itself (about 14 600 candidates per pad).
+Three changes, none of which moves a pad:
+
+- The river grid is sampled on `WorldGenerator.SetBuildWorkers` extra threads (`ParallelWork.For`, one generator sibling in
+  the world mode per thread, a generator is never shared; `RiverNetwork.SampleRow` + `Build(sampledHeights:)`): 6.7 s →
+  ~1 s. The server sets every core but one (at most `ChunkGenWorkersCeiling`) unless it runs without background threads
+  (`ChunkGenWorkers` 0 — the in-browser singleplayer keeps the serial path).
+- One ring search remembers each footprint column's water, band and height answer (`GameServer.PadColumnMemo`, a byte /
+  int grid over the search window). The generator's own column memo is capped at 262 144 entries and clears itself whole.
+- `IsSurfaceWater` asks the pond once (the river answer is 0 on a pond column anyway).
+
+Proof that nothing moved: a dump of every pad of eight fresh worlds (ocean, lava, karst, frozen ocean, archipelago, desert,
+two varied) was byte-identical before and after; `PadSearchSpeedTests` keep the pieces honest (the batch runner, the
+parallel grid against the serial network, the whole river field with and without build workers, the memo across the seam).
+
+Searching the pads themselves side by side was tried and dropped. **A trap when measuring this on a laptop:** an all-core
+burst (the parallel river grid) lowers the clock for the single-threaded work that follows — the serial pad search right
+after it took 6.8 s, after a 10 s pause 4.1 s, with the same 583 000 uncached height evaluations. Compare runs with the
+same burst before them, or pause between the phases. The net result on that laptop: 14.8 s → ~10 s; a cooled server keeps
+the whole 5–6 s of the river grid.
+
 ## 23. A structure is stamped once (#1990, 2026-09-24)
 
 A vault, a monument, a ruin and a bandit camp have always been written into the world exactly once, guarded by

@@ -178,6 +178,7 @@ namespace BlocksBeyondTheStars.Client
             Game.AimedStationBlock = null;
             Game.AimedCrystalDevice = null;
             Game.AimedCell = null;
+            Game.AimedBasePadCell = null; // #3070
 
             // The pillow view is a first-person one in either camera mode: no body left standing beside the bed in the
             // chase view, no tool held in front of the face. GetUp hands both back to the camera mode.

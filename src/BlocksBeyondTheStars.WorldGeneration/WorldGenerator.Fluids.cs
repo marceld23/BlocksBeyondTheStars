@@ -266,6 +266,30 @@ public sealed partial class WorldGenerator
         return field;
     }
 
+    /// <summary>#3068: the river network's coarse heightfield, sampled on <see cref="_buildWorkers"/> extra threads (each
+    /// with a sibling in this world mode) — on a start planet that is ~245 000 surface heights, 6–7 s on one thread,
+    /// the bulk of a new world's first boot. Null without workers: <see cref="RiverNetwork.Build"/> then samples the
+    /// rows itself, as before. Either way the grid holds the same heights, so the network is the same.</summary>
+    private int[]? SampleRiverGrid(PlanetType planet, int latitudePeriod, int cellSize)
+    {
+        if (_buildWorkers <= 0)
+        {
+            return null;
+        }
+
+        var (gridW, gridH) = RiverNetwork.GridSize(_circumference, latitudePeriod, cellSize);
+        var heights = new int[gridW * gridH];
+        int circumference = _circumference;
+        ParallelWork.For(gridH, _buildWorkers, this, ModeSibling,
+            (gz, generator) => RiverNetwork.SampleRow(gz, circumference, latitudePeriod, cellSize,
+                (x, z) => generator.SurfaceHeight(planet, x, z), heights));
+        return heights;
+    }
+
+    /// <summary>Test seam (#3068): builds the river field fresh, past the process-wide cache, so a test can compare a
+    /// build on several threads with a serial one.</summary>
+    internal RiverField BuildRiverFieldForTest(PlanetType planet) => BuildRiverField(planet);
+
     /// <summary>Whether this type routes LAVA rivers into its lava sea (#1644: the `volcanic` tag — formerly
     /// the `lava` / `ashen` key check).</summary>
     private static bool LavaRiversFor(PlanetType planet) => planet.HasTag(TerrainTag.Volcanic);
@@ -296,7 +320,8 @@ public sealed partial class WorldGenerator
         {
             double wetness = System.Math.Min(1.0, System.Math.Max(0.0, (pondAbundance - 0.4) / 0.6));
             int sources = System.Math.Max(8, (int)System.Math.Round((40 + 80 * wetness) * areaScale));
-            var net = RiverNetwork.Build(PlanetSeed(planet), _circumference, period, seaLevel, Height, cellSize: 16, sourceCount: sources);
+            var net = RiverNetwork.Build(PlanetSeed(planet), _circumference, period, seaLevel, Height, cellSize: 16, sourceCount: sources,
+                sampledHeights: SampleRiverGrid(planet, period, 16)); // #3068
             // Underground reaches (generation 3): on a wet karst world the reaches crossing a soluble-rock belt
             // run under a rock roof. Null on every other world, and then the rasterisation is the classic one.
             var w = WonderFor(planet);
@@ -315,7 +340,8 @@ public sealed partial class WorldGenerator
         if (LavaRiversFor(planet) && seaFluid == lavaId && !lavaId.IsAir)
         {
             int sources = System.Math.Max(6, (int)System.Math.Round(26 * areaScale));
-            var net = RiverNetwork.Build(PlanetSeed(planet), _circumference, period, seaLevel, Height, cellSize: 16, sourceCount: sources);
+            var net = RiverNetwork.Build(PlanetSeed(planet), _circumference, period, seaLevel, Height, cellSize: 16, sourceCount: sources,
+                sampledHeights: SampleRiverGrid(planet, period, 16)); // #3068
             // channelFlowThreshold 1: magma flows are sparse, so every routed source path counts as a channel
             // (they rarely merge the way dense water tributaries do). fullWidthAccum 1 (#474): a lava flow
             // reaches full width without needing tributaries — the old absolute divisor kept every lava
@@ -397,12 +423,13 @@ public sealed partial class WorldGenerator
     /// client preview) and <see cref="Generate"/> can never disagree about where river water is. A pond takes
     /// precedence (matches Generate's pond-first order); the sea owns columns at/below sea level.</summary>
     public int SurfaceRiverDepth(PlanetType planet, int worldX, int worldZ)
-    {
-        if (SurfacePondDepth(planet, worldX, worldZ) > 0)
-        {
-            return 0; // a pond already claims this column (pond-first precedence)
-        }
+        => SurfacePondDepth(planet, worldX, worldZ) > 0
+            ? 0 // a pond already claims this column (pond-first precedence)
+            : RiverDepthBesidePond(planet, worldX, worldZ);
 
+    /// <summary><see cref="SurfaceRiverDepth"/> for a column the caller already knows holds no pond.</summary>
+    private int RiverDepthBesidePond(PlanetType planet, int worldX, int worldZ)
+    {
         // The global sea owns columns at/below sea level — Generate skips the river fill there, so we must
         // too — and a volcano crater's molten pool is never a river column (#477).
         int seaLevel = ResolveSeaFluid(planet).Level;
@@ -455,9 +482,16 @@ public sealed partial class WorldGenerator
     {
         var (seaLevel, seaFluid) = ResolveSeaFluid(planet);
         var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
-        bool water = (seaFluid == waterId && !waterId.IsAir && SurfaceHeight(planet, worldX, worldZ) + 1 <= seaLevel)
-            || (SurfacePondDepth(planet, worldX, worldZ) > 0 && !IsHotZoneAt(planet, worldX, worldZ)) // an upland pond (a hot one is lava)
-            || SurfaceRiverDepth(planet, worldX, worldZ) > 0; // …or a river channel
+        bool water = seaFluid == waterId && !waterId.IsAir && SurfaceHeight(planet, worldX, worldZ) + 1 <= seaLevel;
+        if (!water)
+        {
+            // An upland pond (a hot one is lava) — or, where no pond is, a river channel. The pond is asked once (#3068):
+            // the river answer is 0 on a pond column anyway, and the pad search asks this for every footprint column.
+            water = SurfacePondDepth(planet, worldX, worldZ) > 0
+                ? !IsHotZoneAt(planet, worldX, worldZ)
+                : RiverDepthBesidePond(planet, worldX, worldZ) > 0;
+        }
+
         if (!water)
         {
             return false;

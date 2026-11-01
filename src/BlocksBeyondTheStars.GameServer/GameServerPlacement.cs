@@ -507,6 +507,7 @@ public sealed partial class GameServer
         new("ship_core", static (g, s, r) => g.ShipCoreRule(s, r)),
         new("flora", static (g, _, r) => g.FloraRule(r)),
         new("base_core", static (g, s, r) => g.BaseCoreRule(s, r)),
+        new("base_pad", static (g, s, r) => g.BasePadRule(s, r)),
         new("light_mount", static (g, _, r) => g.LightMountRule(r)),
         new("bed_room", static (g, s, r) => g.BedFootRule(s, r)),
         new("form_room", static (g, s, r) => g.MultiCellFormRule(s, r)),
@@ -686,6 +687,10 @@ public sealed partial class GameServer
         else if (r.BlockDef.Key == "beam_block")
         {
             PlaceBeam(session, r.Pos, r.Intent.Label); // a placed beam block becomes a named teleporter pad
+        }
+        else if (r.BlockDef.Key == BasePadRules.BlockKey)
+        {
+            PlaceBasePad(session, r.Pos, r.Intent.Label); // #3069: a placed pad becomes a landing pad of the base beside it
         }
         else if (r.BlockDef.Key == SentryBlockKey)
         {

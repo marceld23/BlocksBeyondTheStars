@@ -24,6 +24,35 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛬 Landing pads in player bases + a faster first pad search — epic #3074 (#3068–#3073), branch feat/base-landing-pads — ✅ done 2026-11-01 (⚠ playtest open)
+
+Marcel (2026-11-01): build landing pads at a base, shown on the landing map in space, each with who may land (only me /
+me + allies / everyone), several per base. Decisions: one fixed size (17 × 17, every ship fits), 4 per base, a pad you may
+not use shows locked once the base is found, merchants use a Market base's public pads, a cheap recipe from the start; the
+unanswered question "a landing nobody picked lands at home" was taken as recommended (yes). How it works:
+docs/developer/BASES_AND_TELEPORTS.md §8; player side: USER_MANUAL *Landing pads at your base*.
+
+- **#3069 Server:** `base_pad` block + `ServerBasePad` (table `base_pad`, all three repositories), placement rule (own core
+  within 48, ≤ 4 per base, clear 17 × 17 × 16 volume, no overlap with pads or a stranger's base), the volume kept clear and
+  the square protected like the base, a ship-held pad cannot be mined, `SetBasePadIntent` (314), landing by cell
+  (`LeaveSpaceIntent`/`TravelIntent.HasPadCell`), `PlayerState.LandingBasePad`, the pad lists per receiver (locked only
+  after discovery), an inactive pad when its core is mined. `NetCodec` registrations from 307 on moved to `NetCodec.Later.cs`
+  (the file reached 1000 lines).
+- **#3070 Client:** one land-map marker per base with its pad list, base pads on the world map, the E dialog (name +
+  access), the green/red placement preview, the HUD aim line; digit keys and capture stay communal.
+- **#3071 Content:** block, item, workshop recipe (stone ×6, iron plate ×3, cable ×1), AI texture `base_pad` (NOTICES), 43
+  keys in all 14 languages, save version 9 → 10.
+- **#3072** A landing with no pad picked takes the player's own free base pad. **#3073** Merchants coming to a Market base
+  take a free *Everyone* pad there.
+- **#3068 Pad search:** a new world spent 15–19 s on "landing pads" at its first boot (6.7 s routed river grid, 2 s river
+  field, ~5 s ring search). River grid on build workers, a per-search column memo, one pond query in `IsSurfaceWater` — 14.8 s
+  → ~10 s on a laptop (more on a cooled machine); every pad of eight fresh worlds byte-identical before and after.
+  WORLD_GENERATION.md §22.
+- Tests: `BasePadTests` (9), `PadSearchSpeedTests` (6), `Client.Tests/BasePadViewTests` (3); rule order, save compatibility.
+- Open: Marcel's playtest (build pads, the chooser marker, a Market merchant on a pad, an ally landing at "Me + allies").
+- Backlog (not part of this): `GameRules.PersonalLandingZoneProtection` is set by the server presets but never read since
+  the per-player landing zones were removed — a cleanup candidate.
+
 ### 🌟 Every star its own colour + a calm grass carpet — #3075 #3076 #3077 #3078, branch fix/star-colour-and-grass-shimmer — ✅ done 2026-11-01 (⚠ playtest open; no save-version, protocol or terrain-generation change — every save's systems get their new star colours on the next start)
 
 Marcel's playtest of the High-details build: "jumped through four systems — the sun was always normal yellow" and "the

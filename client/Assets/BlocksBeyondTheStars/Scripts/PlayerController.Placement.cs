@@ -302,6 +302,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _ghostFrame = Time.frameCount;
             string held = Game != null ? Game.ItemInSlot(Game.SelectedHotbarSlot) : null;
+            UpdateBasePadPreview(held); // #3070: a held landing pad shows its landing square
             bool rotatable = HeldOrientable(held, out _);
             if (Game != null)
             {

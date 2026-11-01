@@ -930,6 +930,23 @@ namespace BlocksBeyondTheStars.Client
         public void SendLeaveSpace(string destinationBodyId, int padIndex = -1)
             => Send(new LeaveSpaceIntent { DestinationBodyId = destinationBodyId, PadIndex = padIndex });
 
+        /// <summary>#3069: leave space and land on a player-built base pad, named by its cell on the destination body.</summary>
+        public void SendLeaveSpaceToBasePad(string destinationBodyId, int cellX, int cellY, int cellZ)
+            => Send(new LeaveSpaceIntent
+            {
+                DestinationBodyId = destinationBodyId,
+                PadIndex = -1,
+                HasPadCell = true,
+                PadCellX = cellX,
+                PadCellY = cellY,
+                PadCellZ = cellZ,
+            });
+
+        /// <summary>#3069: names a base landing pad I own at a cell on my body and sets who may land on it
+        /// (<c>BasePadAccess</c>: 0 only me, 1 me and my allies, 2 everyone).</summary>
+        public void SendSetBasePad(int cellX, int cellY, int cellZ, string name, int access)
+            => Send(new SetBasePadIntent { CellX = cellX, CellY = cellY, CellZ = cellZ, Name = name ?? string.Empty, Access = access });
+
         /// <summary>Asks the server for a body's fixed landing pads + their live occupancy (the pad chooser).</summary>
         public void SendRequestLandingPads(string bodyId) => Send(new RequestLandingPadsIntent { BodyId = bodyId });
 

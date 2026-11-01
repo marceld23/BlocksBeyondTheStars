@@ -747,6 +747,7 @@ namespace BlocksBeyondTheStars.Client
             if (_ghostFrame != Time.frameCount)
             {
                 _placementGhost?.Hide();
+                _basePadPreview?.Hide(); // #3070
                 if (Game != null)
                 {
                     Game.HoldingRotatableBlock = false;
@@ -758,6 +759,8 @@ namespace BlocksBeyondTheStars.Client
         {
             _placementGhost?.Destroy();
             _placementGhost = null;
+            _basePadPreview?.Destroy();
+            _basePadPreview = null;
             if (_restLevel > 0f)
             {
                 ApplyRestLook(0f); // #2823: leaving the world mid-rest must not keep the music quiet or the next world dimmed

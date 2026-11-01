@@ -250,6 +250,10 @@ namespace BlocksBeyondTheStars.Client
             var beamPad = root.AddComponent<BeamPadUi>();
             beamPad.Game = boot;
 
+            // #3070: a base landing pad's panel — name + who may land (owner), whose and what state (everyone). E at the pad.
+            var basePad = root.AddComponent<BasePadUi>();
+            basePad.Game = boot;
+
             // Story reader (#1110): fragments, memories and lore texts open in a modal reader, re-readable
             // from the Story tab. Must exist before the network handlers fire their first reveal.
             var reader = root.AddComponent<StoryReaderUi>();

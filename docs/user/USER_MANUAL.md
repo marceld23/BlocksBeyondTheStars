@@ -340,7 +340,7 @@ cockpit asks "Launch into space?"** — confirm with the button, **E** or **Ente
 | **V** | Toggle cockpit / third-person camera |
 | **Caps Lock** (hold) | Push-to-talk voice, as on foot (needs a **worn** radio; see §7 → Voice chat) |
 | **W/A/S/D** | Fly through the **system** — every planet/moon is out there at its real position |
-| **L** | Land — on the body you've flown up to (the HUD shows "land on <name>") or, if none is near, back where you launched. Opens the **landing map**: the planet's real terrain, the day/night band and — switchable with **☁ Weather: on/off** (remembered) — its **live weather**, with drifting fronts marked "◀ front ▶". Every pad says the weather waiting there (e.g. "⚡ Storm", "☀ Clear"), so you can pick a sunny pad. Click a free pad (or its number key) to land; **Esc** cancels |
+| **L** | Land — on the body you've flown up to (the HUD shows "land on <name>") or, if none is near, back where you launched. Opens the **landing map**: the planet's real terrain, the day/night band and — switchable with **☁ Weather: on/off** (remembered) — its **live weather**, with drifting fronts marked "◀ front ▶". Every pad says the weather waiting there (e.g. "⚡ Storm", "☀ Clear"), so you can pick a sunny pad. Click a free pad (or its number key) to land; a base with **landing pads** shows one marker at its core — click it to pick one of its pads (see *Landing pads at your base*); **Esc** cancels |
 | **E** | Board a nearby space station (within range of its hull; the ship flies round to the station's hangar mouth and docks there before you board) — or, next to a **wormhole**, fly through it (see *Wormholes* below). **Docked with a friend** whose ship floats parked within 48 m (they walk inside it, or are out on a spacewalk): **go over** into their ship as a guest — "E: go over to Lena's ship" (whichever is nearest — the friend's ship, a station or a planet — takes **E**). While the friend sits at the helm the line reads "Lena is flying"; **E** then asks them to step inside, and they get a message saying so |
 | **K** / **U** | **Dock** with the nearest other pilot within 48 m (never an NPC trader; they answer the usual docking request) / **undock**. Docked, the line under the crosshair reads "Docked with Lena · U: undock". Pad and touch: both are in the **Actions** list (L3 / ACT), together with *Go over to the docked ship* |
 | **Last hotbar slot → hold fire** | The **ship scanner** (every ship has one): point the nose at a planet, moon, asteroid, station, wreck, life pod, anomaly, wormhole or machine and **hold fire** until the ring fills. See *Ship scanner* in §5 |
@@ -1032,6 +1032,8 @@ players.
   in a lane or a wall you put up in front of a hut can be mined again like any block of yours. The village's own
   houses, fences and the ground it stands on stay protected — you may paint them, but painting never makes them yours
   to mine.
+- **Your own landing pads:** next to your base you can build up to four pads of your own and decide who may land there —
+  see *Landing pads at your base*.
 - **Landing pads are on dry land whenever the world offers any** — the pad search looks in every direction,
   and on ocean worlds further. A pad that still sits in open sea rises on a small island (beach, grass, a few
   plants); only in shallow water does the ship park in a dry shaft on the seabed. The approach map draws such
@@ -1915,6 +1917,29 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   one of them — see *People you know* and *Daily routines & jobs* below.
 - On **Tab → Map**, a world where you have a base (or a station orbiting it) is **marked** and its details note
   *"You have a base/station here"* (*"You have 3 bases here"* for several); every base there gets its own rename row.
+
+### Landing pads at your base (#3069)
+- Craft a **Landing Pad** at a workshop (`stone` ×6 + `iron_plate` ×3 + `cable` ×1 — available from the start) and place
+  it **within 48 blocks of one of your base cores**. The pad block marks the middle of a **17 × 17 landing square** — the
+  size of a public pad, so every ship fits. Up to **4 pads per base**.
+- The square must be **clear 16 blocks up** (blocks or water in it are refused; grass and flowers are fine), and it may
+  not touch a public pad, another landing pad or someone else's base. While you hold the pad, a **preview** on the
+  ground shows the square — **green** when it is clear, the blocked spots **red**.
+- Once built, **nobody builds in that square** — you neither — so it can never be built shut. The pad and its square
+  are **protected like your base**: you and your allies may work there (only you may take the pad block itself),
+  strangers cannot.
+- Press **E** on the pad to **name** it and choose **who may land**: **Only me**, **Me + allies** (the default; crew
+  mates count as allies) or **Everyone**. Anyone else pressing E reads the name, the owner and whether they may land.
+  Changing the setting never sends a parked ship away — it counts from the next landing.
+- **From space** (key **L**, the landing map) every base with pads shows **one marker at its core** (your own teal, an
+  ally's green, a found stranger's amber) with the pads you may land on now. Click it for the list of its pads and
+  **Land here**. A pad you may not use shows **locked** — and a stranger's pad only once you have found their base.
+- **Coming home:** a landing you do not pick by hand — **Travel** on the star map, or a landing back on the body you
+  launched from without choosing a pad — sets you down on **your own free landing pad** of that world, if you have one.
+- A ship on a pad **holds it**, also while its pilot is up in space; the pad block cannot be mined then. **Mining the
+  base core** puts its pads to sleep (nobody can land there) until a core stands near them again.
+- **Market bases:** a travelling merchant visiting a base with the **Market** focus lands on one of its **Everyone**
+  pads, right at your base.
 
 ### Alliances (shared access + no friendly fire)
 - Two players can form an **alliance** from the **Alliances** menu tab. It has three views: **Allies**

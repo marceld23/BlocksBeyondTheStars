@@ -73,7 +73,10 @@ public sealed partial class GameServer
         // kind of "built over the pad" block PadSurfaceY honours, and reading it first lifted a months-old save's
         // ship onto its own ghost hull for one session.
         rec.Origin = new Vector3i(pad.CenterX - s.Width / 2, PadGroundY(pad.CenterX, pad.CenterZ) + 1, pad.CenterZ - s.Length / 2);
-        CleanLegacyStampResidueOnce(rec, pad);
+        if (!pad.BasePad)
+        {
+            CleanLegacyStampResidueOnce(rec, pad); // #3069: never on a base pad — it would wipe what the player built there
+        }
 
         int y0 = PadSurfaceY(pad.CenterX, pad.CenterZ); // median, raised over whatever the player built on the pad (#1318)
         // The structure sits ON the levelled pad surface (origin.y = first cell layer above the ground).
@@ -642,6 +645,7 @@ public sealed partial class GameServer
 
             _log.Warn($"Pad {pad.Index} on '{_world.LocationId}' already carries another hull — parking '{session.State.Name}' on pad {candidate.Index} instead.");
             session.AssignedPadIndex = candidate.Index;
+            session.AssignedBasePad = null; // #3069: re-homed off a base pad onto a communal one
             return candidate;
         }
 

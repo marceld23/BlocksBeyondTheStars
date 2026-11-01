@@ -23,6 +23,9 @@ public sealed class PlayerSessionTransit
     /// <summary>Pad index reserved for an automatic landed-ship transit, or -1 when none is pending.</summary>
     public int PendingTransitPadIndex { get; set; } = -1;
 
+    /// <summary>#3069: the base pad picked for an automatic transit (its cell on the destination), or null.</summary>
+    public BlocksBeyondTheStars.Shared.Geometry.Vector3i? PendingTransitBasePad { get; set; }
+
     // Automatic landed-ship transit (#1614): seconds since the current stage began — the server moves on by
     // itself after ServerConfig.TransitLaunchTimeoutSeconds if the client never reports the stage as played.
     public double TransitLaunchTimer { get; set; }

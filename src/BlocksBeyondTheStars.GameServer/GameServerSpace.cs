@@ -22,7 +22,7 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private const int LandingPadRadius = 8;       // one generous size — clears the largest ship (hauler 7×9)
+    private const int LandingPadRadius = 8;       // one generous size — a 17×17 square clears every ship (self-built up to 15×15)
     private const int PadClearanceHeight = 16;    // reserve only the landing volume above the pad, not the whole sky
 
     /// <summary>A fixed landing pad on a body. Deterministic from the body seed; no owner (communal).</summary>
@@ -64,6 +64,10 @@ public sealed partial class GameServer
         /// <summary>A metal deck over the gas sea (#2112, the gas giant): every pad of a gas world is one
         /// (see <see cref="BlocksBeyondTheStars.WorldGeneration.LandingPadFlatten.Deck"/>).</summary>
         public bool Deck;
+
+        /// <summary>A player-built base pad (#3069) handed out by <see cref="PlayerPad"/>: <see cref="Index"/> is -1, the
+        /// centre is the pad block's cell and <see cref="CenterY"/> its height (the ship's floor stands one above).</summary>
+        public bool BasePad;
     }
 
     /// <summary>How far above the sea an islet pad's surface sits (a dry beach, not a tidal flat).</summary>
@@ -538,6 +542,11 @@ public sealed partial class GameServer
     /// whole ship. Used by every ship-placement consumer.</summary>
     private int PadGroundY(int cx, int cz)
     {
+        if (BasePadGroundAt(cx, cz) is int baseGround)
+        {
+            return baseGround; // #3069: a base pad's ground is the pad block the player set
+        }
+
         // An islet pad's ground is the raised mound the generator built, not the noise seabed under it (#1453).
         foreach (var pad in _landingPads)
         {
@@ -563,6 +572,11 @@ public sealed partial class GameServer
     /// floor until the entombment rescue dug him out a second later.</summary>
     private int PadSurfaceY(int cx, int cz)
     {
+        if (BasePadGroundAt(cx, cz) is int baseGround)
+        {
+            return baseGround; // #3069: the ship stands on the pad block — the square above it is kept clear
+        }
+
         const int r = 4;
         int median = PadGroundY(cx, cz);
         int top = median;
@@ -617,13 +631,14 @@ public sealed partial class GameServer
         (0, 0), (-4, -4), (4, -4), (-4, 4), (4, 4), (-4, 0), (4, 0), (0, -4), (0, 4),
     };
 
-    /// <summary>Height spread over the landing footprint — small = flat enough to set a ship down on.</summary>
-    private int PadFootprintSpread(PlanetType planet, int cx, int cz, int cutoff = int.MaxValue)
+    /// <summary>Height spread over the landing footprint — small = flat enough to set a ship down on. A pad search passes
+    /// its column memo (#3068); the answer is the same with or without it.</summary>
+    private int PadFootprintSpread(PlanetType planet, int cx, int cz, int cutoff = int.MaxValue, PadColumnMemo? memo = null)
     {
         int min = int.MaxValue, max = int.MinValue;
         foreach (var (dx, dz) in PadSpreadSamples)
         {
-            int y = _generator.SurfaceHeight(planet, cx + dx, cz + dz);
+            int y = memo?.Height(cx + dx, cz + dz) ?? _generator.SurfaceHeight(planet, cx + dx, cz + dz);
             min = System.Math.Min(min, y);
             max = System.Math.Max(max, y);
 
@@ -657,10 +672,13 @@ public sealed partial class GameServer
         int bestX = baseX, bestZ = baseZ, bestSpread = int.MaxValue;
         int earthyX = int.MinValue, earthyZ = 0, earthySpread = int.MaxValue;
         bool anyDry = false;
+        // #3068: neighbouring candidates share most footprint columns — ask the generator once per column.
+        var memo = new PadColumnMemo(baseX, baseZ, budget + LandingPadRadius, circ, (x, z) => ColumnWetGen8(planet, x, z),
+            (x, z) => _generator.ColumnHasBandAbove(planet, x, z), (x, z) => _generator.SurfaceHeight(planet, x, z));
 
         void Consider(int x, int z)
         {
-            if (LandingFootprintWet(planet, x, z) || PadFootprintCovered(planet, x, z))
+            if (LandingFootprintWet(planet, x, z, memo) || PadFootprintCovered(planet, x, z, memo))
             {
                 return;
             }
@@ -668,7 +686,7 @@ public sealed partial class GameServer
             anyDry = true;
             // #1989: the flatness scan may stop as soon as this candidate is rougher than everything kept so far.
             int cutoff = seekEarthy ? System.Math.Max(bestSpread, earthySpread) : bestSpread;
-            int spread = PadFootprintSpread(planet, x, z, cutoff);
+            int spread = PadFootprintSpread(planet, x, z, cutoff, memo);
             if (spread < bestSpread)
             {
                 bestSpread = spread;
@@ -745,12 +763,13 @@ public sealed partial class GameServer
     private bool LandingFootprintWet(int cx, int cz) => LandingFootprintWet(_world.Planet, cx, cz);
 
     /// <summary>As above but for an explicit planet (the generator must already be configured for that body's
-    /// circumference) — so a ship never touches down in a sea or pond, on any body (B36/B54).</summary>
-    private bool LandingFootprintWet(PlanetType planet, int cx, int cz)
+    /// circumference) — so a ship never touches down in a sea or pond, on any body (B36/B54). A pad search passes its
+    /// column memo (#3068); the answer is the same with or without it.</summary>
+    private bool LandingFootprintWet(PlanetType planet, int cx, int cz, PadColumnMemo? memo = null)
     {
         if (LavaPadRules)
         {
-            return LandingFootprintWetGen8(planet, cx, cz);
+            return LandingFootprintWetGen8(planet, cx, cz, memo);
         }
 
         int r = LandingPadRadius;
@@ -771,16 +790,14 @@ public sealed partial class GameServer
     /// <summary>Generation-8 dry test (2026-09): wet if ANY footprint sample stands in a body of water or lava the
     /// generator makes — the seas and craters of the old test plus rivers, generation-1 lakes and every lava lake or
     /// flow (<see cref="WorldGenerator.TryGetLavaSurface"/>). Short-circuits on the first wet sample.</summary>
-    private bool LandingFootprintWetGen8(PlanetType planet, int cx, int cz)
+    private bool LandingFootprintWetGen8(PlanetType planet, int cx, int cz, PadColumnMemo? memo = null)
     {
         int circ = _generator.Circumference;
         foreach (var (dx, dz) in PadFootprintSamples)
         {
             int x = WorldConstants.WrapX(cx + dx, circ);
             int z = cz + dz;
-            if (_generator.IsSurfaceWater(planet, x, z)
-                || _generator.SurfaceGen1WaterDepth(planet, x, z) > 0
-                || _generator.TryGetLavaSurface(planet, x, z, out _, out _))
+            if (memo is null ? ColumnWetGen8(planet, x, z) : memo.IsWet(x, z))
             {
                 return true;
             }
@@ -789,18 +806,25 @@ public sealed partial class GameServer
         return false;
     }
 
+    /// <summary>One footprint column of the generation-8 dry test: a sea, pond, river, generation-1 lake or lava there.</summary>
+    private bool ColumnWetGen8(PlanetType planet, int x, int z)
+        => _generator.IsSurfaceWater(planet, x, z)
+            || _generator.SurfaceGen1WaterDepth(planet, x, z) > 0
+            || _generator.TryGetLavaSurface(planet, x, z, out _, out _);
+
     /// <summary>#2334: a band over any of the pad's five cardinal samples — an arch bar, a crown, a sky island — makes
     /// the column no seat for a ship. The generator answers false on every world of a generation before 21, so no
     /// pinned pad moves; on a new world the nudge walks on to the next dry, flat, uncovered column.</summary>
-    private bool PadFootprintCovered(PlanetType planet, int cx, int cz)
+    private bool PadFootprintCovered(PlanetType planet, int cx, int cz, PadColumnMemo? memo = null)
     {
         int r = LandingPadRadius;
         int circ = _generator.Circumference;
-        return _generator.ColumnHasBandAbove(planet, cx, cz)
-            || _generator.ColumnHasBandAbove(planet, WorldConstants.WrapX(cx - r, circ), cz)
-            || _generator.ColumnHasBandAbove(planet, WorldConstants.WrapX(cx + r, circ), cz)
-            || _generator.ColumnHasBandAbove(planet, cx, cz - r)
-            || _generator.ColumnHasBandAbove(planet, cx, cz + r);
+        bool Band(int x, int z) => memo?.HasBand(x, z) ?? _generator.ColumnHasBandAbove(planet, x, z); // #3068: a search remembers
+        return Band(cx, cz)
+            || Band(WorldConstants.WrapX(cx - r, circ), cz)
+            || Band(WorldConstants.WrapX(cx + r, circ), cz)
+            || Band(cx, cz - r)
+            || Band(cx, cz + r);
     }
 
     /// <summary>True if lava stands anywhere under a pad footprint (every lava body the generator makes), with the
@@ -1056,9 +1080,21 @@ public sealed partial class GameServer
     /// safety net if somehow unassigned, e.g. an initial spawn). Used to stamp the ship + place the player.</summary>
     private LandingPad PlayerPad(PlayerSession session)
     {
+        if (HeldBasePad(session) is { } basePad)
+        {
+            return basePad; // #3069: the session holds a base pad on this body
+        }
+
         if (_landingPads.Count == 0)
         {
             BuildLandingPads();
+        }
+
+        if (session.AssignedBasePad is not null)
+        {
+            // #3069: the ship is placed on another world than the pad's body (the interior in orbit) — that world's first
+            // pad carries it there, and the base pad claim on the body stays untouched.
+            return _landingPads[0];
         }
 
         int idx = session.AssignedPadIndex;
@@ -1097,7 +1133,7 @@ public sealed partial class GameServer
             }
         }
 
-        return false;
+        return IsBasePadVolume(pos); // #3069: the landing volume of a base pad is kept clear the same way
     }
 
     // --- landing flow + networking ---
@@ -1106,8 +1142,21 @@ public sealed partial class GameServer
     /// reject + returns false if the pad is taken or the body is full (so the caller leaves the player in flight),
     /// else records the pad on the session and returns true. Validates against the body's deterministic pad count,
     /// so it works whether or not the destination world is loaded yet.</summary>
-    private bool ClaimPadOrReject(PlayerSession session, string bodyId, int padIndex)
+    private bool ClaimPadOrReject(PlayerSession session, string bodyId, int padIndex, Vector3i? baseCell = null)
     {
+        // #3069: a base pad picked in the chooser — or, for a landing nobody picked by hand, the player's own free one (#3072).
+        var basePad = baseCell ?? (padIndex < 0 ? OwnFreeBasePad(session, bodyId)?.Cell : null);
+        if (basePad is { } cell)
+        {
+            if (!TryClaimBasePad(session, bodyId, cell, out string baseReason))
+            {
+                Reject(session, "land", baseReason);
+                return false;
+            }
+
+            return true;
+        }
+
         var body = _galaxy?.FindBody(bodyId);
         int total = body != null ? PadCountFor(bodyId, body.PlanetType ?? string.Empty, body.Kind) : 1;
         int chosen = TryClaimPad(session, bodyId, total, padIndex, out string reason);
@@ -1118,6 +1167,7 @@ public sealed partial class GameServer
         }
 
         session.AssignedPadIndex = chosen;
+        session.AssignedBasePad = null; // a communal pad replaces a base pad held before (#3069)
         return true;
     }
 
@@ -1197,7 +1247,7 @@ public sealed partial class GameServer
         }
 
         // This is the active body, so its day fraction is live (drives the world-map terminator client-side).
-        Send(session, new LandingPadList { BodyId = _world.LocationId, Pads = pads, TimeOfDay = (float)_dayFraction });
+        Send(session, new LandingPadList { BodyId = _world.LocationId, Pads = WithBasePads(pads, _world.LocationId, session), TimeOfDay = (float)_dayFraction });
     }
 
     /// <summary>Re-sends the active body's pad list to everyone on it. The list is otherwise a world-entry
@@ -1299,7 +1349,7 @@ public sealed partial class GameServer
         }
 
         SendSystemWeather(session);
-        Send(session, new LandingPadList { BodyId = requestedId, Pads = pads, TimeOfDay = BodyArrivalTimeOfDay(body.Id) });
+        Send(session, new LandingPadList { BodyId = requestedId, Pads = WithBasePads(pads, body.Id, session), TimeOfDay = BodyArrivalTimeOfDay(body.Id) });
     }
 
     /// <summary>The real pad set for a body (the chooser path). Resolves the body's planet type + circumference,

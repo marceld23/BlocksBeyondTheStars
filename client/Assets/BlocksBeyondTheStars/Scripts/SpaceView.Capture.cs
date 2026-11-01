@@ -114,7 +114,7 @@ namespace BlocksBeyondTheStars.Client
         /// chooser's body id now matches the server's.</summary>
         public bool CaptureOpenLandMap()
         {
-            if (Game == null || Game.LandingPads == null || Game.LandingPads.Length == 0)
+            if (Game == null || BasePadView.Communal(Game.LandingPads).Count == 0) // #3070: the capture lands on a communal pad
             {
                 return false;
             }
