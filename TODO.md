@@ -24,6 +24,30 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🔭 Scaling analysis 2026-11-01, side findings — voice frames, save spam, fleet compose, the 64-viewer presence wipe, the observer on the star map — #3048–#3052, branch fix/scaling-findings — ✅ done 2026-11-01 (server + deploy only; no save-version, protocol or terrain-generation change)
+
+Marcel asked what a much bigger galaxy and many more players per server would need (analysis only — the decision on that
+is still open). On the way the code read turned up five defects that matter today, independent of scaling:
+
+- **#3048** Voice chat relayed ~15 of the 50 frames a speaker sends per second. `HandleVoice` gated on "next frame at
+  uptime + 1/60", but `_uptime` moves once per tick and all frames of a tick are handled in one poll, so one frame per tick
+  passed. Now a token bucket on the uptime clock (60/s, burst 15), the pattern `TakeFxToken` uses.
+  Test: `RadioTierTests.Voice_RealSpeech_IsRelayedWhole_AFloodStopsAtTheBurst`.
+- **#3049** Any client could make the server run a full `SaveAll` on the tick thread per `SaveGameIntent` (no cooldown,
+  ~200/s through the message bucket). Explicit saves now share a 5 s server-wide cooldown — a save a moment ago already holds
+  every player. Test: `ServerHardeningTests.ExplicitSave_Spam_SavesOncePerCooldown`.
+- **#3050** `deploy/worldhost/docker-compose.yml` (no `env_file`) did not forward 20 documented `BBS_WH_*` settings —
+  `BBS_WH_MAX_PLAYERS`, the other quotas, `BBS_WH_GLITCH_KEEP_AWAKE`, the rate limits … — so an operator's `.env` value was
+  silently ignored. All forwarded as `${NAME:-}` (empty = the built-in default, so the fleet's behaviour is unchanged until a
+  value is set); a guard test (`WorldHostTests.FleetCompose_ForwardsEveryWorldHostSetting`) catches the next forgotten one.
+  Takes effect with the next WorldHost compose deploy.
+- **#3051** The presence send-on-change memory (#1530) was wiped whenever it held more than 64 viewers — with 65+ players
+  in one world every beat, so everyone got everyone at 10 Hz again. Now only the entries of departed viewers are trimmed.
+  Test: `PresenceKeepAliveTests.Crowd_AboveSixtyFour_StillSendsOnChangeOnly` (70 players: 4 830 → 0 presences on an idle beat).
+- **#3052** A spectating fleet admin was listed in every client's `StarMapData.Players` (travel map, alliance search, duel
+  list). The list now leaves observers out for everyone but themselves, and entering/leaving observer mode refreshes
+  everyone's star map at once. Test: `AdminObserverTests.Observer_IsLeftOutOfOtherPlayersStarMap_AndListedAgainAfterwards`.
+
 ### 💥 Crash report 2026-10-30 (automatic, v2026.10.32) — quitting during a cutscene threw out of `CutsceneDirector.OnDestroy` — #3046, branch fix/cutscene-teardown-on-quit — ✅ done 2026-10-31 (client only; no save-version, protocol or terrain-generation change)
 
 `NullReferenceException` in `CutsceneScreen.ShowContinue` ← `CutsceneDirector.TearDownScene` ← `OnDestroy`. At application

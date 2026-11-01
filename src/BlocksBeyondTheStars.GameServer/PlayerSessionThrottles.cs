@@ -15,8 +15,10 @@ public sealed class PlayerSessionThrottles
     public double AppearanceBudget { get; set; } = GameServer.AppearanceBurst;
     public double AppearanceRefilledAt { get; set; }
 
-    /// <summary>Server uptime (seconds) before which the next voice frame is throttled.</summary>
-    public double NextVoiceFrameAt { get; set; }
+    /// <summary>#3048: token bucket for relayed voice frames, refilled on the server's uptime clock — starts full;
+    /// <see cref="VoiceRefilledAt"/> is the uptime of the last refill.</summary>
+    public double VoiceBudget { get; set; } = GameServer.VoiceFrameBurst;
+    public double VoiceRefilledAt { get; set; }
 
     /// <summary>#2158: token bucket for relayed cosmetic action effects (<c>FxIntent</c>), refilled on the server's
     /// uptime clock — starts full; <see cref="FxRefilledAt"/> is the uptime of the last refill.</summary>

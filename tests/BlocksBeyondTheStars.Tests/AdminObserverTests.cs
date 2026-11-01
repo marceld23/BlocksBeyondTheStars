@@ -141,6 +141,37 @@ public sealed class AdminObserverTests : IDisposable
     }
 
     [Fact]
+    public void Observer_IsLeftOutOfOtherPlayersStarMap_AndListedAgainAfterwards()
+    {
+        // #3052: the star map's player list feeds the travel map, the alliance "find players" list and the duel
+        // list — an observer listed there is neither invisible nor out of reach.
+        var transport = new RecordingTransport();
+        var server = NewServer("starmap_invisible", transport, "Operator");
+
+        var player = server.AddLocalPlayer("Justus");
+        var op = server.AddLocalPlayer("Operator");
+
+        transport.Sent.Clear();
+        Spectate(server, op, "on");
+
+        // Entering refreshes everyone's star map at once, and the player's copy no longer lists the observer …
+        var seen = LastStarMap(transport, player);
+        Assert.NotNull(seen);
+        Assert.DoesNotContain(seen!.Players, p => p.Name == "Operator");
+        Assert.Contains(seen.Players, p => p.Name == "Justus");
+
+        // … while the observer's own copy still lists everyone, themselves included.
+        Assert.Contains(LastStarMap(transport, op)!.Players, p => p.Name == "Operator");
+
+        transport.Sent.Clear();
+        Spectate(server, op, "off");
+        Assert.Contains(LastStarMap(transport, player)!.Players, p => p.Name == "Operator");
+    }
+
+    private static StarMapData? LastStarMap(RecordingTransport transport, PlayerSession to)
+        => transport.Sent.Where(x => x.Conn == to.ConnectionId).Select(x => x.Msg).OfType<StarMapData>().LastOrDefault();
+
+    [Fact]
     public void Observer_IsInvulnerable_AndIgnoredByCreatures()
     {
         var transport = new RecordingTransport();

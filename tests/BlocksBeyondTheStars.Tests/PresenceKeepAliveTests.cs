@@ -120,6 +120,29 @@ public sealed class PresenceKeepAliveTests : IDisposable
         }
     }
 
+    [Fact]
+    public void Crowd_AboveSixtyFour_StillSendsOnChangeOnly()
+    {
+        // #3051: the per-subject "already sent" map used to be wiped once it held more than 64 viewers — with 65+
+        // players in one world that happened every beat, so every presence went to every viewer at 10 Hz again.
+        var (server, transport, repo) = NewServer("crowd");
+        using (repo)
+        {
+            const int Crowd = 70;
+            for (int i = 0; i < Crowd; i++)
+            {
+                server.AddLocalPlayer("P" + i).State.Position = new Vector3f(5 + (i % 10), 64, 7 + (i / 10));
+            }
+
+            server.Tick(0.1); // the first beat: everyone learns everyone
+            transport.Sent.Clear();
+            server.Tick(0.1); // nobody moved: inside the keep-alive window nothing is resent
+
+            int resent = transport.Sent.Count(x => x.Msg is PlayerPresence);
+            Assert.True(resent < Crowd, $"an idle beat resent {resent} presences to a crowd of {Crowd} (expected none)");
+        }
+    }
+
     public void Dispose()
     {
         try

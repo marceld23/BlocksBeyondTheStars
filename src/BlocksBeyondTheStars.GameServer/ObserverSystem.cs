@@ -38,6 +38,8 @@ internal interface IObserverHost : IServerHost
     // Messaging
     void BroadcastLandingPads(PlayerSession? always = null);
 
+    void BroadcastStarMap();
+
     void BroadcastFace(PlayerSession subject);
 
     string Localize(string localeCode, string key);
@@ -117,6 +119,7 @@ internal sealed class ObserverSystem
         p.AboardShip = false;                 // no ship to be aboard: cargo crafting/life support don't apply
         p.InSpeeder = string.Empty;
 
+        _host.BroadcastStarMap(); // #3052: the star map's player list drops the observer for everyone else right away
         _host.SendPlayerState(session);
         _host.Send(session, new ServerMessage { Text = "@srv.obs.on" });
         _host.CheatLog(p, "entered observer mode");
@@ -147,6 +150,7 @@ internal sealed class ObserverSystem
         // Re-announce: presence resumes on the next tick by itself, but the face is out-of-band and would
         // otherwise stay missing until the admin edits it.
         _host.BroadcastFace(session);
+        _host.BroadcastStarMap(); // #3052: and lists the admin again
         _host.SendPlayerState(session);
         _host.Send(session, new ServerMessage { Text = "@srv.obs.off" });
         // #2478 (E23): whoever had heard the arc out (B12) before the win counts as being there for it — read before the

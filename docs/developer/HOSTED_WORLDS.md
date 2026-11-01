@@ -331,6 +331,13 @@ BBS_WH_SERVER_IMAGE=ghcr.io/marceld23/blocks-beyond-the-stars-server:0.6.2   # f
 #   BBS_WH_GLITCH_ALLOWED_ORIGINS — see "glitch.fun arcade channel" below
 ```
 
+`deploy/worldhost/docker-compose.yml` has no `env_file`: a value in `.env` reaches the WorldHost container only when
+the compose file's `environment:` block names it. So the compose file forwards **every** `BBS_WH_*` setting the
+WorldHost reads, the optional ones as `${NAME:-}` — WorldHost treats an empty value as unset, so the built-in default
+applies (#3050; before that, e.g. `BBS_WH_MAX_PLAYERS` in `.env` was silently ignored). `BBS_WH_PORT` is the one
+exception (the Caddy label pins the portal upstream to 31417). `WorldHostTests.FleetCompose_ForwardsEveryWorldHostSetting`
+fails when a new setting is added to `WorldHostConfig` without its compose line.
+
 Instances the control plane starts carry caddy-docker-proxy labels
 (`caddy=w-<id>.<domain>`, `caddy.reverse_proxy={{upstreams 31415}}`), so routing appears/disappears
 with the container — no proxy config to maintain.

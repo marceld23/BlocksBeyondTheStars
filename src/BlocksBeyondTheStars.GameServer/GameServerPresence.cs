@@ -585,10 +585,37 @@ public sealed partial class GameServer
                 subject.Sync.PresenceSentTo[viewer.ConnectionId] = (hash, beat);
             }
 
-            if (subject.Sync.PresenceSentTo.Count > 64)
+            if (subject.Sync.PresenceSentTo.Count >= joined.Count)
             {
-                subject.Sync.PresenceSentTo.Clear(); // viewers that left accumulate here — a cheap reset now and then
+                PruneDepartedViewers(subject.Sync.PresenceSentTo, joined); // #3051: trim, never wipe
             }
+        }
+    }
+
+    /// <summary>#3051: drops the entries of viewers no longer joined in this world. It used to be a wipe above 64
+    /// entries, which with 65+ players in a world fired every beat and resent every presence to every viewer. A
+    /// change of the joined set already clears every map (<c>PresenceViewerSignature</c>), so this only ever trims
+    /// leftovers — the entries of the viewers still here, and with them the send-on-change, survive.</summary>
+    private static void PruneDepartedViewers(Dictionary<int, (ulong Hash, int Beat)> sentTo, List<PlayerSession> joined)
+    {
+        var here = new HashSet<int>();
+        foreach (var s in joined)
+        {
+            here.Add(s.ConnectionId);
+        }
+
+        var gone = new List<int>();
+        foreach (var conn in sentTo.Keys)
+        {
+            if (!here.Contains(conn))
+            {
+                gone.Add(conn);
+            }
+        }
+
+        foreach (var conn in gone)
+        {
+            sentTo.Remove(conn);
         }
     }
 }

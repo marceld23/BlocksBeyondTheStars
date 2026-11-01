@@ -795,6 +795,31 @@ public sealed class WorldHostTests : IDisposable
         }
     }
 
+    [Fact]
+    public void FleetCompose_ForwardsEveryWorldHostSetting()
+    {
+        // #3050: deploy/worldhost/docker-compose.yml has no env_file — a variable its environment block does not name
+        // never reaches the container, so an operator's .env value (BBS_WH_MAX_PLAYERS & co.) was silently ignored.
+        // Every BBS_WH_* the WorldHost reads must be forwarded. BBS_WH_PORT stays out on purpose: the Caddy label pins
+        // the portal upstream to 31417.
+        var notForwarded = new HashSet<string>(StringComparer.Ordinal) { "BBS_WH_PORT" };
+        string compose = System.IO.File.ReadAllText(System.IO.Path.Combine(TestPaths.RepoRoot(), "deploy", "worldhost", "docker-compose.yml"));
+        var read = TestPaths.SourceFiles(System.IO.Path.Combine("src", "BlocksBeyondTheStars.WorldHost"))
+            .SelectMany(f => System.Text.RegularExpressions.Regex.Matches(System.IO.File.ReadAllText(f), "\"(?<key>BBS_WH_[A-Z0-9_]+)\"",
+                    System.Text.RegularExpressions.RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5))
+                .Select(m => m.Groups["key"].Value))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        Assert.Contains("BBS_WH_MAX_PLAYERS", read);
+        var missing = read
+            .Where(k => !notForwarded.Contains(k)
+                        && !System.Text.RegularExpressions.Regex.IsMatch(compose, $@"^\s*{k}:", System.Text.RegularExpressions.RegexOptions.Multiline,
+                            TimeSpan.FromSeconds(5)))
+            .ToList();
+        Assert.True(missing.Count == 0, "Not forwarded by deploy/worldhost/docker-compose.yml: " + string.Join(", ", missing));
+    }
+
     // ---------------- Fleet capacity gate ----------------
 
     [Fact]

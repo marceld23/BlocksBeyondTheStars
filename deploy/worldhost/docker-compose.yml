@@ -83,10 +83,33 @@ services:
       BBS_WH_INSTANCE_MEMORY: ${BBS_WH_INSTANCE_MEMORY:-768m}
       BBS_WH_INSTANCE_CPUS: ${BBS_WH_INSTANCE_CPUS:-2}
       BBS_WH_MAX_ACTIVE: ${BBS_WH_MAX_ACTIVE:-10}
+      # Every other WorldHost knob is forwarded empty by default (#3050): this file has no env_file, so a value
+      # in /opt/bbs/worldhost/.env that is not named here never reaches the container, and WorldHost treats an
+      # empty value as unset — the built-in default (see WorldHostConfig / HOSTED_WORLDS.md) applies.
+      # Quotas (operator policy; defaults 2 worlds per account, 12 players per world, 20 min idle).
+      BBS_WH_MAX_WORLDS_PER_ACCOUNT: ${BBS_WH_MAX_WORLDS_PER_ACCOUNT:-}
+      BBS_WH_MAX_PLAYERS: ${BBS_WH_MAX_PLAYERS:-}
+      BBS_WH_IDLE_MINUTES: ${BBS_WH_IDLE_MINUTES:-}
+      # World lifecycle, accounts and uploads.
+      BBS_WH_WAKE_TIMEOUT_SECONDS: ${BBS_WH_WAKE_TIMEOUT_SECONDS:-}
+      BBS_WH_ARCHIVE_MONTHS: ${BBS_WH_ARCHIVE_MONTHS:-}
+      BBS_WH_PORT_RANGE_START: ${BBS_WH_PORT_RANGE_START:-}
+      BBS_WH_PORT_RANGE_SIZE: ${BBS_WH_PORT_RANGE_SIZE:-}
+      BBS_WH_SESSION_DAYS: ${BBS_WH_SESSION_DAYS:-}
+      BBS_WH_RESERVED_NAMES: ${BBS_WH_RESERVED_NAMES:-}
+      BBS_WH_TERMS_VERSION: ${BBS_WH_TERMS_VERSION:-}
+      BBS_WH_UPLOAD_MAX_BYTES: ${BBS_WH_UPLOAD_MAX_BYTES:-}
       # X-Forwarded-For trust (#418): empty keeps the built-in default (loopback + private ranges —
       # covers the sibling Caddy container); set exact IPs/CIDRs to tighten, `none` to disable.
       BBS_WH_TRUSTED_PROXIES: ${BBS_WH_TRUSTED_PROXIES:-}
+      # Rate limits (per IP or per account; empty = the built-in defaults).
       BBS_WH_LOGIN_FAILS_PER_15_MIN: ${BBS_WH_LOGIN_FAILS_PER_15_MIN:-}
+      BBS_WH_SIGNUPS_PER_HOUR: ${BBS_WH_SIGNUPS_PER_HOUR:-}
+      BBS_WH_LOGINS_PER_MINUTE: ${BBS_WH_LOGINS_PER_MINUTE:-}
+      BBS_WH_UPLOADS_PER_HOUR: ${BBS_WH_UPLOADS_PER_HOUR:-}
+      BBS_WH_REPORTS_PER_HOUR: ${BBS_WH_REPORTS_PER_HOUR:-}
+      BBS_WH_STATS_PER_MINUTE: ${BBS_WH_STATS_PER_MINUTE:-}
+      BBS_WH_STATS_CACHE_SECONDS: ${BBS_WH_STATS_CACHE_SECONDS:-}
       # glitch.fun arcade gateway (v0.8.0): off without the title credentials. The title token is
       # server-side only by design — it never ships inside the WebGL build.
       BBS_WH_GLITCH_ENABLED: ${BBS_WH_GLITCH_ENABLED:-false}
@@ -96,6 +119,9 @@ services:
       BBS_WH_GLITCH_MAX_PLAYERS: ${BBS_WH_GLITCH_MAX_PLAYERS:-8}
       BBS_WH_GLITCH_ALLOWED_ORIGINS: ${BBS_WH_GLITCH_ALLOWED_ORIGINS:-}
       BBS_WH_GLITCH_SAVES_PER_HOUR: ${BBS_WH_GLITCH_SAVES_PER_HOUR:-40}
+      BBS_WH_GLITCH_KEEP_AWAKE: ${BBS_WH_GLITCH_KEEP_AWAKE:-}
+      BBS_WH_GLITCH_SESSIONS_PER_MINUTE: ${BBS_WH_GLITCH_SESSIONS_PER_MINUTE:-}
+      BBS_WH_GLITCH_API_URL: ${BBS_WH_GLITCH_API_URL:-}
     labels:
       # Portal + API domain. Worlds announce their own w-<id> subdomains via labels WorldHost puts on
       # each instance container.
