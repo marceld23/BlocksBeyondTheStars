@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -62,6 +63,32 @@ public sealed class PlayerSession
     {
         get => State.LandingPadIndex;
         set => State.LandingPadIndex = value;
+    }
+
+    /// <summary>#3069: the player-built base pad this player holds on their body (its cell), or null — then
+    /// <see cref="AssignedPadIndex"/> names a communal pad. Mirrors <see cref="State"/>.<c>LandingBasePad</c> ("x,y,z") so
+    /// it is persisted like the index.</summary>
+    public Vector3i? AssignedBasePad
+    {
+        get => ParseCell(State.LandingBasePad);
+        set => State.LandingBasePad = value is { } c ? System.FormattableString.Invariant($"{c.X},{c.Y},{c.Z}") : string.Empty;
+    }
+
+    private static Vector3i? ParseCell(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return null;
+        }
+
+        var parts = text!.Split(',');
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        return parts.Length == 3
+               && int.TryParse(parts[0], System.Globalization.NumberStyles.Integer, inv, out int x)
+               && int.TryParse(parts[1], System.Globalization.NumberStyles.Integer, inv, out int y)
+               && int.TryParse(parts[2], System.Globalization.NumberStyles.Integer, inv, out int z)
+            ? new Vector3i(x, y, z)
+            : null;
     }
 
     /// <summary>#2436: the storage crate whose crate screen this player has open, or null — the server re-sends that

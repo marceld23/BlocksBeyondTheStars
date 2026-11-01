@@ -52,6 +52,39 @@ public sealed class NetLandingPad
 
     /// <summary>What falls at the pad ("none", "rain", "snow", …) — temperature-resolved like the surface.</summary>
     public string Precipitation { get; set; } = string.Empty;
+
+    // --- #3069: a player-built pad next to a base. Appended contractless fields: an older peer reads a communal pad. ---
+
+    /// <summary>A player-built landing pad in a base (#3069) rather than one of the body's communal pads. It is addressed by
+    /// its cell (<see cref="CellX"/>…), never by <see cref="Index"/> (which is -1).</summary>
+    public bool Base { get; set; }
+
+    /// <summary>The pad block's cell (a base pad's identity on its body); the ship's floor stands one block above it.</summary>
+    public int CellX { get; set; }
+    public int CellY { get; set; }
+    public int CellZ { get; set; }
+
+    /// <summary>The name the owner gave the pad (may be empty).</summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>The base the pad belongs to: its core cell (the chooser groups a base's pads under one marker there) and name.</summary>
+    public int BaseX { get; set; }
+    public int BaseY { get; set; }
+    public int BaseZ { get; set; }
+    public string BaseName { get; set; } = string.Empty;
+
+    /// <summary>The owner's player name (the chooser and the pad dialog show whose pad it is).</summary>
+    public string OwnerName { get; set; } = string.Empty;
+
+    /// <summary>Whose pad this is for the receiver — <see cref="NetBase.RelationOwn"/>, <see cref="NetBase.RelationAlly"/> or
+    /// <see cref="NetBase.RelationOther"/>, as for bases.</summary>
+    public byte Relation { get; set; }
+
+    /// <summary>Who may land here (<c>BasePadAccess</c>: 0 only the owner, 1 the owner and allies, 2 everyone).</summary>
+    public int Access { get; set; }
+
+    /// <summary>The receiver may not land here (the access shuts them out) — drawn locked, never offered.</summary>
+    public bool Locked { get; set; }
 }
 
 /// <summary>A body's fixed landing pads + occupancy (server → client): drives the land chooser in the flight
@@ -86,4 +119,18 @@ public sealed class ShipTransitFx
 
     /// <summary>The mover's ship hull colour (packed 0xRRGGBB) so the animated ship matches their ship (item 32).</summary>
     public int Hull { get; set; }
+}
+
+/// <summary>#3069: the owner names a base landing pad and sets who may land on it. Answered with the refreshed pad list.</summary>
+public sealed class SetBasePadIntent
+{
+    /// <summary>The pad block's cell on the player's current body.</summary>
+    public int CellX { get; set; }
+    public int CellY { get; set; }
+    public int CellZ { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary><c>BasePadAccess</c>: 0 only the owner, 1 the owner and allies, 2 everyone.</summary>
+    public int Access { get; set; }
 }

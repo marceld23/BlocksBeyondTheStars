@@ -68,6 +68,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Your own base core in the crosshair → the HUD shows the rename key + the core's air readout (#1267).
             Game.AimedOwnBase = AimedOwnedBase();
+            Game.AimedBasePadCell = AimedBasePadBlock(); // #3070: a base landing pad — the HUD names it, E opens its panel
 
             // #2147: the hand door E works — the one under the crosshair, else the nearest; its label follows suit.
             int handDoor = TargetHandDoor();
@@ -102,6 +103,11 @@ namespace BlocksBeyondTheStars.Client
                     baseCell,
                     name => Game.Network?.SendSetBaseName(baseBodyId, name, baseCell.x, baseCell.y, baseCell.z));
                 return;
+            }
+
+            if (TryOpenBasePad())
+            {
+                return; // #3070: a base landing pad you're aiming at → its panel (name + who may land, for the owner)
             }
 
             // Inside your own boarded station, aiming at the station core → rename the station (server checks owner).

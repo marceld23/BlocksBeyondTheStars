@@ -217,6 +217,16 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#2740: the pads of <paramref name="bodyId"/> (the world map passes the active body), or null when no
         /// list for it has arrived yet.</summary>
         public NetLandingPad[] LandingPadsFor(string bodyId) => LandingPadBook.PadsFor(bodyId);
+
+        /// <summary>#3070: the pad list of the body the player is on — communal pads and base pads (<see cref="BasePadView"/>
+        /// tells them apart). Before the first star map arrives there is only the world-entry list to go by; null while no
+        /// list for the body has arrived.</summary>
+        public NetLandingPad[] CurrentBodyPads => StarMap != null ? LandingPadsFor(StarMap.ActiveLocationId) : LandingPads;
+
+        /// <summary>#3070: the base landing pad block in the crosshair (a scene cell), or null — drives the HUD prompt and
+        /// what E opens. Set by PlayerController.</summary>
+        public Vector3Int? AimedBasePadCell;
+
         public string NearbyStation;
 
         /// <summary>The placed crafting-station block the player is aiming at (workbench, forge, …) or null —

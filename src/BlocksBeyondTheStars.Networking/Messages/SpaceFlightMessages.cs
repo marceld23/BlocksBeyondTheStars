@@ -27,6 +27,12 @@ public sealed class LeaveSpaceIntent
 
     /// <summary>Which fixed landing pad to touch down on (item 38); -1 = auto-pick the first free pad.</summary>
     public int PadIndex { get; set; } = -1;
+    /// <summary>#3069: land on a player-built base pad instead — its cell on the destination body (<see cref="PadIndex"/> is
+    /// then ignored). Appended contractless fields: an older server reads a communal landing.</summary>
+    public bool HasPadCell { get; set; }
+    public int PadCellX { get; set; }
+    public int PadCellY { get; set; }
+    public int PadCellZ { get; set; }
 }
 
 /// <summary>Client fires a built ship weapon at a space entity. The server validates and resolves the hit.

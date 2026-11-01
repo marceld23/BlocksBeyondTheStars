@@ -120,6 +120,7 @@ public sealed partial class GameServer
         On<BeamTeleportIntent>(map, (gs, s, m) => gs.HandleBeamTeleport(s, m));
         On<SetCrystalDeviceIntent>(map, (gs, s, m) => gs.HandleSetCrystalDevice(s, m)); // #2046: toggle / press / configure a device
         On<SetBaseNameIntent>(map, (gs, s, m) => gs.HandleSetBaseName(s, m));
+        On<SetBasePadIntent>(map, (gs, s, m) => gs.HandleSetBasePad(s, m)); // #3069: a base landing pad's name + access
         On<YieldIntent>(map, (gs, s, m) => gs.HandleYield(s, m)); // #2999: the base/station yield store — read or collect
         On<SetStationNameIntent>(map, (gs, s, m) => gs.HandleSetStationName(s, m));
         On<SetPlaceNameIntent>(map, (gs, s, m) => gs.HandleSetPlaceName(s, m)); // #2952

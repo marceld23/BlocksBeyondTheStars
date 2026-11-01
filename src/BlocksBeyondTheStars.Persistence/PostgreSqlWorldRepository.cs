@@ -100,6 +100,9 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
             CREATE TABLE IF NOT EXISTS base_claim (
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
                 name TEXT NOT NULL, owner TEXT NOT NULL, PRIMARY KEY (planet, x, y, z));
+            CREATE TABLE IF NOT EXISTS base_pad (
+                planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
+                name TEXT NOT NULL, owner TEXT NOT NULL, access INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (planet, x, y, z));
             CREATE TABLE IF NOT EXISTS alliance (
                 a TEXT NOT NULL, b TEXT NOT NULL, formed TEXT NOT NULL, PRIMARY KEY (a, b));
             CREATE TABLE IF NOT EXISTS crew (
@@ -1790,6 +1793,67 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         }
     }
 
+    // --- Base landing pads (#3069) ---
+
+    public void SaveBasePad(StoredBasePad pad)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO base_pad (planet, x, y, z, name, owner, access) " +
+                              "VALUES (@p, @x, @y, @z, @n, @o, @a) " +
+                              "ON CONFLICT(planet, x, y, z) DO UPDATE SET name=excluded.name, owner=excluded.owner, access=excluded.access;";
+            cmd.Parameters.AddWithValue("@p", pad.Planet);
+            cmd.Parameters.AddWithValue("@x", pad.X);
+            cmd.Parameters.AddWithValue("@y", pad.Y);
+            cmd.Parameters.AddWithValue("@z", pad.Z);
+            cmd.Parameters.AddWithValue("@n", pad.Name);
+            cmd.Parameters.AddWithValue("@o", pad.OwnerId);
+            cmd.Parameters.AddWithValue("@a", pad.Access);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<StoredBasePad> ListAllBasePads()
+    {
+        var result = new List<StoredBasePad>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT planet, x, y, z, name, owner, access FROM base_pad;";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new StoredBasePad
+                {
+                    Planet = reader.GetString(0),
+                    X = reader.GetInt32(1),
+                    Y = reader.GetInt32(2),
+                    Z = reader.GetInt32(3),
+                    Name = reader.GetString(4),
+                    OwnerId = reader.GetString(5),
+                    Access = reader.GetInt32(6),
+                });
+            }
+        }
+
+        return result;
+    }
+
+    public void DeleteBasePad(string planet, int x, int y, int z)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "DELETE FROM base_pad WHERE planet = @p AND x = @x AND y = @y AND z = @z;";
+            cmd.Parameters.AddWithValue("@p", planet);
+            cmd.Parameters.AddWithValue("@x", x);
+            cmd.Parameters.AddWithValue("@y", y);
+            cmd.Parameters.AddWithValue("@z", z);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
     // --- Alliances (player-to-player, server-wide) ---
 
     public void SaveAlliance(StoredAlliance alliance)
@@ -2174,7 +2238,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
     private static readonly string[] BackupTables =
     {
         "world_meta", "block_palette", "block_edit", "player", "player_ref", "ship", "container", "door", "beacon",
-        "beam", "crystal_cell", "base_claim", "alliance", "crew", "crew_member", "story_state", "named_blob",
+        "beam", "crystal_cell", "base_claim", "base_pad", "alliance", "crew", "crew_member", "story_state", "named_blob",
         "location_status", "mission", "space_structure", "structure_edit", "flora_regrow", "weather_deposit",
         "fluid_cell", "fluid_source", "fire_cell", "paint_design", "paint_report", "custom_shape", "world_texture",
     };

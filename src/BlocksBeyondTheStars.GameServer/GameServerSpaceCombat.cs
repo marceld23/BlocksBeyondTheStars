@@ -3093,6 +3093,7 @@ public sealed partial class GameServer
         // stamping the first landing on a pad the pilot never claimed — including one a trader was parked on.
         // A pilot arriving in flight holds no pad; they claim one when they land, like every other arrival.
         session.AssignedPadIndex = -1;
+        session.AssignedBasePad = null; // #3069: a base pad claim stays behind with the body too
         SetCurrent(session);
         if (_ship is not null)
         {
@@ -3143,11 +3144,19 @@ public sealed partial class GameServer
     }
 
     /// <summary>Test/util entry: leave space and land on a specific body (system-scale flight landing).</summary>
-    public void LandOnBody(string playerId, string destinationBodyId, int padIndex = -1)
+    public void LandOnBody(string playerId, string destinationBodyId, int padIndex = -1, Vector3i? basePad = null)
     {
         if (FindSessionByPlayerId(playerId) is { } session)
         {
-            HandleLeaveSpace(session, new LeaveSpaceIntent { DestinationBodyId = destinationBodyId, PadIndex = padIndex });
+            HandleLeaveSpace(session, new LeaveSpaceIntent
+            {
+                DestinationBodyId = destinationBodyId,
+                PadIndex = padIndex,
+                HasPadCell = basePad is not null,
+                PadCellX = basePad?.X ?? 0,
+                PadCellY = basePad?.Y ?? 0,
+                PadCellZ = basePad?.Z ?? 0,
+            });
         }
     }
 
@@ -3189,14 +3198,14 @@ public sealed partial class GameServer
             // this body as "the world we just left" and stand on nothing but its own ship.
             if (!_worlds.IsLoaded(session.CurrentLocationId) || session.AnnouncedWorldId != WorldIdOf(session.CurrentLocationId))
             {
-                HandleTravel(session, new TravelIntent { DestinationBodyId = session.CurrentLocationId, PadIndex = intent.PadIndex }, quickTravel: false, allowCurrentBody: true);
+                HandleTravel(session, TravelFor(intent, session.CurrentLocationId), quickTravel: false, allowCurrentBody: true);
                 return;
             }
 
             // Land back on the current body — claim a free landing pad first (item 38); a full body refuses.
             // An observer takes no pad (#487/#996): pads are finite and communal — same rule as HandleTravel.
             SetActiveWorld(session.CurrentLocationId);
-            if (!session.Spectating && !ClaimPadOrReject(session, session.CurrentLocationId, intent.PadIndex))
+            if (!session.Spectating && !ClaimPadOrReject(session, session.CurrentLocationId, intent.PadIndex, PadCellOf(intent.HasPadCell, intent.PadCellX, intent.PadCellY, intent.PadCellZ)))
             {
                 return;
             }
@@ -3214,7 +3223,7 @@ public sealed partial class GameServer
         // leaves space, loads the destination world and relocates only this player; it claims the pad too).
         // quickTravel:false — this is a MANUAL flight landing (you flew here), so it bypasses the Instant
         // Travel gate and marks the body as visited.
-        HandleTravel(session, new TravelIntent { DestinationBodyId = dest, PadIndex = intent.PadIndex }, quickTravel: false);
+        HandleTravel(session, TravelFor(intent, dest), quickTravel: false);
     }
 
     private void HandleFireWeapon(PlayerSession session, FireWeaponIntent intent)

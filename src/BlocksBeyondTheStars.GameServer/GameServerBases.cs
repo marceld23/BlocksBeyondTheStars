@@ -59,6 +59,11 @@ public sealed partial class GameServer
     /// the owner (removing the core deletes the base). Bases on other bodies don't protect this world.</summary>
     private bool IsBaseProtected(Vector3i pos, string actorId, bool actorIsAdmin)
     {
+        if (IsBasePadProtected(pos, actorId, actorIsAdmin))
+        {
+            return true; // #3069: a landing pad's square is protected like the base it belongs to
+        }
+
         string body = _world.LocationId;
         foreach (var b in _bases)
         {

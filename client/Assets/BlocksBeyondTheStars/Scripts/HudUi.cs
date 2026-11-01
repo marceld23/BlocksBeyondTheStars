@@ -403,6 +403,10 @@ namespace BlocksBeyondTheStars.Client
                 {
                     prompt = BaseAirPrompt(loc, ownBase);
                 }
+                else if (Game.AimedBasePadCell is { } padCell)
+                {
+                    prompt = BasePadPrompt(loc, padCell); // #3070: "Landing pad · North · E: settings"
+                }
                 else if (string.IsNullOrEmpty(Game.InSpeeder) && OwnParkedVehicleInBoardReach())
                 {
                     // Beside an own parked speeder/boat (#1670): nothing on screen ever said how to board —
@@ -644,6 +648,18 @@ namespace BlocksBeyondTheStars.Client
             string focus = string.IsNullOrEmpty(b.Focus) ? string.Empty
                 : "  ·  " + loc.Get("ui.base.focus").Replace("{name}", loc.Get(BlocksBeyondTheStars.Shared.Definitions.BaseFocus.NameKey(b.Focus)));
             return $"{ExpandKeyTokens(loc, loc.Get(key))}  ·  {air}  ·  {here}{residents}{yield}{focus}"; // #2502: {key:Interact}
+        }
+
+        /// <summary>#3070: aiming at a base landing pad — its name and state, and what E does there: the owner's settings, or
+        /// the details for everyone else. A pad the list does not hold (yet) still names the key.</summary>
+        private string BasePadPrompt(BlocksBeyondTheStars.Shared.Localization.Localizer loc, Vector3Int cell)
+        {
+            var pad = BasePadText.FindAt(Game, cell);
+            bool owner = pad != null && pad.Relation == BlocksBeyondTheStars.Networking.Messages.NetBase.RelationOwn;
+            string about = pad == null ? string.Empty
+                : $"  ·  {BasePadText.Name(pad, Game.CurrentBodyPads, loc.Get)}  ·  {BasePadText.State(pad, loc.Get)}";
+            string verb = ExpandKeyTokens(loc, loc.Get(owner ? "ui.basepad.hint_settings" : "ui.basepad.hint_details"));
+            return $"{loc.Get("ui.basepad.title")}{about}  ·  {verb}";
         }
 
         /// <summary>#2018: the Feed prompt while food is held and a begging animal is near — it shares the loot line, and a herd

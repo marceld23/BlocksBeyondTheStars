@@ -1,6 +1,6 @@
 # Bases and teleports — several bases, discovery, settlers, yield, teleporter places
 
-**Status:** implemented 2026-10-29 (epic #2992: #2993–#2999). How the second generation of player bases and the teleporter's
+**Status:** implemented 2026-10-29 (epic #2992: #2993–#2999); base landing pads 2026-11-01 (epic #3074, §8). How the second generation of player bases and the teleporter's
 destinations work, and why they are built this way. The base *air* (core zone, sealed rooms, the shared air engine) is
 [BASE_LIFE_SUPPORT.md](BASE_LIFE_SUPPORT.md); the player-facing rules are in the user manual (*Bases*, *Suit teleporter*,
 *Map markers*, *Scanning*).
@@ -144,9 +144,51 @@ are additive fields.
   `NpcRadioOnTraderLanded` hails Radio-base owners across the system; every 20 minutes on the base's body a VEGA system line
   names an unread, uncarved space wreck of the system with `ShipAiLine.SpaceWaypointId` = the wreck.
 
+## 8. Base landing pads (#3069–#3073)
+
+Marcel (2026-11-01): a player builds landing pads next to their base, with a setting for who may land, several per base,
+shown on the landing map in space. The numbers live in `Shared/Definitions/BasePadRules` (server, client preview and
+chooser read the same ones); the server side is `GameServerBasePads.cs`.
+
+- **The pad.** A `base_pad` block plus a `ServerBasePad` (body, cell, name, owner, `BasePadAccess` Owner / Allies /
+  Everyone, default Allies), table `base_pad`, loaded server-wide at start (`LoadAllBasePads`) because the land chooser asks
+  about bodies that are not loaded. Up to `MaxPerBase` (4) per base; the block marks the middle of a 17 × 17 square, the
+  size of a communal pad, so every ship fits.
+- **Which base.** The owner's base core on the body nearest to the pad within `ReachXZ` 48 / `ReachY` 32 — worked out live
+  (`BaseOfPad`), never stored. The 17³ core zone is exactly one landing square, so a pad cannot sit inside it; it sits in the
+  base's reach instead and brings its own protection. A pad whose core was mined is **inactive**: listed to nobody, not
+  claimable, a parked ship stays.
+- **Placement** (`BasePadRule`, after `base_core`): a planet, moon or asteroid; an own core in reach; under the cap; the
+  square touches no communal pad, no other base pad and no stranger's base zone; the volume (pad Y + 1 … + 16) holds no
+  solid block and no fluid (`BlockedColumns`; open props do not count).
+- **Protection.** The volume joins `IsOnLandingPad` — nobody builds there, the owner included (admins excepted, as on a
+  communal pad). The square from two below the pad to the clearance joins `IsBaseProtected`: owner and admin everything,
+  allies all but the pad block. A pad held by a ship (`BasePadBusy`) refuses mining and area tools.
+- **Landing.** A session holds a communal pad (`AssignedPadIndex`) **or** a base pad (`AssignedBasePad`, persisted as
+  `PlayerState.LandingBasePad` "x,y,z" through `Snapshots.cs`). `LeaveSpaceIntent` / `TravelIntent` carry the cell
+  (`HasPadCell`); `ClaimPadOrReject` takes it, checks access and occupancy (`TryClaimBasePad`) and clears the other kind of
+  claim. `PlayerPad` hands a held base pad out as an ordinary `LandingPad` (`BasePad = true`, `Index` -1), and
+  `PadGroundY` / `PadSurfaceY` answer the pad block's height for its column — ship placement, respawn, speeder parking,
+  transit effects and the admin teleport needed nothing else. `CleanLegacyStampResidueOnce` is skipped on a base pad (on an
+  old save it would delete the player's builds around the hull). Occupancy is live like a communal pad's: a holder up in
+  space keeps it (#957). Changing the access or ending an alliance never moves a parked ship.
+- **The list.** `NetLandingPad` gained additive fields (`Base`, the cell, name, the base's core and name, owner, relation,
+  access, `Locked`); `SendLandingPads` and the chooser reply append `BasePadsFor(body, receiver)`: every active pad the
+  receiver may land on, and a locked one only when the receiver sees that base (#2997 discovery). `SetBasePadIntent` (314)
+  sets name and access (owner or admin) and re-broadcasts the lists.
+- **Coming home (#3072).** A landing with no pad picked (`PadIndex` -1, no cell — the star-map Travel, a same-body landing
+  without a choice) takes the player's own free active base pad there first (`OwnFreeBasePad`, fixed order by cell).
+- **Traders (#3073).** `MarketBasePadFor` gives an arriving merchant a free **Everyone** pad of a Market base (owners present
+  first, as in `NearestFreeDryPad`); `NpcLandedTrader.BasePad` holds it and the materialiser stands the hull on it.
+- **Client.** `Client.Core/BasePadView` groups a list's base pads by base (the land map shows one marker per base at its
+  core — four pads within 48 blocks are one pixel there — and a list on click) and finds a pad by cell; `BasePadUi` is the
+  E dialog, `BasePadPreview` the green/red square while the pad is held, `WorldMap.BasePads` the world-map markers.
+
 ## Tests
 
 `TeleportToPointTests` (places, the Quantum gate, lava, cooldown sharing, canonical markers, content), `SeveralBasesTests`
 (the rule, touching bases, rename by cell, the nearest-core rule, the per-body cap, discovery, settlers, the yield store and
 collect), `NetCodecTests` (tags 310–312), `BaseFocusTests` (#3036–#3040: the free switch, merchants only at a Market base,
-the Miner's shaft, the woodcutter job, the Radio reach).
+the Miner's shaft, the woodcutter job, the Radio reach), `BasePadTests` (#3069–#3073: placement rules and the cap, the clear
+volume, protection, the access matrix and locked listing, landing and holding, coming home, an inactive pad, the Market
+merchants, a restart), `Client.Tests/BasePadViewTests` (grouping and lookup).

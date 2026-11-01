@@ -393,7 +393,11 @@ namespace BlocksBeyondTheStars.Client
                 if (InputMap.Down(InputAction.UiCancel))
                 {
                     Game.MarkMenuInputHandled(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
-                    CancelLandChooser();
+                    if (!CloseBasePadList()) // #3070: an open base's pad list closes first, back to the map
+                    {
+                        CancelLandChooser();
+                    }
+
                     return;
                 }
 
@@ -427,8 +431,10 @@ namespace BlocksBeyondTheStars.Client
                         // #999: key N selects the pad LABELLED N (Index + 1), not array slot N — today the
                         // server sends pads in index order so both agree, but any reordered/filtered list
                         // would silently land the ship on the wrong pad.
-                        var pad = System.Array.Find(pads, p => p.Index == i);
-                        if (pad != null && (Input.GetKeyDown(KeyCode.Alpha1 + i) || Input.GetKeyDown(KeyCode.Keypad1 + i)) && !pad.Occupied)
+                        // #3070: base pads (Index -1, addressed by their cell) never take a number key.
+                        var pad = System.Array.Find(pads, p => !p.Base && p.Index == i);
+                        if (pad != null && _basePadListGo == null
+                            && (Input.GetKeyDown(KeyCode.Alpha1 + i) || Input.GetKeyDown(KeyCode.Keypad1 + i)) && !pad.Occupied)
                         {
                             LandOnPad(pad.Index);
                             break;

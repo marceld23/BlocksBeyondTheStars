@@ -64,6 +64,10 @@ public sealed partial class GameServer
         /// <summary>A metal deck over the gas sea (#2112, the gas giant): every pad of a gas world is one
         /// (see <see cref="BlocksBeyondTheStars.WorldGeneration.LandingPadFlatten.Deck"/>).</summary>
         public bool Deck;
+
+        /// <summary>A player-built base pad (#3069) handed out by <see cref="PlayerPad"/>: <see cref="Index"/> is -1, the
+        /// centre is the pad block's cell and <see cref="CenterY"/> its height (the ship's floor stands one above).</summary>
+        public bool BasePad;
     }
 
     /// <summary>How far above the sea an islet pad's surface sits (a dry beach, not a tidal flat).</summary>
@@ -538,6 +542,11 @@ public sealed partial class GameServer
     /// whole ship. Used by every ship-placement consumer.</summary>
     private int PadGroundY(int cx, int cz)
     {
+        if (BasePadGroundAt(cx, cz) is int baseGround)
+        {
+            return baseGround; // #3069: a base pad's ground is the pad block the player set
+        }
+
         // An islet pad's ground is the raised mound the generator built, not the noise seabed under it (#1453).
         foreach (var pad in _landingPads)
         {
@@ -563,6 +572,11 @@ public sealed partial class GameServer
     /// floor until the entombment rescue dug him out a second later.</summary>
     private int PadSurfaceY(int cx, int cz)
     {
+        if (BasePadGroundAt(cx, cz) is int baseGround)
+        {
+            return baseGround; // #3069: the ship stands on the pad block — the square above it is kept clear
+        }
+
         const int r = 4;
         int median = PadGroundY(cx, cz);
         int top = median;
@@ -1066,9 +1080,21 @@ public sealed partial class GameServer
     /// safety net if somehow unassigned, e.g. an initial spawn). Used to stamp the ship + place the player.</summary>
     private LandingPad PlayerPad(PlayerSession session)
     {
+        if (HeldBasePad(session) is { } basePad)
+        {
+            return basePad; // #3069: the session holds a base pad on this body
+        }
+
         if (_landingPads.Count == 0)
         {
             BuildLandingPads();
+        }
+
+        if (session.AssignedBasePad is not null)
+        {
+            // #3069: the ship is placed on another world than the pad's body (the interior in orbit) — that world's first
+            // pad carries it there, and the base pad claim on the body stays untouched.
+            return _landingPads[0];
         }
 
         int idx = session.AssignedPadIndex;
@@ -1107,7 +1133,7 @@ public sealed partial class GameServer
             }
         }
 
-        return false;
+        return IsBasePadVolume(pos); // #3069: the landing volume of a base pad is kept clear the same way
     }
 
     // --- landing flow + networking ---
@@ -1116,8 +1142,21 @@ public sealed partial class GameServer
     /// reject + returns false if the pad is taken or the body is full (so the caller leaves the player in flight),
     /// else records the pad on the session and returns true. Validates against the body's deterministic pad count,
     /// so it works whether or not the destination world is loaded yet.</summary>
-    private bool ClaimPadOrReject(PlayerSession session, string bodyId, int padIndex)
+    private bool ClaimPadOrReject(PlayerSession session, string bodyId, int padIndex, Vector3i? baseCell = null)
     {
+        // #3069: a base pad picked in the chooser — or, for a landing nobody picked by hand, the player's own free one (#3072).
+        var basePad = baseCell ?? (padIndex < 0 ? OwnFreeBasePad(session, bodyId)?.Cell : null);
+        if (basePad is { } cell)
+        {
+            if (!TryClaimBasePad(session, bodyId, cell, out string baseReason))
+            {
+                Reject(session, "land", baseReason);
+                return false;
+            }
+
+            return true;
+        }
+
         var body = _galaxy?.FindBody(bodyId);
         int total = body != null ? PadCountFor(bodyId, body.PlanetType ?? string.Empty, body.Kind) : 1;
         int chosen = TryClaimPad(session, bodyId, total, padIndex, out string reason);
@@ -1128,6 +1167,7 @@ public sealed partial class GameServer
         }
 
         session.AssignedPadIndex = chosen;
+        session.AssignedBasePad = null; // a communal pad replaces a base pad held before (#3069)
         return true;
     }
 
@@ -1207,7 +1247,7 @@ public sealed partial class GameServer
         }
 
         // This is the active body, so its day fraction is live (drives the world-map terminator client-side).
-        Send(session, new LandingPadList { BodyId = _world.LocationId, Pads = pads, TimeOfDay = (float)_dayFraction });
+        Send(session, new LandingPadList { BodyId = _world.LocationId, Pads = WithBasePads(pads, _world.LocationId, session), TimeOfDay = (float)_dayFraction });
     }
 
     /// <summary>Re-sends the active body's pad list to everyone on it. The list is otherwise a world-entry
@@ -1309,7 +1349,7 @@ public sealed partial class GameServer
         }
 
         SendSystemWeather(session);
-        Send(session, new LandingPadList { BodyId = requestedId, Pads = pads, TimeOfDay = BodyArrivalTimeOfDay(body.Id) });
+        Send(session, new LandingPadList { BodyId = requestedId, Pads = WithBasePads(pads, body.Id, session), TimeOfDay = BodyArrivalTimeOfDay(body.Id) });
     }
 
     /// <summary>The real pad set for a body (the chooser path). Resolves the body's planet type + circumference,

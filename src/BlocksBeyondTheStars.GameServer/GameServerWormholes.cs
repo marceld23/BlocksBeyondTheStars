@@ -152,6 +152,7 @@ public sealed partial class GameServer
         LeaveSpace(playerId);
         session.CurrentLocationId = anchor.Id;
         session.AssignedPadIndex = -1; // no pad claim carries across systems (#1679), like a hyperjump
+        session.AssignedBasePad = null; // #3069
         SetCurrent(session);
         _ship.CurrentLocationId = anchor.Id;
         session.State.AboardShip = true;

@@ -107,6 +107,7 @@ internal sealed class ObserverSystem
         }
 
         session.AssignedPadIndex = -1;        // release the landing pad: pads are communal and finite
+        session.AssignedBasePad = null;       // #3069: and a base pad
         _host.BroadcastToWorld(new PlayerLeft { PlayerId = p.PlayerId }); // clients drop the avatar they can see
         _host.BroadcastLandingPads(); // the released pad is free again — everyone's map must show it (#1020)
         // Pets and deployed speeders despawn on the next reconcile tick — ReconcileCompanions/ReconcileSpeeders

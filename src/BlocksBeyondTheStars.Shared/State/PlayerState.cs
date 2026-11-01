@@ -40,6 +40,11 @@ public sealed class PlayerState
     /// via <c>PlayerSession.AssignedPadIndex</c>; the join revalidates it against live occupancy.</summary>
     public int LandingPadIndex { get; set; } = -1;
 
+    /// <summary>#3069: the player-built base pad this player holds on <see cref="CurrentLocationId"/> — its cell as
+    /// "x,y,z" — or empty for none (then <see cref="LandingPadIndex"/> names a communal pad). Persisted like the index:
+    /// the ship is re-parked on it after a reload; the join revalidates it.</summary>
+    public string LandingBasePad { get; set; } = string.Empty;
+
     /// <summary>Where the player respawns — the heal-tank in their ship's Medbay.</summary>
     public Vector3f RespawnPoint { get; set; } = Vector3f.Zero;
 

@@ -23,7 +23,7 @@ public sealed class PlacementRuleOrderTests
             {
                 "height_limit", "torch_air", "cell_free", "door_here", "fluid_cell", "above_head", "reach",
                 "landing_pad", "station", "factory", "base", "ship_interior", "ship_core", "flora", "base_core",
-                "light_mount", "bed_room", "form_room",
+                "base_pad", "light_mount", "bed_room", "form_room",
             },
             SvGameServer.PlacementRuleNamesForTest);
     }

@@ -231,6 +231,8 @@ TEXTURES = [
     ("ship_sensor", "a sci-fi ship sensor block, dark metal panel with a glowing spaceship outline screen and a hull integrity bar, front view"),
     ("base_core", "a sci-fi base foundation cornerstone block, a carved grey stone slab with a glowing teal-cyan claim emblem and faint engraved energy lines, top-down"),
     ("beam_block", "a sci-fi teleporter pad, a dark metal floor plate with a glowing cyan hexagonal grid, concentric light rings and small status lights around the rim, top-down"),
+    # Base landing pad (#3069) — the centre marker of a player-built landing square next to a base.
+    ("base_pad", "a sci-fi spaceship landing pad marker seen from above, a dark grey metal floor plate with a bold amber-orange letter H inside a glowing amber circle, yellow-black hazard stripes along the edges and small amber landing lights in the four corners, top-down"),
     # Materialvielfalt — dead-end fixes + new tiers + metal storage blocks.
     ("detoxifier", "a sci-fi chemical detox station, a metal vat of bubbling glowing green fluid with pipes and valves, top-down"),
     # Algae tank — base food machine (grows rations from water).
