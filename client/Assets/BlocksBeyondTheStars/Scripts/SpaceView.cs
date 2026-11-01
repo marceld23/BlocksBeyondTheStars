@@ -513,6 +513,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             PlaceCamera();
+            RetintSunOnNewMap(); // #3075
             BillboardSun();
 
             // Engine loop: swells in cruise, throttle nudges the pitch.
@@ -764,6 +765,8 @@ namespace BlocksBeyondTheStars.Client
             _hatchDoor = null; // lived under the destroyed _ship
             _sun = null; // sun billboard lived under _root (destroyed); flare sprites persist on _ui
             _sunMat = null;
+            _sunCoreMat = null;
+            _sunMap = null;
             _hatchMat = null; // hatch marker material lived under the destroyed ship
             _hullMat = null;
             _appliedHullRgb = -1;

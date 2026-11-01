@@ -120,10 +120,17 @@ renders in **linear colour space**, and the hand-written shaders are all dual-pi
     from the neighbouring texture).
   - *Grass carpet and flowers* (#3056): the mesher records every open-topped plain-cube `grass`/`alien_grass`/`mycelium`
     top (`ChunkMeshData.GrassTops` + `GrassLight`, on every preset, so switching needs no remesh); `GrassShells`
-    draws an instanced stack of 10 shells (0–0.18 m) per top within 20 m — strands cut from a hash (32 per block edge),
+    draws an instanced stack of 10 shells (0–0.22 m) per top within 16 m — strands cut from a hash (14 per block edge),
     colour from the very atlas texel the strand grows out of (variant tile and turn mirrored by `MeadowField`, so texture
     packs work), the block shader's lighting for an upward face (sun + shadow map, skylight, placed block light,
-    headlamp, haze, wind, wet/snow — snow presses the carpet down), flattening and thinning over the last 6 m. Flowers:
+    headlamp, haze, wind, wet/snow — snow presses the carpet down), flattening and thinning over the last 8 m.
+    *Against the crawl* (#3078 — the first playtest called the carpet "wuselig"): no strand gets thinner than about a
+    pixel (the minimum radius comes from `fwidth` of the cell UV — the cut itself jumps at each strand cell's border);
+    with MSAA (High: 4×) the forward pass turns a one-pixel ramp across the strand edge into alpha-to-coverage, and
+    without MSAA it keeps the hard cut (URP raises `_AlphaToMaskAvailable` only for MSAA targets; alpha-to-coverage on
+    a single-sample target differs between GPUs); the depth pass always cuts at the coverage's 50 % line; and the shells
+    sway only with the plants' slow wave at 0.15 of their reach (`BbtsShellSway` — the 2.9 rad/s flutter term made a
+    22 cm carpet jitter). Flowers:
     one plain-grass top in nine (a hash of the canonical cell), out to 28 m, in the world's floral palette
     (`FloraTints.For` of four floral species), denser in spring, few in autumn, none in winter, growing in and sinking
     out instead of popping; the sprite is painted at runtime (`FlowerSprite`). Never shadow casters. #3063 alongside:

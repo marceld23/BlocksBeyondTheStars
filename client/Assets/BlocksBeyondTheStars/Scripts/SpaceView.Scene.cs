@@ -655,14 +655,14 @@ namespace BlocksBeyondTheStars.Client
         /// reads as a real bright sun disc you can fly toward — not a vague coloured wash.</summary>
         private void BuildSun()
         {
-            _sunColor = Game?.Environment != null ? Rgb(Game.Environment.SunColor) : new Color(1f, 0.96f, 0.88f);
+            _sunColor = FlightStarColor(); // #3075: the star of the system the flight is in (SpaceView.Sun.cs)
 
             var go = new GameObject("Sun");
             go.transform.SetParent(_root.transform, false);
             _sun = go.transform;
 
             _sunMat = MakeSunLayer(_sun, _sunColor, 320f);                          // outer corona (star colour)
-            MakeSunLayer(_sun, Color.Lerp(_sunColor, Color.white, 0.85f), 150f);    // hot near-white core
+            _sunCoreMat = MakeSunLayer(_sun, SunCoreColor(_sunColor), 150f);        // hot core, still in the star's colour (#3077)
             MakeSunLayer(_sun, Color.white, 64f);                                   // blazing white centre
         }
 

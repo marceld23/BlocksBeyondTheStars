@@ -295,6 +295,36 @@ public sealed class ShipInteriorTests : IDisposable
     }
 
     [Fact]
+    public void TheShipInterior_ShowsTheStarOfTheSystemTheShipFloatsIn_AlsoAfterAJump()
+    {
+        // #3076: the interior world `shipint:<id>` is no body of the galaxy — it used to light every cabin with the star of
+        // the empty system name, and as a resident world it would have kept its first star after a jump anyway.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            server.Ship.Modules.Add("jump_generator");
+            string homeId = server.Galaxy.FindBody(pilot.CurrentLocationId)!.SystemId;
+            int homeStar = SvGameServer.StarColor(server.Galaxy.Systems.Single(s => s.Id == homeId).Name);
+
+            server.EnterSpace("Pilot");
+            server.EnterShipInterior("Pilot");
+            Assert.StartsWith("shipint:", pilot.CurrentLocationId);
+            Assert.Equal(homeStar, server.SunColor); // the interior is the active world now
+
+            server.ExitShipToFlight("Pilot");
+            var target = server.Galaxy.Systems.First(s => s.Id != homeId && SvGameServer.StarColor(s.Name) != homeStar
+                && s.Bodies.Any(b => !string.IsNullOrEmpty(b.PlanetType) && _content.GetPlanet(b.PlanetType!) is not null));
+            server.HyperjumpToSystem("Pilot", target.Id);
+            Assert.True(server.InSpace("Pilot"));
+
+            server.EnterShipInterior("Pilot"); // the same, still resident interior world
+            Assert.True(server.InShipInterior("Pilot"));
+            Assert.Equal(SvGameServer.StarColor(target.Name), server.SunColor);
+        }
+    }
+
+    [Fact]
     public void EnterShipInterior_OnlyWorksFromSpace()
     {
         var server = Started(out var repo);

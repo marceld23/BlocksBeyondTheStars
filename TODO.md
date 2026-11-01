@@ -53,6 +53,27 @@ docs/developer/BASES_AND_TELEPORTS.md §8; player side: USER_MANUAL *Landing pad
 - Backlog (not part of this): `GameRules.PersonalLandingZoneProtection` is set by the server presets but never read since
   the per-player landing zones were removed — a cleanup candidate.
 
+### 🌟 Every star its own colour + a calm grass carpet — #3075 #3076 #3077 #3078, branch fix/star-colour-and-grass-shimmer — ✅ done 2026-11-01 (⚠ playtest open; no save-version, protocol or terrain-generation change — every save's systems get their new star colours on the next start)
+
+Marcel's playtest of the High-details build: "jumped through four systems — the sun was always normal yellow" and "the
+grass crawls" ("wuselt").
+- **#3075 Flight view after a jump:** `SpaceView.BuildSun` read the environment's sun colour, which belongs to the world
+  last landed on — a jump in flight sends no new environment, so every system showed the departure star. The flight view
+  (star billboard, lens flare, the light on the ship in `Sky`) now reads the star map's current system
+  (`FlightStar`, Client.Core) and re-tints when a later map arrives (`SpaceView.Sun.cs`).
+- **#3076 Ship interior:** `shipint:<id>` is no galaxy body → system "" → one constant star in every cabin, and the
+  resident world kept it across jumps. `TakeShipInteriorStar` sets it from the body under the flight on every step
+  inside (own ship and the docking visit).
+- **#3077 Wider ramp:** `StarRamp` 7/15/30/22/14/8 over six pale anchors (~70 % "yellowish white") → seven anchors
+  12/10/12/20/16/14/12 (blue … red-orange, a little more saturated; sun-like `FFF1CE` kept for `Sky.SunLikeLuma`);
+  client grade fold 0.4 → 0.55, day-sky tint 0.2 → 0.3, the flight star's core 85 % → 60 % white.
+- **#3078 Grass carpet:** strands never thinner than ~a pixel (`fwidth` of the cell UV), MSAA alpha-to-coverage on the
+  strand edge (hard cut kept without MSAA via `_AlphaToMaskAvailable`), the shells sway with the plants' slow wave only
+  at 0.15 (was 0.4 incl. the 2.9 rad/s flutter), carpet range 20 → 16 m (flattening over the last 8 m).
+- Tests: `ShipInteriorTests` (interior star in two systems across a jump), `HyperspaceChartServerTests` (ramp spread),
+  `FlightStarClientTests` (real wire: after a jump in flight the environment is stale, the flight star is the new
+  system's). Docs: MULTIWORLD_AND_SYSTEM_FLIGHT, ART_BIBLE, ADVANCED_GRAPHICS, USER_MANUAL.
+
 ### ✨ High details 2026-11 — sharper shadows, parallax, grass carpet and flowers, room reflections, decals, a further far view, volumetric light — epic #3066 (#3054–#3065), branch feat/high-preset-details — ✅ done 2026-11-01 (⚠ playtest open; no save-version, protocol or terrain-generation change — `FarTerrainWorldInfo` gains an additive field)
 
 Marcel asked whether "runs on a Raspberry Pi" and "the browser is functionally identical" hold the graphics back. The Pi

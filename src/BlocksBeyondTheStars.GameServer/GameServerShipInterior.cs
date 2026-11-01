@@ -138,6 +138,7 @@ public sealed partial class GameServer
     {
         string shipLoc = ShipInteriorLoc(session.State.PlayerId);
         LoadWorld(ShipInteriorType, shipLoc);
+        TakeShipInteriorStar(session.State.PlayerId);
         SetCurrent(session);
         PlaceLandedShip();
 
@@ -166,6 +167,20 @@ public sealed partial class GameServer
         // #2723: a docked friend may already be visiting (the host comes back in from a spacewalk) — faces and body paint
         // both ways, as on any world change. Nobody else is here otherwise, and then this sends nothing.
         SyncAppearance(session);
+    }
+
+    /// <summary>#3076: the star a ship interior shows through its windows — the one of the system the ship floats in. The
+    /// interior world (<c>shipint:&lt;id&gt;</c>) is no body of the galaxy, so <see cref="InitWeather"/> resolved it to the
+    /// empty system name (one colour in every system); and the world stays resident, so it would keep its first star
+    /// after a later jump anyway. The walkabout record names the body under the flight. Call right after the interior
+    /// was loaded (it is the active world then) and before its environment goes out.</summary>
+    private void TakeShipInteriorStar(string playerId)
+    {
+        if (_inShipInterior.TryGetValue(playerId, out var walkabout)
+            && LocationNamesFor(walkabout.ReturnLoc).System is { Length: > 0 } system)
+        {
+            _sunColor = StarColor(system);
+        }
     }
 
     /// <summary>#2723: how long after a switch into a ship interior a report from outside the hull counts as stale

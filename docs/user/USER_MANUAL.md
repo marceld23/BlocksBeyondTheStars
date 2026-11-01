@@ -565,8 +565,8 @@ only says "Only on the High graphics level". Each detail has its own switch (all
   about 150 m.
 - **Surface depth (parallax)**: up close, brick mortar, ore nuggets, cracks in rock and the seams of metal plates have
   real depth that shifts as you move your head. It fades out after about 20 m.
-- **Grass carpet** and **Flowers on meadows**: meadows grow a dense carpet of grass blades up to about 20 m around
-  you, swaying in the wind, darker in the shade, glowing next to a torch at night and pressed flat by snow. Small
+- **Grass carpet** and **Flowers on meadows**: meadows grow a dense carpet of grass blades up to about 16 m around
+  you, swaying gently in the wind, darker in the shade, glowing next to a torch at night and pressed flat by snow. Small
   flowers bloom in between, in this world's own flower colours — many in spring, few in autumn, none in winter. They
   are only decoration and cannot be picked. (The small grass tufts and pebbles of the Medium and High presets show again
   on open ground — in the desktop and browser builds they had gone missing — and darken in the shade.)
@@ -3114,6 +3114,9 @@ called **stories**:
   You don't steer; the controls come back once you stand on the new world. **"Hyperjump to this system"** from a
   parked ship takes off first too, then warps and drops you into the new system **in flight**. A jump you start
   while already flying (system chart, Hyperspace tab) still warps straight away.
+- **Every star has its own colour** — blue, white, yellow, orange or red — and so does its light: in flight, through
+  the windows of your ship's cabin, and on its worlds, where it tints the sky and the whole landscape. The star's colour
+  is also the dot on the Hyperspace chart.
 - Jumping to **another star system** requires a fitted **`jump_generator`** module — or a **wormhole**, if the
   system has one (§ Mysteries).
 - A star system you have **never entered** shows as **"Unknown system"** — its name is part of what you
