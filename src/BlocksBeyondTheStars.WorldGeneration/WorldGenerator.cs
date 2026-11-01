@@ -127,6 +127,26 @@ public sealed partial class WorldGenerator
         sibling._continentsEnabled = _continentsEnabled;
         sibling._lavaCoreVolcanoes = _lavaCoreVolcanoes;
         sibling._terrainGeneration = _terrainGeneration;
+        sibling._buildWorkers = _buildWorkers;
+        return sibling;
+    }
+
+    /// <summary>#3068: extra threads a one-off per-world build may use (the river grid); 0 = all on the calling thread.
+    /// It changes no result, only how fast a new world's first query answers, so it is not part of
+    /// <see cref="SharesGlobalSettingsWith"/>.</summary>
+    private int _buildWorkers;
+
+    /// <summary>#3068: lets the one-off per-world builds (the routed river grid) run on up to <paramref name="workers"/>
+    /// extra threads, each with its own sibling generator. The server sets it on its template generator; the client and
+    /// the in-browser server keep 0. Siblings inherit it.</summary>
+    public void SetBuildWorkers(int workers) => _buildWorkers = System.Math.Max(0, workers);
+
+    /// <summary>#3068: a sibling in this generator's world mode as well — the same terrain answers for the same body,
+    /// on an instance another thread may use.</summary>
+    private WorldGenerator ModeSibling()
+    {
+        var sibling = CreateSibling();
+        sibling.SetWorldMode(_circumference, _crateredWorld, _padSnapshot, _locationId, _frontierOreBoost);
         return sibling;
     }
 

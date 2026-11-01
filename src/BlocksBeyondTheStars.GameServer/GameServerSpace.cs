@@ -22,7 +22,7 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private const int LandingPadRadius = 8;       // one generous size — clears the largest ship (hauler 7×9)
+    private const int LandingPadRadius = 8;       // one generous size — a 17×17 square clears every ship (self-built up to 15×15)
     private const int PadClearanceHeight = 16;    // reserve only the landing volume above the pad, not the whole sky
 
     /// <summary>A fixed landing pad on a body. Deterministic from the body seed; no owner (communal).</summary>
@@ -617,13 +617,14 @@ public sealed partial class GameServer
         (0, 0), (-4, -4), (4, -4), (-4, 4), (4, 4), (-4, 0), (4, 0), (0, -4), (0, 4),
     };
 
-    /// <summary>Height spread over the landing footprint — small = flat enough to set a ship down on.</summary>
-    private int PadFootprintSpread(PlanetType planet, int cx, int cz, int cutoff = int.MaxValue)
+    /// <summary>Height spread over the landing footprint — small = flat enough to set a ship down on. A pad search passes
+    /// its column memo (#3068); the answer is the same with or without it.</summary>
+    private int PadFootprintSpread(PlanetType planet, int cx, int cz, int cutoff = int.MaxValue, PadColumnMemo? memo = null)
     {
         int min = int.MaxValue, max = int.MinValue;
         foreach (var (dx, dz) in PadSpreadSamples)
         {
-            int y = _generator.SurfaceHeight(planet, cx + dx, cz + dz);
+            int y = memo?.Height(cx + dx, cz + dz) ?? _generator.SurfaceHeight(planet, cx + dx, cz + dz);
             min = System.Math.Min(min, y);
             max = System.Math.Max(max, y);
 
@@ -657,10 +658,13 @@ public sealed partial class GameServer
         int bestX = baseX, bestZ = baseZ, bestSpread = int.MaxValue;
         int earthyX = int.MinValue, earthyZ = 0, earthySpread = int.MaxValue;
         bool anyDry = false;
+        // #3068: neighbouring candidates share most footprint columns — ask the generator once per column.
+        var memo = new PadColumnMemo(baseX, baseZ, budget + LandingPadRadius, circ, (x, z) => ColumnWetGen8(planet, x, z),
+            (x, z) => _generator.ColumnHasBandAbove(planet, x, z), (x, z) => _generator.SurfaceHeight(planet, x, z));
 
         void Consider(int x, int z)
         {
-            if (LandingFootprintWet(planet, x, z) || PadFootprintCovered(planet, x, z))
+            if (LandingFootprintWet(planet, x, z, memo) || PadFootprintCovered(planet, x, z, memo))
             {
                 return;
             }
@@ -668,7 +672,7 @@ public sealed partial class GameServer
             anyDry = true;
             // #1989: the flatness scan may stop as soon as this candidate is rougher than everything kept so far.
             int cutoff = seekEarthy ? System.Math.Max(bestSpread, earthySpread) : bestSpread;
-            int spread = PadFootprintSpread(planet, x, z, cutoff);
+            int spread = PadFootprintSpread(planet, x, z, cutoff, memo);
             if (spread < bestSpread)
             {
                 bestSpread = spread;
@@ -745,12 +749,13 @@ public sealed partial class GameServer
     private bool LandingFootprintWet(int cx, int cz) => LandingFootprintWet(_world.Planet, cx, cz);
 
     /// <summary>As above but for an explicit planet (the generator must already be configured for that body's
-    /// circumference) — so a ship never touches down in a sea or pond, on any body (B36/B54).</summary>
-    private bool LandingFootprintWet(PlanetType planet, int cx, int cz)
+    /// circumference) — so a ship never touches down in a sea or pond, on any body (B36/B54). A pad search passes its
+    /// column memo (#3068); the answer is the same with or without it.</summary>
+    private bool LandingFootprintWet(PlanetType planet, int cx, int cz, PadColumnMemo? memo = null)
     {
         if (LavaPadRules)
         {
-            return LandingFootprintWetGen8(planet, cx, cz);
+            return LandingFootprintWetGen8(planet, cx, cz, memo);
         }
 
         int r = LandingPadRadius;
@@ -771,16 +776,14 @@ public sealed partial class GameServer
     /// <summary>Generation-8 dry test (2026-09): wet if ANY footprint sample stands in a body of water or lava the
     /// generator makes — the seas and craters of the old test plus rivers, generation-1 lakes and every lava lake or
     /// flow (<see cref="WorldGenerator.TryGetLavaSurface"/>). Short-circuits on the first wet sample.</summary>
-    private bool LandingFootprintWetGen8(PlanetType planet, int cx, int cz)
+    private bool LandingFootprintWetGen8(PlanetType planet, int cx, int cz, PadColumnMemo? memo = null)
     {
         int circ = _generator.Circumference;
         foreach (var (dx, dz) in PadFootprintSamples)
         {
             int x = WorldConstants.WrapX(cx + dx, circ);
             int z = cz + dz;
-            if (_generator.IsSurfaceWater(planet, x, z)
-                || _generator.SurfaceGen1WaterDepth(planet, x, z) > 0
-                || _generator.TryGetLavaSurface(planet, x, z, out _, out _))
+            if (memo is null ? ColumnWetGen8(planet, x, z) : memo.IsWet(x, z))
             {
                 return true;
             }
@@ -789,18 +792,25 @@ public sealed partial class GameServer
         return false;
     }
 
+    /// <summary>One footprint column of the generation-8 dry test: a sea, pond, river, generation-1 lake or lava there.</summary>
+    private bool ColumnWetGen8(PlanetType planet, int x, int z)
+        => _generator.IsSurfaceWater(planet, x, z)
+            || _generator.SurfaceGen1WaterDepth(planet, x, z) > 0
+            || _generator.TryGetLavaSurface(planet, x, z, out _, out _);
+
     /// <summary>#2334: a band over any of the pad's five cardinal samples — an arch bar, a crown, a sky island — makes
     /// the column no seat for a ship. The generator answers false on every world of a generation before 21, so no
     /// pinned pad moves; on a new world the nudge walks on to the next dry, flat, uncovered column.</summary>
-    private bool PadFootprintCovered(PlanetType planet, int cx, int cz)
+    private bool PadFootprintCovered(PlanetType planet, int cx, int cz, PadColumnMemo? memo = null)
     {
         int r = LandingPadRadius;
         int circ = _generator.Circumference;
-        return _generator.ColumnHasBandAbove(planet, cx, cz)
-            || _generator.ColumnHasBandAbove(planet, WorldConstants.WrapX(cx - r, circ), cz)
-            || _generator.ColumnHasBandAbove(planet, WorldConstants.WrapX(cx + r, circ), cz)
-            || _generator.ColumnHasBandAbove(planet, cx, cz - r)
-            || _generator.ColumnHasBandAbove(planet, cx, cz + r);
+        bool Band(int x, int z) => memo?.HasBand(x, z) ?? _generator.ColumnHasBandAbove(planet, x, z); // #3068: a search remembers
+        return Band(cx, cz)
+            || Band(WorldConstants.WrapX(cx - r, circ), cz)
+            || Band(WorldConstants.WrapX(cx + r, circ), cz)
+            || Band(cx, cz - r)
+            || Band(cx, cz + r);
     }
 
     /// <summary>True if lava stands anywhere under a pad footprint (every lava body the generator makes), with the

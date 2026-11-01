@@ -348,6 +348,7 @@ public sealed partial class GameServer
         _generatorTemplate.SetContinentsEnabled(_meta.Description.TerrainContinents);
         _generatorTemplate.SetLavaCoreVolcanoes(_meta.Description.LavaCoreVolcanoes); // #1631: new worlds only, like continents
         _generatorTemplate.SetTerrainGeneration(_meta.Description.TerrainGeneration); // #1644: the wave this save was created with
+        _generatorTemplate.SetBuildWorkers(BuildWorkers); // #3068: a new world's river grid on several threads
         _worlds = new WorldManager(_content, _generatorTemplate, _repo);
         if (_content.GetPlanet(_meta.DefaultPlanetType) is { Void: true })
         {
