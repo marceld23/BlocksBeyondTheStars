@@ -208,6 +208,7 @@ public sealed partial class GameServer
         // have been placed there — or may have been worked on from outside since: place it (again) first.
         string hostLoc = ShipInteriorLoc(hostId);
         LoadWorld(ShipInteriorType, hostLoc);
+        TakeShipInteriorStar(guestId); // #3076: docked together, both ships float in the same system
         if (hostOnEva || !_worlds.Active.LandedFor(hostId).Placed)
         {
             SetCurrent(host);

@@ -74,6 +74,33 @@ public sealed class HyperspaceChartServerTests : IDisposable
     }
 
     [Fact]
+    public void StarColours_SpreadAcrossTheRamp_NotMostlySunLike()
+    {
+        // #3077: about 70 % of all systems used to read "normal yellow" — a playtest met four of them in a row. Blue and
+        // red-orange stars are common now, the sun-like band is about half. Measured on real generated system names (the
+        // hash is keyed by name, and made-up names in a row do not spread like generated ones).
+        var desc = new WorldDescription { StarSystemCount = 12, SystemVariance = true };
+        var names = Enumerable.Range(1, 80)
+            .SelectMany(seed => new UniverseGenerator(seed, desc, _content).Generate(12).Systems.Select(s => s.Name))
+            .Distinct()
+            .ToList();
+        int blue = 0, warm = 0;
+        foreach (string name in names)
+        {
+            int rgb = SvGameServer.StarColor(name);
+            int r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
+            blue += b > r ? 1 : 0;
+            warm += g <= 0xD0 ? 1 : 0;
+        }
+
+        double n = names.Count, sunLike = (n - blue - warm) / n;
+        string shares = $"blue {blue / n:P0}, warm {warm / n:P0}, sun-like {sunLike:P0} of {n} systems";
+        Assert.True(blue / n >= 0.14, shares);   // blue + blue-white: 22 of 96 (was 7)
+        Assert.True(warm / n >= 0.16, shares);   // orange + red-orange: 26 of 96
+        Assert.True(sunLike <= 0.62, shares);    // white, sun-like, yellow: 48 of 96 (was ~70 %)
+    }
+
+    [Fact]
     public void StarColour_RoundTripsThroughTheCodec()
     {
         var msg = new StarMapData

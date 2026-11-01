@@ -18,8 +18,9 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public sealed partial class GrassShells : MonoBehaviour
     {
-        /// <summary>The carpet's range in metres; GrassShellCommon.hlsl flattens it over the last ones (BBTS_SHELL_FADE_END).</summary>
-        public const float CarpetRange = 20f;
+        /// <summary>The carpet's range in metres; GrassShellCommon.hlsl flattens it over the last ones (BBTS_SHELL_FADE_END).
+        /// #3078: 16, was 20 — the strands of the last metres were only pixel noise.</summary>
+        public const float CarpetRange = 16f;
 
         /// <summary>The flowers' range in metres; MeadowFlowerCommon.hlsl sinks them over the last ones (BBTS_FLOWER_FADE_END).</summary>
         public const float FlowerRange = 28f;
