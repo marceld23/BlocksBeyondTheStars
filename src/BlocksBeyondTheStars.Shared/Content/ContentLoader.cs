@@ -175,6 +175,12 @@ public static class ContentLoader
             ? JsonSerializer.Deserialize<Festivals.FestivalCatalog>(File.ReadAllText(festivalsFile), JsonOptions)
             : null);
 
+        // The build categories (#3102) are optional the same way: no categories.json → every list shows only "All".
+        string categoriesFile = Path.Combine(dataDir, "categories.json");
+        content.SetCategories(File.Exists(categoriesFile)
+            ? JsonSerializer.Deserialize<CategoryCatalog>(File.ReadAllText(categoriesFile), JsonOptions)
+            : null);
+
         content.Validate();
         return content;
     }

@@ -1,0 +1,161 @@
+// #3102: the build categories — ONE set for the crafting list, the blueprints, the ship modules, the cargo hold, the
+// backpack and the Sandbox catalogue. A thing may sit in several categories (the jetpack is "Travel & Transport" AND
+// "Suit & Survival"). Presentation only: no server rule reads this file.
+//
+// Membership of a category = its lists + its "derive" rules:
+//   weapon / vehicle / suitGear / consumable / materials — item rules (tool kind, vehicle, worn gear, item category)
+//   fromBlueprints — every item a recipe makes behind one of THIS category's blueprints (the whole Crystal Net)
+//   allModules / allShips — every ship module / every ship
+// An item that no list and no rule names lands in the categories whose "fallbackFor" holds its item category, and a
+// blueprint that no list names takes the categories of what it unlocks — content added later is findable without
+// touching this file. ContentCategoriesTests guard the keys, the coverage and the names (en + de).
+{
+  "groups": [
+    { "key": "gear",     "nameKey": "category.group.gear.name" },
+    { "key": "building", "nameKey": "category.group.building.name" },
+    { "key": "supplies", "nameKey": "category.group.supplies.name" }
+  ],
+  "categories": [
+    {
+      "key": "movement", "nameKey": "category.movement.name", "group": "gear", "icon": "cat_fleet", "iconItem": "speeder",
+      "derive": [ "vehicle", "allShips" ],
+      "items": [ "boat", "speeder", "rail_pylon", "rail_stop", "rail_linker", "rail_cab", "wagon_seats", "wagon_sleeper", "wagon_bar",
+                 "jetpack", "glider", "spring_boots", "climbing_gloves", "climbing_claws", "energy_rope_gun",
+                 "suit_teleporter", "quantum_teleporter", "beam_block", "radio_beacon", "lift_motor", "lift_stop", "bridge_motor",
+                 "ladder", "stairs", "base_pad", "matter_sender", "matter_receiver", "ship_core", "ship_helm", "ship_engine" ],
+      "blueprints": [ "speeder", "monorail", "jetpack", "glider", "spring_boots", "climbing_gloves", "climbing_claws", "energy_rope_gun",
+                      "suit_teleporter", "quantum_teleporter", "beam_block", "radio_beacon", "crystal_lift", "matter_sender", "matter_receiver",
+                      "docking_module", "jump_generator", "ship_builder", "ship_hauler", "ship_scout", "ship_corvette", "ship_hammerhead",
+                      "ship_courier", "ship_thunderbolt", "ship_deathblock" ],
+      "modules": [ "docking_module", "jump_generator" ]
+    },
+    {
+      "key": "tools", "nameKey": "category.tools.name", "group": "gear", "icon": "cat_tools", "iconItem": "titanium_drill",
+      "fallbackFor": [ "Tool" ],
+      "items": [ "titanium_drill", "diamond_drill", "mining_beam", "terrain_blaster", "fluid_pump", "paint_tool", "shape_tool", "shape_stencil",
+                 "blueprint_tool", "wood_pickaxe", "remote_control", "rail_linker", "energy_rope_gun", "bio_sampler" ],
+      "blueprints": [ "titanium_drill", "diamond_drill", "mining_beam", "terrain_blaster", "fluid_pump", "paint_tool", "shape_tool",
+                      "energy_rope_gun", "tractor_beam", "asteroid_breaker" ],
+      "modules": [ "tractor_beam", "asteroid_breaker" ]
+    },
+    {
+      "key": "explore", "nameKey": "category.explore.name", "group": "gear", "icon": "cat_planet", "iconItem": "hand_scanner",
+      "items": [ "hand_scanner", "advanced_scanner", "terrain_scanner", "weather_scanner", "radar_scanner", "binoculars", "thermal_binoculars",
+                 "camera", "creature_translator", "radio_beacon", "comm_radio", "system_radio", "galaxy_radio", "sensor_lens", "quantum_sensor" ],
+      "blueprints": [ "terrain_scanner", "weather_scanner", "advanced_scanner", "radar_scanner", "binoculars", "thermal_binoculars", "camera",
+                      "creature_translator", "radio_beacon", "comm_radio", "system_radio", "galaxy_radio", "archaeology", "radar_array",
+                      "planet_scanner", "quantum_scanner", "ship_scout" ],
+      "modules": [ "radar_array", "planet_scanner", "quantum_scanner" ],
+      "ships": [ "scout" ]
+    },
+    {
+      "key": "combat", "nameKey": "category.combat.name", "group": "gear", "icon": "cat_weapons", "iconItem": "laser_pistol",
+      "derive": [ "weapon" ],
+      "items": [ "helmet", "armor_chest", "armor_legs", "titan_helmet", "titan_chest", "titan_legs", "stealth_suit", "stasis_projector",
+                 "sentry_post", "energy_fence", "energy_gate", "force_field", "alarm_siren" ],
+      "blueprints": [ "machete", "vibro_knife", "plasma_sword", "gauss_pistol", "laser_pistol", "plasma_blaster", "shock_gloves", "energy_gloves",
+                      "helmet", "armor_chest", "armor_legs", "titan_helmet", "titan_chest", "titan_legs", "stealth_suit", "stasis_projector",
+                      "sentry_post", "door_energy", "hull_plating", "shield_generator", "asteroid_breaker", "ship_cannon_1", "laser_cannon_2",
+                      "ship_corvette", "ship_hammerhead", "ship_thunderbolt", "ship_deathblock" ],
+      "modules": [ "hull_plating", "shield_generator", "asteroid_breaker", "ship_laser_basic", "ship_cannon_1", "laser_cannon_2" ],
+      "ships": [ "corvette", "hammerhead", "thunderbolt", "deathblock" ]
+    },
+    {
+      "key": "suit", "nameKey": "category.suit.name", "group": "gear", "icon": "cat_suit", "iconItem": "helmet",
+      "derive": [ "suitGear" ],
+      "blueprints": [ "oxygen_tank_1", "oxygen_tank_2", "oxygen_tank_3", "oxygen_extractor", "suit_liner_1", "suit_liner_2", "suit_liner_3",
+                      "suit_battery", "suit_lamp", "helmet", "armor_chest", "armor_legs", "boots", "titan_helmet", "titan_chest", "titan_legs",
+                      "stealth_suit", "jetpack", "glider", "spring_boots", "climbing_gloves", "climbing_claws", "suit_teleporter",
+                      "quantum_teleporter", "comm_radio", "system_radio", "galaxy_radio", "radar_scanner", "oxygen_generator" ],
+      "modules": [ "oxygen_generator", "life_support" ]
+    },
+    {
+      "key": "build", "nameKey": "category.build.name", "group": "building", "icon": "cat_blocks", "iconItem": "steel_wall",
+      "fallbackFor": [ "Block" ],
+      "items": [ "stone", "dirt", "grass", "wood_log", "concrete", "glass", "glass_clear", "metal_panel", "iron_wall", "steel_wall", "steel_floor",
+                 "insulated_wall", "iron_block", "copper_block", "gold_block", "silver_block", "aluminium_block", "tin_block", "nickel_block",
+                 "cobalt_block", "platinum_block", "lead_block", "zinc_block", "tungsten_block", "titanium_block", "bronze_block", "brass_block",
+                 "ladder", "stairs", "door_wood", "door_hinge", "door_slide", "door_energy", "trapdoor", "energy_gate", "phase_block",
+                 "crystal_conduit", "machine_block", "tree_leaves", "tree_leaves_b", "tree_leaves_c", "blossom_leaves", "pine_needles",
+                 "palm_frond", "mushroom_stem", "mushroom_cap" ],
+      "blueprints": [ "glass_clear", "door_energy", "archaeology", "crystal_mechanics" ]
+    },
+    {
+      "key": "deco", "nameKey": "category.deco.name", "group": "building", "icon": "cat_blocks", "iconItem": "lantern",
+      "items": [ "torch", "lantern", "light_white", "light_red", "light_green", "strip_light_cyan", "strip_light_warm", "paper_lantern",
+                 "diya_lamp", "pumpkin_lantern", "rug", "flower_pot", "gift_box", "bed", "name_tag", "signal_display", "melody_block",
+                 "chime", "dice_block", "gaming_pc", "gaming_monitor", "gaming_keyboard", "gaming_mouse" ],
+      "blueprints": [ "crystal_sound", "crystal_signals" ]
+    },
+    {
+      "key": "crystal", "nameKey": "category.crystal.name", "group": "building", "icon": "cat_tech", "iconItem": "crystal_conduit",
+      "derive": [ "fromBlueprints" ],
+      "blueprints": [ "crystal_conduit", "crystal_sensors", "crystal_logic", "crystal_sound", "crystal_signals", "crystal_mechanics",
+                      "crystal_piston", "crystal_lift", "fabricator", "caller", "clone_tank", "auto_drill_1", "auto_drill_2", "auto_drill_3",
+                      "drill_laser", "matter_sender", "matter_receiver", "ship_sensor" ]
+    },
+    {
+      "key": "production", "nameKey": "category.production.name", "group": "building", "icon": "cat_machines", "iconItem": "workbench",
+      "items": [ "workbench", "forge", "factory_terminal", "factory_pipe", "machine_block", "matter_forge", "detoxifier", "decontaminator",
+                 "fabricator", "auto_drill_1", "auto_drill_2", "auto_drill_3", "drill_laser", "quarry_post", "thumper", "power_relay",
+                 "algae_tank", "campfire", "bio_lab" ],
+      "blueprints": [ "refinery", "detoxifier", "matter_forge", "matter_resynth", "decontaminator", "fabricator", "auto_drill_1",
+                      "auto_drill_2", "auto_drill_3", "drill_laser", "bio_lab", "bio_refining", "bio_synthesis", "bio_tuning", "field_kitchen" ],
+      "modules": [ "workshop", "refinery", "detoxifier", "transmuter", "decontaminator", "bio_lab" ]
+    },
+    {
+      "key": "base", "nameKey": "category.base.name", "group": "building", "icon": "cat_mission", "iconItem": "base_core",
+      "items": [ "base_core", "base_pad", "station_core", "station_vendor", "mission_board", "station_container", "clinic_post", "shop_counter",
+                 "arms_rack", "sage_lectern", "tamer_post", "quarry_post", "streamer_post", "press_desk", "rail_post", "bed", "crew_bunk",
+                 "campfire", "workbench", "clone_tank", "power_relay", "sentry_post", "energy_fence", "caller", "announcer" ],
+      "blueprints": [ "station_vendor", "station_mission_board", "station_profession_posts", "station_container", "sentry_post", "clone_tank",
+                      "caller" ],
+      "modules": [ "quarters" ]
+    },
+    {
+      "key": "garden", "nameKey": "category.garden.name", "group": "building", "icon": "cat_planet", "iconItem": "sapling",
+      "items": [ "plant_seed", "crystal_seed", "berry_seed", "grain_seed", "shroom_seed", "pumpkin_seed", "sapling", "sapling_conifer",
+                 "sapling_fruit_round", "sapling_fruit_long", "sapling_fruit_grape", "sapling_fruit_banana", "sapling_fifi",
+                 "sapling_mahogany", "marigold_seed", "seedling", "tree_leaves", "tree_leaves_b", "tree_leaves_c", "blossom_leaves",
+                 "pine_needles", "palm_frond", "mushroom_stem", "mushroom_cap", "fifi_leaf", "fifi_blossom", "flower_pot", "hydro_tray",
+                 "algae_tank", "water_spout", "water", "bio_lab", "bio_sampler", "forage_bait", "meat_bait", "nectar_lure", "plant_fiber",
+                 "biofuel", "berries", "fruit_round", "fruit_long", "fruit_grape", "fruit_banana", "pumpkin", "tamer_post",
+                 "creature_translator" ],
+      "blueprints": [ "bio_lab", "bio_refining", "bio_synthesis", "bio_tuning", "bio_crossing", "creature_translator", "clone_tank" ],
+      "modules": [ "bio_lab" ]
+    },
+    {
+      "key": "storage", "nameKey": "category.storage.name", "group": "building", "icon": "cat_cargo", "iconItem": "crate",
+      "items": [ "crate", "wood_crate", "station_container", "storage_sensor", "matter_sender", "matter_receiver" ],
+      "blueprints": [ "cargo_expansion_1", "cargo_expansion_2", "cargo_expansion_3", "station_container", "matter_sender", "matter_receiver",
+                      "tractor_beam", "ship_hauler" ],
+      "modules": [ "cargo_hold_basic", "cargo_hold_1", "cargo_hold_2", "cargo_hold_3", "tractor_beam" ],
+      "ships": [ "hauler" ]
+    },
+    {
+      "key": "ship", "nameKey": "category.ship.name", "group": "building", "icon": "cat_buildship", "iconItem": "ship_helm",
+      "derive": [ "allModules", "allShips" ],
+      "items": [ "ship_core", "ship_helm", "ship_engine", "ship_sensor", "medbay_panel", "lab_panel", "cargo_floor", "engine_panel",
+                 "engine_nozzle", "crew_bunk" ],
+      "blueprints": [ "ship_builder", "ship_hauler", "ship_scout", "ship_corvette", "ship_hammerhead", "ship_courier", "ship_thunderbolt",
+                      "ship_deathblock", "cargo_expansion_1", "cargo_expansion_2", "cargo_expansion_3", "refinery", "detoxifier", "matter_forge",
+                      "matter_resynth", "decontaminator", "bio_lab", "tractor_beam", "oxygen_generator", "docking_module", "jump_generator",
+                      "radar_array", "planet_scanner", "quantum_scanner", "ai_core_mk2", "ai_core_mk3", "hull_plating", "shield_generator",
+                      "asteroid_breaker", "ship_cannon_1", "laser_cannon_2", "ship_sensor" ]
+    },
+    {
+      "key": "food", "nameKey": "category.food.name", "group": "supplies", "icon": "cat_medicine", "iconItem": "medpack",
+      "derive": [ "consumable" ],
+      "items": [ "field_medkit", "heal_tank", "stretcher", "clinic_post", "campfire" ],
+      "blueprints": [ "field_medkit", "heal_tank", "field_kitchen", "bio_refining" ],
+      "modules": [ "medbay", "detoxifier" ]
+    },
+    {
+      "key": "materials", "nameKey": "category.materials.name", "group": "supplies", "icon": "cat_components", "iconItem": "iron_plate",
+      "derive": [ "materials" ],
+      "fallbackFor": [ "Material", "Component" ],
+      "blueprints": [ "matter_forge", "matter_resynth", "decontaminator", "bio_refining" ],
+      "modules": [ "transmuter" ]
+    }
+  ]
+}

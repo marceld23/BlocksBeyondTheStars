@@ -122,7 +122,7 @@ GLOSSARY_KEYS = (
     "ui.journal.skip_step", "ui.journal.cat_tips", "ui.story.start_now",
     "block.workbench.name", "block.forge.name", "block.fabricator.name", "block.heal_tank.name", "module.medbay.name",
     "module.jump_generator.name", "module.radar_array.name", "item.comm_radio.name", "block.bio_lab.name",
-    "ui.marker.mission_board", "ui.tech.cat_crystal", "item.access_code.name",
+    "ui.marker.mission_board", "category.crystal.name", "item.access_code.name",
     "poi.guardian_core", "poi.observatory", "poi.alien_shrine",
 )
 

@@ -18,7 +18,7 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// Crafting rules of <see cref="CraftingTechShipUI"/> shared by the Crafting, Tech, Ship, Inventory and Suit
     /// tabs: free crafting and the catalog gate, ingredient rows and costs, whether a recipe can be crafted and fits,
-    /// disassembly, and category/search matching.
+    /// disassembly, and search matching (the categories live in the <c>.Categories</c> partial).
     /// </summary>
     public sealed partial class CraftingTechShipUI
     {
@@ -93,10 +93,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (!string.IsNullOrEmpty(blueprint))
             {
-                bool bp = BlueprintOk(blueprint);
-                UiKit.AddText(_detail, 8, y, 620, 26, $"{(bp ? "✓" : "✗")} {L("ui.craft.blueprint")}: {L($"blueprint.{blueprint}.name")}", 18,
-                    bp ? UiKit.Ok : new Color(1f, 0.5f, 0.5f), TextAnchor.UpperLeft);
-                y += 30f;
+                y = BlueprintLine(blueprint, y); // with "Go to blueprint" (#3106)
             }
 
             return y + 8f;
@@ -170,32 +167,6 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#2958: an ingredient's name — a group ingredient reads as its group ("Logs (any kind)").</summary>
         private string IngredientName(ItemAmount need)
             => string.IsNullOrEmpty(need.Group) ? ItemName(need.Item) : L(BlocksBeyondTheStars.Shared.Content.GameContent.ItemGroupNameKey(need.Group));
-
-        private bool MatchesCategory(string item)
-        {
-            if (_category == "all")
-            {
-                return true;
-            }
-
-            var def = Game.Content.GetItem(item);
-            if (def == null)
-            {
-                return false;
-            }
-
-            return _category switch
-            {
-                "weapon" => def.Tool?.Kind == ToolKind.Weapon,
-                "tool" => def.Category == ItemCategory.Tool && def.Tool?.Kind != ToolKind.Weapon,
-                "suit" => BlocksBeyondTheStars.Shared.State.SuitEquipment.IsSuitGear(def),
-                "consumable" => def.Category == ItemCategory.Consumable,
-                "component" => (def.Category == ItemCategory.Component || def.Category == ItemCategory.Material) && !BlocksBeyondTheStars.Shared.State.SuitEquipment.IsSuitGear(def),
-                "machine" => def.CraftTab == "machines",
-                "block" => (def.Category == ItemCategory.Block || !string.IsNullOrEmpty(def.PlacesBlock)) && def.CraftTab != "machines",
-                _ => true,
-            };
-        }
 
         private bool MatchesSearch(string label)
             => string.IsNullOrEmpty(_search) || label.ToLowerInvariant().Contains(_search.ToLowerInvariant());
