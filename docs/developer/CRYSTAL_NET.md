@@ -67,7 +67,18 @@ Per world: `CrystalNetState` with `Cells` (cell → `ServerCrystalCell`) and `Ne
   (`CrystalNetRules.Faces`). Its `Level` is re-derived every logic beat: OR over the `Output` of its member
   **sources** (`CrystalNetRules.IsSource`), plus every gate whose drive face points into it. A listening member's
   `Output` is a status and is skipped (#2092). `PrevLevel` keeps the level of the previous beat for the edge
-  detector (§5).
+  detector (§5). `Driven` (#3091) says whether anything drives the network at all — a source among its cells or a
+  gate pointing into it, ON or OFF; a network of bare conduits is not driven (see the sentry below).
+- **A watcher's eye is no wire (#3092).** The face a watcher looks through (`cell + OutputFace(yaw)`, its arrow)
+  does not connect: `CrystalEyeBetween(a, b)` is true when a watcher on either cell looks at the other, and then no
+  network joins across that face (`JoinCrystalNet`, `SplitCrystalNet`), no passive port registers through it
+  (`HasCrystalNeighbour`, `DiscoverCrystalNeighbours`, `DissolvePortCluster`), no door is locked through it
+  (`CrystalDoorBeat`) and no gate reads or drives through it (`CrystalGateInputs`, `CrystalGateOutputNet`). Without
+  this, everything a watcher looked at would sit on the watcher's own network: a sentry it watched would hold its
+  fire while the watcher was quiet, a door would be locked, a lamp would follow the watcher's own pulses and set it
+  off again. Turning a watcher (menu **Turn**) re-wires it (`RewireTurnedWatcher`): it leaves its network, joins
+  again through its five new wire faces, a port it now looks at leaves the net when nothing else holds it, and a
+  port on the side it used to look through joins.
 - **Join / merge.** `JoinCrystalNet`: a placed non-gate cell looks at its six neighbours; no net beside it opens a
   new network, one joins it, several **merge** into the one with the smallest id. A merge that would exceed
   `MaxCellsPerNet` (256) leaves the new cell **inert** instead.
@@ -108,9 +119,14 @@ Per world: `CrystalNetState` with `Cells` (cell → `ServerCrystalCell`) and `Ne
   `NetDoor.Mode` and `TickDoors` applies it (the hand toggle is refused while locked); the client shows it as a
   small lamp above the doorway (§12).
 - **Registration** (`RegisterCrystalCell`): assigns a device id, creates a `TimerState` for a timer block,
-  restores a switch's lever from `Mode` (1 = ON), marks the sentry and the spout as already applied in their
-  world state (a sentry fires, a spout pours — so an OFF network is a change the first beat applies), checks the
-  caps (§8), joins the net (gates excepted), persists the row and marks both wire lists dirty. A **lamp is not
+  restores a switch's lever from `Mode` (1 = ON), marks the sentry, the spout and the heal tank as already applied
+  in their world state (a sentry fires, a spout pours, a tank heals — so an OFF network is a change the first beat
+  applies), checks the caps (§8), joins the net (gates excepted), indexes a watcher (`CrystalNetState.Watchers`),
+  persists the row and marks both wire lists dirty. **#3091:** those three (`CrystalNetRules.RunsUntilDriven`) are
+  held OFF only by a network something **drives** (`CrystalNetwork.Driven`): a bare conduit laid beside a sentry —
+  Justus' "Kette zum Schießen", a line of conduits he took for a power line — used to be an OFF network, and the post
+  silently held its fire while the HUD said "linked". The net carries no power; a sentry's power is the base zone or
+  a power-relay chain (`GameServerSentries.cs`), and the net can only switch it. A **lamp is not
   assumed lit** (#2096): it may have been saved as its dark twin, so its `Synced` flag stays false until the first
   beat has read the block that actually stands there (§5). `LastActuated` starts "long ago" (−1000 s), so a
   device's first action is never rate-limited.
@@ -140,7 +156,8 @@ bandits as hostile), so twenty plates cost one pass over the entities. A sensor 
 
 1. Pulses fall back (`PulseUntil` reached → `Output = false`).
 2. Network levels: OR over the outputs of the member **sources** (`IsSource` — a listener's status is skipped,
-   #2092), plus the gates that drive into the network (previous beat's output, through `DriveFace`).
+   #2092), plus the gates that drive into the network (previous beat's output, through `DriveFace`). The same pass
+   sets `Driven` (#3091): any source or gate, whatever its level.
 3. Gates compute their next output: the Device Eye `CrystalEyeReads` (§4); a logic block
    `LogicGate.Evaluate(mode, inputs)` (AND / OR / NOT / XOR; NOT with no input is ON — the inverter every airlock
    needs; AND with no input is OFF); a timer block `TimerState.Step` (delay / clock / counter / toggle; config
@@ -161,7 +178,12 @@ bandits as hostile), so twenty plates cost one pass over the entities. A sensor 
      `Applied = level`; false (chunk not loaded, the cell is air) → try again next beat. A lamp saved dark
      therefore lights up after a reload when its network is ON.
    - **Level devices** (lamp, alarm siren, sentry, spout, energy gate, beacon alarm) follow when the level differs
-     from `Applied` and ≥ 500 ms passed since their last world change (`ActuatorMinIntervalSeconds`).
+     from `Applied` and ≥ 500 ms passed since their last world change (`ActuatorMinIntervalSeconds`). A sentry, a
+     spout and a heal tank (`RunsUntilDriven`) on a network that is not `Driven` follow ON (#3091): a wire nothing
+     drives leaves them doing their job, and mining the last switch of a circuit hands them back to themselves. While
+     one of them is held OFF, its device record carries `Held` (§11) — the HUD's "switched off by the Crystal Net".
+   - **Watchers** (#3092, `CrystalWatcherBeat`): each watcher compares what it sees in front of it with the last beat
+     and pulses on a change (below).
 5. Doors (`CrystalDoorBeat`) — derived from the networks beside them every beat.
 6. Machines held ON advance on their own beat (`CrystalMachineBeat`, §7).
 7. `PrevLevel = Level` on every network — the edge detector's memory.
@@ -170,8 +192,24 @@ Then the lists go out, coalesced once per tick: `CrystalNetList` when any level 
 were last told, `CrystalDeviceList` when a device's output / mode / config changed, and the creature list when a
 machine moved or spawned an animal.
 
-**Watchers** are not polled: `LoadCrystalNet` subscribes once to `_world.BlockSet`, and
-`OnCrystalWatchedCellChanged` pulses every watcher whose eye (`cell + OutputFace(yaw)`) is the changed cell.
+**Watchers** (`GameServerCrystalWatchers.cs`) see two kinds of change in the cell in front of them (their eye,
+`cell + OutputFace(yaw)`):
+
+- **Block changes** arrive as events: `LoadCrystalNet` subscribes once to `_world.BlockSet`, and
+  `OnCrystalWatchedCellChanged` pulses every watcher whose eye is the changed cell (a mined or placed block, a crop
+  that ripened, a lamp or a twin that swapped).
+- **State changes** (#3092 — Justus: "the watcher doesn't react") are compared once per logic beat
+  (`CrystalWatcherBeat` over the `Watchers` index; `CrystalWatchedState` packs what the eye sees into a few bits):
+  the `Output` of a device there (a switch flipped, a button pressed, a sensor or gate switching, a status such as
+  "has a target" or "blocked"), the level of the network that cell is on, whether the net holds a sentry / spout /
+  heal tank there (`Held`), a sentry post shooting (`ShootingSentries`, kept by `FireSentryLinked` for wired and plain
+  posts alike), and a door whose gap covers the cell standing open (`CrystalDoorAt`, shared with the Device Eye).
+  None of these is a block change, and they happen in many places (sensors, gates, machines, statuses), so one
+  comparison per watcher per beat replaces a hook at each — a dictionary lookup per watcher, plus a pass over the
+  doors only for a watcher that looks at no net cell. A fresh, reloaded or turned watcher only remembers on its first
+  beat (`EyeState` = unknown), so a load never fires a pulse. A cell on the watcher's **own** network (a wire run round
+  to the cell it watches) is never its trigger, so a watcher cannot become a clock by accident; two watchers that look
+  at each other keep setting each other off, like any loop a player builds on purpose (bounded: one pulse per beat).
 
 ## 6. Device catalogue
 
@@ -192,7 +230,7 @@ drives its own network (#2092).
 | `proximity_sensor` | ProximitySensor | source (sensor) | who is near | level | — | mode = `PresenceFilter` (7); config `r=0..2` |
 | `daylight_sensor` | DaylightSensor | source (sensor) | local sun | level | — | mode 0 day / 1 night |
 | `storage_sensor` | StorageSensor | source (sensor) | crate beside it | level | — | mode = `StorageSensorMode`; config `item=`, `n=` |
-| `watcher` | Watcher | source (event) | the cell it looks at (`OutputFace`) changes | pulse | — | config `yaw=` (look direction) |
+| `watcher` | Watcher | source (event) | what stands in the cell it looks at (`OutputFace`) changes: a block, a device's state, a wire's level, a door, a sentry shooting (#3092); that face is no wire | pulse | — | config `yaw=` (look direction) |
 | `logic_block` | LogicBlock | gate | up to 5 faces | drive face = `OutputFace`, one beat later | — | mode = `LogicMode`; config `yaw=` |
 | `timer_block` | TimerBlock | gate | up to 5 faces | drive face = `OutputFace` | — | mode = `TimerMode`; config `period=`, `count=`, `yaw=` |
 | `device_eye` | DeviceEye | gate | the device (or door) it looks at (`OutputFace`) | drive face = its back | — | config `yaw=` (look direction) |
@@ -211,9 +249,9 @@ drives its own network (#2092).
 | every `category: light` block | Light | level listener | level | — | — | — (OFF swaps to `<key>_off`) |
 | `radio_beacon` | Beacon | level listener | level → alarm marker | — | ON while the owner is within 12 | — |
 | `beam_block` | BeamPad | edge listener | rising edge → beams whoever stands on it | — | 0.5 s pulse when someone arrives | config `pair=<x,y,z of the far pad>` |
-| `sentry_post` | Sentry | level listener | OFF = holds fire | — | ON while it has a target | — |
+| `sentry_post` | Sentry | level listener | OFF = holds fire — only on a driven network (#3091) | — | ON while it has a target | — |
 | `thumper` | Thumper | edge listener | rising edge starts its run | — | — | — |
-| `water_spout` | Spout | level listener | OFF stops pouring | — | — | — |
+| `water_spout` | Spout | level listener | OFF stops pouring — only on a driven network (#3091) | — | — | — |
 | `energy_gate` | EnergyGate | level listener | ON lets animals through | — | — | — |
 | `hydro_tray` | HydroTray | edge listener | rising edge harvests into the crate beside it | — | ON while something is ripe | — |
 | `rail_stop` | RailStop | edge listener | rising edge departs the train halted here | — | — | — (#2113: a stop within 4 blocks of a rail line; the autopilot halts at it for 8 s — see `MONORAIL.md`) |
@@ -408,7 +446,7 @@ row is what rebuilds the network without touching a chunk; a lamp's row exists o
 | Message | Direction | Content |
 |---|---|---|
 | `CrystalNetList` | server → world | every network: `Id`, `On`, `Cells` as x/y/z triples — the client draws the glow on exactly these cells |
-| `CrystalDeviceList` | server → world | every non-conduit cell: `Id`, cell, `Kind` (enum name), `Mode`, `Config` (incl. `yaw=` for gates and watchers), `Label`, `OwnerId`, `Output` (a source's / gate's level, a listener's status), `Choices` (clone tanks only: the owner's cloneable species as `"speciesId|coined name"`, #2097) |
+| `CrystalDeviceList` | server → world | every non-conduit cell: `Id`, cell, `Kind` (enum name), `Mode`, `Config` (incl. `yaw=` for gates and watchers), `Label`, `OwnerId`, `Output` (a source's / gate's level, a listener's status), `Choices` (clone tanks only: the owner's cloneable species as `"speciesId|coined name"`, #2097), `Held` (#3091, additive: the net holds this sentry / spout / heal tank OFF right now) |
 | `SetCrystalDeviceIntent` | client → server | cell, `Action` 0/1/2, `Mode`, `Config`, `Label` |
 | `SoundFx` | server → world | `SoundId`, position, `Pitch`, `Loop`, `Stop`, `SourceId` (device id, so a stop finds its loop) |
 | `NetDoor.Mode` | server → world | 0 normal / 1 locked / 2 held open (the client shows a small red / green lamp above the doorway) |
@@ -446,10 +484,13 @@ white when the mode returned to normal). `ClientAudio` plays `SoundFx` (the sixt
 tracked by `SourceId` so a stop finds them) and `ProceduralAudio` synthesises the melody notes
 `note_<inst>_<n>` (instruments crystal / bell / bass / blip, C4…C5 — see [SOUND_DESIGN.md](SOUND_DESIGN.md) §12).
 The HUD names what Interact does to the device under the crosshair (`Game.AimedCrystalDevice`,
-`ui.crystal.prompt.toggle / press / menu / linked`, in the active device's glyph). `CrystalDeviceUi`
+`ui.crystal.prompt.toggle / press / menu / linked`, in the active device's glyph); a device whose record says `Held`
+(#3091: a sentry holding its fire, a closed spout) reads `ui.crystal.held` ("switched off by the Crystal Net")
+instead of "linked", and the sentry's scan readout adds the same words while the scanned post is still in the
+crosshair (`HudUi.Scan.cs` — a `ScanResult` names no cell). `CrystalDeviceUi`
 (`Scripts/CrystalDeviceUi.cs`) is the **menu** for `IsConfigurable` kinds: a mode grid with `ModeCount` buttons
 (labels `ui.crystal.mode.<kind>.<n>`), setting rows that cycle on click (radius, period 0.5 / 1 / 2 / 3 / 5 / 10 s,
-count, instrument), a list for the pairing kinds (matter receivers, beam pads, recipes, animals — the clone tank's
+count, instrument), a line that says what the watcher does (`ui.crystal.watcher_help`, #3092), a list for the pairing kinds (matter receivers, beam pads, recipes, animals — the clone tank's
 animals are exactly the device's `Choices`, #2097, so the menu never offers a species the server would refuse)
 and a *Start now* button for machines; every click goes to the server at once, which validates, persists and
 echoes the device back. Modal like `BeamPadUi`: pad-navigable, closes on Esc / pad **B** / the Close button, touch
@@ -594,7 +635,7 @@ ids; see `SaveCompatibilityTests`). What changed, part by part:
 Joining like every port (only when a net cell touches them): **force field** (ON = open; `force_field_off` twin) and
 **energy fence** (ON = animals pass) — both *spread*: a wired wall of them switches as one (`SpreadsToOwnKind`,
 `DissolvePortCluster` takes the whole cluster out again); **campfire** and **forge** (ON = burning, `_off` twins);
-**heal tank** (OFF = no healing; status "someone heals here"); **flower pot** (edge: harvests into the crate
+**heal tank** (OFF = no healing — only on a driven network, #3091; status "someone heals here"); **flower pot** (edge: harvests into the crate
 beside it; status ripe); **bed** and **seat** (status "someone lies / sits here" — a seat is any block formed into a
 chair or bench). They keep their own use (`IsPlainBlockPort`): a wired forge is still a forge, and none of them is
 decoration in a ship or refused on a station spacewalk. The **fabricator** gained station recipes from the block
@@ -721,7 +762,11 @@ Blueprints `crystal_mechanics` (phase block, trapdoor, bridge motor), `crystal_p
 `crystal_signals` (display, dice, sender, receiver, remote, environment sensor), `ship_sensor`. 17 block tiles and 13
 item icons (OpenAI), 12 sounds (ElevenLabs) — listed in `NOTICES.md` and [SOUND_DESIGN.md](SOUND_DESIGN.md). The Codex
 has four Crystal Net articles with six circuit diagrams (`tools/wiki/gen_circuit_diagrams.py`, see
-[MINIGAMES_AND_WIKI.md](MINIGAMES_AND_WIKI.md)).
+[MINIGAMES_AND_WIKI.md](MINIGAMES_AND_WIKI.md)). **#3093:** the Codex names every device by its block name, in every
+language (the German articles had called the watcher "Wächter" — the hostile robots' name — and the thumper, the
+hydroponic tray, the waterfall spout, the timer block, the Device Eye, the chime, the horn, the signal sender and
+receiver, the beam block, the matter link, the auto-drill and the clone tank by older names). `CodexBlockNameTests`
+guards the English and German articles; a renamed block needs its Codex mentions renamed in the same change.
 
 ### 17.12 Tests
 
@@ -730,4 +775,8 @@ switch stamped ON, template markers, the crystal vault, the force-field wall, fo
 station recipes, six crates, phase block, trapdoor, bridge, piston, lift, display, dice, signals and remote, the
 down-pointing gate and Turn, the per-player cap, catch-up), `CrystalShipNetTests` (a cabin lamp, the net in flight and
 back, a stranger refused, the ship sensor, the hatch, a mined device), `ShipFunctionBlockTests` (what works aboard),
-Client.Tests `ClientCrystalNetTests`, `EditorPlacementRulesTests`, `WikiMarkupTests`.
+Client.Tests `ClientCrystalNetTests`, `EditorPlacementRulesTests`, `WikiMarkupTests`. #3091 / #3092:
+`CrystalWatcherTests` (a watcher sees a switch flipped both ways, a wire's level, a door open and close — without
+locking it; it does not wire the lamp it looks at; Turn moves its eye; a heal tank on a bare conduit keeps healing until
+a switch joins the wire) and `SentryTests` (a post beside a bare conduit keeps firing; a switch OFF holds its fire, ON
+lets it shoot, mined hands it back; a watcher looking at a plain post pulses when it starts shooting).

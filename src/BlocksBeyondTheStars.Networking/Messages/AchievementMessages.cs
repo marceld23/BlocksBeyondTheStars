@@ -43,10 +43,15 @@ public sealed class AchievementUnlocked
 
 /// <summary>
 /// An achievement is due but its reward has nowhere to go, so it was NOT marked earned — the player is told to
-/// make room and it is awarded on the next counter bump. Deliberately deferred rather than unlocked-and-lost:
-/// the whole point of the reward is that the player gets it.
+/// make room and it is awarded as soon as there is room (#3082: the server retries whenever the inventory changes,
+/// not only on the next counter bump or join). Deliberately deferred rather than unlocked-and-lost: the whole point
+/// of the reward is that the player gets it. Sent once per waiting reward and session, not on every retry.
 /// </summary>
 public sealed class AchievementRewardDeferred
 {
     public string Key { get; set; } = string.Empty;
+
+    /// <summary>#3082: how many empty slots the reward still needs (the client names the reward from its own content).
+    /// Additive field on the contractless MessagePack body: 0 from an older server, ignored by an older client.</summary>
+    public int SlotsNeeded { get; set; }
 }

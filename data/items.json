@@ -290,6 +290,10 @@
   { "key": "crew_bunk",   "nameKey": "item.crew_bunk.name",   "category": "block", "maxStack": 16,   "placesBlock": "crew_bunk",   "descriptionKey": "item.crew_bunk.desc" },
   { "key": "campfire",    "nameKey": "item.campfire.name",    "category": "block", "maxStack": 16,   "placesBlock": "campfire",    "descriptionKey": "item.campfire.desc" },
   { "key": "wood_crate",  "nameKey": "item.wood_crate.name",  "category": "block", "maxStack": 64,   "placesBlock": "wood_crate",  "descriptionKey": "item.wood_crate.desc" },
+  // #3098/#3099: a crate that keeps its contents when mined, and a bag that is opened in the inventory (1000 items). A filled
+  // one carries a record id in its key and never stacks (see CarriedContents).
+  { "key": "transport_crate", "nameKey": "item.transport_crate.name", "category": "block", "maxStack": 64, "placesBlock": "transport_crate", "descriptionKey": "item.transport_crate.desc" },
+  { "key": "storage_bag", "nameKey": "item.storage_bag.name", "category": "component", "maxStack": 1, "descriptionKey": "item.storage_bag.desc" },
   { "key": "lantern",     "nameKey": "item.lantern.name",     "category": "block", "maxStack": 64,   "placesBlock": "lantern",     "descriptionKey": "item.lantern.desc" },
   { "key": "pumpkin_lantern", "nameKey": "item.pumpkin_lantern.name", "category": "block", "maxStack": 64, "placesBlock": "pumpkin_lantern", "descriptionKey": "item.pumpkin_lantern.desc" },
   { "key": "gift_box",        "nameKey": "item.gift_box.name",        "category": "block", "maxStack": 64, "placesBlock": "gift_box",        "descriptionKey": "item.gift_box.desc" },

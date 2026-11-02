@@ -79,8 +79,9 @@ internal sealed class ContainerSystem
     /// so loot/stash/HUD treat them identically — the block key only decides capacity). The station
     /// container joined the list with #1562: placed from inside a player station it used to be a dead
     /// block until a server restart re-derived it from the cell grid, and the derived one vanished again
-    /// with the void world on the first leave. Now it is placed, persisted and mined like a crate.</summary>
-    internal static bool IsContainerBlock(string key) => key is "crate" or "wood_crate" or "station_container";
+    /// with the void world on the first leave. Now it is placed, persisted and mined like a crate. The transport
+    /// crate (#3098) is a crate like the workshop one — only mining it packs what it holds into the dropped item.</summary>
+    internal static bool IsContainerBlock(string key) => key is "crate" or "wood_crate" or "station_container" or CarriedContents.TransportCrate;
 
     /// <summary>Lootable containers on the current planet (salvage capsules / corpses / crates). Ground drop
     /// packets share the same store but are not containers to the player — see <see cref="GameServer.DropPackets"/>.</summary>
@@ -220,9 +221,11 @@ internal sealed class ContainerSystem
     /// player's stone, wood, sand and glass are all <c>block</c> items here. Tools, weapons, consumables and suit gear
     /// stay with the player on the sweep — put them in by hand on the crate screen (<see cref="Storable"/>, #2436).</summary>
     private static bool Stashable(Shared.Definitions.ItemDefinition? item)
-        => item?.Category is Shared.Definitions.ItemCategory.Material
-            or Shared.Definitions.ItemCategory.Component
-            or Shared.Definitions.ItemCategory.Block;
+        => item is not null
+           && item.Category is Shared.Definitions.ItemCategory.Material
+               or Shared.Definitions.ItemCategory.Component
+               or Shared.Definitions.ItemCategory.Block
+           && item.Key != CarriedContents.Bag; // #3099: the storage bag is carried, not swept away with the loose stuff
 
     /// <summary>#2436: what a crate may HOLD — every known item. Justus: "you can only put blocks into the crate, no
     /// items!" — food, medpacks, tools and weapons go in by hand on the crate screen and may be named in a crate's filter;
@@ -363,15 +366,16 @@ internal sealed class ContainerSystem
         BroadcastContainers();
     }
 
-    /// <summary>Places a storage crate the player just built into the world as an (empty) lootable container.</summary>
-    internal void PlaceCrate(Vector3i pos)
+    /// <summary>Places a storage crate the player just built into the world as a lootable container — empty, or holding
+    /// <paramref name="items"/> (#3098: what a packed transport crate carried).</summary>
+    internal void PlaceCrate(Vector3i pos, List<ItemStack>? items = null)
         => AddContainer(new StoredContainer
         {
             Id = "crate_" + System.Guid.NewGuid().ToString("N"),
             Planet = _host.World.LocationId,
             Kind = "crate",
             Position = pos,
-            Items = new List<ItemStack>(),
+            Items = items ?? new List<ItemStack>(),
         });
 
     /// <summary>The stacks a crate at <paramref name="pos"/> would hand back if it were mined. Used to check

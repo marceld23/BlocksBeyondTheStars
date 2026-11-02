@@ -98,10 +98,10 @@ namespace BlocksBeyondTheStars.Client
                 sb.Append(" (").Append(l("ui.wiki.enemies.elite")).Append(": ").Append(Health(elite)).Append(')');
             }
 
-            sb.Append("  ·  ").Append(l("ui.wiki.enemies.damage")).Append(": ").Append(Dps(normal.DamagePerSecond));
+            sb.Append("  ·  ").Append(l("ui.wiki.enemies.damage")).Append(": ").Append(Damage(normal, l));
             if (elite is not null)
             {
-                sb.Append(" (").Append(l("ui.wiki.enemies.elite")).Append(": ").Append(Dps(elite.DamagePerSecond)).Append(')');
+                sb.Append(" (").Append(l("ui.wiki.enemies.elite")).Append(": ").Append(Damage(elite, l)).Append(')');
             }
 
             sb.Append('\n');
@@ -135,6 +135,13 @@ namespace BlocksBeyondTheStars.Client
             => tier.HullMax > tier.Hull
                 ? Number(tier.Hull) + "–" + Number(tier.HullMax)
                 : Number(tier.Hull);
+
+        /// <summary>A tier's damage: per second for a biter or a shooter, or — for one that bursts (#3096, the tank spider) —
+        /// the burst at its centre, named as one.</summary>
+        private static string Damage(EnemyTier tier, Func<string, string> l)
+            => tier.BurstDamage > 0f && tier.DamagePerSecond <= 0f
+                ? Number(tier.BurstDamage) + " (" + l("ui.wiki.enemies.burst") + ")"
+                : Dps(tier.DamagePerSecond);
 
         private static string Dps(float dps) => Number(dps) + "/s";
 

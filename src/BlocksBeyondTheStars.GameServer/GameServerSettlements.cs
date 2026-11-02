@@ -199,6 +199,7 @@ public sealed partial class GameServer
         AppendLodgePois(session, pois); // #2640: the huts a player found or was told about
         AppendUniqueSitePois(session, pois); // #1129: this world's one-of-a-kind place, once shared
         AppendLandedTraderPoi(session, pois); // #1904: a trader ship parked here right now (live, never persisted)
+        AppendHunterSitePoi(session, pois); // #3097: a hunter shuttle's robot camp, until its docks are gone
 
         return pois;
     }

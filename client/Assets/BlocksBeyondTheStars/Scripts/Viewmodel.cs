@@ -21,7 +21,7 @@ namespace BlocksBeyondTheStars.Client
     /// and its swings turn round a point on the forearm so the arm stays out of view; a quick-bar switch puts the old item
     /// away and draws the new one (#2778, <see cref="HeldSwap"/>). See docs/developer/HELD_ITEMS.md.</para>
     /// </summary>
-    public sealed class Viewmodel : MonoBehaviour
+    public sealed partial class Viewmodel : MonoBehaviour
     {
         private const float SwingDuration = 0.42f;
 
@@ -246,6 +246,7 @@ namespace BlocksBeyondTheStars.Client
 
             _mesh = mesh;
             _grip = mesh != null && mesh.TryGetComponent(out HeldHandGrip grip) ? grip : null;
+            AttachFlourish(kind); // #3095: the drill's bit, the blade's twirl, and which flourish the next draw plays
 
             _shockGloves = false;
             if (kind == HeldItem.Kind.Gloves)
@@ -429,6 +430,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             FinishSwap(); // #2778: using the item cuts its draw short — an action never waits for the animation
+            CancelFlourish(); // #3095: … and its flourish
+            _spin?.Drive(SwingDuration + 0.1f); // #3095: a drill's bit runs while it mines (each swing keeps it going)
 
             if (_kind == HeldItem.Kind.Gloves)
             {
@@ -532,14 +535,21 @@ namespace BlocksBeyondTheStars.Client
             if (!_holder.gameObject.activeSelf)
             {
                 FinishSwap(); // hidden (third person, the ship's view): a switch cannot be watched, so it is just done
+                CancelFlourish(); // #3095: nor a flourish
                 return;
             }
 
-            // #2778: the holster and draw; the waiting item is swapped in at the bottom.
+            // #2778: the holster and draw; the waiting item is swapped in at the bottom. #3095: a draw that ends here starts
+            // the item's flourish.
+            bool drawing = _swap.Current == HeldSwap.Phase.Drawing;
             if (_swap.Step(dt) && _pendingBuild)
             {
                 _pendingBuild = false;
                 BuildHeld(_pending.Kind, _pending.Tint, _pending.BlockKey, _pending.ItemKey, _pending.Look);
+            }
+            else if (drawing && _swap.Current == HeldSwap.Phase.Idle)
+            {
+                BeginFlourish();
             }
 
             if (HandsUp)
@@ -623,6 +633,9 @@ namespace BlocksBeyondTheStars.Client
                     rot += new Vector3((aroundForearm ? 34f : 55f) * jab, -8f * jab, 0f);
                 }
             }
+
+            // #3095: the item's flourish (a drill's test spin, a gun's rack, a blade's twirl) — never while it is used.
+            PoseFlourish(dt, speed, ref posOff, ref rot);
 
             // The pivot on the forearm stays where the rest pose has it while the swing turns the hand and the item round it.
             var pivotShift = Vector3.zero;

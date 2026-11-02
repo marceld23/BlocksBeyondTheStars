@@ -74,6 +74,7 @@ public static class SpaceTargeting
     public const string Ufo = "Ufo";
     public const string Cruiser = "Cruiser";
     public const string BanditShip = "BanditShip";
+    public const string HunterShuttle = "HunterShuttle";   // #3097: a weak Guardian shuttle — its hull is a voxel design like the raider's
     public const string SpaceStation = "SpaceStation";
     public const string Wreck = "Wreck";
     public const string Asteroid = "Asteroid";
@@ -136,8 +137,13 @@ public static class SpaceTargeting
 
     // ---- Kind lists ------------------------------------------------------------------------------------
 
-    /// <summary>The ship kinds that can turn hostile and shoot: drones, saucers, cruisers and raiders.</summary>
-    public static bool IsHostileShipKind(string? kind) => kind == Drone || kind == Ufo || kind == Cruiser || kind == BanditShip;
+    /// <summary>The ship kinds that can turn hostile and shoot: drones, saucers, cruisers, raiders and hunter shuttles.</summary>
+    public static bool IsHostileShipKind(string? kind)
+        => kind == Drone || kind == Ufo || kind == Cruiser || kind == BanditShip || kind == HunterShuttle;
+
+    /// <summary>The ship kinds whose model is a real voxel hull the server sends as a "ship_remote" design keyed
+    /// <c>bandit:&lt;entity id&gt;</c> (#2357 the raider, #3097 the hunter shuttle).</summary>
+    public static bool IsVoxelHullShipKind(string? kind) => kind == BanditShip || kind == HunterShuttle;
 
     /// <summary>The fixed navigation points of a system — lockable from anywhere in it, like the radar pins them.</summary>
     public static bool IsNavigationKind(string? kind)

@@ -23,8 +23,9 @@ namespace BlocksBeyondTheStars.Client.Tests;
 /// </para>
 /// <para>
 /// The cutouts that ARE wanted come from deliberate, separate steps — <c>bake_leaf_alpha.py</c> for
-/// foliage, <c>bundle_fire.py</c> for the flame, <c>bake_prop_alpha.py</c> for the torch and lantern — never
-/// from the image model, so they are named here.
+/// foliage, <c>bundle_fire.py</c> for the flame, <c>bake_prop_alpha.py</c> for the torch and lantern,
+/// <c>bake_fence_alpha.py</c> for the gaps of the energy fence (#3085) — never from the image model, so they
+/// are named here.
 /// </para>
 /// </summary>
 public sealed class BlockTileAlphaTests
@@ -143,6 +144,33 @@ public sealed class BlockTileAlphaTests
             $"{key}.bytes has only {clear}/{pixels} fully transparent pixels — the billboard would draw its background "
             + "card. Bake the mask (tools/ai-assets/bake_prop_alpha.py for torch/lantern, bundle_fire.py for fire).");
         Assert.True(body >= pixels / 20, $"{key}.bytes keeps only {body}/{pixels} pixels above the 0.5 clip — the object itself was cut away.");
+    }
+
+    /// <summary>
+    /// #3085 (Screelit: "the energy fence is just a block with an icon"): the fence tile is the side of a fence segment,
+    /// drawn as a rigid cutout cube. A row of fence blocks reads as ONE fence only when the tile is filled edge to edge
+    /// left and right — the rails along its top and bottom edge and at least one beam run off both sides into the
+    /// neighbour block — and when the see-through gaps between the beams line up with the neighbour's (the left column
+    /// cut exactly where the right one is). <c>bake_fence_alpha.py</c> decides the mask per row, which gives all of that.
+    /// </summary>
+    [Fact]
+    public void EnergyFenceTile_IsRailsAndBeamsEdgeToEdge_WithGapsYouSeeThrough()
+    {
+        Assert.Equal(TextureAlphaMode.Cutout, TextureTiles.AlphaModeOf("energy_fence"));
+        byte[] raw = BundledTile("energy_fence");
+        bool Kept(int x, int row) => raw[(row * Tile + x) * 4 + 3] >= 128; // rows bottom-up, like the shader samples them
+
+        Assert.True(Enumerable.Range(0, Tile).All(x => Kept(x, 0) && Kept(x, Tile - 1)),
+            "the bottom and top rows are the rails — they must be solid across the whole width so they join the neighbour's");
+
+        int seamMismatch = Enumerable.Range(0, Tile).Count(row => Kept(0, row) != Kept(Tile - 1, row));
+        Assert.True(seamMismatch == 0, $"{seamMismatch} rows are cut on one side edge but not on the other — the gaps would not line up along a fence");
+
+        var clearRows = Enumerable.Range(0, Tile).Where(row => Enumerable.Range(0, Tile).All(x => !Kept(x, row))).ToList();
+        Assert.True(clearRows.Count >= Tile / 4, $"only {clearRows.Count} rows are see-through — the fence would read as a wall");
+        int beams = Enumerable.Range(clearRows[0], clearRows[^1] - clearRows[0])
+            .Count(row => Enumerable.Range(0, Tile).All(x => Kept(x, row)));
+        Assert.True(beams > 0, "no solid row runs across the whole width between the gaps — the beams do not reach the neighbour block");
     }
 
     /// <summary>
@@ -296,13 +324,13 @@ public sealed class BlockTileAlphaTests
     /// The blocks drawn by <c>BlockAtlasTransparent</c> — the shader that used to decide "am I water?" from
     /// tile alpha alone. <c>water</c> gets its translucency at runtime from
     /// <c>BlockTextureAtlas.FadeTileAlpha(0.28)</c>, never from the asset, and <c>fire</c> is the one
-    /// deliberate cutout in this set.
+    /// deliberate cutout in this set. The energy fence left it in #3085: it is a rigid cutout cube of the opaque
+    /// submesh now (<see cref="EnergyFenceTile_IsRailsAndBeamsEdgeToEdge_WithGapsYouSeeThrough"/>).
     /// </summary>
     [Theory]
     [InlineData("glass")]
     [InlineData("glass_clear")]
     [InlineData("force_field")]
-    [InlineData("energy_fence")]
     [InlineData("energy_gate")]
     [InlineData("water")]
     public void TransparentShaderTiles_AreOpaqueInTheAsset(string key)

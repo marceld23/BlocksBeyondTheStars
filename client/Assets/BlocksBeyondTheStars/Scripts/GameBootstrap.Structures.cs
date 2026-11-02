@@ -229,6 +229,21 @@ namespace BlocksBeyondTheStars.Client
 
         public string NearbyStation;
 
+        /// <summary>#3088: what E does on foot right now (<see cref="InteractResolver"/>) — the key handler acts on it and the HUD's
+        /// prompt names it, so the two cannot disagree. Set by PlayerController every on-foot frame.</summary>
+        public InteractKind Interaction;
+
+        /// <summary>#3088: the person E talks to or trades with when <see cref="Interaction"/> is one (0 otherwise).</summary>
+        public int InteractNpcId;
+
+        /// <summary>#3088: the frame <see cref="Interaction"/> was last picked — the on-foot pick does not run while seated,
+        /// lying, driving or riding, so the HUD names it only while it is fresh.</summary>
+        public int InteractionFrame = -1;
+
+        /// <summary>#3087: a mission board is in the crosshair but beyond <c>InteractionReach.MissionBoard</c> — the HUD says
+        /// to walk closer instead of offering a key the server would refuse.</summary>
+        public bool AimedBoardOutOfReach;
+
         /// <summary>The placed crafting-station block the player is aiming at (workbench, forge, …) or null —
         /// drives the HUD "Workbench — crafting: Tab → Crafting" prompt (#1073). Set by PlayerController.</summary>
         public string AimedStationBlock;

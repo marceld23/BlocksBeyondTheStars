@@ -30,9 +30,6 @@ namespace BlocksBeyondTheStars.Client
 
         private const float W = UiKit.HudRefW, H = UiKit.HudRefH; // smaller reference → a ~1.25× bigger HUD
 
-        /// <summary>Reach at which a teleporter pad answers E (mirrors PlayerController's beam press, #1560).</summary>
-        private const float BeamUseRange = 2.2f;
-
         private Canvas _canvas;
         private GameObject _locationPanel;
         private TMP_Text _locTitle, _locPlace, _inSpace, _prompt, _loot, _hint;
@@ -355,116 +352,8 @@ namespace BlocksBeyondTheStars.Client
             // Prompts — on-foot only. While piloting/EVA the flight view draws its own prompts, so don't leak
             // a stale on-foot "Use: Cockpit" into the centre of the space view (you reach the cockpit/helm on
             // foot inside the ship; from the flight view you press F to step inside).
-            string prompt = string.Empty;
-            if (!Game.SpaceViewActive)
-            {
-                if (Game.SettlingHint)
-                {
-                    // The spawn/respawn settle freeze is holding the body (#1462) — say so instead of leaving
-                    // a fully drawn ship that ignores WASD.
-                    prompt = loc.Get("ui.hud.settling");
-                }
-                else if (RestingInBed())
-                {
-                    // #2823: lying in a bed — how to get up, in the glyphs of the device in hand (the stations and the
-                    // aimed blocks around the bed are not what the keys do now).
-                    prompt = ExpandKeyTokens(loc, loc.Get("ui.rest.get_up"));
-                }
-                else if (!string.IsNullOrEmpty(Game.NearbyStation))
-                {
-                    // Inside the ship while it floats in space, the cockpit reads as the helm (take it to fly again).
-                    string stationKey = (Game.NearbyStation == "cockpit" && Game.LoadingPlanetType == "ship_interior")
-                        ? "ui.station.helm"
-                        : $"ui.station.{Game.NearbyStation}";
-                    prompt = $"{ExpandKeyTokens(loc, loc.Get("ui.hud.use"))}: {loc.Get(stationKey)}"; // "Press {key:Interact}" (#2463)
-                    if (Game.NearbyStation == "cargo")
-                    {
-                        // #2502: the glyph names the pad's Actions list / the tablet's ACT button, not the key letter.
-                        prompt += $"  ·  {loc.Get("ui.hud.stow_cargo")} {InParentheses(PromptGlyph(loc, InputAction.DepositToCrate))}";
-                    }
-                    if ((Game.NearbyStation == "cockpit" || Game.NearbyStation == "console")
-                        && Game.LoadingPlanetType != "ship_interior" && OwnParkedVehicleCount() > 0)
-                    {
-                        // The ship can call a vehicle left out on this world back beside it (#1661).
-                        prompt += $"  ·  {loc.Get("ui.key.recall_vehicle")} {InParentheses(PromptGlyph(loc, InputAction.RecallVehicle))}";
-                    }
-                    if ((Game.NearbyStation == "cockpit" || Game.NearbyStation == "console") && Game.ShipRepair != null
-                        && InputMap.ActiveDevice != InputDeviceKind.Touch)
-                    {
-                        // Something to repair and this is the terminal for it: name the trigger right here (the static
-                        // cockpit label no longer carries a hard-coded "(R)"; a pad reaches it through the Actions list).
-                        string g = InputMap.ActiveDevice == InputDeviceKind.Gamepad
-                            ? InputMap.Glyph(InputAction.ContextActions)
-                            : InputMap.Glyph(InputAction.RepairWreck);
-                        prompt += $"  ·  {loc.Get("ui.shiprepair.repair")} ({g})";
-                    }
-                }
-                else if (Game.AimedOwnBase is { } ownBase)
-                {
-                    prompt = BaseAirPrompt(loc, ownBase);
-                }
-                else if (Game.AimedBasePadCell is { } padCell)
-                {
-                    prompt = BasePadPrompt(loc, padCell); // #3070: "Landing pad · North · E: settings"
-                }
-                else if (string.IsNullOrEmpty(Game.InSpeeder) && OwnParkedVehicleInBoardReach())
-                {
-                    // Beside an own parked speeder/boat (#1670): nothing on screen ever said how to board —
-                    // "Board (E) · Pack up (X)", the same verbs PlayerController polls on foot. Glyphs follow
-                    // the active device, and the pad/touch ACT list carries the pack-up too.
-                    prompt = $"{loc.Get("hud.speeder.board")} {InParentheses(PromptGlyph(loc, InputAction.Interact))}"
-                        + $"  ·  {loc.Get("hud.speeder.stow")} {InParentheses(PromptGlyph(loc, InputAction.StowVehicle))}";
-                }
-                else if (!string.IsNullOrEmpty(Game.AimedStationBlock))
-                {
-                    // #1073: "Workbench — crafting: menu (Tab) → Crafting" — the block names the tab it powers; the menu
-                    // and use keys are {key:Action} tokens since #2463, so a pad or a tablet reads its own button.
-                    // #2203: the bio lab has a panel of its own, so its prompt names the Interact glyph instead.
-                    prompt = Game.AimedStationBlock == BlocksBeyondTheStars.Shared.Bio.BioItems.Lab
-                        ? string.Format(loc.Get("ui.bio.prompt"), InteractGlyph(loc))
-                        : ExpandKeyTokens(loc, loc.Get(StationBlockPromptKey(Game.AimedStationBlock)));
-                }
-                else if (Game.AimedCrystalDevice is { } crystalDev)
-                {
-                    // #2049: a Crystal Net device in the crosshair says what Interact does to it — the glyph follows
-                    // the device in hand, and a tablet reads its USE button instead of a key name.
-                    // #2256: someone else's device says who may use it instead of offering a key that would be refused.
-                    prompt = string.Format(loc.Get(Game.CanOperateCrystal(crystalDev) ? CrystalPromptKey(crystalDev) : "ui.crystal.prompt.locked"), InteractGlyph(loc));
-                }
-                else if (Game.Views.Beams != null && Game.Views.Beams.NearestUsableBeam(Game.PlayerPosition, BeamUseRange) != 0)
-                {
-                    // Standing on / beside an own or allied teleporter pad: the same reach PlayerController
-                    // uses for the E press. The pad never announced itself before (#1560).
-                    prompt = ExpandKeyTokens(loc, loc.Get("ui.beam.use_hint")); // "Press {key:Interact}: Transporter" (#2463)
-                }
-                else if (HoldingScanner() && Game.ScanTargetInView)
-                {
-                    // Only when the scanner would actually read something — an unconditional hint over a
-                    // target the scan can't acquire read as "titans can't be scanned" (#1458).
-                    prompt = ExpandKeyTokens(loc, loc.Get("ui.scan.use_hint")); // "{key:Scan}: scan" (#2502)
-                }
-                else if (string.IsNullOrEmpty(Game.InSpeeder) && NearestTalkableNpc() is { } npcName)
-                {
-                    // #1869: E has talked to people since #1127, but nothing on screen ever said so. Same reach and
-                    // the same "no station block in reach" rule as PlayerController's E.
-                    string talkGlyph = PromptGlyph(loc, InputAction.Interact); // #2502: USE on a tablet, not "E"
-                    prompt = BlocksBeyondTheStars.Shared.Localization.LineText.CollapseGlyphParentheses(
-                        string.Format(loc.Get("ui.hud.talk"), npcName, talkGlyph), talkGlyph);
-                }
-                else if (string.IsNullOrEmpty(Game.InSpeeder) && OwnParkedVehicleOutOfReach(out string vehicleKind, out float vehicleDist))
-                {
-                    // An own vehicle a few metres off but beyond the pack-up reach (#1661): the X action used to
-                    // stay silent exactly when the speeder had sunk or wedged just out of reach.
-                    string stowGlyph = PromptGlyph(loc, InputAction.StowVehicle); // #2502: the Actions list / ACT, not "X"
-                    prompt = BlocksBeyondTheStars.Shared.Localization.LineText.CollapseGlyphParentheses(
-                        string.Format(loc.Get("hud.speeder.out_of_reach"),
-                            loc.Get(vehicleKind == "boat" ? "item.boat.name" : "item.speeder.name"),
-                            Mathf.RoundToInt(vehicleDist), stowGlyph),
-                        stowGlyph);
-                }
-            }
-
-            _prompt.text = prompt;
+            // #3088: the line names what E does — the very pick PlayerController acts on (HudUi.Interact.cs).
+            _prompt.text = Game.SpaceViewActive ? string.Empty : OnFootPrompt(loc);
             // Only actionable on foot (#751): PlayerController never polls the loot key while the
             // flight view is up or a speeder is driven, so showing the prompt there was a dead key.
             _loot.text = Game.SpaceViewActive || !string.IsNullOrEmpty(Game.InSpeeder) ? string.Empty : FeedOrLootText(loc);
@@ -618,6 +507,12 @@ namespace BlocksBeyondTheStars.Client
                 return "ui.crystal.prompt.call"; // #2266
             }
 
+            if (dev.Held)
+            {
+                // #3091: a sentry the net holds, a closed spout — "linked" read like "working" while the post held its fire.
+                return "ui.crystal.held";
+            }
+
             return BlocksBeyondTheStars.Shared.Definitions.CrystalNetRules.IsConfigurable(kind) ? "ui.crystal.prompt.menu" : "ui.crystal.prompt.linked";
         }
 
@@ -707,7 +602,11 @@ namespace BlocksBeyondTheStars.Client
                     ? $"{loc.Get("ui.hud.stash")} ({nearest.ItemCount})  ·  {loc.Get("ui.hud.stash_filtered")}"
                     : $"{loc.Get("ui.hud.stash")} ({nearest.ItemCount})";
                 // #2502: the take/store/open keys are {key:Action} tokens — the bound keys, the pad's Actions list, ACT.
-                return $"{label}  ·  {ExpandKeyTokens(loc, loc.Get("ui.hud.stash_keys"))}  ·  {ExpandKeyTokens(loc, loc.Get("ui.hud.stash_filter_key"))}";
+                // #3088: "E open crate" only while E opens one — the crate under the crosshair (G and H take the nearest).
+                string open = Game.Interaction == InteractKind.Crate && Game.InteractionFrame >= Time.frameCount - 1
+                    ? $"  ·  {ExpandKeyTokens(loc, loc.Get("ui.hud.stash_filter_key"))}"
+                    : string.Empty;
+                return $"{label}  ·  {ExpandKeyTokens(loc, loc.Get("ui.hud.stash_keys"))}{open}";
             }
 
             return $"{ExpandKeyTokens(loc, loc.Get("ui.hud.loot"))} ({nearest.ItemCount})";

@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
@@ -203,6 +204,64 @@ public sealed class AchievementTests : IDisposable
             Assert.Contains("iron_5", p.State.Achievements);
             Assert.Equal(2, inv.CountOf("iron_plate"));
         }
+    }
+
+    /// <summary>#3082 (Justus, 2026-11-01): the Halloween chapter was done at 15:00, but the present (pumpkin lantern ×4 +
+    /// lantern ×6) did not fit — and it arrived only at 19:13 after a restart, although he had freed slots long before. A
+    /// festival's graduation counter bumps exactly once, so "the next bump" never came. Now the waiting reward is handed over
+    /// on the next tick after the inventory changed, with the ordinary unlock; the notice names the slots and comes once.</summary>
+    [Fact]
+    public void ARewardThatWaitedForRoom_ArrivesAsSoonAsSlotsAreFree_WithoutRejoining()
+    {
+        var transport = new RecordingTransport();
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "achv_wait"));
+        var server = new SvGameServer(new ServerConfig
+        {
+            WorldName = "achv_wait",
+            Seed = 5,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            PlaceSettlements = false,
+        }, _content, transport, repo);
+        server.Start();
+        var p = server.AddLocalPlayer("Justus");
+        p.State.AboardShip = false;
+        var inv = p.State.Inventory;
+        for (int i = 0; i < inv.SlotCount; i++)
+        {
+            inv.SetSlot(i, new ItemStack("stone", _content.MaxStackOf("stone")));
+        }
+
+        // Two slots of their own kind — a discard throws away every stack of a kind, so these are the two to free.
+        inv.SetSlot(3, new ItemStack("iron_ore", _content.MaxStackOf("iron_ore")));
+        inv.SetSlot(4, new ItemStack("carbon", _content.MaxStackOf("carbon")));
+
+        server.AdvanceAchievementForTest(p, "festival:halloween"); // the chapter's graduation — one bump, ever
+
+        Assert.DoesNotContain("festival_halloween", p.State.Achievements);
+        var notice = Assert.Single(transport.To<AchievementRewardDeferred>(p));
+        Assert.Equal("festival_halloween", notice.Key);
+        Assert.Equal(2, notice.SlotsNeeded); // two new stacks, no room for either
+
+        // Still full: the retries pay nothing and do not repeat the notice.
+        server.RetryDeferredRewardsForTest();
+        server.Tick(0.05);
+        Assert.DoesNotContain("festival_halloween", p.State.Achievements);
+        Assert.Single(transport.To<AchievementRewardDeferred>(p));
+
+        // One slot is not enough for two stacks…
+        server.DiscardItemForTest(p.State.PlayerId, 3);
+        server.Tick(0.05);
+        Assert.DoesNotContain("festival_halloween", p.State.Achievements);
+
+        // …two are: the very next tick hands the present over, as a fresh unlock.
+        server.DiscardItemForTest(p.State.PlayerId, 4);
+        server.Tick(0.05);
+        Assert.Contains("festival_halloween", p.State.Achievements);
+        Assert.Equal(4, inv.CountOf("pumpkin_lantern"));
+        Assert.Equal(6, inv.CountOf("lantern"));
+        Assert.Contains(transport.To<AchievementUnlocked>(p), u => u.Key == "festival_halloween");
+        Assert.Single(transport.To<AchievementRewardDeferred>(p));
     }
 
     [Fact]

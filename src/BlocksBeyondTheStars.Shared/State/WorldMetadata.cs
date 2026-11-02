@@ -43,7 +43,9 @@ public sealed class WorldMetadata
     /// (#2977–#2980: <c>flora_sapling_conifer</c>, the four <c>flora_sapling_fruit_*</c>, <c>flora_sapling_fifi</c>,
     /// <c>flora_sapling_mahogany</c>). 8 = the pumpkin (#3005: <c>flora_pumpkin</c>, <c>pumpkin_lantern</c>). 9 = the festival
     /// decorations (#3024: <c>gift_box</c>, <c>paper_lantern</c>, <c>diya_lamp</c>, <c>flora_marigold</c>). 10 = the base
-    /// landing pad (#3069: <c>base_pad</c>).</para>
+    /// landing pad (#3069: <c>base_pad</c>) and the transport crate (#3098: <c>transport_crate</c>; its packed contents
+    /// and the storage bag's ride in the container table under the pseudo-location <c>carried</c>, which an older build
+    /// never loads — so a packed crate or a filled bag opened there would read as empty).</para>
     /// </summary>
     public const int CurrentSaveVersion = 10;
 
@@ -278,6 +280,11 @@ public sealed class WorldMetadata
     /// filling the same slot again — a rebuilt bed, a core put back on its cell — brings the same person back. Additive: an
     /// older build drops it, a missing list means "nobody left".</summary>
     public System.Collections.Generic.List<RetiredBaseResident> RetiredBaseResidents { get; set; } = new();
+
+    /// <summary>#3097: the hunter shuttles that got away and landed — body (location id) → its landing site (one per body; a
+    /// cleared site is kept until a new shuttle lands there). Additive: an older build drops it, a missing entry means "no
+    /// shuttle landed here".</summary>
+    public System.Collections.Generic.Dictionary<string, HunterShuttleSiteRecord> HunterShuttleSites { get; set; } = new();
 }
 
 /// <summary>#2716: a base resident who left (<see cref="WorldMetadata.RetiredBaseResidents"/>): where they lived and who they

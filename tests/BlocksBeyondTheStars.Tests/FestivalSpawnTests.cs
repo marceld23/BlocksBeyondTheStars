@@ -46,36 +46,66 @@ public sealed class FestivalSpawnTests
 
     private static ushort Id(string key) => Content.Value.GetBlock(key)!.NumericId.Value;
 
-    [Fact]
-    public void DuringAHarvestFestival_PumpkinsAppearOnTheGrassNearThePlayer_WithinTheBudget()
+    /// <summary>#3083: one pumpkin per lay and a wide radius, so a single pass may miss the test's grass pad — run passes
+    /// until the next pumpkin stands (a miss does not reset the player's clock, so this takes a pass or two).</summary>
+    private static void PassUntilAPumpkin(NpcLifeWorld w, int maxPasses = 40)
     {
-        using var w = World("festival_spawn_grow");
-        w.Server.SetFestivalClockForTest(Utc(2031, 10, 30)); // Halloween week: flora_pumpkin, 6 per pass
-        int sentBefore = w.Transport.Sent.Count(s => s.Msg is BlockChanged);
-
-        w.Server.RunFestivalSpawnPassForTest();
-        var cells = w.Server.FestivalDepositCellsForTest.ToList();
-        Assert.InRange(cells.Count, 1, 6);
-        foreach (var cell in cells)
-        {
-            Assert.Equal(Id("flora_pumpkin"), w.Server.World.GetBlock(cell).Value);
-            Assert.Equal(Id("grass"), w.Server.World.GetBlock(new Vector3i(cell.X, cell.Y - 1, cell.Z)).Value); // on a host
-            Assert.Equal(w.PadY + 1, cell.Y);
-        }
-
-        Assert.Equal(sentBefore + cells.Count, w.Transport.Sent.Count(s => s.Msg is BlockChanged)); // every placement broadcast
-
-        for (int i = 0; i < 20; i++)
+        int before = w.Server.FestivalDepositCellsForTest.Count;
+        for (int i = 0; i < maxPasses && w.Server.FestivalDepositCellsForTest.Count == before; i++)
         {
             w.Server.RunFestivalSpawnPassForTest();
         }
 
-        Assert.InRange(w.Server.FestivalDepositCellsForTest.Count, cells.Count, 6 * 21);
+        Assert.True(w.Server.FestivalDepositCellsForTest.Count > before, $"no festival pumpkin within {maxPasses} passes");
+    }
 
-        // The ledger survives a reload.
+    /// <summary>Mines a cell like a player holding the mine button — a hit, then a tick in which the progress accrues —
+    /// standing right beside it.</summary>
+    private static void Harvest(NpcLifeWorld w, Vector3i cell)
+    {
+        w.Player.State.Position = new Vector3f(cell.X + 0.5f, cell.Y, cell.Z + 1.5f); // within arm's reach
+        for (int i = 0; i < 40 && w.Server.World.GetBlock(cell).Value != 0; i++)
+        {
+            w.Server.HandlePayloadForTest(w.Player.ConnectionId, NetCodec.Encode(new MineBlockIntent { X = cell.X, Y = cell.Y, Z = cell.Z }));
+            w.Server.Tick(0.1);
+        }
+
+        var refusals = w.Transport.Sent.Select(s => s.Msg).OfType<ActionRejected>().Where(r => r.Action == "mine").Select(r => r.Reason).ToList();
+        Assert.True(w.Server.World.GetBlock(cell).Value == 0, "the pumpkin should be harvested; refusals: " + string.Join(", ", refusals));
+    }
+
+    private static readonly string[] PumpkinHosts = { "grass", "dirt", "mud" };
+
+    [Fact]
+    public void DuringAHarvestFestival_PumpkinsAppearOnTheGrassNearThePlayer_WithinTheBudget()
+    {
+        using var w = World("festival_spawn_grow");
+        w.Server.SetFestivalClockForTest(Utc(2031, 10, 30)); // Halloween week: flora_pumpkin, one at a time
+        int sentBefore = w.Transport.Sent.Count(s => s.Msg is BlockChanged);
+
+        PassUntilAPumpkin(w);
+        var cells = w.Server.FestivalDepositCellsForTest.ToList();
+        var cell = Assert.Single(cells); // #3083: one pumpkin per lay
+        Assert.Equal(Id("flora_pumpkin"), w.Server.World.GetBlock(cell).Value);
+        Assert.Contains(PumpkinHosts, h => Id(h) == w.Server.World.GetBlock(new Vector3i(cell.X, cell.Y - 1, cell.Z)).Value); // on a host
+        Assert.Equal(sentBefore + 1, w.Transport.Sent.Count(s => s.Msg is BlockChanged)); // every placement broadcast
+        Assert.Equal(1, w.Player.State.FestivalSpawnsLaid["halloween:2031"]); // booked on the player's budget
+
+        // #3083: the player's own clock — nothing more until the interval (30 s = ten passes of 3 s) has run down.
+        for (int i = 0; i < 8; i++)
+        {
+            w.Server.RunFestivalSpawnPassForTest();
+        }
+
+        Assert.Single(w.Server.FestivalDepositCellsForTest);
+        PassUntilAPumpkin(w);
+        Assert.Equal(2, w.Server.FestivalDepositCellsForTest.Count);
+
+        // The ledger and the budget survive a reload.
         int count = w.Server.FestivalDepositCellsForTest.Count;
         w.Restart();
         Assert.Equal(count, w.Server.FestivalDepositCellsForTest.Count);
+        Assert.Equal(2, w.Player.State.FestivalSpawnsLaid["halloween:2031"]);
     }
 
     [Fact]
@@ -83,22 +113,12 @@ public sealed class FestivalSpawnTests
     {
         using var w = World("festival_spawn_harvest");
         w.Server.SetFestivalClockForTest(Utc(2031, 10, 30));
-        w.Server.RunFestivalSpawnPassForTest();
+        PassUntilAPumpkin(w);
         var cell = w.Server.FestivalDepositCellsForTest.First();
-        w.Player.State.Position = new BlocksBeyondTheStars.Shared.Geometry.Vector3f(cell.X + 0.5f, cell.Y, cell.Z + 1.5f); // within arm's reach
-
-        for (int i = 0; i < 40 && w.Server.World.GetBlock(cell).Value != 0; i++)
-        {
-            // Like a player holding the mine button: a hit, then a tick in which the progress accrues.
-            w.Server.HandlePayloadForTest(w.Player.ConnectionId, NetCodec.Encode(new MineBlockIntent { X = cell.X, Y = cell.Y, Z = cell.Z }));
-            w.Server.Tick(0.1);
-        }
-
-        var refusals = w.Transport.Sent.Select(s => s.Msg).OfType<ActionRejected>().Where(r => r.Action == "mine").Select(r => r.Reason).ToList();
-        Assert.True(w.Server.World.GetBlock(cell).Value == 0, "the pumpkin should be harvested; refusals: " + string.Join(", ", refusals));
+        Harvest(w, cell);
         Assert.False(w.Server.IsFestivalDepositForTest(cell));
         Assert.DoesNotContain(w.Transport.Sent.Select(s => s.Msg).OfType<FloraRegrowStarted>(), m => m.X == cell.X && m.Y == cell.Y && m.Z == cell.Z);
-        Assert.Contains(w.Player.State.Inventory.Slots, s => s?.Item is "pumpkin" or "toxic_pumpkin");
+        Assert.Contains(w.Player.State.Inventory.Slots, s => s?.Item == "pumpkin");
 
         // No regrow: with the festival over (so the spawner does not simply lay a new pumpkin there) the cell stays bare
         // long after a wild plant's regrow would have brought one back.
@@ -112,10 +132,7 @@ public sealed class FestivalSpawnTests
     {
         using var w = World("festival_spawn_clear");
         w.Server.SetFestivalClockForTest(Utc(2031, 10, 30));
-        for (int i = 0; i < 3; i++)
-        {
-            w.Server.RunFestivalSpawnPassForTest();
-        }
+        PassUntilAPumpkin(w);
 
         var cells = w.Server.FestivalDepositCellsForTest.ToList();
         Assert.NotEmpty(cells);
@@ -147,5 +164,70 @@ public sealed class FestivalSpawnTests
         rocky.Server.SetFestivalClockForTest(Utc(2031, 10, 30));
         rocky.Server.RunFestivalSpawnPassForTest();
         Assert.Empty(rocky.Server.FestivalDepositCellsForTest);
+    }
+
+    /// <summary>#3083 (Justus, 2026-11-01: "the pumpkins should not grow back and should be rarer"; Marcel: the event must not
+    /// be that easy): each player has a budget per festival and year. Once it is laid, nothing more appears — a harvested
+    /// pumpkin leaves a gap that stays — and next year's festival starts fresh.</summary>
+    [Fact]
+    public void TheBudget_EndsTheSpawn_AHarvestedFieldStaysEmpty_AndNextYearStartsFresh()
+    {
+        using var w = World("festival_spawn_budget");
+        w.Server.SetFestivalClockForTest(Utc(2031, 10, 30));
+        int budget = Content.Value.FindFestival("halloween")!.Spawn!.Budget;
+        var laid = w.Player.State.FestivalSpawnsLaid;
+        for (int i = 0; i < budget * 40 && laid.GetValueOrDefault("halloween:2031") < budget; i++)
+        {
+            w.Server.RunFestivalSpawnPassForTest();
+        }
+
+        Assert.Equal(budget, laid["halloween:2031"]);
+        Assert.Equal(budget, w.Server.FestivalDepositCellsForTest.Count);
+
+        foreach (var cell in w.Server.FestivalDepositCellsForTest.Take(3).ToList())
+        {
+            Harvest(w, cell);
+        }
+
+        for (int i = 0; i < 60; i++)
+        {
+            w.Server.RunFestivalSpawnPassForTest();
+        }
+
+        Assert.Equal(budget - 3, w.Server.FestivalDepositCellsForTest.Count); // nothing filled the gaps
+        Assert.Equal(budget, laid["halloween:2031"]);
+
+        w.Server.SetFestivalClockForTest(Utc(2032, 10, 30)); // next year's Halloween
+        PassUntilAPumpkin(w);
+        Assert.Equal(1, laid["halloween:2032"]);
+        Assert.False(laid.ContainsKey("halloween:2031"), "last year's entry is forgotten");
+    }
+
+    /// <summary>#3084 (Justus' inventory held 66 toxic pumpkins and not one plain one): a festival pumpkin is a present, not
+    /// the world's wild species — it drops the plain fruit and scans as edible even where the roster made pumpkins toxic.
+    /// A wild pumpkin of the same world stays toxic.</summary>
+    [Fact]
+    public void AFestivalPumpkin_IsPlainFruit_EvenWhereTheWorldsPumpkinsAreToxic()
+    {
+        using var w = World("festival_spawn_plain");
+        w.Server.MakeFloraToxicForTest("flora_pumpkin");
+        w.Server.SetFestivalClockForTest(Utc(2031, 10, 30));
+        PassUntilAPumpkin(w);
+        var cell = w.Server.FestivalDepositCellsForTest.First();
+
+        var scan = w.Server.ScanSubject(w.Player.State.PlayerId, "block", "flora_pumpkin", null, cell);
+        Assert.Equal("ui.scan.threat.edible", scan.ThreatKey);
+        Harvest(w, cell);
+        var inv = w.Player.State.Inventory;
+        Assert.True(inv.CountOf("pumpkin") >= 1, "the festival pumpkin gives the plain fruit");
+        Assert.Equal(0, inv.CountOf("toxic_pumpkin"));
+
+        // Control: a pumpkin that is no festival present follows the world's roster.
+        var wild = Enumerable.Range(0, 20).Select(i => new Vector3i(NpcLifeWorld.Cx + 10 - i, w.PadY + 1, NpcLifeWorld.Cz - 10))
+            .First(c => w.Server.World.GetBlock(c).Value == 0 && !w.Server.IsFestivalDepositForTest(c));
+        w.Server.World.SetBlock(wild, Content.Value.GetBlock("flora_pumpkin")!.NumericId);
+        Assert.Equal("ui.scan.threat.toxic", w.Server.ScanSubject(w.Player.State.PlayerId, "block", "flora_pumpkin", null, wild).ThreatKey);
+        Harvest(w, wild);
+        Assert.True(inv.CountOf("toxic_pumpkin") >= 1, "a wild pumpkin of a toxic roster stays toxic");
     }
 }

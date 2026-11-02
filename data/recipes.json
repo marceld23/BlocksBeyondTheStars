@@ -304,6 +304,9 @@
   // #1847: turf you can carry — mined grass now drops itself, and a spade of dirt plus a handful of fibre grows a fresh block.
   { "key": "grass",              "station": "hand",     "inputs": [ { "item": "dirt", "count": 1 }, { "item": "plant_fiber", "count": 1 } ], "outputs": [ { "item": "grass", "count": 1 } ] },
   { "key": "crate",       "station": "workshop", "inputs": [ { "item": "iron_plate", "count": 3 }, { "item": "wood_log", "group": "logs", "count": 2 } ], "outputs": [ { "item": "crate", "count": 1 } ] },
+  // #3098/#3099: the crate you can carry (straps of fibre on an iron crate) and the storage bag (woven fibre, an iron clasp).
+  { "key": "transport_crate", "station": "workshop", "inputs": [ { "item": "iron_plate", "count": 4 }, { "item": "wood_log", "group": "logs", "count": 2 }, { "item": "plant_fiber", "count": 4 } ], "outputs": [ { "item": "transport_crate", "count": 1 } ] },
+  { "key": "storage_bag", "station": "workshop", "inputs": [ { "item": "plant_fiber", "count": 8 }, { "item": "iron_plate", "count": 1 } ], "outputs": [ { "item": "storage_bag", "count": 1 } ] },
   { "key": "door_wood",   "station": "hand",     "inputs": [ { "item": "wood_log", "group": "logs", "count": 4 } ],                                          "outputs": [ { "item": "door_wood", "count": 1 } ] },
   { "key": "torch",       "station": "hand",     "inputs": [ { "item": "wood_log", "group": "logs", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "torch", "count": 4 } ] },
   // #2536: the wooden tools — made by hand from wood, plant fibre and stone, a little weaker than the ship's own.

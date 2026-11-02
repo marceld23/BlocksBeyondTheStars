@@ -214,7 +214,8 @@ public sealed partial class GameServer
     private bool IsStowable(string item)
         => _content.GetItem(item) is { } def
            && def.Category is ItemCategory.Material or ItemCategory.Component or ItemCategory.Block
-           && !SuitEquipment.IsSuitGear(def);
+           && !SuitEquipment.IsSuitGear(def)
+           && def.Key != CarriedContents.Bag; // #3099: the storage bag is carried, like the crate's sweep leaves it
 
     /// <summary>Moves slot <paramref name="index"/> of <paramref name="src"/> into <paramref name="dst"/> — the whole
     /// stack, or with <paramref name="count"/> &gt; 0 only that many of it (#2729: the stack is split, the part merges

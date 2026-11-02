@@ -216,6 +216,36 @@ public sealed class MaterialPool
     }
 
     /// <summary>
+    /// #3082: how many more empty slots the listed amounts need — the same dry run as <see cref="CanFit"/> (top-ups and
+    /// cargo included), but it keeps going and counts the stacks of whatever is left over. 0 = everything fits. This is
+    /// the number the "no room for the reward" notice tells the player.
+    /// </summary>
+    public int SlotsShort(IEnumerable<ItemAmount> items)
+    {
+        var personal = _personal.Clone();
+        var cargo = _cargo?.Clone();
+        int missing = 0;
+        foreach (var add in items)
+        {
+            if (add.Count <= 0)
+            {
+                continue;
+            }
+
+            int maxStack = System.Math.Max(1, _content.MaxStackOf(add.Item));
+            int leftover = personal.Add(add.Item, add.Count, maxStack);
+            if (leftover > 0 && cargo is not null)
+            {
+                leftover = cargo.Add(add.Item, leftover, maxStack);
+            }
+
+            missing += (leftover + maxStack - 1) / maxStack;
+        }
+
+        return missing;
+    }
+
+    /// <summary>
     /// Like <see cref="CanFit"/>, but dry-runs the removal of <paramref name="inputs"/> FIRST — the right
     /// question for a 1:1 exchange (dye/shape/paint), where the outputs may reuse the slots the consumed
     /// inputs free up. Plain <see cref="CanFit"/> answers "would it fit on top of everything I hold", which

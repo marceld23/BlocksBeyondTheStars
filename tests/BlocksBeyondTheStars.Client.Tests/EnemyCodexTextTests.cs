@@ -28,7 +28,7 @@ public sealed class EnemyCodexTextTests
         var enemies = EnemyCatalog.Defaults();
         string text = EnemyCodexText.Build(enemies, new HashSet<string> { EnemyCatalog.Ufo, EnemyCatalog.BanditShip }, L, item => "<" + item + ">");
 
-        Assert.Contains("2 of 9 met.", text, StringComparison.Ordinal);
+        Assert.Contains("2 of " + enemies.Count + " met.", text, StringComparison.Ordinal); // #3096: the roster grows
         Assert.Contains("<b>UFO</b>  <color=#7fe0a8>✓ met</color>", text, StringComparison.Ordinal);
         Assert.Contains("ui.wiki.enemies.health: 40 (ui.wiki.enemies.elite: 95)", text, StringComparison.Ordinal);
         Assert.Contains("ui.wiki.enemies.damage: 4/s (ui.wiki.enemies.elite: 8/s)", text, StringComparison.Ordinal);
@@ -40,7 +40,7 @@ public sealed class EnemyCodexTextTests
         Assert.DoesNotContain("???", text, StringComparison.Ordinal); // #3031: nothing hides behind a first meeting
         Assert.Contains("<b>Drone</b>\n", text, StringComparison.Ordinal); // an enemy not met yet: its name, no mark
         Assert.Equal(2, text.Split("✓").Length - 1);
-        Assert.Equal(9, text.Split("ui.wiki.enemies.health:").Length - 1); // all nine with their numbers
+        Assert.Equal(enemies.Count, text.Split("ui.wiki.enemies.health:").Length - 1); // every one with its numbers
         Assert.True(text.IndexOf("ui.wiki.enemies.where_space", StringComparison.Ordinal) < text.IndexOf("ui.wiki.enemies.where_planet", StringComparison.Ordinal));
     }
 
@@ -63,5 +63,17 @@ public sealed class EnemyCodexTextTests
 
         Assert.Equal(enemies.Count, count); // every enemy sits in one group
         Assert.Equal(EnemyCodexText.Build(enemies, met, L, item => item), sb.ToString());
+    }
+
+    [Fact]
+    public void TheTankSpider_ShowsItsBurst_NotADamagePerSecond()
+    {
+        // #3096: it never bites — its damage is one burst, so the Codex names the burst instead of "0/s".
+        var spider = EnemyCatalog.Defaults().First(e => e.Key == EnemyCatalog.TankSpider);
+        string entry = EnemyCodexText.Entry(spider, met: false, L, item => item);
+
+        Assert.Contains("ui.wiki.enemies.damage: 30 (ui.wiki.enemies.burst)", entry, StringComparison.Ordinal);
+        Assert.DoesNotContain("/s", entry, StringComparison.Ordinal);
+        Assert.Equal(EnemyWhere.Planet, spider.Where);
     }
 }

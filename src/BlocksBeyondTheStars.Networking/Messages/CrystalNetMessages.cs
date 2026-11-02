@@ -47,6 +47,11 @@ public sealed class NetCrystalDevice
 
     /// <summary>#2097 (additive): a clone tank's allowed species for its owner, as "speciesId|coined name".</summary>
     public string[] Choices { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>#3091 (additive): the net holds this device in its OFF state right now — a sentry post holds its fire, a
+    /// spout is closed, a heal tank does not heal. The HUD says so ("switched off by the Crystal Net"); nothing else in
+    /// the world shows it.</summary>
+    public bool Held { get; set; }
 }
 
 /// <summary>Every device of the player's world; sent on join and coalesced once per tick on change.</summary>

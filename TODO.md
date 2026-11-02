@@ -24,6 +24,59 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player reports 2026-11-01 (Justus as Screelit, v2026.10.33) — fence teleport, festival reward + pumpkin search, energy fence, Screelit's metal panel, mission boards + one interact pick, sentry + watcher, robbers, flourishes, tank spider, hunter shuttle, transport crate + storage bag — #3081–#3101, branch feat/reports-2026-11-01 — ✅ done 2026-11-02 (⚠ playtest open; save version 10 row updated for `transport_crate` (10 was still unreleased), protocol tags 315–317 additive, additive wire fields, no terrain-generation change)
+
+Twelve F1 reports in one afternoon; "Alte Städte" (old metal cities, Ressaw) is parked on purpose — Marcel wants to clarify
+it first, its two rows stay `new`. Marcel's calls: everything in one go; a mission board in the ship must work; the festival
+must not be that easy; Screelit's texture is taken over exactly; the energy fence gets see-through gaps; no renaming of
+"Kristallleiter"; the watcher reacts to other devices too; tank spider and hunter shuttle both now.
+
+- **#3081** Pressed against a 2-high fence the server "dug the player out" onto the roof: `IsEntombed` now asks
+  `BlockShapeFacts.CanEnclosePlayer` (new `EnclosesBodyCell`), also for parked hulls (`HullCellEnclosesBody`); the dig-out
+  still treats fences and slabs as a floor. `ShapedEntombRescueTests`.
+- **#3082** A reward that didn't fit waited until the next join: pending rewards retry on the next tick after an inventory
+  change (and every 5 s), with banner + praise; an orange "Reward waiting" banner names the reward and the slots to free;
+  the unlock banner lists the items (`AchievementRewardText`, `AchievementRewardDeferred.SlotsNeeded`).
+- **#3083** Festival pumpkins are a search: one per player every 30 s within 32 blocks, a per-player budget per festival and
+  year (Halloween 80, the other harvest festivals 40) in `PlayerState.FestivalSpawnsLaid`; a harvested field stays empty.
+  **#3084** Festival deposits always drop the plain fruit and scan as edible.
+- **#3085** Energy fence: a real fence tile (rails, three cyan beams, gaps cut by `tools/ai-assets/bake_fence_alpha.py`) +
+  `face_energy_fence_top`; drawn as a clipped opaque cube (`TraitCutoutCube`), no inner faces in a row, still collides; the
+  old pylon picture is its icon (`icons/block_energy_fence.png`, `BlockCubeIcon.OwnIcon`). **#3086** Screelit's rivet-free
+  `metal_panel` adopted 1:1 (provenance `hand:Screelit`, NOTICES).
+- **#3087** Mission board: aimed (world or own-ship cell, 4 m) → "Auftragstafel — E: Aufträge" → the Missions tab; a board in
+  the own ship offers cargo jobs without a quartermaster (`GameServerShipBoard`); posts built into a ship say they are
+  decoration. **#3088** One interact pick for E and the prompt (`InteractResolver`, `NpcAim` in Client.Core): aimed beats
+  nearby, looking at a person beats the door beside them, "E Kiste öffnen" only for the aimed crate. **#3089** The
+  quartermaster's "Zeig mir die Aufträge!" opens the Missions tab; lumberjack and Miner/Market/Radio residents have their own
+  lines; talk reach 5 m on both sides (`InteractionReach.Talk`), out of reach says so. **#3090** Staffed base boards and the
+  ship board count as mission boards for chain steps and board jobs.
+- **#3091** A conduit nothing drives (no switch, sensor or gate) leaves sentries, spouts and heal tanks alone
+  (`CrystalNetwork.Driven`); while the net holds one off, HUD + scan say "Vom Kristallnetz ausgeschaltet"
+  (`NetCrystalDevice.Held`); the texts say relays bring power, conduits only switch. **#3092** The watcher also pulses when
+  the device, wire or door in front of it changes state or a sentry starts/stops shooting (`GameServerCrystalWatchers`); its
+  arrow face is no wire any more; its menu explains it. **#3093** The Codex uses the block names (`CodexBlockNameTests`).
+- **#3094** Robbers are built on the human rig: the villagers' hair rule (shared `NpcLooks.HairToneFor`), no beard, a cloth
+  mask; avatars destroy their own materials. **#3095** Equip flourishes (drill test spin with a spinning bit, cosmetic gun
+  reload, blade twirl) in first and third person (`HeldFlourishes`, `HeldSpin`); idle robots look at their hands, roll their
+  shoulders or scan (`RobotIdle`); three new ElevenLabs cues.
+- **#3096** Tank spider: a Guardian spider with a pressure tank; within 3 blocks it inflates for 1.5 s (hiss + glow) and bursts
+  for up to 30 damage in 3.5 blocks, a wall is cover, it never changes a block; refill-only, one at a time
+  (`GameServerTankSpiders`, `TankSpiderTests`). **#3097** Hunter shuttle: a weak Guardian shuttle that runs when hurt or out
+  of patience; if it gets away it lands a camp 180–320 blocks from the pilot's base — hull, hunter, 2–3 Guardian bays that
+  send robots while a player is near; mining every bay clears it for good (`WorldMetadata.HunterShuttleSites`,
+  `HunterShuttleTests`).
+- **#3098** Transport crate (new block): mined, it keeps its contents in the item (`#h<id>` key → a save-wide record under the
+  pseudo-location `carried`); placed again, it unpacks. **#3099** Storage bag: up to 1000 items, opened from the inventory or
+  in hand (`BagUi`, tags 315–317). Duplication-safe; docs/developer/CONTAINERS_AND_CARRIED_STORAGE.md.
+- **#3100** A blasted crate spills its contents and its record goes; mining and the blaster share the registration cleanup
+  (`ForgetBlockRegistrations`). **#3101** F1 snapshots record block shapes (`shape`/`yaw`/`up`, census `key#Form`).
+- Texts: ~100 new keys + 9 changed in all 14 languages; the dead `dlg.quartermaster_hello.c_work`/`r_work` removed; pl
+  "Głośnik", uk "Водоспадне сопло" fixed.
+- Open: Marcel's playtest (fence walk, a full-inventory reward, a Halloween search, the fence row, metal panels everywhere, a
+  ship board, talking beside a door, sentry + bare conduit, a watcher at a switch, robbers, flourishes, a tank spider, a
+  hunter shuttle + camp, carrying a crate, the bag); reply to Justus' rows after the merge.
+
 ### 🗂️ Build categories — one shared category set where a thing can sit in several, searchable by category, links between the tabs — #3102–#3112, branch feat/build-categories — ✅ done 2026-11-02 (⚠ playtest open; client + data only, no save-version, protocol or terrain-generation change)
 
 Marcel (2026-11-01): better categories for what you can craft and research — "what can I build with the Crystal Net?",

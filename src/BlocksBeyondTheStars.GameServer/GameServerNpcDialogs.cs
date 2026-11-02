@@ -25,7 +25,12 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private const float NpcTalkRange = 5f;
+    /// <summary>The talk reach — the client's prompt and E use the same number (#3089).</summary>
+    private const float NpcTalkRange = InteractionReach.Talk;
+
+    /// <summary>#3089: how far past <see cref="NpcTalkRange"/> a talk is still taken — the server measures the position it
+    /// heard last (ten updates a second), the client the one it walks at.</summary>
+    private const float NpcTalkLatencySlack = 0.75f;
 
     private const string DialogDoneMilestonePrefix = "dialog:";      // "dialog:<key>:done" — once-per-player gate
     private const string DialogFlagMilestonePrefix = "dialogflag:";  // "dialogflag:<key>:<node>:<choice>" — the persisted decision
@@ -136,6 +141,7 @@ public sealed partial class GameServer
         }
 
         bool ownResident = IsOwnBaseResident(session, npc); // #2594: "welcome home" talk vs. a visitor's talk
+        string job = DialogJobOf(npc); // #3089: a resident without a post talks about the base's focus
         foreach (var d in AllDialogs())
         {
             bool profession = guest || NpcProfessions.ByJob(npc.Job) != null // #2602: a guest_* job talks like a profession
@@ -143,7 +149,7 @@ public sealed partial class GameServer
             bool matches = !string.IsNullOrEmpty(d.Character)
                 ? string.Equals(d.Character, npc.CharacterId, StringComparison.OrdinalIgnoreCase)
                 : !string.IsNullOrEmpty(d.Job)
-                    ? string.Equals(d.Job, npc.Job, StringComparison.OrdinalIgnoreCase) // 2026-09: a profession's own talk
+                    ? string.Equals(d.Job, job, StringComparison.OrdinalIgnoreCase) // 2026-09: a profession's own talk
                     : !profession && (string.IsNullOrEmpty(d.Role) || string.Equals(d.Role, npc.Role, StringComparison.OrdinalIgnoreCase));
             if (!matches
                 || !DialogHomeMatches(d.Home, ownResident, npc.LodgeKey.Length > 0, IsWandererNpc(npc))
@@ -206,10 +212,20 @@ public sealed partial class GameServer
     /// #2616: a new talk ends the conversation the player was in.</summary>
     private void HandleTalkToNpc(PlayerSession session, TalkToNpcIntent intent)
     {
+        // #3089: never a silent E — nobody there any more (a villager away visiting a base is hidden at home, the guest is
+        // the one to talk to), or just out of reach (the client's reach plus a step of slack for the position heard last).
         var npc = _npcs.FirstOrDefault(n => n.Id == intent.NpcId);
-        if (npc is null || npc.VisitingAway || WrapDistSq(npc.Pos, session.State.Position) > NpcTalkRange * NpcTalkRange)
+        if (npc is null || npc.VisitingAway)
         {
-            return; // nobody there (a villager away visiting a base is hidden at home — the guest is the one to talk to)
+            Send(session, new ServerMessage { Text = "@srv.npc.talk_gone" });
+            return;
+        }
+
+        float accept = NpcTalkRange + NpcTalkLatencySlack;
+        if (WrapDistSq(npc.Pos, session.State.Position) > accept * accept)
+        {
+            Send(session, new ServerMessage { Text = "@srv.npc.talk_far" });
+            return;
         }
 
         EndNpcConversation(session, tellClient: true);
@@ -699,6 +715,10 @@ public sealed partial class GameServer
             case "interview":
                 session.Npc.PendingInterviewNpcId = npc.Id;
                 _dialogAction = "interview";
+                break;
+
+            case MissionsConsequence:
+                _dialogAction = MissionsConsequence; // #3089: the quartermaster shows the board — the client opens the Missions tab
                 break;
 
             case TreatConsequence:

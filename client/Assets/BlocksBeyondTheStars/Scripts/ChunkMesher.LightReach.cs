@@ -9,10 +9,11 @@ namespace BlocksBeyondTheStars.Client
     public static partial class ChunkMesher
     {
         /// <summary>Whether a block stops the coloured block light — the flood's own test (air, glass, water, plants,
-        /// foliage and slim props let it through). #2951: an edit that flips this inside a lamp's reach changes the light
-        /// beyond the edited chunk, so the client re-meshes the chunks in that reach.</summary>
+        /// foliage, slim props and the energy fence's see-through cutout cube, #3085, let it through). #2951: an edit that
+        /// flips this inside a lamp's reach changes the light beyond the edited chunk, so the client re-meshes the chunks
+        /// in that reach.</summary>
         internal static bool StopsBlockLight(GameContent content, BlockId b)
             => !b.IsAir && !IsTransparent(content, b) && !IsFloraBlock(content, b) && !IsFoliageBlock(content, b)
-               && !IsSlimPropBlock(content, b);
+               && !IsSlimPropBlock(content, b) && !IsCutoutCube(content, b);
     }
 }

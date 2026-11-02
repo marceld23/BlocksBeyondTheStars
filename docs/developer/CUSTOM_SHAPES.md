@@ -133,7 +133,8 @@ block keeps its picture where it belongs and names tiles for its other faces:
 - Shared casings keep the count low: `face_tech_*` (dark station machines), `face_crystal_*` (Crystal Net devices),
   `face_light_*` (clinic, press desk, bunk), `face_wood_*` (shop, tamer, quarry posts), `face_plastic_*` (gaming gear),
   `face_rust_*` (scrap machines), `face_industrial_*` (detox/decontamination, water spout, thumper), plus bespoke
-  sides and tops (crate lids, forge, workbench, sage console, tank tops, …). The texture editor lists them under
+  sides and tops (crate lids, forge, workbench, sage console, tank tops, the energy fence's emitter rail `face_energy_fence_top`
+  on its top and bottom since #3085, …). The texture editor lists them under
   "Block sides and lids" (`TextureCatalog.GroupFaces`), and a local-pack or world override repaints the slot in place.
 
 **The front.** `"facing": "toward"` turns the front to the player who places the block, `"away"` the way the player

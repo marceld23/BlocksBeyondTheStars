@@ -144,6 +144,12 @@ track's prompt and its pool).
   black, drops specks and lowers the plant onto the bottom edge; `BlockTileAlphaTests` checks the result. A tile that
   shows one object on a flat *lighter* ground goes into `GROUND_KEY` instead (the darkness cut would invert it). The
   bake's previews land in `out/baked/`, never over the generated images in `out/textures/`.
+- **Energy fence tile** (#3085): the side of a fence segment — rails along the top and bottom edge, cyan beams across, all
+  running off the left and right edges — drawn as a rigid cutout cube. Pipeline: `uv run gen_textures.py --only
+  energy_fence` → `uv run bundle_textures.py --from-out --only energy_fence` → `uv run --no-project --with "pillow>=13"
+  python bake_fence_alpha.py` (cuts the dark glow between the beams per row; `--preview <dir>` writes a PNG).
+  `BlockTileAlphaTests` checks rails, beams and the seam. The old pylon picture is the block's own inventory icon
+  (`client/Assets/Resources/icons/block_energy_fence.png`).
 - **Creature coat tiles** (#2863/#2867): `gen_coat_tiles.py --set patterns|horns [--only k1,k2] [--dry-run]` generates the
   coat pattern masks (`pattern_<name>`: two-tone images turned into seamless binary masks, white = mark) and the horn
   tiles (`horn_<name>`: grey, image y along the horn). The full-size generations stay in `out/creatures/raw/`, so

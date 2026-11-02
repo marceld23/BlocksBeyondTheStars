@@ -520,8 +520,10 @@ public sealed partial class GameServer
     /// "no block" refusal.</summary>
     private bool TryPayForPlacement(PlayerSession session, PlacementRequest r)
     {
-        // Creative mode and admin instant-build place without consuming materials.
-        bool free = !Rules.CraftingCostsMaterialsFor(session.State.ModeOverride) || session.State.InstantBuild;
+        // Creative mode and admin instant-build place without consuming materials — but never a packed transport crate
+        // (#3098): it unpacks its record into the new crate, so it must be used up, or the item would stay as a dead copy.
+        bool free = (!Rules.CraftingCostsMaterialsFor(session.State.ModeOverride) || session.State.InstantBuild)
+            && !CarriedContents.HasRecord(r.Intent.ItemKey);
         var pool = new MaterialPool(_content, session.State, _ship);
         if (!free)
         {
@@ -674,7 +676,9 @@ public sealed partial class GameServer
     {
         if (IsContainerBlock(r.BlockDef.Key))
         {
-            PlaceCrate(r.Pos); // a placed storage crate/wood box becomes a lootable/stash-able container (Task 5 Stage 3b)
+            // A placed storage crate/wood box becomes a lootable/stash-able container (Task 5 Stage 3b); a packed transport
+            // crate unpacks what it carried into it (#3098).
+            PlaceCrateFrom(session, r.Pos, r.Intent.ItemKey);
         }
         else if (r.BlockDef.Key == "radio_beacon")
         {

@@ -72,6 +72,17 @@ renders in **linear colour space**, and the hand-written shaders are all dual-pi
   (pinned by `ChunkMesherCutoutCodeEditModeTests`). The torch
   and lantern tiles got their alpha mask the same day (`tools/ai-assets/bake_prop_alpha.py`; `BlockTileAlphaTests`
   holds every billboard tile to a real share of transparent pixels).
+- **Cutout cubes** (2026-11-01, #3085): the energy fence is a SOLID cube whose tile is the side of a fence segment —
+  rails along the top and bottom edge, cyan beams across, see-through gaps between them (cut per row by
+  `tools/ai-assets/bake_fence_alpha.py`, so the gaps line up with the neighbour's). It left the alpha-blended submesh
+  (it was drawn like a force field, the whole block a 48 % curtain) for the opaque one with cutout code **2** on all six
+  faces: the gaps are clipped, so there is no sorting, the rails stay solid metal and the shadow has the gaps too. The
+  mesher trait `TraitCutoutCube` (`ChunkMesher.IsCutoutCubeKey`) makes it behave like a crown shell everywhere else: it
+  never seals a neighbour's face (the ground under it stays drawn), lets placed light through, casts no AO, gets no bevel
+  or parallax, and culls only against its own kind, so a row of fences is one plane of rails and beams per side. It keeps
+  its collider. Top and bottom wear `face_energy_fence_top` (the emitter rail); a drop packet clips the gaps too
+  (`ChunkMesher.CubeCutoutCode`). The old pylon picture lives on as the block's own inventory icon
+  (`Resources/icons/block_<key>.png`, `BlockCubeIcon.OwnIcon`), which wins over the tile and the cube icon everywhere.
 - **Cozy package** (2026-10, epic #2802; rules in [ART_BIBLE.md](ART_BIBLE.md) §6a):
   - *Fixes first:* the world's ColorAdjustments contrast sits at +3 over the biome contrast (#2803; a leftover +6 had
     kept it at 9–20, so #1457's softening only reached the menu). Placed-light colours go sRGB → linear at the

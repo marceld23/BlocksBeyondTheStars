@@ -383,6 +383,7 @@ namespace BlocksBeyondTheStars.Client
                 case "Debris": return 2f;         // #2353: a few cells of plating
                 case "SalvageCapsule": return 2f;
                 case "BanditShip": return RaiderDesignRadius(e); // #2357: the real hull's extent, else the wedge's
+                case "HunterShuttle": return RaiderDesignRadius(e); // #3097: the same, for its voxel hull
                 default: return 2.5f * s;
             }
         }
@@ -399,6 +400,7 @@ namespace BlocksBeyondTheStars.Client
                 case "Ufo": return Loc("ui.scan.subject.ufo", "Guardian saucer");
                 case "Cruiser": return Loc("ui.scan.subject.cruiser", "Guardian cruiser");
                 case "BanditShip": return string.IsNullOrEmpty(e.Name) ? Loc("ui.scan.subject.bandit_ship", "Raider ship") : e.Name;
+                case "HunterShuttle": return Loc("ui.scan.subject.hunter_shuttle", "Hunter shuttle"); // #3097
                 case "Wormhole": return WormholeLabel(e.Id);
                 case "DebrisField": // #2365: the marker is the field's flight recorder — name the thing, then where it sits
                     return Loc("ui.scan.subject.debris_recorder", "Flight recorder") + " · " + Loc("ui.scan.subject.debris_field", "Debris field") + (string.IsNullOrEmpty(e.Name) ? string.Empty : " " + e.Name);

@@ -12,6 +12,10 @@
 // effects keep the mood to a festival's first days (default 3, 0 = none) or its Sundays (Advent). "pack" (#3023) names a
 // challenge pack of the festival's own (festival_<key>), which then no longer starts its theme's pack.
 //
+// "spawn" (#3006) lays a block (the pumpkins) near every player who celebrates the festival: up to "perPass" at a time within
+// "radius", never more than "cap" standing per world. #3083: "interval" (seconds between two lays for one player) and
+// "budget" (blocks laid per player, festival and year) make the harvest a search — a picked field stays empty.
+//
 // Movable dates (checked 2026-10-29): Lunar New Year 2027-02-06 / 2028-01-26 and the Lantern Festival 2027-02-20 /
 // 2028-02-09 (chinatravel.com, publicholidays.com.my); Holi 2027-03-22/23, 2028-03-11 (publicholidays.in, calendardate.com);
 // Diwali 2026-11-08, 2027-10-29, 2028-10-17 (publicholidays.com); Hanukkah 2026-12-04…12, 2027-12-24…2028-01-01,
@@ -70,14 +74,14 @@
     { "key": "autumn_equinox", "theme": "harvest", "glyph": "❋", "locales": ["ja"],
       "window": { "kind": "fixed", "month": 9, "day": 22, "daysAfter": 1 },
       "effects": { "motes": "seeds", "warmth": 0.2, "saturation": 1.05, "music": "cosy" },
-      "spawn": { "block": "flora_pumpkin", "hosts": ["grass", "dirt", "mud"], "perPass": 4, "cap": 800, "radius": 24 } },
+      "spawn": { "block": "flora_pumpkin", "hosts": ["grass", "dirt", "mud"], "perPass": 1, "interval": 30, "budget": 40, "cap": 800, "radius": 32 } },
     { "key": "world_space_week", "theme": "stars", "glyph": "★",
       "window": { "kind": "fixed", "month": 10, "day": 4, "daysAfter": 6 },
       "effects": { "motes": "dust", "warmth": -0.1, "saturation": 1.0, "shootingStars": true, "music": "calm" } },
     { "key": "halloween", "theme": "harvest", "glyph": "✦", "big": true, "locales": ["en", "de"], "priority": 10, "pack": "festival_halloween",
       "window": { "kind": "fixed", "month": 10, "day": 31, "daysBefore": 7, "daysAfter": 1 },
       "effects": { "motes": "lamplight", "warmth": -0.05, "saturation": 0.9, "fogTint": "#a89cc8", "fogBoost": 0.35, "music": "spooky", "coreDays": 99 },
-      "spawn": { "block": "flora_pumpkin", "hosts": ["grass", "dirt", "mud"], "perPass": 6, "cap": 1500, "radius": 24 } },
+      "spawn": { "block": "flora_pumpkin", "hosts": ["grass", "dirt", "mud"], "perPass": 1, "interval": 30, "budget": 80, "cap": 1500, "radius": 32 } },
     { "key": "dia_de_muertos", "theme": "lights", "glyph": "✿", "big": true, "locales": ["es"],
       "window": { "kind": "fixed", "month": 11, "day": 1, "daysAfter": 1 },
       "effects": { "motes": "petals", "warmth": 0.25, "saturation": 1.25, "music": "cosy" } },
@@ -119,15 +123,15 @@
     { "key": "erntedank", "theme": "harvest", "glyph": "❋", "locales": ["de"],
       "window": { "kind": "weekday", "month": 10, "day": 1, "weekday": "Sunday" },
       "effects": { "motes": "seeds", "warmth": 0.2, "saturation": 1.05, "music": "cosy" },
-      "spawn": { "block": "flora_pumpkin", "hosts": ["grass", "dirt", "mud"], "perPass": 4, "cap": 800, "radius": 24 } },
+      "spawn": { "block": "flora_pumpkin", "hosts": ["grass", "dirt", "mud"], "perPass": 1, "interval": 30, "budget": 40, "cap": 800, "radius": 32 } },
     { "key": "thanksgiving_canada", "theme": "harvest", "glyph": "❋", "locales": ["en", "fr"],
       "window": { "kind": "weekday", "month": 10, "day": 8, "weekday": "Monday" },
       "effects": { "motes": "seeds", "warmth": 0.2, "saturation": 1.05, "music": "cosy" },
-      "spawn": { "block": "flora_pumpkin", "hosts": ["grass", "dirt", "mud"], "perPass": 4, "cap": 800, "radius": 24 } },
+      "spawn": { "block": "flora_pumpkin", "hosts": ["grass", "dirt", "mud"], "perPass": 1, "interval": 30, "budget": 40, "cap": 800, "radius": 32 } },
     { "key": "thanksgiving_us", "theme": "harvest", "glyph": "❋", "locales": ["en"],
       "window": { "kind": "weekday", "month": 11, "day": 22, "weekday": "Thursday", "daysBefore": 1 },
       "effects": { "motes": "seeds", "warmth": 0.2, "saturation": 1.05, "music": "cosy" },
-      "spawn": { "block": "flora_pumpkin", "hosts": ["grass", "dirt", "mud"], "perPass": 4, "cap": 800, "radius": 24 } },
+      "spawn": { "block": "flora_pumpkin", "hosts": ["grass", "dirt", "mud"], "perPass": 1, "interval": 30, "budget": 40, "cap": 800, "radius": 32 } },
     { "key": "advent", "theme": "lights", "glyph": "✧", "locales": ["de", "pl"],
       "window": { "kind": "weekday", "month": 11, "day": 27, "weekday": "Sunday", "untilMonth": 12, "untilDay": 23 },
       "effects": { "motes": "lamplight", "warmth": 0.2, "saturation": 1.0, "snowCap": true, "music": "cosy", "coreWeekday": "Sunday" } },
@@ -187,7 +191,7 @@
     { "key": "sukkot", "theme": "harvest", "glyph": "❋",
       "window": { "kind": "dates", "ranges": [["2026-09-25", "2026-10-02"], ["2027-10-15", "2027-10-22"], ["2028-10-04", "2028-10-11"]] },
       "effects": { "motes": "seeds", "warmth": 0.2, "saturation": 1.05, "music": "cosy" },
-      "spawn": { "block": "flora_pumpkin", "hosts": ["grass", "dirt", "mud"], "perPass": 4, "cap": 800, "radius": 24 } },
+      "spawn": { "block": "flora_pumpkin", "hosts": ["grass", "dirt", "mud"], "perPass": 1, "interval": 30, "budget": 40, "cap": 800, "radius": 32 } },
     { "key": "diwali", "theme": "lights", "glyph": "✧", "big": true,
       "window": { "kind": "dates", "ranges": [["2026-11-06", "2026-11-10"], ["2027-10-27", "2027-10-31"], ["2028-10-15", "2028-10-19"]] },
       "effects": { "motes": "lamplight", "warmth": 0.3, "saturation": 1.2, "shootingStars": true, "music": "bright" } },

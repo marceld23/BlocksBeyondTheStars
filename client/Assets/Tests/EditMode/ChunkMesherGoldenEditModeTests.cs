@@ -57,10 +57,12 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         // Re-pinned 2026-11-01 (#3055): the tangent of a natural top/bottom face now follows its 90° UV rotation (it stayed
         // on the unrotated U axis), and tufts are strewn on plain cube tops with a skylight of 0.5 or more (not on cave
         // floors). Vertex and triangle counts did not change (15838 / 12876 verts); the sky chunk is empty and unchanged.
+        // Re-pinned 2026-11-02 (#3098, #3085): the transport crate shifted the ids and three new tiles (transport crate, its
+        // lid, the energy fence's top) moved the atlas slots. Vertex and triangle counts did not change (15838 / 12876 verts).
         private static readonly Dictionary<string, ulong> Pinned = new Dictionary<string, ulong>
         {
-            ["deep (5,1,7)"] = 0xdc002a051b56d05dUL,
-            ["surface (5,2,7)"] = 0x99143075903ac051UL,
+            ["deep (5,1,7)"] = 0xaafb3b5cb0619b7dUL,
+            ["surface (5,2,7)"] = 0xd48c546ce94c1889UL,
             ["sky (5,3,7)"] = 0xd6a8cf1a27eab505UL,
         };
 

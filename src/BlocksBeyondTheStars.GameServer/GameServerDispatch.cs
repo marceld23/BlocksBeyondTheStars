@@ -58,7 +58,7 @@ public sealed partial class GameServer
         On<MinigameResultIntent>(map, (gs, s, m) => gs.HandleMinigameResult(s, m));
         On<FallDamageIntent>(map, (gs, s, m) => gs.HandleFallDamage(s, m));
         On<AdminCommandIntent>(map, (gs, s, m) => gs.HandleAdminCommand(s, m));
-        On<RequestMissions>(map, (gs, s, _) => gs.SendMissionList(s));
+        On<RequestMissions>(map, (gs, s, _) => gs.HandleRequestMissions(s)); // #3087: the list, and why an idle base board is idle
         On<AcceptMissionIntent>(map, (gs, s, m) => gs.HandleAcceptMission(s, m.MissionId));
         On<TurnInMissionIntent>(map, (gs, s, m) => gs.HandleTurnInMission(s, m.MissionId));
         On<CreateMissionIntent>(map, (gs, s, m) => gs.HandleCreateMission(s, m));
@@ -130,6 +130,8 @@ public sealed partial class GameServer
         On<SetContainerFilterIntent>(map, (gs, s, m) => gs.HandleSetContainerFilter(s, m));
         On<OpenContainerIntent>(map, (gs, s, m) => gs.HandleOpenContainer(s, m)); // #2436
         On<MoveContainerItemIntent>(map, (gs, s, m) => gs.HandleMoveContainerItem(s, m)); // #2436
+        On<OpenBagIntent>(map, (gs, s, m) => gs.HandleOpenBag(s, m)); // #3099: the storage bag screen
+        On<MoveBagItemIntent>(map, (gs, s, m) => gs.HandleMoveBagItem(s, m)); // #3099
         On<MoveCargoItemIntent>(map, (gs, s, m) => gs.HandleMoveCargoItem(s, m));
         On<ShipMoveIntent>(map, (gs, s, m) => gs.HandleShipMove(s, m));
         On<DisassembleIntent>(map, (gs, s, m) => gs.HandleDisassemble(s, m));

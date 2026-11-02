@@ -242,7 +242,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Engine plumes on the hostile ship models at their engine glow parts (#2157).</summary>
         private static void AttachHostilePlumes(GameObject model, string kind)
         {
-            if (kind != "BanditShip" && kind != "Cruiser")
+            if (kind != "BanditShip" && kind != "Cruiser" && kind != "HunterShuttle") // #3097: the hand-built shuttle has engines too
             {
                 return; // drones and UFOs hover on repulsors
             }

@@ -269,41 +269,9 @@ public sealed partial class GameServer
         }
         else
         {
-            // Detailed non-air blocks in a tight box...
             int px = (int)Math.Floor(p.Position.X), py = (int)Math.Floor(p.Position.Y), pz = (int)Math.Floor(p.Position.Z);
-            for (int dx = -4; dx <= 4; dx++)
-                for (int dy = -2; dy <= 4; dy++)
-                    for (int dz = -4; dz <= 4; dz++)
-                    {
-                        var id = _world.GetBlock(new Vector3i(px + dx, py + dy, pz + dz));
-                        if (id.IsAir)
-                        {
-                            continue;
-                        }
-
-                        blocks.Add(new { x = px + dx, y = py + dy, z = pz + dz, block = _content.BlockById(id)?.Key ?? id.Value.ToString() });
-                    }
-
-            // ...plus a wider, compact census (block-type → count) so terrain + voxel flora composition
-            // (trees/leaves/planted crops) is captured without listing every cell. NB: small client-side
-            // billboard undergrowth is procedural and not server voxel data, so it can't appear here.
-            var tally = new Dictionary<string, int>();
-            for (int dx = -12; dx <= 12; dx++)
-                for (int dz = -12; dz <= 12; dz++)
-                    for (int dy = -4; dy <= 8; dy++)
-                    {
-                        var id = _world.GetBlock(new Vector3i(px + dx, py + dy, pz + dz));
-                        if (id.IsAir)
-                        {
-                            continue;
-                        }
-
-                        string key = _content.BlockById(id)?.Key ?? id.Value.ToString();
-                        tally[key] = tally.TryGetValue(key, out var n) ? n + 1 : 1;
-                    }
-
-            census = tally.OrderByDescending(kv => kv.Value)
-                .Select(kv => (object)new { block = kv.Key, count = kv.Value }).ToList();
+            blocks = BumpSurroundings(px, py, pz);
+            census = BumpCensus(px, py, pz);
 
             // #2753: with the drawn size, the footprint radius the spacing keeps and the sleep state — "animals inside each
             // other" can be checked from the snapshot (who overlaps by how much, and whether a sleeper is involved).
@@ -545,6 +513,81 @@ public sealed partial class GameServer
         {
             // forwarding must never break the local bump write or the tick
         }
+    }
+
+    /// <summary>The detailed non-air cells in a tight box around the reporter. #3101: a cell in a non-cube form carries the
+    /// form, its yaw and its up-face — "teleported while walking along a wall" could not say which fence or panel the player
+    /// was pressed against, because the snapshot listed block keys only.</summary>
+    private List<object> BumpSurroundings(int px, int py, int pz)
+    {
+        var blocks = new List<object>();
+        for (int dx = -4; dx <= 4; dx++)
+            for (int dy = -2; dy <= 4; dy++)
+                for (int dz = -4; dz <= 4; dz++)
+                {
+                    var cell = new Vector3i(px + dx, py + dy, pz + dz);
+                    var id = _world.GetBlock(cell);
+                    if (id.IsAir)
+                    {
+                        continue;
+                    }
+
+                    string key = _content.BlockById(id)?.Key ?? id.Value.ToString();
+                    int descriptor = _world.GetShape(cell);
+                    blocks.Add(Shared.World.ShapeCode.IsCube(descriptor)
+                        ? new { x = cell.X, y = cell.Y, z = cell.Z, block = key }
+                        : new
+                        {
+                            x = cell.X,
+                            y = cell.Y,
+                            z = cell.Z,
+                            block = key,
+                            shape = BumpShapeName(descriptor),
+                            yaw = Shared.World.ShapeCode.OrientationOf(descriptor),
+                            up = Shared.World.ShapeCode.UpFaceOf(descriptor),
+                        });
+                }
+
+        return blocks;
+    }
+
+    /// <summary>A wider, compact census (block type → count) so terrain + voxel flora composition (trees/leaves/planted crops)
+    /// is captured without listing every cell. NB: small client-side billboard undergrowth is procedural and not server voxel
+    /// data, so it can't appear here. #3101: shaped cells count apart, as <c>key#Form</c> (<c>stone#Fence</c>).</summary>
+    private List<object> BumpCensus(int px, int py, int pz)
+    {
+        var tally = new Dictionary<string, int>();
+        for (int dx = -12; dx <= 12; dx++)
+            for (int dz = -12; dz <= 12; dz++)
+                for (int dy = -4; dy <= 8; dy++)
+                {
+                    var cell = new Vector3i(px + dx, py + dy, pz + dz);
+                    var id = _world.GetBlock(cell);
+                    if (id.IsAir)
+                    {
+                        continue;
+                    }
+
+                    string key = _content.BlockById(id)?.Key ?? id.Value.ToString();
+                    int descriptor = _world.GetShape(cell);
+                    if (!Shared.World.ShapeCode.IsCube(descriptor))
+                    {
+                        key += "#" + BumpShapeName(descriptor);
+                    }
+
+                    tally[key] = tally.TryGetValue(key, out var n) ? n + 1 : 1;
+                }
+
+        return tally.OrderByDescending(kv => kv.Value)
+            .Select(kv => (object)new { block = kv.Key, count = kv.Value }).ToList();
+    }
+
+    /// <summary>#3101: a readable name for a cell's form — the built-in's name (<c>Fence</c>, <c>Panel</c>) or
+    /// <c>custom:&lt;index&gt;</c> for a player-designed one.</summary>
+    private static string BumpShapeName(int descriptor)
+    {
+        int shape = Shared.World.ShapeCode.ShapeOf(descriptor);
+        return Shared.World.ShapeCode.IsBuiltIn(shape) ? ((Shared.World.BlockShape)shape).ToString() : "custom:" + shape;
     }
 
     private static string TruncateWire(string value, int max)

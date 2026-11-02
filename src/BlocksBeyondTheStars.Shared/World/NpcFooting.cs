@@ -52,7 +52,7 @@ public static class NpcFootings
         var keys = new HashSet<string>(StringComparer.Ordinal)
         {
             // furniture and stores
-            "bed", "crew_bunk", "campfire", "campfire_off", "crate", "wood_crate", "station_container", "flower_pot",
+            "bed", "crew_bunk", "campfire", "campfire_off", "crate", "wood_crate", "station_container", "transport_crate", "flower_pot",
             // workshop devices
             "workbench", "forge", "forge_off", "matter_forge", "detoxifier", "decontaminator", "algae_tank", "heal_tank",
             // terminals and posts

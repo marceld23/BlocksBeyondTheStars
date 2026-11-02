@@ -28,6 +28,7 @@ namespace BlocksBeyondTheStars.Client
         private Image _researchGlow;
         private RectTransform _researchShine;
         private TMP_Text _researchHead, _researchName;
+        private TMP_Text _researchDetail; // #3082: the reward line under an achievement's name (empty for research and festivals)
         private float _researchAge = -1f; // <0 = idle, no toast up
         private const float ResearchW = 480f, ResearchH = 86f, ResearchY = 64f;
         private const float ResearchPop = 0.25f, ResearchHold = 3.0f, ResearchFade = 0.5f;
@@ -114,7 +115,8 @@ namespace BlocksBeyondTheStars.Client
             if (_researchAge < 0f)
             {
                 bool cutscene = GameBootstrap.CutsceneActive || (Game.Views.Director != null && Game.Views.Director.Playing);
-                if ((Game.ResearchAvailable.Count == 0 && Game.AchievementsUnlocked.Count == 0 && Game.FestivalsBegan.Count == 0)
+                if ((Game.ResearchAvailable.Count == 0 && Game.AchievementsUnlocked.Count == 0
+                     && Game.AchievementRewardsWaiting.Count == 0 && Game.FestivalsBegan.Count == 0)
                     || _canvas == null || !_canvas.enabled || cutscene)
                 {
                     return;
@@ -127,6 +129,11 @@ namespace BlocksBeyondTheStars.Client
                 else if (Game.AchievementsUnlocked.Count > 0)
                 {
                     StartAchievementToast(Game.AchievementsUnlocked.Dequeue());
+                }
+                else if (Game.AchievementRewardsWaiting.Count > 0)
+                {
+                    var waiting = Game.AchievementRewardsWaiting.Dequeue(); // #3082
+                    StartRewardWaitingToast(waiting.Key, waiting.Slots);
                 }
                 else
                 {
@@ -186,6 +193,7 @@ namespace BlocksBeyondTheStars.Client
             _researchName.text = loc.Get($"blueprint.{bpKey}.name");
             _researchHead.color = UiKit.CyanDim; // #2597: the slot is shared — research keeps its cyan
             _researchName.color = UiKit.Cyan;
+            SetToastDetail(string.Empty, UiKit.CyanDim);
             _researchIcon.enabled = true;
             SetBlueprintIcon(_researchIcon, bpKey);
             _toastHoldNow = ResearchHold;
@@ -210,6 +218,9 @@ namespace BlocksBeyondTheStars.Client
             _researchName.text = string.IsNullOrEmpty(name) || name == nameKey ? loc.Get("ui.achv.title") : name;
             _researchHead.color = new Color(AchievementGold.r * 0.85f, AchievementGold.g * 0.85f, AchievementGold.b * 0.85f);
             _researchName.color = AchievementGold;
+            // #3082: the banner names the present too — "Reward: Pumpkin lantern ×4, Lantern ×6" (nothing for a reward-less one).
+            SetToastDetail(AchievementRewardText.RewardLine(AchievementRewardText.RewardsOf(Game.Content, key),
+                Game.RewardItemName, Game.RewardText), _researchHead.color);
             var star = UiKit.Icon("map_mark_star");
             _researchIcon.enabled = star != null;
             if (star != null)
@@ -228,6 +239,55 @@ namespace BlocksBeyondTheStars.Client
             ClientAudio.Instance?.Cue("ui_success", 0.9f);
         }
 
+        private static readonly Color RewardWaitingOrange = new Color(1f, 0.6f, 0.25f);
+
+        /// <summary>#3082: the "reward waiting" banner — an achievement came due but its reward does not fit yet. Its name, the
+        /// reward and how many slots to free, in orange with the reward's own icon, held a little longer than an unlock (there
+        /// is something to read and to do). It replaced a single status line that was easy to miss; the reward then arrives by
+        /// itself with the ordinary unlock banner once there is room.</summary>
+        private void StartRewardWaitingToast(string key, int slots)
+        {
+            EnsureResearchToast();
+            var rewards = AchievementRewardText.RewardsOf(Game.Content, key);
+            _researchHead.text = Game.RewardText(AchievementRewardText.WaitingHeadKey).ToUpperInvariant();
+            _researchName.text = Game.AchievementDisplayName(key);
+            _researchHead.color = new Color(RewardWaitingOrange.r * 0.85f, RewardWaitingOrange.g * 0.85f, RewardWaitingOrange.b * 0.85f);
+            _researchName.color = RewardWaitingOrange;
+            SetToastDetail(AchievementRewardText.RoomLine(rewards, slots, Game.RewardItemName, Game.RewardText), Color.white);
+            var star = rewards.Count > 0 ? null : UiKit.Icon("map_mark_star");
+            _researchIcon.enabled = rewards.Count > 0 || star != null;
+            if (rewards.Count > 0)
+            {
+                SetItemIcon(_researchIcon, rewards[0].Item); // the present itself
+            }
+            else if (star != null)
+            {
+                _researchIcon.texture = star.texture;
+                _researchIcon.uvRect = new Rect(0, 0, 1, 1);
+                _researchIcon.color = RewardWaitingOrange;
+            }
+
+            _toastHoldNow = AchievementHold + 1.5f;
+            _toastGlow = RewardWaitingOrange;
+            _researchGo.SetActive(true);
+            _researchAge = 0f;
+            _researchFade.alpha = UiKit.ReducedMotion ? 0f : 1f;
+            _researchRect.localScale = UiKit.ReducedMotion ? Vector3.one : Vector3.one * 0.75f;
+            ClientAudio.Instance?.Cue("ai_blip", 0.9f);
+        }
+
+        /// <summary>#3082: the banner's third line (the reward, or the slots to free). Empty hides it, and the head and the name
+        /// sit where they always sat; with a line the two move up to make room for it.</summary>
+        private void SetToastDetail(string text, Color color)
+        {
+            bool show = !string.IsNullOrEmpty(text);
+            _researchDetail.text = show ? text : string.Empty;
+            _researchDetail.color = color;
+            _researchDetail.gameObject.SetActive(show);
+            _researchHead.rectTransform.anchoredPosition = new Vector2(_researchHead.rectTransform.anchoredPosition.x, show ? -8f : -16f);
+            _researchName.rectTransform.anchoredPosition = new Vector2(_researchName.rectTransform.anchoredPosition.x, show ? -30f : -40f);
+        }
+
         private static readonly Color FestivalAmber = new Color(1f, 0.72f, 0.35f);
 
         /// <summary>#3003: the festival banner — the third queue of the celebration slot. "FESTIVAL" over the festival's glyph and
@@ -242,6 +302,7 @@ namespace BlocksBeyondTheStars.Client
             _researchName.text = festival == null ? key : (festival.Glyph + " " + loc.Get(festival.NameKey)).Trim();
             _researchHead.color = new Color(FestivalAmber.r * 0.85f, FestivalAmber.g * 0.85f, FestivalAmber.b * 0.85f);
             _researchName.color = FestivalAmber;
+            SetToastDetail(string.Empty, FestivalAmber);
             var star = UiKit.Icon("map_mark_star");
             _researchIcon.enabled = star != null;
             if (star != null)
@@ -318,6 +379,13 @@ namespace BlocksBeyondTheStars.Client
             _researchName = UiText.Add(_researchGo.transform, 92f, 40f, ResearchW - 104f, 30f, string.Empty, 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiText.Style(_researchHead, UiText.Look.Outline);
             UiText.Style(_researchName, UiText.Look.Outline);
+            // #3082: the reward line under an achievement's name; hidden (and head + name in their old places) when empty.
+            _researchDetail = UiText.Add(_researchGo.transform, 92f, 60f, ResearchW - 104f, 20f, string.Empty, 13, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiText.Style(_researchDetail, UiText.Look.Outline);
+            _researchDetail.enableAutoSizing = true; // a three-item present must fit the banner's width
+            _researchDetail.fontSizeMin = 9f;
+            _researchDetail.fontSizeMax = 13f;
+            _researchDetail.gameObject.SetActive(false);
 
             var shine = UiKit.AddImage(_researchGo.transform, -80f, -20f, 46f, ResearchH + 40f, UiKit.SolidSprite, new Color(1f, 1f, 1f, 0.16f));
             shine.transform.localRotation = Quaternion.Euler(0f, 0f, 18f);

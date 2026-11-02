@@ -1007,7 +1007,7 @@ public sealed class SaveCompatibilityTests : IDisposable
         [7] = "3c9be21d2581a4e5", // the sapling kinds (#2977–#2980): conifer, four fruit trees, Fifi plant, giant mahogany
         [8] = "01ca6f8b5ac48409", // the pumpkin (#3005): flora_pumpkin, pumpkin_lantern
         [9] = "9a538b899ef3eb98", // the festival decorations (#3024): gift_box, paper_lantern, diya_lamp, flora_marigold
-        [10] = "0f6385480087d997", // the base landing pad (#3069): base_pad
+        [10] = "d22a189ddc1773cc", // the base landing pad (#3069): base_pad; the transport crate (#3098): transport_crate
     };
 
     [Fact]

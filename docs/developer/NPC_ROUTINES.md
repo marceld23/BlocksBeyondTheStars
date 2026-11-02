@@ -132,7 +132,24 @@ forges, crops, hydro trays, saplings, sentry posts.
 `NearBaseVendor` joins `MarketAvailable` and `VendorThemeAt`; `NearBaseMissionBoard` gates `home_<hash>_…`
 missions (`IsBaseMission`, coined by `StockBoard` / `EnsureBaseWindow` with the core cell as the board key —
 base ids are load order). Placing or mining a post rescans its base at once (`OnBasePostChanged`) and tells the
-builder why a post is not staffed (`srv.base.post_*`).
+builder why a post is not staffed (`srv.base.post_*`, `BasePostStateText`); #3087: opening the Missions tab within
+reach of a board block nobody staffs says the same (`HandleRequestMissions`).
+
+- **A staffed base board is a mission board everywhere (#3090).** `AtAnyMissionBoard` counts it (and the own ship's
+  board, #3087), so the jobs offered at "any" board — the stand-alone `supply_cables`, the `homestead_guard` chain — are
+  offered and taken there. Board-surface chain steps and stand-alone board jobs are placed by `PlaceKeyFor`/`BoardPlaceKey`:
+  the settlement or station the player is in, else the base board's place key (`BaseBoardPlace`, `home_<hash>`, the
+  jobs' prefix without the underscore) or the ship board's (`shipboard_<hash>`); a dialogue or radio step keeps
+  `CurrentPlaceKey`. A step taken at a base board is remembered by the base's quartermaster resident, one taken at the
+  ship's board by nobody (`ChainStepTakenAtHomeBoard`).
+- **The mission board in the own ship (#3087, `GameServerShipBoard.cs`).** No quartermaster: a `mission_board` cell of
+  the player's own parked ship (landed, or the walkable interior in space; never while flying or visiting) takes and
+  hands in jobs within `InteractionReach.MissionBoard` (4 m, the client's prompt reach too) and lists them while the
+  player is aboard. Its jobs are keyed by the player id (`ShipBoardKey` → `shipboard_<hash>_<slot>`, deliveries only,
+  `BoardSlotKind.ShipCargo` → `mission.ship.gather.*`, no giver name), travel with the player and are coined back on
+  every world entry (`RebuildHeldShipBoardJobs`); no NPC memory, no turn-in radio call. A board built into a ship says
+  so (`srv.ship.board_ready`), a trading or profession post says it is decoration there (`srv.ship.post_decor`,
+  `NoteShipPost` from `NoteShipDecor`).
 
 ## 5. Pathfinding (`NpcGridPath.cs` in Shared, `GameServerNpcPathing.cs`)
 
@@ -271,7 +288,9 @@ Wire (additive, contractless — no codec tag): `NetNpc.Pose`, `NetNpc.ActivityK
 - Nameplate: `Name · role · stage · activity`.
 - `Sky.ApplyLighting`: on a boarded station the fill light, ambient and interior fill follow the station clock
   (floor 0.45, smoothed); emissive strip lights stay bright. `LocalTimeOfDay` drops the longitude aboard a station.
-- `HudUi`: *"Talk to … (E)"* beside an NPC within 4.5 m.
+- `HudUi`: *"Talk to … (E)"* for the person E picks — the one under the crosshair (`NpcAim`, Client.Core: the aim ray
+  against an upright body cylinder, nothing solid in front), else the nearest within `InteractionReach.Talk` (5 m, the
+  server's reach) when nothing else nearby takes E (#3088, see §16).
 
 ## 9. Kit station crew (`GameServerStationCrew.cs`, #1874)
 
@@ -568,6 +587,31 @@ the furnished room (`RoomFurnisher.RoomRole` name).
   with `EmitGreeting(explicitTalk: true)`: inside the 25 s greeting cooldown — which "Trade" (`NpcGreetIntent`) or the
   previous talk armed — it still sends the plain line (`SendPlainGreeting`: a cached AI line, the stage greeting or "" for
   the client's role line) with a new bubble id, but no story thread, treasure hint or AI request and no re-armed cooldown.
+- **Never a silent E (#3089).** The client offers a talk within `InteractionReach.Talk` (5 m) — the same number as
+  `NpcTalkRange` — and the server takes it with `NpcTalkLatencySlack` (0.75 m) for the position it heard last; beyond
+  that it answers `srv.npc.talk_far`, and for an NPC that is gone (or away visiting) `srv.npc.talk_gone`.
+- **The base's people (#3089, `GameServerResidentTalk.cs`).** Every base job has lines of its own: the two posts by role
+  (`vendor_hello`, `quartermaster_hello`), the professions by job, `resident_guard`/`_gardener`/`_craftsman` and
+  `resident_lumberjack`. A resident without a post in a base with a focus talks under the dialogue job
+  `focus_<focus>` (`DialogJobOf`: `resident_focus_miner`, `_market`, `_radio`) — those entries sit before
+  `resident_home` in `data/dialogs.json`, since the first match wins. The quartermaster's *Show me the jobs!*
+  (`quartermaster_hello.c_jobs`, consequence `missions`) ends the talk with `NpcDialogState.ActionMissions`; the client's
+  `NpcDialogUi` closes the panel after the line (or when the player closes it) and opens the Missions tab on the jobs on
+  offer (`GameMenu.OpenMissionBoard`). Three replies at most: the panel shows no more.
+
+## 16a. What E does — one pick for the key and the prompt (#3088)
+
+`InteractResolver` (Client.Core) turns `InteractFacts` into one `InteractKind`. The player rig gathers the facts once per
+on-foot frame (`PlayerController.InteractTarget.cs`: `PublishAimState`, `ResolveInteraction`), publishes the pick
+(`GameBootstrap.Interaction`, `InteractNpcId`, `InteractionFrame`), and both E (`RunInteraction`) and the HUD's prompt line
+(`HudUi.Interact.cs`: `OnFootPrompt`) act on it. The rule is **aimed beats nearby**: the person under the crosshair, then the
+aimed blocks in E's old order (own beacon, own base core, base pad, station core, crate, Crystal Net device, bio lab, bed /
+crew bunk / heal tank, seat, mission board — world or own-ship cell within 4 m), the ship station looked at and the hand
+door looked at; then what stands near (beam pad, nearest hand door, data cube, factory terminal, net fragment, the ship
+station within 3 m, a trader, the nearest person). A door, a data cube, a fragment and a factory carry their own world
+label, so the prompt line stays empty for them (or says *Look at … to talk* when a person is near); the stash line adds
+*E open crate* only while E's pick is the crate. Boarding an own speeder still comes first (its own E path) and its prompt
+leads the line.
 
 ## 17. Out in the wild — lodge residents and wanderers (#2639)
 
@@ -582,7 +626,10 @@ villager standing rules. A **wanderer** runs the same work cycle without a routi
 
 `NpcPassingGreetingTests`, `NpcWelcomeBackTests`, `BaseNewsRelayTests`, `VegaChatterTests` (§12),
 `VillageChatterTests`, `VillageLifeContentTests`, `VillageLifeAiTests` (§13), `DeedNewsTests` (§14), `VillageFestivalTests` (§15),
-`NpcConversationLifecycleTests` and Client.Tests `NpcDialogLeaveTests` (§16),
+`NpcConversationLifecycleTests` and Client.Tests `NpcDialogLeaveTests` (§16), `BaseResidentTalkTests` (§4, §16: the
+quartermaster's jobs, the talk reach, the focus and lumberjack lines, the base board's stand-alone job, the idle board's
+hint), `ShipMissionBoardTests` (§4: the ship's board) and Client.Tests `InteractResolverTests`, `NpcAimTests`,
+`InteractWiringTests` (§16a),
 `NpcProfessionTests` (table, kits, settlement staffing, content, clinic/streamer/reporter/tamer at a base, Safe-mode
 interview, shop room), `NpcGridPathTests`, `BaseResidentsTests`, `NpcBedAssignmentTests` and `StationCrewBedTests` (§6a,
 §3, the bulkhead rule), `NpcRoutineTests`, `NpcJobsTests`, the station-night case in

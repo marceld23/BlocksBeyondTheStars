@@ -84,6 +84,7 @@ public sealed class EnemyCodexTests : IDisposable
                 Assert.Equal(tier.Hull, got.Hull);
                 Assert.Equal(tier.HullMax, got.HullMax);
                 Assert.Equal(tier.DamagePerSecond, got.DamagePerSecond);
+                Assert.Equal(tier.BurstDamage, got.BurstDamage); // #3096: the tank spider's burst
                 Assert.Equal(tier.Loot.Select(l => (l.Item, l.Count)), got.Loot.Select(l => (l.Item, l.Count)));
             }
         }

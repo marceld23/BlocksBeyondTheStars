@@ -23,7 +23,9 @@ public sealed partial class GameServer
             return;
         }
 
-        string item = (intent.ItemKey ?? string.Empty).Trim();
+        // #3098/#3099: a bag's or a packed crate's record is never handed out by name — the catalog gives an empty one, so
+        // no client can mint a second key for somebody's filled bag.
+        string item = Shared.State.CarriedContents.WithoutRecord((intent.ItemKey ?? string.Empty).Trim());
         if (item.Length == 0 || _content.GetItem(item) is null)
         {
             Reject(session, "catalog", "@srv.catalog.unknown_item");

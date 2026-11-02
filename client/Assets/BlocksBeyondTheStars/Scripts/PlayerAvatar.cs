@@ -24,7 +24,7 @@ namespace BlocksBeyondTheStars.Client
     /// visible through the opening), a chest control panel and a life-support backpack. Suit parts reuse the
     /// torso/arm materials, so the player's chosen colours tint the suit.
     /// </summary>
-    public sealed class PlayerAvatar : MonoBehaviour
+    public sealed partial class PlayerAvatar : MonoBehaviour
     {
         private const float SwingDuration = 0.42f;
 
@@ -238,10 +238,11 @@ namespace BlocksBeyondTheStars.Client
             _torsoColor = torso;
             _armsColor = arms;
             _legsColor = legs;
-            _skin = Lit(skin, _skinTex);
-            _torso = Lit(torso, _suitTex);
-            _arms = Lit(arms, _suitTex);
-            _legs = Lit(legs, _suitTex);
+            // #3094: OwnLit — the figure's own materials go with it (OnDestroy); robbers and villagers come and go all session.
+            _skin = OwnLit(skin, _skinTex);
+            _torso = OwnLit(torso, _suitTex);
+            _arms = OwnLit(arms, _suitTex);
+            _legs = OwnLit(legs, _suitTex);
 
             // Per-NPC face variation (#711): tiny deterministic offsets from the seed so a settlement crowd
             // isn't a row of identical clones. Seed 0 (players, previews) keeps the exact stock face.
@@ -281,10 +282,10 @@ namespace BlocksBeyondTheStars.Client
             // at ~half depth, buried INSIDE the opaque head — the real reason "the face read as blank before".
 
             // Eyes (whites + pupils + a brow + a mouth) so the face reads clearly — bigger/clearer (B20).
-            var eyeWhite = Lit(new Color(0.96f, 0.97f, 1f), null);
-            var pupil = Lit(new Color(0.04f, 0.04f, 0.07f), null);
-            var brow = Lit(hair ?? DefaultBrowColor, null);
-            var mouth = Lit(new Color(0.32f, 0.16f, 0.14f), null);
+            var eyeWhite = OwnLit(new Color(0.96f, 0.97f, 1f), null);
+            var pupil = OwnLit(new Color(0.04f, 0.04f, 0.07f), null);
+            var brow = OwnLit(hair ?? DefaultBrowColor, null);
+            var mouth = OwnLit(new Color(0.32f, 0.16f, 0.14f), null);
             // Default procedural features — collected so a custom pixel face (SetFace) can hide them. The lower
             // face (breather strip, facial hair or grille, BuildLowerFace) is included so a drawn face fully
             // replaces the stock look.
@@ -304,7 +305,7 @@ namespace BlocksBeyondTheStars.Client
             // NOT in _faceFeatures: a custom pixel face replaces the face, not the hair.
             if (hair is { } hairCol)
             {
-                var hairMat = Lit(hairCol, null);
+                var hairMat = OwnLit(hairCol, null);
                 AddCube("HairTop", _head, new Vector3(0f, 0.56f, -0.02f), new Vector3(1.08f, 0.14f, 1.06f), hairMat);
                 AddCube("HairBack", _head, new Vector3(0f, 0.18f, -0.53f), new Vector3(1.08f, 0.92f, 0.10f), hairMat);
             }
@@ -337,14 +338,14 @@ namespace BlocksBeyondTheStars.Client
             {
                 case LowerFace.Breather:
                     _faceFeatures.Add(AddCube("Visor", _head, new Vector3(0f, -0.10f, 0.49f), new Vector3(0.34f, 0.12f, 0.05f),
-                        Lit(new Color(0.12f, 0.5f, 0.62f), _visorTex)));
+                        OwnLit(new Color(0.12f, 0.5f, 0.62f), _visorTex)));
                     return;
                 case LowerFace.Bare:
                     return;
                 case LowerFace.Grille:
                     // A voice grille under the mouth: a metal plate with four upright slots — nothing like facial hair.
-                    var plate = Lit(new Color(0.50f, 0.54f, 0.59f), _armorTex);
-                    var slot = Lit(new Color(0.10f, 0.12f, 0.15f), null);
+                    var plate = OwnLit(new Color(0.50f, 0.54f, 0.59f), _armorTex);
+                    var slot = OwnLit(new Color(0.10f, 0.12f, 0.15f), null);
                     _faceFeatures.Add(AddCube("Grille", _head, new Vector3(0f, -0.32f, 0.50f), new Vector3(0.26f, 0.12f, 0.04f), plate));
                     for (int i = 0; i < 4; i++)
                     {
@@ -355,7 +356,7 @@ namespace BlocksBeyondTheStars.Client
                     return;
             }
 
-            var hairMat = Lit(hairColor, null);
+            var hairMat = OwnLit(hairColor, null);
             const float front = 0.51f, depth = 0.05f; // plates just proud of the mouth (whose front is at 0.51)
             float mouthTop = mouthY + 0.0225f, mouthBottom = mouthY - 0.0225f, mouthHalf = mouthW / 2f;
 
@@ -437,21 +438,21 @@ namespace BlocksBeyondTheStars.Client
             // Raised visor band across the forehead — dark glossy glass, clear of the brow (brow top ≈ 0.20).
             // Hidden while a custom face is drawn (#1776): it covered the top rows of the drawn face.
             _visorBand = AddCube("SuitVisorBand", _head, new Vector3(0f, 0.36f, 0.52f), new Vector3(1.0f, 0.3f, 0.12f),
-                Lit(new Color(0.10f, 0.22f, 0.28f), _visorTex));
+                OwnLit(new Color(0.10f, 0.22f, 0.28f), _visorTex));
             ApplyFaceVisibility();
 
             // Collar ring where the helmet locks onto the suit (world units — child of the body root).
             AddCube("SuitCollar", transform, new Vector3(0f, 1.645f, 0f), new Vector3(0.32f, 0.11f, 0.32f), _torso);
 
             // Chest control panel + a small status light.
-            var panel = Lit(new Color(0.15f, 0.17f, 0.20f), _armorTex);
+            var panel = OwnLit(new Color(0.15f, 0.17f, 0.20f), _armorTex);
             AddCube("SuitChestPanel", transform, new Vector3(0f, 1.50f, 0.185f), new Vector3(0.22f, 0.14f, 0.04f), panel);
             AddCube("SuitStatusLight", transform, new Vector3(0.075f, 1.50f, 0.205f), new Vector3(0.045f, 0.045f, 0.02f),
-                Lit(new Color(0.30f, 0.90f, 0.50f), null));
+                OwnLit(new Color(0.30f, 0.90f, 0.50f), null));
 
             // Life-support backpack with twin tanks; swapped out for the armor pack gear when carried.
-            var packMat = Lit(new Color(0.30f, 0.34f, 0.40f), _armorTex);
-            var tankMat = Lit(new Color(0.55f, 0.58f, 0.62f), _armorTex);
+            var packMat = OwnLit(new Color(0.30f, 0.34f, 0.40f), _armorTex);
+            var tankMat = OwnLit(new Color(0.55f, 0.58f, 0.62f), _armorTex);
             _suitPack.Add(AddCube("SuitPack", transform, new Vector3(0f, 1.40f, -0.24f), new Vector3(0.38f, 0.48f, 0.15f), packMat));
             _suitPack.Add(AddCube("SuitTankL", transform, new Vector3(-0.09f, 1.42f, -0.33f), new Vector3(0.10f, 0.34f, 0.06f), tankMat));
             _suitPack.Add(AddCube("SuitTankR", transform, new Vector3(0.09f, 1.42f, -0.33f), new Vector3(0.10f, 0.34f, 0.06f), tankMat));
@@ -683,6 +684,7 @@ namespace BlocksBeyondTheStars.Client
 
             // #2778: the holster / draw of a hotbar switch — the waiting item is swapped in at the bottom. A pose that owns
             // the arms (asleep, climbing, seated, gliding) switches at once instead of reaching for the hip.
+            bool drawing = _swap.Current == HeldSwap.Phase.Drawing; // #3095: a draw ending this frame starts the item's flourish
             if (_lying || _climbing || _seated || _gliding)
             {
                 if (_swap.Active || _pendingBuild)
@@ -694,6 +696,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 _pendingBuild = false;
                 BuildHeld(_pending.Kind, _pending.Tint, _pending.BlockKey, _pending.ItemKey, _pending.Look);
+            }
+            else if (drawing && _swap.Current == HeldSwap.Phase.Idle)
+            {
+                BeginHeldFlourish();
             }
 
             // #2777: a player carries what they hold — the upper arm a little forward, the forearm out in front, a smaller
@@ -718,6 +724,11 @@ namespace BlocksBeyondTheStars.Client
             // How level the carried item is held: fully while carried, not while it is put away or a swing, a blow, a
             // gesture or the rope moves the arm — then it follows the hand as before.
             float level = _carry * (1f - drop);
+
+            // #3094: a robber's weapon stance (aimed or brandished); #3095: the held item's flourish shows it off. Both ride
+            // under the swing, the blow and the gestures below, which take the arm over.
+            PoseStance(dt, ref armR, ref elbowR, ref level);
+            PoseHeldFlourish(dt, idle, ref armR, ref elbowR, ref level);
 
             // Tool/weapon chop overrides the right arm: raise, then drive down (with an elbow snap).
             if (_swingTimer > 0f)
@@ -1026,6 +1037,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 FinishSwap(); // #2778: the swing is made with the new item — a holster / draw in progress just completes
                 _swingTimer = SwingDuration;
+                _heldSpin?.Drive(SwingDuration + 0.1f); // #3095: a drill's bit runs while it mines (each swing keeps it going)
             }
         }
 
@@ -1166,6 +1178,7 @@ namespace BlocksBeyondTheStars.Client
 
             _fightGloves = kind == HeldItem.Kind.Gloves && _handL != null;
             ApplyClimbPadsVisible(); // #2278: the climbing gloves' pads hide under the fight gloves (no z-fighting)
+            OnHeldRebuilding(kind); // #3095: the old item's flourish ends with it
 
             if (kind == HeldItem.Kind.None || kind == HeldItem.Kind.Hand)
             {
@@ -1187,6 +1200,7 @@ namespace BlocksBeyondTheStars.Client
                 _held.transform.localPosition = new Vector3(0f, -0.1f, 0.06f); // in the palm, pointing forward
                 ApplyHeldVisible();
                 ShimmerHeld(); // #2291
+                _heldSpin = HeldSpin.Attach(_held, kind); // #3095: a drill's bit, a blade's twirl
             }
         }
 
@@ -1735,7 +1749,7 @@ namespace BlocksBeyondTheStars.Client
             _facePlate.transform.SetParent(_head, false);
             _facePlate.transform.localPosition = new Vector3(0f, 0f, FacePlateZ);
             _facePlate.transform.localScale = new Vector3(FacePlateScale, FacePlateScale, 0.05f);
-            _faceMat = Lit(Color.white, null); // white tint so the face texture shows its true colours
+            _faceMat = OwnLit(Color.white, null); // white tint so the face texture shows its true colours
             _facePlate.GetComponent<Renderer>().sharedMaterial = _faceMat;
             ShimmerRenderer(_facePlate.GetComponent<Renderer>()); // #2291
         }
@@ -2108,6 +2122,8 @@ namespace BlocksBeyondTheStars.Client
                     Destroy(m);
                 }
             }
+
+            DestroyOwnMaterials(); // #3094: the body's, the face's and a robber's mask
         }
 
         /// <summary>
@@ -2117,8 +2133,8 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         public void SetGuardianLook()
         {
-            var stripe = Lit(new Color(0.88f, 0.13f, 0.16f), null);
-            var glow = Lit(new Color(1f, 0.22f, 0.22f), null);
+            var stripe = OwnLit(new Color(0.88f, 0.13f, 0.16f), null);
+            var glow = OwnLit(new Color(1f, 0.22f, 0.22f), null);
             if (glow.HasProperty("_Floor"))
             {
                 glow.SetFloat("_Floor", 1f); // fully lit from every side — reads as an emitter without a bloom pass

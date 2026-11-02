@@ -11,8 +11,8 @@ public enum TextureAlphaMode
     /// tile must be fully opaque — glass gets its translucency from the material, water from the atlas.</summary>
     Opaque,
 
-    /// <summary>A tile whose alpha is a deliberate cutout mask: foliage, billboards (plants, torch, lantern) and
-    /// the fire silhouette.</summary>
+    /// <summary>A tile whose alpha is a deliberate cutout mask: foliage, billboards (plants, torch, lantern), the
+    /// fire silhouette and the see-through gaps of the energy fence (#3085).</summary>
     Cutout,
 
     /// <summary>Not a block tile at all (creature hides, avatar fabrics, micro-fauna sprites, icons): any alpha.</summary>
@@ -92,7 +92,8 @@ public static class TextureTiles
         if (key.StartsWith("flora_", StringComparison.Ordinal)
             || Definitions.TreeFoliage.IsKey(World.FloraLooks.BaseKeyOf(key))           // cutout crowns (and their looks, #2832), the Fifi plant's leaves too (#2085)
             || key is "fire"                                                            // the flame silhouette
-            || key is "torch" or "lantern")                                             // billboards (#1957)
+            || key is "torch" or "lantern"                                              // billboards (#1957)
+            || key is "energy_fence")                                                   // #3085: the gaps between its beams
         {
             return TextureAlphaMode.Cutout;
         }

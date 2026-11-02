@@ -306,7 +306,8 @@ public sealed partial class GameServer
 
     /// <summary>The hostile ship kinds that leave wreckage behind when destroyed.</summary>
     private static bool LeavesCombatDebris(CombatEntityKind kind)
-        => kind is CombatEntityKind.Drone or CombatEntityKind.Ufo or CombatEntityKind.Cruiser or CombatEntityKind.BanditShip;
+        => kind is CombatEntityKind.Drone or CombatEntityKind.Ufo or CombatEntityKind.Cruiser or CombatEntityKind.BanditShip
+            or CombatEntityKind.HunterShuttle; // #3097: its fragments are cut from its own voxel hull, like a raider's
 
     /// <summary>Scatters 2–3 fragments around a destroyed ship. A raider's are cut from its own voxel hull (dye and all),
     /// the Guardian machines' from a dark generic palette. A per-instance cap drops the oldest fragment first, so a long

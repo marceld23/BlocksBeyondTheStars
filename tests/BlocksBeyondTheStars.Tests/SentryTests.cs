@@ -782,4 +782,124 @@ public sealed class SentryTests : IDisposable
             Assert.Equal(2, server.SentryCountForTest(baseId));
         }
     }
+
+    // ---------------- #3091 / #3092: the Crystal Net only switches a post; a watcher sees it shoot ----------------
+
+    /// <summary>Hands the owner a few blocks and lifts them right above the post, within reach of the cells beside it.</summary>
+    private static void StandAboveTheSentry(PlayerSession owner, Vector3i sentry, params string[] items)
+    {
+        foreach (var key in items)
+        {
+            Assert.Equal(0, owner.State.Inventory.Add(key, 16, 1024));
+        }
+
+        owner.State.Position = new Vector3f(sentry.X + 0.5f, sentry.Y + 2f, sentry.Z + 1.5f);
+    }
+
+    private static void CrystalTicks(SvGameServer server, double seconds)
+    {
+        for (double t = 0; t < seconds; t += 0.1)
+        {
+            server.TickForTest(0.1);
+        }
+    }
+
+    /// <summary>#3091 — "Kette zum Schießen geht nicht!": a line of conduits beside a post, with no switch or sensor on it,
+    /// was an OFF network, and the post held its fire for good while the HUD said it was linked. A wire nothing drives
+    /// leaves the post alone: the conduit carries no power, it can only switch.</summary>
+    [Fact]
+    public void ASentry_BesideABareConduit_KeepsFiring()
+    {
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            owner.State.AboardShip = false;
+            FoundBaseWithSentry(server, owner, out var sentry);
+            StandAboveTheSentry(owner, sentry, "crystal_conduit");
+            string me = owner.State.PlayerId;
+            server.PlaceBlock(me, sentry.X, sentry.Y, sentry.Z + 1, "crystal_conduit");
+            server.PlaceBlock(me, sentry.X, sentry.Y, sentry.Z + 2, "crystal_conduit");
+            CrystalTicks(server, 0.8);
+
+            Assert.NotNull(server.CrystalDeviceOutput(sentry));     // the conduit wired the post into the net …
+            Assert.False(server.CrystalDeviceHeldForTest(sentry));  // … and nothing on that wire holds it
+
+            server.SpawnPlanetEnemyAtForTest(Near(sentry, 4f), damagePerSecond: 0f);
+            var enemy = server.PlanetEnemies.Single();
+            float full = enemy.Hull;
+            server.TickSentriesForTest();
+            Assert.True(enemy.Hull < full, "a bare conduit must not silence the post");
+        }
+    }
+
+    /// <summary>#3091: a wire with a switch on it is a circuit — OFF holds the post's fire (and the device list says so for
+    /// the HUD), ON lets it shoot, and mining the switch hands the post back to itself.</summary>
+    [Fact]
+    public void ASentry_OnAWireWithASwitch_HoldsFireWhileOff_AndFiresWhenOn()
+    {
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            owner.State.AboardShip = false;
+            FoundBaseWithSentry(server, owner, out var sentry);
+            StandAboveTheSentry(owner, sentry, "crystal_conduit", "crystal_switch");
+            string me = owner.State.PlayerId;
+            var lever = new Vector3i(sentry.X, sentry.Y, sentry.Z + 2);
+            server.PlaceBlock(me, sentry.X, sentry.Y, sentry.Z + 1, "crystal_conduit");
+            server.PlaceBlock(me, lever.X, lever.Y, lever.Z, "crystal_switch"); // a switch starts OFF
+            CrystalTicks(server, 0.8);
+            Assert.True(server.CrystalDeviceHeldForTest(sentry));
+
+            server.SpawnPlanetEnemyAtForTest(Near(sentry, 4f), damagePerSecond: 0f);
+            var enemy = server.PlanetEnemies.Single();
+            float full = enemy.Hull;
+            server.TickSentriesForTest();
+            Assert.Equal(full, enemy.Hull); // held: not a shot
+
+            server.SetCrystalDeviceForTest(owner, lever, action: 0); // ON
+            CrystalTicks(server, 0.8);
+            Assert.False(server.CrystalDeviceHeldForTest(sentry));
+            server.TickSentriesForTest();
+            Assert.True(enemy.Hull < full, "switched ON, the post fires");
+
+            server.SetCrystalDeviceForTest(owner, lever, action: 0); // OFF again …
+            CrystalTicks(server, 0.8);
+            Assert.True(server.CrystalDeviceHeldForTest(sentry));
+            server.MineBlock(me, lever.X, lever.Y, lever.Z);         // … and the switch mined: nothing drives the wire
+            CrystalTicks(server, 0.8);
+            Assert.False(server.CrystalDeviceHeldForTest(sentry));
+        }
+    }
+
+    /// <summary>#3092: a watcher looking at a post pulses when it starts shooting — and its eye being no wire, it neither
+    /// wires the post into its own network nor holds the post's fire.</summary>
+    [Fact]
+    public void AWatcher_LookingAtASentry_PulsesWhenItStartsShooting()
+    {
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            owner.State.AboardShip = false;
+            FoundBaseWithSentry(server, owner, out var sentry);
+            StandAboveTheSentry(owner, sentry, "watcher", "crystal_conduit");
+            string me = owner.State.PlayerId;
+            var wire = new Vector3i(sentry.X, sentry.Y, sentry.Z + 2);
+            server.PlaceBlock(me, sentry.X, sentry.Y, sentry.Z + 1, "watcher", yaw: 2); // looks at −Z: the post
+            server.PlaceBlock(me, wire.X, wire.Y, wire.Z, "crystal_conduit");          // its wire, behind it
+            CrystalTicks(server, 0.8);
+            Assert.Null(server.CrystalDeviceOutput(sentry)); // watched, not wired
+            Assert.False(server.CrystalLevelAt(wire));
+
+            server.SpawnPlanetEnemyAtForTest(Near(sentry, 4f), damagePerSecond: 0f);
+            var enemy = server.PlanetEnemies.Single();
+            float full = enemy.Hull;
+            server.TickSentriesForTest();
+            Assert.True(enemy.Hull < full, "the watcher must not hold the post's fire");
+            CrystalTicks(server, 0.3);
+            Assert.True(server.CrystalLevelAt(wire)); // it saw the post start shooting
+        }
+    }
 }

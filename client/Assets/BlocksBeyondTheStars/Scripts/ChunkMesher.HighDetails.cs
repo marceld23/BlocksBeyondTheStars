@@ -67,7 +67,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     var id = new BlockId((ushort)i);
                     // Cutout, flora and see-through blocks never get depth: their alpha edges and plants stay crisp.
-                    bool flat = (_flags[i] & (TraitTransparent | TraitFlora | TraitFoliage | TraitSlimProp)) != 0;
+                    bool flat = (_flags[i] & (TraitTransparent | TraitFlora | TraitFoliage | TraitSlimProp | TraitCutoutCube)) != 0; // #3085: the fence
                     relief[i] = flat ? 0f : BlockRelief.For(Content.BlockById(id));
                 }
 

@@ -230,6 +230,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (IsShipBoardMission(missionId) && !NearShipMissionBoard(session.State))
+        {
+            MissionFail(session, missionId, "@srv.mission.board_ship"); // #3087
+            return;
+        }
+
         if (session.State.Missions.Any(m => m.MissionId == missionId))
         {
             MissionFail(session, missionId, "@srv.mission.accepted");
@@ -238,7 +244,8 @@ public sealed partial class GameServer
 
         // #1212: a chain step is accepted only when the chain rule offers it (prerequisites turned in, the
         // chain's own place, the giver's stage, board surface) — the same rule that hid it from the list.
-        string place = CurrentPlaceKey(session.State);
+        // #3090: a board step or a stand-alone board job taken at a base or ship board is bound to that board.
+        string place = PlaceKeyFor(session.State, def);
         if (IsChainMission(def)
             && !ChainStepAvailable(session.State, def, place, AtAnyMissionBoard(session.State), viaDialog: false, null, out var why))
         {
@@ -256,14 +263,15 @@ public sealed partial class GameServer
 
         session.State.Missions.Add(NewMissionProgress(session.State, def, place));
 
-        // The board's quartermaster remembers that this player took a job from them (item 14).
-        if (IsBoardMissionId(missionId))
+        // The board's quartermaster remembers that this player took a job from them (item 14) — #3087: the ship's board
+        // has no quartermaster.
+        if (IsBoardMissionId(missionId) && !IsShipBoardMission(missionId))
         {
             RecordMissionAccepted(session.State, missionId, def.GiverName);
             SendNpcStandings(session); // #1118: the quartermaster's nameplate stage may just have risen
         }
 
-        if (IsChainMission(def))
+        if (IsChainMission(def) && !ChainStepTakenAtHomeBoard(session, def, place)) // #3090: a home board's giver
         {
             OnChainStepAccepted(session, def, ChainGiverKey(def, place), string.IsNullOrEmpty(def.GiverName) ? ChainGiverFallbackName(place) : def.GiverName); // #1212
         }
@@ -315,6 +323,12 @@ public sealed partial class GameServer
         if (IsBaseMission(missionId) && !NearBaseMissionBoard(session.State))
         {
             MissionFail(session, missionId, "@srv.mission.return_base"); // #1865
+            return false;
+        }
+
+        if (IsShipBoardMission(missionId) && !NearShipMissionBoard(session.State))
+        {
+            MissionFail(session, missionId, "@srv.mission.return_ship"); // #3087
             return false;
         }
 
@@ -411,7 +425,7 @@ public sealed partial class GameServer
         Send(session, MissionSucceeded(session, def, MissionOutcomes.Completed));
         OnAchievementMissionCompleted(session); // "Helping Hand" / "Quartermaster's Friend" (#1102)
         RaiseGameEvent(session, GameEventKeys.MissionTurnedIn, missionId); // #2465: the mission bridge
-        if (IsBoardMissionId(missionId))
+        if (IsBoardMissionId(missionId) && !IsShipBoardMission(missionId)) // #3087: nobody at the ship's board to call
         {
             NpcRadioOnBoardTurnIn(session, missionId, def.GiverName); // #1119: "something new on my board"
         }
@@ -891,7 +905,7 @@ public sealed partial class GameServer
 
     /// <summary>Which procedural pool a board slot stream draws from: the gather deliveries, the build job
     /// (#1116) or the scan survey (#1205, settlement or station flavour).</summary>
-    private enum BoardSlotKind { Gather, Build, Scan, StationScan }
+    private enum BoardSlotKind { Gather, Build, Scan, StationScan, ShipCargo }
 
     /// <summary>Tops a giver board up so the player always sees BoardWindow available missions: regenerates the
     /// defs for any board mission they currently hold (so it survives reload) and the next un-taken slots.
@@ -907,6 +921,7 @@ public sealed partial class GameServer
             BoardSlotKind.Build => BuildBoardBuildMission(id, boardKey, slot, giverName, legacy),
             BoardSlotKind.Scan => BuildBoardScanMission(id, boardKey, slot, giverName, station: false, legacy),
             BoardSlotKind.StationScan => BuildBoardScanMission(id, boardKey, slot, giverName, station: true, legacy),
+            BoardSlotKind.ShipCargo => ShipCargoJob(BuildBoardMission(id, boardKey, slot, giverName, legacy)), // #3087
             _ => BuildBoardMission(id, boardKey, slot, giverName, legacy),
         };
 
@@ -1000,8 +1015,9 @@ public sealed partial class GameServer
         EnsureStationBounty(prefix, stationId, currentBoardIds); // #731: pirate space puts a raider bounty on the board (one id per station)
     }
 
-    /// <summary>A board (giver) mission id — settlement or station — vs. a system/player mission.</summary>
-    private static bool IsBoardMissionId(string id) => id.StartsWith("settle_") || id.StartsWith("station_") || IsBaseMission(id);
+    /// <summary>A board (giver) mission id — settlement, station, base or (#3087) ship board — vs. a system/player mission.</summary>
+    private static bool IsBoardMissionId(string id)
+        => id.StartsWith("settle_") || id.StartsWith("station_") || IsBaseMission(id) || IsShipBoardMission(id);
 
     /// <summary>Seeds a giver board's first window (slots 0..BoardWindow-1) at stamp time, so the board offers
     /// missions even before any player has opened the list; the per-player window then slides as they take them.</summary>
@@ -1050,6 +1066,7 @@ public sealed partial class GameServer
         EnsureSettlementWindow(player, currentBoardIds);
         EnsureStationWindow(player, currentBoardIds);
         EnsureBaseWindow(player, currentBoardIds); // #1865: the mission board at home
+        EnsureShipBoardWindow(player, currentBoardIds); // #3087: the mission board in the own ship
         SyncCampBountyProgress(session); // held camp bounties whose camp fell while away complete here (#730)
 
         var available = new List<NetMission>();

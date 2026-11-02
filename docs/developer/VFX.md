@@ -219,10 +219,22 @@ that throws players clear, so a device effect must never carry one.
 | `motor_sparks` | a bridge motor lays / takes up a plank | a few amber sparks |
 | `signal_ping` | a signal receiver picks up its sender | a cyan pulse ring |
 | `dice_win` | the dice block passes a pulse | golden sparks and a flash |
-| `laser` | the drill laser cuts a cell (#2108) | a beam from the device down to the cell (here `Radius` is the depth; only `stomp`, `strike` and `sea_strike` are blasts that throw players) |
+| `laser` | the drill laser cuts a cell (#2108) | a beam from the device down to the cell (here `Radius` is the depth; only `stomp`, `strike`, `sea_strike` and the tank spider's `tank_burst` are blasts that throw players) |
 
 The **display faces** (#2263) are no effect but floating labels (`ScreenLabelLayer`, from `CrystalNetView`), and the
 lift platform is a meshed object (`LiftView`).
+
+### The tank spider's burst (#3096)
+
+The one `WorldFx` blast outside `CreatureView`: kind `tank_burst` is played by `WorldEntities.OnWorldFx`
+(`WorldEntities.TankSpider.cs`, subscribed to `NetworkClient.WorldFxReceived` directly). At the tank's height an amber
+glow card (smaller with *Reduce flashes*) and an FX light, 26 amber/yellow sparks, a grey puff of 12 smoke cards, the
+`tank_spider_burst` pop and a shake that fades out by 25 blocks; the local player inside its `Radius` (3.5, a sphere)
+whom no wall shelters from the tank (the server's sightline rule) is pushed away (`TankSpiderRules.KnockSpeed`/`KnockLift`,
+less toward the edge). No decal — nothing in the world is marked or broken. Before it, the warning is on the model: the
+tank grows by half, its bands blink amber → white ever faster (only brighten with *Reduce flashes*) through a
+`MaterialPropertyBlock` on the bands, the body sinks and trembles, and the valve puffs steam every 0.1 s. A spider shot
+before it bursts breaks apart like every machine (`FxDefeat.BreakApart`) with a small puff and a quiet pop.
 
 ### Flight (`SpaceView` + `SpaceFx`)
 

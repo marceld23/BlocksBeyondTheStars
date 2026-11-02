@@ -395,6 +395,7 @@ top only when the client sees no attacker and the ship inside a field. The promp
 | rubble tap | a shield drop with no hull damage and no hostile in range while inside a debris field (3D at the hull) | `debris_bump` | EL |
 | capsule aboard | a salvage capsule vanishes within tractor reach of the ship (2D, with the beam) | `salvage_capsule` | EL |
 | raider warp-in | the `SpaceWarpFx` flash flagged `Raider` (3D at the arrival point) | `raider_warp_in` | EL |
+| hunter shuttle warp (#3097) | the `SpaceWarpFx` flash with `Style` `hunter_shuttle` — its arrival, and its jump away to land (pitched up) (3D at the flash) | `hunter_shuttle_warp` | EL |
 
 ## 20. Story chapter stings (#2474) — *ElevenLabs clips*
 
@@ -514,6 +515,35 @@ a friendly organ), else its theme's — `festival_harvest` (marimba, guitar), `f
 (marimba, claps), `festival_stars` (shimmering synth bells), `festival_midsummer` (folk fiddle, hand drum),
 `festival_children` (toy xylophone, slide whistle). About 49 KB each in `Resources/audio` (the WebGL payload grows by
 ~440 KB). With the festival mood off the plain chime plays.
+
+## 25. The tank spider (#3096) — *ElevenLabs clips*
+
+The tank spider ([SPACE_COMBAT_CONCEPT.md](SPACE_COMBAT_CONCEPT.md#planet-enemies-server)) warns before it bursts. Both
+clips are client-side and 3D: the hiss plays at the spider the moment the server's `Inflating` turns on
+(`WorldEntities.TankSpider`), the pop with the burst's `WorldFx` (`tank_burst`) — and, quieter and higher (pitch 1.45,
+volume 0.45), when the spider is shot before it bursts and only pops. Its growl, hurt and push cues are the machines'
+banks at a higher pitch. Generated with `tools/ai-assets/gen_sound.py`, 2026-11-01; ~45 KB together.
+
+| Sound | Trigger | File | Prompt (duration, `--influence`) |
+|---|---|---|---|
+| tank swells | the tank starts to swell (the warning, 1.5 s before the burst) | `tank_spider_inflate` | "crescendo air hiss: a pressure tank being pumped up, a high hissing whistle that gets louder and higher in pitch all the way to the very end, with soft metal creaks, steady build-up, cartoon game sound effect, ends abruptly at its loudest" (1.5 s, 0.6) — the model's steady hiss, trimmed to 1.12 s, stretched to 1.44 s (`atempo=0.77`) and faded up from 30 % to full with ffmpeg so it really builds to the burst |
+| burst / pop | the tank bursts (or, quieter, pops when shot) | `tank_spider_burst` | "a cartoonish metal pressure tank bursting: one punchy hollow pop with a short whoosh of escaping air and a few tinkling metal bits, a light thump, game sound effect, not violent" (1 s, 0.5) |
+
+## 26. Held-item flourishes (#3095) — *ElevenLabs clips*
+
+A drill, a gun or a blade that a hotbar switch has just drawn plays a short flourish (see
+[HELD_ITEMS.md](HELD_ITEMS.md#5-flourishes-and-the-drill-bit-3095)), and its cue plays with it at volume 0.45
+(`HeldFlourishes.CueVolume`): 2D in first person (`Viewmodel`), 3D at the hand of a figure in third person and of other
+players (`PlayerAvatar`). A blade's idle twirl (every 9–18 s while it is held still — the player's, a villager guard's, a
+calm robber's) plays its swish too, at 60 % of that. Never while the
+item is used — any use cuts the flourish short. Generated with `tools/ai-assets/gen_sound.py`, 2026-11-01; ~38 KB
+together.
+
+| Sound | Trigger | File | Prompt (duration, `--influence`) |
+|---|---|---|---|
+| drill test spin | a drill is drawn — the bit spins up and winds down | `drill_spinup` | "short handheld sci-fi power drill test spin, a quick rising electric whirr that spins up and winds back down, light and clean, no impact, toy-like game sound" (0.8 s, 0.5) |
+| cosmetic reload | a gun is drawn — tipped and racked once | `gun_reload` | "short sci-fi energy pistol cosmetic reload, a crisp mechanical click-clack of a power cell snapping in, then a tiny soft rising charge chirp, friendly game sound, no shot" (0.8 s, 0.5) |
+| blade twirl | a blade is drawn, and now and then while it is held | `blade_twirl` | "very short light airy swish of a small glowing energy blade twirled in the hand, a quick whirling whoosh with a faint shimmering hum, no impact" (0.6 s, 0.5) |
 
 ---
 

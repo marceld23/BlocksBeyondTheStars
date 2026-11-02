@@ -234,8 +234,18 @@ public sealed class FestivalFollowUpTests
 
         w.Player.State.Role = PlayerRole.Admin;
         w.Server.HandleForTest(w.Player, new AdminCommandIntent { Command = "festival", StringArg = "halloween" });
-        w.Server.RunFestivalSpawnPassForTest();
+        PassesUntilAPumpkin(w);
         Assert.NotEmpty(w.Server.FestivalDepositCellsForTest);
+    }
+
+    /// <summary>#3083: one pumpkin per lay over a wide radius — a single pass may miss the test's grass pad, so run a few
+    /// (a miss does not reset the player's spawn clock).</summary>
+    private static void PassesUntilAPumpkin(NpcLifeWorld w)
+    {
+        for (int i = 0; i < 40 && w.Server.FestivalDepositCellsForTest.Count == 0; i++)
+        {
+            w.Server.RunFestivalSpawnPassForTest();
+        }
     }
 
     [Fact]
@@ -244,7 +254,7 @@ public sealed class FestivalFollowUpTests
         using var w = World("festival_equinox");
         w.Server.SetFestivalPrefsForTest(w.Player.State.PlayerId, (int)FestivalPreset.All);
         w.Server.SetFestivalClockForTest(Utc(2031, 9, 22));
-        w.Server.RunFestivalSpawnPassForTest();
+        PassesUntilAPumpkin(w);
         Assert.NotEmpty(w.Server.FestivalDepositCellsForTest);
         Assert.All(w.Server.FestivalDepositCellsForTest, c => Assert.Equal(Content.Value.GetBlock("flora_pumpkin")!.NumericId.Value, w.Server.World.GetBlock(c).Value));
     }

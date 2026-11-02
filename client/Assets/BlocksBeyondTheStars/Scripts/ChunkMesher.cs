@@ -47,9 +47,9 @@ namespace BlocksBeyondTheStars.Client
         public const float BevelAmount = 0.06f;
 
         /// <summary>Whether an opaque cube's face toward <paramref name="neighbour"/> stays visible: air,
-        /// see-through blocks, flora, foliage and slim props (torch/lantern/ladder) never fill their cell, so
-        /// they can't seal the face behind them. This ONE predicate feeds the face cull, the bevel's open-edge
-        /// mask and the AO occluder set — they drifted apart once (#382/#1031 grew the cull, the bevel mask
+        /// see-through blocks, flora, foliage, slim props (torch/lantern/ladder) and cutout cubes (the energy
+        /// fence, #3085) never fill their cell, so they can't seal the face behind them. This ONE predicate feeds
+        /// the face cull, the bevel's open-edge mask and the AO occluder set — they drifted apart once (#382/#1031 grew the cull, the bevel mask
         /// stayed behind) and the mismatch opened a 6 cm see-through slit along every such edge (#1459).</summary>
         public static bool NeighbourExposesOpaqueFace(GameContent content, BlockId neighbour)
             => TraitsFor(content).ExposesOpaqueFace(neighbour);
@@ -872,7 +872,9 @@ namespace BlocksBeyondTheStars.Client
                 // TEXCOORD2.x: +1 foliage cutout, -1 clear glass (#1274 — the transparent shader skips its frost
                 // on the negative sentinel; the channel is already packed for every face, so no layout change), 0 else.
                 // A cube face of foliage is a crown shell face (LeafCodeCrown); the cross billboards below write their own code.
-                float leafFlag = foliage ? LeafCodeCrown : (tf & TraitClearGlass) != 0 ? -1f : 0f;
+                // #3085: a cutout cube (the energy fence) clips the gaps of its tile like a torch — rigid, never swaying.
+                bool cutoutCube = (tf & TraitCutoutCube) != 0;
+                float leafFlag = foliage ? LeafCodeCrown : cutoutCube ? LeafCodeRigid : (tf & TraitClearGlass) != 0 ? -1f : 0f;
                 // Water + fire render but don't collide — you swim/sink into water and walk through (and burn
                 // in) fire. Lava DOES collide: you stand on its surface (and take contact damage from the cell
                 // below) rather than dropping straight through it into a cave/void — you must not fall through
@@ -1357,7 +1359,8 @@ namespace BlocksBeyondTheStars.Client
                 // Edge bevel (T0): plain opaque cubes get their exposed convex edges chamfered. Fluids, glass/
                 // fields, flora + foliage keep hard edges (their shaders/geometry are special). openMask marks
                 // which of the 6 faces are exposed — used to inset only the beveled edges + emit chamfers/corners.
-                bool bevel = BevelAmount > 0f && atlas != null && !transparent && !isFlora && !isWood && !foliage
+                // #3085: a cutout cube too — a chamfer strip would sample its rails' edge texels across the gaps.
+                bool bevel = BevelAmount > 0f && atlas != null && !transparent && !isFlora && !isWood && !foliage && !cutoutCube
                     && (tf & (TraitWater | TraitLava | TraitFire)) == 0
                     && designId == 0; // painted cubes keep hard edges — the bevel strips would sample the design edge texels
                 int openMask = 0;
@@ -1414,11 +1417,15 @@ namespace BlocksBeyondTheStars.Client
                     // hanging under the crown, any cross-billboard plant, a torch/lantern/ladder. Those used to count as
                     // "its own kind", so the leaf face toward them was culled and the hollow crown shell opened onto
                     // the sky behind the fruit (an x-ray hole). Crown cells still cull against each other.
+                    // #3085: a cutout cube (the energy fence) faces everything an opaque cube faces EXCEPT its own kind: a
+                    // row of fence blocks is one plane of rails and beams on each side, not a stack of inner faces seen
+                    // through the gaps.
                     bool drawFace = transparent
                         ? (isWater
                             ? OpenForWaterBlock(nb, nx, ny, nz) || (isDenseGas && (traits.FlagsOf(nb) & (TraitGas | TraitDenseGas)) == TraitGas)
                             : nb.IsAir && Loaded(nx, ny, nz))
                         : foliage ? traits.OpensFoliageFace(nb)
+                        : cutoutCube ? traits.ExposesOpaqueFace(nb) && !traits.Has(nb, TraitCutoutCube)
                         : traits.ExposesOpaqueFace(nb);
 
                     // A non-cube SHAPED neighbour doesn't fill its cell, so it can't seal this face — draw toward
@@ -2315,6 +2322,7 @@ namespace BlocksBeyondTheStars.Client
         /// (#909): a ghost that promises a wall mount the mesher would draw as a pole is worse than none.</summary>
         public static bool IsLadderMountWall(GameContent content, BlockId nb)
             => !nb.IsAir && !IsTransparent(content, nb) && !IsFloraBlock(content, nb) && !IsFoliageBlock(content, nb)
+               && !IsCutoutCube(content, nb) // #3085: the fence was see-through before and stays no wall for a ladder
                && content.BlockById(nb)?.Key != "ladder";
 
         /// <summary>Ground-detail scatter host classification: 0 = grass tuft (soft ground), 1 = pebble (dry/
@@ -2842,10 +2850,24 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var def = content.BlockById(id);
-            // alpha-blended — see through them
-            return def?.Key is "glass" or "glass_clear" or "force_field" or "water" or "gas" or "gas_dense" or "fire" or "energy_fence" or "energy_gate" // #2112: the gas sea (#2134: and the dense gas under it)
+            // alpha-blended — see through them. #3085: no longer the energy fence — it is a cutout cube now (IsCutoutCubeKey).
+            return def?.Key is "glass" or "glass_clear" or "force_field" or "water" or "gas" or "gas_dense" or "fire" or "energy_gate" // #2112: the gas sea (#2134: and the dense gas under it)
                 or "phase_block_open" or "force_field_off"; // #2264: an open phase block / a switched-off field is a shimmer you see through
         }
+
+        /// <summary>#3085: a SOLID cube whose own tile is a cutout mask (<c>TextureTiles</c>: the energy fence — rails and
+        /// beams with see-through gaps). It is drawn in the opaque submesh with the rigid cutout code, so the gaps are
+        /// clipped (no blending, no sorting) and the shadow has them too; like a crown shell it never seals a neighbour's
+        /// face, lets the placed light through and culls only against its own kind. It still collides — creatures and
+        /// players cannot pass it.</summary>
+        private static bool IsCutoutCubeKey(string key) => key == "energy_fence";
+
+        /// <summary>#3085: the cutout code TEXCOORD2.x of a block drawn as a single cube outside the world (a drop packet):
+        /// <see cref="LeafCodeRigid"/> for a cutout cube, so its gaps are clipped like in the world; 0 otherwise.</summary>
+        public static float CubeCutoutCode(GameContent content, BlockId id)
+            => content != null && TraitsFor(content).Has(id, TraitCutoutCube) ? LeafCodeRigid : 0f;
+
+        internal static bool IsCutoutCube(GameContent content, BlockId id) => TraitsFor(content).Has(id, TraitCutoutCube);
 
         /// <summary>The one deliberately CLEAR glass (#1274): the canopy/dome exception to the frosted rule
         /// (ART_BIBLE). Marked for the transparent shader via a -1 in TEXCOORD2.x.</summary>
@@ -2883,7 +2905,7 @@ namespace BlocksBeyondTheStars.Client
         private const uint TraitIronWall = 1u << 16;
         private const uint TraitFlowerPot = 1u << 17;
         private const uint TraitFire = 1u << 18;
-        private const uint TraitExposesOpaqueFace = 1u << 19; // transparent | flora | foliage | slim prop (air handled by the caller)
+        private const uint TraitExposesOpaqueFace = 1u << 19; // transparent | flora | foliage | slim prop | cutout cube (air handled by the caller)
         private const uint TraitCultivated = 1u << 20;        // #1716: a farmed crop (and #2085 an authored plant) — flora that keeps its authored colour (no tint mode)
         private const uint TraitHangingFlora = 1u << 21;      // #1759: a plant rooted in the block ABOVE — the billboard grows downward
         private const uint TraitRainbowFlora = 1u << 22;      // generation 11: every plant its own colour (FloraTints.RainbowAt)
@@ -2895,6 +2917,7 @@ namespace BlocksBeyondTheStars.Client
         private const uint TraitTintedBody = 1u << 28;        // #2851: a solid, opaque plant body (the saguaro) in its species' flora colour (bark mode 4, rigid)
         private const uint TraitGroveTint = 1u << 29;         // #2856: a tinted crown or a trunk — its colour drifts gently between groves
         private const uint TraitPaletteFlora = 1u << 30;      // #3005: a solid plant body whose every cell picks its colour from the species' palette (the pumpkin)
+        private const uint TraitCutoutCube = 1u << 31;        // #3085: a solid cube with a cutout tile (the energy fence) — opaque submesh, rigid clip (IsCutoutCubeKey)
 
         private sealed partial class BlockTraits
         {
@@ -2961,7 +2984,8 @@ namespace BlocksBeyondTheStars.Client
                     if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.PaletteOf(key) != null) f |= TraitTintedBody | TraitPaletteFlora;
                     if (BlocksBeyondTheStars.Shared.Definitions.TreeFoliage.IsTinted(key)
                         || BlocksBeyondTheStars.Shared.Definitions.TreeWood.IsKey(key)) f |= TraitGroveTint;
-                    if ((f & (TraitTransparent | TraitFlora | TraitFoliage | TraitSlimProp)) != 0) f |= TraitExposesOpaqueFace;
+                    if (IsCutoutCubeKey(key)) f |= TraitCutoutCube; // #3085: the energy fence
+                    if ((f & (TraitTransparent | TraitFlora | TraitFoliage | TraitSlimProp | TraitCutoutCube)) != 0) f |= TraitExposesOpaqueFace;
                     // #2379: the cross-billboard plants — the same set the cross path draws (foliage with the flora_ prefix).
                     if ((f & TraitFoliage) != 0 && (f & TraitFloraPrefix) != 0) f |= TraitThinPlant;
                     _flags[i] = f;
@@ -2979,8 +3003,9 @@ namespace BlocksBeyondTheStars.Client
 
             /// <summary>#2379: whether a foliage cell (a crown leaf) draws its face toward this neighbour — air, a see-through
             /// block, or anything that never fills its cell: a cross-billboard plant (a fruit, a berry, a hanging plant)
-            /// or a slim prop. Another crown cell or an opaque cube seals it, which keeps the crown a thin shell.</summary>
-            public bool OpensFoliageFace(BlockId id) => id.IsAir || (FlagsOf(id) & (TraitTransparent | TraitThinPlant | TraitSlimProp)) != 0;
+            /// or a slim prop. Another crown cell or an opaque cube seals it, which keeps the crown a thin shell. #3085: a
+            /// cutout cube (the energy fence) is seen through as well, so the crown keeps its face toward it.</summary>
+            public bool OpensFoliageFace(BlockId id) => id.IsAir || (FlagsOf(id) & (TraitTransparent | TraitThinPlant | TraitSlimProp | TraitCutoutCube)) != 0;
             public float EmissionOf(BlockId id) => id.Value < _emission.Length ? _emission[id.Value] : 0f;
             public Vector2 MaterialOf(BlockId id) => id.Value < _material.Length ? _material[id.Value] : new Vector2(0.05f, 0.0f);
             public int ScatterOf(BlockId id) => id.Value < _scatter.Length ? _scatter[id.Value] : -1;

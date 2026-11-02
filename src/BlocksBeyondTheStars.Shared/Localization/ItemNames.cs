@@ -52,6 +52,14 @@ public static class ItemNames
             return string.IsNullOrEmpty(species) ? name : name + " · " + species;
         }
 
+        return WithModifiers(localizer, itemKey, name, tint, glow, customFormName);
+    }
+
+    /// <summary>The name followed by the modifiers the key carries, each as a suffix: changed by the lab · glowing/dyed ·
+    /// form · painted · filled (a packed transport crate or a filled storage bag, #3098/#3099).</summary>
+    private static string WithModifiers(Localizer localizer, string itemKey, string name, int tint, int glow,
+        System.Func<int, string?>? customFormName)
+    {
         if (!Bio.ItemMods.Of(itemKey).IsEmpty)
         {
             name += " · " + localizer.Get("ui.bio.changed");
@@ -79,6 +87,11 @@ public static class ItemNames
         if (ItemKey.Design(itemKey) != 0)
         {
             name += " · " + localizer.Get("ui.color.painted");
+        }
+
+        if (CarriedContents.HasRecord(itemKey))
+        {
+            name += " · " + localizer.Get("ui.carried.filled");
         }
 
         return name;

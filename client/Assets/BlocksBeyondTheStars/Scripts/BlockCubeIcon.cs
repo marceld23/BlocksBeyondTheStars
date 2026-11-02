@@ -33,6 +33,7 @@ namespace BlocksBeyondTheStars.Client
         private const float SideShade = 0.66f;
 
         private static readonly Dictionary<ushort, Texture2D> Cache = new Dictionary<ushort, Texture2D>();
+        private static readonly Dictionary<ushort, Sprite> OwnIcons = new Dictionary<ushort, Sprite>(); // #3085
         private static BlockTextureAtlas _atlas;
 
         /// <summary>The cube icon of block <paramref name="id"/>, or null for a block that shows one tile on every face
@@ -74,8 +75,40 @@ namespace BlocksBeyondTheStars.Client
             return tex;
         }
 
-        /// <summary>Points <paramref name="raw"/> at the block's icon: the cube icon where the block has one, else its
-        /// tile in the atlas.</summary>
+        /// <summary>#3085: the file-name prefix of a block's own inventory icon in <c>Resources/icons</c>.</summary>
+        public const string OwnIconPrefix = "block_";
+
+        /// <summary>
+        /// #3085: a block may ship an inventory icon of its own — <c>Resources/icons/block_&lt;key&gt;.png</c>, or a local
+        /// texture pack's — which wins over its tile and its cube wherever the block shows as an icon (quick bar, inventory,
+        /// crates, menus, editor palettes). The energy fence keeps its old pylon picture this way: its tile became the side
+        /// of a fence with see-through gaps, which says little as a small square. Null for every other block. Cached per
+        /// block (misses too) for as long as the atlas; the sprite belongs to <see cref="UiKit.Icon"/>, never destroyed here.
+        /// </summary>
+        public static Sprite OwnIcon(BlockTextureAtlas atlas, ushort id)
+        {
+            if (atlas == null || atlas.Content == null || id == BlockId.AirValue)
+            {
+                return null;
+            }
+
+            if (!ReferenceEquals(atlas, _atlas))
+            {
+                Adopt(atlas);
+            }
+
+            if (!OwnIcons.TryGetValue(id, out var sprite))
+            {
+                string key = atlas.Content.BlockById(new BlockId(id))?.Key;
+                sprite = string.IsNullOrEmpty(key) ? null : UiKit.Icon(OwnIconPrefix + key);
+                OwnIcons[id] = sprite;
+            }
+
+            return sprite;
+        }
+
+        /// <summary>Points <paramref name="raw"/> at the block's icon: its own icon where it ships one (#3085), the cube
+        /// icon where the block has one, else its tile in the atlas.</summary>
         public static void Apply(RawImage raw, BlockTextureAtlas atlas, ushort id)
         {
             if (raw == null || atlas == null)
@@ -83,7 +116,8 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var icon = For(atlas, id);
+            var own = OwnIcon(atlas, id);
+            var icon = own != null ? own.texture : For(atlas, id);
             if (icon != null)
             {
                 raw.texture = icon;
@@ -96,9 +130,16 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>The cube icon as a UI sprite, or null when the block has none (use its tile).</summary>
+        /// <summary>The block's own icon (#3085) or its cube icon as a UI sprite, or null when the block has neither (use
+        /// its tile).</summary>
         public static Sprite SpriteFor(BlockTextureAtlas atlas, ushort id)
         {
+            var own = OwnIcon(atlas, id);
+            if (own != null)
+            {
+                return own;
+            }
+
             var icon = For(atlas, id);
             return icon == null ? null : Sprite.Create(icon, new Rect(0f, 0f, icon.width, icon.height), new Vector2(0.5f, 0.5f), 100f);
         }
@@ -112,6 +153,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Cache.Clear();
+            OwnIcons.Clear(); // UiKit's sprites — forgotten, not destroyed
             if (_atlas != null)
             {
                 _atlas.Changed -= OnAtlasChanged;
@@ -130,6 +172,7 @@ namespace BlocksBeyondTheStars.Client
         /// valid textures and show the new look.</summary>
         private static void OnAtlasChanged()
         {
+            OwnIcons.Clear(); // #3085: a texture pack may bring its own block icon too — look it up again
             var atlas = _atlas;
             if (atlas == null || atlas.Texture == null)
             {

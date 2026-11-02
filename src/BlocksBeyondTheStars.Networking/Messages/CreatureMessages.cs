@@ -223,7 +223,8 @@ public sealed class NetCreature
 public sealed class WorldFx
 {
     /// <summary>"thump" | "stomp" | "breach" | "strike" | "dive" | "rumble" | "swallow" (#2076: a worm ate an animal at the spot)
-    /// | "arrow" (#2645: a hunter's arrow from X/Y/Z to <see cref="ToX"/>/<see cref="ToY"/>/<see cref="ToZ"/>).</summary>
+    /// | "arrow" (#2645: a hunter's arrow from X/Y/Z to <see cref="ToX"/>/<see cref="ToY"/>/<see cref="ToZ"/>)
+    /// | "tank_burst" (#3096: a tank spider bursts — a blast inside <see cref="Radius"/>, played by the client's WorldEntities).</summary>
     public string Kind { get; set; } = string.Empty;
     public float X { get; set; }
     public float Y { get; set; }

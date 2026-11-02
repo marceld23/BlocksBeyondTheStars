@@ -177,6 +177,15 @@ namespace BlocksBeyondTheStars.Client
                 ? "\n" + loc.Get("ui.scan.sentry")
                     .Replace("{range}", BlocksBeyondTheStars.Shared.World.WorldConstants.SentryRange.ToString())
                     .Replace("{zone}", BlocksBeyondTheStars.Shared.World.WorldConstants.BaseZoneRadius.ToString())
+                  + SentryHeldNote(loc)
+                : string.Empty;
+
+        /// <summary>#3091: " · switched off by the Crystal Net" while the post in the crosshair is held by a wire with a
+        /// switch or sensor on it — the scan result names no cell, so the line follows what the player still aims at.</summary>
+        private string SentryHeldNote(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
+            => Game.AimedCrystalDevice is { Held: true } dev
+               && CrystalDeviceUi.KindOf(dev) == BlocksBeyondTheStars.Shared.Definitions.CrystalDeviceKind.Sentry
+                ? " · " + loc.Get("ui.crystal.held")
                 : string.Empty;
     }
 }

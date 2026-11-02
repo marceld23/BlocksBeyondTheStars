@@ -77,6 +77,34 @@ public sealed class BumpTests : IDisposable
         Assert.Equal(server.World.Planet.Key, location.GetProperty("bodyPlanetType").GetString());
     }
 
+    /// <summary>#3101: the teleport report of 2026-11-01 could not say which shaped block the player was pressed against —
+    /// the surroundings listed block keys only. A non-cube cell now carries its form (and yaw / up-face), and the census
+    /// counts shaped cells apart.</summary>
+    [Fact]
+    public void BumpSnapshot_RecordsTheFormOfShapedCells()
+    {
+        var (server, _, paths) = StartWorld();
+        var (connectionId, session) = server.Sessions.First(kv => kv.Value.Joined);
+        var p = session.State;
+        var cell = new BlocksBeyondTheStars.Shared.Geometry.Vector3i(
+            (int)Math.Floor(p.Position.X) + 1, (int)Math.Floor(p.Position.Y), (int)Math.Floor(p.Position.Z));
+        int fence = BlocksBeyondTheStars.Shared.World.ShapeCode.Pack(BlocksBeyondTheStars.Shared.World.BlockShape.Fence, 1);
+        server.World.SetBlock(cell, _content.GetBlock("stone")!.NumericId, shape: fence);
+
+        server.HandlePayloadForTest(connectionId, NetCodec.Encode(new ChatIntent { Text = "/bump teleported at a fence" }));
+
+        using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Assert.Single(MyBumpFiles(paths, "*.json"))));
+        var surroundings = doc.RootElement.GetProperty("surroundings").EnumerateArray().ToList();
+        var entry = Assert.Single(surroundings,
+            e => e.GetProperty("x").GetInt32() == cell.X && e.GetProperty("y").GetInt32() == cell.Y && e.GetProperty("z").GetInt32() == cell.Z);
+        Assert.Equal("stone", entry.GetProperty("block").GetString());
+        Assert.Equal("Fence", entry.GetProperty("shape").GetString());
+        Assert.Equal(1, entry.GetProperty("yaw").GetInt32());
+        Assert.DoesNotContain(surroundings, e => e.TryGetProperty("shape", out var s) && s.GetString() == "Cube"); // a cube carries none
+        Assert.Contains(doc.RootElement.GetProperty("surroundingsCensus").EnumerateArray(),
+            c => c.GetProperty("block").GetString() == "stone#Fence" && c.GetProperty("count").GetInt32() >= 1);
+    }
+
     [Fact]
     public void BumpSnapshot_ListsTheMachinesAround_AndTheTrainingProgress()
     {

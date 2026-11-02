@@ -134,7 +134,7 @@ public sealed partial class GameServer
             }
         }
 
-        foreach (var key in new[] { "crate", "wood_crate", "station_container" })
+        foreach (var key in new[] { "crate", "wood_crate", "station_container", "transport_crate" }) // #3098: a crate like the rest
         {
             ushort id = Id(key);
             if (id != 0)

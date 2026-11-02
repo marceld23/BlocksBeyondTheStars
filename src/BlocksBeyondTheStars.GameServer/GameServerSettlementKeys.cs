@@ -297,6 +297,8 @@ public sealed partial class GameServer
                 RebuildHeldBaseJobs(p, b, idx, qm.Name, scratch);
             }
         }
+
+        RebuildHeldShipBoardJobs(p); // #3087: the ship's board travels with the player
     }
 
     /// <summary>The held jobs of one base board (old stream and new <see cref="MixedRollsInfix"/> stream).</summary>

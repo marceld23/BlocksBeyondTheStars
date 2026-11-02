@@ -116,6 +116,74 @@
     ]
   },
   {
+    "key": "resident_lumberjack",
+    "job": "lumberjack",
+    "home": "own_base",
+    "minStage": "",
+    "oncePerPlayer": false,
+    "aiPrompt": true,
+    "nodes": [
+      {
+        "promptKey": "dlg.resident_lumberjack.prompt",
+        "choices": [
+          { "textKey": "dlg.resident_lumberjack.c_ask", "responseKey": "dlg.resident_lumberjack.r_ask", "consequence": "standing:1" },
+          { "textKey": "dlg.resident_lumberjack.c_bye", "responseKey": "dlg.resident_lumberjack.r_bye" }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "resident_focus_miner",
+    "job": "focus_miner",
+    "home": "own_base",
+    "minStage": "",
+    "oncePerPlayer": false,
+    "aiPrompt": true,
+    "nodes": [
+      {
+        "promptKey": "dlg.resident_focus_miner.prompt",
+        "choices": [
+          { "textKey": "dlg.resident_focus_miner.c_ask", "responseKey": "dlg.resident_focus_miner.r_ask", "consequence": "standing:1" },
+          { "textKey": "dlg.resident_focus_miner.c_bye", "responseKey": "dlg.resident_focus_miner.r_bye" }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "resident_focus_market",
+    "job": "focus_market",
+    "home": "own_base",
+    "minStage": "",
+    "oncePerPlayer": false,
+    "aiPrompt": true,
+    "nodes": [
+      {
+        "promptKey": "dlg.resident_focus_market.prompt",
+        "choices": [
+          { "textKey": "dlg.resident_focus_market.c_ask", "responseKey": "dlg.resident_focus_market.r_ask", "consequence": "standing:1" },
+          { "textKey": "dlg.resident_focus_market.c_bye", "responseKey": "dlg.resident_focus_market.r_bye" }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "resident_focus_radio",
+    "job": "focus_radio",
+    "home": "own_base",
+    "minStage": "",
+    "oncePerPlayer": false,
+    "aiPrompt": true,
+    "nodes": [
+      {
+        "promptKey": "dlg.resident_focus_radio.prompt",
+        "choices": [
+          { "textKey": "dlg.resident_focus_radio.c_ask", "responseKey": "dlg.resident_focus_radio.r_ask", "consequence": "standing:1" },
+          { "textKey": "dlg.resident_focus_radio.c_bye", "responseKey": "dlg.resident_focus_radio.r_bye" }
+        ]
+      }
+    ]
+  },
+  {
     "key": "resident_home",
     "role": "settler",
     "home": "own_base",
@@ -248,7 +316,7 @@
       {
         "promptKey": "dlg.quartermaster_hello.prompt",
         "choices": [
-          { "textKey": "dlg.quartermaster_hello.c_work", "responseKey": "dlg.quartermaster_hello.r_work" },
+          { "textKey": "dlg.quartermaster_hello.c_jobs", "responseKey": "dlg.quartermaster_hello.r_jobs", "consequence": "missions" },
           { "textKey": "dlg.quartermaster_hello.c_news", "responseKey": "dlg.quartermaster_hello.r_news", "consequence": "standing:1" },
           { "textKey": "dlg.quartermaster_hello.c_bye", "responseKey": "dlg.quartermaster_hello.r_bye" }
         ]

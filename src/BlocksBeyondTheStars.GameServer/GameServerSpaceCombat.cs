@@ -34,6 +34,8 @@ public enum CombatEntityKind
     DebrisField,  // #2353: a debris field's marker — chart / radar / waypoint / scanner target, its flight recorder (never hostile)
     Debris,       // #2353/#2356: a wreckage fragment — a small voxel hull carved for scrap like an asteroid (never hostile)
     SalvageCapsule, // #2353: a sealed salvage capsule — collected like a resource drop, pays once per galaxy (never hostile)
+    TankSpider,   // #3096: a walking Guardian spider with a tank — it swells and bursts near a player (damage only, no blocks)
+    HunterShuttle, // #3097: a weak Guardian shuttle — it skirmishes, then flees and lands a robot camp on a nearby planet
 }
 
 /// <summary>A server-authoritative combat entity (space object or planet enemy).</summary>
@@ -267,7 +269,7 @@ public enum BanditPhase
 }
 
 /// <summary>A loaded local space region (orbit / asteroid field) around a location.</summary>
-public sealed class SpaceInstance
+public sealed partial class SpaceInstance
 {
     public string Id { get; set; } = string.Empty;
     public string Kind { get; set; } = "orbit";
@@ -1276,6 +1278,7 @@ public sealed partial class GameServer
             SpawnCombatDebris(instance, target); // #2356: wreckage — before the raider's hull structure goes below
         }
 
+        OnHunterShuttleKilled(instance, target); // #3097: shot down before it could land — no robot camp (no-op for other kinds)
         if (target.Kind == CombatEntityKind.BanditShip)
         {
             OnBanditShipKilled(instance, target); // a person, not a Guardian machine — no story credit
@@ -1954,6 +1957,7 @@ public sealed partial class GameServer
             // Bandit-ship ambush: in flagged systems a raider may warp in, hail the ship and demand cargo —
             // comply and it leaves, refuse and it fights (see GameServerBanditShips).
             TickBanditShips(instance, dt);
+            TickHunterShuttles(instance, dt); // #3097: a weak Guardian shuttle — skirmish, flee, land a robot camp
 
             // Peaceful encounters (#1129): sometimes a life pod drifts by (fly close = rescue) or an
             // anomaly shimmers (scan it). Never hostile — runs under every preset, like the traders.
@@ -2301,6 +2305,7 @@ public sealed partial class GameServer
         CombatEntityKind.Ufo => (150f, 24f, 7f),
         CombatEntityKind.Cruiser => (170f, 36f, 4f),
         CombatEntityKind.BanditShip => (280f, 20f, 8f), // once hostile it presses in hard (it already knows you)
+        CombatEntityKind.HunterShuttle => (HunterShuttleAggro, HunterShuttleStandOff, 9f), // #3097: keeps its distance, just inside its gun's reach
         _ => (0f, 0f, 0f),
     };
 
@@ -2312,9 +2317,9 @@ public sealed partial class GameServer
         bool moved = false;
         foreach (var e in instance.Entities)
         {
-            if (!e.Hostile || e.Hull <= 0f)
+            if (!e.Hostile || e.Hull <= 0f || ShuttleFleeing(e))
             {
-                continue;
+                continue; // #3097: a fleeing hunter shuttle runs its own course (TickHunterShuttles)
             }
 
             var (aggro, minDist, speed) = HostileProfile(e.Kind);
@@ -2569,6 +2574,7 @@ public sealed partial class GameServer
         VelX = e.TickVel.Velocity.X, // #2670: a planet machine's or bandit's interpolation tangent (0 in space)
         VelY = e.TickVel.Velocity.Y,
         VelZ = e.TickVel.Velocity.Z,
+        Inflating = e.BurstAt > 0, // #3096: a tank spider's tank is swelling
     };
 
     /// <summary>#2440: how far to the side the n-th ship launches into an orbit that already holds <paramref name="shipsAhead"/>

@@ -124,6 +124,20 @@ def build_catalogue() -> list[tuple[str, str, float, bool]]:
         ("raider_warp_in",  "short ominous sci-fi warp arrival of a raider ship, a deep reverse whoosh ending in a low heavy thump with a brief metallic rattle, menacing but not frightening", 1.6, False),
     ]
 
+    # --- Held-item flourishes (#3095): a drill's test spin, a gun's cosmetic reload, a blade's twirl — played quietly once
+    # an item is drawn. Generated one by one with gen_sound.py --influence 0.5 on 2026-11-01. ---
+    s += [
+        ("drill_spinup", "short handheld sci-fi power drill test spin, a quick rising electric whirr that spins up and winds back down, light and clean, no impact, toy-like game sound", 0.8, False),
+        ("gun_reload",   "short sci-fi energy pistol cosmetic reload, a crisp mechanical click-clack of a power cell snapping in, then a tiny soft rising charge chirp, friendly game sound, no shot", 0.8, False),
+        ("blade_twirl",  "very short light airy swish of a small glowing energy blade twirled in the hand, a quick whirling whoosh with a faint shimmering hum, no impact", 0.6, False),
+    ]
+
+    # --- The hunter shuttle (#3097): its warp in and out of a flight. Generated with gen_sound.py --influence 0.5 on
+    # 2026-11-01. ---
+    s += [
+        ("hunter_shuttle_warp", "short sci-fi warp of a small robotic shuttle, a quick electronic whoosh with two rising robotic scanner chirps and a light hover hum, alert but friendly, not scary, game sound", 1.4, False),
+    ]
+
     # --- Creatures: 6 voice banks (size x disposition) x 5 states; pitch-shifted per creature in game ---
     sizes = [("small", "small"), ("medium", "medium-sized"), ("large", "huge hulking")]
     disps = [("calm", "docile gentle"), ("hostile", "vicious aggressive")]

@@ -63,6 +63,11 @@ public sealed class NetCombatEntity
 
     /// <inheritdoc cref="VelX"/>
     public float VelZ { get; set; }
+
+    /// <summary>#3096: a tank spider's tank is swelling — it stands still and bursts after
+    /// <c>TankSpiderRules.InflateSeconds</c>; the client swells and lights the tank and plays the hiss from the moment it
+    /// sees this turn true. Contractless-additive like <see cref="Scale"/>: an older client ignores it.</summary>
+    public bool Inflating { get; set; }
 }
 
 /// <summary>Snapshot of hostile entities near the player on the planet surface.</summary>

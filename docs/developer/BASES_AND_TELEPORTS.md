@@ -143,6 +143,9 @@ are additive fields.
 - **Radio centre** (#3040, `GameServerBaseRadio`): `NpcRadioReaches` is true for an owner in the system of their Radio base;
   `NpcRadioOnTraderLanded` hails Radio-base owners across the system; every 20 minutes on the base's body a VEGA system line
   names an unread, uncarved space wreck of the system with `ShipAiLine.SpaceWaypointId` = the wreck.
+- **What the residents say** (#3089): the woodcutter talks under its job (`resident_lumberjack`), and a resident without a
+  post in a Miner, Market or Radio base talks about the focus (`DialogJobOf` → dialogue job `focus_<focus>`,
+  `resident_focus_*` in `data/dialogs.json`). See `NPC_ROUTINES.md` §16.
 
 ## 8. Base landing pads (#3069–#3073)
 

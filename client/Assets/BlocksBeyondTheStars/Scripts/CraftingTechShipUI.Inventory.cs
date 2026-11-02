@@ -457,6 +457,30 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>#3099: "Open the bag" for a storage bag in the backpack — the menu closes and the bag screen opens on the
+        /// picked bag (the slot that was clicked, else the first one). Not from the hold: a bag opens on the player. Returns
+        /// the y below the button.</summary>
+        private float AddOpenBagButton(string item, float y)
+        {
+            if (_category == "cargo" || !BlocksBeyondTheStars.Shared.State.CarriedContents.IsBag(item))
+            {
+                return y;
+            }
+
+            int bagSlot = CargoStackPicker.ResolveSlot(Game.Personal, item, _stackSlot);
+            if (bagSlot < 0)
+            {
+                return y;
+            }
+
+            UiKit.AddButton(_detail, 8, y, 320, 46, L("ui.bag.open"), () =>
+            {
+                Menu?.CloseFromUi();
+                Game?.Context.Panel<BagUi>()?.Open(bagSlot);
+            });
+            return y + 54f;
+        }
+
         /// <summary>The first slot holding <paramref name="item"/> in the backpack (or the ship's hold), or -1.
         /// The discard intent addresses a slot, since a dyed/shaped stack carries a composite item key.</summary>
         private int SlotOfItem(string item, bool inCargo)
@@ -508,6 +532,8 @@ namespace BlocksBeyondTheStars.Client
                 });
                 y += 54f;
             }
+
+            y = AddOpenBagButton(item, y); // #3099
 
             // #2110: wear / take off. A wearable piece in the backpack gets "Wear" (its own slot; a module the first free
             // module slot); a worn piece gets "Take off" (into the first free backpack slot).
@@ -576,7 +602,8 @@ namespace BlocksBeyondTheStars.Client
             // trusts the client). Works on the cargo tab too: the hold is where "stow all" piles the junk up.
             bool inCargo = _category == "cargo";
             int discardSlot = SlotOfItem(item, inCargo);
-            if (discardSlot >= 0 && !StarterKit.IsProtected(item))
+            // #3098/#3099: a filled bag or a packed crate has no button either — the server wants it emptied first.
+            if (discardSlot >= 0 && !StarterKit.IsProtected(item) && !BlocksBeyondTheStars.Shared.State.CarriedContents.HasRecord(item))
             {
                 bool armed = _discardArmed == _selected;
                 // #1484: the confirm NAMES the item — a second click on "Really throw away?" used to destroy

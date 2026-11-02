@@ -193,6 +193,39 @@ settle (0.14 s). `Drop` is one smoothstep curve both ways, so a turn-round never
 - In third person the right hand reaches down and back to the hip (`HolsterUpperArm`, `HolsterElbow`); other players
   see it, because a remote avatar animates every held-key change after the first one it sees.
 
+## 5. Flourishes and the drill bit (#3095)
+
+Once a draw has brought a drill, a gun or a blade into the hand, it plays a short flourish — `HeldFlourishes` and
+`HeldFlourish` (Client.Core) hold the kinds, the curves and the timing; `Viewmodel.Flourish.cs` (first person) and
+`PlayerAvatar.Flourish.cs` (third person, other players, robbers) lay them over their poses:
+
+| Kind | Flourish | Length | Cue |
+|---|---|---|---|
+| `Drill` | lifted a little and turned toward the middle of the view; the bit spins up and winds down, a light buzz in the hand | 0.7 s | `drill_spinup` |
+| `Gun` | tipped onto its side and up, racked once (pulled back, snapped forward with a kick) — cosmetic, there is no ammunition | 0.75 s | `gun_reload` |
+| `Blade` | the wrist flicks it up and rolls it outward while the blade spins once round its own length | 0.6 s | `blade_twirl` |
+
+- **A draw starts it**: the frame `HeldSwap` goes from drawing to idle. A slot that runs empty and is drawn again
+  (`DrawOnly`) plays it too; an `Instant` change (the first item, the same key rebuilt) and *Reduced effects* never do.
+- **A blade repeats it** now and then while it is just held and the hand is idle (`HeldFlourish.IdleDue`, 9–18 s) —
+  the player's, a villager guard's and a robber's that is not fighting.
+- **It is never in the way**: any use (`Viewmodel.Swing`, the avatar's swing, blow, gesture, rope, a robber's stance),
+  a switch, the climb or a hidden hand cuts it off at once. The server never hears of it.
+- **The poses**: in first person the curve's offsets and turns are added to the right holder's rest pose before the
+  holder is placed; on the avatar the right arm lifts the item to the chest (`FlourishUpperArm`/`FlourishElbow`) and
+  keeps it level, like the carry.
+- **The moving parts** are the held model's own: `HeldSpin` (on the holder) turns the bit's boxes about the drill's
+  axis and a blade's boxes round its long axis. Only their rotations change — the grip, the hand and
+  `HeldItem.MuzzleOf` read positions, which stay. `HeldDrillBit.SpinParts` finds the bit from the boxes alone: the
+  foremost box on the axis, roughly square across, plus the other square boxes on the axis at or ahead of its back face
+  (a chuck, a collar, the mining beam's emitter ring). A box off the axis that reaches into that length makes it a pick
+  — the wooden pickaxe is a `Drill` by its tool kind and has no bit — and then nothing spins.
+- **The bit spins while mining**: every swing (`Viewmodel.Swing`, `PlayerAvatar.Swing`, so other players' drills too)
+  drives it for the swing's length; it spins up in 0.25 s to three turns a second and coasts down over 0.6 s
+  (`HeldDrillBit.NextSpeed`). The component sleeps while the bit stands still.
+- **The cue** plays at volume 0.45 — 2D for the viewmodel, 3D at the hand of a visible avatar; the own avatar in first
+  person is hidden and plays nothing, so the sound is never doubled. See [SOUND_DESIGN.md](SOUND_DESIGN.md) §26.
+
 ## Tests
 
 - `HeldBlockLookTests` — which look a key gets (dye, glow, forms, designs, player forms, props, the cache key).
@@ -202,6 +235,9 @@ settle (0.14 s). `Drop` is one smoothstep curve both ways, so a turn-round never
 - `WeaponTests.IsRanged_GoesByTheWeaponsRange` — gun or blade by range (#2800), and no weapon in the data sits at the
   melee reach.
 - `HeldSwapTests` — timing, one swap per switch, fast scrolling, turning round, draw-only, cutting it short.
+- `HeldFlourishTests` (#3095) — the flourish per kind, each short with a cue and at rest at both ends, no jumps between
+  frames, cutting it short, only the blade's idle repeat and its random pause, the bit of every drill in the data (none
+  for the wooden pickaxe), the bit's spin-up and coast, and the robots' idle fidgets.
 - `HeldMaterialRulesTests` (#2836) — the colour rule, a named material winning, every part of every model the game draws
   having a known material (the player palette included), the UV buckets and the outward-wound cube, the tile lift.
 - `HeldGadgetModelTests` (#2837) — the list of gadgets, each drawing its own 4–14 parts with named materials, the remote

@@ -204,6 +204,10 @@ namespace BlocksBeyondTheStars.Client
             var crateUi = root.AddComponent<CrateUi>();
             crateUi.Game = boot;
 
+            // The storage bag screen (#3099): opens from the inventory or with the bag in hand — the bag above, backpack below.
+            var bagUi = root.AddComponent<BagUi>();
+            bagUi.Game = boot;
+
             // Block-paint editor host (#818): opens when using the paint tool on a placed block.
             var paintTool = root.AddComponent<PaintToolUi>();
             boot.Views.PaintTool = paintTool;
@@ -429,6 +433,7 @@ namespace BlocksBeyondTheStars.Client
             // NPC dialogue panel (#1127): talk to people, pick replies, live with the consequences.
             var dialogUi = root.AddComponent<NpcDialogUi>();
             dialogUi.Game = boot;
+            dialogUi.Menu = menu; // #3089: the quartermaster's "Show me the jobs" opens the Missions tab
 
             // "Connection lost" gate (#249): surfaces a mid-game server stop instead of silently freezing.
             var disconnect = root.AddComponent<DisconnectScreen>();

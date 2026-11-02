@@ -71,6 +71,19 @@ public sealed class SpaceTargetingTests
     }
 
     [Fact]
+    public void TheHunterShuttle_IsAHostileShip_WithAVoxelHull()
+    {
+        // #3097: it shoots (weakly), it is locked, fired at and scanned like the raider, and its hull is a voxel design.
+        Assert.True(SpaceTargeting.IsHostileShipKind(SpaceTargeting.HunterShuttle));
+        Assert.True(SpaceTargeting.IsFireTargetKind(SpaceTargeting.HunterShuttle));
+        Assert.True(SpaceTargeting.IsScannableKind(SpaceTargeting.HunterShuttle));
+        Assert.True(SpaceTargeting.IsVoxelHullShipKind(SpaceTargeting.HunterShuttle));
+        Assert.True(SpaceTargeting.IsVoxelHullShipKind(SpaceTargeting.BanditShip));
+        Assert.False(SpaceTargeting.IsVoxelHullShipKind(SpaceTargeting.Cruiser));
+        Assert.True(SpaceTargeting.IsAttacking(SpaceTargeting.HunterShuttle, hostile: true, distance: 50f));
+    }
+
+    [Fact]
     public void KindLists_MatchWhatEachSystemTargets()
     {
         Assert.True(SpaceTargeting.IsFireTargetKind("Asteroid"));

@@ -96,6 +96,7 @@ namespace BlocksBeyondTheStars.Client
             EnemyCatalog.Ufo => SpaceView.BuildUfoModel(parent),
             EnemyCatalog.Cruiser => SpaceView.BuildCruiserModel(parent),
             EnemyCatalog.BanditShip => SpaceView.BuildBanditShipModel(parent), // the hand-built raider (its voxel hull is the server's)
+            EnemyCatalog.HunterShuttle => SpaceView.BuildHunterShuttleModel(parent), // #3097: the hand-built lander
             _ => WorldEntities.BuildPortraitModel(key, parent),
         };
 

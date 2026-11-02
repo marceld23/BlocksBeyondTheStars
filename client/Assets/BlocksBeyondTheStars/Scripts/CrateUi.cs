@@ -332,9 +332,13 @@ namespace BlocksBeyondTheStars.Client
             return BlocksBeyondTheStars.Shared.Localization.ItemNames.Display(Game.Localizer, key, null, seed => Game.Bio.SpeciesName(seed));
         }
 
-        /// <summary>One slot button with the item's icon and count — the hotbar's icon resolution (shape silhouette →
-        /// painted design → atlas tile → generated icon); an empty slot is a plain frame that does nothing.</summary>
         private Button AddItemSlot(Transform parent, float x, float y, string item, int count, System.Action onClick)
+            => AddItemSlot(Game, parent, x, y, item, count, onClick);
+
+        /// <summary>One slot button with the item's icon and count — the hotbar's icon resolution (shape silhouette →
+        /// painted design → atlas tile → generated icon); an empty slot is a plain frame that does nothing. Shared with the
+        /// storage bag screen (#3099), so both grids read alike.</summary>
+        internal static Button AddItemSlot(GameBootstrap game, Transform parent, float x, float y, string item, int count, System.Action onClick)
         {
             bool empty = string.IsNullOrEmpty(item);
             var b = UiKit.AddButton(parent, x, y, Cell, Cell, string.Empty, empty ? () => { } : onClick);
@@ -349,38 +353,38 @@ namespace BlocksBeyondTheStars.Client
             var raw = go.AddComponent<RawImage>();
             raw.raycastTarget = false;
 
-            var blockDef = Game.Content?.GetBlock(item);
-            if (blockDef == null && Game.Content?.GetItem(ItemKey.Base(item))?.PlacesBlock is string pb && pb.Length > 0)
+            var blockDef = game.Content?.GetBlock(item);
+            if (blockDef == null && game.Content?.GetItem(ItemKey.Base(item))?.PlacesBlock is string pb && pb.Length > 0)
             {
-                blockDef = Game.Content?.GetBlock(pb);
+                blockDef = game.Content?.GetBlock(pb);
             }
 
             int shape = ItemKey.Shape(item);
-            Texture2D shapeTex = (blockDef != null && Game.Atlas != null && shape > 0)
-                ? ShapeIconFactory.ForBlock(Game.Atlas, (ushort)blockDef.NumericId.Value, shape, Game.CustomShapes)
+            Texture2D shapeTex = (blockDef != null && game.Atlas != null && shape > 0)
+                ? ShapeIconFactory.ForBlock(game.Atlas, (ushort)blockDef.NumericId.Value, shape, game.CustomShapes)
                 : null;
             int design = ItemKey.Design(item);
-            if (design != 0 && Game.PaintAtlas != null && Game.PaintAtlas.TryGetUv(design, out var designUv))
+            if (design != 0 && game.PaintAtlas != null && game.PaintAtlas.TryGetUv(design, out var designUv))
             {
-                raw.texture = Game.PaintAtlas.Texture;
+                raw.texture = game.PaintAtlas.Texture;
                 raw.uvRect = designUv;
             }
             else if (shapeTex != null)
             {
                 raw.texture = shapeTex;
             }
-            else if (blockDef != null && Game.Atlas != null)
+            else if (blockDef != null && game.Atlas != null)
             {
-                BlockCubeIcon.Apply(raw, Game.Atlas, blockDef.NumericId.Value); // a block whose faces differ is a cube (#2744)
+                BlockCubeIcon.Apply(raw, game.Atlas, blockDef.NumericId.Value); // a block whose faces differ is a cube (#2744)
             }
             else
             {
                 Texture2D itemTex = IconResolver.ItemTexture(item);
-                var kind = Game.Content?.GetItem(ItemKey.Base(item))?.Tool?.Kind ?? BlocksBeyondTheStars.Shared.Definitions.ToolKind.None;
+                var kind = game.Content?.GetItem(ItemKey.Base(item))?.Tool?.Kind ?? BlocksBeyondTheStars.Shared.Definitions.ToolKind.None;
                 raw.texture = itemTex != null ? itemTex : IconFactory.ForItem(item, kind);
             }
 
-            raw.color = IconResolver.Tint(item, Game);
+            raw.color = IconResolver.Tint(item, game);
             if (count > 1)
             {
                 var cnt = UiKit.AddText(b.transform, 4f, 2f, Cell - 8f, 18f, count.ToString(), 13, UiKit.TextCol, TextAnchor.UpperRight, FontStyle.Bold);

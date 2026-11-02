@@ -788,7 +788,10 @@ public sealed partial class GameContent
     public PlanetType? GetPlanet(string key) => _planets.TryGetValue(key, out var p) ? p : null;
     public MissionDefinition? GetMission(string id) => _missions.TryGetValue(id, out var m) ? m : null;
 
-    public int MaxStackOf(string itemKey) => _items.TryGetValue(ItemKey.Base(itemKey), out var i) ? i.MaxStack : 1;
+    /// <summary>The stack size of an item key — its base item's <c>maxStack</c>, but 1 for a filled storage bag or a packed
+    /// transport crate (#3098/#3099): such a key points at one carried-contents record and is one of a kind.</summary>
+    public int MaxStackOf(string itemKey) => CarriedContents.HasRecord(itemKey) ? 1
+        : _items.TryGetValue(ItemKey.Base(itemKey), out var i) ? i.MaxStack : 1;
 
     /// <summary>The parsed table for a locale, parsing a lazily registered one on first use (#1522).
     /// Null when the locale has no table at all.</summary>

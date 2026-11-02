@@ -82,6 +82,8 @@ namespace BlocksBeyondTheStars.Client
             if (Game != null)
             {
                 _seatRejectionsSeen = Game.SeatRejections; // only a refusal that arrives from now on stands us up
+                Game.Interaction = InteractKind.None; // #3088: seated, E stands up — no "sit down" left on the HUD
+                Game.InteractNpcId = 0;
             }
 
             Game?.Network?.SendSitDown(cell.x, cell.y, cell.z); // the server checks the seat is free (#2122)
@@ -179,6 +181,9 @@ namespace BlocksBeyondTheStars.Client
             Game.AimedCrystalDevice = null;
             Game.AimedCell = null;
             Game.AimedBasePadCell = null; // #3070
+            Game.Interaction = InteractKind.None; // #3088: lying down, E gets up — it works on nothing around the bed
+            Game.InteractNpcId = 0;
+            Game.AimedBoardOutOfReach = false;
 
             // The pillow view is a first-person one in either camera mode: no body left standing beside the bed in the
             // chase view, no tool held in front of the face. GetUp hands both back to the camera mode.

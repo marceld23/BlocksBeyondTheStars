@@ -48,6 +48,10 @@ public sealed class EnemyTier
     /// <summary>Damage per second while it is in reach and attacking.</summary>
     public float DamagePerSecond { get; set; }
 
+    /// <summary>#3096: the damage of one burst at its centre, for an enemy that attacks by bursting (the tank spider) —
+    /// it falls off toward the edge (<see cref="TankSpiderRules.DamageAt"/>). 0 = it does not burst.</summary>
+    public float BurstDamage { get; set; }
+
     public List<ItemAmount> Loot { get; set; } = new();
 }
 
@@ -77,9 +81,11 @@ public static class EnemyCatalog
     public const string Ufo = "ufo";
     public const string Cruiser = "cruiser";
     public const string BanditShip = "bandit_ship";
+    public const string HunterShuttle = "hunter_shuttle"; // #3097
     public const string ScanDrone = "scan_drone";
     public const string GuardianRobot = "guardian_robot";
     public const string Hunter = "hunter";
+    public const string TankSpider = "tank_spider"; // #3096
     public const string Bandit = "bandit";
     public const string BanditGunner = "bandit_gunner";
 
@@ -91,12 +97,25 @@ public static class EnemyCatalog
         Make(Ufo, EnemyWhere.Space, ("normal", 40f, 0f, 4f, Loot(("data_fragment", 3))), ("elite", 95f, 0f, 8f, Loot(("data_fragment", 4)))),
         Make(Cruiser, EnemyWhere.Space, ("normal", 260f, 0f, 10f, Loot(("data_fragment", 8)))),
         Make(BanditShip, EnemyWhere.Space, ("normal", 55f, 120f, 5f, Loot(("data_fragment", 2), ("titanium_plate", 2)))),
+        Make(HunterShuttle, EnemyWhere.Space, ("normal", 35f, 0f, 2f, Loot(("data_fragment", 2), ("circuit_board", 1)))), // #3097
         Make(ScanDrone, EnemyWhere.Planet, ("normal", 25f, 0f, 2f, Loot(("carbon", 2)))),
         Make(GuardianRobot, EnemyWhere.Planet, ("normal", 30f, 0f, 4f, Loot(("carbon", 2)))),
         Make(Hunter, EnemyWhere.Planet, ("normal", 60f, 0f, 6f, Loot(("carbon", 2)))),
+        Bursting(Make(TankSpider, EnemyWhere.Planet, ("normal", 20f, 0f, 0f, Loot(("carbon", 2)))), 30f), // #3096
         Make(Bandit, EnemyWhere.Planet, ("normal", 35f, 0f, 5f, Loot(("iron_plate", 2))), ("camp", 35f, 0f, 5f, Loot(("iron_plate", 2), ("carbon", 2)))),
         Make(BanditGunner, EnemyWhere.Planet, ("normal", 35f, 0f, 3f, Loot(("iron_plate", 2))), ("camp", 35f, 0f, 3f, Loot(("iron_plate", 2), ("carbon", 2)))),
     };
+
+    /// <summary>#3096: gives every tier of <paramref name="def"/> the burst damage of a bursting enemy.</summary>
+    private static EnemyDefinition Bursting(EnemyDefinition def, float burstDamage)
+    {
+        foreach (var tier in def.Tiers.Values)
+        {
+            tier.BurstDamage = burstDamage;
+        }
+
+        return def;
+    }
 
     private static List<ItemAmount> Loot(params (string Item, int Count)[] loot)
     {

@@ -91,7 +91,7 @@ public sealed partial class GameContent
 
             foreach (var (name, tier) in e.Tiers)
             {
-                if (tier.Hull <= 0f || tier.DamagePerSecond < 0f || (tier.HullMax > 0f && tier.HullMax < tier.Hull))
+                if (tier.Hull <= 0f || tier.DamagePerSecond < 0f || tier.BurstDamage < 0f || (tier.HullMax > 0f && tier.HullMax < tier.Hull))
                 {
                     problems.Add($"Enemy '{e.Key}' tier '{name}' needs a hull above 0, no negative damage and a HullMax of 0 or at least the hull.");
                 }

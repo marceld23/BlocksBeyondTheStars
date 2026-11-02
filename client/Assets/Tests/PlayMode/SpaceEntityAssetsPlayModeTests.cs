@@ -29,7 +29,7 @@ namespace BlocksBeyondTheStars.Client.Tests.PlayMode
         /// cached materials of their own). "Wreck" stands for the fallback cube.</summary>
         private static readonly string[] Kinds =
         {
-            "SpaceStation", "Drone", "Ufo", "Cruiser", "BanditShip", "EscapePod", "DebrisField", "SalvageCapsule",
+            "SpaceStation", "Drone", "Ufo", "Cruiser", "BanditShip", "HunterShuttle", "EscapePod", "DebrisField", "SalvageCapsule",
             "ResourceDrop", "Wreck",
         };
 

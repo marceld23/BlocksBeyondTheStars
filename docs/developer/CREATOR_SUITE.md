@@ -34,7 +34,7 @@ icon caches dropped) — no chunk has to re-mesh.
 
 **The alpha rule** lives once, in `Shared/Textures/TextureTiles.cs`, and is applied by the loader, the editor's
 canvas model, the server and the client's world-texture inbox: a block tile is **opaque** (nobody paints
-themselves an X-ray view), plants/leaves/fire/torch are **cutout**, creature/avatar/microfauna tiles are
+themselves an X-ray view), plants/leaves/fire/torch and the energy fence's gaps (#3085) are **cutout**, creature/avatar/microfauna tiles are
 **free**. Tiles are 64×64 RGBA32, rows bottom-up, up to 8 frames at 2/4/8/12 fps.
 
 **Atlas bands** (`Client.Core/Textures/AtlasBands.cs`): slots 0–399 = blocks by numeric id

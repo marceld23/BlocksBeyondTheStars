@@ -229,6 +229,77 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             WithAtlas((content, atlas) => AssertAllCodes(MeshSingle(content, atlas, "tree_leaves"), ChunkMesher.LeafCodeCrown, "tree_leaves"));
         }
 
+        /// <summary>#3085: the energy fence is a SOLID cube whose tile has see-through gaps between its beams. It is drawn
+        /// in the opaque submesh with the rigid cutout code on all six faces (clipped, never blended, never swaying) and
+        /// keeps a collider all round, so creatures still cannot pass it.</summary>
+        [Test]
+        public void EnergyFence_IsARigidCutoutCube_ThatStillCollides()
+        {
+            WithAtlas((content, atlas) =>
+            {
+                var m = MeshSingle(content, atlas, "energy_fence");
+                AssertAllCodes(m, ChunkMesher.LeafCodeRigid, "energy_fence");
+                Assert.That(m.Verts.Count, Is.EqualTo(24), "A lone fence block draws its six faces (no bevel) in the opaque submesh.");
+                Assert.That(m.ColliderTris, Is.EqualTo(12), "The fence is solid: a collision face on every side.");
+            });
+        }
+
+        /// <summary>#3085: a row of fence blocks is one plane of rails and beams on each side — no faces between two fence
+        /// blocks to be seen through the gaps — while the ground under the fence keeps its top face (seen through the gaps,
+        /// it must not open a hole into the world).</summary>
+        [Test]
+        public void AFenceRow_DrawsNoInnerFaces_AndTheGroundBelowStays()
+        {
+            WithAtlas((content, atlas) =>
+            {
+                var fence = Id(content, "energy_fence");
+                var chunk = new ChunkData(new ChunkCoord(0, 0, 0));
+                chunk.Set(C, C, C, fence);
+                chunk.Set(C + 1, C, C, fence);
+                chunk.Set(C, C - 1, C, Id(content, "stone"));
+
+                BlockId World(int x, int y, int z) =>
+                    x >= 0 && y >= 0 && z >= 0 &&
+                    x < WorldConstants.ChunkSize && y < WorldConstants.ChunkSize && z < WorldConstants.ChunkSize
+                        ? chunk.Get(x, y, z)
+                        : BlockId.Air;
+
+                var data = ChunkMesher.BuildGeometry(chunk, content, World, atlas);
+                try
+                {
+                    int fenceVerts = 0;
+                    bool groundTop = false;
+                    var seen = new HashSet<int>();
+                    foreach (int i in data.OpaqueTris)
+                    {
+                        if (!seen.Add(i))
+                        {
+                            continue;
+                        }
+
+                        var v = data.Verts[i];
+                        if (data.LeafUv[i].x == ChunkMesher.LeafCodeRigid)
+                        {
+                            fenceVerts++;
+                        }
+                        else if (data.Normals[i].y > 0.9f && Mathf.Abs(v.y - C) < 1e-4f
+                                 && v.x >= C - 1e-4f && v.x <= C + 1 + 1e-4f && v.z >= C - 1e-4f && v.z <= C + 1 + 1e-4f)
+                        {
+                            groundTop = true;
+                        }
+                    }
+
+                    // Fence A: top, −X, ±Z (its +X faces fence B, its bottom the stone); fence B: top, bottom, +X, ±Z.
+                    Assert.That(fenceVerts, Is.EqualTo((4 + 5) * 4), "The faces between the two fence blocks (and onto the stone) are culled.");
+                    Assert.That(groundTop, Is.True, "The stone under the fence keeps its top face — the gaps must not show a hole.");
+                }
+                finally
+                {
+                    data.Release();
+                }
+            });
+        }
+
         [Test]
         public void TheCutoutCodes_StayExactInTheHalfPrecisionChannel()
         {

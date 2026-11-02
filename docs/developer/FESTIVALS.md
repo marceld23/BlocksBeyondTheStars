@@ -32,7 +32,8 @@ Two rules shaped the design (see the ADR):
   "festivals": [
     { "key": "halloween", "theme": "harvest", "glyph": "✦",
       "window": { "kind": "fixed", "month": 10, "day": 31, "daysBefore": 7, "daysAfter": 1 },
-      "effects": { "motes": "lamplight", "warmth": -0.05, "saturation": 0.9, "fogTint": "#a89cc8", "fogBoost": 0.35, "music": "spooky" } },
+      "effects": { "motes": "lamplight", "warmth": -0.05, "saturation": 0.9, "fogTint": "#a89cc8", "fogBoost": 0.35, "music": "spooky" },
+      "spawn": { "block": "flora_pumpkin", "hosts": ["grass", "dirt", "mud"], "perPass": 1, "interval": 30, "budget": 80, "cap": 1500, "radius": 32 } },
     { "key": "thanksgiving_us", "theme": "harvest", "glyph": "❋",
       "window": { "kind": "weekday", "month": 11, "day": 22, "weekday": "Thursday", "daysBefore": 1 } },
     { "key": "advent", "theme": "lights", "glyph": "✧",
@@ -160,9 +161,21 @@ A festival with a `spawn` block (the harvest festivals: Halloween, Erntedank, th
 and the autumn equinox) lays that block down on **existing** worlds at runtime, on the weather snow's pattern — never through
 world generation, so natural blocks stay as they are and old saves get the festival:
 
-- every 3 s per world, at most `perPass` cells near each player on foot **who celebrates that festival** (#3021), never more
-  than `cap` per world, loaded chunks only, breathable worlds only, never in a base zone or a ship, only the air cell on a
-  host block (`hosts`) under the open sky;
+- every 3 s per world, at most `perPass` cells within `radius` of each player on foot **who celebrates that festival**
+  (#3021), never more than `cap` standing per world, loaded chunks only, breathable worlds only, never in a base zone or a
+  ship, only the air cell on a host block (`hosts`) under the open sky;
+- **a search, not a refill** (#3083): per player at most one lay every `interval` seconds (`PlayerSession.FestivalSpawnWait`,
+  counted down by the passes; a miss does not reset it) and no more than `budget` blocks per festival and year
+  (`PlayerState.FestivalSpawnsLaid`, key `<festival>:<year>`, persisted with the player; other years' keys are dropped when
+  a new one is booked). The cap used to count only the deposits standing right now, so every harvest freed a slot the next
+  pass filled three seconds later beside the player — it looked exactly like regrowth, and Halloween's sixty pumpkins took a
+  few minutes. Today: Halloween 1 per 30 s within 32 blocks, budget 80 (the task needs 60 + 3 for the lanterns); the other
+  harvest festivals the same pace with a budget of 40. Sixty pumpkins are half an hour of searching on foot at the least;
+  next year's festival starts with a fresh budget. A festival switched on by hand (`/festival halloween`) shares the year's
+  budget;
+- **a present, not the world's species** (#3084): a deposit always drops the plain fruit and scans as edible, even on a
+  world whose roster made pumpkins toxic (`IsFestivalDeposit` in the break path and the scan readout) — the lantern recipe
+  wants a plain pumpkin, and festival content stays kid-friendly;
 - **never on what players made** (#3020): no player edit in the 3×3×3 box around the cell and its host (`HasPlayerBlockEdits`,
   one box query per candidate), not in a settlement, and at least two blocks away from a player, an NPC or a creature — a
   pumpkin is solid;
@@ -174,7 +187,8 @@ world generation, so natural blocks stay as they are and old saves get the festi
 - **the harvest stays harvested:** a mined deposit leaves the ledger (`ForgetFestivalDeposit`) instead of entering the
   regrow queue.
 
-Cost: one pass per 3 s, 6 cells, one transaction; nothing while no festival spawns and the ledger is empty.
+Cost: one pass per 3 s, a few column probes per player whose clock has run down, one transaction; nothing while no festival
+spawns and the ledger is empty.
 
 ## Challenges (#3007)
 
@@ -189,7 +203,11 @@ build 3 campfires; children: eat 10 things. The graduation counter `festival:<pa
 of the `festival` category that pays a **decoration present** (the festival decorations below, pumpkin lanterns, coloured
 lamps, light strips, flower pots, rugs, torches); the pumpkin harvest has lifetime tiers on `mine:flora_pumpkin` (60 / 250 /
 500), the fir trees on `scan_tree:conifer` (25 / 100). A pack runs **once per player** — no yearly restart (decided
-2026-10-30); the festival it belongs to can be switched on any day, so no present can be missed.
+2026-10-30); the festival it belongs to can be switched on any day, so no present can be missed. A present that does not fit
+the inventory waits (#3082): the achievement stays unearned, the player gets one "reward waiting" notice with the slots to
+free (`AchievementRewardDeferred.SlotsNeeded`), and `TickDeferredRewards` hands it over on the next tick after the inventory
+changed (`SendInventory` marks the session) or within 5 s — a graduation counter bumps only once, so "the next bump" never
+came and Justus' Halloween present waited for a restart.
 
 **Distinct scans:** `scan:block` (`GameEventKeys.ScanBlock`) carries the scanned block key and fires once per *cell* per
 player — `ScanIntent` names the aimed cell (`HasCell`/`CellX..Z`, nothing from an older client), `PlayerState.ScannedCells`

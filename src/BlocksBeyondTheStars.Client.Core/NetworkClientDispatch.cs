@@ -90,6 +90,7 @@ namespace BlocksBeyondTheStars.Client
             On<CreatureDefeated>(map, (c, m) => c.CreatureDefeatedReceived?.Invoke(m)); // #2154
             On<ContainerList>(map, (c, m) => c.ContainersReceived?.Invoke(m));
             On<ContainerContents>(map, (c, m) => c.ContainerContentsReceived?.Invoke(m)); // #2436
+            On<BagContents>(map, (c, m) => c.BagContentsReceived?.Invoke(m)); // #3099
             On<DropPacketList>(map, (c, m) => c.DropPacketsReceived?.Invoke(m));
             On<ShipPlacement>(map, (c, m) => c.ShipPlacementReceived?.Invoke(m));
             On<ShipStations>(map, (c, m) => c.ShipStationsReceived?.Invoke(m));

@@ -209,6 +209,8 @@ public sealed class MaterialEconomyTests
             "derelict_log",
             // #3035: a name tag is used up on a companion, which no recipe lists.
             "name_tag",
+            // #3099: the storage bag is carried and opened, never used up.
+            "storage_bag",
         };
         var unconsumedComponents = _c.Items.Values
             .Where(i => i.Category == ItemCategory.Component && !uses.ContainsKey(i.Key))

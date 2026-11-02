@@ -11,57 +11,64 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// Stations and owned structures: the station in the crosshair or next to the player and what E does there
-    /// (<see cref="HandleStations"/>), the bio lab's reach, a vendor's trade-or-talk choice (<see cref="OfferVendorChoice"/>)
-    /// and the owned radio beacon / base core in the crosshair that E renames (<see cref="TryAimOwnedBeacon"/>,
-    /// <see cref="TryAimOwnedBase"/>).
+    /// (<see cref="HandleStations"/> — the pick itself is made in <c>PlayerController.InteractTarget.cs</c>, #3088), the bio
+    /// lab's reach, a vendor's trade-or-talk choice (<see cref="OfferVendorChoice"/>) and the owned radio beacon / base core
+    /// in the crosshair that E renames (<see cref="TryAimOwnedBeacon"/>, <see cref="TryAimOwnedBase"/>).
     /// </summary>
     public sealed partial class PlayerController
     {
-        private bool _marketFromVendor; // NearbyStation "market" came from a vendor NPC in reach, not a market block
-
         private void HandleStations()
+        {
+            PublishAimState();
+
+            // #2147: the hand door E works — the one under the crosshair, else the nearest; its label follows suit.
+            int handDoor = TargetHandDoor(out bool doorAimed);
+            if (Game.Views.Doors != null)
+            {
+                Game.Views.Doors.SetInteractTarget(handDoor);
+            }
+
+            // #3088: ONE pick for the key and the HUD's prompt line — what the crosshair rests on beats what merely stands near.
+            ResolveInteraction(handDoor, doorAimed);
+
+            if (!InputMap.Down(InputAction.Interact) || (Game.Views.LaunchPrompt?.IsOpen ?? false) || (Game.Views.VendorChoice?.IsOpen ?? false))
+            {
+                return; // the launch / trade-or-talk question owns E while it is up (#1455)
+            }
+
+            RunInteraction(Game.Interaction);
+        }
+
+        /// <summary>The aim readouts the HUD and the menus read every on-foot frame: the ship station looked at or stood beside
+        /// (<see cref="GameBootstrap.NearbyStation"/> — the crafting gates and the ship repair key ask it too), the block under
+        /// the crosshair, the Crystal Net device and its network, the scanner's target, the own base core and a base pad.</summary>
+        private void PublishAimState()
         {
             // Prefer the station you're looking at; fall back to the nearest one you're standing by. (Pure
             // proximity made a cramped ship always read as the central station, "whatever you looked at".)
             // #2725: a guest in a docked friend's ship gets none — the host's cockpit, console, cargo and medbay are room
             // decor for us (no prompt, no E: the cockpit would fly THEIR ship, the console repair it). U takes us home.
-            Game.NearbyStation = Game.Visiting ? null : Game.LookedStationType(Camera, Reach);
-            if (string.IsNullOrEmpty(Game.NearbyStation) && !Game.Visiting)
-            {
-                Game.NearbyStation = Game.NearestStationType(transform.position, 3f);
-            }
-
-            _marketFromVendor = false;
+            _lookedStation = Game.Visiting ? string.Empty : Game.LookedStationType(Camera, Reach) ?? string.Empty;
+            _nearStation = _lookedStation.Length == 0 && !Game.Visiting
+                ? Game.NearestStationType(transform.position, 3f) ?? string.Empty
+                : string.Empty;
+            Game.NearbyStation = _lookedStation.Length > 0 ? _lookedStation : _nearStation;
             if (string.IsNullOrEmpty(Game.NearbyStation) && Game.NearVendor)
             {
-                Game.NearbyStation = "market"; // a settlement/station vendor → "trade" prompt + E asks trade or talk
-                _marketFromVendor = true;
+                Game.NearbyStation = "market"; // a settlement/station vendor in trading reach (E's pick: trade or talk)
             }
 
-            // #1073: a placed crafting-station block you're LOOKING at (workbench, forge, …) tells you what it
-            // powers in the menu — the server unlocks recipes by standing next to it, but nothing in the world
-            // said so. Ship marker cells are covered by NearbyStation above; the factory terminal has its own label.
-            Game.AimedStationBlock = null;
             // #2049: the Crystal Net device in the crosshair, for the HUD prompt (one ray, the same reach as E).
             // #2268: the march tests the parked ships too, so a switch in the own cabin is aimed at like one on the ground.
-            bool aimingAtBlock = AimTarget(out var crystalAim, out _, out _);
-            Game.AimedCrystalDevice = aimingAtBlock ? Game.CrystalDeviceAt(crystalAim.x, crystalAim.y, crystalAim.z) : null;
-            Game.AimedCell = aimingAtBlock ? crystalAim : (Vector3Int?)null; // #2267: the network under the crosshair is outlined
-            if (string.IsNullOrEmpty(Game.NearbyStation) && AimBlock(out var aimHit, out _))
-            {
-                string aimedKey = Game.Content?.BlockById(Game.World.GetBlock(aimHit.x, aimHit.y, aimHit.z))?.Key;
-                // bed + heal_tank (#1456): both take E for the home spawn (HandleSetSpawnPoint below), but without
-                // a prompt the bed was indistinguishable from a decorative slab ("man kann es nicht benutzen").
-                if (aimedKey is "workbench" or "forge" or "detoxifier" or "matter_forge" or "decontaminator" or "algae_tank" or "campfire"
-                    or "bed" or "crew_bunk" or "heal_tank")
-                {
-                    Game.AimedStationBlock = aimedKey;
-                }
-                else if (aimedKey == BlocksBeyondTheStars.Shared.Bio.BioItems.Lab && BioLabInReach(aimHit))
-                {
-                    Game.AimedStationBlock = aimedKey; // #2203: the HUD reads "E: Bio lab" (its own prompt key)
-                }
-            }
+            _targetAimed = AimTarget(out _targetHit, out _, out _targetShip);
+            Game.AimedCrystalDevice = _targetAimed ? Game.CrystalDeviceAt(_targetHit.x, _targetHit.y, _targetHit.z) : null;
+            Game.AimedCell = _targetAimed ? _targetHit : (Vector3Int?)null; // #2267: the network under the crosshair is outlined
+
+            // The world block under the crosshair — read once, for the station-block prompt and the interact pick.
+            _aim.Reset();
+            _aim.BlockAimed = AimBlock(out _aim.Cell, out _);
+            _aim.BlockKey = _aim.BlockAimed ? Game.Content?.BlockById(Game.World.GetBlock(_aim.Cell.x, _aim.Cell.y, _aim.Cell.z))?.Key : null;
+            Game.AimedStationBlock = AimedStationBlockKey();
 
             // The scanner's prompt only shows when it would actually read something (#1458).
             Game.ScanTargetInView = HoldingScanner() && TryFindScanTarget(out _, out _, out _);
@@ -69,31 +76,39 @@ namespace BlocksBeyondTheStars.Client
             // Your own base core in the crosshair → the HUD shows the rename key + the core's air readout (#1267).
             Game.AimedOwnBase = AimedOwnedBase();
             Game.AimedBasePadCell = AimedBasePadBlock(); // #3070: a base landing pad — the HUD names it, E opens its panel
+        }
 
-            // #2147: the hand door E works — the one under the crosshair, else the nearest; its label follows suit.
-            int handDoor = TargetHandDoor();
-            if (Game.Views.Doors != null)
+        /// <summary>#1073: a placed crafting-station block in the crosshair (workbench, forge, …) tells you what it powers in
+        /// the menu — the server unlocks recipes by standing next to it, but nothing in the world said so; a bed, a crew bunk
+        /// and a heal tank (#1456) say that E sets the home spawn (without a prompt the bed was indistinguishable from a
+        /// decorative slab); a bio lab in reach names its own panel (#2203). Null otherwise. #3088: read even with a ship
+        /// station three metres off — the block in the crosshair is what E works on.</summary>
+        private string AimedStationBlockKey()
+        {
+            string aimedKey = _aim.BlockKey;
+            if (aimedKey is "workbench" or "forge" or "detoxifier" or "matter_forge" or "decontaminator" or "algae_tank" or "campfire"
+                or "bed" or "crew_bunk" or "heal_tank")
             {
-                Game.Views.Doors.SetInteractTarget(handDoor);
+                return aimedKey;
             }
 
-            if (!InputMap.Down(InputAction.Interact) || (Game.Views.LaunchPrompt?.IsOpen ?? false) || (Game.Views.VendorChoice?.IsOpen ?? false))
-            {
-                return; // the launch / trade-or-talk question owns E while it is up (#1455)
-            }
+            return aimedKey == BlocksBeyondTheStars.Shared.Bio.BioItems.Lab && BioLabInReach(_aim.Cell) ? aimedKey : null;
+        }
 
-            // A radio beacon you own that you're aiming at → rename it (item 37).
-            if (TryAimOwnedBeacon(out int beaconId, out string current))
-            {
-                Game?.Context.Panel<BeaconLabelUi>()?.Open(
-                    Game.Localizer?.Get("ui.beacon.rename_prompt") ?? "Rename beacon",
-                    current,
-                    label => Game.Network?.SendSetBeaconLabel(beaconId, label));
-                return;
-            }
+        /// <summary>A radio beacon you own that you're aiming at → rename it (item 37).</summary>
+        private void RenameAimedBeacon()
+        {
+            int beaconId = _aim.BeaconId;
+            Game?.Context.Panel<BeaconLabelUi>()?.Open(
+                Game.Localizer?.Get("ui.beacon.rename_prompt") ?? "Rename beacon",
+                _aim.BeaconLabel,
+                label => Game.Network?.SendSetBeaconLabel(beaconId, label));
+        }
 
-            // A planet base you own (Grundstein) that you're aiming at → rename it, see who lives there (#2717) and what it
-            // gathered (#2999). #2996: several bases may stand on one body — the core cell says which one.
+        /// <summary>A planet base you own (Grundstein) that you're aiming at → rename it, see who lives there (#2717) and what
+        /// it gathered (#2999). #2996: several bases may stand on one body — the core cell says which one.</summary>
+        private void OpenAimedBase()
+        {
             if (TryAimOwnedBase(out string baseBodyId, out string baseName, out var baseCell))
             {
                 Game?.Context.Panel<BeaconLabelUi>()?.OpenBase(
@@ -102,226 +117,122 @@ namespace BlocksBeyondTheStars.Client
                     baseBodyId,
                     baseCell,
                     name => Game.Network?.SendSetBaseName(baseBodyId, name, baseCell.x, baseCell.y, baseCell.z));
+            }
+        }
+
+        /// <summary>Inside your own boarded station, aiming at the station core → rename the station (server checks owner).</summary>
+        private void RenameBoardedStation()
+        {
+            string stationId = Game.CurrentStationId;
+            Game?.Context.Panel<BeaconLabelUi>()?.OpenStation( // #2999: with the station's yield strip
+                Game.Localizer?.Get("ui.map.rename") ?? "Rename",
+                Game.StationName,
+                stationId,
+                name => Game.Network?.SendSetStationName(stationId, name));
+        }
+
+        /// <summary>#2049: a Crystal Net device you're aiming at — a switch toggles, a button presses, everything with a menu
+        /// opens it. Aim-based, so it works the same with mouse look, the right stick and the touch look pad.</summary>
+        private void UseAimedCrystalDevice()
+        {
+            if (Game.AimedCrystalDevice is not { } crystalDev)
+            {
                 return;
             }
 
-            if (TryOpenBasePad())
+            var crystalKind = CrystalDeviceUi.KindOf(crystalDev);
+            if (crystalKind == CrystalDeviceKind.Switch)
             {
-                return; // #3070: a base landing pad you're aiming at → its panel (name + who may land, for the owner)
+                Game.SendCrystalDevice(crystalDev.X, crystalDev.Y, crystalDev.Z, 0);
             }
-
-            // Inside your own boarded station, aiming at the station core → rename the station (server checks owner).
-            if (!string.IsNullOrEmpty(Game.CurrentStationId)
-                && AimBlock(out var coreHit, out _)
-                && Game.Content?.BlockById(Game.World.GetBlock(coreHit.x, coreHit.y, coreHit.z))?.Key == "station_core")
+            else if (crystalKind is CrystalDeviceKind.Button or CrystalDeviceKind.LiftStop)
             {
-                string stationId = Game.CurrentStationId;
-                Game?.Context.Panel<BeaconLabelUi>()?.OpenStation( // #2999: with the station's yield strip
-                    Game.Localizer?.Get("ui.map.rename") ?? "Rename",
-                    Game.StationName,
-                    stationId,
-                    name => Game.Network?.SendSetStationName(stationId, name));
+                Game.SendCrystalDevice(crystalDev.X, crystalDev.Y, crystalDev.Z, 1); // a button presses; #2266: a lift stop calls
+            }
+            else if (CrystalNetRules.IsConfigurable(crystalKind))
+            {
+                Game?.Context.Panel<CrystalDeviceUi>()?.Open(crystalDev);
+            }
+        }
+
+        /// <summary>A heal tank — or its low-tech precursor, the bed (#804) — you're aiming at → make it your home spawn point
+        /// (base/station, issue #461). A bed or a crew bunk also lays you down to rest (#2823).</summary>
+        private void UseAimedBed()
+        {
+            var tankHit = _aim.Cell;
+            string tankKey = _aim.BlockKey;
+            Game.Network?.SendSetSpawnPoint(tankHit.x, tankHit.y, tankHit.z);
+            ClientAudio.Instance?.Cue("heal");
+            if (tankKey != "heal_tank" && BedLooksTaken(tankHit))
+            {
+                // #2985 (Lyxette: "Ich kuschle hier mit einem Siedler"): a villager sleeps in it — say so instead of
+                // laying the player down beside them.
+                Game.ShowMessage(Game.Localizer?.Get("ui.rest.bed_taken") ?? "Someone is already sleeping here.");
+            }
+            else if (tankKey != "heal_tank")
+            {
+                TryLieDown(tankHit, onShip: false);
+            }
+        }
+
+        /// <summary>A chair- or bench-shaped cell in any material seats the player (#806, #1846).</summary>
+        private void SitOnAimedSeat()
+        {
+            // #2122: somebody already sits there — say so instead of dropping the camera into them. The server
+            // checks again (it may know a sitter this client has not heard of yet).
+            if (SeatLooksTaken(_aim.Cell))
+            {
+                Game.ShowMessage(Game.Localizer?.Get("srv.seat.taken") ?? "Someone is already sitting there.");
                 return;
             }
 
-            // A storage crate you're aiming at → the crate screen (#2436): its contents above, your backpack below, click
-            // to move a stack; the filter picker (#1032) is a button on it. Matched by the container list, not the block
-            // alone, so a crate block that hasn't registered yet no-ops. #2613: the crosshair cell is a scene cell and the
-            // crate's a canonical one — matched the short way round the seam, or a crate across X = 0 never opened.
-            if (AimBlock(out var crateHit, out _)
-                && Game.Content?.BlockById(Game.World.GetBlock(crateHit.x, crateHit.y, crateHit.z))?.Key is "crate" or "wood_crate"
-                && InteractReach.CrateAtCell(Game.Containers, crateHit.x, crateHit.y, crateHit.z, Game.Circumference) is { } aimedCrate)
+            SitDown(_aim.Cell);
+        }
+
+        /// <summary>A data cube within reach downloads its minigame into the Arcade collection (item: arcade).</summary>
+        private void DownloadDataCube()
+        {
+            if (_aim.CubeOwned)
             {
-                Game?.Context.Panel<CrateUi>()?.Open(aimedCrate.Id, aimedCrate.Filter);
-                return;
+                Game.ShowMessage(Game.Localizer?.Get("ui.datacube.already") ?? "This fragment is already in your collection.");
             }
-
-            // #2049: a Crystal Net device you're aiming at — a switch toggles, a button presses, everything with a menu
-            // opens it. Aim-based, so it works the same with mouse look, the right stick and the touch look pad.
-            if (AimTarget(out var crystalHit, out _, out _) && Game.CrystalDeviceAt(crystalHit.x, crystalHit.y, crystalHit.z) is { } crystalDev)
+            else if (!string.IsNullOrEmpty(_aim.CubeGame))
             {
-                var crystalKind = CrystalDeviceUi.KindOf(crystalDev);
-                if (crystalKind == BlocksBeyondTheStars.Shared.Definitions.CrystalDeviceKind.Switch)
-                {
-                    Game.SendCrystalDevice(crystalDev.X, crystalDev.Y, crystalDev.Z, 0);
-                    return;
-                }
+                Game.Network?.SendUnlockGame(_aim.Cube, _aim.CubeGame);
+                ClientAudio.Instance?.At("data_cube_download", transform.position, 1f, 1f);
+            }
+        }
 
-                // A button presses; #2266: a lift stop calls the platform to its floor.
-                if (crystalKind is BlocksBeyondTheStars.Shared.Definitions.CrystalDeviceKind.Button
-                    or BlocksBeyondTheStars.Shared.Definitions.CrystalDeviceKind.LiftStop)
+        /// <summary>A claimable factory terminal within reach → claim it with an access code (it becomes your base).</summary>
+        private void ClaimFactory()
+        {
+            bool hasCode = false;
+            if (Game.Personal != null)
+            {
+                foreach (var s in Game.Personal)
                 {
-                    Game.SendCrystalDevice(crystalDev.X, crystalDev.Y, crystalDev.Z, 1);
-                    return;
-                }
-
-                if (BlocksBeyondTheStars.Shared.Definitions.CrystalNetRules.IsConfigurable(crystalKind))
-                {
-                    Game?.Context.Panel<CrystalDeviceUi>()?.Open(crystalDev);
-                    return;
+                    if (s.Item == "access_code" && s.Count > 0) { hasCode = true; break; }
                 }
             }
 
-            // #2203: a bio lab you're aiming at, from where the server lets you use it → its panel (analyse, mix, change).
-            if (AimBlock(out var labHit, out _)
-                && Game.Content?.BlockById(Game.World.GetBlock(labHit.x, labHit.y, labHit.z))?.Key == BlocksBeyondTheStars.Shared.Bio.BioItems.Lab
-                && BioLabInReach(labHit))
+            if (hasCode)
             {
-                Game?.Context.Panel<BioLabUi>()?.Open();
-                return;
+                Game.Network?.SendClaimStructure(_aim.Factory);
             }
-
-            // A heal tank — or its low-tech precursor, the bed (#804) — you're aiming at → make it your
-            // home spawn point (base/station, issue #461). A bed or a crew bunk also lays you down to rest (#2823).
-            if (AimBlock(out var tankHit, out _)
-                && Game.Content?.BlockById(Game.World.GetBlock(tankHit.x, tankHit.y, tankHit.z))?.Key is { } tankKey
-                && tankKey is "heal_tank" or "bed" or "crew_bunk")
+            else
             {
-                Game.Network?.SendSetSpawnPoint(tankHit.x, tankHit.y, tankHit.z);
-                ClientAudio.Instance?.Cue("heal");
-                if (tankKey != "heal_tank" && BedLooksTaken(tankHit))
-                {
-                    // #2985 (Lyxette: "Ich kuschle hier mit einem Siedler"): a villager sleeps in it — say so instead of
-                    // laying the player down beside them.
-                    Game.ShowMessage(Game.Localizer?.Get("ui.rest.bed_taken") ?? "Someone is already sleeping here.");
-                }
-                else if (tankKey != "heal_tank")
-                {
-                    TryLieDown(tankHit, onShip: false);
-                }
-
-                return;
+                Game.ShowMessage(Game.Localizer?.Get("ui.factory.need_code") ?? "You need an access code to claim this.");
             }
+        }
 
-            // A chair- or bench-shaped cell in any material seats the player (#806, #1846).
-            if (_seatCell is null && AimBlock(out var chairHit, out _)
-                && FurnitureShapes.IsSeat(ShapeCode.ShapeOf(Game.World.GetShape(chairHit.x, chairHit.y, chairHit.z))))
-            {
-                // #2122: somebody already sits there — say so instead of dropping the camera into them. The server
-                // checks again (it may know a sitter this client has not heard of yet).
-                if (SeatLooksTaken(chairHit))
-                {
-                    Game.ShowMessage(Game.Localizer?.Get("srv.seat.taken") ?? "Someone is already sitting there.");
-                    return;
-                }
-
-                SitDown(chairHit);
-                return;
-            }
-
-            // A beam block (teleporter pad) you're standing on / next to opens the transporter — pick a destination
-            // among your own + allied pads on this world, then beam to it.
-            int beam = Game.Views.Beams != null ? Game.Views.Beams.NearestUsableBeam(transform.position, 2.2f) : 0;
-            if (beam != 0)
-            {
-                Game?.Context.Panel<BeamPadUi>()?.Open(beam);
-                return;
-            }
-
-            // A settlement hinge door you're standing at opens/closes with E — checked BEFORE stations so a door
-            // next to a market stall still opens (sci-fi slide doors open themselves; this is for village doors) (B47).
-            // Which door: the aimed one before the nearest (#2147), chosen above.
-            if (handDoor != 0)
-            {
-                Game.Network?.SendDoorInteract(handDoor);
-                return;
-            }
-
-            // A data cube within reach downloads its minigame into the Arcade collection (item: arcade).
-            if (Game.Views.DataCubes != null)
-            {
-                int cube = Game.Views.DataCubes.NearestDataCube(transform.position, DataCubeView.Reach, out string gameKey, out bool owned);
-                if (cube != 0)
-                {
-                    if (owned)
-                    {
-                        Game.ShowMessage(Game.Localizer?.Get("ui.datacube.already") ?? "This fragment is already in your collection.");
-                    }
-                    else if (!string.IsNullOrEmpty(gameKey))
-                    {
-                        Game.Network?.SendUnlockGame(cube, gameKey);
-                        ClientAudio.Instance?.At("data_cube_download", transform.position, 1f, 1f);
-                    }
-
-                    return;
-                }
-            }
-
-            // A claimable factory terminal within reach → claim it with an access code (it becomes your base).
-            if (Game.Views.Factories != null)
-            {
-                int factory = Game.Views.Factories.NearestClaimable(transform.position, 4f);
-                if (factory != 0)
-                {
-                    bool hasCode = false;
-                    if (Game.Personal != null)
-                    {
-                        foreach (var s in Game.Personal)
-                        {
-                            if (s.Item == "access_code" && s.Count > 0) { hasCode = true; break; }
-                        }
-                    }
-
-                    if (hasCode)
-                    {
-                        Game.Network?.SendClaimStructure(factory);
-                    }
-                    else
-                    {
-                        Game.ShowMessage(Game.Localizer?.Get("ui.factory.need_code") ?? "You need an access code to claim this.");
-                    }
-
-                    return;
-                }
-            }
-
-            // A net fragment within reach → recover it (text-only story find; reveals its archive + advances the story).
-            if (Game.Views.NetFragments != null)
-            {
-                int frag = Game.Views.NetFragments.NearestNetFragment(transform.position, NetFragmentView.Reach, out _);
-                if (frag != 0)
-                {
-                    Game.Network?.SendNetFragmentFound(frag);
-                    ClientAudio.Instance?.At("data_cube_download", transform.position, 1f, 1f);
-                    return;
-                }
-            }
-
-            if (string.IsNullOrEmpty(Game.NearbyStation))
-            {
-                // No station block in reach — an NPC nearby? E talks to them (#1127). Station blocks keep
-                // priority so E at a market still opens the market (vendors are usually right beside one).
-                // #2613: the HUD's talk prompt asks the same picker, which measures the short way round the seam.
-                var talkTo = Game.NearestTalkableNpc();
-                if (talkTo != null)
-                {
-                    Game.Network?.SendTalkToNpc(talkTo.Id);
-                }
-
-                return;
-            }
-
-            // Stations that open a client UI panel; the rest are resolved server-side.
-            switch (Game.NearbyStation)
+        /// <summary>E at a ship station (looked at or stood beside): the stations that open a client panel; the rest are
+        /// resolved server-side.</summary>
+        private void UseShipStation(string station)
+        {
+            switch (station)
             {
                 case "cockpit":
-                    // Aboard the floating interior the cockpit is the helm — the prompt says "Take the helm (fly)", so E takes
-                    // it (#2705): the server returns to the flight view (or says why the ship can't fly). E used to open the
-                    // map here like on a landed ship, and only its top button flew on.
-                    if (Game.LoadingPlanetType == "ship_interior")
-                    {
-                        Game.Network?.SendUseStation("cockpit");
-                        break;
-                    }
-
-                    // On a landed ship E asks "launch into space?" first (#1455): the launch button lived only
-                    // at the top of the Map tab, and a first-time player at the cockpit never found it. Declining
-                    // opens the map as before.
-                    if (Game.Views.LaunchPrompt == null || !Game.Views.LaunchPrompt.TryOffer(() => Menu?.OpenMap()))
-                    {
-                        Menu?.OpenMap();
-                    }
-
+                    UseCockpit();
                     break;
                 case "workshop":
                     // #2248: with the bio lab module fitted, the lab lives in the workshop room — E asks which one.
@@ -337,20 +248,14 @@ namespace BlocksBeyondTheStars.Client
 
                     break;
                 case "market":
-                    if (!_marketFromVendor || !OfferVendorChoice())
-                    {
-                        // #2626: the screen is bound to the vendor in reach (0 = the ship's own trade console).
-                        var tradeWith = _marketFromVendor ? Game.NearestTradingVendor() : null;
-                        Menu?.OpenMarket(tradeWith != null ? tradeWith.Id : 0);
-                        Game.Network?.SendNpcGreet("vendor"); // item 15: vendor greeting
-                    }
-
+                    Menu?.OpenMarket(0); // #2626: the ship's own trade console (no vendor)
+                    Game.Network?.SendNpcGreet("vendor"); // item 15: vendor greeting
                     break;
                 case "cargo": Menu?.OpenCargo(); break;
                 case "console": Menu?.OpenShip(); Game.Network?.SendUseStation("console"); break; // ship status/repairs (#463)
                 case "quarters":
                     // The ship's bunk sets the respawn to the quarters as before — and lays you down on it (#2823). A parked
-                    // ship's hull is no world cell, so the aimed-bed branch above never sees this one.
+                    // ship's hull is no world cell, so the aimed-bed pick never sees this one.
                     Game.Network?.SendUseStation("quarters");
                     if (QuartersBedCell(out var quarters, out bool quartersOnShip))
                     {
@@ -359,9 +264,39 @@ namespace BlocksBeyondTheStars.Client
 
                     break;
                 default:
-                    if (Game.NearbyStation == "medbay") ClientAudio.Instance?.Cue("heal");
-                    Game.Network?.SendUseStation(Game.NearbyStation);
+                    if (station == "medbay") ClientAudio.Instance?.Cue("heal");
+                    Game.Network?.SendUseStation(station);
                     break; // medbay and the rest, resolved server-side
+            }
+        }
+
+        /// <summary>E at the cockpit. Aboard the floating interior the cockpit is the helm — the prompt says "Take the helm
+        /// (fly)", so E takes it (#2705): the server returns to the flight view (or says why the ship can't fly). On a landed
+        /// ship E asks "launch into space?" first (#1455): the launch button lived only at the top of the Map tab, and a
+        /// first-time player at the cockpit never found it. Declining opens the map as before.</summary>
+        private void UseCockpit()
+        {
+            if (Game.LoadingPlanetType == "ship_interior")
+            {
+                Game.Network?.SendUseStation("cockpit");
+                return;
+            }
+
+            if (Game.Views.LaunchPrompt == null || !Game.Views.LaunchPrompt.TryOffer(() => Menu?.OpenMap()))
+            {
+                Menu?.OpenMap();
+            }
+        }
+
+        /// <summary>E at a trader (under the crosshair, or the one in trading reach): "trade or talk?" — or, when no prompt can
+        /// be shown, the trade screen bound to them (#2626).</summary>
+        private void TradeWithVendor()
+        {
+            if (!OfferVendorChoice())
+            {
+                var tradeWith = VendorReach.ById(Game.Npcs, Game.InteractNpcId) ?? Game.NearestTradingVendor();
+                Menu?.OpenMarket(tradeWith != null ? tradeWith.Id : 0);
+                Game.Network?.SendNpcGreet("vendor"); // item 15: vendor greeting
             }
         }
 
@@ -385,7 +320,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>E at a vendor NPC: ask "trade or talk?" — a vendor is a market station, so E used to open the market
         /// every time and its dialogues were unreachable. False when no prompt could be shown (the caller then opens the
-        /// market as before).</summary>
+        /// market as before). #3088: the trader under the crosshair when E picked one, else the one in trading reach.</summary>
         private bool OfferVendorChoice()
         {
             var prompt = Game?.Views.VendorChoice;
@@ -395,7 +330,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // #2626: the same picker as the "Trade" prompt (Game.NearVendor), and Trade binds the screen to THIS vendor.
-            var vendor = Game.NearestTradingVendor();
+            var vendor = VendorReach.ById(Game.Npcs, Game.InteractNpcId) ?? Game.NearestTradingVendor();
             if (vendor == null)
             {
                 return false;
@@ -413,20 +348,16 @@ namespace BlocksBeyondTheStars.Client
                 () => Game.Network?.SendTalkToNpc(id));
         }
 
-        /// <summary>True if the player is looking at a radio beacon block they own — returns its id + current label
-        /// so E can open the rename overlay (item 37). Only the owner gets the rename prompt; everyone sees markers.</summary>
-        private bool TryAimOwnedBeacon(out int beaconId, out string label)
+        /// <summary>True if the cell <paramref name="hit"/> in the crosshair holds a radio beacon the player owns — returns its
+        /// id + current label so E can open the rename overlay (item 37). Only the owner gets the rename prompt; everyone
+        /// sees markers.</summary>
+        private bool TryAimOwnedBeacon(Vector3Int hit, out int beaconId, out string label)
         {
             beaconId = 0;
             label = string.Empty;
             if (Game?.Beacons == null || Game.Beacons.Length == 0 || string.IsNullOrEmpty(Game.LocalPlayerId))
             {
                 return false;
-            }
-
-            if (!AimBlock(out var hit, out _))
-            {
-                return false; // not looking at a block within reach
             }
 
             foreach (var b in Game.Beacons)

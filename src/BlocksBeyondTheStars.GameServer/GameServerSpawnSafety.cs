@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -81,8 +82,9 @@ public sealed partial class GameServer
     /// spawned at the world-origin column 85 blocks down, motionless for the whole session, 7550 stone
     /// blocks around him and no air anywhere. Full health, so nothing ever killed him out of it either.
     /// </para>
-    /// Keyed on <see cref="IsBodyBlockingCell"/> rather than "non-air" so a swimmer (water is non-solid), a
-    /// ladder climber, or someone in a torch/flora cell is never mistaken for entombed.
+    /// Keyed on <see cref="EnclosesBodyCell"/> rather than "non-air" so a swimmer (water is non-solid), a
+    /// ladder climber, someone in a torch/flora cell, or a player pressed against a fence is never mistaken
+    /// for entombed.
     /// </summary>
     private bool IsEntombed(Vector3f pos)
     {
@@ -94,8 +96,25 @@ public sealed partial class GameServer
         int x = (int)System.Math.Floor(pos.X);
         int y = (int)System.Math.Floor(pos.Y);
         int z = (int)System.Math.Floor(pos.Z);
-        return IsBodyBlockingCell(x, y, z) && IsBodyBlockingCell(x, y + 1, z);
+        return EnclosesBodyCell(x, y, z) && EnclosesBodyCell(x, y + 1, z);
     }
+
+    /// <summary>
+    /// #3081: a cell that can really ENCLOSE a body — a blocking block (<see cref="IsBodyBlockingCell"/>) in a
+    /// form that fills the cell (<see cref="BlockShapeFacts.CanEnclosePlayer"/>, the predicate the client's own
+    /// fall guard has used since #2438). The client collides with a shaped block's real geometry, so a player
+    /// pressed against a fence (rails at z 0.44–0.56) or an on-edge panel has the centre of their capsule a few
+    /// centimetres inside that cell. Reading only the key, a two-high fence read as "entombed" and the dig-out
+    /// lifted the player onto the roof of the column, twice in one walk along a wall.
+    /// <para>
+    /// Only the entombed TEST uses this. The predicate for "does this block stop a body at all" stays
+    /// <see cref="IsBodyBlockingCell"/>: a fence or a slab is still a floor to stand on and still no place to
+    /// put someone's feet, which is what every spot finder (the dig-out destination included) asks.
+    /// </para>
+    /// </summary>
+    private bool EnclosesBodyCell(int x, int y, int z)
+        => IsBodyBlockingCell(x, y, z)
+           && BlockShapeFacts.CanEnclosePlayer(ShapeCode.ShapeOf(_world.GetShape(new Vector3i(x, y, z))));
 
     /// <summary>
     /// A cell the player's body genuinely cannot occupy — the ONLY kind that counts for the entombed rescue.
@@ -148,7 +167,10 @@ public sealed partial class GameServer
     /// <summary>Lifts an entombed position straight up to the first cell with standing room (feet + head
     /// clear) resting on something the body actually stands on. Returns null when the column has no such gap
     /// within <see cref="EntombedProbeHeight"/> — the caller then falls back to the ship/landing pad.
-    /// Same predicate as <see cref="IsEntombed"/>, so water or a kelp cell is never offered as a floor.</summary>
+    /// Uses <see cref="IsBodyBlockingCell"/>, so water or a kelp cell is never offered as a floor.
+    /// #3081: deliberately NOT the shape-aware <see cref="EnclosesBodyCell"/> of the entombed test. A fence, a
+    /// slab or a panel is still something to stand on, and a destination is only offered when its feet and head
+    /// cells hold no colliding block of any form — a rescue must never set someone down inside a fence.</summary>
     private Vector3f? DigOutUpwards(Vector3f pos)
     {
         int x = (int)System.Math.Floor(pos.X);
@@ -257,7 +279,7 @@ public sealed partial class GameServer
 
             var feet = rec.ToLocal(cell, _world.Circumference);
             var head = new Vector3i(feet.X, feet.Y + 1, feet.Z);
-            if (HullCellBlocksBody(rec, feet) && HullCellBlocksBody(rec, head))
+            if (HullCellEnclosesBody(rec, feet) && HullCellEnclosesBody(rec, head))
             {
                 return true;
             }
@@ -267,9 +289,11 @@ public sealed partial class GameServer
     }
 
     /// <summary>Whether one structure-local cell of a parked hull is a cell a player's body cannot occupy
-    /// (#1709). Mirrors <see cref="IsBodyBlockingCell"/>, but reads the ship's sparse cell grid instead of the
-    /// world: a missing key is the hull's own air (corridors, cabins), which is where players belong.</summary>
-    private bool HullCellBlocksBody(LandedShip rec, Vector3i local)
+    /// (#1709). Mirrors <see cref="EnclosesBodyCell"/>, but reads the ship's sparse cell grid instead of the
+    /// world: a missing key is the hull's own air (corridors, cabins), which is where players belong.
+    /// #3081: shape-aware like the world side — a self-built ship's railing (fence form) or an upright panel
+    /// partition must not read as "no body space" for the player leaning against it.</summary>
+    private bool HullCellEnclosesBody(LandedShip rec, Vector3i local)
     {
         if (!rec.Structure.Cells.TryGetValue(local, out var id) || id.IsAir)
         {
@@ -282,7 +306,13 @@ public sealed partial class GameServer
             return true; // unknown id → treat as blocking, same safe default as the world-side predicate
         }
 
-        return def.Solid && def.Category != "flora";
+        if (!def.Solid || def.Category == "flora")
+        {
+            return false;
+        }
+
+        return !rec.Structure.Shapes.TryGetValue(local, out var shape)
+               || BlockShapeFacts.CanEnclosePlayer(ShapeCode.ShapeOf(shape));
     }
 
     /// <summary>Open ground beside the player's pad, outside every parked hull (#1681), or null when the whole
@@ -491,7 +521,7 @@ public sealed partial class GameServer
         foreach (var local in rec.Structure.Cells.Keys)
         {
             var head = new Vector3i(local.X, local.Y + 1, local.Z);
-            if (!HullCellBlocksBody(rec, local) || !HullCellBlocksBody(rec, head))
+            if (!HullCellEnclosesBody(rec, local) || !HullCellEnclosesBody(rec, head))
             {
                 continue;
             }
@@ -509,4 +539,14 @@ public sealed partial class GameServer
 
     /// <summary>Test entrypoint: run the join-time spawn-safety guard for a player session.</summary>
     public void EnsureSafeSpawnForTest(PlayerSession session) => EnsureSafeSpawn(session);
+
+    /// <summary>Test seam (#3081): gives the cell of this player's parked hull at a world position a form, as a self-built
+    /// ship's railing or partition would have.</summary>
+    public void ShapeLandedHullCellForTest(string playerId, Vector3f worldPos, int descriptor)
+    {
+        var rec = _worlds.Active.LandedFor(playerId);
+        var cell = new Vector3i(
+            (int)System.Math.Floor(worldPos.X), (int)System.Math.Floor(worldPos.Y), (int)System.Math.Floor(worldPos.Z));
+        rec.Structure.Shapes[rec.ToLocal(cell, _world.Circumference)] = descriptor;
+    }
 }
