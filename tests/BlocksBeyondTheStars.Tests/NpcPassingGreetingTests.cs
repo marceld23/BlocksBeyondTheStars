@@ -333,7 +333,8 @@ public sealed class NpcPassingGreetingTests
             Assert.True(de.RootElement.TryGetProperty(key, out _), $"de.json lacks '{key}'");
         }
 
-        Assert.Equal(5, Content.Dialogs.Count(d => d.Key.StartsWith("resident_", StringComparison.Ordinal)));
+        // #3089: the lumberjack and the Miner/Market/Radio focus residents joined the five job dialogues.
+        Assert.Equal(9, Content.Dialogs.Count(d => d.Key.StartsWith("resident_", StringComparison.Ordinal)));
         Assert.All(Content.Dialogs.Where(d => d.Key.StartsWith("resident_", StringComparison.Ordinal)),
             d => Assert.Equal(Shared.Definitions.DialogDefinition.HomeOwnBase, d.Home));
         Assert.Equal(Shared.Definitions.DialogDefinition.HomeAway, Content.Dialogs.Single(d => d.Key == "settler_neighbours").Home);
