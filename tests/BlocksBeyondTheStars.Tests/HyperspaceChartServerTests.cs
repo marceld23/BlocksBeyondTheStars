@@ -70,34 +70,45 @@ public sealed class HyperspaceChartServerTests : IDisposable
         // one source of truth, so the chart's star matches the sun seen after landing.
         var here = map.Systems.Single(s => s.Bodies.Any(b => b.Id == map.ActiveLocationId));
         Assert.Equal(env!.SunColor, here.StarColor);
-        Assert.Equal(SvGameServer.StarColor(here.Name), here.StarColor); // keyed by NAME, as the weather does
+        var system = server.Galaxy.Systems.Single(s => s.Id == here.Id);
+        Assert.Equal(StarColors.ForSystem(config.Seed, system.Id, system.Name), here.StarColor); // dealt by seed + index
     }
 
     [Fact]
-    public void StarColours_SpreadAcrossTheRamp_NotMostlySunLike()
+    public void StarMap_OfATwelveSystemGalaxy_ShowsThreeBlueAndThreeRedStars()
     {
-        // #3077: about 70 % of all systems used to read "normal yellow" — a playtest met four of them in a row. Blue and
-        // red-orange stars are common now, the sun-like band is about half. Measured on real generated system names (the
-        // hash is keyed by name, and made-up names in a row do not spread like generated ones).
-        var desc = new WorldDescription { StarSystemCount = 12, SystemVariance = true };
-        var names = Enumerable.Range(1, 80)
-            .SelectMany(seed => new UniverseGenerator(seed, desc, _content).Generate(12).Systems.Select(s => s.Name))
-            .Distinct()
-            .ToList();
-        int blue = 0, warm = 0;
-        foreach (string name in names)
-        {
-            int rgb = SvGameServer.StarColor(name);
-            int r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
-            blue += b > r ? 1 : 0;
-            warm += g <= 0xD0 ? 1 : 0;
-        }
+        // #3123: rolled per system name, one twelve-system galaxy in 400 had no blue or red star at all — a playtest
+        // explored all twelve and met only white and yellow suns. The classes are dealt per galaxy now.
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "deal"));
+        var link = new LoopbackLink();
+        using var st = new LoopbackServerTransport(link);
+        using var client = new LoopbackClientTransport(link);
 
-        double n = names.Count, sunLike = (n - blue - warm) / n;
-        string shares = $"blue {blue / n:P0}, warm {warm / n:P0}, sun-like {sunLike:P0} of {n} systems";
-        Assert.True(blue / n >= 0.14, shares);   // blue + blue-white: 22 of 96 (was 7)
-        Assert.True(warm / n >= 0.16, shares);   // orange + red-orange: 26 of 96
-        Assert.True(sunLike <= 0.62, shares);    // white, sun-like, yellow: 48 of 96 (was ~70 %)
+        StarMapData? map = null;
+        client.PayloadReceived += p =>
+        {
+            if (NetCodec.Decode(p) is StarMapData m)
+            {
+                map = m;
+            }
+        };
+
+        var config = new ServerConfig { WorldName = "deal", Seed = 7355960995235327765, AutoSaveIntervalMinutes = 9999 };
+        config.World.StarSystemCount = 12;
+        var server = new SvGameServer(config, _content, st, repo);
+        server.Start();
+
+        client.Connect("loopback", 0);
+        client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Pilot" }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        client.Send(NetCodec.Encode(new RequestStarMap()), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        client.Poll();
+
+        Assert.NotNull(map);
+        Assert.Equal(12, map!.Systems.Length);
+        Assert.Equal(3, map.Systems.Count(s => StarColorsTests.IsCool(s.StarColor)));
+        Assert.Equal(3, map.Systems.Count(s => StarColorsTests.IsWarm(s.StarColor)));
     }
 
     [Fact]

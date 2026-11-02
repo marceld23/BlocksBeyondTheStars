@@ -24,6 +24,25 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌈 Star colours dealt per galaxy, a red dwarf, less white wash — #3123 #3124 #3125, branch fix/star-colours-per-galaxy — ✅ done 2026-11-02 (⚠ playtest open; no save-version, protocol or terrain-generation change — every save's stars take their new colours on the next start)
+
+Marcel's playtest of the #3077 build: a fresh world, all twelve systems visited — "all very white or yellow, none blue or
+reddish". The code was right and the galaxy unlucky: 5 white, 3 sun-like, 3 yellow, 1 pale blue-white.
+- **#3123 Dealt per galaxy:** `StarColor(name)` rolled every system alone from its name hash — over many galaxies the
+  shares matched the weights, but one twelve-system galaxy in 400 had no blue, orange or red star, one in ten at most
+  two. `Shared/World/StarColors` deals the classes per block of four procedural systems (one cool, one warm, two calm,
+  shuffled per world) from the world seed and the system index — a growing frontier keeps its colours. One server entry
+  `StarColorOf(StarSystem?)` for the star map, `InitWeather` and `TakeShipInteriorStar` (`StarSystemAt(locationId)`).
+- **#3124 Ramp:** blue `9BB2FF` (was `AFC3FF`), blue-white `C3D2FF` (`D6E1FF`), orange `FFBC6E`, red-orange `FF9852`,
+  new red dwarf `FF7444`; the calm middle and the sun-like `FFF1CE` unchanged. A star blends ≤ 35 % toward a neighbour of
+  its own class (was up to 50 % toward the next anchor). Client: the #1610 light lift is capped at ×1.3
+  (`Sky.StarLight.cs`) — a red-dwarf world sits at ~88 % of the sun-like luma instead of pushing red to ×1.48.
+- **#3125 Less wash:** flight star core 60 % → 30 % white, white centre 64 → 44; grade fold 0.55 → 0.65, day-sky tint
+  0.3 → 0.4, clouds take 10 % of the star colour by day (plus 25 % at low sun as before).
+- Tests: `StarColorsTests` (every block of four 1/1/2, shuffled per world, seed + index only, real blue and a red dwarf,
+  non-procedural fallback), `HyperspaceChartServerTests` (the playtest's 12-system galaxy shows 3 blue + 3 red stars,
+  the chart's star = the sky's sun), `ShipInteriorTests`. Docs: MULTIWORLD_AND_SYSTEM_FLIGHT, ART_BIBLE, USER_MANUAL.
+
 ### 📬 Player reports 2026-11-02 (Lyxette, v2026.11.2) — ground details stay off built ground, out of tunnels, lit at night, switchable — #3118–#3121, branch fix/ground-details-2026-11-02 — ✅ done 2026-11-02 (⚠ playtest open; protocol: additive `ChunkDataMessage.EditRuns`, no save or terrain-generation change)
 
 Six F1 reports in one night, all about the same thing: v2026.11.2 was the first build that drew the T0 ground details

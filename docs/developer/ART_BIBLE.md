@@ -62,8 +62,9 @@ Space Black `(0.01, 0.01, 0.03)` (airless sky).
 ## 4. Planet identity (data-driven)
 
 Every planet type owns a mood — sky + fog follow the system **sun colour** (a red star tints its
-worlds; the star ramp runs blue → blue-white → white → sun-like → yellow → orange → red-orange, flattened in #3077 so
-a run of jumps meets different stars, folded 0.55 into the grade and 0.3 into the day sky), the grade comes from
+worlds; the star ramp runs blue → blue-white → white → sun-like → yellow → orange → red-orange → red dwarf, its classes
+dealt per galaxy so every four systems hold one cool, one warm and two calm stars (`StarColors`, #3123/#3124), folded
+0.65 into the grade, 0.4 into the day sky and 10 % into the clouds by day (#3125)), the grade comes from
 `Sky.GradeFor` (tint × saturation × contrast), clouds from
 `planets.json` (`cloudColor`, `cloudDensity`), flora from the per-world random hue
 (`FloraTints`, deterministic from seed + location + species):

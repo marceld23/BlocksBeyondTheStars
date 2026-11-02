@@ -663,7 +663,7 @@ namespace BlocksBeyondTheStars.Client
 
             _sunMat = MakeSunLayer(_sun, _sunColor, 320f);                          // outer corona (star colour)
             _sunCoreMat = MakeSunLayer(_sun, SunCoreColor(_sunColor), 150f);        // hot core, still in the star's colour (#3077)
-            MakeSunLayer(_sun, Color.white, 64f);                                   // blazing white centre
+            MakeSunLayer(_sun, Color.white, SunCentreSize);                         // blazing white centre
         }
 
         private Material MakeSunLayer(Transform parent, Color color, float size)

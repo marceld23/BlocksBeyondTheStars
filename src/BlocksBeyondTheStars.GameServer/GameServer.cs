@@ -6739,14 +6739,25 @@ public sealed partial class GameServer
     {
         if (ResolveLocationBody(locationId) is { } body)
         {
-            // A player station's system is its HOST body's (like RelaySystemOf): the star-map entry can sit under
-            // the save's default system on multi-world servers.
-            string systemId = ResolveLocationHostBody(locationId)?.SystemId ?? body.SystemId;
-            var sys = _galaxy.Systems.FirstOrDefault(s => s.Id == systemId);
-            return (sys?.Name ?? string.Empty, body.Name);
+            return (StarSystemAt(locationId)?.Name ?? string.Empty, body.Name);
         }
 
         return (string.Empty, _worlds.Active?.PlanetType ?? _meta.DefaultPlanetType);
+    }
+
+    /// <summary>The star system a body id sits in (#3123: the star colour keys on it), or null for a location the galaxy
+    /// does not carry (a ship interior).</summary>
+    private StarSystem? StarSystemAt(string locationId)
+    {
+        if (ResolveLocationBody(locationId) is not { } body)
+        {
+            return null;
+        }
+
+        // A player station's system is its HOST body's (like RelaySystemOf): the star-map entry can sit under
+        // the save's default system on multi-world servers.
+        string systemId = ResolveLocationHostBody(locationId)?.SystemId ?? body.SystemId;
+        return _galaxy.Systems.FirstOrDefault(s => s.Id == systemId);
     }
 
     private void SendStarMap(PlayerSession session)
@@ -6759,7 +6770,7 @@ public sealed partial class GameServer
             MapY = sys.MapY,
             Bodies = sys.Bodies.Select(b => ToNetBody(b, session)).ToArray(),
             Tier = FrontierTierOf(sys.Id), // #1122: the star map tags frontier systems
-            StarColor = StarColor(sys.Name), // #1604: the sky keys the sun colour by system NAME — same key here
+            StarColor = StarColorOf(sys), // #1604/#3123: the same star the sky and the ship interior show
         }).Select(sys => WithPlaceNames(sys, session.State)).ToArray(); // #2952: this player's own names, theirs alone
 
         var players = _sessions.Values

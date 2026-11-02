@@ -305,7 +305,7 @@ public sealed class ShipInteriorTests : IDisposable
             var pilot = server.AddLocalPlayer("Pilot");
             server.Ship.Modules.Add("jump_generator");
             string homeId = server.Galaxy.FindBody(pilot.CurrentLocationId)!.SystemId;
-            int homeStar = SvGameServer.StarColor(server.Galaxy.Systems.Single(s => s.Id == homeId).Name);
+            int homeStar = server.StarColorOf(server.Galaxy.Systems.Single(s => s.Id == homeId));
 
             server.EnterSpace("Pilot");
             server.EnterShipInterior("Pilot");
@@ -313,14 +313,14 @@ public sealed class ShipInteriorTests : IDisposable
             Assert.Equal(homeStar, server.SunColor); // the interior is the active world now
 
             server.ExitShipToFlight("Pilot");
-            var target = server.Galaxy.Systems.First(s => s.Id != homeId && SvGameServer.StarColor(s.Name) != homeStar
+            var target = server.Galaxy.Systems.First(s => s.Id != homeId && server.StarColorOf(s) != homeStar
                 && s.Bodies.Any(b => !string.IsNullOrEmpty(b.PlanetType) && _content.GetPlanet(b.PlanetType!) is not null));
             server.HyperjumpToSystem("Pilot", target.Id);
             Assert.True(server.InSpace("Pilot"));
 
             server.EnterShipInterior("Pilot"); // the same, still resident interior world
             Assert.True(server.InShipInterior("Pilot"));
-            Assert.Equal(SvGameServer.StarColor(target.Name), server.SunColor);
+            Assert.Equal(server.StarColorOf(target), server.SunColor);
         }
     }
 
