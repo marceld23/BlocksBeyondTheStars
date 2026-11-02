@@ -11,6 +11,139 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.2] — 2026-11-02
+
+The tank-spider release — Justus' twelve reports of 1 November, and a lot more. **Two new enemies**: the **tank spider**
+puffs up its pressure tank when you come too close and bursts — it hurts, but it never breaks a block — and the **hunter
+shuttle** is a poor fighter in space that runs away and, if it escapes, lands a **robot camp** on a planet. A **transport
+crate** keeps everything inside when you mine it, and a **storage bag** carries up to 1000 things. Bases get **landing
+pads**, the Crafting, Blueprints and Ship tabs get **categories** where a thing can sit in several, and the **High**
+graphics preset becomes desktop-class: sharper shadows, depth on rock and metal, a grass carpet with meadow flowers,
+reflections in rooms and sunbeams you can see.
+
+ℹ️ **Compatibility:** two new blocks (the base landing pad and the transport crate), so the **save version goes up to
+10**: your save is converted the first time you open it, and after that an older version can no longer open it. The
+terrain generation stays at **32** and the network protocol at **version 11**. Every star system gets its own star colour
+on the next start. As always, keep game and server on the same version: the desktop game updates itself at start, and
+the browser is always current.
+
+### 👾 Two new enemies (#3096, #3097)
+
+- **The tank spider** — a mechanical Guardian spider with a brass pressure tank instead of a body. Come within three
+  blocks and it stops: for a second and a half the tank **swells, hisses and glows** — that's your warning to run. Then
+  it bursts: up to 30 damage close by, less towards the edge, and a push away. **A wall between you and it is cover**, and
+  **it never breaks a block**. Shoot it from afar and it just pops. It turns up now and then among the robots on a planet,
+  one at a time — never in peaceful or Creative worlds.
+- **The hunter shuttle** — a small Guardian shuttle that may warp into a flight. Its gun is weak and it would rather run:
+  hurt it, or let it wait too long, and it flees — you have eight seconds to shoot it down. If it gets away, it **lands
+  on a planet** and builds a **robot camp** a few hundred blocks from your base: its hull, a **hunter** on guard and two or
+  three glowing **Guardian bays** that keep sending robots while you are near. Mine every bay and the camp is finished —
+  with loot in the shuttle's hold. VEGA marks the camp on your planet map.
+- Both have a **Codex** entry with a picture, and their own sounds.
+
+### 📦 Carry your things (#3098, #3099)
+
+- **Transport crate** (workshop): it works like a storage crate — but **mine it and everything inside stays packed**. It
+  shows as *Transport Crate · filled*; carry it anywhere and **place it again to unpack** it.
+- **Storage bag** (workshop): holds **up to 1000 items** of any kinds. Open it from the inventory (**Open the bag**) or
+  hold it and use it. Bags and packed crates don't go inside. A filled bag or crate can't be thrown away by accident.
+
+### 🛬 Landing pads at your base (#3068–#3074)
+
+- Build a **base landing pad** (workshop: 6 stone, 3 iron plates, 1 cable) within reach of your base core — up to four per
+  base, 17 × 17 blocks, so every ship fits. Press **E** on it to name it and choose **who may land**: only you, you and
+  your allies, or everyone.
+- In space, the **landing map** shows one marker per base with its pads; pick a pad and you land right on it. Landing
+  without a pick takes your own free pad. Merchants coming to a **Market** base use its public pads.
+- A brand-new world prepares its landing places a good deal faster on its first start.
+
+### 🗂️ Categories everywhere you build (#3102–#3112)
+
+- **One shared set of categories** for Crafting, Blueprints, the Ship tab and the inventory — **Equipment**, **Building &
+  Base** and **Supplies**, with *Travel & Transport*, *Tools*, *Crystal Net*, *Garden & Animals*, *Storage & Cargo* and more.
+  **A thing can be in several**: *Travel & Transport* lists every way to get around (boat, speeder, monorail, jetpack,
+  glider, teleporters …), *Crystal Net* everything its blueprints let you build.
+- Every **search box** also finds by category ("Crystal" lists the whole Crystal Net); the Blueprints tab has a search box
+  now, the Ship tab lists modules by kind, and the cargo hold gets search, a category filter and sorting.
+- **Links between the tabs:** a blueprint's *Unlocks* are buttons to the recipe, module or ship; recipes have **Go to
+  blueprint**; an item shows **Needed for** — what you can make with it.
+
+### ✨ High details (#3054–#3066)
+
+- On the **High** preset on a desktop, each with its own switch under **Settings → Graphics → Details (High)**: **sharper
+  shadows** to 150 m, **depth on rock, ore, brick and metal** (parallax), a **grass carpet** with **meadow flowers** in the
+  world's colours, **reflections** inside ship and base rooms, **scorch marks and craters**, a **further far view**
+  ("Maximum") and **sunbeams** you can see, even dust in a room's light.
+- Steel, metal panels and iron now shine like metal; tufts and pebbles appear again in player builds (they were invisible)
+  and stay out of caves.
+
+### 🌟 Stars and grass (#3075–#3078)
+
+- **Every star has its own colour** — from blue-white to red-orange — in flight right after a jump and inside your cabin;
+  before, you kept seeing the star you left. The day sky takes a little more of its star's tint.
+- The **grass carpet** is calm now: the strands no longer flicker and crawl.
+
+### 🔧 Fixes from Justus' reports (#3081–#3095, #3100)
+
+- **Walking into a fence** two blocks high no longer "digs you out" onto the roof. (#3081)
+- **A reward that doesn't fit** in your pockets now arrives as soon as you make room — no restart needed. An orange
+  banner says what's waiting and how many slots to free, and every reward banner lists the items. (#3082)
+- **Halloween pumpkins are a real search** now: one at a time, farther away, and a picked field stays empty. Festival
+  pumpkins are always the edible kind. (#3083, #3084)
+- **The energy fence looks like a fence**: rails top and bottom, glowing beams across, and you can see through the gaps —
+  a row of fence blocks is one fence now. (#3085)
+- **Mission boards:** look at one and press **E** to see its jobs. A board **in your own ship works** — take cargo jobs
+  and hand them in on board. The base quartermaster can open the jobs for you ("Show me the jobs!"), and the lumberjack
+  and the Miner, Market and Radio residents have their own things to say. (#3087–#3090)
+- **What E does is what the prompt says**: look at a person to talk even beside a door, and "open crate" shows only for
+  the crate you aim at. (#3088)
+- **Sentry posts:** a crystal conduit with no switch on it no longer silences the turret, and when a switch holds it off
+  the HUD says so. The texts now say clearly: power comes from the base core and power relays — crystal conduits only
+  switch. (#3091)
+- **The watcher** also notices when the device in front of it changes — a switch flipped, a lamp turned on, a door
+  opening, a sentry starting to shoot — and its menu explains what it does. (#3092)
+- The **Codex** uses the same names as the blocks, in all 14 languages. (#3093)
+- **Robbers** look like the other people now — the villagers' hair, no beard, a cloth mask. (#3094)
+- **Drills, guns and blades** show off when you take them: the drill does a test spin (its bit spins while mining too), a
+  gun a quick reload, a blade a twirl. Robots left alone look at their hands or roll their shoulders. (#3095)
+- A crate blasted away with the terrain blaster drops its contents. (#3100)
+- **Screelit's metal panel**: Justus repainted the metal panel without its rivets in the texture editor — it's the game's
+  metal panel now. (#3086)
+
+### 🧭 Smaller things (#3046, #3048–#3052)
+
+- Voice chat sent only about a third of what you said; now all of it gets through. (#3048)
+- Quitting the game during a scene no longer sent a crash report. (#3046)
+- Servers: a flood of save requests saves once, a crowd of 65+ players no longer floods the network, and an admin watching
+  as an observer no longer shows up on everyone's star map. (#3049, #3051, #3052)
+
+### 🙏 Thanks
+
+- **Justus** sent twelve reports in one afternoon — two new enemies, a carry crate, a bag, the fence, the board and his
+  own metal panel came out of them. Thank you!
+
+### 🛠️ For tinkerers
+
+- **Pull requests:** Justus' reports #3115 (issues #3081–#3101), build categories #3113, base landing pads #3080, stars and
+  grass #3079, High details #3067, scaling findings #3053, the cutscene crash #3047.
+- **Save version 10** (`base_pad`, `transport_crate`): block ids shift; saves are remapped on first open. Protocol stays
+  11 — new message tags 314–317 and additive fields (`AchievementRewardDeferred.SlotsNeeded`, `NetCombatEntity.Inflating`,
+  `NetCrystalDevice.Held`, `NpcDialogState.ActionMissions`, `FarTerrainWorldInfo`).
+- **Carried contents (#3098/#3099):** a filled item's key carries `#h<id>`; the record lives in the container table under
+  the pseudo-location `carried` (no schema change) — docs/developer/CONTAINERS_AND_CARRIED_STORAGE.md.
+- **Crystal Net (#3091/#3092):** `CrystalNetwork.Driven` — a net without a source leaves sentries, spouts and heal tanks on;
+  the watcher compares device states per beat (`GameServerCrystalWatchers`), and its arrow face is no wire any more — a
+  watcher whose only conduit sat on its arrow side needs re-wiring.
+- **Interaction (#3088):** `InteractResolver` + `NpcAim` (Client.Core) decide E and the prompt together.
+- **Festivals (#3083):** `festivals.json` spawns gain `interval` and `budget`; `PlayerState.FestivalSpawnsLaid`.
+- **Categories (#3102):** `data/categories.json` + `ContentCategories` (Shared).
+- **Energy fence (#3085):** a clipped opaque cube (`TraitCutoutCube`), gaps baked by `tools/ai-assets/bake_fence_alpha.py`.
+- **Docs:** USER_MANUAL, CRYSTAL_NET, FESTIVALS, NPC_ROUTINES, BASES_AND_TELEPORTS §7–§8, SPACE_COMBAT_CONCEPT, HELD_ITEMS,
+  ADVANCED_GRAPHICS, the new CONTAINERS_AND_CARRIED_STORAGE. New textures, icons and sounds are listed in NOTICES.md.
+- **For hosters:** the WorldHost image was rebuilt (shared code changed) and rolls with this release; set new `BBS_WH_*`
+  values in your `.env` — the fleet compose forwards all of them now (#3050). The AI backend and the report inbox are
+  unchanged.
+
 ## [2026.10.33] — 2026-10-31
 
 The seasons release — Justus' ideas, all of them. **Every planet with air now has spring, summer, autumn and winter**: the
@@ -9618,7 +9751,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.33...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.2...HEAD
+[2026.11.2]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.33...v2026.11.2
 [2026.10.33]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.32...v2026.10.33
 [2026.10.32]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.31...v2026.10.32
 [2026.10.31]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.30...v2026.10.31

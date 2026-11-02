@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 📬 Player reports 2026-11-01 (Justus as Screelit, v2026.10.33) — fence teleport, festival reward + pumpkin search, energy fence, Screelit's metal panel, mission boards + one interact pick, sentry + watcher, robbers, flourishes, tank spider, hunter shuttle, transport crate + storage bag — #3081–#3101, branch feat/reports-2026-11-01 — ✅ done 2026-11-02 (⚠ playtest open; save version 10 row updated for `transport_crate` (10 was still unreleased), protocol tags 315–317 additive, additive wire fields, no terrain-generation change)
+### 📬 Player reports 2026-11-01 (Justus as Screelit, v2026.10.33) — fence teleport, festival reward + pumpkin search, energy fence, Screelit's metal panel, mission boards + one interact pick, sentry + watcher, robbers, flourishes, tank spider, hunter shuttle, transport crate + storage bag — #3081–#3101, branch feat/reports-2026-11-01 — ✅ done 2026-11-02 in PR #3115 (`37d4477c`), released in v2026.11.2 (⚠ playtest open; save version 10 row updated for `transport_crate` (10 was still unreleased), protocol tags 315–317 additive, additive wire fields, no terrain-generation change)
 
 Twelve F1 reports in one afternoon; "Alte Städte" (old metal cities, Ressaw) is parked on purpose — Marcel wants to clarify
 it first, its two rows stay `new`. Marcel's calls: everything in one go; a mission board in the ship must work; the festival
