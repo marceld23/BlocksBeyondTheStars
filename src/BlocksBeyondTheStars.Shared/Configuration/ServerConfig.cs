@@ -188,8 +188,9 @@ public sealed class ServerConfig
 
     /// <summary>Maximum time (seconds) to wait for the client to report one stage of an automatic landed-ship
     /// transit (#1614) — the take-off, or the warp into another system — as played before the server moves the
-    /// transit on by itself. Each stage gets the full time.</summary>
-    public double TransitLaunchTimeoutSeconds { get; set; } = 6.0;
+    /// transit on by itself. Each stage gets the full time. #3141: 15 s — the take-off now lifts off on the surface first and
+    /// then climbs out of the clouds (about 7.5 s), and the client reports the stage only when all of it has played.</summary>
+    public double TransitLaunchTimeoutSeconds { get; set; } = 15.0;
 
     /// <summary>Endpoint the server POSTs automatic crash reports to — the ReportHost bug-report inbox, shared
     /// with player feedback + client crashes (server reports are shaped to the same contract). Uploading stays

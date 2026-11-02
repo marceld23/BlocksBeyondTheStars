@@ -331,7 +331,25 @@ nothing changes — controls stay keyboard + mouse (or a gamepad).
 
 Enter space by launching the ship; on foot you board/leave via the cockpit. On a landed ship, **E at the
 cockpit asks "Launch into space?"** — confirm with the button, **E** or **Enter**; "Not yet" opens the map instead
-(the Map tab keeps its own **Launch into space** button). While flying:
+(the Map tab keeps its own **Launch into space** button).
+
+**Lift-off, landing and docking play as one continuous scene** — no loading screen in between:
+
+- **Lift-off:** the camera steps out of the cockpit and watches your ship fire its engines, kick up dust in the colour of
+  the ground, rise, lift its nose and climb away with a boom into the clouds. Above them the sky fades from the
+  planet's colour to black and the stars come out, then you have the controls.
+- **Landing:** the camera flies with your ship as it turns belly-first and dives at the planet. In an atmosphere a
+  glowing shock front builds in front of the hull, plasma streams off it like a comet's tail and the view shakes; then
+  the ship punches into the cloud layer (on an airless moon or asteroid: the glare of the braking engines). The clouds
+  stay closed exactly as long as the new world needs to load and show its name — then they part over your ship
+  sinking onto its pad on its engine fire, a thump and a cloud of dust, and the camera glides back into your eyes.
+- **Stations:** the camera watches your ship glide into the hangar along its guide lights, the **hangar doors** close
+  and open again inside the station. Undocking closes the doors in the station and opens them on your ship sliding out
+  of the station's hangar.
+- **Esc** (pad: **(B)**, touch: the *Skip* hint) skips the part on the ground. Screen shake and flashes follow the
+  *Camera motion*, *Screen shake* and *Reduce flashes* settings.
+
+While flying:
 
 | Key / input | Action |
 |---|---|

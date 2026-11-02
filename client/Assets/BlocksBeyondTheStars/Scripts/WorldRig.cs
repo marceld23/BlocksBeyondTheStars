@@ -288,6 +288,7 @@ namespace BlocksBeyondTheStars.Client
             // landed ships, painted in their hull colours, with colliders to walk on/in.
             var landedShips = root.AddComponent<LandedShipView>();
             landedShips.Game = boot;
+            boot.Views.LandedShips = landedShips;
 
             // Hover speeders (craftable surface vehicles): voxel objects parked/driven on this world, with
             // hover dust + engine glow and deploy/destruction bursts.
@@ -300,6 +301,16 @@ namespace BlocksBeyondTheStars.Client
             var trains = root.AddComponent<TrainView>();
             trains.Game = boot;
             trains.Rails = rails;
+
+            // #3139–#3142: the seamless transitions — the cover (clouds, glare, hangar doors) that replaces the loading veil
+            // for landings and dockings, and the director that flies the touchdown and the lift-off on the surface.
+            var transitionCover = root.AddComponent<TransitionCover>();
+            transitionCover.Game = boot;
+            var transitions = root.AddComponent<TransitionDirector>();
+            transitions.Game = boot;
+            transitions.Camera = cam;
+            transitions.Cover = transitionCover;
+            boot.Views.Transitions = transitions;
 
             // Hyperspace warp animation (plays on a system-to-system jump).
             var warp = root.AddComponent<HyperspaceWarp>();

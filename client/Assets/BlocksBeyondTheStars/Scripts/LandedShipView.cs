@@ -113,9 +113,10 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (var id in stale)
             {
-                if (_roots[id] != null)
+                // #3141: the own hull that just left goes to the transition director (the lift-off flies it); the rest go.
+                var root = _roots[id];
+                if (root != null && !HandOverDeparting(id, root))
                 {
-                    var root = _roots[id];
                     for (int i = root.transform.childCount - 1; i >= 0; i--)
                     {
                         DestroyShipChunk(root.transform.GetChild(i).gameObject); // free the ship's chunk meshes
@@ -151,6 +152,27 @@ namespace BlocksBeyondTheStars.Client
                     m.DirtyCells.Clear();
                 }
             }
+        }
+
+        /// <summary>The scene object of a parked ship (null when it is not built) — #3140: the own touchdown hides it while a
+        /// render-only stand-in sinks onto the pad.</summary>
+        public GameObject RootOf(string structureId)
+            => structureId != null && _roots.TryGetValue(structureId, out var root) && root != null ? root : null;
+
+        /// <summary>#3141: the local player's own hull, removed by the server while the player is still on the surface (a
+        /// launch, a ship swap), goes to the transition director instead of being dropped — a launch flies that very hull off
+        /// the pad. True when it was handed over.</summary>
+        private bool HandOverDeparting(string id, GameObject root)
+        {
+            var transitions = Game.Views.Transitions;
+            if (transitions == null || Game.SpaceViewActive || !_built.TryGetValue(id, out var model) || model == null
+                || model.OwnerId != Game.LocalPlayerId)
+            {
+                return false;
+            }
+
+            transitions.AdoptDepartingShip(root, model);
+            return true;
         }
 
         /// <summary>#2255: the chunks a set of changed cells reaches — its own and every chunk within a lamp's reach of it

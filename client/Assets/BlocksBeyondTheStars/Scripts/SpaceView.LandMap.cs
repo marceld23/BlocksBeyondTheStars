@@ -49,7 +49,7 @@ namespace BlocksBeyondTheStars.Client
         private void LandOnPad(int padIndex)
         {
             // Remember the chosen destination before clearing _choosePadBody: the descent animation
-            // (BeginLandingFlyAway) only fires a frame later, once the server confirms we left space, and
+            // (BeginDescent) only fires a frame later, once the server confirms we left space, and
             // would otherwise read a nulled _choosePadBody → "" → fly back to the home/launch body instead.
             _landDestBody = _choosePadBody;
             Game.Network?.SendLeaveSpace(_choosePadBody, padIndex);

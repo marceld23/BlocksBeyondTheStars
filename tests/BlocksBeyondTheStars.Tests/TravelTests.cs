@@ -24,6 +24,9 @@ public sealed class TravelTests : IDisposable
     private readonly string _root;
     private readonly GameContent _content;
 
+    /// <summary>One transit stage's timeout (#1614; 15 s since #3141's longer take-off).</summary>
+    private static readonly double TransitTimeout = new ServerConfig().TransitLaunchTimeoutSeconds;
+
     public TravelTests()
     {
         _root = Path.Combine(Path.GetTempPath(), "bbts_travel_" + Guid.NewGuid().ToString("N"));
@@ -338,14 +341,14 @@ public sealed class TravelTests : IDisposable
             Assert.Equal(origin.Id, pilot.CurrentLocationId);
 
             // No client signal at all: the server warps after one timeout …
-            server.Tick(6.0);
+            server.Tick(TransitTimeout);
             Assert.True(server.InSpace("Pilot"));
             Assert.Equal(destination.Id, pilot.CurrentLocationId);
             Assert.True(pilot.Transit.AutomaticTransit);
 
             // … and lands after the next — the warped pilot flies over a world that is not loaded, so this timer
             // must not live in the per-world tick.
-            server.Tick(6.0);
+            server.Tick(TransitTimeout);
             Assert.False(server.InSpace("Pilot"));
             Assert.Equal(destination.Id, pilot.CurrentLocationId);
             Assert.False(pilot.Transit.AutomaticTransit);
@@ -393,7 +396,7 @@ public sealed class TravelTests : IDisposable
             Assert.Equal(heldPad, server.AssignedPadForTest("Pilot"));
 
             // Nothing is left for the timeout to land later.
-            server.Tick(6.0);
+            server.Tick(TransitTimeout);
             Assert.Equal(origin.Id, pilot.CurrentLocationId);
         }
     }
@@ -497,7 +500,7 @@ public sealed class TravelTests : IDisposable
             Assert.True(pilot.Transit.AutomaticTransit);
 
             // Do not send TransitLaunchDoneIntent.
-            server.Tick(6.0);
+            server.Tick(TransitTimeout);
 
             Assert.False(server.InSpace("Pilot"));
             Assert.Equal(destination.Id, pilot.CurrentLocationId);

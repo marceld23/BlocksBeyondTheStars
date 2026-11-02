@@ -29,6 +29,7 @@ namespace BlocksBeyondTheStars.Client
             public bool Landing;
             public float GroundY;
             public bool Dusted; // pad dust fired (touchdown / lift-off moment)
+            public Color Dust;  // #3140: the colour of the ground under the pad
         }
 
         private readonly List<Transit> _active = new();
@@ -98,22 +99,12 @@ namespace BlocksBeyondTheStars.Client
                 {
                     tr.Dusted = true;
                     var ground = new Vector3(tr.Root.position.x, tr.GroundY + 0.6f, tr.Root.position.z);
-                    DustBurst(ground);
-                    FxKit.Ring(ground, Vector3.up, new Color(1f, 0.75f, 0.45f), 0.6f, 7f, 0.6f, thickness: 0.12f, fill: 0.06f, intensity: 1.6f);
+                    ShipCinematicFx.DustBurst(ground, 3f, tr.Dust); // #3140: dust in the colour of the ground it stands on
+                    if (tr.Landing)
+                    {
+                        ClientAudio.Instance?.At("ship_touchdown", ground, 1f, 0.9f);
+                    }
                 }
-            }
-        }
-
-        /// <summary>A radial pad-dust burst kicked up by the thrusters (#2157: soft particle puffs racing outward along
-        /// the ground — was 8 opaque cubes).</summary>
-        private static void DustBurst(Vector3 pos)
-        {
-            int n = FxKit.Scaled(24);
-            for (int i = 0; i < n; i++)
-            {
-                float a = i / (float)n * Mathf.PI * 2f;
-                var dir = new Vector3(Mathf.Cos(a), 0.15f, Mathf.Sin(a));
-                FxKit.Emit(FxKit.Kind.Dust, pos, dir * Random.Range(4f, 8f), Random.Range(0.5f, 1f), Random.Range(0.8f, 1.4f), new Color(0.62f, 0.57f, 0.5f, 0.8f));
             }
         }
 
@@ -168,7 +159,12 @@ namespace BlocksBeyondTheStars.Client
                 root = BuildShip(pos, hull, out engine);
             }
 
-            _active.Add(new Transit { Root = root.transform, Engine = engine, Exhausts = exhausts, T = 0f, Landing = fx.Landing, GroundY = fx.Y });
+            var below = new BlocksBeyondTheStars.Shared.Geometry.Vector3i(Mathf.FloorToInt(fx.X), Mathf.FloorToInt(fx.Y) - 1, Mathf.FloorToInt(fx.Z));
+            _active.Add(new Transit
+            {
+                Root = root.transform, Engine = engine, Exhausts = exhausts, T = 0f, Landing = fx.Landing, GroundY = fx.Y,
+                Dust = ShipCinematicFx.GroundColor(Game, below),
+            });
             ClientAudio.Instance?.Cue("ship_launch"); // thruster roar (same cue your own launch uses)
         }
 

@@ -22,6 +22,10 @@ namespace BlocksBeyondTheStars.Client
         /// by the game's day/space state.</summary>
         public float MenuBrightness = -1f;
 
+        /// <summary>#3140/#3141: how much of the space-view sky the stars may fill (0..1). The flight view's landing descent
+        /// fades it out as the destination's sky comes up, the climb out of the clouds fades it back in; 1 otherwise.</summary>
+        public static float SkyFade = 1f;
+
         private const int StarCount = 1500;
         private const float MaxBrightness = 1.3f; // additive cap (per-star dots, so the sky as a whole stays dark)
 
@@ -137,7 +141,8 @@ namespace BlocksBeyondTheStars.Client
             float dayLen = Game.Environment != null ? Mathf.Max(30f, Game.Environment.DayLengthSeconds) : 600f;
             float rate = Mathf.Clamp(240f / dayLen, 0.25f, 1.0f);
             _brightness = hardSky ? target : Mathf.MoveTowards(_brightness, target, Time.deltaTime * rate);
-            ApplyBrightness(_brightness * MaxBrightness);
+            float fade = Game.SpaceViewActive ? Mathf.Clamp01(SkyFade) : 1f;
+            ApplyBrightness(_brightness * MaxBrightness * fade);
         }
 
         /// <summary>How visible the stars should be: full in space / on airless worlds / inside a station,

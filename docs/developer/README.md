@@ -40,6 +40,8 @@ refreshed 2026-10-23.
   location, system-scale flight and hyperjumps.
 - [STATION_AS_LOCATION.md](STATION_AS_LOCATION.md) — ships and space stations as first-class "void" worlds
   entered via real world transitions.
+- [SEAMLESS_TRANSITIONS.md](SEAMLESS_TRANSITIONS.md) — the cinematic, cut-free landing, lift-off and docking: the
+  transition cover (clouds, glare, hangar doors) as the seam, the arrival gate, the touchdown and lift-off cinematics.
 - [WORLD_WRAP.md](WORLD_WRAP.md) — torus world topology (both axes wrap; periodic noise).
 - [FLUID_ROUTING.md](FLUID_ROUTING.md) — rivers, waterfalls and lava: one fluid-agnostic routing
   network (downhill-into-sinks, animated surfaces, lavafalls + embers).

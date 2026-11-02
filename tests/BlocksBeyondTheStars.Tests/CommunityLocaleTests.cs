@@ -25,7 +25,9 @@ namespace BlocksBeyondTheStars.Tests;
 /// </para>
 /// <para>
 /// A few terminology guards (#2501) sit here too: no word that mixes Latin and Cyrillic letters, no combining accent,
-/// and a short per-language table of terms that once slipped in and must not come back (<see cref="ForbiddenTerms"/>).
+/// and a short per-language table of terms that once slipped in and must not come back (<see cref="ForbiddenTerms"/>),
+/// plus no value that starts or ends with a stray space (#3143). That a block and its item share one name is
+/// <see cref="BlockItemNameLocaleTests"/> (#3114).
 /// </para>
 /// </summary>
 public class CommunityLocaleTests
@@ -64,6 +66,14 @@ public class CommunityLocaleTests
         ("fr", Term(@"(?i)\bétrier"), "Poste de pilotage (the ship's helm)"),
         ("nl", Term(@"(?i)\bafme(?:ren|ert|erde|erden)\b|\bafgemeerd\b"), "loskoppelen (undock); aanmeren / aangemeerd (dock)"),
         ("uk", Term(@"(?i)\bстраж(?:а|у|ем|і)?\b|\bсторож(?:а|у|ем)?\b"), "Охоронець / Серце Охоронця"),
+
+        // #3114: English UI labels the Codex kept in every community language; each language names them in its own UI.
+        ("*", Term(@"\bHouse Rules\b"), "the language's own wiki.house-rules.title"),
+        ("*", Term(@"\bPlayer-mod(?:es|i)\b"), "the language's ui.worldopt.player_modes"),
+        ("*", Term(@"\bBases per world\b|\bBase yield\b"), "the language's ui.rules.bases_per_world / ui.rules.base_yield"),
+        ("*", Term(@"(?i)\bquantum scan"), "the language's quantum scan (ui.overview.bases_revealed, module.quantum_scanner.name)"),
+        ("*", Term(@"<b>Collect</b>"), "the language's ui.yield.collect"),
+        ("*", Term(@"\bDevice Eye\b"), "the language's block.device_eye.name"),
     ];
 
     private static Regex Term(string pattern)
@@ -221,6 +231,51 @@ public class CommunityLocaleTests
             + $"renders as blank UI — remove the key instead: {string.Join(", ", blanks.Take(20))}");
     }
 
+    /// <summary>#3143: a value that starts or ends with whitespace — a machine pass left " arenito" as a block name and
+    /// " Mira automática" as a menu label, which show up one space off and sort first in lists. English starts or ends a
+    /// value with a space only where the game glues it to other text ("DECODING IN ", " — more materials needed…"), so
+    /// a translation may carry edge whitespace only on the side its English text does. Base table and Codex.</summary>
+    [Theory]
+    [MemberData(nameof(CommunityLocales))]
+    public void CommunityLocale_HasNoStrayEdgeWhitespace(string code)
+    {
+        var tables = new[]
+        {
+            (Name: $"locales/{code}.json", Table: TestLocales.Load(code), English: TestLocales.Load("en")),
+            (Name: $"wiki/locales/{code}.json", Table: CodexTable(code), English: CodexTable("en")),
+        };
+
+        var stray = new List<string>();
+        foreach (var (name, table, english) in tables)
+        {
+            foreach (var (key, value) in table)
+            {
+                string source = english.TryGetValue(key, out var text) ? text : string.Empty;
+                bool leading = StartsWithSpace(value) && !StartsWithSpace(source);
+                bool trailing = EndsWithSpace(value) && !EndsWithSpace(source);
+                if (leading || trailing)
+                {
+                    stray.Add($"{name}: {key} (\"{value}\")");
+                }
+            }
+        }
+
+        Assert.True(
+            stray.Count == 0,
+            $"{code}: {stray.Count} value(s) start or end with whitespace the English text does not have — trim them: "
+            + string.Join("; ", stray.Take(20)));
+    }
+
+    private static bool StartsWithSpace(string text) => text.Length > 0 && char.IsWhiteSpace(text[0]);
+
+    private static bool EndsWithSpace(string text) => text.Length > 0 && char.IsWhiteSpace(text[^1]);
+
+    private static Dictionary<string, string> CodexTable(string code)
+    {
+        string path = Path.Combine(TestPaths.RepoRoot(), CodexLocaleDir, code + ".json");
+        return File.Exists(path) ? JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(path)) ?? [] : [];
+    }
+
     /// <summary>A pack's community table holds only keys of the pack's own English table (#2465).</summary>
     [Theory]
     [MemberData(nameof(CommunityPackLocales))]
@@ -371,11 +426,7 @@ public class CommunityLocaleTests
             }
         }
 
-        string codex = Path.Combine(TestPaths.RepoRoot(), CodexLocaleDir, code + ".json");
-        if (File.Exists(codex))
-        {
-            tables.Add(($"wiki/locales/{code}.json", JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(codex)) ?? []));
-        }
+        tables.Add(($"wiki/locales/{code}.json", CodexTable(code)));
 
         var hits = new List<string>();
         foreach (var (codes, term, use) in ForbiddenTerms)

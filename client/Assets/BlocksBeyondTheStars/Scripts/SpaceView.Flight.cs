@@ -17,119 +17,17 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public sealed partial class SpaceView
     {
-        /// <summary>Snapshots the descent: the ship flies off toward the body it's landing on (the one ahead of
-        /// the nose) and the camera tracks it from a fixed vantage, so it shrinks into the distance — centred —
-        /// instead of sliding straight down out of frame.</summary>
-        private void BeginLandingFlyAway()
-        {
-            _landShipStart = _ship != null ? _ship.transform.localPosition : Vector3.zero;
-            Vector3 fwd = _ship != null ? _ship.transform.forward : Vector3.forward;
-
-            // The body we're heading for. First choice: the pad-chooser's body (_choosePadBody; empty id = the
-            // home body we launched from). If that can't be resolved, pick whichever landable lies most directly
-            // ahead of the nose — "the planet/asteroid in front of the ship" — so we never default to straight down.
-            Vector3 dest = new Vector3(0f, -150f, -20f);
-            string destId = _landDestBody ?? string.Empty;
-            bool found = false;
-            foreach (var b in _landables)
-            {
-                if (b.Id == destId)
-                {
-                    dest = b.Pos;
-                    found = true;
-                    break;
-                }
-            }
-
-            if (!found)
-            {
-                float bestDot = -2f;
-                foreach (var b in _landables)
-                {
-                    Vector3 to = b.Pos - _landShipStart;
-                    if (to.sqrMagnitude < 0.0001f)
-                    {
-                        continue;
-                    }
-
-                    float dot = Vector3.Dot(to.normalized, fwd);
-                    if (dot > bestDot)
-                    {
-                        bestDot = dot;
-                        dest = b.Pos;
-                        found = true;
-                    }
-                }
-            }
-
-            // Aim a touch short of the centre so the hull dives at the surface rather than through the core.
-            _landTargetPos = Vector3.Lerp(_landShipStart, dest, 0.92f);
-
-            if (Camera != null)
-            {
-                _landCamPos = Camera.transform.localPosition;
-                _landCamRot = Camera.transform.localRotation;
-            }
-        }
-
+        /// <summary>The launch and landing sequences: the landing is the cinematic descent (#3140, SpaceView.Descent.cs), the
+        /// launch the climb out of the clouds or out of a station's hangar (#3141/#3142, SpaceView.Ascent.cs).</summary>
         private void UpdateSequence(bool rising)
         {
-            _seq += Time.deltaTime;
-
             if (!rising)
             {
-                // Landing: fly the ship away toward the body on an accelerating (ease-in) curve so it streaks off
-                // and dwindles. The camera holds position but turns to follow it (PlaceCamera), keeping it centred.
-                float lt = Mathf.Clamp01(_seq / LandDuration);
-                float lease = lt * lt;
-                if (_ship != null)
-                {
-                    Vector3 pos = Vector3.Lerp(_landShipStart, _landTargetPos, lease);
-                    _ship.transform.localPosition = pos;
-                    Vector3 dir = _landTargetPos - pos;
-                    if (dir.sqrMagnitude > 0.0001f)
-                    {
-                        // Point the nose at the body. A near-vertical dive would make Vector3.up (anti-)parallel to
-                        // the heading and flip LookRotation, so fall back to Vector3.forward as the up hint then.
-                        Vector3 nd = dir.normalized;
-                        Vector3 up = Mathf.Abs(nd.y) > 0.95f ? Vector3.forward : Vector3.up;
-                        _ship.transform.localRotation = Quaternion.LookRotation(nd, up);
-                    }
-                }
-
-                UpdateReentry(lt);
-                if (_seq >= LandDuration)
-                {
-                    Exit();
-                }
-
+                UpdateDescent();
                 return;
             }
 
-            LaunchClouds(Mathf.Clamp01(_seq / SeqDuration));
-
-            // Launch: rise off the pad with an ease-out, level and centred.
-            float t = Mathf.Clamp01(_seq / SeqDuration);
-            float ease = 1f - (1f - t) * (1f - t);
-            float y = Mathf.Lerp(-40f, 0f, ease);
-            if (_ship != null)
-            {
-                _ship.transform.localPosition = new Vector3(_launchOffset.x, y, _launchOffset.z); // #2440: beside the others
-                _ship.transform.localRotation = Quaternion.identity;
-            }
-
-            if (_seq >= SeqDuration)
-            {
-                if (Game.SpaceAutomaticTransit)
-                {
-                    // #1614: hold at the top of the climb, hands-off, until the server answers with the next stage —
-                    // the landing (the descent starts when the flight closes) or the warp into the destination's system.
-                    HoldForTransit();
-                    return;
-                }
-
-                _phase = Phase.Cruise;
-            }
+            UpdateAscent();
         }
 
         /// <summary>#1614: the arrival of a transit's warp in the destination's system. The ship holds, hands-off, until
@@ -190,80 +88,6 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return true;
-        }
-
-        /// <summary>Atmosphere entry on the landing descent (#2157): a plasma sheath builds around the ship, hottest on its
-        /// leading face, streaks of glow stream back off it, a heat light and a gentle rattle.</summary>
-        private void UpdateReentry(float progress)
-        {
-            if (_ship == null)
-            {
-                return;
-            }
-
-            if (_reentry == null)
-            {
-                var mat = FxKit.Cached("BlocksBeyondTheStars/FxShell", "reentry", m =>
-                {
-                    m.SetFloat("_Plasma", 1f);
-                    m.SetFloat("_RimPower", 1.6f);
-                    m.SetFloat("_Hex", 0f);
-                    m.SetFloat("_Fill", 0.05f);
-                });
-                if (mat == null)
-                {
-                    return;
-                }
-
-                var go = new GameObject("Reentry");
-                go.transform.SetParent(_ship.transform, false);
-                var bounds = ShipLocalBounds();
-                go.transform.localPosition = bounds.center + Vector3.forward * bounds.extents.z * 0.2f;
-                go.transform.localScale = Vector3.Max(bounds.size * 1.4f, Vector3.one * 2f);
-                go.AddComponent<MeshFilter>().sharedMesh = FxKit.SphereMesh;
-                _reentry = go.AddComponent<MeshRenderer>();
-                _reentry.sharedMaterial = mat;
-                _reentry.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            }
-
-            float air = Game.Environment != null ? Mathf.Clamp01(Game.Environment.AtmosphereDensity * 1.5f + 0.2f) : 0.6f;
-            float heat = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((progress - 0.15f) / 0.5f)) * air;
-            var block = FxKit.Block;
-            block.Clear();
-            block.SetColor("_Color", FxKit.Lin(Color.Lerp(new Color(1f, 0.55f, 0.25f), new Color(1f, 0.45f, 0.7f), progress)) * new Color(1f, 1f, 1f, heat));
-            block.SetFloat("_Intensity", 1.8f);
-            _reentry.SetPropertyBlock(block);
-            if (heat > 0.05f)
-            {
-                var b = ShipLocalBounds();
-                var front = _ship.transform.TransformPoint(b.center + Vector3.forward * b.extents.z);
-                FxKit.Emit(FxKit.Kind.Motes, front + Random.insideUnitSphere * 0.8f, -_ship.transform.forward * 18f + Random.insideUnitSphere * 2f,
-                    Random.Range(0.15f, 0.3f), 0.35f, new Color(1f, 0.7f, 0.4f));
-                FxCamera.AddTrauma(0.02f * heat);
-                if (_engineLight != 0)
-                {
-                    FxLights.Set(_engineLight, new Color(1f, 0.55f, 0.3f), 2.5f * heat);
-                }
-            }
-        }
-
-        /// <summary>The launch rise (#2157): cloud wisps rush down past the camera while the ship climbs out of the air.</summary>
-        private void LaunchClouds(float progress)
-        {
-            if (Camera == null || progress > 0.75f || Random.value > 0.6f * FxKit.Density)
-            {
-                return;
-            }
-
-            float air = Game.Environment != null ? Game.Environment.AtmosphereDensity : 0.4f;
-            if (air < 0.05f)
-            {
-                return; // an airless body has no clouds to break through
-            }
-
-            var cam = Camera.transform;
-            var at = cam.position + cam.forward * Random.Range(6f, 20f) + cam.right * Random.Range(-12f, 12f) + Vector3.up * Random.Range(4f, 10f);
-            FxKit.Emit(FxKit.Kind.Smoke, at, Vector3.down * Random.Range(22f, 34f), Random.Range(2.5f, 5f), 0.9f, new Color(0.92f, 0.94f, 0.98f));
         }
 
         // VEGA autopilot (Mk2+ AI core): hands-off cruise toward the nearest station / landable body.
@@ -773,23 +597,10 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // Landing: keep the camera at the descent's start vantage but turn it to follow the receding ship, so
-            // the hull stays centred while it flies off toward the body and shrinks (instead of the camera chasing
-            // it down at a fixed offset, which read as "sinking"). Cockpit view is forced to this too.
-            if (_phase == Phase.Landing)
+            // #3140–#3142: the landing descent, the climb out of the atmosphere (or the hangar) and the dock approach fly
+            // their own cinematic cameras.
+            if (PlaceTransitionCamera())
             {
-                Camera.transform.localPosition = _landCamPos;
-                Vector3 toShip = _ship.transform.localPosition - _landCamPos;
-                if (toShip.sqrMagnitude > 0.0001f)
-                {
-                    Vector3 nts = toShip.normalized;
-                    Vector3 camUp = Mathf.Abs(nts.y) > 0.95f ? Vector3.forward : Vector3.up;
-                    Camera.transform.localRotation = Quaternion.LookRotation(nts, camUp);
-                }
-                else
-                {
-                    Camera.transform.localRotation = _landCamRot;
-                }
                 if (_shake > 0.001f)
                 {
                     Camera.transform.localPosition += Random.insideUnitSphere * (_shake * 0.5f);
