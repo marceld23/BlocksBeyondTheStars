@@ -560,6 +560,12 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
+                if (BlocksBeyondTheStars.Shared.State.CarriedContents.IsBag(held))
+                {
+                    Game?.Context.Panel<BagUi>()?.Open(Game.SelectedHotbarSlot); // #3099: the bag in hand opens
+                    return;
+                }
+
                 // Right-click a held gadget (item 36) → use it: the medkit heals around you, the stasis
                 // projector + terrain blaster act at the aim point. The server validates energy + cooldown.
                 if (hdef?.Tool != null && hdef.Tool.Kind == BlocksBeyondTheStars.Shared.Definitions.ToolKind.Gadget)

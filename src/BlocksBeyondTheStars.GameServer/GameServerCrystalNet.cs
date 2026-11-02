@@ -62,6 +62,13 @@ public sealed partial class GameServer
         /// <summary>Sentry posts a conduit switched OFF: they hold their fire.</summary>
         public HashSet<Vector3i> DisabledSentries { get; } = new();
 
+        /// <summary>#3092: sentry posts that hit something on their last firing pass — wired or not, so a watcher looking at
+        /// a plain post sees it start and stop shooting.</summary>
+        public HashSet<Vector3i> ShootingSentries { get; } = new();
+
+        /// <summary>#3092: the cells of this world's watchers — the logic beat compares what each one sees.</summary>
+        public HashSet<Vector3i> Watchers { get; } = new();
+
         /// <summary>#2261: heal tanks a conduit switched OFF: they do not heal.</summary>
         public HashSet<Vector3i> DisabledHealTanks { get; } = new();
 
@@ -97,6 +104,11 @@ public sealed partial class GameServer
 
         /// <summary>#2092: the level of the previous logic beat — an edge device acts on Level && !PrevLevel.</summary>
         public bool PrevLevel { get; set; }
+
+        /// <summary>#3091: something drives this network — a source among its cells, or a gate whose drive face points
+        /// into it (whatever their level). A network nothing drives leaves a <see cref="CrystalNetRules.RunsUntilDriven"/>
+        /// device alone. Re-derived every logic beat with <see cref="Level"/>.</summary>
+        public bool Driven { get; set; }
     }
 
     /// <summary>A conduit or device cell of the Crystal Net. Conduits carry no output; a device's <see cref="Output"/>
@@ -137,6 +149,7 @@ public sealed partial class GameServer
         public bool Ran;                // machine: running when its world last ran (#2269) — persisted as run=1
         public double LastOnUptime = -1000; // machine: uptime its network was last ON
         public double RanSavedAt = -1000;   // machine: uptime the "running" flag last went to the row
+        public int EyeState = CrystalEyeUnknown; // watcher: what it saw in front of it on the last logic beat (#3092)
 
         public bool IsConduit => Kind == CrystalDeviceKind.Conduit;
         public bool IsGate => CrystalNetRules.IsGate(Kind);
@@ -168,6 +181,11 @@ public sealed partial class GameServer
     /// <summary>Test seam: the stored quarter turn of a device (a gate's output / a watcher's eye), or null.</summary>
     public int? CrystalDeviceYaw(Vector3i cell)
         => CrystalNet.Cells.TryGetValue(cell, out var c) && !c.IsConduit ? c.Yaw : null;
+
+    /// <summary>Test seam (#3091): whether the net holds the device in this cell OFF (the "held" flag the device list
+    /// carries — a sentry holds its fire), or null when no device sits there.</summary>
+    public bool? CrystalDeviceHeldForTest(Vector3i cell)
+        => CrystalNet.Cells.TryGetValue(cell, out var c) && !c.IsConduit ? CrystalDeviceHeld(c) : null;
 
     // ------------------------------------------------------------------------------------------------------
     // Registration: place / mine / load
@@ -300,9 +318,9 @@ public sealed partial class GameServer
             foreach (var face in CrystalNetRules.Faces)
             {
                 var n = c.Cell + face;
-                if (!state.Cells.TryGetValue(n, out var other) || other.Inert)
+                if (!state.Cells.TryGetValue(n, out var other) || other.Inert || CrystalEyeBetween(c.Cell, n))
                 {
-                    continue;
+                    continue; // #3092: a watcher looking at the port only watches it — it does not hold it in the net
                 }
 
                 if (!CrystalNetRules.IsPassivePort(other.Kind))
@@ -327,12 +345,14 @@ public sealed partial class GameServer
     }
 
     /// <summary>Whether a net cell touches this cell. With <paramref name="excludePassive"/> only conduits and real
-    /// devices count — two lamps beside each other do not keep each other in the net.</summary>
+    /// devices count — two lamps beside each other do not keep each other in the net. #3092: a watcher's eye is no
+    /// wire — the watcher a cell sits in front of does not count as touching it.</summary>
     private bool HasCrystalNeighbour(Vector3i pos, bool excludePassive = false)
     {
         foreach (var face in CrystalNetRules.Faces)
         {
-            if (CrystalNet.Cells.TryGetValue(pos + face, out var c) && !c.Inert && (!excludePassive || !CrystalNetRules.IsPassivePort(c.Kind)))
+            if (CrystalNet.Cells.TryGetValue(pos + face, out var c) && !c.Inert && (!excludePassive || !CrystalNetRules.IsPassivePort(c.Kind))
+                && !CrystalEyeBetween(pos, pos + face))
             {
                 return true;
             }
@@ -377,9 +397,9 @@ public sealed partial class GameServer
             foreach (var face in CrystalNetRules.Faces)
             {
                 var n = from + face;
-                if (CrystalNet.Cells.ContainsKey(n))
+                if (CrystalNet.Cells.ContainsKey(n) || CrystalEyeBetween(from, n))
                 {
-                    continue;
+                    continue; // #3092: what a fresh watcher looks at is watched, not wired
                 }
 
                 var def = _content.BlockById(CrystalReadBlock(n));
@@ -455,6 +475,11 @@ public sealed partial class GameServer
         if (!cell.Inert && !cell.IsGate)
         {
             JoinCrystalNet(cell);
+        }
+
+        if (kind == CrystalDeviceKind.Watcher)
+        {
+            state.Watchers.Add(pos); // #3092: the logic beat compares what it sees
         }
 
         if (kind == CrystalDeviceKind.CloneTank)
@@ -593,14 +618,16 @@ public sealed partial class GameServer
     }
 
     /// <summary>Adds a non-gate cell to the net: the networks of its neighbours merge into one (the smallest id
-    /// survives), or a new network is opened. A merge over the cell cap leaves the cell inert instead.</summary>
+    /// survives), or a new network is opened. A merge over the cell cap leaves the cell inert instead. #3092: never
+    /// through a watcher's eye — what a watcher looks at stays a network of its own.</summary>
     private void JoinCrystalNet(ServerCrystalCell cell)
     {
         var state = CrystalNet;
         var neighbours = new List<CrystalNetwork>();
         foreach (var face in CrystalNetRules.Faces)
         {
-            if (state.Cells.TryGetValue(cell.Cell + face, out var n) && n.NetId != 0 && state.Nets.TryGetValue(n.NetId, out var net) && !neighbours.Contains(net))
+            if (state.Cells.TryGetValue(cell.Cell + face, out var n) && n.NetId != 0 && state.Nets.TryGetValue(n.NetId, out var net) && !neighbours.Contains(net)
+                && !CrystalEyeBetween(cell.Cell, n.Cell))
             {
                 neighbours.Add(net);
             }
@@ -652,6 +679,7 @@ public sealed partial class GameServer
         state.DisabledSentries.Remove(cell.Cell);
         state.DisabledHealTanks.Remove(cell.Cell);
         state.OpenFences.Remove(cell.Cell);
+        state.Watchers.Remove(cell.Cell);
         if (cell.NetId != 0 && state.Nets.TryGetValue(cell.NetId, out var net))
         {
             net.Cells.Remove(cell.Cell);
@@ -688,8 +716,9 @@ public sealed partial class GameServer
                 foreach (var face in CrystalNetRules.Faces)
                 {
                     var n = c + face;
-                    if (remaining.Remove(n))
+                    if (remaining.Contains(n) && !CrystalEyeBetween(c, n)) // #3092: a watcher's eye is no wire
                     {
+                        remaining.Remove(n);
                         stack.Push(n);
                     }
                 }
@@ -749,6 +778,8 @@ public sealed partial class GameServer
         state.DisabledSentries.Clear();
         state.DisabledHealTanks.Clear();
         state.OpenFences.Clear();
+        state.ShootingSentries.Clear();
+        state.Watchers.Clear();
         state.Lifts.Clear();
         state.LiftListDirty = true;
         state.CatchUp.Clear();
@@ -1170,6 +1201,11 @@ public sealed partial class GameServer
         cell.Config = CrystalConfigWith(cell.Config, "yaw", cell.Yaw.ToString(System.Globalization.CultureInfo.InvariantCulture));
         cell.Timer?.Reset();
         cell.Applied = false;
+        if (cell.Kind == CrystalDeviceKind.Watcher)
+        {
+            RewireTurnedWatcher(cell); // #3092: its eye moved — the side it looked through is a wire now, the new one is not
+        }
+
         SaveCrystalCell(cell);
         CrystalNet.DeviceListDirty = true;
         CrystalNet.NetListDirty = true;
@@ -1212,11 +1248,22 @@ public sealed partial class GameServer
         if (CrystalSentryDisabled(cell))
         {
             CrystalPortLevel(cell, false);
+            CrystalNet.ShootingSentries.Remove(cell);
             return (false, false);
         }
 
         var result = FireSentry(cell, home);
-        CrystalPortLevel(cell, result.Enemies || result.Creatures);
+        bool shooting = result.Enemies || result.Creatures;
+        CrystalPortLevel(cell, shooting);
+        if (shooting)
+        {
+            CrystalNet.ShootingSentries.Add(cell); // #3092: a watcher in front of the post sees it start and stop
+        }
+        else
+        {
+            CrystalNet.ShootingSentries.Remove(cell);
+        }
+
         return result;
     }
 
@@ -1347,7 +1394,7 @@ public sealed partial class GameServer
     }
 
     private static string CrystalDeviceSignature(NetCrystalDevice d)
-        => string.Join("|", d.Id, d.Kind, d.Mode, d.Output ? 1 : 0, d.OwnerId, d.Label, d.Config, string.Join(",", d.Choices));
+        => string.Join("|", d.Id, d.Kind, d.Mode, d.Output ? 1 : 0, d.Held ? 1 : 0, d.OwnerId, d.Label, d.Config, string.Join(",", d.Choices));
 
     private void CrystalLogicBeat()
     {
@@ -1369,13 +1416,14 @@ public sealed partial class GameServer
         foreach (var net in state.Nets.Values)
         {
             net.Level = false;
+            net.Driven = false;
         }
 
         foreach (var c in state.Cells.Values)
         {
             // #2092: only sources and gates drive a network. Every other device only LISTENS — its report stays a status
             // (its light, a Device Eye) and never reads back as its own command.
-            if (c.Inert || c.IsConduit || !c.Output || !(c.IsGate || CrystalNetRules.IsSource(c.Kind)))
+            if (c.Inert || c.IsConduit || !(c.IsGate || CrystalNetRules.IsSource(c.Kind)))
             {
                 continue;
             }
@@ -1383,7 +1431,8 @@ public sealed partial class GameServer
             int netId = c.IsGate ? CrystalGateOutputNet(c) : c.NetId;
             if (netId != 0 && state.Nets.TryGetValue(netId, out var net))
             {
-                net.Level = true;
+                net.Driven = true; // #3091: a switch / sensor / gate is here, ON or OFF — the network may hold a sentry off
+                net.Level |= c.Output;
             }
         }
 
@@ -1496,18 +1545,23 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (net.Level != c.Applied && _uptime - c.LastActuated >= CrystalNetRules.ActuatorMinIntervalSeconds)
+            // #3091: a sentry, a spout or a heal tank on a network nothing drives (a bare conduit) keeps doing its job.
+            bool level = net.Level || (CrystalNetRules.RunsUntilDriven(c.Kind) && !net.Driven);
+            if (level != c.Applied && _uptime - c.LastActuated >= CrystalNetRules.ActuatorMinIntervalSeconds)
             {
                 // A swap that would close onto someone, or a piston with no room, did not happen: it tries again after the
                 // actuator interval, still wanting the new level.
-                if (ApplyCrystalActuator(c, net.Level))
+                if (ApplyCrystalActuator(c, level))
                 {
-                    c.Applied = net.Level;
+                    c.Applied = level;
                 }
 
                 c.LastActuated = _uptime;
             }
         }
+
+        // 4b. #3092: watchers compare what they see in front of them (a device's state, a wire's level, a door, a sentry).
+        CrystalWatcherBeat();
 
         // 5. Doors attach through their neighbouring cells.
         CrystalDoorBeat();
@@ -1549,7 +1603,14 @@ public sealed partial class GameServer
             return !dev.IsConduit && !dev.Inert && dev.Output;
         }
 
-        var wf = CrystalToWorld(front); // #2268: aboard, the ship's door hangs in world space
+        return CrystalDoorAt(front) is { } door && door.Open;
+    }
+
+    /// <summary>The door whose gap covers this net cell (its floor cell or the one above), or null — what a Device Eye or
+    /// (#3092) a watcher looking into a doorway sees.</summary>
+    private ServerDoor? CrystalDoorAt(Vector3i cell)
+    {
+        var wf = CrystalToWorld(cell); // #2268: aboard, the ship's door hangs in world space
         foreach (var door in _doors)
         {
             var floor = door.Pos.ToBlock();
@@ -1562,17 +1623,17 @@ public sealed partial class GameServer
             float half = System.Math.Max(0.5f, door.Width * 0.5f) + 0.05f;
             if (System.Math.Abs(dx) <= half && System.Math.Abs(dz) <= half)
             {
-                return door.Open;
+                return door;
             }
         }
 
-        return false;
+        return null;
     }
 
     private int CrystalGateOutputNet(ServerCrystalCell gate)
     {
         var outCell = gate.Cell + CrystalNetRules.DriveFace(gate.Kind, gate.Yaw);
-        return CrystalNet.Cells.TryGetValue(outCell, out var c) && !c.IsGate ? c.NetId : 0;
+        return CrystalNet.Cells.TryGetValue(outCell, out var c) && !c.IsGate && !CrystalEyeBetween(gate.Cell, outCell) ? c.NetId : 0; // #3092: not into a watcher's eye
     }
 
     private List<bool> CrystalGateInputs(ServerCrystalCell gate)
@@ -1588,7 +1649,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (CrystalNet.Cells.TryGetValue(gate.Cell + face, out var c))
+            if (CrystalNet.Cells.TryGetValue(gate.Cell + face, out var c) && !CrystalEyeBetween(gate.Cell, c.Cell)) // #3092: nor out of one
             {
                 if (c.IsGate)
                 {
@@ -1636,7 +1697,7 @@ public sealed partial class GameServer
                 foreach (var face in CrystalNetRules.Faces)
                 {
                     if (state.Cells.TryGetValue(cell + face, out var c) && !c.Inert && c.NetId != 0 && state.Nets.TryGetValue(c.NetId, out var net)
-                        && CrystalMayDriveDoor(door, c))
+                        && !CrystalEyeBetween(cell, c.Cell) && CrystalMayDriveDoor(door, c)) // #3092: a watcher's eye does not lock the door
                     {
                         any = true;
                         drivenNet = c.NetId;
@@ -1970,26 +2031,6 @@ public sealed partial class GameServer
         return !id.IsAir && IsFlora(id.Value);
     }
 
-    /// <summary>#2050: a watcher pulses when the cell in front of it changes — a mined block, a placed one, a crop
-    /// that ripened, a door that opened (its cell stays air; doors are announced through <see cref="CrystalDoorBeat"/>).</summary>
-    private void OnCrystalWatchedCellChanged(Vector3i changed)
-    {
-        var state = _worlds.Active.CrystalNet;
-        if (state.Cells.Count == 0)
-        {
-            return;
-        }
-
-        foreach (var face in CrystalNetRules.Faces)
-        {
-            if (state.Cells.TryGetValue(changed + face, out var c) && c.Kind == CrystalDeviceKind.Watcher && !c.Inert
-                && c.Cell + CrystalNetRules.OutputFace(c.Yaw) == changed)
-            {
-                PulseCrystalCell(c);
-            }
-        }
-    }
-
     // ------------------------------------------------------------------------------------------------------
     // Actuators
     // ------------------------------------------------------------------------------------------------------
@@ -1999,6 +2040,11 @@ public sealed partial class GameServer
     private bool ApplyCrystalActuator(ServerCrystalCell c, bool on)
     {
         var state = CrystalNet;
+        if (CrystalNetRules.RunsUntilDriven(c.Kind))
+        {
+            state.DeviceListDirty = true; // #3091: the device list carries "held" — the HUD tells the player
+        }
+
         switch (c.Kind)
         {
             case CrystalDeviceKind.Light:
@@ -2424,6 +2470,17 @@ public sealed partial class GameServer
         OwnerId = c.OwnerId,
         Output = c.Output,
         Choices = c.Kind == CrystalDeviceKind.CloneTank ? CloneChoicesFor(c.OwnerId) : System.Array.Empty<string>(),
+        Held = CrystalDeviceHeld(c),
+    };
+
+    /// <summary>#3091: whether the net holds this device in its OFF state right now (a sentry holds its fire, a spout is
+    /// closed, a heal tank does not heal) — the one switched-off state nothing in the world shows.</summary>
+    private bool CrystalDeviceHeld(ServerCrystalCell c) => c.Kind switch
+    {
+        CrystalDeviceKind.Sentry => CrystalNet.DisabledSentries.Contains(c.Cell),
+        CrystalDeviceKind.Spout => CrystalNet.ClosedSpouts.Contains(c.Cell),
+        CrystalDeviceKind.HealTank => CrystalNet.DisabledHealTanks.Contains(c.Cell),
+        _ => false,
     };
 
     /// <summary>#2097: the species a tank's owner may clone here, as "id|coined name" — the device menu lists exactly these.</summary>

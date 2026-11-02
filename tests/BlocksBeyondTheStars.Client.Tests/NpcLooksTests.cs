@@ -84,4 +84,71 @@ public sealed class NpcLooksTests
         Assert.InRange(baldBare, 0.55, 0.75);
         Assert.InRange(Math.Abs(baldBare - hairedBare), 0.0, 0.08);
     }
+
+    /// <summary>#3094: the hair rule moved out of NpcView unchanged — bald when the low three bits are 0, the tone from bit 8 up,
+    /// androids never — so no villager's hair changes with the move.</summary>
+    [Fact]
+    public void TheHairRule_IsTheVillagersRule()
+    {
+        foreach (int seed in Seeds().Take(3000))
+        {
+            int expected = (seed & 0x7) == 0 ? -1 : (int)((uint)(seed >> 8) % 7u);
+            Assert.Equal(expected, NpcLooks.HairToneFor(seed, robot: false));
+            Assert.Equal(-1, NpcLooks.HairToneFor(seed, robot: true));
+        }
+
+        Assert.Equal(7, NpcLooks.HairToneCount);
+        Assert.Equal((0.10f, 0.09f, 0.08f), NpcLooks.HairTone(0)); // black, the first villager tone
+        Assert.Equal((0.35f, 0.20f, 0.12f), NpcLooks.HairTone(6)); // auburn, the last
+    }
+
+    /// <summary>#3094: about one person in eight is bald, every tone shows up, and no tone is red (the Guardians' colour).</summary>
+    [Fact]
+    public void AboutOneInEightIsBald_AndEveryToneShowsUp_NoneRed()
+    {
+        var tones = Seeds().Select(s => NpcLooks.HairToneFor(s, robot: false)).ToList();
+        Assert.InRange(tones.Count(t => t < 0) / (double)Samples, 0.10, 0.15);
+        for (int i = 0; i < NpcLooks.HairToneCount; i++)
+        {
+            Assert.InRange(tones.Count(t => t == i) / (double)Samples, 0.08, 0.17);
+            var (r, g, b) = NpcLooks.HairTone(i);
+            Assert.True(r - Math.Max(g, b) < 0.2f, $"tone {i} reads red");
+        }
+    }
+
+    /// <summary>The seed formula NpcView always used: id · 486187739 XOR the name's order-dependent hash (17, ·31 + c).</summary>
+    [Fact]
+    public void TheFaceSeed_IsTheVillagersFormula()
+    {
+        Assert.Equal(17, NpcLooks.StableHash(null));
+        Assert.Equal(17, NpcLooks.StableHash(string.Empty));
+        Assert.Equal(unchecked((17 * 31) + 'A'), NpcLooks.StableHash("A"));
+        Assert.NotEqual(NpcLooks.StableHash("ab"), NpcLooks.StableHash("ba"));
+        foreach (int id in new[] { 1, 7, 512, 40_000 })
+        {
+            string name = "Npc" + id;
+            Assert.Equal(unchecked((id * 486187739) ^ name.Aggregate(17, (h, c) => (h * 31) + c)), NpcLooks.FaceSeed(id, name));
+        }
+    }
+
+    /// <summary>#3094: a robber's seed comes from its string id (the hash the machines' size and voice always used) and its
+    /// name — the same robber looks the same every time it comes into view, and a camp is a mix of different heads.</summary>
+    [Fact]
+    public void Robbers_GetStableVariedHair_FromTheirIds()
+    {
+        Assert.Equal(0, NpcLooks.EntityIdHash(null));
+        Assert.Equal(('b' * 31) + 'x', NpcLooks.EntityIdHash("bx"));
+        Assert.True(NpcLooks.EntityIdHash(new string('z', 40)) >= 0, "the id hash is never negative");
+
+        var seeds = Enumerable.Range(1, 2000).Select(i => NpcLooks.RobberFaceSeed("bandit-" + i, "Bandit")).ToList();
+        Assert.Equal(seeds, Enumerable.Range(1, 2000).Select(i => NpcLooks.RobberFaceSeed("bandit-" + i, "Bandit")));
+        Assert.Equal(NpcLooks.FaceSeed(NpcLooks.EntityIdHash("bandit-3"), "Bandit"), seeds[2]);
+
+        var tones = seeds.Select(s => NpcLooks.HairToneFor(s, robot: false)).ToList();
+        Assert.InRange(tones.Count(t => t < 0) / 2000.0, 0.06, 0.2);
+        for (int i = 0; i < NpcLooks.HairToneCount; i++)
+        {
+            Assert.Contains(i, tones);
+        }
+    }
 }

@@ -103,7 +103,8 @@ namespace BlocksBeyondTheStars.Client
             bool lab = BlocksBeyondTheStars.Shared.Bio.BioItems.CarriesSpecies(baseKey)
                        || BlocksBeyondTheStars.Shared.Bio.BioItems.FormOf(baseKey) != null
                        || !BlocksBeyondTheStars.Shared.Bio.ItemMods.Of(key).IsEmpty
-                       || baseKey == BlocksBeyondTheStars.WorldGeneration.DerelictLogs.ItemKeyBase;
+                       || baseKey == BlocksBeyondTheStars.WorldGeneration.DerelictLogs.ItemKeyBase
+                       || BlocksBeyondTheStars.Shared.State.CarriedContents.HasRecord(key); // #3098/#3099: a filled bag is a bag
             return lab ? baseKey : key;
         }
 

@@ -161,6 +161,15 @@ namespace BlocksBeyondTheStars.Client
         public void OpenShip() => OpenAt(Tab.Ship);
         public void OpenMissions() => OpenAt(Tab.Missions);
 
+        /// <summary>#3087: E at a mission board (and #3089 the quartermaster's "Show me the jobs"): the Missions tab on the
+        /// jobs on offer there — the server scopes the list to the board the player stands at.</summary>
+        public void OpenMissionBoard()
+        {
+            EnsureUi();
+            _ui.RequestCategory("available");
+            OpenAt(Tab.Missions);
+        }
+
         /// <summary>Automation/capture hook (<see cref="ScreenshotDirector"/>): open/close the in-game menu exactly
         /// as the Tab key does (at the current tab), so a marketing shot can show the Tab menu over the cockpit.</summary>
         public void SetMenuOpen(bool open) => SetOpen(open);

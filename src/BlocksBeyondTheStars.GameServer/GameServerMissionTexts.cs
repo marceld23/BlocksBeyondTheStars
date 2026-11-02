@@ -43,7 +43,8 @@ public sealed partial class GameServer
         return new MissionTextRequest
         {
             GiverName = def.GiverName,
-            Place = baseBoard ? "a homestead" : settlementBoard && !string.IsNullOrEmpty(settlementName) ? settlementName : "an orbital station",
+            Place = baseBoard ? "a homestead" : IsShipBoardMission(def.Id) ? "the player's own starship (a cargo order over the radio)" // #3087
+                : settlementBoard && !string.IsNullOrEmpty(settlementName) ? settlementName : "an orbital station",
             Theme = baseBoard ? "settlers" : settlementBoard ? SettlementTradeOf(settlementName) : "traders",
             NeedItem = objective?.Target ?? string.Empty,
             Required = objective?.Required ?? 0,

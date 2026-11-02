@@ -123,6 +123,18 @@ public sealed class PlayerSession
     /// as last time is skipped instead of re-teleporting and re-announcing every second.</summary>
     public Shared.Geometry.Vector3f? EntombedRescueSpot { get; set; }
 
+    /// <summary>#3082: achievements that came due while their reward did not fit — told once, then retried whenever this
+    /// player's inventory changes (<see cref="RewardRetryDue"/>) and every few seconds, until the reward fits. Empty for
+    /// almost everybody, which is what keeps the retry free.</summary>
+    public System.Collections.Generic.HashSet<string> DeferredRewards { get; } = new(System.StringComparer.Ordinal);
+
+    /// <summary>#3082: the inventory changed while a reward waits — the next tick tries to hand it over.</summary>
+    public bool RewardRetryDue { get; set; }
+
+    /// <summary>#3083: seconds until the festival spawner may lay this player's next festival block (counts down by one
+    /// spawn pass at a time; 0 = now). Session-only: a rejoin may lay one at once, the persisted budget still holds.</summary>
+    public double FestivalSpawnWait { get; set; }
+
     /// <summary>What was streamed to this client: chunks, the settled view, the look-ahead, far-terrain tiles.</summary>
     public PlayerSessionStreaming Streaming { get; } = new();
 

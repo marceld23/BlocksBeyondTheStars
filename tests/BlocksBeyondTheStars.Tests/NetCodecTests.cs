@@ -360,6 +360,9 @@ public sealed class NetCodecTests
         [312] = typeof(YieldStatus),             // #2999
         [313] = typeof(SetFestivalPrefsIntent),  // #3021
         [314] = typeof(SetBasePadIntent),        // #3069
+        [315] = typeof(OpenBagIntent),           // #3099
+        [316] = typeof(MoveBagItemIntent),       // #3099
+        [317] = typeof(BagContents),             // #3099
 
     };
 

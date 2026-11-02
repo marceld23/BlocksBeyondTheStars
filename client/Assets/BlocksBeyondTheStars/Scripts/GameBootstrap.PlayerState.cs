@@ -255,8 +255,27 @@ namespace BlocksBeyondTheStars.Client
         /// flight (the banner waits for the HUD); at most <see cref="AchievementBannerQueueCap"/> wait.</summary>
         public readonly Queue<string> AchievementsUnlocked = new Queue<string>();
 
+        /// <summary>#3082: achievements whose reward did not fit yet, with the slots it still needs — the celebration slot shows
+        /// "reward waiting" with the reward and the slots to free (after the unlocks). The server sends each once and hands the
+        /// reward over by itself as soon as there is room.</summary>
+        public readonly Queue<(string Key, int Slots)> AchievementRewardsWaiting = new Queue<(string Key, int Slots)>();
+
         /// <summary>#2597: the most achievement banners that wait at once (a burst beyond that is not replayed one by one).</summary>
         public const int AchievementBannerQueueCap = 6;
+
+        /// <summary>#3082: an item's display name for the reward lines (rewards are plain items: no custom form, no species).</summary>
+        internal string RewardItemName(string item) => BlocksBeyondTheStars.Shared.Localization.ItemNames.Display(Localizer, item);
+
+        /// <summary>#3082: a localized text, or the key itself while no localizer is loaded (never null).</summary>
+        internal string RewardText(string key) => Localizer?.Get(key) ?? key;
+
+        /// <summary>#3082: an achievement's display name — never a raw key: a nameless one reads as "Achievements".</summary>
+        internal string AchievementDisplayName(string key)
+        {
+            string nameKey = $"achv.{key}.name";
+            string name = Localizer?.Get(nameKey);
+            return string.IsNullOrEmpty(name) || name == nameKey || name == $"[{nameKey}]" ? RewardText("ui.achv.title") : name;
+        }
 
         /// <summary>False until the first InventoryUpdate after a join landed — that one is the
         /// baseline snapshot, not a pickup (#745).</summary>
@@ -568,9 +587,23 @@ namespace BlocksBeyondTheStars.Client
             };
             Network.AchievementRewardDeferredReceived += m =>
             {
-                // Earned but unpaid — say so, because the reward is the point of the achievement.
-                LastMessage = Localizer?.Get("ui.achv.reward_full")
-                    ?? "Achievement earned — but no room for the reward! Make space in your inventory.";
+                // Earned but unpaid — say so, because the reward is the point of the achievement. #3082: a banner in the
+                // celebration slot names the reward and the slots to free (the status line says the same); the server hands
+                // the reward over by itself as soon as it fits.
+                if (m == null || string.IsNullOrEmpty(m.Key))
+                {
+                    return;
+                }
+
+                if (AchievementRewardsWaiting.Count < AchievementBannerQueueCap)
+                {
+                    AchievementRewardsWaiting.Enqueue((m.Key, m.SlotsNeeded));
+                }
+
+                var rewards = AchievementRewardText.RewardsOf(Content, m.Key);
+                LastMessage = rewards.Count == 0
+                    ? Localizer?.Get("ui.achv.reward_full") ?? "Achievement earned — but no room for the reward! Make space in your inventory."
+                    : AchievementRewardText.StatusLine(AchievementDisplayName(m.Key), rewards, m.SlotsNeeded, RewardItemName, RewardText);
             };
 
             Network.RespawnNoticeReceived += m =>

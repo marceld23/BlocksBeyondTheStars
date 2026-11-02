@@ -422,6 +422,7 @@ namespace BlocksBeyondTheStars.Client
                 PickupGains.Clear();
                 ResearchAvailable.Clear();
                 AchievementsUnlocked.Clear(); // #2597
+                AchievementRewardsWaiting.Clear(); // #3082: the join's own settle tells again what still waits
                 LocalPlayerId = m.PlayerId;
                 LocationName = string.IsNullOrEmpty(m.SystemName)
                     ? m.PlanetName

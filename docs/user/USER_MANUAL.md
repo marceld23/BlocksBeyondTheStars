@@ -180,7 +180,7 @@ Last updated: 2026-10-04.
 | **G** | Loot the nearest container — take everything out of the nearest storage crate; at an **empty** crate a short message says *The crate is empty.* |
 | **Q** | **Feed** — with food in your hand and a **begging herd** nearby, throw the animals one piece (see §5 → Creatures); does nothing otherwise, so it never wastes food — rebindable (Settings → Controls → *Feed a begging animal*) |
 | **H** | Store your loose materials and blocks in the nearest storage crate / wood box (the one-key sweep leaves tools, weapons, food and equipment with you — put those in by hand on the crate screen, **E**; with nothing of that kind in your bag a message says so); **aboard your ship** with no crate in reach: **stow them all into the cargo hold** (the stack in your hand stays) |
-| **E** | Use a nearby ship/station tile (cockpit, workshop, **cargo — opens the cargo hold page**, medbay, …); **at a vendor: trade or talk** (a small question — **E** again trades, *Talk* opens the conversation); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **open the crate screen** of a storage crate you're aiming at — its contents above, your backpack below, click to move (see §5 → Storage crates); **open or close a wooden or hinged door** — the one you're looking at, else the nearest (sliding and energy doors open by themselves; see §5 → Crafting → Doors) |
+| **E** | Use a nearby ship/station tile (cockpit, workshop, **cargo — opens the cargo hold page**, medbay, …); **at a vendor: trade or talk** (a small question — **E** again trades, *Talk* opens the conversation); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **open the crate screen** of a storage crate you're aiming at — its contents above, your backpack below, click to move (see §5 → Storage crates); **open or close a wooden or hinged door** — the one you're looking at, else the nearest (sliding and energy doors open by themselves; see §5 → Crafting → Doors); **talk to the person you're looking at**; **aim at a mission board** to open its jobs (Tab → Missions). **What you aim at comes first**: a person, a board, a crate, a bed or a chair under the crosshair wins over a door, a ship station or somebody merely standing nearby — and the prompt at the bottom of the screen always names exactly what **E** will do |
 | **X** | Pack up (stow) a nearby deployed hover speeder or boat back into its item; at your own landed ship's **cockpit / console**: **recall** every speeder / boat you left out on this world straight into your inventory (parked beside the ship, with a marker, only when no slot is free; see §5 → Hover speeder) |
 | **T** | Send a trade request to a nearby player — also while your ships are docked (a visiting friend stands right beside you) |
 | **K** | Send a dock request to a nearby player (at the helm and on a spacewalk too — see §3) |
@@ -421,7 +421,11 @@ separate unlock; admins can still disable it through server world rules.
   now names the planet and system it was first scanned on), story %, achievements done — and a **Journey** grid of your
   lifetime tallies (worlds visited, systems entered, blocks mined/placed, subjects scanned, missions …); the
   goals below run from the first blocks to the late game (thousands of blocks, dozens of worlds, every
-  blueprint, your own station or ship, the Guardian finale) and each pays an item reward. The **Blueprints** tab
+  blueprint, your own station or ship, the Guardian finale) and each pays an item reward — the gold banner names it
+  (*"Reward: Pumpkin lantern ×4, Lantern ×6"*). If your pockets are full when you earn one, an orange **"Reward waiting —
+  make room!"** banner names the reward and how many slots to free; as soon as there is room (drop, use or stash
+  something, or board your ship when its cargo hold has space) the reward arrives by itself with the usual banner — no
+  rejoining needed. The **Blueprints** tab
   header shows how much of the tree you have researched and which blueprint you could research next; its filter
   row shows your **knowledge points** and data fragments and has a **"Researchable now"** toggle (*Jetzt
   erforschbar*; it was "Enough knowledge" before) that keeps only the blueprints you can research right now —
@@ -435,9 +439,9 @@ separate unlock; admins can still disable it through server world rules.
   above the list names the block you need (with its icon), how far away the nearest one is and in which
   direction; **Show** marks it on your compass, **Craft one →** jumps to its recipe when you don't own one yet.
   Hand recipes work anywhere.
-- **Codex → Enemies** (#2971) — every kind of enemy, from space drones, UFOs, cruisers and raider ships to the scan
-  drones, Guardian robots, hunters and robbers on the ground: its **health**, **damage per second** (and the stronger
-  kind's), its **loot**, what it is and a tip how to beat it — every enemy from the start (#3031), each beside a
+- **Codex → Enemies** (#2971) — every kind of enemy, from space drones, UFOs, cruisers, raider ships and hunter shuttles to the scan
+  drones, Guardian robots, hunters, tank spiders and robbers on the ground: its **health**, **damage per second** (the
+  tank spider's one burst instead, #3096; and the stronger kind's), its **loot**, what it is and a tip how to beat it — every enemy from the start (#3031), each beside a
   **picture** of it (#3032, drawn by the game from the real model). One you have **met** — it came within a weapon's
   reach, on foot or in your ship — carries a green **✓ met**, and the head counts them. A first meeting says so
   (*First met: …*). The numbers are the game's own (`data/enemies.json`), so they are always right.
@@ -819,7 +823,9 @@ costs no frame rate.
   into glass; researchers at any market buy **rune stones** for data fragments.
 - **Wood box** (hand-crafted from logs): early-game storage sharing the crate's keys and screen, but it
   only holds a few kinds of item (8 stacks) — the workshop's iron crate stores everything.
-- **Storage crates — the crate screen:** aim at a placed crate or wood box and press **E**. The screen shows
+- **Storage crates — the crate screen:** aim at a placed crate or wood box and press **E** (the stash line at the
+  bottom of the screen adds *E open crate* only while a crate is under the crosshair; **G** and **H** work on the
+  nearest crate without aiming). The screen shows
   **what is in the crate at the top and your backpack (quick-bar included) at the bottom** — click a stack to
   move exactly that stack across, hold **Shift** while clicking to move every stack of that kind. **Anything** goes in by hand:
   blocks, ores, food, medpacks, tools and weapons alike. The buttons on the screen do the bulk moves — *Store all
@@ -830,6 +836,22 @@ costs no frame rate.
   the crate screen refuses anything else. The HUD prompt shows **Filter on** at such a crate; select nothing in the
   dialog (or hit *Allow everything*) to go back to accepting it all. Dyed or re-formed variants of a chosen material
   count as that material.
+- **Transport crate — a crate you can carry** (workshop: 4 iron plates, 2 logs, 4 plant fibre): place it and it is a
+  storage crate like the iron one — same screen, same keys, it stores everything. The difference is when you **mine
+  it**: whatever is inside **stays packed** — the crate drops as *Transport Crate · filled*, nothing spills into your
+  backpack. Carry it anywhere (another planet, a station, your ship's hold) and place it again: the crate stands there
+  with everything back inside. An empty one drops as a plain transport crate and stacks with the others. A packed crate
+  is unpacked on the ground, in a base or aboard a station — not built into a ship's hull out in space. You can't throw a
+  packed crate away (empty it first), and the creative catalog only hands out empty ones.
+- **Storage bag — opens in your inventory** (workshop: 8 plant fibre, 1 iron plate): a bag for your backpack that
+  holds **up to 1000 items** of any kinds. Open it with *Open the bag* in the inventory (the bag's detail panel), or hold it
+  in your hand and use **right-click** (the place key). The bag screen looks like the crate screen — the bag at the top
+  with *n/1000 items*, your backpack below; click a stack to move it, **Shift**-click to move every stack of that kind;
+  *Store all materials* puts your loose materials, components and blocks in (the stack in your hand stays), *Take
+  everything out* empties it as far as your backpack has room. A bag doesn't fit into a bag, and neither does a packed
+  transport crate. A filled bag shows as *Storage Bag · filled*, never stacks, and can't be thrown away until it is
+  empty; the **H** sweep and the hold's *stow all* leave bags with you. On a world where a death drops your things, the
+  bag lies in your salvage capsule with everything still inside; a trade or a crate takes it along with its contents.
 - **Armor**: each worn piece (chest/legs/helmet/boots) adds resistance, summed and capped (~75%); worn boots also
   soften a hard landing by about a third.
 - **Water meets lava**: lava hardens wherever water touches it — a lava **pool** (a source) turns to
@@ -860,6 +882,30 @@ costs no frame rate.
   of a lava column anyway and mostly never reach it; what burns is what flies in, what was inside when you
   flooded it, and what gets driven in. Tame companions never burn, creatures that live in lava are at home
   in it, and with **environmental hazards off** (or on a Creative world) nothing burns at all.
+- **Tank spiders** (#3096, Justus' idea): a mechanical Guardian spider on eight legs that carries a round brass
+  **pressure tank** where a spider has its body. It never bites. It scurries toward you — a bit faster than a Guardian
+  robot, still slower than you running — and when it gets within about **3 blocks** it stops, and its tank **swells up,
+  hisses and glows**, blinking faster and faster: that is your warning — **run**. After **1.5 seconds** it bursts: a flash,
+  a puff of smoke and a pop that throws you back and hurts (up to **30** right beside it, less further out) everyone
+  within about **3½ blocks** — but **not** someone behind a wall, which takes the blast. The burst **never breaks a
+  block**. Shoot it from far away (it has only 20 health) and it just pops harmlessly and drops its loot; one that bursts
+  drops nothing. Tank spiders only come where Guardian machines may roam (never on peaceful worlds), never as the first
+  machines you meet on a visit, and only one at a time.
+- **Hunter shuttles** (#3097, Justus' idea): now and then during a flight a small Guardian **hunter shuttle** warps in
+  (pale steel with a red stripe and a red eye under its cockpit; VEGA tells you). It is a poor fighter — a weak gun,
+  and it keeps its distance, circling you. Once it is hurt, or after half a minute or so, it **runs away**: VEGA calls
+  it out, and you have about **8 seconds** to shoot it down. Shot down, it leaves wreckage and a little loot — and that
+  is the end of it. If it **gets away**, it lands on a planet of the system (the one you were flying at, if it can) a
+  few hundred blocks from your base or the landing pads, and VEGA marks its **camp** on the planet map (a red ship
+  icon, also on the compass). There stands the landed shuttle, a **hunter** on guard behind its open hatch, and two
+  or three glowing **Guardian bays** — one in the shuttle's hold, one or two beside it — that send out a Guardian
+  robot (sometimes a scan-drone) every 45 seconds or so while you are near, one at a time per bay (two on the
+  Frequent/Extreme machine settings). **Mine every Guardian bay** (the starter drill does it; each drops circuit
+  boards, copper wire and a power cell) and the camp is finished for good — a loot crate appears in the shuttle's
+  hold. A defeated hunter never comes back. Hunter shuttles never appear on peaceful worlds, in Creative, with
+  space hostiles off or where your ship cannot fight back; at most three camps are open in a galaxy at once.
+- **A Guardian robot left alone fidgets**: standing about, it now and then looks at its hands, rolls its shoulders or
+  scans far around — never while it walks or hunts you.
 - **Walking Guardian robots stay out of deep water**: like land animals they wade through water **one block**
   deep, but water **two or more blocks deep** is a wall to them (kelp, seagrass and coral under a lake count as
   the lake) — a robot chasing you stops at the shore, and a moat two blocks deep keeps them out (hovering
@@ -1073,6 +1119,9 @@ players.
   hotbar does not change, even with a free quick-bar slot. The pickup row above the hotbar then reads
   **"+1 Pale wood log · in your backpack"**, and the first time it happens VEGA tells you once where your find went
   (2026-10). Put a backpack item on the quick-bar by clicking it and then a quick-bar slot.
+- **More room in one slot — the storage bag** (2026-11): a bag in your backpack holds up to **1000 items** of any kinds
+  and takes one slot. Pick it on the **Backpack** tab and press *Open the bag*, or hold it and right-click. See §5 →
+  Survival → *Storage bag* for the details (and the **transport crate**, the crate you can carry with its contents).
 - **Suit gear works only while you WEAR it** (2026-09; before, a piece worked anywhere in the pack). The
   Inventory's **Suit** tab shows the worn slots as a **figure** (2026-10): **head** (helmet or titanium helmet),
   **chest** (chest armour, titanium chest plate *or* the stealth suit), **legs**, **feet** (boots or **spring
@@ -1172,6 +1221,11 @@ players.
   and the new one comes up into your hand (a quiet sound plays). Scrolling quickly through the slots only takes out the
   last one. Using the item while it is coming up skips the rest of the animation — nothing ever waits for it. With
   *Reduced effects* (Settings → Comfort) the item changes at once.
+- **A little show once it is in your hand:** a **drill** you take out does a short test spin (its bit whirrs up and
+  winds down), a **gun** is tipped and reloaded once (just for the look — there is no ammunition), and a **blade** is
+  twirled — now and then also while you simply stand holding it. The drill's bit also **spins while you mine**. It is
+  all for fun: using the item stops it at once, and other players (and robbers with their blades) do it too. With
+  *Reduced effects* there is no show.
 - **Throwing things away:** select an item in the **Inventory** or **Cargo Hold** tab and press **"Throw
   away"** — it asks once ("Really throw away?"), and the second click destroys *every* stack of that item.
   This cannot be undone and gives nothing back. Your starting equipment (drill, scanner, suit lamp, machete,
@@ -1307,6 +1361,11 @@ players.
   workshop — and gives back **50 %** of its parts (per part, rounded down). A cargo expansion only comes out
   while the remaining hold still fits everything stored in it. Moving a module to another ship means removing
   it here and building it there.
+- **A mission board in your own ship works** (#3087). Build one into the cabin and aim at it: **E** opens its jobs —
+  **cargo orders** traders radio in (gather the goods, hand them in at the board), plus the board jobs every board
+  offers (the *Cable Supply Run*). Take and hand them in standing at the board, landed or out in space with you inside;
+  the jobs stay yours when you fly to another world or switch ships. A **trading post** or a profession's post built
+  into a ship is only decoration — those are staffed in a base — and the game says so when you build one.
 - **Ship scanner** (every ship, 2026-10): the **last slot of the flight hotbar** is the scanner — select it like the
   laser or the tractor beam, point the nose at something and **hold fire until the ring is full**. Four corner
   brackets lock on, an empty ring appears and the line under the target says what to hold (*Hold LMB: scan*, RB on a
@@ -1878,8 +1937,14 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   **14 blocks**, and it only works **while you are home** on that world. Machines appear 35–50 blocks away
   from you — so a sentry is the thing that covers your back while you build, not a fence that clears the
   neighbourhood. It aims from its muzzle, so a roof or block placed **right on top of the post** does not blind
-  it — only something between the muzzle and the target does. Scan a post to read its range and the zone it needs back. On **Creative** or **Peaceful**
+  it — only something between the muzzle and the target does. Scan a post to read its range and how close a base core
+  or power relay has to stand. On **Creative** or **Peaceful**
   worlds it stays quiet, like everything else.
+  **Crystal conduits carry no power** — only the base core and power relays do. A conduit can only **switch** a post:
+  on a wire with a **switch, a sensor or a logic block** on it, OFF makes the post hold its fire and ON lets it shoot;
+  a conduit on its own (nothing on the wire that sends a signal) leaves the post alone, and so does mining that wire's
+  last switch. While a wire holds a post's fire, looking at it says **"Switched off by the Crystal Net"** (and so does
+  its scan readout).
   A sentry's kill **counts for you**: bandit and machine bounty steps progress, a scout it finishes still
   counts towards *Guard the homestead* and the base-defended tally, and the drops land on the ground where
   the target fell. Only the plain "defeat" achievement stays yours to earn by hand.
@@ -2047,6 +2112,10 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   Creative — the 3 minutes don't apply; use the button as often as you like.
 - World rule **"Back to my ship" in the pause menu** (Tab → Character → world rules, world admin; or launch with
   `--return-to-ship false`): **on by default**, **off on the `dangerous` preset** — a hard world keeps the walk back.
+- **Sealed in rock:** if your feet and your head ever end up inside full blocks (sand slid over you, a landing in a
+  cliff), the game lifts you straight up to the first free spot with something under it — *"You were stuck in the rock —
+  dug out."* Only blocks that fill their cell count: leaning against a **fence**, a plate stood on its edge, a post or
+  another thin form never moves you, and a fence or a slab under that free spot is fine to stand on.
 
 ### Crystal Net (signals, sensors, automation)
 - **What it is.** **Crystal conduits** carry a simple signal — **ON or OFF**, nothing else. Lay a line of
@@ -2099,9 +2168,14 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
     square.
   - **Storage sensor** — reads the crate beside it: ON when it is full, when it is empty, or when it holds
     enough of its filter item.
-  - **Watcher** — one pulse whenever the block in front of it changes: mined, placed, a crop that ripened. It
-    looks the way **you** were looking when you placed it, so place it against the thing it should watch while
-    you look at that thing; the arrow shows where it looks.
+  - **Watcher** — one pulse whenever something changes in front of it: a block mined or placed, a crop that
+    ripened, a **door** opening or closing, a **device** switching (a switch flipped, a button pressed, a lamp going
+    on or off, a sensor or logic block switching, a machine reporting "stuck"), the **wire** in front of it going ON
+    or OFF, a **sentry post** starting or stopping to shoot. It looks the way **you** were looking when you placed
+    it, so place it against the thing it should watch while you look at that thing; the arrow shows where it looks.
+    The side with the arrow only **looks** — it is not a wire, so the watcher never switches or locks what it
+    watches; lay its conduit on any of its other sides. It sends, it never listens: a signal on its wire does
+    nothing to it (its menu says so too).
   - **Device Eye** — tells the wire what a machine is doing. Place it against a device while you look at that
     device (it looks the same way you do; the arrow shows it) and lay a conduit **behind** the eye, on your
     side: that network is ON while the device reports ON. What the devices report: a **matter sender** that
@@ -2147,6 +2221,11 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   **seat**. They all keep doing their normal job — a wired forge is still a forge. What they have to say — the
   beacon's "my owner is near", the sentry's "I have a target", the tray's "ripe", the beam block's "someone
   arrived", "someone heals / lies / sits here" — shows on their amber light; a Device Eye puts it on a wire.
+  The **sentry post**, the **water spout** and the **heal tank** do their job on their own and you could not see them
+  stop, so a wire only switches them OFF when something on it sends a signal — a switch, a button, a sensor, a watcher
+  or a logic block. A bare conduit beside them leaves them alone. While a wire holds one of them OFF, looking at it says
+  **"Switched off by the Crystal Net"**. (The net carries no power: a sentry post is powered by your base core and
+  power relays.)
 - **Moving blocks** (they never hurt anyone and never close onto anyone — they wait):
   - **Phase block** — a wall block that turns into shimmering air while its network is ON: a secret door. Phase
     blocks side by side open together; dye them to match your wall.
@@ -2441,8 +2520,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   debris field's rubble only taps the shield.
 
 ### Bandits (robbers, camps, pirate space)
-- Bandits are **people**, not machines: you can tell one by the cloth mask over the nose and mouth
-  and the scruffy jacket — not by glowing eyes, which belong to the Guardian robots.
+- Bandits are **people**, not machines: they look like the villagers — the same faces and hair (some are bald) — but
+  you can tell one by the cloth mask over the nose and mouth and the scruffy jacket — not by glowing eyes, which belong
+  to the Guardian robots. A robber who fights raises its weapon: the gunner aims, the one with the blade holds it up.
 - **Lone robbers** roam some survival worlds. One may walk straight up to you and demand roughly a
   third of your two biggest stacks (**never your tools**). You have ~25 seconds and a real choice:
   **[1] Hand it over** — the robber keeps its word, leaves, and won't bother you again for a long
@@ -2465,14 +2545,17 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   entirely (peaceful/family presets default to Off).
 
 ### Missions & bounties
-- **Mission boards** stand in settlements and aboard space stations; vendors and board givers hand out
+- **Mission boards** stand in settlements and aboard space stations — and wherever you build one: **in your base**
+  (a resident runs it as your quartermaster) and **in your own ship** (it works by itself; see §5 → Ship, modules,
+  building). **Aim at a board and press E** to open its jobs (Tab → Missions); vendors and board givers hand out
   gather/delivery jobs. Accepted missions are tracked in the **Tab → Missions** tab; report back to the
   giver for the reward. A short message names the mission and says what happened — **accepted**, **complete**
   (only when you really hand it in) or **posted** (your own mission) — in your language. Crystal Net jobs name
   what the circuit must do ("Circuit · a switch turns on a lamp 0/1").
 - **Starter jobs:** *First Iron* waits in your Missions tab from the start. The repeatable **Cable Supply Run** is a board
-  job: it is offered at any settlement or space-station mission board (stand at the board to take it), and taking it
-  counts as your first job from a board. Being repeatable, it does not move the story.
+  job: it is offered at any mission board — a settlement's, a space station's, your base's or your ship's (stand at the
+  board to take it) — and taking it counts as your first job from a board. Being repeatable, it does not move the story.
+  *Guard the homestead* is offered at any board as well while scouts visit bases.
 - **Camp bounty:** a settlement mission board on a planet with an uncleared **bandit camp** offers a
   bounty to drive the bandits out. Accepting it marks the camp on your planet map (key **M**); clear the
   camp — everyone holding the bounty gets credit, so it's co-op friendly — and report back for a reward
@@ -2580,8 +2663,12 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   quartermaster: **Stranger → Acquaintance → Friend**. The stage shows on their **nameplate** when you walk
   up, and everyone you know is listed under **Tab → Character → People you know** (name, role, stage, where
   they live).
-- **Talk to people.** Walk up to any NPC and press **E** (away from station blocks, which keep their own E). At a
+- **Talk to people.** **Look at** someone within about five metres and press **E** — that works even right beside a
+  door, a crate or a ship station. Without looking at anyone, **E** talks to the nearest person when nothing else is
+  close by (a door, a beam pad or a station keeps its own E then, and the prompt says *Look at … to talk*). Someone just
+  out of reach gets you a short *Too far away to talk* instead of silence. At a
   **vendor**, E asks *Trade or talk?* — **E** once more opens the Market, **Talk** the conversation.
+  A **quartermaster** answers *Show me the jobs!* by opening the **Missions** tab on their board's jobs.
   The trade screen belongs to **the vendor you picked**: it shows their name, what they deal in (*Medicine and first
   aid*, *Monorail parts*, …), **their own goods first** and the two ore swaps every trader has at the end. While a
   customer stands near, a trader stays at the counter; if they still walk too far away the screen says *Step closer
@@ -2690,7 +2777,10 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   the base** — name and job, what they are doing right now (working, resting, asleep …), **where they are** from the
   core (*"12 m to the northeast"*, or *"not here right now"*) and whether they **have a bed**. While there is room it
   also reminds you that every bed brings one more resident. A long list scrolls (mouse wheel or the scrollbar).
-- **E to talk.** Standing next to someone shows *"Talk to … (E)"*.
+- **E to talk.** Look at someone (or stand next to them with nothing else around) and the prompt shows
+  *"Talk to … (E)"*. **Everyone talks about their job** — the trader, the quartermaster, the guard, the gardener, the
+  craftsman, the woodcutter of a *Lumberjack* base and every profession; a resident without a post talks about the
+  base's **focus** (the *Miner* shaft, the *Market* merchants, the *Radio centre*'s calls).
 
 ### Daily routines & jobs
 - **People keep the hours of the sun above them.** By day they are at work, in the evening they sit down on a
@@ -2711,8 +2801,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   going to makes them wait (glass hides nothing); a floor, a ceiling or a wall between you does not.
 - **Jobs come from what your base holds** — one job per resident, in this order:
   - **Trading post** (the *Trade Post* block): a resident becomes your **trader** — barter right at home.
-  - **Mission board**: a resident becomes your **quartermaster** — board jobs at home (take them and hand
-    them in at the board).
+  - **Mission board**: a resident becomes your **quartermaster** — board jobs at home (aim at the board and press
+    **E**, or ask the quartermaster *Show me the jobs!*; take them and hand them in at the board). The board also
+    offers the jobs every board has (the *Cable Supply Run*, *Guard the homestead*).
   - **Walls around the base** (or a sentry post): the **guard** walks the inside of the wall on the **night
     shift** and sleeps by day. Bandit scouts watching your base or a robber closing in get a warning to you
     over the radio (through VEGA if you wear no radio that reaches) and are **sent on their way** — the guard never fights; a robber who already attacks is the
@@ -2726,7 +2817,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   - A crate that only takes certain items (a filter) or a full wooden box is respected: what does not fit
     stays in the field.
 - A post, a crop or a workbench only counts **inside the base** (the same rule as for beds). A trading post
-  or a mission board placed where nobody can staff it tells you why.
+  or a mission board placed where nobody can staff it tells you why — and so does an idle board when you open the
+  Missions tab at it.
 
 ### Trade
 - **Player ↔ player:** press **T** near a player (pad/touch: **Actions → trade**) to send a request; the
@@ -2953,10 +3045,13 @@ called **stories**:
 - **Pumpkins:** during the harvest festivals you celebrate (Halloween week, Erntedank, the Thanksgivings, Sukkot, the autumn
   equinox) **pumpkins** grow around you on the open, untouched ground of the green worlds — never on your own lawn or path,
   and never right beside anybody — orange, yellow, green, white, every plant its own colour, and vanish again after the
-  festival unless you harvest them. A
+  festival unless you harvest them. They are **rare and must be found**: one appears somewhere within about thirty blocks of
+  you every half minute while you are out on foot, and each festival brings you only so many a year (Halloween 80, the
+  other harvest festivals 40) — a picked pumpkin does not grow back, so walk around and look. Next year's festival brings
+  new ones. A festival pumpkin is always a **plain, edible pumpkin**, even on a world whose wild pumpkins are toxic. A
   pumpkin is a filling fruit; cut it into **seeds** by hand and plant them on grass, soil or a hydroponic tray, or carve it with
   a torch into a **pumpkin lantern**, a warm dyeable light for your doorstep. On the green worlds pumpkins also grow wild all
-  year (new worlds only; a toxic world's pumpkins need the detoxifier).
+  year (new worlds only; a toxic world's wild pumpkins need the detoxifier).
 - **Festival challenges:** while a festival you celebrate is on, VEGA offers a small task in the Journal. **Halloween:**
   harvest sixty pumpkins (and put up three pumpkin lanterns). **Christmas:** find and scan twenty-five **different fir trees**
   on the cold worlds — every tree counts once, however many needles you scan (and put up ten lights). The other festivals
@@ -3453,7 +3548,9 @@ called **stories**:
   gives** (the species' drop item) at its feet — auto-picked, and a **penned** pet stockpiles it for your next visit.
 - **Energy fence pens**: craft **energy fence** pylons (`energy_fence`, workshop, no blueprint — 2 metal
   panels + 2 cable → 4) and ring in a pen: no creature — wild, tamed or hostile machine — can cross the
-  humming pylons, so animals stay home and fiends stay out. Add an **energy gate** (`energy_gate`,
+  humming pylons, so animals stay home and fiends stay out. Placed side by side, the blocks join into one fence —
+  metal rails along the top and bottom and glowing energy beams running from block to block, with gaps you can
+  see through (but nothing can pass). Add an **energy gate** (`energy_gate`,
   workshop — 2 metal panels + 1 energy cell + 1 circuit board) as the entrance: you and settlement folk
   walk straight through its membrane while fauna bounce off; there is nothing to open or close. Only
   flying creatures glide over a normal-height fence.
@@ -3685,7 +3782,8 @@ look up: what a mix does follows from what goes in, and the same things always g
   villager/crew member — can't be taken (*"Someone is already sitting there."*), and people won't sit down on your
   chair either: they wait beside it and sit down once you get up. Stand up with **E**, jump, crouch or any movement key.
 - **Faces:** everyone has a face of their own — some are clean-shaven, others wear a moustache, a goatee, a beard or a
-  full beard in their hair colour; androids have a small speaker grille instead.
+  full beard in their hair colour; androids have a small speaker grille instead. Robbers have the same hair as the
+  villagers (some are bald) but never a beard — their cloth mask covers the lower face.
 - **Beds are two cells long:** placing a bed writes the head end where you aim and the foot end in the cell you are
   facing (the preview shows both); the foot cell must be free. Mining either half takes the whole bed back, and **E**
   on either half sets your home spawn. Beds placed before this change stay one cell.

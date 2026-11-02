@@ -72,6 +72,10 @@ public sealed class PlayerSnapshot
     /// older saves ⇒ none remembered.</summary>
     public List<long> ScannedTrees { get; set; } = new();
 
+    /// <summary>#3083: festival blocks laid for this player per <c>&lt;festival&gt;:&lt;year&gt;</c> (the spawn budget). Absent in
+    /// older saves ⇒ nothing laid yet.</summary>
+    public Dictionary<string, int>? FestivalSpawnsLaid { get; set; }
+
     /// <summary>Display name per <see cref="Scanned"/> entry, captured at scan time (#484). Absent in saves
     /// written before it existed — those entries just have no name.</summary>
     public Dictionary<string, string> ScannedNames { get; set; } = new();
@@ -282,6 +286,7 @@ public static class StateMapper
         Scanned = p.Scanned.ToList(),
         ScannedCells = p.ScannedCells.ToList(),
         ScannedTrees = p.ScannedTrees.ToList(),
+        FestivalSpawnsLaid = p.FestivalSpawnsLaid.Count > 0 ? new Dictionary<string, int>(p.FestivalSpawnsLaid) : null, // #3083
         ScannedNames = new Dictionary<string, string>(p.ScannedNames),
         ScannedWhere = CloneScanSites(p.ScannedWhere),
         EnemiesMet = p.EnemiesMet.ToList(),
@@ -596,6 +601,9 @@ public static class StateMapper
         Scanned = new HashSet<string>(s.Scanned ?? new List<string>()),
         ScannedCells = (s.ScannedCells ?? new List<long>()).ToList(),
         ScannedTrees = (s.ScannedTrees ?? new List<long>()).ToList(),
+        FestivalSpawnsLaid = s.FestivalSpawnsLaid != null
+            ? new Dictionary<string, int>(s.FestivalSpawnsLaid, System.StringComparer.Ordinal)
+            : new Dictionary<string, int>(System.StringComparer.Ordinal), // #3083
         ScannedNames = new Dictionary<string, string>(s.ScannedNames ?? new Dictionary<string, string>()),
         ScannedWhere = CloneScanSites(s.ScannedWhere ?? new Dictionary<string, ScanSite>()),
         EnemiesMet = new HashSet<string>(s.EnemiesMet ?? new List<string>()),

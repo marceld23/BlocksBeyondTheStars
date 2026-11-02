@@ -40,6 +40,10 @@ public sealed class NpcDialogState
 
     /// <summary>#2616: the <see cref="Action"/> that closes the panel (see there).</summary>
     public const string ActionClose = "close";
+
+    /// <summary>#3089: the <see cref="Action"/> after the quartermaster's "Show me the jobs" — the client closes the panel
+    /// after the line and opens the Missions tab on the jobs on offer. An older client ignores it (the line still reads).</summary>
+    public const string ActionMissions = "missions";
 }
 
 /// <summary>Client → server (2026-09): the player's answer to a reporter's interview. Only accepted right after that

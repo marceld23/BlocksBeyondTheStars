@@ -792,6 +792,7 @@ namespace BlocksBeyondTheStars.Client
             "observatory" => ("◉", new Color(0.7f, 0.85f, 1f), null), // #1129 one-of-a-kind site; glyph fallback
             "guardian_core" => ("◎", GuardianCoreCol, null), // the finale's one aperture (#1792) — no icon art yet; glyph
             TraderShipPoi => ("⚖", TraderShipCol, "map_ship"), // a landed trader ship's pilot (#1904) — the ship icon in trade gold
+            HunterShuttlePoi => ("⚠", HunterShuttleCol, "map_ship"), // #3097: a hunter shuttle's robot camp — the ship icon in Guardian red
             "lodge" => ("⌂", LodgeCol, "map_lodge"), // #2647: a wilderness hut ("Tilda's hut") — a log cabin in warm wood brown
             "outpost" => ("⌂", OutpostCol, "map_base"), // #2681: a pioneer's outpost ("Mira's outpost") — an NPC's base, in sand
             _ => ("◆", new Color(0.8f, 0.8f, 0.9f), "map_station"),
@@ -831,6 +832,13 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The landed trader ship's marker colour (#1904) — a saturated trade gold, shared with its HUD
         /// compass blip. Paired with the ship icon, which only your own ship otherwise wears (in cyan).</summary>
         public static readonly Color TraderShipCol = new Color(1f, 0.78f, 0.1f);
+
+        /// <summary>#3097: POI type of a hunter shuttle's robot camp — the server's live marker, gone once its Guardian bays
+        /// are mined.</summary>
+        public const string HunterShuttlePoi = "hunter_shuttle";
+
+        /// <summary>#3097: the camp's marker colour — the Guardian machines' red, shared with its HUD compass blip.</summary>
+        public static readonly Color HunterShuttleCol = new Color(1f, 0.3f, 0.25f);
 
         /// <summary>A map marker: a generated HUD ICON when one exists (uGUI icon pass), else the unicode
         /// glyph as fallback — both tinted with the marker colour, drawn on a dark backing disc so the

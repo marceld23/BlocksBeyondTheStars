@@ -56,21 +56,27 @@ public sealed partial class GameServer
     }
 
     /// <summary>
-    /// Awards one achievement if its counter has reached the target and it hasn't been earned yet.
+    /// Awards one achievement if its counter has reached the target and it hasn't been earned yet. True when it was
+    /// awarded just now.
     /// <para>
-    /// If the reward will not fit, the achievement is left UNEARNED and the player is asked to make room — it is
-    /// then awarded on the next counter bump. Unlocking it and dropping the reward on the floor would repeat the
-    /// exact bug this batch of feedback started with ("Items futsch"), and the reward is the whole point.
+    /// If the reward will not fit, the achievement is left UNEARNED and the player is asked to make room. Unlocking it
+    /// and dropping the reward on the floor would repeat the exact bug this batch of feedback started with ("Items
+    /// futsch"), and the reward is the whole point. #3082: it used to be paid out only on the next bump of the same
+    /// counter or at the next join — and a festival's graduation counter bumps exactly once, so Justus' Halloween
+    /// present waited four hours and a restart although he had freed slots long before. Now the waiting key sits in
+    /// <see cref="PlayerSession.DeferredRewards"/> and <see cref="TickDeferredRewards"/> hands it over as soon as there is
+    /// room; the notice (with the slots still missing) goes out once per waiting reward, not on every retry.
     /// </para>
     /// <para>#2597: <paramref name="praise"/> lets VEGA praise the unlock (<see cref="QueueVegaPraise"/>) — true for an
-    /// achievement earned right now, false for the retro-awards settled at join (those stay silent).</para>
+    /// achievement earned right now (a waiting reward handed over later counts as now), false for the retro-awards
+    /// settled at join (those stay silent).</para>
     /// </summary>
-    private void TryAward(PlayerSession session, AchievementDefinition def, bool praise)
+    private bool TryAward(PlayerSession session, AchievementDefinition def, bool praise)
     {
         var p = session.State;
         if (p.Achievements.Contains(def.Key) || CounterOf(p, def.Counter) < def.Target)
         {
-            return;
+            return false;
         }
 
         var rewards = def.Rewards ?? new List<ItemAmount>();
@@ -79,10 +85,15 @@ public sealed partial class GameServer
             var pool = new MaterialPool(_content, p, _ship);
             if (!pool.CanFit(rewards))
             {
-                Send(session, new AchievementRewardDeferred { Key = def.Key });
-                return; // stays claimable — nothing is lost, nothing is falsely marked earned
+                if (session.DeferredRewards.Add(def.Key))
+                {
+                    Send(session, new AchievementRewardDeferred { Key = def.Key, SlotsNeeded = pool.SlotsShort(rewards) });
+                }
+
+                return false; // stays claimable — nothing is lost, nothing is falsely marked earned
             }
 
+            session.DeferredRewards.Remove(def.Key);
             foreach (var r in rewards)
             {
                 pool.Add(r.Item, r.Count);
@@ -97,6 +108,72 @@ public sealed partial class GameServer
         if (praise)
         {
             QueueVegaPraise(session, def);
+        }
+
+        return true;
+    }
+
+    /// <summary>Seconds between two retries of a waiting reward without an inventory change — the reward may fit because
+    /// the player boarded their ship (the cargo hold counts) or a path changed the inventory without telling it.</summary>
+    private const double DeferredRewardRetrySeconds = 5.0;
+
+    private double _sinceDeferredRewardRetry;
+
+    /// <summary>#3082: called from <see cref="SendInventory"/> — the one place every inventory change reports to. Only
+    /// marks the session; the retry itself runs in <see cref="TickDeferredRewards"/>, after the handler that changed the
+    /// inventory has finished (a craft that consumed its inputs and still has to add its output must not find its freed
+    /// slot taken by a present). Costs one count check while nothing waits.</summary>
+    private static void NoteInventoryChangedForRewards(PlayerSession session)
+    {
+        if (session.DeferredRewards.Count > 0)
+        {
+            session.RewardRetryDue = true;
+        }
+    }
+
+    /// <summary>#3082, post-world tick step: hands over the rewards that were waiting for room — for a player whose
+    /// inventory changed, at once; for every other waiting player every <see cref="DeferredRewardRetrySeconds"/> s. The
+    /// award is a fresh one: the unlock banner, the refreshed list and VEGA's praise.</summary>
+    private void TickDeferredRewards(double dt)
+    {
+        _sinceDeferredRewardRetry += dt;
+        bool periodic = _sinceDeferredRewardRetry >= DeferredRewardRetrySeconds;
+        if (periodic)
+        {
+            _sinceDeferredRewardRetry = 0;
+        }
+
+        foreach (var s in _sessions.Values)
+        {
+            if (!s.Joined || s.DeferredRewards.Count == 0 || !(s.RewardRetryDue || periodic))
+            {
+                continue;
+            }
+
+            s.RewardRetryDue = false;
+            RetryDeferredRewards(s);
+        }
+    }
+
+    private void RetryDeferredRewards(PlayerSession session)
+    {
+        Serve(session); // the pool reads the ship cursor (the cargo hold while aboard)
+        bool any = false;
+        foreach (string key in session.DeferredRewards.ToArray())
+        {
+            var def = _content.Achievements.FirstOrDefault(a => a.Key == key);
+            if (def is null || session.State.Achievements.Contains(key))
+            {
+                session.DeferredRewards.Remove(key);
+                continue;
+            }
+
+            any |= TryAward(session, def, praise: true);
+        }
+
+        if (any)
+        {
+            SendAchievements(session);
         }
     }
 
@@ -196,6 +273,9 @@ public sealed partial class GameServer
 
     /// <summary>Re-checks and pays out anything due (the join path), for tests.</summary>
     public void SettleAchievementsForTest(PlayerSession session) => SettleAchievements(session);
+
+    /// <summary>Test seam (#3082): run the waiting-reward retry now, as the next tick would.</summary>
+    public void RetryDeferredRewardsForTest() => TickDeferredRewards(0);
 
     /// <summary>Drives the "arrived on a body" bookkeeping, for tests.</summary>
     public void MarkArrivedOnBodyForTest(PlayerSession session, string bodyId) => MarkArrivedOnBody(session, bodyId);

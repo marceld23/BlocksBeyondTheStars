@@ -37,6 +37,9 @@ public sealed class TextureTilesTests
     [InlineData("fire", TextureAlphaMode.Cutout)]
     [InlineData("torch", TextureAlphaMode.Cutout)]
     [InlineData("lantern", TextureAlphaMode.Cutout)]
+    [InlineData("energy_fence", TextureAlphaMode.Cutout)]           // #3085: see-through gaps between its beams
+    [InlineData("energy_gate", TextureAlphaMode.Opaque)]            // the gate stays a membrane (transparent shader)
+    [InlineData("face_energy_fence_top", TextureAlphaMode.Opaque)]  // the fence's emitter rail on top is solid
     [InlineData("creature_fur", TextureAlphaMode.Free)]
     [InlineData("microfauna_moth", TextureAlphaMode.Free)]
     [InlineData("avatar_suit", TextureAlphaMode.Free)]

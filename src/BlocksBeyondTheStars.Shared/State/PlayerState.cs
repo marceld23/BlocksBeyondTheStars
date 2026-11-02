@@ -136,6 +136,12 @@ public sealed class PlayerState
 
     public const int ScannedTreesCap = 2048;
 
+    /// <summary>#3083: how many festival blocks (the pumpkins) the spawner has laid for this player, keyed
+    /// <c>&lt;festival&gt;:&lt;year&gt;</c> — the per-player budget of one festival occurrence, so a harvested field stays empty
+    /// and next year's festival starts fresh. Only the current year's keys are kept. Persisted additively: an older build
+    /// drops it, and the budget then starts over once.</summary>
+    public Dictionary<string, int> FestivalSpawnsLaid { get; set; } = new(StringComparer.Ordinal);
+
     /// <summary>Display name captured at scan time per <see cref="Scanned"/> entry, backing the Codex
     /// "Discoveries" chapter (#484). Needed because creature/tree/flora species are generated PER WORLD
     /// (seed + planet type), so a species id scanned on one planet cannot be resolved to its coined name

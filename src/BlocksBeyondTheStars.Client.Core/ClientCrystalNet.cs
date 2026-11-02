@@ -208,6 +208,7 @@ namespace BlocksBeyondTheStars.Client
                         OwnerId = d.OwnerId,
                         Output = d.Output,
                         Choices = d.Choices,
+                        Held = d.Held, // #3091
                     };
                     devices.Add(copy);
                     _byCell[world] = copy;

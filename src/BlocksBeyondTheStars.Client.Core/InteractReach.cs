@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.Client
@@ -19,8 +20,9 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public static class InteractReach
     {
-        /// <summary>How far E reaches to talk to a person (#1127); the "Talk to … (E)" prompt uses the same reach.</summary>
-        public const float TalkReach = 4.5f;
+        /// <summary>How far E reaches to talk to a person (#1127); the "Talk to … (E)" prompt uses the same reach. #3089: the
+        /// server's own talk reach (<see cref="InteractionReach.Talk"/>) — it was half a metre short of it.</summary>
+        public const float TalkReach = InteractionReach.Talk;
 
         /// <summary>How far G (take all) and H (store) reach to a container, measured to its cell centre — the server's
         /// <c>LootReach</c>; the crate line on the HUD uses the same reach.</summary>

@@ -886,8 +886,9 @@ namespace BlocksBeyondTheStars.Client
                     // players are recognisable at a glance (suit = player, bare face = NPC, mask = bandit).
                     // An authored story character (#1128) carries a FIXED face seed so they are the same
                     // person at every place they occupy; everyone else derives from id + name as before.
-                    int seed = nd.FaceVariant != 0 ? nd.FaceVariant : unchecked((nd.Id * 486187739) ^ StableHash(nd.Name));
-                    Color? hair = !nd.IsRobot && (seed & 0x7) != 0 ? HairTones[(int)((uint)(seed >> 8) % (uint)HairTones.Length)] : (Color?)null;
+                    // #3094: the seed, the hair rule and the tones live in NpcLooks now — the robbers grow the same hair.
+                    int seed = nd.FaceVariant != 0 ? nd.FaceVariant : NpcLooks.FaceSeed(nd.Id, nd.Name);
+                    Color? hair = HairColor(NpcLooks.HairToneFor(seed, nd.IsRobot));
                     // #2123: no breather strip on NPCs — a civilian's own facial hair (about 65 % none since #2433) in its hair
                     // tone, an android's speaker grille. Same seed, so the face stays the same every visit.
                     var lowerFace = NpcLooks.LowerFaceFor(seed, nd.IsRobot);
@@ -1193,29 +1194,17 @@ namespace BlocksBeyondTheStars.Client
         private static Color Rgb(uint rgb)
             => new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
 
-        /// <summary>Order-dependent string hash that is stable across sessions and machines — .NET string
-        /// hash codes are randomised per process, which would re-roll every NPC's hair each login.</summary>
-        private static int StableHash(string s)
+        /// <summary>The civilian hair tone <paramref name="tone"/> (<see cref="NpcLooks.HairTone"/>: muted human colours, no
+        /// reds — red belongs to the Guardians), or null for a bald head (−1).</summary>
+        private static Color? HairColor(int tone)
         {
-            int h = 17;
-            foreach (char c in s ?? string.Empty)
+            if (tone < 0)
             {
-                h = unchecked(h * 31 + c);
+                return null;
             }
 
-            return h;
+            var (r, g, b) = NpcLooks.HairTone(tone);
+            return new Color(r, g, b);
         }
-
-        /// <summary>Civilian hair tones — muted human colours (no reds: red accents belong to the Guardians).</summary>
-        private static readonly Color[] HairTones =
-        {
-            new Color(0.10f, 0.09f, 0.08f), // black
-            new Color(0.28f, 0.19f, 0.12f), // dark brown
-            new Color(0.45f, 0.32f, 0.18f), // chestnut
-            new Color(0.62f, 0.48f, 0.25f), // dark blond
-            new Color(0.75f, 0.65f, 0.40f), // blond
-            new Color(0.55f, 0.55f, 0.55f), // grey
-            new Color(0.35f, 0.20f, 0.12f), // auburn
-        };
     }
 }

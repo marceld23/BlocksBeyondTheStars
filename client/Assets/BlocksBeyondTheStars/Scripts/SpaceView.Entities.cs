@@ -313,7 +313,8 @@ namespace BlocksBeyondTheStars.Client
 
                     // #2357: the raider's REAL hull arrives as a "ship_remote" design — possibly after the entity.
                     // Swap the placeholder wedge for the voxel ship as soon as the design is here.
-                    if (e.Kind == "BanditShip" && !_voxelRaiders.Contains(e.Id) && RaiderDesignFor(e.Id) != null
+                    if (BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsVoxelHullShipKind(e.Kind) // #3097: the hunter shuttle too
+                        && !_voxelRaiders.Contains(e.Id) && RaiderDesignFor(e.Id) != null
                         && Game.ChunkMaterial != null && Game.Atlas != null // the mesher needs both — else the wedge would churn every frame
                         && _entities.TryGetValue(e.Id, out var wedge))
                     {
@@ -381,7 +382,7 @@ namespace BlocksBeyondTheStars.Client
                             go.transform.localPosition = new Vector3(e.X, e.Y, e.Z);
                         }
 
-                        if (e.Kind == "BanditShip")
+                        if (BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsVoxelHullShipKind(e.Kind))
                         {
                             // #2357: the hull faces its course (the server's heading), eased so the turn reads as flown.
                             go.transform.localRotation = Quaternion.Slerp(go.transform.localRotation, Quaternion.Euler(0f, e.Yaw, 0f), Time.deltaTime * 3f);
@@ -462,6 +463,7 @@ namespace BlocksBeyondTheStars.Client
                     "Ufo" => BuildUfoModel(_root.transform),
                     "Cruiser" => BuildCruiserModel(_root.transform),
                     "BanditShip" => BuildBanditShipModel(_root.transform, e), // #2357: its real voxel hull once the design is here
+                    "HunterShuttle" => BuildHunterShuttleModel(_root.transform, e), // #3097: the same, in Guardian steel and red
                     "EscapePod" => BuildEscapePodModel(_root.transform, e),   // #2241: a little lifeboat, not a red cube
                     "Anomaly" => BuildAnomalyModel(_root.transform, e),       // #2241: the shimmering soap bubble
                     "Wormhole" => BuildWormholeModel(_root.transform, e),     // #2242: the tear in space-time

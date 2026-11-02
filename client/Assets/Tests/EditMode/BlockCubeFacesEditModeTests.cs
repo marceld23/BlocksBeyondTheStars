@@ -387,5 +387,34 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
                 }
             });
         }
+
+        /// <summary>#3085: the energy fence ships an icon of its own (its old pylon picture, Resources/icons/block_energy_fence)
+        /// — its tile is the side of a fence with see-through gaps now. That icon wins over the tile and the cube in every
+        /// image; a block without one keeps the old path.</summary>
+        [Test]
+        public void ABlockWithItsOwnIcon_ShowsItInsteadOfItsTileOrCube()
+        {
+            WithAtlas((content, atlas) =>
+            {
+                ushort fence = Id(content, "energy_fence").Value;
+                var own = BlockCubeIcon.OwnIcon(atlas, fence);
+                Assert.IsNotNull(own, "Resources/icons/" + BlockCubeIcon.OwnIconPrefix + "energy_fence.png is missing.");
+                Assert.That(BlockCubeIcon.SpriteFor(atlas, fence), Is.SameAs(own));
+                Assert.IsNull(BlockCubeIcon.OwnIcon(atlas, Id(content, "stone").Value), "Stone has no icon of its own.");
+
+                var go = new GameObject("OwnIconTest", typeof(RectTransform));
+                try
+                {
+                    var raw = go.AddComponent<UnityEngine.UI.RawImage>();
+                    BlockCubeIcon.Apply(raw, atlas, fence);
+                    Assert.That(raw.texture, Is.SameAs(own.texture));
+                    Assert.That(raw.uvRect, Is.EqualTo(new Rect(0f, 0f, 1f, 1f)));
+                }
+                finally
+                {
+                    Object.DestroyImmediate(go);
+                }
+            });
+        }
     }
 }

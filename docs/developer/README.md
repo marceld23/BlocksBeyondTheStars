@@ -69,6 +69,9 @@ refreshed 2026-10-23.
 
 - [SPACE_COMBAT_CONCEPT.md](SPACE_COMBAT_CONCEPT.md) — space-combat MVP concept + what has since landed.
 - [CRAFTING_TECH_SHIP_UI.md](CRAFTING_TECH_SHIP_UI.md) — the crafting / tech / ship management screen.
+- [CONTAINERS_AND_CARRIED_STORAGE.md](CONTAINERS_AND_CARRIED_STORAGE.md) — world containers (crates, capsules, drop
+  packets) and items that carry items: the transport crate and the storage bag, their save-wide record store and the
+  one-key-one-record duplication rules (#3098, #3099).
 - [SHIP_REPAIR.md](SHIP_REPAIR.md) — own-ship repair (hull + EVA-carved cells).
 - [BASES_AND_TELEPORTS.md](BASES_AND_TELEPORTS.md) — several bases per world, discovery of other players' bases, the planet
   scan's settlers, the lazy base/station yield store, the coordinates readout and the teleporter's places + the Quantum

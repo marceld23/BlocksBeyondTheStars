@@ -297,7 +297,9 @@ public sealed partial class GameServer
 
     /// <summary>Destroys a sphere of mineable, unprotected terrain around the aim point (item 36) — a clearing
     /// blast with <b>no loot</b> (so it can't out-mine a drill). Respects ship / settlement / station / other
-    /// players' landing-zone protection and leaves indestructible blocks alone.</summary>
+    /// players' landing-zone protection and leaves indestructible blocks alone. #3100: "no loot" is about the blasted
+    /// blocks themselves — what a crate in the blast held is the player's, and it falls to the ground like a mined
+    /// crate's overflow (<see cref="BlastCell"/>).</summary>
     private void UseTerrainBlaster(PlayerSession session, Vector3f target)
     {
         var center = WorldConstants.CanonicalBlock(new Vector3i(
@@ -315,46 +317,96 @@ public sealed partial class GameServer
                     }
 
                     var p = WorldConstants.CanonicalBlock(new Vector3i(center.X + dx, center.Y + dy, center.Z + dz), _world.Circumference);
-                    var b = _world.GetBlock(p);
-                    if (b.IsAir || IsShipBlock(p) || IsSettlementBlock(p) || IsStationBlock(p)
-                        || IsBaseProtected(p, session.State.PlayerId, session.State.IsAdmin)
-                        || BasePadBusy(p)) // #3069: a landing pad that holds a ship
-                    {
-                        continue;
-                    }
-
-                    var d = _world.Definition(b);
-                    if (d is null || !d.Mineable)
-                    {
-                        continue; // leave bedrock / indestructible blocks intact
-                    }
-
-                    _world.SetBlock(p, BlockId.Air);
-                    _miningProgress.Remove(p);
-                    BroadcastToWorld(new BlockChanged { X = p.X, Y = p.Y, Z = p.Z, Block = BlockId.AirValue });
-                    if (d.Key == "radio_beacon")
-                    {
-                        RemoveBeaconAt(p); // don't orphan a blasted beacon's label/marker (item 37)
-                    }
-                    if (d.Key == BaseCoreBlock)
-                    {
-                        RemoveBaseAt(p); // don't orphan a blasted base's claim/marker (Grundstein)
-                    }
-                    if (d.Key == "beam_block")
-                    {
-                        RemoveBeamAt(p); // don't orphan a blasted beam block's name/marker (teleporter pad)
-                    }
-                    if (d.Key == BasePadRules.BlockKey)
-                    {
-                        RemoveBasePadAt(p); // #3069: don't leave a blasted landing pad registered
-                    }
-                    if (IsFluid(b.Value) || HasFluidNeighbor(p))
-                    {
-                        OnFluidRemoved(p); // a hole opened in/under water or lava refills
-                    }
-
-                    OnSupportRemoved(p); // #1319: sand over the blast crater comes down
+                    BlastCell(session, p);
                 }
+    }
+
+    /// <summary>One cell of the terrain blaster's sphere: cleared to air unless it is protected or indestructible, with
+    /// every registration a mined block leaves behind forgotten too (<see cref="ForgetBlockRegistrations"/>, shared with the
+    /// break path since #3100) — and a crate's stored stacks spilled onto the ground, never deleted with the cell.</summary>
+    private void BlastCell(PlayerSession session, Vector3i p)
+    {
+        var b = _world.GetBlock(p);
+        if (b.IsAir || IsShipBlock(p) || IsSettlementBlock(p) || IsStationBlock(p)
+            || IsBaseProtected(p, session.State.PlayerId, session.State.IsAdmin)
+            || BasePadBusy(p)) // #3069: a landing pad that holds a ship
+        {
+            return;
+        }
+
+        var d = _world.Definition(b);
+        if (d is null || !d.Mineable)
+        {
+            return; // leave bedrock / indestructible blocks intact
+        }
+
+        _world.SetBlock(p, BlockId.Air);
+        _miningProgress.Remove(p);
+        BroadcastToWorld(new BlockChanged { X = p.X, Y = p.Y, Z = p.Z, Block = BlockId.AirValue });
+        if (IsContainerBlock(d.Key))
+        {
+            SpillBlastedCrate(p); // #3100: the container record goes, its contents land on the ground
+        }
+
+        ForgetBlockRegistrations(p, d); // don't orphan a beacon's label, a base's claim, a beam pad, a conduit …
+        if (IsFluid(b.Value) || HasFluidNeighbor(p))
+        {
+            OnFluidRemoved(p); // a hole opened in/under water or lava refills
+        }
+
+        OnSupportRemoved(p); // #1319: sand over the blast crater comes down
+    }
+
+    /// <summary>#3100: a blasted crate or wood box — its container record is removed and every stored stack falls to the
+    /// ground at the cell as a drop packet (the mined crate's #853 promise: nothing a player stored is ever destroyed). The
+    /// blaster used to clear the cell and leave the container behind at an empty cell, unreachable.</summary>
+    private void SpillBlastedCrate(Vector3i pos)
+    {
+        var crate = _containers.FirstOrDefault(c => c.Kind == "crate" && c.Position.Equals(pos));
+        if (crate is null)
+        {
+            return;
+        }
+
+        var contents = crate.Items.Where(s => !s.IsEmpty).Select(s => new ItemAmount(s.Item, s.Count)).ToList();
+        _containers.Remove(crate);
+        _repo.DeleteContainer(crate.Id);
+        BroadcastContainers();
+        SpillToGround(pos, contents);
+    }
+
+    /// <summary>The registrations a removed block leaves behind, forgotten — shared by the break path
+    /// (<c>BreakBlockCore</c>) and the terrain blaster (#3100), which used to keep its own shorter list and orphaned
+    /// a blasted conduit, rail pylon, thumper or base post. A crate's container is the caller's business: mining hands the
+    /// contents to the miner, a blast spills them on the ground.</summary>
+    private void ForgetBlockRegistrations(Vector3i pos, BlockDefinition def)
+    {
+        OnCrystalBlockRemoved(pos, def); // #2046: a removed conduit or device leaves the Crystal Net
+        OnRailBlockRemoved(pos, def); // #2113: a removed pylon leaves the rail graph
+        if (def.Key == "radio_beacon")
+        {
+            RemoveBeaconAt(pos); // forget the beacon's label/marker (item 37)
+        }
+        else if (def.Key == BaseCoreBlock)
+        {
+            RemoveBaseAt(pos); // a removed base core removes the founded base (Grundstein)
+        }
+        else if (def.Key == "beam_block")
+        {
+            RemoveBeamAt(pos); // forget the beam block's name/owner + map marker (teleporter pad)
+        }
+        else if (def.Key == BasePadRules.BlockKey)
+        {
+            RemoveBasePadAt(pos); // #3069: forget the base landing pad (refused while a ship holds it)
+        }
+        else if (def.Key == ThumperBlockKey)
+        {
+            StopThumper(pos); // #2002: a removed thumper stops thumping
+        }
+        else if (def.Key is "station_vendor" or "mission_board" || NpcProfessions.ByPostBlock(def.Key) != null)
+        {
+            OnBasePostChanged(null, pos, placed: false); // #1865: the post's keeper goes back to being a settler
+        }
     }
 
     /// <summary>The fluid pump (#2106): pulls ONE cell of liquid into the player's pack — oil (a still deposit: the cell

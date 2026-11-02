@@ -54,7 +54,10 @@ public sealed partial class GameServer
         return _boardedStation.TryGetValue(p.PlayerId, out var stationId) ? StationLocationKey(stationId) : string.Empty;
     }
 
-    private bool AtAnyMissionBoard(PlayerState p) => NearSettlementMissionBoard(p) || NearSpaceStationMissionBoard(p);
+    /// <summary>The player stands at a mission board — a settlement's, a station's, a staffed base board (#3090) or a board
+    /// of the own ship (#3087).</summary>
+    private bool AtAnyMissionBoard(PlayerState p)
+        => NearSettlementMissionBoard(p) || NearSpaceStationMissionBoard(p) || NearBaseMissionBoard(p) || NearShipMissionBoard(p);
 
     /// <summary>#2491: a mission that is no chain step but whose RAW <c>surface</c> is <c>board</c> (supply_cables) — it follows
     /// the board rule of a chain's board step: offered and accepted only at a mission board of its <c>offerAt</c> kind. Not
@@ -416,11 +419,13 @@ public sealed partial class GameServer
     /// with the board scoping (<paramref name="currentBoardIds"/>) already applied by the caller's window run.</summary>
     private List<MissionDefinition> AvailableMissionsFor(PlayerState player, HashSet<string> currentBoardIds)
     {
-        string place = CurrentPlaceKey(player);
+        string current = CurrentPlaceKey(player);
         bool atBoard = AtAnyMissionBoard(player);
+        string boardPlace = current.Length > 0 || !atBoard ? current : BoardPlaceKey(player); // #3090: a home board's place
         var list = new List<MissionDefinition>();
         foreach (var def in _missionDefs.Values)
         {
+            string place = TakenAtBoard(def) ? boardPlace : current;
             if (!def.Active || player.Missions.Any(m => m.MissionId == def.Id))
             {
                 continue; // already accepted / turned in (non-repeatable) is hidden
@@ -495,7 +500,7 @@ public sealed partial class GameServer
     private bool ChainTurnInAllowed(PlayerState p, MissionDefinition def, MissionProgress pr, out string reason)
     {
         reason = string.Empty;
-        string place = CurrentPlaceKey(p);
+        string place = PlaceKeyFor(p, def); // #3090: a board step taken at a home board reports back there
         bool placeOk = string.IsNullOrEmpty(pr.AcceptedFrom) || pr.AcceptedFrom == place;
         switch (MissionChains.SurfaceOf(def))
         {
@@ -885,7 +890,7 @@ public sealed partial class GameServer
             return (false, "@srv.mission.unknown");
         }
 
-        bool ok = ChainStepAvailable(session.State, def, CurrentPlaceKey(session.State), AtAnyMissionBoard(session.State), viaDialog: false, null, out var reason);
+        bool ok = ChainStepAvailable(session.State, def, PlaceKeyFor(session.State, def), AtAnyMissionBoard(session.State), viaDialog: false, null, out var reason);
         return (ok, ok ? string.Empty : reason);
     }
 

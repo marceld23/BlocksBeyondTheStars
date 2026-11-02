@@ -110,7 +110,14 @@ public sealed class PumpkinContentTests
             Assert.InRange(f.Spawn.PerPass, 1, 8);
             Assert.InRange(f.Spawn.Cap, 100, 2000); // the weather snow's ceiling is 2000
             Assert.InRange(f.Spawn.Radius, 8, 32);
+            // #3083: a harvest is a search — a slow trickle per player and a budget per festival, not a field that refills.
+            Assert.InRange(f.Spawn.Interval, 10, 120);
+            Assert.InRange(f.Spawn.Budget, 20, 200);
         }
+
+        // Halloween's own task wants sixty pumpkins and three lanterns: its budget leaves a little room above that, no more.
+        var halloween = spawning.Single(f => f.Key == "halloween").Spawn!;
+        Assert.InRange(halloween.Budget, 63, 100);
     }
 
     [Fact]

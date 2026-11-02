@@ -685,6 +685,7 @@ public sealed partial class GameServer
     private void NoteShipDecor(PlayerSession session, BlockDefinition def, ShipState? ship = null)
     {
         NoteShipStationBlock(session, def, ship ?? ShipOf(session));
+        NoteShipPost(session, def); // #3087: a mission board works aboard, a trading post stays decoration
 
         if (!NeedsWorldGrid(def) || CrystalNetRules.WorksAboard(CrystalNetRules.KindOf(def)))
         {
@@ -775,6 +776,14 @@ public sealed partial class GameServer
     private void HandleStructureEdit(PlayerSession session, StructureEditIntent intent)
     {
         var p = session.State;
+        if (!intent.Mine && CarriedContents.HasRecord(intent.ItemKey))
+        {
+            // #3098: a structure cell is no world crate — a packed transport crate built into a hull would lose what it
+            // carries. It is unpacked where crates work: on the ground, in a base, aboard a station.
+            Reject(session, "structure", "@srv.carried.unpack_in_world");
+            return;
+        }
+
         if (!_playerInstance.TryGetValue(p.PlayerId, out var iid) || !_spaceInstances.TryGetValue(iid, out var instance))
         {
             // Not in space → on foot: edit YOUR parked ship (landed world / walkable ship interior).

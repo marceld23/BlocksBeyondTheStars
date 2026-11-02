@@ -294,6 +294,10 @@ public sealed partial class GameServer
             return;
         }
 
+        // #3098/#3099: a bag's or a packed crate's record is never given by name (it would be a second key to one record) —
+        // the give hands out an empty one, as the Sandbox catalog does.
+        cmd.StringArg = Shared.State.CarriedContents.WithoutRecord(cmd.StringArg!);
+
         var target = FindSessionByName(cmd.TargetPlayer) ?? session;
         int amount = System.Math.Max(1, cmd.IntArg);
         // Resolve the TARGET's own ship, not the admin's cursor ship (`_ship`): a give to an

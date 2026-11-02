@@ -240,7 +240,11 @@ TEXTURES = [
     # Heal tank — base/station regen unit (heals, feeds, recharges nearby players; holds the home spawn).
     ("heal_tank", "a sci-fi regeneration tank, a dark metal frame around a glass vat of glowing teal-cyan fluid with rising bubbles, soft white status lights and small pipes, front view"),
     # Energy fence + gate — creature pen (fauna blocked server-side; gate membrane is walk-through).
-    ("energy_fence", "a sci-fi energy fence pylon, a dark metal frame with vertical glowing cyan energy beams in a lattice and small warning lights, front view"),
+    # #3085 (Screelit, "it is just a block with an icon"): the fence tile is the SIDE of a fence segment, not a picture of
+    # one pylon — rails along the top and bottom edge and energy beams across, all running off the left and right edges so
+    # a row of blocks reads as one fence. The black between the beams is cut away by bake_fence_alpha.py (a cutout tile);
+    # the old pylon picture lives on as the block's inventory icon (Resources/icons/block_energy_fence.png).
+    ("energy_fence", "the side of a long sci-fi energy fence seen straight from the front, filling the whole image edge to edge: one thick straight dark gunmetal metal rail running horizontally across the full width along the very top edge and an identical rail along the very bottom edge, both rails continuing off the left and right edges, a row of tiny cyan emitter lights along the inner edge of each rail; between the two rails four straight evenly spaced glowing bright cyan horizontal energy beams with white-hot cores spanning the full width from the left edge to the right edge, everything between the beams solid pitch-black #000000, no posts, no pillars, no frame, no vertical bars, flat front view"),
     ("energy_gate", "a sci-fi energy gate, a dark metal archway frame filled with a soft translucent teal energy membrane with gentle ripples, front view"),
     ("diamond_ore", "dark grey rock with glittering pale-blue and white embedded diamond crystals"),
     ("insulated_wall", "a matte dark polymer-coated wall panel with rubber seams and rounded bolts, top-down"),
@@ -373,6 +377,9 @@ TEXTURES = [
     ("face_forge_top", "the top of a stone forge furnace seen from above, dark grey stone bricks filling the whole tile edge to edge around a small square chimney hole in the centre glowing orange with embers"),
     ("face_crate_top", "the lid of a sci-fi steel storage crate seen from above, a solid dark blue-grey metal lid that fills the entire image, a raised border, four corner latches and a recessed handle in the middle"),
     ("face_wood_crate_top", "the lid of a rustic wooden crate seen from above, rough brown wooden planks lying side by side inside a darker wooden frame filling the whole tile edge to edge, small nail heads at the corners, no background"),
+    # #3098: the transport crate — the crate you can carry (its side is the block's own tile, its lid a face tile).
+    ("transport_crate", "the side of a sturdy sci-fi transport crate, a solid blue-grey steel box that fills the entire image edge to edge, two bright yellow carrying straps running vertically across it, a sturdy black carrying handle in the middle and riveted corner guards, flat front view, no background"),
+    ("face_transport_crate_top", "the lid of a sci-fi transport crate seen from above, a solid blue-grey steel lid that fills the entire image edge to edge, two bright yellow straps crossing it, a black folding carrying handle in the middle and four corner latches"),
     ("face_radio_beacon_top", "the top of a sci-fi radio beacon block seen from above, a tan sandstone-coloured square plate filling the whole tile edge to edge with a round dark metal mount in the centre holding a glowing cyan antenna ring and a small red status light"),
     ("face_base_core_side", "the side of a grey stone foundation cornerstone, smooth carved grey stone filling the whole tile edge to edge with a darker chiselled border and thin glowing teal-cyan energy lines running across it, no background, flat front view"),
     ("face_container_side", "the side wall of an orange cargo container, corrugated orange painted steel with vertical ribs filling the whole tile edge to edge, a dark border frame and a few scratches, no background, flat front view"),
@@ -384,6 +391,9 @@ TEXTURES = [
     ("face_sage_lectern_side", "the side panel of a dark violet armoured console cabinet, violet metal filling the whole tile edge to edge with engraved glowing circuit lines, a darker border and two small amber crystal indicator lights, no background, flat front view"),
     ("face_sage_lectern_top", "the top of a dark violet armoured console cabinet seen from above, violet metal filling the whole tile edge to edge with engraved circuit lines, a small vent grille and a round amber crystal in the centre, no background"),
     ("face_rail_pylon_top", "the top of a sci-fi monorail pylon seen from above, a round dark steel cap with a glowing cyan energy emitter ring and riveted bands, on a dark steel square plate filling the whole tile edge to edge"),
+    # #3085: the energy fence's top and bottom — the emitter rail the beams hang from, seen from above. Square-symmetric, so
+    # it reads the same on a fence running along X or along Z.
+    ("face_energy_fence_top", "the top of a sci-fi energy fence emitter rail seen from above, a solid dark gunmetal metal plate that fills the entire image edge to edge, a slightly darker bevelled border, a small square glowing cyan energy emitter in the centre with a thin cyan light ring around it and four small corner bolts, symmetrical"),
     ("face_alarm_siren_top", "the top of an alarm siren seen from above, a round red glass warning lamp dome with a bright highlight on a dark metal square base plate filling the whole tile edge to edge with corner bolts"),
     ("face_matter_sender_top", "the top of a sci-fi matter sender pedestal seen from above, a solid dark metal square plate that fills the entire image with a round violet crystal emitter ring glowing with small cyan energy motes in the centre"),
     ("face_matter_receiver_top", "the top of a sci-fi matter receiver pedestal seen from above, a round cyan crystal collector ring with small violet energy motes in the centre of a dark metal square plate filling the whole tile edge to edge"),

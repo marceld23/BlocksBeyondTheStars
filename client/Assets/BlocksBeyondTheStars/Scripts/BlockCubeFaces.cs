@@ -245,16 +245,20 @@ namespace BlocksBeyondTheStars.Client
                 float emission = content != null ? ChunkMesher.EmissionFor(content, id) : 0f;
                 var sky = new Vector2[n];
                 var zero4 = new Vector4[n];
+                var leaf = new Vector4[n];
                 var colors = new Color[n];
                 var col = new Color(material.x, material.y, 1f, emission); // gloss, metal, no AO shade, emission
+                // #3085: a cutout cube (the energy fence) clips the gaps of its tile here as in the world.
+                var cutout = new Vector4(content != null ? ChunkMesher.CubeCutoutCode(content, id) : 0f, 0f, 0f, 0f);
                 for (int i = 0; i < n; i++)
                 {
                     sky[i] = new Vector2(1f, 0f); // full skylight, plain tint mode
+                    leaf[i] = cutout;
                     colors[i] = col;
                 }
 
                 mesh.SetUVs(1, sky);
-                mesh.SetUVs(2, zero4);
+                mesh.SetUVs(2, leaf);
                 mesh.SetUVs(3, zero4);
                 mesh.SetUVs(4, zero4);
                 mesh.colors = colors;

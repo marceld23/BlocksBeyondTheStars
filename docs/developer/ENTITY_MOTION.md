@@ -131,6 +131,19 @@ before it drives cadence, gait choice, swing and the foot planner. `PlayerAvatar
 body actually covers (`asin(stride / 4 / leg length)`, never below the old curve, capped at 40°), and
 `PlayerAvatar.NeverAirborne` keeps NPCs out of the jump pose on an eased step up.
 
+Robbers (#3094) are built on that same human rig (`WorldEntities.Bandits.cs`): `WorldEntities` only moves and turns the
+root, and the rig reads the drawn movement like a villager's — walk, idle, look-around. On top it sets the fight stance
+(`PlayerAvatar.SetStance`: the gunner aims, the blade robber brandishes), starts a swing or a recoil when `Update` opens
+an attack window, and tips a lean pivot at the feet for the swipe's lunge and a hit's flinch. Their look: the villagers'
+hair rule and tones (`NpcLooks.HairToneFor`, now shared), no beard, the cloth mask (`PlayerAvatar.SetRobberMask`), the
+old jacket, skin and mask palettes and cold-blue weapons as held models.
+
+The Guardian robots and the hunter fidget when left alone (#3095, `WorldEntities.Idle.cs`): after 3 s standing still and
+then every 4–9 s, one of three flourishes (`RobotIdle`, Client.Core) — look at the hands (claws up in front, head bent
+over them), roll the shoulders, scan far round — composed on top of the stalk pose. Never while it walks, hunts, strikes
+or flinches; a fidget caught by one of those fades out over 0.25 s. Like the rest of `WorldEntities` it runs on the world
+clock.
+
 ### Space: no wrap, and the stale-view scan
 
 The flight view (`SpaceView`) smooths remote pilots, NPC traders and every moving space entity with

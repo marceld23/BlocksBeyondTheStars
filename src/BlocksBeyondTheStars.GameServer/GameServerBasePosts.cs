@@ -40,6 +40,10 @@ public sealed partial class GameServer
     /// <summary>A mission coined by a base board (#1865).</summary>
     private static bool IsBaseMission(string missionId) => missionId.StartsWith("home_", System.StringComparison.Ordinal);
 
+    /// <summary>#3090: the base board's place key (<c>home_&lt;hash&gt;</c>, its jobs' prefix without the underscore) — where a
+    /// chain step or a stand-alone board job taken at it is bound.</summary>
+    private static string BaseBoardPlace(ServerBase b) => BaseBoardPrefix(b).TrimEnd('_');
+
     /// <summary>Rebuilds a base's post markers from its index and its residents' jobs; stocks the board the first time
     /// a quartermaster stands at it. Markers are server-side only, so this never changes what the client sees.</summary>
     private bool RefreshBaseMarkers(ServerBase b, BaseIndex idx, List<ServerNpc> residents)
@@ -186,12 +190,19 @@ public sealed partial class GameServer
             return;
         }
 
+        Send(session, new ServerMessage { Text = BasePostStateText(b, cell) });
+    }
+
+    /// <summary>What happens to the post at <paramref name="cell"/> (canonical) of base <paramref name="b"/>: outside the
+    /// base, staffed, nobody living here yet, or every resident busy. #3087: also said when the Missions tab opens at a
+    /// board nobody staffs.</summary>
+    private string BasePostStateText(ServerBase b, Vector3i cell)
+    {
         var centre = new Vector3f(cell.X + 0.5f, cell.Y + 0.5f, cell.Z + 0.5f);
-        string text = !BaseCellInside(b, cell, new Vector3i(cell.X, cell.Y + 1, cell.Z)) ? "@srv.base.post_outside"
+        return !BaseCellInside(b, cell, new Vector3i(cell.X, cell.Y + 1, cell.Z)) ? "@srv.base.post_outside"
             : _baseMarkers.Any(m => m.BaseId == b.Id && WrapDistSq(m.Pos, centre) < 0.01) ? "@srv.base.post_staffed"
             : ResidentNpcs(b).Count == 0 ? "@srv.base.post_no_resident"
             : "@srv.base.post_no_free_resident";
-        Send(session, new ServerMessage { Text = text });
     }
 
     /// <summary>Test seam (#1865): the mission ids a base's board has coined so far.</summary>

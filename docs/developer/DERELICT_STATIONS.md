@@ -377,6 +377,9 @@ shared rust casing (`face_rust_side` / `face_rust_top`), facing `toward`, emissi
 Hardness 4, drill tier 1 (the starter drill opens it). It drops salvage — 2 circuit boards, 3 copper wire, a power cell
 — and has **no item**: nobody crafts or places one, so a bay exists only where the generator put it. It is a new block,
 so the block ids shifted: save version **4** (`WorldMetadata.CurrentSaveVersion`, the `SaveCompatibilityTests` row).
+Since #3097 the same block also stands on planets: a hunter shuttle that got away stamps 2–3 of them at its landing camp,
+and a planet-side tick of their own (`TickHunterSites`, the same release ring, cue and spark, `ReleaseHunterDockRobot`)
+wakes them while a player is near — see [SPACE_COMBAT_CONCEPT.md](SPACE_COMBAT_CONCEPT.md) § "The hunter shuttle".
 
 **Placement** (`DerelictGenerator`, step 13). Every generated derelict gets exactly one, on `DerelictLayout.SpawnerSpot`
 (the largest walkable room but the arrival's — on a beta wreck never the open hangar — as far from the arrival as it

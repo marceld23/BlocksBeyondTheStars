@@ -75,4 +75,19 @@ public sealed class ClientCrystalNetTests
 
         Assert.True(net.DeviceAt(101, 51, 101)!.Output);
     }
+
+    /// <summary>#3091: "held by the net" survives the move into world cells — a ship's device is a copy, and a copy that
+    /// dropped the flag would say "linked" over a device the net holds off.</summary>
+    [Fact]
+    public void TheHeldFlag_ReachesTheDevice_InTheWorldAndAboard()
+    {
+        var held = Dev(1, 1, 1, kind: "Sentry");
+        held.Held = true;
+        var net = new ClientCrystalNet { FrameOrigin = _ => new Vector3i(100, 50, 100) };
+        net.OnDevices(new CrystalDeviceList { Devices = new[] { held } });
+        net.OnDevices(new CrystalDeviceList { Frame = "ship:Pilot", Devices = new[] { held } });
+
+        Assert.True(net.DeviceAt(1, 1, 1)!.Held);
+        Assert.True(net.DeviceAt(101, 51, 101)!.Held);
+    }
 }

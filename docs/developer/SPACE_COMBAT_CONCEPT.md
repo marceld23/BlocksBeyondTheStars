@@ -158,6 +158,98 @@ ring). A server-aware lock (a `TargetLockIntent`) only becomes worth it with hom
   (§12.4 peaceful servers). Hostiles spawn near players on the surface, deal proximity
   damage to the player's vitals, and are killed by an `AttackEntityIntent` (using the held
   tool/weapon). Killing drops loot. Spawn rate scales with the `AlienActivity` setting.
+- **The tank spider** (#3096, `GameServerTankSpiders`, `TankSpiderRules` in Shared, kind `TankSpider`, enemy
+  `tank_spider` in `data/enemies.json`): a walking Guardian machine with a pressure tank where a spider has its abdomen.
+  It hunts like the robots (sight-gated, out of deep water, around walls — `TankSpiderProfile`, a little quicker than a
+  Guardian robot, still slower than a running player) but never bites: its `damagePerSecond` is 0 and the damage aura
+  skips it. Once a player it may hurt (not ignored by hostiles, not warded by a companion) stands within
+  `TriggerRange` (3 blocks across, 2.5 up or down) and in its sight, `ArmTankSpider` sets `CombatEntity.BurstAt` —
+  uptime + `InflateSeconds` (1.5 s) — and it stops; the wire's `NetCombatEntity.Inflating` carries the warning (the
+  client swells the tank, blinks its bands and plays the hiss). `BurstDueTankSpiders` runs every enemy tick **before**
+  the "no surface target" return, so a fuse never waits for a player to step out of the ship: the spider is removed
+  (`PlanetEnemyDefeated`, no loot, no story credit, the kill breather on the spawn timer), a `WorldFx` `tank_burst`
+  (Radius `BurstRadius` 3.5) goes to the world and every player it may hurt within that sphere **and in the tank's
+  sight** takes `burstDamage` (30) × `FalloffAt(distance)` (1 at the centre → `EdgeShare` 0.4 at the edge) through
+  `HurtPlayer` (armour, the speeder's share, the hit marker, `@srv.death.tank_spider`). The cover rule is the sightline,
+  not the colossus stomp's roof test (`Sheltered`): a ground-level blast is stopped by a wall in between, not by a roof
+  overhead. The client pushes its own player by the same reach and the same sightline (`TankSpiderRules.KnockSpeed`/
+  `KnockLift`, falling off like the damage). **No block ever changes** — there is no terrain path in the burst at all.
+  Shot before it bursts it is an ordinary defeat (loot, story credit) and only pops. It spawns through the normal
+  surface spawner (so never with `PlanetEnemies` Off, in Creative/Sandbox or on a void world) and only as a **refill**:
+  never among the quick-start machines of a visit (`EnemyCapSeen`), never while another one is alive in the world, and
+  then for `RefillShare` (35 %) of the walking refills, rolled stably per world and spawn ordinal (`TankSpiderRoll`).
+  The derelict guardian bay never sends one. Tests: `TankSpiderTests`.
+
+## The hunter shuttle (#3097)
+
+Justus (10): "In space a hunter shuttle would be cool. It is bad at attacking in space, but when it lands and you find it,
+there is a hunter and several robot spawners." One enemy across both halves of the game: a weak Guardian craft in space
+that, if it gets away, leaves a robot camp on a planet.
+
+**Gate** (`HunterShuttlesAllowed`, GameServerHunterShuttles.cs): the planet machines live (`PlanetEnemiesActive` —
+Survival, `PlanetEnemies` not Off, so **never in Peaceful or Creative**), `SpaceNpcEnemies` not Off, space combat PvE/Both
+and ship weapons usable against NPCs (the raider's lesson: no fight the pilot cannot win), the world's Danger not Off, not
+in the Remnant era (the hunters went with the Guardian), never in the Guardian's finale system, and only in a system with a
+planet it could land on.
+
+**In space.** Once per flight instance (`RollHunterShuttle`, the raider's pattern) the space-hostiles slider rolls the odds
+— Rare 8 %, Normal 15 %, Frequent 25 %, Extreme 35 %, × the Danger factor, at most 50 % — and a shuttle warps in 40–110 s
+later, 150 units from the first pilot it may hunt (never a Sandbox pilot), with the `SpaceWarpFx` style `hunter_shuttle`
+(the client's `hunter_shuttle_warp` chirp) and VEGA's `vega.hunter_shuttle.spotted`. Kind `HunterShuttle`, enemy
+`hunter_shuttle` in `data/enemies.json`: hull 35, a gun of 2/s (the weakest in space), loot 2 data fragments + a circuit
+board. Its hull is a real voxel design (`HunterShuttleHull`: a stubby lander, 7 × 4 × 10, pale Guardian steel `0x7A8494`
+with a red band `0xC8322A`, a cockpit screen over a red sensor eye, nozzles beside an open rear hatch) sent like the
+raider's (`ship:bandit:<id>`, `ship_remote`), so the client's voxel-raider path draws it (`SpaceTargeting.IsVoxelHullShipKind`)
+and its wreckage is cut from it (`LeavesCombatDebris`).
+
+- **Skirmish**: the hostile movement (`HostileProfile`: aggro 170, stand-off 52, speed 9) brings it to a ring just inside
+  the damage aura's 70, where `SkirmishHunterShuttle` circles its pilot sideways (5 u/s) — a moving target that pecks at
+  the shields. Its patience (30–50 s) runs down all the while — at half pace while its pilot keeps beyond 120 — so left
+  alone it lands all the same.
+- **Flight**: hurt to half its hull, out of patience, or alone, it turns (`vega.hunter_shuttle.fleeing`), stops shooting
+  (`DamagePerSecond` 0) and runs straight away at 15 u/s (`MoveSpaceHostiles` leaves it alone, `ShuttleFleeing`). It stays
+  hostile and shootable: the pilot has 8 s (or until it is 300 out) to bring it down.
+- **Shot down** (`OnHunterShuttleKilled`, from the space kill path): the usual machine defeat (loot, story credit,
+  `DefeatSpaceMachine`), its hull structure goes, `vega.hunter_shuttle.down` — no camp.
+- **Got away** (`LandHunterShuttle`): the warp flash out (no explosion), and `PickHunterLandingBody` picks the planet the
+  pilot flies at (the instance's body) if it can, else one where a pilot here has a base, else any landable planet or moon
+  (not void, not a gas world, `EnemyDensity` > 0, not the finale body) — never one with an open camp. `RegisterHunterSite`
+  plans the camp; VEGA: `vega.hunter_shuttle.landed` ("… landed on {0} … marked on the planet map"), or
+  `vega.hunter_shuttle.gone` when no planet can take it (or three camps are already open, `HunterSitesMaxOpen`).
+
+**The camp** (GameServerHunterSites.cs, GameServerHunterSiteStamp.cs). Persisted in `WorldMetadata.HunterShuttleSites`
+(body → `HunterShuttleSiteRecord`, additive JSON — no save-version bump, no new block):
+
+- **Planned** (`Pending`): 180–320 blocks from the base of a pilot of that instance on the body (else any base there, else
+  the body's first landing pad), in a seeded direction — decided in space while the body's world may not be loaded. The
+  planet map shows the marker already (`AppendHunterSitePoi`, POI type `hunter_shuttle`).
+- **Stamped** (`Active`): the per-world step `TickHunterSites` (1 Hz, a dictionary lookup on a body without a camp) stamps
+  it the first time a player is on the body: `TryPickHunterSiteSpot` searches rings of 14 blocks around the plan, out to
+  84 (a plan that fell into a lake moves to its shore), on the generator surface (no chunk loads) for the flattest dry spot (ground spread ≤ 4 over the hull and dock probes) outside
+  every base zone, village and landing pad; then `StampHunterSite` writes the hull from existing blocks (`metal_panel` /
+  `steel_floor` dyed, `glass`, `glass_clear`, `light_red`, `engine_nozzle`), clears the rest of the hull's box (the hill,
+  the grass, a trunk), fills dips under the deck with the planet's ground (≤ 4 deep), puts the shuttle's own Guardian bay
+  (`guardian_spawner`) at the far end of the hold facing the hatch, and one or two more on a steel plate beside the hull
+  (skipped on wet ground) — **2–3 bays**. Every changed cell is broadcast (`BlockChanged`) and written as an ordinary
+  server edit (unowned — the blocks are not protected, the bandit camps' rule). VEGA: `vega.hunter_site.landed_here`. No
+  usable ground near the plan (or a gas world) → the record goes, no camp.
+- **Awake** while a player on foot is within 56 of the hull (nothing at all otherwise): VEGA's `vega.hunter_site.near`
+  once per player and camp; the shuttle's **hunter** (`NewPlanetMachine` tougher) stands guard behind the hatch — gone
+  while a player stood within 64 of where it was, it was defeated and never comes back (`GuardDefeated`, persisted); gone
+  with nobody near, the far-despawn took it and it returns. Each standing bay releases a machine beside itself (the
+  derelict bay's ring, cue `guardian_bay` and spark): first 6 s (+5 s per bay) after someone came near, then every 45 s;
+  at most **one** of its own alive (two on Frequent/Extreme), the clock held at zero at the cap so a destroyed robot is
+  replaced a full interval later. Walking robots, every other release a scan-drone where it can hover (`PlanetDrones`).
+  They are ordinary planet machines (movement, damage, kills, loot through `RunMachinePass`/`AttackEntity`, the
+  far-despawn) and count toward the world's machine cap.
+- **Cleared** when every bay is mined (`ClearHunterSite`): persisted, a `salvage` crate with `chest` loot appears in the
+  hold (once — `GeneratedLoot`), `vega.hunter_site.cleared`, the marker goes. A camp from before a rule change (Peaceful
+  switched on) only sleeps: no guard, no releases; it can still be cleared.
+
+**Client.** `SpaceView` builds the voxel hull via `TryBuildVoxelHull` (shared with the raider) or the hand-built lander
+(`BuildHunterShuttleModel`, also the Codex portrait in `EnemyPortraitRig`); lock-on name `ui.scan.subject.hunter_shuttle`,
+scanner readout `ui.scan.machine.hunter_shuttle`; the camp marker is `WorldMap.PoiLook("hunter_shuttle")` (the ship icon
+in Guardian red) plus a compass blip (`HudUi.TryGetPoi`). Tests: `HunterShuttleTests`.
 
 ## Deferred (explicitly not in M19)
 

@@ -21,6 +21,9 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
 
+        /// <summary>#3089: the in-game menu — the quartermaster's "Show me the jobs" opens its Missions tab.</summary>
+        public GameMenu Menu;
+
         private const int MaxChoices = 3;
         private const float PanelW = 560f, PanelBaseH = 130f, RowW = 520f, LineBaseH = 48f;
         private const float ChoicesY = 104f, ChoiceH = 44f, ChoiceGap = 8f;
@@ -96,6 +99,7 @@ namespace BlocksBeyondTheStars.Client
             // its greeting, every later one (an answer) with a nod.
             bool opening = _state is null || _state.NpcId != m.NpcId;
             _state = m;
+            _missionsOnClose = m.Action == NpcDialogState.ActionMissions; // #3089: a later line or talk cancels it
             ClientAudio.Instance?.Cue("ui_open", 0.6f);
             if (!string.IsNullOrEmpty(m.Text) && Game?.Views.Npcs != null)
             {
@@ -114,6 +118,26 @@ namespace BlocksBeyondTheStars.Client
             else if (m.Action == "heal")
             {
                 ClientAudio.Instance?.Cue("heal"); // #2628: the doctor treated you (the server already filled your health)
+            }
+            else if (m.Action == NpcDialogState.ActionMissions)
+            {
+                StartCoroutine(MissionsAfterLine()); // #3089: the quartermaster shows the jobs
+            }
+        }
+
+        /// <summary>#3089: the quartermaster's "Show me the jobs" was answered — the Missions tab opens as the panel closes,
+        /// whether the player closes it or <see cref="MissionsAfterLine"/> does.</summary>
+        private bool _missionsOnClose;
+
+        /// <summary>#3089: after the quartermaster's "Here you go" the panel goes by itself and the Missions tab opens on the
+        /// jobs on offer (the server lists the board the player is at); closing it sooner opens the tab at once.</summary>
+        private System.Collections.IEnumerator MissionsAfterLine()
+        {
+            var line = _state;
+            yield return new WaitForSecondsRealtime(1.4f); // long enough to read the short line
+            if (ReferenceEquals(_state, line))
+            {
+                Close();
             }
         }
 
@@ -151,13 +175,19 @@ namespace BlocksBeyondTheStars.Client
                 Game?.Network?.SendNpcDialogLeave(_state.NpcId);
             }
 
+            bool missions = _missionsOnClose;
             Hide();
+            if (missions)
+            {
+                Menu?.OpenMissionBoard(); // #3089: the jobs the quartermaster offered
+            }
         }
 
         /// <summary>Takes the panel down without telling the server (its own close, #2616).</summary>
         private void Hide()
         {
             _state = null;
+            _missionsOnClose = false;
             _panel?.SetActive(false);
         }
 

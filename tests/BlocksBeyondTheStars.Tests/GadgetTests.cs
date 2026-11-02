@@ -103,6 +103,37 @@ public sealed class GadgetTests : IDisposable
         }
     }
 
+    /// <summary>#3100: the blaster's "no loot" is about the blasted blocks — what a crate in the blast held is the player's.
+    /// It used to clear the cell and keep the container record at an empty cell, unreachable; now the record goes and the
+    /// stored stacks lie on the ground as a drop packet, like a mined crate's overflow.</summary>
+    [Fact]
+    public void TerrainBlaster_SpillsABlastedCratesContents_AndForgetsTheCrate()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Blaster");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0f, 200f, 0f);
+            p.State.Inventory.Add("crate", 1, 99);
+            p.State.Inventory.Add("iron_ore", 10, 99);
+            var at = new Vector3i(1, 200, 0);
+            server.PlaceBlock("Blaster", at.X, at.Y, at.Z, "crate");
+            var crate = server.Containers.First(c => c.Kind == "crate" && c.Position.Equals(at));
+            server.DepositToContainer("Blaster", crate.Id);
+            Assert.Contains(crate.Items, s => s.Item == "iron_ore" && s.Count == 10);
+
+            p.State.Inventory.Add("terrain_blaster", 1, 1);
+            p.State.Position = Beside(at);
+            server.UseGadgetForTest("Blaster", "terrain_blaster", new Vector3f(at.X + 0.5f, at.Y + 0.5f, at.Z + 0.5f));
+
+            Assert.True(server.World.GetBlock(at).IsAir, "the blast takes the crate");
+            Assert.DoesNotContain(server.Containers, c => c.Id == crate.Id);
+            Assert.Equal(10, server.DropPackets.SelectMany(d => d.Items).Where(s => s.Item == "iron_ore").Sum(s => s.Count));
+            Assert.Equal(0, p.State.Inventory.CountOf("iron_ore")); // on the ground, not in the pack — the blast still loots nothing
+        }
+    }
+
     /// <summary>A standing spot two blocks east of a cell — inside the gadget reach (#2376), like a real player aiming at it.</summary>
     private static Vector3f Beside(Vector3i cell) => new(cell.X + 2.5f, cell.Y, cell.Z + 0.5f);
 

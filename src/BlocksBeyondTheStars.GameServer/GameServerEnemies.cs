@@ -122,6 +122,13 @@ public sealed partial class GameServer
 
         var targets = _enemyTargets;
 
+        // #3096: a tank spider's fuse runs out on time even with nobody left on the surface — one that was swelling when its
+        // prey ran into the ship must not wait, inflated, to burst the moment they step out again.
+        if (BurstDueTankSpiders())
+        {
+            return; // the burst took a victim to another world — the active world changed under the tick
+        }
+
         if (targets.Count == 0)
         {
             return;
@@ -161,9 +168,10 @@ public sealed partial class GameServer
             // Remnant era (#1206): only the scan-drones are left; the world option PlanetDrones=false keeps
             // its meaning (then the few remnants are walkers — still fewer and slower than before the win).
             bool asDrone = Rules.PlanetDrones && (RemnantEra || droneCount * 5 < (_planetEnemies.Count + 1) * 2);
+            bool asTankSpider = !asDrone && TankSpiderTurn(); // #3096: some refills walk in as a tank spider
             // #2554: a walking robot never appears with water on its feet — when every spot tried is wet (a player on
             // an island), this spawn is skipped and the next interval tries again.
-            if (SpawnPlanetEnemyNear(targets[_planetEnemies.Count % targets.Count].State, asDrone))
+            if (SpawnPlanetEnemyNear(targets[_planetEnemies.Count % targets.Count].State, asDrone, asTankSpider))
             {
                 BroadcastPlanetEnemies();
 
@@ -250,6 +258,12 @@ public sealed partial class GameServer
             if (IsStaggered(enemy))
             {
                 continue; // #2278: dazed by a shock-glove push — its damage aura pauses
+            }
+
+            if (enemy.Kind == CombatEntityKind.TankSpider)
+            {
+                ArmTankSpider(enemy, targets, warded); // #3096: it never bites — a player close by sets its tank swelling
+                continue;
             }
 
             foreach (var session in targets)
@@ -446,9 +460,9 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (IsStaggered(enemy))
+        if (IsStaggered(enemy) || enemy.BurstAt > 0)
         {
-            return false; // #2278: dazed by a shock-glove push — it stands where the push left it
+            return false; // #2278: dazed by a shock-glove push — it stands where the push left it; #3096: a swelling tank spider stands
         }
 
         bool drone = enemy.Kind == CombatEntityKind.ScanDrone;
@@ -505,7 +519,8 @@ public sealed partial class GameServer
             }
         }
 
-        var profile = drone ? DroneProfile : (enemy.Kind == CombatEntityKind.AlienMonster ? ToughRobotProfile : RobotProfile);
+        var profile = drone ? DroneProfile : enemy.Kind == CombatEntityKind.TankSpider ? TankSpiderProfile // #3096: it skitters
+            : (enemy.Kind == CombatEntityKind.AlienMonster ? ToughRobotProfile : RobotProfile);
 
         MoveMode intent;
         Vector3f? target;
@@ -1029,7 +1044,8 @@ public sealed partial class GameServer
     }
 
     /// <summary>A walking Guardian robot (not the hovering scan-drone, not a bandit) — the machines the water rule binds.</summary>
-    private static bool IsWalkingMachine(CombatEntity e) => e.Kind is CombatEntityKind.Creature or CombatEntityKind.AlienMonster;
+    private static bool IsWalkingMachine(CombatEntity e)
+        => e.Kind is CombatEntityKind.Creature or CombatEntityKind.AlienMonster or CombatEntityKind.TankSpider; // #3096: it walks too
 
     /// <summary>The water on a planet machine's or bandit's feet for the /bump snapshot (#2555): "dry", "wading" or
     /// "deep" — measured at its own cell (a hovering drone's body, not the ground under it).</summary>
@@ -1080,8 +1096,9 @@ public sealed partial class GameServer
     /// <summary>Spawns one planet machine near <paramref name="player"/> (or at a wreck / SPS lab near them). A walking
     /// robot never appears with water on its feet (#2554): a wet spot is passed over for the next slot, and when every
     /// try is wet nothing spawns (returns false). A hovering scan-drone takes the classic spot as before. Neither ever
-    /// appears in a gas giant's gas sea (#2586): a robot needs an island or a deck under it, a drone hovers over the gas.</summary>
-    private bool SpawnPlanetEnemyNear(Shared.State.PlayerState player, bool asDrone)
+    /// appears in a gas giant's gas sea (#2586): a robot needs an island or a deck under it, a drone hovers over the gas.
+    /// <paramref name="asTankSpider"/> (#3096) makes the walker a tank spider, placed by the same rules.</summary>
+    private bool SpawnPlanetEnemyNear(Shared.State.PlayerState player, bool asDrone, bool asTankSpider = false)
     {
         // Frontier danger (#1122, opt-in world rule): out in the full-frontier tier the machines hit like
         // the Frequent/Extreme ones — never in the home system, never unless the admin switched it on
@@ -1168,7 +1185,9 @@ public sealed partial class GameServer
             return false;
         }
 
-        _planetEnemies.Add(NewPlanetMachine(new Vector3f(ex, ey, ez), asDrone, tougher, atWreck ? 1.5f : 1f)); // wreck machines are angrier
+        var spawnAt = new Vector3f(ex, ey, ez);
+        _planetEnemies.Add(asTankSpider && !asDrone ? NewTankSpider(spawnAt) // #3096: its burst is the same at a wreck
+            : NewPlanetMachine(spawnAt, asDrone, tougher, atWreck ? 1.5f : 1f)); // wreck machines are angrier
         return true;
     }
 

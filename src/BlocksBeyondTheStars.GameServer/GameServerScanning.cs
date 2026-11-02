@@ -181,11 +181,14 @@ public sealed partial class GameServer
             }
             else if (FloraSpeciesForBlock(subjectKey) is { } flora)
             {
+                // #3084: a festival's pumpkin always drops the plain fruit, so the scanner calls it edible too — even on a world
+                // whose wild pumpkins are toxic.
+                bool toxic = flora.Toxic && !(_scanCell is { } aimed && IsFestivalDeposit(aimed));
                 readout.Kind = "flora";
                 readout.InfoKey = hasDrops ? string.Empty : "ui.scan.flora_harvest";
-                readout.ThreatKey = flora.Toxic ? "ui.scan.threat.toxic" : "ui.scan.threat.edible";
+                readout.ThreatKey = toxic ? "ui.scan.threat.toxic" : "ui.scan.threat.edible";
                 readout.LegacyInfo = hasDrops ? $"Yields: {readout.LegacyInfo}" : "Harvestable flora.";
-                readout.LegacyThreat = flora.Toxic ? "Toxic" : "Edible";
+                readout.LegacyThreat = toxic ? "Toxic" : "Edible";
                 readout.Display = string.IsNullOrEmpty(flora.Name) ? subjectKey : flora.Name;
             }
             else if (Shared.Definitions.FloraCatalog.IsCultivated(subjectKey) || Shared.Definitions.FloraCatalog.IsAuthored(subjectKey))

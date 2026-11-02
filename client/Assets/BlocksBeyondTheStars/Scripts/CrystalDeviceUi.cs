@@ -301,6 +301,13 @@ namespace BlocksBeyondTheStars.Client
                 case CrystalDeviceKind.BeamPad:
                     y = ListRows(panel, y, L("ui.crystal.pair"), BeamOptions(), "pair");
                     break;
+                case CrystalDeviceKind.Watcher:
+                    // #3092: the menu showed nothing but "Output: ON/OFF" — what the block does, and that a wire into it
+                    // does nothing, was nowhere in the game but its item text.
+                    UiKit.AddText(panel, 32f, y, W - 64f, 96f, L("ui.crystal.watcher_help"), 18, UiKit.TextCol, TextAnchor.UpperLeft)
+                        .horizontalOverflow = HorizontalWrapMode.Wrap;
+                    y += 104f;
+                    break;
                 case CrystalDeviceKind.Fabricator:
                     y = ListRows(panel, y, L("ui.crystal.recipe"), RecipeOptions(), "recipe");
                     break;

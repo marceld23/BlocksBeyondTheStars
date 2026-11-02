@@ -23,6 +23,8 @@ namespace BlocksBeyondTheStars.Client
 
         private static readonly Color RaiderPaint = new Color(0.20f, 0.19f, 0.22f);  // the dye on the hull cells wins; this paints the rest
         private static readonly Color RaiderPlume = new Color(1f, 0.35f, 0.25f);
+        private static readonly Color HunterShuttlePaint = new Color(0.48f, 0.52f, 0.58f); // #3097: pale Guardian steel (the server's dye wins on the hull)
+        private static readonly Color HunterShuttlePlume = new Color(1f, 0.45f, 0.2f);
         private static readonly Color DebrisCopper = new Color(0.85f, 0.55f, 0.3f);
         private static readonly Color CapsuleTeal = new Color(0.4f, 0.95f, 0.85f);
 
@@ -53,18 +55,35 @@ namespace BlocksBeyondTheStars.Client
         /// remote pilot's ship is, at the same compact flight scale.</summary>
         private GameObject BuildBanditShipModel(Transform parent, NetCombatEntity e)
         {
+            var hull = TryBuildVoxelHull(parent, e, "BanditShip", RaiderPaint, RaiderPlume);
+            return hull != null ? hull : BuildBanditShipModel(parent);
+        }
+
+        /// <summary>#3097: the hunter shuttle — its real voxel hull (pale Guardian steel with a red band, dyed by the server)
+        /// with orange-red plumes, or the hand-built lander until the design is here.</summary>
+        private GameObject BuildHunterShuttleModel(Transform parent, NetCombatEntity e)
+        {
+            var hull = TryBuildVoxelHull(parent, e, "HunterShuttle", HunterShuttlePaint, HunterShuttlePlume);
+            return hull != null ? hull : BuildHunterShuttleModel(parent);
+        }
+
+        /// <summary>The voxel hull of a raider-style ship (#2357, #3097) from its "ship_remote" design, meshed the way a remote
+        /// pilot's ship is at the same compact flight scale, a plume on every engine — or null (and the id forgotten) while
+        /// the design has not arrived.</summary>
+        private GameObject TryBuildVoxelHull(Transform parent, NetCombatEntity e, string name, Color paint, Color plume)
+        {
             var design = RaiderDesignFor(e.Id);
             if (design != null)
             {
-                var root = new GameObject("BanditShip");
+                var root = new GameObject(name);
                 root.transform.SetParent(parent, false);
-                var vox = ShipMeshBuilder.BuildVoxelShip(Game, root.transform, design, out _, RaiderPaint);
+                var vox = ShipMeshBuilder.BuildVoxelShip(Game, root.transform, design, out _, paint);
                 if (vox != null)
                 {
                     vox.transform.localScale = Vector3.one * FlightShipScale;
                     foreach (var (exLocal, exSize) in ShipMeshBuilder.ExhaustPoints(Game.Content, design))
                     {
-                        SpaceFx.EnginePlume(vox.transform, exLocal, exSize, RaiderPlume);
+                        SpaceFx.EnginePlume(vox.transform, exLocal, exSize, plume);
                     }
 
                     _voxelRaiders.Add(e.Id);
@@ -75,7 +94,32 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _voxelRaiders.Remove(e.Id);
-            return BuildBanditShipModel(parent);
+            return null;
+        }
+
+        /// <summary>#3097: the hand-built hunter shuttle (until its voxel hull arrives, and the Codex portrait): a stubby pale
+        /// lander with a red band, a dark cockpit screen over a red sensor eye, short fins and two engines.</summary>
+        internal static GameObject BuildHunterShuttleModel(Transform parent)
+        {
+            var root = new GameObject("HunterShuttle");
+            root.transform.SetParent(parent, false);
+
+            var hull = LitTex("iron_wall", HunterShuttlePaint);
+            var band = LitTex("iron_wall", new Color(0.78f, 0.2f, 0.16f));
+            var glowRed = Unlit(new Color(1f, 0.18f, 0.12f));
+            var screen = Lit(new Color(0.12f, 0.16f, 0.22f));
+
+            Cube("Body", root.transform, new Vector3(0f, 0f, -0.2f), new Vector3(1.5f, 1.0f, 2.4f), hull);
+            Cube("Nose", root.transform, new Vector3(0f, -0.05f, 1.35f), new Vector3(0.95f, 0.8f, 0.7f), hull);
+            Cube("BandL", root.transform, new Vector3(-0.76f, 0.2f, -0.2f), new Vector3(0.04f, 0.22f, 2.4f), band);
+            Cube("BandR", root.transform, new Vector3(0.76f, 0.2f, -0.2f), new Vector3(0.04f, 0.22f, 2.4f), band);
+            Cube("Screen", root.transform, new Vector3(0f, 0.15f, 1.71f), new Vector3(0.8f, 0.28f, 0.04f), screen);
+            Cube("Eye", root.transform, new Vector3(0f, -0.18f, 1.71f), new Vector3(0.22f, 0.12f, 0.05f), glowRed);
+            Cube("FinL", root.transform, new Vector3(-1.0f, -0.2f, -0.1f), new Vector3(0.5f, 0.1f, 0.9f), band);
+            Cube("FinR", root.transform, new Vector3(1.0f, -0.2f, -0.1f), new Vector3(0.5f, 0.1f, 0.9f), band);
+            Cube("EngineL", root.transform, new Vector3(-0.5f, 0.2f, -1.5f), new Vector3(0.32f, 0.32f, 0.2f), glowRed);
+            Cube("EngineR", root.transform, new Vector3(0.5f, 0.2f, -1.5f), new Vector3(0.32f, 0.32f, 0.2f), glowRed);
+            return root;
         }
 
         // ---------------- The debris field (#2353) ----------------

@@ -61,7 +61,8 @@ public sealed partial class GameServer
         or CombatEntityKind.Anomaly or CombatEntityKind.Wreck or CombatEntityKind.EscapePod
         or CombatEntityKind.SpaceStation or CombatEntityKind.Drone or CombatEntityKind.Ufo
         or CombatEntityKind.Cruiser or CombatEntityKind.BanditShip or CombatEntityKind.Wormhole
-        or CombatEntityKind.DebrisField; // #2353: the flight recorder (fragments and capsules are not worth a readout)
+        or CombatEntityKind.DebrisField // #2353: the flight recorder (fragments and capsules are not worth a readout)
+        or CombatEntityKind.HunterShuttle; // #3097
 
     /// <summary>The readouts the scanner adds for the kinds that had none (#2238): a life pod, a station, the
     /// Guardian machines and the raiders. Knowledge once per kind, through the shared <see cref="Award"/> (missions,
@@ -138,6 +139,20 @@ public sealed partial class GameServer
                     LegacyInfo = "Raiders — they demand cargo and open fire when refused.",
                 };
                 ledger = "space:bandit";
+                break;
+
+            case CombatEntityKind.HunterShuttle: // #3097: a Guardian machine like the drones — its own readout says what it does
+                readout = new ScanReadout
+                {
+                    Kind = "machine",
+                    SubjectKey = "hunter_shuttle",
+                    Display = string.Empty,
+                    ThreatKey = target.Hostile ? "ui.scan.threat.hostile" : string.Empty,
+                    InfoKey = "ui.scan.machine.hunter_shuttle",
+                    LegacyInfo = "A Guardian hunter shuttle — weak, but if it gets away it lands a robot camp.",
+                    LegacyThreat = target.Hostile ? "Hostile" : "—",
+                };
+                ledger = "space:machine:hunter_shuttle";
                 break;
 
             default:

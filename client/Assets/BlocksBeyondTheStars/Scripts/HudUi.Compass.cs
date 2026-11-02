@@ -30,6 +30,7 @@ namespace BlocksBeyondTheStars.Client
         private RectTransform _compassStory;
         private int _lastCompassStoryDist = int.MinValue;
         private RectTransform _compassTrader; // a landed trader ship on this world (#1904) — blip only, no caption row left
+        private RectTransform _compassHunterCamp; // #3097: a hunter shuttle's robot camp on this world — blip only, like the trader's
         private RectTransform _compassShip, _compassWp, _compassNorth, _compassShipArrow;
         private Transform _compassParent; // parent for pooled beacon blips (item 37)
         private readonly System.Collections.Generic.List<RectTransform> _compassBeacons = new();
@@ -111,6 +112,7 @@ namespace BlocksBeyondTheStars.Client
             // A landed trader ship (#1904): its map marker's ship icon in trade gold. Created before the own-ship blip
             // so that one stays on top where the two meet.
             _compassTrader = Blip(comp.transform, WorldMap.TraderShipCol, 14f, "map_ship");
+            _compassHunterCamp = Blip(comp.transform, WorldMap.HunterShuttleCol, 14f, "map_ship"); // #3097
             _compassShip = Blip(comp.transform, new Color(0.3f, 0.8f, 1f), 8f);
             // The waypoint blip is the map_waypoint ICON, not another plain square — at 7 px amber it was
             // nearly indistinguishable from the 6 px amber beacon blips (#592).
@@ -244,6 +246,10 @@ namespace BlocksBeyondTheStars.Client
             // player whose pad is hundreds of blocks away can walk over before it lifts off.
             bool haveTrader = TryGetLandedTrader(out var traderPos);
             PlaceBlip(_compassTrader, haveTrader, traderPos, radius);
+
+            // A hunter shuttle's robot camp (#3097): VEGA says it is "marked on your map" — and on the dial, so it can be found.
+            bool haveCamp = TryGetPoi(WorldMap.HunterShuttlePoi, out var campPos);
+            PlaceBlip(_compassHunterCamp, haveCamp, campPos, radius);
 
             // Player-placed beacons (item 37): amber blips, pooled since their count varies.
             var beacons = Game.Beacons;
@@ -443,6 +449,27 @@ namespace BlocksBeyondTheStars.Client
                 for (int i = 0; i < pois.Length; i++)
                 {
                     if (pois[i].Type == "guardian_core")
+                    {
+                        pos = new Vector3(pois[i].X, Game.PlayerPosition.y, pois[i].Z);
+                        return true;
+                    }
+                }
+            }
+
+            pos = Vector3.zero;
+            return false;
+        }
+
+        /// <summary>#3097: the first planet POI of a type on this world (a hunter shuttle's camp — one per body), at the player's
+        /// own height like the Guardian core.</summary>
+        private bool TryGetPoi(string type, out Vector3 pos)
+        {
+            var pois = Game.PlanetPois;
+            if (pois != null)
+            {
+                for (int i = 0; i < pois.Length; i++)
+                {
+                    if (pois[i].Type == type)
                     {
                         pos = new Vector3(pois[i].X, Game.PlayerPosition.y, pois[i].Z);
                         return true;

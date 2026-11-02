@@ -24,5 +24,11 @@ public static partial class NetCodec
         Register(312, typeof(YieldStatus));                  // Server -> Client
         Register(313, typeof(SetFestivalPrefsIntent));       // Client -> Server (#3021 "My festivals"; an older server drops it)
         Register(314, typeof(SetBasePadIntent));             // Client -> Server (#3069 base landing pads: name + access)
+
+        // #3099 the storage bag screen. No protocol bump — an older server drops the intents (the bag stays shut), an older
+        // client the contents.
+        Register(315, typeof(OpenBagIntent));                // Client -> Server
+        Register(316, typeof(MoveBagItemIntent));            // Client -> Server
+        Register(317, typeof(BagContents));                  // Server -> Client
     }
 }

@@ -43,7 +43,7 @@ public sealed class InteractReachTests
         var npcs = new[] { Npc(1, C - 4f, 70f, 0.5f), Npc(2, 1.5f, 70f, 0.5f) };
 
         Assert.Equal(2, InteractReach.NearestTalkableNpc(npcs, -0.5f, 70f, 0.5f, C)?.Id); // 2 m east beats 3.5 m west
-        Assert.Null(InteractReach.NearestTalkableNpc(npcs, 20f, 70f, 0.5f, C));           // nobody within 4.5 m
+        Assert.Null(InteractReach.NearestTalkableNpc(npcs, 20f, 70f, 0.5f, C));           // nobody within the talk reach
         Assert.Null(InteractReach.NearestTalkableNpc(new[] { Npc(3, 0.5f, 70f, 0.5f + InteractReach.TalkReach) }, 0.5f, 70f, 0.5f, C)); // the edge itself is out
         Assert.Null(InteractReach.NearestTalkableNpc(null, 0f, 0f, 0f, C));
     }

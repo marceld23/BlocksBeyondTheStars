@@ -55,6 +55,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 "Cruiser" => 2.2f,
                 "BanditShip" => 1.5f,
+                "HunterShuttle" => 1.3f, // #3097: shot down before it could land
                 "Ufo" => 1.2f,
                 "Drone" => 0.9f,
                 _ => 0f,
@@ -216,6 +217,10 @@ namespace BlocksBeyondTheStars.Client
                 if (fx.Raider && fx.Arriving)
                 {
                     ClientAudio.Instance?.At("raider_warp_in", at, 1f, 1f); // #2357: the raider's ominous arrival
+                }
+                else if (fx.Style == "hunter_shuttle")
+                {
+                    ClientAudio.Instance?.At("hunter_shuttle_warp", at, fx.Arriving ? 1f : 1.15f, 1f); // #3097: its chirp, coming and (higher) going
                 }
 
                 // #2157: a stretched light streak + flash + ring (was a burst of cubes).

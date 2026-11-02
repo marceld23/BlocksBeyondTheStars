@@ -19,6 +19,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// player on foot, never more than <c>cap</c> per world, loaded chunks only, breathable worlds only, never inside a base
 /// zone or a ship, only in the air cell on one of the spawn's host blocks under the open sky. Every placement is broadcast
 /// and written to the <c>weather_deposit</c> table (told apart from snow by its block), so a restart keeps the ledger.</para>
+/// <para>#3083: and per player — one lay every <c>interval</c> seconds at most, and no more than <c>budget</c> blocks per
+/// festival and year (<see cref="Shared.State.PlayerState.FestivalSpawnsLaid"/>, persisted with the player). The cap used to
+/// count only the deposits standing right now, so every harvest freed a slot the next pass filled three seconds later
+/// beside the player — "the pumpkins grow back", and the sixty of the Halloween task took a few minutes.</para>
 /// <para>Cleanup: when no festival with that block is on, the pass removes a few of its own deposits per pass — only cells
 /// that still hold the festival block; a player's own pumpkin is never touched. A harvested deposit leaves the ledger and
 /// never regrows (<see cref="ForgetFestivalDeposit"/>): the harvest stays harvested.</para>
@@ -37,15 +41,15 @@ public sealed partial class GameServer
     /// companion, or right in front of their feet.</summary>
     private const int FestivalSpawnBodyClearance = 2;
 
-    /// <summary>The spawn of the first festival among <paramref name="keys"/> that has one, or null.</summary>
-    private FestivalSpawn? FestivalSpawnOf(IEnumerable<string> keys)
+    /// <summary>The first festival among <paramref name="keys"/> that has a spawn, or null.</summary>
+    private FestivalDefinition? FestivalWithSpawn(IEnumerable<string> keys)
     {
         foreach (string key in keys)
         {
-            var spawn = _content.FindFestival(key)?.Spawn;
-            if (spawn is not null && !string.IsNullOrEmpty(spawn.Block))
+            var festival = _content.FindFestival(key);
+            if (festival?.Spawn is { } spawn && !string.IsNullOrEmpty(spawn.Block))
             {
-                return spawn;
+                return festival;
             }
         }
 
@@ -53,7 +57,45 @@ public sealed partial class GameServer
     }
 
     /// <summary>The spawn of the world's festivals that are on, or null (none on, or none of them spawns).</summary>
-    private FestivalSpawn? ActiveFestivalSpawn() => FestivalSpawnOf(ActiveFestivals);
+    private FestivalSpawn? ActiveFestivalSpawn() => FestivalWithSpawn(ActiveFestivals)?.Spawn;
+
+    /// <summary>#3084: whether this cell is one of the festival layer's own deposits (a present, not the world's flora).</summary>
+    private bool IsFestivalDeposit(Vector3i pos)
+        => _worlds.Active.FestivalDeposits.Count > 0
+           && _worlds.Active.FestivalDeposits.ContainsKey(Shared.World.WorldConstants.CanonicalBlock(pos, _world.Circumference));
+
+    /// <summary>#3083: the key of one festival occurrence in <see cref="Shared.State.PlayerState.FestivalSpawnsLaid"/> — the
+    /// festival and the year (like VEGA's greeting), so next year's Halloween starts with a fresh budget.</summary>
+    private string FestivalBudgetKey(string festivalKey) => $"{festivalKey}:{FestivalUtcNow.Year}";
+
+    /// <summary>#3083: how many more festival blocks may be laid for this player in this occurrence (int.MaxValue = the data
+    /// sets no budget).</summary>
+    private int FestivalBudgetLeft(Shared.State.PlayerState p, FestivalDefinition festival)
+    {
+        int budget = festival.Spawn?.Budget ?? 0;
+        if (budget <= 0)
+        {
+            return int.MaxValue;
+        }
+
+        p.FestivalSpawnsLaid.TryGetValue(FestivalBudgetKey(festival.Key), out int laid);
+        return Math.Max(0, budget - laid);
+    }
+
+    /// <summary>#3083: books <paramref name="count"/> laid blocks on the player's budget and forgets other years' entries, so
+    /// the dictionary never holds more than this year's few festivals.</summary>
+    private void ChargeFestivalBudget(Shared.State.PlayerState p, FestivalDefinition festival, int count)
+    {
+        string key = FestivalBudgetKey(festival.Key);
+        string year = ":" + FestivalUtcNow.Year;
+        foreach (string stale in p.FestivalSpawnsLaid.Keys.Where(k => !k.EndsWith(year, StringComparison.Ordinal)).ToList())
+        {
+            p.FestivalSpawnsLaid.Remove(stale);
+        }
+
+        p.FestivalSpawnsLaid.TryGetValue(key, out int laid);
+        p.FestivalSpawnsLaid[key] = laid + count;
+    }
 
     private ushort FestivalSpawnBlock(FestivalSpawn spawn) => _content.GetBlock(spawn.Block)?.NumericId.Value ?? (ushort)0;
 
@@ -81,7 +123,7 @@ public sealed partial class GameServer
         var deposits = _worlds.Active.FestivalDeposits;
         bool breathable = BodyBreathable(_world.LocationId) && _content.GetPlanet(_worlds.Active.PlanetType)?.Void != true;
         var keep = new HashSet<ushort>();
-        var plans = new List<(PlayerSession Session, FestivalSpawn Spawn, ushort Block)>();
+        var plans = new List<(PlayerSession Session, FestivalDefinition Festival, ushort Block)>();
         var players = JoinedInActiveWorld().ToList();
         if (players.Count == 0 && ActiveFestivalSpawn() is { } worldSpawn)
         {
@@ -90,10 +132,11 @@ public sealed partial class GameServer
 
         foreach (var session in players)
         {
-            if (FestivalSpawnOf(ActiveFestivalsFor(session)) is { } spawn && FestivalSpawnBlock(spawn) is var block and not 0)
+            if (FestivalWithSpawn(ActiveFestivalsFor(session)) is { Spawn: { } spawn } festival
+                && FestivalSpawnBlock(spawn) is var block and not 0)
             {
                 keep.Add(block);
-                plans.Add((session, spawn, block));
+                plans.Add((session, festival, block));
             }
         }
 
@@ -110,48 +153,53 @@ public sealed partial class GameServer
 
         _repo.RunInTransaction(() =>
         {
-            int placed = 0;
-            foreach (var (session, spawn, block) in plans)
+            foreach (var (session, festival, block) in plans)
             {
-                PlaceFestivalDeposits(session, spawn, block, deposits, ref placed);
+                PlaceFestivalDeposits(session, festival, block, deposits);
             }
 
             ClearFestivalDeposits(deposits, keep);
         });
     }
 
-    /// <summary>Lays down this player's festival block near them; <paramref name="placed"/> counts the whole pass, which places
-    /// at most the spawn's <c>perPass</c> cells.</summary>
-    private void PlaceFestivalDeposits(PlayerSession session, FestivalSpawn spawn, ushort block, Dictionary<Vector3i, ushort> deposits, ref int placed)
+    /// <summary>The fewest column probes one lay makes — with a single cell per lay over a wide radius, three probes miss a
+    /// meadow too often (a miss is retried on the next pass, the player's clock is not reset).</summary>
+    private const int FestivalSpawnMinAttempts = 6;
+
+    /// <summary>Lays down this player's festival block near them: at most the spawn's <c>perPass</c> cells, once their own
+    /// clock (<see cref="PlayerSession.FestivalSpawnWait"/>, the spawn's <c>interval</c>) has run down and while their budget
+    /// for this festival occurrence lasts (#3083). The clock counts in passes, so the test seam's passes count too.</summary>
+    private void PlaceFestivalDeposits(PlayerSession session, FestivalDefinition festival, ushort block, Dictionary<Vector3i, ushort> deposits)
     {
-        int cap = Math.Max(0, spawn.Cap);
-        int perPass = Math.Max(1, spawn.PerPass);
-        int radius = Math.Max(2, spawn.Radius);
+        var spawn = festival.Spawn!;
         var p = session.State;
-        if (deposits.Count >= cap || placed >= perPass || p.InEva || p.AboardShip)
+        session.FestivalSpawnWait = Math.Max(0, session.FestivalSpawnWait - FestivalSpawnInterval);
+        int cap = Math.Max(0, spawn.Cap);
+        int perPass = Math.Min(Math.Max(1, spawn.PerPass), FestivalBudgetLeft(p, festival));
+        if (session.FestivalSpawnWait > 0 || perPass <= 0 || deposits.Count >= cap || p.InEva || p.AboardShip)
         {
             return;
         }
 
-        var hosts = new HashSet<ushort>();
-        foreach (string host in spawn.Hosts ?? Array.Empty<string>())
-        {
-            if (_content.GetBlock(host) is { } def)
-            {
-                hosts.Add(def.NumericId.Value);
-            }
-        }
-
+        var hosts = FestivalHostIds(spawn);
         if (hosts.Count == 0)
         {
             return;
         }
 
-        for (int attempt = 0; attempt < perPass * 3 && placed < perPass && deposits.Count < cap; attempt++)
+        int radius = Math.Max(2, spawn.Radius);
+        int placed = 0;
+        for (int attempt = 0; attempt < Math.Max(perPass * 3, FestivalSpawnMinAttempts) && placed < perPass && deposits.Count < cap; attempt++)
         {
             int x = (int)Math.Floor(p.Position.X) + _festivalSpawnRng.Next(-radius, radius + 1);
             int z = (int)Math.Floor(p.Position.Z) + _festivalSpawnRng.Next(-radius, radius + 1);
-            if (!TryFindFestivalSpawnCell(x, (int)Math.Round(p.Position.Y), z, hosts, out var cell) || deposits.ContainsKey(cell))
+            if (!TryFindFestivalSpawnCell(x, (int)Math.Round(p.Position.Y), z, hosts, out var found))
+            {
+                continue;
+            }
+
+            var cell = Shared.World.WorldConstants.CanonicalBlock(found, _world.Circumference); // the ledger keys the cell as mining sees it
+            if (deposits.ContainsKey(cell))
             {
                 continue;
             }
@@ -162,6 +210,27 @@ public sealed partial class GameServer
             _repo.SaveWeatherDeposit(_world.LocationId, cell, block, 0);
             placed++;
         }
+
+        if (placed > 0)
+        {
+            ChargeFestivalBudget(p, festival, placed);
+            session.FestivalSpawnWait = Math.Max(0, spawn.Interval); // #3083: the next one for this player after the interval
+        }
+    }
+
+    /// <summary>The numeric ids of the blocks a festival spawn may stand on.</summary>
+    private HashSet<ushort> FestivalHostIds(FestivalSpawn spawn)
+    {
+        var hosts = new HashSet<ushort>();
+        foreach (string host in spawn.Hosts ?? Array.Empty<string>())
+        {
+            if (_content.GetBlock(host) is { } def)
+            {
+                hosts.Add(def.NumericId.Value);
+            }
+        }
+
+        return hosts;
     }
 
     /// <summary>The air cell on a host block below the player's level in this column, under the open sky, outside every
@@ -284,4 +353,21 @@ public sealed partial class GameServer
 
     /// <summary>Test seam: whether this cell is a festival deposit.</summary>
     public bool IsFestivalDepositForTest(Vector3i cell) => _worlds.Active.FestivalDeposits.ContainsKey(cell);
+
+    /// <summary>Test seam (#3084): this world's species of a flora block turns toxic, as a world's roster roll can make it. A
+    /// copy replaces the entry, so a roster object other worlds may share is never changed.</summary>
+    public void MakeFloraToxicForTest(string blockKey)
+    {
+        ushort id = _content.GetBlock(blockKey)!.NumericId.Value;
+        var was = _floraSpeciesByBlock.TryGetValue(id, out var sp) ? sp : null;
+        _floraSpeciesByBlock[id] = new Shared.Definitions.FloraSpecies
+        {
+            Id = was?.Id ?? "test",
+            Name = was?.Name ?? string.Empty,
+            BlockKey = blockKey,
+            Toxic = true,
+            Aquatic = was?.Aquatic ?? false,
+            Active = was?.Active ?? true,
+        };
+    }
 }

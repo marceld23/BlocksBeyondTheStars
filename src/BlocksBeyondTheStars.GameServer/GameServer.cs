@@ -5249,7 +5249,9 @@ public sealed partial class GameServer
         // Work out exactly what this break yields. Nothing here can fail any more: what the player cannot
         // carry ends up on the ground (see SpillPoolOverflow at the call sites), so the block always falls.
         var yield = new List<ItemAmount>();
-        bool toxicFloraDrop = IsFlora(current.Value)
+        // #3084: a festival's pumpkin is a present, not this world's wild species — it always drops the plain fruit, even
+        // where the roster made pumpkins toxic (asked before the break strikes the deposit off the ledger).
+        bool toxicFloraDrop = IsFlora(current.Value) && !IsFestivalDeposit(pos)
             && _floraSpeciesByBlock.TryGetValue(current.Value, out var toxSp) && toxSp.Toxic;
         // #2209: a bred plant yields what its body parent's form yields (its own toxic twin already applied).
         uint bredSeed = IsBredPlant(current.Value) ? BredSeedAt(pos) : 0;
@@ -5275,6 +5277,7 @@ public sealed partial class GameServer
 
         if (IsContainerBlock(def.Key))
         {
+            PackTransportCrate(def, pos, yield); // #3098: a transport crate keeps what it holds — packed into its drop
             yield.AddRange(CrateContentsAt(pos)); // a mined crate/wood box hands its stored stacks back too
         }
 
@@ -5287,37 +5290,12 @@ public sealed partial class GameServer
             && !_repo.HasPlayerBlockEdits(_world.LocationId, pos, pos);
         _world.SetBlock(pos, BlockId.Air, owner: ownerId);
         _miningProgress.Remove(pos);
-        OnCrystalBlockRemoved(pos, def); // #2046: a mined conduit or device leaves the Crystal Net
-        OnRailBlockRemoved(pos, def); // #2113: a mined pylon leaves the rail graph
-
         if (IsContainerBlock(def.Key))
         {
             if (pool is not null) { RemoveCrateContainer(pos, pool); } // mining a crate/wood box returns its stored contents (Task 5 Stage 3b)
         }
-        else if (def.Key == "radio_beacon")
-        {
-            RemoveBeaconAt(pos); // mining a beacon forgets its label/marker (item 37)
-        }
-        else if (def.Key == BaseCoreBlock)
-        {
-            RemoveBaseAt(pos); // mining a base core removes the founded base (Grundstein)
-        }
-        else if (def.Key == "beam_block")
-        {
-            RemoveBeamAt(pos); // mining a beam block forgets its name/owner + map marker (teleporter pad)
-        }
-        else if (def.Key == BasePadRules.BlockKey)
-        {
-            RemoveBasePadAt(pos); // #3069: mining a base landing pad forgets it (refused above while a ship holds it)
-        }
-        else if (def.Key == ThumperBlockKey)
-        {
-            StopThumper(pos); // #2002: a thumper mined back stops thumping
-        }
-        else if (def.Key is "station_vendor" or "mission_board" || NpcProfessions.ByPostBlock(def.Key) != null)
-        {
-            OnBasePostChanged(null, pos, placed: false); // #1865: the post's keeper goes back to being a settler
-        }
+
+        ForgetBlockRegistrations(pos, def); // the beacon's label, the base, the beam pad … (shared with the blaster, #3100)
 
         // Bank the yield computed above. The crate case already handed its own stacks over in
         // RemoveCrateContainer, so only the block's own drops are added here.
@@ -7213,6 +7191,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (CarriedLossRefusal(stack.Item) is { } stillFull)
+        {
+            Reject(session, "discard", stillFull); // #3098/#3099: a full bag or packed crate is emptied first, never thrown away
+            return;
+        }
+
         string item = stack.Item;
         int count = inv.CountOf(item);
         if (count <= 0 || !inv.Remove(item, count))
@@ -7235,6 +7219,8 @@ public sealed partial class GameServer
 
     private void SendInventory(PlayerSession session)
     {
+        NoteInventoryChangedForRewards(session); // #3082: a reward waiting for room gets another try next tick
+
         // #1535: the unlocked set rides only when it changed since this session's last update (a signature over
         // the set, so scan unlocks / achievement rewards / creative grants all count, not just HandleUnlock).
         var unlocked = session.State.UnlockedBlueprints;

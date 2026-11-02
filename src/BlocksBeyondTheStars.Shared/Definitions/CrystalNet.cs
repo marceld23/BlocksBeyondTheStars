@@ -560,6 +560,13 @@ public static class CrystalNetRules
         or CrystalDeviceKind.Caller or CrystalDeviceKind.DrillLaser or CrystalDeviceKind.RailStop // #2113: a signal departs the train
         or CrystalDeviceKind.FlowerPot or CrystalDeviceKind.LiftMotor or CrystalDeviceKind.LiftStop;
 
+    /// <summary>#3091: level listeners whose own job runs on its own and is invisible while it is switched off — a sentry
+    /// fires, a spout pours, a heal tank heals. Only a network something drives (a source among its cells, or a gate
+    /// driving into it) may hold them OFF; a bare conduit with no switch or sensor leaves them doing their job. Before,
+    /// a conduit laid beside a sentry was an OFF network, and the post silently held its fire.</summary>
+    public static bool RunsUntilDriven(CrystalDeviceKind kind) => kind is CrystalDeviceKind.Sentry
+        or CrystalDeviceKind.Spout or CrystalDeviceKind.HealTank;
+
     /// <summary>Devices the sensor beat polls (world queries, capped per world).</summary>
     public static bool IsSensor(CrystalDeviceKind kind) => kind is CrystalDeviceKind.StepPlate
         or CrystalDeviceKind.ProximitySensor or CrystalDeviceKind.DaylightSensor or CrystalDeviceKind.StorageSensor

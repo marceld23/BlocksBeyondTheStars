@@ -166,14 +166,22 @@ public sealed class FestivalSpawn
     /// <summary>Blocks it may stand on.</summary>
     public string[] Hosts { get; set; } = Array.Empty<string>();
 
-    /// <summary>Cells per pass (one pass every few seconds).</summary>
+    /// <summary>Cells laid near one player at a time (one pass every few seconds, see <see cref="Interval"/>).</summary>
     public int PerPass { get; set; } = 6;
 
-    /// <summary>Hard ceiling of festival cells per world.</summary>
+    /// <summary>Hard ceiling of festival cells standing on one world.</summary>
     public int Cap { get; set; } = 1500;
 
     /// <summary>How far from a player a cell may appear.</summary>
     public int Radius { get; set; } = 24;
+
+    /// <summary>#3083: seconds between two lays for one player (0 = every pass). A harvested pumpkin used to be replaced
+    /// on the next pass, three seconds later, which looked exactly like regrowth.</summary>
+    public int Interval { get; set; }
+
+    /// <summary>#3083: cells laid for one player per festival and year — a field once harvested stays empty, and the
+    /// festival's task becomes a search. 0 = no budget (only <see cref="Cap"/> limits).</summary>
+    public int Budget { get; set; }
 }
 
 /// <summary>The festival themes (#3002): the content packages the festivals share.</summary>

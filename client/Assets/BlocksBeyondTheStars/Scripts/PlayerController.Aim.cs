@@ -138,9 +138,11 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>#2147: the hand door E works — the aimed door when it swings by hand and its latch is within the
         /// server's reach (3 blocks), else the nearest hand door, else 0. Distance alone used to swing the door
-        /// beside the one you were looking at.</summary>
-        private int TargetHandDoor()
+        /// beside the one you were looking at. #3088: <paramref name="aimed"/> says whether it is the door under the
+        /// crosshair (the aimed tier of the interact pick) or just the nearest one (the nearby tier).</summary>
+        private int TargetHandDoor(out bool aimed)
         {
+            aimed = false;
             var view = Game?.Views.Doors;
             if (view == null)
             {
@@ -153,10 +155,13 @@ namespace BlocksBeyondTheStars.Client
                 return 0; // no hand door in reach at all — spare the aim test
             }
 
-            return TryAimDoor(out int aimed, out _) && aimed != nearest
-                && view.IsHandDoor(aimed) && view.DoorWithin(aimed, transform.position, 3f)
-                ? aimed
-                : nearest;
+            if (TryAimDoor(out int aimedDoor, out _) && view.IsHandDoor(aimedDoor) && view.DoorWithin(aimedDoor, transform.position, 3f))
+            {
+                aimed = true;
+                return aimedDoor;
+            }
+
+            return nearest;
         }
 
         /// <summary>#2147: tells a player who right-clicked a door how it opens — a hand door with the interact key, an

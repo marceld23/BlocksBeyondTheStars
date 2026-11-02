@@ -1,7 +1,8 @@
 // The hostiles (#2971): the server builds every drone, UFO, cruiser, raider ship, Guardian machine and robber from
 // these tiers, and the Codex's "Enemies" chapter shows the same numbers. Order = the Codex's order.
 // hull: health; hullMax: the most a scaling tier reaches (a bigger raider hull), 0 = always hull;
-// damagePerSecond: while in reach and attacking; loot: what it drops when defeated.
+// damagePerSecond: while in reach and attacking; burstDamage (#3096): one burst's damage at its centre (the tank
+// spider; less toward the edge), 0 = it does not burst; loot: what it drops when defeated.
 // Tiers: "normal" (every enemy), "elite" (the Guardian gauntlet), "camp" (a bandit camp's guard).
 [
   { "key": "space_drone", "nameKey": "enemy.space_drone.name", "descriptionKey": "enemy.space_drone.desc", "tipKey": "enemy.space_drone.tip", "where": "space",
@@ -22,6 +23,10 @@
     "tiers": {
       "normal": { "hull": 55, "hullMax": 120, "damagePerSecond": 5, "loot": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 2 } ] }
     } },
+  { "key": "hunter_shuttle", "nameKey": "enemy.hunter_shuttle.name", "descriptionKey": "enemy.hunter_shuttle.desc", "tipKey": "enemy.hunter_shuttle.tip", "where": "space",
+    "tiers": {
+      "normal": { "hull": 35, "damagePerSecond": 2, "loot": [ { "item": "data_fragment", "count": 2 }, { "item": "circuit_board", "count": 1 } ] }
+    } },
   { "key": "scan_drone", "nameKey": "enemy.scan_drone.name", "descriptionKey": "enemy.scan_drone.desc", "tipKey": "enemy.scan_drone.tip", "where": "planet",
     "tiers": {
       "normal": { "hull": 25, "damagePerSecond": 2, "loot": [ { "item": "carbon", "count": 2 } ] }
@@ -33,6 +38,10 @@
   { "key": "hunter", "nameKey": "enemy.hunter.name", "descriptionKey": "enemy.hunter.desc", "tipKey": "enemy.hunter.tip", "where": "planet",
     "tiers": {
       "normal": { "hull": 60, "damagePerSecond": 6, "loot": [ { "item": "carbon", "count": 2 } ] }
+    } },
+  { "key": "tank_spider", "nameKey": "enemy.tank_spider.name", "descriptionKey": "enemy.tank_spider.desc", "tipKey": "enemy.tank_spider.tip", "where": "planet",
+    "tiers": {
+      "normal": { "hull": 20, "damagePerSecond": 0, "burstDamage": 30, "loot": [ { "item": "carbon", "count": 2 } ] }
     } },
   { "key": "bandit", "nameKey": "enemy.bandit.name", "descriptionKey": "enemy.bandit.desc", "tipKey": "enemy.bandit.tip", "where": "planet",
     "tiers": {
