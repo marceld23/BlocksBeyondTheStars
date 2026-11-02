@@ -15,7 +15,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A drill: lifted a little and turned toward the eye while the bit spins up and winds down again.</summary>
         DrillSpinUp,
 
-        /// <summary>A gun: tipped onto its side and racked once — a cosmetic reload (the game has no ammunition).</summary>
+        /// <summary>A gun: tipped onto its side and racked once by the free hand (#3134) — a cosmetic reload (the game has no
+        /// ammunition).</summary>
         GunReload,
 
         /// <summary>A blade: the wrist flicks it up and the blade spins once round its own length.</summary>
@@ -27,11 +28,13 @@ namespace BlocksBeyondTheStars.Client
     /// (degrees, Unity's pitch/yaw/roll, negative pitch = tip up) are added to the first-person holder's rest pose;
     /// <see cref="Lift"/> (0..1) raises an avatar's arm to show the item; <see cref="Twirl"/> turns the item's parts round its
     /// long axis (degrees); <see cref="BitDriven"/> keeps a drill's bit spinning and <see cref="Buzz"/> (0..1) shakes the
-    /// hand with it. All of them are 0 at rest.
+    /// hand with it. #3134: <see cref="OffHand"/> (0..1) is how far the free (left) hand has come in to the item and
+    /// <see cref="OffHandPull"/> (0..1) how far it pulls back along it (a gun's slide). All of them are 0 at rest.
     /// </summary>
     public readonly struct HeldFlourishPose
     {
-        public HeldFlourishPose(Vector3 offset, Vector3 euler, float lift, float twirl, bool bitDriven, float buzz)
+        public HeldFlourishPose(Vector3 offset, Vector3 euler, float lift, float twirl, bool bitDriven, float buzz,
+            float offHand = 0f, float offHandPull = 0f)
         {
             Offset = offset;
             Euler = euler;
@@ -39,6 +42,8 @@ namespace BlocksBeyondTheStars.Client
             Twirl = twirl;
             BitDriven = bitDriven;
             Buzz = buzz;
+            OffHand = offHand;
+            OffHandPull = offHandPull;
         }
 
         public Vector3 Offset { get; }
@@ -53,8 +58,15 @@ namespace BlocksBeyondTheStars.Client
 
         public float Buzz { get; }
 
+        /// <summary>#3134: how far the free hand has come in (0 = down out of view, 1 = on the item).</summary>
+        public float OffHand { get; }
+
+        /// <summary>#3134: how far the free hand pulls back along the item (0 = where it took hold, 1 = the full rack).</summary>
+        public float OffHandPull { get; }
+
         /// <summary>True when nothing moves.</summary>
-        public bool IsRest => Offset == Vector3.Zero && Euler == Vector3.Zero && Lift == 0f && Twirl == 0f && !BitDriven && Buzz == 0f;
+        public bool IsRest => Offset == Vector3.Zero && Euler == Vector3.Zero && Lift == 0f && Twirl == 0f && !BitDriven && Buzz == 0f
+            && OffHand == 0f && OffHandPull == 0f;
     }
 
     /// <summary>
@@ -155,15 +167,19 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The gun tips onto its side and up, is racked once — pulled back and let snap forward with a little kick —
-        /// and comes back level.</summary>
+        /// and comes back level. #3134 ("only with weapons the other hand that reloads is missing"): the free hand comes up
+        /// to the slide just before the pull, holds it through the pull and the snap, pulls it back with the rack, and has
+        /// dropped away again before the gun starts back to level.</summary>
         private static HeldFlourishPose Gun(float t)
         {
             float env = Envelope(t, 0.25f, 0.72f);
             float back = Bump(t, 0.35f, 0.52f);  // the pull
             float kick = Bump(t, 0.5f, 0.64f);   // the snap forward
+            float hand = Window(t, 0.18f, 0.34f, 0.58f, 0.72f); // the free hand on the slide …
+            float pull = Window(t, 0.36f, 0.48f, 0.56f, 0.70f); // … racking it back (never while the hand is off it)
             var offset = (new Vector3(-0.04f, 0.03f, -0.02f) * env) + new Vector3(0f, 0f, -0.04f * back);
             var euler = (new Vector3(-10f, -6f, 38f) * env) + new Vector3(-8f * kick, 0f, 0f);
-            return new HeldFlourishPose(offset, euler, env, 0f, false, 0f);
+            return new HeldFlourishPose(offset, euler, env, 0f, false, 0f, hand, pull);
         }
 
         /// <summary>The wrist flicks the blade up and rolls it outward while the blade spins once round its own length,
@@ -191,6 +207,23 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return t > outStart ? SmoothStep((1f - t) / (1f - outStart)) : 1f;
+        }
+
+        /// <summary>0 until <paramref name="inStart"/>, smoothly up to 1 by <paramref name="inEnd"/>, 1 until
+        /// <paramref name="outStart"/>, smoothly back to 0 by <paramref name="outEnd"/>, 0 after.</summary>
+        internal static float Window(float t, float inStart, float inEnd, float outStart, float outEnd)
+        {
+            if (t <= inStart || t >= outEnd)
+            {
+                return 0f;
+            }
+
+            if (t < inEnd)
+            {
+                return SmoothStep((t - inStart) / (inEnd - inStart));
+            }
+
+            return t > outStart ? SmoothStep((outEnd - t) / (outEnd - outStart)) : 1f;
         }
 
         /// <summary>A half sine from <paramref name="from"/> to <paramref name="to"/>, 0 outside.</summary>

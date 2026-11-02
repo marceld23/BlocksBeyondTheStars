@@ -64,7 +64,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Composes a cloud shell. Without weather (<paramref name="pixels"/> null) it is the planet's base
         /// cover; with weather every texel takes the cover and tint of the map pixel beneath it. <paramref name="phaseU"/>
         /// is how far the shell has turned relative to its planet (in map longitude), so weather stays anchored to the
-        /// ground while the cloud pattern drifts with the wind.</summary>
+        /// ground while the cloud pattern drifts with the wind. The clouds fade out over the globe's polar caps
+        /// (<see cref="PlanetGlobeCaps.Fade"/>, #3128), where the shell's rows would pinch into the pole.</summary>
         public static void ComposeShell(Texture2D tex, Color32[] buffer, float[] noise, PlanetMapData map, WeatherMapPixels pixels,
             float baseCover, int cloudRgb, int groundRgb, int floraRgb, float phaseU)
         {
@@ -72,6 +73,7 @@ namespace BlocksBeyondTheStars.Client
             for (int y = 0; y < ShellH; y++)
             {
                 int my = map != null ? Mathf.Clamp((int)((y + 0.5f) / ShellH * map.Height), 0, map.Height - 1) : 0;
+                float keep = 1f - PlanetGlobeCaps.Fade(PlanetGlobeCaps.RowLatitude(y, ShellH));
                 for (int x = 0; x < ShellW; x++)
                 {
                     float cover = baseCover;
@@ -96,7 +98,7 @@ namespace BlocksBeyondTheStars.Client
 
                     float threshold = Mathf.Lerp(0.72f, 0.28f, Mathf.Clamp01(cover));
                     float a = cover <= 0.001f ? 0f : Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((noise[y * ShellW + x] - threshold) * 3.5f));
-                    tint.a = (byte)Mathf.Clamp(Mathf.RoundToInt(a * 255f), 0, 255);
+                    tint.a = (byte)Mathf.Clamp(Mathf.RoundToInt(a * keep * 255f), 0, 255);
                     buffer[y * ShellW + x] = tint;
                 }
             }
@@ -176,8 +178,8 @@ namespace BlocksBeyondTheStars.Client
             sphere.localRotation = Quaternion.Euler(0f, yaw, 0f);
         }
 
-        /// <summary>The point on a primitive sphere (radius 0.5, unrotated local space) at map coordinates (u, v),
-        /// v = 0 the south pole — for lightning flashes and markers.</summary>
+        /// <summary>The point on the globe (<see cref="FxKit.GlobeMesh"/>, radius 0.5, unrotated local space) at map
+        /// coordinates (u, v), v = 0 the south pole — for lightning flashes and markers.</summary>
         public static Vector3 LocalPoint(float u, float v)
         {
             MeasureMapping();
@@ -186,8 +188,10 @@ namespace BlocksBeyondTheStars.Client
             return new Vector3(Mathf.Cos(el) * Mathf.Cos(az), Mathf.Sin(el), Mathf.Cos(el) * Mathf.Sin(az)) * 0.5f;
         }
 
-        /// <summary>Measures once where Unity's sphere mesh puts longitude u = 0 and which way u runs, from the
-        /// vertices themselves — so the noon meridian is right whatever the primitive's UV layout.</summary>
+        /// <summary>Measures once where the globe mesh every body wears (<see cref="FxKit.GlobeMesh"/>, #3127) puts
+        /// longitude u = 0 and which way u runs, from the vertices themselves — so the noon meridian and the lightning
+        /// stay right whatever the mesh's UV layout (<see cref="GlobeMeshData"/> documents u = 0 at +X, growing toward
+        /// +Z).</summary>
         private static void MeasureMapping()
         {
             if (_mappingMeasured)
@@ -196,7 +200,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _mappingMeasured = true;
-            var mesh = FxKit.SphereMesh;
+            var mesh = FxKit.GlobeMesh;
             if (mesh == null)
             {
                 return;

@@ -10,8 +10,8 @@ namespace BlocksBeyondTheStars.Client
     /// avatar itself is hidden in first person). Bobs with movement, sways on look, and jabs forward on
     /// a <see cref="Swing"/> (mine / place / attack). Built from the shared <see cref="HeldItem"/> mesh
     /// and parented to the camera so it tracks the view. Hidden in third-person.
-    /// <para><b>Two hands</b> — a second, mirrored holder on the left (<c>_holderL</c>) is used for exactly two things,
-    /// so every other item stays one-handed: the glove weapons (#2278; idle fists, the energy gloves' left-right jabs, the
+    /// <para><b>Two hands</b> — a second, mirrored holder on the left (<c>_holderL</c>; #3134 also racks a drawn gun with it)
+    /// is used for two things, so every other item stays one-handed: the glove weapons (#2278; idle fists, the energy gloves' left-right jabs, the
     /// shock gloves' wind-up and two-handed palm push) and climbing (#2287). While the player climbs a wall or a ladder the
     /// held item sinks out of view and both suit hands come up and climb hand over hand, driven like the avatar's climb
     /// pose (#2193): the rhythm follows the climb speed, a tired grip reaches shorter and trembles, a spent grip drags
@@ -53,7 +53,7 @@ namespace BlocksBeyondTheStars.Client
         private float _fovScale = 1f;
 
         private Transform _holder;
-        private Transform _holderL; // #2278/#2287: the left hand — gloves and climbing only
+        private Transform _holderL; // #2278/#2287/#3134: the left hand — gloves, climbing and a gun's reload rack
         private HeldItem.Kind _kind = HeldItem.Kind.None;
         private bool _visible = true;
 

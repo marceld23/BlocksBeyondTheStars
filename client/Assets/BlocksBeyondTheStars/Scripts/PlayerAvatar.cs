@@ -728,7 +728,7 @@ namespace BlocksBeyondTheStars.Client
             // #3094: a robber's weapon stance (aimed or brandished); #3095: the held item's flourish shows it off. Both ride
             // under the swing, the blow and the gestures below, which take the arm over.
             PoseStance(dt, ref armR, ref elbowR, ref level);
-            PoseHeldFlourish(dt, idle, ref armR, ref elbowR, ref level);
+            PoseHeldFlourish(dt, idle, ref armR, ref elbowR, ref level, ref armL, ref elbowL, ref yawL); // #3134: the free arm racks a gun
 
             // Tool/weapon chop overrides the right arm: raise, then drive down (with an elbow snap).
             if (_swingTimer > 0f)

@@ -346,6 +346,7 @@ namespace BlocksBeyondTheStars.Client
 
                 var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 go.name = "SkyBody_" + body.Id;
+                go.GetComponent<MeshFilter>().sharedMesh = FxKit.GlobeMesh; // #3127: the orbit globe, no wedges at the poles
                 var col = go.GetComponent<Collider>();
                 if (col != null)
                 {
@@ -374,7 +375,7 @@ namespace BlocksBeyondTheStars.Client
                     bool cratered = body.Kind == "Moon" && planet.IsAirless; // the server's rule for airless moons
                     var request = WorldMinimap.MakeRequest(Game.Content, Game.Atlas, Game.WorldSeed, locationKey, body.PlanetType,
                         bodyCirc, 96, 48, body.Id, Game.TerrainContinents, Game.TerrainGeneration, cratered, Game.TerrainLavaCoreVolcanoes);
-                    WorldMinimap.Request(request, (tex, _) =>
+                    WorldMinimap.RequestGlobe(request, (tex, _) => // #3128: the map with polar caps, as in orbit
                     {
                         if (mat == null)
                         {

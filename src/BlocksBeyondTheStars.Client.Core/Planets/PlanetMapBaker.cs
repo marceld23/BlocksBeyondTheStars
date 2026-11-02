@@ -46,7 +46,7 @@ namespace BlocksBeyondTheStars.Client
 
     /// <summary>A baked planet map: the colour texture plus the per-pixel terrain facts the weather layers project
     /// onto (#2172, #2175). Row 0 is the southern edge of the latitude band, column 0 longitude 0 — the equirect
-    /// layout Unity's sphere UVs and the landing-pad map both use.</summary>
+    /// layout the globe's UVs (<see cref="GlobeMeshData"/>) and the landing-pad map both use.</summary>
     public sealed class PlanetMapData
     {
         public int Width;

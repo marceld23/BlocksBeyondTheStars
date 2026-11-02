@@ -30,7 +30,7 @@ pad weather in LandingPadList                                  cloud shells · l
 - the airless-moon crater flag.
 
 The bake writes an equirect map: row 0 is the south edge of the latitude band, column 0 is longitude 0, the layout
-Unity's sphere UVs and the landing map share. Per pixel it reads `WorldGenerator.SummarizeSurface`, a read-only
+the globe's UVs (§1a) and the landing map share. Per pixel it reads `WorldGenerator.SummarizeSurface`, a read-only
 query that chunk generation never calls, so the goldens are unaffected. That query gives the column's height, its
 biome, the ground block (the biome's own surface; snow or ice above the snow line) and its plant cover (the
 biome's flora and tree multipliers, faded by the cold). Seas show depth, ice on cold seas and the world's own water
@@ -69,6 +69,31 @@ slower, so `WorldMinimap` never bakes synchronously:
   Entering space queues every body of the system, and before #2761 the landing map waited behind them. The browser
   serves the highest priority first every frame and needs no slot.
 - **Lifetime:** textures are cached per request key and destroyed on world exit (#966).
+
+## 1a. The globe: own mesh and polar caps (#3127/#3128)
+
+The orbit planet, its haze and cloud shell, and the bodies in the surface sky all wear one shared mesh,
+`FxKit.GlobeMesh`, built from `GlobeMeshData` (Client.Core). It replaces Unity's primitive sphere: the primitive has
+24 segments and a triangle fan at each pole whose UVs shear the map differently in every triangle, which showed as
+straight wedges at the poles.
+- **Layout:** radius 0.5, 48 × 24 segments. v runs from 0 at the south pole to 1 at the north pole, linear in
+  latitude like the map rows. u = 0 sits at +X and the azimuth `atan2(z, x)` grows with u, so the map reads
+  unmirrored from outside. The seam column exists twice (u = 0 and 1).
+- **Poles:** each pole triangle has its own pole vertex, with u at its segment's centre. That removes the shear.
+- **Winding:** every triangle faces outward, so the back-face-culling shaders draw what they drew on the primitive.
+- **Mapping:** `PlanetWeatherVisuals.MeasureMapping` measures the seam and direction from this mesh, so the spin and
+  the lightning points follow it. `PlanetGlobeTests` pins the layout, the winding and the convention.
+
+A planet's surface is a torus: it wraps north–south too (`WorldConstants.LatitudePeriodFor`). So the map's first and
+last rows, ordinary strips of terrain, each squeeze into one point at a pole. The pole vertices cannot fix that.
+`PlanetGlobeCaps` hides it on the CPU:
+- Rows from 62° latitude blend toward the world's average ground colour (`PlanetMapData.GroundRgb`), fully from 72°.
+- `WorldMinimap.RequestGlobe` gives the globes a capped copy of the cached map, once per cache entry. The raw texture
+  stays untouched, because the landing map's coarse preview shares the entry. The weather still projects onto the raw
+  `PlanetMapData`.
+- `ComposeShell` multiplies the cloud alpha by `1 − PlanetGlobeCaps.Fade(latitude)`, so the clouds do not pinch over
+  the caps either.
+- There is no shader switch: the Cloud shader is shared by many other effects.
 
 ## 2. The atmosphere from data
 
@@ -168,7 +193,7 @@ which is what the pad captions and the surface use, never changes; only the draw
   - Lightning (`FxKit.Flash`, fewer and softer with "reduce flashes") flickers in storm pixels of the nearest planet
     only. A meteor shower streaks into it; an ion storm makes its rim shimmer.
 - **Spin (#2177)** — `PlanetSpin` turns each sphere so the noon meridian (`u = 0.5 − timeOfDay`, the landing map's
-  rule) faces the star. The sphere mesh's UV seam and direction are measured once from the mesh. A loaded body's
+  rule) faces the star. The globe mesh's UV seam and direction are measured once from the mesh (§1a). A loaded body's
   clock is extrapolated with its day length; an unloaded one waits at its arrival hour. `SkyBodiesView` turns the
   sky discs the same way.
 - **Landing map (#2176)**
@@ -188,7 +213,7 @@ which is what the pad captions and the surface use, never changes; only the draw
 |---|---|
 | Bake | off the main thread (desktop) / ≤ 4 ms per frame (WebGL) |
 | Weather projection | per snapshot, < 1 ms for 96×48; 256×128 only while the landing map is open |
-| Textures | shell 32 KB per body with clouds; landing layer 128 KB while open; M layer 16 KB |
+| Textures | shell 32 KB per body with clouds; capped globe copy ~24 KB per body (#3128); landing layer 128 KB while open; M layer 16 KB |
 | Network | ~0.5 KB per player every 10 s |
 | Server | one `WeatherSim.Advance` per ambient body per second |
 
@@ -203,6 +228,8 @@ which is what the pad captions and the surface use, never changes; only the draw
   - the once-per-tick orbital clock;
   - the shared tints.
 - `WeatherProjectionTests` — the shared formula and precipitation.
+- `PlanetGlobeTests` — the globe mesh (counts, seam, pole vertices, outward winding, the mapping `PlanetSpin` turns)
+  and the polar caps.
 - `PlanetWeatherClientTests`:
   - orbit look over all types;
   - the `WeatherLook` table;

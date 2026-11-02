@@ -17,6 +17,13 @@ namespace BlocksBeyondTheStars.Client
         // The flourish's arm: the upper arm a little forward, the forearm up in front of the chest, the item held level.
         private const float FlourishUpperArm = -45f, FlourishElbow = -45f;
 
+        // #3134: the free (left) arm racking a gun — reached forward and across the chest so the hand lands on the gun's
+        // slide in front of the right shoulder (yaw turns the arm toward the right side), then drawn back about 5 cm along
+        // the gun with the pull: the upper arm sinks back while the elbow bends further, which keeps the hand at the slide's
+        // height.
+        private const float OffHandUpperArm = -68f, OffHandElbow = -15f, OffHandYaw = 38f;
+        private const float OffHandPullUpperArm = 16f, OffHandPullElbow = -30f;
+
         private readonly HeldFlourish _flourish = new HeldFlourish();
         private HeldFlourishKind _flourishKind;
         private HeldSpin _heldSpin;
@@ -56,9 +63,11 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The flourish over the pose underneath (<see cref="Animate"/>): the arm lifts the item into view, level,
-        /// while its parts move. Anything else the arm does — a swing, a blow, a gesture, the rope, a robber's stance, a pose
-        /// with its own arms — cuts it off.</summary>
-        private void PoseHeldFlourish(float dt, bool idle, ref float armR, ref float elbowR, ref float level)
+        /// while its parts move; #3134: for a gun's rack the left arm reaches across to the slide and pulls with it. Anything
+        /// else the arms do — a swing, a blow, a gesture, the rope, a robber's stance, a pose with its own arms — cuts it
+        /// off.</summary>
+        private void PoseHeldFlourish(float dt, bool idle, ref float armR, ref float elbowR, ref float level,
+            ref float armL, ref float elbowL, ref float yawL)
         {
             bool busy = _swingTimer > 0f || _punchTimer > 0f || Gesturing || _roped || _stance != Stance.None
                 || _lying || _climbing || _seated || _gliding || _swap.Current != HeldSwap.Phase.Idle || _pendingBuild || _held == null;
@@ -83,6 +92,15 @@ namespace BlocksBeyondTheStars.Client
             armR = Mathf.Lerp(armR, FlourishUpperArm, lift);
             elbowR = Mathf.Lerp(elbowR, FlourishElbow, lift);
             level = Mathf.Max(level, lift);
+            float off = pose.OffHand;
+            if (off > 0f)
+            {
+                float pull = pose.OffHandPull;
+                armL = Mathf.Lerp(armL, OffHandUpperArm + (OffHandPullUpperArm * pull), off);
+                elbowL = Mathf.Lerp(elbowL, OffHandElbow + (OffHandPullElbow * pull), off);
+                yawL = Mathf.Lerp(yawL, OffHandYaw, off);
+            }
+
             if (_heldSpin != null)
             {
                 _heldSpin.SetTwirl(pose.Twirl);

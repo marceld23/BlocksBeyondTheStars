@@ -31,7 +31,7 @@ namespace BlocksBeyondTheStars.Client
     /// it straight from the chart. M always opens on the System tab; LB/RB step the tabs on a pad. A
     /// hyperjump closes the chart — the flight scene it drew belongs to the system being left.</para>
     /// </summary>
-    public sealed class SpaceMap : MonoBehaviour
+    public sealed partial class SpaceMap : MonoBehaviour
     {
         public GameBootstrap Game;
         public SpaceView SpaceView;
@@ -49,10 +49,6 @@ namespace BlocksBeyondTheStars.Client
         private const float BeltGroupGap = 160f * SystemBodyLayout.FlightViewScale;
         private const float BeltBandPad = 8f;     // chart units the belt band extends past its outermost member
 
-        /// <summary>The finale system's id (#1605) — mirrors the server's reserved id; the chart gives it
-        /// the hyperspace-violet accent once the story has revealed it.</summary>
-        private const string FinaleSystemId = "guardian_finale";
-
         private static readonly Color WaypointCol = new Color(1f, 0.85f, 0.3f);
         private static readonly Color WreckCol = new Color(0.85f, 0.65f, 0.35f);          // the radar's wreck amber (#1664)
         private static readonly Color DiscCol = new Color(0.01f, 0.03f, 0.07f, 0.78f); // WorldMap's backing disc
@@ -69,36 +65,6 @@ namespace BlocksBeyondTheStars.Client
             _ => (new Color(0.72f, 0.45f, 1f), L("ui.scan.subject.wormhole")),
         };
 
-        /// <summary>#2242: the wormhole pairs this player knows (both system ids known), each once.</summary>
-        private List<(string A, string B)> KnownWormholePairs()
-        {
-            var pairs = new List<(string A, string B)>();
-            var list = Game?.StarMap?.Wormholes;
-            if (list == null)
-            {
-                return pairs;
-            }
-
-            var seen = new HashSet<string>();
-            foreach (var w in list)
-            {
-                if (string.IsNullOrEmpty(w.LinkedSystemId))
-                {
-                    continue; // not known yet
-                }
-
-                bool ordered = string.CompareOrdinal(w.SystemId, w.LinkedSystemId) <= 0;
-                var pair = ordered ? (w.SystemId, w.LinkedSystemId) : (w.LinkedSystemId, w.SystemId);
-                if (seen.Add(pair.Item1 + "|" + pair.Item2)) // the twin end lists the same pair
-                {
-                    pairs.Add(pair);
-                }
-            }
-
-            return pairs;
-        }
-        private static readonly Color StarFallbackCol = new Color(1f, 0.94f, 0.74f);   // an older server sends no star colour
-        private static readonly Color JumpCol = new Color(0.30f, 0.18f, 0.46f);        // the travel screen's hyperspace-violet button
 
         private enum Tab { System, Hyperspace }
 
@@ -180,10 +146,6 @@ namespace BlocksBeyondTheStars.Client
                 RefreshDynamic();
                 HandleClick();
             }
-            else
-            {
-                HandleGalaxyClick();
-            }
         }
 
         /// <summary>Opened by <see cref="SpaceView"/> on the FlightMap action while cruising. Always opens on
@@ -199,6 +161,8 @@ namespace BlocksBeyondTheStars.Client
             _openedFrame = Time.frameCount;
             _tab = Tab.System;
             _selectedSystemId = null;
+            _galaxyView = null; // each opening starts on the whole galaxy
+            SubscribeStarMap(true); // #3131: a rename confirmed here redraws the chart
             Game.Network?.SendUiTutorialEvent(BlocksBeyondTheStars.Shared.Story.GameEventKeys.UiMapOpenId); // #2469: the flight lesson
             Game.SetMenuOwner(this, true); // frees the cursor; UpdateCruise holds the ship while set (#413)
             Game.StarChartOpen = true;     // the music director switches to the star-map bed (#1174)
@@ -239,6 +203,7 @@ namespace BlocksBeyondTheStars.Client
             _open = false;
             Game.SetMenuOwner(this, false);
             Game.StarChartOpen = false;
+            SubscribeStarMap(false);
             if (_hyperjumpSubscribed)
             {
                 Game.HyperjumpStarted -= OnHyperjump;
@@ -264,6 +229,8 @@ namespace BlocksBeyondTheStars.Client
                 Game.HyperjumpStarted -= OnHyperjump;
                 _hyperjumpSubscribed = false;
             }
+
+            SubscribeStarMap(false);
 
             // An open chart's scene-root canvas — it goes with the rig, not over the main menu (#2936).
             if (_canvas != null)
@@ -300,6 +267,8 @@ namespace BlocksBeyondTheStars.Client
             _galaxy = null;
             _info = null;
             _hyperInfo = null;
+            _hyperPlace = null;
+            _place = null;
             _jumpButton = null;
             LoadCurrentSystem();
 
@@ -592,9 +561,10 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddPanel(root, 980, 100, 900, 900, UiKit.Panel);
             float ix = 1010f;
             UiKit.AddText(root, ix, 130, 840, 28, L("ui.spacemap.waypoint"), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _info = UiKit.AddText(root, ix, 170, 840, 620, string.Empty, 20, UiKit.TextCol, TextAnchor.UpperLeft);
+            _info = UiKit.AddText(root, ix, 170, 840, 240, string.Empty, 20, UiKit.TextCol, TextAnchor.UpperLeft);
             _info.horizontalOverflow = HorizontalWrapMode.Wrap;
             _info.verticalOverflow = VerticalWrapMode.Truncate;
+            BuildPlaceArea(root); // #3131: the targeted body's own name and colour mark
 
             UiKit.AddText(root, ix, 800, 840, 60, L("ui.spacemap.click_hint"), 17, UiKit.CyanDim, TextAnchor.UpperLeft);
 
@@ -766,6 +736,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 _info.text = L("ui.spacemap.none");
             }
+
+            RefreshPlace(force: false);
         }
 
         /// <summary>Display name for the current snap waypoint (empty for a free point).</summary>
@@ -799,267 +771,6 @@ namespace BlocksBeyondTheStars.Client
             return null;
         }
 
-        // ------------------------------------------------------------------ Hyperspace tab
-
-        private void BuildHyperspaceTab(Transform root)
-        {
-            const float ax = 40f, ay = 100f;
-            UiKit.AddPanel(root, ax - 6, ay - 6, ChartSize + 12, ChartSize + 12, UiKit.Panel);
-            _galaxy = GalaxyChartWidget.Create(root, ax, ay, ChartSize);
-            var stars = BuildStars(out var lanes);
-            _galaxy.Show(stars, lanes, _selectedSystemId, KnownWormholePairs()); // #2242: the violet zigzags
-
-            // Info panel on the right: the selected star, and the jump button.
-            UiKit.AddPanel(root, 980, 100, 900, 900, UiKit.Panel);
-            float ix = 1010f;
-            _hyperTitle = UiKit.AddText(root, ix, 130, 840, 28, string.Empty, 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _hyperInfo = UiKit.AddText(root, ix, 170, 840, 560, string.Empty, 20, UiKit.TextCol, TextAnchor.UpperLeft);
-            _hyperInfo.horizontalOverflow = HorizontalWrapMode.Wrap;
-            _hyperInfo.verticalOverflow = VerticalWrapMode.Truncate;
-
-            var hint = UiKit.AddText(root, ix, 740, 840, 120, L("ui.spacemap.hyper_hint"), 17, UiKit.CyanDim, TextAnchor.UpperLeft);
-            hint.horizontalOverflow = HorizontalWrapMode.Wrap;
-
-            _jumpButton = UiKit.AddButton(root, ix, 880, 380, 50, L("ui.map.hyperjump_here"), JumpToSelected);
-            UiKit.FitLabel(_jumpButton.GetComponentInChildren<Text>(), 12, 20);
-            UiKit.AddButton(root, ix + 420, 880, 200, 50, L("ui.action.close"), Close);
-
-            RefreshHyperInfo();
-        }
-
-        /// <summary>Every system of the star map as the chart should draw it: name gated by the #1113 rule
-        /// (a bare "?" for a system never entered, unless a radar array is aboard), the frontier tag, the
-        /// server's star colour (#1604) with a warm-yellow fallback, the party's whereabouts, and the finale
-        /// accent. Lanes come from the relay network state (#1125).</summary>
-        private List<GalaxyChartWidget.Star> BuildStars(out List<(string A, string B)> lanes)
-        {
-            var stars = new List<GalaxyChartWidget.Star>();
-            lanes = new List<(string, string)>();
-            var map = Game?.StarMap;
-            if (map?.Systems == null)
-            {
-                return stars;
-            }
-
-            bool radar = HasModule("radar_array");
-            string frontier = L("ui.map.frontier");
-
-            // Other players by system, so a star can carry "Anna, Ben" above it.
-            var playersBySystem = new Dictionary<string, List<string>>();
-            if (map.Players != null)
-            {
-                foreach (var p in map.Players)
-                {
-                    if (p.Name == Game.PlayerName)
-                    {
-                        continue; // the current star's ring already says where I am
-                    }
-
-                    var sys = SystemOfBody(map, p.LocationId);
-                    if (sys == null)
-                    {
-                        continue;
-                    }
-
-                    if (!playersBySystem.TryGetValue(sys.Id, out var names))
-                    {
-                        playersBySystem[sys.Id] = names = new List<string>();
-                    }
-
-                    names.Add(p.Name);
-                }
-            }
-
-            foreach (var sys in map.Systems)
-            {
-                bool current = sys.Id == _systemId;
-                bool known = Game.KnowsSystem(sys.Id);
-                string label = GalaxyChartLayout.DisplayName(sys.Shown(), known, current, radar, "?"); // #2952: own name
-                if (sys.Tier >= 2 && label != "?")
-                {
-                    label = $"{label} · {frontier}";
-                }
-
-                stars.Add(new GalaxyChartWidget.Star
-                {
-                    Id = sys.Id,
-                    MapX = sys.MapX,
-                    MapY = sys.MapY,
-                    Label = label,
-                    Color = sys.StarColor != 0 ? Rgb(sys.StarColor) : StarFallbackCol,
-                    Current = current,
-                    Known = known,
-                    Finale = sys.Id == FinaleSystemId,
-                    Players = playersBySystem.TryGetValue(sys.Id, out var there) ? string.Join(", ", there) : string.Empty,
-                });
-            }
-
-            var net = Game.RelayNetwork;
-            if (net?.LaneSystemA != null && net.LaneSystemB != null)
-            {
-                int n = Mathf.Min(net.LaneSystemA.Length, net.LaneSystemB.Length);
-                for (int i = 0; i < n; i++)
-                {
-                    lanes.Add((net.LaneSystemA[i], net.LaneSystemB[i]));
-                }
-            }
-
-            return stars;
-        }
-
-        private void HandleGalaxyClick()
-        {
-            if (_galaxy == null || !Input.GetMouseButtonDown(0) || !_galaxy.TryPick(Input.mousePosition, out var id))
-            {
-                return;
-            }
-
-            _selectedSystemId = id;
-            _galaxy.Select(id);
-            RefreshHyperInfo();
-        }
-
-        /// <summary>The info panel for the selected star: name (or "unknown system"), frontier tag, whether
-        /// you have been there, who of the party is there, your station/base badges, and why a jump is or
-        /// is not possible — the same hints the travel screen gives. The jump button shows for any other
-        /// system and is enabled only with a jump generator aboard or a lane (the server enforces both).</summary>
-        private void RefreshHyperInfo()
-        {
-            if (_hyperInfo == null || _hyperTitle == null)
-            {
-                return;
-            }
-
-            var map = Game?.StarMap;
-            var sys = FindSystem(map, _selectedSystemId);
-            if (sys == null)
-            {
-                _hyperTitle.text = L("ui.spacemap.hyper_none");
-                _hyperInfo.text = L("ui.spacemap.hyper_select_hint");
-                _jumpButton.gameObject.SetActive(false);
-                return;
-            }
-
-            bool current = sys.Id == _systemId;
-            bool known = Game.KnowsSystem(sys.Id);
-            string title = GalaxyChartLayout.DisplayName(sys.Shown(), known, current, HasModule("radar_array"), L("ui.map.system_unknown"));
-            if (sys.Tier >= 2)
-            {
-                title = $"{title} · {L("ui.map.frontier")}";
-            }
-
-            _hyperTitle.text = title;
-
-            var lines = new List<string>
-            {
-                current ? L("ui.spacemap.hyper_here") : known ? L("ui.spacemap.hyper_known") : L("ui.spacemap.hyper_unknown"),
-            };
-
-            var there = new List<string>();
-            if (map.Players != null)
-            {
-                foreach (var p in map.Players)
-                {
-                    if (p.Name != Game.PlayerName && SystemOfBody(map, p.LocationId)?.Id == sys.Id)
-                    {
-                        there.Add(p.Name);
-                    }
-                }
-            }
-
-            if (there.Count > 0)
-            {
-                lines.Add(string.Format(L("ui.spacemap.hyper_players"), string.Join(", ", there)));
-            }
-
-            foreach (var b in sys.Bodies)
-            {
-                if (Game.HasMyStation(b.Id))
-                {
-                    lines.Add(L("ui.map.station_here"));
-                }
-
-                string bases = Game.MyBasesLabel(b.Id, L); // #2996: several bases say how many
-                if (!string.IsNullOrEmpty(bases))
-                {
-                    lines.Add(bases);
-                }
-            }
-
-            bool lane = GalaxyChartLayout.HasLane(Game.RelayNetwork?.LaneSystemA, Game.RelayNetwork?.LaneSystemB, _systemId, sys.Id);
-            bool generator = HasModule("jump_generator");
-            if (!current)
-            {
-                lines.Add(string.Empty);
-                lines.Add(lane ? "⇄ " + L("ui.map.lane_hint") : L("ui.map.hyperjump_hint"));
-            }
-
-            _hyperInfo.text = string.Join("\n", lines);
-
-            bool canJump = !current && (lane || generator) && Game.Network != null;
-            _jumpButton.gameObject.SetActive(!current);
-            _jumpButton.interactable = canJump;
-            _jumpButton.GetComponent<Image>().color = canJump ? JumpCol : UiKit.TabLocked;
-        }
-
-        private void JumpToSelected()
-        {
-            if (string.IsNullOrEmpty(_selectedSystemId) || _selectedSystemId == _systemId)
-            {
-                return;
-            }
-
-            // The server checks the generator/lane and the flight rules; on success the client's
-            // HyperjumpStarted fires and OnHyperjump closes the chart. A rejection leaves the chart open
-            // with the server's message in the chat.
-            Game.Network?.SendHyperjumpSystem(_selectedSystemId);
-        }
-
-        private bool HasModule(string module)
-            => Game?.ShipCombat?.Modules != null && System.Array.IndexOf(Game.ShipCombat.Modules, module) >= 0;
-
-        private static NetStarSystem FindSystem(StarMapData map, string id)
-        {
-            if (map?.Systems == null || string.IsNullOrEmpty(id))
-            {
-                return null;
-            }
-
-            foreach (var sys in map.Systems)
-            {
-                if (sys.Id == id)
-                {
-                    return sys;
-                }
-            }
-
-            return null;
-        }
-
-        private static NetStarSystem SystemOfBody(StarMapData map, string bodyId)
-        {
-            if (map?.Systems == null || string.IsNullOrEmpty(bodyId))
-            {
-                return null;
-            }
-
-            foreach (var sys in map.Systems)
-            {
-                foreach (var b in sys.Bodies)
-                {
-                    if (b.Id == bodyId)
-                    {
-                        return sys;
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        private static Color Rgb(int rgb)
-            => new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
-
         // ------------------------------------------------------------------ shared helpers
 
         /// <summary>Caches the system the player is in: its id + name (for the title and the galaxy chart)
@@ -1075,14 +786,14 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var mine = SystemOfBody(map, map.ActiveLocationId);
+            var mine = GalaxyChartStars.SystemOfBody(map, map.ActiveLocationId);
             if (mine == null)
             {
                 return;
             }
 
             _systemId = mine.Id;
-            _systemName = mine.Name;
+            _systemName = mine.Shown(); // #3133: the title reads the player's own name for the system
             foreach (var b in mine.Bodies)
             {
                 if (!string.IsNullOrEmpty(b.Id))

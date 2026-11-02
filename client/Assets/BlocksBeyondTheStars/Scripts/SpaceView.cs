@@ -375,6 +375,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.SpaceEntityDestroyed += OnStructEntityDestroyed;
                 Game.Network.SpaceEntityDestroyed += OnEntityDestroyedFx; // #2156: explosions instead of vanishing
                 Game.Network.SpaceEntityDestroyed += OnLockedEntityDestroyed; // #2277: a killed lock moves on to the next attacker
+                Game.Network.StarMapReceived += OnStarMapNames; // #3131: a rename in flight relabels the bodies at once
                 _structSubscribed = true;
             }
 
@@ -682,7 +683,10 @@ namespace BlocksBeyondTheStars.Client
             FxSpaceDust.Hide();
             Sky.SpaceSunDir = Vector3.zero;
             UrpScenePost.Instance?.SetMotion(0f);
-            if (_flightFov > 1f)
+            // Quitting the game while flying tears the scene down in any order: OnDestroy → Exit can run after the camera is
+            // gone, and the restore threw a NullReferenceException into the crash reporter (#3137).
+            bool camera = Camera != null;
+            if (_flightFov > 1f && camera)
             {
                 Camera.fieldOfView = _flightFov;
             }
@@ -710,12 +714,15 @@ namespace BlocksBeyondTheStars.Client
             _orbitOwned.Clear();
             _entityKinds.Clear();
             _entityHull.Clear();
-            Camera.transform.SetParent(_camPrevParent, false);
-            Camera.transform.localPosition = _camPrevLocalPos;
-            Camera.transform.localRotation = _camPrevLocalRot;
-            Camera.farClipPlane = _camPrevFar;
-            Camera.clearFlags = _camPrevClear;
-            Camera.backgroundColor = _camPrevBg;
+            if (camera)
+            {
+                Camera.transform.SetParent(_camPrevParent, false);
+                Camera.transform.localPosition = _camPrevLocalPos;
+                Camera.transform.localRotation = _camPrevLocalRot;
+                Camera.farClipPlane = _camPrevFar;
+                Camera.clearFlags = _camPrevClear;
+                Camera.backgroundColor = _camPrevBg;
+            }
 
             if (_root != null)
             {

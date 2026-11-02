@@ -329,6 +329,7 @@ namespace BlocksBeyondTheStars.Client
 
             var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             sphere.name = name;
+            sphere.GetComponent<MeshFilter>().sharedMesh = FxKit.GlobeMesh; // #3127: no wedges at the poles
             StripCollider(sphere);
             sphere.transform.SetParent(_root.transform, false);
             sphere.transform.localPosition = pos;
@@ -375,7 +376,7 @@ namespace BlocksBeyondTheStars.Client
                 var request = WorldMinimap.MakeRequest(Game.Content, Game.Atlas, Game.WorldSeed, locationName, planetType, circumference, 96, 48,
                     key, Game.TerrainContinents, Game.TerrainGeneration, cratered, Game.TerrainLavaCoreVolcanoes);
                 Color washTint = Color.Lerp(Color.white, sunHue, 0.35f);
-                WorldMinimap.Request(request, (tex, data) =>
+                WorldMinimap.RequestGlobe(request, (tex, data) => // #3128: the map with polar caps; data stays the raw map
                 {
                     if (mat == null || ob.Sphere == null)
                     {
@@ -406,6 +407,7 @@ namespace BlocksBeyondTheStars.Client
                 float atm = ob.Atmosphere.Breathable ? 1f : 0.7f;
                 var haze = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 haze.name = "Atmosphere";
+                haze.GetComponent<MeshFilter>().sharedMesh = FxKit.GlobeMesh; // #3127: a round rim, no 24-segment facets
                 StripCollider(haze);
                 haze.transform.SetParent(sphere.transform, false);
                 haze.transform.localScale = Vector3.one * 1.06f;
@@ -740,6 +742,7 @@ namespace BlocksBeyondTheStars.Client
         {
             var shell = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             shell.name = "CloudShell";
+            shell.GetComponent<MeshFilter>().sharedMesh = FxKit.GlobeMesh; // #3127: the planet's own mapping
             StripCollider(shell);
             shell.transform.SetParent(ob.Sphere, false);
             shell.transform.localPosition = Vector3.zero;

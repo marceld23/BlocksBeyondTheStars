@@ -347,11 +347,49 @@ public sealed partial class GameServer
                 return false;
             }
 
+            // #3135: the sky test reads only world blocks, so a parked hull did not shelter its own floor — drifts formed
+            // inside the ship and lifted it a block on the next join. Nor does snow settle in a cell someone stands in.
+            if (InShipInterior(above) || PlayerStandsIn(above))
+            {
+                return false;
+            }
+
             cell = above;
             return true;
         }
 
         return false;
+    }
+
+    /// <summary>#3135: whether a joined player of the active world has their feet or head in the cell.</summary>
+    private bool PlayerStandsIn(Vector3i cell)
+    {
+        foreach (var s in JoinedInActiveWorld())
+        {
+            var feet = s.State.Position.ToBlock();
+            if (feet.X == cell.X && feet.Z == cell.Z && (feet.Y == cell.Y || feet.Y + 1 == cell.Y))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>#3135: whether a cell holds a layer that comes and goes by itself — weather snow (the melt pass owns it)
+    /// or a festival deposit. A parked ship must never stand on one (<c>PadSurfaceY</c> skips them): a winter drift on a
+    /// sampled pad column lifted Lyxette's re-parked ship a block on the next join, the drift melted a minute later, and
+    /// the hull hovered over his floor with him inside its raised floor. A built block under the snow still counts.</summary>
+    private bool IsTransientDeposit(Vector3i cell)
+    {
+        var weather = _worlds.Active.WeatherDeposits;
+        if (weather.Count > 0
+            && (weather.ContainsKey(cell) || weather.ContainsKey(WorldConstants.CanonicalBlock(cell, _world.Circumference))))
+        {
+            return true;
+        }
+
+        return IsFestivalDeposit(cell);
     }
 
     /// <summary>Melts weather snow once the air turns warm (or the world stopped snowing long enough),

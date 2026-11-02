@@ -569,7 +569,7 @@ public sealed partial class GameServer
     /// <see cref="PadRaiseScan"/> cells. Never lowered: a pit dug at the centre must not sink the hull, and the
     /// median stays the floor the pad was levelled to at generation. Lyxette paved his landing site with
     /// concrete walkways; the median ignored them, so every landing put the ship — and him — inside his own
-    /// floor until the entombment rescue dug him out a second later.</summary>
+    /// floor until the entombment rescue dug him out a second later. Weather snow does not count (#3135).</summary>
     private int PadSurfaceY(int cx, int cz)
     {
         if (BasePadGroundAt(cx, cz) is int baseGround)
@@ -584,7 +584,7 @@ public sealed partial class GameServer
         {
             for (int dy = PadRaiseScan; dy >= 1; dy--)
             {
-                if (IsBodyBlockingCell(cx + dx, median + dy, cz + dz))
+                if (IsBodyBlockingCell(cx + dx, median + dy, cz + dz) && !IsTransientDeposit(new Vector3i(cx + dx, median + dy, cz + dz)))
                 {
                     top = System.Math.Max(top, median + dy);
                     break;
