@@ -351,20 +351,16 @@ namespace BlocksBeyondTheStars.Client
             _locateStation = null; // one marker per hint, not on every close
         }
 
-        /// <summary>Jump to a recipe: the one that produces the missing station's block ("craft one →"), or the suit slot
-        /// picker's "Show recipe" (#2289).</summary>
+        /// <summary>Jump to a recipe: the one that produces the missing station's block ("craft one →"), the suit slot
+        /// picker's "Show recipe" (#2289), a blueprint's "Unlocks" or an item's "Needed for" (#3106, #3112). Lands on "All"
+        /// with the search and the "Craftable now" filter cleared and the list scrolled to the card (<see cref="JumpTo"/>).</summary>
         private void JumpToRecipe(string recipeKey)
         {
             Menu?.OpenCrafting();
             // Switch the page NOW: GameMenu only shows the new tab on its next Update, and that ShowMode would clear the
             // selection set below when the jump comes from another tab (the Suit picker, a Blueprints/Ship where-hint).
             ShowMode(Mode.Crafting);
-            _selected = recipeKey;
-            _category = "all";
-            _search = string.Empty;
-            RebuildSidebar();
-            RebuildList();
-            RebuildDetail();
+            JumpTo("all", recipeKey);
         }
 
         /// <summary>Signature of the station gate state for the refresh hash (#1070).</summary>

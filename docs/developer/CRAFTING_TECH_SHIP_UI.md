@@ -29,7 +29,7 @@ components, a category sidebar and blueprint state.
 - **List order and filters (#826, #2563, #2566).** Crafting sorts by reach tier (`ReachTier`: craftable, materials
   missing, factory terminal out of reach, blueprint locked), then **A–Z by the card title** (`RecipeTitle`, before
   the factory suffix), then bench before factory twin; the market category keeps its authored order. The Blueprints
-  tab sorts by tree tier, then A–Z; the Sandbox catalog by item rank, then A–Z. Every A–Z uses
+  tab sorts by tree tier, then A–Z; the Sandbox catalog by its first build category, then A–Z. Every A–Z uses
   `LocaleCollation.Comparer(game locale)` (Client.Core) — the game language's collation, never the OS culture —
   which probes the platform's culture comparer once and falls back to an accent-folding comparer where collation
   data is missing (invariant globalization, a stripped IL2CPP/WebGL player). The Blueprints tab's **"Researchable
@@ -66,7 +66,34 @@ components, a category sidebar and blueprint state.
 - **Blueprint state on the client.** The server's `PlayerState.UnlockedBlueprints` is synced to the
   client (on join, on unlock, on resync) so cards can show "craftable now", grey locked recipes, and
   blueprint status without round-tripping.
-- **Per tab.** Crafting: category/tool-kind cards + ingredient have/need + disassemble. Tech: a
+- **Shared build categories (#3102–#3111).** One category set for every list, in `data/categories.json`: groups
+  (sidebar headings) and categories with explicit item / blueprint / module / ship lists plus named rules — `weapon`,
+  `vehicle`, `suitGear`, `consumable`, `materials` (item rules), `fromBlueprints` (every item a non-market recipe
+  makes behind one of the category's own blueprints: the whole Crystal Net from its 18 nodes), `allModules`,
+  `allShips`. **A thing may sit in several categories.** An item no list or rule names falls back by its item category
+  (`fallbackFor`), a blueprint no list names inherits the categories of what it unlocks — so new content is never
+  homeless. `ContentCategories` (Shared, built lazily as `GameContent.Categories`) resolves it all; presentation
+  only, no server rule reads it; a missing file means no categories (every list shows "All").
+  `ContentCategoriesTests` guard the keys (`ContentCategories.Problems`), that every item, blueprint, module and
+  ship has a category, that every category has something to craft, and the names in en + de. The menu side lives
+  in `CraftingTechShipUI.Categories.cs`: the grouped sidebar of the Crafting and Blueprints tabs (only categories
+  with members in that tab; an entry shows its `iconItem`'s real icon), the Ship tab's module kinds (sidebar key
+  `kind:<category>`), `MatchesSearchIn` (a search also matches the names of a thing's categories) and the
+  "Belongs to" row (`BelongsToRow`, one button per category, picking it). The raw `BlueprintDefinition.Category`
+  stays in the data (toasts and tests read it) but no longer drives a sidebar.
+- **Links between the tabs (#3105, #3106, #3112)** — `CraftingTechShipUI.Links.cs`: `JumpToRecipe` /
+  `JumpToBlueprint` / `JumpToModule` / `JumpToShipBuild` open the tab, select the entry and scroll the list to its
+  card (`AddCard` records the selected card's row). A blueprint's **Unlocks** (`BlueprintUnlocks.For`, now with the
+  ships whose `requiredBlueprint` it is) is a set of buttons without the old six-name cut; a recipe's, module's or
+  ship's blueprint line (`BlueprintLine`) carries **Go to blueprint**; an item's detail shows **Needed for**
+  (`ItemUses.For`, Shared: the non-market recipes that take it — group ingredients count —, the blueprints whose
+  research costs it, the modules and ships built from it), eight buttons per kind and "… and N more".
+- **Inventory search and filter (#3110, #3111)** — `CraftingTechShipUI.InventoryFilter.cs`: the backpack, cargo
+  hold and Sandbox catalogue pages get a search box and a "◀ category ▶" selector stepping through "All" and the
+  categories present on the page (read at click time); the hold adds an order button (as stored, category, A–Z,
+  amount). The hold's list and the catalogue narrow; the backpack grid keeps every slot in place and dims the ones
+  that don't match. Presentation only — no intent, no slot moves.
+- **Per tab.** Crafting: category cards + ingredient have/need + disassemble. Tech: a
   per-category/tier blueprint tree with node status colours, prerequisite display, unlock cost
   have/need. Ship: module cards with stat deltas, the fleet as ship cards (stats, Active badge,
   Switch), and craftable ship types as cards (stats + cost + required blueprint).
@@ -80,7 +107,9 @@ components, a category sidebar and blueprint state.
   Crafting, Tech, Ship — with the ship preview rig —, Map, Missions, Character — with the world-rules rows —,
   Alliances, Companions, Photos, Notes, Achievements, Journal), and three partials hold what the tabs share:
   `.Recipes` (ingredient rows, costs, the catalog gate and the wrappers over `CraftGate`), `.Stations` (station gates
-  and the "Where?" locator) and `.Scaffolding` (uGUI cards, scroll views, search boxes and the text helpers).
+  and the "Where?" locator) and `.Scaffolding` (uGUI cards, scroll views, search boxes and the text helpers);
+  `.Categories`, `.Links` and `.InventoryFilter` hold the shared build categories, the jumps between the tabs with
+  "Needed for", and the inventory search/filter.
 - `src/BlocksBeyondTheStars.Client.Core/CraftGate.cs` — the crafting rules, engine-free (#2932). `Check` names the
   first gate that blocks an order of N crafts as a `CraftBlock`, in the order of the reason line: in Creative only the
   room for the result; otherwise blueprint, materials, then the market (vendor, then today's offer), the factory
@@ -101,9 +130,10 @@ components, a category sidebar and blueprint state.
   the group the same way (`CraftGateTests` pins the parity); the ingredient rows name it as the group
   (`itemgroup.<group>.name`, "Logs (any kind)"). Wish templates carry `group` too, and the coined objective keeps it
   (`MissionObjective.TargetGroup`). The validator rejects an unknown group and a representative outside its group.
-- Data sources (no new data needed): `ItemDefinition` (category/tool/effects), `RecipeDefinition`
+- Data sources: `ItemDefinition` (category/tool/effects), `RecipeDefinition`
   (station/blueprint/inputs/outputs), `BlueprintDefinition` (category/prerequisites/costs),
-  `ShipModuleDefinition` / `ShipDefinition` (stats/cost/blueprint), `Game.OwnedShips`.
+  `ShipModuleDefinition` / `ShipDefinition` (stats/cost/blueprint), `Game.OwnedShips`, and the build categories of
+  `data/categories.json` (`GameContent.Categories`).
 - A recipe card and its detail page are titled with the output item's name — unless the recipe carries its own
   optional `nameKey` / `descriptionKey` (#2544, `RecipeTitle`): a second recipe of the same item that must read
   differently, like the hand-built **Wooden boat** (`boat_wood`) next to the workshop's **Boat**. The search box

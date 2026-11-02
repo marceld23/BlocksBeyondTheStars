@@ -42,7 +42,8 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            if (_category == "all" || _category == "modules")
+            string kind = ModuleKind(); // #3109: a module kind picked in the sidebar narrows the list
+            if (_category == "all" || _category == "modules" || kind != null)
             {
                 if (_category == "modules")
                 {
@@ -61,7 +62,8 @@ namespace BlocksBeyondTheStars.Client
                     .ThenBy(m => m.BuildCost.Sum(c => c.Count));
                 foreach (var m in modules)
                 {
-                    if (!MatchesSearch(L($"module.{m.Key}.name")))
+                    if ((kind != null && !Cats.OfModule(m.Key).Contains(kind))
+                        || !MatchesSearchIn(L($"module.{m.Key}.name"), Cats.OfModule(m.Key))) // #3107: or its kind
                     {
                         continue;
                     }
@@ -85,7 +87,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 foreach (var s in Game.Content.Ships.Values.Where(s => !string.IsNullOrEmpty(s.RequiredBlueprint)))
                 {
-                    if (!MatchesSearch(L($"ship.{s.Key}.name")))
+                    if (!MatchesSearchIn(L($"ship.{s.Key}.name"), Cats.OfShip(s.Key)))
                     {
                         continue;
                     }
@@ -318,6 +320,9 @@ namespace BlocksBeyondTheStars.Client
                 {
                     y = AddDetailDescription(desc, y);
                 }
+
+                // #3108: the module's kinds ("Ship" is every module's, so it is left out), each picking that kind.
+                y = BelongsToRow(Cats.OfModule(m.Key).Where(c => c != "ship").ToList(), y, PickCategory);
 
                 // #1471: on a cargo module, spell out what the hold is made of and what the next tier adds — a
                 // hauler owner saw "72" next to a fitted tier I and read it as a broken upgrade.

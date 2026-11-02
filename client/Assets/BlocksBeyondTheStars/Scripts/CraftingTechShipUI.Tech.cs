@@ -25,8 +25,10 @@ namespace BlocksBeyondTheStars.Client
         {
             // A progression tree: order by tier (prerequisite depth) and indent each tier, so the unlock
             // chain reads top-to-bottom / left-to-right like a tech tree; A–Z in the game language within a tier (#2566).
+            // #3104: the shared categories (a blueprint may sit in several); #3107: the search also finds category names.
             var shown = Game.Content.Blueprints.Values
-                .Where(bp => (_category == "all" || bp.Category == _category) && MatchesSearch(L($"blueprint.{bp.Key}.name"))
+                .Where(bp => (_category == "all" || Cats.OfBlueprint(bp.Key).Contains(_category))
+                             && MatchesSearchIn(L($"blueprint.{bp.Key}.name"), Cats.OfBlueprint(bp.Key))
                              && (!_craftableOnly || ResearchableNow(bp)))
                 .OrderBy(TechTier).ThenBy(bp => L($"blueprint.{bp.Key}.name"), NameOrder)
                 .ToList();
@@ -61,6 +63,11 @@ namespace BlocksBeyondTheStars.Client
                     ? L("ui.tech.next").Replace("{name}", L($"blueprint.{next.Key}.name"))
                     : L("ui.tech.next_none");
                 UiKit.AddText(_listContent, 0, y, 760, 24, nextLine, 16, next != null ? UiKit.TextCol : UiKit.CyanDim, TextAnchor.MiddleLeft);
+                y += 26f;
+                // #3104: the balance moved here from the header strip, which now holds the search box.
+                UiKit.AddText(_listContent, 0, y, 760, 24,
+                    $"{L("ui.tech.knowledge")}: {Game.Knowledge}   ·   {L("item.data_fragment.name")}: {Owned("data_fragment")}",
+                    16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
                 y += 34f;
             }
 
@@ -156,6 +163,7 @@ namespace BlocksBeyondTheStars.Client
             var (status, col) = TechStatus(bp);
             UiKit.AddText(_detail, 8, y, 620, 28, L("ui.tech.status") + ": " + status, 20, col, TextAnchor.UpperLeft, FontStyle.Bold);
             y += 36f;
+            y = BelongsToRow(Cats.OfBlueprint(bp.Key), y, PickCategory); // #3108
 
             if (bp.Prerequisites.Count > 0)
             {
@@ -214,9 +222,10 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>
         /// #2250: "Unlocks" — what researching the blueprint opens: the functions it names (the bio lab's Change tab, …),
-        /// the items its recipes make, the ship modules it allows and the blueprints it leads to. The pane only ever
-        /// looked backwards (prerequisites), so a chain like the bio lab's read as five unrelated nodes. Long lists are
-        /// cut with "… and N more".
+        /// the items its recipes make, the ship modules and ships it allows (#3105) and the blueprints it leads to. The pane
+        /// only ever looked backwards (prerequisites), so a chain like the bio lab's read as five unrelated nodes. #3106:
+        /// every entry is a button to its page (the recipe, the module, the ship build page, the next blueprint), and the
+        /// lists are no longer cut after six names.
         /// </summary>
         private float TechUnlocksSection(string blueprintKey, float y)
         {
@@ -235,48 +244,30 @@ namespace BlocksBeyondTheStars.Client
                 y = TechUnlockLine("• " + L(feature), y, UiKit.TextCol);
             }
 
-            var items = new List<string>();
-            foreach (var item in unlocks.Items)
-            {
-                items.Add(ItemName(item));
-            }
-
-            y = TechUnlockList("ui.tech.unlocks_items", items, y);
-
-            var modules = new List<string>();
-            foreach (var key in unlocks.Modules)
-            {
-                var module = Game.Content.GetShipModule(key);
-                modules.Add(module != null ? L(module.NameKey) : key);
-            }
-
-            y = TechUnlockList("ui.tech.unlocks_modules", modules, y);
-
-            var next = new List<string>();
-            foreach (var key in unlocks.LeadsTo)
-            {
-                next.Add(L($"blueprint.{key}.name"));
-            }
-
-            return TechUnlockList("ui.tech.leads_to", next, y);
+            y = TechUnlockChips("ui.tech.unlocks_items",
+                unlocks.Items.Select(i => (ItemName(i), (System.Action)(() => JumpToItemRecipe(i)))), y);
+            y = TechUnlockChips("ui.tech.unlocks_modules",
+                unlocks.Modules.Select(m => (ModuleName(m), (System.Action)(() => JumpToModule(m)))), y);
+            y = TechUnlockChips("ui.tech.unlocks_ships",
+                unlocks.Ships.Select(sh => (L($"ship.{sh}.name"), (System.Action)(() => JumpToShipBuild(sh)))), y);
+            return TechUnlockChips("ui.tech.leads_to",
+                unlocks.LeadsTo.Select(b => (L($"blueprint.{b}.name"), (System.Action)(() => JumpToBlueprint(b)))), y);
         }
 
-        /// <summary>One "Label: a, b, c … and N more" line of the unlocks section (nothing when the list is empty).</summary>
-        private float TechUnlockList(string labelKey, List<string> names, float y)
+        private string ModuleName(string key) => Game.Content.GetShipModule(key) is { } module ? L(module.NameKey) : key;
+
+        /// <summary>One "Label:" line of the unlocks section and its buttons (nothing when the list is empty).</summary>
+        private float TechUnlockChips(string labelKey, IEnumerable<(string label, System.Action onClick)> chips, float y)
         {
-            const int shown = 6;
-            if (names.Count == 0)
+            var list = chips.ToList();
+            if (list.Count == 0)
             {
                 return y;
             }
 
-            string list = string.Join(", ", names.Take(shown));
-            if (names.Count > shown)
-            {
-                list += " " + L("ui.tech.and_more").Replace("{n}", (names.Count - shown).ToString());
-            }
-
-            return TechUnlockLine(L(labelKey) + ": " + list, y, UiKit.CyanDim);
+            UiKit.AddText(_detail, 20, y, 600, 24, L(labelKey) + ":", 17, UiKit.CyanDim, TextAnchor.UpperLeft);
+            y += 26f;
+            return ChipRow(list, y) + 2f;
         }
 
         private float TechUnlockLine(string text, float y, Color color)

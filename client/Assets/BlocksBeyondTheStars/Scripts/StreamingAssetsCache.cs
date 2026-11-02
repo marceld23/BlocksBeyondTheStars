@@ -41,6 +41,7 @@ namespace BlocksBeyondTheStars.Client
             "achievements.json",
             "blocks.json",
             "blueprints.json",
+            "categories.json", // #3102
             "creatures.json",
             "derelict_logs.json",
             "dialogs.json",

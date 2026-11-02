@@ -24,6 +24,35 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🗂️ Build categories — one shared category set where a thing can sit in several, searchable by category, links between the tabs — #3102–#3112, branch feat/build-categories — ✅ done 2026-11-02 (⚠ playtest open; client + data only, no save-version, protocol or terrain-generation change)
+
+Marcel (2026-11-01): better categories for what you can craft and research — "what can I build with the Crystal Net?",
+"which vehicles and transport are there?", a *Travel & Transport* category for boat, monorail, jetpack and speeder; **a
+thing may be in several categories**; for blueprints, gear, everything else and the ship's hold; make what you can
+build easier to reach and find. Analysis: the Crafting tab had seven code-derived one-bucket categories (Components 115
+cards, Blocks 94 with 12 seeds in it, Machines 73 mixing 35 Crystal Net devices with base cores, posts and ship parts;
+"Medicine" holding every meal), the Blueprints tab the raw `category` field (a different taxonomy), the Ship tab one flat
+module list, the hold no search/filter/sort, the Blueprints tab no search box, and ship blueprints said nothing under
+"Unlocks".
+
+- **#3102 Shared categories:** `data/categories.json` (3 groups, 15 categories: Travel & Transport, Tools, Scan &
+  Explore, Combat & Defense, Suit & Survival · Blocks & Walls, Lights & Decor, Crystal Net, Workshop & Production, Base &
+  Settlement, Garden & Animals, Storage & Cargo, Ship · Food & Medicine, Parts & Raw Materials) with explicit lists and
+  named rules (`weapon`, `vehicle`, `suitGear`, `consumable`, `materials`, `fromBlueprints`, `allModules`, `allShips`),
+  item fallbacks by item category and blueprints inheriting what they unlock; `ContentCategories` (Shared) resolves it,
+  `ContentCategoriesTests` guard keys, coverage and en/de names.
+- **#3103 Crafting** and **#3104 Blueprints** sidebars use it, grouped under headings, with item icons; the Blueprints
+  tab got a search box (the knowledge line moved into the list header). **#3109** the Ship tab lists modules by kind.
+- **#3105** `BlueprintUnlocks` lists ships; **#3106** "Unlocks" are buttons (no six-name cut), recipe/module/ship
+  details have **Go to blueprint**, every jump scrolls the list to its card.
+- **#3107** every search also matches category names; **#3108** a "Belongs to" row in the details.
+- **#3110** the hold: search, ◀ category ▶ filter, order (as stored / category / A–Z / amount); **#3111** the backpack
+  dims what doesn't match, the Sandbox catalogue filters and orders by category; **#3112** "Needed for" in item details
+  (`ItemUses`, Shared).
+- The old `ui.craft.cat_*` (7) and `ui.tech.cat_*` (10) keys are gone from all 14 locales; 33 new keys in all 14.
+- Not done (deliberately): storage-crate screen filter, a backpack sort (would need a server intent), Codex links per
+  category (the Codex cannot deep-link an article yet), a "new" marker and pinned recipes.
+
 ### 🛬 Landing pads in player bases + a faster first pad search — epic #3074 (#3068–#3073), branch feat/base-landing-pads — ✅ done 2026-11-01 (⚠ playtest open)
 
 Marcel (2026-11-01): build landing pads at a base, shown on the landing map in space, each with who may land (only me /

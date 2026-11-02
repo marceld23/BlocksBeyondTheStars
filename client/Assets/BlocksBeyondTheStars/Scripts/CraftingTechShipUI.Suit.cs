@@ -322,7 +322,7 @@ namespace BlocksBeyondTheStars.Client
                 else
                 {
                     var research = UiKit.AddText(list, 8f, y, rowW - 16f, 30f,
-                        L("ui.equip.picker_research").Replace("{where}", L("ui.tab.tech") + " → " + L("ui.tech.cat_suit")),
+                        L("ui.equip.picker_research").Replace("{where}", L("ui.tab.tech") + " → " + L("category.suit.name")),
                         18, UiKit.CyanDim, TextAnchor.UpperLeft);
                     research.horizontalOverflow = HorizontalWrapMode.Wrap;
                     y += 40f;

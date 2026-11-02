@@ -75,7 +75,8 @@ namespace BlocksBeyondTheStars.Client
                         continue;
                     }
                 }
-                else if (isMarket || !MatchesCategory(outItem.Item) || !MatchesSearch(RecipeTitle(r, outItem.Item)))
+                else if (isMarket || !CraftItemInCategory(outItem.Item)
+                         || !MatchesSearchIn(RecipeTitle(r, outItem.Item), Cats.OfItem(outItem.Item))) // #3107: or its category
                 {
                     continue;
                 }
@@ -499,10 +500,7 @@ namespace BlocksBeyondTheStars.Client
             y += 30f;
             if (!string.IsNullOrEmpty(r.RequiredBlueprint))
             {
-                bool bp = BlueprintOk(r.RequiredBlueprint);
-                UiKit.AddText(_detail, 8, y, 620, 26, $"{(bp ? "✓" : "✗")} {L("ui.craft.blueprint")}: {L($"blueprint.{r.RequiredBlueprint}.name")}", 18,
-                    bp ? UiKit.Ok : new Color(1f, 0.5f, 0.5f), TextAnchor.UpperLeft);
-                y += 30f;
+                y = BlueprintLine(r.RequiredBlueprint, y); // with "Go to blueprint" (#3106)
             }
 
             y += 10f;
@@ -540,7 +538,8 @@ namespace BlocksBeyondTheStars.Client
             var btn = UiKit.AddButton(_detail, 8, y, 280, 56, verb + (maxCraft > 1 ? " ×" + n : string.Empty), () => { Game.Network.SendCraft(r.Key, n); });
             SetInteractable(btn, can);
             y += 70f;
-            return y;
+            y = BelongsToRow(Cats.OfItem(outItem.Item), y, PickCategory); // #3108
+            return NeededForSection(outItem.Item, y); // #3112: what it goes into
         }
 
         /// <summary>How many of a recipe the player can currently afford, from their owned inputs. Capped at a

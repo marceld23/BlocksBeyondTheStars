@@ -22,20 +22,24 @@ public sealed class BlueprintUnlocks
     /// <summary>Ship module keys that require the blueprint.</summary>
     public IReadOnlyList<string> Modules { get; }
 
+    /// <summary>Ship keys whose construction requires the blueprint (#3105: the seven ship blueprints said nothing).</summary>
+    public IReadOnlyList<string> Ships { get; }
+
     /// <summary>Blueprint keys that list this one as a prerequisite, cheapest first.</summary>
     public IReadOnlyList<string> LeadsTo { get; }
 
     private BlueprintUnlocks(IReadOnlyList<string> features, IReadOnlyList<string> items, IReadOnlyList<string> modules,
-        IReadOnlyList<string> leadsTo)
+        IReadOnlyList<string> ships, IReadOnlyList<string> leadsTo)
     {
         Features = features;
         Items = items;
         Modules = modules;
+        Ships = ships;
         LeadsTo = leadsTo;
     }
 
     /// <summary>True when nothing is listed.</summary>
-    public bool IsEmpty => Features.Count == 0 && Items.Count == 0 && Modules.Count == 0 && LeadsTo.Count == 0;
+    public bool IsEmpty => Features.Count == 0 && Items.Count == 0 && Modules.Count == 0 && Ships.Count == 0 && LeadsTo.Count == 0;
 
     /// <summary>The forward view of <paramref name="blueprintKey"/> (empty for an unknown key).</summary>
     public static BlueprintUnlocks For(GameContent content, string blueprintKey)
@@ -44,7 +48,7 @@ public sealed class BlueprintUnlocks
         if (bp is null)
         {
             return new BlueprintUnlocks(System.Array.Empty<string>(), System.Array.Empty<string>(),
-                System.Array.Empty<string>(), System.Array.Empty<string>());
+                System.Array.Empty<string>(), System.Array.Empty<string>(), System.Array.Empty<string>());
         }
 
         var items = new List<string>();
@@ -76,6 +80,11 @@ public sealed class BlueprintUnlocks
             .Select(b => b.Key)
             .ToList();
 
-        return new BlueprintUnlocks(bp.Features.ToList(), items, modules, leadsTo);
+        var ships = content.Ships.Values
+            .Where(s => s.RequiredBlueprint == blueprintKey)
+            .Select(s => s.Key)
+            .ToList();
+
+        return new BlueprintUnlocks(bp.Features.ToList(), items, modules, ships, leadsTo);
     }
 }
