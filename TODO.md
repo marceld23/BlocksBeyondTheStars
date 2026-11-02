@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🗺️ Planet globes without the pole pinch, a zoomable galaxy chart, the charts in the ship's navigation + Lyxette's hovering ship + Justus' reload hand — #3127–#3137, branch feat/nav-charts-2026-11-02 — ✅ done 2026-11-02 (⚠ playtest open; no save-version, protocol or terrain-generation change)
+### 🗺️ Planet globes without the pole pinch, a zoomable galaxy chart, the charts in the ship's navigation + Lyxette's hovering ship + Justus' reload hand — #3127–#3137, branch feat/nav-charts-2026-11-02 — ✅ done 2026-11-02 in PR #3136 (`4a48070f`), released in v2026.11.3 (⚠ playtest open; no save-version, protocol or terrain-generation change)
 
 Marcel's screenshot of a planet from orbit ("always a seam in the textures"), then: plan A+B1, give the galaxy chart a
 zoom, combine the space charts with the landed ship's navigation (renaming must work there too); plus the evening's
@@ -63,7 +63,7 @@ in-game reports (Lyxette: ship hovers after loading; Justus as Screelit: the gun
   `Exit` restores the camera only while it exists.
 - Locale keys `ui.map.destination_*`, `ui.chart.centre/all` hand-translated ×14.
 
-### 🌈 Star colours dealt per galaxy, a red dwarf, less white wash — #3123 #3124 #3125, branch fix/star-colours-per-galaxy — ✅ done 2026-11-02 (⚠ playtest open; no save-version, protocol or terrain-generation change — every save's stars take their new colours on the next start)
+### 🌈 Star colours dealt per galaxy, a red dwarf, less white wash — #3123 #3124 #3125, branch fix/star-colours-per-galaxy — ✅ done 2026-11-02 in PR #3126 (`f207ee37`), released in v2026.11.3 (⚠ playtest open; no save-version, protocol or terrain-generation change — every save's stars take their new colours on the next start)
 
 Marcel's playtest of the #3077 build: a fresh world, all twelve systems visited — "all very white or yellow, none blue or
 reddish". The code was right and the galaxy unlucky: 5 white, 3 sun-like, 3 yellow, 1 pale blue-white.
@@ -82,7 +82,7 @@ reddish". The code was right and the galaxy unlucky: 5 white, 3 sun-like, 3 yell
   non-procedural fallback), `HyperspaceChartServerTests` (the playtest's 12-system galaxy shows 3 blue + 3 red stars,
   the chart's star = the sky's sun), `ShipInteriorTests`. Docs: MULTIWORLD_AND_SYSTEM_FLIGHT, ART_BIBLE, USER_MANUAL.
 
-### 📬 Player reports 2026-11-02 (Lyxette, v2026.11.2) — ground details stay off built ground, out of tunnels, lit at night, switchable — #3118–#3121, branch fix/ground-details-2026-11-02 — ✅ done 2026-11-02 (⚠ playtest open; protocol: additive `ChunkDataMessage.EditRuns`, no save or terrain-generation change)
+### 📬 Player reports 2026-11-02 (Lyxette, v2026.11.2) — ground details stay off built ground, out of tunnels, lit at night, switchable — #3118–#3121, branch fix/ground-details-2026-11-02 — ✅ done 2026-11-02 in PR #3122 (`05dad5cb`), released in v2026.11.3 (⚠ playtest open; protocol: additive `ChunkDataMessage.EditRuns`, no save or terrain-generation change)
 
 Six F1 reports in one night, all about the same thing: v2026.11.2 was the first build that drew the T0 ground details
 (#3063 stopped the build from stripping their instancing variants), and he took the flat grey boxes and green crosses for
