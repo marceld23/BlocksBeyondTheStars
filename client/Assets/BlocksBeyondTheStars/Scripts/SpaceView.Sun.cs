@@ -13,8 +13,13 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public sealed partial class SpaceView
     {
-        /// <summary>#3077: how far the star's core is washed toward white — 0.85 read white-hot whatever the star.</summary>
-        private const float SunCoreWhite = 0.6f;
+        /// <summary>How far the star's core is washed toward white — 0.85 read white-hot whatever the star (#3077 made it
+        /// 0.6, #3125 0.3: with the white centre on top, 0.6 still clipped most of the disc to white).</summary>
+        private const float SunCoreWhite = 0.3f;
+
+        /// <summary>#3125: the size of the blazing white centre on top of the core (it was 64 — the star's colour showed only
+        /// as a thin rim around it).</summary>
+        private const float SunCentreSize = 44f;
 
         private Material _sunCoreMat;
         private StarMapData _sunMap; // the star map the star was last coloured from

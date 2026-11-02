@@ -120,10 +120,6 @@ namespace BlocksBeyondTheStars.Client
         /// dusk wide enough to read as a real sunset. Larger = a longer, softer golden hour.</summary>
         private const float TwilightBand = 0.34f;
 
-        /// <summary>sRGB luma of the server star ramp's sun-like anchor (FFF1CE, <c>GameServerWeather.StarRamp</c>) —
-        /// the reference the block light is normalised against (#1610).</summary>
-        private const float SunLikeLuma = 0.947f;
-
         private Light _sun;
         private Transform _sunDisc;     // visible glowing sun billboard in the sky
         private Material _sunDiscMat;
@@ -457,14 +453,9 @@ namespace BlocksBeyondTheStars.Client
             // takes on the golden-hour cast, then cools back to its true colour high in the sky. Kept off on stations.
             Color warmSun = constantLight ? sunColor : Color.Lerp(sunColor, sunColor * new Color(1f, 0.72f, 0.5f), twilight * 0.7f);
 
-            // #1610: the star colour should TINT the world, not dim it. The ramp's cool / red anchors carry 20–36 %
-            // less luma than the sun-like one, so about a fifth of all systems lit every face darker all day long.
-            // Lift the block light so its sRGB luma never drops below 93 % of the sun-like anchor (≈ 85 % once the
-            // value goes linear); the hue is untouched, and the sun disc / god-rays / grade keep the raw star colour.
-            // Measured on the RAW star (not warmSun) so the golden-hour warming still dims dusk as before.
-            float starLuma = 0.299f * sunColor.r + 0.587f * sunColor.g + 0.114f * sunColor.b;
-            float lift = starLuma > 0.001f ? Mathf.Max(1f, SunLikeLuma * 0.93f / starLuma) : 1f;
-            Color litSun = constantLight ? warmSun : warmSun * lift;
+            // #1610: the star colour should TINT the world, not dim it (Sky.StarLight.cs). Measured on the RAW star (not
+            // warmSun) so the golden-hour warming still dims dusk as before.
+            Color litSun = constantLight ? warmSun : warmSun * StarLift(sunColor);
 
             // Stations use a clean neutral interior light (not the system sun's tint).
             Color tint = constantLight ? new Color(0.95f, 0.96f, 1f) * stationDim : litSun * (brightness * weatherDim);
@@ -527,9 +518,9 @@ namespace BlocksBeyondTheStars.Client
                 Color daySky = Color.Lerp(skyBase, overcast, weatherIntensity);
 
                 // Tint the daytime sky toward the system star's hue, so a warm / red star gives a warmer sky and a
-                // blue-white star a cooler one (B37). Kept moderate (0.3, #3077: was 0.2) so the per-world atmosphere
-                // colour above reads through. The directional sun light + block diffuse already use the star colour.
-                daySky = Color.Lerp(daySky, daySky * sunHue, 0.3f);
+                // blue-white star a cooler one (B37). Kept moderate (0.4, #3125: was 0.3, 0.2 before #3077) so the per-world
+                // atmosphere colour above reads through. The directional sun light + block diffuse already use the star colour.
+                daySky = Color.Lerp(daySky, daySky * sunHue, 0.4f);
 
                 // Night sky: a dark base nudged toward the world's atmosphere hue, so a green/red-skied world also
                 // tints its night instead of always reading the same blue-black.
@@ -616,9 +607,9 @@ namespace BlocksBeyondTheStars.Client
 
             float m = Mathf.Max(sunColor.r, Mathf.Max(sunColor.g, sunColor.b));
             Color norm = m > 0.001f ? new Color(sunColor.r / m, sunColor.g / m, sunColor.b / m) : Color.white;
-            // The star's hue folds into the grade so each system visibly tints its worlds (0.55 keeps it an
-            // atmospheric wash — raised from 0.25, then 0.4 (#3077), so the per-system sun colour clearly reads).
-            Color blended = tint * Color.Lerp(Color.white, norm, 0.55f);
+            // The star's hue folds into the grade so each system visibly tints its worlds (0.65 keeps it an
+            // atmospheric wash — raised from 0.25, then 0.4 (#3077), then 0.55 (#3125), so the per-system sun colour reads).
+            Color blended = tint * Color.Lerp(Color.white, norm, 0.65f);
             blended.a = 0.7f; // grade strength
             // #1612: the old _Sc_GradeTint / _Sc_GradeParams shader globals are gone — no shader read them since
             // the grade moved onto the URP volume below.

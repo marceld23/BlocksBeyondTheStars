@@ -18,22 +18,6 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    // Stellar colour anchors from hot to cool (blue → blue-white → white → yellow → orange → red), each with a weight.
-    // #3077: flatter than before (it was 7/15/30/22/14/8 over six paler anchors — about 70 % of all systems read "normal
-    // yellow", a playtest jumped through four of them in a row): the sun-like star is still the single most common one,
-    // but blue and red-orange stars are as common as white ones now, and a little more saturated. The sun-like anchor
-    // stays FFF1CE — the client measures its light lift against it (Sky.SunLikeLuma, #1610).
-    private static readonly (int Rgb, int Weight)[] StarRamp =
-    {
-        (0xAFC3FF, 12),  // blue (hot O/B)
-        (0xD6E1FF, 10),  // blue-white (A)
-        (0xFFF6F0, 12),  // white (F)
-        (0xFFF1CE, 20),  // yellow-white, sun-like (G)
-        (0xFFE2A0, 16),  // yellow (early K)
-        (0xFFC27A, 14),  // orange (late K)
-        (0xFF9E62, 12),  // red-orange (M)
-    };
-
     private const double EnvBroadcastInterval = 5.0;
 
     /// <summary>Intensity move that earns an extra broadcast between heartbeats, so a swelling storm
@@ -326,8 +310,8 @@ public sealed partial class GameServer
         _dayFraction = InitialDayFraction;
         _sinceEnvBroadcast = 0;
 
-        var (system, _) = ActiveLocationNames(); // #1856: a station world resolves to its system too — no more "" star
-        _sunColor = StarColor(system);
+        // #1856: a station world resolves to its system too — no more "" star
+        _sunColor = StarColorOf(StarSystemAt(_worlds.Active.LocationId));
         // One uniform flora base hue per WORLD (green / brown / pink / purple …). Seeded from
         // LocationId ^ Seed like sky/cloud/gravity (#478) — it was the last per-TYPE hue, contradicting
         // WORLD_GENERATION.md §3. Airless/floraless worlds still carry a value; it just goes unused. The
@@ -670,53 +654,10 @@ public sealed partial class GameServer
 
     private static int StableStringHash(string s) => AtmosphereTints.StableHash(s);
 
-    /// <summary>A deterministic, continuously-varying star colour for a system: the system's hash picks a
-    /// weighted anchor on the hot→cool stellar ramp and a second hash blends it toward a neighbour, so colours
-    /// span the full ramp (not just a handful of fixed swatches) while clustering on natural sun-like hues.</summary>
-    internal static int StarColor(string system)
-    {
-        uint h = (uint)StableStringHash(system);
-        int total = 0;
-        foreach (var (_, w) in StarRamp)
-        {
-            total += w;
-        }
-
-        int roll = (int)(h % (uint)total);
-        int i = 0;
-        for (; i < StarRamp.Length; i++)
-        {
-            roll -= StarRamp[i].Weight;
-            if (roll < 0)
-            {
-                break;
-            }
-        }
-
-        if (i >= StarRamp.Length)
-        {
-            i = StarRamp.Length - 1;
-        }
-
-        int j = i + 1 < StarRamp.Length ? i + 1 : i - 1;
-        if (j < 0)
-        {
-            j = 0;
-        }
-
-        float f = ((h >> 8) & 0xFF) / 255f * 0.5f; // up to halfway toward the neighbouring anchor
-        return LerpRgb(StarRamp[i].Rgb, StarRamp[j].Rgb, f);
-    }
-
-    private static int LerpRgb(int a, int b, float t)
-    {
-        int ar = (a >> 16) & 0xFF, ag = (a >> 8) & 0xFF, ab = a & 0xFF;
-        int br = (b >> 16) & 0xFF, bg = (b >> 8) & 0xFF, bb = b & 0xFF;
-        int r = (int)(ar + (br - ar) * t + 0.5f);
-        int g = (int)(ag + (bg - ag) * t + 0.5f);
-        int bl = (int)(ab + (bb - ab) * t + 0.5f);
-        return (r << 16) | (g << 8) | bl;
-    }
+    /// <summary>The star colour of <paramref name="system"/> (#3123): dealt per galaxy from the world seed and the system
+    /// index (<see cref="StarColors"/>), the same value for the star map, the planet sky and the ship interior. A location
+    /// outside the galaxy (null) still gets a star of this world.</summary>
+    internal int StarColorOf(StarSystem? system) => StarColors.ForSystem(_meta.Seed, system?.Id, system?.Name);
 
     // The world's flora base hue moved to Shared.World.FloraTints.ForWorld (#1716); the sky hue and the cloud
     // tint moved to Shared.World.AtmosphereTints (#2170).

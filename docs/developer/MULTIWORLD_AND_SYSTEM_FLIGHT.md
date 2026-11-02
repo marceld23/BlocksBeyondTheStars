@@ -104,10 +104,18 @@ them**; between systems you hyperjump. This combines two originally separate ide
   per-system `StarColor` (#1604) — and offers the same `HyperjumpSystemIntent` from a selected star; the
   finale system is placed out past every other star (`GuardianFinaleMapPosition`, #1605) now that map
   positions are visible. Pure projection/name rules live in `Shared/World/GalaxyChartLayout.cs`.
+  *Which colour a star has* (`Shared/World/StarColors.cs`, #3123/#3124): the classes are dealt per galaxy, not rolled
+  per system — every block of four procedural systems (`sys0`–`sys3`, …) holds one cool star (blue / blue-white), one
+  warm one (orange / red-orange / red dwarf) and two calm ones (white / sun-like / yellow) in a per-world shuffled order,
+  each blended up to 35 % toward a neighbour of its own class. A star depends only on the world seed and its system
+  index, so a frontier that grows keeps its colours; the Guardian finale and a location outside the galaxy take a hash
+  pick on the same ramp. The star map, the planet sky (`InitWeather`) and the ship interior all call
+  `GameServer.StarColorOf(system)`. Rolled from the name hash per system, one twelve-system galaxy in 400 had no blue or
+  red star at all — a playtest explored all twelve and met only white and yellow suns.
   *The star's colour in flight and in the cabin:* a jump in flight sends no `WorldEnvironment` — the environment keeps
   describing the world last landed on — so the flight view (its star billboard, the lens flare and the light on the
   ship) reads the colour of the star map's current system (`FlightStar`, Client.Core, #3075). Walking inside the
-  floating ship loads `shipint:<id>`, which is no galaxy body (its system name is empty) and stays resident across jumps,
+  floating ship loads `shipint:<id>`, which is no galaxy body (it resolves to no system) and stays resident across jumps,
   so `TakeShipInteriorStar` sets its sun from the body under the flight each time someone steps in (#3076).
 - **Wormholes (#2242)** are the second way between systems: a `WormholeTransitIntent` (NetCodec 285) moves just
   that player's flight space to the twin system, next to the other rift, like a hyperjump without the module —

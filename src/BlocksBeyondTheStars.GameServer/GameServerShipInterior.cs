@@ -170,16 +170,16 @@ public sealed partial class GameServer
     }
 
     /// <summary>#3076: the star a ship interior shows through its windows — the one of the system the ship floats in. The
-    /// interior world (<c>shipint:&lt;id&gt;</c>) is no body of the galaxy, so <see cref="InitWeather"/> resolved it to the
-    /// empty system name (one colour in every system); and the world stays resident, so it would keep its first star
+    /// interior world (<c>shipint:&lt;id&gt;</c>) is no body of the galaxy, so <see cref="InitWeather"/> resolves it to no
+    /// system at all (one colour in every system); and the world stays resident, so it would keep its first star
     /// after a later jump anyway. The walkabout record names the body under the flight. Call right after the interior
     /// was loaded (it is the active world then) and before its environment goes out.</summary>
     private void TakeShipInteriorStar(string playerId)
     {
         if (_inShipInterior.TryGetValue(playerId, out var walkabout)
-            && LocationNamesFor(walkabout.ReturnLoc).System is { Length: > 0 } system)
+            && StarSystemAt(walkabout.ReturnLoc) is { } system)
         {
-            _sunColor = StarColor(system);
+            _sunColor = StarColorOf(system);
         }
     }
 

@@ -3243,8 +3243,10 @@ called **stories**:
   parked ship takes off first too, then warps and drops you into the new system **in flight**. A jump you start
   while already flying (system chart, Hyperspace tab) still warps straight away.
 - **Every star has its own colour** — blue, white, yellow, orange or red — and so does its light: in flight, through
-  the windows of your ship's cabin, and on its worlds, where it tints the sky and the whole landscape. The star's colour
-  is also the dot on the Hyperspace chart.
+  the windows of your ship's cabin, and on its worlds, where it tints the sky, the clouds and the whole landscape. The
+  star's colour is also the dot on the Hyperspace chart. Every galaxy has its blue and its red stars: of every four
+  systems one shines blue, one orange or red, and two white or yellow. Under a **red dwarf** a world is a little dimmer
+  and glows red.
 - Jumping to **another star system** requires a fitted **`jump_generator`** module — or a **wormhole**, if the
   system has one (§ Mysteries).
 - A star system you have **never entered** shows as **"Unknown system"** — its name is part of what you

@@ -180,10 +180,10 @@ namespace BlocksBeyondTheStars.Client
             float opacity = Mathf.Lerp(0.45f, 0.95f, cover);
 
             Color baseColor = Rgb(env.CloudColor);
-            // Brightness from day + storm darkening; a touch of the sun colour at low sun (sunset glow).
+            // Brightness from day + storm darkening; a touch of the star's colour by day (#3125), more at low sun (sunset glow).
             float bright = (0.35f + 0.65f * day) * darken;
             Color tint = baseColor * bright;
-            tint = Color.Lerp(tint, tint * Rgb(env.SunColor), 0.25f * (1f - day));
+            tint = Color.Lerp(tint, tint * Rgb(env.SunColor), 0.1f + 0.25f * (1f - day));
 
             // World-space direction toward the sun (shared with Sky/SkyBodies). Lets each puff have a lit
             // and a shadowed side; falls back to straight up before the first lighting update.
