@@ -2905,6 +2905,7 @@
   "ui.settings.lens_flare": "Éblouissement",
   "ui.settings.motion_blur": "Flou de mouvement (vol)",
   "ui.settings.distance_haze": "Brume lointaine et rayons de soleil",
+  "ui.settings.ground_details": "Détails du sol (touffes d'herbe)",
   "ui.settings.atmosphere": "Effets d'atmosphère",
   "ui.settings.atmosphere.off": "Désactivé",
   "ui.settings.atmosphere.some": "Quelques-uns",

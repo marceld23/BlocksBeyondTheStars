@@ -576,6 +576,17 @@ light shafts, the emitter light, soft particles, caustics) need the **Medium** p
 switch. **Reduce flashes** keeps the torchlight steady; **Reduced effects** makes the eye adaptation gentler. From
 orbit, planets with air show a lit atmosphere rim with a warm terminator and a dark night side.
 
+### Ground details (Settings → Graphics → Ground details)
+
+On the **Medium** and **High** presets small **grass tufts** grow here and there on natural grass, dirt and mud under the
+open sky. They are only decoration: they never spread, cannot be picked and are not saved in your world. They light like
+the ground under them (a torch beside them lights them too) and sway in the wind.
+
+- They grow only on **natural** ground — never on blocks you (or anyone) placed: your fields, gardens, roof gardens and
+  paved floors stay tidy. Fallen snow and the blocks of villages and stations count as placed, too.
+- They grow only **under the open sky** — not in tunnels, under roofs, overhangs or tree crowns.
+- Don't want them at all? Switch **Ground details (grass tufts)** off in Settings → Graphics; it applies at once.
+
 ### Details (High) (Settings → Graphics → Details (High))
 
 On the **High** preset the desktop client (Windows, Linux) adds extra detail on top — things a browser tab or a tablet
@@ -589,8 +600,8 @@ only says "Only on the High graphics level". Each detail has its own switch (all
 - **Grass carpet** and **Flowers on meadows**: meadows grow a dense carpet of grass blades up to about 16 m around
   you, swaying gently in the wind, darker in the shade, glowing next to a torch at night and pressed flat by snow. Small
   flowers bloom in between, in this world's own flower colours — many in spring, few in autumn, none in winter. They
-  are only decoration and cannot be picked. (The small grass tufts and pebbles of the Medium and High presets show again
-  on open ground — in the desktop and browser builds they had gone missing — and darken in the shade.)
+  are only decoration and cannot be picked. (The small grass tufts of the Medium and High presets are a setting of their
+  own — see *Ground details* above.)
 - **Reflections in rooms**: in your ship's cabin or a closed base room, polished metal floors and walls show the room —
   lamps, walls, the doorway. Step out through an open door and the reflection fades away.
 - **Scorch marks and craters**: shots leave small soot marks where they hit the ground or a wall, a terrain blaster

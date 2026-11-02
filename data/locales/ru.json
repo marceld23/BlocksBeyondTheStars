@@ -2905,6 +2905,7 @@
   "ui.settings.lens_flare": "Блики объектива",
   "ui.settings.motion_blur": "Размытие в движении (полет)",
   "ui.settings.distance_haze": "Дымка вдали и солнечные лучи",
+  "ui.settings.ground_details": "Детали земли (пучки травы)",
   "ui.settings.atmosphere": "Атмосферные эффекты",
   "ui.settings.atmosphere.off": "Выкл",
   "ui.settings.atmosphere.some": "Частично",

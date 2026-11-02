@@ -163,6 +163,8 @@ public sealed class ServerWorld
             {
                 chunk.SetShape(local.X, local.Y, local.Z, edit.Shape); // non-cube building form (sphere/ramp/…)
             }
+
+            chunk.MarkEditedLocal(WorldConstants.LocalIndex(local.X, local.Y, local.Z)); // #3118: built, not natural (air is never marked)
         }
 
         _loaded[coord] = chunk;
@@ -251,6 +253,7 @@ public sealed class ServerWorld
         if (!unchanged || !string.IsNullOrEmpty(owner))
         {
             _repo.SetBlock(LocationId, world, block.Value, tint, glow, shape, owner);
+            chunk.MarkEditedLocal(WorldConstants.LocalIndex(local.X, local.Y, local.Z)); // #3118: the delta row makes it built
         }
         BlockSet?.Invoke(world);
         if (!string.IsNullOrEmpty(owner))

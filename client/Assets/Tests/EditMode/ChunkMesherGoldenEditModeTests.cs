@@ -59,10 +59,13 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         // floors). Vertex and triangle counts did not change (15838 / 12876 verts); the sky chunk is empty and unchanged.
         // Re-pinned 2026-11-02 (#3098, #3085): the transport crate shifted the ids and three new tiles (transport crate, its
         // lid, the energy fence's top) moved the atlas slots. Vertex and triangle counts did not change (15838 / 12876 verts).
+        // Re-pinned 2026-11-02 (#3119, #3120): only the surface chunk's scatter points moved — no pebbles on stone/sand/snow/
+        // basalt any more, and tufts only where the cell above sees the sky straight up. Vertex and triangle counts did not
+        // change (15838 / 12876 verts, 6148 + 140 tris); the deep and sky chunks are unchanged.
         private static readonly Dictionary<string, ulong> Pinned = new Dictionary<string, ulong>
         {
             ["deep (5,1,7)"] = 0xaafb3b5cb0619b7dUL,
-            ["surface (5,2,7)"] = 0xd48c546ce94c1889UL,
+            ["surface (5,2,7)"] = 0x2d9eda1919490b99UL,
             ["sky (5,3,7)"] = 0xd6a8cf1a27eab505UL,
         };
 

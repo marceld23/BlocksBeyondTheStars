@@ -2905,6 +2905,7 @@
   "ui.settings.lens_flare": "Bagliore obiettivo",
   "ui.settings.motion_blur": "Motion blur (volo)",
   "ui.settings.distance_haze": "Foschia in lontananza e raggi di sole",
+  "ui.settings.ground_details": "Dettagli del terreno (ciuffi d'erba)",
   "ui.settings.atmosphere": "Effetti atmosferici",
   "ui.settings.atmosphere.off": "Disattivati",
   "ui.settings.atmosphere.some": "Parziali",

@@ -8,7 +8,7 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// GameBootstrap's ground detail: the render-only decoration of a chunk's open ground after each upload — the T0
-    /// tufts and pebbles (<see cref="GroundScatter"/>, Medium and up) and the High preset's meadow (<see cref="GrassShells"/>,
+    /// tufts (<see cref="GroundScatter"/>, Medium and up) and the High preset's meadow (<see cref="GrassShells"/>,
     /// #3056: the grass carpet and the flowers, desktop clients only) — and the world's flower colours.
     /// </summary>
     public sealed partial class GameBootstrap
@@ -27,7 +27,7 @@ namespace BlocksBeyondTheStars.Client
                     scatter = go.AddComponent<GroundScatter>();
                 }
 
-                scatter.Setup(data.Scatter);
+                scatter.Setup(data.Scatter, data.ScatterLight);
             }
             else if (scatter != null)
             {

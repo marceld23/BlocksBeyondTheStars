@@ -3342,6 +3342,7 @@ public sealed partial class GameServer
         }
 
         PackChunkModifiers(chunk, msg); // dyed-block / coloured-light cells, if any
+        msg.EditRuns = chunk.EditedRuns(); // #3118: built vs natural ground for the client's ground details
         return msg;
     }
 

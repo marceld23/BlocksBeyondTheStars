@@ -261,6 +261,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The distance haze toward the horizon and the sun-ray fan at the sun (#2392: the toggle used to be
         /// called "Volumetric fog" although no volumetric pass exists — it gates exactly these two). All presets.</summary>
         public bool DistanceHaze = true;
+        /// <summary>#3121: the small grass tufts on natural open ground (<see cref="GroundScatter"/>, Medium and up). A
+        /// builder who keeps a garden or a field tidy switches them off; the High preset's grass carpet and flowers have
+        /// their own switches. Default on.</summary>
+        public bool GroundDetails = true;
 
         // Atmosphere package (#2408): one switch per effect (#2404). The cheap ones run on every preset; the rest need
         // Medium+ (see AtmosphereEffect). Defaults on — the presets, not the player, decide what a weak machine skips.
@@ -1226,6 +1230,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.SetUserScale(UiScale);          // HUD canvases + the IMGUI leftovers follow the UI-scale setting
             FxKit.Configure(Preset, ReducedEffects, ScreenShake, ReduceFlashes, CameraMotion); // #2152: effect density + comfort
             HighDetails.Configure(this); // #3066: the desktop-class extras of the High preset
+            GroundScatter.Enabled = GroundDetails; // #3121: the grass tufts, live
 
             int levels = QualitySettings.names != null ? QualitySettings.names.Length : 0;
             if (levels > 0)

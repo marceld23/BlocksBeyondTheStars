@@ -15,27 +15,23 @@ namespace BlocksBeyondTheStars.Client
         /// colour from the block's own atlas tile, so any of them matches its ground (texture packs included).</summary>
         internal static bool IsCarpetKey(string key) => key is "grass" or "alien_grass" or "mycelium";
 
-        /// <summary>The least skylight a T0 tuft or pebble needs: open ground and the shade of a canopy (the mesher's shade
-        /// floor is 0.55), not a cave floor.</summary>
-        private const float ScatterMinSkylight = 0.5f;
-
         /// <summary>Ground detail of one open-topped planet ground cell (the caller checked the air above). The T0
-        /// scatter strews a sparse, world-cell-hashed set of tufts/pebbles (identical on all clients); a carpet host
+        /// scatter strews a sparse, world-cell-hashed set of tufts (identical on all clients) on natural ground under the
+        /// open sky (<see cref="GroundScatterRules"/>: <paramref name="edited"/> = a built cell, #3118/#3119); a carpet host
         /// records its top for <see cref="GrassShells"/> — recorded on every preset, so switching to High needs no
         /// remesh. <paramref name="skylight"/> and <paramref name="light"/> (the placed block light, display-ready) are those
-        /// of the air cell above — what lights the carpet at night next to a torch.</summary>
+        /// of the air cell above — what lights a tuft and the carpet at night next to a torch (#3120).</summary>
         private static void AddGroundDetail(ChunkMeshData data, BlockTraits traits, BlockId id, int x, int y, int z,
-            int wx, int wz, float skylight, Vector3 light)
+            int wx, int wz, float skylight, Vector3 light, bool edited)
         {
-            // The T0 scatter lights like an open-sky face (ScatterLit has no skylight term), so it stays out of caves and deep
-            // shade — once its instancing variants reached the build, cave pebbles glowed as if in the sun.
             int stype = traits.ScatterOf(id);
-            if (stype >= 0 && skylight >= ScatterMinSkylight)
+            if (stype >= 0 && GroundScatterRules.Accepts(skylight, edited))
             {
                 int sh = unchecked(wx * 374761393 + wz * 668265263 + stype * 1013904223);
                 if ((uint)sh % 7u == 0u)
                 {
                     data.Scatter.Add(new Vector4(x + 0.5f, y + 1f, z + 0.5f, stype));
+                    data.ScatterLight.Add(new Vector4(light.x, light.y, light.z, skylight)); // in lockstep with Scatter
                 }
             }
 
@@ -112,6 +108,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#3056: the placed block light above each <see cref="GrassTops"/> entry (same index), so the carpet glows
         /// with the ground next to a torch at night.</summary>
         public readonly List<Vector3> GrassLight = new List<Vector3>();
+
+        /// <summary>#3120: the light above each <see cref="Scatter"/> tuft (same index): rgb = the placed block light, a = the
+        /// skylight — the tuft shades like the ground under it instead of going black at night next to a torch.</summary>
+        public readonly List<Vector4> ScatterLight = new List<Vector4>();
 
         /// <summary>Records the relief of the quad that starts at <paramref name="firstVertex"/> (4 vertices).</summary>
         public void MarkRelief(int firstVertex, float relief)

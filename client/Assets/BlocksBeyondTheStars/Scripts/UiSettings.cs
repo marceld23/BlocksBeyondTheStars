@@ -146,6 +146,8 @@ namespace BlocksBeyondTheStars.Client
             Toggle(ref y, L("ui.settings.lens_flare"), S.LensFlare, () => { S.LensFlare = !S.LensFlare; ApplyLiveWorld(); Rebuild(); });
             Toggle(ref y, L("ui.settings.motion_blur"), S.MotionBlur, () => { S.MotionBlur = !S.MotionBlur; ApplyLiveWorld(); Rebuild(); });
             Toggle(ref y, L("ui.settings.distance_haze"), S.DistanceHaze, () => { S.DistanceHaze = !S.DistanceHaze; ApplyLiveWorld(); Rebuild(); });
+            // #3121: the grass tufts on natural ground — a builder keeping a garden or a field tidy switches them off.
+            Toggle(ref y, L("ui.settings.ground_details"), S.GroundDetails, () => { S.GroundDetails = !S.GroundDetails; S.Apply(); Rebuild(); });
 
             // Atmosphere package (#2404): one row — Off / Some (the cheap set) / All / Custom — and, on Custom, the
             // per-effect switches. The presets still gate the expensive ones (Medium+), whatever the switch says.

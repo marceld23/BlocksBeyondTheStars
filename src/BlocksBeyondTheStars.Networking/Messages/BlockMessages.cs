@@ -93,6 +93,12 @@ public sealed class ChunkDataMessage
     // chunks. (Its own index array, since a cell can be shaped without being coloured and vice versa.)
     public int[] ShapeIndex { get; set; } = System.Array.Empty<int>();
     public int[] ShapeData { get; set; } = System.Array.Empty<int>();
+
+    /// <summary>#3118 (additive): the chunk's EDITED non-air cells — placed, stamped or snowed-on blocks, i.e. every
+    /// cell with a stored delta against the generated terrain — as flat (start, length) runs over the local cell
+    /// indices (<c>ChunkData.EditedRuns</c>). The client keeps its ground details off them. Empty for untouched
+    /// terrain and from an older server (the client then treats every cell as natural, as before).</summary>
+    public ushort[] EditRuns { get; set; } = System.Array.Empty<ushort>();
 }
 
 public sealed class BlockChanged

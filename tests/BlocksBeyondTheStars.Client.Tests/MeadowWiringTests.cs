@@ -35,8 +35,11 @@ public sealed class MeadowWiringTests
     public void Tufts_ReceiveTheSunShadow_AndJoinTheDepthPrepass()
     {
         string urp = UrpPart(Shader("ScatterLit.shader"));
-        Assert.Contains("MainLightRealtimeShadow(TransformWorldToShadowCoord(i.wp))", urp);
-        Assert.Contains("GetMainLightShadowFade(i.wp)", urp);
+        // #3120: the tufts take the meadow's light, which carries the block shader's shadow term.
+        Assert.Contains("#include \"MeadowLight.hlsl\"", urp);
+        Assert.Contains("BbtsMeadowShade(", urp);
+        Assert.Contains("MainLightRealtimeShadow(TransformWorldToShadowCoord(wp))", Shader("MeadowLight.hlsl"));
+        Assert.Contains("GetMainLightShadowFade(wp)", Shader("MeadowLight.hlsl"));
         Assert.Contains("\"LightMode\" = \"DepthOnly\"", urp);
         Assert.DoesNotContain("ShadowCaster", urp); // tufts stay non-casters
         Assert.Contains("ShadowCastingMode.Off", Script("GroundScatter.cs"));
