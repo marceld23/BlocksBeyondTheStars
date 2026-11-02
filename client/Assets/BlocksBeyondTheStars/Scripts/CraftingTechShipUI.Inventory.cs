@@ -110,7 +110,15 @@ namespace BlocksBeyondTheStars.Client
 
             string selectedItem = _selected.StartsWith("inv:", System.StringComparison.Ordinal) ? _selected.Substring(4) : string.Empty;
             int litSlot = perStack ? CargoStackPicker.ResolveSlot(items, selectedItem, _stackSlot) : -1;
-            foreach (var s in items)
+            // #3110: the search, the category filter and the order of the hold.
+            var view = CargoView(items);
+            if (view.Count == 0)
+            {
+                UiKit.AddText(_listContent, 8, y + 8, 752, 30, L("ui.inventory.filter_none"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                return y + 40f;
+            }
+
+            foreach (var s in view)
             {
                 var stack = s;
                 // Only the chosen stack lights up, not every stack of the same item (the key only drives the highlight).
@@ -205,6 +213,7 @@ namespace BlocksBeyondTheStars.Client
                 float x = GridX0 + (i % QuickSlots) * GridPitch;
                 float yy = y + (i / QuickSlots) * GridPitch;
                 var b = AddGridSlot(x, yy, Game.ItemInSlot(index), Game.CountInSlot(index), () => OnInventorySlotClicked(index));
+                DimUnlessMatch(b, Game.ItemInSlot(index)); // #3111: the filter dims, nothing moves
                 if (_pickKind == "inv" && _pickIndex == index)
                 {
                     Highlight(b);
@@ -227,6 +236,7 @@ namespace BlocksBeyondTheStars.Client
                 int index = k;
                 float x = GridX0 + k * GridPitch;
                 var b = AddGridSlot(x, y, Game.ItemInSlot(index), Game.CountInSlot(index), () => OnInventorySlotClicked(index));
+                DimUnlessMatch(b, Game.ItemInSlot(index));
                 var num = UiKit.AddText(b.transform, 5f, 3f, 24f, 18f, (k + 1).ToString(), 12, UiKit.CyanDim, TextAnchor.UpperLeft, FontStyle.Bold);
                 UiKit.AddOutline(num);
                 if (_pickKind == "inv" && _pickIndex == index)
@@ -359,8 +369,8 @@ namespace BlocksBeyondTheStars.Client
             var entries = Game.Content.Items.Values
                 .Where(d => !BlocksBeyondTheStars.Shared.Bio.BioItems.NeedsPayload(d.Key))
                 .Select(d => (Def: d, Name: ItemName(d.Key)))
-                .Where(e => MatchesSearch(e.Name))
-                .OrderBy(e => CatalogRank(e.Def.Category))
+                .Where(e => InventoryMatches(e.Def.Key)) // #3111: the search (name or category) and the category filter
+                .OrderBy(e => Cats.OrderOf(Cats.OfItem(e.Def.Key).FirstOrDefault()))
                 .ThenBy(e => e.Name, NameOrder); // #2566: the game language's A–Z, not the PC's culture
             foreach (var (def, name) in entries)
             {
@@ -372,15 +382,6 @@ namespace BlocksBeyondTheStars.Client
 
             return y;
         }
-
-        private static int CatalogRank(BlocksBeyondTheStars.Shared.Definitions.ItemCategory category) => category switch
-        {
-            BlocksBeyondTheStars.Shared.Definitions.ItemCategory.Tool => 0,
-            BlocksBeyondTheStars.Shared.Definitions.ItemCategory.Consumable => 1,
-            BlocksBeyondTheStars.Shared.Definitions.ItemCategory.Block => 2,
-            BlocksBeyondTheStars.Shared.Definitions.ItemCategory.Component => 3,
-            _ => 4,
-        };
 
         /// <summary>The take buttons of a catalog item (#1930): one, or a full stack. The server hands it out.</summary>
         private float DetailCatalog()
@@ -709,7 +710,8 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            return y;
+            y = BelongsToRow(Cats.OfItem(item), y + 6f, PickCategory); // #3108: picks the page's category filter
+            return NeededForSection(item, y); // #3112
         }
     }
 }

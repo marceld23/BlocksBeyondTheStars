@@ -112,6 +112,8 @@ namespace BlocksBeyondTheStars.Client
             _selected = string.Empty;
             _search = string.Empty;
             _craftableOnly = false;
+            _invFilter = string.Empty;
+            _invSort = 0;
             _lastDataHash = -1;
             _listPage = _detailPage = null; // a fresh open / tab switch always scrolls both panes to the top
             _canvas.enabled = true;
@@ -769,10 +771,9 @@ namespace BlocksBeyondTheStars.Client
                 // test as the card status, so it never shows a "Materials missing" card (the crafting tab's
                 // "Craftable now" is just as strict). The balance and the inventory are part of the data hash, so the
                 // strip and the list refresh when a scan or minigame pays out while the tab is open.
-                var know = UiKit.AddText(p, 392, 168, 470, 44,
-                    $"{L("ui.tech.knowledge")}: {Game.Knowledge}   ·   {L("item.data_fragment.name")}: {Owned("data_fragment")}",
-                    22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-                UiKit.FitLabel(know, 14, 22);
+                // #3104: the strip now carries a search box like the Crafting tab's; the knowledge balance and the data
+                // fragments moved into the list header (BuildTechList), next to "x of y researched".
+                AddSearchBox(p, 392, 168, 470, 44);
                 var t = UiKit.AddButton(p, 880, 168, 300, 44,
                     (_craftableOnly ? "[x] " : "[ ] ") + L("ui.tech.researchable_now"),
                     () => { _craftableOnly = !_craftableOnly; BuildHeader(); RebuildList(); });
@@ -785,9 +786,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 AddSampleFilters(p, 392, 168); // #2300: the sample case's filter, shared with the bio lab
             }
-            else if (_mode == Mode.Inventory && CatalogAvailable())
+            else if (_mode == Mode.Inventory && (_category == "personal" || _category == "cargo"
+                                                 || (_category == "catalog" && CatalogAvailable())))
             {
-                AddSearchBox(p, 392, 168, 470, 44); // filters the Sandbox "All items" page (#1930)
+                AddInventoryStrip(p); // #3110/#3111: search + category filter (+ sort in the hold); the catalog's search (#1930)
             }
         }
 
@@ -843,7 +845,8 @@ namespace BlocksBeyondTheStars.Client
                 string k = key;
                 var b = UiKit.AddButton(_sidebar, 0, y, 290, 52, label, () =>
                 {
-                    bool strip = _mode == Mode.Inventory && (k == "samples") != (_category == "samples");
+                    // Each inventory page brings its own strip: the sample filter (#2300), search + category filter (#3110).
+                    bool strip = _mode == Mode.Inventory && k != _category;
                     _category = k;
                     _selected = string.Empty;
                     if (strip)
@@ -853,7 +856,8 @@ namespace BlocksBeyondTheStars.Client
 
                     RebuildList();
                     RebuildDetail();
-                }, icon);
+                }, SidebarIconName(icon));
+                ApplySidebarItemIcon(b, icon); // #3103: a category shows a real item (the speeder for Travel & Transport)
                 if (_category == key)
                 {
                     b.GetComponent<Image>().color = UiKit.Cyan;
@@ -871,26 +875,16 @@ namespace BlocksBeyondTheStars.Client
             switch (_mode)
             {
                 case Mode.Crafting:
-                    list.Add(("tool", L("ui.craft.cat_tools"), "cat_tools"));
-                    list.Add(("weapon", L("ui.craft.cat_weapons"), "cat_weapons"));
-                    list.Add(("suit", L("ui.craft.cat_suit"), "cat_suit"));
-                    list.Add(("consumable", L("ui.craft.cat_consumable"), "cat_medicine"));
-                    list.Add(("component", L("ui.craft.cat_components"), "cat_components"));
-                    list.Add(("block", L("ui.craft.cat_blocks"), "cat_blocks"));
-                    list.Add(("machine", L("ui.craft.cat_machines"), "cat_machines")); // devices that DO something (#1273)
-                    list.Add(("color", L("ui.craft.cat_color"), "cat_blocks"));
-                    list.Add(("shape", L("ui.craft.cat_shape"), "cat_blocks"));
-                    list.Add(("market", L("ui.craft.cat_market"), "cat_cargo"));
+                    // #3103: the shared categories (data/categories.json), grouped under headings — a recipe shows in every
+                    // category its output belongs to — then the special pages (dye, shape, market) under "Extras".
+                    list.AddRange(CraftCategoryEntries());
                     break;
                 case Mode.Tech:
-                    foreach (var c in Game.Content.Blueprints.Values.Select(b => b.Category).Where(c => !string.IsNullOrEmpty(c)).Distinct())
-                    {
-                        list.Add((c, IdLabel("ui.tech.cat_", c), "cat_tech"));
-                    }
-
+                    list.AddRange(TechCategoryEntries()); // #3104: the same categories, not the raw blueprint field
                     break;
                 case Mode.Ship:
                     list.Add(("modules", L("ui.ship.cat_modules"), "cat_modules"));
+                    list.AddRange(ModuleKindEntries()); // #3109: the modules by kind, right under "Modules"
                     list.Add(("fleet", L("ui.ship.cat_fleet"), "cat_fleet"));
                     list.Add(("build", L("ui.ship.cat_build"), "cat_buildship"));
                     list.Add(("paint", L("ui.ship.cat_paint"), "cat_suit"));
@@ -1023,6 +1017,7 @@ namespace BlocksBeyondTheStars.Client
             // or the row under the mouse changes between two clicks of the discard confirm.
             Vector2 keepScroll = _listContent != null ? _listContent.anchoredPosition : Vector2.zero;
             ClearChildren(_listContent);
+            _selectedCardY = -1f; // AddCard records the selected card's row again (the jumps scroll to it)
             bool production = _mode == Mode.Crafting || _mode == Mode.Tech || _mode == Mode.Ship;
             RefreshGateRow(production);
 

@@ -459,7 +459,8 @@ taps the buttons directly. Everything rides the existing **Interact** action —
 
 ## 13. Content and assets
 
-- **Blueprints** (`data/blueprints.json`, category `Crystal` → tech tab "Crystal Net", `ui.tech.cat_crystal`):
+- **Blueprints** (`data/blueprints.json`, category `Crystal`; in the menu the shared build category `crystal` of
+  `data/categories.json`, which lists these blueprints and derives every item they unlock):
   `crystal_conduit` (← `comm_radio`; unlocks conduit, switch, button, step plate) → `crystal_sensors` (the three
   sensors, the watcher and the Device Eye), `crystal_logic`, `crystal_sound`; `fabricator` (← `crystal_logic`); `caller` (← `crystal_conduit` +
   `creature_translator`); `clone_tank` (← `caller` + `matter_forge`); `auto_drill_1` (← `crystal_conduit` +

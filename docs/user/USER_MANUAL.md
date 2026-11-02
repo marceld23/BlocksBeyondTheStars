@@ -422,8 +422,8 @@ separate unlock; admins can still disable it through server world rules.
   lifetime tallies (worlds visited, systems entered, blocks mined/placed, subjects scanned, missions …); the
   goals below run from the first blocks to the late game (thousands of blocks, dozens of worlds, every
   blueprint, your own station or ship, the Guardian finale) and each pays an item reward. The **Blueprints** tab
-  header shows how much of the tree you have researched and which blueprint you could research next; its filter
-  row shows your **knowledge points** and data fragments and has a **"Researchable now"** toggle (*Jetzt
+  header shows how much of the tree you have researched, which blueprint you could research next and your
+  **knowledge points** and data fragments; its filter row has a **search box** and a **"Researchable now"** toggle (*Jetzt
   erforschbar*; it was "Enough knowledge" before) that keeps only the blueprints you can research right now —
   prerequisites done, enough knowledge **and** all research materials at hand, so every card left reads
   *Unlockable* (each card also shows *Knowledge have/need*). Within each tier the blueprints are listed A–Z. The
@@ -435,6 +435,23 @@ separate unlock; admins can still disable it through server world rules.
   above the list names the block you need (with its icon), how far away the nearest one is and in which
   direction; **Show** marks it on your compass, **Craft one →** jumps to its recipe when you don't own one yet.
   Hand recipes work anywhere.
+- **Categories (Crafting, Blueprints, Ship, Inventory)** — one shared set of categories, grouped under
+  **Equipment** (*Travel & Transport*, *Tools*, *Scan & Explore*, *Combat & Defense*, *Suit & Survival*),
+  **Building & Base** (*Blocks & Walls*, *Lights & Decor*, *Crystal Net*, *Workshop & Production*, *Base &
+  Settlement*, *Garden & Animals*, *Storage & Cargo*, *Ship*) and **Supplies** (*Food & Medicine*, *Parts & Raw
+  Materials*); the Crafting tab keeps *Dye*, *Shape* and *Market* under **Extras**. **A thing can be in several
+  categories** — the jetpack is under *Travel & Transport* and *Suit & Survival*, the crystal lift under *Crystal Net*
+  and *Travel & Transport* — so *Travel & Transport* lists every way to get around (boat, speeder, monorail, jetpack,
+  glider, teleporters, lift, ships …) and *Crystal Net* everything its blueprints let you build. The **Blueprints** tab
+  uses the same categories, the **Ship** tab lists the modules **by kind** under *Modules* (cargo, production,
+  scanners, combat, travel …). Every **search box** also finds things by their category: "Crystal" lists the whole
+  Crystal Net, "Transport" every vehicle. A detail pane shows **Belongs to** with a button per category (it switches
+  the list to that category).
+- **Links between the tabs** — a blueprint's **Unlocks** lists every item, module and ship it opens as a button that
+  jumps to its recipe, module or ship page (the next blueprints too); a recipe's, module's or ship's **Blueprint** line
+  has a **Go to blueprint** button. An item's detail (Crafting, backpack, cargo hold) shows **Needed for**: what you can
+  craft with it, the blueprints whose research costs it and the modules and ships built from it — each a button to
+  that page.
 - **Codex → Enemies** (#2971) — every kind of enemy, from space drones, UFOs, cruisers and raider ships to the scan
   drones, Guardian robots, hunters and robbers on the ground: its **health**, **damage per second** (and the stronger
   kind's), its **loot**, what it is and a tip how to beat it — every enemy from the start (#3031), each beside a
@@ -1133,12 +1150,16 @@ players.
   **5** and **half** — so with 20 portions of food in the hold you can take 5 along and leave the rest. All of it
   works with mouse, gamepad and touch alike. Only what fits moves; a full hold or backpack says so. These only
   work while you're aboard (in flight or standing in the landed cabin); on foot the cargo page says so.
+- **Finding things in the hold and the backpack:** the **Cargo Hold** page has a **search box** (name or category), a
+  **◀ category ▶** filter that steps through *All categories* and the categories in your hold, and an **order** button
+  (as stored → category → A–Z → amount). The **backpack** has the same search and filter: the slots stay where they are,
+  the ones that don't match are dimmed.
 - **Auto-stow (optional):** turn on *Settings → Comfort → "Auto-stow into cargo on boarding"* to have loose
   materials moved into the hold automatically each time you board (it says what it stowed, and nothing when
   there was nothing to stow). Off by default.
 - **Sandbox: All items.** In a Sandbox world (or while an admin gave you the Creative mode) the Inventory has an
-  **All items** page: every item of the game, searchable (tools first, raw materials last, A–Z in your game language
-  within each group) — pick one and **Take 1** or take a full stack. Nothing has
+  **All items** page: every item of the game, searchable and with the same **◀ category ▶** filter, ordered by
+  category and A–Z in your game language — pick one and **Take 1** or take a full stack. Nothing has
   to be crafted.
 - **Sandbox: crafting is free.** In the same mode every recipe can simply be crafted — no materials, no blueprint,
   no workbench in reach, a full stack per order — and the craft panel says so instead of "Materials missing". The
@@ -1276,7 +1297,8 @@ players.
   reads as a tree rather than a flat list — a node lights up once its prerequisite is researched, and it is
   never cheaper than what it builds on. Anything you had already unlocked stays unlocked. A blueprint's detail pane
   shows both directions: its **prerequisites**, and under **Unlocks** what researching it opens — the items you can
-  then build, the ship modules, the blueprints it leads to, and functions such as the bio lab's Change tab.
+  then build, the ship modules, the ship (for a ship blueprint), the blueprints it leads to, and functions such as the
+  bio lab's Change tab; each entry is a button to its page.
 - **Blueprints** gate advanced recipes — research them at your ship's **cockpit** (Blueprints tab; the helm counts
   while flying) with **knowledge points** (earned by scanning) plus
   research materials; some require prerequisite blueprints.

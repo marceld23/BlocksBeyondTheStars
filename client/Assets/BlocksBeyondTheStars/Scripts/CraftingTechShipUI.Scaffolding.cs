@@ -42,6 +42,7 @@ namespace BlocksBeyondTheStars.Client
             if (_selected == key)
             {
                 card.GetComponent<Image>().color = UiKit.Cyan;
+                _selectedCardY = y;
             }
 
             float tx = 16f;
