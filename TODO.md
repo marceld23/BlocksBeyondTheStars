@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🗺️ Planet globes without the pole pinch, a zoomable galaxy chart, the charts in the ship's navigation + Lyxette's hovering ship + Justus' reload hand — #3127–#3135, branch feat/nav-charts-2026-11-02 — ✅ done 2026-11-02 (⚠ playtest open; no save-version, protocol or terrain-generation change)
+### 🗺️ Planet globes without the pole pinch, a zoomable galaxy chart, the charts in the ship's navigation + Lyxette's hovering ship + Justus' reload hand — #3127–#3137, branch feat/nav-charts-2026-11-02 — ✅ done 2026-11-02 (⚠ playtest open; no save-version, protocol or terrain-generation change)
 
 Marcel's screenshot of a planet from orbit ("always a seam in the textures"), then: plan A+B1, give the galaxy chart a
 zoom, combine the space charts with the landed ship's navigation (renaming must work there too); plus the evening's
@@ -58,6 +58,9 @@ in-game reports (Lyxette: ship hovers after loading; Justus as Screelit: the gun
   snow; since the seasons (v2026.10.33) the snow pass laid drifts inside parked hulls → a winter join parked the ship a
   block up, the drift melted, the hull hovered and he loaded inside its raised floor. `PadSurfaceY` skips weather/festival
   deposits, the snow pass skips hull interiors and player cells, `EnsureSafeSpawn` lifts feet-in-hull-floor onto it.
+- **#3137 Quit-in-flight crash:** a capture clip that ended in space filed a client crash — `SpaceView.OnDestroy` → `Exit`
+  restored the field of view of a camera Unity had already destroyed on quit (older code path, any player quitting mid-flight).
+  `Exit` restores the camera only while it exists.
 - Locale keys `ui.map.destination_*`, `ui.chart.centre/all` hand-translated ×14.
 
 ### 🌈 Star colours dealt per galaxy, a red dwarf, less white wash — #3123 #3124 #3125, branch fix/star-colours-per-galaxy — ✅ done 2026-11-02 (⚠ playtest open; no save-version, protocol or terrain-generation change — every save's stars take their new colours on the next start)
