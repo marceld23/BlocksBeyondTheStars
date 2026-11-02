@@ -69,6 +69,8 @@ public sealed class HeldFlourishTests
                 Assert.True((pose.Euler - last.Euler).Length() < 12f, $"{kind} turn jumps at {s:0.00} s");
                 float twirl = Math.Abs(pose.Twirl - last.Twirl);
                 Assert.True(Math.Min(twirl, 360f - twirl) < 40f, $"{kind} twirl jumps at {s:0.00} s");
+                Assert.True(Math.Abs(pose.OffHand - last.OffHand) < 0.3f, $"{kind} free hand jumps at {s:0.00} s");
+                Assert.True(Math.Abs(pose.OffHandPull - last.OffHandPull) < 0.3f, $"{kind} rack jumps at {s:0.00} s");
                 last = pose;
             }
         }
@@ -91,6 +93,57 @@ public sealed class HeldFlourishTests
         Assert.All(gun, p => Assert.Equal(0f, p.Twirl));
         Assert.Contains(gun, p => p.Offset.Z < -0.04f); // the rack pulls the gun back
         Assert.Contains(gun, p => p.Euler.Z > 30f);     // tipped onto its side
+    }
+
+    /// <summary>#3134 ("only with weapons the other hand that reloads is missing"): the gun's free hand is down at both ends,
+    /// on the slide before the pull starts and through all of it, racks it back only while it holds it, and is gone again
+    /// before the gun starts back to level; no other flourish ever uses the free hand.</summary>
+    [Fact]
+    public void TheGunsFreeHand_ComesInForTheRack_PullsWithIt_AndNoOtherFlourishUsesIt()
+    {
+        var start = HeldFlourishes.PoseAt(HeldFlourishKind.GunReload, 0f);
+        var end = HeldFlourishes.PoseAt(HeldFlourishKind.GunReload, 1f);
+        Assert.True(start.OffHand == 0f && start.OffHandPull == 0f && end.OffHand == 0f && end.OffHandPull == 0f);
+        Assert.False(new HeldFlourishPose(default, default, 0f, 0f, false, 0f, offHand: 0.2f).IsRest);
+        Assert.False(new HeldFlourishPose(default, default, 0f, 0f, false, 0f, offHandPull: 0.2f).IsRest);
+
+        float tipped = Sample(HeldFlourishKind.GunReload).Max(p => p.Euler.Z);
+        float peakPullAt = -1f, peakPull = 0f;
+        for (int i = 0; i <= 100; i++)
+        {
+            float t = i / 100f;
+            var pose = HeldFlourishes.PoseAt(HeldFlourishKind.GunReload, t);
+            Assert.InRange(pose.OffHand, 0f, 1f);
+            Assert.InRange(pose.OffHandPull, 0f, pose.OffHand + 1e-5f); // never racks a slide it does not hold
+            if (t <= 0.15f)
+            {
+                Assert.Equal(0f, pose.OffHand); // still down while the gun is being tipped
+            }
+
+            if (t >= 0.35f && t <= 0.52f)
+            {
+                Assert.Equal(1f, pose.OffHand); // on the slide through the whole pull
+            }
+
+            if (t > 0.5f && pose.Euler.Z < tipped - 1e-3f)
+            {
+                Assert.Equal(0f, pose.OffHand); // the gun is on its way back to level: the hand has gone
+            }
+
+            if (pose.OffHandPull > peakPull)
+            {
+                peakPull = pose.OffHandPull;
+                peakPullAt = t;
+            }
+        }
+
+        Assert.True(peakPull > 0.99f, "the rack goes all the way back");
+        Assert.InRange(peakPullAt, 0.4f, 0.6f); // with the pull, not before or after it
+
+        foreach (var kind in new[] { HeldFlourishKind.DrillSpinUp, HeldFlourishKind.BladeTwirl, HeldFlourishKind.None })
+        {
+            Assert.All(Sample(kind), p => Assert.True(p.OffHand == 0f && p.OffHandPull == 0f, $"{kind} uses the free hand"));
+        }
     }
 
     [Fact]

@@ -289,6 +289,85 @@ public sealed class PadSpawnTests : IDisposable
         }
     }
 
+    // ---------------- #3135: Lyxette's ship hovered a block up after loading in winter ----------------
+
+    [Fact]
+    public void WeatherSnowOnThePad_DoesNotLiftTheParkedShip()
+    {
+        var server = Started(out var repo, "snowpad", ship: true);
+        using (repo)
+        {
+            var (px, py, pz) = server.LandingPadForTest(0);
+            server.DepositWeatherSnowForTest(px + 4, py + 1, pz + 4); // a drift on a sampled corner column …
+            server.DepositWeatherSnowForTest(px, py + 1, pz);         // … and one on the centre, both melting a minute later
+
+            server.AddLocalPlayer("Host");
+            var (origin, _) = server.LandedShipBoundsForTest("Host");
+            Assert.Equal(py + 1, origin.Y); // on the ground, not on the snow
+        }
+    }
+
+    [Fact]
+    public void ABuiltBlockUnderSnow_StillRaisesTheParkedShip()
+    {
+        var server = Started(out var repo, "snowonpaving", ship: true);
+        using (repo)
+        {
+            var (px, py, pz) = server.LandingPadForTest(0);
+            server.World.SetBlock(new Vector3i(px + 4, py + 1, pz + 4), _content.GetBlock("concrete")!.NumericId); // built
+            server.DepositWeatherSnowForTest(px + 4, py + 2, pz + 4); // snowed on
+
+            server.AddLocalPlayer("Host");
+            var (origin, _) = server.LandedShipBoundsForTest("Host");
+            Assert.Equal(py + 2, origin.Y); // the paving counts (#1318), the snow on it does not
+        }
+    }
+
+    [Fact]
+    public void TheSnowPass_NeverLaysADriftInsideAParkedHull_NorInAPlayersCell()
+    {
+        var server = Started(out var repo, "snowhull", ship: true);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Host");
+            var (origin, size) = server.LandedShipBoundsForTest("Host");
+            int cx = origin.X + size.X / 2, cz = origin.Z + size.Z / 2;
+            Assert.True(server.ShipInteriorContainsCellForTest(cx, origin.Y, cz)); // the cell over the pad ground is in the hull
+
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(origin.X + 60.5f, origin.Y + 30f, origin.Z + 60.5f); // well away from the ship
+            Assert.False(server.SnowSurfaceForTest(cx, origin.Y + 2, cz, out var inHull), $"a drift inside the hull at {inHull}");
+
+            // Out in the open the same pass still finds the ground — and not where the player stands.
+            int ox = origin.X - 8, oz = cz;
+            Assert.True(server.SnowSurfaceForTest(ox, origin.Y + 2, oz, out var open), "snow settles beside the ship");
+            p.State.Position = new Vector3f(open.X + 0.5f, open.Y, open.Z + 0.5f);
+            Assert.False(server.SnowSurfaceForTest(ox, origin.Y + 2, oz, out _), "never in the cell the player stands in");
+        }
+    }
+
+    [Fact]
+    public void APlayerLoadedInsideTheHullFloor_IsLiftedOntoIt()
+    {
+        var server = Started(out var repo, "hullfloor", ship: true);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Host");
+            var stand = p.State.Position; // standing aboard on the hull floor
+            var (origin, _) = server.LandedShipBoundsForTest("Host");
+            Assert.True(server.ShipInteriorContainsCellForTest((int)Math.Floor(stand.X), (int)Math.Floor(stand.Y), (int)Math.Floor(stand.Z)),
+                $"the pilot spawns aboard (at {stand}, hull at {origin})");
+
+            // The ship was re-parked a block higher than when the position was saved: the feet are in the floor now.
+            p.State.Position = new Vector3f(stand.X, stand.Y - 1f, stand.Z);
+            server.EnsureSafeSpawnForTest(p);
+
+            Assert.Equal(Math.Floor(stand.Y), Math.Floor(p.State.Position.Y));
+            Assert.Equal(stand.X, p.State.Position.X);
+            Assert.Equal(stand.Z, p.State.Position.Z);
+        }
+    }
+
     public void Dispose()
     {
         try

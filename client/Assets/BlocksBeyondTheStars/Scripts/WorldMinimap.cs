@@ -16,7 +16,8 @@ namespace BlocksBeyondTheStars.Client
     /// generated world, baked by <see cref="PlanetMapBakeJob"/> — the generator ships with the client and is
     /// deterministic, so the map is the terrain you will land on. Used as the orbit sphere texture, by the bodies in
     /// the surface sky and by the landing-pad map; the per-pixel terrain facts it keeps (height, biome, temperature)
-    /// are what the weather layers project onto.
+    /// are what the weather layers project onto. The two globes take a copy with polar caps (<see cref="RequestGlobe"/>,
+    /// #3128); the landing map takes the raw map.
     /// <para><b>Never on the main thread in one go.</b> A whole system took seconds on Mono when every body baked
     /// synchronously. On desktop each bake runs on a worker thread; in the browser, where managed threads do not run,
     /// it is time-sliced into rows under a per-frame budget. Callers <see cref="Request"/> a map and get a callback
@@ -31,6 +32,9 @@ namespace BlocksBeyondTheStars.Client
             public PlanetMapBakeJob Job = null!;
             public System.Threading.Tasks.Task Task;
             public Texture2D Texture;
+
+            /// <summary>The globe's copy with polar caps (#3128), made on the first <see cref="RequestGlobe"/>.</summary>
+            public Texture2D GlobeTexture;
             public PlanetMapData Data;
             public bool Failed;
             public int Priority;
@@ -138,6 +142,38 @@ namespace BlocksBeyondTheStars.Client
             _pending.Add(e);
         }
 
+        /// <summary>Asks for a map to wrap a globe (#3128): the same bake and cache entry as <see cref="Request"/>, but
+        /// <paramref name="onReady"/> gets a second texture with the polar caps (<see cref="PlanetGlobeCaps"/>) in the
+        /// world's own average colour around its poles — the torus' first and last rows no longer streak into the poles. The raw texture stays
+        /// untouched: the landing map's coarse preview shares this cache entry. The data passed on is the raw map (the
+        /// weather projects onto it). The copy is made once per entry on the main thread (a 96×48 copy costs next to
+        /// nothing, also in the browser) and destroyed with the cache.</summary>
+        public static void RequestGlobe(PlanetMapRequest request, Action<Texture2D, PlanetMapData> onReady, int priority = 0)
+        {
+            if (request == null)
+            {
+                return;
+            }
+
+            string key = request.Key;
+            Request(request, (tex, data) =>
+            {
+                if (!_cache.TryGetValue(key, out var e) || e.Texture != tex)
+                {
+                    return; // the cache was cleared (world exit) in between
+                }
+
+                if (e.GlobeTexture == null)
+                {
+                    int cap = PlanetGlobeCaps.PolarAverage(data.Rgba, data.Width, data.Height, data.GroundRgb);
+                    e.GlobeTexture = NewMapTexture(PlanetGlobeCaps.Apply(data.Rgba, data.Width, data.Height, cap),
+                        data.Width, data.Height, "PlanetGlobe_" + e.Request.BodyId);
+                }
+
+                onReady?.Invoke(e.GlobeTexture, data);
+            }, priority);
+        }
+
         /// <summary>Drives the queue — call once per frame (GameBootstrap does). Starts worker bakes on desktop,
         /// time-slices them in the browser, and turns finished maps into textures.</summary>
         public static void Pump()
@@ -234,14 +270,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var data = e.Job.Data;
-            var tex = new Texture2D(data.Width, data.Height, TextureFormat.RGBA32, mipChain: true)
-            {
-                wrapMode = TextureWrapMode.Repeat, // longitude wraps; the sphere/strips tile seamlessly
-                filterMode = FilterMode.Bilinear,
-                name = "PlanetMap_" + e.Request.BodyId,
-            };
-            tex.SetPixelData(data.Rgba, 0);
-            tex.Apply(true);
+            var tex = NewMapTexture(data.Rgba, data.Width, data.Height, "PlanetMap_" + e.Request.BodyId);
             e.Texture = tex;
             e.Data = data;
             var waiters = e.Waiters.ToArray();
@@ -257,6 +286,19 @@ namespace BlocksBeyondTheStars.Client
                     Debug.LogException(ex);
                 }
             }
+        }
+
+        private static Texture2D NewMapTexture(byte[] rgba, int width, int height, string name)
+        {
+            var tex = new Texture2D(width, height, TextureFormat.RGBA32, mipChain: true)
+            {
+                wrapMode = TextureWrapMode.Repeat, // longitude wraps; the sphere/strips tile seamlessly
+                filterMode = FilterMode.Bilinear,
+                name = name,
+            };
+            tex.SetPixelData(rgba, 0);
+            tex.Apply(true);
+            return tex;
         }
 
         private static void Fail(Entry e, Exception ex)
@@ -279,6 +321,11 @@ namespace BlocksBeyondTheStars.Client
                 if (e.Texture != null)
                 {
                     Object.Destroy(e.Texture);
+                }
+
+                if (e.GlobeTexture != null)
+                {
+                    Object.Destroy(e.GlobeTexture);
                 }
             }
 

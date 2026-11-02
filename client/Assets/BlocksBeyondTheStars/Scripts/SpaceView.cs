@@ -375,6 +375,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.SpaceEntityDestroyed += OnStructEntityDestroyed;
                 Game.Network.SpaceEntityDestroyed += OnEntityDestroyedFx; // #2156: explosions instead of vanishing
                 Game.Network.SpaceEntityDestroyed += OnLockedEntityDestroyed; // #2277: a killed lock moves on to the next attacker
+                Game.Network.StarMapReceived += OnStarMapNames; // #3131: a rename in flight relabels the bodies at once
                 _structSubscribed = true;
             }
 

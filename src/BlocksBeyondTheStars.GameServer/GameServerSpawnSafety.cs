@@ -288,6 +288,44 @@ public sealed partial class GameServer
         return false;
     }
 
+    /// <summary>#3135: a position whose feet are inside a parked hull's solid cell (its floor) while there is standing room
+    /// one or two cells up — that standing spot, or null. Inside the hull is normal (the corridors are the hull's own air);
+    /// only feet IN a hull block are lifted. Feet and head both inside are <see cref="SealedInHull"/>'s case.</summary>
+    private Vector3f? LiftOutOfHullFloor(Vector3f p)
+    {
+        if (!float.IsFinite(p.X) || !float.IsFinite(p.Y) || !float.IsFinite(p.Z))
+        {
+            return null;
+        }
+
+        var cell = new Vector3i((int)System.Math.Floor(p.X), (int)System.Math.Floor(p.Y), (int)System.Math.Floor(p.Z));
+        foreach (var (key, rec) in _worlds.Active.LandedShips)
+        {
+            if (!rec.Placed || IsConstructionKey(key) || !LandedBoundsContain(rec, p))
+            {
+                continue;
+            }
+
+            var feet = rec.ToLocal(cell, _world.Circumference);
+            if (!HullCellEnclosesBody(rec, feet))
+            {
+                continue;
+            }
+
+            for (int up = 1; up <= 2; up++)
+            {
+                var standFeet = new Vector3i(feet.X, feet.Y + up, feet.Z);
+                var standHead = new Vector3i(feet.X, feet.Y + up + 1, feet.Z);
+                if (!HullCellEnclosesBody(rec, standFeet) && !HullCellEnclosesBody(rec, standHead))
+                {
+                    return new Vector3f(p.X, cell.Y + up, p.Z);
+                }
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>Whether one structure-local cell of a parked hull is a cell a player's body cannot occupy
     /// (#1709). Mirrors <see cref="EnclosesBodyCell"/>, but reads the ship's sparse cell grid instead of the
     /// world: a missing key is the hull's own air (corridors, cabins), which is where players belong.
@@ -346,6 +384,14 @@ public sealed partial class GameServer
             var to = dugOut ?? SafeSpawnPoint(p.PlayerId);
             _log.Warn($"Player '{p.Name}' loaded sealed inside blocks at {p.Position}; moved to {to}.");
             p.Position = to;
+        }
+
+        // #3135: saved standing on the ship's floor, loaded with the ship re-parked a block higher: the feet are inside
+        // the hull floor with the head free — SealedInHull only catches both. Step up onto the floor.
+        if (LiftOutOfHullFloor(p.Position) is { } lifted)
+        {
+            _log.Warn($"Player '{p.Name}' loaded inside a hull floor at {p.Position}; lifted to {lifted}.");
+            p.Position = lifted;
         }
 
         if (IsUnsafeSurfaceSpawn(p.Position))

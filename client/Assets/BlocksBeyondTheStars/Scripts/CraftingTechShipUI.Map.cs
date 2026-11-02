@@ -451,21 +451,10 @@ namespace BlocksBeyondTheStars.Client
             float y = 0f;
 
             // The selected system's chart — its real layout, like the flight chart (#2745) — only once you've been to the
-            // system (an unexplored one shows nothing but its single "hyperjump here" entry in the list).
+            // system (an unexplored one shows nothing but its single "hyperjump here" entry in the list); or (#3130) the
+            // whole galaxy, where a click on a star picks that system.
             bool known = sys != null && (sys.Id == CurrentSystemId() || Game.KnowsSystem(sys.Id));
-            if (known)
-            {
-                UiKit.AddText(_detail, 8, y, 600, 30, "★ " + sys.Shown(), 22, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
-                y = AddOriginalNameLine(y + 30f, sys.IsRenamed() ? sys.Name : null) + 6f;
-                _systemMap = SystemMapWidget.Create(_detail, 100, y, 380, 380); // round chart, centred where the old one was
-                string sel = !string.IsNullOrEmpty(_selected) && _selected.StartsWith("body:", System.StringComparison.Ordinal)
-                    ? _selected.Substring(5) : string.Empty;
-                // #2178: live weather glyphs only for the system you are in (no other system has live data).
-                bool inThisSystem = Game != null && Game.SystemWeather.SystemId == sys.Id;
-                _systemMap.Show(sys.Bodies, map.ActiveLocationId, sel, MarkerColorOf,
-                    inThisSystem ? id => PlanetWeatherVisuals.GlyphMarkup(Game, id) : null);
-                y += 396f;
-            }
+            y = AddMapChart(map, sys, known, y);
 
             // Below the map: the selected body's detail + a (gated) travel button. With no body picked, a hint.
             if (string.IsNullOrEmpty(_selected) || !_selected.StartsWith("body:", System.StringComparison.Ordinal))
@@ -500,31 +489,15 @@ namespace BlocksBeyondTheStars.Client
                 y = AddPlaceNameRow(y, body.Id, body.CustomName); // #2952: a world you have been to can carry your own name
             }
 
-            // Colour-mark this body. Asked for by a player who wanted to mark planets in space in different
-            // colours: unlike the single surface waypoint, any number of bodies can carry a mark at once, and the
-            // star map haloes each in its colour. A fixed named palette (not a colour picker) keeps it readable
-            // and translatable. Purely local — no server involvement.
-            int mark = MarkerColorOf(body.Id);
-            string markLabel = mark >= 0 && mark < PlanetMarkerPalette.Count
-                ? L("ui.marker.marked") + ": " + L(PlanetMarkerPalette.NameKeys[mark])
-                : L("ui.marker.unmarked");
-            var markBtn = UiKit.AddButton(_detail, 8, y, 330, 44, markLabel, () => CyclePlanetMarker(body.Id));
-            if (mark >= 0 && mark < PlanetMarkerPalette.Count && markBtn != null)
-            {
-                // Tint the button itself so the current choice is visible without reading the label.
-                var img = markBtn.GetComponent<UnityEngine.UI.Image>();
-                if (img != null)
-                {
-                    img.color = Color.Lerp(img.color, PlanetMarkerPalette.Colors[mark], 0.55f);
-                }
-            }
+            // Colour-mark this body (shared with the flight chart, #3131) — redraws the button and re-haloes the orrery.
+            y = PlaceDetailRows.AddMarkRow(_detail, 8, y, Menu?.Settings, body.Id, L, RebuildDetail);
 
-            if (mark >= 0)
+            // #3132: plan the flight in the landed ship — this body becomes the nav waypoint the radar and the autopilot
+            // follow after the launch.
+            if (!here && sys != null && sys.Id == CurrentSystemId())
             {
-                UiKit.AddButton(_detail, 346, y, 180, 44, L("ui.marker.clear"), () => SetPlanetMarker(body.Id, -1));
+                y = AddDestinationRow(y, body);
             }
-
-            y += 52f;
 
             // #2140: the planet scanner — which resources this body holds. Bodies of the current star system only (the
             // server checks the same); stations and ship worlds have no ground to survey.
@@ -679,35 +652,14 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>An inline name field + confirm button for renaming an owned station or base from the Map detail
         /// pane (no modal, so it never desyncs the menu's own open/cursor state). Sends the typed name on click.</summary>
         private float AddRenameRow(float y, string current, string buttonLabel, System.Action<string> onConfirm, string placeholder = null)
-        {
-            var field = UiKit.AddInput(_detail, 8, y, 400, 48, current ?? string.Empty, null, placeholder ?? L("ui.base.placeholder"));
-            field.characterLimit = 24;
-            field.lineType = InputField.LineType.SingleLine;
-            UiKit.AddButton(_detail, 416, y, 180, 48, buttonLabel, () => onConfirm?.Invoke(field.text ?? string.Empty));
-            return y + 56f;
-        }
+            => PlaceDetailRows.AddRenameRow(_detail, 8, y, current, buttonLabel, onConfirm, placeholder ?? L("ui.base.placeholder"));
 
-        /// <summary>#2952: under a place the player named for themselves, its generated name in small type — friends still
-        /// meet up on the real name. Nothing when <paramref name="original"/> is null.</summary>
-        private float AddOriginalNameLine(float y, string original)
-        {
-            if (string.IsNullOrEmpty(original))
-            {
-                return y;
-            }
+        /// <summary>#2952: under a place the player named for themselves, its generated name in small type (shared, #3131).</summary>
+        private float AddOriginalNameLine(float y, string original) => PlaceDetailRows.AddOriginalNameLine(_detail, 8, y, original, L);
 
-            UiKit.AddText(_detail, 8, y, 620, 24, string.Format(L("ui.map.original_name"), original), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
-            return y + 24f;
-        }
-
-        /// <summary>#2952: "Your own name" for a visited system, planet or moon — private, only this player sees it; an
-        /// empty field gives the place its generated name back. The server checks the visit again.</summary>
+        /// <summary>#2952: "Your own name" for a visited system, planet or moon (shared with the flight chart, #3131).</summary>
         private float AddPlaceNameRow(float y, string placeId, string current)
-        {
-            UiKit.AddText(_detail, 8, y, 620, 26, L("ui.map.own_name"), 18, UiKit.Cyan, TextAnchor.UpperLeft);
-            return AddRenameRow(y + 28f, current, L("ui.map.name_place"), name => Game.Network?.SendSetPlaceName(placeId, name),
-                L("ui.map.own_name_placeholder"));
-        }
+            => PlaceDetailRows.AddOwnNameRow(_detail, 8, y, placeId, current, L, Game.Network);
 
         /// <summary>The SPS relay meter for a commissioned player station in the Map detail pane (#1125):
         /// conversion progress per cost line + co-op "Deliver" buttons (any player may contribute; the server
@@ -767,38 +719,7 @@ namespace BlocksBeyondTheStars.Client
             return y + 4f;
         }
 
-        // --- Coloured planet marks in the star map ---------------------------------------------------------
-        // A player wanted to mark planets in space, each in its own colour — several at once, unlike the single
-        // surface waypoint. Stored locally in ClientSettings (never sent to the server) and grouped by world, so
-        // marks from one save don't bleed into another (body ids like "sys0-p5" repeat across saves).
-
-        /// <summary>The save these marks belong to. Set when a local world is started or hosted; for a remote
-        /// server it keeps the last local name, which only ever groups marks slightly oddly — they stay local
-        /// cosmetics either way.</summary>
-        private string MarkerWorld => Menu?.Settings?.LastWorld ?? string.Empty;
-
-        /// <summary>The colour index marking a body, or -1 when unmarked.</summary>
-        private int MarkerColorOf(string bodyId)
-            => Menu?.Settings?.GetPlanetMarker(MarkerWorld, bodyId) ?? -1;
-
-        /// <summary>Steps a body through the palette and off the end back to unmarked, so one button both marks
-        /// and recolours — the fewest controls for the youngest player.</summary>
-        private void CyclePlanetMarker(string bodyId)
-        {
-            int next = MarkerColorOf(bodyId) + 1;
-            SetPlanetMarker(bodyId, next >= PlanetMarkerPalette.Count ? -1 : next);
-        }
-
-        private void SetPlanetMarker(string bodyId, int color)
-        {
-            if (Menu?.Settings == null)
-            {
-                return;
-            }
-
-            Menu.Settings.SetPlanetMarker(MarkerWorld, bodyId, color);
-            Menu.Settings.Save();
-            RebuildDetail(); // redraw the button label/tint and re-halo the orrery
-        }
+        /// <summary>The colour index marking a body, or -1 when unmarked (<see cref="PlanetMarks"/>, local to this client).</summary>
+        private int MarkerColorOf(string bodyId) => PlanetMarks.ColorOf(Menu?.Settings, bodyId);
     }
 }

@@ -349,7 +349,7 @@ cockpit asks "Launch into space?"** — confirm with the button, **E** or **Ente
 | **Right mouse button** | **Target ahead** (pad: **L3 → Target ahead**, touch: **ACT → Target ahead**): lock what is under the crosshair — also asteroids, salvage and planets, which the cycle otherwise skips. Pointing at empty space lets the lock go |
 | **F** | **Step inside your ship** while it floats: walk its cabin, build, sleep. The **helm** (**E** at the cockpit; the menu is on **Tab** as always) takes you back to the flight, and walking out through the **hatch** starts a spacewalk — either way the ship is exactly where you left it, pointing the same way, and a landing afterwards comes down on the world as usual. Other pilots keep seeing your ship meanwhile — engines off, its nameplate says *parked*. On the spacewalk, float up to your ship (a few metres from its hull) and press **E** to climb back in — that works next to a station too: a station only takes **E** when you look at it, or when your ship is out of reach (the prompt at the bottom always says which one **E** boards). Docked with a friend, their parked ship is the third choice: out of reach of your own hull, "E: board Lena's ship" takes you over as a guest (a station whose hull is nearer still wins). **K** and **U** dock and undock on a spacewalk as at the helm. Docking a station from a spacewalk and leaving it again puts you back beside your ship, where it floated |
 | **P** | **Autopilot** (needs an `ai_core_mk2`+ module): flies to your nav waypoint if one is set, else the nearest station / landable body; any manual input takes the helm back |
-| **M** | **System chart**: a top-down map of the current system — every planet shows its current weather as a small glyph (☁ ☂ ⚡ ❄ …). Click a body/station to target it or empty space for a free **nav waypoint** — it shows on the radar with a distance readout, and the autopilot flies to it. The ship holds position while the chart is open. Space distances (radar, chart) read in **km**; only on a spacewalk is the way back to your ship given in metres. The chart's **Hyperspace** tab (LB/RB on a pad) shows the whole galaxy as stars in their real colours: the ringed star is where you are, named stars are systems you have visited, a **?** is one you have never entered, lines are relay jump lanes. Click a star to read about it and — with a jump generator aboard or a lane — **hyperjump to it straight from the chart** |
+| **M** | **System chart**: a top-down map of the current system — every planet shows its current weather as a small glyph (☁ ☂ ⚡ ❄ …). Click a body/station to target it or empty space for a free **nav waypoint** — it shows on the radar with a distance readout, and the autopilot flies to it. The ship holds position while the chart is open. Space distances (radar, chart) read in **km**; only on a spacewalk is the way back to your ship given in metres. The chart's **Hyperspace** tab (LB/RB on a pad) shows the whole galaxy as stars in their real colours: the ringed star is where you are, named stars are systems you have visited, a **?** is one you have never entered, lines are relay jump lanes. Click a star to read about it and — with a jump generator aboard or a lane — **hyperjump to it straight from the chart**. **Zoom:** the mouse wheel zooms in where the pointer is, dragging moves the map, and the **− / + / Centre / All** buttons in the chart's corner do the same with a pad or by touch; names that would cover each other wait until you zoom in. **Naming in flight:** the panel of a targeted planet or moon you have landed on, and of a star system you know, has **"Your own name — only you see it"** and the colour mark, just like **Tab → Map** |
 | **Tab → Map** | Hyperspace **jump to another system** (needs a `jump_generator` module) — flying is within one system |
 
 ### Target lock
@@ -1254,7 +1254,7 @@ players.
   last one. Using the item while it is coming up skips the rest of the animation — nothing ever waits for it. With
   *Reduced effects* (Settings → Comfort) the item changes at once.
 - **A little show once it is in your hand:** a **drill** you take out does a short test spin (its bit whirrs up and
-  winds down), a **gun** is tipped and reloaded once (just for the look — there is no ammunition), and a **blade** is
+  winds down), a **gun** is tipped and your free hand comes up and racks it once (just for the look — there is no ammunition), and a **blade** is
   twirled — now and then also while you simply stand holding it. The drill's bit also **spins while you mine**. It is
   all for fun: using the item stops it at once, and other players (and robbers with their blades) do it too. With
   *Reduced effects* there is no show.
@@ -3227,6 +3227,13 @@ called **stories**:
   flight chart (**M** in space): the star in the middle, every planet and asteroid on its orbit ring where it really
   is, moons and stations right beside their planet, a belt as one faint band. The world you are on is the bright,
   larger dot; the one you picked has a white ring.
+- **System | Hyperspace** above that chart switches to the **whole galaxy** — the same star chart as the flight chart's
+  Hyperspace tab, with the same zoom (mouse wheel, drag, **− / + / Centre / All**). Click a star and its system is
+  picked, just as in the list: its worlds, their details, your own names and the hyperjump all work from there. The
+  view stays as you left it while the menu is open.
+- **Set as destination** (a world, station or wreck of the system you are in, but not the one you stand on): plan the
+  flight while still in your landed ship. After the launch the radar already shows the way there, and the autopilot
+  (**P**, needs an `ai_core_mk2`+) flies you over. Press it again (**✓ Destination — clear**) to drop it.
 - **Quick-travel** ("Travel" / "Hyperjump" on a world) is gated by the **Instant Travel** world option
   (Character tab, world admin):
   - **Off (default):** you can only quick-travel to worlds you've already **landed on manually**. To reach a
@@ -3252,8 +3259,8 @@ called **stories**:
 - A star system you have **never entered** shows as **"Unknown system"** — its name is part of what you
   discover. A fitted **`radar_array`** module decodes the beacon signals and reveals all system names.
 - **Your own names** (#2952): you are the explorer, so a **planet or moon you have landed on** and a **star system
-  you have been to** can get a name of your own. On **Tab → Map**, select it and type into **"Your own name — only you
-  see it"**, then **Name it**; an empty field gives it its real name back. Only **you** see the name — on the map, the
+  you have been to** can get a name of your own. On **Tab → Map** — or in flight on the chart (**M**) — select it and
+  type into **"Your own name — only you see it"**, then **Name it**; an empty field gives it its real name back. Only **you** see the name — on the map, the
   flight chart, the radar, the scanner, the HUD's location line and the loading screen — and the **real name** stays
   in small type beside or under it, so you can still tell a friend where to meet. Your friends keep the real name and
   can give the place a name of their own. Stations keep the name their owner gives them for everyone.
@@ -3289,7 +3296,9 @@ called **stories**:
 ### Day/night & weather
 - **The world wraps east–west** — the X axis is a longitude, so walking continuously east (or west) brings
   you back to where you started, as if the planet were round. The seam is invisible (terrain, biomes, caves
-  and structures line up exactly). North/south (latitude) does not wrap.
+  and structures line up exactly). North/south wraps too: keep walking north and you come back from the south.
+- **Planets from space show polar caps** in their own ground colour — that is where the map of a world that wraps
+  both ways meets itself, so nothing streaks into the poles (#3128).
 - **Every body has its own size** — asteroids are a quick stroll around, moons small, planets large. In worlds created
   since generation 26 the planets of one system really differ in size (and two worlds differ too), and neighbouring
   planets wear more different sky, plant and water colours; older worlds keep the sizes and colours they always had.
@@ -3325,7 +3334,8 @@ called **stories**:
 - **Weather has consequences** — corrosive and falling weather drains your suit out in the open, so a
   roof is a real answer; rain waters planted flora so it regrows faster; scanners lose range in blown
   grit and charged air; animals hunker down in violent weather; snow settles on the ground and melts
-  again when it warms up. Rain also wets the open ground (darker, glossy, drying over minutes) and snowfall caps the
+  again when it warms up — never inside your parked ship or right where someone stands, and a parked ship never
+  rests on it. Rain also wets the open ground (darker, glossy, drying over minutes) and snowfall caps the
   upward faces — see *Atmosphere effects* under §4.
 - **…and opportunities** — an **ion storm charges an exposed suit**, a **spore bloom** fattens what you
   harvest. Sometimes the right move is to walk into the bad weather. Craft the **weather scanner** to

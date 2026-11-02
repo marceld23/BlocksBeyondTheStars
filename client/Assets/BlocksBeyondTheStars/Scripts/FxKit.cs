@@ -368,7 +368,7 @@ namespace BlocksBeyondTheStars.Client
         private static Material _sparkMat, _glowMat, _softAlphaMat, _debrisMat;
         private static readonly Dictionary<string, Material> Cache = new Dictionary<string, Material>();
         private static Texture2D _dot, _softDot;
-        private static Mesh _cube, _sphere, _quad;
+        private static Mesh _cube, _sphere, _quad, _globe;
 
         /// <summary>Additive soft-dot particle material at a moderate HDR boost (sparks, motes).</summary>
         public static Material SparkMaterial() => _sparkMat != null ? _sparkMat : (_sparkMat = ParticleMat("BlocksBeyondTheStars/Particle", Dot, 2.2f));
@@ -510,11 +510,41 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A unit quad in the XY plane (normal −Z), UV 0..1.</summary>
         public static Mesh QuadMesh => _quad != null ? _quad : (_quad = PrimitiveMesh(PrimitiveType.Quad));
 
+        /// <summary>The planet globe (#3127): radius 0.5 like <see cref="SphereMesh"/>, 48 × 24 segments, a pole vertex
+        /// per segment so the equirect planet map runs into the poles without the primitive's sheared wedges
+        /// (<see cref="GlobeMeshData"/> has the layout). Worn by the orbit planets with their haze and cloud shell and by
+        /// the bodies in the surface sky; <see cref="PlanetWeatherVisuals"/> measures its mapping. FX pulses keep
+        /// <see cref="SphereMesh"/>.</summary>
+        public static Mesh GlobeMesh => _globe != null ? _globe : (_globe = BuildGlobeMesh());
+
         private static Mesh PrimitiveMesh(PrimitiveType type)
         {
             var go = GameObject.CreatePrimitive(type);
             var mesh = go.GetComponent<MeshFilter>().sharedMesh;
             Destroy(go);
+            return mesh;
+        }
+
+        private static Mesh BuildGlobeMesh()
+        {
+            var data = GlobeMeshData.Build(GlobeMeshData.DefaultLonSegments, GlobeMeshData.DefaultLatSegments);
+            int n = data.VertexCount;
+            var vertices = new Vector3[n];
+            var normals = new Vector3[n];
+            var uvs = new Vector2[n];
+            for (int i = 0; i < n; i++)
+            {
+                vertices[i] = new Vector3(data.Positions[i * 3], data.Positions[i * 3 + 1], data.Positions[i * 3 + 2]);
+                normals[i] = new Vector3(data.Normals[i * 3], data.Normals[i * 3 + 1], data.Normals[i * 3 + 2]);
+                uvs[i] = new Vector2(data.Uvs[i * 2], data.Uvs[i * 2 + 1]);
+            }
+
+            var mesh = new Mesh { name = "Globe" };
+            mesh.vertices = vertices;
+            mesh.normals = normals;
+            mesh.uv = uvs;
+            mesh.triangles = data.Triangles;
+            mesh.RecalculateBounds();
             return mesh;
         }
 

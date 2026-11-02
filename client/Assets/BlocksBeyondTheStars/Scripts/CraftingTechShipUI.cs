@@ -926,7 +926,7 @@ namespace BlocksBeyondTheStars.Client
                         list.Add(("head:current", L("ui.map.current_system"), string.Empty));
                         if (current != null)
                         {
-                            list.Add(("sys:" + current.Name, "★ " + current.Name, "cat_planet"));
+                            list.Add(("sys:" + current.Name, "★ " + current.Shown(), "cat_planet")); // #3133: own name shown, key stays real
                         }
 
                         // Distant systems under a Hyperspace heading. Unknown ones read as a single
@@ -939,7 +939,7 @@ namespace BlocksBeyondTheStars.Client
                             foreach (var sys in distant)
                             {
                                 string label = Game.KnowsSystem(sys.Id)
-                                    ? "★ " + sys.Name + (HasClientLane(curId, sys.Id) ? " ⇄" : string.Empty)
+                                    ? "★ " + sys.Shown() + (HasClientLane(curId, sys.Id) ? " ⇄" : string.Empty)
                                     : SystemDisplayName(sys) + "  ·  " + L("ui.map.unexplored");
                                 list.Add(("sys:" + sys.Name, label, "cat_planet"));
                             }

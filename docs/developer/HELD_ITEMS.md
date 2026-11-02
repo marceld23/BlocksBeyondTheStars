@@ -202,7 +202,7 @@ Once a draw has brought a drill, a gun or a blade into the hand, it plays a shor
 | Kind | Flourish | Length | Cue |
 |---|---|---|---|
 | `Drill` | lifted a little and turned toward the middle of the view; the bit spins up and winds down, a light buzz in the hand | 0.7 s | `drill_spinup` |
-| `Gun` | tipped onto its side and up, racked once (pulled back, snapped forward with a kick) — cosmetic, there is no ammunition | 0.75 s | `gun_reload` |
+| `Gun` | tipped onto its side and up, racked once by the free hand (pulled back, snapped forward with a kick) — cosmetic, there is no ammunition | 0.75 s | `gun_reload` |
 | `Blade` | the wrist flicks it up and rolls it outward while the blade spins once round its own length | 0.6 s | `blade_twirl` |
 
 - **A draw starts it**: the frame `HeldSwap` goes from drawing to idle. A slot that runs empty and is drawn again
@@ -214,6 +214,13 @@ Once a draw has brought a drill, a gun or a blade into the hand, it plays a shor
 - **The poses**: in first person the curve's offsets and turns are added to the right holder's rest pose before the
   holder is placed; on the avatar the right arm lifts the item to the chest (`FlourishUpperArm`/`FlourishElbow`) and
   keeps it level, like the carry.
+- **The free hand racks the gun** (#3134): the pose's `OffHand` (0..1, in shortly before the pull, out before the gun
+  goes back to level) and `OffHandPull` (0..1, the rack) — 0 for every other kind. In first person the left climbing
+  hand (`Viewmodel.EnsureClimbHands`: the suit colour, the painting and the climbing gear) comes up on the left holder
+  from below the view to a grip point on the gun holder's slide (`OffHandGrip`, gun frame) and is pulled back along the
+  gun by `OffHandRack`; any cancel or the end of the flourish hands the left holder back to the gloves and the climb
+  (`ApplyVisible`). On the avatar the left arm reaches forward and across to the gun (`OffHandUpperArm`/`OffHandElbow`/
+  `OffHandYaw`) and draws back a little with the pull.
 - **The moving parts** are the held model's own: `HeldSpin` (on the holder) turns the bit's boxes about the drill's
   axis and a blade's boxes round its long axis. Only their rotations change — the grip, the hand and
   `HeldItem.MuzzleOf` read positions, which stay. `HeldDrillBit.SpinParts` finds the bit from the boxes alone: the
@@ -237,7 +244,9 @@ Once a draw has brought a drill, a gun or a blade into the hand, it plays a shor
 - `HeldSwapTests` — timing, one swap per switch, fast scrolling, turning round, draw-only, cutting it short.
 - `HeldFlourishTests` (#3095) — the flourish per kind, each short with a cue and at rest at both ends, no jumps between
   frames, cutting it short, only the blade's idle repeat and its random pause, the bit of every drill in the data (none
-  for the wooden pickaxe), the bit's spin-up and coast, and the robots' idle fidgets.
+  for the wooden pickaxe), the bit's spin-up and coast, the robots' idle fidgets, and (#3134) the gun's free hand — down
+  at both ends, on the slide through the pull, racking only while it holds it, gone before the gun levels, unused by
+  every other kind.
 - `HeldMaterialRulesTests` (#2836) — the colour rule, a named material winning, every part of every model the game draws
   having a known material (the player palette included), the UV buckets and the outward-wound cube, the tile lift.
 - `HeldGadgetModelTests` (#2837) — the list of gadgets, each drawing its own 4–14 parts with named materials, the remote

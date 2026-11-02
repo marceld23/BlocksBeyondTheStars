@@ -24,6 +24,42 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🗺️ Planet globes without the pole pinch, a zoomable galaxy chart, the charts in the ship's navigation + Lyxette's hovering ship + Justus' reload hand — #3127–#3135, branch feat/nav-charts-2026-11-02 — ✅ done 2026-11-02 (⚠ playtest open; no save-version, protocol or terrain-generation change)
+
+Marcel's screenshot of a planet from orbit ("always a seam in the textures"), then: plan A+B1, give the galaxy chart a
+zoom, combine the space charts with the landed ship's navigation (renaming must work there too); plus the evening's
+in-game reports (Lyxette: ship hovers after loading; Justus as Screelit: the gun reload lacks the other hand).
+- **#3127 Globe mesh:** the "seam" was the sphere's POLE. Unity's primitive (24 segments, a pole triangle fan) sheared the
+  equirect map per triangle. Pure `GlobeMeshData` (Client.Core, 48 × 24, per-segment pole vertices with u at the
+  segment centre, seam column duplicated) → `FxKit.GlobeMesh` for planet, haze, cloud shell and the sky bodies;
+  `PlanetWeatherVisuals.MeasureMapping` measures it (spin + lightning stay aligned). The map now reads unmirrored, the
+  same way round as the landing map.
+- **#3128 Polar caps:** the world is a torus, so the map's first/last rows squeeze into the poles. `PlanetGlobeCaps`
+  blends the rows from 62° to 72° latitude into the average colour of those polar rows (not the surface block's colour —
+  a gas giant would have got grey caps) on a COPY (`WorldMinimap.RequestGlobe`; the landing map keeps the raw map);
+  the cloud shell fades out over the caps. USER_MANUAL's stale "latitude does not wrap" fixed.
+- **#3129 Galaxy chart zoom:** math in Shared `GalaxyChartLayout` (view = zoom + focus, zoom about the cursor, pan,
+  clamp to the galaxy, max zoom from the closest star pair, label de-overlap by priority); `GalaxyChartWidget` keeps its
+  marks and only moves them (RectMask2D, wheel/drag via uGUI handlers, − / + / Centre / All buttons), raises
+  `StarClicked`. `GalaxyChartStars` builds the stars for every host.
+- **#3130 Travel screen Galaxy view:** System | Hyperspace switch above the detail chart; a star click selects its system
+  like the sidebar → list, details, own names, hyperjump unchanged; the zoom survives the detail rebuilds.
+- **#3131 Flight chart place details:** shared `PlaceDetailRows` (own-name row, original-name line, colour mark) +
+  `PlanetMarks` used by the travel screen and the flight chart (System tab: the targeted body; Hyperspace tab: a known
+  system). The open chart redraws on a new star map (not while typing); `SpaceView.RefreshLandableNames` relabels the
+  flight scene at once. (The M key closing the chart while typing was already blocked by the text-entry gate, #1858.)
+  SpaceMap split into `SpaceMap.Hyperspace.cs` / `SpaceMap.Place.cs` (1180 → 891 lines).
+- **#3132 Set as destination:** the travel screen sets `SpaceWaypointId` for a body of the current system before the
+  launch (survives the launch — only a WorldReset clears it); radar + autopilot use it in flight.
+- **#3133 Own-name gaps:** travel sidebar and flight chart title show the own name of a renamed system.
+- **#3134 Reload hand (Justus):** `HeldFlourishPose.OffHand/OffHandPull`; first person brings the left climbing hand onto
+  the slide for the rack, avatars lift the left arm. Offsets are first guesses — tune after a look.
+- **#3135 Lyxette's hovering ship:** the landed ship's height is re-derived on every join (`PadSurfaceY`) and counted weather
+  snow; since the seasons (v2026.10.33) the snow pass laid drifts inside parked hulls → a winter join parked the ship a
+  block up, the drift melted, the hull hovered and he loaded inside its raised floor. `PadSurfaceY` skips weather/festival
+  deposits, the snow pass skips hull interiors and player cells, `EnsureSafeSpawn` lifts feet-in-hull-floor onto it.
+- Locale keys `ui.map.destination_*`, `ui.chart.centre/all` hand-translated ×14.
+
 ### 🌈 Star colours dealt per galaxy, a red dwarf, less white wash — #3123 #3124 #3125, branch fix/star-colours-per-galaxy — ✅ done 2026-11-02 (⚠ playtest open; no save-version, protocol or terrain-generation change — every save's stars take their new colours on the next start)
 
 Marcel's playtest of the #3077 build: a fresh world, all twelve systems visited — "all very white or yellow, none blue or

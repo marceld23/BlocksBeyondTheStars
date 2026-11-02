@@ -116,4 +116,124 @@ public sealed class GalaxyChartLayoutTests
         Assert.Equal(-1, GalaxyChartLayout.Pick(x, y, 50f, 0f, 26f));
         Assert.Equal(-1, GalaxyChartLayout.Pick(ReadOnlySpan<float>.Empty, ReadOnlySpan<float>.Empty, 0f, 0f, 26f));
     }
+
+    // ---- #3129: zoom and pan ----
+
+    [Fact]
+    public void ZoomedProjection_AtZoomOneOnTheCentre_IsTheFittedChart()
+    {
+        GalaxyChartLayout.ToChart(700f, 250f, 0.4f, 500f, 500f, out float fx, out float fy);
+        GalaxyChartLayout.ToChart(700f, 250f, 0.4f, new GalaxyChartView(1f, 500f, 500f), out float vx, out float vy);
+        Assert.Equal(fx, vx, 3);
+        Assert.Equal(fy, vy, 3);
+
+        GalaxyChartLayout.FromChart(vx, vy, 0.4f, new GalaxyChartView(1f, 500f, 500f), out float mx, out float my);
+        Assert.Equal(700f, mx, 2);
+        Assert.Equal(250f, my, 2);
+    }
+
+    [Fact]
+    public void ZoomAbout_KeepsThePointUnderTheCursorInPlace()
+    {
+        const float scale = 0.4f;
+        var view = new GalaxyChartView(1f, 500f, 500f);
+        GalaxyChartLayout.FromChart(120f, -80f, scale, view, out float beforeX, out float beforeY);
+
+        var zoomed = GalaxyChartLayout.ZoomAbout(view, 3f, 120f, -80f, scale);
+        Assert.Equal(3f, zoomed.Zoom);
+        GalaxyChartLayout.FromChart(120f, -80f, scale, zoomed, out float afterX, out float afterY);
+        Assert.Equal(beforeX, afterX, 2);
+        Assert.Equal(beforeY, afterY, 2);
+
+        // And a star there is drawn 3× as far from the chart centre as the cursor's map point moved — i.e. it spread.
+        GalaxyChartLayout.ToChart(500f, 500f, scale, zoomed, out float cx, out float cy);
+        Assert.True(MathF.Abs(cx) > 0f || MathF.Abs(cy) > 0f);
+    }
+
+    [Fact]
+    public void Pan_MovesTheGalaxyWithThePointer()
+    {
+        const float scale = 0.5f;
+        var view = new GalaxyChartView(2f, 500f, 500f);
+        GalaxyChartLayout.ToChart(600f, 500f, scale, view, out float before, out _);
+        var panned = GalaxyChartLayout.Pan(view, 40f, 0f, scale);
+        GalaxyChartLayout.ToChart(600f, 500f, scale, panned, out float after, out _);
+        Assert.Equal(before + 40f, after, 2);
+    }
+
+    [Fact]
+    public void Clamp_PinsZoomOneToTheCentre_AndKeepsTheFocusInsideTheGalaxy()
+    {
+        var fit = GalaxyChartLayout.Clamp(new GalaxyChartView(0.3f, 9000f, -9000f), 6f, 0f, 1000f, 0f, 800f);
+        Assert.Equal(1f, fit.Zoom);
+        Assert.Equal(500f, fit.FocusX);
+        Assert.Equal(400f, fit.FocusY);
+
+        var deep = GalaxyChartLayout.Clamp(new GalaxyChartView(40f, 9000f, -9000f), 6f, 0f, 1000f, 0f, 800f);
+        Assert.Equal(6f, deep.Zoom);
+        Assert.InRange(deep.FocusX, 0f, 1000f);
+        Assert.InRange(deep.FocusY, 0f, 800f);
+        Assert.True(deep.FocusX > 500f && deep.FocusY < 400f); // it roams toward the asked-for corner
+    }
+
+    [Theory]
+    [InlineData(42, 32, 0)]
+    [InlineData(7, 32, 0)]
+    [InlineData(1234, 12, 20)] // a grown galaxy squeezes the original stars together
+    public void MaxZoom_SeparatesEvenTheClosestPairOfARealGalaxy(long seed, int systems, int grown)
+    {
+        var desc = new WorldDescription { StarSystemCount = systems, SystemVariance = true };
+        var galaxy = new UniverseGenerator(seed, desc, Content).Generate(systems + grown);
+        var (x, y) = Positions(galaxy);
+        GalaxyChartLayout.Centre(x, y, out float cx, out float cy);
+        float scale = GalaxyChartLayout.FitScale(ChartHalf, x, y, cx, cy, MarkerPad);
+        const float minSeparation = StarDisc * 1.5f;
+
+        float maxZoom = GalaxyChartLayout.MaxZoom(x, y, scale, minSeparation);
+        Assert.InRange(maxZoom, GalaxyChartLayout.MinMaxZoom, GalaxyChartLayout.MaxZoomCap);
+
+        float closest = float.MaxValue;
+        for (int i = 0; i < x.Length; i++)
+        {
+            for (int j = i + 1; j < x.Length; j++)
+            {
+                closest = MathF.Min(closest, MathF.Sqrt((x[i] - x[j]) * (x[i] - x[j]) + (y[i] - y[j]) * (y[i] - y[j])));
+            }
+        }
+
+        if (maxZoom < GalaxyChartLayout.MaxZoomCap)
+        {
+            Assert.True(closest * scale * maxZoom >= minSeparation - 0.01f, $"closest pair {closest * scale * maxZoom:F1} chart units at the max zoom");
+        }
+    }
+
+    [Fact]
+    public void MaxZoom_OfTinyGalaxies_IsTheFloor()
+    {
+        Assert.Equal(GalaxyChartLayout.MinMaxZoom, GalaxyChartLayout.MaxZoom(new[] { 5f }, new[] { 5f }, 0.4f, 33f));
+        Assert.Equal(GalaxyChartLayout.MaxZoomCap, GalaxyChartLayout.MaxZoom(new[] { 5f, 5f }, new[] { 5f, 5f }, 0.4f, 33f));
+    }
+
+    [Fact]
+    public void LabelsShown_KeepsTheImportantLabel_AndDropsTheOneItWouldCover()
+    {
+        // Labels 0 and 1 overlap, 2 stands apart. Label 1 comes first in the order (the current system).
+        var cx = new[] { 0f, 10f, 300f };
+        var cy = new[] { 0f, 2f, 0f };
+        var w = new[] { 80f, 80f, 80f };
+        var h = new[] { 18f, 18f, 18f };
+        var shown = GalaxyChartLayout.LabelsShown(cx, cy, w, h, new[] { 1, 0, 2 });
+        Assert.Equal(new[] { false, true, true }, shown);
+
+        // Spread apart (zoomed in), both come back.
+        cx[1] = 120f;
+        Assert.Equal(new[] { true, true, true }, GalaxyChartLayout.LabelsShown(cx, cy, w, h, new[] { 1, 0, 2 }));
+    }
+
+    [Fact]
+    public void Bounds_OfSystems()
+    {
+        GalaxyChartLayout.Bounds(new[] { 3f, -2f, 8f }, new[] { 1f, 9f, -4f }, out float minX, out float maxX, out float minY, out float maxY);
+        Assert.Equal((-2f, 8f, -4f, 9f), (minX, maxX, minY, maxY));
+    }
 }

@@ -104,6 +104,15 @@ them**; between systems you hyperjump. This combines two originally separate ide
   per-system `StarColor` (#1604) — and offers the same `HyperjumpSystemIntent` from a selected star; the
   finale system is placed out past every other star (`GuardianFinaleMapPosition`, #1605) now that map
   positions are visible. Pure projection/name rules live in `Shared/World/GalaxyChartLayout.cs`.
+  *Zoom and hosts* (#3129/#3130): `GalaxyChartLayout` also holds the zoom math — a `GalaxyChartView` (zoom × the fit
+  scale, the map point in the middle), zoom about the cursor, pan, a clamp that pins zoom 1 to the fitted chart, the
+  zoom limit from the closest star pair and the label de-overlap. The widget (`GalaxyChartWidget` + `.View.cs`) keeps its
+  marks and only moves them; `EnableInteraction` turns on wheel/drag/click (uGUI handlers, so a parent scroll view never
+  steals them) and the − / + / Centre / All buttons, and raises `StarClicked`. `GalaxyChartStars` builds the stars (name
+  gate, own names, colours, party, lanes, known wormholes) for both hosts: the flight chart's Hyperspace tab and the
+  travel screen's System | Hyperspace switch, where a star click selects that system like the sidebar. The place rows
+  of both screens (own name, original name, colour mark) are `PlaceDetailRows` / `PlanetMarks` (#3131); the travel
+  screen's "Set as destination" sets `SpaceWaypointId` before the launch (#3132).
   *Which colour a star has* (`Shared/World/StarColors.cs`, #3123/#3124): the classes are dealt per galaxy, not rolled
   per system — every block of four procedural systems (`sys0`–`sys3`, …) holds one cool star (blue / blue-white), one
   warm one (orange / red-orange / red dwarf) and two calm ones (white / sun-like / yellow) in a per-world shuffled order,
