@@ -11,6 +11,90 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.3] — 2026-11-02
+
+The star-chart release. **Planets seen from space lose the seam at their poles**, the **galaxy chart learns to zoom**,
+and the chart of the whole galaxy moves into your **landed ship's navigation** — pick a star there, name places in
+flight, and **set a destination** before you even take off. **Every galaxy now has its blue and its red stars**, a
+**red dwarf** among them. Plus Lyxette's reports: the grass tufts stay off what you built, and a parked ship no longer
+hovers after a winter night. Justus asked for the other hand when a gun is reloaded — it's there.
+
+ℹ️ **Compatibility:** no new blocks — the **save version stays at 10**, the terrain generation at **32** and the network
+protocol at **version 11**, so worlds and servers of 2026.11.2 keep working. Every star system takes its new star colour
+on the next start. As always, keep game and server on the same version: the desktop game updates itself at start, and
+the browser is always current.
+
+### 🪐 Planets without the seam (#3127, #3128)
+
+- Seen from space, every planet and moon showed a **seam at its pole**: the map's colours ran into one point in jagged
+  wedges. The planets now use a **globe of their own** — rounder at the rim too — and the poles get **caps in the
+  planet's own colour**, so nothing pinches any more. The clouds thin out over the caps. The bodies in a planet's sky
+  look the same.
+
+### 🗺️ The galaxy chart (#3129–#3133)
+
+- **Zoom:** in flight (**M** → **Hyperspace**) the mouse wheel zooms in where the pointer is, dragging moves the map, and
+  the buttons **− / + / Centre / All** do the same with a pad or by touch. Names that would cover each other wait until
+  you zoom in — even two stars almost on top of each other come apart.
+- **In the landed ship:** on **Tab → Map** a switch **System | Hyperspace** shows the whole galaxy above the list. Click a
+  star and its system is picked — its worlds, their details and the hyperjump work from there.
+- **Set as destination:** pick a world, station or wreck of your system before the launch, and after take-off the radar
+  already shows the way — the autopilot (**P**) flies you over.
+- **Naming in flight:** the flight chart shows **"Your own name — only you see it"** and the colour mark for a planet or
+  moon you have landed on and for a system you know. The new name shows at once — on the chart and in the land prompt.
+- A renamed system now shows your own name in the list of systems and in the flight chart's title too.
+
+### 🌈 Stars in every colour (#3123–#3125)
+
+- The colours are **dealt per galaxy**: of every four systems, one star shines **blue**, one **orange or red** and two
+  white or yellow — no more galaxies with only pale stars. A grown frontier keeps its colours.
+- New: the **red dwarf**. Under it a world is a little dimmer and glows red. The blues and reds are stronger, and the
+  white wash on stars, skies and clouds is lighter.
+
+### 🌱 Grass tufts where they belong (#3118–#3121)
+
+- Since the last update the small **grass tufts** were visible — and grew on everything. Now they grow **only on
+  natural grass, earth and mud**: never on anything you (or anyone) built, and only **under the open sky** — no more
+  tufts in tunnels or under roofs. The little grey boxes (pebbles) are gone.
+- At night the tufts are lit like the ground around them, torches included — no more black crosses.
+- Don't want them? **Settings → Graphics → Ground details (grass tufts)**.
+
+### 🔧 Fixes from the reports (#3134, #3135, #3137)
+
+- **Reload with both hands:** when you take out a gun, your free hand comes up, racks the slide and drops away again.
+  Other players see your figure lift its left arm to the gun. (#3134)
+- **A ship hovering after loading:** a winter blizzard laid snow under and inside a parked ship; on the next load the
+  ship stood on the drift one block too high, and when the snow melted it hung in the air — with its pilot inside the
+  raised floor. Weather snow no longer counts for where a ship rests, no snow settles inside a parked ship or where
+  someone stands, and a player loaded inside the ship's floor is lifted onto it. (#3135)
+- Quitting the game while flying no longer sent a crash report. (#3137)
+
+### 🙏 Thanks
+
+- **Lyxette** reported the tufts on his farm, his roof garden and his rock floor — six reports in one night — and the
+  ship hovering over his fields. **Justus** wanted the second hand on the gun. Thank you!
+
+### 🛠️ For tinkerers
+
+- **Pull requests:** navigation charts and the evening's reports #3136 (issues #3127–#3137), star colours #3126
+  (#3123–#3125), ground details #3122 (#3118–#3121).
+- **Globe (#3127/#3128):** `GlobeMeshData` (Client.Core, 48 × 24, per-segment pole vertices) → `FxKit.GlobeMesh`;
+  `PlanetGlobeCaps` blends the rows from 62° to 72° latitude into the average colour of those rows, on a copy made by
+  `WorldMinimap.RequestGlobe` — the landing map keeps the raw map. The map now reads unmirrored, like the landing map.
+- **Charts (#3129–#3133):** the zoom math lives in `Shared/World/GalaxyChartLayout` (`GalaxyChartView`, zoom about a
+  point, a clamp that pins zoom 1 to the fitted chart, the zoom limit from the closest star pair, label de-overlap);
+  `GalaxyChartWidget` + `GalaxyChartStars` serve the flight chart and the travel screen; `PlaceDetailRows` /
+  `PlanetMarks` are the shared place rows; "Set as destination" sets `SpaceWaypointId`.
+- **Star colours (#3123):** `Shared/World/StarColors` deals the classes per block of four procedural systems; the star
+  map, the planet sky and the ship interior all ask `GameServer.StarColorOf`.
+- **Ground details (#3118):** `ChunkData` keeps a bitset of edited cells; the chunk stream carries it as the additive
+  `ChunkDataMessage.EditRuns`. `ClientSettings.GroundDetails` is the new switch.
+- **Ship height (#3135):** `PadSurfaceY` skips weather and festival deposits; the snow pass skips parked hulls and
+  players' cells; `EnsureSafeSpawn` lifts feet inside a hull floor.
+- **Docs:** USER_MANUAL, PLANET_VIEW_AND_WEATHER, MULTIWORLD_AND_SYSTEM_FLIGHT, HELD_ITEMS, ADVANCED_GRAPHICS.
+- **For hosters:** no save, protocol or terrain change; the WorldHost image was rebuilt (shared code changed) and rolls
+  with this release. The AI backend and the report inbox are unchanged.
+
 ## [2026.11.2] — 2026-11-02
 
 The tank-spider release — Justus' twelve reports of 1 November, and a lot more. **Two new enemies**: the **tank spider**
@@ -9751,7 +9835,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.2...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.3...HEAD
+[2026.11.3]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.2...v2026.11.3
 [2026.11.2]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.33...v2026.11.2
 [2026.10.33]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.32...v2026.10.33
 [2026.10.32]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.31...v2026.10.32
