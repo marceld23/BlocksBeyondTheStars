@@ -55,11 +55,14 @@ public sealed class WorldEnvironmentTests : IDisposable
         {
             int c = server.SunColor;
             int r = (c >> 16) & 0xFF, g = (c >> 8) & 0xFF, b = c & 0xFF;
-            // Sampled from the hot→cool stellar ramp (blue-white → white → yellow → orange → red): always a
-            // bright, warm-to-cool star tint — never a dim, green-dominant or near-black "sun".
-            Assert.InRange(r, 0xC0, 0xFF);
-            Assert.InRange(g, 0xA0, 0xFF);
-            Assert.InRange(b, 0x60, 0xFF);
+            // Sampled from the hot→cool stellar ramp (blue → white → yellow → orange → red dwarf, #3124): always a
+            // bright, warm-to-cool star tint — its strongest channel at full brightness, never a dim, green-dominant or
+            // near-black "sun". The bounds are the ramp's extremes: the blue 9BB2FF and the red dwarf FF7444.
+            Assert.Equal(0xFF, System.Math.Max(r, b));
+            Assert.True(g <= System.Math.Max(r, b), $"green-dominant sun {c:X6}");
+            Assert.InRange(r, 0x90, 0xFF);
+            Assert.InRange(g, 0x70, 0xFF);
+            Assert.InRange(b, 0x40, 0xFF);
             Assert.Contains(server.Weather, WeatherCatalog.AllKeys);
         }
     }
