@@ -42,6 +42,16 @@ public sealed class ChunkData
     /// </summary>
     private Dictionary<int, int>? _shapes;
 
+    /// <summary>
+    /// #3118: the EDITED non-air cells — cells that hold a stored delta against the generated baseline: a player's build,
+    /// a settlement stamp, weather snow. The server knows them from its edit rows and streams them with the chunk, so the
+    /// client can tell built ground from natural ground (the ground details stay off built cells). A bitset over the local
+    /// indices, allocated with the first edit: a fixed 512 bytes however many cells a village stamps. A cell set to air
+    /// drops out, like its modifier and shape.
+    /// </summary>
+    private ulong[]? _edited;
+    private int _editedCount;
+
     public ChunkData(ChunkCoord coord)
     {
         Coord = coord;
@@ -80,6 +90,11 @@ public sealed class ChunkData
         {
             _mods?.Remove(idx);
             _shapes?.Remove(idx);
+            if (IsEditedLocal(idx))
+            {
+                _edited![idx >> 6] &= ~(1UL << (idx & 63));
+                _editedCount--;
+            }
         }
     }
 
@@ -153,4 +168,82 @@ public sealed class ChunkData
 
     /// <summary>Read-only view of the sparse shape descriptors (local index → packed shape) for serialization.</summary>
     public IReadOnlyDictionary<int, int>? Shapes => _shapes;
+
+    // --- Edited cells (#3118: built vs natural ground) ---
+
+    /// <summary>Whether the cell at a flat local index holds a stored edit (a placed or stamped block, not air).</summary>
+    public bool IsEditedLocal(int localIndex) => _edited is not null && (_edited[localIndex >> 6] & (1UL << (localIndex & 63))) != 0;
+
+    /// <summary>Marks the cell at a flat local index as edited. An air cell is never marked (mining leaves natural
+    /// ground below, which keeps its look).</summary>
+    public void MarkEditedLocal(int localIndex)
+    {
+        if (_blocks[localIndex] == BlockId.AirValue || IsEditedLocal(localIndex))
+        {
+            return;
+        }
+
+        (_edited ??= new ulong[WorldConstants.BlocksPerChunk / 64])[localIndex >> 6] |= 1UL << (localIndex & 63);
+        _editedCount++;
+        Touch();
+    }
+
+    /// <summary>True if any cell in this chunk is marked as edited.</summary>
+    public bool HasEdits => _editedCount > 0;
+
+    /// <summary>Takes over another chunk's edited cells (the client's mesh-worker copy of a chunk).</summary>
+    public void CopyEditsFrom(ChunkData source)
+    {
+        _edited = source._edited is null ? null : (ulong[])source._edited.Clone();
+        _editedCount = source._editedCount;
+        Touch();
+    }
+
+    /// <summary>The edited cells as flat (start, length) runs over the ascending local indices — the wire form: a
+    /// settlement chunk with thousands of stamped cells packs into a few hundred numbers. Empty when none.</summary>
+    public ushort[] EditedRuns()
+    {
+        if (_edited is null || _editedCount == 0)
+        {
+            return Array.Empty<ushort>();
+        }
+
+        var runs = new List<ushort>();
+        int start = -1;
+        for (int i = 0; i <= WorldConstants.BlocksPerChunk; i++)
+        {
+            bool on = i < WorldConstants.BlocksPerChunk && IsEditedLocal(i);
+            if (on && start < 0)
+            {
+                start = i;
+            }
+            else if (!on && start >= 0)
+            {
+                runs.Add((ushort)start);
+                runs.Add((ushort)(i - start));
+                start = -1;
+            }
+        }
+
+        return runs.ToArray();
+    }
+
+    /// <summary>Marks the cells of (start, length) runs as edited (<see cref="EditedRuns"/>' form). Odd trailing or
+    /// out-of-range entries are ignored, so a malformed payload can only under-mark, never throw.</summary>
+    public void MarkEditedRuns(ushort[]? runs)
+    {
+        if (runs is null)
+        {
+            return;
+        }
+
+        for (int r = 0; r + 1 < runs.Length; r += 2)
+        {
+            int end = Math.Min(runs[r] + runs[r + 1], WorldConstants.BlocksPerChunk);
+            for (int i = runs[r]; i < end; i++)
+            {
+                MarkEditedLocal(i);
+            }
+        }
+    }
 }

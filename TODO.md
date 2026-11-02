@@ -24,6 +24,28 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player reports 2026-11-02 (Lyxette, v2026.11.2) — ground details stay off built ground, out of tunnels, lit at night, switchable — #3118–#3121, branch fix/ground-details-2026-11-02 — ✅ done 2026-11-02 (⚠ playtest open; protocol: additive `ChunkDataMessage.EditRuns`, no save or terrain-generation change)
+
+Six F1 reports in one night, all about the same thing: v2026.11.2 was the first build that drew the T0 ground details
+(#3063 stopped the build from stripping their instancing variants), and he took the flat grey boxes and green crosses for
+"growing plants" on his planting soil, his rock floor, his roof garden, in shallow tunnels, on fresh snow and on an airless
+asteroid. Marcel: options A+B+C+D.
+
+- **#3118** Built ground stays clean: `ChunkData` keeps a sparse set of edited non-air cells; `ServerWorld` marks it from
+  `LoadChunkEdits` and on every persisted `SetBlock`; the chunk stream carries it as `ChunkDataMessage.EditRuns`
+  ((start, length) runs); `ClientWorld` restores it and marks every live block change; the mesher skips the tufts there.
+  Fields, gardens, paved floors, villages and weather snow count as built. `GroundDetailEditsTests`.
+- **#3119** Only under the open sky: the gate was skylight ≥ 0.5, but the mesher's shade floor gives 0.55 up to six blocks
+  under any roof — shallow tunnels and roofed floors grew tufts. Now the cell above must see the sky straight up
+  (`GroundScatterRules.Accepts`).
+- **#3120** The pebbles (untextured boxes, blue at night, orange on the asteroid) are gone; tufts are five tapered blades
+  and carry their cell's skylight and placed block light, shaded with the meadow's `BbtsMeadowShade` — no more black
+  crosses beside a torch at night.
+- **#3121** Settings → Graphics → **Ground details (grass tufts)** (`ClientSettings.GroundDetails`, default on, live), the
+  new key in all 14 locales; USER_MANUAL *Ground details*.
+- Open: playtest on Lyxette's kind of world (field, roof garden, tunnel, snow, night with torches); the High grass carpet and
+  meadow flowers still grow on placed grass (they have their own switches) — decide whether they should follow #3118.
+
 ### 📬 Player reports 2026-11-01 (Justus as Screelit, v2026.10.33) — fence teleport, festival reward + pumpkin search, energy fence, Screelit's metal panel, mission boards + one interact pick, sentry + watcher, robbers, flourishes, tank spider, hunter shuttle, transport crate + storage bag — #3081–#3101, branch feat/reports-2026-11-01 — ✅ done 2026-11-02 in PR #3115 (`37d4477c`), released in v2026.11.2 (⚠ playtest open; save version 10 row updated for `transport_crate` (10 was still unreleased), protocol tags 315–317 additive, additive wire fields, no terrain-generation change)
 
 Twelve F1 reports in one afternoon; "Alte Städte" (old metal cities, Ressaw) is parked on purpose — Marcel wants to clarify

@@ -937,14 +937,14 @@ namespace BlocksBeyondTheStars.Client
                 float accentCode = floraTinted && !dyed && floraTint != null && (tf & TraitAccentFlora) != 0
                     ? AccentCodeAt(wx, wz) : 0f;
 
-                // Ground detail on open-topped planet ground cells: the T0 tufts/pebbles and the #3056 grass carpet.
+                // Ground detail on open-topped planet ground cells: the T0 tufts and the #3056 grass carpet.
                 // Render-only, drawn instanced (ChunkMesher.HighDetails.cs → GroundScatter / GrassShells).
                 // Plain cube tops only: on a grass slab or stair a tuft or the carpet would float above the shape.
                 if (atlas != null && (traits.ScatterOf(id) >= 0 || traits.CarpetOf(id)) && worldBlock(wx, wy + 1, wz).IsAir
                     && ShapeCode.IsCube(chunk.GetShapeLocal(WorldConstants.LocalIndex(x, y, z))))
                 {
-                    AddGroundDetail(data, traits, id, x, y, z, wx, wz, Skylight(wx, wy + 1, wz),
-                        traits.CarpetOf(id) ? BlockLightAt(wx, wy + 1, wz) : Vector3.zero);
+                    AddGroundDetail(data, traits, id, x, y, z, wx, wz, Skylight(wx, wy + 1, wz), BlockLightAt(wx, wy + 1, wz),
+                        chunk.IsEditedLocal(WorldConstants.LocalIndex(x, y, z)));
                 }
 
                 // Natural-block variation: a deterministic WORLD-position hash (stable across remeshes,
@@ -2325,15 +2325,9 @@ namespace BlocksBeyondTheStars.Client
                && !IsCutoutCube(content, nb) // #3085: the fence was see-through before and stays no wall for a ladder
                && content.BlockById(nb)?.Key != "ladder";
 
-        /// <summary>Ground-detail scatter host classification: 0 = grass tuft (soft ground), 1 = pebble (dry/
-        /// rocky ground), -1 = no scatter. Only open-topped ground blocks get decoration; ores, machines,
-        /// fluids, flora and built blocks return -1.</summary>
-        private static int ScatterType(string key) => key switch
-        {
-            "grass" or "dirt" or "mud" => 0,
-            "sand" or "snow" or "stone" or "basalt" => 1,
-            _ => -1,
-        };
+        /// <summary>Ground-detail scatter host classification (<see cref="GroundScatterRules.TypeOf"/>): 0 = grass tuft on
+        /// soft ground, -1 = no scatter. #3120: the pebbles on sand, snow, stone and basalt are gone.</summary>
+        private static int ScatterType(string key) => GroundScatterRules.TypeOf(key);
 
         /// <summary>Maps a solid-flora block to a fitting <see cref="BlockShape"/> index (T3): columns → cylinder,
         /// crystalline/ember blooms → cone, capped fungi → dome, bulbous forms → sphere. Reuses the tested
@@ -3410,7 +3404,7 @@ namespace BlocksBeyondTheStars.Client
 
                 Verts.Clear(); OpaqueTris.Clear(); TransparentTris.Clear(); PaintTris.Clear(); ColliderTris.Clear(); ColliderVerts.Clear();
                 Colors.Clear(); Uvs.Clear(); SkyUv.Clear(); LeafUv.Clear();
-                BlockLight.Clear(); BlockLightDir.Clear(); Tangents.Clear(); Normals.Clear(); Scatter.Clear(); GrassTops.Clear(); GrassLight.Clear(); ReliefRuns.Clear();
+                BlockLight.Clear(); BlockLightDir.Clear(); Tangents.Clear(); Normals.Clear(); Scatter.Clear(); ScatterLight.Clear(); GrassTops.Clear(); GrassLight.Clear(); ReliefRuns.Clear();
                 PackedCount = 0; // the array itself stays — it is the buffer the next build packs into
                 ColliderHash = 0;
                 Connectivity = BlocksBeyondTheStars.Client.ChunkVisibility.AllConnected;

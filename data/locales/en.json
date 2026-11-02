@@ -2905,6 +2905,7 @@
   "ui.settings.lens_flare": "Lens flare",
   "ui.settings.motion_blur": "Motion blur (flight)",
   "ui.settings.distance_haze": "Distance haze & sun rays",
+  "ui.settings.ground_details": "Ground details (grass tufts)",
   "ui.settings.atmosphere": "Atmosphere effects",
   "ui.settings.atmosphere.off": "Off",
   "ui.settings.atmosphere.some": "Some",

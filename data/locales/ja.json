@@ -2905,6 +2905,7 @@
   "ui.settings.lens_flare": "レンズフレア",
   "ui.settings.motion_blur": "モーションブラー（飛行時）",
   "ui.settings.distance_haze": "遠景のもや / 太陽光線",
+  "ui.settings.ground_details": "地面の詳細（草の茂み）",
   "ui.settings.atmosphere": "大気エフェクト",
   "ui.settings.atmosphere.off": "オフ",
   "ui.settings.atmosphere.some": "一部",

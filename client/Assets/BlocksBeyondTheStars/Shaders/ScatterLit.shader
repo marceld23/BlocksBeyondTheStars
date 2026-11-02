@@ -1,9 +1,10 @@
-// GPU-instanced lit shader for the ground-detail scatter layer (T0: grass tufts + pebbles strewn on open
-// ground). Albedo comes from the mesh vertex colour (tufts baked green, pebbles grey); lighting reuses the
-// same sun globals as the block atlas (_Sc_Light colour, _Sc_SunDir), so scatter reads under the same sun as
-// the terrain. Cheap N·L diffuse + an ambient floor, no normal maps (it's tiny throwaway detail). #3063: the sun term
-// receives the real-time shadow map (the block shader's formula: shadow-distance fade, cloud shade), so tufts darken in
-// the shade of trees and cliffs; a DepthOnly pass puts them into the depth prepass. They still cast no shadows.
+// GPU-instanced lit shader for the ground-detail scatter layer (T0: grass tufts strewn on natural open ground; the
+// pebbles are gone, #3120). Albedo comes from the mesh vertex colour (the blades, darker at the root) re-tinted with the
+// world's grass colour. #3120: a tuft is lit like the ground it stands on — the meadow's light (MeadowLight.hlsl, the
+// block shader's upward-face light: skylight ambient, the cool night floor, the sun with its real-time shadow and cloud
+// shade, placed block light, the headlamp, the shared haze), fed per instance with the skylight and the placed block
+// light of its cell (_ScatterLight). It used to take the sun colour only, so at night a tuft went black right beside a
+// torch-lit block. #3063: a DepthOnly pass puts the tufts into the depth prepass; they still cast no shadows.
 //
 // DUAL-PIPELINE like BlockAtlas: SubShader 1 = URP (HLSL), SubShader 2 = Built-in (CG). Both declare GPU
 // instancing so Graphics.DrawMeshInstanced replicates the mesh across per-chunk instance matrices in one call.
@@ -15,7 +16,7 @@ Shader "BlocksBeyondTheStars/ScatterLit"
     SubShader
     {
         Tags { "RenderType" = "Opaque" "Queue" = "Geometry" "RenderPipeline" = "UniversalPipeline" }
-        Cull Off // tiny two-sided quads (grass) read from both sides
+        Cull Off // thin two-sided blades read from both sides
         ZWrite On
 
         Pass
@@ -31,14 +32,18 @@ Shader "BlocksBeyondTheStars/ScatterLit"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             #include "AtmosphereCommon.hlsl" // atmosphere package (#2408): the shared haze (#2393) + cloud shadows (#2394)
+            #include "MeadowLight.hlsl"      // #3120: the ground's light (declares the sun + headlamp globals)
 
-            float4 _Sc_Light;
-            float4 _Sc_SunDir;
             float4 _Sc_GrassTint; // #2835: the world's grass-tuft colour (a > 0.5 = set); GameBootstrap.RebuildFloraTints
             float4 _Sc_Season;    // #3042: x = autumn, y = winter (Sky.cs, per frame; FloraAccent.hlsl turns the plants the same way)
 
+            // #3120: per tuft — rgb = the placed block light of its cell (display-ready, 0 = none), a = its skylight.
+            UNITY_INSTANCING_BUFFER_START(BbtsScatterProps)
+                UNITY_DEFINE_INSTANCED_PROP(float4, _ScatterLight)
+            UNITY_INSTANCING_BUFFER_END(BbtsScatterProps)
+
             // #2835: a tuft (vertex alpha 1) takes the world's grass colour like the flora shader re-tints a plant —
-            // luminance x tint, 85 % — so the ground tufts match the grass billboards; pebbles (alpha 0) keep theirs.
+            // luminance x tint, 85 % — so the ground tufts match the grass billboards.
             float3 ScatterBase(float4 c)
             {
                 if (c.a < 0.5 || _Sc_GrassTint.a < 0.5)
@@ -73,8 +78,9 @@ Shader "BlocksBeyondTheStars/ScatterLit"
             {
                 float4 positionCS : SV_POSITION;
                 half4 color : COLOR;
-                float3 wn : TEXCOORD0;
-                float3 wp : TEXCOORD1;
+                float3 wp : TEXCOORD0;
+                float4 light : TEXCOORD1; // rgb block light, a skylight (per tuft)
+                float tip : TEXCOORD2;    // 0 at the root .. 1 at a blade's tip (how much sun shines through)
             };
 
             Varyings vert(Attributes v)
@@ -85,25 +91,16 @@ Shader "BlocksBeyondTheStars/ScatterLit"
                 // #2397: tufts sway like the plants (rooted at the base, free at the top).
                 wp += BbtsWindSway(wp, false, true, saturate(v.positionOS.y / 0.4));
                 o.positionCS = TransformWorldToHClip(wp);
-                o.wn = TransformObjectToWorldNormal(v.normal);
                 o.color = v.color;
                 o.wp = wp;
+                o.light = UNITY_ACCESS_INSTANCED_PROP(BbtsScatterProps, _ScatterLight);
+                o.tip = saturate(v.positionOS.y / 0.34);
                 return o;
             }
 
             half4 frag(Varyings i) : SV_Target
             {
-                float3 light = (_Sc_Light.a < 0.5) ? float3(1, 1, 1) : _Sc_Light.rgb;
-                float3 N = normalize(i.wn);
-                float ndl = saturate(dot(N, normalize(_Sc_SunDir.xyz)));
-                // #3063: the block shader's shadow term — the shadow map blended toward lit by the shadow-distance fade,
-                // times the cloud shade; skipped where the sun cannot reach anyway.
-                float shadow = (ndl > 0.0)
-                    ? lerp(MainLightRealtimeShadow(TransformWorldToShadowCoord(i.wp)), 1.0, GetMainLightShadowFade(i.wp))
-                      * BbtsCloudShade(i.wp)
-                    : 0.0;
-                float3 col = ScatterBase(i.color) * light * (0.45 + 0.55 * ndl * shadow);
-                col = BbtsApplyHaze(col, i.wp, 1.0); // scatter sits on open ground
+                float3 col = BbtsMeadowShade(ScatterBase(i.color), i.wp, i.light.a, i.light.rgb, 0.6 * i.tip);
                 return half4(col, 1);
             }
             ENDHLSL
@@ -176,6 +173,11 @@ Shader "BlocksBeyondTheStars/ScatterLit"
             float4 _Sc_GrassTint; // #2835: see the URP pass
             float4 _Sc_Season;    // #3042: see the URP pass
 
+            // #3120: see the URP pass — rgb block light, a skylight.
+            UNITY_INSTANCING_BUFFER_START(BbtsScatterProps)
+                UNITY_DEFINE_INSTANCED_PROP(float4, _ScatterLight)
+            UNITY_INSTANCING_BUFFER_END(BbtsScatterProps)
+
             float3 ScatterBase(float4 c)
             {
                 if (c.a < 0.5 || _Sc_GrassTint.a < 0.5)
@@ -210,7 +212,7 @@ Shader "BlocksBeyondTheStars/ScatterLit"
             {
                 float4 pos : SV_POSITION;
                 fixed4 color : COLOR;
-                float3 wn : TEXCOORD0;
+                float4 light : TEXCOORD0;
                 UNITY_FOG_COORDS(1)
             };
 
@@ -219,18 +221,21 @@ Shader "BlocksBeyondTheStars/ScatterLit"
                 v2f o;
                 UNITY_SETUP_INSTANCE_ID(v);
                 o.pos = UnityObjectToClipPos(v.vertex);
-                o.wn = UnityObjectToWorldNormal(v.normal);
                 o.color = v.color;
+                o.light = UNITY_ACCESS_INSTANCED_PROP(BbtsScatterProps, _ScatterLight);
                 UNITY_TRANSFER_FOG(o, o.pos);
                 return o;
             }
 
             fixed4 frag(v2f i) : SV_Target
             {
+                // The meadow light without shadows: skylight ambient + the sun on an upward face + placed block light.
                 fixed3 light = (_Sc_Light.a < 0.5) ? fixed3(1, 1, 1) : _Sc_Light.rgb;
-                float3 N = normalize(i.wn);
-                float ndl = saturate(dot(N, normalize(_Sc_SunDir.xyz)));
-                fixed4 outc = fixed4(ScatterBase(i.color) * light * (0.45 + 0.55 * ndl), 1);
+                float sky = saturate(i.light.a);
+                float ndl = saturate(normalize(_Sc_SunDir.xyz).y);
+                float3 albedo = ScatterBase(i.color);
+                float3 col = albedo * (light * (lerp(0.32, 0.78, sky) + 0.5 * ndl * saturate(sky * 2.0)) + 0.05) + albedo * i.light.rgb;
+                fixed4 outc = fixed4(col, 1);
                 UNITY_APPLY_FOG(i.fogCoord, outc);
                 return outc;
             }

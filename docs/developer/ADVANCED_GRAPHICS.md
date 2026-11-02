@@ -29,8 +29,9 @@ renders in **linear colour space**, and the hand-written shaders are all dual-pi
   opaque texture at a wave-distorted screen UV so the surface refracts what's beneath.
 - **Linear colour space** (2026-06-12, see `PROFESSIONAL_LOOK_IMPLEMENTATION.md`).
 - **Organic look pass** (2026-07-01, PR #192): per-vertex ambient occlusion + texture-scale cavity AO +
-  beveled convex edges (chunk mesher + `BlockAtlas`); **GPU-instanced ground-detail scatter** (grass tufts +
-  pebbles on open ground, distance-culled, preset-gated); **3D mesh flora** (leafy flora as leaning 3-plane
+  beveled convex edges (chunk mesher + `BlockAtlas`); **GPU-instanced ground-detail scatter** (grass tufts on
+  open ground, distance-culled, preset-gated; the pebbles were dropped in #3120 — see the ground-detail rules below);
+  **3D mesh flora** (leafy flora as leaning 3-plane
   rosettes, solid flora like cactus/crystal/mushroom as real shapes); sparse **ship-hull greeble** plating on
   exposed hull faces. All client presentation only — server data unchanged.
 - **Atmosphere package** (2026-10, #2408, Unity 6.6 + WebGPU first — ADR 0015): one shared haze for every
@@ -150,8 +151,19 @@ renders in **linear colour space**, and the hand-written shaders are all dual-pi
     so with *Instancing Variants: Strip Unused* the build dropped their `INSTANCING_ON` variants and
     `Graphics.DrawMeshInstanced` drew nothing — the T0 tufts and pebbles had been invisible in player builds, and the
     first carpet capture showed 1661 instances and no blade. `GraphicsSettings.asset` keeps them now
-    (`m_InstancingStripping: 2`, pinned by `RuntimeShaderInclusionTests`). The T0 scatter stays out of caves (skylight
-    ≥ 0.5): `ScatterLit` lights like an open-sky face, and cave pebbles glowed.
+    (`m_InstancingStripping: 2`, pinned by `RuntimeShaderInclusionTests`).
+  - *T0 ground-detail rules* (#3118–#3121, after a tester's six reports on v2026.11.2, the first build that drew the
+    layer): `GroundScatterRules` (Client.Core) — tufts only on `grass`/`dirt`/`mud` (the pebbles on sand, snow, stone
+    and basalt read as untextured boxes and are gone), only where the cell above sees the sky straight up (mesher
+    skylight exactly 1; the 0.55 shade floor reached six blocks under any roof, so shallow tunnels grew them), and never
+    on a **built cell**. Built = a non-air cell with a stored delta (player build, settlement stamp, weather snow):
+    `ChunkData` keeps a sparse edited set, `ServerWorld` marks it from `LoadChunkEdits` and on every persisted
+    `SetBlock`, the chunk stream carries it as `ChunkDataMessage.EditRuns` ((start, length) runs over the local indices,
+    additive), `ClientWorld` restores it and marks every live `BlockChanged`. Each tuft carries its cell's skylight and
+    placed block light (`ChunkMeshData.ScatterLight` → per-instance `_ScatterLight`) and `ScatterLit` shades it with the
+    meadow's `BbtsMeadowShade` (night floor, torches, headlamp), so it no longer goes black beside a lit block at night.
+    The tuft mesh is five tapered blades. *Settings → Graphics → Ground details* (`ClientSettings.GroundDetails`) drives
+    `GroundScatter.Enabled`.
   - *Room reflections* (#3057): `RoomBounds` (Client.Core) flood-fills the open cells from the camera (≤ 4096 cells,
     ≤ 40 per axis, a parked ship's hull counts as wall) — a closed cabin or base room yields its box, an open door
     yields nothing. `RoomReflections` renders the room with a realtime `ReflectionProbe` (128² HDR, a face per frame,

@@ -514,7 +514,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            World.StoreChunk(coord, blocks, m.ModIndex, m.ModTint, m.ModGlow, m.ShapeIndex, m.ShapeData);
+            World.StoreChunk(coord, blocks, m.ModIndex, m.ModTint, m.ModGlow, m.ShapeIndex, m.ShapeData, m.EditRuns);
             var canonical = WorldConstants.CanonicalChunk(coord, Circumference);
             RetireChunkArray(canonical); // a re-sent chunk replaces its array; the old one goes back after the grace period
             _chunkArrays[canonical] = blocks;
@@ -847,6 +847,11 @@ namespace BlocksBeyondTheStars.Client
                 {
                     copy.SetShapeLocal(kv.Key, kv.Value);
                 }
+            }
+
+            if (src.HasEdits)
+            {
+                copy.CopyEditsFrom(src); // #3118: the mesher keeps the ground details off built cells
             }
 
             return copy;

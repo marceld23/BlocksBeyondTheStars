@@ -193,7 +193,7 @@ namespace BlocksBeyondTheStars.Client
         // north — is the same chunk), and block lookups canonicalize X AND Z so an unbounded player
         // coordinate still resolves after laps in any direction.
         public void StoreChunk(ChunkCoord coord, ushort[] blocks, int[]? modIndex = null, int[]? modTint = null, int[]? modGlow = null,
-            int[]? shapeIndex = null, int[]? shapeData = null)
+            int[]? shapeIndex = null, int[]? shapeData = null, ushort[]? editRuns = null)
         {
             coord = WorldConstants.CanonicalChunk(coord, _circumference);
             var chunk = ChunkData.FromRaw(coord, blocks);
@@ -218,6 +218,8 @@ namespace BlocksBeyondTheStars.Client
                     chunk.SetShapeLocal(shapeIndex[i], s);
                 }
             }
+
+            chunk.MarkEditedRuns(editRuns); // #3118: the built cells — the ground details stay off them
 
             _chunks[coord] = chunk;
             ScanChunkLightSources(coord, chunk);
@@ -314,6 +316,7 @@ namespace BlocksBeyondTheStars.Client
             chunk.Set(local.X, local.Y, local.Z, new BlockId(block)); // clears any old modifier/shape when set to air
             chunk.SetModifier(local.X, local.Y, local.Z, tint, glow);
             chunk.SetShape(local.X, local.Y, local.Z, shape);
+            chunk.MarkEditedLocal(WorldConstants.LocalIndex(local.X, local.Y, local.Z)); // #3118: every server change is a delta (air stays unmarked)
 
             int rgb = CellLight(block, pos, tint, glow);
             IndexLightSource(affected, pos, rgb != 0 && CastsLight(rgb, pos) ? rgb : 0);

@@ -2905,6 +2905,7 @@
   "ui.settings.lens_flare": "렌즈 플레어",
   "ui.settings.motion_blur": "모션 블러 (비행)",
   "ui.settings.distance_haze": "원거리 안개 / 햇살",
+  "ui.settings.ground_details": "지면 세부 (잔디 뭉치)",
   "ui.settings.atmosphere": "대기 효과",
   "ui.settings.atmosphere.off": "끔",
   "ui.settings.atmosphere.some": "일부",
