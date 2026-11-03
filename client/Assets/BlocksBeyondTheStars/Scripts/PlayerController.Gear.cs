@@ -120,11 +120,13 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Feeds the suit headlamp / flashlight (toggle L) into the world shaders as globals — the
         /// block + lit shaders run their own lighting, so the lamp is a shader spotlight cast from the
-        /// camera, not a Unity Light. Requires the <c>suit_lamp</c> equipment to be carried.</summary>
+        /// camera, not a Unity Light. Requires the <c>suit_lamp</c> equipment to be carried. #3154: dark while a cinematic
+        /// owns the camera (the lift-off shot lit the ship from its own camera) — not switched off: it shines again after.</summary>
         private void UpdateLamp()
         {
             bool on = _lampOn && Camera != null && HasItem("suit_lamp");
-            if (on)
+            bool lit = on && !(Game != null && Game.CinematicCameraActive);
+            if (lit)
             {
                 var t = Camera.transform;
                 Vector3 p = t.position, f = t.forward;
@@ -140,7 +142,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (_lampCone != null)
             {
-                _lampCone.SetActive(on);
+                _lampCone.SetActive(lit);
             }
 
             // Tell the server about every effective change (toggle, forced-off in space, lamp dropped) so

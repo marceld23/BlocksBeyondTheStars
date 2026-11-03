@@ -945,6 +945,7 @@ namespace BlocksBeyondTheStars.Client
         private void HideTargetHud()
         {
             _lockFrame?.Hide();
+            _scanFrame?.Hide(); // #3153: drawn only while the scanner runs in cruise — it stood frozen through the landing
             _lockArrow?.Hide();
             _wpArrow?.Hide();
             for (int i = 0; i < _threatTicks.Length; i++)

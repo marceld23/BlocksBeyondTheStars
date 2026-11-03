@@ -318,8 +318,10 @@ namespace BlocksBeyondTheStars.Client
                 float alpha;
                 if (_phase == Phase.Landing)
                 {
-                    // Hold the view clear while the ship streaks away, then fade to black over the last stretch.
-                    alpha = Mathf.Clamp01((t - 0.55f) / 0.45f);
+                    // The descent's own cover (clouds or glare, #3140) is the seam. This old fade still timed the 2.2 s
+                    // fly-away and went black from 1.2 s into the 3.9 s dive — before the planet filled the view. Only
+                    // without a transition director does it fade the dive's last stretch.
+                    alpha = Transitions != null ? 0f : Mathf.Clamp01((Mathf.Clamp01(_seq / DescentSeconds) - 0.55f) / 0.45f);
                 }
                 else if (_phase == Phase.Boarding && _boardPath.Count >= 2)
                 {
@@ -342,15 +344,10 @@ namespace BlocksBeyondTheStars.Client
             }
             else if (_confirmLand)
             {
-                // Landing-pad chooser (item 38): the planet map of pads is its own clickable overlay (ShowLandMap);
-                // here just clear the fade and show a one-line hint while the pad list streams in.
+                // Landing-pad chooser (item 38): the planet map of pads is its own clickable overlay (ShowLandMap), and
+                // while the list streams in its loading panel says so (#3151) — the flight hint stays out of the way.
                 _fade.color = new Color(0f, 0f, 0f, 0f);
-                var loc = Game.Localizer;
-                var pads = Game.LandingPadsBody == _choosePadBody ? Game.LandingPads : null;
-                _hint.text = pads == null
-                    ? (loc != null ? loc.Get("ui.space.pad_loading") : "Reading landing pads…")
-                    : string.Empty; // the map shows the choices
-                _hint.gameObject.SetActive(pads == null);
+                _hint.gameObject.SetActive(false);
                 _board.gameObject.SetActive(false);
                 _cargo.gameObject.SetActive(false);
             }

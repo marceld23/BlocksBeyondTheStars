@@ -226,7 +226,14 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 var pads = Game.LandingPadsBody == _choosePadBody ? Game.LandingPads : null;
-                if (pads == null && Time.time - _padRequestAt > 5f)
+                if (pads == null)
+                {
+                    ShowPadLoading(); // #3151: the chooser is there at once, with a spinner, while the list comes
+                }
+
+                // #3151: a first approach makes the server search the body's pads first — ~10 s on a slow laptop (#3068),
+                // which the old 5 s + 5 s gave up on. With the panel saying what happens, it waits up to 30 s in all.
+                if (pads == null && Time.time - _padRequestAt > (_padRequestRetried ? 22f : 8f))
                 {
                     // No reply — one silent re-request, then give control back instead of freezing
                     // the flight on "Reading landing pads…" forever (#956).

@@ -460,6 +460,7 @@ namespace BlocksBeyondTheStars.Client
                 // the client's ONLY payload, and the server drops sessions silent for 90 s (#964) — browsing
                 // the crafting menu or painting an avatar must not read as a dead client (#1008).
                 SendMovement();
+                UpdateLamp(); // #3154: a cinematic taking the camera darkens the lamp (it would light the shot from the lens)
                 return;
             }
 

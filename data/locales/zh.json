@@ -3171,6 +3171,7 @@
   "ui.space.sys_tractor": "牵引",
   "ui.space.pad_choose": "选择着陆平台",
   "ui.space.pad_loading": "读取着陆平台…",
+  "ui.space.pad_loading_hint": "首次接近一个星球时，会先搜索着陆平台——这可能需要几秒钟。",
   "ui.space.pad_timeout": "未从服务器收到着陆数据——请重试。",
   "ui.space.pad_full": "— 所有着陆平台已被占用",
   "ui.space.pad_yours": "你的停机位",

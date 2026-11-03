@@ -184,6 +184,7 @@ namespace BlocksBeyondTheStars.Client
             _confirmLand = false;
             _choosePadBody = null;
             HideLandMap();
+            BeginEarlyDescent(); // #3152: the descent starts now, while the server builds the destination
         }
     }
 }

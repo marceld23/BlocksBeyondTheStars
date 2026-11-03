@@ -3171,6 +3171,7 @@
   "ui.space.sys_tractor": "Trattore",
   "ui.space.pad_choose": "Scegli una piazzola di atterraggio",
   "ui.space.pad_loading": "Lettura piazzole di atterraggio…",
+  "ui.space.pad_loading_hint": "Al primo avvicinamento a un mondo si cercano prima le sue piazzole di atterraggio — può richiedere qualche secondo.",
   "ui.space.pad_timeout": "Nessun dato di atterraggio dal server - riprova.",
   "ui.space.pad_full": "— TUTTE LE PIAZZOLE OCCUPATE",
   "ui.space.pad_yours": "la tua piazzola",

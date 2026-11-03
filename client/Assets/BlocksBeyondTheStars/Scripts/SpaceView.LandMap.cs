@@ -17,6 +17,37 @@ namespace BlocksBeyondTheStars.Client
     public sealed partial class SpaceView
     {
         private LandMapWeather _landWeather; // #2176: the weather layer of the open pad chooser
+        private GameObject _padLoadingGo;    // #3151: the chooser's panel while the pad list is on its way
+
+        /// <summary>#3151: the chooser opens AT ONCE — its panel with the body's name, a spinner and what is happening — until
+        /// the pad list is there and the map replaces it. A first approach to a world makes the server search its pads first
+        /// (seconds on a slow machine); the old one-line flight hint was easy to miss, so it looked as if E did nothing.</summary>
+        private void ShowPadLoading()
+        {
+            if (_padLoadingGo != null || _landMapGo != null)
+            {
+                return;
+            }
+
+            EnsureUi();
+            Game.SetCursorOwner(this, true); // the Cancel button wants the cursor, as the map does
+            const float pw = 560f, ph = 200f;
+            float px = (UiKit.HudRefW - pw) * 0.5f, py = (UiKit.HudRefH - ph) * 0.5f;
+            var panel = UiKit.AddPanel(_ui.transform, px, py, pw, ph, new Color(0.03f, 0.07f, 0.13f, 0.97f));
+            panel.raycastTarget = true;
+            _padLoadingGo = panel.gameObject;
+            string bodyName = string.IsNullOrEmpty(_landTargetName) ? string.Empty : $" — {_landTargetName}";
+            UiKit.AddText(panel.transform, 20, 16, pw - 40, 30, Loc("ui.space.pad_choose", "Choose a landing pad") + bodyName, 20,
+                UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddSpinner(panel.transform, 36, 66, 40);
+            UiKit.AddText(panel.transform, 92, 62, pw - 112, 24, Loc("ui.space.pad_loading", "Reading landing pads…"), 17,
+                UiKit.TextCol, TextAnchor.MiddleLeft);
+            UiKit.AddText(panel.transform, 92, 88, pw - 112, 44, Loc("ui.space.pad_loading_hint",
+                "On your first approach to a world its landing pads are searched first — that can take a few seconds."), 13,
+                UiKit.CyanDim, TextAnchor.UpperLeft);
+            UiKit.AddButton(panel.transform, (pw - 220) * 0.5f, ph - 56, 220, 40, Loc("ui.action.close", "Cancel (Esc)"), CancelLandChooser);
+            UiNav.Enable(_padLoadingGo); // pad: the Cancel button takes the focus, as the map's buttons do (#1043)
+        }
 
         /// <summary>Opens the landing-pad chooser for a body (item 38): asks the server for its pads + occupancy
         /// and shows the keyboard chooser. An empty body id means the current body (land back where you launched).</summary>
@@ -48,14 +79,15 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Touches down on the chosen pad and tears the chooser down.</summary>
         private void LandOnPad(int padIndex)
         {
-            // Remember the chosen destination before clearing _choosePadBody: the descent animation
-            // (BeginDescent) only fires a frame later, once the server confirms we left space, and
-            // would otherwise read a nulled _choosePadBody → "" → fly back to the home/launch body instead.
+            // Remember the chosen destination before clearing _choosePadBody: the descent (BeginDescent) reads it — at
+            // once since #3152, and again if the flight closes without the early start — and would otherwise read a
+            // nulled _choosePadBody → "" → fly back to the home/launch body instead.
             _landDestBody = _choosePadBody;
             Game.Network?.SendLeaveSpace(_choosePadBody, padIndex);
             _confirmLand = false;
             _choosePadBody = null;
             HideLandMap();
+            BeginEarlyDescent(); // #3152: the descent starts now, while the server builds the destination
         }
 
         /// <summary>Builds (once per body) the planet map shown before landing: a top-down plan of the body's
@@ -492,6 +524,12 @@ namespace BlocksBeyondTheStars.Client
             {
                 Destroy(_landMapGo);
                 _landMapGo = null;
+            }
+
+            if (_padLoadingGo != null)
+            {
+                Destroy(_padLoadingGo); // #3151: the list is in (the map takes over) or the chooser closed
+                _padLoadingGo = null;
             }
 
             _basePadListGo = null; // #3070: went with the chooser panel

@@ -166,6 +166,14 @@ namespace BlocksBeyondTheStars.Client
             var tint = airless ? new Color(1f, 0.93f, 0.82f) : cloud;
             Cover.Close(_arrivalStyle, tint, sky, 1f, name, sub, seconds);
             BeginArrival(TransitionArrival.Landing);
+            if (Game != null && Game.InSpace)
+            {
+                // #3152: a descent started on the pad pick reaches the clouds before the server closed the flight — every
+                // signal still to come arrives live (the handlers note it), and the counters still hold the PREVIOUS
+                // close: counting them would open the cover on the old spot.
+                return;
+            }
+
             if (_worldLoadAt > _flightClosedAt)
             {
                 _gate.NoteWorldLoad(); // came in with the flight's close, before the descent began

@@ -3171,6 +3171,7 @@
   "ui.space.sys_tractor": "Trekkracht",
   "ui.space.pad_choose": "Kies een landingsplatform",
   "ui.space.pad_loading": "Landingsplaatsen lezen…",
+  "ui.space.pad_loading_hint": "Bij je eerste nadering van een wereld worden eerst de landingsplatforms doorzocht — dat kan een paar seconden duren.",
   "ui.space.pad_timeout": "Geen landingsgegevens van de server - probeer het opnieuw.",
   "ui.space.pad_full": "— ALLE LANDINGSPLATFORMEN BEZET",
   "ui.space.pad_yours": "jouw platform",
