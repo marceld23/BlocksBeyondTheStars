@@ -677,6 +677,13 @@ public interface IWorldRepository : IDisposable
     /// question needs its own bounded query.</summary>
     bool HasPlayerBlockEdits(string planet, Vector3i min, Vector3i max);
 
+    /// <summary>#3146: true if any edit inside the inclusive box carries a player <see cref="BlockEdit.Owner"/> AND leaves a
+    /// block standing that is not one of <paramref name="passable"/> — something a player BUILT there (a mined cell is air
+    /// and never counts, nor does an open prop the caller lists as passable). The landing pads ask it so a hull is never
+    /// stamped into a building, also on a body whose world is not loaded. Coordinates are canonical — a box that straddles
+    /// the longitude seam must be asked as two boxes.</summary>
+    bool HasPlayerBuiltBlocks(string planet, Vector3i min, Vector3i max, IReadOnlyCollection<ushort> passable);
+
     /// <summary>The axis-aligned bounds (inclusive) of every block edit inside the box that carries a player
     /// <see cref="BlockEdit.Owner"/> — the footprint of what players built, dug or dyed there. False when there is
     /// none. One aggregate query, so a base can size its enclosure fill by what its players actually built (#1862)

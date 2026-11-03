@@ -183,6 +183,15 @@ chooser read the same ones); the server side is `GameServerBasePads.cs`.
   without a choice) takes the player's own free active base pad there first (`OwnFreeBasePad`, fixed order by cell).
 - **Traders (#3073).** `MarketBasePadFor` gives an arriving merchant a free **Everyone** pad of a Market base (owners present
   first, as in `NearestFreeDryPad`); `NpcLandedTrader.BasePad` holds it and the materialiser stands the hull on it.
+- **Built over (#3146).** The no-build rule excepts admins — every singleplayer host is one — so a pad's square can be
+  built in after all. `GameServerPadClearance.cs` asks the block-edit store (`HasPlayerBuiltBlocks`: an owned edit that
+  leaves a block a hull cannot stand in — solid or fluid; open props are listed as passable) over the landing volume
+  (ground + 1 … + 16, both seams split), so the answer is the same for an unloaded body. A built-over pad is skipped by
+  the traders (`NearestFreeDryPad`, `MarketBasePadFor`, re-checked at touchdown like #1678's hull overlap), by the
+  player's automatic pick (`PreferredFreePadIndex`, `OwnFreeBasePad`) and refused on a hand pick
+  (`@srv.land.pad_built_over`); the lists carry `NetLandingPad.BuiltOver` (+ `Occupied` for older clients). The pad the
+  player already holds is never closed to them, and nothing moves a parked ship. An admin placing such a block in a
+  landing volume is told once per pad and session (#3147, `PlayerSession.PadBuildHints`).
 - **Client.** `Client.Core/BasePadView` groups a list's base pads by base (the land map shows one marker per base at its
   core — four pads within 48 blocks are one pixel there — and a list on click) and finds a pad by cell; `BasePadUi` is the
   E dialog, `BasePadPreview` the green/red square while the pad is held, `WorldMap.BasePads` the world-map markers.

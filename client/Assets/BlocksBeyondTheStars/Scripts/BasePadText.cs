@@ -65,7 +65,8 @@ namespace BlocksBeyondTheStars.Client
         public static string BaseName(string name, System.Func<string, string> loc)
             => string.IsNullOrEmpty(name) ? loc("ui.base.default") : name;
 
-        /// <summary>The pad's state for this player: your ship is parked here, locked for you, someone's ship, or free.</summary>
+        /// <summary>The pad's state for this player: your ship is parked here, locked for you, built over (#3146), someone's
+        /// ship, or free.</summary>
         public static string State(NetLandingPad pad, System.Func<string, string> loc)
         {
             if (pad.Mine)
@@ -76,6 +77,11 @@ namespace BlocksBeyondTheStars.Client
             if (pad.Locked)
             {
                 return loc("ui.basepad.state_locked");
+            }
+
+            if (pad.BuiltOver)
+            {
+                return loc("ui.space.pad_built_over");
             }
 
             if (pad.Occupied)

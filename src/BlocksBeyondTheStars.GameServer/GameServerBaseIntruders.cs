@@ -20,7 +20,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <item>Never an animal a player is busy with: provoked, hunting, begging or called by a caller block, held in stasis,
 /// or the target of anyone's taming session (a wild animal lured home to be tamed).</item>
 /// <item>Only land animals are swept. Amphibians answer to the floor rule alone, and only while they stand on a solid
-/// block; water, lava, air and cave life is never swept (a fish in a deep moat reads as walled in).</item>
+/// block; water, lava and cave life is never swept (a fish in a deep moat reads as walled in). Air life only over the
+/// closed yards of a base that uses energy fences (#3148), whose fence holds fliers too.</item>
 /// <item>"Looking" is generous on purpose: within the player's streaming radius, inside a wide cone around the look
 /// direction (pitch ignored) and with a clear sightline — glass, shaped blocks, plants and fluids do not hide it.
 /// An animal within a few blocks always counts as seen.</item>
@@ -118,11 +119,18 @@ public sealed partial class GameServer
         }
 
         // Land animals answer to all three rules. An amphibian only to the floor rule, and only while it stands on a
-        // solid block (OnPlayerBuiltFloor never counts water). Water, lava, air and cave life is never swept: a fish in a
+        // solid block (OnPlayerBuiltFloor never counts water). Water, lava and cave life is never swept: a fish in a
         // deep moat reads as "walled in" (the fill treats deep fluid as a wall), and a moat is exactly where it belongs.
         if (sp.Habitat == CreatureHabitat.Amphibian)
         {
             return OnPlayerBuiltFloor(c.Position);
+        }
+
+        // #3148: a flier over the closed yard of a base that uses energy fences — penned in when the ring closed, or one that
+        // slipped in — flies off: the fence guards the air above it, so it would stay there for good.
+        if (sp.Habitat == CreatureHabitat.Air)
+        {
+            return InFencedBaseYard(c.Position);
         }
 
         if (sp.Habitat != CreatureHabitat.Land)

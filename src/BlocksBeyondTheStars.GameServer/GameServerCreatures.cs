@@ -713,6 +713,13 @@ public sealed partial class GameServer
             return false;
         }
 
+        // #3148: …except over the yards of a base that uses energy fences — its fence guards the air above it, so a flier
+        // born inside would be penned in for good.
+        if (sp.Habitat == CreatureHabitat.Air && InFencedBaseYard(pos))
+        {
+            return false;
+        }
+
         // #2753: nor inside another animal's body — a herd member two blocks from the leader, a neighbouring herd, a summon.
         return !CrowdedByCreatures(sp, pos);
     }
@@ -1484,7 +1491,9 @@ public sealed partial class GameServer
     private bool StepBlocked(CombatEntity c, CreatureSpecies sp, MotionClass motion, Vector3f cur, Vector3f cand,
         bool needsRise, bool terrainGates, int? nextFeet = null)
     {
-        if (EntityBlockedByShip(cand, CreatureShipMargin(sp)) || BlockedByEnergyFence(cur, cand))
+        // #3148: an animal in the air is also held by a fence standing below its path.
+        bool airborne = motion == MotionClass.Hoverer || (motion == MotionClass.Flier && c.Vert.Flight != FlightPhase.Perched);
+        if (EntityBlockedByShip(cand, CreatureShipMargin(sp)) || BlockedByEnergyFence(cur, cand, airborne))
         {
             return true; // body-aware hull guard for large species (#1320)
         }

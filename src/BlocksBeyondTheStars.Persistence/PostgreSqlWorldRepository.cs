@@ -525,6 +525,30 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         }
     }
 
+    public bool HasPlayerBuiltBlocks(string planet, Vector3i min, Vector3i max, IReadOnlyCollection<ushort> passable)
+    {
+        // Server-built integer ids (never player text) are inlined, as in ListBlockEditsMatching.
+        string except = passable.Count == 0
+            ? "-1"
+            : string.Join(",", passable.Select(b => ((int)b).ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT 1 FROM block_edit WHERE planet = @p AND owner_id <> 0 AND block <> 0 " +
+                              $"AND block NOT IN ({except}) " +
+                              "AND x BETWEEN @minx AND @maxx AND y BETWEEN @miny AND @maxy AND z BETWEEN @minz AND @maxz " +
+                              "LIMIT 1;";
+            cmd.Parameters.AddWithValue("@p", planet);
+            cmd.Parameters.AddWithValue("@minx", min.X);
+            cmd.Parameters.AddWithValue("@maxx", max.X);
+            cmd.Parameters.AddWithValue("@miny", min.Y);
+            cmd.Parameters.AddWithValue("@maxy", max.Y);
+            cmd.Parameters.AddWithValue("@minz", min.Z);
+            cmd.Parameters.AddWithValue("@maxz", max.Z);
+            return cmd.ExecuteScalar() is not null;
+        }
+    }
+
     public bool TryGetPlayerBlockEditBounds(string planet, Vector3i min, Vector3i max, out Vector3i lo, out Vector3i hi)
     {
         lock (_gate)

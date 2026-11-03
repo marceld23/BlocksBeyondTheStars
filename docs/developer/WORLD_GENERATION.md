@@ -407,8 +407,9 @@ the cached air fill — #1314: nothing spawns inside a room the player has made 
 areas** (`InWalledBaseArea`, `GameServerBaseWalls.cs` — #1315): an outside-in flood from the boundary of
 the base's reach box (at least 97×97, grown with the build up to 385×385, #1862) at the candidate's feet level
 through passable cells; whatever it never reaches is fenced in, roof or no roof. Cached per (base, level),
-fail-open on unloaded columns, shut doors count as walls; fliers and cave dwellers stay ungated, hostile machines
-are out of scope. Independent of that fill, no land animal (nor an amphibian ashore) spawns **on a block a player
+fail-open on unloaded columns, shut doors and closed energy gates count as walls; fliers and cave dwellers stay
+ungated — except that a flier neither spawns nor stays over a closed yard of a base that uses energy fences (#3148,
+`InFencedBaseYard` in `GameServerFences.cs`: the fence guards the air above it), hostile machines are out of scope. Independent of that fill, no land animal (nor an amphibian ashore) spawns **on a block a player
 placed** (#2521, `OnPlayerBuiltFloor`: the cell under the feet — plus the feet cell when a slab fills it — has an
 `owner_id <> 0` edit; one indexed lookup, the one `PlayerBuiltPocket` uses). Only solid, non-fluid, non-flora,
 non-prop cells are asked about, and a body standing in fluid is on no floor: a cell's owner **sticks** (the upsert

@@ -85,6 +85,11 @@ public sealed class NetLandingPad
 
     /// <summary>The receiver may not land here (the access shuts them out) — drawn locked, never offered.</summary>
     public bool Locked { get; set; }
+
+    /// <summary>#3146: somebody built in the pad's landing square, so no ship lands here until it is cleared — the chooser
+    /// says "built over". Comes with <see cref="Occupied"/> set (an older client reads a taken pad). Never set on the
+    /// receiver's own pad (<see cref="Mine"/>). Appended contractless field: an older peer reads false.</summary>
+    public bool BuiltOver { get; set; }
 }
 
 /// <summary>A body's fixed landing pads + occupancy (server → client): drives the land chooser in the flight

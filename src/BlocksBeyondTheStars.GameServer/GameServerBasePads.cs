@@ -287,9 +287,10 @@ public sealed partial class GameServer
         => BasePadRules.Admits(pad.Access, pad.OwnerId == playerId, AreAllied(pad.OwnerId, playerId))
            || (FindSessionByPlayerId(playerId)?.State.IsAdmin ?? false);
 
-    /// <summary>Claims a base pad for a landing: it exists on the body, belongs to a base, admits the player, and nobody else
-    /// holds it. False with the refusal's locale key. The landing volume is not read here: the no-build rule keeps it clear
-    /// (it was clear when the pad was placed), and a body that is not loaded could not be read anyway.</summary>
+    /// <summary>Claims a base pad for a landing: it exists on the body, belongs to a base, admits the player, nobody else
+    /// holds it and nobody built in its square (#3146: the no-build rule keeps it clear for everyone but admins — and every
+    /// singleplayer host is one; the block-edit store answers for an unloaded body too). The player's own held pad is never
+    /// closed to them. False with the refusal's locale key.</summary>
     private bool TryClaimBasePad(PlayerSession session, string body, Vector3i cell, out string reason)
     {
         reason = string.Empty;
@@ -313,21 +314,33 @@ public sealed partial class GameServer
             return false;
         }
 
+        if (!HoldsBasePad(session, body, cell) && BasePadBuiltOver(pad))
+        {
+            reason = "@srv.land.pad_built_over";
+            return false;
+        }
+
         session.AssignedBasePad = cell;
         session.AssignedPadIndex = -1;
         return true;
     }
 
     /// <summary>#3072: the player's own free, active base pad on a body for a landing they did not pick by hand — "coming
-    /// home". Several: a fixed order by cell, so the pick is always the same. Null when there is none.</summary>
+    /// home". Several: a fixed order by cell, so the pick is always the same; one they built over is skipped (#3146) unless
+    /// they hold it. Null when there is none.</summary>
     private ServerBasePad? OwnFreeBasePad(PlayerSession session, string body)
     {
         string me = session.State.PlayerId;
         return _basePads
             .Where(p => p.Planet == body && p.OwnerId == me && BaseOfPad(p) is not null && BasePadHolderName(body, p.Cell, me) is null)
             .OrderBy(p => p.Cell.X).ThenBy(p => p.Cell.Y).ThenBy(p => p.Cell.Z)
-            .FirstOrDefault();
+            .FirstOrDefault(p => HoldsBasePad(session, body, p.Cell) || !BasePadBuiltOver(p));
     }
+
+    /// <summary>The session holds this base pad on the body — its parked (or reserved) ship's pad.</summary>
+    private static bool HoldsBasePad(PlayerSession session, string body, Vector3i cell)
+        => session.AssignedBasePad is { } held && held == cell
+           && string.Equals(session.CurrentLocationId, body, System.StringComparison.Ordinal);
 
     /// <summary>The base pad a session holds on the active world, as a <see cref="LandingPad"/> for the placement code — or
     /// null when it holds none (then its communal pad applies). A pad that is gone, or that someone else holds, is released.
@@ -483,7 +496,7 @@ public sealed partial class GameServer
 
             string holder = BasePadHolderName(body, pad.Cell, string.Empty) ?? string.Empty;
             bool mine = receiver.AssignedBasePad is { } held && held == pad.Cell && receiver.CurrentLocationId == body;
-            yield return new NetLandingPad
+            var entry = new NetLandingPad
             {
                 Index = -1,
                 X = pad.Cell.X,
@@ -505,6 +518,12 @@ public sealed partial class GameServer
                 Occupied = holder.Length > 0 && !mine,
                 Occupant = holder,
             };
+            if (!mine && !locked && holder.Length == 0 && BasePadBuiltOver(pad))
+            {
+                MarkBuiltOver(entry); // #3146
+            }
+
+            yield return entry;
         }
     }
 

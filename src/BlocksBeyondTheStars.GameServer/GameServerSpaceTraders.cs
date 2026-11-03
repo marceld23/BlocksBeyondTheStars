@@ -144,6 +144,10 @@ public sealed partial class GameServer
         /// (#1904) — an expired trader lifts off only once this lies <see cref="TraderLeaveGraceSeconds"/> back.</summary>
         public double LastPlayerNearAt = double.NegativeInfinity;
 
+        /// <summary>#3146: the hull has stood on its pad once — re-standing it after a world reload never gives the pad up
+        /// for having been built over meanwhile (nothing moves a parked ship; the hull's own box was never buildable).</summary>
+        public bool HasStood;
+
         public string OwnerId => "npc:" + Id;
         public string StructureId => "ship:npc:" + Id;
     }
@@ -893,9 +897,19 @@ public sealed partial class GameServer
             return true;
         }
 
+        // #3146: the pad was clear when the trader picked it, but somebody may have built on it during the approach — the hull
+        // would stand inside the building. Release the pad the same way. A hull that already stood is re-stood after a reload.
+        if (!ignoreOverlap && !lt.HasStood && PadBuiltOver(lt.BodyId, pad))
+        {
+            _log.Warn($"Trader '{lt.Name}' cannot set down on {lt.BodyId} pad {lt.PadIndex} — it is built over; the pad is released.");
+            _landedTraders.Remove(lt.BodyId);
+            return true;
+        }
+
         // Use the pad's stored ground height (computed + worldgen-levelled at pad build time) rather than a
         // fresh PadGroundY query — the generator may not be configured for this world during the per-world tick.
         int y0 = pad.CenterY;
+        lt.HasStood = true;
         var rec = world.LandedFor(lt.OwnerId);
         rec.Structure = s;
         rec.Origin = new Vector3i(pad.CenterX - s.Width / 2, y0 + 1, pad.CenterZ - s.Length / 2);
@@ -977,9 +991,10 @@ public sealed partial class GameServer
     }
 
     /// <summary>Plays a landing/launch animation of a trader's REAL ship for everyone already on the body
-    /// (the same third-person FX a player's ship plays — item 38).</summary>
+    /// (the same third-person FX a player's ship plays — item 38) — and its jets scare the animals off the pad (#3149).</summary>
     private void BroadcastNpcShipTransit(string bodyId, NpcLandedTrader lt, Vector3f at, bool landing)
     {
+        ScareAnimalsOffPad(bodyId, at);
         ShipTransitFx? msg = null;
         SpaceStructure? design = null;
         foreach (var session in _sessions.Values)
@@ -1272,7 +1287,8 @@ public sealed partial class GameServer
         double bestSq = double.MaxValue;
         foreach (var pad in PadsForBody(bodyId))
         {
-            if (pad.Wet || pad.Molten || PadOccupiedByOther(bodyId, pad.Index, string.Empty))
+            // #3146: nor a pad somebody built over — the hull would be stamped into the building.
+            if (pad.Wet || pad.Molten || PadOccupiedByOther(bodyId, pad.Index, string.Empty) || PadBuiltOver(bodyId, pad))
             {
                 continue;
             }
@@ -1310,8 +1326,9 @@ public sealed partial class GameServer
                         && BaseOfPad(p) is { } home && IsMarketBase(home))
             .OrderBy(p => p.Cell.X).ThenBy(p => p.Cell.Y).ThenBy(p => p.Cell.Z)
             .ToList();
-        var pick = free.FirstOrDefault(p => Present(p.OwnerId))
-                   ?? (hailedOwnersFirst ? free.FirstOrDefault(p => Joined(p.OwnerId)) : null);
+        // #3146: an admin owner may have built in a pad's square — the first candidate that is still clear.
+        var pick = free.FirstOrDefault(p => Present(p.OwnerId) && !BasePadBuiltOver(p))
+                   ?? (hailedOwnersFirst ? free.FirstOrDefault(p => Joined(p.OwnerId) && !BasePadBuiltOver(p)) : null);
         return pick?.Cell;
     }
 
