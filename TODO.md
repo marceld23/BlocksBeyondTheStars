@@ -24,6 +24,38 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player reports 2026-11-03 (Lyxette, v2026.11.3) — no trader in a built-over pad, the energy fence guards the air above it, ship jets scare the animals off — #3146 #3147 #3148 #3149, branch fix/trader-pads-fence-2026-11-03 — ✅ done 2026-11-03 (⚠ playtest open; protocol: additive `NetLandingPad.BuiltOver`; no save-version or terrain-generation change)
+
+Six F1 reports from his spaceport: once his ship landed on his four new base pads, the travelling trader kept parking on
+the old communal pad in the middle — which he was turning into a tower foundation — so its hull stood in his concrete
+(he stood "aboard" in it, could not build inside its box). Plus a wish: something like a raised energy fence to keep the
+big fliers off the spaceport. Marcel: A1 + A2, no trader nameplate, C1 + C2.
+
+- **#3146** A pad whose landing square (17 × 17, 16 up) holds a block somebody placed that a hull cannot stand in is
+  **built over** (`GameServerPadClearance.cs`, new store query `IWorldRepository.HasPlayerBuiltBlocks` — answers for
+  unloaded bodies too): traders skip it (`NearestFreeDryPad`, `MarketBasePadFor`) and give it up at touchdown; the
+  automatic pick skips it, a hand-picked landing is refused (`@srv.land.pad_built_over`), communal and base pads alike;
+  the chooser and maps say "built over" (`NetLandingPad.BuiltOver` + `Occupied` for older clients). The player's own pad,
+  natural blocks, open props and the pad's own ground never close one. Why now: until #3069 his ship held that pad.
+  `LandingPadBuiltOverTests`.
+- **#3147** Admins (every singleplayer host) may still build on a pad — told once per pad and session
+  (`@srv.place.pad_admin_hint`, all 14 locales).
+- **#3148** The energy fence guards the air above it: an airborne step (flier in flight, hoverer) is blocked by a closed
+  fence in the column below it, down to the ground and at most 13 deep; over the closed yard of a base that uses energy
+  fences no wild flier spawns or stays (swept while unwatched). The yard fill counts a closed energy gate as a wall.
+  Bases without a fence keep the old rule (fliers free). Fence texts + Codex taming article in all 14 languages.
+  `FenceAirspaceTests`.
+- **#3149** A landing or lift-off (player ship or trader) startles every wild animal within 24 blocks of the pad (fliers
+  too; pets, clones, giants and hostiles excepted) and it flees from the pad for 12 s (`GameServerShipJets.cs`).
+  `ShipJetScareTests`.
+- Review fixes before the push: flora counts as passable (it is marked solid but is a walk-through prop), door-like blocks
+  (gate, switched-off force field) do not; a flier already over a fence column may leave it (only entering one is
+  blocked); the hint key carries the body; a broadcast asks the store once per pad; a trader that already stood is not
+  sent away at a reload; "all pads built over" says so instead of "full".
+- Noted, deliberate: a floor laid ON a communal pad (ground + 1) closes it like any build; a fence + gate pen inside a
+  base's reach is now a walled yard (wild land animals kept in it are swept like in any yard).
+- Open: playtest in a spaceport with a built-over communal pad, a fence ring with a gate, a landing beside a herd.
+
 ### 🎬 Seamless, cinematic landing, lift-off and docking + the hyperjump "old planet" flash — #3139 #3140 #3141 #3142, branch feat/cinematic-transitions — ✅ done 2026-11-03 (⚠ playtest open; no save-version, protocol or terrain-generation change; `TransitLaunchTimeoutSeconds` default 6 → 15 s)
 
 Marcel: the landing is "only a red orb around the ship" — make landing and launch (and stations) "super cinematic and

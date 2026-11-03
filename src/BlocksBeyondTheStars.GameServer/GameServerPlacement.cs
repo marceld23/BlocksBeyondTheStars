@@ -62,6 +62,9 @@ public sealed partial class GameServer
         /// <summary>A VEGA hint key the pipeline says right after the refusal (the flora rule's seedling case).</summary>
         public string? HintAfterRefusal { get; set; }
 
+        /// <summary>#3147: the landing pad an admin is building on (set by the landing_pad rule) — told once after the block stands.</summary>
+        public string? PadHintKey { get; set; }
+
         public int Tint { get; set; }
 
         public int Glow { get; set; }
@@ -136,6 +139,7 @@ public sealed partial class GameServer
         AnnouncePlacedBlock(session, request);
         StartPlacedDevice(session, request);
         FinishPlacement(session, request);
+        SayPadBuildHintOnce(session, request.PadHintKey);
     }
 
     /// <summary>The intent's item → the block it places → the canonical target cell, or null after a refusal
@@ -292,12 +296,18 @@ public sealed partial class GameServer
         return PlacementVerdict.Continue;
     }
 
-    /// <summary>Rule "landing_pad": the landing pad is kept clear (admins excepted).</summary>
+    /// <summary>Rule "landing_pad": the landing pad is kept clear (admins excepted — an admin who builds a block a hull cannot
+    /// stand in into a pad's landing volume is told once that nobody lands there while it stands, #3147).</summary>
     private PlacementVerdict LandingPadRule(PlayerSession session, PlacementRequest r)
     {
         if (!session.State.IsAdmin && IsOnLandingPad(r.Pos))
         {
             return PlacementVerdict.Refuse("@srv.place.pad_reserved");
+        }
+
+        if (session.State.IsAdmin && !HullPassableIds().Contains(r.BlockDef.NumericId.Value))
+        {
+            r.PadHintKey = LandingPadKeyAt(r.Pos);
         }
 
         return PlacementVerdict.Continue;

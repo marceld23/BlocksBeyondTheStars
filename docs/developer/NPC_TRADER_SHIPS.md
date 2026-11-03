@@ -91,7 +91,8 @@ scene still sets down at once (`TouchdownAt` = now). The pilot does not walk to 
 visitor (#2602, [VILLAGE_LIFE.md](VILLAGE_LIFE.md)) covers that. A flight-scene landing (`TryLandTraderOnBody`) takes
 its pad by the same rule (`NearestFreeDryPad`, K12): nearest a present owner's base core, else — nobody watched it come
 in, its only "near" claim is the hail — nearest the base core of any joined owner (the hail reaches them up in space
-too), else nearest a player on the body, else the lowest free dry pad; no free dry pad → it does not land. The
+too), else nearest a player on the body, else the lowest free dry pad; no free dry pad → it does not land. A pad somebody
+built over is never free for it (#3146), and one built over during the approach is given up at touchdown. The
 active world is irrelevant there (it runs while a space instance ticks): presence is `PlayersOnBodySurface(bodyId)`,
 distances wrap at that body's own circumference.
 

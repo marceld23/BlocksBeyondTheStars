@@ -44,8 +44,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// energy) count as walls whatever their state (#1358): they open only for a player and close by themselves,
 /// so an animal never passes one — and a player standing at their yard's sliding gate used to hold it open
 /// for the fill.</item>
-/// <item>Fliers spawn above the walls and stay ungated; cave dwellers below them too; hostile machines are
+/// <item>Fliers spawn above the walls and stay ungated — except over the yards of a base that uses energy fences, whose
+/// fence guards the air above it (#3148); cave dwellers below them too; hostile machines are
 /// out of scope on purpose — they SHOULD threaten a base, that is what the sentry post is for.</item>
+/// <item>A closed energy gate is a wall (#3148): its membrane is not solid, but no animal passes it.</item>
 /// </list>
 /// </summary>
 public sealed partial class GameServer
@@ -292,15 +294,16 @@ public sealed partial class GameServer
 
     /// <summary>True if the cell lies inside a founded base's reach box on this world and the outside-in fill
     /// at that feet level cannot reach it — i.e. walls (or shut doors) close it off from the open terrain.
-    /// Ownership is ignored, like every base predicate: a visitor's yard is a yard too.</summary>
-    private bool InWalledBaseArea(Vector3i cell)
+    /// Ownership is ignored, like every base predicate: a visitor's yard is a yard too. <paramref name="counts"/> limits
+    /// the question to some bases (#3148: the fliers' rule asks only bases that use energy fences).</summary>
+    private bool InWalledBaseArea(Vector3i cell, System.Func<ServerBase, bool>? counts = null)
     {
         string body = _world.LocationId;
         int circ = _world.Circumference;
         var canonical = WorldConstants.CanonicalBlock(cell, circ);
         foreach (var b in _bases)
         {
-            if (b.Planet != body || !WithinBaseWallReach(b, canonical))
+            if (b.Planet != body || !WithinBaseWallReach(b, canonical) || (counts is not null && !counts(b)))
             {
                 continue;
             }
@@ -448,8 +451,12 @@ public sealed partial class GameServer
             if (v == 0)
             {
                 var c = World(dx, y, dz);
+                var id = _world.GetBlockIfLoaded(c);
+                // #3148: an energy gate's membrane is no solid block, but no animal passes it — a fence ring with its gate
+                // is a closed yard (a gate or fence a conduit holds open is a gap, as it is for the animals).
                 bool free = !wallDoors.Contains(c)
-                    && !IsCollidingBlock(_world.GetBlockIfLoaded(c), fluidsPass: false, foliagePasses: false);
+                    && !IsCollidingBlock(id, fluidsPass: false, foliagePasses: false)
+                    && !IsClosedFenceBlock(c, id.Value);
                 v = free ? WallFree : WallSolid;
                 scratch[i] |= v;
             }

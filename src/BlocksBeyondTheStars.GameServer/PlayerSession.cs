@@ -131,6 +131,10 @@ public sealed class PlayerSession
     /// <summary>#3082: the inventory changed while a reward waits — the next tick tries to hand it over.</summary>
     public bool RewardRetryDue { get; set; }
 
+    /// <summary>#3147: the landing pads (per body, communal "pad:&lt;index&gt;" or base "basepad:&lt;cell&gt;") this admin was told about
+    /// building on in this session — the "nobody lands here while it is built over" hint is said once per pad.</summary>
+    public System.Collections.Generic.HashSet<string> PadBuildHints { get; } = new(System.StringComparer.Ordinal);
+
     /// <summary>#3083: seconds until the festival spawner may lay this player's next festival block (counts down by one
     /// spawn pass at a time; 0 = now). Session-only: a rejoin may lay one at once, the persisted budget still holds.</summary>
     public double FestivalSpawnWait { get; set; }

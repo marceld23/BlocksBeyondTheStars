@@ -292,7 +292,8 @@ namespace BlocksBeyondTheStars.Client
                     var occ = UiKit.AddPanel(panel.transform, mx, my, marker, marker, col);
                     occ.raycastTarget = true;
                     UiKit.AddText(occ.transform, 0, 0, marker, marker, label, 18, UiKit.TextCol, TextAnchor.MiddleCenter, FontStyle.Bold);
-                    string who = string.IsNullOrEmpty(p.Occupant) ? "—" : p.Occupant;
+                    string who = p.BuiltOver ? Loc("ui.space.pad_built_over", "built over") // #3146: no hull lands in a building
+                        : string.IsNullOrEmpty(p.Occupant) ? "—" : p.Occupant;
                     UiKit.AddText(panel.transform, mx - 30, my + marker, marker + 60, 18, who, 12, new Color(1f, 0.6f, 0.55f), TextAnchor.UpperCenter);
                     AddPadWeatherCaption(panel.transform, mx, my + marker + 16, marker, p.Weather);
                 }

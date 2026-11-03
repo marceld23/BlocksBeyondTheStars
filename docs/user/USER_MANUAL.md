@@ -1126,6 +1126,12 @@ players.
   to mine.
 - **Your own landing pads:** next to your base you can build up to four pads of your own and decide who may land there —
   see *Landing pads at your base*.
+- **Landing pads stay clear.** Nobody builds in a landing pad's square (17 × 17, 16 blocks up) — except admins, and in
+  singleplayer you are the admin. Build there anyway and the game says once per pad that the pad is now **built over**
+  (#3146): no ship lands on it any more — no travelling trader, no other pilot, no landing that picks a pad for you — and
+  picking it by hand is refused; the landing map and the planet map show it as *built over*. Your own parked ship keeps
+  its pad. Clear the blocks and the pad is open again. Paving the pad's ground itself and open props such as torches or
+  flowers do not count.
 - **Landing pads are on dry land whenever the world offers any** — the pad search looks in every direction,
   and on ocean worlds further. A pad that still sits in open sea rises on a small island (beach, grass, a few
   plants); only in shallow water does the ship park in a dry shaft on the seabed. The approach map draws such
@@ -1140,6 +1146,9 @@ players.
   the ship across launches, landings and the walk-in interior. The hull is dented only out in space (combat,
   asteroid rams — see *Repairing your own ship* below) and ship modules (medbay, cockpit, …) cannot be removed.
   Step or hop up through the hatch to enter.
+- **The jets scare the wildlife** (#3149). When a ship touches down or lifts off — yours, another pilot's or a travelling
+  trader's — every wild animal within about 24 blocks of the pad, fliers too, is startled awake and runs away from the
+  pad for a while. Pets, hostile animals and the giants don't care. Nobody gets hurt.
 - **Grow your ship**: on a spacewalk you can build onto its hull (and cut hull cells out of it); from inside you
   can keep building outward — up to **15 × 15 × 15 blocks** in all. A **door** you build into the ship is a real
   door (you see its frame and door while aiming — in the cabin and on a spacewalk alike —, it opens and closes, it
@@ -1785,7 +1794,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   **30–45 minutes** in a quiet one (a bit sooner while you are home at a **Market** base, #3036), and even in a system
   without any traffic about every **45–60 minutes** if you have a Market base there and are home. *"A trader ship is coming in to
   land — look up!"* — about 20 seconds later it sets down on the free landing pad **nearest your Market base** (or
-  nearest you): *"Trader … has landed nearby — come and trade!"*, and the base owner gets the trader's radio
+  nearest you; never on a pad somebody built over, #3146): *"Trader … has landed nearby — come and trade!"*, and the base owner gets the trader's radio
   hail (or VEGA passes it on if you wear no radio).
 - While a trader is landed, the **planet map (M)** shows a **gold ship marker** with its name at the pilot (and
   lists it with its distance), your **compass** shows a matching gold blip, and its pad shows as taken — so a
@@ -2041,7 +2050,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - The square must be **clear 16 blocks up** (blocks or water in it are refused; grass and flowers are fine), and it may
   not touch a public pad, another landing pad or someone else's base. While you hold the pad, a **preview** on the
   ground shows the square — **green** when it is clear, the blocked spots **red**.
-- Once built, **nobody builds in that square** — you neither — so it can never be built shut. The pad and its square
+- Once built, **nobody builds in that square** — you neither — so it can never be built shut (an admin can, and then the
+  pad is *built over* until it is cleared — see *Landing pads stay clear*). The pad and its square
   are **protected like your base**: you and your allies may work there (only you may take the pad block itself),
   strangers cannot.
 - Press **E** on the pad to **name** it and choose **who may land**: **Only me**, **Me + allies** (the default; crew
@@ -3615,8 +3625,12 @@ called **stories**:
   metal rails along the top and bottom and glowing energy beams running from block to block, with gaps you can
   see through (but nothing can pass). Add an **energy gate** (`energy_gate`,
   workshop — 2 metal panels + 1 energy cell + 1 circuit board) as the entrance: you and settlement folk
-  walk straight through its membrane while fauna bounce off; there is nothing to open or close. Only
-  flying creatures glide over a normal-height fence.
+  walk straight through its membrane while fauna bounce off; there is nothing to open or close.
+  **The fence guards the air above it too** (#3148): a flying creature cannot cross a fence line either, up to the
+  highest a flier hovers (about 12 blocks over the ground; a roof between the fence and the flier ends the guard). Over a
+  closed yard of a base that uses energy fences no wild fliers spawn, and a wild flier found inside one — penned in when
+  you closed the ring — flies off while nobody is looking. A closed gate counts as part of the ring; one a conduit holds
+  open is a gap. A base without any energy fence keeps its yards free for fliers, as before.
 
 ### The bio lab (samples, preparations, changed gear, breeding)
 Every plant, every animal and every ore vein carries something of its own — and it depends on **where and how it

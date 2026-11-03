@@ -902,7 +902,8 @@ public sealed partial class GameServer
 
     /// <summary>The free pad a PLAYER gets when they do not choose one (#1621) — first spawn, the safety-net
     /// assignment and an auto landing: natural dry ground first, then an islet, a seabed shaft last; ties by
-    /// index, so pad 0 stays the home touchdown whenever it is dry. -1 when the body is full.</summary>
+    /// index, so pad 0 stays the home touchdown whenever it is dry. A pad somebody built over is skipped (#3146) unless
+    /// it is the player's own. -1 when the body is full.</summary>
     private int PreferredFreePadIndex(string locationId, IReadOnlyList<LandingPad> pads, string exceptPlayerId)
     {
         int best = -1, bestRank = int.MaxValue;
@@ -914,7 +915,7 @@ public sealed partial class GameServer
             }
 
             int rank = PadRank(pads[i]);
-            if (rank < bestRank)
+            if (rank < bestRank && !CommunalPadClosed(locationId, pads[i], exceptPlayerId)) // the store is asked only for a better pad
             {
                 bestRank = rank;
                 best = pads[i].Index;
@@ -1052,6 +1053,12 @@ public sealed partial class GameServer
 
             // A pad standing in lava (old saves) is only taken when nothing better is free.
             var known = PadsForBody(locationId);
+            if (known.Count == total && CommunalPadClosed(locationId, known[requestedIndex], session.State.PlayerId))
+            {
+                reason = "@srv.land.pad_built_over"; // #3146: somebody built on it — the hull would stand in the building
+                return -1;
+            }
+
             if (known.Count == total && known[requestedIndex].Molten)
             {
                 int better = PreferredFreePadIndex(locationId, known, session.State.PlayerId);
@@ -1073,7 +1080,8 @@ public sealed partial class GameServer
             : FirstFreePadIndex(locationId, total, session.State.PlayerId);
         if (free < 0)
         {
-            reason = "@srv.land.full";
+            // #3146: every pad nobody holds is built over — say that, not "full".
+            reason = FreePadCount(locationId, total, session.State.PlayerId) > 0 ? "@srv.land.pad_built_over" : "@srv.land.full";
         }
 
         return free;
@@ -1242,6 +1250,11 @@ public sealed partial class GameServer
         {
             var p = _landingPads[i];
             pads[i] = PadStatusFor(_world.LocationId, p.Index, session);
+            if (!pads[i].Mine && !pads[i].Occupied && PadBuiltOver(_world.LocationId, p))
+            {
+                MarkBuiltOver(pads[i]); // #3146
+            }
+
             pads[i].X = p.CenterX;
             pads[i].Z = p.CenterZ;
             pads[i].Wet = p.Wet;
@@ -1258,17 +1271,26 @@ public sealed partial class GameServer
     /// map forever (#1020). Occupancy (<see cref="NetLandingPad.Mine"/>) is receiver-relative, so this must
     /// send per session rather than broadcast one message. Players up in space are skipped — their pad
     /// chooser owns the client's single pad-list slot and a fresh list arrives with their touchdown —
-    /// except <paramref name="always"/>, the player whose arrival triggered the update.</summary>
+    /// except <paramref name="always"/>, the player whose arrival triggered the update. Whether a pad is built over
+    /// (#3146) does not depend on the receiver, so the store is asked once per pad for the whole broadcast.</summary>
     private void BroadcastLandingPads(PlayerSession? always = null)
     {
-        foreach (var s in JoinedInActiveWorld())
+        _padBuiltOverScope = new Dictionary<(string Body, int X, int Y, int Z), bool>();
+        try
         {
-            if (s != always && InSpace(s.State.PlayerId))
+            foreach (var s in JoinedInActiveWorld())
             {
-                continue;
-            }
+                if (s != always && InSpace(s.State.PlayerId))
+                {
+                    continue;
+                }
 
-            SendLandingPads(s);
+                SendLandingPads(s);
+            }
+        }
+        finally
+        {
+            _padBuiltOverScope = null;
         }
     }
 
@@ -1280,9 +1302,10 @@ public sealed partial class GameServer
 
     /// <summary>Tells the players already on a body that another player's ship is arriving/departing at a pad, so
     /// they see a landing/launch animation (item 38). Sent only to the others on that body (not the mover, not
-    /// anyone in space).</summary>
+    /// anyone in space). Every landing and launch passes here, so its jets scare the animals off the pad too (#3149).</summary>
     private void BroadcastShipTransit(PlayerSession mover, string bodyId, float x, float y, float z, bool landing)
     {
+        ScareAnimalsOffPad(bodyId, new Vector3f(x, y, z));
         ShipTransitFx? msg = null;
         SpaceStructure? design = null;
         foreach (var s in _sessions.Values)
@@ -1336,6 +1359,11 @@ public sealed partial class GameServer
         {
             var p = computed[i];
             pads[i] = PadStatusFor(body.Id, p.Index, session);
+            if (!pads[i].Mine && !pads[i].Occupied && PadBuiltOver(body.Id, p))
+            {
+                MarkBuiltOver(pads[i]); // #3146: the chooser shows it locked, with its reason
+            }
+
             pads[i].X = p.CenterX;
             pads[i].Z = p.CenterZ;
             pads[i].Wet = p.Wet; // seabed pad (#1454) — the chooser says so before the player commits
