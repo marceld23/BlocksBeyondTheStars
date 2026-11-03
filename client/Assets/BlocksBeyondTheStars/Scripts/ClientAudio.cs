@@ -902,6 +902,10 @@ namespace BlocksBeyondTheStars.Client
         /// bake a species variant from it.</summary>
         public AudioClip Clip(string id) => _clips.TryGetValue(id, out var clip) ? clip : null;
 
+        /// <summary>#3140: the effects level (master × effects) for a component that runs its own looping source — the
+        /// transition cover's cloud wind. A fallback level while no audio component exists.</summary>
+        public static float EffectsVolume => Instance != null ? Instance.SfxVol() : 0.64f;
+
         /// <summary>#2495: the level the ambience beds duck to while a cutscene plays (<c>CutsceneRules.AmbienceDuck</c>; 1 =
         /// not ducked). Set by the director every scene frame and back to 1 at the scene's end; the beds ease there.</summary>
         public void SetCutsceneDuck(float level) => _duckTarget = Mathf.Clamp01(level);

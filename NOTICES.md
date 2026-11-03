@@ -21,7 +21,9 @@ also keeps the generator scripts from painting over it.
 - `metal_panel` — **Screelit** (submission 2026-11-01, #3086): the hull panel without its sixteen corner rivets (247 of
   4096 pixels repainted), taken over 1:1 as he asked — the game ships exactly the submitted bytes.
 
-**Sound effects:** `client/Assets/Resources/audio/*.mp3` (343 files, incl. the NPCs' wordless speech voices
+**Sound effects:** `client/Assets/Resources/audio/*.mp3` (367 files, incl. the seamless transitions' `reentry_roar`, `ship_touchdown`, `engine_ignite`, `sonic_boom`,
+`hangar_doors_close`, `hangar_doors_open` and the `cloud_rush` wind loop (#3140–#3142, `gen_sound.py`, 2026-11-03),
+the NPCs' wordless speech voices
 `npc_voice_{human,robot}_{f,m,n}_{1..3}` (18 clips: human female/male/neutral and robot bright/deep/neutral, each a
 questioning, an exclaiming and an explaining take of language-neutral gibberish, #2592, `gen_sound.py`, 2026-10-14),
 VEGA's three chapter stings `chapter_sting`,

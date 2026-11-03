@@ -23,6 +23,8 @@ namespace BlocksBeyondTheStars.Client
         private const int StreakCount = 90;
         private const float Duration = 2.6f;
         private const float MaxRadius = 1250f; // reference units; overshoots the 1920×1080 corners
+        private const float HoldAt = 1.55f;     // #3139: where a jump onto a still-loading world waits (just before the flash)
+        private const float HoldMax = 25f;      // never longer than the loading veil would
 
         private Canvas _canvas;
         private Image _backdrop;
@@ -38,6 +40,7 @@ namespace BlocksBeyondTheStars.Client
         private float _t;
         private bool _threeD;
         private bool _punched;
+        private float _held;
         private MeshRenderer _tunnel;
         private static Mesh _tunnelMesh;
 
@@ -75,6 +78,7 @@ namespace BlocksBeyondTheStars.Client
         {
             EnsureBuilt();
             _t = 0f;
+            _held = 0f;
             _playing = true;
             _canvas.enabled = true;
             _punched = false;
@@ -161,7 +165,17 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _t += Time.deltaTime;
+            // #3139: a jump that lands on a new world holds in the tunnel — before the punch-through flash — until that world
+            // has streamed in and the player stands on it, so the flash reveals the new world instead of its pop-in (or, for
+            // a moment, the old one). Capped like the loading veil.
+            if (Game != null && !Game.WorldReady && _t >= HoldAt && _held < HoldMax)
+            {
+                _held += Time.deltaTime;
+                _t = HoldAt;
+            }
+
             float t = _t;
+            bool flightLive = _threeD && Game != null && Game.SpaceViewActive; // the flight view can end under a jump
 
             // Envelope: ramp up, hold, ramp down.
             float intensity =
@@ -170,8 +184,9 @@ namespace BlocksBeyondTheStars.Client
                 : 1f;
 
             // In the flight view the 3D tunnel carries the jump; the overlay only adds a faint wash (#2157).
-            float overlay = _threeD ? 0.3f : 1f;
-            _backdrop.color = new Color(0.02f, 0.04f, 0.10f, 0.85f * intensity * (_threeD ? 0.4f : 1f));
+            float overlay = flightLive ? 0.3f : 1f;
+            float wash = _held > 0f && !flightLive ? 1f : 0.85f * intensity * (flightLive ? 0.4f : 1f);
+            _backdrop.color = new Color(0.02f, 0.04f, 0.10f, wash);
 
             // A bright white flash as we punch through (peaks just past the midpoint) — softened by Reduce flashes.
             float flash = Mathf.Clamp01(1f - Mathf.Abs(t - 1.95f) / 0.35f);

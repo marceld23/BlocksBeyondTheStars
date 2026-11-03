@@ -31,6 +31,8 @@ namespace BlocksBeyondTheStars.Client
         private OreScanView _oreScan;
         private ThermalVision _thermal;
         private MiningFx _mining;
+        private TransitionDirector _transitions;
+        private LandedShipView _landedShips;
 
         /// <summary>Set while a HUD exists so world-side FX (MiningFx) can hand off pickup fly-ins.</summary>
         public HudUi Hud { get => Live(_hud); set => _hud = value; }
@@ -91,6 +93,12 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The world's mining effects (one per world rig).</summary>
         public MiningFx Mining { get => Live(_mining); set => _mining = value; }
+
+        /// <summary>#3139–#3142: the seamless landing / launch / docking transitions of the world rig.</summary>
+        public TransitionDirector Transitions { get => Live(_transitions); set => _transitions = value; }
+
+        /// <summary>The parked ship objects of the world rig (#3140: the own touchdown flies a stand-in of one).</summary>
+        public LandedShipView LandedShips { get => Live(_landedShips); set => _landedShips = value; }
 
         // UnityEngine.Object's overloaded != reads a destroyed component as null, so a getter hands back null once its
         // component is gone — exactly what the former static Instance did after OnDestroy.

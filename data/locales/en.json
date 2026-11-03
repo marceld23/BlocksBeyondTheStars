@@ -4376,6 +4376,7 @@
   "ui.cutscene.skip_key": "Skip · [{0}]",
   "ui.cutscene.skip_pad": "Skip · {0}",
   "ui.cutscene.skip_touch": "Skip ▶▶",
+  "ui.transition.docking": "Docking",
   "ui.cutscene.saved": "Story moment saved — watch it again in your Journal.",
   "ui.cutscene.plays_when_landed": "Plays when you land.",
   "ui.devseq.title": "Cutscene palette (dev) — click a scene to play it here",

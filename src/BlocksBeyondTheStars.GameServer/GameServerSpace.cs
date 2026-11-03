@@ -928,6 +928,9 @@ public sealed partial class GameServer
     public int AssignedPadForTest(string playerId)
         => FindSessionByPlayerId(playerId)?.AssignedPadIndex ?? -1;
 
+    /// <summary>Test/diagnostic (#3139): whether the world of <paramref name="locationId"/> is built and resident.</summary>
+    public bool WorldResidentForTest(string locationId) => _worlds.IsLoaded(locationId);
+
     /// <summary>0 = natural dry ground, 1 = generated islet, 2 = seabed shaft, 3 = a shaft in lava (old saves).</summary>
     private static int PadRank(LandingPad pad) => pad.Molten ? 3 : pad.Wet ? 2 : pad.Islet ? 1 : 0;
 

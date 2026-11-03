@@ -780,6 +780,10 @@ namespace BlocksBeyondTheStars.Client
         /// is under the player) — tells the loading overlay the world is ready to reveal.</summary>
         public void NotifyWorldReady() => WorldReady = true;
 
+        /// <summary>#3139: true while the local player is still held at a fresh spawn or snap until the floor under them has
+        /// streamed in (no player yet counts as settling) — an arrival cover only opens on a player who stands.</summary>
+        public bool PlayerSettling => Player == null || Player.IsSettling;
+
         /// <summary>Raised when a non-hyperspace world load begins (join, landing, station boarding) —
         /// drives the loading overlay. Hyperspace jumps fire <see cref="HyperjumpStarted"/> instead, since
         /// the warp VFX already masks those.</summary>

@@ -211,13 +211,6 @@ namespace BlocksBeyondTheStars.Client
         private CameraClearFlags _camPrevClear;
         private Color _camPrevBg;
 
-        // Landing fly-away: the camera is frozen at the pose it had when the descent began, while the ship
-        // flies off toward the planet — so it visibly shrinks into the distance instead of sinking in-frame.
-        private Vector3 _landCamPos;
-        private Quaternion _landCamRot;
-        private Vector3 _landShipStart;
-        private Vector3 _landTargetPos;
-
         private bool _active;
         private Phase _phase;
         private int _viewMode; // 0 = third-person, 1 = cockpit
@@ -233,7 +226,7 @@ namespace BlocksBeyondTheStars.Client
         private string _landDestBody;     // confirmed landing destination of the in-flight descent (survives until
                                           // the animation reads it; "" = home body, null = no landing committed).
                                           // Separate from _choosePadBody, which is cleared the moment a pad is picked
-                                          // — reading it in BeginLandingFlyAway() would yield "" → wrong (home) planet.
+                                          // — reading it in BeginDescent() would yield "" → wrong (home) planet.
         private GameObject _landMapGo;    // the on-screen planet map of landing pads (built while choosing)
         private string _landMapBody;      // which body the currently-built land map is for
         private string _boardTargetId;    // station being boarded during the dock-approach animation
@@ -276,7 +269,6 @@ namespace BlocksBeyondTheStars.Client
         private Bounds _shipBounds;
         private GameObject _shipBoundsFor;
         private int _seenPlanetScan = -1;
-        private MeshRenderer _reentry;
         private readonly Dictionary<string, string> _entityKinds = new Dictionary<string, string>();
         private readonly Dictionary<string, float> _entityHull = new Dictionary<string, float>(); // hull drops → hit flash
         private readonly Dictionary<string, Transform> _bodySpheres = new Dictionary<string, Transform>();
@@ -381,6 +373,13 @@ namespace BlocksBeyondTheStars.Client
 
             if (Game.InSpace && !_active)
             {
+                // #3141/#3142: a launch first lifts off on the real surface (or closes the station's hangar doors); the
+                // flight view opens behind the cover once that has played.
+                if (Transitions != null && Transitions.ClaimDeparture())
+                {
+                    return;
+                }
+
                 Enter();
             }
 
@@ -456,7 +455,7 @@ namespace BlocksBeyondTheStars.Client
                     _phase = Phase.Landing;
                     _seq = 0f;
                     ClientAudio.Instance?.Cue("ship_landing");
-                    BeginLandingFlyAway();
+                    BeginDescent();
                 }
             }
 
@@ -560,6 +559,7 @@ namespace BlocksBeyondTheStars.Client
         private void Enter()
         {
             _active = true;
+            _emergence = Transitions != null ? Transitions.TakeEmergence() : default; // #3141/#3142: what the cover hides
             // Taking the helm again from inside the ship (or any "already airborne" entry) drops straight into
             // free flight — no take-off sequence, since you never landed.
             _phase = Game.SpaceSkipLaunch ? Phase.Cruise : Phase.Launch;
@@ -640,8 +640,9 @@ namespace BlocksBeyondTheStars.Client
             _lastHull = Game.ShipCombat?.Hull ?? -1f;
             _lastShield = Game.ShipCombat?.Shield ?? -1f;
 
-            // Launch roar + a looping engine bed for the flight. No roar when we skip the take-off (helm).
-            if (!Game.SpaceSkipLaunch)
+            // Launch roar + a looping engine bed for the flight. No roar when we skip the take-off (helm), nor when the
+            // lift-off on the surface already roared (#3141).
+            if (!Game.SpaceSkipLaunch && !_emergence.RoarPlayed)
             {
                 ClientAudio.Instance?.Cue("ship_launch");
             }
@@ -666,7 +667,11 @@ namespace BlocksBeyondTheStars.Client
             Camera.transform.SetParent(_root.transform, false);
             Camera.farClipPlane = 3000f;
             Camera.clearFlags = CameraClearFlags.SolidColor;     // black space, not the blue sky
-            Camera.backgroundColor = new Color(0.02f, 0.03f, 0.06f);
+            Camera.backgroundColor = SpaceBackground;
+            if (_phase == Phase.Launch)
+            {
+                BeginAscent(); // #3141/#3142: the climb out of the clouds, or out of the station's hangar
+            }
         }
 
         private void Exit()
@@ -698,7 +703,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _shield = null;
-            _reentry = null;
+            _shock = null;          // #3140: the bow shock lived under _root
+            Starfield.SkyFade = 1f; // the stars are back at full strength whatever the descent faded
             _extraThrusters.Clear();
             _nozzles.Clear();
             _bodySpheres.Clear();

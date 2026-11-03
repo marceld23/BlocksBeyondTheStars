@@ -4376,6 +4376,7 @@
   "ui.cutscene.skip_key": "Überspringen · [{0}]",
   "ui.cutscene.skip_pad": "Überspringen · {0}",
   "ui.cutscene.skip_touch": "Überspringen ▶▶",
+  "ui.transition.docking": "Andocken",
   "ui.cutscene.saved": "Story-Moment gespeichert — in deinem Journal kannst du ihn noch einmal ansehen.",
   "ui.cutscene.plays_when_landed": "Läuft, sobald du gelandet bist.",
   "ui.devseq.title": "Szenen-Palette (Entwicklung) — eine Szene anklicken spielt sie hier ab",

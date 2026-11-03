@@ -24,6 +24,48 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🎬 Seamless, cinematic landing, lift-off and docking + the hyperjump "old planet" flash — #3139 #3140 #3141 #3142, branch feat/cinematic-transitions — ✅ done 2026-11-03 (⚠ playtest open; no save-version, protocol or terrain-generation change; `TransitLaunchTimeoutSeconds` default 6 → 15 s)
+
+Marcel: the landing is "only a red orb around the ship" — make landing and launch (and stations) "super cinematic and
+seamless in every case"; plus a bug: after a map hyperjump the old planet showed for a moment while the new one loaded.
+How it works: [docs/developer/SEAMLESS_TRANSITIONS.md](docs/developer/SEAMLESS_TRANSITIONS.md).
+- **#3139 Old planet after a hyperjump:** `HandleTravel` sent `SpaceClosed` (flushed at once) BEFORE building the cold
+  destination world, the client ended its descent and stood on the old world's chunks until the late `WorldReset`. The
+  server now builds the world first (and re-asserts the active world after `LeaveSpace`, which may send a visitor home);
+  the client's arrival cover waits for the touchdown snap + a settled player (`TransitionGate`, Client.Core); a jump
+  that lands on a new world holds `HyperspaceWarp`'s tunnel until `WorldReady`. Tests: `LandingWorldOrderTests` (spy
+  transport), `TransitionGateTests`; `TravelTests` read the configured stage timeout.
+- **#3140 Landing:** chase camera, belly-first arc at the destination's SURFACE (the old fly-away ended inside the planet
+  sphere), an open bow-shock cap + plasma ribbons coloured by the DESTINATION's air (the old sheath read the departure
+  world), the sky turning from black to the planet's colour; the ship punches into the cloud layer (`TransitionCover`,
+  a glare on airless bodies) — no black loading screen — which holds until the world is there, then parts on the own
+  ship sinking onto its pad (a render-only stand-in; the real hull keeps its colliders), dust in the ground's colour,
+  thump, steam; the camera glides into the player's eyes. Other players' landings got the ground-coloured dust too.
+- **#3141 Lift-off:** `ClaimDeparture` holds the flight view while the very hull the player stood in (handed over by
+  `LandedShipView`) lifts off on the surface — ignition, dust, a heavy rise, the climb, a vapour cone with a boom —
+  into the clouds; the flight view opens on the ship breaking out above them as the sky fades to black and the stars
+  come out (`Starfield.SkyFade`).
+- **#3142 Stations:** the dock approach is watched from beside the hangar mouth with guide lights; the hangar doors
+  close (the board intent goes out once they are shut) and open inside. Undocking closes them in the station and opens
+  them on the ship sliding out of that station's hangar mouth.
+- Seven new ElevenLabs sounds (`reentry_roar`, `ship_touchdown`, `engine_ignite`, `sonic_boom`, `hangar_doors_close`,
+  `hangar_doors_open`, `cloud_rush`; NOTICES), one new locale key (`ui.transition.docking`, 14 languages); Esc / pad
+  cancel skips the surface part (the cutscene skip hint).
+
+### 🔤 Community locales: block and item share one name, no English left in the Codex — #3114 #3143, same branch — ✅ done 2026-11-03
+
+All 251 `block.<key>.name` / `item.<key>.name` pairs that differed inside one of the 12 community locales (where en
+names both the same) now agree — the block name unless it was the odd one out or simply wrong (typos like pl
+"Ztrucizowan…", pl iron_wall "fence", tr "Bulanık" = blurry, ko "alien green", ru gender, nl "Titaanerts"); running
+text, blueprints and Codex lines that named a dropped variant followed. The Codex lost its English leftovers (House
+Rules, Player-modes, Base yield, Bases per world, Collect, Quantum scan, ja Device Eye, pt space station) in favour of
+each locale's own UI labels. #3143: nl "Geverfde" (= dyed) → "Vergiftigd…" for the tainted world, leading/trailing
+blanks trimmed, plus pl "Zzadokowano", ru "Сстыковался", tr "İsteme iniş" in the docking labels. Guards:
+`BlockItemNameLocaleTests` (pairs equal where en's are), `CommunityLocale_HasNoStrayEdgeWhitespace`, Codex leftovers in
+`ForbiddenTerms`. Also fixed: uk blueprint "Танк Лікування", pl "Moss Stone" (→ "Omszały Kamień"), it VEGA's "serbatoio
+di cura" (→ the block's "vasca di rigenerazione"), two fr story lines with a trailing blank. Worth a native check: pl
+"Przywoływacz" (caller), tr "Ticaret Tezgâhı" (station vendor), the uk metal blocks in adjective form.
+
 ### 🗺️ Planet globes without the pole pinch, a zoomable galaxy chart, the charts in the ship's navigation + Lyxette's hovering ship + Justus' reload hand — #3127–#3137, branch feat/nav-charts-2026-11-02 — ✅ done 2026-11-02 in PR #3136 (`4a48070f`), released in v2026.11.3 (⚠ playtest open; no save-version, protocol or terrain-generation change)
 
 Marcel's screenshot of a planet from orbit ("always a seam in the textures"), then: plan A+B1, give the galaxy chart a

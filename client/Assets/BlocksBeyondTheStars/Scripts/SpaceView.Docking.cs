@@ -88,6 +88,11 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         private void PlanDockApproach()
         {
+            _lastDockedStationId = _boardTargetId; // #3142: undocking slides out of this station's hangar
+            _boardTargetName = _nearStationName ?? string.Empty;
+            _dockDoorsClosing = false;
+            _dockCamFrom = Camera != null ? Camera.transform.localPosition : Vector3.zero;
+            _dockCamFromRot = Camera != null ? Camera.transform.localRotation : Quaternion.identity;
             _boardPath.Clear();
             _boardDuration = BoardDuration;
             if (_ship == null || _boardTargetId == null || !_structs.TryGetValue(_boardTargetId, out var vs) || !vs.HasDock
@@ -268,23 +273,101 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            DockGuideLights();
+            FinishDockApproach();
+        }
+
+        /// <summary>The end of the dock approach: the hangar doors close over the mouth (#3142) and, once they are shut, the
+        /// board intent goes out — without a transition director the old veil and the intent at once. A refusal (or no
+        /// answer) hands the flight back and opens the doors again.</summary>
+        private void FinishDockApproach()
+        {
             if (_seq >= _boardDuration && !_boardSent)
             {
-                _boardSent = true;
-                Game.BeginWorldTransition(); // veil now (the approach has played) so the station doesn't flash (B34)
-                Game.Network?.SendBoardStation(_boardTargetId);
+                if (Transitions == null)
+                {
+                    _boardSent = true;
+                    Game.BeginWorldTransition(); // veil now (the approach has played) so the station doesn't flash (B34)
+                    Game.Network?.SendBoardStation(_boardTargetId);
+                }
+                else if (!_dockDoorsClosing)
+                {
+                    _dockDoorsClosing = true; // #3142: the hangar doors close over the mouth; the station loads behind them
+                    Transitions.CoverDocking(_boardTargetName, 0.9f);
+                }
+                else if (Transitions.CoverShut)
+                {
+                    _boardSent = true;
+                    Game.Network?.SendBoardStation(_boardTargetId);
+                }
             }
 
             if (_boardSent)
             {
                 _boardWait += Time.deltaTime;
-                if (_boardWait > 2.5f) // server didn't confirm (e.g. rejected) — recover instead of hanging
+                // The server didn't confirm (e.g. rejected) — recover instead of hanging. Behind the doors (#3142) a cold
+                // station may take a moment to build on the server, so they wait longer before opening on the flight.
+                if (_boardWait > (Transitions != null ? 8f : 2.5f))
                 {
                     _phase = Phase.Cruise;
                     _seq = 0f;
                     _boardSent = false;
+                    Transitions?.CancelArrival();
                 }
             }
+        }
+
+        private string _boardTargetName = string.Empty;
+        private bool _dockDoorsClosing;
+        private Vector3 _dockCamFrom;
+        private Quaternion _dockCamFromRot = Quaternion.identity;
+        private float _dockLightClock;
+
+        /// <summary>#3142: the dock approach seen from beside the hangar mouth — the camera glides there from the chase and
+        /// watches the ship line up and nose in. False (the usual chase) for a station without a known mouth.</summary>
+        private bool PlaceDockCamera()
+        {
+            if (_ship == null || _boardTargetId == null || !_structs.TryGetValue(_boardTargetId, out var vs) || !vs.HasDock)
+            {
+                return false;
+            }
+
+            var outward = vs.DockOut.sqrMagnitude > 1e-4f ? vs.DockOut.normalized : Vector3.forward;
+            var side = Vector3.Cross(Vector3.up, outward);
+            side = side.sqrMagnitude > 1e-3f ? side.normalized : Vector3.right;
+            var spot = vs.Dock + outward * 18f + side * 9f + Vector3.up * 3.5f;
+            var sp = _ship.transform.localPosition;
+            float k = Smooth(0f, 1.4f, _seq);
+            var pos = Vector3.Lerp(_dockCamFrom, spot, k);
+            var look = sp - pos;
+            Camera.transform.localPosition = pos;
+            Camera.transform.localRotation = Quaternion.Slerp(_dockCamFromRot, look.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(look, Vector3.up) : _dockCamFromRot, k);
+            return true;
+        }
+
+        /// <summary>#3142: guide lights racing along the approach into the hangar mouth, in pairs either side.</summary>
+        private void DockGuideLights()
+        {
+            if (_root == null || _boardTargetId == null || !_structs.TryGetValue(_boardTargetId, out var vs) || !vs.HasDock)
+            {
+                return;
+            }
+
+            _dockLightClock += Time.deltaTime;
+            if (_dockLightClock < 0.09f)
+            {
+                return;
+            }
+
+            _dockLightClock = 0f;
+            var outward = vs.DockOut.sqrMagnitude > 1e-4f ? vs.DockOut.normalized : Vector3.forward;
+            var side = Vector3.Cross(Vector3.up, outward);
+            side = side.sqrMagnitude > 1e-3f ? side.normalized : Vector3.right;
+            int step = Mathf.FloorToInt(Time.time * 11f) % 6;
+            var along = vs.Dock + outward * (15f - step * 3f) + Vector3.down * 2.2f;
+            var color = new Color(0.35f, 1f, 0.85f);
+            FxKit.Flash(_root.transform.TransformPoint(along + side * 4f), color, 1.1f, 0.22f);
+            FxKit.Flash(_root.transform.TransformPoint(along - side * 4f), color, 1.1f, 0.22f);
         }
     }
 }

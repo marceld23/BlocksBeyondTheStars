@@ -1072,9 +1072,14 @@ public sealed partial class GameServer
 
         // Per-player travel: only THIS player moves. Other players stay on their own worlds.
         string oldLoc = session.CurrentLocationId;
-        LeaveSpace(session.State.PlayerId);
 
+        // #3139: build the destination FIRST, then close the flight. SpaceClosed goes out at once, the WorldReset only after
+        // this; a cold world takes seconds to build, and with the flight closed first the client finished its landing
+        // descent and stood on the OLD world's still-loaded chunks for those seconds. Leaving the flight can send a docked
+        // visitor home (another world load), so the destination is made the active world again afterwards.
         LoadWorld(body.PlanetType!, body.Id); // loads/initialises the destination + sets the Active cursor
+        LeaveSpace(session.State.PlayerId);
+        SetActiveWorld(body.Id);
         session.CurrentLocationId = body.Id;
         OnMarkerOwnerLeftWorld(session, oldLoc, disconnected: false); // the players left behind lose this player's pings (#1293)
 

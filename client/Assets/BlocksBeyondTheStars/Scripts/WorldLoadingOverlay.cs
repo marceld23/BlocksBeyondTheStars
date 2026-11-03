@@ -179,6 +179,14 @@ namespace BlocksBeyondTheStars.Client
 
                 _armed = false;
 
+                // #3139/#3140/#3142: a landing or a docking under the transition cover (the clouds, the hangar doors) needs
+                // no veil — the cover IS the loading screen and holds until the world is ready.
+                var transitions = Game != null ? Game.Views.Transitions : null;
+                if (transitions != null && transitions.OwnsArrival)
+                {
+                    return;
+                }
+
                 // Always raise the veil (even if the surface already streamed in during the descent) so the
                 // landing/boarding screen is reliably shown + readable for ~MinShow seconds, not skipped on a
                 // fast/cached load. The minimum-on-screen time below holds it; WorldReady only gates the fade-out.
