@@ -11,6 +11,111 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.4] — 2026-11-04
+
+The landing release. **Landing, lift-off and docking are one continuous scene**. There is no black loading screen and no
+hard cut any more: your ship dives through the clouds and settles on its pad, and you lift off in the very hull you
+stood in. After a hyperjump you no longer see the old planet for a moment. Lyxette's spaceport gets fair rules: a
+**trader never lands on a pad you built over**, an **energy fence guards the air above it**, and the **jets scare the
+animals off the pad**. **Lifts come back down** from the bottom floor and say why they don't come. No more **frost in a
+closed room**, and the HUD calls snow "Snow". On top, a **security update** of the game engine.
+
+ℹ️ **Compatibility:** no new blocks — the **save version stays at 10**, the terrain generation at **32** and the network
+protocol at **version 11**, so worlds and servers of 2026.11.3 keep working. As always, keep game and server on the
+same version: the desktop game updates itself at start, and the browser is always current.
+
+### 🚀 Landing, lift-off and docking without a cut (#3140–#3142, #3151–#3154, #3158, #3159)
+
+- **Landing:** the camera flies with your ship as it turns belly-first and dives at the surface. In an atmosphere a
+  glowing bow shock builds in front of the hull, in the colours of the world you are diving into. The sky turns from
+  black to the planet's colour, the ship punches into the clouds, and below them it sinks onto its pad: dust in the
+  colour of the ground, a thump, steam. Then the camera glides back into your eyes.
+- **Lift-off:** the ship you stood in fires its engines on the ground, rises heavily with a swirl of dust, tips its nose
+  up and climbs into the clouds with a vapour cone and a boom. The flight view opens above the clouds while the sky
+  fades to black.
+- **Stations:** you watch the approach from beside the hangar mouth with its guide lights running, and the hangar
+  doors close behind you. Undocking opens them on your ship sliding out.
+- **Esc** (or the pad's cancel) skips the part on the ground. **Camera motion (bob/shake)**, **Screen shake** and **Reduce
+  flashes** are respected. Seven new sounds come with it.
+- **The pad chooser opens at once:** on **E**, a panel with a spinner shows right away and says that a first approach
+  to a world searches its landing pads first. The map replaces it as soon as the pads are there. The descent starts the
+  moment you pick a pad.
+- **Nothing left over:** the scanner's target frame no longer hangs in the landing scene, and your suit lamp no longer
+  shines in the lift-off shot.
+- **A closed door:** in flight and in the landing and lift-off scenes, the ship's hatch is now the closed door it is on
+  the ground, not a blue energy field.
+
+### 🌌 Hyperjump without the old planet (#3139)
+
+- After a hyperjump to a new world you sometimes stood on the old planet for a moment before the new one appeared. The
+  server now builds the destination first and only then ends the flight; the jump tunnel stays until the new world is
+  ready.
+
+### 🛬 Fair rules at the spaceport (#3146–#3149)
+
+- **No trader in your building:** a landing pad with a block somebody placed in its landing square is **built over**.
+  Traders skip it, the automatic pick skips it, and a hand-picked landing there is refused. The land chooser and the
+  map say "built over". Torches, flowers and the pad's own ground don't count, and a ship that is already parked never
+  moves.
+- **For world admins:** you may build on a pad anyway. The first block on each pad gets a one-time hint that ships can
+  no longer land there.
+- **The Energy Fence guards the air:** flying animals can no longer fly over a closed fence, and no wild flier appears
+  over the closed yard of a base that uses energy fences. A closed **Energy Gate** counts as wall.
+- **The jets scare the animals:** when a ship (yours or a trader's) lands or lifts off, the wild animals near the pad
+  run away for a few seconds. Pets, clones and giants stay calm, and nobody gets hurt.
+
+### 🛗 Lifts that come (#3161–#3163)
+
+- A **Lift Stop** on the **bottom floor** now calls the platform back down — before, it belonged to no lift and
+  pressing it did nothing.
+- **Snow never settles in a lift shaft**, and snow that already lay there is swept away for the ride. Before, a winter
+  drift under the platform blocked the whole lift.
+- A lift that can't come **says why**: the stop is not beside a shaft, the motor has no stops yet, or a block stands in
+  the shaft (and how high). A lift needs **no crystal conduits** — pressing is enough.
+
+### ❄️ Weather where it belongs (#3164, #3165)
+
+- **No frost in a closed room:** the snow cap and the wet gloss showed faintly on floors under a roof. Under a roof
+  your floor now stays dry; only the open sky gets wet and white.
+- The HUD's weather next to the temperature names **what actually falls**: **Snow** on a freezing world instead of
+  "Rain" (also Sleet, Hail, Sandstorm, Ash fall).
+
+### 🌍 Languages (#3114, #3143)
+
+- In the twelve community languages, all 251 block and item names that read differently in two places now agree, and
+  the Codex lost its English leftovers.
+
+### 🔒 Security
+
+- The game engine moves to **Unity 6000.6.8f1**, Unity's patch for two industry-wide issues: a compromised certificate
+  authority (eMudhra) and a flaw in the Brotli compression library. There is no known attack on the game. Windows and
+  browser players were not affected — the update closes the gap on Linux and macOS. (#3167)
+
+### 🙏 Thanks
+
+- **Lyxette** found the trader parked in his spaceport tower, wished for an energy fence against the big fliers, asked
+  how the lift works and spotted frost in his closed room. Thank you!
+
+### 🛠️ For tinkerers
+
+- **Pull requests:** seamless transitions + hyperjump + locales #3145 (issues #3139–#3143, #3114), spaceport #3150
+  (#3146–#3149), landing follow-ups #3157 (#3151–#3154) and #3160 (#3158, #3159), lifts and weather #3166
+  (#3161–#3165), Unity 6000.6.8f1 #3168 (#3167), langgraph 1.2.14 #3156.
+- **Transitions:** `TransitionDirector` (touchdown / lift-off / camera), `TransitionCover`, `TransitionGate`
+  (Client.Core); `BeginEarlyDescent` / `AbortDescent`; `ShipHatchDoor` and `DoorView.CloneDoorsWithin` for the doors in
+  the scenes. How it works: `docs/developer/SEAMLESS_TRANSITIONS.md`.
+- **Hyperjump order (#3139):** `HandleTravel` builds the destination world before `SpaceClosed`;
+  `ServerConfig.TransitLaunchTimeoutSeconds` 6 → 15 s.
+- **Built-over pads (#3146):** `IWorldRepository.HasPlayerBuiltBlocks`, the additive field `NetLandingPad.BuiltOver`
+  (an older client reads it as occupied). Fence airspace (#3148): `BlockedByEnergyFence(from, to, airborne)`.
+- **Lifts (#3161–#3163):** `StopBelongsTo` counts the bottom floor; `InLiftShaft` in the snow pass;
+  `ClearWeatherSnowInShaft`; `srv.lift.*` messages. Weather surface (#3164): `BBTS_SHADE_FLOOR`, pinned to
+  `ChunkMesher.ShadeFloor`. HUD chip (#3165): `WeatherLook.ChipState`.
+- **Docs:** USER_MANUAL, SEAMLESS_TRANSITIONS, MOVING_BLOCKS, BASES_AND_TELEPORTS, NPC_TRADER_SHIPS, ADVANCED_GRAPHICS,
+  VFX, ADR 0015.
+- **For hosters:** no save, protocol or terrain change. The WorldHost image was rebuilt (shared code changed) and rolls
+  with this release; the AI backend gets a dependency update (langgraph 1.2.14). The report inbox is unchanged.
+
 ## [2026.11.3] — 2026-11-02
 
 The star-chart release. **Planets seen from space lose the seam at their poles**, the **galaxy chart learns to zoom**,
@@ -9835,7 +9940,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.3...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.4...HEAD
+[2026.11.4]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.3...v2026.11.4
 [2026.11.3]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.2...v2026.11.3
 [2026.11.2]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.33...v2026.11.2
 [2026.10.33]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.32...v2026.10.33
