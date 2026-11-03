@@ -1162,8 +1162,10 @@ players.
   door (you see its frame and door while aiming — in the cabin and on a spacewalk alike —, it opens and closes, it
   shows on the ship in flight, and mining it gives it back; on a spacewalk aim at the door itself). Out in space a
   closed **energy door** shows its **blue field** (on the ground the field shows only while it is open); sliding,
-  hinge and wooden doors show their closed panels. The blue field of your **rear hatch** in the flight view sits
-  exactly on the hatch, whatever leaves or blocks you build around the stern.
+  hinge and wooden doors show their closed panels. Your ship's **rear hatch** is a **closed door** in the flight view
+  and in the lift-off and landing scenes (#3159) — shut, as on the ground, exactly on the hatch whatever leaves or
+  blocks you build around the stern (in the lift-off and landing scenes your ship flies with all its own doors); on a
+  spacewalk it stands open and a cyan light marks it.
   An extension counts as ship and has **air only when it is sealed** — airtight walls (glass counts) and a door in
   every opening; step into an open one and your helmet goes on. Walking through your hatch into a sealed extension
   keeps you inside the ship; a spacewalk starts only when you leave the ship's blocks.

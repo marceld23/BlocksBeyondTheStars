@@ -129,6 +129,7 @@ namespace BlocksBeyondTheStars.Client
         private ParticleSystem _thruster; // real engine-flame particles (replaces the old Unlit cube exhaust bits)
         private GameObject _hatchDoor; // closed door panel capping the rear hatch opening (slides open on an EVA)
         private Material _hatchMat; // glowing entry-hatch marker on the ship's tail (pulses on an EVA)
+        private GameObject _hatchMarker; // #3159: that marker on the voxel ship — shown on an EVA only, where it is needed
         private Material _hullMat;  // the ship's hull material — re-tinted when the player picks a colour (item 32)
         private int _appliedHullRgb = -1; // last hull colour applied (cube material tint or voxel re-mesh), to detect live changes
         private AudioSource _engine;
@@ -492,11 +493,16 @@ namespace BlocksBeyondTheStars.Client
                 _ship.transform.localScale = Vector3.one * (_eva ? 1f : FlightShipScale);
             }
 
-            // The rear hatch energy field is up while piloting (so the stern isn't an open hole) and drops —
-            // hidden — while you're on an EVA so you can float out and board.
+            // The rear hatch door is shut while piloting (so the stern isn't an open hole) and opens — hidden — while
+            // you're on an EVA so you can float out and board. #3159: the cyan "board here" marker shows only then.
             if (_hatchDoor != null)
             {
                 _hatchDoor.SetActive(!_eva);
+            }
+
+            if (_hatchMarker != null && _hatchMarker.activeSelf != _eva)
+            {
+                _hatchMarker.SetActive(_eva);
             }
 
             switch (_phase)
@@ -777,7 +783,9 @@ namespace BlocksBeyondTheStars.Client
             _ship = null;
             _exhaust = null;
             _thruster = null; // particle thruster lived under the destroyed _ship
-            _hatchDoor = null; // lived under the destroyed _ship
+            ShipCinematicFx.DestroyWithMeshes(_hatchDoor); // #3159: lived under the destroyed _ship; its meshes are its own
+            _hatchDoor = null;
+            _hatchMarker = null;
             _sun = null; // sun billboard lived under _root (destroyed); flare sprites persist on _ui
             _sunMat = null;
             _sunCoreMat = null;

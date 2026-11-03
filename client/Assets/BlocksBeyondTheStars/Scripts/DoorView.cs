@@ -129,6 +129,66 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>#3159: hides (or shows again) the doors standing inside <paramref name="box"/> — a transition cinematic flies
+        /// a stand-in of the parked ship, which carries its own closed hatch; the real hatch door would stand alone on the
+        /// pad meanwhile. Render-only: the door keeps its collider and its state.</summary>
+        public void SetDoorsHiddenWithin(Bounds box, bool hidden)
+        {
+            foreach (var d in _doors.Values)
+            {
+                if (d.Go != null && box.Contains(d.Go.transform.position + Vector3.up * 0.5f))
+                {
+                    foreach (var r in d.Go.GetComponentsInChildren<Renderer>(true))
+                    {
+                        r.enabled = !hidden;
+                    }
+                }
+            }
+        }
+
+        /// <summary>#3159: render-only copies of the doors standing inside <paramref name="box"/>, at their current pose, under
+        /// <paramref name="parent"/> — the transition cinematics fly the parked ship with ITS doors (the hatch, the doors the
+        /// owner built, the inner ones), whatever their kind. The meshes are copies the copy owns: a cinematic hull is torn
+        /// down with <see cref="ShipCinematicFx.DestroyWithMeshes"/>, and the doors' cubes share Unity's built-in mesh. Null
+        /// when no door stands there.</summary>
+        public GameObject CloneDoorsWithin(Bounds box, Transform parent)
+        {
+            GameObject holder = null;
+            foreach (var d in _doors.Values)
+            {
+                if (d.Go == null || !box.Contains(d.Go.transform.position + Vector3.up * 0.5f))
+                {
+                    continue;
+                }
+
+                if (holder == null)
+                {
+                    holder = new GameObject("Doors");
+                    holder.transform.SetParent(parent, false);
+                }
+
+                foreach (var mf in d.Go.GetComponentsInChildren<MeshFilter>())
+                {
+                    var mr = mf.GetComponent<MeshRenderer>();
+                    if (mf.sharedMesh == null || mr == null)
+                    {
+                        continue;
+                    }
+
+                    var go = new GameObject(mf.gameObject.name);
+                    go.transform.SetParent(holder.transform, false);
+                    go.transform.SetPositionAndRotation(mf.transform.position, mf.transform.rotation);
+                    go.transform.localScale = mf.transform.lossyScale; // the holder and the cinematic hulls are unscaled
+                    go.AddComponent<MeshFilter>().sharedMesh = Instantiate(mf.sharedMesh);
+                    var r = go.AddComponent<MeshRenderer>();
+                    r.sharedMaterials = mr.sharedMaterials;
+                    r.enabled = mr.enabled;
+                }
+            }
+
+            return holder;
+        }
+
         /// <summary>Travelling wipes the world: door ids are per world and restart at 1 on the destination
         /// body, so every held door object is stale. Without this reset a recycled id pinned an old door at
         /// its old coordinates — the "floating door on the asteroid" while the landed ship went doorless

@@ -31,20 +31,25 @@ namespace BlocksBeyondTheStars.Client
 
             EnsureUi();
             Game.SetCursorOwner(this, true); // the Cancel button wants the cursor, as the map does
-            const float pw = 560f, ph = 200f;
+            const float pw = 560f, ph = 230f;
             float px = (UiKit.HudRefW - pw) * 0.5f, py = (UiKit.HudRefH - ph) * 0.5f;
             var panel = UiKit.AddPanel(_ui.transform, px, py, pw, ph, new Color(0.03f, 0.07f, 0.13f, 0.97f));
             panel.raycastTarget = true;
             _padLoadingGo = panel.gameObject;
             string bodyName = string.IsNullOrEmpty(_landTargetName) ? string.Empty : $" — {_landTargetName}";
-            UiKit.AddText(panel.transform, 20, 16, pw - 40, 30, Loc("ui.space.pad_choose", "Choose a landing pad") + bodyName, 20,
+            // #3158: UiKit texts never wrap — the note ran far past the panel's edge as one line. The one-line texts shrink to
+            // their width (a long body name), the note wraps and shrinks inside its box.
+            var title = UiKit.AddText(panel.transform, 20, 16, pw - 40, 30, Loc("ui.space.pad_choose", "Choose a landing pad") + bodyName, 20,
                 UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.FitLabelSingleLine(title, pw - 40, 13, 20);
             UiKit.AddSpinner(panel.transform, 36, 66, 40);
-            UiKit.AddText(panel.transform, 92, 62, pw - 112, 24, Loc("ui.space.pad_loading", "Reading landing pads…"), 17,
+            var line = UiKit.AddText(panel.transform, 92, 60, pw - 112, 28, Loc("ui.space.pad_loading", "Reading landing pads…"), 17,
                 UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.AddText(panel.transform, 92, 88, pw - 112, 44, Loc("ui.space.pad_loading_hint",
-                "On your first approach to a world its landing pads are searched first — that can take a few seconds."), 13,
+            UiKit.FitLabelSingleLine(line, pw - 112, 12, 17);
+            var note = UiKit.AddText(panel.transform, 92, 92, pw - 112, 72, Loc("ui.space.pad_loading_hint",
+                "On your first approach to a world its landing pads are searched first — that can take a few seconds."), 14,
                 UiKit.CyanDim, TextAnchor.UpperLeft);
+            UiKit.FitLabel(note, 10, 14);
             UiKit.AddButton(panel.transform, (pw - 220) * 0.5f, ph - 56, 220, 40, Loc("ui.action.close", "Cancel (Esc)"), CancelLandChooser);
             UiNav.Enable(_padLoadingGo); // pad: the Cancel button takes the focus, as the map's buttons do (#1043)
         }

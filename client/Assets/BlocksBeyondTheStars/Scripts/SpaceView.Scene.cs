@@ -561,58 +561,17 @@ namespace BlocksBeyondTheStars.Client
                 ? new Vector3(hatch.MarkerX - _shipCentre.x, hatch.MarkerY - _shipCentre.y, hatch.MarkerZ - _shipCentre.z + 0.1f)
                 : new Vector3(0f, minY - _shipCentre.y + 0.5f, minZ - _shipCentre.z + 0.1f);
             _hatchMat = Unlit(new Color(0.2f, 0.85f, 1f));
-            Cube("Hatch", ship.transform, marker, new Vector3(1.0f, 0.6f, 0.25f), _hatchMat);
+            _hatchMarker = Cube("Hatch", ship.transform, marker, new Vector3(1.0f, 0.6f, 0.25f), _hatchMat); // #3159: EVA only (Hud)
             BuildNozzlePlumes(ship.transform, cells); // #2157/#2162: one plume per real engine, none on the door
 
-            // Cap the rear hatch opening with a powered energy door so the ship isn't a hole at the stern (you
-            // used to see straight into the hull). The field drops (hides) on an EVA so you can still board.
-            AddRearHatchDoor(ship, hatch, _shipCentre);
+            // Close the rear hatch opening so the ship isn't a hole at the stern (you used to see straight into the hull) —
+            // #3159: with the closed door it is on the ground, not the blue field of an energy door. It opens (hides) on an
+            // EVA so you can still board.
+            _doorPanelMat ??= Lit(new Color(0.62f, 0.68f, 0.76f)); // the flight scene's door look (AddPlacedDoors)
+            _doorRimMat ??= Unlit(new Color(0.2f, 0.85f, 1f));
+            _hatchDoor = ShipHatchDoor.Build(ship.transform, hatch, _shipCentre, _doorPanelMat, _doorRimMat);
             AddPlacedDoors(ship.transform, _shipDoors, _shipCentre); // #2119: the doors the owner built are doors in flight too
             return ship;
-        }
-
-        /// <summary>Caps the hatch openings <paramref name="hatch"/> names (#2587, <see cref="ShipHatch"/>) with a powered
-        /// energy door each — a translucent blue field in an emissive rim — under one <see cref="_hatchDoor"/> parented to
-        /// the ship (hidden on an EVA). No-op when there is nothing to cap (a sealed stern).</summary>
-        private void AddRearHatchDoor(GameObject ship, ShipHatch.Plan hatch, Vector3 centre)
-        {
-            _hatchDoor = null;
-            if (hatch.Panels.Count == 0)
-            {
-                return;
-            }
-
-            var door = new GameObject("HatchDoor");
-            door.transform.SetParent(ship.transform, false);
-            _hatchDoor = door;
-
-            // A powered ENERGY door (same look as the on-foot energy doors, item 35): a translucent blue field
-            // fills the opening, framed by a thin emissive cyan rim, so the stern clearly reads as a closed,
-            // powered airlock instead of the bare hull hole you used to see straight through. The rim + field
-            // slightly over-fill the opening so there's no visible seam gap at the half flight scale.
-            var rim = Unlit(new Color(0.2f, 0.85f, 1f));
-            var fieldMat = EnergyField(new Color(0.35f, 0.80f, 1f, 0.6f));
-            const float t = 0.16f; // rim bar thickness
-            foreach (var p in hatch.Panels)
-            {
-                // The panel stands in its wall plane (centred like the mesh): across Z in the stern, across X in a
-                // side wall (a self-built ship's side door) — the same panel turned a quarter about Y.
-                float w = p.FacesZ ? p.MaxX - p.MinX + 1 : p.MaxZ - p.MinZ + 1;
-                float h = p.MaxY - p.MinY + 1;
-                var panel = new GameObject("HatchPanel");
-                panel.transform.SetParent(door.transform, false);
-                panel.transform.localPosition = new Vector3(
-                    (p.MinX + p.MaxX + 1) * 0.5f - centre.x,
-                    (p.MinY + p.MaxY + 1) * 0.5f - centre.y,
-                    (p.MinZ + p.MaxZ + 1) * 0.5f - centre.z);
-                panel.transform.localRotation = p.FacesZ ? Quaternion.identity : Quaternion.Euler(0f, 90f, 0f);
-
-                Cube("RimTop", panel.transform, new Vector3(0f, h * 0.5f - t * 0.5f, 0f), new Vector3(w, t, 0.26f), rim);
-                Cube("RimBottom", panel.transform, new Vector3(0f, -h * 0.5f + t * 0.5f, 0f), new Vector3(w, t, 0.26f), rim);
-                Cube("RimLeft", panel.transform, new Vector3(-w * 0.5f + t * 0.5f, 0f, 0f), new Vector3(t, h, 0.26f), rim);
-                Cube("RimRight", panel.transform, new Vector3(w * 0.5f - t * 0.5f, 0f, 0f), new Vector3(t, h, 0.26f), rim);
-                Cube("EnergyField", panel.transform, Vector3.zero, new Vector3(w - t, h - t, 0.12f), fieldMat);
-            }
         }
 
         /// <summary>(Re)builds the ship's voxel chunk meshes + colliders from <see cref="_shipCells"/> (item 20
@@ -636,12 +595,14 @@ namespace BlocksBeyondTheStars.Client
             var rot = _ship != null ? _ship.transform.localRotation : Quaternion.identity;
             if (_ship != null)
             {
+                ShipCinematicFx.DestroyWithMeshes(_hatchDoor); // #3159: the hatch door's meshes are its own
                 Destroy(_ship);
             }
 
             _exhaust = null;
             _thruster = null;
             _hatchMat = null;
+            _hatchMarker = null;
             _hullMat = null;
             _appliedHullRgb = -1;
             _shipVox = null;      // destroyed with the old ship; BuildShip makes a fresh one

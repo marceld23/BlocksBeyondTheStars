@@ -293,8 +293,8 @@ namespace BlocksBeyondTheStars.Client
                 _fx.enabled = true;
             }
 
-            // Entry-hatch beacon: a steady cyan glow normally, a strong pulse while on an EVA so you can find
-            // your way back to the ship's hatch from a distance.
+            // Entry-hatch beacon: a strong pulse while on an EVA so you can find your way back to the ship's hatch from a
+            // distance (#3159: the voxel ship shows it on an EVA only; the cube fallback model keeps its steady glow).
             if (_hatchMat != null)
             {
                 float b = _eva ? 0.55f + 0.45f * (0.5f + 0.5f * Mathf.Sin(Time.time * 4.5f)) : 0.7f;

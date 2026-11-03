@@ -47,6 +47,16 @@ namespace BlocksBeyondTheStars.Client
             }
 
             ShipCinematicFx.StripColliders(root);
+
+            // #3159: the hull carries no door of its own (its doors are DoorView entities, going with the ship) — it lifts off
+            // with copies of them, and with its hatch shut by the plan when they are already gone.
+            var doorBox = ShipCinematicFx.RenderBounds(root);
+            doorBox.Expand(1.5f);
+            if (Game?.Views.Doors?.CloneDoorsWithin(doorBox, root.transform) == null && model != null)
+            {
+                ShipHatchDoor.Build(root.transform, ShipHatchDoor.PlanFor(model), Vector3.zero);
+            }
+
             ShipCinematicFx.SetRenderersEnabled(root, false); // unseen until a lift-off claims it (a world switch never shows it)
             root.transform.SetParent(null, true);
             _adopted = root;
@@ -93,6 +103,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             LiftoffBeats();
+            HideRealHatch(true);
             FlyHull(dt);
             AimLiftoff();
             if (_stageTime >= CloudsAt)
@@ -115,6 +126,7 @@ namespace BlocksBeyondTheStars.Client
             _adopted = null;
             ShipCinematicFx.SetRenderersEnabled(_stand, true);
             _hullBox = ShipCinematicFx.RenderBounds(_stand);
+            HideRealHatch(true); // #3159: a hatch door the server has not taken away yet stays out of the shot
             _restPos = _stand.transform.position;
             _exhausts = _adoptedModel != null ? ShipMeshBuilder.ExhaustPoints(Game.Content, _adoptedModel.Cells, Vector3.zero) : null;
             _dust = _adoptedModel != null ? ShipCinematicFx.GroundColor(Game, CellBelow(_adoptedModel)) : new Color(0.62f, 0.57f, 0.5f);
