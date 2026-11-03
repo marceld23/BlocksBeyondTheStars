@@ -24,6 +24,20 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🚪 A closed hatch door in flight and in the landing/lift-off scenes + the loading note in its box (Marcel's playtest 2026-11-03) — #3158 #3159, branch fix/hatch-door-2026-11-03 — ✅ done 2026-11-03 (⚠ playtest open; client only)
+
+- **#3158** The pad chooser's loading panel (#3151): `UiKit.AddText` never wraps, so the first-visit note ran far past the
+  panel's edge — its texts now shrink to one line or wrap inside their box (`UiKit.FitLabelSingleLine` / `FitLabel`), the panel is taller.
+- **#3159** The ship showed only an energy field at its hatch in flight (cruise, descent, climb out:
+  `SpaceView.AddRearHatchDoor` built a blue field in a cyan rim) and no door at all on the cinematics' hulls (the hatch is a
+  separate `DoorView` entity). In flight `ShipHatchDoor` draws it as the CLOSED door it is on the ground (slide panels,
+  seams, jamb posts, no field, flight materials; the cyan tail marker shows on a spacewalk only). The cinematics' hulls fly
+  with render-only copies of the ship's real doors (`DoorView.CloneDoorsWithin`, own meshes — a cinematic hull is torn down
+  with `DestroyWithMeshes`), the real ones hidden until the stand-in touches down; `ShipHatchDoor` shuts the hatch when the
+  doors are already gone at lift-off. Review before push: all doors (not only a guessed stern door), the ground door's
+  height, no mesh leak in flight, the existing `UiKit.FitLabel*` helpers. Doors the owner built keep decision 5 (a closed energy door shows its field in space).
+- Open: playtest (flight, a landing, a lift-off, a spacewalk to the hatch).
+
 ### 🛬 Landing feedback (Marcel's playtest 2026-11-03) — chooser spinner, descent on the pick, no scanner frame or lamp in the cinematics — #3151 #3152 #3153 #3154, branch fix/landing-feedback-2026-11-03 — ✅ done 2026-11-03 (⚠ playtest open; client only, no protocol, save or terrain change)
 
 Follow-ups of the seamless transitions (#3145). How it works: [docs/developer/SEAMLESS_TRANSITIONS.md](docs/developer/SEAMLESS_TRANSITIONS.md).

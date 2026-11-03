@@ -260,8 +260,11 @@ before it bursts breaks apart like every machine (`FxDefeat.BreakApart`) with a 
   - Other players' ships get the same per-engine plumes in flight (from their design). So does their landing or launch seen from the surface (`ShipTransitView`). Hostile cruisers and bandit ships have plumes too.
   - A throttle surge punches the FOV.
 - **Rear hatch and doors in space** (#2587, #2607):
-  - The rear hatch is capped by an energy panel (cyan rim + translucent field, hidden on a spacewalk) and marked by
-    the glowing tail cube. `ShipHatch` (Client.Core, unit-tested) places both: on the server's hatch cells
+  - The rear hatch is capped by its CLOSED door (#3159, `ShipHatchDoor`: the energy door's slide panels, seams and
+    jamb posts from `DoorGeometry`, no field — hidden on a spacewalk), and the glowing tail cube marks it on a spacewalk
+    only. The transition cinematics' hulls (touchdown stand-in, lifting-off hull) fly with render-only copies of the
+    ship's real doors (`DoorView.CloneDoorsWithin`, own meshes — the hull is torn down with `DestroyWithMeshes`), the
+    real ones hidden until the stand-in touches down; `ShipHatchDoor` shuts the hatch when the doors are already gone. `ShipHatch` (Client.Core, unit-tested) places both: on the server's hatch cells
     (`SpaceShipDesign.HatchX/Y/Z` — the doorways of the design's own doors that look out into space, one panel per
     doorway, turned for a side wall; with `HatchKnown` an empty list means no panel), else — an older server — by a
     guess that only reads cells inside the design
