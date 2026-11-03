@@ -331,7 +331,7 @@ Useful parameters:
 
 ```bash
 ./scripts/build-client.sh --skip-prereqs          # rebuild only the Unity player
-./scripts/build-client.sh --unity-path /opt/Unity/Hub/Editor/6000.6.5f1/Editor/Unity
+./scripts/build-client.sh --unity-path /opt/Unity/Hub/Editor/6000.6.8f1/Editor/Unity
 ./scripts/build-client.sh --out Build/Linux
 ```
 

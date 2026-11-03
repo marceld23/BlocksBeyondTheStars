@@ -20,7 +20,8 @@ no compute, no GPU particles and no modern upscaling.
 
 ## Decision
 
-1. **The client follows Unity's Supported cadence.** The project is on 6000.6.5f1 now, and the pin
+1. **The client follows Unity's Supported cadence.** The project is on 6000.6.8f1 now (moved from 6000.6.5f1 on
+   2026-11-03 for Unity's eMudhra CA + Brotli security patch, #3167 — a security patch release moves the pin at once), and the pin
    (`client/ProjectSettings/ProjectVersion.txt`, the `unityVersion:` lines of the GameCI workflows) moves to the
    next Supported release when it ships and its GameCI images exist — not to an LTS. The build scripts find the
    matching editor through `scripts/resolve-unity.ps1` (Hub default folder, a per-user

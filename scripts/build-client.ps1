@@ -23,7 +23,7 @@
 
 .EXAMPLE
   ./scripts/build-client.ps1
-  ./scripts/build-client.ps1 -UnityPath "C:\Program Files\Unity\Hub\Editor\6000.6.5f1\Editor\Unity.exe"
+  ./scripts/build-client.ps1 -UnityPath "C:\Program Files\Unity\Hub\Editor\6000.6.8f1\Editor\Unity.exe"
 #>
 param(
     [string] $UnityPath = '',

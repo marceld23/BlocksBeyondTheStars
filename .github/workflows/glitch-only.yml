@@ -187,7 +187,7 @@ jobs:
         with:
           cliVersion: v0.1.72 # the game-ci/cli release the wrapper installs — pinned like every action
           projectPath: client
-          unityVersion: 6000.6.5f1
+          unityVersion: 6000.6.8f1
           targetPlatform: WebGL
           buildMethod: BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildWebGL
           versioning: Custom

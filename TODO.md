@@ -24,6 +24,16 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🔒 Unity editor 6000.6.5f1 → 6000.6.8f1 — Unity's eMudhra CA + Brotli security patch — #3167, branch chore/unity-6000.6.8f1 — ✅ done 2026-11-03 (⚠ ships with the next release so players get the patched runtime)
+
+- Unity's notice of 2026-11-03: the eMudhra CA compromise (Unity CVE-2026-114406) and the Brotli decoder RCE
+  (CVE-2026-111497). 6000.6.8f1 (`237b6593792b`) rejects TLS to servers using the compromised eMudhra certificates and
+  patches Brotli in Mono/IL2CPP. Impact here is low: Windows and WebGL players are not affected (the OS / the browser
+  validates and decompresses); Linux/macOS players and the Linux editor in GameCI (Package Manager vs scoped registry)
+  are; the server, Docker images and ai-backend were already patched (ca-certificates, certifi in #2940).
+- `ProjectVersion.txt` + the 7 `unityVersion:` pins (release.yml ×4, webgl-only, glitch-only, macos-build); GameCI
+  images `ubuntu-6000.6.8f1-*-3`. Verified by a local `build-client.ps1` and a `release.yml` dispatch on the branch.
+
 ### 🛗 Player reports 2026-11-03 evening (Lyxette, v2026.11.3) — the lift comes back down, no snow in a lift shaft, the lift says why it does not come, no frost on a roofed floor, the HUD names the snow — #3161 #3162 #3163 #3164 #3165, branch fix/lift-and-indoor-frost — ✅ done 2026-11-03 (⚠ playtest open; no protocol, save-version or terrain-generation change)
 
 - **#3161** A lift stop on the bottom floor belonged to no lift (`StopBelongsTo` wanted the stop's floor ABOVE the bottom

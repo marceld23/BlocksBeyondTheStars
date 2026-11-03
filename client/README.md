@@ -5,7 +5,7 @@ reports and sends player *intents*. It never decides game outcomes.
 
 ## Requirements
 
-- Unity **6.6** (6000.6.5f1; see `ProjectSettings/ProjectVersion.txt`). The project was
+- Unity **6.6** (6000.6.8f1; see `ProjectSettings/ProjectVersion.txt`). The project was
   started on 2022.3 LTS and migrated to Unity 6 — on first open Unity finalizes the project
   files (and the exact editor-revision hash) automatically. Unity 6.4+ are *Supported* releases that
   are patched only until the next one ships, so the pin moves with Unity's cadence.
