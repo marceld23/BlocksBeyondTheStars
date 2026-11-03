@@ -60,7 +60,7 @@ public sealed partial class GameServer
                 break;
             case CrystalDeviceKind.LiftStop:
             case CrystalDeviceKind.LiftMotor:
-                LiftSignal(c); // #2266
+                LiftSignal(c, by); // #2266; #3163: a press that cannot be answered tells the player why
                 break;
         }
     }

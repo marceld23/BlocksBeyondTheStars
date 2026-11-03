@@ -585,7 +585,9 @@ The air and the weather leave their mark on the world (atmosphere package, Octob
   glowing forest moves like a slow wave at night. Crystals, ores and machines stay steady; **Reduce flashes** holds
   the plants steady too.
 - **Wet ground and snow caps**: rain darkens and glosses the open ground and dries again over minutes; snowfall caps
-  the upward faces (roofs too) and the snow melts when it warms up.
+  the upward faces (roofs too) and the snow melts when it warms up. Under a roof — in your house, under an
+  overhang — the floor stays dry. The weather next to the temperature in the HUD names what actually falls: a
+  rainy sky on a freezing world reads **Snow** (or Sleet, Hail; Sandstorm on a sand world, Ash fall on a lava world).
 - **Rain splashes** where drops meet the ground near you; rain, snow, hail and ash are soft drops and flakes.
 - **Shooting stars** cross the night sky now and then (often in a meteor shower); very rarely a distant ship blinks by.
 - **Underwater haze and light patterns**: under water the view closes in to a few metres in the water's colour,
@@ -2305,9 +2307,13 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
     menu); OFF takes it back in.
   - **Piston** — on ON it pushes up to four blocks in front of it one step; set it to **sticky** and on OFF it
     pulls the first one back. It never moves crates, devices, doors or someone else's base.
-  - **Lift** — a **lift motor** at the bottom of a 3×3 shaft, a **lift stop** beside the shaft on each floor.
-    Press a stop (or send it a signal) and the platform comes to that floor; a signal on the motor sends it to the
-    next stop. Stand on the platform and it carries you; it waits while anything stands under it.
+  - **Lift** — a **lift motor** at the bottom of a 3×3 shaft, a **lift stop** beside the shaft on each floor —
+    the bottom floor too: put each stop right next to the shaft, two blocks from the middle of the motor, at most
+    48 blocks above it. Press a stop (or send it a signal) and the platform comes to that floor; a signal on the
+    motor sends it to the next stop. A lift needs **no crystal conduits** — pressing is enough. Stand on the
+    platform and it carries you; it waits while anything stands under it. Keep the shaft free: a block in it stops
+    the lift (the motor's amber light), and pressing tells you where it stands. A stop that belongs to no lift, or a
+    motor without stops, says so when pressed. Snow never settles in a lift shaft.
 - **Matter link (beaming crates).** A **matter receiver** gets a name when you place it. A **matter sender**
   picks one of your (or an ally's) receivers in its menu, and every pulse takes one stack (up to 16 items)
   from the crate beside the sender and beams it into the crate beside the receiver — anywhere on the same

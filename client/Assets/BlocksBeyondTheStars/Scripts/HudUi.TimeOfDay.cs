@@ -123,7 +123,9 @@ namespace BlocksBeyondTheStars.Client
                 return string.Empty;
             }
 
-            // #2174: the shared weather look — the maps show the same glyphs and warning colours.
+            // #2174: the shared weather look — the maps show the same glyphs and warning colours. #3165: a rain state names
+            // what actually falls (snow at −14 °C, not "Rain").
+            state = WeatherLook.ChipState(state, env.Precipitation);
             string icon = WeatherLook.Glyph(state);
             string colour = WeatherLook.FamilyColorHex(env.WeatherFamily);
 

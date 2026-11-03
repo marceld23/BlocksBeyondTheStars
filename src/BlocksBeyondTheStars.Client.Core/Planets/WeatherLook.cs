@@ -86,8 +86,20 @@ namespace BlocksBeyondTheStars.Client
             "meteor_shower" => "★",
             "ember_fall" => "▲",
             "spore_bloom" => "❋",
+            "snow" or "sleet" or "hail" => "❄", // #3165: a rain state's chip names what actually falls
+            "sandstorm" => "≈",
+            "ash" => "▲",
             _ => "•",
         };
+
+        /// <summary>The precipitation forms a rain state can turn into by climate (<c>WeatherProjection.Precipitation</c>).</summary>
+        public static readonly string[] ChipPrecipitations = { "snow", "sleet", "hail", "sandstorm", "ash" };
+
+        /// <summary>#3165 (Lyxette's HUD said "Rain" at −14 °C while snow fell): the state the HUD chip names. A rain state
+        /// (rain, drizzle) resolves its precipitation by temperature and planet — snow, sleet, hail, a sandstorm on a sand
+        /// world, ash on a lava world — and the chip names that form; every other state names itself.</summary>
+        public static string ChipState(string? state, string? precipitation)
+            => state is "rain" or "drizzle" && Array.IndexOf(ChipPrecipitations, precipitation) >= 0 ? precipitation! : state ?? string.Empty;
 
         /// <summary>The weather family of a state in its wire form ("violent", "exotic", …).</summary>
         public static string Family(string? state)

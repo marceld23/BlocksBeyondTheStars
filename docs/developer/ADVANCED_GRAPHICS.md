@@ -49,7 +49,9 @@ renders in **linear colour space**, and the hand-written shaders are all dual-pi
   composites the refracted bed — the bed and every SSR hit arrive hazed already, so the old final pass veiled the
   shallows twice (#2411); the height fog counts half on a water surface, because the probe's mist floor *is* the water
   (`BbtsHazeAmountScaled`, #2412); the sky sheen caps at 30 % of the sky at a grazing angle instead of 16 % (#2413);
-  `_Sc_SeaLevel` (from the far-terrain world info) keeps wet ground and snow caps off the seabed (#2414); the far-terrain
+  `_Sc_SeaLevel` (from the far-terrain world info) keeps wet ground and snow caps off the seabed (#2414); the weather
+  surface measures its exposure past the mesher's shade floor (`BBTS_SHADE_FLOOR` = `ChunkMesher.ShadeFloor` 0.55), so
+  a roofed floor gets no snow cap and no wet gloss (#3164 — it got 55 % of both); the far-terrain
   sea takes the world's water tint and the rainbow bands from the same globals as the near water — vertex alpha 0.5
   marks it (#2415); the IMGUI underwater wash thins to ~15 % while the shader-side underwater haze is active (#2416).
 - **Wind sway by cutout code** (2026-10-13, #2519/#2520): `TEXCOORD2.x` of the opaque chunk mesh is a *cutout code*,

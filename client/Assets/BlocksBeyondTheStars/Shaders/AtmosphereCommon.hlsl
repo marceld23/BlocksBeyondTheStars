@@ -100,6 +100,13 @@ float BbtsCaustics(float3 wp, float3 N, float skylight)
 // Weather leaves a trace (#2398): rain wets the open ground (darker, glossier), snowfall caps the upward faces with a
 // white layer whose edge follows the cloud noise so it never reads as a flat sheet. Skylit, upward faces only, so
 // roofs, caves and interiors stay dry. Modifies the albedo and the gloss in place; returns the snow cover 0..1.
+//
+// #3164 (Lyxette: "frost weather in a closed room?"): the mesher's skylight never drops below its shade floor for a cell
+// up to six blocks under cover (#1608 — a roofed room or a tree's shade must not light like a cave), so `skylight` alone
+// put 55 % of the snow cap and the wet gloss on every roofed floor. The exposure is measured past that floor: the open
+// sky stays 1, a roof's shade becomes 0, a cave mouth or the edge under an overhang keeps a little.
+// Must match ChunkMesher's ShadeFloor (Reports20261103WiringTests pins the pair).
+#define BBTS_SHADE_FLOOR 0.55
 float BbtsWeatherSurface(inout float3 albedo, inout float gloss, float3 wp, float3 N, float skylight)
 {
     if (_Sc_Surface.z < 0.5)
@@ -115,7 +122,7 @@ float BbtsWeatherSurface(inout float3 albedo, inout float gloss, float3 wp, floa
         return 0.0;
     }
 
-    float exposed = saturate(N.y) * saturate(skylight);
+    float exposed = saturate(N.y) * saturate((skylight - BBTS_SHADE_FLOOR) / (1.0 - BBTS_SHADE_FLOOR));
     float wet = _Sc_Surface.x * exposed;
     albedo *= 1.0 - 0.35 * wet;
     gloss = max(gloss, wet * 0.7);
