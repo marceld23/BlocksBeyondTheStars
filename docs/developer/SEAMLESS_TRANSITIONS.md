@@ -36,6 +36,24 @@ touchdown snap and a settled player — however long the server takes to build t
 the server put it), flies a stand-in down from ~40 blocks, opens the cover on that shot, plays the touchdown (dust,
 thump, `ship_touchdown`, steam) and glides the camera into the player's eyes.
 
+**Early start (#3152).** Since #3139 the server builds the destination world before it closes the flight, so waiting for
+`!Game.InSpace` left the ship hanging for that build. A pad picked in the chooser (`LandOnPad`, `LandOnBasePad`) starts
+the descent at once (`BeginEarlyDescent`): `_descentAwaitingServer` clamps the sequence at its end behind the shut cover
+and keeps `Exit()` back until the flight has closed (the `!InSpace` branch clears the flag). An `ActionRejected` "land" or
+"travel" (`GameBootstrap.LandRefusals`) or 24 s without an answer (below the gate's 25 s give-up) calls it off (`AbortDescent`): `CancelArrival()` opens the
+cover, the ship goes back to the pose of the pick, cruise resumes; a timeout keeps the destination. `CoverLanding` notes only live signals while the flight is still open — its counters would still hold the previous close. No flight pose is sent meanwhile (`SendShipMove` is a
+cruise-only payload), so the server's ship never moved.
+
+**Pad chooser (#3151).** `ShowPadLoading` puts the chooser's panel (title, spinner, the first-visit note, Cancel) up the
+moment the request goes out; the map replaces it. The re-request comes after 8 s and the give-up after 30 s in all — a
+first pad search on a slow machine takes ~10 s (#3068).
+
+**What steps aside.** The flight view's target HUD (`HideTargetHud`, also the scanner's lock frame since #3153) outside
+cruise; the suit lamp (shader light + cone on the player camera) while `CinematicCameraActive` (#3154) — dark, not
+switched off; and the flight view's old black landing fade (it still timed the 2.2 s fly-away and went black 1.2 s into
+the 3.9 s dive) — with a director the cover is the only seam. The descent looks the launch body up under "" (the id
+`SpaceView.Scene` lists it with), not under the id the chooser resolved it to — it used to dive at the body ahead of the nose.
+
 **Lift-off.** When the server opens the flight, `SpaceView` asks `TransitionDirector.ClaimDeparture()` every frame
 before `Enter()`; true holds the flight view back. The server removed the parked hull in the same batch —
 `LandedShipView` hands the local player's own hull to the director (`AdoptDepartingShip`, colliders stripped) instead of

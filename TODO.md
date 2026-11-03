@@ -24,6 +24,21 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛬 Landing feedback (Marcel's playtest 2026-11-03) — chooser spinner, descent on the pick, no scanner frame or lamp in the cinematics — #3151 #3152 #3153 #3154, branch fix/landing-feedback-2026-11-03 — ✅ done 2026-11-03 (⚠ playtest open; client only, no protocol, save or terrain change)
+
+Follow-ups of the seamless transitions (#3145). How it works: [docs/developer/SEAMLESS_TRANSITIONS.md](docs/developer/SEAMLESS_TRANSITIONS.md).
+- **#3151** E/L opens the chooser at once: a panel with the body's name, a spinner, "Reading landing pads…" and a note that
+  a first approach searches the pads (`SpaceView.ShowPadLoading`); the map replaces it. The re-request comes after 8 s and
+  the give-up after 30 s (was 5 s + 5 s — shorter than a first pad search on a slow laptop, #3068). New key in 14 locales.
+- **#3152** The descent starts on the pad pick (`BeginEarlyDescent`) instead of after the server's world build; it holds
+  behind the shut cover until the flight closes; a refused landing ("land"/"travel") or 24 s without an answer calls it off
+  (`AbortDescent`: cover opens, ship back where it was; a timeout keeps the destination). The early cover takes only live arrival signals (the counters still held the previous close). Review finds fixed too: the old 2.2 s landing fade went black from 1.2 s into the 3.9 s dive (#3140) — the cover is the seam now; a landing back on the launch body dived at whatever was ahead of the nose (the launch body is listed under "" while the chooser resolves its id).
+- **#3153** The scanner's lock frame was only hidden by the scanner itself (cruise) and stood frozen through the landing —
+  `HideTargetHud` hides it with the rest of the target HUD.
+- **#3154** The suit lamp (shader light + cone on the camera) is dark while a cinematic owns the camera; it was lighting the
+  lift-off shot. It is lit again afterwards (not switched off).
+- Open: playtest (first approach to a new world, a refused landing, lamp on at lift-off, scanner selected while landing).
+
 ### 📬 Player reports 2026-11-03 (Lyxette, v2026.11.3) — no trader in a built-over pad, the energy fence guards the air above it, ship jets scare the animals off — #3146 #3147 #3148 #3149, branch fix/trader-pads-fence-2026-11-03 — ✅ done 2026-11-03 (⚠ playtest open; protocol: additive `NetLandingPad.BuiltOver`; no save-version or terrain-generation change)
 
 Six F1 reports from his spaceport: once his ship landed on his four new base pads, the travelling trader kept parking on

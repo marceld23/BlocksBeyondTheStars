@@ -3171,6 +3171,7 @@
   "ui.space.sys_tractor": "Traktör",
   "ui.space.pad_choose": "Bir iniş yatağı seç",
   "ui.space.pad_loading": "İniş yatakları okunuyor…",
+  "ui.space.pad_loading_hint": "Bir dünyaya ilk yaklaştığında önce iniş platformları aranır — bu birkaç saniye sürebilir.",
   "ui.space.pad_timeout": "Sunucudan iniş verisi alınamadı - lütfen tekrar dene.",
   "ui.space.pad_full": "— TÜM İNİŞ YATAKLARI DOLU",
   "ui.space.pad_yours": "senin platformun",

@@ -378,6 +378,10 @@ namespace BlocksBeyondTheStars.Client
                 {
                     VisitRefusals++; // #2724: the flight view drops the veil it raised for the visit
                 }
+                else if (m.Action is "land" or "travel")
+                {
+                    LandRefusals++; // #3152: the flight view calls off a descent it started on the pad pick
+                }
                 else if (m.Action == "return_ship")
                 {
                     // #2559: the open pause menu shows why instead of closing — and a fight refusal carries the seconds

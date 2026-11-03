@@ -3171,6 +3171,7 @@
   "ui.space.sys_tractor": "トラクター",
   "ui.space.pad_choose": "着陸パッドを選んでください",
   "ui.space.pad_loading": "着陸パッドを読み込み中…",
+  "ui.space.pad_loading_hint": "惑星に最初に接近すると、着陸パッドが最初に検索されます — これには数秒かかる場合があります。",
   "ui.space.pad_timeout": "サーバーから着陸データが届きません。もう一度お試しください。",
   "ui.space.pad_full": "— すべての着陸パッドが埋まっています",
   "ui.space.pad_yours": "あなたのパッド",

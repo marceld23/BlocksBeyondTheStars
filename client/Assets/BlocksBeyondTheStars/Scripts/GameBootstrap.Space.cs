@@ -225,6 +225,10 @@ namespace BlocksBeyondTheStars.Client
         /// lifts the veil it raised for the visit at once.</summary>
         public int VisitRefusals { get; private set; }
 
+        /// <summary>#3152: bumped on every refused landing (<c>ActionRejected</c> with action "land" or "travel"), so a descent
+        /// the flight view started on the pad pick is called off at once.</summary>
+        public int LandRefusals { get; private set; }
+
         /// <summary>Start's subscriptions for space flight, landed ships, repairs, trade and docking. Called once from
         /// <see cref="Start"/>, before the transport connects.</summary>
         private void WireSpace()

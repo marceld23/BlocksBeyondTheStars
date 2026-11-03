@@ -30,13 +30,114 @@ namespace BlocksBeyondTheStars.Client
         private MeshRenderer _shock;
         private static Mesh _shockMesh;
 
+        /// <summary>#3152: how long a descent started on the pad pick waits for the server to close the flight before it is
+        /// called off (the server builds the destination world first — seconds, never this long). Below the cover's own
+        /// give-up (<c>TransitionGate.GiveUp</c>, 25 s from the cover at ~2.7 s), so the cover never opens on the held dive.</summary>
+        private const float DescentAnswerTimeout = 24f;
+
+        private bool _descentAwaitingServer; // #3152: started on the pick; the server has not closed the flight yet
+        private int _descentRefusalsSeen;
+        private float _descentWait;
+        private Quaternion _descentFromRot = Quaternion.identity;
+
         private TransitionDirector Transitions => Game != null ? Game.Views.Transitions : null;
+
+        /// <summary>
+        /// #3152: the pad is picked — the descent starts NOW. It used to wait for the server to close the flight, and since
+        /// #3139 the server builds the destination world first, so the ship hung in place for the seconds that takes. The
+        /// cover closes at the usual point and the flight view holds behind it until the server answers; a refused landing
+        /// (a pad taken or built over meanwhile) or no answer calls it off (<see cref="AbortDescent"/>).
+        /// </summary>
+        private void BeginEarlyDescent()
+        {
+            if (_phase != Phase.Cruise || _eva || Game == null || _shipDestroyed || Game.AwaitingRespawnConfirm || !Game.InSpace)
+            {
+                return; // the flight closing starts the descent as before (or there is nothing left to fly)
+            }
+
+            _phase = Phase.Landing;
+            _seq = 0f;
+            _descentAwaitingServer = true;
+            _descentWait = 0f;
+            _descentRefusalsSeen = Game.LandRefusals;
+            ClientAudio.Instance?.Cue("ship_landing");
+            BeginDescent();
+        }
+
+        /// <summary>#3152: the server refused the landing (or never answered): the cover opens on the flight again, the ship
+        /// is back where the pilot picked the pad, and the controls are theirs. The refusal's reason is already on screen.
+        /// A timeout keeps the destination: should the server's close still come, its descent flies at the picked body.</summary>
+        private void AbortDescent(bool keepDestination)
+        {
+            _descentAwaitingServer = false;
+            if (_descentCovered)
+            {
+                Transitions?.CancelArrival();
+            }
+
+            _phase = Phase.Cruise;
+            _seq = 0f;
+            if (!keepDestination)
+            {
+                _landDestBody = null;
+            }
+
+            _descentHeat = 0f;
+            if (_ship != null)
+            {
+                _ship.transform.localPosition = _descentFrom;
+                _ship.transform.localRotation = _descentFromRot;
+            }
+
+            if (_shock != null)
+            {
+                _shock.enabled = false;
+            }
+
+            if (_engineLight != 0)
+            {
+                FxLights.Set(_engineLight, Color.black, 0f);
+            }
+
+            if (Camera != null)
+            {
+                Camera.backgroundColor = SpaceBackground;
+            }
+
+            Starfield.SkyFade = 1f;
+        }
+
+        /// <summary>#3152: while an early descent waits for the server — true once it was called off this frame.</summary>
+        private bool EarlyDescentCalledOff()
+        {
+            if (!Game.InSpace)
+            {
+                _descentAwaitingServer = false; // the flight closed (also with the destruction prompt up) — nothing to wait for
+                return false;
+            }
+
+            _descentWait += Time.deltaTime;
+            bool refused = Game.LandRefusals != _descentRefusalsSeen;
+            if (!refused && _descentWait < DescentAnswerTimeout)
+            {
+                return false;
+            }
+
+            if (!refused)
+            {
+                Game.ShowMessage(Loc("ui.space.pad_timeout", "No landing data from the server - please try again."));
+            }
+
+            AbortDescent(keepDestination: !refused);
+            return true;
+        }
 
         /// <summary>Plans the descent: the body (the pad chooser's, else the one ahead of the nose), a point on its surface
         /// a little ahead along the ship's heading, and the arc there; reads the body's atmosphere for the look.</summary>
         private void BeginDescent()
         {
             _descentFrom = _ship != null ? _ship.transform.localPosition : Vector3.zero;
+            _descentFromRot = _ship != null ? _ship.transform.localRotation : Quaternion.identity;
             var fwd = _ship != null ? _ship.transform.forward : Vector3.forward;
             ResolveDescentBody(fwd, out var body, out float radius, out string name);
             _descentBody = body;
@@ -63,6 +164,12 @@ namespace BlocksBeyondTheStars.Client
             radius = 60f;
             name = string.Empty;
             string want = _landDestBody ?? string.Empty;
+            if (Game?.StarMap != null && want == Game.StarMap.ActiveLocationId)
+            {
+                // The launch body is listed under "" (SpaceView.Scene); the chooser resolves "" to its real id (#956), so the
+                // descent never found it and dived at whatever was ahead of the nose — with that body's name and sky.
+                want = string.Empty;
+            }
             float best = -2f;
             foreach (var b in _landables)
             {
@@ -112,8 +219,18 @@ namespace BlocksBeyondTheStars.Client
 
         private void UpdateDescent()
         {
+            if (_descentAwaitingServer && EarlyDescentCalledOff())
+            {
+                return;
+            }
+
             float dt = Time.deltaTime;
             _seq += dt;
+            if (_descentAwaitingServer)
+            {
+                _seq = Mathf.Min(_seq, DescentSeconds); // #3152: behind the shut cover until the server has closed the flight
+            }
+
             float t = Mathf.Clamp01(_seq / DescentSeconds);
             float p = t * t * (3f - 2f * t);
             var pos = Bezier(_descentFrom, _descentCtrl, _descentTo, p);
@@ -139,7 +256,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             bool shut = Transitions == null || Transitions.CoverShut;
-            if ((_seq >= DescentSeconds && shut) || _seq >= DescentSeconds + 3f)
+            if (!_descentAwaitingServer && ((_seq >= DescentSeconds && shut) || _seq >= DescentSeconds + 3f))
             {
                 Exit();
             }

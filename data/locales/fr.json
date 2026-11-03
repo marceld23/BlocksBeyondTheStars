@@ -3171,6 +3171,7 @@
   "ui.space.sys_tractor": "Tracteur",
   "ui.space.pad_choose": "Choisis une plateforme d'atterrissage",
   "ui.space.pad_loading": "Lecture des plateformes…",
+  "ui.space.pad_loading_hint": "Lors de ta première approche d’une planète, ses plateformes d’atterrissage sont d’abord recherchées — cela peut prendre quelques secondes.",
   "ui.space.pad_timeout": "Aucune donnée d'atterrissage du serveur - réessaie.",
   "ui.space.pad_full": "— TOUTES LES PLATEFORMES OCCUPÉES",
   "ui.space.pad_yours": "ton pad",

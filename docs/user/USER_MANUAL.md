@@ -343,6 +343,14 @@ cockpit asks "Launch into space?"** — confirm with the button, **E** or **Ente
   the ship punches into the cloud layer (on an airless moon or asteroid: the glare of the braking engines). The clouds
   stay closed exactly as long as the new world needs to load and show its name — then they part over your ship
   sinking onto its pad on its engine fire, a thump and a cloud of dust, and the camera glides back into your eyes.
+  The dive starts the moment you pick a pad (#3152) — the new world loads behind the clouds meanwhile. If the server
+  turns the landing down (the pad was taken or built over in the meantime), the clouds open again and you are back at
+  the helm where you picked the pad, with the reason on screen.
+- **The landing map opens at once** (#3151): until the server has sent the pads it shows a spinner and "Reading landing
+  pads…". On your first approach to a world its pads are searched first, which can take a few seconds; later visits are
+  quick.
+- During the landing and the lift-off the flight HUD (target and scanner frames) and your suit lamp step aside (#3153,
+  #3154) — the lamp is lit again once you have the camera back.
 - **Stations:** the camera watches your ship glide into the hangar along its guide lights, the **hangar doors** close
   and open again inside the station. Undocking closes the doors in the station and opens them on your ship sliding out
   of the station's hangar.

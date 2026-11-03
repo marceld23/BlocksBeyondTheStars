@@ -441,6 +441,7 @@ namespace BlocksBeyondTheStars.Client
             // player clicks "Weiter" on the destruction prompt — then tear down at once (no recovery descent).
             if (!Game.InSpace && !Game.AwaitingRespawnConfirm)
             {
+                _descentAwaitingServer = false; // #3152: a descent started on the pad pick may finish now
                 if (_hyperjumping || _phase == Phase.Boarding || _enteringInterior || _shipDestroyed)
                 {
                     Exit(); // jump / station dock / stepping inside the ship / ship blown up: no landing descent
@@ -704,6 +705,7 @@ namespace BlocksBeyondTheStars.Client
 
             _shield = null;
             _shock = null;          // #3140: the bow shock lived under _root
+            _descentAwaitingServer = false; // #3152: a descent started on the pad pick ends with the scene
             Starfield.SkyFade = 1f; // the stars are back at full strength whatever the descent faded
             _extraThrusters.Clear();
             _nozzles.Clear();

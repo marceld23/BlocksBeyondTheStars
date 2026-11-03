@@ -3171,6 +3171,7 @@
   "ui.space.sys_tractor": "Ciągnik",
   "ui.space.pad_choose": "Wybierz miejsce lądowania",
   "ui.space.pad_loading": "Odczyt miejsc lądowania…",
+  "ui.space.pad_loading_hint": "Przy pierwszym podejściu do planety najpierw wyszukiwane są jej lądowiska — to może potrwać kilka sekund.",
   "ui.space.pad_timeout": "Brak danych lądowania z serwera - spróbuj ponownie.",
   "ui.space.pad_full": "— WSZYSTKIE MIEJSCA LĄDOWANIA ZAJĘTE",
   "ui.space.pad_yours": "twój dok",
