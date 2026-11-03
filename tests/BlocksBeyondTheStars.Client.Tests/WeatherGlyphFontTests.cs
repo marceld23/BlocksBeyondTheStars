@@ -40,7 +40,8 @@ public sealed class WeatherGlyphFontTests
     public void EveryWeatherStateUsesAPinnedGlyph()
     {
         var allowed = AllowedGlyphs.EnumerateRunes().ToHashSet();
-        var keys = WeatherCatalog.AllKeys.Concat(new[] { "clear", "unknown_state", string.Empty }).ToList();
+        var keys = WeatherCatalog.AllKeys.Concat(WeatherLook.ChipPrecipitations) // #3165: the HUD chip names those too
+            .Concat(new[] { "clear", "unknown_state", string.Empty }).ToList();
         var offenders = new List<string>();
         foreach (var key in keys)
         {

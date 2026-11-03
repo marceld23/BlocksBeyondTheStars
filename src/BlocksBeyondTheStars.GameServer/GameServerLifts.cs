@@ -7,6 +7,7 @@ using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -24,6 +25,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// height change — a vertical ride needs no moving frame. Players above a moving platform get the moving-block fall
 /// grace. Creatures and NPCs do not ride.</item>
 /// <item><b>Kid rule.</b> A platform never moves down onto a player, an NPC or an animal in the shaft — it waits.</item>
+/// <item><b>Snow.</b> Weather snow never settles in a shaft, and a drift that lay there before is cleared for the ride
+/// (#3162) — the platform is no block, so the snow pass would land its drift under the platform and block the lift.</item>
+/// <item><b>Telling why.</b> A press that cannot be answered says so (#3163): a stop beside no shaft, a motor without stops,
+/// a block in the shaft. A circuit's signal stays silent — there is no one to tell.</item>
 /// </list>
 /// Cost: one small loop per moving lift per tick, one list per 0.2 s while one moves; nothing for a lift at rest.
 /// </summary>
@@ -79,26 +84,32 @@ public sealed partial class GameServer
     }
 
     /// <summary>A stop stands on a landing right beside the shaft: two cells from the motor's column (the ring around the
-    /// 3×3 platform), above the motor and within the lift's height.</summary>
+    /// 3×3 platform), on the bottom floor or above it, and within the lift's height. #3161: the bottom floor counts — a stop
+    /// there calls the platform back down (it used to belong to no lift, and a press on it did nothing).</summary>
     private static bool StopBelongsTo(Vector3i stop, Vector3i motor)
     {
         int ring = CrystalNetRules.LiftPlatformRadius + CrystalNetRules.LiftStopReach;
         int dx = Math.Abs(stop.X - motor.X), dz = Math.Abs(stop.Z - motor.Z);
-        return Math.Max(dx, dz) == ring && stop.Y - 1 > motor.Y + 1 && stop.Y - motor.Y <= CrystalNetRules.LiftMaxHeight;
+        return Math.Max(dx, dz) == ring && stop.Y - 1 >= motor.Y + 1 && stop.Y - motor.Y <= CrystalNetRules.LiftMaxHeight;
     }
 
     /// <summary>The motor a stop belongs to, or null.</summary>
     private ServerCrystalCell? MotorOfStop(Vector3i stop)
         => CrystalNet.Cells.Values.FirstOrDefault(c => c.Kind == CrystalDeviceKind.LiftMotor && !c.Inert && StopBelongsTo(stop, c.Cell));
 
-    /// <summary>A signal (or a press) on a lift stop calls the platform there; on the motor it sends the platform on.</summary>
-    private void LiftSignal(ServerCrystalCell c)
+    /// <summary>A signal (or a press) on a lift stop calls the platform there; on the motor it sends the platform on. A press
+    /// (<paramref name="by"/> set) that cannot be answered says why (#3163).</summary>
+    private void LiftSignal(ServerCrystalCell c, PlayerSession? by)
     {
         if (c.Kind == CrystalDeviceKind.LiftStop)
         {
             if (MotorOfStop(c.Cell) is { } motor)
             {
-                LiftGoTo(motor, c.Cell.Y - 1);
+                LiftGoTo(motor, c.Cell.Y - 1, by);
+            }
+            else if (by is not null)
+            {
+                Send(by, new ServerMessage { Text = "@srv.lift.stop_no_shaft" }); // #3163: how to place it, not silence
             }
 
             return;
@@ -112,28 +123,33 @@ public sealed partial class GameServer
         var lift = LiftOf(c);
         var levels = LiftLevels(c.Cell);
         int here = (int)Math.Round(lift.Moving ? lift.TargetY : lift.PlatformY);
+        if (levels.Count == 1 && by is not null && !lift.Moving && Math.Abs(lift.PlatformY - levels[0]) < 0.01f)
+        {
+            Send(by, new ServerMessage { Text = "@srv.lift.no_stops" }); // #3163: a motor alone has nowhere to send it
+        }
+
         int next = levels.FirstOrDefault(l => l > here);
-        LiftGoTo(c, next > here ? next : levels[0]);
+        LiftGoTo(c, next > here ? next : levels[0], by);
     }
 
     /// <summary>Starts the platform towards a level — when the shaft between here and there is clear; else the motor's light
-    /// says it is blocked.</summary>
-    private void LiftGoTo(ServerCrystalCell motor, int level)
+    /// says it is blocked, and so does a message to the player who pressed (#3163). Weather snow in the way is cleared
+    /// first (#3162).</summary>
+    private void LiftGoTo(ServerCrystalCell motor, int level, PlayerSession? by = null)
     {
         var lift = LiftOf(motor);
+        int from = (int)Math.Floor(Math.Min(lift.PlatformY, level)), to = (int)Math.Ceiling(Math.Max(lift.PlatformY, level));
+        ClearWeatherSnowInShaft(motor.Cell, from, to);
         if (Math.Abs(lift.PlatformY - level) < 0.01f && !lift.Moving)
         {
             return;
         }
 
-        int from = (int)Math.Floor(Math.Min(lift.PlatformY, level)), to = (int)Math.Ceiling(Math.Max(lift.PlatformY, level));
-        for (int y = from; y <= to; y++)
+        if (BlockedLiftLayer(motor.Cell, from, to, up: level > lift.PlatformY) is int blocked)
         {
-            if (!LiftLayerClear(motor.Cell, y))
-            {
-                SetCrystalBlocked(motor, true);
-                return;
-            }
+            SetCrystalBlocked(motor, true);
+            SayLiftBlocked(by, motor.Cell, blocked);
+            return;
         }
 
         SetCrystalBlocked(motor, false);
@@ -143,6 +159,94 @@ public sealed partial class GameServer
         CrystalNet.LiftListDirty = true;
         BroadcastToWorld(new SoundFx { SoundId = "lift_motor", X = motor.Cell.X + 0.5f, Y = lift.PlatformY + 0.5f, Z = motor.Cell.Z + 0.5f, Loop = true, SourceId = 100000 + lift.Id });
         UpdateLiftStatuses(motor.Cell);
+    }
+
+    /// <summary>The layer between two heights (taken in the ride's direction, so the nearest one comes first) a solid block
+    /// stands in, or null when the whole way is clear.</summary>
+    private int? BlockedLiftLayer(Vector3i motor, int from, int to, bool up)
+    {
+        for (int i = 0; i <= to - from; i++)
+        {
+            int y = up ? from + i : to - i;
+            if (!LiftLayerClear(motor, y))
+            {
+                return y;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>#3163: tells the player who pressed where the shaft is blocked — counted from the bottom floor, the height a
+    /// builder can see. A circuit's signal (no player) stays silent; the motor's amber light still shows it.</summary>
+    private void SayLiftBlocked(PlayerSession? by, Vector3i motor, int layer)
+    {
+        if (by is null)
+        {
+            return;
+        }
+
+        int above = layer - (motor.Y + 1);
+        Send(by, new ServerMessage
+        {
+            Text = above <= 0 ? "@srv.lift.blocked_bottom" : "@srv.lift.blocked:" + above.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        });
+    }
+
+    /// <summary>#3162: weather snow lying in the shaft between two heights is cleared for the platform — only the snow pass's
+    /// tracked drifts (a player's own snow blocks still block). Drifts from before the fix may lie there already; new ones
+    /// never settle in a shaft (<see cref="InLiftShaft"/>).</summary>
+    private void ClearWeatherSnowInShaft(Vector3i motor, int from, int to)
+    {
+        if (_worlds.Active.WeatherDeposits.Count == 0)
+        {
+            return;
+        }
+
+        int r = CrystalNetRules.LiftPlatformRadius;
+        for (int y = from; y <= to; y++)
+        {
+            for (int dx = -r; dx <= r; dx++)
+            {
+                for (int dz = -r; dz <= r; dz++)
+                {
+                    var cell = new Vector3i(motor.X + dx, y, motor.Z + dz);
+                    if (cell != motor)
+                    {
+                        ClearWeatherSnowAt(cell);
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>#3162: whether a cell lies in a lift's shaft — the 3×3 column above a motor, up to the lift's height. Weather
+    /// snow never settles there: the platform is no block, so the snow pass would lay its drift under the platform.</summary>
+    private bool InLiftShaft(Vector3i cell)
+    {
+        var lifts = CrystalNet.Lifts;
+        if (lifts.Count == 0)
+        {
+            return false;
+        }
+
+        var canonical = WorldConstants.CanonicalBlock(cell, _world.Circumference);
+        foreach (var motor in lifts.Keys)
+        {
+            if (InShaftOf(cell, motor) || InShaftOf(canonical, motor))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool InShaftOf(Vector3i cell, Vector3i motor)
+    {
+        int r = CrystalNetRules.LiftPlatformRadius;
+        return Math.Abs(cell.X - motor.X) <= r && Math.Abs(cell.Z - motor.Z) <= r
+            && cell.Y > motor.Y && cell.Y - motor.Y <= CrystalNetRules.LiftMaxHeight;
     }
 
     /// <summary>Whether the 3×3 layer of the shaft at this height is free of solid blocks (the motor itself excepted).</summary>

@@ -24,6 +24,26 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛗 Player reports 2026-11-03 evening (Lyxette, v2026.11.3) — the lift comes back down, no snow in a lift shaft, the lift says why it does not come, no frost on a roofed floor, the HUD names the snow — #3161 #3162 #3163 #3164 #3165, branch fix/lift-and-indoor-frost — ✅ done 2026-11-03 (⚠ playtest open; no protocol, save-version or terrain-generation change)
+
+- **#3161** A lift stop on the bottom floor belonged to no lift (`StopBelongsTo` wanted the stop's floor ABOVE the bottom
+  one), so pressing it did nothing and the platform could not be called back down. The bottom floor counts now; its
+  light shows "here" while the platform rests there.
+- **#3162** The platform is no block, so the weather snow pass laid its drift in the open shaft — under the platform —
+  and the solid snow blocked `LiftLayerClear` (Lyxette's world: a drift in the resting layer). Snow never settles in a
+  lift shaft now (`InLiftShaft`), and a ride clears tracked weather drifts in its way first (`ClearWeatherSnowInShaft`);
+  a player's own snow still blocks.
+- **#3163** A press that cannot be answered says why: a stop beside no shaft (`srv.lift.stop_no_shaft`), a motor without
+  stops (`srv.lift.no_stops`), a block in the shaft with its height (`srv.lift.blocked` / `blocked_bottom`). Circuit
+  signals stay silent. The manual answers "does it need crystal conduits?" — no.
+- **#3164** "Frost weather in a closed room": `BbtsWeatherSurface` weighted snow and wetness by the mesher's skylight,
+  which never drops below its 0.55 shade floor under a roof (#1608) — every roofed floor got 55 % of the snow cap. The
+  exposure is measured past the shade floor (`BBTS_SHADE_FLOOR`, pinned to `ChunkMesher.ShadeFloor` by a test).
+- **#3165** The HUD weather chip said "Rain" at −14 °C while snow fell: a rain state now names its precipitation
+  (`WeatherLook.ChipState`: Snow, Sleet, Hail, Sandstorm, Ash fall). 9 new keys in all 14 locales (hand-checked).
+- Tests: `LiftShaftTests` (4), `Reports20261103WiringTests`, the glyph pin covers the new chip states. Local Unity build
+  green.
+
 ### 🚪 A closed hatch door in flight and in the landing/lift-off scenes + the loading note in its box (Marcel's playtest 2026-11-03) — #3158 #3159, branch fix/hatch-door-2026-11-03 — ✅ done 2026-11-03 (⚠ playtest open; client only)
 
 - **#3158** The pad chooser's loading panel (#3151): `UiKit.AddText` never wraps, so the first-visit note ran far past the

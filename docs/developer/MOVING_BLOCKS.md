@@ -68,11 +68,20 @@ head's cell. `out=` persists the head.
 **Building.** A `lift_motor` at the bottom; the shaft is the 3×3 column above it (`LiftPlatformRadius` 1, at most
 `LiftMaxHeight` 48 cells). The platform rests on the motor. A `lift_stop` beside the shaft (within `LiftStopReach`
 of the platform's edge) is a floor: the platform's top comes level with the stop's own cell. `LiftLevels` lists the
-floors, bottom first.
+floors, bottom first. A stop on the bottom floor belongs to the lift too (`StopBelongsTo`, #3161 — it used to be
+excluded, so a press on it did nothing and the platform could not be called back down).
 
 **Signals.** A press or a rising edge on a stop calls the platform there (`LiftGoTo`); on the motor it sends the
 platform to the next stop up, from the top back down to the bottom. A stop's status light is ON while the platform
-waits at it.
+waits at it. A **press** that cannot be answered says why (#3163, `ServerMessage`): `srv.lift.stop_no_shaft` (the stop
+belongs to no motor), `srv.lift.no_stops` (a motor alone at the bottom), `srv.lift.blocked:<height>` /
+`srv.lift.blocked_bottom` (the first blocked layer in the ride's direction, counted from the bottom floor). A circuit's
+signal stays silent.
+
+**Snow.** The platform is no block, so the weather snow pass would see an open shaft and lay its drift under the
+platform — solid snow then blocked `LiftLayerClear` (Lyxette, 2026-11-03). `TryFindSnowSurface` now skips every lift
+shaft (`InLiftShaft`: the 3×3 column above a motor, up to `LiftMaxHeight`), and `LiftGoTo` clears tracked weather
+drifts in the ride's layers first (`ClearWeatherSnowInShaft`; a player's own snow still blocks) (#3162).
 
 **Moving.** The server owns `ServerLift.PlatformY` and moves it at `LiftSpeed` (3 cells per second) in `TickLifts`
 every tick (not on the beat). It starts only when the shaft between here and there is clear (`LiftLayerClear`), and

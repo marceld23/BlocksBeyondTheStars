@@ -348,8 +348,9 @@ public sealed partial class GameServer
             }
 
             // #3135: the sky test reads only world blocks, so a parked hull did not shelter its own floor — drifts formed
-            // inside the ship and lifted it a block on the next join. Nor does snow settle in a cell someone stands in.
-            if (InShipInterior(above) || PlayerStandsIn(above))
+            // inside the ship and lifted it a block on the next join. Nor does snow settle in a cell someone stands in, nor in
+            // a lift shaft (#3162): the platform is no block, so the drift would land under it and block the lift.
+            if (InShipInterior(above) || PlayerStandsIn(above) || InLiftShaft(above))
             {
                 return false;
             }
@@ -436,6 +437,27 @@ public sealed partial class GameServer
                 BroadcastToWorld(new BlockChanged { X = cell.X, Y = cell.Y, Z = cell.Z, Block = 0 });
                 OnSupportRemoved(cell); // #1367: sand someone dropped on the drift comes down with the thaw
             }
+        }
+    }
+
+    /// <summary>#3162: clears one tracked weather-snow drift at a cell as if it had melted (block, save row, broadcast) — the
+    /// lift platform's way through its shaft. Only the snow pass's own drifts are in the table, so a player's snow stays.</summary>
+    private void ClearWeatherSnowAt(Vector3i cell)
+    {
+        var deposits = _worlds.Active.WeatherDeposits;
+        var key = deposits.ContainsKey(cell) ? cell : WorldConstants.CanonicalBlock(cell, _world.Circumference);
+        if (!deposits.Remove(key))
+        {
+            return;
+        }
+
+        _repo.DeleteWeatherDeposit(_world.LocationId, key);
+        ushort snow = _weatherSnowId != 0 ? _weatherSnowId : _content.GetBlock("snow")?.NumericId.Value ?? 0;
+        if (snow != 0 && _world.GetBlockIfLoaded(key).Value == snow)
+        {
+            _world.SetBlock(key, new BlockId(0));
+            BroadcastToWorld(new BlockChanged { X = key.X, Y = key.Y, Z = key.Z, Block = 0 });
+            OnSupportRemoved(key); // sand someone dropped on the drift comes down, as with the thaw
         }
     }
 
