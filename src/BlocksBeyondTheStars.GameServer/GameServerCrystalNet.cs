@@ -1058,17 +1058,17 @@ public sealed partial class GameServer
             return;
         }
 
-        if (!WithinReach(session.State, CrystalToWorld(pos)))
+        if (IsLiftFloorAction(intent.Action) ? !CanReachLift(session, cell) : !WithinReach(session.State, CrystalToWorld(pos)))
         {
-            Reject(session, "crystal", "@out_of_reach");
+            Reject(session, "crystal", IsLiftFloorAction(intent.Action) ? "@srv.lift.too_far" : "@out_of_reach"); // #3171: rider or beside a stop
             return;
         }
 
         string me = session.State.PlayerId;
 
         // #2256: only the owner and their alliance (and an admin) OPERATE a device — a stranger can no longer flip someone's
-        // alarm off. A world circuit (#2260) is usable by everyone; configuring it is the admin's.
-        bool configure = intent.Action is 2 or 3;
+        // alarm off. A world circuit (#2260) is usable by everyone; configuring it is the admin's. Naming is configuring.
+        bool configure = intent.Action is 2 or 3 or LiftNameFloorAction or CrystalRenameAction;
         if (configure ? !CanConfigureCrystal(cell, me, session.State.IsAdmin) : !CanOperateCrystal(cell, me, session.State.IsAdmin))
         {
             Reject(session, "crystal", "@srv.crystal.owner_only");
@@ -1103,8 +1103,10 @@ public sealed partial class GameServer
                 SaveCrystalCell(cell);
                 CrystalNet.DeviceListDirty = true;
                 return;
+            case >= LiftGoToAction and <= CrystalRenameAction: // #3171 / #3172: the floor picker and the name field
+                HandleCrystalFloorOrName(session, cell, intent);
+                return;
             case 2:
-
                 int modes = CrystalNetRules.ModeCount(cell.Kind);
                 if (modes > 0)
                 {
@@ -1146,14 +1148,9 @@ public sealed partial class GameServer
                 }
 
                 cell.Config = fresh;
-                if (intent.Label is { Length: > 0 })
+                if (!ApplyCrystalLabel(session, cell, intent.Label, clear: false)) // an empty one keeps the name (#3172: action 7 clears)
                 {
-                    if (ScreenPlayerName(session, SanitizeBeamName(intent.Label), "crystal") is not { } screened)
-                    {
-                        return; // refused by the content screen (#1221) — the player has been told
-                    }
-
-                    cell.Label = screened;
+                    return; // refused by the content screen (#1221) — the player has been told
                 }
 
                 cell.Timer?.Reset();

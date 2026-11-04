@@ -18,7 +18,8 @@ namespace BlocksBeyondTheStars.Tests;
 /// <summary>
 /// #2603 — trader ships land on planets even when nobody flies: a planet-side scheduler per occupied body, gaps by the
 /// system's traffic (a present base owner draws them sooner; a system without traffic only sees one for a base), the free
-/// dry pad NEAREST the player's base (so the radio's "parked near your base" is true), a 20 s approach with the pad
+/// dry pad NEAREST the player's base (so the radio's "parked near your base" is true; never one beyond the traders' reach,
+/// #3175 — <c>TraderPadChoiceTests</c> covers the rest of that issue), a 20 s approach with the pad
 /// reserved and nothing standing on it yet, then the real descent FX, the hull, the pilot, the toast and the hail. One
 /// trader per body; nothing for a body without players or with the rule off; the flight scene's landing still sets down
 /// at once, but on the same pad rule (K12). A trader on its approach is no village talk and no VEGA "trader near" tip yet.
@@ -127,14 +128,16 @@ public sealed class PlanetTraderArrivalTests
         w.Server.TickForTest(0.1);
         Assert.Null(w.Server.LandedTraderPilotPosForTest(body));
         Assert.DoesNotContain(w.Server.PlacedHullOwnersForTest(), o => o.StartsWith("npc:", StringComparison.Ordinal));
-        Assert.Empty(To<ShipTransitFx>(w));
+        var approach = Assert.Single(To<ShipTransitFx>(w)); // #3177: only the approach's contrail so far, no descent
+        Assert.Equal(20f, approach.ApproachSeconds, 2);
+        Assert.True(approach.Landing);
 
         // Touchdown: the real ship descends, the pilot steps out, the toast and VEGA (no radio worn) tell the owner.
         w.Server.AdvanceUptimeForTest(3.0);
         w.Server.TickForTest(0.1);
         Assert.NotNull(w.Server.LandedTraderPilotPosForTest(body));
         Assert.Contains(w.Server.PlacedHullOwnersForTest(), o => o.StartsWith("npc:", StringComparison.Ordinal));
-        var fx = Assert.Single(To<ShipTransitFx>(w));
+        var fx = Assert.Single(To<ShipTransitFx>(w).Where(f => f.ApproachSeconds == 0f));
         Assert.True(fx.Landing);
         Assert.Equal(name, fx.Name);
         Assert.Contains("@srv.trader.landed:" + name, w.MessagesToPlayer());
@@ -186,10 +189,12 @@ public sealed class PlanetTraderArrivalTests
     }
 
     [Fact]
-    public void TheFlightScenesLanding_TakesTheFreeDryPadNearestTheBase_NotTheLowestFreeOne()
+    public void TheFlightScenesLanding_TakesTheFreeDryPadNearestTheBase_NotTheLowestFreeOne_NorOneBeyondTheReach()
     {
         // K12: the hail says "we're parked near your base" — the flight scene's trader must take the same pad as a
         // planet-side arrival, even with the owner up in space (nobody on the surface: the hailed owner's base anchors it).
+        // #3175: and never one far beyond the base — with pad 0 (beside the arena) taken, every other pad lies thousands
+        // of blocks off, so it does not set down at all (neither on the lowest free pad nor on the nearest far one).
         using var w = World("ptrader_space_pad");
         string body = w.Server.ActiveLocationId;
         w.Player.AssignedPadIndex = 0; // the owner's ship holds pad 0 (the one beside the arena), so the nearest is far off
@@ -198,14 +203,37 @@ public sealed class PlanetTraderArrivalTests
         Assert.True(expected >= 0, "the arena has no free dry pad");
         int lowestFree = Enumerable.Range(0, w.Server.LandingPadCount).First(i => i != mine);
         Assert.NotEqual(lowestFree, expected); // otherwise the old lowest-free-pad rule would pass too
+        var far = w.Server.LandingPadInfoForTest(expected);
+        Assert.True(Math.Abs(far.X - NpcLifeWorld.Cx) + Math.Abs(far.Z - NpcLifeWorld.Cz) > SvGameServer.TraderCommunalPadReach * 2);
 
         w.Player.State.AboardShip = true;
         w.Server.EnterSpace(w.Player.State.PlayerId);
         Assert.True(w.Server.InSpace(w.Player.State.PlayerId));
         Assert.Equal(mine, w.Server.AssignedPadForTest(w.Player.State.PlayerId)); // still reserved while in space
 
+        Assert.False(w.Server.LandTraderFromFlightForTest(w.Player.State.PlayerId, body));
+        Assert.Equal(0, w.Server.LandedTraderCountForTest());
+
+        w.Player.AssignedPadIndex = -1; // pad 0 is free again: the trader parks beside the base
+        int beside = ExpectedPad(w);
         Assert.True(w.Server.LandTraderFromFlightForTest(w.Player.State.PlayerId, body));
-        Assert.Equal(expected, w.Server.LandedTraderPadForTest(body));
+        Assert.Equal(beside, w.Server.LandedTraderPadForTest(body));
+    }
+
+    [Fact]
+    public void ThePadNearestThePlayersThere_IsTaken_NotTheLowestFreeOne()
+    {
+        // K12 without a Market base owner on the surface: the players standing there anchor the pad — a visitor beside a far
+        // pad gets that one, not pad 0.
+        using var w = World("ptrader_visitor_pad");
+        int far = Enumerable.Range(1, w.Server.LandingPadCount - 1)
+            .First(i => !w.Server.LandingPadInfoForTest(i).Wet && !w.Server.LandingPadLavaForTest(i).Molten);
+        var pad = w.Server.LandingPadInfoForTest(far);
+        var visitor = w.Server.AddLocalPlayer("Visitor");
+        visitor.State.Position = new Vector3f(pad.X + 20.5f, pad.Y + 1, pad.Z + 0.5f);
+
+        Assert.Equal(far, w.Server.TraderCommunalPadForTest(visitor));
+        Assert.Equal(ExpectedPad(w), w.Server.TraderCommunalPadForTest(w.Player)); // the owner's Market base anchors the pad beside it
     }
 
     [Fact]

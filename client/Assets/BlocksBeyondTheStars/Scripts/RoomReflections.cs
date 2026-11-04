@@ -278,8 +278,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>A block edit near the room (a lamp placed, a wall opened) re-measures and re-renders it. The cell is
-        /// canonical; compare across the world wrap.</summary>
-        private void OnBlockChanged(Vector3i pos, BlockId oldId, BlockId newId)
+        /// canonical; compare across the world wrap. A moved block (#3173, a bridge deck or a trapdoor) counts the same.</summary>
+        private void OnBlockChanged(Vector3i pos, BlockId oldId, BlockId newId, bool moved)
         {
             if (!_hasRoom)
             {

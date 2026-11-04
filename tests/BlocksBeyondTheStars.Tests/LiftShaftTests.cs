@@ -153,4 +153,118 @@ public sealed class LiftShaftTests : IDisposable
         Assert.Equal(201f, server.LiftPlatformYForTest(Motor));
         Assert.Contains("@srv.lift.blocked:2", Said(p));
     }
+
+    // ---- #3171: choosing the floor -------------------------------------------------------------------------------------
+
+    private static readonly Vector3i TopStop = new(4, 211, 2); // ten up: the platform rests at 210 there
+
+    /// <summary>A three-floor lift: the bottom, the middle (<see cref="UpperStop"/>) and the top.</summary>
+    private (SvGameServer Server, BlocksBeyondTheStars.GameServer.PlayerSession Player) ThreeFloors()
+    {
+        var (server, p) = Lift();
+        server.PlaceBlock("Builder", BottomStop.X, BottomStop.Y, BottomStop.Z, "lift_stop");
+        server.PlaceBlock("Builder", UpperStop.X, UpperStop.Y, UpperStop.Z, "lift_stop");
+        p.State.Position = new Vector3f(6, 209, 2); // up by the top landing
+        server.PlaceBlock("Builder", TopStop.X, TopStop.Y, TopStop.Z, "lift_stop");
+        p.State.Position = new Vector3f(6, 203, 2);
+        return (server, p);
+    }
+
+    /// <summary>The floor picker's "go": action 5 at the motor with the floor's platform height.</summary>
+    private static void GoTo(SvGameServer server, BlocksBeyondTheStars.GameServer.PlayerSession p, int level, double seconds = 4.0)
+    {
+        server.SetCrystalDeviceForTest(p, Motor, action: 5, mode: level);
+        for (double t = 0; t < seconds; t += 0.1)
+        {
+            server.TickForTest(0.1);
+        }
+    }
+
+    private string[] Refused(BlocksBeyondTheStars.GameServer.PlayerSession p)
+        => _transport.Sent.Where(s => s.Conn == p.ConnectionId).Select(s => s.Msg).OfType<ActionRejected>().Select(m => m.Reason).ToArray();
+
+    private NetLift LastLift(BlocksBeyondTheStars.GameServer.PlayerSession p)
+        => _transport.Sent.Where(s => s.Conn == p.ConnectionId).Select(s => s.Msg).OfType<LiftList>().Last().Lifts.Single();
+
+    [Fact]
+    public void TheFloorPicker_RidesFromTheTopDown_AndFromTheMiddleUp()
+    {
+        var (server, p) = ThreeFloors();
+        p.State.Position = new Vector3f(6, 209, 2);
+        Press(server, p, TopStop, seconds: 4.0);
+        Assert.Equal(210f, server.LiftPlatformYForTest(Motor));
+
+        p.State.Position = new Vector3f(Motor.X + 0.5f, 211, Motor.Z + 0.5f); // on the platform, the motor 10 blocks below
+        GoTo(server, p, 201);
+        Assert.Equal(201f, server.LiftPlatformYForTest(Motor)); // Lyxette: "from up here I want to ride down"
+
+        p.State.Position = new Vector3f(5.5f, 205, 2.5f); // on the middle landing, beside its stop
+        Press(server, p, UpperStop);
+        Assert.Equal(204f, server.LiftPlatformYForTest(Motor));
+        GoTo(server, p, 210);
+        Assert.Equal(210f, server.LiftPlatformYForTest(Motor));
+        Assert.True(server.CrystalDeviceOutput(TopStop));
+        Assert.DoesNotContain("@srv.lift.too_far", Refused(p));
+    }
+
+    [Fact]
+    public void TheFloorPicker_IsRefused_OutOfReach_OnSomeoneElsesLift_AndForAFloorThatIsNone()
+    {
+        var (server, p) = ThreeFloors();
+        p.State.Position = new Vector3f(30, 205, 30); // far from the platform and every stop
+        GoTo(server, p, 210);
+        Assert.Equal(201f, server.LiftPlatformYForTest(Motor));
+        Assert.Contains("@srv.lift.too_far", Refused(p));
+
+        var stranger = server.AddLocalPlayer("Stranger");
+        stranger.State.Position = new Vector3f(Motor.X + 0.5f, 202, Motor.Z + 0.5f); // on the platform, but not his lift
+        GoTo(server, stranger, 210);
+        Assert.Equal(201f, server.LiftPlatformYForTest(Motor));
+        Assert.Contains("@srv.crystal.owner_only", Refused(stranger));
+
+        p.State.Position = new Vector3f(Motor.X + 0.5f, 202, Motor.Z + 0.5f);
+        GoTo(server, p, 207); // no stop at that height
+        Assert.Equal(201f, server.LiftPlatformYForTest(Motor));
+        Assert.Contains("@srv.lift.no_floor", Said(p));
+
+        GoTo(server, p, 201); // already there: said, not silent
+        Assert.Contains("@srv.lift.already_here", Said(p));
+    }
+
+    [Fact]
+    public void ThePressOnTheStopWhereThePlatformWaits_SaysItIsHere()
+    {
+        var (server, p) = Lift();
+        server.PlaceBlock("Builder", BottomStop.X, BottomStop.Y, BottomStop.Z, "lift_stop");
+        Press(server, p, BottomStop);
+        Assert.Contains("@srv.lift.already_here", Said(p));
+    }
+
+    [Fact]
+    public void TheFloorsAndTheirNames_RideOnTheLiftList_AndAFloorIsNamedFromThePicker()
+    {
+        var (server, p) = ThreeFloors();
+        Press(server, p, UpperStop, seconds: 2.0); // ticks: the floors are read and go out
+        var lift = LastLift(p);
+        Assert.Equal(new[] { 201, 204, 210 }, lift.Levels);
+        Assert.Equal(new[] { true, true, true }, lift.LevelHasStop);
+        Assert.All(lift.LevelNames, n => Assert.Equal(string.Empty, n));
+
+        p.State.Position = new Vector3f(Motor.X + 0.5f, 205, Motor.Z + 0.5f); // a rider names the top floor from the middle one
+        server.SetCrystalDeviceForTest(p, Motor, action: 6, mode: 210, label: "Roof garden");
+        Press(server, p, UpperStop, seconds: 1.0);
+        Assert.Equal(new[] { string.Empty, string.Empty, "Roof garden" }, LastLift(p).LevelNames);
+        Assert.Equal("Roof garden", server.CrystalDeviceLabelForTest(TopStop));
+
+        server.SetCrystalDeviceForTest(p, Motor, action: 6, mode: 210, label: ""); // an empty name clears it
+        Press(server, p, UpperStop, seconds: 1.0);
+        Assert.Equal(string.Empty, LastLift(p).LevelNames[2]);
+
+        p.State.Position = new Vector3f(6, 203, 2);
+        server.MineBlock("Builder", BottomStop.X, BottomStop.Y, BottomStop.Z); // the bottom floor stays — without a stop
+        Press(server, p, UpperStop, seconds: 1.0);
+        Assert.Equal(new[] { false, true, true }, LastLift(p).LevelHasStop);
+        server.SetCrystalDeviceForTest(p, Motor, action: 6, mode: 201, label: "Cellar");
+        Assert.Contains("@srv.lift.floor_no_stop", Said(p));
+    }
 }

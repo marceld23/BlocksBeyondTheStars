@@ -21,7 +21,7 @@
       "derive": [ "vehicle", "allShips" ],
       "items": [ "boat", "speeder", "rail_pylon", "rail_stop", "rail_linker", "rail_cab", "wagon_seats", "wagon_sleeper", "wagon_bar",
                  "jetpack", "glider", "spring_boots", "climbing_gloves", "climbing_claws", "energy_rope_gun",
-                 "suit_teleporter", "quantum_teleporter", "beam_block", "radio_beacon", "lift_motor", "lift_stop", "bridge_motor",
+                 "suit_teleporter", "quantum_teleporter", "beam_block", "radio_beacon", "lift_motor", "lift_stop", "lift_gate", "bridge_motor",
                  "ladder", "stairs", "base_pad", "matter_sender", "matter_receiver", "ship_core", "ship_helm", "ship_engine" ],
       "blueprints": [ "speeder", "monorail", "jetpack", "glider", "spring_boots", "climbing_gloves", "climbing_claws", "energy_rope_gun",
                       "suit_teleporter", "quantum_teleporter", "beam_block", "radio_beacon", "crystal_lift", "matter_sender", "matter_receiver",
@@ -72,7 +72,7 @@
     {
       "key": "build", "nameKey": "category.build.name", "group": "building", "icon": "cat_blocks", "iconItem": "steel_wall",
       "fallbackFor": [ "Block" ],
-      "items": [ "stone", "dirt", "grass", "wood_log", "concrete", "glass", "glass_clear", "metal_panel", "iron_wall", "steel_wall", "steel_floor",
+      "items": [ "stone", "dirt", "grass", "wood_log", "wood_planks", "wood_planks_light", "wood_planks_mahogany", "concrete", "glass", "glass_clear", "metal_panel", "iron_wall", "steel_wall", "steel_floor",
                  "insulated_wall", "iron_block", "copper_block", "gold_block", "silver_block", "aluminium_block", "tin_block", "nickel_block",
                  "cobalt_block", "platinum_block", "lead_block", "zinc_block", "tungsten_block", "titanium_block", "bronze_block", "brass_block",
                  "ladder", "stairs", "door_wood", "door_hinge", "door_slide", "door_energy", "trapdoor", "energy_gate", "phase_block",

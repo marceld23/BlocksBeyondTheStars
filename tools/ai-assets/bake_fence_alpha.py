@@ -25,9 +25,15 @@ rewritten in place; the mask depends on RGB only, so a second run changes nothin
     uv run python bundle_textures.py --from-out --only energy_fence     # flattens alpha to 255
     uv run python bake_fence_alpha.py                                   # cuts the gaps
 
+The lift gate pair (#3174) is drawn the same way and baked with `--key lift_gate` (amber beams) and
+`--key lift_gate_open --rails-only` (the open gate has no beams: everything between the rails is cut, only the two rails
+stay, so the open gate reads as an empty frame you walk through).
+
 Usage:
     uv run --no-project --with "pillow>=13" python tools/ai-assets/bake_fence_alpha.py
     uv run --no-project --with "pillow>=13" python tools/ai-assets/bake_fence_alpha.py --dry-run --preview out/preview
+    uv run --no-project --with "pillow>=13" python tools/ai-assets/bake_fence_alpha.py --key lift_gate
+    uv run --no-project --with "pillow>=13" python tools/ai-assets/bake_fence_alpha.py --key lift_gate_open --rails-only
 """
 
 from __future__ import annotations
@@ -39,7 +45,7 @@ import texture_provenance
 from PIL import Image
 
 TILE = 64
-KEY = "energy_fence"
+KEY = "energy_fence"  # the default tile; --key bakes another fence-like tile (the lift gate pair, #3174)
 REPO = Path(__file__).resolve().parents[2]
 RES = REPO / "client" / "Assets" / "Resources" / "textures"
 
@@ -66,9 +72,30 @@ def rail_rows(px, metal_red: float) -> tuple[int, int]:
     return top, bottom
 
 
-def fence_mask(px, cutoff: float, metal_red: float) -> list[list[bool]]:
+def rail_rows_only(px, metal_red: float) -> tuple[int, int]:
+    """(last row of the top rail, first row of the bottom rail) for a tile WITHOUT beams (--rails-only): the last metal
+    row of the upper half and the first metal row of the lower half."""
+    def metal(y: int) -> bool:
+        return sum(px[x, y][0] for x in range(TILE)) / TILE >= metal_red
+
+    half = TILE // 2
+    top = max((y for y in range(half) if metal(y)), default=-1)
+    bottom = min((y for y in range(half, TILE) if metal(y)), default=TILE)
+    if top < 0 or bottom >= TILE:
+        raise SystemExit(f"{KEY}: no metal rail in the upper or the lower half (top={top}, bottom={bottom})")
+    # The rail runs from the edge inwards: walk back to the end of the run that touches the edge.
+    t = 0
+    while t + 1 < half and metal(t + 1):
+        t += 1
+    b = TILE - 1
+    while b - 1 >= half and metal(b - 1):
+        b -= 1
+    return t, b
+
+
+def fence_mask(px, cutoff: float, metal_red: float, rails_only: bool = False) -> list[list[bool]]:
     """True = transparent: the glow rows between the beams, inside the band between the two rails."""
-    top, bottom = rail_rows(px, metal_red)
+    top, bottom = rail_rows_only(px, metal_red) if rails_only else rail_rows(px, metal_red)
     cut = [top < y < bottom and sum(luma(px[x, y]) for x in range(TILE)) / TILE < cutoff for y in range(TILE)]
     return [[cut[y]] * TILE for y in range(TILE)]
 
@@ -82,7 +109,7 @@ def bake(args: argparse.Namespace) -> str:
     # Work top-down (the way the art is drawn) and flip back on write.
     img = Image.frombytes("RGBA", (TILE, TILE), data).transpose(Image.FLIP_TOP_BOTTOM)
     px = img.load()
-    mask = fence_mask(px, args.cutoff, args.metal_red)
+    mask = fence_mask(px, args.cutoff, args.metal_red, args.rails_only)
 
     transparent = 0
     for y in range(TILE):
@@ -105,13 +132,17 @@ def bake(args: argparse.Namespace) -> str:
 
 
 def main() -> None:
+    global KEY
     ap = argparse.ArgumentParser(description="Bake the see-through gaps into the energy fence tile (#3085).")
     ap.add_argument("--cutoff", type=float, default=40.0, help="between the rails: a row whose mean luma is below this is cut")
     ap.add_argument("--metal-red", type=float, default=8.0, help="a row whose mean red reaches this is rail metal")
     ap.add_argument("--preview", help="also save the masked tile as PNG into this folder")
     ap.add_argument("--dry-run", action="store_true", help="do not rewrite the .bytes (use with --preview)")
     ap.add_argument("--force", action="store_true", help="also bake a hand-painted tile (texture_provenance.json)")
+    ap.add_argument("--key", default=KEY, help="the tile to bake (default energy_fence; the lift gate pair: lift_gate, lift_gate_open)")
+    ap.add_argument("--rails-only", action="store_true", help="the tile has no beams: cut every dark row between the two rails")
     args = ap.parse_args()
+    KEY = args.key
 
     if texture_provenance.guard(KEY, args.force, texture_provenance.load()):
         print(bake(args))

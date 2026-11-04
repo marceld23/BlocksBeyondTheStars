@@ -37,7 +37,8 @@ NPC/VEGA line uses (#2591). Endpoint details live in [ai-backend/README.md](../.
 
 Any level **other than `Off`** also lets the server fetch the flavour-text endpoints: **NPC greetings**
 (`/npc-line`), **ship-AI (VEGA) banter** (same endpoint, role `ship_ai`), **board-mission texts**
-(`/mission-text` — Title/Description written around the FIXED server-coined job; objective/reward untouched) and
+(`/mission-text` — Title/Description, and since #3180 the hand-in Thanks, written around the FIXED server-coined job
+and its authored story; objective/reward untouched — see "Board-mission texts" below) and
 the **`/npc-lines`** wording of new NPC/VEGA lines. AI-proposed **content** (not just wording — e.g. a wish's item
 picked from a whitelist) stays reserved for `Suggest`/`Auto`, like full missions.
 
@@ -114,6 +115,26 @@ those facts and its standing is the fixed trusted pair (60/10) — never one pil
 small closed set, so the key space stays bounded (one line per key, each asked once). A miss takes a token from the
 world's AI line budget at `Vega` priority before calling the backend; a refused request stays silent until the next
 banter tick.
+
+## Board-mission texts (`/mission-text`, L3) and the authored stories (#3180)
+
+The board's delivery jobs are coined by the server (`GameServerMissions.BuildBoardMission`: item, amount, reward) and
+each one gets an **authored story** of its item and place from `data/board_stories.json` (`BoardStory`, loaded into
+`GameContent.BoardStories`; `GameServerBoardStories.cs`): a title, a description that says **who** needs the goods
+(`{giver}` = the board's quartermaster) and **why**, and a **thank-you** that says what came of it. Places are
+`settlement`, `station`, `base` (the own base's resident quartermaster) and `ship` (radio orders at the own ship's
+board — no giver). The story is picked by its own stable hash of the job id (`PickBoardStory`), so the board rolls stay
+untouched and a held job keeps its story across reloads; without a story the place's plain texts are used
+(`mission.<place>.gather.*`, never "settlement" on a station). The server sends the story as **display text** in the
+player's language with the giver filled in (`NetMission.FreeText`), like the AI texts and the villagers' wishes.
+
+With AI on, `GameServerMissionTexts.BoardMissionTextRequest` sends the job to `POST /mission-text` off the game thread
+(cached per mission + locale, the authored story shown until it lands). The request carries the story as an English
+**`Brief`** (`MissionDefinition.Brief`) and the prompt asks the model to tell **that** story in its own words; the
+answer may carry a **`Thanks`** line. On hand-in the `MissionResult` (outcome `completed`) carries the thank-you as
+display text (`MissionResult.Thanks`, shown after the "complete" toast by `MissionToast`): the backend's own `Thanks`
+when it wrote one, else the authored one. Old backends ignore `Brief` and send no `Thanks` → authored text. The content
+screen (`ScreenedAiTextProvider`) drops a refused posting whole, and a refused thank-you alone (the authored one stays).
 
 ## `/npc-lines` — one AI path for every new line (#2591)
 

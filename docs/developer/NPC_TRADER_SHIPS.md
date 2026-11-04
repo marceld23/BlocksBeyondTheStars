@@ -118,19 +118,23 @@ flight view so other players **see** arrivals and departures.
 
 ## Key files / classes
 
-- Server: `GameServerSpaceTraders.cs` (controller, scheduler, lifecycle, `TrafficFor`, `BuildNpcShipStructure`).
+- Server: `GameServerSpaceTraders.cs` (controller, scheduler, lifecycle, `TrafficFor`, `BuildNpcShipStructure`);
+  `GameServerTraderPads.cs` (#3175: the pad pick with the Market base pads on Allies/Everyone, the 250-block reach of the
+  communal fallback, the logged decision, VEGA's once-per-base reason, the far-pad toasts/hail/relay).
   Pad reservation + planet barter wired into `GameServerSpace.cs` / `GameServerSettlements.cs` /
   `MarketAvailable` / `VendorThemeAt`.
 - Networking: `SpaceWarpFx` (tag 150), registered in `NetCodec`; traders otherwise reuse `SpaceShipDesign`
   (`Kind="ship_remote"`), `NetSpacePlayer` (carrying the pilot's name, so flight-view nameplates label traders),
   `LandedShipState`, `ShipTransitFx`, `NpcList`, `LandingPadList` and `PlanetPoiList` (`trader_ship` POI).
 - Client: `SpaceView.DrainWarpFx` (`SpaceView.Combat.cs`, plays the warp flashes `GameBootstrap.PendingWarpFx` queues);
-  landing/launch reuses `ShipTransitView`; the map marker is `WorldMap.PoiLook("trader_ship")` and the compass blip
+  landing/launch reuses `ShipTransitView` — since #3177 the parked hull itself flies (a stand-in down, the adopted hull
+  up, the own ship's beats without the camera; the ghost is the fallback); the map marker is `WorldMap.PoiLook("trader_ship")` and the compass blip
   `HudUi.TryGetLandedTrader`.
 - Tests: `SpaceTraderTests`, `LandedTraderStayTests` (stay ranges, hold + grace, map marker + re-broadcast),
   `PlanetTraderArrivalTests` (#2603: gaps per traffic, the nearest free dry pad, the reserved approach, touchdown FX +
   toast + hail, one per body, no players / rule off, the flight scene still lands at once — on the pad nearest the base,
-  an approach is no chatter topic and no VEGA tip, the AI hail).
+  an approach is no chatter topic and no VEGA tip, the AI hail), `TraderPadChoiceTests` (#3175: Market base pads on Allies,
+  VEGA's reasons, the reach, the far toast and relay).
 
 ## Known remaining gaps / deferred
 

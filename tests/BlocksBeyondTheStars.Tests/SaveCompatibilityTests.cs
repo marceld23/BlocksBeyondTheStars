@@ -1008,6 +1008,7 @@ public sealed class SaveCompatibilityTests : IDisposable
         [8] = "01ca6f8b5ac48409", // the pumpkin (#3005): flora_pumpkin, pumpkin_lantern
         [9] = "9a538b899ef3eb98", // the festival decorations (#3024): gift_box, paper_lantern, diya_lamp, flora_marigold
         [10] = "d22a189ddc1773cc", // the base landing pad (#3069): base_pad; the transport crate (#3098): transport_crate
+        [11] = "becf60463aa566d6", // the wooden planks (#3181): wood_planks, wood_planks_light, wood_planks_mahogany; the lift gate (#3174): lift_gate, lift_gate_open
     };
 
     [Fact]

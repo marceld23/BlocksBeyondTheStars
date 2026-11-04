@@ -104,7 +104,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            return y;
+            return CrossTabSection(y); // #3182: what the search finds in the Crafting and Blueprints tabs
         }
 
         /// <summary>Whether the ACTIVE ship carries this module (the combat status streams its fit).</summary>

@@ -371,8 +371,13 @@ namespace BlocksBeyondTheStars.Client
         private Vector3Int _lastBrokenOwn = new Vector3Int(int.MinValue, 0, 0);
 
         /// <summary>Old→new transitions (with the id of the block that WAS there) — the break and place effects.</summary>
-        private void OnBlockApplied(Vector3i pos, BlockId oldId, BlockId newId)
+        private void OnBlockApplied(Vector3i pos, BlockId oldId, BlockId newId, bool moved)
         {
+            if (moved)
+            {
+                return; // #3173: a bridge deck, a piston or a thawing drift moved — it does not crumble like mined rock
+            }
+
             string oldKey = Game?.Content?.BlockById(oldId)?.Key ?? string.Empty;
             string newKey = Game?.Content?.BlockById(newId)?.Key ?? string.Empty;
             if (oldKey.Contains("water") || oldKey.Contains("lava") || newKey.Contains("water") || newKey.Contains("lava"))
@@ -403,9 +408,9 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnBlock(BlockChanged m)
         {
-            if (m.Block != 0)
+            if (m.Block != 0 || m.Moved)
             {
-                return;
+                return; // #3173: a machine that carries off the cell under the crack is not the own block breaking
             }
 
             var cell = SceneCell(m.X, m.Y, m.Z); // #1829: canonical → scene, else the effect pops one world-lap away

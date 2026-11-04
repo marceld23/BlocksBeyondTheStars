@@ -9,6 +9,14 @@ described in [CRYSTAL_NET.md](CRYSTAL_NET.md).
 - **The server moves blocks; nothing is an entity.** Every moving block is a block write (`CrystalWriteCell`: the
   voxel, a `BlockChanged`, the station write-back) — except the lift platform, which is the one thing that moves
   smoothly and therefore is drawn by the client from a server-owned height (§5). No physics, no carried entities.
+- **Moved, not mined (#3173).** Every such write carries `BlockChanged.Moved = true` — `CrystalWriteCell` sets it for
+  all of the net's writes (bridge deck out and in, piston head, twin and lamp swaps), the piston sets it on the blocks
+  it pushes or pulls, and the weather sets it when a snow drift melts or is cleared from a lift shaft. The client
+  passes it on through `GameBootstrap.BlockChangeApplied`: `MiningFx` then plays no crumble (dust, flash, tumbling
+  debris) and no place pop, and `ClientAudio` no mining crunch or place knock — the machine brings its own sound and
+  effect (`bridge_motor` + sparks, `piston_push` / `piston_retract`, a twin's sound). Decals and room reflections react
+  as to any edit. A block a player mines by hand — a bridge deck too — is not moved and still crumbles. The field is
+  additive (MessagePack map key / JSON property): an older client ignores it, an older server never sets it.
 - **Kid rule: a moving block never hurts.** A block never closes onto a player, an NPC or an animal
   (`CellOccupiedByBody` — the block waits and tries again on the next beat). A floor that opens grants the players
   standing on or just above it a fall grace (`GrantMovingFallGrace`, `CrystalNetRules.MovingFallGraceSeconds` = 3 s,
@@ -95,6 +103,31 @@ collider at the eased height (`PlatformY` + `Speed` × time since the last list,
 local player standing on it by the platform's height change (`PlayerController.RideBy`). The server grants riders the
 fall grace and counts the ride for "Going Up".
 
+**Choosing the floor (#3171).** The platform is an entity, not a block, and the aim ray walks voxels only — a rider had
+nothing to press (at the bottom the ray happened to hit the motor under the platform, at the top the motor lies beyond
+reach), and "send on" existed only on the motor. Now `LiftList` carries the floors additively (`NetLift.Levels`,
+`LevelNames` — the stops' labels, `LevelHasStop`), re-read every 0.5 s per lift (`RefreshLiftFloors`) and sent when they
+change. The client (`LiftRiding` in Client.Core) knows when the player stands on a platform (`StandingOn`, the riders'
+box; the interact pick `InteractKind.LiftRide`, first of the proximity tier), hides the cells under the platform from the
+aim (`HidesCell` — no more motor menu from the platform) and which stop the platform waits at (`WaitingAtStop`). E there
+opens `LiftFloorUi` (floors top to bottom, the current one lit; *Go*, *Name*). Device action **5** (at the motor, mode =
+the floor's platform height) sends it there, action **6** names a floor (every stop on it the player may configure; an
+empty name clears it). The server checks the floor against `LiftLevels`, the motor's operate (5) / configure (6) rights,
+and its own reach (`CanReachLift`): on the platform (`OnLiftPlatform`, the grace box) or within reach of the motor or any
+stop of that lift (`srv.lift.too_far` otherwise). A press at a stop where the platform already waits says
+`srv.lift.already_here` instead of nothing; a circuit's signal there stays a silent call.
+
+**Gates (#3174, `GameServerLiftGates.cs`).** `lift_gate` (solid) / `lift_gate_open` (walk-through: `solid: false`, an
+`openTwin` in the mesher, a `WalkThroughBlocks` prop) are a plain block pair, no net device, drawn as cutout cubes like the
+energy fence (`IsCutoutCubeKey`, `TextureTiles` cutout; a closed gate keeps its collider toward an open one). A gate in
+the stop ring (`LiftPlatformRadius + LiftStopReach` from the motor's column) between `motor.Y + 2` and `LiftMaxHeight`
+belongs to the floor one below it — a stack of gates to the floor of its lowest one. `SyncLiftGates` opens the gates of
+the floor where the platform rests and closes all others (all of them while it moves, all of them when the motor is
+mined); it runs from `UpdateLiftStatuses` (departure, arrival), from "already here", and every 0.5 s per lift
+(placement, and a save whose chunk deltas disagree with the motor's `at=`). Chunks that are not loaded are skipped until
+they are. A gate never closes onto a body (`CellOccupiedByBody`): it joins `ServerLift.GatesWaiting` and the next tick
+with a free cell syncs again. Cost: 16 columns × the lift's height of chunk-cache reads per lift every 0.5 s.
+
 ## 6. Not aboard ships
 
 Bridge motors, pistons and lifts edit the hull they stand in, and a ship's hull is meshed in three places (the parked
@@ -107,4 +140,12 @@ rebuild — see [CRYSTAL_NET.md](CRYSTAL_NET.md) §17.7).
 `CrystalNet2Tests`: a phase block opens and keeps its dye, waits while someone stands in it; a trapdoor opens with
 its form and grants the fall grace; a bridge extends to its length, stops at an obstacle and retracts; a piston
 pushes and pulls (sticky) and keeps the dye, refuses to push a crate; a lift calls its platform to a stop and back to
-the motor.
+the motor. `LiftShaftTests` (#3161–#3163, #3171): the bottom stop, snow in the shaft, the "why" messages; the floor
+picker from the top down and from the middle up, refused out of reach / on someone else's lift / for a floor that is
+none, the floors and names on the wire, naming a floor. `LiftGateTests` (#3174): a gate opens on arrival and closes on
+departure, waits for a body, belongs to its floor (a stack together), leaves gates outside the ring alone, is put right
+after a reload and closes with a mined motor. `CrystalDeviceNameTests` (#3172): the name action sets and clears a
+device's label, the configure click keeps it, it survives a reload. `LiftRidingTests` (Client.Tests): the rider's box
+across the seam, the hidden motor, a stop's lift and the picker's floors. `MovedBlockChangeTests` (#3173): a bridge's deck out and in, a piston's push and sticky pull, a thawing drift
+and a drift cleared from a lift shaft broadcast `Moved = true`, a hand-mined block (a bridge deck too) `false`, and the
+flag survives both wire paths.

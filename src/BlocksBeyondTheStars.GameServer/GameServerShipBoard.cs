@@ -17,7 +17,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <summary>
 /// #3087 — the mission board in the player's OWN ship works (Marcel 2026-11-01: Justus built one into his ship, and it
 /// did nothing). It needs no quartermaster: the board is the ship's cargo terminal and relays the endless delivery jobs
-/// of the region — the board rolls every settlement board uses, under titles of their own (<c>mission.ship.gather.*</c>).
+/// of the region — the board rolls every settlement board uses, under texts of their own: the radio orders' stories
+/// (#3180, place <c>ship</c> in <c>data/board_stories.json</c>; <c>mission.ship.gather.*</c> without one).
 /// <list type="bullet">
 /// <item>Jobs are taken and handed in while the player stands within <see cref="InteractionReach.MissionBoard"/> of a board
 /// cell of the own parked ship — landed on a body and in the walkable interior in space alike (both are the parked ship of
@@ -135,14 +136,6 @@ public sealed partial class GameServer
             EnsureBoardWindow(p, ShipBoardPrefix(p.PlayerId), ShipBoardKey(p.PlayerId), _shipBoardMissionIds,
                 string.Empty, scratch, BoardSlotKind.ShipCargo, window: 0);
         }
-    }
-
-    /// <summary>A delivery coined for the ship board: the board roll, the ship's own title and text.</summary>
-    private static MissionDefinition ShipCargoJob(MissionDefinition def)
-    {
-        def.NameKey = "mission.ship.gather.title";
-        def.DescriptionKey = "mission.ship.gather.desc";
-        return def;
     }
 
     // ---------------- #3090: the place a board job is taken at ----------------

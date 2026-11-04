@@ -1454,7 +1454,7 @@ namespace BlocksBeyondTheStars.Client
                         // glass top was neither drawn nor collided, and the player sank through the floor. Collide
                         // toward every neighbour that does not hold the player up itself (no collider, or a plant/prop
                         // that never fills its cell); glass beside glass or a wall still gets no inner face.
-                        if (collidable && transparent && !isWater && !nb.IsAir && SeeThroughNeighbourOpensCollider(traits.FlagsOf(nb)))
+                        if (collidable && (transparent || cutoutCube) && !isWater && !nb.IsAir && SeeThroughNeighbourOpensCollider(traits.FlagsOf(nb))) // #3174: a closed gate beside an open one
                         {
                             colliderFaces[WorldConstants.LocalIndex(x, y, z)] |= (byte)(1 << f);
                         }
@@ -2364,7 +2364,7 @@ namespace BlocksBeyondTheStars.Client
                 case "glass": return new Vector2(0.90f, 0.0f);
                 case "glass_clear": return new Vector2(0.95f, 0.0f);
                 case "force_field": return new Vector2(0.60f, 0.0f);
-                case "energy_fence": return new Vector2(0.60f, 0.0f);
+                case "energy_fence": case "lift_gate": case "lift_gate_open": return new Vector2(0.60f, 0.0f); // #3174: the gate shines like the fence
                 case "energy_gate": return new Vector2(0.60f, 0.0f);
                 case "force_field_off": return new Vector2(0.60f, 0.0f);
                 case "phase_block_open": return new Vector2(0.80f, 0.0f);
@@ -2854,7 +2854,7 @@ namespace BlocksBeyondTheStars.Client
         /// clipped (no blending, no sorting) and the shadow has them too; like a crown shell it never seals a neighbour's
         /// face, lets the placed light through and culls only against its own kind. It still collides — creatures and
         /// players cannot pass it.</summary>
-        private static bool IsCutoutCubeKey(string key) => key == "energy_fence";
+        private static bool IsCutoutCubeKey(string key) => key is "energy_fence" or "lift_gate" or "lift_gate_open"; // #3174: the lift gate pair too
 
         /// <summary>#3085: the cutout code TEXCOORD2.x of a block drawn as a single cube outside the world (a drop packet):
         /// <see cref="LeafCodeRigid"/> for a cutout cube, so its gaps are clipped like in the world; 0 otherwise.</summary>
@@ -2953,7 +2953,7 @@ namespace BlocksBeyondTheStars.Client
                     // beside it keeps its own: foliage never seals a neighbour's face, so that face is still emitted).
                     bool crown = BlocksBeyondTheStars.Shared.Definitions.TreeFoliage.IsKey(key);
                     // #2264: the Crystal Net's open twins are walked (or fallen) through — the mesher reads keys, not the Solid flag.
-                    bool openTwin = key is "phase_block_open" or "force_field_off" or "trapdoor_open";
+                    bool openTwin = key is "phase_block_open" or "force_field_off" or "trapdoor_open" or "lift_gate_open"; // #3174: an open lift gate
                     if (key != "water" && key != "fire" && key != "energy_gate" && !liquid && !crown && !openTwin) f |= TraitCollidable;
                     if (key != null && key.StartsWith("flora_", System.StringComparison.Ordinal)) f |= TraitFloraPrefix;
                     if (key != null && TallFlora.Contains(key)) f |= TraitTallFlora;

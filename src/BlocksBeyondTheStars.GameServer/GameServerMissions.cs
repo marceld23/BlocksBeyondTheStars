@@ -890,17 +890,15 @@ public sealed partial class GameServer
 
         int required = System.Math.Max(3, tpl.Target + rng.Next(-2, 4));
         int rewardN = System.Math.Max(1, tpl.RewardN + rng.Next(0, 2));
-        return new MissionDefinition
+        return WithBoardStory(new MissionDefinition // #3180: who needs it, why, and the thank-you — per item and place
         {
             Id = id,
             Source = MissionSource.System,
-            NameKey = "mission.settlement.gather.title",
-            DescriptionKey = "mission.settlement.gather.desc",
             GiverName = giverName,
             Objectives = { new MissionObjective { Type = MissionObjectiveType.Deliver, Target = tpl.Need, Required = required } },
             Rewards = { new ItemAmount(tpl.Reward, rewardN) },
             Active = true,
-        };
+        });
     }
 
     /// <summary>Which procedural pool a board slot stream draws from: the gather deliveries, the build job
@@ -921,7 +919,7 @@ public sealed partial class GameServer
             BoardSlotKind.Build => BuildBoardBuildMission(id, boardKey, slot, giverName, legacy),
             BoardSlotKind.Scan => BuildBoardScanMission(id, boardKey, slot, giverName, station: false, legacy),
             BoardSlotKind.StationScan => BuildBoardScanMission(id, boardKey, slot, giverName, station: true, legacy),
-            BoardSlotKind.ShipCargo => ShipCargoJob(BuildBoardMission(id, boardKey, slot, giverName, legacy)), // #3087
+            BoardSlotKind.ShipCargo => BuildBoardMission(id, boardKey, slot, giverName, legacy), // #3087: its id picks the ship's texts (#3180)
             _ => BuildBoardMission(id, boardKey, slot, giverName, legacy),
         };
 
@@ -1120,8 +1118,9 @@ public sealed partial class GameServer
 
         bool isPlayer = def.Source == MissionSource.Player;
 
-        // L3: a generated flavour text (in the player's locale) overrides the static board keys.
-        var llmText = IsBoardMissionId(def.Id) ? BoardMissionText(def.Id, locale) : null;
+        // L3: a generated flavour text (in the player's locale) overrides the static board keys; #3180: so does a delivery's
+        // authored story, sent as display text with its giver filled in.
+        var llmText = BoardPostingText(def, locale);
 
         // #2601: a villager's wish reads "A wish from Tomas" and their own words (free text, never a board key).
         bool wish = IsWishMission(def.Id) && session is not null;
@@ -1172,7 +1171,7 @@ public sealed partial class GameServer
     private MissionResult MissionSucceeded(PlayerSession session, MissionDefinition def, string outcome)
     {
         bool isPlayer = def.Source == MissionSource.Player;
-        var llmText = IsBoardMissionId(def.Id) ? BoardMissionText(def.Id, session.Locale) : null;
+        var llmText = BoardPostingText(def, session.Locale); // L3 text or (#3180) the authored story
         bool wish = IsWishMission(def.Id); // #2601: "A wish from Tomas"
         return new MissionResult
         {
@@ -1181,6 +1180,7 @@ public sealed partial class GameServer
             Outcome = outcome,
             Title = wish ? WishTitle(session.Locale, def) : llmText?.Title ?? (isPlayer ? def.Title : def.NameKey),
             FreeText = isPlayer || llmText is not null || wish,
+            Thanks = outcome == MissionOutcomes.Completed ? MissionThanksText(def, session.Locale) : string.Empty, // #3180
         };
     }
 

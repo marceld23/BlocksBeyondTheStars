@@ -94,6 +94,8 @@ namespace BlocksBeyondTheStars.Client
                 case InteractKind.BeamPad:
                     // Standing on / beside an own or allied teleporter pad — the pad never announced itself before (#1560).
                     return ExpandKeyTokens(loc, loc.Get("ui.beam.use_hint")); // "Press {key:Interact}: Transporter" (#2463)
+                case InteractKind.LiftRide:
+                    return string.Format(loc.Get("ui.lift.prompt.choose"), InteractGlyph(loc)); // #3171: riding — choose the floor
                 default:
                     return string.Empty;
             }
@@ -205,8 +207,21 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>#2049: what Interact does to the Crystal Net device in the crosshair — the glyph follows the device in
-        /// hand; #2256: someone else's device says who may use it instead of offering a key that would be refused.</summary>
+        /// hand; #2256: someone else's device says who may use it instead of offering a key that would be refused. #3172: a
+        /// named device is called by its name — "E: North drawbridge" for a menu, the verb and the name for the rest.</summary>
         private string CrystalDevicePrompt(Localizer loc, NetCrystalDevice device)
-            => string.Format(loc.Get(Game.CanOperateCrystal(device) ? CrystalPromptKey(device) : "ui.crystal.prompt.locked"), InteractGlyph(loc));
+        {
+            bool liftWaits = LiftRiding.WaitingAtStop(Game.Lifts, device.X, device.Y, device.Z, Game.Circumference) != null;
+            string key = Game.CanOperateCrystal(device) ? CrystalPromptKey(device, liftWaits) : "ui.crystal.prompt.locked";
+            string glyph = InteractGlyph(loc);
+            if (string.IsNullOrEmpty(device.Label))
+            {
+                return string.Format(loc.Get(key), glyph);
+            }
+
+            return key == "ui.crystal.prompt.menu"
+                ? string.Format(loc.Get("ui.crystal.prompt.named"), glyph, device.Label)
+                : string.Format(loc.Get(key), glyph) + "  ·  " + device.Label;
+        }
     }
 }

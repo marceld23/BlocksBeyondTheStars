@@ -124,6 +124,12 @@ public sealed class ShipTransitFx
 
     /// <summary>The mover's ship hull colour (packed 0xRRGGBB) so the animated ship matches their ship (item 32).</summary>
     public int Hull { get; set; }
+
+    /// <summary>#3177: above 0 the ship is still high up, coming in to land on this pad in about this many seconds (a trader's
+    /// approach, sent when it decides to land) — the client draws a glint and a contrail in the sky towards the pad; the real
+    /// descent follows with a plain landing FX at touchdown. 0 = the touchdown or the lift-off itself. Additive: an older
+    /// message reads 0.</summary>
+    public float ApproachSeconds { get; set; }
 }
 
 /// <summary>#3069: the owner names a base landing pad and sets who may land on it. Answered with the refreshed pad list.</summary>

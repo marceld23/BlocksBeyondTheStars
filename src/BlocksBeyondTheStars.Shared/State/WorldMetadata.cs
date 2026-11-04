@@ -45,9 +45,11 @@ public sealed class WorldMetadata
     /// decorations (#3024: <c>gift_box</c>, <c>paper_lantern</c>, <c>diya_lamp</c>, <c>flora_marigold</c>). 10 = the base
     /// landing pad (#3069: <c>base_pad</c>) and the transport crate (#3098: <c>transport_crate</c>; its packed contents
     /// and the storage bag's ride in the container table under the pseudo-location <c>carried</c>, which an older build
-    /// never loads — so a packed crate or a filled bag opened there would read as empty).</para>
+    /// never loads — so a packed crate or a filled bag opened there would read as empty). 11 = the wooden planks (#3181:
+    /// <c>wood_planks</c>, <c>wood_planks_light</c>, <c>wood_planks_mahogany</c>) and the lift gate (#3174: <c>lift_gate</c>,
+    /// <c>lift_gate_open</c>).</para>
     /// </summary>
-    public const int CurrentSaveVersion = 10;
+    public const int CurrentSaveVersion = 11;
 
     /// <summary>The save version of the build that last opened this world — see <see cref="CurrentSaveVersion"/>.
     /// Absent in the JSON ⇒ 1, the version every save carried before the check existed.</summary>

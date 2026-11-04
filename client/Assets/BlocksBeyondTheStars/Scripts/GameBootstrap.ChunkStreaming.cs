@@ -694,10 +694,10 @@ namespace BlocksBeyondTheStars.Client
             (1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1),
         };
 
-        /// <summary>Raised after a server block change was applied to the local world: position, the block
-        /// that WAS in the cell and the block that is there now. The raw network message alone cannot tell
-        /// a drained fluid from a mined block — audio needs the transition (#655).</summary>
-        public event System.Action<Vector3i, BlockId, BlockId> BlockChangeApplied;
+        /// <summary>Raised after a server block change was applied to the local world: position, the block that WAS in the
+        /// cell, the block that is there now (#655: the raw message cannot tell a drained fluid from a mined block) and
+        /// whether a machine or the weather moved it (#3173 <c>BlockChanged.Moved</c>: no crumble, no mining/place sound).</summary>
+        public event System.Action<Vector3i, BlockId, BlockId, bool> BlockChangeApplied;
 
         private void OnBlockChanged(BlocksBeyondTheStars.Networking.Messages.BlockChanged m)
         {
@@ -708,7 +708,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            BlockChangeApplied?.Invoke(new Vector3i(m.X, m.Y, m.Z), oldId, new BlockId(m.Block));
+            BlockChangeApplied?.Invoke(new Vector3i(m.X, m.Y, m.Z), oldId, new BlockId(m.Block), m.Moved);
 
             // A cell that just became solid where we are standing must lift us out, not swallow us: the server
             // allows placing into your own feet cell (pillar jumping), and mid-fall that used to drop the player

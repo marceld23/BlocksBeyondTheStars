@@ -511,8 +511,19 @@ namespace BlocksBeyondTheStars.Client
             return any;
         }
 
+        /// <summary>#3178: the colour the cuff is a darker shade of — a painted arm's most common colour
+        /// (<see cref="BodyPaintKit.PadColor"/>, what the avatar's unpaintable faces show too), else the suit tint.</summary>
+        private static Color HandCuffColor(Color tint)
+        {
+            string pixels = HandPaintResolver?.Invoke();
+            return string.IsNullOrEmpty(pixels) || pixels.Length != BodyPaint.ExpectedLength(BodyPaint.Arms)
+                ? tint
+                : BodyPaintKit.PadColor(BodyPaint.Arms, pixels, tint);
+        }
+
         /// <summary>One box of a suit hand (#2777): the forearm and the hand wear the player's arm painting when there is one
-        /// (#1427, #2755), the cuff a darker shade of the suit; all of them in the shared, lifted hand materials.</summary>
+        /// (#1427, #2755), the cuff a darker shade of the painting's colour (#3178) or of the suit; all of them in the shared,
+        /// lifted hand materials.</summary>
         private static void HandBox(Transform parent, HeldHands.Box box, Color tint, bool left)
         {
             float mx = left ? -1f : 1f; // a left hand is the mirror image: its thumb on +X
@@ -529,7 +540,8 @@ namespace BlocksBeyondTheStars.Client
             var renderer = go.GetComponent<Renderer>();
             if (box.Piece == HeldHands.Piece.Cuff)
             {
-                renderer.sharedMaterial = HandMaterial(new Color(tint.r * 0.7f, tint.g * 0.7f, tint.b * 0.7f), null);
+                var under = HandCuffColor(tint); // #3178: a painted arm's own colour, not the blue tint under the painting
+                renderer.sharedMaterial = HandMaterial(new Color(under.r * 0.7f, under.g * 0.7f, under.b * 0.7f), null);
                 return;
             }
 

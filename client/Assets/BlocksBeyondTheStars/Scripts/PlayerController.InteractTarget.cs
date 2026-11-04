@@ -34,6 +34,7 @@ namespace BlocksBeyondTheStars.Client
             public int Factory;
             public int Fragment;
             public int Npc;           // the person under the crosshair
+            public NetLift Lift;      // #3171: the lift platform the player stands on
 
             public void Reset()
             {
@@ -42,6 +43,7 @@ namespace BlocksBeyondTheStars.Client
                 BeaconId = Door = Beam = Cube = Factory = Fragment = Npc = 0;
                 BeaconLabel = CubeGame = string.Empty;
                 Crate = null;
+                Lift = null;
                 CubeOwned = false;
             }
         }
@@ -61,6 +63,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _facts.Clear(); // _aim was reset and the aimed world cell read by PublishAimState this frame
             GatherAimedBlockFacts();
+            GatherLiftFacts(); // #3171: after the aimed blocks — the platform hides the motor under it
             GatherAimedNpcFact();
             _facts.LookedStation = _lookedStation;
             _aim.Door = handDoor;
@@ -104,6 +107,39 @@ namespace BlocksBeyondTheStars.Client
             _facts.BasePad = Game.AimedBasePadCell != null;
             _facts.CrystalDevice = Game.AimedCrystalDevice is { } dev && CrystalWorksOnInteract(dev);
             _facts.MissionBoard = AimedMissionBoardInReach();
+        }
+
+        /// <summary>#3171: the lift platform the player stands on — E there opens the floor picker (the platform is no block, so
+        /// the crosshair never rests on it). Standing on it, the cells under the platform are hidden by it: the voxel-only aim
+        /// ray went straight through onto the motor at the bottom floor, and E opened the motor's menu instead.</summary>
+        private void GatherLiftFacts()
+        {
+            var feet = transform.position;
+            _aim.Lift = Game.SpaceViewActive ? null : LiftRiding.StandingOn(Game.Lifts, feet.x, feet.y, feet.z, Game.Circumference);
+            _facts.OnLift = _aim.Lift != null;
+            if (_aim.Lift == null)
+            {
+                return;
+            }
+
+            if (_aim.BlockAimed && LiftRiding.HidesCell(_aim.Lift, _aim.Cell.x, _aim.Cell.y, _aim.Cell.z, Game.Circumference))
+            {
+                _facts.OwnBeacon = _facts.StationCore = _facts.Crate = _facts.BioLab = _facts.SpawnBed = _facts.Seat = false;
+            }
+
+            if (_targetAimed && LiftRiding.HidesCell(_aim.Lift, _targetHit.x, _targetHit.y, _targetHit.z, Game.Circumference))
+            {
+                _facts.CrystalDevice = _facts.MissionBoard = false;
+            }
+        }
+
+        /// <summary>#3171: opens the floor picker of a lift.</summary>
+        private void OpenLiftFloors(NetLift lift)
+        {
+            if (lift != null)
+            {
+                Game?.Context.Panel<LiftFloorUi>()?.Open(lift.Id);
+            }
         }
 
         /// <summary>The storage crate registered at the aimed cell (#2436) — matched by the container list, not the block alone,
@@ -253,11 +289,14 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>E at a door, a beam pad, a data cube, a factory terminal or a net fragment.</summary>
+        /// <summary>E on a lift platform, at a door, a beam pad, a data cube, a factory terminal or a net fragment.</summary>
         private void RunNearbyInteraction(InteractKind kind)
         {
             switch (kind)
             {
+                case InteractKind.LiftRide:
+                    OpenLiftFloors(_aim.Lift); // #3171
+                    break;
                 case InteractKind.AimedDoor:
                 case InteractKind.NearDoor:
                     Game.Network?.SendDoorInteract(_aim.Door); // B47, #2147

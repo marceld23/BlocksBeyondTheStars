@@ -157,6 +157,9 @@ public static class ContentLoader
         // The villagers' personal wishes (#2601) are optional the same way: no wishes.json → nobody wishes anything.
         content.SetWishes(LoadArray<BlocksBeyondTheStars.Shared.Missions.WishTemplate>(Path.Combine(dataDir, "wishes.json")));
 
+        // The stories behind the board deliveries (#3180) are optional the same way: no board_stories.json → plain board texts.
+        content.SetBoardStories(LoadArray<BlocksBeyondTheStars.Shared.Missions.BoardStory>(Path.Combine(dataDir, "board_stories.json")));
+
         // The wilderness folk's professions (#2640) are optional the same way: no lodges.json → no lodges.
         content.SetLodges(LoadArray<LodgeProfessionDefinition>(Path.Combine(dataDir, "lodges.json")));
 

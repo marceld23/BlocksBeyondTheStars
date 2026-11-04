@@ -132,7 +132,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>#2049: a Crystal Net device you're aiming at — a switch toggles, a button presses, everything with a menu
-        /// opens it. Aim-based, so it works the same with mouse look, the right stick and the touch look pad.</summary>
+        /// opens it. Aim-based, so it works the same with mouse look, the right stick and the touch look pad. #3171: a lift stop
+        /// where the platform already waits opens the floor picker (a call there did nothing); elsewhere it calls the platform.</summary>
         private void UseAimedCrystalDevice()
         {
             if (Game.AimedCrystalDevice is not { } crystalDev)
@@ -141,9 +142,16 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var crystalKind = CrystalDeviceUi.KindOf(crystalDev);
+            var waitingLift = crystalKind == CrystalDeviceKind.LiftStop
+                ? LiftRiding.WaitingAtStop(Game.Lifts, crystalDev.X, crystalDev.Y, crystalDev.Z, Game.Circumference)
+                : null;
             if (crystalKind == CrystalDeviceKind.Switch)
             {
                 Game.SendCrystalDevice(crystalDev.X, crystalDev.Y, crystalDev.Z, 0);
+            }
+            else if (waitingLift != null)
+            {
+                OpenLiftFloors(waitingLift);
             }
             else if (crystalKind is CrystalDeviceKind.Button or CrystalDeviceKind.LiftStop)
             {

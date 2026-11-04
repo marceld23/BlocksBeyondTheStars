@@ -71,7 +71,10 @@ public sealed class SetCrystalDeviceIntent
     public int Y { get; set; }
     public int Z { get; set; }
 
-    /// <summary>0 = toggle (switch), 1 = press (button, manual start), 2 = configure (mode + config + label).</summary>
+    /// <summary>0 = toggle (switch), 1 = press (button, manual start), 2 = configure (mode + config + label; an empty label
+    /// keeps the name), 3 = turn, 4 = reset a counter; #3171: 5 = send a lift to the floor <see cref="Mode"/> (a platform
+    /// height, at the lift's motor), 6 = name the floor <see cref="Mode"/> (<see cref="Label"/>, empty clears it); #3172:
+    /// 7 = name the device itself (<see cref="Label"/>, empty clears it).</summary>
     public int Action { get; set; }
     public int Mode { get; set; }
     public string Config { get; set; } = string.Empty;
@@ -97,6 +100,18 @@ public sealed class NetLift
     public float TargetY { get; set; }
     public float Speed { get; set; }
     public bool Moving { get; set; }
+
+    /// <summary>#3171 (additive): the lift's floors as platform heights (the <see cref="PlatformY"/> the platform rests at
+    /// there), bottom first — the floor picker lists them. Empty from an older server.</summary>
+    public int[] Levels { get; set; } = System.Array.Empty<int>();
+
+    /// <summary>#3171 / #3172 (additive): each floor's name, one per <see cref="Levels"/> entry — the label of a lift stop
+    /// on that floor, empty when it has none (the client says "Floor N").</summary>
+    public string[] LevelNames { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>#3171 (additive): whether a lift stop stands on each floor — only a stop carries a floor's name (the bottom
+    /// floor may have none).</summary>
+    public bool[] LevelHasStop { get; set; } = System.Array.Empty<bool>();
 }
 
 /// <summary>Server → world (#2266): every lift of the world; sent on join, on every start and stop, and about five times a

@@ -330,7 +330,7 @@ public sealed partial class GameServer
     private static readonly HashSet<string> UnseenMoveSeeThroughKeys = new(System.StringComparer.Ordinal)
     {
         "glass", "glass_clear", "force_field", "force_field_off", "water", "gas", "gas_dense", "fire", "energy_fence",
-        "energy_gate", "phase_block_open",
+        "energy_gate", "phase_block_open", "lift_gate", "lift_gate_open", // #3174: the lift gate's grid is cut out like the fence's
     };
 
     /// <summary>

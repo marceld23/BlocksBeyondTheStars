@@ -625,6 +625,8 @@ class MissionTextInput(TypedDict, total=False):
     reward_count: int
     language: str
     kind: str
+    # #3180: the game's authored story behind the job (English, who needs it and why).
+    brief: str
 
 
 _TEXT_SYSTEM = (
@@ -632,17 +634,25 @@ _TEXT_SYSTEM = (
     "exploration game played by families and kids. Respond with ONLY a JSON object — no "
     "markdown fences:\n"
     '{{"Title": str (<= 48 chars, punchy, no quotes), "Description": str (1-2 sentences, in the '
-    "giver's voice, says WHY the job matters)}}\n"
-    "Do not change quantities, items or the job itself — they are fixed. Keep it kid-friendly: "
-    "bandits are chased away or driven off, never hurt or killed. Write both fields in {language}."
+    "giver's voice, says WHO needs it and WHY the job matters), "
+    '"Thanks": str (1 short sentence for when the job is handed in: what came of it, warm and '
+    "happy)}}\n"
+    "When the story behind the job is given, tell THAT story in your own words — do not invent "
+    "a different reason. Do not change quantities, items or the job itself — they are fixed. "
+    "Keep it kid-friendly: bandits are chased away or driven off, never hurt or killed; nobody "
+    "is in danger. Write all three fields in {language}."
 )
 
 _TEXT_HUMAN = (
     "Job giver: {giver_name} at {place} (community of {theme})\n"
     "The job: {job}\n"
+    "The story behind it: {story}\n"
     "They pay: {reward_count} x {reward_item}\n\n"
     "Write the JSON now."
 )
+
+# Without an authored story (an older game server, a bounty) the model picks a fitting reason.
+_NO_STORY = "(none given — make up a small, kind reason that fits the place)"
 
 # The job line per mission kind — bounties must not read like delivery work.
 _JOB_LINES = {
@@ -658,7 +668,7 @@ _JOB_LINES = {
 
 
 def _build_text_graph():
-    llm = _make_llm(max_tokens=160)
+    llm = _make_llm(max_tokens=240)  # #3180: Title + Description + Thanks
     if llm is None:
         return None
     try:
@@ -691,6 +701,7 @@ def _build_text_graph():
                 "place": r.get("place") or "a frontier settlement",
                 "theme": r.get("theme") or "settlers",
                 "job": job,
+                "story": (r.get("brief") or "").strip() or _NO_STORY,
                 "reward_item": (r.get("reward_item") or "supplies").replace("_", " "),
                 "reward_count": r.get("reward_count") or 1,
             }
@@ -708,8 +719,9 @@ _TEXT_GRAPH = _build_text_graph()
 
 
 def generate_mission_text(req: MissionTextInput) -> dict | None:
-    """Returns {"Title", "Description"} in the requested language, or None (caller keeps the
-    localized static board text)."""
+    """Returns {"Title", "Description", "Thanks"} in the requested language, or None (caller
+    keeps the localized authored board text). "Thanks" (#3180) may be empty — the game server
+    then uses the job's authored thank-you."""
     if _TEXT_GRAPH is None:
         return None
     try:
@@ -719,8 +731,9 @@ def generate_mission_text(req: MissionTextInput) -> dict | None:
             return None
         title = str(text.get("Title") or "").strip()
         desc = str(text.get("Description") or "").strip()
+        thanks = str(text.get("Thanks") or "").strip()
         if not title or not desc:
             return None
-        return {"Title": title[:64], "Description": desc[:280]}
+        return {"Title": title[:64], "Description": desc[:280], "Thanks": thanks[:200]}
     except Exception:
         return None

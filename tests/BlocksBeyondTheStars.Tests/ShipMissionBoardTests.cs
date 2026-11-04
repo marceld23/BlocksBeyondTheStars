@@ -117,7 +117,7 @@ public sealed class ShipMissionBoardTests : IDisposable
         var jobs = w.Server.ShipBoardMissionsForTest(Pilot);
         Assert.Equal(3, jobs.Count);
         Assert.All(jobs, id => Assert.StartsWith("shipboard_", id, StringComparison.Ordinal));
-        Assert.Equal("mission.ship.gather.title", w.Server.MissionDefForTest(jobs[0])!.NameKey);
+        Assert.StartsWith("mission.board.ship.", w.Server.MissionDefForTest(jobs[0])!.NameKey, StringComparison.Ordinal); // #3180: a radio order's story
         Assert.Equal(string.Empty, w.Server.MissionGiverName(jobs[0])); // no quartermaster: the ship's own terminal
 
         // Away from the board (off the ship): refused with the ship's line, nothing taken.
@@ -143,6 +143,12 @@ public sealed class ShipMissionBoardTests : IDisposable
         StandAt(w, board, 1.5f);
         w.Server.TurnInMission(Pilot, jobs[0]);
         Assert.Equal(MissionStatus.TurnedIn, Held(w, jobs[0])?.Status);
+
+        // #3180: the radio order says what came of it — the story's thank-you, in the player's language.
+        var done = w.Transport.Sent.Where(s => s.Conn == w.Player.ConnectionId).Select(s => s.Msg).OfType<MissionResult>()
+            .Last(r => r.Success && r.MissionId == jobs[0]);
+        Assert.Equal(MissionOutcomes.Completed, done.Outcome);
+        Assert.Equal(TestLocales.Load("en")[w.Server.MissionDefForTest(jobs[0])!.ThanksKey], done.Thanks);
     }
 
     [Fact]
@@ -175,6 +181,7 @@ public sealed class ShipMissionBoardTests : IDisposable
     public void AHeldCargoJob_IsCoinedBack_AfterARestart()
     {
         string job;
+        string story;
         MissionObjective need;
         using (var w = StartAboard("shipboard_restart"))
         {
@@ -183,6 +190,7 @@ public sealed class ShipMissionBoardTests : IDisposable
             job = w.Server.ShipBoardMissionsForTest(Pilot)[0];
             w.Server.AcceptMission(Pilot, job);
             need = w.Server.FirstObjectiveForTest(job)!;
+            story = w.Server.MissionDefForTest(job)!.NameKey;
             w.Server.Stop();
         }
 
@@ -198,6 +206,7 @@ public sealed class ShipMissionBoardTests : IDisposable
         var again = server.FirstObjectiveForTest(job);
         Assert.NotNull(again); // the job still counts and can be handed in
         Assert.Equal((need.Target, need.Required), (again!.Target, again.Required)); // the same roll
+        Assert.Equal(story, server.MissionDefForTest(job)!.NameKey); // #3180: and the same story
         server.Stop();
     }
 }

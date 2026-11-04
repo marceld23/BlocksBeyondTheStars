@@ -54,7 +54,8 @@ namespace BlocksBeyondTheStars.Client
                 return BuildShapeList();
             }
 
-            float y = 0f;
+            // #3182: "Ship parts" holds the ship-building blocks; the modules (the jump generator …) are built in the Ship tab.
+            float y = _category == "ship" ? ShipModulesHint(0f) : 0f;
             var entries = new List<(RecipeDefinition r, string outItem, bool can)>();
             foreach (var r in Game.Content.Recipes.Values)
             {
@@ -129,7 +130,7 @@ namespace BlocksBeyondTheStars.Client
                 y += 88f;
             }
 
-            return y;
+            return CrossTabSection(y); // #3182: what the search finds in the Blueprints and Ship tabs
         }
 
         /// <summary>Lists the player's tintable building materials for the always-available Dye/Glow action.</summary>

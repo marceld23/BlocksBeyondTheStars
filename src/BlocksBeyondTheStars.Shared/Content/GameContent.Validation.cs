@@ -871,6 +871,7 @@ public sealed partial class GameContent
         ValidateWishes(problems, RequireItem);
         ValidateLodges(problems);
         ValidateFestivals(problems);
+        ValidateBoardStories(problems, RequireItem); // #3180
 
         // #427: authored voxel ship layouts. The server used to turn an unknown cell id silently into hull
         // (`?? iron_wall`), so a data typo would ship invisibly — surface it at load like every other reference.

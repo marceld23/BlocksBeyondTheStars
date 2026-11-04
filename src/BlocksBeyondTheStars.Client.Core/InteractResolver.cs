@@ -80,6 +80,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The nearest person within talk reach — talk to them.</summary>
         Talk,
+
+        /// <summary>#3171: the player stands on a lift platform — choose the floor (first of the proximity tier).</summary>
+        LiftRide,
     }
 
     /// <summary>
@@ -124,12 +127,15 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A person within talk reach.</summary>
         public bool TalkNear { get; set; }
 
+        /// <summary>#3171: the player stands on a lift platform (<see cref="LiftRiding.StandingOn"/>).</summary>
+        public bool OnLift { get; set; }
+
         /// <summary>Forgets every fact (the next frame gathers them anew).</summary>
         public void Clear()
         {
             AimedNpc = AimedNpcTrades = OwnBeacon = OwnBase = BasePad = StationCore = Crate = CrystalDevice = false;
             BioLab = SpawnBed = Seat = MissionBoard = AimedDoor = BeamPad = NearDoor = DataCube = false;
-            Factory = NetFragment = Vendor = TalkNear = false;
+            Factory = NetFragment = Vendor = TalkNear = OnLift = false;
             LookedStation = NearStation = string.Empty;
         }
     }
@@ -187,9 +193,11 @@ namespace BlocksBeyondTheStars.Client
                 : InteractKind.None;
 
         /// <summary>The proximity tier, in E's old order: a door before the stations (a door beside a market stall still
-        /// opens, B47), a trader before a talk (traders stand right beside their stall).</summary>
+        /// opens, B47), a trader before a talk (traders stand right beside their stall). #3171: the lift platform the player
+        /// stands on comes first — riding, the floor is what E is for (Lyxette: "standing on it I can't start anything").</summary>
         private static InteractKind ResolveNearby(InteractFacts f)
-            => f.BeamPad ? InteractKind.BeamPad
+            => f.OnLift ? InteractKind.LiftRide
+                : f.BeamPad ? InteractKind.BeamPad
                 : f.NearDoor ? InteractKind.NearDoor
                 : f.DataCube ? InteractKind.DataCube
                 : f.Factory ? InteractKind.Factory

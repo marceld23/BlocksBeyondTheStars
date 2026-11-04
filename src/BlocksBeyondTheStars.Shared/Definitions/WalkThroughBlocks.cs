@@ -17,12 +17,14 @@ public static class WalkThroughBlocks
     public const string FloraPrefix = "flora_";
 
     /// <summary>A slim prop without a collider: small flora, the torch and lantern (lit or unlit, #809/#2520), the ladder
-    /// a climber stands inside (#803), a fire and the energy gate's membrane. Tree crowns are NOT included — they are
-    /// <see cref="TreeFoliage"/>, which ground creatures and NPCs still treat as a wall; see <see cref="IsWalkThrough"/>.</summary>
+    /// a climber stands inside (#803), a fire, the energy gate's membrane and (#3174) an open lift gate — its empty frame is
+    /// walked through to board the platform. Tree crowns are NOT included — they are <see cref="TreeFoliage"/>, which ground
+    /// creatures and NPCs still treat as a wall; see <see cref="IsWalkThrough"/>.</summary>
     public static bool IsProp(string? key)
         => key != null
            && (key.StartsWith(FloraPrefix, System.StringComparison.Ordinal)
-               || key is "torch" or "lantern" or "torch_off" or "lantern_off" or "ladder" or "fire" or "energy_gate");
+               || key is "torch" or "lantern" or "torch_off" or "lantern_off" or "ladder" or "fire" or "energy_gate"
+                   or "lift_gate_open");
 
     /// <summary>Everything the PLAYER walks through: <see cref="IsProp"/> plus the tree crowns (#2184). The player's
     /// weapon and melee traces pass these cells too (#2533) — what you can walk through, you can shoot and hit through.</summary>

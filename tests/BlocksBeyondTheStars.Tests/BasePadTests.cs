@@ -22,7 +22,7 @@ namespace BlocksBeyondTheStars.Tests;
 /// Base landing pads (#3069–#3073, epic #3074): a pad stands near one of the player's own bases, at most four per base, on a
 /// clear 17 × 17 square that then stays clear and is protected like the base; who may land is the owner's setting; a landing
 /// on it holds it like a communal pad; a landing nobody picked by hand prefers the player's own pad; mining the core makes it
-/// inactive; a Market base's public pad receives the travelling merchants; pads survive a restart.
+/// inactive; a Market base's pads on "Me + allies" and "Everyone" receive the travelling merchants (#3175); pads survive a restart.
 /// </summary>
 public sealed class BasePadTests : IDisposable
 {
@@ -342,7 +342,7 @@ public sealed class BasePadTests : IDisposable
     }
 
     [Fact]
-    public void AMarketBase_OffersItsPublicPadToTheMerchants()
+    public void AMarketBase_OffersItsPadsOnAlliesAndEveryone_ToTheMerchants_ButNeverOnlyMe()
     {
         var server = Started(out var repo);
         using (repo)
@@ -365,7 +365,11 @@ public sealed class BasePadTests : IDisposable
             });
             Assert.Equal(PadEast, server.MarketBasePadForTest(owner));
 
-            server.SetBasePadForTest(owner, PadEast, string.Empty, BasePadAccess.Allies); // not public: the merchants keep off
+            // #3175: the default "Me + allies" takes them too — a player who sets "Market" wants traders.
+            server.SetBasePadForTest(owner, PadEast, string.Empty, BasePadAccess.Allies);
+            Assert.Equal(PadEast, server.MarketBasePadForTest(owner));
+
+            server.SetBasePadForTest(owner, PadEast, string.Empty, BasePadAccess.Owner); // "Only me": the merchants keep off
             Assert.Null(server.MarketBasePadForTest(owner));
         }
     }

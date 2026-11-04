@@ -681,7 +681,9 @@ public interface IWorldRepository : IDisposable
     /// block standing that is not one of <paramref name="passable"/> — something a player BUILT there (a mined cell is air
     /// and never counts, nor does an open prop the caller lists as passable). The landing pads ask it so a hull is never
     /// stamped into a building, also on a body whose world is not loaded. Coordinates are canonical — a box that straddles
-    /// the longitude seam must be asked as two boxes.</summary>
+    /// the longitude seam must be asked as two boxes. #3176: a cell that still holds the block its weather-deposit row
+    /// tracks (<see cref="SaveWeatherDeposit"/> — the sky's snow, a festival deposit) never counts either: a server write
+    /// keeps the owner of a cell a player once mined or paved, so a snow drift on a paved pad read as built.</summary>
     bool HasPlayerBuiltBlocks(string planet, Vector3i min, Vector3i max, IReadOnlyCollection<ushort> passable);
 
     /// <summary>The axis-aligned bounds (inclusive) of every block edit inside the box that carries a player

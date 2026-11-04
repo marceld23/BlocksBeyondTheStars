@@ -53,7 +53,7 @@ def alpha_mode(key):
         return "free"
     if key.startswith("flora_") or key in (
             "tree_leaves", "pine_needles", "palm_frond", "giant_leaves", "fifi_leaf", "fire", "torch", "lantern",
-            "energy_fence"):  # #3085: the gaps between the fence's beams
+            "energy_fence", "lift_gate", "lift_gate_open"):  # #3085 / #3174: the gaps between the beams
         return "cutout"
     return "opaque"
 

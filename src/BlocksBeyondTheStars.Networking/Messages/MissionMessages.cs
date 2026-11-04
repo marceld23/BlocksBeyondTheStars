@@ -96,6 +96,12 @@ public sealed class MissionResult
 
     /// <summary>True when <see cref="Title"/> is display text rather than a locale key. Additive.</summary>
     public bool FreeText { get; set; }
+
+    /// <summary>#3180: on a turn-in (<see cref="MissionOutcomes.Completed"/>), the giver's thank-you — what came of the
+    /// delivery ("Thanks to your copper the radio works again — two freighters have already docked!"). Display text in
+    /// the player's language (authored, or written by the AI backend); empty when the mission has none. Additive — an
+    /// older client simply shows the plain "complete" toast.</summary>
+    public string Thanks { get; set; } = string.Empty;
 }
 
 /// <summary>The values of <see cref="MissionResult.Outcome"/> (#2462).</summary>

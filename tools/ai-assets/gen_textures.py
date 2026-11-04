@@ -567,6 +567,14 @@ TEXTURES = [
     ("held_stone", "light grey chipped stone surface with flaked knapped facets like a flint tool, light and mostly grayscale"),
     ("held_bone", "light ivory bone surface with fine cracks and a smooth worn sheen, light and mostly grayscale"),
     ("held_carbon", "light grey woven carbon fibre twill pattern with a soft sheen, light and mostly grayscale"),
+    # #3181 (school club, Ben): wooden planks in three sorts, one per log kind.
+    ("wood_planks", "four horizontal wooden floor boards of warm medium-brown wood stacked top to bottom and filling the whole image edge to edge, fine wood grain, a few small knots, thin dark seams between the boards and tiny nail dots near the board ends, boards running off the left and right edges"),
+    ("wood_planks_light", "four horizontal wooden floor boards of pale cream-coloured birch-like wood stacked top to bottom and filling the whole image edge to edge, fine light grain, thin grey seams between the boards and tiny nail dots near the board ends, boards running off the left and right edges"),
+    ("wood_planks_mahogany", "four horizontal wooden floor boards of dark reddish-brown polished mahogany stacked top to bottom and filling the whole image edge to edge, rich deep wood grain, thin dark seams between the boards and tiny brass nail dots near the board ends, boards running off the left and right edges"),
+    # #3174: the lift gate pair — the side of a low barrier segment like the energy fence (#3085), cut out by
+    # bake_fence_alpha.py --key lift_gate / --key lift_gate_open --rails-only.
+    ("lift_gate", "the side of a long low sci-fi safety barrier seen straight from the front, filling the whole image edge to edge: one thick straight dark gunmetal rail with diagonal yellow-and-black hazard stripes running horizontally across the full width along the very top edge and an identical rail along the very bottom edge, both rails continuing off the left and right edges; between the two rails three straight evenly spaced glowing bright amber-orange horizontal energy beams with white-hot cores spanning the full width from the left edge to the right edge, everything between the beams solid pitch-black #000000, no posts, no pillars, no frame, no vertical bars, flat front view"),
+    ("lift_gate_open", "the side of a long low sci-fi safety barrier seen straight from the front, filling the whole image edge to edge: one thick straight dark gunmetal rail with diagonal yellow-and-black hazard stripes running horizontally across the full width along the very top edge and an identical rail along the very bottom edge, both rails continuing off the left and right edges, a row of tiny soft green status lights along the inner edge of each rail; between the two rails nothing at all, solid pitch-black #000000, no beams, no posts, no pillars, no frame, no vertical bars, flat front view"),
 ]
 
 if TYPE_CHECKING:

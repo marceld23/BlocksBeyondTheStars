@@ -423,7 +423,7 @@ public sealed partial class GameServer
     private static string HintLineId(string hintId)
         => hintId.StartsWith("world:", System.StringComparison.Ordinal) ? "world." + hintId["world:".Length..]
             : hintId.StartsWith(ToxicScanHintPrefix, System.StringComparison.Ordinal) ? "toxic_scan_" + hintId[(hintId.LastIndexOf(':') + 1)..]
-            : hintId;
+            : MarketPadHintLine(hintId); // #3175: "market_pad:<base>:<reason>" → market_pad_<reason>
 
     /// <summary>First-visit flavour for notable world types (called after a landing).</summary>
     private void ShipAiWorldFlavour(PlayerSession session)

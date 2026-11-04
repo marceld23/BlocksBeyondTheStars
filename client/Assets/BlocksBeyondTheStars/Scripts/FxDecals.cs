@@ -199,8 +199,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>A server block change (canonical cell) landed: every mark whose box it touches — or borders, since a
-        /// face's visibility depends on the cell in front of it — rebuilds shortly.</summary>
-        private void OnBlockApplied(Vector3i pos, BlockId oldId, BlockId newId)
+        /// face's visibility depends on the cell in front of it — rebuilds shortly. A moved block (#3173) counts the same.</summary>
+        private void OnBlockApplied(Vector3i pos, BlockId oldId, BlockId newId, bool moved)
         {
             if (_liveCount == 0 || Game == null)
             {

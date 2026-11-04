@@ -144,6 +144,15 @@ public sealed class MissionDefinition
     /// (survey) missions, so research-minded players get research currency for research work. 0 = none.</summary>
     public int KnowledgeReward { get; set; }
 
+    /// <summary>#3180: locale key of the thank-you the hand-in is answered with — what came of the delivery ("thanks to
+    /// your copper the radio works again"), shown with the "complete" message. Empty = none. A board delivery takes it
+    /// from its <see cref="BoardStory"/>.</summary>
+    public string ThanksKey { get; set; } = string.Empty;
+
+    /// <summary>#3180: a few English words on the story behind the job — the AI wording's brief, so a generated text tells
+    /// the same story in its own words. Never shown to the player; empty = none.</summary>
+    public string Brief { get; set; } = string.Empty;
+
     public bool Repeatable { get; set; }
 
     /// <summary>Whether the mission is currently offered on the board.</summary>
