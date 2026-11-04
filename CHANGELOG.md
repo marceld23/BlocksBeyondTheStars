@@ -11,6 +11,75 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.5] — 2026-11-05
+
+The floor-picker release. **Lifts take you to the floor you choose**, devices show the **names** you give them, and a
+**lift gate** keeps everyone out of the empty shaft. Drawbridges no longer crumble like mined rock. **Traders land at your
+Market base** and say where they parked, and they **land and lift off like your own ship**. Painting your avatar leaves
+**no blue gaps**, brush strokes have no holes, board jobs **tell a story**, and there are **wooden planks** in three sorts.
+Many of these came from Lyxette, from Ben, Marie and Justus of the school club, and from Verena — thank you!
+
+ℹ️ **Compatibility:** five new blocks — the **save version rises to 11** (block ids shift; worlds of 2026.11.4 are
+converted when they first open, and an older game should not open them afterwards). The terrain generation stays at
+**32** and the network protocol at **version 11** (new fields only). As always, keep game and server on the same version:
+the desktop game updates itself at start, and the browser is always current.
+
+### 🛗 Lifts: choose the floor, give names, a gate at the shaft (#3171, #3172, #3174)
+
+- **Choose a floor:** press **E** on the stop where the platform waits — or simply **E** while you stand on the
+  platform. A list of the lift's floors opens (the highest on top, yours lit); **Go** takes you there, up or down.
+  **Name** gives a floor a name that the list shows. A stop where the platform already waits now says so instead of
+  doing nothing.
+- **Names you can see:** a device's name is now shown when you look at it and as the title of its menu. It is saved with
+  Enter and when you close the menu, not only with **Save**; an empty field removes it.
+- **Lift Gate:** a knee-high energy barrier you place on a floor beside the shaft (workshop, lift blueprint: two from a
+  crystal, two iron plates and a cable). The lift opens it while the platform waits at that floor and closes it when the
+  platform leaves; it never closes on anybody. One block high, so the call button across the shaft stays in reach.
+
+### 🌉 Machines move blocks, they don't mine them (#3173)
+
+- A **drawbridge** going in and out, a **piston**, melting snow and the lift clearing its shaft no longer show the mining
+  crumble and its sound. A block you break by hand still crumbles. Lamps switching no longer knock.
+
+### 🛬 Traders at your Market base (#3175–#3177)
+
+- A Market base's free landing pads on **Me + allies** or **Everyone** now take traders (never *Only me*). If none is
+  free, a trader only uses a public pad within about **250 blocks** of the base — otherwise it does not come this time,
+  and **VEGA tells you once why**: your own ship stands on the pad, it is built over, it is set to *Only me*, another ship
+  holds it, or the base has no pad.
+- **Honest messages:** when a trader lands away from you, the message, the radio hail and VEGA say **how far and which
+  way** instead of "nearby". Without a Market base a trader still takes the nearest free pad, however far.
+- Weather **snow** and **water** on a pad no longer count as "built over".
+- **Traders land like your ship:** a glint with a **contrail** crosses the sky after "look up!", then the hull sinks on
+  its engine fire, swirls up dust and vents steam. It lifts off heavily and climbs away with a boom. Other pilots' ships
+  land and launch the same way.
+
+### 🎨 Painting without gaps (#3178, #3179)
+
+- The tops of the shoulders, the wrists, a bent elbow and the cuff in first person no longer show the **blue base
+  colour** — they take the colours of your painting.
+- **Fast brush strokes** no longer skip pixels, and the outer pixel row is as easy to hit as the others — in the face,
+  body and block painters.
+
+### 📜 Jobs with a story (#3180)
+
+- Delivery jobs on the boards tell **who needs it and why**, and the giver **thanks you** when you hand it in and says what
+  came of it — 56 stories for stations, settlements, your base and the ship's radio. A station's job no longer speaks of a
+  "settlement". On servers with the AI helper, it tells the same story in its own words.
+
+### 🪵 Wooden planks (#3181)
+
+- **Wooden planks**, **light wooden planks** and **mahogany planks** — four from one log, by hand, under *Blocks & Walls*.
+
+### 🧰 Ship modules from Crafting (#3182)
+
+- The Crafting category is now called **Ship parts**. It points to the **Ship tab**, where modules like the jump generator
+  are built, with a button that takes you there; a search also lists matches in the other tabs.
+
+### 🌍 Languages
+
+- All new texts in all 14 languages.
+
 ## [2026.11.4] — 2026-11-04
 
 The landing release. **Landing, lift-off and docking are one continuous scene**. There is no black loading screen and no
@@ -9940,7 +10009,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.4...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.5...HEAD
+[2026.11.5]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.4...v2026.11.5
 [2026.11.4]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.3...v2026.11.4
 [2026.11.3]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.2...v2026.11.3
 [2026.11.2]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.33...v2026.11.2
