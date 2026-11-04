@@ -28,9 +28,15 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <item><b>Snow.</b> Weather snow never settles in a shaft, and a drift that lay there before is cleared for the ride
 /// (#3162) — the platform is no block, so the snow pass would land its drift under the platform and block the lift.</item>
 /// <item><b>Telling why.</b> A press that cannot be answered says so (#3163): a stop beside no shaft, a motor without stops,
-/// a block in the shaft. A circuit's signal stays silent — there is no one to tell.</item>
+/// a block in the shaft, a platform that already waits there (#3171). A circuit's signal stays silent — there is no one to
+/// tell.</item>
+/// <item><b>Choosing the floor</b> (#3171, <c>GameServerLiftFloors.cs</c>): a rider, or a player beside one of the lift's
+/// stops, sends the platform to any floor; the floors and their names ride along on the lift list.</item>
+/// <item><b>Gates</b> (#3174, <c>GameServerLiftGates.cs</c>): the lift gates at a floor's landing open while the platform
+/// rests there and close when it leaves — never onto a body.</item>
 /// </list>
-/// Cost: one small loop per moving lift per tick, one list per 0.2 s while one moves; nothing for a lift at rest.
+/// Cost: one small loop per moving lift per tick, one list per 0.2 s while one moves; at rest one pass over the net's
+/// cells (the floors) and one over the shaft's ring of cells (the gates) every half second per lift.
 /// </summary>
 public sealed partial class GameServer
 {
@@ -43,6 +49,19 @@ public sealed partial class GameServer
         public float TargetY;
         public bool Moving;
         public HashSet<string> Riders { get; } = new(); // #2258: who rode this trip ("Going up" counts a ride once)
+
+        /// <summary>#3171: the floors as this world's players were last told them — platform heights bottom first, each
+        /// floor's name (a stop's label, empty when it has none) and whether a stop stands there — and when they are read
+        /// again.</summary>
+        public int[] Levels = Array.Empty<int>();
+        public string[] LevelNames = Array.Empty<string>();
+        public bool[] LevelHasStop = Array.Empty<bool>();
+        public double NextFloorCheck = double.NegativeInfinity;
+
+        /// <summary>#3174: when this lift's gates are read next, and the gate cells that wait for a body to step out before
+        /// they close.</summary>
+        public double NextGateSync = double.NegativeInfinity;
+        public HashSet<Vector3i> GatesWaiting { get; } = new();
     }
 
     private const double LiftBroadcastSeconds = 0.2;
@@ -126,6 +145,7 @@ public sealed partial class GameServer
         if (levels.Count == 1 && by is not null && !lift.Moving && Math.Abs(lift.PlatformY - levels[0]) < 0.01f)
         {
             Send(by, new ServerMessage { Text = "@srv.lift.no_stops" }); // #3163: a motor alone has nowhere to send it
+            return; // (and "it is already here" on top of that would say nothing new)
         }
 
         int next = levels.FirstOrDefault(l => l > here);
@@ -134,7 +154,8 @@ public sealed partial class GameServer
 
     /// <summary>Starts the platform towards a level — when the shaft between here and there is clear; else the motor's light
     /// says it is blocked, and so does a message to the player who pressed (#3163). Weather snow in the way is cleared
-    /// first (#3162).</summary>
+    /// first (#3162). A platform that already waits there tells the player who asked (#3171: a press never fails
+    /// silently) and opens that floor's gates again.</summary>
     private void LiftGoTo(ServerCrystalCell motor, int level, PlayerSession? by = null)
     {
         var lift = LiftOf(motor);
@@ -142,6 +163,12 @@ public sealed partial class GameServer
         ClearWeatherSnowInShaft(motor.Cell, from, to);
         if (Math.Abs(lift.PlatformY - level) < 0.01f && !lift.Moving)
         {
+            if (by is not null)
+            {
+                Send(by, new ServerMessage { Text = "@srv.lift.already_here" });
+            }
+
+            SyncLiftGates(lift); // #3174: a gate that was saved closed there opens now
             return;
         }
 
@@ -292,8 +319,9 @@ public sealed partial class GameServer
         return false;
     }
 
-    /// <summary>Every tick (under the Crystal Net's tick): moving platforms advance towards their level; the list goes out on
-    /// start / stop and every 0.2 s while one moves.</summary>
+    /// <summary>Every tick (under the Crystal Net's tick): moving platforms advance towards their level, the gates follow
+    /// (#3174) and the floors are re-read (#3171); the list goes out on start / stop, every 0.2 s while one moves, and when a
+    /// floor or its name changed.</summary>
     private void TickLifts(double dt)
     {
         var state = CrystalNet;
@@ -305,39 +333,14 @@ public sealed partial class GameServer
         bool anyMoving = false;
         foreach (var lift in state.Lifts.Values)
         {
-            if (!lift.Moving)
+            if (lift.Moving)
             {
-                continue;
+                anyMoving = true;
+                StepLift(lift, dt);
             }
 
-            anyMoving = true;
-            float step = (float)(CrystalNetRules.LiftSpeed * dt);
-            float delta = lift.TargetY - lift.PlatformY;
-            if (delta < 0f && LiftLayerOccupied(lift.Motor, (int)Math.Floor(lift.PlatformY - 0.01f)))
-            {
-                continue; // kid rule: something stands under the platform — it waits
-            }
-
-            GrantLiftRiderGrace(lift);
-            if (Math.Abs(delta) <= step)
-            {
-                lift.PlatformY = lift.TargetY;
-                lift.Moving = false;
-                state.LiftListDirty = true;
-                if (state.Cells.TryGetValue(lift.Motor, out var motor))
-                {
-                    motor.Config = CrystalConfigWith(motor.Config, "at", ((int)Math.Round(lift.PlatformY)).ToString(System.Globalization.CultureInfo.InvariantCulture));
-                    SaveCrystalCell(motor);
-                }
-
-                BroadcastToWorld(new SoundFx { SoundId = "lift_motor", Stop = true, SourceId = 100000 + lift.Id });
-                BroadcastToWorld(new SoundFx { SoundId = "lift_arrive", X = lift.Motor.X + 0.5f, Y = lift.PlatformY + 1.5f, Z = lift.Motor.Z + 0.5f, SourceId = lift.Id });
-                UpdateLiftStatuses(lift.Motor);
-            }
-            else
-            {
-                lift.PlatformY += Math.Sign(delta) * step;
-            }
+            TickLiftGates(lift);     // #3174: open where the platform rests, closed elsewhere — never onto a body
+            RefreshLiftFloors(lift); // #3171: the floors and their names on the wire follow the stops
         }
 
         state.LiftBroadcastIn -= dt;
@@ -349,15 +352,57 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>One moving platform's tick: it waits while something stands under it on the way down (kid rule), grants its
+    /// riders the fall grace, and arrives — the row remembers where it waits, the stops and the gates learn it is there.</summary>
+    private void StepLift(ServerLift lift, double dt)
+    {
+        var state = CrystalNet;
+        float step = (float)(CrystalNetRules.LiftSpeed * dt);
+        float delta = lift.TargetY - lift.PlatformY;
+        if (delta < 0f && LiftLayerOccupied(lift.Motor, (int)Math.Floor(lift.PlatformY - 0.01f)))
+        {
+            return; // kid rule: something stands under the platform — it waits
+        }
+
+        GrantLiftRiderGrace(lift);
+        if (Math.Abs(delta) > step)
+        {
+            lift.PlatformY += Math.Sign(delta) * step;
+            return;
+        }
+
+        lift.PlatformY = lift.TargetY;
+        lift.Moving = false;
+        state.LiftListDirty = true;
+        if (state.Cells.TryGetValue(lift.Motor, out var motor))
+        {
+            motor.Config = CrystalConfigWith(motor.Config, "at", ((int)Math.Round(lift.PlatformY)).ToString(System.Globalization.CultureInfo.InvariantCulture));
+            SaveCrystalCell(motor);
+        }
+
+        BroadcastToWorld(new SoundFx { SoundId = "lift_motor", Stop = true, SourceId = 100000 + lift.Id });
+        BroadcastToWorld(new SoundFx { SoundId = "lift_arrive", X = lift.Motor.X + 0.5f, Y = lift.PlatformY + 1.5f, Z = lift.Motor.Z + 0.5f, SourceId = lift.Id });
+        UpdateLiftStatuses(lift.Motor);
+    }
+
+    /// <summary>Whether a player stands on (or just above) a lift's platform — the box the rider grace covers, measured the
+    /// short way round both seams. #3171: such a player may choose the floor from the platform.</summary>
+    private bool OnLiftPlatform(Shared.State.PlayerState player, ServerLift lift)
+    {
+        float top = lift.PlatformY + 1f;
+        double r = CrystalNetRules.LiftPlatformRadius + 0.6;
+        var p = player.Position;
+        double dx = Math.Abs(WorldConstants.WrapDeltaX(p.X - (lift.Motor.X + 0.5), _world.Circumference));
+        double dz = Math.Abs(WorldConstants.WrapDeltaZ(p.Z - (lift.Motor.Z + 0.5), _world.Circumference));
+        return dx <= r && dz <= r && p.Y >= top - 1.5f && p.Y <= top + 3f;
+    }
+
     /// <summary>Players standing on a moving platform fall without harm (the client carries them; a stutter is no fall).</summary>
     private void GrantLiftRiderGrace(ServerLift lift)
     {
-        float top = lift.PlatformY + 1f;
-        float r = CrystalNetRules.LiftPlatformRadius + 0.6f;
         foreach (var s in JoinedInActiveWorld())
         {
-            var p = s.State.Position;
-            if (Math.Abs(p.X - (lift.Motor.X + 0.5f)) <= r && Math.Abs(p.Z - (lift.Motor.Z + 0.5f)) <= r && p.Y >= top - 1.5f && p.Y <= top + 3f)
+            if (OnLiftPlatform(s.State, lift))
             {
                 s.MovingFallGraceUntil = _uptime + CrystalNetRules.MovingFallGraceSeconds;
                 if (lift.Riders.Add(s.State.PlayerId))
@@ -368,7 +413,8 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Each stop's light: ON while the platform rests at its floor.</summary>
+    /// <summary>Each stop's light: ON while the platform rests at its floor. #3174: the gates follow at once — the floor's
+    /// open when it arrives, all of them closed when it leaves.</summary>
     private void UpdateLiftStatuses(Vector3i motor)
     {
         if (!CrystalNet.Lifts.TryGetValue(motor, out var lift))
@@ -388,15 +434,19 @@ public sealed partial class GameServer
                 }
             }
         }
+
+        SyncLiftGates(lift);
     }
 
-    /// <summary>A mined motor takes its lift with it.</summary>
+    /// <summary>A mined motor takes its lift with it — and (#3174) closes its gates: the shaft has no platform any more. A
+    /// gate someone stands in stays open (there is no lift left to try again).</summary>
     private void RemoveLift(Vector3i motor)
     {
         if (CrystalNet.Lifts.Remove(motor, out var lift))
         {
             BroadcastToWorld(new SoundFx { SoundId = "lift_motor", Stop = true, SourceId = 100000 + lift.Id });
             CrystalNet.LiftListDirty = true;
+            SyncLiftGates(lift, gone: true);
         }
     }
 
@@ -413,6 +463,9 @@ public sealed partial class GameServer
                 TargetY = l.TargetY,
                 Speed = CrystalNetRules.LiftSpeed,
                 Moving = l.Moving,
+                Levels = l.Levels,             // #3171: the floor picker's floors …
+                LevelNames = l.LevelNames,     // … their names (#3172: the stops' labels) …
+                LevelHasStop = l.LevelHasStop, // … and which of them a stop can name
             }).ToArray(),
         };
 

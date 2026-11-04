@@ -11,7 +11,8 @@ namespace BlocksBeyondTheStars.Client
     /// <c>Mission '&lt;raw id&gt;' complete!</c> — in English, and for an accepted, a posted and a dialogue-granted
     /// mission alike. Now it is localized, names the mission by its title and says what happened: accepted, complete
     /// (only on a real turn-in) or posted. An older server sends no outcome; the toast then says neutrally that the
-    /// mission was updated. Unity-free so the wording rules are covered by plain .NET tests.
+    /// mission was updated. #3180: a turn-in's thank-you follows the "complete" line. Unity-free so the wording rules are
+    /// covered by plain .NET tests.
     /// </summary>
     public static class MissionToast
     {
@@ -45,7 +46,13 @@ namespace BlocksBeyondTheStars.Client
             };
 
             // Replace, not string.Format: a translation with a stray brace must not throw inside a network callback.
-            return localize(key).Replace("{0}", name);
+            string line = localize(key).Replace("{0}", name);
+
+            // #3180: a turn-in carries the giver's thank-you — what came of the delivery. It is display text in the player's
+            // language already (authored or AI-written on the server), so it follows the "complete" line verbatim.
+            return result.Outcome == MissionOutcomes.Completed && !string.IsNullOrWhiteSpace(result.Thanks)
+                ? line + " " + result.Thanks.Trim()
+                : line;
         }
 
         /// <summary>A display name from a title: free text verbatim, a locale key localized — or empty when the key is

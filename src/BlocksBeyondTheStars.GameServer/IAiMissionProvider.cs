@@ -225,6 +225,11 @@ public sealed class MissionTextRequest
     /// or "bounty_ship" (drive off a raider ship). Older backends ignore the field and treat everything
     /// as a gather job — the deterministic locale fallback still fits then.</summary>
     public string Kind { get; set; } = "gather";
+
+    /// <summary>#3180: the authored story behind the job in a few English words (<c>MissionDefinition.Brief</c> — who needs
+    /// the goods and why), so the generated text tells THAT story in its own words instead of making one up; empty when the
+    /// job has none. Older backends ignore the field.</summary>
+    public string Brief { get; set; } = string.Empty;
 }
 
 /// <summary>L3: the generated board-mission posting text.</summary>
@@ -232,6 +237,10 @@ public sealed class MissionTextResult
 {
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+
+    /// <summary>#3180: the giver's thank-you on hand-in, in the giver's voice — what came of the delivery. Optional: an
+    /// older backend sends none (empty), and the server then uses the job's authored thank-you.</summary>
+    public string Thanks { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -369,9 +378,13 @@ public sealed class HttpAiMissionProvider : IAiMissionProvider
             {
                 PropertyNameCaseInsensitive = true,
             });
-            return string.IsNullOrWhiteSpace(text?.Title) || string.IsNullOrWhiteSpace(text?.Description)
-                ? null   // backend has no LLM (empty fields) or replied oddly → keep the static text
-                : text;
+            if (text is null || string.IsNullOrWhiteSpace(text.Title) || string.IsNullOrWhiteSpace(text.Description))
+            {
+                return null; // backend has no LLM (empty fields) or replied oddly → keep the static text
+            }
+
+            text.Thanks = text.Thanks?.Trim() ?? string.Empty; // #3180: optional — "Thanks": null or absent from an older backend
+            return text;
         }
         catch
         {

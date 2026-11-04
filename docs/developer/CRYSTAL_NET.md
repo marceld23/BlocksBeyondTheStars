@@ -412,7 +412,16 @@ device (not a conduit).
 - **Action 2 — configure** (owner / ally / admin): `Mode` clamped to `ModeCount`, `Config` sanitised
   (`SanitizeCrystalConfig`: printable, ≤ 96 chars, no `|`/newlines; the `yaw=` of a gate or watcher is
   re-applied, it is not the player's to overwrite), `Label` screened like a beacon name (#1221 — a refused
-  label aborts the intent after telling the player), a timer resets, a switch takes its mode as its lever.
+  label aborts the intent after telling the player), a timer resets, a switch takes its mode as its lever. An
+  **empty** `Label` keeps the name (older clients send the field's text with every click).
+- **Action 3 — turn** (directional devices), **Action 4 — reset** (a display's counter).
+- **Action 5 / 6 — a lift's floor** (#3171, at the lift motor, `Mode` = the floor's platform height): 5 sends the
+  platform there (operate rights), 6 names the floor — every lift stop on it the player may configure (configure
+  rights; an empty name clears it). Reach is the lift's, not the motor's: on the platform or within reach of the motor
+  or any of its stops (`CanReachLift`, `srv.lift.too_far`). See [MOVING_BLOCKS.md](MOVING_BLOCKS.md) §5.
+- **Action 7 — name** (#3172, configure rights): the `Label` alone, screened; an empty one **clears** the name. The
+  device menu sends it on Enter, on leaving the name field, on *Save* and when the menu closes. A named device is called
+  by its name in the HUD prompt (`ui.crystal.prompt.named`) and in its menu's title.
 
 Rejections: `srv.crystal.gone`, `out_of_reach`, `srv.crystal.owner_only`, `srv.crystal.clone_cap`,
 `srv.crystal.clone_price.<bait>` (one line per bait: `.forage_bait` / `.meat_bait` / `.nectar_lure`, #2096 — no
@@ -447,7 +456,7 @@ row is what rebuilds the network without touching a chunk; a lamp's row exists o
 |---|---|---|
 | `CrystalNetList` | server → world | every network: `Id`, `On`, `Cells` as x/y/z triples — the client draws the glow on exactly these cells |
 | `CrystalDeviceList` | server → world | every non-conduit cell: `Id`, cell, `Kind` (enum name), `Mode`, `Config` (incl. `yaw=` for gates and watchers), `Label`, `OwnerId`, `Output` (a source's / gate's level, a listener's status), `Choices` (clone tanks only: the owner's cloneable species as `"speciesId|coined name"`, #2097), `Held` (#3091, additive: the net holds this sentry / spout / heal tank OFF right now) |
-| `SetCrystalDeviceIntent` | client → server | cell, `Action` 0/1/2, `Mode`, `Config`, `Label` |
+| `SetCrystalDeviceIntent` | client → server | cell, `Action` 0–7 (§9), `Mode`, `Config`, `Label` |
 | `SoundFx` | server → world | `SoundId`, position, `Pitch`, `Loop`, `Stop`, `SourceId` (device id, so a stop finds its loop) |
 | `NetDoor.Mode` | server → world | 0 normal / 1 locked / 2 held open (the client shows a small red / green lamp above the doorway) |
 

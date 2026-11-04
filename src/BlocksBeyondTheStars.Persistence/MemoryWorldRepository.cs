@@ -824,8 +824,8 @@ public sealed class MemoryWorldRepository : IWorldRepository
                     && k.X >= min.X && k.X <= max.X
                     && k.Y >= min.Y && k.Y <= max.Y
                     && k.Z >= min.Z && k.Z <= max.Z
-                    && v.Block != 0 && !passable.Contains(v.Block)
-                    && !string.IsNullOrEmpty(v.Owner))
+                    && v.Block != 0 && !passable.Contains(v.Block) && !string.IsNullOrEmpty(v.Owner)
+                    && !(_deposits.TryGetValue(k, out var deposit) && deposit.Block == v.Block)) // #3176: tracked weather snow is the sky's
                 {
                     return true;
                 }

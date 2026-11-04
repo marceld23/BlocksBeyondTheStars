@@ -20,10 +20,12 @@ namespace BlocksBeyondTheStars.Client
     /// avatar exactly as it is painted: canvas-left on the observer's left. Arms/legs are NOT mirrored: the canvas
     /// holds two labelled rows, top = left limb, bottom = right limb, each Front | Outer | Back | Inner. There are no
     /// top faces or soles (dropped by design), so every layout is a flat strip — no dead cross-corner cells;</item>
-    /// <item>the <b>atlas texture</b> the avatar renders — the canvas plus a small solid column that
-    /// unpainted cube faces (tops, soles, the helmet's open front) point their UVs at, with transparent
-    /// pixels composited onto the part's tint colour (same trick as the face on the skin), so the colour
-    /// pickers keep working underneath a painting.</item>
+    /// <item>the <b>atlas texture</b> the avatar renders — the canvas plus a small solid column (the pad) for
+    /// cube faces without a chunk of their own, with transparent pixels composited onto the part's tint colour
+    /// (same trick as the face on the skin), so the colour pickers keep working underneath a painting. The pad
+    /// holds the part's most common colour, not the bare tint (#3178): the tops and soles the editor cannot
+    /// reach continue their sides' edge rows (<c>PlayerAvatar.PaintMesh</c>), and whatever is left over — the
+    /// first-person cuff — reads as the painting instead of a blue rim.</item>
     /// </list>
     /// </summary>
     public static class BodyPaintKit
@@ -34,8 +36,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Paintable part count (mirror of the shared constant, for hosts without the alias).</summary>
         public const int PartCount = BodyPaint.PartCount;
 
-        /// <summary>Solid-colour columns appended to the atlas right edge; cube faces without a painted
-        /// chunk (tops/soles/open helmet front) UV into this region so they show the plain part tint.</summary>
+        /// <summary>Solid-colour columns appended to the atlas right edge; cube faces without a painted chunk
+        /// or a neighbour to continue UV into this region, which holds <see cref="PadColor"/> (#3178).</summary>
         public const int SolidPad = 4;
 
         /// <summary>Chunks per canvas row (torso/helmet are one row; arms/legs are two limb rows).</summary>
@@ -119,8 +121,21 @@ namespace BlocksBeyondTheStars.Client
             return any ? new string(chars) : string.Empty;
         }
 
+        /// <summary>#3178: the colour a painted part shows where nothing of the painting reaches — its most common
+        /// colour, a transparent pixel counting as <paramref name="baseColor"/> (<see cref="BodyPaintEdges.MostCommon"/>):
+        /// a part painted all over gives its paint, one with only a small motif keeps its tint. Opaque.</summary>
+        public static Color PadColor(int part, string pixels, Color baseColor) => PadColorOf(ToCanvas(part, pixels), baseColor);
+
+        private static Color PadColorOf(int[] grid, Color baseColor)
+        {
+            int idx = BodyPaintEdges.MostCommon(grid, FacePalette.Colors.Length);
+            Color c = idx == 0 ? baseColor : (Color)FacePalette.ColorOf(idx);
+            c.a = 1f;
+            return c;
+        }
+
         /// <summary>Builds the point-filtered atlas texture the avatar samples: the canvas (transparent
-        /// pixels composited onto <paramref name="baseColor"/>) plus the solid-tint pad columns. Canvas
+        /// pixels composited onto <paramref name="baseColor"/>) plus the pad columns in <see cref="PadColor"/>. Canvas
         /// row 0 is the TOP; texture row 0 is the bottom, so rows flip (same as the face texture).</summary>
         public static Texture2D BuildAtlas(int part, string pixels, Color baseColor)
         {
@@ -133,6 +148,7 @@ namespace BlocksBeyondTheStars.Client
             };
 
             baseColor.a = 1f;
+            Color pad = PadColorOf(grid, baseColor);
             for (int y = 0; y < h; y++)
             {
                 int row = h - 1 - y; // canvas top → texture top
@@ -146,7 +162,7 @@ namespace BlocksBeyondTheStars.Client
 
                 for (int x = w; x < w + SolidPad; x++)
                 {
-                    tex.SetPixel(x, y, baseColor);
+                    tex.SetPixel(x, y, pad);
                 }
             }
 
@@ -168,7 +184,7 @@ namespace BlocksBeyondTheStars.Client
                 1f / rows);
         }
 
-        /// <summary>A small non-degenerate UV rect inside the solid pad, for cube faces without a chunk.</summary>
+        /// <summary>A small non-degenerate UV rect inside the pad (<see cref="PadColor"/>), for cube faces without a chunk.</summary>
         public static Rect SolidRect(int part)
         {
             float aw = CanvasW(part) + SolidPad;

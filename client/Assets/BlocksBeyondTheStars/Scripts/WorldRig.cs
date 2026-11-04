@@ -254,6 +254,10 @@ namespace BlocksBeyondTheStars.Client
             var beamPad = root.AddComponent<BeamPadUi>();
             beamPad.Game = boot;
 
+            // #3171: the lift's floor picker — E on a lift platform, or at a stop where the platform waits.
+            var liftFloors = root.AddComponent<LiftFloorUi>();
+            liftFloors.Game = boot;
+
             // #3070: a base landing pad's panel — name + who may land (owner), whose and what state (everyone). E at the pad.
             var basePad = root.AddComponent<BasePadUi>();
             basePad.Game = boot;

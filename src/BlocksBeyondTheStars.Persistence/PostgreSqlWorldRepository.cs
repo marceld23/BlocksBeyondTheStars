@@ -527,7 +527,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
 
     public bool HasPlayerBuiltBlocks(string planet, Vector3i min, Vector3i max, IReadOnlyCollection<ushort> passable)
     {
-        // Server-built integer ids (never player text) are inlined, as in ListBlockEditsMatching.
+        // Server-built integer ids (never player text) are inlined, as in ListBlockEditsMatching. #3176: a tracked weather deposit is the sky's.
         string except = passable.Count == 0
             ? "-1"
             : string.Join(",", passable.Select(b => ((int)b).ToString(System.Globalization.CultureInfo.InvariantCulture)));
@@ -537,7 +537,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
             cmd.CommandText = "SELECT 1 FROM block_edit WHERE planet = @p AND owner_id <> 0 AND block <> 0 " +
                               $"AND block NOT IN ({except}) " +
                               "AND x BETWEEN @minx AND @maxx AND y BETWEEN @miny AND @maxy AND z BETWEEN @minz AND @maxz " +
-                              "LIMIT 1;";
+                              "AND NOT EXISTS (SELECT 1 FROM weather_deposit d WHERE d.planet = block_edit.planet AND d.x = block_edit.x AND d.y = block_edit.y AND d.z = block_edit.z AND d.block = block_edit.block) LIMIT 1;";
             cmd.Parameters.AddWithValue("@p", planet);
             cmd.Parameters.AddWithValue("@minx", min.X);
             cmd.Parameters.AddWithValue("@maxx", max.X);

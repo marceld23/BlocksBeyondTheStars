@@ -263,7 +263,7 @@ moves a cell cursor, **(A)** paints, **(X)** erases and **(Y)** picks up a colou
 panels; the hint line under the tools always says which controls are live.
 
 **Crystal Net on a pad:** **(X)** on a crystal switch flips it, on a button presses it, on a lift stop calls the
-lift, and on a device with
+lift (where the platform already waits, and on the platform itself, it opens the floor picker), and on a device with
 settings opens its menu (a picture grid or a list — navigate with the stick / d-pad, **(A)** picks, **(B)**
 closes). Step plates, sensors and the Device Eye need nothing pressed.
 
@@ -317,7 +317,7 @@ cutscene they step aside — tap its **Skip** button to leave it, or the **Conti
 | *Speeder:* **BOOST (hold) · JUMP · EXIT · FUEL** | Boost · hop · dismount · refuel |
 
 **Crystal Net on touch:** **USE** while looking at a crystal switch flips it, at a button presses it, at a lift
-stop calls the lift, and at a
+stop calls the lift (where the platform already waits, and on the platform itself, it opens the floor picker), and at a
 device with settings opens its menu (tap a picture or a list entry; **Close** or ≡ leaves it). Step plates,
 sensors and the Device Eye need no button at all.
 
@@ -468,15 +468,20 @@ separate unlock; admins can still disable it through server world rules.
 - **Categories (Crafting, Blueprints, Ship, Inventory)** — one shared set of categories, grouped under
   **Equipment** (*Travel & Transport*, *Tools*, *Scan & Explore*, *Combat & Defense*, *Suit & Survival*),
   **Building & Base** (*Blocks & Walls*, *Lights & Decor*, *Crystal Net*, *Workshop & Production*, *Base &
-  Settlement*, *Garden & Animals*, *Storage & Cargo*, *Ship*) and **Supplies** (*Food & Medicine*, *Parts & Raw
-  Materials*); the Crafting tab keeps *Dye*, *Shape* and *Market* under **Extras**. **A thing can be in several
+  Settlement*, *Garden & Animals*, *Storage & Cargo*, *Ship parts* — *Schiffsbauteile*, "Ship" before) and **Supplies**
+  (*Food & Medicine*, *Parts & Raw Materials*); the Crafting tab keeps *Dye*, *Shape* and *Market* under **Extras**.
+  *Ship parts* in the Crafting tab holds the blocks a ship is built from (core, helm, engine …); **ship modules** such
+  as the jump generator are built in the **Ship** tab — the category says so at the top, with a **Go to the Ship tab**
+  button. **A thing can be in several
   categories** — the jetpack is under *Travel & Transport* and *Suit & Survival*, the crystal lift under *Crystal Net*
   and *Travel & Transport* — so *Travel & Transport* lists every way to get around (boat, speeder, monorail, jetpack,
   glider, teleporters, lift, ships …) and *Crystal Net* everything its blueprints let you build. The **Blueprints** tab
   uses the same categories, the **Ship** tab lists the modules **by kind** under *Modules* (cargo, production,
   scanners, combat, travel …). Every **search box** also finds things by their category: "Crystal" lists the whole
-  Crystal Net, "Transport" every vehicle. A detail pane shows **Belongs to** with a button per category (it switches
-  the list to that category).
+  Crystal Net, "Transport" every vehicle. A search in the Crafting, Blueprints or Ship tab also looks in the other two:
+  below the list, **Found in other tabs** names what it found there (*"In the Ship tab: Jump Generator →"*) — click
+  one and that tab opens on it, with your search still typed in. A detail pane shows **Belongs to** with a button per
+  category (it switches the list to that category).
 - **Links between the tabs** — a blueprint's **Unlocks** lists every item, module and ship it opens as a button that
   jumps to its recipe, module or ship page (the next blueprints too); a recipe's, module's or ship's **Blueprint** line
   has a **Go to blueprint** button. An item's detail (Crafting, backpack, cargo hold) shows **Needed for**: what you can
@@ -1141,7 +1146,7 @@ players.
   (#3146): no ship lands on it any more — no travelling trader, no other pilot, no landing that picks a pad for you — and
   picking it by hand is refused; the landing map and the planet map show it as *built over*. Your own parked ship keeps
   its pad. Clear the blocks and the pad is open again. Paving the pad's ground itself and open props such as torches or
-  flowers do not count.
+  flowers do not count — nor does weather snow drifting onto the pad, or water or lava running onto it (#3176).
 - **Landing pads are on dry land whenever the world offers any** — the pad search looks in every direction,
   and on ocean worlds further. A pad that still sits in open sea rises on a small island (beach, grass, a few
   plants); only in shallow water does the ship park in a dry shaft on the seabed. The approach map draws such
@@ -1805,9 +1810,21 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   a trader ship now and then comes in to land by itself — roughly every **15–25 minutes** in a busy system and
   **30–45 minutes** in a quiet one (a bit sooner while you are home at a **Market** base, #3036), and even in a system
   without any traffic about every **45–60 minutes** if you have a Market base there and are home. *"A trader ship is coming in to
-  land — look up!"* — about 20 seconds later it sets down on the free landing pad **nearest your Market base** (or
-  nearest you; never on a pad somebody built over, #3146): *"Trader … has landed nearby — come and trade!"*, and the base owner gets the trader's radio
-  hail (or VEGA passes it on if you wear no radio).
+  land — look up!"* — about 20 seconds later it sets down on a free landing pad **of your Market base** (one set to
+  **Me + allies** or **Everyone** — never *Only me*, #3175), else on the free public pad **nearest your Market base** —
+  but only one within about **250 blocks** of it: farther away no trader comes that time. Without a Market base it takes the
+  free public pad nearest you, however far. Never on a pad somebody
+  built over (#3146). *"Trader … has landed nearby — come and trade!"*, and the base owner gets the trader's radio hail (or
+  VEGA passes it on if you wear no radio). When the pad is not right next to you (or your base), the messages say **how far
+  and which way** instead — *"… about 240 m to the west — look that way!"*.
+- **When your Market base gets no trader, VEGA says why** — once per base and reason: your own ship stands on its only
+  landing pad (build a second one), something is built on the pad, the pad is set to *Only me*, another ship holds it, or the
+  base has no pad at all and no public pad is close enough (build one next to the base).
+- **Trader ships land and lift off like your own ship** (#3177): after *"look up!"* a bright glint glides in high in the sky,
+  drawing a white contrail towards the pad; then the hull sinks out of the sky on its engine fire, slowing
+  as the dust swirls up, settles with a thump and vents steam; leaving, it lifts heavily, hovers, raises its nose and climbs
+  away with a boom. Other pilots' ships land and launch the same way. (A trader still only leaves once nobody has been near
+  it for half a minute.)
 - While a trader is landed, the **planet map (M)** shows a **gold ship marker** with its name at the pilot (and
   lists it with its distance), your **compass** shows a matching gold blip, and its pad shows as taken — so a
   trader that set down far from your pad is easy to find. The marker disappears when it lifts off.
@@ -2076,8 +2093,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   launched from without choosing a pad — sets you down on **your own free landing pad** of that world, if you have one.
 - A ship on a pad **holds it**, also while its pilot is up in space; the pad block cannot be mined then. **Mining the
   base core** puts its pads to sleep (nobody can land there) until a core stands near them again.
-- **Market bases:** a travelling merchant visiting a base with the **Market** focus lands on one of its **Everyone**
-  pads, right at your base.
+- **Market bases:** a travelling merchant visiting a base with the **Market** focus lands on one of its free pads set to
+  **Me + allies** or **Everyone** (not *Only me*, #3175), right at your base. Your own parked ship holds its pad — with a
+  second pad there is room for a trader while you are home.
 
 ### Alliances (shared access + no friendly fire)
 - Two players can form an **alliance** from the **Alliances** menu tab. It has three views: **Allies**
@@ -2206,6 +2224,11 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   looking at the block. A **switch** flips ON/OFF and stays where you left it, even after a reload. A
   **button** gives one half-second pulse. A device with settings opens a small **menu** (pictures to pick a
   mode, or a list to pick a partner, a recipe or an animal); close it with Esc / pad (B) / its Close button.
+  **Names:** many devices (a bridge motor, a piston, a lift motor, a signal sender or receiver, a sensor …) have a
+  **Name** field in their menu. The name is kept as soon as you press Enter, click elsewhere or close the menu —
+  emptying the field removes it. A named device is called by its name: looking at it says *"E: North drawbridge"*,
+  and its menu carries the name as its title (the block's own name stands beside it). Lift stops are named from the
+  lift's floor picker (see *Lift* below).
   Only the owner and the owner's **alliance** may use a device or change its settings — anyone else sees "only the
   owner's alliance" instead of the key. **Pre-built circuits** (the light switch in a station's arrival hall, the
   lamp in a settlement flat, the puzzle in a crystal vault) belong to the world: everyone may use them, only an admin
@@ -2304,7 +2327,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
     blocks side by side open together; dye them to match your wall.
   - **Trapdoor** — a hatch in the floor. ON folds it open and you drop through (the fall never hurts), OFF closes it.
   - **Bridge motor** — while ON it lays a bridge the way its arrow points, one plank at a time, 2 to 12 long (its
-    menu); OFF takes it back in.
+    menu); OFF takes it back in. The planks come and go with the motor's hum and sparks — they only crumble like
+    mined rock when you break one yourself.
   - **Piston** — on ON it pushes up to four blocks in front of it one step; set it to **sticky** and on OFF it
     pulls the first one back. It never moves crates, devices, doors or someone else's base.
   - **Lift** — a **lift motor** at the bottom of a 3×3 shaft, a **lift stop** beside the shaft on each floor —
@@ -2314,6 +2338,19 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
     platform and it carries you; it waits while anything stands under it. Keep the shaft free: a block in it stops
     the lift (the motor's amber light), and pressing tells you where it stands. A stop that belongs to no lift, or a
     motor without stops, says so when pressed. Snow never settles in a lift shaft.
+    - **Choosing the floor.** Press **Interact** while you **stand on the platform**, or at a stop where the platform
+      **waits** (its amber light is on; the prompt says *"E: Choose a floor"*), and the **floor picker** opens: every
+      floor of the lift, the top one at the top, the floor the platform is at marked. Click **Go** and the platform
+      rides there — up or down, from any floor. **Name** gives a floor a name (it is stored on that floor's lift stop,
+      e.g. *Cellar*, *Workshop*, *Roof garden*); an empty name makes it "Floor 2" again. The motor's own name (its
+      menu) is the picker's title. If the platform already waits where you pressed, the game says so.
+    - **Lift gate.** A knee-high amber energy grid (*Travel & Transport*, workshop, with the lift's blueprint: 1
+      crystal, 2 iron plates and 1 cable make two). Place gates on a floor's landing at the **edge of the shaft** —
+      the ring a lift stop stands in, on the floor you walk on. The lift opens every gate of the floor where the
+      platform **waits** and closes them when it leaves, so nobody steps into the empty shaft; the stop beside them
+      stays easy to reach. A gate never closes on anyone standing in it — it waits until you step out. Gates stacked
+      on each other switch together; a gate at a height without a floor stays closed. Mined, an open gate gives you
+      the gate back.
 - **Matter link (beaming crates).** A **matter receiver** gets a name when you place it. A **matter sender**
   picks one of your (or an ally's) receivers in its menu, and every pulse takes one stack (up to 16 items)
   from the crate beside the sender and beams it into the crate beside the receiver — anywhere on the same
@@ -2629,6 +2666,13 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   giver for the reward. A short message names the mission and says what happened — **accepted**, **complete**
   (only when you really hand it in) or **posted** (your own mission) — in your language. Crystal Net jobs name
   what the circuit must do ("Circuit · a switch turns on a lamp 0/1").
+- **Every delivery job tells a little story:** the job says **who** needs the goods (the board's quartermaster, by
+  name) and **why** — the village smith has worn out every hoe, a station's radio mast lost its cables, the residents
+  of your base want a skylight over the kitchen, a travelling band radios your ship for new guitar strings. A station
+  tells station stories, your base home stories and your ship's board radio orders. When you hand the job in, the
+  "complete" message says **what came of it** ("Thanks to your copper the station's radio works again — two freighters
+  have already docked!"). A job keeps its story, even after a restart. On worlds with the optional AI backend the
+  quartermaster tells the same story in their own words.
 - **Starter jobs:** *First Iron* waits in your Missions tab from the start. The repeatable **Cable Supply Run** is a board
   job: it is offered at any mission board — a settlement's, a space station's, your base's or your ship's (stand at the
   board to take it) — and taking it counts as your first job from a board. Being repeatable, it does not move the story.
@@ -3958,7 +4002,9 @@ look up: what a mix does follows from what goes in, and the same things always g
   everywhere on the face you are on); an armed tool colours its own button and label, and the line under the
   buttons says what your next click will do. **Fill everything** needs no click on the canvas at all: it
   paints the whole face you are on in the current colour, whatever was there. **Pick colour** takes the colour
-  under the cursor for one click — **Alt+click** or the **middle mouse button** do the same at any time.
+  under the cursor for one click — **Alt+click** or the **middle mouse button** do the same at any time. A brush
+  stroke leaves **no gaps**, however fast you draw (the eraser too), every pixel — the outermost row included — is
+  as easy to hit as the next, and a stroke that runs past the edge of the canvas keeps painting the edge row.
 - **Undo / Redo** — **32 steps**, forwards and backwards, with `Ctrl+Z` / `Ctrl+Shift+Z` / `Ctrl+Y` and **RB**
   on the pad. The history covers the whole screen: it survives switching tabs, brings the tab back with the
   step, and it takes back a **base colour** you changed by accident as readily as a brush stroke (one sweep of
@@ -3973,7 +4019,10 @@ look up: what a mix does follows from what goes in, and the same things always g
   that face, and the tiles update while you draw so you always see the whole part. **Clear** wipes only the face
   you are on, and a fill never runs over onto another face. Every face shows on your figure exactly as you paint
   it — the left of the canvas on the left as you look at that face, so writing reads the right way round. The
-  helmet's front stays open, so your face always shows.
+  helmet's front stays open, so your face always shows. The **tops and bottoms** of the torso, arms and legs (the
+  shoulder tops, the strip under the chest, the ring at the wrist, the gap at a bent elbow, the soles) have no
+  canvas of their own: they carry on the colours of the faces next to them, so a fully painted part shows no
+  base-colour gaps; the cuff of your first-person hand takes a darker shade of the arm painting's main colour.
 - **Outfits** — the column on the right keeps up to **eight named looks** (the four body colours, your pixel
   face and all four paintings). Type a name and press **Save outfit** to store what you are wearing (a new
   outfit, or an update of the one that already has that name); **click a row to put that outfit on** — every

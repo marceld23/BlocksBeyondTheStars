@@ -27,7 +27,7 @@ namespace BlocksBeyondTheStars.Client
     /// </para>
     /// Modern uGUI, mirroring <see cref="MaterialEditor"/>.
     /// </summary>
-    public sealed class FaceEditor : MonoBehaviour
+    public sealed partial class FaceEditor : MonoBehaviour
     {
         /// <summary>One editable thing in the editor: its canvas layout, its payload codec, where an edit
         /// goes, and (for avatar parts) the base colour showing through unpainted pixels. A host with a
@@ -275,7 +275,7 @@ namespace BlocksBeyondTheStars.Client
                 _history.EndColorRun(); // drag over: the next colour change starts its own history step
             }
 
-            UpdateColorWheel();
+            if (!_stroking) UpdateColorWheel(); // #3179: a stroke running off the canvas onto the ring paints on, it does not re-pick
             HandleHistoryKeys();
 
             // Which device is painting decides where the "cursor" is: the mouse pointer, or the pad's cell
@@ -290,7 +290,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             bool left, right, leftDown, rightDown, middleDown, altHeld, fillAll;
-            int gx, gy;
+            int gx, gy, cellX, cellY; // the cell of the VISIBLE canvas, and the grid cell it is
 
             if (padCanvas)
             {
@@ -307,7 +307,8 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
-                CellToGrid(_padFocus.CellX, _padFocus.CellY, out gx, out gy);
+                cellX = _padFocus.CellX;
+                cellY = _padFocus.CellY;
             }
             else
             {
@@ -322,21 +323,13 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
-                if (!RectTransformUtility.RectangleContainsScreenPoint(_canvasRt, Input.mousePosition, null)) return;
-                if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(_canvasRt, Input.mousePosition, null, out var lp)) return;
-
-                // Place() anchors the rect top-left with pivot (0,1): local x∈[0,w], y∈[-h,0].
-                float w = _canvasRt.rect.width, h = _canvasRt.rect.height;
-                float u = Mathf.Clamp01(lp.x / w);
-                float fromTop = Mathf.Clamp01(-lp.y / h);
-                CellToGrid(
-                    Mathf.Clamp(Mathf.RoundToInt(u * (CellsX - 1)), 0, CellsX - 1),
-                    Mathf.Clamp(Mathf.RoundToInt(fromTop * (CellsY - 1)), 0, CellsY - 1), // top row = gy 0
-                    out gx, out gy);
+                if (!PointerCell(out cellX, out cellY)) return; // #3179: equal hit areas; a stroke off the canvas keeps its edge
 
                 altHeld = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
                 fillAll = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
             }
+
+            CellToGrid(cellX, cellY, out gx, out gy);
 
             // Eyedropper: pick up the colour already under the cursor instead of painting over it. Asked for
             // by name ("ein Kopierer für benutzte Farben") — once a drawing has a dozen shades in it, finding
@@ -369,11 +362,13 @@ namespace BlocksBeyondTheStars.Client
 
             if (leftDown || rightDown)
             {
-                BeginGridEdit(); // one history step per stroke, not per pixel
-                _stroking = true;
+                BeginStroke(cellX, cellY); // one history step per stroke, not per pixel
             }
 
-            Paint(gx, gy, right ? 0 : _brush);
+            if (_stroking)
+            {
+                StrokeTo(cellX, cellY, right ? 0 : _brush); // #3179: a gap-free line from the last cell, the eraser too
+            }
         }
 
         /// <summary>Ends a stroke once every paint button is released — the preview is too costly to refresh
@@ -444,20 +439,6 @@ namespace BlocksBeyondTheStars.Client
             {
                 _hint.text = text;
             }
-        }
-
-
-        /// <summary>Sets one pixel (grid + display texture) and applies it. Grid row 0 is the TOP; the texture's
-        /// row 0 is the BOTTOM, so the display flips vertically.</summary>
-        private void Paint(int gx, int gy, int index)
-        {
-            int cell = gy * _w + gx;
-            if (_grid[cell] == index) return;
-
-            _grid[cell] = index;
-            _dirty = true;
-            _tex.SetPixel(gx, _h - 1 - gy, DisplayColor(index, gx, gy));
-            _tex.Apply();
         }
 
         /// <summary>

@@ -11,11 +11,13 @@ namespace BlocksBeyondTheStars.GameServer;
 /// Built-over landing pads (#3146). A pad's landing volume is kept clear by the no-build rule — for everyone but admins,
 /// and every singleplayer host is one. A tester turned the communal pad in the middle of his spaceport into a tower
 /// foundation once his ship landed on his own base pads, and the travelling trader kept parking its hull inside the tower:
-/// "free" only ever asked who HOLDS a pad, never what stands on it. A pad whose landing square holds a block somebody
-/// placed that a hull cannot stand in (solid or fluid; open props such as torches and flowers do not count) is therefore
-/// <b>built over</b>: traders skip it, an automatic pick skips it, a hand-picked landing on it is refused and the chooser
-/// shows it. Clearing the blocks reopens it. A ship already parked on its pad is never moved because of it.
-/// The question goes to the block-edit store, so it has the same answer for a body whose world is not loaded.
+/// "free" only ever asked who HOLDS a pad, never what stands on it. A pad whose landing square holds a solid block somebody
+/// placed (open props such as torches and flowers do not count) is therefore <b>built over</b>: traders skip it, an automatic
+/// pick skips it, a hand-picked landing on it is refused and the chooser shows it. Clearing the blocks reopens it. A ship
+/// already parked on its pad is never moved because of it. The question goes to the block-edit store, so it has the same
+/// answer for a body whose world is not loaded. What the server writes by itself never counts (#3176): a write keeps the
+/// owner of a cell a player once touched, so weather snow (the store's <c>weather_deposit</c> rows) and flowing water or lava
+/// on a paved pad used to close it until the drift melted.
 /// </summary>
 public sealed partial class GameServer
 {
@@ -25,13 +27,17 @@ public sealed partial class GameServer
     /// once per pad and receiver. Null outside a broadcast — a single answer is never kept, so a build shows at once.</summary>
     private Dictionary<(string Body, int X, int Y, int Z), bool>? _padBuiltOverScope;
 
-    /// <summary>The blocks a parked hull may stand in: walk-through props (flowers, crops, grass, torches — most flora is
-    /// marked solid and passes only as a prop) and other non-solid blocks, but no fluid and no door-like block (an energy
-    /// gate, a switched-off force field or an open trapdoor turns solid again inside the hull).</summary>
+    /// <summary>The blocks that never close a pad: walk-through props a parked hull may stand in (flowers, crops, grass, torches —
+    /// most flora is marked solid and passes only as a prop) and other non-solid blocks, but no door-like block (an energy gate,
+    /// a switched-off force field or an open trapdoor turns solid again inside the hull). And (#3176) no fluid or liquid either:
+    /// water and lava flow by themselves, and the server's flow steps keep the owner of a cell a player once mined or paved —
+    /// every spaceport is made of such cells — so a puddle that ran onto a pad used to read as "built". Weather snow is the
+    /// store's to tell apart (<see cref="BlocksBeyondTheStars.Persistence.IWorldRepository.HasPlayerBuiltBlocks"/>).</summary>
     private IReadOnlyCollection<ushort> HullPassableIds()
         => _hullPassableIds ??= _content.Blocks.Values
-            .Where(d => (!d.Solid || BlocksBeyondTheStars.Shared.Definitions.WalkThroughBlocks.IsProp(d.Key))
-                        && !d.Liquid && d.Category != "door" && d.Key is not "water" and not "lava")
+            .Where(d => (!d.Solid || BlocksBeyondTheStars.Shared.Definitions.WalkThroughBlocks.IsProp(d.Key) || d.Liquid
+                         || d.Key is "water" or "lava")
+                        && d.Category != "door")
             .Select(d => d.NumericId.Value).Where(id => id != 0).ToArray();
 
     /// <summary>Whether a pad centred on (<paramref name="cx"/>, <paramref name="cz"/>) with its ground at

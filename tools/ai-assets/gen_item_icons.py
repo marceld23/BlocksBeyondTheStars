@@ -203,6 +203,7 @@ ITEMS = [
     ("piston", "a sci-fi piston block, dark steel housing with a polished steel push plate extended forward on a thick rod"),
     ("lift_motor", "a sci-fi elevator motor, dark metal machine with a large cable pulley, a heavy gear and a cyan up-down arrow sign"),
     ("lift_stop", "a sci-fi elevator call panel, dark metal post with a round glowing call button and small up and down arrow lights"),
+    ("lift_gate", "a low sci-fi safety barrier segment, two short dark metal posts with yellow-and-black hazard stripes joined by three glowing amber energy beams, seen at a slight angle"),
     ("signal_display", "a sci-fi display screen block, dark metal frame around a glowing blue screen showing a white star symbol"),
     ("dice_block", "a white sci-fi dice cube with violet crystal pips in a dark metal rim, slightly tilted"),
     ("signal_sender", "a sci-fi signal transmitter, dark metal pedestal with a small antenna sending violet crystal waves"),

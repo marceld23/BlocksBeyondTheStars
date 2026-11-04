@@ -171,6 +171,19 @@ public sealed class StoryUiFixesClientTests
     }
 
     [Fact]
+    public void AHandIn_CarriesTheGiversThankYou_AndOnlyAHandIn()
+    {
+        // #3180: the thank-you is display text from the server and follows the "complete" line verbatim.
+        const string thanks = "Thanks to your copper the radio works again!";
+        Assert.Equal("Mission complete: Haul ore! " + thanks,
+            Toast(new MissionResult { Success = true, MissionId = "b1", Outcome = MissionOutcomes.Completed, Title = "mission.board.haul.name", Thanks = "  " + thanks }));
+        Assert.Equal("Mission accepted: Haul ore",
+            Toast(new MissionResult { Success = true, MissionId = "b1", Outcome = MissionOutcomes.Accepted, Title = "mission.board.haul.name", Thanks = thanks }));
+        Assert.Equal("Mission complete: Haul ore!",
+            Toast(new MissionResult { Success = true, MissionId = "b1", Outcome = MissionOutcomes.Completed, Title = "mission.board.haul.name", Thanks = " " }));
+    }
+
+    [Fact]
     public void AnOlderServer_GetsANeutralToast_NamedFromTheMissionList()
     {
         var known = new NetMission { Id = "b1", Title = "mission.board.haul.name" };

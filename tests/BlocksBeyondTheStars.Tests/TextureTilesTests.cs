@@ -38,6 +38,8 @@ public sealed class TextureTilesTests
     [InlineData("torch", TextureAlphaMode.Cutout)]
     [InlineData("lantern", TextureAlphaMode.Cutout)]
     [InlineData("energy_fence", TextureAlphaMode.Cutout)]           // #3085: see-through gaps between its beams
+    [InlineData("lift_gate", TextureAlphaMode.Cutout)]              // #3174: the lift gate's grid, the same way
+    [InlineData("lift_gate_open", TextureAlphaMode.Cutout)]         // … and its open frame (rails only)
     [InlineData("energy_gate", TextureAlphaMode.Opaque)]            // the gate stays a membrane (transparent shader)
     [InlineData("face_energy_fence_top", TextureAlphaMode.Opaque)]  // the fence's emitter rail on top is solid
     [InlineData("creature_fur", TextureAlphaMode.Free)]

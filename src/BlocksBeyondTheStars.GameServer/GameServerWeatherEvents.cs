@@ -434,7 +434,8 @@ public sealed partial class GameServer
             if (_world.GetBlockIfLoaded(cell).Value == _weatherSnowId)
             {
                 _world.SetBlock(cell, new BlockId(0));
-                BroadcastToWorld(new BlockChanged { X = cell.X, Y = cell.Y, Z = cell.Z, Block = 0 });
+                // #3173: a thaw is not mining — Moved keeps the client's crumble and mining crunch off the melting drift.
+                BroadcastToWorld(new BlockChanged { X = cell.X, Y = cell.Y, Z = cell.Z, Block = 0, Moved = true });
                 OnSupportRemoved(cell); // #1367: sand someone dropped on the drift comes down with the thaw
             }
         }
@@ -456,7 +457,7 @@ public sealed partial class GameServer
         if (snow != 0 && _world.GetBlockIfLoaded(key).Value == snow)
         {
             _world.SetBlock(key, new BlockId(0));
-            BroadcastToWorld(new BlockChanged { X = key.X, Y = key.Y, Z = key.Z, Block = 0 });
+            BroadcastToWorld(new BlockChanged { X = key.X, Y = key.Y, Z = key.Z, Block = 0, Moved = true }); // #3173: no crumble
             OnSupportRemoved(key); // sand someone dropped on the drift comes down, as with the thaw
         }
     }

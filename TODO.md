@@ -24,6 +24,50 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player reports 2026-11-04 (Lyxette, the school club — Ben, Marie, Justus — and a Sandbox playtest, v2026.11.4) — choose the lift's floor, device names you can see, a lift gate, bridges that don't crumble, traders that land at your Market base and say where, trader landings like your own, avatars without blue gaps, gap-free brush strokes, board jobs with a story, wooden planks, ship modules findable from Crafting — #3171–#3182, branch fix/reports-2026-11-04 — ✅ done 2026-11-04 (⚠ playtest open; **save version 11** for five new blocks — block ids shift; protocol: additive fields only (`BlockChanged.Moved`, `NetLift.Levels/LevelNames/LevelHasStop`, `MissionResult.Thanks`, `ShipTransitFx.ApproachSeconds`), no terrain-generation change)
+
+- **#3171** Lift floor picker: E on the stop where the platform waits, or E while standing on the platform, opens the
+  lift's floors (highest at the top, the current one lit) — Go / Name; device actions 5 (go to a floor, validated: one of
+  `LiftLevels`, on the platform or in reach of one of the lift's stops, operate rights), 6 (name a floor). A press on a
+  waiting stop says "the lift is already here". `NetLift` carries the floors and names (additive). `LiftRiding` in
+  Client.Core (on the platform, the platform hides the motor from the aim ray), `InteractKind.LiftRide`.
+- **#3172** Device names: shown in the HUD prompt and as the device menu title; saved on Enter, on leaving the field and on
+  close (action 7); an empty name clears it; stop names are the floor names.
+- **#3173** `BlockChanged.Moved`: the drawbridge, pistons, twin/lamp swaps (`CrystalWriteCell`), the thaw and the lift's
+  shaft-snow clearing set it; the client plays no mining crumble, place pop or mining/place sound for a moved block (a
+  lamp switch no longer knocks). A block mined by hand still crumbles.
+- **#3174** The lift gate (`lift_gate` / `lift_gate_open`, new blocks + textures cut like the energy fence, item icon): a
+  knee-high energy barrier on a landing beside the shaft, opened by the lift while the platform rests at that floor,
+  closed otherwise, never onto a body; periodic sync after placement and reload (`GameServerLiftGates`).
+- **#3175** Traders and Market bases: a Market base's free pads on **Allies or Everyone** take traders (never Only me,
+  `BasePadRules.AdmitsTraders`); the communal fallback for a Market base only within 250 blocks of it (without a Market
+  base the nearest free pad however far); toasts, hail and VEGA's relay name distance and direction beyond 80 blocks;
+  a one-time VEGA hint per base and reason when the base offers no pad (own ship on it, built over, Only me, taken, none);
+  every decision logged (`GameServerTraderPads`).
+- **#3176** Weather snow (tracked `weather_deposit` cells) and fluids never count as built for the pad clearance
+  (SQLite, PostgreSQL, Memory). Edge: a drift laid across the longitude seam may still count (raw vs canonical cell).
+- **#3177** Traders and other pilots land and lift off with the ship cinematic (`ShipTransitView.Cinematic`): the parked
+  hull is hidden and a clone sinks with engine fire, dust and steam; the departing hull lifts off with the lift-off
+  beats; a glint + contrail in the sky during the 20 s approach (`ShipTransitFx.ApproachSeconds`); the ghost stays as
+  the fallback. The #1904 departure rule is unchanged.
+- **#3178** Avatar paint: the top and bottom faces of torso and limbs continue the edge row of the side they touch
+  (shoulders, under the chest, wrist ring, elbow wedge, soles); the atlas strip and the first-person cuff take the part's
+  most common colour instead of the blue base tint (`PlayerAvatar.PaintMesh`, Client.Core `BodyPaintEdges`).
+- **#3179** Pixel editors (face, body, block paint; `MaterialEditor`, `TextureEditor` edge): a stroke paints a gap-free
+  line between frames, the pointer maps with `FloorToInt` and stays clamped on the canvas (`FaceEditor.Stroke`,
+  Client.Core `PixelStroke`).
+- **#3180** Board jobs with a story: 56 written stories (7 delivery items × settlement / station / base / ship radio × 2,
+  `data/board_stories.json`) with who, why and a thank-you on hand-in (`MissionResult.Thanks`); place-correct fallbacks (no
+  "settlement" on a station); the AI backend gets the story as a brief and may write the thank-you (`Brief` / `Thanks`,
+  both optional). Station and base deliveries no longer thread the settler-legend fragment (the vendor thread still does).
+- **#3181** Wooden planks in three sorts (`wood_planks`, `wood_planks_light`, `wood_planks_mahogany`): 1 log → 4 by hand,
+  "Blocks & Walls", generated textures.
+- **#3182** Crafting → "Ship parts" (renamed from "Ship"): a hint + button to the Ship tab's modules; a search lists the
+  matches in the other tabs ("Found in other tabs").
+- Texts in all 14 languages (215 new or changed keys, machine pass + hand QA). Tests: `LiftShaftTests`, `LiftGateTests`,
+  `CrystalDeviceNameTests`, `MovedBlockChangeTests`, `TraderPadChoiceTests`, `BoardStoryTests`, Client.Tests
+  `LiftRidingTests`, `MovedBlockClientTests`, `PixelStrokeTests`, `BodyPaintEdgesTests` + updated trader/pad/mission tests.
+
 ### 🔒 Unity editor 6000.6.5f1 → 6000.6.8f1 — Unity's eMudhra CA + Brotli security patch — #3167, branch chore/unity-6000.6.8f1 — ✅ done 2026-11-03 in PR #3168 (`f5a92647`), released in v2026.11.4 (⚠ ships with the next release so players get the patched runtime)
 
 - Unity's notice of 2026-11-03: the eMudhra CA compromise (Unity CVE-2026-114406) and the Brotli decoder RCE

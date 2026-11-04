@@ -13,7 +13,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// validated — objectives, rewards and ids never change; the LLM only writes a Title + Description
 /// around the fixed job, in the player's language. Same resilience pattern as the NPC greetings:
 /// generated off the game thread, cached per (mission, locale), localized static board text as the
-/// instant/offline fallback, and a mission-list refresh pushed when a text arrives.
+/// instant/offline fallback, and a mission-list refresh pushed when a text arrives. #3180: a delivery's
+/// authored story travels along as an English brief (the LLM tells that story in its own words), and the
+/// LLM may write the thank-you for the hand-in too (<see cref="MissionTextResult.Thanks"/>, cached with
+/// the posting; the authored thank-you when it does not — see GameServerBoardStories.cs).
 /// </summary>
 public sealed partial class GameServer
 {
@@ -56,6 +59,7 @@ public sealed partial class GameServer
             Kind = TryCampBountyKey(def.Id, out _) ? "bounty_camp"
                 : IsShipBountyMissionId(def.Id) ? "bounty_ship"
                 : "gather",
+            Brief = def.Brief, // #3180: the authored story behind the delivery ("" for a job without one)
         };
     }
 

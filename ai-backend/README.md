@@ -97,15 +97,24 @@ Writes Title + Description around a FIXED board job (objective/reward stay serve
 ```json
 { "GiverName": "Mira Voss", "Place": "Karth Town", "Theme": "miners",
   "NeedItem": "iron_ore", "Required": 12, "RewardItem": "iron_plate", "RewardCount": 3,
-  "Language": "de", "Kind": "gather" }
+  "Language": "de", "Kind": "gather",
+  "Brief": "the village smith has worn out every hammer and hoe this season" }
 ```
 
 `Kind` (optional, default `"gather"`) selects the job shape: `"gather"` (deliver goods),
 `"bounty_camp"` (drive bandits from their camp) or `"bounty_ship"` (drive off a raider ship) —
 bounty postings get a kid-friendly drive-off framing instead of reading like a delivery.
 
-→ `{ "Title": "...", "Description": "..." }` — empty fields when no LLM is configured (the server
-keeps its localized static board text then).
+`Brief` (optional, #3180) is the game's own authored story behind the job in a few English words
+(who needs it and why, from `data/board_stories.json`); the prompt tells the model to tell **that**
+story in its own words. Without one (an older game server, a bounty) the model picks a small, kind
+reason that fits the place.
+
+→ `{ "Title": "...", "Description": "...", "Thanks": "..." }` — `Thanks` (#3180) is the giver's
+one-sentence thank-you for the hand-in (what came of the delivery); the game shows it with the
+"mission complete" message and falls back to the job's authored thank-you when it is empty (older
+backends simply don't send it). All fields are empty when no LLM is configured (the server keeps
+its localized authored board text then).
 `GET /health` → `{ "status": "ok", "llm": true|false }` (`llm` = whether a model is configured).
 
 ## LLM provider (LangChain + LangGraph, OpenAI-compatible)

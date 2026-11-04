@@ -62,6 +62,7 @@ namespace BlocksBeyondTheStars.Client
         private readonly Dictionary<string, GameObject> _roots = new();
         private readonly Dictionary<string, LandedShipModel> _built = new();                         // the model each root was meshed from
         private readonly Dictionary<string, Dictionary<ChunkCoord, GameObject>> _chunks = new();     // #2255: each ship's chunk objects
+        private ShipTransitView _shipTransit;                                                        // #3177: other ships' lift-offs
         private bool _subscribed;
         private bool _dirty;
 
@@ -161,12 +162,27 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>#3141: the local player's own hull, removed by the server while the player is still on the surface (a
         /// launch, a ship swap), goes to the transition director instead of being dropped — a launch flies that very hull off
-        /// the pad. True when it was handed over.</summary>
+        /// the pad. #3177: another pilot's or a trader's hull goes to <see cref="ShipTransitView"/> when its launch FX just
+        /// came in, and lifts off the same way. True when it was handed over.</summary>
         private bool HandOverDeparting(string id, GameObject root)
         {
+            if (Game.SpaceViewActive || !_built.TryGetValue(id, out var model) || model == null)
+            {
+                return false;
+            }
+
+            if (model.OwnerId != Game.LocalPlayerId)
+            {
+                if (_shipTransit == null)
+                {
+                    _shipTransit = GetComponent<ShipTransitView>(); // the same world-rig object carries both views
+                }
+
+                return _shipTransit != null && _shipTransit.AdoptDeparting(root, model);
+            }
+
             var transitions = Game.Views.Transitions;
-            if (transitions == null || Game.SpaceViewActive || !_built.TryGetValue(id, out var model) || model == null
-                || model.OwnerId != Game.LocalPlayerId)
+            if (transitions == null)
             {
                 return false;
             }

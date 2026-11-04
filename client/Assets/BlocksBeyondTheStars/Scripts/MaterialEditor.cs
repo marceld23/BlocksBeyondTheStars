@@ -88,31 +88,48 @@ namespace BlocksBeyondTheStars.Client
 
         // ── live painting ────────────────────────────────────────────────────────────────────────
 
+        // #3179: the texel the drag in progress stamped last (-1 = no drag), so a fast drag paints a gap-free line.
+        private int _lastTx = -1, _lastTy = -1;
+
         private void Update()
         {
             if (_canvasRt == null) return;
 
             bool left = Input.GetMouseButton(0), right = Input.GetMouseButton(1);
-            if (!left && !right) return;
-            if (!RectTransformUtility.RectangleContainsScreenPoint(_canvasRt, Input.mousePosition, null)) return;
+            if (!left && !right)
+            {
+                _lastTx = -1; // the drag is over
+                return;
+            }
+
+            bool dragging = _lastTx >= 0; // a drag that started on the canvas runs on along its edge (#3179)
+            if (!dragging && !RectTransformUtility.RectangleContainsScreenPoint(_canvasRt, Input.mousePosition, null)) return;
             if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(_canvasRt, Input.mousePosition, null, out var lp)) return;
 
-            // Place() anchors the rect top-left with pivot (0,1): local x∈[0,w], y∈[-h,0].
-            float w = _canvasRt.rect.width, h = _canvasRt.rect.height;
-            float u = Mathf.Clamp01(lp.x / w);
-            float fromTop = Mathf.Clamp01(-lp.y / h);
-            int tx = Mathf.Clamp(Mathf.RoundToInt(u * (Tile - 1)), 0, Tile - 1);
-            int ty = Mathf.Clamp(Mathf.RoundToInt((1f - fromTop) * (Tile - 1)), 0, Tile - 1); // top row = ty 63
+            // Place() anchors the rect top-left with pivot (0,1): local x∈[0,w], y∈[-h,0]. Every texel the same hit area.
+            int tx = PixelStroke.CellOf(lp.x / _canvasRt.rect.width, Tile);
+            int ty = Tile - 1 - PixelStroke.CellOf(-lp.y / _canvasRt.rect.height, Tile); // top row = ty 63
 
             var c = right ? new Color(_baseR / 255f, _baseG / 255f, _baseB / 255f) : _paint;
+            foreach (var (sx, sy) in PixelStroke.Line(dragging ? _lastTx : tx, dragging ? _lastTy : ty, tx, ty))
+            {
+                Stamp(sx, sy, c);
+            }
+
+            _lastTx = tx;
+            _lastTy = ty;
+            _tex.Apply();
+        }
+
+        /// <summary>The 3×3 brush at one texel (clipped to the tile).</summary>
+        private void Stamp(int tx, int ty, Color c)
+        {
             for (int dx = -1; dx <= 1; dx++)
             for (int dy = -1; dy <= 1; dy++)
             {
                 int px = tx + dx, py = ty + dy;
                 if (px >= 0 && px < Tile && py >= 0 && py < Tile) _tex.SetPixel(px, py, c);
             }
-
-            _tex.Apply();
         }
 
         /// <summary>Fills the whole tile with the base colour; <paramref name="grain"/> adds per-pixel noise.</summary>

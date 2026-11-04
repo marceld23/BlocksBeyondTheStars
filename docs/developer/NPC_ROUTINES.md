@@ -146,7 +146,8 @@ reach of a board block nobody staffs says the same (`HandleRequestMissions`).
   the player's own parked ship (landed, or the walkable interior in space; never while flying or visiting) takes and
   hands in jobs within `InteractionReach.MissionBoard` (4 m, the client's prompt reach too) and lists them while the
   player is aboard. Its jobs are keyed by the player id (`ShipBoardKey` → `shipboard_<hash>_<slot>`, deliveries only,
-  `BoardSlotKind.ShipCargo` → `mission.ship.gather.*`, no giver name), travel with the player and are coined back on
+  `BoardSlotKind.ShipCargo`, no giver name; #3180: the radio orders' stories of `data/board_stories.json`, place `ship`,
+  with `mission.ship.gather.*` as the fallback), travel with the player and are coined back on
   every world entry (`RebuildHeldShipBoardJobs`); no NPC memory, no turn-in radio call. A board built into a ship says
   so (`srv.ship.board_ready`), a trading or profession post says it is decoration there (`srv.ship.post_decor`,
   `NoteShipPost` from `NoteShipDecor`).

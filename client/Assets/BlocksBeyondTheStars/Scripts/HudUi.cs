@@ -488,8 +488,9 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>#2049: the prompt key for a Crystal Net device in the crosshair: a switch toggles, a button
-        /// presses, a configurable device opens its menu, everything else just names itself as linked.</summary>
-        private static string CrystalPromptKey(NetCrystalDevice dev)
+        /// presses, a configurable device opens its menu, everything else just names itself as linked. #3171: a lift stop
+        /// whose platform waits there (<paramref name="liftWaits"/>) chooses the floor; elsewhere it calls the lift.</summary>
+        private static string CrystalPromptKey(NetCrystalDevice dev, bool liftWaits)
         {
             var kind = CrystalDeviceUi.KindOf(dev);
             if (kind == BlocksBeyondTheStars.Shared.Definitions.CrystalDeviceKind.Switch)
@@ -504,7 +505,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (kind == BlocksBeyondTheStars.Shared.Definitions.CrystalDeviceKind.LiftStop)
             {
-                return "ui.crystal.prompt.call"; // #2266
+                return liftWaits ? "ui.lift.prompt.choose" : "ui.crystal.prompt.call"; // #2266, #3171
             }
 
             if (dev.Held)

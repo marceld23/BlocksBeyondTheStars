@@ -1341,7 +1341,7 @@ public sealed partial class GameServer
                     callKey, "npc.call.trader", bodyName, isMission: false, requireKnown: false);
             if (!called && body?.SystemId is { } system && _galaxy?.FindBody(owner.CurrentLocationId)?.SystemId == system)
             {
-                RelayBaseNewsViaVega(owner, callKey, "vega.news.trader", new[] { bodyName }, kind: 1);
+                RelayBaseNewsViaVega(owner, callKey, TraderNewsKey(owner, bodyId, bodyName, out var newsArgs), newsArgs, kind: 1); // #3175: how far, if far
             }
         }
     }

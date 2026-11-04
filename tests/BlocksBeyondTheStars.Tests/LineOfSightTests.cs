@@ -319,7 +319,7 @@ public sealed class LineOfSightTests : IDisposable
     [Fact]
     public void The_walk_through_list_matches_the_content()
     {
-        foreach (var key in new[] { "torch", "lantern", "torch_off", "lantern_off", "ladder", "fire", "energy_gate", SolidFloraKey() })
+        foreach (var key in new[] { "torch", "lantern", "torch_off", "lantern_off", "ladder", "fire", "energy_gate", "lift_gate_open", SolidFloraKey() })
         {
             Assert.True(_content.GetBlock(key) != null, $"'{key}' is missing from data/blocks.json");
             Assert.True(WalkThroughBlocks.IsProp(key), key);

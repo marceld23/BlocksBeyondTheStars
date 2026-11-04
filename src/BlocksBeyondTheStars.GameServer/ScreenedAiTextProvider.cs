@@ -63,7 +63,8 @@ public sealed class ScreenedAiTextProvider : IAiMissionProvider
     public string? GenerateNpcLine(NpcLineRequest request) => _screen(_inner.GenerateNpcLine(request));
 
     /// <summary>Board-mission flavour. Title and description are one posting, so if either half is refused
-    /// the whole result is dropped and the caller's deterministic locale text takes over.</summary>
+    /// the whole result is dropped and the caller's deterministic locale text takes over. The thank-you (#3180) is a
+    /// message of its own, shown later on hand-in: a refused one is just dropped — the job's authored thank-you is used.</summary>
     public MissionTextResult? GenerateMissionText(MissionTextRequest request)
     {
         var text = _inner.GenerateMissionText(request);
@@ -79,6 +80,7 @@ public sealed class ScreenedAiTextProvider : IAiMissionProvider
 
         text.Title = title ?? string.Empty;
         text.Description = description ?? string.Empty;
+        text.Thanks = Refused(text.Thanks, out string? thanks) ? string.Empty : thanks ?? string.Empty;
         return text;
     }
 

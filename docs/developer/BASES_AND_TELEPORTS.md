@@ -181,11 +181,22 @@ chooser read the same ones); the server side is `GameServerBasePads.cs`.
   sets name and access (owner or admin) and re-broadcasts the lists.
 - **Coming home (#3072).** A landing with no pad picked (`PadIndex` -1, no cell — the star-map Travel, a same-body landing
   without a choice) takes the player's own free active base pad there first (`OwnFreeBasePad`, fixed order by cell).
-- **Traders (#3073).** `MarketBasePadFor` gives an arriving merchant a free **Everyone** pad of a Market base (owners present
-  first, as in `NearestFreeDryPad`); `NpcLandedTrader.BasePad` holds it and the materialiser stands the hull on it.
+- **Traders (#3073, #3175).** `GameServerTraderPads.cs`: `PickTraderPad` (planet-side and flight-scene arrivals alike) asks
+  `MarketBasePadFor` first — a free pad of a Market base on **Allies or Everyone** (`BasePadRules.AdmitsTraders`, never
+  Owner; owners present first) — and else `NearestFreeDryPad`, the communal pad nearest the anchors (present owners' Market
+  cores, else the players there); with Market anchors only within `TraderCommunalPadReach` (250 blocks) — beyond it no
+  trader comes that time — while a players-only anchor takes the nearest free pad however far (the toasts name the way).
+  The decision is logged. Without a Market base pad, `HintMarketPadTrouble` tells each present Market base owner once per
+  base and reason (`vega:hint:market_pad:<body>|x|y|z:<reason>` → `vega.hint.market_pad_<reason>`: `own_ship`,
+  `built_over`, `owner_only`, `taken`, `none`) why the base's pads took none. The toasts (`srv.trader.approaching_far`,
+  `srv.trader.landed_far`), the hail (`npc.call.trader_far`) and VEGA's relay (`vega.news.trader_far`) name distance and
+  direction when the pad lies farther than `TraderNearbyRadius` (80 blocks) from the player or the owner's base.
+  `NpcLandedTrader.BasePad` holds a base pad and the materialiser stands the hull on it.
 - **Built over (#3146).** The no-build rule excepts admins — every singleplayer host is one — so a pad's square can be
   built in after all. `GameServerPadClearance.cs` asks the block-edit store (`HasPlayerBuiltBlocks`: an owned edit that
-  leaves a block a hull cannot stand in — solid or fluid; open props are listed as passable) over the landing volume
+  leaves a solid block; open props, fluids and liquids are listed as passable, and a cell still holding the block its
+  `weather_deposit` row tracks never counts, #3176 — server writes keep a cell's old owner, so weather snow or a flow step on
+  a paved pad read as built) over the landing volume
   (ground + 1 … + 16, both seams split), so the answer is the same for an unloaded body. A built-over pad is skipped by
   the traders (`NearestFreeDryPad`, `MarketBasePadFor`, re-checked at touchdown like #1678's hull overlap), by the
   player's automatic pick (`PreferredFreePadIndex`, `OwnFreeBasePad`) and refused on a hand pick
@@ -203,4 +214,6 @@ chooser read the same ones); the server side is `GameServerBasePads.cs`.
 collect), `NetCodecTests` (tags 310–312), `BaseFocusTests` (#3036–#3040: the free switch, merchants only at a Market base,
 the Miner's shaft, the woodcutter job, the Radio reach), `BasePadTests` (#3069–#3073: placement rules and the cap, the clear
 volume, protection, the access matrix and locked listing, landing and holding, coming home, an inactive pad, the Market
-merchants, a restart), `Client.Tests/BasePadViewTests` (grouping and lookup).
+merchants, a restart), `TraderPadChoiceTests` (#3175/#3176: an Allies pad takes the trader end to end, the own ship on the only
+pad and an Only-me pad tell VEGA's reason, no pad beyond the reach, the far toast and relay, the store ignoring weather snow),
+`Client.Tests/BasePadViewTests` (grouping and lookup).

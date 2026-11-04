@@ -174,6 +174,61 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             return -1;
         }
 
+        /// <summary>One face of a painted mesh: a run of vertices sharing one normal — a side is a quad (4 vertices), a top or
+        /// bottom without a chunk a cap of four triangles (12, #3178).</summary>
+        private readonly struct FaceRun
+        {
+            public FaceRun(int start, int count, Vector3 normal)
+            {
+                Start = start;
+                Count = count;
+                Normal = normal;
+            }
+
+            public int Start { get; }
+
+            public int Count { get; }
+
+            public Vector3 Normal { get; }
+
+            public bool IsCap => Count == 12;
+        }
+
+        /// <summary>The faces of a painted mesh in vertex order (the mesh lays them out face by face).</summary>
+        private static List<FaceRun> Runs(Mesh mesh)
+        {
+            var normals = mesh.normals;
+            var runs = new List<FaceRun>();
+            int start = 0;
+            for (int i = 1; i <= normals.Length; i++)
+            {
+                if (i == normals.Length || Vector3.Dot(normals[i], normals[start]) < 0.99f)
+                {
+                    runs.Add(new FaceRun(start, i - start, normals[start]));
+                    start = i;
+                }
+            }
+
+            return runs;
+        }
+
+        /// <summary>The face of <paramref name="mesh"/> facing <see cref="Normals"/>[<paramref name="face"/>].</summary>
+        private static FaceRun RunOf(Mesh mesh, int face)
+        {
+            foreach (var run in Runs(mesh))
+            {
+                if (FaceOf(run.Normal) == face)
+                {
+                    return run;
+                }
+            }
+
+            Assert.Fail($"The mesh has no face {face}.");
+            return default;
+        }
+
+        private static Vector2 Centroid(Vector2[] uv, int t) => (uv[t] + uv[t + 1] + uv[t + 2]) / 3f;
+
         [Test]
         public void EveryPaintedBodyFace_ReadsAsPainted_AndFacesOutward()
         {
@@ -186,7 +241,10 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
                     var normals = mesh.normals;
                     var uv = mesh.uv;
                     var tris = mesh.triangles;
-                    Assert.That(verts.Length, Is.EqualTo(24));
+                    var runs = Runs(mesh);
+                    Assert.That(runs.Count, Is.EqualTo(6), $"Part {part} row {row}: one run of vertices per cube face.");
+                    Assert.That(verts.Length, Is.EqualTo(part == BodyPaint.Helmet ? 24 : 40),
+                        "Four side quads and two caps of four triangles (#3178); the helmet's six faces are all quads.");
                     for (int t = 0; t < tris.Length; t += 3)
                     {
                         Vector3 a = verts[tris[t]], b = verts[tris[t + 1]], c = verts[tris[t + 2]];
@@ -195,16 +253,22 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
                     }
 
                     int painted = 0;
-                    for (int face = 0; face < 6; face++)
+                    foreach (var run in runs)
                     {
-                        int first = face * 4;
-                        int f = FaceOf(normals[first]);
+                        int first = run.Start;
+                        int f = FaceOf(run.Normal);
                         Assert.That(f, Is.GreaterThanOrEqualTo(0));
-                        var centre = (uv[first] + uv[first + 1] + uv[first + 2] + uv[first + 3]) * 0.25f;
-                        int chunk = ChunkOf(part, centre);
+                        if (run.IsCap)
+                        {
+                            Assert.That(f == 2 || f == 3, Is.True, $"Part {part}: only a top or a bottom is a cap.");
+                            continue; // pinned by TheCaps_ContinueTheEdgeRowsOfTheirSides
+                        }
+
+                        Assert.That(run.Count, Is.EqualTo(4), $"Part {part} face {f}: a side is one quad.");
+                        int chunk = ChunkOf(part, Centre(uv, run));
                         if (chunk < 0)
                         {
-                            continue; // the solid-tint pad (a top, a sole, the helmet's open front)
+                            continue; // the pad (the helmet's open front)
                         }
 
                         painted++;
@@ -235,9 +299,8 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             var mesh = Segment(part, row);
             try
             {
-                var uv = mesh.uv;
-                int first = face * 4;
-                int chunk = ChunkOf(part, (uv[first] + uv[first + 1] + uv[first + 2] + uv[first + 3]) * 0.25f);
+                var run = RunOf(mesh, face);
+                int chunk = run.IsCap ? -1 : ChunkOf(part, Centre(mesh.uv, run));
                 return chunk < 0 ? null : BodyPaintKit.ColumnKeys(part)[chunk % BodyPaintKit.Columns(part)];
             }
             finally
@@ -287,10 +350,11 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
                 for (int i = 0; i < walk.Length; i++)
                 {
                     int a = walk[i], b = walk[(i + 1) % walk.Length];
-                    var rectA = BodyPaintKit.ChunkRect(BodyPaint.Torso, ChunkOf(BodyPaint.Torso, Centre(uv, a)));
-                    var rectB = BodyPaintKit.ChunkRect(BodyPaint.Torso, ChunkOf(BodyPaint.Torso, Centre(uv, b)));
-                    var edgeA = EdgeXz(verts, uv, a, rectA.xMax);
-                    var edgeB = EdgeXz(verts, uv, b, rectB.xMin);
+                    FaceRun runA = RunOf(mesh, a), runB = RunOf(mesh, b);
+                    var rectA = BodyPaintKit.ChunkRect(BodyPaint.Torso, ChunkOf(BodyPaint.Torso, Centre(uv, runA)));
+                    var rectB = BodyPaintKit.ChunkRect(BodyPaint.Torso, ChunkOf(BodyPaint.Torso, Centre(uv, runB)));
+                    var edgeA = EdgeXz(verts, uv, runA, rectA.xMax);
+                    var edgeB = EdgeXz(verts, uv, runB, rectB.xMin);
                     Assert.That((edgeA - edgeB).sqrMagnitude, Is.LessThan(1e-6f),
                         $"Face {a}'s right edge {edgeA} must meet face {b}'s left edge {edgeB}.");
                 }
@@ -341,17 +405,26 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
                         Assert.That(Vector3.Dot(Vector3.Cross(b - a, c - a), normals[tris[t]]), Is.GreaterThan(0f), "Every face faces outward.");
                     }
 
-                    for (int face = 0; face < 6; face++)
+                    foreach (var run in Runs(mesh))
                     {
-                        int first = face * 4;
-                        Vector3 n = normals[first];
-                        int chunk = ChunkOf(BodyPaint.Arms, Centre(uv, face));
+                        int first = run.Start;
+                        Vector3 n = run.Normal;
                         if (Mathf.Abs(n.z) > 0.99f)
                         {
-                            Assert.That(chunk, Is.EqualTo(-1), "The arm's ends (here the near and far end) stay plain, as on the avatar.");
+                            // The arm's ends (here the near and far end): caps continuing the arm's own sides, as on the
+                            // avatar (#3178) — every triangle in one of this arm's chunks.
+                            Assert.That(run.IsCap, Is.True, "The arm's ends are caps, as on the avatar.");
+                            for (int t = first; t < first + run.Count; t += 3)
+                            {
+                                int capChunk = ChunkOf(BodyPaint.Arms, Centroid(uv, t));
+                                Assert.That(capChunk >= 0 && capChunk / 4 == row, Is.True, $"End {n}: the {(left ? "left" : "right")} arm's own row.");
+                            }
+
                             continue;
                         }
 
+                        Assert.That(run.Count, Is.EqualTo(4), $"Face {n}: a side is one quad.");
+                        int chunk = ChunkOf(BodyPaint.Arms, Centre(uv, run));
                         Assert.That(chunk / 4, Is.EqualTo(row), $"Face {n}: the {(left ? "left" : "right")} arm's own row.");
                         string label = BodyPaintKit.ColumnKeys(BodyPaint.Arms)[chunk % 4];
                         string expected = n.y > 0.99f ? "ui.paint.body.outer"
@@ -416,13 +489,22 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             }
         }
 
-        private static Vector2 Centre(Vector2[] uv, int face)
-            => (uv[face * 4] + uv[face * 4 + 1] + uv[face * 4 + 2] + uv[face * 4 + 3]) * 0.25f;
-
-        /// <summary>The (x, z) of the vertical edge of face <paramref name="face"/> whose vertices carry u = <paramref name="u"/>.</summary>
-        private static Vector2 EdgeXz(Vector3[] verts, Vector2[] uv, int face, float u)
+        /// <summary>The mean UV of a face's vertices (for a quad: the middle of its rect).</summary>
+        private static Vector2 Centre(Vector2[] uv, FaceRun run)
         {
-            for (int i = face * 4; i < face * 4 + 4; i++)
+            var sum = Vector2.zero;
+            for (int i = run.Start; i < run.Start + run.Count; i++)
+            {
+                sum += uv[i];
+            }
+
+            return sum / run.Count;
+        }
+
+        /// <summary>The (x, z) of the vertical edge of a side face whose vertices carry u = <paramref name="u"/>.</summary>
+        private static Vector2 EdgeXz(Vector3[] verts, Vector2[] uv, FaceRun run, float u)
+        {
+            for (int i = run.Start; i < run.Start + run.Count; i++)
             {
                 if (Mathf.Abs(uv[i].x - u) < Eps)
                 {
@@ -430,8 +512,215 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
                 }
             }
 
-            Assert.Fail($"Face {face} has no vertex at u = {u}.");
+            Assert.Fail($"Face {run.Normal} has no vertex at u = {u}.");
             return default;
+        }
+
+        /// <summary>
+        /// #3178 (the school club's "blue gaps"): the body-paint editor has no tops or bottoms, and the torso's and limbs'
+        /// tops and bottoms showed the blue base tint however completely the part was painted — the shoulder tops, the strip
+        /// under the chest, the wrist ring, the elbow wedge. Now each is a cap whose triangles continue the side they border:
+        /// that side's chunk, at the same u along the shared edge, along the texel row the side shows right at that edge.
+        /// </summary>
+        [Test]
+        public void TheCaps_ContinueTheEdgeRowsOfTheirSides()
+        {
+            foreach (var (part, row) in PartRows())
+            {
+                if (part == BodyPaint.Helmet)
+                {
+                    continue; // its top and chin are painted chunks of their own
+                }
+
+                var mesh = Segment(part, row);
+                try
+                {
+                    AssertCapsContinueTheirSides(part, mesh, $"part {part} row {row}");
+                }
+                finally
+                {
+                    Object.DestroyImmediate(mesh);
+                }
+            }
+        }
+
+        /// <summary>#3178: a segment part-way up its limb continues the row at ITS edge — the lower arm's top the row at the
+        /// elbow, the hand's top (the wrist ring round the narrower forearm) the row at the wrist. The arm's box runs from the
+        /// hand's bottom (−1.0 in the shoulder frame) to the shoulder (0): the elbow sits at 0.58 of it, the wrist at 0.16 —
+        /// texel rows 18 and 5 of the arm's chunks.</summary>
+        [TestCase(0, false, 18)]
+        [TestCase(0, true, 5)]
+        [TestCase(1, false, 18)]
+        [TestCase(1, true, 5)]
+        public void TheArmsCaps_ContinueTheRowAtTheElbowAndAtTheWrist(int row, bool hand, int expectedRow)
+        {
+            var mesh = PlayerAvatar.PaintedArmMesh(row, hand);
+            try
+            {
+                AssertCapsContinueTheirSides(BodyPaint.Arms, mesh, hand ? "hand" : "lower arm");
+                var top = RunOf(mesh, 2);
+                var uv = mesh.uv;
+                Assert.That(top.IsCap, Is.True, "The top is a cap.");
+                for (int t = top.Start; t < top.Start + top.Count; t += 3)
+                {
+                    var rect = BodyPaintKit.ChunkRect(BodyPaint.Arms, ChunkOf(BodyPaint.Arms, Centroid(uv, t)));
+                    for (int k = t; k < t + 3; k++)
+                    {
+                        float v = (uv[k].y - rect.yMin) / rect.height;
+                        Assert.That(Mathf.FloorToInt(v * BodyPaintKit.Face), Is.EqualTo(expectedRow), $"Cap vertex {k}: v {v}.");
+                    }
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(mesh);
+            }
+        }
+
+        /// <summary>Every cap triangle of <paramref name="mesh"/> continues the side quad it borders (see
+        /// <see cref="TheCaps_ContinueTheEdgeRowsOfTheirSides"/>); a top and a bottom cap exist.</summary>
+        private static void AssertCapsContinueTheirSides(int part, Mesh mesh, string what)
+        {
+            var verts = mesh.vertices;
+            var uv = mesh.uv;
+            var runs = Runs(mesh);
+            int caps = 0;
+            foreach (var cap in runs)
+            {
+                if (!cap.IsCap)
+                {
+                    continue;
+                }
+
+                caps++;
+                bool top = FaceOf(cap.Normal) == 2;
+                for (int t = cap.Start; t < cap.Start + cap.Count; t += 3)
+                {
+                    var outer = new List<int>();
+                    for (int k = t; k < t + 3; k++)
+                    {
+                        if (Mathf.Abs(verts[k].x) > Eps || Mathf.Abs(verts[k].z) > Eps)
+                        {
+                            outer.Add(k); // off the cap's centre: one of the edge's two corners
+                        }
+                    }
+
+                    Assert.That(outer.Count, Is.EqualTo(2), $"{what}: a cap triangle runs from the centre to one edge.");
+                    Vector3 mid = (verts[outer[0]] + verts[outer[1]]) * 0.5f;
+                    var side = SideToward(runs, new Vector3(mid.x, 0f, mid.z).normalized, what);
+                    int chunk = ChunkOf(part, Centre(uv, side));
+                    Assert.That(chunk, Is.GreaterThanOrEqualTo(0), $"{what}: the side is painted.");
+                    Assert.That(ChunkOf(part, Centroid(uv, t)), Is.EqualTo(chunk), $"{what}: the triangle samples its side's chunk.");
+                    var rect = BodyPaintKit.ChunkRect(part, chunk);
+                    foreach (int k in outer)
+                    {
+                        int q = SameCorner(verts, side, verts[k]);
+                        Assert.That(uv[k].x, Is.EqualTo(uv[q].x).Within(Eps), $"{what}: the edge's u runs on from the side face.");
+                        float sideV = (uv[q].y - rect.yMin) / rect.height, capV = (uv[k].y - rect.yMin) / rect.height;
+                        Assert.That(Mathf.FloorToInt(capV * BodyPaintKit.Face), Is.EqualTo(BodyPaintEdges.EdgeTexel(sideV, top, BodyPaintKit.Face)),
+                            $"{what}: the cap continues the texel row the side shows at that edge.");
+                    }
+                }
+            }
+
+            Assert.That(caps, Is.EqualTo(2), $"{what}: a top and a bottom cap.");
+        }
+
+        private static FaceRun SideToward(List<FaceRun> runs, Vector3 normal, string what)
+        {
+            foreach (var run in runs)
+            {
+                if (!run.IsCap && Vector3.Dot(run.Normal, normal) > 0.99f)
+                {
+                    return run;
+                }
+            }
+
+            Assert.Fail($"{what}: no side face toward {normal}.");
+            return default;
+        }
+
+        /// <summary>The vertex of a side face at the same corner as <paramref name="p"/>.</summary>
+        private static int SameCorner(Vector3[] verts, FaceRun side, Vector3 p)
+        {
+            for (int i = side.Start; i < side.Start + side.Count; i++)
+            {
+                if ((verts[i] - p).sqrMagnitude < 1e-8f)
+                {
+                    return i;
+                }
+            }
+
+            Assert.Fail($"The side {side.Normal} has no corner at {p}.");
+            return -1;
+        }
+
+        /// <summary>#3178: the atlas's pad — what is left without a chunk or a side to continue — holds the part's most common
+        /// colour: the paint of a part painted all over, the tint of one with only a small motif.</summary>
+        [Test]
+        public void ThePad_HoldsThePartsMostCommonColour()
+        {
+            const int part = BodyPaint.Torso;
+            int cells = BodyPaintKit.CanvasW(part) * BodyPaintKit.CanvasH(part);
+            var allOver = new int[cells];
+            var motif = new int[cells];
+            for (int i = 0; i < cells; i++)
+            {
+                allOver[i] = i < 40 ? 4 : 8; // red all over, a small white motif
+                motif[i] = i < 40 ? 8 : 0;   // only a small red motif on the blue suit
+            }
+
+            AssertPad(part, BodyPaintKit.FromCanvas(part, allOver), Color.blue, FacePalette.ColorOf(8));
+            AssertPad(part, BodyPaintKit.FromCanvas(part, motif), Color.blue, Color.blue);
+        }
+
+        private static void AssertPad(int part, string pixels, Color tint, Color expected)
+        {
+            var tex = BodyPaintKit.BuildAtlas(part, pixels, tint);
+            try
+            {
+                Color32 pad = tex.GetPixel(BodyPaintKit.CanvasW(part) + 1, 0), want = expected;
+                Assert.That((pad.r, pad.g, pad.b), Is.EqualTo((want.r, want.g, want.b)), "The atlas pad.");
+                Color32 kit = BodyPaintKit.PadColor(part, pixels, tint);
+                Assert.That((kit.r, kit.g, kit.b), Is.EqualTo((want.r, want.g, want.b)), "PadColor is what the atlas bakes.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(tex);
+            }
+        }
+
+        /// <summary>#3178: the first-person cuff is a darker shade of the painted arm's colour, not of the blue suit under it.</summary>
+        [Test]
+        public void TheFirstPersonCuff_TakesThePaintedArmsColour()
+        {
+            LogAssert.ignoreFailingMessages = true; // the part builder calls Object.Destroy, which logs outside play mode
+            HeldItem.HandPaintResolver = () => new string(FacePalette.SymbolOf(8), BodyPaint.ExpectedLength(BodyPaint.Arms)); // red
+            var root = new GameObject("FirstPersonCuffTest");
+            try
+            {
+                var holder = HeldItem.Build(root.transform, HeldItem.Kind.Hand, Color.blue);
+                Renderer cuff = null;
+                foreach (var filter in holder.GetComponentsInChildren<MeshFilter>())
+                {
+                    if (filter.name == "HandPart" && filter.sharedMesh != null
+                        && !filter.sharedMesh.name.StartsWith("HandPaint", System.StringComparison.Ordinal))
+                    {
+                        cuff = filter.GetComponent<Renderer>();
+                    }
+                }
+
+                Assert.IsNotNull(cuff, "The bare hand has its plain cuff.");
+                var c = cuff.sharedMaterial.color;
+                Assert.That(c.r, Is.GreaterThan(c.b * 2f), $"The cuff {c} is a shade of the red painting, not of the blue suit.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                HeldItem.HandPaintResolver = null;
+                HeldItem.ReleaseHandAtlas();
+                LogAssert.ignoreFailingMessages = false;
+            }
         }
     }
 }

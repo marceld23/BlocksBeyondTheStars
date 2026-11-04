@@ -10,9 +10,10 @@ namespace BlocksBeyondTheStars.Client
     /// In multiplayer, plays a short landing/launch animation of ANOTHER player's ship at a landing pad (item 38):
     /// when someone lands on the body you're on, you see their ship descend onto the pad; when they launch, you
     /// see it rise off the pad with engine fire. Purely cosmetic + client-local — the server only sends the event
-    /// (who, where, landing vs launching, hull colour). Your own landing/launch is the flight-view sequence.
+    /// (who, where, landing vs launching, hull colour). Your own landing/launch is the flight-view sequence. Since #3177
+    /// the parked hull itself flies whenever it is known (the Cinematic partial); the ghost below is the fallback.
     /// </summary>
-    public sealed class ShipTransitView : MonoBehaviour
+    public sealed partial class ShipTransitView : MonoBehaviour
     {
         public GameBootstrap Game;
 
@@ -115,6 +116,8 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.ShipTransitReceived -= OnTransit;
                 _subscribed = false;
             }
+
+            EndAllFlights(); // #3177: a hidden parked hull shows again, a stand-in goes
         }
 
         private void OnTransit(BlocksBeyondTheStars.Networking.Messages.ShipTransitFx fx)
@@ -125,6 +128,23 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            if (fx.ApproachSeconds > 0f)
+            {
+                StartContrail(fx); // #3177: still high up — a glint and a contrail; the descent comes with the touchdown FX
+                return;
+            }
+
+            if (QueueHullFlight(fx))
+            {
+                return; // #3177: the parked hull itself flies once it is built (or handed over); the ghost only if it never is
+            }
+
+            StartGhost(fx);
+        }
+
+        /// <summary>The fallback (item 38): a separate ghost of the ship slides down onto (or up off) the pad.</summary>
+        private void StartGhost(BlocksBeyondTheStars.Networking.Messages.ShipTransitFx fx)
+        {
             float startY = fx.Landing ? fx.Y + HighOffset : fx.Y + PadOffset;
             var pos = new Vector3(Game.SceneX(fx.X), startY, Game.SceneZ(fx.Z));
 

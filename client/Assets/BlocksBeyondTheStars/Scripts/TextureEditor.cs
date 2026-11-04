@@ -473,7 +473,7 @@ namespace BlocksBeyondTheStars.Client
         private bool CanvasCell(out int x, out int y)
         {
             x = y = 0;
-            if (!RectTransformUtility.RectangleContainsScreenPoint(_canvasRt, Input.mousePosition, null)
+            if ((!_stroking && !_dragShape && !RectTransformUtility.RectangleContainsScreenPoint(_canvasRt, Input.mousePosition, null)) // #3179: a drag runs on along the edge
                 || !RectTransformUtility.ScreenPointToLocalPointInRectangle(_canvasRt, Input.mousePosition, null, out var lp))
             {
                 return false;

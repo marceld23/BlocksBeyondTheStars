@@ -676,8 +676,8 @@ public sealed class SqliteWorldRepository : IWorldRepository
 
     public bool HasPlayerBuiltBlocks(string planet, Vector3i min, Vector3i max, IReadOnlyCollection<ushort> passable)
     {
-        // The id list holds integers the server built itself (never player text), so it is inlined like
-        // ListBlockEditsMatching's; the box and the planet stay parameters.
+        // The id list holds integers the server built itself (never player text), so it is inlined like ListBlockEditsMatching's;
+        // the box and the planet stay parameters. #3176: a cell still holding the weather snow (or festival deposit) it tracks is the sky's.
         string except = passable.Count == 0 ? "-1" : string.Join(",", passable.Select(b => ((int)b).ToString(CultureInfo.InvariantCulture)));
         lock (_gate)
         {
@@ -685,7 +685,7 @@ public sealed class SqliteWorldRepository : IWorldRepository
             cmd.CommandText = "SELECT 1 FROM block_edit WHERE planet = $p AND owner_id <> 0 AND block <> 0 " +
                               $"AND block NOT IN ({except}) " +
                               "AND x BETWEEN $minx AND $maxx AND y BETWEEN $miny AND $maxy AND z BETWEEN $minz AND $maxz " +
-                              "LIMIT 1;";
+                              "AND NOT EXISTS (SELECT 1 FROM weather_deposit d WHERE d.planet = block_edit.planet AND d.x = block_edit.x AND d.y = block_edit.y AND d.z = block_edit.z AND d.block = block_edit.block) LIMIT 1;";
             cmd.Parameters.AddWithValue("$p", planet);
             cmd.Parameters.AddWithValue("$minx", min.X);
             cmd.Parameters.AddWithValue("$maxx", max.X);

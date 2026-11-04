@@ -993,8 +993,13 @@ namespace BlocksBeyondTheStars.Client
             _ => "wind_light", // rocky / crystal / varied / asteroid → light wind
         };
 
-        private void OnBlockApplied(Vector3i pos, BlockId oldId, BlockId newId)
+        private void OnBlockApplied(Vector3i pos, BlockId oldId, BlockId newId, bool moved)
         {
+            if (moved)
+            {
+                return; // #3173: a bridge deck, a piston, a thaw — the machine plays its own sound, no mining crunch or knock
+            }
+
             // Fluid-sim steps (#655): the server broadcasts EVERY spread/drain cell as a block change, so
             // flowing water used to hammer the place-knock (and draining water the mining crunch) several
             // times a second. Water/lava transitions play no per-cell cue — the looping fluid bed IS the
@@ -1016,15 +1021,9 @@ namespace BlocksBeyondTheStars.Client
             var at = Game != null
                 ? Game.ScenePos(pos.X + 0.5f, pos.Y + 0.5f, pos.Z + 0.5f)
                 : new Vector3(pos.X + 0.5f, pos.Y + 0.5f, pos.Z + 0.5f);
-            if (newId.Value == 0)
-            {
-                // Mined → the material's own break sound (#2151: it used to be a random pick of the four).
-                At(MineCue(oldKey), at, 0.92f + (float)_rng.NextDouble() * 0.16f);
-            }
-            else
-            {
-                At("place_block", at);
-            }
+            // Mined → the material's own break sound (#2151: it used to be a random pick of the four); placed → the knock.
+            bool mined = newId.Value == 0;
+            At(mined ? MineCue(oldKey) : "place_block", at, mined ? 0.92f + (float)_rng.NextDouble() * 0.16f : 1f);
         }
 
         /// <summary>The break sound of a mined block by its material (key heuristic, like the footsteps): crystals and

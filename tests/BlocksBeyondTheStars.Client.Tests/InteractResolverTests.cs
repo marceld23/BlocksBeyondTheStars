@@ -91,6 +91,7 @@ public sealed class InteractResolverTests
     {
         var f = new InteractFacts
         {
+            OnLift = true,
             BeamPad = true,
             NearDoor = true,
             DataCube = true,
@@ -102,8 +103,8 @@ public sealed class InteractResolverTests
         };
         var order = new[]
         {
-            InteractKind.BeamPad, InteractKind.NearDoor, InteractKind.DataCube, InteractKind.Factory, InteractKind.NetFragment,
-            InteractKind.NearStation, InteractKind.Trade, InteractKind.Talk,
+            InteractKind.LiftRide, InteractKind.BeamPad, InteractKind.NearDoor, InteractKind.DataCube, InteractKind.Factory,
+            InteractKind.NetFragment, InteractKind.NearStation, InteractKind.Trade, InteractKind.Talk,
         };
         foreach (var expected in order)
         {
@@ -129,10 +130,24 @@ public sealed class InteractResolverTests
         Assert.False(InteractResolver.IsPerson(InteractKind.NearStation));
     }
 
+    /// <summary>#3171 (Lyxette: "standing on it I can't start anything"): on a lift platform E chooses the floor — before a
+    /// door or a trader beside it, but a device under the crosshair (a stop on the landing) still wins.</summary>
+    [Fact]
+    public void OnALiftPlatform_EChoosesTheFloor_UnlessADeviceIsAimedAt()
+    {
+        var f = new InteractFacts { OnLift = true, NearDoor = true, Vendor = true };
+        Assert.Equal(InteractKind.LiftRide, InteractResolver.Resolve(f));
+        Assert.False(InteractResolver.IsAimed(InteractKind.LiftRide));
+        Assert.False(InteractResolver.HasWorldLabel(InteractKind.LiftRide)); // the HUD names it ("E: Choose a floor")
+
+        f.CrystalDevice = true;
+        Assert.Equal(InteractKind.CrystalDevice, InteractResolver.Resolve(f));
+    }
+
     [Fact]
     public void Clear_ForgetsEveryFact()
     {
-        var f = new InteractFacts { AimedNpc = true, Crate = true, NearStation = "cargo", LookedStation = "cockpit", TalkNear = true };
+        var f = new InteractFacts { AimedNpc = true, Crate = true, NearStation = "cargo", LookedStation = "cockpit", TalkNear = true, OnLift = true };
         f.Clear();
         Assert.Equal(InteractKind.None, InteractResolver.Resolve(f));
     }
@@ -161,6 +176,7 @@ public sealed class InteractResolverTests
             case InteractKind.NearStation: f.NearStation = string.Empty; break;
             case InteractKind.Trade: f.Vendor = false; break;
             case InteractKind.Talk: f.TalkNear = false; break;
+            case InteractKind.LiftRide: f.OnLift = false; break;
         }
     }
 }

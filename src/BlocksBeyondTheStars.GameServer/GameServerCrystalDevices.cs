@@ -106,7 +106,8 @@ public sealed partial class GameServer
         return true;
     }
 
-    /// <summary>One cell written by the net: the voxel, the wire, the station's own build (so a boarded station keeps it).</summary>
+    /// <summary>One cell written by the net: the voxel, the wire, the station's own build (so a boarded station keeps it).
+    /// Every such write is a moved block (#3173): nobody mined or placed it, so the client plays no crumble or place pop.</summary>
     private void CrystalWriteCell(Vector3i cell, BlockId id, int tint, int glow, int shape)
     {
         if (_crystalFrame is { } frame)
@@ -119,7 +120,7 @@ public sealed partial class GameServer
         }
 
         _world.SetBlock(cell, id, tint, glow, shape);
-        BroadcastToWorld(new BlockChanged { X = cell.X, Y = cell.Y, Z = cell.Z, Block = id.Value, Tint = tint, Glow = glow, Shape = shape });
+        BroadcastToWorld(new BlockChanged { X = cell.X, Y = cell.Y, Z = cell.Z, Block = id.Value, Tint = tint, Glow = glow, Shape = shape, Moved = true });
         WriteBackStationCell(cell, id, tint, glow, shape);
         NudgeCreatureBodyChecks(cell);
     }
@@ -629,7 +630,7 @@ public sealed partial class GameServer
             var (tint, glow) = _world.GetModifier(from);
             int shape = _world.GetShape(from);
             _world.SetBlock(to, id, tint, glow, shape, c.OwnerId);
-            BroadcastToWorld(new BlockChanged { X = to.X, Y = to.Y, Z = to.Z, Block = id.Value, Tint = tint, Glow = glow, Shape = shape });
+            BroadcastToWorld(new BlockChanged { X = to.X, Y = to.Y, Z = to.Z, Block = id.Value, Tint = tint, Glow = glow, Shape = shape, Moved = true });
             WriteBackStationCell(to, id, tint, glow, shape);
             NudgeCreatureBodyChecks(to);
         }
@@ -672,7 +673,7 @@ public sealed partial class GameServer
                 var (tint, glow) = _world.GetModifier(beyond);
                 int shape = _world.GetShape(beyond);
                 _world.SetBlock(headCell, beyondId, tint, glow, shape, c.OwnerId);
-                BroadcastToWorld(new BlockChanged { X = headCell.X, Y = headCell.Y, Z = headCell.Z, Block = beyondId.Value, Tint = tint, Glow = glow, Shape = shape });
+                BroadcastToWorld(new BlockChanged { X = headCell.X, Y = headCell.Y, Z = headCell.Z, Block = beyondId.Value, Tint = tint, Glow = glow, Shape = shape, Moved = true });
                 WriteBackStationCell(headCell, beyondId, tint, glow, shape);
                 CrystalWriteCell(beyond, BlockId.Air, 0, 0, 0);
                 OnSupportRemoved(beyond);

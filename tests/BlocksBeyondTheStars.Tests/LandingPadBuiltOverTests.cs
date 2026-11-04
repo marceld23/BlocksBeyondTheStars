@@ -20,8 +20,9 @@ namespace BlocksBeyondTheStars.Tests;
 /// no-build rule excepts admins) turned the communal pad in the middle of his spaceport into a tower foundation once his
 /// ship landed on his own base pads, and the trader kept parking its hull inside the tower: "free" only asked who holds a
 /// pad, never what stands on it. Now a placed block a hull cannot stand in closes the pad — for traders (pick and
-/// touchdown), for the players' automatic pick and a hand-picked landing, and in the chooser; natural ground, open props
-/// and the player's own pad never close one. An admin who builds there is told so once per pad.
+/// touchdown), for the players' automatic pick and a hand-picked landing, and in the chooser; natural ground, open props,
+/// the sky's snow and running water (#3176) and the player's own pad never close one. An admin who builds there is told so
+/// once per pad.
 /// </summary>
 public sealed class LandingPadBuiltOverTests
 {
@@ -106,12 +107,16 @@ public sealed class LandingPadBuiltOverTests
         BuildOn(w, nearest);
         Assert.True(w.Server.CommunalPadBuiltOverForTest(body, nearest));
 
-        Assert.True(w.Server.ForcePlanetTraderForTest(), "another pad is free — the trader still comes");
-        Assert.NotEqual(nearest, w.Server.LandedTraderPadForTest(body));
+        // #3175: every other public pad of the arena lies thousands of blocks off — beyond the traders' reach, so none comes
+        // this time (it used to park on the far side of the planet and still say "nearby").
+        Assert.False(w.Server.ForcePlanetTraderForTest(), "the built-over pad is skipped, and no other pad is in reach");
+        Assert.Equal(0, w.Server.LandedTraderCountForTest());
 
         var pad = w.Server.LandingPadInfoForTest(nearest);
         w.Server.World.SetBlock(new Vector3i(pad.X + 1, pad.Y + 3, pad.Z - 2), BlockId.Air, owner: w.Player.State.PlayerId);
         Assert.False(w.Server.CommunalPadBuiltOverForTest(body, nearest), "a mined block is air — the pad is open again");
+        Assert.True(w.Server.ForcePlanetTraderForTest());
+        Assert.Equal(nearest, w.Server.LandedTraderPadForTest(body));
     }
 
     [Fact]
@@ -142,6 +147,33 @@ public sealed class LandingPadBuiltOverTests
     }
 
     [Fact]
+    public void WeatherSnow_AndRunningWater_InCellsThePlayerOnceTouched_NeverCloseAPad_ButHisOwnSnowBlockDoes()
+    {
+        // #3176: a server write keeps the owner of a cell a player once mined or paved — every spaceport is made of such cells,
+        // so a snow drift (or a puddle that ran onto the pad) used to read as "built" and closed the pad until it melted.
+        using var w = World("builtover_snow");
+        string body = w.Server.ActiveLocationId;
+        int i = NearestFreeDryPad(w);
+        var pad = w.Server.LandingPadInfoForTest(i);
+        var drift = new Vector3i(pad.X + 2, pad.Y + 1, pad.Z + 1);
+        var puddle = new Vector3i(pad.X + 4, pad.Y + 1, pad.Z + 2);
+        foreach (var cell in new[] { drift, puddle })
+        {
+            w.Server.World.SetBlock(cell, Stone, owner: w.Player.State.PlayerId); // the player built here once …
+            w.Server.World.SetBlock(cell, BlockId.Air, owner: w.Player.State.PlayerId); // … and mined it again
+        }
+
+        w.Server.DepositWeatherSnowForTest(drift.X, drift.Y, drift.Z); // a blizzard lays a drift on the pad
+        w.Server.World.SetBlock(puddle, Content.Value.GetBlock("water")!.NumericId); // a flow step runs onto it (no owner given)
+        Assert.Equal(Content.Value.GetBlock("snow")!.NumericId, w.Server.World.GetBlock(drift));
+        Assert.False(w.Server.CommunalPadBuiltOverForTest(body, i), "the sky's snow and running water are no building");
+
+        w.Server.World.SetBlock(new Vector3i(pad.X + 3, pad.Y + 1, pad.Z + 3), Content.Value.GetBlock("snow")!.NumericId,
+            owner: w.Player.State.PlayerId); // a snow block the player placed himself
+        Assert.True(w.Server.CommunalPadBuiltOverForTest(body, i));
+    }
+
+    [Fact]
     public void APadBuiltOverDuringTheApproach_IsGivenUp_AtTouchdown()
     {
         using var w = World("builtover_touchdown");
@@ -156,7 +188,7 @@ public sealed class LandingPadBuiltOverTests
 
         Assert.Equal(0, w.Server.LandedTraderCountForTest());
         Assert.DoesNotContain(w.Server.PlacedHullOwnersForTest(), o => o.StartsWith("npc:", StringComparison.Ordinal));
-        Assert.Empty(To<ShipTransitFx>(w));
+        Assert.Empty(To<ShipTransitFx>(w).Where(f => f.ApproachSeconds == 0f)); // the approach's contrail (#3177), but no descent
     }
 
     [Fact]

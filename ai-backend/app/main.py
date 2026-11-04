@@ -17,8 +17,9 @@ LLM-authored flavour and content, and the authoritative C#/.NET server stays in 
     ``{player}``. Returns ``{"Lines": []}`` when no LLM is available so the server keeps its
     authored lines.
   * ``POST /mission-text`` — flavour Title/Description for a FIXED board mission (L3); the
-    objective/reward stay server-coined. Returns empty fields when no LLM is available so the
-    server keeps its localized static board text.
+    objective/reward stay server-coined. #3180: tells the game's authored story (``Brief``) in its
+    own words and also writes the hand-in ``Thanks``. Returns empty fields when no LLM is
+    available so the server keeps its localized authored board text.
 
 The mission JSON uses PascalCase keys/enum values to match the C# models exactly.
 
@@ -119,6 +120,9 @@ class MissionTextRequest(BaseModel):
     # "gather" (deliver goods), "bounty_camp" (drive bandits from their camp) or "bounty_ship"
     # (drive off a raider ship) — bounty postings must not read like delivery jobs.
     kind: str = Field(default="gather", alias="Kind")
+    # #3180: the game's authored story behind the job in a few English words (who needs it and
+    # why) — the text tells THAT story in its own words. Empty from older servers / without one.
+    brief: str = Field(default="", alias="Brief")
 
 
 # Keyword -> (objective type, target, required, reward item, reward count) — the deterministic
@@ -207,8 +211,8 @@ def npc_lines(req: NpcLinesRequest) -> dict:
 
 @app.post("/mission-text")
 def mission_text(req: MissionTextRequest) -> dict:
-    """L3: LLM flavour Title/Description for a fixed board mission. Empty fields when no LLM —
-    the server keeps its localized static board text then."""
+    """L3: LLM flavour Title/Description (+ #3180 the hand-in Thanks) for a fixed board mission.
+    Empty fields when no LLM — the server keeps its localized authored board text then."""
     text = generate_mission_text(
         {
             "giver_name": req.giver_name,
@@ -220,9 +224,10 @@ def mission_text(req: MissionTextRequest) -> dict:
             "reward_count": req.reward_count,
             "language": req.language,
             "kind": req.kind,
+            "brief": req.brief,
         }
     )
-    return text or {"Title": "", "Description": ""}
+    return text or {"Title": "", "Description": "", "Thanks": ""}
 
 
 @app.post("/mission-plan")

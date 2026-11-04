@@ -93,7 +93,7 @@ public static class TextureTiles
             || Definitions.TreeFoliage.IsKey(World.FloraLooks.BaseKeyOf(key))           // cutout crowns (and their looks, #2832), the Fifi plant's leaves too (#2085)
             || key is "fire"                                                            // the flame silhouette
             || key is "torch" or "lantern"                                              // billboards (#1957)
-            || key is "energy_fence")                                                   // #3085: the gaps between its beams
+            || key is "energy_fence" or "lift_gate" or "lift_gate_open")                // #3085 / #3174: the gaps between the beams
         {
             return TextureAlphaMode.Cutout;
         }

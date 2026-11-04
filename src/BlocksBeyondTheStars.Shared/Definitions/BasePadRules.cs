@@ -6,10 +6,10 @@ namespace BlocksBeyondTheStars.Shared.Definitions;
 /// <summary>Who may land on a player-built base landing pad (#3069) — the owner sets it at the pad.</summary>
 public enum BasePadAccess
 {
-    /// <summary>Only the pad's owner (admins always may).</summary>
+    /// <summary>Only the pad's owner (admins always may) — no travelling merchant either.</summary>
     Owner = 0,
 
-    /// <summary>The owner and their allies and crew mates.</summary>
+    /// <summary>The owner and their allies and crew mates — and, at a Market base, the travelling merchants (#3175).</summary>
     Allies = 1,
 
     /// <summary>Every player — and, at a Market base, the travelling merchants (#3073).</summary>
@@ -55,6 +55,10 @@ public static class BasePadRules
     /// <summary>Whether <paramref name="access"/> lets a player land who is (or is not) the owner or allied with them.</summary>
     public static bool Admits(BasePadAccess access, bool isOwner, bool isAlly)
         => isOwner || access == BasePadAccess.Everyone || (access == BasePadAccess.Allies && isAlly);
+
+    /// <summary>Whether a Market base's pad with <paramref name="access"/> takes the travelling merchants (#3175): on "Me + allies"
+    /// and "Everyone" — a player who sets a base to Market wants traders — never on "Only me".</summary>
+    public static bool AdmitsTraders(BasePadAccess access) => access != BasePadAccess.Owner;
 
     /// <summary>Clamps a wire value to a known access (an unknown one reads as the safe default).</summary>
     public static BasePadAccess AccessOf(int value)

@@ -656,9 +656,9 @@ public sealed partial class GameServer
 
     /// <summary>The trader reached the inner system: try to land on its chosen body — but ONLY if a dry landing pad
     /// is free there (player- or NPC-occupied pads don't count). It takes the same pad a planet-side arrival takes
-    /// (<see cref="NearestFreeDryPad"/>, K12) — the one nearest a base owner's core — so the hail's "parked near your
-    /// base" holds. On success it reserves the pad and registers a landed trader (its parked ship + pilot materialize on
-    /// that surface); on failure the caller departs.</summary>
+    /// (<see cref="PickTraderPad"/>, K12/#3175) — a Market base pad, else the communal pad nearest a base owner's core within
+    /// the reach — and the hail names the distance when that is not near the owner's base. On success it reserves the pad and
+    /// registers a landed trader (its parked ship + pilot materialize on that surface); on failure the caller departs.</summary>
     private bool TryLandTraderOnBody(SpaceInstance instance, NpcTrader t)
     {
         var body = _galaxy.FindBody(t.DestBodyId);
@@ -673,11 +673,10 @@ public sealed partial class GameServer
             return false;
         }
 
-        var marketPad = MarketBasePadFor(t.DestBodyId, PlayersOnBodySurface(t.DestBodyId), hailedOwnersFirst: true); // #3073
-        int pad = marketPad is null ? NearestFreeDryPad(t.DestBodyId, PlayersOnBodySurface(t.DestBodyId), hailedOwnersFirst: true) : -1; // respects player + NPC pad use
-        if (pad < 0 && marketPad is null)
+        var (marketPad, pad) = PickTraderPad(t.DestBodyId, PlayersOnBodySurface(t.DestBodyId), hailedOwnersFirst: true, out bool found);
+        if (!found)
         {
-            return false; // no dry pad is free — the trader can't set down
+            return false; // no dry pad is free (or none in reach) — the trader can't set down
         }
 
         var lt = RegisterLandedTrader(t, t.DestBodyId, pad, _uptime, _traderRng, marketPad);
@@ -685,7 +684,7 @@ public sealed partial class GameServer
 
         BroadcastWarpFx(instance, t.Pos, arriving: false); // it drops out of the flight scene to descend
         _log.Info($"NPC trader '{t.Name}' ({t.ShipType}) is setting down on {t.DestBodyId} (pad {pad}).");
-        NpcRadioOnTraderLanded(t.DestBodyId, t.Name); // #1120: base owners on that world get a hail
+        NpcRadioOnTraderLanded(t.DestBodyId, t.Name, owner => FarTraderHail(owner, lt, body.Name)); // #1120: the base owners' hail
         return true;
     }
 
@@ -1237,12 +1236,12 @@ public sealed partial class GameServer
     private System.Random PlanetTraderRng(string bodyId, int count)
         => new(StableHashing.Seed32("ptrader:" + bodyId + ":" + count.ToString(System.Globalization.CultureInfo.InvariantCulture), _meta.Seed));
 
-    /// <summary>Decides an arrival: the pad, the trader, the reservation and the "look up!" toast. False when no dry pad is free.</summary>
+    /// <summary>Decides an arrival: the pad (<see cref="PickTraderPad"/>, #3175), the trader, the reservation and the toast —
+    /// "look up!" for a player right by the pad, how far and which way for the others. False when no pad qualifies.</summary>
     private bool BringPlanetTraderIn(string bodyId, List<PlayerSession> present, System.Random rng)
     {
-        var marketPad = MarketBasePadFor(bodyId, present); // #3073: a Market base's public pad first
-        int pad = marketPad is null ? NearestFreeDryPad(bodyId, present) : -1;
-        if ((pad < 0 && marketPad is null) || CoinTrader(rng) is not { } t)
+        var (marketPad, pad) = PickTraderPad(bodyId, present, hailedOwnersFirst: false, out bool found);
+        if (!found || CoinTrader(rng) is not { } t)
         {
             return false;
         }
@@ -1251,97 +1250,20 @@ public sealed partial class GameServer
         var lt = RegisterLandedTrader(t, bodyId, pad, _uptime + PlanetTraderApproachSeconds, rng, marketPad);
         lt.ArrivalFxPending = true; // the descent plays at touchdown — the players are right here
         lt.AnnounceOnTouchdown = true;
+        var at = TraderPadCentre(lt);
         foreach (var s in present)
         {
-            Send(s, new ServerMessage { Text = "@srv.trader.approaching" });
+            Send(s, TraderApproachMessage(s, bodyId, at));
+        }
+
+        if (at is { } pos)
+        {
+            BroadcastTraderApproach(bodyId, lt, pos); // #3177: a contrail to look up at
         }
 
         PrefetchTraderHail(bodyId, lt);
         _log.Info($"NPC trader '{t.Name}' ({t.ShipType}) is coming in to land on {bodyId} (pad {pad}, {PlanetTraderApproachSeconds:0} s).");
         return true;
-    }
-
-    /// <summary>The free pad (#2603, K12) an arriving trader takes — planet-side and from the flight scene alike: not held
-    /// by a player or another trader, not under water, not in lava — the one nearest a present player's base core on this
-    /// body, else nearest a player here, so "we're parked near your base" is true. With nobody to be near, the lowest free
-    /// dry pad. -1 when none is free.</summary>
-    /// <param name="hailedOwnersFirst">The flight scene's landing: nobody here watched it come in, its only "near" claim is
-    /// the base owners' hail — so, without a present owner, the base of any joined owner (the hail reaches them wherever
-    /// they are, up in space too) anchors the pad before the players standing here.</param>
-    private int NearestFreeDryPad(string bodyId, List<PlayerSession> present, bool hailedOwnersFirst = false)
-    {
-        var anchors = new List<Vector3f>();
-        AddBaseAnchors(anchors, bodyId, ownerId => present.Any(s => s.State.PlayerId == ownerId));
-        if (anchors.Count == 0 && hailedOwnersFirst)
-        {
-            AddBaseAnchors(anchors, bodyId, ownerId => FindSessionByPlayerId(ownerId) is { Spectating: false });
-        }
-
-        if (anchors.Count == 0)
-        {
-            anchors.AddRange(present.Select(s => s.State.Position));
-        }
-
-        int circumference = BodyCircumference(bodyId);
-        int best = -1;
-        double bestSq = double.MaxValue;
-        foreach (var pad in PadsForBody(bodyId))
-        {
-            // #3146: nor a pad somebody built over — the hull would be stamped into the building.
-            if (pad.Wet || pad.Molten || PadOccupiedByOther(bodyId, pad.Index, string.Empty) || PadBuiltOver(bodyId, pad))
-            {
-                continue;
-            }
-
-            if (anchors.Count == 0)
-            {
-                best = best < 0 ? pad.Index : System.Math.Min(best, pad.Index);
-                continue;
-            }
-
-            var centre = new Vector3f(pad.CenterX + 0.5f, pad.CenterY, pad.CenterZ + 0.5f);
-            foreach (var a in anchors)
-            {
-                double d = WorldConstants.WrapDistanceSquared(a, centre, circumference);
-                if (d < bestSq)
-                {
-                    bestSq = d;
-                    best = pad.Index;
-                }
-            }
-        }
-
-        return best;
-    }
-
-    /// <summary>#3073: a free public (Everyone) pad of a Market base on the body, for an arriving trader — the bases of owners
-    /// standing there first, as for the communal pick; with <paramref name="hailedOwnersFirst"/> and nobody present, any joined
-    /// owner's. A fixed order by cell. Null when no Market base offers one: the trader takes a communal pad as before.</summary>
-    private Vector3i? MarketBasePadFor(string bodyId, List<PlayerSession> present, bool hailedOwnersFirst = false)
-    {
-        bool Present(string ownerId) => present.Any(s => s.State.PlayerId == ownerId);
-        bool Joined(string ownerId) => FindSessionByPlayerId(ownerId) is { Spectating: false };
-        var free = _basePads
-            .Where(p => p.Planet == bodyId && p.Access == BasePadAccess.Everyone && BasePadHolderName(bodyId, p.Cell, string.Empty) is null
-                        && BaseOfPad(p) is { } home && IsMarketBase(home))
-            .OrderBy(p => p.Cell.X).ThenBy(p => p.Cell.Y).ThenBy(p => p.Cell.Z)
-            .ToList();
-        // #3146: an admin owner may have built in a pad's square — the first candidate that is still clear.
-        var pick = free.FirstOrDefault(p => Present(p.OwnerId) && !BasePadBuiltOver(p))
-                   ?? (hailedOwnersFirst ? free.FirstOrDefault(p => Joined(p.OwnerId) && !BasePadBuiltOver(p)) : null);
-        return pick?.Cell;
-    }
-
-    /// <summary>Adds the core cell of every base on <paramref name="bodyId"/> whose owner passes <paramref name="ownerMatches"/>.</summary>
-    private void AddBaseAnchors(List<Vector3f> anchors, string bodyId, System.Func<string, bool> ownerMatches)
-    {
-        foreach (var b in _bases)
-        {
-            if (b.Planet == bodyId && IsMarketBase(b) && ownerMatches(b.OwnerId)) // #3036: traders park by a Market base
-            {
-                anchors.Add(new Vector3f(b.Cell.X + 0.5f, b.Cell.Y, b.Cell.Z + 0.5f));
-            }
-        }
     }
 
     /// <summary>A body's circumference: the active world's own, or the one its world would be generated with.</summary>
@@ -1357,17 +1279,19 @@ public sealed partial class GameServer
             : 0;
     }
 
-    /// <summary>The touchdown of a planet-side arrival (#2603): a toast for everyone on the body, and the base owners'
-    /// hail — the radio call (a cached AI re-wording on hosted worlds) or, without a radio, VEGA's relay.</summary>
+    /// <summary>The touchdown of a planet-side arrival (#2603): a toast for everyone on the body ("nearby", or how far and which
+    /// way, #3175), and the base owners' hail — the radio call (a cached AI re-wording on hosted worlds; the far-pad line when the
+    /// pad lies away from their base) or, without a radio, VEGA's relay.</summary>
     private void AnnouncePlanetTraderLanded(NpcLandedTrader lt)
     {
+        var at = TraderPadCentre(lt);
         foreach (var s in PlayersOnBodySurface())
         {
-            Send(s, new ServerMessage { Text = "@srv.trader.landed:" + lt.Name });
+            Send(s, TraderLandedMessage(s, lt, at));
         }
 
         string bodyName = _galaxy?.FindBody(lt.BodyId)?.Name ?? lt.BodyId;
-        NpcRadioOnTraderLanded(lt.BodyId, lt.Name, owner => TraderHailText(owner, lt, bodyName));
+        NpcRadioOnTraderLanded(lt.BodyId, lt.Name, owner => FarTraderHail(owner, lt, bodyName) ?? TraderHailText(owner, lt, bodyName));
     }
 
     /// <summary>The cache key of a trader's hail: by persona, language — never the player.</summary>

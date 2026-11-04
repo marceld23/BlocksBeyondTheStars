@@ -104,7 +104,7 @@ namespace BlocksBeyondTheStars.Client
                 y += 56f;
             }
 
-            return y;
+            return CrossTabSection(y); // #3182: what the search finds in the Crafting and Ship tabs
         }
 
         /// <summary>The "Researchable now" filter (#2563; "Enough knowledge" before, #1191, which left prerequisites and

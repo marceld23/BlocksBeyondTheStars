@@ -28,6 +28,7 @@ namespace BlocksBeyondTheStars.Client
         private int _mode;
         private string _config = string.Empty;
         private string _label = string.Empty;
+        private string _sentLabel;   // #3172: the name last sent with the name action (null: none since the menu opened)
 
         // #2214: following the server's record while the menu is open.
         private readonly CrystalMenuEdits _edits = new CrystalMenuEdits(); // the player's changes the server has not answered yet
@@ -60,6 +61,7 @@ namespace BlocksBeyondTheStars.Client
             _mode = dev.Mode;
             _config = dev.Config ?? string.Empty;
             _label = dev.Label ?? string.Empty;
+            _sentLabel = null;
             _edits.Clear();
             _lists.Clear();
             _scroll.Clear(); // another visit starts at the top of every list
@@ -128,8 +130,9 @@ namespace BlocksBeyondTheStars.Client
                 if (now != was && _label == was)
                 {
                     _label = now;
-                    rebuild |= _labelShown;
                 }
+
+                rebuild |= now != was; // #3172: the title is the device's name
 
                 if (latest.Output != _dev.Output && _stateText != null)
                 {
@@ -166,6 +169,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void Close()
         {
+            SaveLabel(); // #3172: closing (Esc, pad B, Close, another device) keeps a typed name
             DestroyOverlay();
             _stateText = null;
             _edits.Clear();
@@ -189,6 +193,26 @@ namespace BlocksBeyondTheStars.Client
 
         private void Send()
             => Game?.SendCrystalDevice(_dev.X, _dev.Y, _dev.Z, 2, _mode, _config, _label);
+
+        /// <summary>#3172: sends the typed name when it differs from the server's — on Enter, on leaving the field, on Save
+        /// and when the menu closes (it used to go out with Save only, and Enter, Esc or Close threw it away). The name goes
+        /// alone (action 7), so an emptied field clears the name; the same text is never sent twice.</summary>
+        private void SaveLabel()
+        {
+            if (_dev == null || !_labelShown)
+            {
+                return;
+            }
+
+            string typed = (_label ?? string.Empty).Trim();
+            if (typed == (_dev.Label ?? string.Empty) || typed == _sentLabel)
+            {
+                return;
+            }
+
+            _sentLabel = typed;
+            Game?.SendCrystalDevice(_dev.X, _dev.Y, _dev.Z, 7, 0, string.Empty, typed);
+        }
 
         /// <summary>The player picks a mode: sent at once, and held against the server's record until that answers.</summary>
         private void ChangeMode(int mode)
@@ -224,8 +248,14 @@ namespace BlocksBeyondTheStars.Client
 
             string blockKey = Game?.Content?.BlockById(standing)?.Key;
             string name = blockKey != null ? L("block." + blockKey + ".name") : _dev.Kind;
-            var head = UiKit.AddText(panel, 32f, 24f, W - 64f, 40f, string.Format(L("ui.crystal.title"), name), 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            string title = string.Format(L("ui.crystal.title"), name);
+            bool named = !string.IsNullOrEmpty(_dev.Label); // #3172: a named device is called by its name, the block beside it
+            var head = UiKit.AddText(panel, 32f, 24f, W - 64f, 40f, named ? _dev.Label : title, 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddOutline(head);
+            if (named)
+            {
+                UiKit.AddText(panel, 32f, 24f, W - 64f, 40f, title, 16, UiKit.CyanDim, TextAnchor.MiddleRight);
+            }
             string state = _dev.Output ? L("ui.crystal.output_on") : L("ui.crystal.output_off");
             _stateText = UiKit.AddText(panel, 32f, 66f, W - 64f, 26f, state, 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
 
@@ -429,10 +459,16 @@ namespace BlocksBeyondTheStars.Client
         {
             UiKit.AddText(panel, 32f, y + 10f, 360f, 36f, label, 18, UiKit.TextCol, TextAnchor.MiddleLeft);
             _labelShown = true;
-            UiKit.AddInput(panel, 400f, y, 520f, 48f, _label, v => { _label = v ?? string.Empty; }, string.Empty, 24);
+            InputField field = null;
+            // #3172: Esc reverts the field's text before the menu closes — the typed name is kept anyway (the close saves it).
+            field = UiKit.AddInput(panel, 400f, y, 520f, 48f, _label, v =>
+            {
+                if (field == null || !field.wasCanceled) _label = v ?? string.Empty;
+            }, string.Empty, 24);
+            field.onEndEdit.AddListener(_ => SaveLabel()); // Enter, or leaving the field, keeps the name
             UiKit.AddButton(panel, 32f, y + 60f, 300f, 48f, L("ui.crystal.save"), () =>
             {
-                Send();
+                SaveLabel();
                 ClientAudio.Instance?.Cue("ui_confirm");
             });
             return y + 120f;

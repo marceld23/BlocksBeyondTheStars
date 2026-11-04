@@ -119,6 +119,12 @@ public sealed class BlockChanged
 
     /// <summary>The world this change belongs to (#1534, v5) — see <see cref="ChunkDataMessage.WorldId"/>.</summary>
     public int WorldId { get; set; }
+
+    /// <summary>#3173 (additive): nobody mined or placed this cell — a machine moved it (a drawbridge deck going out or in,
+    /// a piston's push or pull, a Crystal Net twin or lamp swap) or the weather took it (a snow drift melting or cleared
+    /// from a lift shaft). The client then plays no mining crumble, no place pop and no mining/place sound; the machine
+    /// brings its own. False (the default, and what an older server sends) = a hand edit as before.</summary>
+    public bool Moved { get; set; }
 }
 
 /// <summary>A harvested surface plant has begun regrowing on its (now bare) cell: the server broadcasts this
