@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🔒 Unity editor 6000.6.5f1 → 6000.6.8f1 — Unity's eMudhra CA + Brotli security patch — #3167, branch chore/unity-6000.6.8f1 — ✅ done 2026-11-03 (⚠ ships with the next release so players get the patched runtime)
+### 🔒 Unity editor 6000.6.5f1 → 6000.6.8f1 — Unity's eMudhra CA + Brotli security patch — #3167, branch chore/unity-6000.6.8f1 — ✅ done 2026-11-03 in PR #3168 (`f5a92647`), released in v2026.11.4 (⚠ ships with the next release so players get the patched runtime)
 
 - Unity's notice of 2026-11-03: the eMudhra CA compromise (Unity CVE-2026-114406) and the Brotli decoder RCE
   (CVE-2026-111497). 6000.6.8f1 (`237b6593792b`) rejects TLS to servers using the compromised eMudhra certificates and
@@ -34,7 +34,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 - `ProjectVersion.txt` + the 7 `unityVersion:` pins (release.yml ×4, webgl-only, glitch-only, macos-build); GameCI
   images `ubuntu-6000.6.8f1-*-3`. Verified by a local `build-client.ps1` and a `release.yml` dispatch on the branch.
 
-### 🛗 Player reports 2026-11-03 evening (Lyxette, v2026.11.3) — the lift comes back down, no snow in a lift shaft, the lift says why it does not come, no frost on a roofed floor, the HUD names the snow — #3161 #3162 #3163 #3164 #3165, branch fix/lift-and-indoor-frost — ✅ done 2026-11-03 (⚠ playtest open; no protocol, save-version or terrain-generation change)
+### 🛗 Player reports 2026-11-03 evening (Lyxette, v2026.11.3) — the lift comes back down, no snow in a lift shaft, the lift says why it does not come, no frost on a roofed floor, the HUD names the snow — #3161 #3162 #3163 #3164 #3165, branch fix/lift-and-indoor-frost — ✅ done 2026-11-03 in PR #3166 (`177084a0`), released in v2026.11.4 (⚠ playtest open; no protocol, save-version or terrain-generation change)
 
 - **#3161** A lift stop on the bottom floor belonged to no lift (`StopBelongsTo` wanted the stop's floor ABOVE the bottom
   one), so pressing it did nothing and the platform could not be called back down. The bottom floor counts now; its
@@ -54,7 +54,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 - Tests: `LiftShaftTests` (4), `Reports20261103WiringTests`, the glyph pin covers the new chip states. Local Unity build
   green.
 
-### 🚪 A closed hatch door in flight and in the landing/lift-off scenes + the loading note in its box (Marcel's playtest 2026-11-03) — #3158 #3159, branch fix/hatch-door-2026-11-03 — ✅ done 2026-11-03 (⚠ playtest open; client only)
+### 🚪 A closed hatch door in flight and in the landing/lift-off scenes + the loading note in its box (Marcel's playtest 2026-11-03) — #3158 #3159, branch fix/hatch-door-2026-11-03 — ✅ done 2026-11-03 in PR #3160 (`8fe298ee`), released in v2026.11.4 (⚠ playtest open; client only)
 
 - **#3158** The pad chooser's loading panel (#3151): `UiKit.AddText` never wraps, so the first-visit note ran far past the
   panel's edge — its texts now shrink to one line or wrap inside their box (`UiKit.FitLabelSingleLine` / `FitLabel`), the panel is taller.
@@ -68,7 +68,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   height, no mesh leak in flight, the existing `UiKit.FitLabel*` helpers. Doors the owner built keep decision 5 (a closed energy door shows its field in space).
 - Open: playtest (flight, a landing, a lift-off, a spacewalk to the hatch).
 
-### 🛬 Landing feedback (Marcel's playtest 2026-11-03) — chooser spinner, descent on the pick, no scanner frame or lamp in the cinematics — #3151 #3152 #3153 #3154, branch fix/landing-feedback-2026-11-03 — ✅ done 2026-11-03 (⚠ playtest open; client only, no protocol, save or terrain change)
+### 🛬 Landing feedback (Marcel's playtest 2026-11-03) — chooser spinner, descent on the pick, no scanner frame or lamp in the cinematics — #3151 #3152 #3153 #3154, branch fix/landing-feedback-2026-11-03 — ✅ done 2026-11-03 in PR #3157 (`3fe2cddc`), released in v2026.11.4 (⚠ playtest open; client only, no protocol, save or terrain change)
 
 Follow-ups of the seamless transitions (#3145). How it works: [docs/developer/SEAMLESS_TRANSITIONS.md](docs/developer/SEAMLESS_TRANSITIONS.md).
 - **#3151** E/L opens the chooser at once: a panel with the body's name, a spinner, "Reading landing pads…" and a note that
@@ -83,7 +83,7 @@ Follow-ups of the seamless transitions (#3145). How it works: [docs/developer/SE
   lift-off shot. It is lit again afterwards (not switched off).
 - Open: playtest (first approach to a new world, a refused landing, lamp on at lift-off, scanner selected while landing).
 
-### 📬 Player reports 2026-11-03 (Lyxette, v2026.11.3) — no trader in a built-over pad, the energy fence guards the air above it, ship jets scare the animals off — #3146 #3147 #3148 #3149, branch fix/trader-pads-fence-2026-11-03 — ✅ done 2026-11-03 (⚠ playtest open; protocol: additive `NetLandingPad.BuiltOver`; no save-version or terrain-generation change)
+### 📬 Player reports 2026-11-03 (Lyxette, v2026.11.3) — no trader in a built-over pad, the energy fence guards the air above it, ship jets scare the animals off — #3146 #3147 #3148 #3149, branch fix/trader-pads-fence-2026-11-03 — ✅ done 2026-11-03 in PR #3150 (`d8934fb4`), released in v2026.11.4 (⚠ playtest open; protocol: additive `NetLandingPad.BuiltOver`; no save-version or terrain-generation change)
 
 Six F1 reports from his spaceport: once his ship landed on his four new base pads, the travelling trader kept parking on
 the old communal pad in the middle — which he was turning into a tower foundation — so its hull stood in his concrete
@@ -115,7 +115,7 @@ big fliers off the spaceport. Marcel: A1 + A2, no trader nameplate, C1 + C2.
   base's reach is now a walled yard (wild land animals kept in it are swept like in any yard).
 - Open: playtest in a spaceport with a built-over communal pad, a fence ring with a gate, a landing beside a herd.
 
-### 🎬 Seamless, cinematic landing, lift-off and docking + the hyperjump "old planet" flash — #3139 #3140 #3141 #3142, branch feat/cinematic-transitions — ✅ done 2026-11-03 (⚠ playtest open; no save-version, protocol or terrain-generation change; `TransitLaunchTimeoutSeconds` default 6 → 15 s)
+### 🎬 Seamless, cinematic landing, lift-off and docking + the hyperjump "old planet" flash — #3139 #3140 #3141 #3142, branch feat/cinematic-transitions — ✅ done 2026-11-03 in PR #3145 (`3536c882`), released in v2026.11.4 (⚠ playtest open; no save-version, protocol or terrain-generation change; `TransitLaunchTimeoutSeconds` default 6 → 15 s)
 
 Marcel: the landing is "only a red orb around the ship" — make landing and launch (and stations) "super cinematic and
 seamless in every case"; plus a bug: after a map hyperjump the old planet showed for a moment while the new one loaded.
