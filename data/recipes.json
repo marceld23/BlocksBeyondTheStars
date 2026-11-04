@@ -308,7 +308,7 @@
   { "key": "transport_crate", "station": "workshop", "inputs": [ { "item": "iron_plate", "count": 4 }, { "item": "wood_log", "group": "logs", "count": 2 }, { "item": "plant_fiber", "count": 4 } ], "outputs": [ { "item": "transport_crate", "count": 1 } ] },
   { "key": "storage_bag", "station": "workshop", "inputs": [ { "item": "plant_fiber", "count": 8 }, { "item": "iron_plate", "count": 1 } ], "outputs": [ { "item": "storage_bag", "count": 1 } ] },
   { "key": "door_wood",   "station": "hand",     "inputs": [ { "item": "wood_log", "group": "logs", "count": 4 } ],                                          "outputs": [ { "item": "door_wood", "count": 1 } ] },
-  { "key": "wood_planks",          "station": "hand", "inputs": [ { "item": "wood_log", "count": 1 } ],   "outputs": [ { "item": "wood_planks", "count": 4 } ] },
+  { "key": "wood_planks",          "station": "hand", "inputs": [ { "item": "wood_log", "group": "logs", "count": 1 } ], "outputs": [ { "item": "wood_planks", "count": 4 } ] },
   { "key": "wood_planks_light",    "station": "hand", "inputs": [ { "item": "wood_log_b", "count": 1 } ], "outputs": [ { "item": "wood_planks_light", "count": 4 } ] },
   { "key": "wood_planks_mahogany", "station": "hand", "inputs": [ { "item": "giant_log", "count": 1 } ],  "outputs": [ { "item": "wood_planks_mahogany", "count": 4 } ] },
   { "key": "torch",       "station": "hand",     "inputs": [ { "item": "wood_log", "group": "logs", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "torch", "count": 4 } ] },
