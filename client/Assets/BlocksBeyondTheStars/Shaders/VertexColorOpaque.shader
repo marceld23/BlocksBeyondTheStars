@@ -33,6 +33,7 @@ Shader "BlocksBeyondTheStars/VertexColorOpaque"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             #include "FxCommon.hlsl" // VFX overhaul (#2152): FX lights + scan wave globals
             #include "AtmosphereCommon.hlsl" // atmosphere package (#2408): haze (#2393) + cloud shadows (#2394)
+            #include "Headlamp.hlsl"         // #3229: vertex-coloured models catch the headlamps too
 
             float4 _Sc_Light; // global day/night × sun-colour × weather tint (alpha>0.5 = set)
             TEXTURE2D(_MainTex);
@@ -65,6 +66,7 @@ Shader "BlocksBeyondTheStars/VertexColorOpaque"
                 // A mesh without normals feeds (0,0,0): light it as if facing up instead of normalising a zero vector.
                 float3 N = dot(i.wn, i.wn) > 1e-6 ? normalize(i.wn) : float3(0, 1, 0);
                 col += BbtsFxLights(i.wp, N, i.color.rgb * tex);
+                col += BbtsHeadlamps(i.wp, N, normalize(_WorldSpaceCameraPos - i.wp), i.color.rgb * tex, float3(0.04, 0.04, 0.04), 0.75);
                 col = BbtsApplyHaze(col, i.wp, 1.0); // #2393: creatures and ships haze like the terrain
                 col += BbtsScanWave(i.wp);
                 col = lerp(col, float3(1.6, 1.6, 1.7), saturate(_HitFlash));

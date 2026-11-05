@@ -24,6 +24,24 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🔦 Suit headlamp as real light — LED beam, glints, beam in the air, voxel shadows, other players' lamps — #3229–#3234, branch feat/headlamp-realism — ✅ done 2026-11-05 (⚠ playtest open: brightness balance in caves, third person, two players)
+
+- **#3229** One shared `Headlamp.hlsl` replaces five copies: an LED beam (12° hotspot, reflector ring, 34° spill at
+  20 %) instead of a linear ramp across the whole screen, windowed inverse-square falloff (10 m is now ~10× darker than
+  1 m, was 2.2×), a calm cool-white LED instead of halogen yellow, the block shader's GGX glint with each face's gloss,
+  and the light leaves from the helmet (right of and above the eye), published after the camera moved. Water and glass
+  get the lamp too, and the water's reflection mirrors it.
+- **#3230** The flat 6 % cone mesh is gone; the eye adaptation counts a lit lamp as light (the dark around the beam
+  reads darker, the ambient floor stays); a `Beam` mote mode puts near-black dust around the visor in caves that only
+  the beam lights (the `Particle` shader's new `_LampLit`).
+- **#3231** Third person: the beam leaves from the avatar's helmet lamp and aims past it; the helmet lamp glows while on.
+- **#3232** High: the headlamp beams ride the volumetric march (`_Sc_VolLamp`, `VolumetricLightPolicy.LampTargetFor`) —
+  at any hour, faint in clear air, strong in fog and dusty caves, ending at the wall.
+- **#3233** High: headlamp shadows from a 64³ occupancy volume (`LampOccupancy` + `LampVolume`, opacity from the
+  mesher's traits) — no shadow map; own switch "Suit lamp shadows" (14 languages).
+- **#3234** Multiplayer: a `GearLook.LampLit` bit in the presence's gear mask (no new field — the presence must stay under
+  the 256-byte compression threshold, `ProtocolV4Tests`); the nearest four lit lamps within 48 m light every client's world.
+
 ### 🌦️ Calm clouds, real gale grit, a 256-block space elevator and wider ranges (Marcel's analysis 2026-11-05) — #3202–#3215, branch feat/weather-lift-ranges-2026-11 — ✅ done 2026-11-05 (⚠ playtest open; no save-version or terrain-generation change; protocol unchanged — server `srv.*` texts now carry the range as an argument, so a NEW client on an OLD server shows a literal `{name}` in four messages)
 
 - **#3202** Clouds no longer jump or whirl: each cloud's angle is accumulated per world step (`CloudDeck` in Client.Core)

@@ -472,6 +472,7 @@ namespace BlocksBeyondTheStars.Client
                 EndClimb();
                 _vehicles.DriveSpeeder();
                 SendMovement();
+                UpdateLamp(); // #3229: a cinematic or a dropped lamp still darkens it while driving
                 Game.PlayerPosition = transform.position;
                 Game.PlayerYaw = transform.eulerAngles.y;
                 Game.PlayerVerticalVelocity = 0f;
@@ -743,6 +744,8 @@ namespace BlocksBeyondTheStars.Client
 
         private void LateUpdate()
         {
+            PublishLamp(); // #3229: the headlamp follows the camera as it was finally placed this frame
+
             // The on-foot update never ran this frame (menu, space view, speeder, seat, veil, …): whatever
             // the ghost was showing is stale — hide it and drop the HUD rotate hint with it.
             if (_ghostFrame != Time.frameCount)

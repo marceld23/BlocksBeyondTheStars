@@ -14,8 +14,9 @@ namespace BlocksBeyondTheStars.Client
     /// <see cref="VolumetricLightPass"/>; each frame it asks <see cref="VolumetricLightPolicy"/> whether the beams run (sun
     /// up, air or indoors, no flight view, no screen menu, not under water), eases them in and out, and enqueues the pass
     /// on the gameplay camera and the capture clones (<see cref="Sky.WorldCameras"/>) — never on the HUD, preview or probe
-    /// cameras. Only the sun: torches, lanterns, lava and the headlamp are the baked flood-fill light (ADR 0003), so they
-    /// get no beams. While the switch is on, the light-shaft cards stand down (<see cref="WorldRig.ShaftCardsFor"/>); the
+    /// cameras. #3232: the suit headlamps' beams ride the same pass, with their own target
+    /// (<see cref="VolumetricLightPolicy.LampTargetFor"/>: at any hour, while a lamp is lit) and fade. Torches, lanterns and
+    /// lava are the baked flood-fill light (ADR 0003) and get no beams. While the switch is on, the light-shaft cards stand down (<see cref="WorldRig.ShaftCardsFor"/>); the
     /// SunRays sky billboard stays.
     /// </summary>
     public sealed class VolumetricSunLight : MonoBehaviour
@@ -68,6 +69,12 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Below this strength the pass is not drawn at all.</summary>
         private const float MinStrength = 0.002f;
 
+        /// <summary>#3232: gain of the headlamp beams (× the LED colour × the lamps' own falloff — Headlamp.hlsl).</summary>
+        private const float LampIntensity = 1.2f;
+
+        /// <summary>#3232: the lamp phase's Henyey-Greenstein g (half of the phase scatters evenly in the shader).</summary>
+        private const float LampPhaseG = 0.45f;
+
         private static readonly int SunDirId = Shader.PropertyToID("_Sc_FogSunDir");
 
         public GameBootstrap Game;
@@ -77,6 +84,7 @@ namespace BlocksBeyondTheStars.Client
         private Material _mat;
         private VolumetricLightPass _pass;
         private float _strength;       // eased 0..1
+        private float _lampStrength;   // #3232: the headlamp beams, eased 0..1
         private float _dust;           // eased density per metre
         private float _dustReach = IndoorDustReach;
 
@@ -140,34 +148,41 @@ namespace BlocksBeyondTheStars.Client
             if (_pass == null || Game == null || Camera == null || !HighDetails.VolumetricLight)
             {
                 _strength = 0f; // switched off (or a lower preset): gone at once, Medium and below stay untouched
+                _lampStrength = 0f;
                 _dust = 0f;
                 return;
             }
 
+            bool indoors = (Game.Aboard && !Game.InEva) || Game.AtHome;
+            bool hazeOn = Sky == null || Sky.FogEnabled;
             var target = VolumetricLightPolicy.TargetFor(
                 enabled: true,
                 spaceView: Game.SpaceViewActive,
                 menuOpen: Game.ScreenMenuOpen,
                 air: Game.FogActive,
-                hazeOn: Sky == null || Sky.FogEnabled,
-                indoors: (Game.Aboard && !Game.InEva) || Game.AtHome,
+                hazeOn: hazeOn,
+                indoors: indoors,
                 sheltered: !Game.ExposedToSky,
                 sunUp: Shader.GetGlobalVector(SunDirId).y,
                 underwater: Sky.UnderwaterFog,
                 weather: Game.Environment != null ? Game.Environment.Intensity : 0f);
+            var lampTarget = VolumetricLightPolicy.LampTargetFor(true, Headlamp.AnyLit, Game.SpaceViewActive, Game.ScreenMenuOpen,
+                Game.FogActive, hazeOn, indoors, !Game.ExposedToSky, Sky.UnderwaterFog); // #3232: the headlamp beams, at any hour
 
             // Unscaled time: the fades must finish while a menu has paused the world.
             float dt = Time.unscaledDeltaTime;
             _strength = Mathf.MoveTowards(_strength, target.Strength, dt / FadeSeconds);
-            float dustTarget = target.Dust switch
+            _lampStrength = Mathf.MoveTowards(_lampStrength, lampTarget.Strength, dt / FadeSeconds);
+            var dust = target.Strength > 0f ? target.Dust : lampTarget.Dust; // the same rules; at night only the lamps ask
+            float dustTarget = dust switch
             {
                 VolumetricDust.Indoor => IndoorDust,
                 VolumetricDust.Shelter => ShelterDust,
                 _ => 0f,
             };
-            if (target.Dust != VolumetricDust.None)
+            if (dust != VolumetricDust.None)
             {
-                _dustReach = target.Dust == VolumetricDust.Indoor ? IndoorDustReach : ShelterDustReach;
+                _dustReach = dust == VolumetricDust.Indoor ? IndoorDustReach : ShelterDustReach;
             }
 
             _dust = Mathf.MoveTowards(_dust, dustTarget, IndoorDust * dt / DustFadeSeconds);
@@ -176,6 +191,7 @@ namespace BlocksBeyondTheStars.Client
             _pass.March = new Vector4(0f, HazeDensity, MistShare, Extinction); // x: the pass puts the camera's shadow distance
             _pass.Dust = new Vector4(_dust, _dustReach, PhaseG, PhaseShare);
             _pass.Light = new Vector4(Intensity * _strength, HazeTint, MaxAdd, 0f);
+            _pass.Lamp = new Vector4(LampIntensity * _lampStrength, LampPhaseG, Headlamp.Range, 0f);
         }
 
         private string _logged;
@@ -196,7 +212,7 @@ namespace BlocksBeyondTheStars.Client
         /// composite — no renderer-asset feature, so the build script's renderer clean-up never touches it).</summary>
         private void OnBeginCamera(ScriptableRenderContext ctx, Camera cam)
         {
-            if (_pass == null || _strength < MinStrength || cam == null || (cam != Camera && !Sky.WorldCameras.Contains(cam)))
+            if (_pass == null || (_strength < MinStrength && _lampStrength < MinStrength) || cam == null || (cam != Camera && !Sky.WorldCameras.Contains(cam)))
             {
                 return;
             }

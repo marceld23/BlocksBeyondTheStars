@@ -39,7 +39,6 @@ namespace BlocksBeyondTheStars.Client
         private static readonly int FloraTintId = Shader.PropertyToID("_Sc_FloraTint");
         private static readonly int WaterTintId = Shader.PropertyToID("_Sc_WaterTint"); // #1758: per-world water colour
         private static readonly int WaterModeId = Shader.PropertyToID("_Sc_WaterMode"); // #1758: 0 classic, 1 tint, 2 rainbow
-        private static readonly int LampColorId = Shader.PropertyToID("_Sc_LampColor");
         // Explicit distance haze for the block shaders (Unity's MixFog doesn't engage on the unlit voxels):
         // x=start, y=end, z=max strength (already faded out indoors), w=on.
         private static readonly int FogId = Shader.PropertyToID("_Sc_Fog");
@@ -315,7 +314,7 @@ namespace BlocksBeyondTheStars.Client
                 UrpScenePost.Instance?.SetCozyContext(0.4f, 0f, 0f);
                 UrpScenePost.Instance?.ApplyGrade(Color.white, 1f, 1f);        // colour grade off on the URP volume
                 UrpScenePost.Instance?.SetMoodLut(null);                       // …and drop the biome mood LUT in space
-                Shader.SetGlobalColor(LampColorId, new Color(0f, 0f, 0f, 0f));
+                Headlamp.AllOff(); // #3229: no suit lamp (own or another player's) in the flight view
                 Shader.SetGlobalFloat(IndoorId, 0f);
                 Shader.SetGlobalColor(IndoorColorId, Color.white);
                 Shader.SetGlobalColor(FloraTintId, new Color(0f, 0f, 0f, 0f)); // no planet flora tint in space
@@ -1033,7 +1032,7 @@ namespace BlocksBeyondTheStars.Client
             UnityEngine.Rendering.RenderPipelineManager.beginCameraRendering -= OnBeginCamera;
             // Clear the tint so other scenes (menu) aren't affected.
             Shader.SetGlobalColor(LightId, new Color(1f, 1f, 1f, 0f));
-            Shader.SetGlobalColor(LampColorId, new Color(0f, 0f, 0f, 0f)); // headlamp off
+            Headlamp.AllOff(); // every headlamp off (#3229: the other players' too)
             UrpScenePost.Instance?.SetMoodLut(null); // drop the biome mood LUT (menu/space)
             Shader.SetGlobalFloat(IndoorId, 0f); // interior fill off (menu/space)
             Shader.SetGlobalColor(FloraTintId, new Color(0f, 0f, 0f, 0f)); // flora tint off (menu/space)

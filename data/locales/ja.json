@@ -3113,6 +3113,7 @@
   "ui.settings.high.room_reflections": "部屋の反射",
   "ui.settings.high.decals": "焼け跡とクレーター",
   "ui.settings.high.volumetric_light": "ボリュメトリックライト",
+  "ui.settings.high.lamp_shadows": "スーツランプの影",
   "ui.settings.master_volume": "マスター音量",
   "ui.settings.music_volume": "音楽音量",
   "ui.settings.sfx_volume": "効果音音量",

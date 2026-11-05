@@ -448,7 +448,7 @@ public sealed partial class GameServer
             Climbing = p.Climbing && p.InTrain.Length == 0,
             Crouching = p.Crouching && !p.Seated && !p.Climbing, // #2435: a seat or a wall wins over the squat
             Pitch = p.Pitch,                                     // #2434: where the player looks
-            Gear = GearMask(p),
+            Gear = GearMask(p) | (s.LampOn && Wears(p, "suit_lamp") ? GearLook.LampLit : 0), // #3234: switched on AND worn
             Held = HeldItemKey(p),
             FrameId = p.InTrain, // #2113: aboard a train — the wagon frame and the rider's offset in it
             LocalX = p.TrainLocalX,

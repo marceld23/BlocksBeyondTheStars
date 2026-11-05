@@ -65,9 +65,7 @@ Shader "BlocksBeyondTheStars/LitColor"
                 float _Glow;
             CBUFFER_END
 
-            float4 _Sc_LampPos;
-            float4 _Sc_LampDir;
-            float4 _Sc_LampColor;
+            #include "Headlamp.hlsl" // #3229: the suit headlamps (own + other players'), with the High occupancy shadows
 
             struct Attributes { float4 positionOS : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; };
             struct Varyings { float4 positionCS : SV_POSITION; float3 wn : TEXCOORD0; float2 uv : TEXCOORD1; float3 wp : TEXCOORD2; };
@@ -94,15 +92,8 @@ Shader "BlocksBeyondTheStars/LitColor"
                 float3 tex = texel.rgb;
                 float3 col = _Color.rgb * tex * (_Floor + (1.1 - _Floor) * ndl * shadow + fill); // peak stays 1.1 at _Floor==0.35, _Fill==0
 
-                if (_Sc_LampColor.a > 0.5)
-                {
-                    float3 toFrag = i.wp - _Sc_LampPos.xyz;
-                    float ld = length(toFrag);
-                    float3 dir = toFrag / max(ld, 1e-4);
-                    float cone = saturate((dot(dir, normalize(_Sc_LampDir.xyz)) - _Sc_LampDir.w) / max(1e-3, 1.0 - _Sc_LampDir.w));
-                    float atten = saturate(1.0 - ld / _Sc_LampPos.w);
-                    col += _Color.rgb * tex * _Sc_LampColor.rgb * cone * atten * atten * saturate(dot(N, -dir));
-                }
+                // #3229: the headlamps; models carry no gloss channel — a soft dielectric sheen (F0 0.04).
+                col += BbtsHeadlamps(i.wp, N, normalize(_WorldSpaceCameraPos - i.wp), _Color.rgb * tex, float3(0.04, 0.04, 0.04), 0.7);
 
                 col += BbtsFxLights(i.wp, N, _Color.rgb * tex);
                 col += _Color.rgb * tex * (_Glow * (1.0 - texel.a)); // #2862: a creature's glow pattern, unlit
@@ -218,9 +209,7 @@ Shader "BlocksBeyondTheStars/LitColor"
             float _Glow;
             sampler2D _MainTex;
             float4 _MainTex_ST;
-            float4 _Sc_LampPos;   // headlamp: xyz world pos, w range
-            float4 _Sc_LampDir;   // headlamp: xyz forward dir, w cone cos
-            fixed4 _Sc_LampColor; // headlamp: rgb colour*intensity, a = enabled
+            #include "Headlamp.hlsl" // #3229: the suit headlamps (unshadowed here — no SRP texture macros)
 
             struct appdata
             {
@@ -259,16 +248,8 @@ Shader "BlocksBeyondTheStars/LitColor"
                 fixed3 col = _Color.rgb * tex * (_Floor + (1.1 - _Floor) * ndl + fill); // peak stays 1.1 at _Floor==0.35, _Fill==0
                 col += _Color.rgb * tex * (_Glow * (1.0 - texel.a)); // #2862: a creature's glow pattern, unlit
 
-                // Headlamp / flashlight (shared global with the block shader).
-                if (_Sc_LampColor.a > 0.5)
-                {
-                    float3 toFrag = i.wp - _Sc_LampPos.xyz;
-                    float ld = length(toFrag);
-                    float3 dir = toFrag / max(ld, 1e-4);
-                    float cone = saturate((dot(dir, normalize(_Sc_LampDir.xyz)) - _Sc_LampDir.w) / max(1e-3, 1.0 - _Sc_LampDir.w));
-                    float atten = saturate(1.0 - ld / _Sc_LampPos.w);
-                    col += _Color.rgb * tex * _Sc_LampColor.rgb * cone * atten * atten * saturate(dot(N, -dir));
-                }
+                // Headlamps (shared globals with the block shader, Headlamp.hlsl).
+                col += BbtsHeadlamps(i.wp, N, normalize(_WorldSpaceCameraPos - i.wp), _Color.rgb * tex, float3(0.04, 0.04, 0.04), 0.7);
 
                 return fixed4(col, 1);
             }

@@ -536,6 +536,11 @@ namespace BlocksBeyondTheStars.Client
             volumetric.Camera = cam;
             volumetric.Sky = sky;
 
+            // Headlamp shadows (#3233): the occupancy volume around the camera on High (desktop), only while a lamp is lit.
+            var lampVolume = root.AddComponent<LampVolume>();
+            lampVolume.Game = boot;
+            lampVolume.Camera = cam;
+
             // Far terrain (#1820): the low-resolution horizon beyond the streamed chunks, and the haze that reaches it (#1822).
             var farView = root.AddComponent<FarTerrainView>();
             farView.Game = boot;

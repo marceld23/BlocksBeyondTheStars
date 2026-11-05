@@ -3113,6 +3113,7 @@
   "ui.settings.high.room_reflections": "Reflections in rooms",
   "ui.settings.high.decals": "Scorch marks and craters",
   "ui.settings.high.volumetric_light": "Volumetric light",
+  "ui.settings.high.lamp_shadows": "Suit lamp shadows",
   "ui.settings.master_volume": "Master volume",
   "ui.settings.music_volume": "Music volume",
   "ui.settings.sfx_volume": "Effects volume",

@@ -3113,6 +3113,7 @@
   "ui.settings.high.room_reflections": "Odbicia w pomieszczeniach",
   "ui.settings.high.decals": "Ślady spalenizny i kratery",
   "ui.settings.high.volumetric_light": "Światło wolumetryczne",
+  "ui.settings.high.lamp_shadows": "Cienie lampy skafandra",
   "ui.settings.master_volume": "Głośność główna",
   "ui.settings.music_volume": "Głośność muzyki",
   "ui.settings.sfx_volume": "Głośność efektów",

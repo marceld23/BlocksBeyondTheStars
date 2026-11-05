@@ -9,6 +9,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
@@ -209,6 +210,50 @@ public sealed class PilotVisibilityTests : IDisposable
         presence = To<PlayerPresence>(t, bob).Last(p => p.PlayerId == alice.State.PlayerId);
         Assert.False(presence.Crouching);
         Assert.Equal(20f, presence.Pitch, 2);
+    }
+
+    [Fact]
+    public void TheSuitLamp_ReachesTheOtherPlayersPresence_OnlyWhileWorn()
+    {
+        var t = new RecordingTransport();
+        var server = NewServer("lamp", t);
+        var alice = server.AddLocalPlayer("Alice");
+        var bob = server.AddLocalPlayer("Bob");
+        var eq = alice.State.Equipment;
+        int lampSlot = SlotHolding(eq.Slots, "suit_lamp");
+        if (lampSlot < 0)
+        {
+            alice.State.Inventory.Add("suit_lamp", 1, 1);
+            server.EquipItemForTest(alice.State.PlayerId, SlotHolding(alice.State.Inventory.Slots, "suit_lamp"));
+            lampSlot = SlotHolding(eq.Slots, "suit_lamp");
+        }
+
+        Assert.True(lampSlot >= 0, "the lamp is worn");
+        t.Sent.Clear();
+
+        // #3234: switching it on changes the presence, so the others learn it at once (no move needed).
+        server.HandlePayloadForTest(alice.ConnectionId, NetCodec.Encode(new SetLampIntent { On = true }));
+        server.Tick(0.3);
+        Assert.True(GearLook.Has(To<PlayerPresence>(t, bob).Last(p => p.PlayerId == alice.State.PlayerId).Gear, GearLook.LampLit));
+
+        // Taken off, the switch stays on but no beam shines.
+        t.Sent.Clear();
+        server.UnequipItemForTest(alice.State.PlayerId, lampSlot);
+        server.Tick(0.3);
+        Assert.False(GearLook.Has(To<PlayerPresence>(t, bob).Last(p => p.PlayerId == alice.State.PlayerId).Gear, GearLook.LampLit));
+    }
+
+    private static int SlotHolding(IReadOnlyList<ItemStack?> slots, string item)
+    {
+        for (int i = 0; i < slots.Count; i++)
+        {
+            if (slots[i]?.Item == item)
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     /// <summary>#2737: puts the player on <paramref name="body"/> by a real (quick) travel — with a jump generator fitted,

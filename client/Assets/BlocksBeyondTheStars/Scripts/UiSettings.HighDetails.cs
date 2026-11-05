@@ -32,6 +32,7 @@ namespace BlocksBeyondTheStars.Client
             HighToggle(ref y, "room_reflections", S.HighRoomReflections, v => S.HighRoomReflections = v);
             HighToggle(ref y, "decals", S.HighDecals, v => S.HighDecals = v);
             HighToggle(ref y, "volumetric_light", S.HighVolumetricLight, v => S.HighVolumetricLight = v);
+            HighToggle(ref y, "lamp_shadows", S.HighLampShadows, v => S.HighLampShadows = v); // #3233
         }
 
         private void HighToggle(ref float y, string key, bool on, System.Action<bool> set)
