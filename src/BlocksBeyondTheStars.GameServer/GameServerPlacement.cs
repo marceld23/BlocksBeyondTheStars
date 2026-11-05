@@ -499,16 +499,18 @@ public sealed partial class GameServer
     }
 
     /// <summary>The placement checks in the order they run; the first refusal wins. The world is first touched
-    /// after the height band (spoofed-Y DoS guard), and every rule runs before anything is consumed.</summary>
+    /// after the height band (spoofed-Y DoS guard) and the reach (#3199: X and Z are free, so a far target would load or
+    /// generate its chunk on the tick thread just to be refused — reach is pure arithmetic), and every rule runs before
+    /// anything is consumed.</summary>
     private static readonly PlacementRule[] PlacementRules =
     {
         new("height_limit", static (g, _, r) => g.HeightBandRule(r)),
+        new("reach", static (g, s, r) => g.WithinReachRule(s, r)),
         new("torch_air", static (g, _, r) => g.TorchNeedsAirRule(r)),
         new("cell_free", static (g, _, r) => g.CellFreeRule(r)),
         new("door_here", static (g, _, r) => g.NoDoorInCellRule(r)),
         new("fluid_cell", static (g, _, r) => g.FluidCellRule(r)),
         new("above_head", static (g, s, r) => g.NotAboveOwnHeadRule(s, r)),
-        new("reach", static (g, s, r) => g.WithinReachRule(s, r)),
         new("landing_pad", static (g, s, r) => g.LandingPadRule(s, r)),
         new("station", static (g, _, r) => g.StationProtectionRule(r)),
         new("factory", static (g, s, r) => g.FactoryProtectionRule(s, r)),

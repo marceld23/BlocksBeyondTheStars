@@ -71,6 +71,8 @@ public sealed partial class GameServer
         return new TickStep[]
         {
             TickStep.Dt("Moderation", TickModeration),
+            TickStep.Dt("ConnectionGate", TickConnectionGate), // #3194: a pause must not shield a connection that never joins
+            TickStep.Dt("HullRelay", TickHullRelay), // #3196: a repaint from the pause menu still reaches the world
             TickStep.Dt("Maintenance", TickMaintenance),
             // The control plane must keep seeing a held world (#973): the /status snapshot is what the hosted
             // fleet polls, and freezing it would report a stale player count for as long as the pause lasts.
@@ -176,6 +178,8 @@ public sealed partial class GameServer
             TickStep.Dt("TickAmbientWeather", TickAmbientWeather), // #2173: the weather of every body in an occupied system
             TickStep.Dt("SampleHistories", SampleHistories), // also advances _uptime
             TickStep.Plain("SilentSessions", SweepSilentSessions), // release names/slots held by dead clients (#964)
+            TickStep.Dt("ConnectionGate", TickConnectionGate), // #3194: close connections that have not joined within 30 s
+            TickStep.Dt("HullRelay", TickHullRelay), // #3196: coalesced hull repaints go out once a token is back
             TickStep.Plain("SweepExpiredLandedTraders", SweepExpiredLandedTraders), // P3: free pads of traders whose dwell ended on bodies nobody is on
             TickStep.Plain("TickGreetings", TickGreetings), // push any LLM NPC greetings finished off-thread (item 15)
             TickStep.Plain("TickDialogRadio", TickDialogRadio), // due "they said they'd call" dialogue consequences (#1127)

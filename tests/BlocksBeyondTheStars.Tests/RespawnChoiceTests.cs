@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
@@ -28,11 +29,18 @@ public sealed class RespawnChoiceTests : IDisposable
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
     }
 
-    private SvGameServer Started(out SqliteWorldRepository repo)
+    private SvGameServer Started(out SqliteWorldRepository repo, IServerTransport? transport = null, GameRules? rules = null)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, "respchoice"));
-        var st = new LoopbackServerTransport(new LoopbackLink());
-        var config = new ServerConfig { WorldName = "respchoice", Seed = 7, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        var st = transport ?? new LoopbackServerTransport(new LoopbackLink());
+        var config = new ServerConfig
+        {
+            WorldName = "respchoice",
+            Seed = 7,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            Rules = rules ?? new GameRules(),
+        };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         return server;
@@ -173,6 +181,98 @@ public sealed class RespawnChoiceTests : IDisposable
             // No home spawn set → the classic immediate respawn (no pending state).
             Assert.Equal(100f, p.State.Health);
             Assert.Equal(p.State.RespawnPoint, p.State.Position);
+        }
+    }
+
+    // ---------------- #3188: the body awaiting the choice is not killed again ----------------
+
+    [Fact]
+    public void ABodyAwaitingTheChoice_IsNotKilledAgain()
+    {
+        // A predator left beside the body kept biting it, and every bite ran the death again: a fresh RespawnOptions (the
+        // client replays the death flash and sound for each), a reset deadline, and the salvage note overwritten with
+        // "nothing dropped" although the capsule lies at the death spot.
+        var transport = new RecordingTransport();
+        var server = Started(out var repo, transport, new GameRules { DeathPenalty = DeathPenalty.Normal });
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Prey");
+            SetHome(server, p);
+            p.State.Inventory.Add("stone", 10, 1024); // the salvage capsule takes it
+            p.State.Position = new Vector3f(30, 64, 30);
+
+            server.KillPlayerForTest(p, "@srv.death.wildlife");
+            double deadline = p.Respawn.RespawnChoiceDeadline;
+            Assert.True(p.Respawn.ChoicePending);
+            Assert.True(p.Respawn.PendingRespawnSalvaged);
+
+            for (int i = 0; i < 5; i++)
+            {
+                server.AdvanceUptimeForTest(0.5);
+                server.KillPlayerForTest(p, "@srv.death.wildlife"); // the next bite of the predator still beside the body
+            }
+
+            Assert.Single(transport.To<RespawnOptions>(p));
+            Assert.Equal(deadline, p.Respawn.RespawnChoiceDeadline);
+            Assert.True(p.Respawn.PendingRespawnSalvaged);
+        }
+    }
+
+    [Fact]
+    public void AMachineBesideTheBody_LeavesItAlone()
+    {
+        // The same through the real damage path: a planet machine parked beside the body keeps its damage aura on.
+        var transport = new RecordingTransport();
+        var server = Started(out var repo, transport);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Target");
+            SetHome(server, p);
+            p.State.Position = new Vector3f(30.5f, 200f, 30.5f); // free air all around: nothing blocks the line of sight
+            p.State.Health = 1f;
+            server.SpawnPlanetEnemyAtForTest(new Vector3f(31.5f, 200f, 30.5f), damagePerSecond: 100f);
+
+            for (int i = 0; i < 10; i++)
+            {
+                server.TickEnemiesForTest(0.1);
+            }
+
+            Assert.Equal(0f, p.State.Health);
+            Assert.True(p.Respawn.ChoicePending);
+            Assert.Single(transport.To<RespawnOptions>(p));
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]  // the player picks
+    [InlineData(false)] // the timeout picks
+    public void AfterTheChoice_TheNextDeathOffersItAgain(bool choose)
+    {
+        var transport = new RecordingTransport();
+        var server = Started(out var repo, transport);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Twice");
+            SetHome(server, p);
+            p.State.Position = new Vector3f(30, 64, 30);
+            server.KillPlayerForTest(p, "@srv.death.wildlife");
+            if (choose)
+            {
+                server.ChooseRespawn(p.State.PlayerId, useCustomSpawn: false);
+            }
+            else
+            {
+                server.TickForTest(31.0); // > RespawnChoiceTimeout; the deadline check sees it on the following tick
+                server.TickForTest(0.1);
+            }
+
+            Assert.Equal(100f, p.State.Health);
+            Assert.False(p.Respawn.ChoicePending);
+
+            server.KillPlayerForTest(p, "@srv.death.wildlife");
+
+            Assert.Equal(2, transport.To<RespawnOptions>(p).Count);
+            Assert.True(p.Respawn.ChoicePending);
         }
     }
 

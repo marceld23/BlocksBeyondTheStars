@@ -116,7 +116,10 @@ It is **single-threaded and tick-driven** by design (`GameServer.Run` / `GameSer
   ordered, named `PlacementRules`; the first rule that refuses wins and sends the one
   `ActionRejected` "place", so a refused placement costs nothing. Only then is the item paid for and
   the effect steps (cell writes, flora, block-kind hooks, Crystal Net and rail graph, broadcast,
-  devices) run in a fixed order. `PlacementRuleOrderTests` pins the rule order.
+  devices) run in a fixed order. `PlacementRuleOrderTests` pins the rule order. The first two rules are the
+  build-height band and the reach (#3199): no rule may read the world before them, because reading a far cell
+  loads or generates its chunk — mining (`HandleMine`) checks the reach right after the height guard for the same
+  reason.
 - **Networking** — `Networking/Transport/` defines `IServerTransport`/`IClientTransport`
   carrying raw `NetCodec`-encoded payloads; events fire during `Poll()` so the server stays
   single-threaded. Concrete transports: `LiteNetLibTransport` (UDP, native clients),

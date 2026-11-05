@@ -16,7 +16,7 @@ namespace BlocksBeyondTheStars.Networking.Transport;
 /// WebGL/IL2CPP contractless formatter generation, while native clients keep MessagePack. Network events are queued on background threads and surfaced during
 /// <see cref="Poll"/>, matching the single-threaded, tick-driven server model.
 /// </summary>
-public sealed class WebSocketServerTransport : IServerTransport
+public sealed partial class WebSocketServerTransport : IServerTransport
 {
     private const int MaxReceiveFrameBytes = NetCodec.MaxJsonPayloadBytes;
 
@@ -31,11 +31,20 @@ public sealed class WebSocketServerTransport : IServerTransport
     public static readonly TimeSpan DefaultHandshakeTimeout = TimeSpan.FromSeconds(15);
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA1001:Types that own disposable fields should be disposable",
-        Justification = "Per-connection holder; socket + SendLock are disposed by the receive loop's finally (#426 S16) — the loop outlives every other reference to them, so the holder itself never needs to be IDisposable.")]
+        Justification = "Per-connection holder; the socket is disposed by the receive loop's finally (#426 S16) — the loop outlives every other reference to it, so the holder itself never needs to be IDisposable.")]
     private sealed class Client
     {
         public WebSocket Socket = null!;
-        public readonly SemaphoreSlim SendLock = new(1, 1);
+        public int Id;
+
+        // #3195: the bounded send queue (WebSocketServerTransport.SendQueue.cs). One pump at a time drains the outbox in
+        // order — what the per-client SemaphoreSlim did, but with the waiting bytes counted, so a client that stops
+        // reading is dropped instead of growing the server's memory without limit.
+        public readonly ConcurrentQueue<byte[]> Outbox = new();
+        public long PendingBytes;  // Interlocked: queued payload bytes + per-message overhead
+        public int Pumping;        // Interlocked: 1 while a pump drains the outbox
+        public int Closed;         // Interlocked: 1 once the connection is going away — later sends are dropped
+        public long SendStartedAt; // Volatile: Stopwatch timestamp of the socket send in flight, 0 when none is
     }
 
     private enum EventKind { Connect, Disconnect, Payload }
@@ -364,7 +373,7 @@ public sealed class WebSocketServerTransport : IServerTransport
         }
 
         int id = Interlocked.Increment(ref _nextId);
-        var client = new Client { Socket = wsCtx.WebSocket };
+        var client = new Client { Socket = wsCtx.WebSocket, Id = id };
         _clients[id] = client;
         _events.Enqueue((EventKind.Connect, id, Array.Empty<byte>()));
 
@@ -452,12 +461,12 @@ public sealed class WebSocketServerTransport : IServerTransport
             _events.Enqueue((EventKind.Disconnect, id, Array.Empty<byte>()));
 
             // Tear the per-connection resources down for real (#426 S16): before this, every connection
-            // ever accepted leaked its WebSocket (and semaphore) until process exit. Removal from
-            // _clients above stops NEW sends from picking the client up; an in-flight SendAsync that
-            // already holds a reference tolerates both disposals (its catch swallows the socket, its
-            // Release is ObjectDisposedException-guarded).
+            // ever accepted leaked its WebSocket until process exit. Removal from _clients above stops NEW
+            // sends from picking the client up; a pump mid-send tolerates the disposal (its catch ends it).
+            // #3195: whatever still waits in the outbox is released now, not when the last pump gives up.
+            Volatile.Write(ref client.Closed, 1);
+            DrainOutbox(client);
             try { client.Socket.Dispose(); } catch { }
-            try { client.SendLock.Dispose(); } catch { }
         }
     }
 
@@ -502,16 +511,19 @@ public sealed class WebSocketServerTransport : IServerTransport
             return;
         }
 
-        _ = SendAsync(client, browserPayload);
+        Enqueue(client, browserPayload); // #3195: the bounded send queue
     }
 
     /// <summary>Closes a browser connection (kick). Aborting rather than a graceful close is deliberate:
     /// the receive loop is parked in ReceiveAsync, so Abort is what makes it fall through to its finally —
-    /// which is also where the Disconnect event and the resource teardown live.</summary>
+    /// which is also where the Disconnect event and the resource teardown live. #3194: the server also closes connections
+    /// that never join this way; #3195: nothing more is queued for the connection from here on.</summary>
     public void DisconnectClient(int connectionId)
     {
         if (_clients.TryGetValue(connectionId, out var client))
         {
+            Volatile.Write(ref client.Closed, 1);
+            DrainOutbox(client);
             try { client.Socket.Abort(); } catch { }
         }
     }
@@ -524,38 +536,9 @@ public sealed class WebSocketServerTransport : IServerTransport
             return;
         }
 
-        foreach (var client in _clients.Values)
+        foreach (var entry in _clients)
         {
-            _ = SendAsync(client, browserPayload);
-        }
-    }
-
-    private static async Task SendAsync(Client client, byte[] payload)
-    {
-        try
-        {
-            await client.SendLock.WaitAsync().ConfigureAwait(false);
-        }
-        catch (ObjectDisposedException)
-        {
-            return; // connection torn down between lookup and send (#426 S16) — nothing to deliver to
-        }
-
-        try
-        {
-            if (client.Socket.State == WebSocketState.Open)
-            {
-                await client.Socket.SendAsync(new ArraySegment<byte>(payload), WebSocketMessageType.Binary, true, CancellationToken.None)
-                    .ConfigureAwait(false);
-            }
-        }
-        catch
-        {
-            // drop on error; the receive loop will surface the disconnect
-        }
-        finally
-        {
-            try { client.SendLock.Release(); } catch (ObjectDisposedException) { }
+            Enqueue(entry.Value, browserPayload); // #3195: the bounded send queue
         }
     }
 
@@ -564,6 +547,7 @@ public sealed class WebSocketServerTransport : IServerTransport
 
     public void Poll()
     {
+        DropStalledSenders(); // #3195: a client whose socket has not taken a frame for SendStallTimeout is gone
         while (_events.TryDequeue(out var e))
         {
             switch (e.kind)

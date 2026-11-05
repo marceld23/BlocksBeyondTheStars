@@ -145,7 +145,7 @@ public sealed partial class GameServer
             foreach (var session in targets)
             {
                 var p = session.State;
-                if (HostilesIgnore(p))
+                if (HostilesIgnore(p) || session.Respawn.ChoicePending) // #3188: a body awaiting its respawn choice is left alone
                 {
                     continue;
                 }
