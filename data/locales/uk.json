@@ -3113,6 +3113,7 @@
   "ui.settings.high.room_reflections": "Відблиски в кімнатах",
   "ui.settings.high.decals": "Сліди опіків і кратери",
   "ui.settings.high.volumetric_light": "Об'ємне світло",
+  "ui.settings.high.lamp_shadows": "Тіні від ліхтаря костюма",
   "ui.settings.master_volume": "Головна гучність",
   "ui.settings.music_volume": "Гучність музики",
   "ui.settings.sfx_volume": "Гучність ефектів",

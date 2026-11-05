@@ -3113,6 +3113,7 @@
   "ui.settings.high.room_reflections": "Spiegelungen in Räumen",
   "ui.settings.high.decals": "Brandspuren und Krater",
   "ui.settings.high.volumetric_light": "Volumetrisches Licht",
+  "ui.settings.high.lamp_shadows": "Schatten der Anzuglampe",
   "ui.settings.master_volume": "Gesamtlautstärke",
   "ui.settings.music_volume": "Musiklautstärke",
   "ui.settings.sfx_volume": "Effektlautstärke",

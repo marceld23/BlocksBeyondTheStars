@@ -3113,6 +3113,7 @@
   "ui.settings.high.room_reflections": "Odalarda yansımalar",
   "ui.settings.high.decals": "Yanık izleri ve kraterler",
   "ui.settings.high.volumetric_light": "Hacimsel ışık",
+  "ui.settings.high.lamp_shadows": "Elbise lambası gölgeleri",
   "ui.settings.master_volume": "Ana ses",
   "ui.settings.music_volume": "Müzik sesi",
   "ui.settings.sfx_volume": "Efekt sesi",

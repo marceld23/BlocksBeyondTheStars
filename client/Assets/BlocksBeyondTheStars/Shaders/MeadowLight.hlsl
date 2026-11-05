@@ -9,12 +9,14 @@
 #ifndef BBTS_MEADOW_LIGHT_INCLUDED
 #define BBTS_MEADOW_LIGHT_INCLUDED
 
+// #3229: the headlamp globals and their light (shared with the block shader). Unshadowed here: the grass carpet draws
+// many shell layers per pixel, and a blade's shadow under the lamp would not read anyway.
+#define BBTS_LAMP_NO_SHADOW
+#include "Headlamp.hlsl"
+
 // Per-frame globals set by Sky / the player (Shader.SetGlobal*), the same ones the block shader reads.
 float4 _Sc_Light;     // sun colour x day brightness x weather (a > 0.5 = set)
 float4 _Sc_SunDir;    // world-space direction TO the sun
-float4 _Sc_LampPos;   // headlamp: xyz world position, w range
-float4 _Sc_LampDir;   // headlamp: xyz forward, w cone cosine
-float4 _Sc_LampColor; // headlamp: rgb colour x intensity, a = on
 
 // The lit, hazed colour of a meadow fragment. `sky` is the skylight of the air above the carpet cell (the mesher's value
 // for the ground's top face, so the ambient matches it exactly), `bl` the placed block light there (0 = none), and
@@ -47,15 +49,8 @@ float3 BbtsMeadowShade(float3 albedo, float3 wp, float sky, float3 bl, float tra
 
     // Placed lights and the headlamp light the meadow like the ground under it.
     col += albedo * BbtsBlockLightFlicker(bl, wp) * (BbtsCozyLightGain() * 1.6);
-    if (_Sc_LampColor.a > 0.5)
-    {
-        float3 toFrag = wp - _Sc_LampPos.xyz;
-        float ld = length(toFrag);
-        float3 dir = toFrag / max(ld, 1e-4);
-        float cone = saturate((dot(dir, normalize(_Sc_LampDir.xyz)) - _Sc_LampDir.w) / max(1e-3, 1.0 - _Sc_LampDir.w));
-        float atten = saturate(1.0 - ld / max(_Sc_LampPos.w, 1e-3));
-        col += albedo * _Sc_LampColor.rgb * cone * atten * atten * saturate(-dir.y * 0.7 + 0.3);
-    }
+    // #3229: blades stand up, so they catch a lamp better than the flat ground — the normal leans toward the viewer.
+    col += BbtsHeadlamps(wp, normalize(float3(0.0, 1.0, 0.0) + 0.5 * V), V, albedo, float3(0.04, 0.04, 0.04), 0.8);
 
     return BbtsApplyHaze(col, wp, sky);
 }

@@ -184,8 +184,35 @@ renders in **linear colour space**, and the hand-written shaders are all dual-pi
     aboard, at home and under a roof or canopy (`VolumetricLightPolicy`); Henyey-Greenstein phase toward the sun; a
     depth-aware blur and an **additive** upsample (`Blend One One`) — it can only add light, never darken (the June
     attempt's colour round-trip darkened the frame). Off at night, in space or on airless worlds, under water, with a menu
-    open; the light-shaft cards stand down while it runs. Only the sun casts beams — torches, lanterns and lava are the
-    baked flood-fill light (ADR 0003).
+    open; the light-shaft cards stand down while it runs. The suit headlamps ride the same march (#3232, see below);
+    torches, lanterns and lava are the baked flood-fill light (ADR 0003) and cast no beams.
+  - *Headlamp shadows* (#3233): no shadow map — `LampVolume` keeps a 64³ R8 3D texture of the blocks around the camera
+    (`LampOccupancy` in Client.Core: wrap-addressed by world cell, the window snaps in 8-cell steps and refills only the
+    slab that came in, one 16³ brick re-read per frame; the opacity per block id comes from the mesher's trait table,
+    `ChunkMesher.LampOcclusion.cs`). The lit shaders march from the surface toward each lamp (≤ 32 jittered taps,
+    ~0.7 m apart) and dim it by what they cross. Own switch; only while a lamp is lit.
+
+### The suit headlamp (#3229–#3234)
+
+One shared include, `Headlamp.hlsl`, lights every lit shader (`BlockAtlas` both pipelines, `BlockAtlasTransparent`,
+`LitColor`, `VertexColorOpaque`, the meadow's `MeadowLight`, the `Particle` shader's `_LampLit` motes and the
+volumetric march); `Headlamp.cs` sets its globals, `HeadlampRules` (Client.Core) holds the Unity-free rules.
+
+- **Beam:** an LED profile — a hotspot (12° half angle, a 5° core), a faint reflector ring just inside its edge and a
+  soft spill out to 34° at 20 % — instead of a linear cosine ramp across the whole screen.
+- **Falloff:** windowed inverse square, `saturate(1 − (d/r)⁴)² / (d² + r₀²)` with r = 30 m and a 1.6 m source radius;
+  intensity 22 in a calm, slightly cool LED white. The old `(1 − d/26)²` made 10 m only 2.2× darker than 1 m.
+- **Shading:** Lambert plus the block shader's stable GGX glint with each face's own gloss; water mirrors the lamps in
+  its SSR (`BbtsHeadlampMirror`).
+- **Origin:** first person 13 cm right / 8 cm above the eye on the helmet, aimed at the point 9 m ahead of the eye;
+  third person the lamp cube on the avatar's helmet. Published in `PlayerController.LateUpdate`, after the camera moved.
+- **Air:** the flat cone mesh is gone. The motes' `Beam` mode (`AmbientMotes`) puts near-black dust around the visor
+  where no other motes drift; the beam lights it. On High the volumetric march adds the lamps' in-scattering with a
+  half-even phase (looking along your own beam is backscatter, so it stays faint in clear air).
+- **Eyes:** `HeadlampRules.AdaptedBrightness` lets the eye adaptation count a lit lamp as light — a dark cave earns
+  much less of the +EV boost, so the dark around the beam reads darker; the shaders' ambient floor is unchanged.
+- **Other players (#3234):** `PlayerPresence.LampOn` (switched on and worn) re-sends the presence on a toggle; the
+  client uploads the nearest four lit lamps within 48 m as `_Sc_RLamp*` arrays from each avatar's helmet along its head.
 
 ## Design rationale worth keeping
 
@@ -220,8 +247,8 @@ Ordered by impact ÷ effort. These are the next polish milestones; each is prese
   their tangents first.
 - **Sky / atmosphere:** denser per-system nebula skybox, Rayleigh-ish atmospheric scattering (horizon glow +
   sunrise/sunset tints). (Height fog, sun-warmed haze and light-shaft cards shipped with the atmosphere package; the
-  volumetric sun light shipped with the High details as a fragment raymarch, #3060 — beams from torches and lava
-  would need the FX lights as point sources in the march.)
+  volumetric sun light shipped with the High details as a fragment raymarch, #3060, the suit lamps' beams with
+  #3232 — beams from torches and lava would need the FX lights as point sources in the march.)
 - **Translucency / fake SSS:** shipped for leaves and plants (atmosphere package); still open for thin fauna
   membranes, ice and crystal blocks.
 - **Reflections:** room probes shipped (#3057); SSR for wet floors / hull is deferred (risky full-screen pass, low ROI).
@@ -244,8 +271,11 @@ Ordered by impact ÷ effort. These are the next polish milestones; each is prese
 - High details (#3066): `HighDetails.cs` (the gate), `ClientSettings.HighDetails.cs`, `BlockTextureAtlas.Height.cs`,
   `ChunkMesher.HighDetails.cs`, `GrassShells*.cs` + `MeadowAssets.cs` + `GrassShell`/`MeadowFlower` shaders,
   `RoomReflections.cs`, `FxDecals*.cs` + `Decal.shader`, `VolumetricSunLight.cs` + `VolumetricLightPass.cs` +
-  `VolumetricLight.shader`; Unity-free logic in Client.Core: `BlockRelief`, `RoomBounds`, `MeadowField`,
-  `FlowerSprite`, `DecalFaces`, `VoxelRay`, `DecalPatterns`, `VolumetricLightPolicy`.
+  `VolumetricLight.shader`, `LampVolume.cs` + `ChunkMesher.LampOcclusion.cs`; Unity-free logic in Client.Core:
+  `BlockRelief`, `RoomBounds`, `MeadowField`, `FlowerSprite`, `DecalFaces`, `VoxelRay`, `DecalPatterns`,
+  `VolumetricLightPolicy`, `LampOccupancy`.
+- Suit headlamp (#3229–#3234): `Shaders/Headlamp.hlsl`, `Headlamp.cs`, `PlayerController.Gear.cs`,
+  `PlayerAvatar.Lamp.cs`, `RemotePlayers.Lamps.cs`; Client.Core `HeadlampRules`.
 
 ## Open questions
 

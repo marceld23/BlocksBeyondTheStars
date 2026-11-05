@@ -3113,6 +3113,7 @@
   "ui.settings.high.room_reflections": "Отражения в комнатах",
   "ui.settings.high.decals": "Следы ожогов и кратеры",
   "ui.settings.high.volumetric_light": "Объёмный свет",
+  "ui.settings.high.lamp_shadows": "Тени от фонаря скафандра",
   "ui.settings.master_volume": "Громкость всего",
   "ui.settings.music_volume": "Громкость музыки",
   "ui.settings.sfx_volume": "Громкость эффектов",

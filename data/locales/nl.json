@@ -3113,6 +3113,7 @@
   "ui.settings.high.room_reflections": "Reflecties in ruimtes",
   "ui.settings.high.decals": "Schroeiplekken en kraters",
   "ui.settings.high.volumetric_light": "Volumetrisch licht",
+  "ui.settings.high.lamp_shadows": "Schaduwen van het helmlicht",
   "ui.settings.master_volume": "Hoofdvolume",
   "ui.settings.music_volume": "Muziekvolume",
   "ui.settings.sfx_volume": "Effectenvolume",

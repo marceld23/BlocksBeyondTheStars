@@ -3113,6 +3113,7 @@
   "ui.settings.high.room_reflections": "Reflets dans les pièces",
   "ui.settings.high.decals": "Traces de brûlure et cratères",
   "ui.settings.high.volumetric_light": "Lumière volumétrique",
+  "ui.settings.high.lamp_shadows": "Ombres de la lampe de casque",
   "ui.settings.master_volume": "Volume principal",
   "ui.settings.music_volume": "Volume musique",
   "ui.settings.sfx_volume": "Volume effets",

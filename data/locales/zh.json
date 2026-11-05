@@ -3113,6 +3113,7 @@
   "ui.settings.high.room_reflections": "房间内反射",
   "ui.settings.high.decals": "烧痕与陨坑",
   "ui.settings.high.volumetric_light": "体积光",
+  "ui.settings.high.lamp_shadows": "宇航灯阴影",
   "ui.settings.master_volume": "主音量",
   "ui.settings.music_volume": "音乐 音量",
   "ui.settings.sfx_volume": "音效 音量",

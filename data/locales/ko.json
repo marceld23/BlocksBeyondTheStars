@@ -3113,6 +3113,7 @@
   "ui.settings.high.room_reflections": "실내 반사",
   "ui.settings.high.decals": "그을린 자국과 분화구",
   "ui.settings.high.volumetric_light": "체적 광원",
+  "ui.settings.high.lamp_shadows": "수트 램프 그림자",
   "ui.settings.master_volume": "마스터 볼륨",
   "ui.settings.music_volume": "음악 볼륨",
   "ui.settings.sfx_volume": "효과 음향",

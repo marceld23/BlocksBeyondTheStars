@@ -104,9 +104,10 @@ public sealed class SetGlidingIntent
 /// change). The shot itself rides the gadget intent; this only clears the anchor the presence shows to others.</summary>
 public sealed class ReleaseRopeIntent { }
 
-/// <summary>Client → server: the suit lamp was switched on or off (#1077). Purely informational — the lamp
-/// itself is a client-side shader light; the server only uses this for VEGA's "it's dark and your lamp is
-/// off" context tip. Sent on every toggle, when the client forces the lamp off, and once after spawning.</summary>
+/// <summary>Client → server: the suit lamp was switched on or off (#1077). The lamp itself is a client-side shader
+/// light; the server uses this for VEGA's "it's dark and your lamp is off" context tip and, since #3234, passes it on in
+/// the presence (<see cref="PlayerPresence.LampOn"/>) so the other players see the beam. Sent on every toggle, when the
+/// client forces the lamp off, and once after spawning.</summary>
 public sealed class SetLampIntent
 {
     public bool On { get; set; }
@@ -290,6 +291,10 @@ public sealed class PlayerPresence
 
     /// <summary>The energy rope is out (#2319): other clients draw it from the avatar's hand to the anchor below.</summary>
     public bool Roped { get; set; }
+
+    /// <summary>#3234: the suit lamp is switched on and worn — other clients light their world with its beam from the
+    /// avatar's helmet and make the lamp glow. Additive; an older client ignores it, an older server leaves it false.</summary>
+    public bool LampOn { get; set; }
 
     /// <summary>The rope's anchor (world position on a block face) while <see cref="Roped"/>.</summary>
     public float RopeX { get; set; }

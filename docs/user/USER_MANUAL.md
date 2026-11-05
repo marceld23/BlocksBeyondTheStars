@@ -175,7 +175,7 @@ Last updated: 2026-10-04.
 | **Middle mouse** | **Hotbar slot actions** on the selected slot: swap it against any backpack item, and for a building material also colour it (dye / glow / own pattern) or re-form it — see §5 → Hotbar slot actions (rebindable) |
 | **F** | Attack with the held tool/weapon — hits what's **under your crosshair** (the reticle turns red over a target; with **auto-aim** on, the nearest enemy in front of you is acquired automatically) |
 | **R** | At your own **cockpit / ship console** — inside the parked ship, or at the helm after **F** stepped you into the floating ship — while the repair panel is up: repair the ship (see §5 → Repairing your own ship; pressed elsewhere while the panel is up, a hint says where to go); otherwise repair the targeted wreck breach with the selected hotbar block (see §5 → Wrecks); with a **shaped block, furniture, ladder, stairs or a block with a front** (machines, counters, devices) selected: rotate its placement orientation (**Shift+R** cycles backwards — see §5 → Craftable block shapes) |
-| **L** | Toggle the suit headlamp (requires a **worn** `suit_lamp` — a module slot on the Suit tab; without one a hint says so) |
+| **L** | Toggle the suit headlamp (requires a **worn** `suit_lamp` — a module slot on the Suit tab; without one a hint says so). It is a calm white LED on the right of your helmet: a bright spot where you look with a soft halo around it — near rock is bright, rock far away stays dim, and wet stone, ore, ice, metal and water glint in it. While it is on, your eyes get used to the lit spot, so a dark cave around the beam looks a little darker (never black), and specks of dust in front of your visor sparkle in the light. Other players see your beam and the glowing lamp on your helmet, and you see theirs |
 | **B** | Switch the **stealth suit's** cloak on / off (requires the stealth suit **worn** in the chest slot; drains suit energy) — rebindable |
 | **G** | Loot the nearest container — take everything out of the nearest storage crate; at an **empty** crate a short message says *The crate is empty.* |
 | **Q** | **Feed** — with food in your hand and a **begging herd** nearby, throw the animals one piece (see §5 → Creatures); does nothing otherwise, so it never wastes food — rebindable (Settings → Controls → *Feed a begging animal*) |
@@ -642,10 +642,14 @@ only says "Only on the High graphics level". Each detail has its own switch (all
   burn mark. They lie only on blocks (never on creatures or players), move with the surface when you mine or build there,
   and fade after about a minute (craters after about a minute and a half). Soot and cracks only.
 - **Volumetric light**: sunbeams you can see in the air — through a forest canopy in the morning, into a cave mouth,
-  through a ship's window or an open door, with a little dust floating in rooms. Only the sun casts beams (torches,
-  lanterns and lava do not); there are none at night, in space, on airless worlds, under water or with a menu open.
-  While it is on, it replaces the simpler light shafts of the atmosphere effects. It only ever adds light — the picture
-  never gets darker.
+  through a ship's window or an open door, with a little dust floating in rooms. The sun and the suit lamps cast beams
+  (torches, lanterns and lava do not): a suit lamp's beam shows in fog, rain, a sandstorm or a dusty cave, day and night,
+  and ends at the wall it hits — in clear air you hardly see it, just like a real lamp. There are no sunbeams at night,
+  and no beams at all in space, on airless worlds, under water or with a menu open. While it is on, it replaces the
+  simpler light shafts of the atmosphere effects. It only ever adds light — the picture never gets darker.
+- **Suit lamp shadows**: a pillar or a rock in your suit lamp's beam throws a shadow that shifts as you move, and another
+  player's lamp no longer shines through the rock between you. Only blocks cast these shadows (not creatures or
+  players).
 
 The **Far view** row gains its **2048** step on High too (see *View distance and far view* above).
 

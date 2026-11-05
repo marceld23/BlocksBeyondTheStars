@@ -21,8 +21,10 @@ namespace BlocksBeyondTheStars.Client
         public bool HighRoomReflections = true;
         /// <summary>Scorch marks and impact craters (#3058).</summary>
         public bool HighDecals = true;
-        /// <summary>Volumetric sun light, including dust in rooms (#3060).</summary>
+        /// <summary>Volumetric sun light, including dust in rooms (#3060), and the headlamps' beams (#3232).</summary>
         public bool HighVolumetricLight = true;
+        /// <summary>Headlamp shadows from the blocks around the player (#3233).</summary>
+        public bool HighLampShadows = true;
 
         /// <summary>Shadow reach and the shadow map by preset (the single URP asset serves every level). Potato turns
         /// shadows off; High reaches furthest. High on a desktop client (#3054) adds two cascades — the asset's 4-split

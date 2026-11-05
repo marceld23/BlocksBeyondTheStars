@@ -1284,6 +1284,7 @@ namespace BlocksBeyondTheStars.Client
             _springL = _springR = null;
             _wingRoot = _wingL = _wingR = null;
             _hasBattery = false;
+            _gearLamp = null; // #3231
             if (mask != 0)
             {
                 EnsureGearMaterials(); // nothing worn (a fresh NPC, most remote figures) makes none
@@ -1405,9 +1406,11 @@ namespace BlocksBeyondTheStars.Client
 
             if (GearLook.Has(mask, GearLook.Lamp))
             {
-                // A small bright lamp on the side of the helmet (the actual light cone is the suit lamp).
+                // A small lamp on the side of the helmet: it glows while lit, and the beam leaves from it (PlayerAvatar.Lamp, #3231).
                 // Head-LOCAL units — outside the suit/armor helmet side plates (see the helmet note above).
-                _gear.Add(AddCube("GearLamp", _head, new Vector3(0.70f, 0.16f, 0.30f), new Vector3(0.22f, 0.22f, 0.26f), _gearLampMat));
+                _gearLamp = AddCube("GearLamp", _head, new Vector3(0.70f, 0.16f, 0.30f), new Vector3(0.22f, 0.22f, 0.26f), _gearLampMat);
+                _gear.Add(_gearLamp);
+                ApplyLampLook(); // #3231: glows while the lamp is on
             }
         }
 
@@ -1972,7 +1975,7 @@ namespace BlocksBeyondTheStars.Client
 
             // The gear materials and the cloak's glass (#2294–#2297, #2291) are this figure's own — remote figures are
             // rebuilt on every world change and rejoin, so they must not outlive it.
-            foreach (var m in new[] { _gearPlate, _gearPackMat, _gearTitan, _gearCuff, _gearPad, _gearClaw, _gearSpring, _gearWing, _gearRib, _gearLampMat, _batteryGlow, _shimmerMat })
+            foreach (var m in new[] { _gearPlate, _gearPackMat, _gearTitan, _gearCuff, _gearPad, _gearClaw, _gearSpring, _gearWing, _gearRib, _gearLampMat, _gearLampGlow, _batteryGlow, _shimmerMat })
             {
                 if (m != null)
                 {

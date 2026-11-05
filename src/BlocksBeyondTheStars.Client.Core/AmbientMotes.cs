@@ -16,6 +16,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A few slow, warm dust motes in the lamplight at home: aboard the own ship or under a roof in the own
         /// base's air.</summary>
         Lamplight,
+
+        /// <summary>#3230: the suit headlamp is lit where no other motes drift (a cave, under a roof, a guest aboard): faint
+        /// dust near the visor that shows only where the beam catches it.</summary>
+        Beam,
     }
 
     /// <summary>
@@ -83,6 +87,14 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Lamplight motes spawned per second at full effect density, shared by all lamps in reach.</summary>
         public const float LamplightRate = 2.5f;
 
+        /// <summary>#3230: dust motes spawned per second around the visor at full effect density while only the headlamp
+        /// shows them.</summary>
+        public const float BeamRate = 22f;
+
+        /// <summary>#3230: the dust the headlamp beam catches — grey and nearly invisible on its own; the beam lights it.</summary>
+        public static readonly AmbientMoteStyle BeamDust =
+            new AmbientMoteStyle("beam_dust", 0.10f, 0.10f, 0.11f, 0.14f, 0.13f, 0.12f, rate: 1f, rise: -0.005f, size: 0.55f, life: 7f);
+
         /// <summary>Plain air dust — the planets without a look of their own (rocky, the alpine highland).</summary>
         public static readonly AmbientMoteStyle Dust = new AmbientMoteStyle("dust", 0.90f, 0.92f, 1.00f, 0.90f, 0.92f, 1.00f);
 
@@ -140,14 +152,23 @@ namespace BlocksBeyondTheStars.Client
         /// off); otherwise the outdoor motes need breathable-looking air (not <paramref name="airless"/>: space, a
         /// station, an airless sky), not aboard, and open air overhead — never in a cave or under a roof.
         /// </summary>
-        public static AmbientMoteMode ModeFor(bool airless, bool aboard, bool atHome, bool openAir, bool reducedEffects)
+        /// <remarks>#3230: with the suit <paramref name="headlamp"/> lit where none of those motes drift — a cave, under a
+        /// roof, a guest aboard — faint dust that only the beam shows (<see cref="AmbientMoteMode.Beam"/>), never in
+        /// airless places and never with Reduced effects.</remarks>
+        public static AmbientMoteMode ModeFor(bool airless, bool aboard, bool atHome, bool openAir, bool reducedEffects,
+            bool headlamp = false)
         {
             if (atHome)
             {
                 return reducedEffects ? AmbientMoteMode.None : AmbientMoteMode.Lamplight;
             }
 
-            return airless || aboard || !openAir ? AmbientMoteMode.None : AmbientMoteMode.Outdoor;
+            if (!airless && !aboard && openAir)
+            {
+                return AmbientMoteMode.Outdoor;
+            }
+
+            return headlamp && !airless && !reducedEffects ? AmbientMoteMode.Beam : AmbientMoteMode.None;
         }
 
         /// <summary>

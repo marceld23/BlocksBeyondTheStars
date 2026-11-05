@@ -11,6 +11,9 @@ Shader "BlocksBeyondTheStars/Particle"
         // VFX overhaul (#2152): an HDR multiplier so sparks, flashes and glow cards can cross the bloom threshold
         // (vertex colours top out at 1). Default 1 keeps every existing user unchanged.
         _Intensity ("HDR intensity", Range(0, 8)) = 1
+        // #3230: how strongly the headlamps light the particles (0 = not at all — sparks and flashes glow on their own).
+        // The ambient dust motes set it, so a speck drifting through the beam lights up.
+        _LampLit ("Headlamp light", Range(0, 4)) = 0
     }
 
     // ---------------- URP ----------------
@@ -29,6 +32,7 @@ Shader "BlocksBeyondTheStars/Particle"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl" // #2403 soft particles
             #include "AtmosphereCommon.hlsl" // atmosphere package (#2408): a far glow fades into the haze (#2393)
+            #include "Headlamp.hlsl"         // #3230: dust motes light up in the headlamp beam
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
             float _Sc_ScreenFx;      // 1 when the depth texture exists (Medium+): soft particles (#2403)
@@ -38,10 +42,11 @@ Shader "BlocksBeyondTheStars/Particle"
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST;
                 float _Intensity;
+                float _LampLit;
             CBUFFER_END
 
             struct Attributes { float4 positionOS : POSITION; float2 uv : TEXCOORD0; float4 color : COLOR; };
-            struct Varyings { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; float4 color : COLOR; float haze : TEXCOORD1; float4 screenPos : TEXCOORD2; };
+            struct Varyings { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; float4 color : COLOR; float haze : TEXCOORD1; float4 screenPos : TEXCOORD2; float3 lamp : TEXCOORD3; };
 
             Varyings vert(Attributes v)
             {
@@ -52,6 +57,7 @@ Shader "BlocksBeyondTheStars/Particle"
                 o.color = v.color;
                 o.haze = BbtsHazeAmount(wp, 1.0); // per vertex: a particle is tiny, the haze barely varies across it
                 o.screenPos = ComputeScreenPos(o.positionCS);
+                o.lamp = _LampLit > 0.0 ? BbtsHeadlampsAt(wp) * _LampLit : float3(0.0, 0.0, 0.0); // #3230, per vertex like the haze
                 return o;
             }
 
@@ -67,7 +73,7 @@ Shader "BlocksBeyondTheStars/Particle"
                     fade *= saturate((sceneEye - i.screenPos.w) / 0.5);
                 }
 
-                return half4(i.color.rgb * t.rgb * _Intensity * fade, i.color.a * t.a);
+                return half4((i.color.rgb + i.lamp) * t.rgb * _Intensity * fade, i.color.a * t.a);
             }
             ENDHLSL
         }
@@ -91,6 +97,7 @@ Shader "BlocksBeyondTheStars/Particle"
             sampler2D _MainTex;
             float4 _MainTex_ST;
             float _Intensity;
+            float _LampLit; // #3230: URP only (no headlamp globals in the Built-in fallback)
 
             struct appdata { float4 vertex : POSITION; float2 uv : TEXCOORD0; fixed4 color : COLOR; };
             struct v2f { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; fixed4 color : COLOR; };

@@ -15,7 +15,7 @@ namespace BlocksBeyondTheStars.Client
     /// removes it. Positions are interpolated toward the latest authoritative value. Presence
     /// is cosmetic — the server stays the source of truth.
     /// </summary>
-    public sealed class RemotePlayers : MonoBehaviour
+    public sealed partial class RemotePlayers : MonoBehaviour
     {
         public GameBootstrap Game;
         public WeaponFx Weapons; // shared VFX layer, for remote jetpack thrust flames
@@ -41,6 +41,7 @@ namespace BlocksBeyondTheStars.Client
             public string Frame = string.Empty; // #2113: aboard a train — the wagon frame and the offset in it
             public Vector3 Local;
             public bool Hidden;            // stealth field active, or the player is up in space — no avatar
+            public bool LampOn;            // #3234: the suit lamp is lit — its beam lights this world (RemotePlayers.Lamps)
             public int Gear = -1;          // cached so gear is only rebuilt on change (a GearLook mask)
             public bool Gliding;           // #2296: the glider's wings are open
             public bool Roped;             // #2319: the energy rope is out
@@ -481,6 +482,13 @@ namespace BlocksBeyondTheStars.Client
                 r.Avatar.SetGear(m.Gear);
             }
 
+            // #3234: the suit lamp — the helmet lamp glows and the beam joins the shaders' remote lamps.
+            if (m.LampOn != r.LampOn)
+            {
+                r.LampOn = m.LampOn;
+                r.Avatar.SetLampLit(m.LampOn);
+            }
+
             // #2296: the glider's wings open over a gliding player.
             if (m.Gliding != r.Gliding)
             {
@@ -632,6 +640,7 @@ namespace BlocksBeyondTheStars.Client
         {
             // Modern uGUI nameplates via the shared label layer (replaces IMGUI GUI.Label).
             var cam = Camera.main;
+            PublishRemoteLamps(cam); // #3234: after the avatars posed their heads this frame
             if (cam == null)
             {
                 return;

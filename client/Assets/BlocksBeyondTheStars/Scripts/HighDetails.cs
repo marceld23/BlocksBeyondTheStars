@@ -39,8 +39,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Scorch marks and impact craters (#3058).</summary>
         public static bool Decals { get; private set; }
 
-        /// <summary>Volumetric sun light, including dust in rooms (#3060).</summary>
+        /// <summary>Volumetric sun light, including dust in rooms (#3060) — and the headlamps' beams (#3232).</summary>
         public static bool VolumetricLight { get; private set; }
+
+        /// <summary>Headlamp shadows from the occupancy volume around the player (#3233).</summary>
+        public static bool LampShadows { get; private set; }
 
         /// <summary>Raised whenever one of the flags changes (on the main thread, from <see cref="Configure"/>).</summary>
         public static event Action Changed;
@@ -55,11 +58,12 @@ namespace BlocksBeyondTheStars.Client
             bool rooms = active && s.HighRoomReflections;
             bool decals = active && s.HighDecals;
             bool volumetric = active && s.HighVolumetricLight;
+            bool lampShadows = active && s.HighLampShadows;
 
             Shader.SetGlobalFloat(ReliefId, relief ? 1f : 0f);
 
             if (active == Active && relief == Relief && grass == Grass && flowers == Flowers && rooms == RoomReflections
-                && decals == Decals && volumetric == VolumetricLight)
+                && decals == Decals && volumetric == VolumetricLight && lampShadows == LampShadows)
             {
                 return;
             }
@@ -71,7 +75,8 @@ namespace BlocksBeyondTheStars.Client
             RoomReflections = rooms;
             Decals = decals;
             VolumetricLight = volumetric;
-            Debug.Log($"[HighDetails] active={active} relief={relief} grass={grass} flowers={flowers} rooms={rooms} decals={decals} volumetric={volumetric}");
+            LampShadows = lampShadows;
+            Debug.Log($"[HighDetails] active={active} relief={relief} grass={grass} flowers={flowers} rooms={rooms} decals={decals} volumetric={volumetric} lampShadows={lampShadows}");
             Changed?.Invoke();
         }
     }
