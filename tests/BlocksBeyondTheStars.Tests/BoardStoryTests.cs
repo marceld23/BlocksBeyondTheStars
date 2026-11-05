@@ -117,6 +117,27 @@ public sealed class BoardStoryTests : IDisposable
         }
     }
 
+    /// <summary>#3227 (Justus: "not why I am doing it, but which OTHER person — not me — needs it, and why"): a base board
+    /// job passes on someone else's need. Its title and description never make the player's own base the one in need.</summary>
+    [Fact]
+    public void ABaseStory_IsSomeoneElsesNeed_NotThePlayersOwnBase()
+    {
+        var en = TestLocales.Load("en");
+        var de = TestLocales.Load("de");
+        var stories = Content.Value.BoardStories.Where(s => s.Place == BoardStory.PlaceBase).ToList();
+        Assert.Equal(14, stories.Count);
+        foreach (var story in stories)
+        {
+            foreach (string key in new[] { story.TitleKey, story.DescriptionKey })
+            {
+                Assert.DoesNotContain("your base", en[key], StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotMatch(@"\bdeine[rnms]? Basis\b", de[key]);
+            }
+
+            Assert.DoesNotContain("player's base", story.Brief, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
     // ---- the pick ----------------------------------------------------------------------------------------------------
 
     [Theory]

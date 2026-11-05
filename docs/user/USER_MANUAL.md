@@ -2361,10 +2361,11 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
       rides there — up or down, from any floor. **Name** gives a floor a name (it is stored on that floor's lift stop,
       e.g. *Cellar*, *Workshop*, *Roof garden*); an empty name makes it "Floor 2" again. The motor's own name (its
       menu) is the picker's title. If the platform already waits where you pressed, the game says so.
-    - **Lift gate.** A knee-high amber energy grid (*Travel & Transport*, workshop, with the lift's blueprint: 1
-      crystal, 2 iron plates and 1 cable make two). Place gates on a floor's landing at the **edge of the shaft** —
-      the ring a lift stop stands in, on the floor you walk on. The lift opens every gate of the floor where the
-      platform **waits** and closes them when it leaves, so nobody steps into the empty shaft; the stop beside them
+    - **Lift gate.** A hip-high amber energy grid, one block tall (*Travel & Transport*, workshop, with the lift's
+      blueprint: 1 crystal, 2 iron plates and 1 cable make two). Place gates on a floor's landing at the **edge of the
+      shaft** — the ring a lift stop stands in, on the floor you walk on. The lift opens every gate of the floor where the
+      platform **waits** — an open gate is just its hazard-striped rail on the floor, which you walk over — and closes
+      them when it leaves, so nobody steps into the empty shaft; the stop beside them
       stays easy to reach. A gate never closes on anyone standing in it — it waits until you step out. Gates stacked
       on each other switch together; a gate at a height without a floor stays closed. Mined, an open gate gives you
       the gate back.
@@ -2686,9 +2687,10 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   (only when you really hand it in) or **posted** (your own mission) — in your language. Crystal Net jobs name
   what the circuit must do ("Circuit · a switch turns on a lamp 0/1").
 - **Every delivery job tells a little story:** the job says **who** needs the goods (the board's quartermaster, by
-  name) and **why** — the village smith has worn out every hoe, a station's radio mast lost its cables, the residents
-  of your base want a skylight over the kitchen, a travelling band radios your ship for new guitar strings. A station
-  tells station stories, your base home stories and your ship's board radio orders. When you hand the job in, the
+  name) and **why** — the village smith has worn out every hoe, a station's radio mast lost its cables, the beekeeper
+  down the road has run out of honey jars, a travelling band radios your ship for new guitar strings. A station tells
+  station stories; your base's quartermaster passes on what **neighbours and visitors** need (never "your own base
+  needs…", #3227); your ship's board takes radio orders. When you hand the job in, the
   "complete" message says **what came of it** ("Thanks to your copper the station's radio works again — two freighters
   have already docked!"). A job keeps its story, even after a restart. On worlds with the optional AI backend the
   quartermaster tells the same story in their own words.
@@ -3423,7 +3425,9 @@ called **stories**:
   build through the afternoon, mist gathers around dawn, and a slow wet/dry season rides on top.
 - **Four seasons** (#3041/#3042, an idea of Justus): every world with air has **spring, summer, autumn and winter**, each
   lasting **5 days of that planet** (about 40–75 minutes). Each planet is at its own point of the year, so the next world
-  may be in a different season. The clock panel names the season beside the day bar (and the weather scanner's reading).
+  may be in a different season. The clock panel names the season beside the day bar (and the weather scanner's reading);
+  the weather and a running festival get a row of their own under the bar, and the optional playtime shows the session
+  and the world's total on two lines below the panel.
   - **Warmth:** summer is up to **8 °C warmer**, winter up to **8 °C colder** (it changes slowly; spring and autumn lie in
     between) — on a cold world a winter can bring snow and frost on the tops.
   - **Plants:** in **spring** picked plants grow back faster and the **blossoms open** (flowers glow brighter); in

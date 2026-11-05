@@ -168,7 +168,10 @@ stop of that lift (`srv.lift.too_far` otherwise). A press at a stop where the pl
 
 **Gates (#3174, `GameServerLiftGates.cs`).** `lift_gate` (solid) / `lift_gate_open` (walk-through: `solid: false`, an
 `openTwin` in the mesher, a `WalkThroughBlocks` prop) are a plain block pair, no net device, drawn as cutout cubes like the
-energy fence (`IsCutoutCubeKey`, `TextureTiles` cutout; a closed gate keeps its collider toward an open one). A gate in
+energy fence (`IsCutoutCubeKey`, `TextureTiles` cutout; a closed gate keeps its collider toward an open one). An open
+gate is a sill (#3220): its side tile keeps only the bottom rail (`bake_fence_alpha.py --sill-only`) and the mesher draws
+no top or bottom face for it (`BlockTraits.IsCaplessSill`) — the energy fence's lid at hip height read as a second
+platform the player walked through. A gate in
 the stop ring (`LiftPlatformRadius + LiftStopReach` from the motor's column) between `motor.Y + 2` and `LiftMaxHeight`
 belongs to the floor one below it — a stack of gates to the floor of its lowest one. `SyncLiftGates` opens the gates of
 the floor where the platform rests and closes all others (all of them while it moves, all of them when the motor is
