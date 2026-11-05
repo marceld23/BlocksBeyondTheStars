@@ -483,10 +483,11 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // #3234: the suit lamp — the helmet lamp glows and the beam joins the shaders' remote lamps.
-            if (m.LampOn != r.LampOn)
+            bool lampOn = BlocksBeyondTheStars.Shared.State.GearLook.Has(m.Gear, BlocksBeyondTheStars.Shared.State.GearLook.LampLit);
+            if (lampOn != r.LampOn)
             {
-                r.LampOn = m.LampOn;
-                r.Avatar.SetLampLit(m.LampOn);
+                r.LampOn = lampOn;
+                r.Avatar.SetLampLit(lampOn);
             }
 
             // #2296: the glider's wings open over a gliding player.

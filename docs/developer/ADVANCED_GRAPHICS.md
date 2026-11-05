@@ -211,7 +211,8 @@ volumetric march); `Headlamp.cs` sets its globals, `HeadlampRules` (Client.Core)
   half-even phase (looking along your own beam is backscatter, so it stays faint in clear air).
 - **Eyes:** `HeadlampRules.AdaptedBrightness` lets the eye adaptation count a lit lamp as light — a dark cave earns
   much less of the +EV boost, so the dark around the beam reads darker; the shaders' ambient floor is unchanged.
-- **Other players (#3234):** `PlayerPresence.LampOn` (switched on and worn) re-sends the presence on a toggle; the
+- **Other players (#3234):** the `GearLook.LampLit` bit of the presence's gear mask (switched on and worn; a bit, not a
+  field, so the presence stays under the compression threshold) re-sends the presence on a toggle; the
   client uploads the nearest four lit lamps within 48 m as `_Sc_RLamp*` arrays from each avatar's helmet along its head.
 
 ## Design rationale worth keeping

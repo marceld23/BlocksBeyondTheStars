@@ -39,7 +39,8 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   at any hour, faint in clear air, strong in fog and dusty caves, ending at the wall.
 - **#3233** High: headlamp shadows from a 64³ occupancy volume (`LampOccupancy` + `LampVolume`, opacity from the
   mesher's traits) — no shadow map; own switch "Suit lamp shadows" (14 languages).
-- **#3234** Multiplayer: `PlayerPresence.LampOn`; the nearest four lit lamps within 48 m light every client's world.
+- **#3234** Multiplayer: a `GearLook.LampLit` bit in the presence's gear mask (no new field — the presence must stay under
+  the 256-byte compression threshold, `ProtocolV4Tests`); the nearest four lit lamps within 48 m light every client's world.
 
 ### 🌦️ Calm clouds, real gale grit, a 256-block space elevator and wider ranges (Marcel's analysis 2026-11-05) — #3202–#3215, branch feat/weather-lift-ranges-2026-11 — ✅ done 2026-11-05 (⚠ playtest open; no save-version or terrain-generation change; protocol unchanged — server `srv.*` texts now carry the range as an argument, so a NEW client on an OLD server shows a literal `{name}` in four messages)
 

@@ -8,7 +8,8 @@ using UnityEngine;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// #3234: other players' suit lamps light this world. The presence says whose lamp is lit (<c>PlayerPresence.LampOn</c>);
+    /// #3234: other players' suit lamps light this world. The presence says whose lamp is lit (the <c>GearLook.LampLit</c>
+    /// bit of its gear mask);
     /// every frame the nearest lit ones within <see cref="HeadlampRules.RemoteReach"/> (at most
     /// <see cref="HeadlampRules.MaxRemoteLamps"/>) go to the shaders as remote lamps — from the lamp on each avatar's helmet,
     /// along the way its head faces. A hidden (stealthed, in space) or timed-out avatar's lamp lights nothing.

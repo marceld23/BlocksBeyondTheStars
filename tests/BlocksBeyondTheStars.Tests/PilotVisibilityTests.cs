@@ -234,13 +234,13 @@ public sealed class PilotVisibilityTests : IDisposable
         // #3234: switching it on changes the presence, so the others learn it at once (no move needed).
         server.HandlePayloadForTest(alice.ConnectionId, NetCodec.Encode(new SetLampIntent { On = true }));
         server.Tick(0.3);
-        Assert.True(To<PlayerPresence>(t, bob).Last(p => p.PlayerId == alice.State.PlayerId).LampOn);
+        Assert.True(GearLook.Has(To<PlayerPresence>(t, bob).Last(p => p.PlayerId == alice.State.PlayerId).Gear, GearLook.LampLit));
 
         // Taken off, the switch stays on but no beam shines.
         t.Sent.Clear();
         server.UnequipItemForTest(alice.State.PlayerId, lampSlot);
         server.Tick(0.3);
-        Assert.False(To<PlayerPresence>(t, bob).Last(p => p.PlayerId == alice.State.PlayerId).LampOn);
+        Assert.False(GearLook.Has(To<PlayerPresence>(t, bob).Last(p => p.PlayerId == alice.State.PlayerId).Gear, GearLook.LampLit));
     }
 
     private static int SlotHolding(IReadOnlyList<ItemStack?> slots, string item)

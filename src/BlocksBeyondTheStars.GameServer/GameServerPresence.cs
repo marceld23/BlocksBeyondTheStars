@@ -410,8 +410,7 @@ public sealed partial class GameServer
         Mix((uint)p.Arms);
         Mix((uint)p.Legs);
         Mix((p.Stealthed ? 1UL : 0UL) | (p.Jetpacking ? 2UL : 0UL) | (p.Seated ? 4UL : 0UL) | (p.Climbing ? 8UL : 0UL)
-            | (p.Gliding ? 16UL : 0UL) | (p.Roped ? 32UL : 0UL) | (p.Crouching ? 64UL : 0UL) // #2435: the squat is a change
-            | (p.LampOn ? 128UL : 0UL)); // #3234: switching the suit lamp reaches the others at once
+            | (p.Gliding ? 16UL : 0UL) | (p.Roped ? 32UL : 0UL) | (p.Crouching ? 64UL : 0UL)); // #2435: the squat is a change
         Mix((uint)BitConverter.SingleToInt32Bits(p.Pitch)); // #2434: a nod of the head reaches the others while standing still
         Mix((uint)BitConverter.SingleToInt32Bits(p.RopeX)); // #2319: a new anchor is a change worth a beat
         Mix((uint)BitConverter.SingleToInt32Bits(p.RopeY));
@@ -449,8 +448,7 @@ public sealed partial class GameServer
             Climbing = p.Climbing && p.InTrain.Length == 0,
             Crouching = p.Crouching && !p.Seated && !p.Climbing, // #2435: a seat or a wall wins over the squat
             Pitch = p.Pitch,                                     // #2434: where the player looks
-            Gear = GearMask(p),
-            LampOn = s.LampOn && Wears(p, "suit_lamp"), // #3234: the beam the others see — switched on AND worn
+            Gear = GearMask(p) | (s.LampOn && Wears(p, "suit_lamp") ? GearLook.LampLit : 0), // #3234: switched on AND worn
             Held = HeldItemKey(p),
             FrameId = p.InTrain, // #2113: aboard a train — the wagon frame and the rider's offset in it
             LocalX = p.TrainLocalX,
