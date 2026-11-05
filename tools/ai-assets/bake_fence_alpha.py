@@ -26,14 +26,15 @@ rewritten in place; the mask depends on RGB only, so a second run changes nothin
     uv run python bake_fence_alpha.py                                   # cuts the gaps
 
 The lift gate pair (#3174) is drawn the same way and baked with `--key lift_gate` (amber beams) and
-`--key lift_gate_open --rails-only` (the open gate has no beams: everything between the rails is cut, only the two rails
-stay, so the open gate reads as an empty frame you walk through).
+`--key lift_gate_open --sill-only` (#3220: the open gate has no beams and no top rail — everything above the bottom rail is
+cut, so the open gate is a hazard-striped sill on the floor; the mesher draws no lid for it). `--rails-only` keeps both
+rails of a beamless tile (the first open-gate look, an empty frame — read as a solid table with its lid, #3220).
 
 Usage:
     uv run --no-project --with "pillow>=13" python tools/ai-assets/bake_fence_alpha.py
     uv run --no-project --with "pillow>=13" python tools/ai-assets/bake_fence_alpha.py --dry-run --preview out/preview
     uv run --no-project --with "pillow>=13" python tools/ai-assets/bake_fence_alpha.py --key lift_gate
-    uv run --no-project --with "pillow>=13" python tools/ai-assets/bake_fence_alpha.py --key lift_gate_open --rails-only
+    uv run --no-project --with "pillow>=13" python tools/ai-assets/bake_fence_alpha.py --key lift_gate_open --sill-only
 """
 
 from __future__ import annotations
@@ -93,10 +94,14 @@ def rail_rows_only(px, metal_red: float) -> tuple[int, int]:
     return t, b
 
 
-def fence_mask(px, cutoff: float, metal_red: float, rails_only: bool = False) -> list[list[bool]]:
-    """True = transparent: the glow rows between the beams, inside the band between the two rails."""
-    top, bottom = rail_rows_only(px, metal_red) if rails_only else rail_rows(px, metal_red)
-    cut = [top < y < bottom and sum(luma(px[x, y]) for x in range(TILE)) / TILE < cutoff for y in range(TILE)]
+def fence_mask(px, cutoff: float, metal_red: float, rails_only: bool = False, sill_only: bool = False) -> list[list[bool]]:
+    """True = transparent: the glow rows between the beams, inside the band between the two rails — or, for a sill
+    (#3220), every row above the bottom rail."""
+    top, bottom = rail_rows_only(px, metal_red) if rails_only or sill_only else rail_rows(px, metal_red)
+    if sill_only:
+        cut = [y < bottom for y in range(TILE)]
+    else:
+        cut = [top < y < bottom and sum(luma(px[x, y]) for x in range(TILE)) / TILE < cutoff for y in range(TILE)]
     return [[cut[y]] * TILE for y in range(TILE)]
 
 
@@ -109,7 +114,7 @@ def bake(args: argparse.Namespace) -> str:
     # Work top-down (the way the art is drawn) and flip back on write.
     img = Image.frombytes("RGBA", (TILE, TILE), data).transpose(Image.FLIP_TOP_BOTTOM)
     px = img.load()
-    mask = fence_mask(px, args.cutoff, args.metal_red, args.rails_only)
+    mask = fence_mask(px, args.cutoff, args.metal_red, args.rails_only, args.sill_only)
 
     transparent = 0
     for y in range(TILE):
@@ -141,6 +146,7 @@ def main() -> None:
     ap.add_argument("--force", action="store_true", help="also bake a hand-painted tile (texture_provenance.json)")
     ap.add_argument("--key", default=KEY, help="the tile to bake (default energy_fence; the lift gate pair: lift_gate, lift_gate_open)")
     ap.add_argument("--rails-only", action="store_true", help="the tile has no beams: cut every dark row between the two rails")
+    ap.add_argument("--sill-only", action="store_true", help="the tile has no beams: cut every row above the bottom rail (#3220)")
     args = ap.parse_args()
     KEY = args.key
 

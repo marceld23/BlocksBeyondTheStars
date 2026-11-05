@@ -24,6 +24,27 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧭 Player reports 2026-11-05 — the HUD's right column, the open lift gate, base jobs for someone else — #3217–#3220, #3227, branch fix/reports-2026-11-05 — ✅ done 2026-11-05 (⚠ playtest open; no save-version, protocol or block-id change)
+
+- **#3217** The compass's third caption row (Guardian core / VEGA's goal / fragment signal, since #1792 at HUD y 146–164)
+  lay on the clock panel's text line and showed through it. One layout for the right column (`HudRightColumn`): the
+  clock panel starts under the compass captions, the playtime panel under the clock.
+- **#3218** The clock line ("NACHT 2:36 -35°C ⚡ Sturm 1,5 g") ran past its panel and off the screen: the weather and
+  festival chips get a row of their own (the panel grows by it, the playtime moves down), and the readout lines shrink to
+  fit (`UiText.Fit`, TMP auto-size down to 10 pt).
+- **#3219** The playtime ("Sitzung … · Gesamt 93:59:18") ran past its panel from a 10-hour total: two lines.
+- **#3220** An open lift gate is a sill: only the bottom rail of its side tile is left (`bake_fence_alpha.py --sill-only`)
+  and the mesher draws no lid for it (`BlockTraits.IsCaplessSill`) — the opaque fence plate at hip height read as a
+  second platform. "Knee-high" → "hip-high" in the item text (14 languages) and the manual.
+- **#3227** (Justus) Base board jobs passed on the player's own base's wishes ("the storeroom of your base…"); the 14 base
+  stories now name a neighbour's or visitor's need (the toolmaker next door, the beekeeper down the road, a trader's
+  little son…), same keys, new briefs; 42 keys re-translated with hand QA (genders of the characters).
+- Tests: `HudRightColumnEditModeTests` (layout + shrink-to-fit), `BoardStoryTests.ABaseStory_IsSomeoneElsesNeed_NotThePlayersOwnBase`.
+- Not in this batch: Lyxette asked for a lift taller than 48 blocks — promised for the next release (separate analysis of
+  the range limits).
+
+---
+
 ### 🛡️ Server fixes 2026-11 — reconnect without rollback, chat on long-running hosts, trades that keep every item, crates, ships and keels, network hardening for public worlds — #3186–#3201, branch fix/server-fixes-2026-11 — ✅ done 2026-11-05 (⚠ playtest open; no save-version, protocol or terrain-generation change; two new locale keys in all 14 languages)
 
 - **#3186** Rejoin while the old session is still connected (#964 eviction): the player record is loaded again after the
@@ -80,7 +101,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   shaft-snow clearing set it; the client plays no mining crumble, place pop or mining/place sound for a moved block (a
   lamp switch no longer knocks). A block mined by hand still crumbles.
 - **#3174** The lift gate (`lift_gate` / `lift_gate_open`, new blocks + textures cut like the energy fence, item icon): a
-  knee-high energy barrier on a landing beside the shaft, opened by the lift while the platform rests at that floor,
+  hip-high energy barrier (first written "knee-high", #3220) on a landing beside the shaft, opened by the lift while the platform rests at that floor,
   closed otherwise, never onto a body; periodic sync after placement and reload (`GameServerLiftGates`).
 - **#3175** Traders and Market bases: a Market base's free pads on **Allies or Everyone** take traders (never Only me,
   `BasePadRules.AdmitsTraders`); the communal fallback for a Market base only within 250 blocks of it (without a Market

@@ -10,12 +10,15 @@ using UnityEngine.UI;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// The time-of-day panel of <see cref="HudUi"/> (the day / night clock, temperature, weather and gravity) and the
-    /// optional playtime readout under it.
+    /// The time-of-day panel of <see cref="HudUi"/> (the day / night clock, temperature, gravity, and a row for the weather
+    /// and festival chips) and the optional playtime readout under it — both placed by <see cref="HudRightColumn"/>.
     /// </summary>
     public sealed partial class HudUi
     {
         private TMP_Text _todText;
+        private TMP_Text _todChips;        // #3218: the weather + festival chips, on a row of their own under the day bar
+        private RectTransform _todPanel;
+        private bool _todChipRow;          // whether the chip row is shown (the panel is taller, the playtime lower)
         private GameObject _playtimePanel; // optional session/total playtime readout (top-right, under the clock)
         private TMP_Text _playtimeText;
         private RectTransform _todMarker;
@@ -34,19 +37,28 @@ namespace BlocksBeyondTheStars.Client
 
         private void BuildTimeOfDay(Transform root)
         {
-            // Time of day + temperature.
-            var tod = Panel(root, W - 210f, 140, 200, 56);
+            // Time of day + temperature + gravity, under the compass's caption rows (#3217: the third one used to sit on
+            // this line). Every line shrinks to fit rather than running out of the panel (#3218).
+            var tod = Panel(root, W - 210f, HudRightColumn.ClockY, HudRightColumn.PanelW, HudRightColumn.ClockH);
+            _todPanel = tod.rectTransform;
             _todText = UiText.Add(tod.transform, 10, 5, 184, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiText.Fit(_todText);
             UiKit.AddImage(tod.transform, 10, 32, TodBarW, 12, UiKit.SolidSprite, new Color(0.05f, 0.08f, 0.16f));
             UiKit.AddImage(tod.transform, 10 + (TodBarW * 0.25f), 32, TodBarW * 0.5f, 12, UiKit.SolidSprite, new Color(0.30f, 0.55f, 0.85f, 0.85f));
             _todMarker = UiKit.AddImage(tod.transform, 10, 30, 2, 16, UiKit.SolidSprite, UiKit.Cyan).rectTransform;
             // #3042: the planet's season, right of the (shorter) day bar.
             _todSeason = UiText.Add(tod.transform, 18 + TodBarW, 27, 184 - TodBarW - 8, 22, string.Empty, 12, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiText.Fit(_todSeason, 9f);
+            // #3218: the weather and festival chips get a row of their own under the day bar — "NACHT 2:36 -35°C ⚡ Sturm 1,5 g"
+            // ran out of the panel and off the screen. The panel grows by this row only while a chip is shown.
+            _todChips = UiText.Add(tod.transform, 10, HudRightColumn.ClockH - 4f, 184, HudRightColumn.ClockChipRowH, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiText.Fit(_todChips);
 
             // Optional playtime readout, tucked just under the clock (top-right). Hidden unless the comfort
-            // setting is on; refreshed each frame in RefreshPlaytime.
-            _playtimePanel = Panel(root, W - 210f, 200, 200, 40).gameObject;
-            _playtimeText = UiText.Add(_playtimePanel.transform, 10, 4, 184, 30, string.Empty, 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            // setting is on; refreshed each frame in RefreshPlaytime. #3219: the session and the world's total on two lines.
+            _playtimePanel = Panel(root, W - 210f, HudRightColumn.PlaytimeY(false), HudRightColumn.PanelW, HudRightColumn.PlaytimeH).gameObject;
+            _playtimeText = UiText.Add(_playtimePanel.transform, 10, 4, 184, HudRightColumn.PlaytimeH - 8f, string.Empty, 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiText.Fit(_playtimeText);
             _playtimePanel.SetActive(false);
         }
 
@@ -69,6 +81,7 @@ namespace BlocksBeyondTheStars.Client
                 _todMarker.gameObject.SetActive(false);
                 _todText.text = ColoredTemp(env.Temperature);
                 RefreshSeasonLabel(loc, string.Empty); // no season in the void
+                SetClockChips(string.Empty);
                 return;
             }
 
@@ -100,13 +113,34 @@ namespace BlocksBeyondTheStars.Client
             _todSpaceSky = env.SpaceSky;
             _todLoc = loc;
             string tempStr = env.Temperature <= -900f ? "—" : ColoredTemp(env.Temperature);
-            // Show this world's gravity (e.g. "0.6 g") only when it notably differs from Earth-like, so normal
-            // worlds stay uncluttered. Hidden in space (on-foot zero-g) where gravity doesn't apply.
-            string gravStr = env.GravityFactor > 0.01f && Mathf.Abs(env.GravityFactor - 1f) > 0.05f && !Game.OnFootInSpace
+            _todText.text = $"{(day ? loc.Get("ui.hud.day") : loc.Get("ui.hud.night")).ToUpperInvariant()}  {mm}:{ss:00}  {tempStr}{GravityReading(loc, env)}";
+            SetClockChips((WeatherChip(loc, env) + FestivalChip(loc)).TrimStart()); // #3218: their own row
+            _todMarker.anchoredPosition = new Vector2(10 + (TodBarW * t), _todMarker.anchoredPosition.y);
+        }
+
+        /// <summary>This world's gravity (e.g. "  0.6 g") only when it notably differs from Earth-like, so normal worlds stay
+        /// uncluttered. Hidden in space (on-foot zero-g) where gravity doesn't apply.</summary>
+        private string GravityReading(BlocksBeyondTheStars.Shared.Localization.Localizer loc,
+            BlocksBeyondTheStars.Networking.Messages.WorldEnvironment env)
+            => env.GravityFactor > 0.01f && Mathf.Abs(env.GravityFactor - 1f) > 0.05f && !Game.OnFootInSpace
                 ? "  " + string.Format(loc.Get("ui.hud.gravity"), env.GravityFactor.ToString("0.0"))
                 : string.Empty;
-            _todText.text = $"{(day ? loc.Get("ui.hud.day") : loc.Get("ui.hud.night")).ToUpperInvariant()}  {mm}:{ss:00}  {tempStr}{WeatherChip(loc, env)}{FestivalChip(loc)}{gravStr}";
-            _todMarker.anchoredPosition = new Vector2(10 + (TodBarW * t), _todMarker.anchoredPosition.y);
+
+        /// <summary>#3218: the weather and festival chips on their own row. The clock panel grows by that row while there is a
+        /// chip, and the playtime panel moves down with it, so neither runs out of its panel or over the other.</summary>
+        private void SetClockChips(string chips)
+        {
+            _todChips.text = chips;
+            bool row = chips.Length > 0;
+            if (row == _todChipRow)
+            {
+                return;
+            }
+
+            _todChipRow = row;
+            _todPanel.sizeDelta = new Vector2(HudRightColumn.PanelW, HudRightColumn.ClockHeight(row));
+            var playtime = (RectTransform)_playtimePanel.transform;
+            playtime.anchoredPosition = new Vector2(playtime.anchoredPosition.x, -HudRightColumn.PlaytimeY(row));
         }
 
         /// <summary>
@@ -209,8 +243,9 @@ namespace BlocksBeyondTheStars.Client
 
             _playtimeShown = session;
             _playtimeLoc = loc;
+            // #3219: two lines — "Sitzung 1:54:09 · Gesamt 93:59:18" on one ran past the panel once the total reached 10 hours.
             _playtimeText.text = $"{loc.Get("ui.hud.playtime")}  {FormatDuration(session)}"
-                                 + $"  ·  {loc.Get("ui.hud.playtime_total")}  {FormatDuration(Game.TotalPlaytimeSeconds)}";
+                                 + $"\n{loc.Get("ui.hud.playtime_total")}  {FormatDuration(Game.TotalPlaytimeSeconds)}";
         }
 
         /// <summary>Formats a span of seconds as <c>H:MM:SS</c> (or <c>M:SS</c> under an hour) for the HUD.</summary>
