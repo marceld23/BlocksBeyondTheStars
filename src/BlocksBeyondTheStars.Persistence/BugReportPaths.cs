@@ -36,9 +36,15 @@ public static class BugReportPaths
             : perWorldFallback;
     }
 
-    /// <summary>Walks up from <paramref name="startDirectory"/> looking for the repository root — the nearest
-    /// ancestor that contains a <c>.git</c> entry (a <c>BlocksBeyondTheStars.sln</c> is accepted as a secondary
-    /// marker). Returns null when none is found within a bounded number of levels.</summary>
+    /// <summary>The marker of this game's own source checkout: the solution at the repository root, which a clone and
+    /// every git worktree of it carry alike.</summary>
+    public const string RepositoryMarker = "BlocksBeyondTheStars.sln";
+
+    /// <summary>Walks up from <paramref name="startDirectory"/> looking for the game's source checkout — the nearest
+    /// ancestor that contains <see cref="RepositoryMarker"/>. Returns null when none is found within a bounded number
+    /// of levels. #3223: any <c>.git</c> used to count too, so an install below somebody else's git working tree (a
+    /// home directory kept as a dotfiles repository, the portable zip unpacked in a project folder) wrote its crash
+    /// and bump reports — player names included — into that foreign repository.</summary>
     public static string? FindRepositoryRoot(string startDirectory)
     {
         if (string.IsNullOrEmpty(startDirectory))
@@ -49,10 +55,7 @@ public static class BugReportPaths
         var dir = new DirectoryInfo(startDirectory);
         for (int depth = 0; dir != null && depth < 12; depth++, dir = dir.Parent)
         {
-            // ".git" is a directory in a normal clone but a file in a worktree/submodule — accept both.
-            if (Directory.Exists(Path.Combine(dir.FullName, ".git")) ||
-                File.Exists(Path.Combine(dir.FullName, ".git")) ||
-                File.Exists(Path.Combine(dir.FullName, "BlocksBeyondTheStars.sln")))
+            if (File.Exists(Path.Combine(dir.FullName, RepositoryMarker)))
             {
                 return dir.FullName;
             }

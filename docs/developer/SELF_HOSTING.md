@@ -627,8 +627,9 @@ The in-game **bug report / `/bump`** feature works unchanged from a container: t
 report (with its screenshot) over the network and the server writes a JSON snapshot (+ the JPG) to
 `saves/<world>/bumps/`. Because that lives on the **`saves` volume**, reports survive restarts and are
 retrievable from the host — browse the volume, or `docker cp bbts:/app/saves/<world>/bumps ./bumps`.
-(Reports only divert to a repo's `bugreports/server/` when the server runs from inside a git checkout,
-which a normal container is not.)
+(Reports only divert to a repo's `bugreports/server/` when the server runs from inside the game's own source
+checkout – a folder above it holds `BlocksBeyondTheStars.sln` (#3223) – which a normal container is not; any other
+git repository above an install is ignored.)
 
 ### Optional AI text backend in the container
 
