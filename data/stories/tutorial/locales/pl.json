@@ -303,7 +303,7 @@
   "story.tutorial.c7.air.start_later": "Na światach bez powietrza twój rdzeń też daje powietrze — w sześcianie wokół niego i w każdym szczelnym pomieszczeniu z kamienia, metalu lub szkła, zamkniętym Drzwiami energetycznymi.",
   "story.tutorial.c7.walls.start": "Żadne dzikie zwierzę nie pojawia się blisko twojego rdzenia. Zamknięty pierścień murów wysokości 2 bloków trzyma je z daleka także dalej: zbuduj taki wokół bazy i wejdź do środka.",
   "story.tutorial.c7.walls.chip": "Zamknij pierścień murów i stań w środku",
-  "story.tutorial.c7.walls.hint": "Stań pod gołym niebem wewnątrz pierścienia — pokój ani jaskinia się nie liczą. Pierścień może być do 48 bloków od rdzenia; jedna luka lub otwarte drewniane drzwi wpuszczą zwierzęta.",
+  "story.tutorial.c7.walls.hint": "Stań pod otwartym niebem wewnątrz pierścienia — pokój czy jaskinia się nie liczą. Pierścień może obejmować całą twoją bazę; jedna szczelina lub otwarte Drewniane drzwi wpuszczą zwierzęta.",
   "story.tutorial.c7.bed.start": "Dzięki łóżku będziesz budzić się w swojej bazie. Wytwórz je ręcznie (6 drewna, 8 włókien roślinnych), postaw i naciśnij przy nim {key:Interact}.",
   "story.tutorial.c7.bed.chip": "Ustaw łóżko jako punkt budzenia",
   "story.tutorial.c7.bed.hint": "Stań tuż przy łóżku, gdy naciskasz {key:Interact}. Zbiornik leczący też działa jako punkt budzenia.",

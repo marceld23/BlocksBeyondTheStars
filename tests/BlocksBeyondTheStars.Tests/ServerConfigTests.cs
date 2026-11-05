@@ -481,6 +481,34 @@ public sealed class ServerConfigTests
         }
     }
 
+    /// <summary>#3222: "difficulty" and "allowGuests" did nothing and are gone. A server.json written before still
+    /// carries them — it loads as before, keeps every other value, and is not rewritten with them again.</summary>
+    [Fact]
+    public void Load_AnOldServerJsonWithTheRemovedDifficultyAndAllowGuestsKeys_StillLoads()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "bbts_cfg_" + Guid.NewGuid().ToString("N"), "server.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, "{\n  \"worldName\": \"old_world\",\n  \"maxPlayers\": 6,\n  \"difficulty\": \"hard\",\n"
+            + "  \"allowGuests\": false,\n  \"serverPassword\": \"secret\"\n}\n");
+
+        try
+        {
+            var config = ServerConfig.Load(path);
+
+            Assert.Equal("old_world", config.WorldName);
+            Assert.Equal(6, config.MaxPlayers);
+            Assert.Equal("secret", config.ServerPassword); // the real access control is untouched
+            string json = config.ToJson();
+            Assert.DoesNotContain("\"difficulty\"", json, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("\"allowGuests\"", json, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("\"allowGuests\"", new ServerConfig().ToJson(), StringComparison.OrdinalIgnoreCase); // a fresh file
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
+
     [Fact]
     public void ApplyCommandLine_NoConfigFlagConsumesItsValueWithoutShadowingTheNextFlag()
     {

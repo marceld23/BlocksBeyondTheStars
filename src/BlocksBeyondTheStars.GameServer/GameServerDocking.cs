@@ -20,8 +20,9 @@ public sealed partial class GameServer
     /// <summary>How close two players must be for docking (#426 S17). Wider than <c>TradeRange</c> —
     /// the players stand in/near their parked ships, not face to face — but still "same landing site":
     /// docking grants guest access to the partner's ship, so it must not be establishable across the
-    /// map or from another world.</summary>
-    private const float DockRange = 48f;
+    /// map or from another world. 64 since #3207, the game's one design radius — the client's
+    /// <c>ShipVisitRules.DockRange</c> must stay equal.</summary>
+    private const float DockRange = 64f;
 
     // Outstanding handshake requests: requester id -> target id (one pending request each).
     private readonly Dictionary<string, string> _pendingDock = new();

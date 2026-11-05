@@ -389,10 +389,15 @@ public static class ContentLoader
     /// <summary>Parses one locale table (a flat key→text JSON object) from an in-memory string. Public
     /// because the browser client fetches <c>locales/*.json</c> over HTTP before its content cache is
     /// complete — the shell screens must localize without waiting for the full load — and has to use the
-    /// exact same parser/options as the filesystem path.</summary>
+    /// exact same parser/options as the filesystem path. The range tokens (<c>{range_base_pad}</c>, #3206) are filled
+    /// here, once per table, so every text shown from it carries the number the code uses (<see cref="RangeTokens"/>).</summary>
     public static Dictionary<string, string> ParseLocaleTable(string json)
-        => JsonSerializer.Deserialize<Dictionary<string, string>>(json, JsonOptions)
-           ?? new Dictionary<string, string>();
+    {
+        var table = JsonSerializer.Deserialize<Dictionary<string, string>>(json, JsonOptions)
+                    ?? new Dictionary<string, string>();
+        RangeTokens.FillTable(table);
+        return table;
+    }
 
     /// <summary>Reads a story pack's optional <c>cutscenes.json</c> (#2467) from its folder; no file → no cutscenes. Public
     /// so tools and tests read a pack folder exactly like the game.</summary>

@@ -128,6 +128,10 @@ namespace BlocksBeyondTheStars.Client
         private float _dayLength = 600f;
         private bool _haveEnv;
 
+        /// <summary>The smoothed local day fraction 0..1 the sky is lit by (advanced every frame, re-synced to the server's
+        /// heartbeat) — the cloud deck's day tint reads it instead of the raw 5 s steps (#3202).</summary>
+        public float DayFraction => _time;
+
         private void Awake()
         {
             var go = new GameObject("Sun");
@@ -377,7 +381,9 @@ namespace BlocksBeyondTheStars.Client
                 TickSeasonLook(worldDt); // #3042: autumn leaves, winter paleness, spring bloom (Sky.Seasons.cs)
             }
 
-            float intensity = env?.Intensity ?? 0f;
+            // #3202: the SMOOTHED intensity (#900) — the raw value steps when a front edge passes or a heartbeat lands, and
+            // it drives the block light dim, the overcast sky, the fog distance and the cloud-shadow cover below.
+            float intensity = env != null ? Game.WeatherIntensity : 0f;
             // #3075: in flight the light is the star of the system flown in — the environment describes the world last landed on.
             Color sun = env != null ? Rgb(Game.SpaceViewActive ? FlightStar.ColorOf(Game.StarMap, env.SunColor) : env.SunColor)
                 : new Color(1f, 0.96f, 0.88f); // match Space/Station fallback

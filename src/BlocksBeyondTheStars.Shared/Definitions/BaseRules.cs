@@ -25,9 +25,10 @@ public static class BaseRules
     public const int ResidentCapPerBody = 32;
 
     /// <summary>Horizontal distance (blocks) from a base core within which a player discovers another player's base (#2997).
-    /// A little more than the pioneer outposts' ~40 m, well more than the 17³ core zone, so the dome and the zone hint
-    /// are always there before anyone stands in them.</summary>
-    public const int DiscoveryRadius = 48;
+    /// More than the pioneer outposts' ~40 m, well more than the 17³ core zone, so the dome and the zone hint are always
+    /// there before anyone stands in them. 64 since #3207 (the game's one design radius); the Codex reads it through the
+    /// <c>{range_base_discovery}</c> token (#3206).</summary>
+    public const int DiscoveryRadius = 64;
 
     /// <summary>The steps of the world rule <c>GameRules.BaseYieldPercent</c> (#2999): Off, Half, Normal, Double.</summary>
     public static readonly int[] YieldChoicesPercent = { 0, 50, 100, 200 };

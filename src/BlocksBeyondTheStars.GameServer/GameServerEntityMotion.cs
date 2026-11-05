@@ -65,8 +65,10 @@ public struct TickVelocity
 /// </summary>
 public sealed partial class GameServer
 {
-    /// <summary>How far around a player the 7.5 Hz creature motion stream reaches (blocks). Farther animals ride the 2 Hz list.</summary>
-    internal const float CreatureMotionRange = 48f;
+    /// <summary>How far around a player the 7.5 Hz creature motion stream reaches (blocks). Farther animals ride the 2 Hz list.
+    /// 64 since #3207 (the game's one design radius; the client's compass radar shows the same circle) — inside the 70-block
+    /// creature leash, so every animal it names exists.</summary>
+    internal const float CreatureMotionRange = 64f;
 
     /// <summary>The motion stream's beat (seconds): every second tick at the default 15 Hz.</summary>
     internal const double CreatureMotionInterval = 0.125;

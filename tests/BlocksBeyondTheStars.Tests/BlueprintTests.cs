@@ -194,12 +194,32 @@ public sealed class BlueprintTests : IDisposable
         Assert.Equal((0x3366CC, 0), server.World.GetModifier(new Vector3i(px, by, bz)));
         Assert.Equal(concrete.NumericId, server.World.GetBlock(new Vector3i(px + 1, by, bz)));
 
-        // Pasting again immediately trips the cooldown, and without materials nothing places anyway.
+        // #3224: pasting again at once trips the cooldown — with the material for it in the bag, so nothing but the
+        // cooldown can refuse it (an empty bag refused the paste whether the cooldown worked or not).
+        session.State.Inventory.Add("concrete", 2, 99);
+        int qx = px + 8;
         results.Clear();
-        client.Send(NetCodec.Encode(new PasteBuildIntent { Code = code.Code, X = px + 8, Y = by, Z = bz }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new PasteBuildIntent { Code = code.Code, X = qx, Y = by, Z = bz }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         client.Poll();
-        Assert.False(Assert.Single(results).Success);
+        var early = Assert.Single(results);
+        Assert.False(early.Success);
+        Assert.Equal("@srv.blueprint.cooldown", early.Reason);
+        Assert.Equal(0, early.Placed);
+        Assert.Equal(2, session.State.Inventory.CountOf("concrete")); // nothing was paid
+        Assert.True(server.World.GetBlock(new Vector3i(qx, by, bz)).IsAir);
+
+        // Once the cooldown (3 s) ran out, the same paste goes through.
+        server.AdvanceUptimeForTest(3.5);
+        results.Clear();
+        client.Send(NetCodec.Encode(new PasteBuildIntent { Code = code.Code, X = qx, Y = by, Z = bz }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        client.Poll();
+        var later = Assert.Single(results);
+        Assert.True(later.Success, later.Reason);
+        Assert.Equal(2, later.Placed);
+        Assert.Equal(0, session.State.Inventory.CountOf("concrete"));
+        Assert.Equal(concrete.NumericId, server.World.GetBlock(new Vector3i(qx, by, bz)));
     }
 
     [Fact]

@@ -74,7 +74,7 @@ public sealed class AdminCreatureReportTests : IDisposable
             admin.State.Position = new Vector3f(first.Position.X + 2f, first.Position.Y, first.Position.Z);
             var lines = server.CreaturesReportForTest(admin);
             Assert.True(lines.Count >= 2, string.Join("\n", lines));
-            Assert.Contains("within 48 blocks", lines[0]);
+            Assert.Contains(FormattableString.Invariant($"within {SvGameServer.CreatureReportRange:0} blocks"), lines[0]); // 64 since #3207
             Assert.Contains("feet ", lines[1]);
             Assert.Contains("ground ", lines[1]);
             Assert.Contains("delta ", lines[1]);

@@ -143,7 +143,8 @@ public sealed partial class GameServer
 
         // #1728: /basewalls is a read-only report about the caller's OWN walls, and the one question a builder
         // cannot otherwise answer. A player whose ring keeps letting animals in has exactly two possible
-        // reasons — a gap somewhere, or a compound larger than the fill's 48-block reach — and no way to tell
+        // reasons — a gap somewhere, or a compound larger than the fill's reach (since #1862 it grows with what
+        // the base built, from SealedRoomMaxReach = 48 up to WalledReachCap = 192 blocks) — and no way to tell
         // them apart. She had to guess, and guessed at both. The owner of a base on this body may ask about it.
         bool ownsABaseHere = _bases.Any(b => b.Planet == _world.LocationId && b.OwnerId == p.PlayerId);
         bool basewallsForOwner = ownsABaseHere
@@ -321,6 +322,22 @@ public sealed partial class GameServer
     private void AdminCommandTeleportToLocation(PlayerSession session, AdminCommandIntent cmd)
     {
         var p = session.State;
+
+        // #3226: the chat reads "NaN" and "Infinity" as numbers. A NaN position is never repaired in space and makes every
+        // later save of the player throw — refused like a point teleport's (and a MoveIntent's) non-finite target.
+        if (!float.IsFinite(cmd.X) || !float.IsFinite(cmd.Y) || !float.IsFinite(cmd.Z))
+        {
+            Reject(session, "admin", "@srv.tp.bad_target");
+            return;
+        }
+
+        // #3226: coordinates are a place on the world the admin stands on — in flight the snap would fight the flight
+        // scene, the same guard as /tp <name> and /tpp.
+        if (InSpace(p.PlayerId))
+        {
+            Reject(session, "admin", "@srv.tp.no_surface_targets");
+            return;
+        }
 
         p.Position = new Vector3f(cmd.X, cmd.Y, cmd.Z);
         // A plain PlayerStateUpdate position is ignored by the client and then reverted by its

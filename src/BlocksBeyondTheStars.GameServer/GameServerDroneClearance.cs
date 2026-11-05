@@ -18,8 +18,8 @@ namespace BlocksBeyondTheStars.GameServer;
 public sealed partial class GameServer
 {
     /// <summary>How far over (and under) the generator's surface a drone's spawn probe looks for the column's live top —
-    /// room for a raised base or a tall build, still only a column of block reads per spawn.</summary>
-    private const int DroneSkyScan = 48;
+    /// room for a raised base or a tall build, still only a column of block reads per spawn (64 since #3207).</summary>
+    private const int DroneSkyScan = 64;
 
     /// <summary>
     /// Where a scan-drone's ground probe starts: the cell over the live top of the column — scanning down from

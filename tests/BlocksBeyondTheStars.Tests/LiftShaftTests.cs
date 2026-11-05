@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
@@ -45,24 +46,26 @@ public sealed class LiftShaftTests : IDisposable
     }
 
     /// <summary>A server with a lift high in the air: the motor, a stone pit floor beside it (so a drift has something to
-    /// lie on), and the builder standing beside the shaft with stops, stone and snow in the pack.</summary>
-    private (SvGameServer Server, BlocksBeyondTheStars.GameServer.PlayerSession Player) Lift()
+    /// lie on), and the builder standing beside the shaft with stops, stone and snow in the pack. #3204: on the given planet,
+    /// with the motor where the test wants it.</summary>
+    private (SvGameServer Server, BlocksBeyondTheStars.GameServer.PlayerSession Player) Lift(string planet = "varied", Vector3i? at = null)
     {
+        var motor = at ?? Motor;
         _repo = new SqliteWorldRepository(new SaveGamePaths(_root, "liftshaft"));
-        var config = new ServerConfig { WorldName = "liftshaft", Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        var config = new ServerConfig { WorldName = "liftshaft", Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false, StartPlanet = planet };
         var server = new SvGameServer(config, _content, _transport, _repo);
         server.Start();
         var p = server.AddLocalPlayer("Builder");
-        p.State.Position = new Vector3f(6, 203, 2); // up in the air → the cells are empty + within reach
+        p.State.Position = new Vector3f(motor.X + 4, motor.Y + 3, motor.Z); // up in the air → the cells are empty + within reach
         foreach (var key in new[] { "lift_motor", "lift_stop", "stone", "snow" })
         {
             Assert.Equal(0, p.State.Inventory.Add(key, 64, 1024));
         }
 
         p.State.SuitEnergy = 100f;
-        server.PlaceBlock("Builder", Motor.X, Motor.Y, Motor.Z, "lift_motor");
-        server.PlaceBlock("Builder", Motor.X + 1, Motor.Y, Motor.Z, "stone"); // the pit floor beside the motor
-        Assert.Equal(201f, server.LiftPlatformYForTest(Motor)); // resting on the motor
+        server.PlaceBlock("Builder", motor.X, motor.Y, motor.Z, "lift_motor");
+        server.PlaceBlock("Builder", motor.X + 1, motor.Y, motor.Z, "stone"); // the pit floor beside the motor
+        Assert.Equal(motor.Y + 1f, server.LiftPlatformYForTest(motor)); // resting on the motor
         return (server, p);
     }
 
@@ -145,7 +148,7 @@ public sealed class LiftShaftTests : IDisposable
         var stray = new Vector3i(7, 205, 5); // not beside the shaft
         server.PlaceBlock("Builder", stray.X, stray.Y, stray.Z, "lift_stop");
         Press(server, p, stray);
-        Assert.Contains("@srv.lift.stop_no_shaft", Said(p));
+        Assert.Contains("@srv.lift.stop_no_shaft:" + CrystalNetRules.LiftMaxHeight, Said(p)); // #3204: the height from the rule
 
         server.PlaceBlock("Builder", UpperStop.X, UpperStop.Y, UpperStop.Z, "lift_stop");
         server.PlaceBlock("Builder", Motor.X + 1, Motor.Y + 3, Motor.Z, "stone"); // a block in the shaft, two above the bottom floor
@@ -266,5 +269,178 @@ public sealed class LiftShaftTests : IDisposable
         Assert.Equal(new[] { false, true, true }, LastLift(p).LevelHasStop);
         server.SetCrystalDeviceForTest(p, Motor, action: 6, mode: 201, label: "Cellar");
         Assert.Contains("@srv.lift.floor_no_stop", Said(p));
+    }
+
+    // ---- #3204: up to 256 cells — a speed curve, the shaft read on the way, the space elevator -----------------------
+
+    private const string SpaceElevatorLine = "@srv.lift.space_elevator";
+
+    /// <summary>Ticks for up to <paramref name="seconds"/> (until the platform has arrived), the rider's feet carried on the
+    /// platform's top the way the client carries them. Returns the fastest speed of the ride and how long it took.</summary>
+    private static (float Fastest, double Seconds) RideAlong(SvGameServer server, BlocksBeyondTheStars.GameServer.PlayerSession? rider, Vector3i motor, double seconds)
+    {
+        float fastest = 0f;
+        double t = 0;
+        for (; t < seconds; t += 0.1)
+        {
+            if (rider is not null && server.LiftPlatformYForTest(motor) is float y)
+            {
+                rider.State.Position = new Vector3f(motor.X + 0.5f, y + 1f, motor.Z + 0.5f);
+            }
+
+            server.TickForTest(0.1);
+            float speed = server.LiftSpeedForTest(motor) ?? 0f;
+            fastest = Math.Max(fastest, speed);
+            if (speed <= 0f && t > 0.15)
+            {
+                break; // arrived (or stopped short)
+            }
+        }
+
+        return (fastest, t);
+    }
+
+    private void Set(SvGameServer server, Vector3i cell, string key)
+        => server.World.SetBlock(cell, key == "air" ? BlocksBeyondTheStars.Shared.Primitives.BlockId.Air : _content.GetBlock(key)!.NumericId);
+
+    [Fact]
+    public void AStopAtTheTopOfThe256CellShaft_IsAFloor_TheLongRideIsFast_AndTellsTheRiderOnceThatTheAirIsBelow()
+    {
+        var (server, p) = Lift();
+        var top = new Vector3i(4, Motor.Y + CrystalNetRules.LiftMaxHeight, 2);      // the highest stop the shaft takes
+        var beyond = new Vector3i(0, Motor.Y + CrystalNetRules.LiftMaxHeight + 1, 2); // one higher: no lift's stop
+        var middle = new Vector3i(4, 351, 2);                                          // a floor above the air as well
+        double line = server.AtmosphereHeight;
+        Assert.True(line > Motor.Y + 2 && line < middle.Y - 1, $"the shaft must cross this world's atmosphere line ({line})");
+        foreach (var stop in new[] { middle, top, beyond })
+        {
+            p.State.Position = new Vector3f(2, stop.Y - 2, 4.5f);
+            server.PlaceBlock("Builder", stop.X, stop.Y, stop.Z, "lift_stop");
+        }
+
+        Press(server, p, beyond);
+        Assert.Contains("@srv.lift.stop_no_shaft:" + CrystalNetRules.LiftMaxHeight, Said(p));
+        Assert.Equal(new[] { 201, middle.Y - 1, top.Y - 1 }, server.LiftLevelsForTest(Motor));
+
+        p.State.Position = new Vector3f(Motor.X + 0.5f, Motor.Y + 2, Motor.Z + 0.5f); // on the platform at the bottom
+        server.SetCrystalDeviceForTest(p, Motor, action: 5, mode: top.Y - 1);         // the floor picker: to the top
+        var ride = RideAlong(server, p, Motor, 60.0);
+        Assert.Equal(top.Y - 1f, server.LiftPlatformYForTest(Motor));
+        Assert.True(server.CrystalDeviceOutput(top));
+        Assert.InRange(ride.Fastest, CrystalNetRules.LiftSpeed * 3, LiftMotion.MaxSpeed); // it really sped up …
+        Assert.True(ride.Seconds < 35.0, $"255 cells took {ride.Seconds:0.0} s");          // … (85 s at the old pace)
+        Assert.Single(Said(p), t => t == SpaceElevatorLine); // out of the air: said once
+
+        server.SetCrystalDeviceForTest(p, Motor, action: 5, mode: middle.Y - 1); // between two floors above the air
+        RideAlong(server, p, Motor, 30.0);
+        Assert.Equal(middle.Y - 1f, server.LiftPlatformYForTest(Motor));
+        Assert.Single(Said(p), t => t == SpaceElevatorLine); // nothing new to say
+    }
+
+    [Theory]
+    [InlineData("varied", true)]   // breathable air below the line
+    [InlineData("crystal", false)] // an airless body: there is no air to leave
+    public void ARideOutOfTheAir_TellsItsRiders_OnlyWhereThereIsAir(string planet, bool told)
+    {
+        var low = new Vector3i(2, 140, 2); // below both worlds' atmosphere lines (crystal 150, varied 240)
+        var (server, p) = Lift(planet, low);
+        var high = new Vector3i(4, 261, 2);
+        Assert.InRange(server.AtmosphereHeight, low.Y + 3, high.Y - 2);
+        p.State.Position = new Vector3f(6, high.Y - 2, 2);
+        server.PlaceBlock("Builder", high.X, high.Y, high.Z, "lift_stop");
+
+        p.State.Position = new Vector3f(low.X + 0.5f, low.Y + 2, low.Z + 0.5f);
+        server.SetCrystalDeviceForTest(p, low, action: 5, mode: high.Y - 1);
+        RideAlong(server, p, low, 40.0);
+        Assert.Equal(high.Y - 1f, server.LiftPlatformYForTest(low));
+        Assert.Equal(told ? 1 : 0, Said(p).Count(t => t == SpaceElevatorLine));
+    }
+
+    /// <summary>A rider's feet stand on the platform's top (one above its cell) and the head reaches this far above the feet.</summary>
+    private const float RiderHeight = 1.8f;
+
+    [Fact]
+    public void ABlockAHundredUpATwoHundredCellRide_DoesNotHoldTheStart_AndTheRideStopsWithTheRidersHeadBelowIt()
+    {
+        var (server, p) = Lift();
+        var top = new Vector3i(4, 401, 2);                                  // two hundred up: the platform rests at 400 there
+        var block = new Vector3i(Motor.X - 1, Motor.Y + 100, Motor.Z + 1); // in the shaft, far past the layers read at the press
+        p.State.Position = new Vector3f(6, top.Y - 2, 2);
+        server.PlaceBlock("Builder", top.X, top.Y, top.Z, "lift_stop");
+        Set(server, block, "stone");
+
+        p.State.Position = new Vector3f(Motor.X + 0.5f, Motor.Y + 2, Motor.Z + 0.5f); // on the platform at the bottom
+        server.SetCrystalDeviceForTest(p, Motor, action: 5, mode: top.Y - 1);         // up at full speed
+        Assert.False(server.CrystalDeviceOutput(Motor)); // no mass read at the press: the start goes ahead
+        RideAlong(server, p, Motor, 40.0);               // the rider carried on the platform's top, as the client does
+
+        float platform = server.LiftPlatformYForTest(Motor)!.Value;
+        Assert.Equal(block.Y - 3f, platform);                   // feet two under the block …
+        Assert.True(platform + 1f + RiderHeight < block.Y);     // … and the head below it (the review's case)
+        Assert.True(server.CrystalDeviceOutput(Motor));         // blocked: the amber light
+        Assert.False(server.CrystalDeviceOutput(top));          // not arrived
+        Assert.Contains("@srv.lift.blocked:99", Said(p));       // counted from the bottom floor
+        var lists = _transport.Sent.Where(s => s.Conn == p.ConnectionId).Select(s => s.Msg).OfType<LiftList>().SelectMany(l => l.Lifts);
+        Assert.Contains(lists, l => l.Moving && l.TargetY == block.Y - 3f); // the clients learned the short end before it got there
+    }
+
+    [Fact]
+    public void ABlockPutIntoTheShaftDuringTheRide_StopsThePlatformWhereItsRiderStaysClearOfIt()
+    {
+        var (server, p) = Lift();
+        var stop = new Vector3i(4, 241, 2);
+        p.State.Position = new Vector3f(6, 239, 2);
+        server.PlaceBlock("Builder", stop.X, stop.Y, stop.Z, "lift_stop");
+        server.SetCrystalDeviceForTest(p, stop, action: 1);
+        for (int i = 0; i < 20; i++)
+        {
+            server.TickForTest(0.1);
+        }
+
+        float platform = server.LiftPlatformYForTest(Motor)!.Value;
+        Assert.InRange(platform, 203f, 212f); // on its way
+        var ahead = new Vector3i(Motor.X + 1, 218, Motor.Z - 1);
+        Set(server, ahead, "stone"); // someone builds into the shaft ahead of it
+        RideAlong(server, null, Motor, 30.0);
+        Assert.Equal(215f, server.LiftPlatformYForTest(Motor)); // a rider's head stays below 218
+        Assert.True(server.CrystalDeviceOutput(Motor));
+        Assert.Contains("@srv.lift.blocked:17", Said(p));
+
+        Set(server, ahead, "air");
+        server.SetCrystalDeviceForTest(p, stop, action: 1); // on again — and this time a block lands right over the rider's head
+        for (int i = 0; i < 10; i++)
+        {
+            server.TickForTest(0.1);
+        }
+
+        platform = server.LiftPlatformYForTest(Motor)!.Value;
+        int overHead = (int)Math.Ceiling(platform) + 3; // the next layer a rider's head enters: already past the read-ahead
+        Set(server, new Vector3i(Motor.X, overHead, Motor.Z), "stone");
+        RideAlong(server, null, Motor, 30.0);
+        Assert.Equal(overHead - 3f, server.LiftPlatformYForTest(Motor)); // stopped at once, the head still below it
+        Assert.Contains("@srv.lift.blocked:" + (overHead - (Motor.Y + 1)), Said(p));
+    }
+
+    [Fact]
+    public void AFastPlatformComingDown_StillWaitsForABodyInTheShaft_AndTheClientsHoldIt()
+    {
+        var (server, p) = Lift();
+        var high = new Vector3i(4, 401, 2); // two hundred up: the way down cruises at full speed
+        p.State.Position = new Vector3f(6, 399, 2);
+        server.PlaceBlock("Builder", high.X, high.Y, high.Z, "lift_stop");
+        server.SetCrystalDeviceForTest(p, high, action: 1);
+        RideAlong(server, null, Motor, 40.0);
+        Assert.Equal(400f, server.LiftPlatformYForTest(Motor));
+
+        var kid = server.AddLocalPlayer("Kid");
+        kid.State.Position = new Vector3f(Motor.X + 0.5f, 300, Motor.Z + 0.5f); // in the shaft: feet at 300, head at 301
+        server.SetCrystalDeviceForTest(p, Motor, action: 5, mode: 201);        // called down from the top floor
+        RideAlong(server, null, Motor, 20.0);
+        Assert.True(server.LiftPlatformYForTest(Motor) >= 302f, $"the platform came down to {server.LiftPlatformYForTest(Motor)}");
+        Assert.Equal(0f, server.LiftWireSpeedForTest(Motor)); // the clients hold it while it waits
+
+        kid.State.Position = new Vector3f(6, 300, 2); // stepped out of the shaft
+        RideAlong(server, null, Motor, 30.0);
+        Assert.Equal(201f, server.LiftPlatformYForTest(Motor));
     }
 }

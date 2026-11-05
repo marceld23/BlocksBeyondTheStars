@@ -60,9 +60,9 @@ public sealed class ShipVisitRulesTests
     [Fact]
     public void K_FindsNobody_BeyondTheServersDockRange()
     {
-        Assert.Equal(48f, ShipVisitRules.DockRange);
-        Assert.Equal("Lena", ShipVisitRules.NearestDockPilot(new[] { Pilot("Lena", 0f, 48f) }, 0f, 0f, 0f)?.PlayerId);
-        Assert.Null(ShipVisitRules.NearestDockPilot(new[] { Pilot("Lena", 0f, 0f, 48.5f) }, 0f, 0f, 0f));
+        Assert.Equal(64f, ShipVisitRules.DockRange); // #3207: the server's DockRange — the two are kept equal by hand
+        Assert.Equal("Lena", ShipVisitRules.NearestDockPilot(new[] { Pilot("Lena", 0f, ShipVisitRules.DockRange) }, 0f, 0f, 0f)?.PlayerId);
+        Assert.Null(ShipVisitRules.NearestDockPilot(new[] { Pilot("Lena", 0f, 0f, ShipVisitRules.DockRange + 0.5f) }, 0f, 0f, 0f));
         Assert.Null(ShipVisitRules.NearestDockPilot(null, 0f, 0f, 0f));
     }
 
@@ -72,7 +72,7 @@ public sealed class ShipVisitRulesTests
         var players = new[] { Parked("Lena", 4f), Pilot("Tom", 30f) };
 
         Assert.Equal("Lena", ShipVisitRules.NearestDockPilot(players, 0f, 0f, 0f)?.PlayerId);
-        Assert.Null(ShipVisitRules.NearestDockPilot(new[] { Parked("Lena", 60f) }, 0f, 0f, 0f));
+        Assert.Null(ShipVisitRules.NearestDockPilot(new[] { Parked("Lena", ShipVisitRules.DockRange + 12f) }, 0f, 0f, 0f));
     }
 
     [Fact]
@@ -113,10 +113,11 @@ public sealed class ShipVisitRulesTests
     [Fact]
     public void PartnerParkedOutOfReach_IsJustDocked()
     {
-        var view = ShipVisitRules.Evaluate(true, true, "Lena", new[] { Parked("Lena", 60f) }, 0f, 0f, 0f);
+        float far = ShipVisitRules.VisitRange + 12f;
+        var view = ShipVisitRules.Evaluate(true, true, "Lena", new[] { Parked("Lena", far) }, 0f, 0f, 0f);
 
         Assert.Equal(ShipVisitPrompt.Docked, view.Prompt);
-        Assert.Equal(60f, view.Distance, 3);
+        Assert.Equal(far, view.Distance, 3);
     }
 
     [Fact]

@@ -868,6 +868,44 @@ public sealed class MemoryWorldRepository : IWorldRepository
         }
     }
 
+    public IReadOnlyList<ChunkCoord> ListPlayerEditedChunks(string planet, Vector3i min, Vector3i max, int limit)
+    {
+        var result = new List<ChunkCoord>();
+        if (limit <= 0)
+        {
+            return result;
+        }
+
+        var seen = new HashSet<ChunkCoord>();
+        lock (_gate)
+        {
+            foreach (var kv in _blockEdits)
+            {
+                var k = kv.Key;
+                if (k.Planet != planet
+                    || k.X < min.X || k.X > max.X
+                    || k.Y < min.Y || k.Y > max.Y
+                    || k.Z < min.Z || k.Z > max.Z
+                    || string.IsNullOrEmpty(kv.Value.Owner))
+                {
+                    continue;
+                }
+
+                var chunk = WorldConstants.WorldToChunk(new Vector3i(k.X, k.Y, k.Z));
+                if (seen.Add(chunk))
+                {
+                    result.Add(chunk);
+                    if (result.Count >= limit)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+
+        return result;
+    }
+
     public IReadOnlyList<BlockEdit> ListBlockEditsMatching(string planet, Vector3i min, Vector3i max,
         IReadOnlyCollection<ushort> blocks, IReadOnlyCollection<int> shapeIndices, int limit)
     {

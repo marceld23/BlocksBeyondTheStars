@@ -413,13 +413,8 @@ internal sealed class ObserverSystem
             return;
         }
 
-        // /goto <bodyId> <x> <y> <z>
-        if (parts.Length == 4
-            && float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float gx)
-            && float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float gy)
-            && float.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out float gz))
+        if (TryGotoCoordinates(session, parts))
         {
-            GotoPosition(session, parts[0], new Vector3f(gx, gy, gz), parts[0]);
             return;
         }
 
@@ -456,6 +451,30 @@ internal sealed class ObserverSystem
         }
 
         GotoPosition(session, match.State.CurrentLocationId, match.State.Position, match.State.Name);
+    }
+
+    /// <summary>The form <c>/goto &lt;bodyId&gt; &lt;x&gt; &lt;y&gt; &lt;z&gt;</c>: false when <paramref name="parts"/> is not
+    /// it, true when it was handled — jumped, or refused.</summary>
+    private bool TryGotoCoordinates(PlayerSession session, string[] parts)
+    {
+        if (parts.Length != 4
+            || !float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float gx)
+            || !float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float gy)
+            || !float.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out float gz))
+        {
+            return false;
+        }
+
+        // #3226: "NaN" and "Infinity" parse as numbers — a position nothing repairs in space, and every later save of the
+        // admin would throw. Refused with the usage line, before any travel.
+        if (!float.IsFinite(gx) || !float.IsFinite(gy) || !float.IsFinite(gz))
+        {
+            _host.Reject(session, "admin", "@srv.obs.usage_goto");
+            return true;
+        }
+
+        GotoPosition(session, parts[0], new Vector3f(gx, gy, gz), parts[0]);
+        return true;
     }
 
     /// <summary>Moves the admin to <paramref name="bodyId"/> (if that is not where they already are) and snaps

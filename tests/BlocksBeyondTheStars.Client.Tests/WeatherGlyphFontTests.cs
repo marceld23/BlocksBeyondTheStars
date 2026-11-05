@@ -16,8 +16,9 @@ namespace BlocksBeyondTheStars.Client.Tests;
 public sealed class WeatherGlyphFontTests
 {
     /// <summary>Every glyph a weather state may use — each one is in a bundled UI font (see the font test below).
-    /// A new glyph must first be added to <c>NotoSansSymbols2-Subset.ttf</c> (recipe in NOTICES.md).</summary>
-    private const string AllowedGlyphs = "☀☁☂⚡❄≈☣★▲❋•";
+    /// A new glyph must first be added to <c>NotoSansSymbols2-Subset.ttf</c> (recipe in NOTICES.md) — unless a font of the
+    /// chain already has it: the gale's wavy dash 〰 (#3215) comes from the Noto CJK fonts.</summary>
+    private const string AllowedGlyphs = "☀☁☂⚡❄≈☣★▲❋•〰";
 
     /// <summary>The arrows the subset also carries: the drifting weather fronts on the landing map and the planet map
     /// ("◀ front", "front ▶"), the touch "NEXT ▶", the chat's "▼ newer lines", the editors' ◀ ▶ ▼ and ► ◄.</summary>
@@ -58,6 +59,9 @@ public sealed class WeatherGlyphFontTests
 
         Assert.Empty(offenders);
         Assert.Equal("•", WeatherLook.Glyph(null));
+        // #3215: a gale blows grit — its chip must not show the snowflake of the snow states.
+        Assert.Equal("〰", WeatherLook.Glyph("gale"));
+        Assert.NotEqual(WeatherLook.Glyph("snow"), WeatherLook.Glyph("gale"));
     }
 
     [Fact]

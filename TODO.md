@@ -41,6 +41,60 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   mesher's traits) — no shadow map; own switch "Suit lamp shadows" (14 languages).
 - **#3234** Multiplayer: `PlayerPresence.LampOn`; the nearest four lit lamps within 48 m light every client's world.
 
+### 🌦️ Calm clouds, real gale grit, a 256-block space elevator and wider ranges (Marcel's analysis 2026-11-05) — #3202–#3215, branch feat/weather-lift-ranges-2026-11 — ✅ done 2026-11-05 (⚠ playtest open; no save-version or terrain-generation change; protocol unchanged — server `srv.*` texts now carry the range as an argument, so a NEW client on an OLD server shows a literal `{name}` in four messages)
+
+- **#3202** Clouds no longer jump or whirl: each cloud's angle is accumulated per world step (`CloudDeck` in Client.Core)
+  instead of `WorldTime × windScale`, the look (cover, darkening, wind, storm towers, cirrus) eases over ~10 s, single
+  clouds fade instead of popping, snaps on reappear / world change / capture. Sky, AtmosphereProbe and WeatherFx read the
+  smoothed `Game.WeatherIntensity`; the cloud day tint reads the Sky's smoothed time.
+- **#3203** Gale/sandstorm grit: thin streaks (dust ≈ 0.12 × 0.54 m, was a ~1 m square since #2399) flying with the wind,
+  per-grain size/alpha/tint, fades at age, edge and camera, ground-tinted (white spindrift on ice worlds, rust on red
+  deserts), darkened at night, ground-coloured wash, never spawned under a roof; rain and snow keep their old wind
+  strength but now follow the wind direction; all falling weather eases in/out (settled on capture snaps); counts
+  scaled by `FxKit.Density` (`WindGrit` in Client.Core); the sky snaps its weather easing on arrival at a new world. Six new scenes in `scripts/clip-manifests/atmosphere-check.json`.
+- **#3204** Lift up to **256** blocks — a space elevator: speed curve 3 → 12 blocks/s with ease-in/out (`LiftMotion`,
+  never above one layer per tick), the shaft is checked layer by layer during the ride (a block stops the platform below
+  it, rider headroom included), a one-time "your suit supplies the oxygen" hint when a ride ends above the air.
+- **#3205** Lift stops and motors no longer count against the per-player / per-world crystal network caps.
+- **#3206** `{range_…}` tokens in locale texts, filled from the code constants when a table is parsed
+  (`RangeTokens`); server `srv.*` texts pass the number as an argument.
+- **#3207** Design radii 48 → 64: base pad reach, base discovery, blueprint copy, docking / ship visit, rail linker,
+  creature fast lane + radar, bio sampler, festival hero, tree-felling sound, VEGA point of interest, `/bump`,
+  `/creatures`, drone sky scan, NPC grid path default box.
+- **#3208** Near full-column stream radius is a host setting: `--near-column-radius` (default 4 = 64 blocks, browser 3),
+  `--near-column-up` (default 3, browser 2); +~177 chunks (~1.4 MB) per player at view 4. Phone-browser unload widened
+  to (view + 5) × 16 so it never drops a chunk the server still counts as sent.
+- **#3209** Base-walls yard fill is time-sliced like the air engine (a starting query still answers an ordinary base at
+  once); the 600k-cell knee is gone; cells outside a stale (smaller) finished fill read open, never "fenced in".
+- **#3210** Base index box and the residents' path box follow the walls reach (up to 192).
+- **#3211** Sparse chunk anchoring: chunks with crystal-net cells, lift shafts and a base's player-built chunks stay
+  resident while a player is on the same body (`--max-anchored-chunks`, default 512, browser 128); base edit lists are
+  cached per base.
+- **#3212** Only dry sand worlds (water ≤ 0.3) get sandstorms — archipelago, coral and rainbow seas get rain.
+- **#3213** Player position updates reach each viewer's own view distance (host's as the floor).
+- **#3214** Base-walls hint, Codex and tutorial no longer say the walls clear "up to 48".
+- **#3215** The gale chip shows 〰 instead of ❄.
+- Texts: 18 keys re-translated into the twelve community languages (machine pass + hand QA).
+
+### 🛡️ Server fixes 2026-11, part 2 — parked ships guarded like keel sites, config and report-path clean-up, admin teleport checks — #3221–#3226, branch fix/server-fixes-2026-11b — ✅ done 2026-11-05 (⚠ playtest open; no save-version, protocol or terrain-generation change; no new locale keys)
+
+- **#3221** Building on a **parked** ship gets the #3198 cell checks: a self-built ship growing over its roof
+  (`HandleLandedShipEdit` → `ParkedShipCellRefusal`) and an authored ship extended on foot (#2120) — cells inside the
+  ship's own box stay free (also on its own pad); a cell that grows the box is refused in a foreign base zone (owner,
+  allies, admins pass), at stations, factories, other ships/construction sites, on foreign pad columns and through
+  solid ground or player doors (existing tokens). Mining is unchanged.
+- **#3222** `ServerConfig.Difficulty` and `AllowGuests` removed — nothing read them; old `server.json` files still load.
+- **#3223** Bug and crash reports divert to `<repo>/bugreports/` only below the game's own checkout
+  (`BlocksBeyondTheStars.sln`), no longer below any `.git`.
+- **#3224** The blueprint paste cooldown test now gives the material and asserts `@srv.blueprint.cooldown`, then a paste
+  after the cooldown.
+- **#3225** `GameRules.AllowPlayerStructureDamage` / `ShipDamageByPlayers` documented as not implemented yet;
+  `SPACE_COMBAT_CONCEPT.md` and the user manual corrected.
+- **#3226** `/tp X Y Z` refuses non-finite coordinates (`@srv.tp.bad_target`) and space (`@srv.tp.no_surface_targets`);
+  `/goto <body> x y z` refuses non-finite coordinates (`@srv.obs.usage_goto`).
+- Tests (existing classes): `KeelBaseProtectionTests` (self-built and authored parked ships), `ServerConfigTests`,
+  `BugReportPathsTests`, `BlueprintTests`, `AdminCommandFixTests`.
+
 ### 🧭 Player reports 2026-11-05 — the HUD's right column, the open lift gate, base jobs for someone else — #3217–#3220, #3227, branch fix/reports-2026-11-05 — ✅ done 2026-11-05 (⚠ playtest open; no save-version, protocol or block-id change)
 
 - **#3217** The compass's third caption row (Guardian core / VEGA's goal / fragment signal, since #1792 at HUD y 146–164)
@@ -62,7 +116,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🛡️ Server fixes 2026-11 — reconnect without rollback, chat on long-running hosts, trades that keep every item, crates, ships and keels, network hardening for public worlds — #3186–#3201, branch fix/server-fixes-2026-11 — ✅ done 2026-11-05 (⚠ playtest open; no save-version, protocol or terrain-generation change; two new locale keys in all 14 languages)
+### 🛡️ Server fixes 2026-11 — reconnect without rollback, chat on long-running hosts, trades that keep every item, crates, ships and keels, network hardening for public worlds — #3186–#3201, branch fix/server-fixes-2026-11 — ✅ done 2026-11-05 in PR #3216 (`78b54918`) (⚠ playtest open; no save-version, protocol or terrain-generation change; two new locale keys in all 14 languages)
 
 - **#3186** Rejoin while the old session is still connected (#964 eviction): the player record is loaded again after the
   eviction saved the old session, so the new session starts from the latest state — no rollback to the last autosave, no
@@ -102,8 +156,8 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   `Lz4BombTests`, `TradeRoomTests`, `TradeInvitationTests`, `ShipIdCollisionTests`, `CarriedContentsTests`,
   `ConnectionGateTests`, `WebSocketSendQueueTests` (Slow), `HullColourThrottleTests`, `DisconnectGhostSessionTests`,
   `KeelBaseProtectionTests`, `FarBlockEditReachTests`, updated `PlacementRuleOrderTests` / `TickScheduleTests`.
-- Open follow-up: editing a commissioned self-built ship while it is parked (`HandleLandedShipEdit`) has no base/pad
-  protection check yet (same gap as #3198, for parked ships).
+- Follow-up: editing a ship while it is parked had no base/pad protection check (same gap as #3198) → fixed in #3221
+  (entry above).
 
 ### 📬 Player reports 2026-11-04 (Lyxette, the school club — Ben, Marie, Justus — and a Sandbox playtest, v2026.11.4) — choose the lift's floor, device names you can see, a lift gate, bridges that don't crumble, traders that land at your Market base and say where, trader landings like your own, avatars without blue gaps, gap-free brush strokes, board jobs with a story, wooden planks, ship modules findable from Crafting — #3171–#3182, branch fix/reports-2026-11-04 — ✅ done 2026-11-04 in PR #3183 (`970522dd`), released in v2026.11.5 (⚠ playtest open; **save version 11** for five new blocks — block ids shift; protocol: additive fields only (`BlockChanged.Moved`, `NetLift.Levels/LevelNames/LevelHasStop`, `MissionResult.Thanks`, `ShipTransitFx.ApproachSeconds`), no terrain-generation change)
 

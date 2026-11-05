@@ -4,6 +4,10 @@
 - **Date:** 2026-10-04
 - **Context source:** [#2251](https://github.com/marceld23/BlocksBeyondTheStars/issues/2251) (parts #2264, #2265,
   #2266); the implementation is described in [../MOVING_BLOCKS.md](../MOVING_BLOCKS.md)
+- **Amendment (2026-11-05, #3204):** the shaft reaches 256 cells (a space elevator) and the platform no longer moves at
+  one fixed speed: a long ride eases in and out up to 12 cells per second (`LiftMotion`), capped at one layer per tick
+  for the kid rule. Decision 3 stands — the server owns the height and sends the ride's average speed with each list, so
+  the client's easing needed no change; the shaft is read layer by layer on the way instead of all at the start.
 
 ## Context
 

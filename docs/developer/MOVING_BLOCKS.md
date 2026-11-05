@@ -24,7 +24,8 @@ described in [CRYSTAL_NET.md](CRYSTAL_NET.md).
   ride.
 - **Bounded cost.** Twins are level listeners with the 0.5 s actuator limit; a bridge places or removes one deck block
   per 0.25 s; pistons share a world budget of 4 pushes per tick and push at most every 0.5 s; a lift moves its height,
-  not blocks. Per-owner caps: 8 bridge motors, 8 pistons, 4 lifts.
+  not blocks, and reads only the shaft layers its step enters (#3204). Per-owner caps: 8 bridge motors, 8 pistons,
+  4 lifts (a lift's motor and stops never count against the network caps, #3205).
 - **Never someone else's things.** Bridges and pistons never touch ships, settlements, stations, the Guardian core,
   factories or another player's base (`BridgeCellProtected`, `PistonCellProtected`), and pistons move only ordinary
   mineable blocks (§4).
@@ -74,34 +75,82 @@ head's cell. `out=` persists the head.
 ## 5. The lift (#2266)
 
 **Building.** A `lift_motor` at the bottom; the shaft is the 3×3 column above it (`LiftPlatformRadius` 1, at most
-`LiftMaxHeight` 48 cells). The platform rests on the motor. A `lift_stop` beside the shaft (within `LiftStopReach`
-of the platform's edge) is a floor: the platform's top comes level with the stop's own cell. `LiftLevels` lists the
-floors, bottom first. A stop on the bottom floor belongs to the lift too (`StopBelongsTo`, #3161 — it used to be
-excluded, so a press on it did nothing and the platform could not be called back down).
+`LiftMaxHeight` 256 cells — 48 until #3204; nothing recorded a reason for 48, and the platform is one server float, so
+riding cost does not grow with height). The platform rests on the motor. A `lift_stop` beside the shaft (within
+`LiftStopReach` of the platform's edge) is a floor: the platform's top comes level with the stop's own cell.
+`LiftLevels` lists the floors, bottom first. A stop on the bottom floor belongs to the lift too (`StopBelongsTo`, #3161
+— it used to be excluded, so a press on it did nothing and the platform could not be called back down). The client
+mirrors the rule (`LiftRiding.LiftOfStop`, Client.Core).
+
+**Network caps (#3205).** A lift's motor and stops are `CrystalNetRules.IsLiftPart`: they never open a network that
+counts against `MaxNetsPerWorld` / `MaxNetsPerPlayer` (`OpensCountedNet`, `CountNets` via `CountsForNetCap`). Before,
+every unwired stop opened its own network and counted — a 16-floor lift used half a player's share, and a stop over the
+cap registered inert, so its floor silently vanished from `LiftLevels`. `MaxLiftsPerOwner` (4) is a lift's budget. A
+conduit or a device that wires a lone stop into a circuit makes that network count, and the cap is read then (a lift
+part beside a new cell does not hold it in a counted network).
 
 **Signals.** A press or a rising edge on a stop calls the platform there (`LiftGoTo`); on the motor it sends the
 platform to the next stop up, from the top back down to the bottom. A stop's status light is ON while the platform
 waits at it. A **press** that cannot be answered says why (#3163, `ServerMessage`): `srv.lift.stop_no_shaft` (the stop
-belongs to no motor), `srv.lift.no_stops` (a motor alone at the bottom), `srv.lift.blocked:<height>` /
-`srv.lift.blocked_bottom` (the first blocked layer in the ride's direction, counted from the bottom floor). A circuit's
-signal stays silent.
+belongs to no motor; `srv.lift.stop_no_shaft:<LiftMaxHeight>` since #3204 — the height fills the text's `{name}`),
+`srv.lift.no_stops` (a motor alone at the bottom), `srv.lift.blocked:<height>` / `srv.lift.blocked_bottom` (the first
+blocked layer in the ride's direction, counted from the bottom floor — at the press, or later to the player who called
+when the ride stops short, see *Moving*). A circuit's signal stays silent.
 
 **Snow.** The platform is no block, so the weather snow pass would see an open shaft and lay its drift under the
 platform — solid snow then blocked `LiftLayerClear` (Lyxette, 2026-11-03). `TryFindSnowSurface` now skips every lift
 shaft (`InLiftShaft`: the 3×3 column above a motor, up to `LiftMaxHeight`), and `LiftGoTo` clears tracked weather
 drifts in the ride's layers first (`ClearWeatherSnowInShaft`; a player's own snow still blocks) (#3162).
 
-**Moving.** The server owns `ServerLift.PlatformY` and moves it at `LiftSpeed` (3 cells per second) in `TickLifts`
-every tick (not on the beat). It starts only when the shaft between here and there is clear (`LiftLayerClear`), and
-**never moves down onto a body** (`LiftLayerOccupied` — it waits). `LiftList` (`NetLift`: motor cell, `PlatformY`,
-`TargetY`, `Speed`, `Moving`) goes out on every start and stop and every 0.2 s while one moves; a joining player gets
-it with the rest of the net. The motor loops `lift_motor` while it moves; `lift_arrive` plays on arrival. `at=` in
-the motor's row persists where it waited. A mined motor removes its lift.
+**Moving.** The server owns `ServerLift.PlatformY` and moves it in `TickLifts` every tick (not on the beat;
+`GameServerLiftRide.cs` since #3204). **Speed curve** (`Shared/Definitions/LiftMotion.cs`): a ride cruises at its
+distance over `CruiseSeconds` (12 s), clamped to [`LiftSpeed` 3, `MaxSpeed` 12] cells per second — rides up to 36
+cells keep the old constant 3 — eases in from 3 and out to 3 at `Acceleration` 4 cells/s² (`NextSpeed`: the braking
+term `√(3² + 2·a·remaining)`), and never cruises above `SafeSpeed(TickRate)` = one layer per tick (15 at the default
+15 Hz). 255 cells take about 23 s instead of 85. One tick moves at most `LiftMaxStepLayers` (2) layers.
+**Clearance on the way:** `LiftGoTo` reads only the first `LiftStartCheckLayers` (8) layers of the ride
+(`BlockedLiftLayer` — a blocked start still answers at once). **Going up, the rider's room is part of what moves**
+(`LiftRiderHeadroom` 2): a rider's feet stand on the platform's top and the head reaches 1.8 above them, so a platform
+at `y` carries its rider through `ceil(y)+1` and `ceil(y)+2` — and the client moves a rider with the platform's height
+change *without collision* (`RideBy`), so a block found only when the platform itself reaches it would drive the
+rider's head and then feet into it (review finding on #3204). The leading layer is therefore `ceil(y)+2` going up and
+`floor(y)` going down (`LiftLeadLayer`); a blocked layer `L` stops the platform at `L − 3` going up (head below `L`) and
+`L + 1` going down (`LiftStopBefore`); the start window going up reaches the target floor's rider room (`level + 2`),
+so a floor whose shaft has no room for a rider is refused. Every tick `StepLift` reads the leading layers the step
+enters (`BlockedLayerEntered`: `lead(from)±1 … lead(to)`) and the `LiftLookaheadLayers` (2) beyond them, up to the
+target's own lead layer (`ShortenRideBeforeBlock`) — over a ride every layer is read once, at most about 48 block reads
+per tick. A block found ahead **shortens the ride**: `TargetY` moves to the stop height and the list goes out at once,
+so the clients, which ease towards `TargetY` and never past it, slow at the same height instead of running on into the
+block for one list's latency; the arrival turns the motor's light amber and tells the caller
+(`ServerLift.BlockedAt`). A block put into the shaft right in front of the platform (already behind the read-ahead)
+is caught by the entering read and stops it at once (`StopLiftShort`). `LiftLayerClear` uses `GetBlock`, so a missing
+chunk is loaded on demand — at most the few chunks of a few layers per tick, instead of the whole shaft (up to ~64
+chunks) in the press's tick before #3204. Either way the platform stops clear of the block, the motor's light turns
+amber and `srv.lift.blocked:<height>` goes to the player who called (`ServerLift.CalledBy`).
+It **never moves down onto a body**: every layer the step sweeps is read (`LiftWayDownOccupied` over
+`LiftLayerOccupied`), not only the next one, so a slow tick cannot carry it past someone — it waits, with speed 0.
+`LiftList` (`NetLift`: motor cell, `PlatformY`, `TargetY`, `Speed`, `Moving`) goes out on every start and stop, when a
+wait starts or ends, and every 0.2 s while one moves; a joining player gets it with the rest of the net. `NetLift.Speed`
+is the ride's **average speed until the next list** (`LiftMotion.AverageSpeed` over `LiftBroadcastSeconds`), so the
+client's linear easing lands where the next list puts the platform — the curve needed no client or protocol change; it
+is 0 while the platform waits. The motor loops `lift_motor` while it moves; `lift_arrive` plays on arrival. `at=` in
+the motor's row persists where it waited (or stopped short). A mined motor removes its lift.
+
+**Space elevator (#3204).** The shaft may cross the planet's atmosphere line (`atmosphereHeight`, 100–280 above the
+terrain's ~64); stops above it work like any other. A ride that starts below the line and ends above it sends each of
+its riders `srv.lift.space_elevator` once (`TellLiftRidersAboveAir`) — not on a body without air (`AtmospherePresent`),
+and not for rides between two floors above the line. The snow-free shaft, the gates and the rider grace reach the whole
+256 cells; stepping off up there is the usual on-foot zero-g float (`UpdateAboveAtmosphere`).
 
 **Riding.** The client (`LiftView`) meshes one 3×3 `lift_platform` slab with the block atlas, places it with a
 collider at the eased height (`PlatformY` + `Speed` × time since the last list, clamped to `TargetY`) and moves the
-local player standing on it by the platform's height change (`PlayerController.RideBy`). The server grants riders the
-fall grace and counts the ride for "Going Up".
+local player standing on it by the platform's height change (`PlayerController.RideBy`; standing on the platform the
+controller is grounded, so the zero-g float above the atmosphere line does not lift a rider off it). The server grants
+riders the fall grace and counts the ride for "Going Up". #3204: the rider box (`OnLiftPlatform`) widens by
+`(Speed − 3) × LiftRiderLagSeconds` (0.4 s) while the platform moves — at 12 cells per second the position a rider
+reports trails the server's platform by a few cells, and the grace must not slip for that. A remote rider's avatar
+follows that player's own reports, so at full speed it may sit a little above or below the platform drawn from the lift
+list for a moment.
 
 **Choosing the floor (#3171).** The platform is an entity, not a block, and the aim ray walks voxels only — a rider had
 nothing to press (at the bottom the ray happened to hit the motor under the platform, at the top the motor lies beyond
@@ -129,7 +178,10 @@ the floor where the platform rests and closes all others (all of them while it m
 mined); it runs from `UpdateLiftStatuses` (departure, arrival), from "already here", and every 0.5 s per lift
 (placement, and a save whose chunk deltas disagree with the motor's `at=`). Chunks that are not loaded are skipped until
 they are. A gate never closes onto a body (`CellOccupiedByBody`): it joins `ServerLift.GatesWaiting` and the next tick
-with a free cell syncs again. Cost: 16 columns × the lift's height of chunk-cache reads per lift every 0.5 s.
+with a free cell syncs again. Cost: 16 columns × the lift's height of chunk-cache reads per lift every 0.5 s — #3204:
+read a chunk segment at a time (`SyncLiftGateColumn`: one `LoadedChunkOrNull` lookup per 16 cells, then array reads;
+an unloaded segment is skipped whole), so a 256-cell lift costs at most 16 × 17 lookups and 16 × 255 array reads per
+pass instead of 4 080 hash lookups.
 
 ## 6. Not aboard ships
 

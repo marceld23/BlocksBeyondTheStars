@@ -46,8 +46,9 @@ public static class NpcGridPath
         /// <summary>Nodes the search may close before it gives up.</summary>
         public int MaxExpansions { get; }
 
-        /// <summary>The server's defaults: a 97 × 17 × 97 box, 3000 nodes.</summary>
-        public static Limits Default => new Limits(48, 8, 3000);
+        /// <summary>The server's defaults: a 129 × 17 × 129 box, 5000 nodes (#3207: the box grew from ±48 to the game's one
+        /// design radius ±64, and the budget with its area, 3000 · (129/97)² ≈ 5300, rounded down).</summary>
+        public static Limits Default => new Limits(64, 8, 5000);
     }
 
     private static readonly (int Dx, int Dz)[] Dirs = { (1, 0), (-1, 0), (0, 1), (0, -1) };

@@ -96,7 +96,7 @@ who did it — once per settlement, ever; a later helper gets the thanks and the
 | Step | What happens |
 |---|---|
 | Planned (last step turned in) | `settlement_helped` deed; `WorldMetadata.Festivals["<locationId>\|<settlement>"]` = pending; the quartermaster's `village.festival.planned` (a direct reply, Kind Addressed) and VEGA's `vega.festival.planned`; with AI on the `cheer` and `festival_thanks` lines are asked for in the hero's language |
-| Waiting | no deadline; starts when the hero is within 48 m of the square at local day 0.60–0.95; the villagers' `festival_pending` chatter names the hero |
+| Waiting | no deadline; starts when the hero is within 64 m of the square at local day 0.60–0.95; the villagers' `festival_pending` chatter names the hero |
 | The party (180 s) | ≤ 24 residents within 64 m form a ring (routine phase `Festival`, "celebrating"), facing the square; one cheer every 5 s (Kind Cheer, cheer gesture); a bell tune of `SoundFx` notes at the start and every 45 s; the quartermaster's present (`festival.gift`; full bag → the next talk); +6 standing per attendee; `festival` deed; VEGA's `vega.festival.started` |
 | Afterwards | the routine takes everyone back at its next check; the deed feeds the news and the chatter |
 
