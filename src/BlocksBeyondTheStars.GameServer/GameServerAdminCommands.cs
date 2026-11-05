@@ -322,6 +322,22 @@ public sealed partial class GameServer
     {
         var p = session.State;
 
+        // #3226: the chat reads "NaN" and "Infinity" as numbers. A NaN position is never repaired in space and makes every
+        // later save of the player throw — refused like a point teleport's (and a MoveIntent's) non-finite target.
+        if (!float.IsFinite(cmd.X) || !float.IsFinite(cmd.Y) || !float.IsFinite(cmd.Z))
+        {
+            Reject(session, "admin", "@srv.tp.bad_target");
+            return;
+        }
+
+        // #3226: coordinates are a place on the world the admin stands on — in flight the snap would fight the flight
+        // scene, the same guard as /tp <name> and /tpp.
+        if (InSpace(p.PlayerId))
+        {
+            Reject(session, "admin", "@srv.tp.no_surface_targets");
+            return;
+        }
+
         p.Position = new Vector3f(cmd.X, cmd.Y, cmd.Z);
         // A plain PlayerStateUpdate position is ignored by the client and then reverted by its
         // client-authoritative move stream — every server-side teleport must go through the

@@ -95,9 +95,11 @@ Everything below the line "Deferred" is intentionally **not** in the MVP.
   `weapon_range` 60 — was 45) reaches to within ten units of it: shot at from the edge of the aura, a pilot flies a
   little closer and shoots back instead of 25 units. `SpaceCombatTests` pins both numbers.
 - **No permanent loss**: hull ≤ 0 ⇒ `DisableShip` ⇒ respawn player, restore hull to max,
-  clear the instance, ship "recovered to base". PvP ship damage is **not** in the MVP (the
-  world has one shared ship; per-player ships come later) — `ShipDamageByPlayers` is read but
-  PvP hits are rejected with a clear reason.
+  clear the instance, ship "recovered to base". PvP ship damage is **not implemented**: another
+  player's ship is no combat target (a ship weapon only aims at the instance's combat entities), so
+  it is never hit. The world rule `ShipDamageByPlayers` — like `AllowPlayerStructureDamage` — exists
+  in `GameRules` and the presets but is **not read** by the server yet (#3225); setting it changes
+  nothing until the feature is built.
 
 ## Target lock is client presentation (#2277, #2283)
 

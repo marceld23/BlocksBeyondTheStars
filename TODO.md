@@ -24,6 +24,25 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛡️ Server fixes 2026-11, part 2 — parked ships guarded like keel sites, config and report-path clean-up, admin teleport checks — #3221–#3226, branch fix/server-fixes-2026-11b — ✅ done 2026-11-05 (⚠ playtest open; no save-version, protocol or terrain-generation change; no new locale keys)
+
+- **#3221** Building on a **parked** ship gets the #3198 cell checks: a self-built ship growing over its roof
+  (`HandleLandedShipEdit` → `ParkedShipCellRefusal`) and an authored ship extended on foot (#2120) — cells inside the
+  ship's own box stay free (also on its own pad); a cell that grows the box is refused in a foreign base zone (owner,
+  allies, admins pass), at stations, factories, other ships/construction sites, on foreign pad columns and through
+  solid ground or player doors (existing tokens). Mining is unchanged.
+- **#3222** `ServerConfig.Difficulty` and `AllowGuests` removed — nothing read them; old `server.json` files still load.
+- **#3223** Bug and crash reports divert to `<repo>/bugreports/` only below the game's own checkout
+  (`BlocksBeyondTheStars.sln`), no longer below any `.git`.
+- **#3224** The blueprint paste cooldown test now gives the material and asserts `@srv.blueprint.cooldown`, then a paste
+  after the cooldown.
+- **#3225** `GameRules.AllowPlayerStructureDamage` / `ShipDamageByPlayers` documented as not implemented yet;
+  `SPACE_COMBAT_CONCEPT.md` and the user manual corrected.
+- **#3226** `/tp X Y Z` refuses non-finite coordinates (`@srv.tp.bad_target`) and space (`@srv.tp.no_surface_targets`);
+  `/goto <body> x y z` refuses non-finite coordinates (`@srv.obs.usage_goto`).
+- Tests (existing classes): `KeelBaseProtectionTests` (self-built and authored parked ships), `ServerConfigTests`,
+  `BugReportPathsTests`, `BlueprintTests`, `AdminCommandFixTests`.
+
 ### 🧭 Player reports 2026-11-05 — the HUD's right column, the open lift gate, base jobs for someone else — #3217–#3220, #3227, branch fix/reports-2026-11-05 — ✅ done 2026-11-05 (⚠ playtest open; no save-version, protocol or block-id change)
 
 - **#3217** The compass's third caption row (Guardian core / VEGA's goal / fragment signal, since #1792 at HUD y 146–164)
@@ -45,7 +64,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🛡️ Server fixes 2026-11 — reconnect without rollback, chat on long-running hosts, trades that keep every item, crates, ships and keels, network hardening for public worlds — #3186–#3201, branch fix/server-fixes-2026-11 — ✅ done 2026-11-05 (⚠ playtest open; no save-version, protocol or terrain-generation change; two new locale keys in all 14 languages)
+### 🛡️ Server fixes 2026-11 — reconnect without rollback, chat on long-running hosts, trades that keep every item, crates, ships and keels, network hardening for public worlds — #3186–#3201, branch fix/server-fixes-2026-11 — ✅ done 2026-11-05 in PR #3216 (`78b54918`) (⚠ playtest open; no save-version, protocol or terrain-generation change; two new locale keys in all 14 languages)
 
 - **#3186** Rejoin while the old session is still connected (#964 eviction): the player record is loaded again after the
   eviction saved the old session, so the new session starts from the latest state — no rollback to the last autosave, no
@@ -85,8 +104,8 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   `Lz4BombTests`, `TradeRoomTests`, `TradeInvitationTests`, `ShipIdCollisionTests`, `CarriedContentsTests`,
   `ConnectionGateTests`, `WebSocketSendQueueTests` (Slow), `HullColourThrottleTests`, `DisconnectGhostSessionTests`,
   `KeelBaseProtectionTests`, `FarBlockEditReachTests`, updated `PlacementRuleOrderTests` / `TickScheduleTests`.
-- Open follow-up: editing a commissioned self-built ship while it is parked (`HandleLandedShipEdit`) has no base/pad
-  protection check yet (same gap as #3198, for parked ships).
+- Follow-up: editing a ship while it is parked had no base/pad protection check (same gap as #3198) → fixed in #3221
+  (entry above).
 
 ### 📬 Player reports 2026-11-04 (Lyxette, the school club — Ben, Marie, Justus — and a Sandbox playtest, v2026.11.4) — choose the lift's floor, device names you can see, a lift gate, bridges that don't crumble, traders that land at your Market base and say where, trader landings like your own, avatars without blue gaps, gap-free brush strokes, board jobs with a story, wooden planks, ship modules findable from Crafting — #3171–#3182, branch fix/reports-2026-11-04 — ✅ done 2026-11-04 in PR #3183 (`970522dd`), released in v2026.11.5 (⚠ playtest open; **save version 11** for five new blocks — block ids shift; protocol: additive fields only (`BlockChanged.Moved`, `NetLift.Levels/LevelNames/LevelHasStop`, `MissionResult.Thanks`, `ShipTransitFx.ApproachSeconds`), no terrain-generation change)
 
