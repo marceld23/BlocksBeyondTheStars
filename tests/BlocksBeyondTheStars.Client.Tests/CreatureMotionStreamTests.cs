@@ -37,7 +37,8 @@ public sealed class CreatureMotionStreamTests
         var at = session.State.Position;
 
         string near = h.Server.SpawnCreatureAtForTest(new Vector3f(at.X + 3f, at.Y, at.Z));
-        string far = h.Server.SpawnCreatureAtForTest(new Vector3f(at.X + 60f, at.Y, at.Z));
+        // #3207: past the 64-block CreatureMotionRange by a wanderer's margin, still inside the creature leash.
+        string far = h.Server.SpawnCreatureAtForTest(new Vector3f(at.X + 76f, at.Y, at.Z));
         frames.Clear();
         lists.Clear();
         for (int i = 0; i < 20; i++)

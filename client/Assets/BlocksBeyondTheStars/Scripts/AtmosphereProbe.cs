@@ -253,7 +253,7 @@ namespace BlocksBeyondTheStars.Client
                 float sunHeight = Mathf.Sin((t - 0.25f) * Mathf.PI * 2f);
                 float d = Mathf.Clamp01(sunHeight * 0.5f + 0.5f);
                 day = d * (2f - d); // the same ease the Sky's light level uses
-                weather = Mathf.Clamp01(env.Intensity);
+                weather = Mathf.Clamp01(Game.WeatherIntensity); // #3202: the smoothed intensity, like the Sky
             }
 
             float daylight = skyOpen * day * Mathf.Lerp(1f, 0.7f, weather);

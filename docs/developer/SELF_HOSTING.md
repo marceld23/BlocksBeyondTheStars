@@ -57,6 +57,9 @@ Created on first run; editable directly or through the admin UI.
 | `backupIntervalMinutes` | Minutes of **play** between two rotating backups (`0` = off) — see §6 | `60` |
 | `backupKeepCount` | How many rotating backups of each kind are kept (1–50) | `5` |
 | `viewDistanceChunks` | Chunk stream radius | `4` |
+| `nearColumnRadiusChunks` | Radius (chunks) around each player where the full vertical column streams and stays loaded — the guaranteed reach of bases, air, fluids, NPC paths and the Crystal Net (2–8; the in-browser game uses 3) — see below | `4` |
+| `nearColumnChunksUp` | Chunks above the player's chunk a near column streams (2–3; 3 down is fixed; the in-browser game uses 2) | `3` |
+| `maxAnchoredChunks` | Chunks per world kept loaded away from the players for Crystal Nets, lifts and base builds while someone is on that body (0 = off, at most 8192; the in-browser game uses 128) — see below | `512` |
 | `tickRate` | Simulation Hz (10–20 recommended) | `15` |
 | `seed` | World seed (0 = derive from world name) | `0` |
 | `startPlanet` | Starting planet type | `varied` |
@@ -137,6 +140,8 @@ command line**, so env vars override the file but the in-game host's CLI flags s
 | `BBS_CHUNK_STREAM_PER_TICK` | `chunkStreamPerTick` | `BBS_CHUNK_STREAM_BUDGET_MS` | `chunkStreamBudgetMs` |
 | `BBS_CHUNK_GEN_WORKERS` | `chunkGenWorkers` (default 2, 0 = generate inline on the tick) | `BBS_TICK_TIMING_LOG_SECONDS` | `tickTimingLogSeconds` |
 | `BBS_BACKUP_INTERVAL_MINUTES` | `backupIntervalMinutes` | `BBS_BACKUP_KEEP` | `backupKeepCount` |
+| `BBS_NEAR_COLUMN_RADIUS` | `nearColumnRadiusChunks` (default 4, 2–8) | `BBS_NEAR_COLUMN_UP` | `nearColumnChunksUp` (default 3, 2–3) |
+| `BBS_MAX_ANCHORED_CHUNKS` | `maxAnchoredChunks` (default 512, 0 = off) | | |
 
 The table lists the common ones. The complete list — every `BBS_*` variable and `--switch` with its aliases, fallback
 variables and a one-line description — is the option table `ServerConfigOptions.All` in
@@ -147,6 +152,27 @@ the variables it applied at start-up.
 many background threads, each with its own world generator (up to ~18 MB of terrain memos per thread at view distance
 8). A streaming pass still sends exactly the chunks it always sent; it just stops waiting on one core. On a small
 container with little RAM, `1` keeps most of the gain.
+
+**Near full-column radius** (`nearColumnRadiusChunks`, CLI `--near-column-radius`; `nearColumnChunksUp`, CLI
+`--near-column-up`; #3208): within this many chunks of a player (16 blocks each) the server streams the whole vertical
+column — 3 chunks down and `nearColumnChunksUp` chunks up — so those chunks are loaded on the server; farther out only
+the thin band around the terrain surface is. It is the guaranteed reach of every system that only reads loaded chunks:
+base walls and air, NPC paths, drones, fluids, the Crystal Net, drills. The default 4 / 3 means 64 blocks sideways and
+48 blocks down and up (before #3208 it was 3 / 2: 48 sideways, 32 up). It never reaches past a player's own streaming
+radius (view distance + 1), so a player with a view distance below 3 gets less. Each step costs memory per player: at
+view distance 4, going from 3 / 2 to 4 / 3 adds roughly 180 chunks (≈ 1.4 MB of voxels) per player on the server and
+as many on the client — most of them all-air chunks above the ground, which are cheap to send and to mesh. On a
+Raspberry Pi with many players, `3` / `2` restores the old footprint. The in-browser game keeps 3 / 2.
+
+**Anchored chunks** (`maxAnchoredChunks`, CLI `--max-anchored-chunks`; #3211): while at least one player is on a body,
+the server also keeps a sparse set of that body's chunks loaded wherever they are, so a Crystal Net machine park or a base
+a few hundred blocks away keeps working: every chunk with a Crystal Net cell plus each lift's shaft, then the chunks with
+player builds inside each base's reach (nearest the base core first). Only chunks that actually hold something are kept,
+never a whole box. The cap is per occupied world (8 KB of voxels per chunk: the default 512 ≈ 4 MB); when it cuts, whole
+networks are kept smallest first and base builds nearest the core, and the server logs one line. A body nobody is on still
+loads and simulates nothing — its machines catch up when someone comes back (see *Machine catch-up* above). Missing
+anchored chunks are loaded a few per tick after a player arrives, never all at once. `0` turns anchoring off (only players
+keep chunks loaded). The in-browser game uses 128.
 
 ### Fleet admin vs. world admin
 

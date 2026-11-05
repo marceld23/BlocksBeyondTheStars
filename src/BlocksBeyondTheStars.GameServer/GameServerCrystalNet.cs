@@ -506,11 +506,11 @@ public sealed partial class GameServer
     /// most half of each per player, so one builder cannot lock everyone else out), and the per-owner machine caps. A
     /// world circuit (#2260) has a small budget of its own and never counts against the players. A cell over a cap
     /// registers inert — it exists, it is listed, it does nothing — and the player is told; mining something frees the
-    /// slot.</summary>
+    /// slot. #3205: a lift's motor and stops never open a network that counts (<see cref="OpensCountedNet"/>).</summary>
     private bool OverCrystalCap(ServerCrystalCell cell)
     {
         var state = CrystalNet;
-        bool brandNewNet = !cell.IsGate && !HasCrystalNeighbour(cell.Cell);
+        bool brandNewNet = OpensCountedNet(cell);
         if (_crystalFrame is not null)
         {
             // #2268: a ship is small — a net of its own with caps of its own.
@@ -581,8 +581,55 @@ public sealed partial class GameServer
                    || (cell.OwnerId.Length > 0 && CountNets(cell.OwnerId, worldOnly: false) >= CrystalNetRules.MaxNetsPerPlayer));
     }
 
+    /// <summary>#3205: whether a new cell adds a network to the count the caps read. A gate never does (it is no member of
+    /// any) and neither does a lift part (<see cref="CrystalNetRules.IsLiftPart"/>: an unwired stop or a lift's own motor is
+    /// a lift, not a circuit — <see cref="CrystalNetRules.MaxLiftsPerOwner"/> is its budget). Any other cell does unless it
+    /// joins a network that already counts: a lift part beside it whose network holds nothing else does not hold it in one —
+    /// wiring a lone stop makes that network count, and the cap is read then.</summary>
+    private bool OpensCountedNet(ServerCrystalCell cell)
+    {
+        if (cell.IsGate || CrystalNetRules.IsLiftPart(cell.Kind))
+        {
+            return false;
+        }
+
+        foreach (var face in CrystalNetRules.Faces)
+        {
+            var n = cell.Cell + face;
+            if (CrystalNet.Cells.TryGetValue(n, out var c) && !c.Inert && !CrystalEyeBetween(cell.Cell, n)
+                && (c.IsGate || c.NetId == 0 || NetCountsForCaps(c.NetId)))
+            {
+                return false; // it joins a counted network (or sits beside a gate, as before)
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>#3205: whether a network counts against the network caps — one of its cells is a conduit or a real device
+    /// (<see cref="CrystalNetRules.CountsForNetCap"/>), not only passive ports and lift parts.</summary>
+    private bool NetCountsForCaps(int netId)
+    {
+        if (!CrystalNet.Nets.TryGetValue(netId, out var net))
+        {
+            return false;
+        }
+
+        foreach (var pos in net.Cells)
+        {
+            if (CrystalNet.Cells.TryGetValue(pos, out var c) && CrystalNetRules.CountsForNetCap(c.Kind))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>The networks of the world's players (<paramref name="owner"/> null) or of one player — a network counts for
-    /// every owner of a real cell in it — or, with <paramref name="worldOnly"/>, the networks of world circuits (#2260).</summary>
+    /// every owner of a real cell in it — or, with <paramref name="worldOnly"/>, the networks of world circuits (#2260).
+    /// #3205: a lift part is no real cell here (like a passive port) — a lone stop's or a lift motor's own network is not
+    /// counted.</summary>
     private int CountNets(string? owner, bool worldOnly)
     {
         var state = CrystalNet;
@@ -592,7 +639,7 @@ public sealed partial class GameServer
             bool world = false, player = false, match = false;
             foreach (var pos in net.Cells)
             {
-                if (!state.Cells.TryGetValue(pos, out var c) || CrystalNetRules.IsPassivePort(c.Kind))
+                if (!state.Cells.TryGetValue(pos, out var c) || !CrystalNetRules.CountsForNetCap(c.Kind))
                 {
                     continue;
                 }

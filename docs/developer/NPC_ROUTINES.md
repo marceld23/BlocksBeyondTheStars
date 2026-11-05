@@ -21,7 +21,9 @@ forges, crops, hydro trays, saplings, sentry posts.
 
 - **Read from the block-edit store**, not the voxels: `IWorldRepository.ListBlockEditsMatching(planet, box, blocks,
   shapeIndices, limit)` (Sqlite, PostgreSQL, Memory). Every indexed thing was placed by a player, so one filtered query
-  replaces a voxel scan of up to 193 × 65 × 193 cells. The box is the base's `BaseWallReach`, capped at ±96 × ±32.
+  replaces a voxel scan of up to 385 × 65 × 385 cells. The box is the base's `BaseWallReach` (±48 … ±192, the walls box
+  itself) × ±32 — #3210: it was capped at ±96, so a bed or post between 96 and 192 blocks out stood inside the walled yard
+  but was never indexed. The store query is no wider than the one `BaseWallReach` already makes over the same box.
 - **Inside only** (`BaseCellInside`): the 17³ core zone; or, beside the thing on its floor level, the walled yard
   (`InWalledBaseArea`); or, from the air above it, a sealed base room (`InSealedBaseRoom`) or a closed room
   (`InClosedRoom`: a 6-connected flood that stops at walls, the roof and every door, ≤ 4096 cells, ≤ 24 blocks).
@@ -44,8 +46,17 @@ forges, crops, hydro trays, saplings, sentry posts.
   loaded at the build (`BaseAreaLoaded`); a dedicated server scans its bases before anybody walked there. An index built
   without them is provisional (§3 keeps the jobs it cannot judge) and is rebuilt as soon as the area is loaded — a chunk
   load changes no block, so nothing else would mark it dirty — together with the walled-yard fill (`MarkBaseWallsDirty`).
-- Dirty on any `BlockSet` within the base's reach (`MarkBaseIndexDirty`), rebuilt lazily by the base-life scan,
-  dropped with the base (`ForgetBaseIndex`). RAM only.
+- **The yard can answer late** (#3209): the walled-yard fill of a big base runs over several ticks, and a level that
+  never finished a fill reads open meanwhile — so a bed in the open yard of a level nobody asked about before may miss
+  one rebuild. A finished fill that changed the yard marks the index dirty, so the next scan counts it; what counted
+  before keeps counting meanwhile (the bulkhead rule above), and a refill answers from the last finished fill — open
+  outside that fill's box (a box that just grew is open in its new strip, never walled). A build that read a level whose
+  refill was still running (`BaseCellInside(…, out settled)`) counts by it for now but writes nothing of it into
+  `StickyInside`, and is rebuilt after the next finished fill of the base (`BaseIndex.WallsPending`): only a settled
+  answer may become durable.
+- Dirty on any `BlockSet` within the base's reach (`MarkBaseIndexDirty`) and when the reach grows (`GrowBaseWallReach` —
+  the block-set event fires first and measured against the old box), rebuilt lazily by the base-life scan, dropped with
+  the base (`ForgetBaseIndex`). RAM only.
 
 ## 3. Residents (`GameServerBaseLife.cs`)
 
@@ -155,7 +166,7 @@ reach of a board block nobody staffs says the same (`HandleRequestMissions`).
 ## 5. Pathfinding (`NpcGridPath.cs` in Shared, `GameServerNpcPathing.cs`)
 
 - `NpcGridPath.Find`: A* over feet cells (standable = floor + two free cells), four horizontal moves with dy ∈
-  {0, +1, −1, −2}, doors a little dearer, goal reached beside it; box ±48 × ±8, 3000 expansions. Pure and
+  {0, +1, −1, −2}, doors a little dearer, goal reached beside it; box ±64 × ±8, 5000 expansions (±48 / 3000 before #3207). Pure and
   unit-tested (`NpcGridPathTests`).
   - **Steps (#2678):** a one-block step up or down needs only its landing to be standable — what the walk checks too
     (`MoveNpcs` lifts the body the moment its centre crosses into the new column and sweeps only that column). The old
@@ -163,9 +174,13 @@ reach of a board block nobody staffs says the same (`HandleRequestMissions`).
     three-high room, the ceiling hole open above the upper steps only — was a wall to every NPC. The capsule's edge
     brushes the hole's rim while crossing; that brief overlap is accepted. A drop of two still needs the column it walks
     out over to be open at its old height. Stairs and slabs are full blocks to stand on (`NpcFooting.Floor`).
-  - **Base residents** (`npc.BaseId > 0`) search `BasePathLimits` = the station's (96, 16, 8000): a base spans up to 96
-    blocks (the index box) and stacks storeys — a bed 12 above the core was out of ±8. Every other planet NPC keeps the
-    default. **Ladders are out of scope** — residents take stairs; the manual says so.
+  - **Base residents** (`npc.BaseId > 0`) search `BasePathLimitsFor` (#3210): a base stacks storeys — a bed 12 above the
+    core was out of ±8 — and spans its walls reach (up to ±192, the index box). The box around the start reaches the far
+    side of the index box from wherever the resident stands: horizontally the reach plus the start's distance from the
+    core, vertically ±32 plus the start's height above or below the core — never less than the station's (96, 16). The
+    box costs nothing by itself; the expansion budget bounds a search and grows with the reach, 8000 per 96 blocks
+    (16 000 at the cap), one search per tick at most. Every other planet NPC keeps the default. **Ladders are out of
+    scope** — residents take stairs; the manual says so.
 - `SetNpcGoal` → `RequestNpcPath` queues the NPC; `TickNpcPaths` runs **one** search per tick on `GetBlockIfLoaded`
   reads. On a player station a node must be in a sealed pocket or a doorway (the crew never routes through vacuum).
 - `NpcGridPath.Smooth` (#2669) pulls every level stretch of the route straight: from each kept waypoint to the farthest
@@ -511,7 +526,7 @@ the furnished room (`RoomFurnisher.RoomRole` name).
   the "planned" lines are skipped. While pending, `FestivalPendingHero(settlement)` names the hero (chatter, §13).
 - **Start** (`TickVillageFestivals`, Guard-registered after `TickVillageLife`: the tune's notes every tick, a pass once a
   second per world). A pending festival starts when its hero is joined on this world, on foot, not observing, within
-  48 m of the **square** and the local day there is in [0.60, 0.95) — it waits forever otherwise (no FOMO). The square
+  64 m of the **square** and the local day there is in [0.60, 0.95) — it waits forever otherwise (no FOMO). The square
   (`FestivalAnchorFor`, computed once the hero is near, cached per run): the layout centre (`Min + Width/2, GroundY + 1,
   Min + Length/2` — where `SettlementGenerator.StampCentralFeature` paves the 3×3 plaza; the box centre for a settlement
   without a layout) when a ring fits there (≥ 4 of 8 standable spots at radius 3 with no wall between them and a point

@@ -460,7 +460,8 @@ public sealed partial class GameServer
             }
         }
 
-        Send(session, new ServerMessage { Text = "@srv.sentry.outside_base" });
+        // #3206: the power reach (core and relay alike) rides along as the text's {name}.
+        Send(session, new ServerMessage { Text = "@srv.sentry.outside_base:" + BaseProtectionRadius.ToString(System.Globalization.CultureInfo.InvariantCulture) });
     }
 
     /// <summary>Test/diagnostic: the base_core cell of a base, so a test can measure from it (#1714).</summary>

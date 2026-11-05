@@ -22,8 +22,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// (Marcel 2026-09-13: pathfinding first, teleport as the emergency exit): a player within
 /// <see cref="NpcTeleportUnseenRange"/> blocks of the NPC or the goal who can see either of them stops it (#2680 — a
 /// player on another floor or behind walls no longer does). A watched NPC waits and tries again.</item>
-/// <item><b>Base residents</b> search a bigger box (<see cref="BasePathLimits"/>, ±16 up and down like a station's
-/// crew) — a bed two or three storeys above the core is a normal home (#2678). Residents take stairs, not ladders.</item>
+/// <item><b>Base residents</b> search a bigger box (<see cref="BasePathLimitsFor"/>) — a bed two or three storeys above the
+/// core is a normal home (#2678), and since #3210 the box holds the base's whole index box (its walls reach, up to ±192)
+/// from wherever the resident stands, with an expansion budget that grows with the reach. Residents take stairs, not
+/// ladders.</item>
 /// <item>Routes are dropped when a block changes next to them (<see cref="MarkNpcPathsDirty"/>).</item>
 /// </list>
 /// </summary>
@@ -54,10 +56,58 @@ public sealed partial class GameServer
     /// from its post — the search reaches twice as far (and two decks) there than on a planet's surface.</summary>
     private static readonly NpcGridPath.Limits StationPathLimits = new(96, 16, 8000);
 
-    /// <summary>#2678: a base resident's search box — a base reaches up to 96 blocks from its core (the index box) and
-    /// stacks storeys: a bed 12 blocks above the core was out of the planet default's ±8. The station's limits; only base
-    /// residents (at most five per base) pay for them, every other planet NPC keeps <see cref="NpcGridPath.Limits.Default"/>.</summary>
+    /// <summary>#2678: a base resident's smallest search box — a base stacks storeys: a bed 12 blocks above the core was out
+    /// of the planet default's ±8. The station's limits; only base residents pay for them, every other planet NPC keeps
+    /// <see cref="NpcGridPath.Limits.Default"/>. <see cref="BasePathLimitsFor"/> widens it to the resident's base.</summary>
     private static readonly NpcGridPath.Limits BasePathLimits = StationPathLimits;
+
+    /// <summary>
+    /// #3210: a base resident's search box. The base index counts beds and posts within the base's walls reach (up to ±192
+    /// around the core, ±<see cref="BaseIndexHalfY"/> in height) while the search box stopped at ±96 around the resident —
+    /// a bed 150 blocks out was a home nobody could walk to. The box (around the start) now reaches the far side of the
+    /// index box from wherever the resident stands: the reach plus the start's distance from the core, never less than
+    /// <see cref="BasePathLimits"/>. The box only bounds where a search may go; its cost is bounded by the expansion budget,
+    /// which grows with the reach: 8000 per 96 blocks, so at most 16 000 at the cap — one search per tick at most.
+    /// </summary>
+    private NpcGridPath.Limits BasePathLimitsFor(ServerNpc npc, Vector3i start)
+    {
+        var home = _bases.FirstOrDefault(b => b.Id == npc.BaseId && b.Planet == _world.LocationId);
+        if (home is null)
+        {
+            return BasePathLimits;
+        }
+
+        int circ = _world.Circumference;
+        int reach = BaseWallReach(home);
+        int fromCore = System.Math.Max(System.Math.Abs(WorldConstants.WrapDeltaX(start.X - home.Cell.X, circ)),
+            System.Math.Abs(WorldConstants.WrapDeltaZ(start.Z - home.Cell.Z, circ)));
+        int halfXZ = System.Math.Max(BasePathLimits.HalfXZ, System.Math.Min(reach + fromCore, 2 * WalledReachCap));
+        int halfY = System.Math.Max(BasePathLimits.HalfY,
+            System.Math.Min(BaseIndexHalfY + System.Math.Abs(start.Y - home.Cell.Y), 2 * BaseIndexHalfY));
+        int expansions = System.Math.Max(BasePathLimits.MaxExpansions, BasePathLimits.MaxExpansions * reach / BasePathLimits.HalfXZ);
+        return new NpcGridPath.Limits(halfXZ, halfY, expansions);
+    }
+
+    /// <summary>Test seam (#3210): the search limits a resident's route search from where it stands would use.</summary>
+    internal (int HalfXZ, int HalfY, int MaxExpansions) NpcPathLimitsForTest(int id)
+    {
+        var npc = _npcs.First(n => n.Id == id);
+        var limits = npc.BaseId > 0 ? BasePathLimitsFor(npc, npc.Pos.ToBlock()) : NpcGridPath.Limits.Default;
+        return (limits.HalfXZ, limits.HalfY, limits.MaxExpansions);
+    }
+
+    /// <summary>Test seam (#3210): runs the NPC's route search to its goal right now; true when a route was found.</summary>
+    internal bool SearchNpcPathForTest(int id)
+    {
+        var npc = _npcs.First(n => n.Id == id);
+        if (npc.Goal is not { } goal)
+        {
+            return false;
+        }
+
+        SearchNpcPath(npc, goal);
+        return npc.Path is not null;
+    }
 
     /// <summary>Search statistics for the tests.</summary>
     public int NpcPathSearchesForTest { get; private set; }
@@ -152,7 +202,7 @@ public sealed partial class GameServer
 
         bool Free(Vector3i c) => !NpcBodyBlocked(_world.GetBlockIfLoaded(c), c);
 
-        var limits = _world.Planet?.Void == true ? StationPathLimits : npc.BaseId > 0 ? BasePathLimits : NpcGridPath.Limits.Default;
+        var limits = _world.Planet?.Void == true ? StationPathLimits : npc.BaseId > 0 ? BasePathLimitsFor(npc, start) : NpcGridPath.Limits.Default;
         var cells = NpcGridPath.Find(start, goalCell, Standable, Free, Door, limits, out _);
         if (cells is null)
         {

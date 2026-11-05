@@ -18,8 +18,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <list type="bullet">
 /// <item><b>Read from the block-edit store, not the voxels.</b> Every one of those was placed by a player, so one
 /// bounded, filtered query (<c>ListBlockEditsMatching</c>) answers what a voxel scan of a fortress-sized box — up to
-/// 193 × 65 × 193 cells — would take a noticeable slice of a tick to find. The box follows the base's built extent
-/// (<see cref="BaseWallReach"/>), capped at <see cref="BaseIndexHalfXZ"/>.</item>
+/// 385 × 65 × 385 cells — would take a noticeable slice of a tick to find. The box follows the base's built extent
+/// (<see cref="BaseWallReach"/>) horizontally — the walls box itself, up to its cap of ±192 (#3210: it stopped at ±96, so
+/// beds and posts between 96 and 192 blocks out stood inside the walled yard but were never indexed) — and
+/// ±<see cref="BaseIndexHalfY"/> vertically.</item>
 /// <item><b>Only what is inside the base counts</b> (Marcel 2026-09-13: "core zone + room + yard"): the 17³ core
 /// zone, a sealed base room, the walled yard (#1315/#1862) or a closed room — walls, a roof and a door, see
 /// <see cref="InClosedRoom"/>. A bed in the open field brings nobody.</item>
@@ -37,8 +39,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    /// <summary>Largest horizontal half-extent the index looks at (a 193 × 193 footprint).</summary>
-    private const int BaseIndexHalfXZ = 96;
+    /// <summary>Largest horizontal half-extent the index looks at: the walls box's cap (a 385 × 385 footprint, #3210) — so the
+    /// index box IS the base's walls box (<see cref="BaseWallReach"/> never exceeds it), and every bed or post inside the
+    /// walled yard is counted.</summary>
+    private const int BaseIndexHalfXZ = WalledReachCap;
 
     /// <summary>Vertical half-extent of the index box around the core (a tower or a basement still counts).</summary>
     private const int BaseIndexHalfY = 32;
@@ -88,6 +92,10 @@ public sealed partial class GameServer
         /// <summary>#2677: machines inside the base as the founding rule counts them (<see cref="BaseMachinesInside"/>), up
         /// to the count the first settler needs; -1 until asked after a rebuild. A base that is founded never asks.</summary>
         public int FoundingMachines = -1;
+
+        /// <summary>#3209 review: the last build read a walled-yard level whose refill was still running — the next finished
+        /// fill of the base rebuilds the index, changed or not.</summary>
+        public bool WallsPending;
         public bool BoardStocked;
         public bool Dirty = true;
         public double ComputedAt = double.NegativeInfinity;
@@ -181,10 +189,12 @@ public sealed partial class GameServer
             return idx;
         }
 
-        if (!idx.Dirty && idx.WorldId == _world.LocationId)
+        if (!idx.BuiltLoaded && loaded && idx.WorldId == _world.LocationId)
         {
             // Built over unloaded chunks, loaded now: the walled-yard fill may hold a verdict read over the same unloaded
-            // ground (it recomputes on its own every few seconds) — judge the walls afresh with the index.
+            // ground (it recomputes on its own every few seconds) — judge the walls afresh with the index. Whether or not the
+            // index is dirty for another reason too: since #3209 a finished walls fill marks it dirty, and the first fill
+            // over the unloaded ground did exactly that — skipping this then kept the open-ground verdict (and lost the guard).
             MarkBaseWallsDirty(_world, b.Cell);
         }
 
@@ -195,6 +205,7 @@ public sealed partial class GameServer
         idx.ComputedAt = _uptime;
         idx.Rebuilds++;
         idx.FoundingMachines = -1;
+        idx.WallsPending = false;
         idx.BedHeads.Clear();
         idx.Seats.Clear();
         idx.VendorPosts.Clear();
@@ -256,7 +267,7 @@ public sealed partial class GameServer
     }
 
     /// <summary>The block edits of <paramref name="blocks"/> (or of the <paramref name="shapes"/> forms) in a base's index box —
-    /// its reach capped at ±<see cref="BaseIndexHalfXZ"/>, ±<see cref="BaseIndexHalfY"/> around the core — asked per canonical
+    /// its walls reach (at most ±<see cref="BaseIndexHalfXZ"/>), ±<see cref="BaseIndexHalfY"/> around the core — asked per canonical
     /// piece of the box (the store holds canonical columns), at most <paramref name="limit"/> rows in all.</summary>
     private List<BlocksBeyondTheStars.Persistence.BlockEdit> BaseIndexEdits(ServerBase b, IReadOnlyCollection<ushort> blocks,
         IReadOnlyCollection<int> shapes, int limit)
@@ -375,12 +386,24 @@ public sealed partial class GameServer
         // #2653: what counted as inside before keeps counting while the same block stands there (the bulkhead rule).
         var probe = crop || sapling ? cell : new Vector3i(cell.X, cell.Y + 1, cell.Z);
         bool sticky = stickyBefore.TryGetValue(cell, out var was) && (was == block || was == StickyAnyBlock);
-        if (!sticky && !BaseCellInside(b, cell, probe, roomCache))
+        bool settled = true;
+        bool inside = sticky || BaseCellInside(b, cell, probe, roomCache, out settled);
+        if (!settled)
+        {
+            idx.WallsPending = true; // #3209 review: a yard refill is running — judge this again once it is done
+        }
+
+        if (!inside)
         {
             return;
         }
 
-        idx.StickyInside[cell] = block;
+        if (settled)
+        {
+            // Only a current walls answer goes into the bulkhead memory: one read from a refill still running (the last
+            // finished fill) counts for now but never sticks — the rebuild after the refill decides for good.
+            idx.StickyInside[cell] = block;
+        }
 
         if (block == _ixBed)
         {
@@ -445,7 +468,13 @@ public sealed partial class GameServer
     /// zone, or its <paramref name="probe"/> air cell lies in a sealed base room, the walled yard or a closed room
     /// within the base's reach.</summary>
     private bool BaseCellInside(ServerBase b, Vector3i cell, Vector3i probe, Dictionary<Vector3i, bool>? roomCache = null)
+        => BaseCellInside(b, cell, probe, roomCache, out _);
+
+    /// <summary><see cref="BaseCellInside(ServerBase, Vector3i, Vector3i, Dictionary{Vector3i, bool}?)"/>, also saying whether
+    /// every walled-yard answer it used was settled (#3209 review: not read from a level whose refill is still running).</summary>
+    private bool BaseCellInside(ServerBase b, Vector3i cell, Vector3i probe, Dictionary<Vector3i, bool>? roomCache, out bool settled)
     {
+        settled = true;
         int circ = _world.Circumference;
         if (System.Math.Abs(WorldConstants.WrapDeltaX(cell.X - b.Cell.X, circ)) <= BaseProtectionRadius
             && System.Math.Abs(cell.Y - b.Cell.Y) <= BaseProtectionRadius
@@ -462,7 +491,9 @@ public sealed partial class GameServer
             var side = new Vector3i(cell.X + dx, cell.Y, cell.Z + dz);
             if (!IsCollidingBlock(_world.GetBlockIfLoaded(side), fluidsPass: false, foliagePasses: false))
             {
-                if (InWalledBaseArea(side))
+                bool walled = InWalledBaseArea(side, out bool sideSettled);
+                settled &= sideSettled;
+                if (walled)
                 {
                     return true;
                 }
@@ -477,7 +508,14 @@ public sealed partial class GameServer
             return false;
         }
 
-        return InSealedBaseRoom(probe) || InWalledBaseArea(probe) || InClosedRoom(probe, roomCache);
+        if (InSealedBaseRoom(probe))
+        {
+            return true;
+        }
+
+        bool probeWalled = InWalledBaseArea(probe, out bool probeSettled);
+        settled &= probeSettled;
+        return probeWalled || InClosedRoom(probe, roomCache);
     }
 
     /// <summary>

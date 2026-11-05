@@ -303,7 +303,7 @@
   "story.tutorial.c7.air.start_later": "En mundos sin aire tu núcleo también da aire — en el cubo alrededor y en cada habitación sellada de piedra, metal o vidrio, cerrada por una Puerta de energía.",
   "story.tutorial.c7.walls.start": "Ningún animal salvaje aparece cerca de tu núcleo. Un anillo cerrado de muros de 2 bloques de alto los mantiene aún más lejos: construye uno alrededor de tu base y entra en él.",
   "story.tutorial.c7.walls.chip": "Cierra un anillo de muros y quédate dentro",
-  "story.tutorial.c7.walls.hint": "Ponte a cielo abierto dentro del anillo — una habitación o una cueva no cuentan. El anillo puede estar a hasta 48 bloques del núcleo; un hueco o una puerta de madera abierta deja entrar animales.",
+  "story.tutorial.c7.walls.hint": "Ponte bajo el cielo abierto dentro del anillo: una habitación o una cueva no cuentan. El anillo puede rodear toda tu base; una abertura o una Puerta de madera abierta deja entrar animales.",
   "story.tutorial.c7.bed.start": "Una cama convierte tu base en el lugar donde despiertas. Haz una a mano (6 de madera, 8 de fibra vegetal), colócala y pulsa {key:Interact} junto a ella.",
   "story.tutorial.c7.bed.chip": "Haz de una cama tu punto de despertar",
   "story.tutorial.c7.bed.hint": "Ponte justo al lado de la cama cuando pulses {key:Interact}. Un tanque de curación también sirve como punto de despertar.",

@@ -85,7 +85,8 @@ public sealed class VegaTextTests
                 continue;
             }
 
-            string composed = VegaText.Compose(prop.Value.GetString(), args, a => "K");
+            // The loader fills the range tokens (#3206) before any line is shown — a token it does not know stays and fails here.
+            string composed = VegaText.Compose(RangeTokens.Fill(prop.Value.GetString()!), args, a => "K");
             if (composed.Contains('{') || composed.Contains('}'))
             {
                 bad.Add(prop.Name + " → " + composed);

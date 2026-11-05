@@ -575,22 +575,25 @@ namespace BlocksBeyondTheStars.Client
                 float h = Screen.height, w = Screen.width, t = Time.time;
 
                 // A faint wash sells the heavy air, tinted to the precipitation (wet blue, smoky ash, tan dust…).
+                // #3203: blown grit (a gale's dust, a sandstorm) washes in the grit's own colour — the ground's, dimmed by
+                // the world light so it does not glow at night; it used to fall through to the blue wet-air wash.
                 Color wash = precip switch
                 {
                     "ash" => new Color(0.30f, 0.22f, 0.18f),
-                    "sandstorm" => new Color(0.74f, 0.62f, 0.40f),
+                    "sandstorm" or "dust" => WeatherFx3D.GritWash,
                     "snow" or "hail" => new Color(0.72f, 0.78f, 0.84f),
                     _ => WaterColours.Blend(new Color(0.42f, 0.52f, 0.62f), env, 0.5f, t), // #1758: wet air in the water's colour
                 };
-                float washStrength = precip == "sandstorm" ? 0.22f : 0.05f;
-                GUI.color = new Color(wash.r, wash.g, wash.b, washStrength + env.Intensity * 0.07f);
+                float washStrength = precip == "sandstorm" ? 0.22f : precip == "dust" ? 0.12f : 0.05f;
+                float strength = Game.WeatherIntensity; // #3202: the smoothed intensity (#900), not the raw heartbeat value
+                GUI.color = new Color(wash.r, wash.g, wash.b, washStrength + strength * 0.07f);
                 GUI.DrawTexture(new Rect(0, 0, w, h), Texture2D.whiteTexture);
 
                 // 2D streaks only for actual rain — the 3D pool carries snow/hail/ash/sand, and blue
                 // screen-streaks over those would read as rain.
                 if (precip == "rain")
                 {
-                    int count = Mathf.RoundToInt(Max * Mathf.Clamp01(0.45f + env.Intensity * 0.55f));
+                    int count = Mathf.RoundToInt(Max * Mathf.Clamp01(0.45f + strength * 0.55f));
                     float speedBoost = env.Weather == "storm" ? 1.5f : 1f;
                     float slant = env.Weather == "storm" ? 12f : 5f;
                     GUI.color = WaterColours.Blend(new Color(0.62f, 0.78f, 1f, 0.42f), env, 0.75f, t); // #1758: rain in the world's water colour

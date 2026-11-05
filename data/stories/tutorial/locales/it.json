@@ -303,7 +303,7 @@
   "story.tutorial.c7.air.start_later": "Sui mondi senza aria il nucleo fornisce aria — nel cubo attorno a esso e in ogni stanza sigillata di pietra, metallo o vetro, chiusa da una Porta energetica.",
   "story.tutorial.c7.walls.start": "Nessun animale selvatico compare vicino al tuo nucleo. Un anello chiuso di muri, alto 2 blocchi, li tiene lontani ancora di più: costruiscilo attorno alla base ed entraci.",
   "story.tutorial.c7.walls.chip": "Chiudi un anello di muri e rimani dentro",
-  "story.tutorial.c7.walls.hint": "Mettiti a cielo aperto dentro l'anello — una stanza o una grotta non valgono. L'anello può trovarsi fino a 48 blocchi dal nucleo; una fessura o una porta di legno aperta fanno entrare gli animali.",
+  "story.tutorial.c7.walls.hint": "Stai sotto il cielo aperto all'interno dell'anello — una stanza o una grotta non contano. L'anello può racchiudere tutta la tua base; una fessura o una Porta di legno aperta lascia entrare gli animali.",
   "story.tutorial.c7.bed.start": "Un letto rende la tua base il posto in cui ti risvegli. Creane uno a mano (6 legno, 8 fibra vegetale), piazzalo e premi {key:Interact} vicino.",
   "story.tutorial.c7.bed.chip": "Imposta un letto come punto di risveglio",
   "story.tutorial.c7.bed.hint": "Mettiti proprio accanto al letto quando premi {key:Interact}. Anche una vasca di rigenerazione funziona come punto di risveglio.",

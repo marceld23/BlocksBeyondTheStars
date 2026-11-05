@@ -136,6 +136,39 @@ public sealed class MultiplayerVisibilityTests : IDisposable
     }
 
     [Fact]
+    public void PlanetSurface_PresenceReach_FollowsEachViewersOwnViewDistance()
+    {
+        // #3213: the area of interest was the HOST's view distance for everyone ((4 + 4) chunks = 128 blocks) — a desktop
+        // client at 12 chunks renders terrain out to ~190 blocks, and other players froze or vanished there in plain sight.
+        // Now each viewer's own view distance (+ 4 chunks): 12 → 256 blocks. Measured straight up, like the test above.
+        var transport = new RecordingTransport();
+        var server = NewServer("planet_aoi_viewer", transport, c => c.ViewDistanceChunks = 4);
+
+        var far = server.AddLocalPlayer("Far");      // view distance 12
+        var near = server.AddLocalPlayer("Near");    // view distance 4, the host's
+        var subject = server.AddLocalPlayer("Subject");
+        far.State.AboardShip = near.State.AboardShip = subject.State.AboardShip = false;
+        far.ViewDistance = 12;
+        near.ViewDistance = 4;
+        far.State.Position = new Vector3f(0, 64, 0);
+        near.State.Position = new Vector3f(0, 64, 0);
+        subject.State.Position = new Vector3f(0, 64 + 180, 0);
+
+        transport.Sent.Clear();
+        server.Tick(0.2);
+
+        Assert.Contains(transport.Sent, x => x.Conn == far.ConnectionId && x.Msg is PlayerPresence p && p.PlayerId == "Subject");
+        Assert.DoesNotContain(transport.Sent, x => x.Conn == near.ConnectionId && x.Msg is PlayerPresence p && p.PlayerId == "Subject");
+
+        // The host's view distance stays the floor: a client asking for less still hears of a player 120 blocks away.
+        near.ViewDistance = 2;
+        subject.State.Position = new Vector3f(0, 64 + 120, 0);
+        transport.Sent.Clear();
+        server.Tick(0.2);
+        Assert.Contains(transport.Sent, x => x.Conn == near.ConnectionId && x.Msg is PlayerPresence p && p.PlayerId == "Subject");
+    }
+
+    [Fact]
     public void PlanetSurface_PlayersOnDifferentBodies_DoNotSeeEachOthersEdits()
     {
         // The flip side of world-scoped visibility: an edit on planet A must NOT reach a player on planet B.

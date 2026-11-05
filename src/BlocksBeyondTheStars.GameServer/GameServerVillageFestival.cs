@@ -41,8 +41,8 @@ public sealed partial class GameServer
     /// <summary>The chain whose end throws the festival.</summary>
     internal const string SettlementNeedsChainId = "settlement_needs";
 
-    /// <summary>The festival starts once its hero stands this close to the festival square.</summary>
-    private const float FestivalHeroRange = 48f;
+    /// <summary>The festival starts once its hero stands this close to the festival square (64 since #3207).</summary>
+    private const float FestivalHeroRange = 64f;
 
     /// <summary>The local day fraction from which a waiting festival may start (late afternoon) …</summary>
     private const double FestivalWindowStart = 0.60;

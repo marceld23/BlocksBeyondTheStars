@@ -146,6 +146,22 @@ It is **single-threaded and tick-driven** by design (`GameServer.Run` / `GameSer
   settlements, stations, creatures, wrecks and landing-pad flattening are all deterministic
   too. World circumference varies per body (asteroid/moon/planet) and drives noise + longitude
   wrap. See [MULTIWORLD_AND_SYSTEM_FLIGHT.md](MULTIWORLD_AND_SYSTEM_FLIGHT.md).
+- **Chunk residency** — `ServerWorld` caches chunks; `GetBlock`/`SetBlock` load or generate on demand, while the
+  `…IfLoaded` reads (base walls and air, NPC paths, drones, fluids, the Crystal Net, drills) never load and read an
+  unloaded chunk as air/unknown. What is resident is decided in three places:
+  - *Streaming* (`StreamChunks`): each player gets a disc of view distance + 1 chunks; within
+    `nearColumnRadiusChunks` (default 4, Chebyshev) the full vertical column streams (3 chunks down,
+    `nearColumnChunksUp` = 3 up), farther out only the band around the terrain surface (`FarColumnBand`). That near
+    column is the guaranteed radius of every loaded-only reader (#3208).
+  - *Sweep* (`SweepFarChunks`, every 10 s per occupied world): evicts every chunk farther than the widest view + 4
+    from all players on the body (wrapped 3D chunk distance), and prunes each session's sent-set by its own distance.
+  - *Anchors* (`GameServerChunkAnchors.cs`, #3211): while at least one player is on the body, the chunks holding Crystal
+    Net cells and lift shafts, then the chunks with player edits inside each base's reach (read once per base with
+    `ListPlayerEditedChunks`, then kept current from the players' edits — `GameServerChunkAnchorsBases.cs`; nearest the
+    core first), stay resident wherever they are — up to `maxAnchoredChunks` per world,
+    whole networks smallest first. Recomputed at the sweep's pace; missing ones load a few per tick. A body nobody is on
+    loads and ticks nothing (machines catch up on return, `GameServerCrystalCatchUp.cs`).
+  Knobs and costs: [SELF_HOSTING.md](SELF_HOSTING.md).
 - **API** — `Api/Program.cs` is a minimal ASP.NET Core app over a server install dir, bound to
   localhost/LAN by default. `X-Admin-Password` gate on `/api/*`. Routes: `/` + `/api/*` admin
   dashboard (status/config/backups/logs/missions/content-pack), `/portal` landing page,

@@ -21,6 +21,12 @@
     { "name": "ice_snow",       "scene": "surface", "planet": "ice",     "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.5,  "weather": "snow" },
     { "name": "desert_noon",    "scene": "surface", "planet": "desert",  "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.5,  "weather": "clear" },
     { "name": "desert_sandstorm", "scene": "surface", "planet": "desert", "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.5, "weather": "sandstorm" },
+    { "name": "desert_sandstorm_night", "scene": "surface", "planet": "desert", "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.0, "weather": "sandstorm" },
+    { "name": "plains_gale",    "scene": "surface", "planet": "",        "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.5,  "weather": "gale" },
+    { "name": "plains_gale_night", "scene": "surface", "planet": "",     "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.0,  "weather": "gale" },
+    { "name": "gale_close",     "scene": "surface", "planet": "",        "lengthSeconds": 1, "fps": 24, "hud": false, "camera": "static", "timeOfDay": 0.5, "weather": "gale" },
+    { "name": "ice_gale",       "scene": "surface", "planet": "ice",     "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.5,  "weather": "gale" },
+    { "name": "red_desert_gale", "scene": "surface", "planet": "red_desert", "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.5, "weather": "gale" },
     { "name": "swamp_dusk",     "scene": "surface", "planet": "swamp",   "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.75, "weather": "clear" },
     { "name": "orbit_planet",   "scene": "space",   "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "yaw_sweep", "yawStart": -15, "yawEnd": 15 },
     { "name": "cockpit_hud",    "scene": "cockpit", "lengthSeconds": 2, "fps": 2, "hud": true,  "timeOfDay": 0.5, "weather": "clear" }

@@ -303,7 +303,7 @@
   "story.tutorial.c7.air.start_later": "Havasız dünyalarda çekirdeğin hava da verir — etrafındaki küpe ve taş, metal ya da camdan, bir Enerji Kapısı ile kapatılmış her mühürlü odaya.",
   "story.tutorial.c7.walls.start": "Çekirdeğinin yakınında yabani hayvan çıkmaz. 2 blok yüksekliğinde kapalı bir duvar halkası onları daha da uzak tutar: üssünün etrafına bir tane inşa et ve içine gir.",
   "story.tutorial.c7.walls.chip": "Bir duvar halkası kapat ve içinde dur",
-  "story.tutorial.c7.walls.hint": "Halkanın içinde açık gökyüzünün altında dur — bir oda ya da mağara sayılmaz. Halka çekirdekten en fazla 48 blok uzakta olabilir; tek bir boşluk ya da açık bir ahşap kapı hayvanları içeri alır.",
+  "story.tutorial.c7.walls.hint": "Halka içindeki açık gökyüzünün altında dur — bir oda veya mağara sayılmaz. Halka tüm üssünü çevreleyebilir; tek bir açıklık veya açık bir Ahşap Kapı hayvanların içeri girmesine izin verir.",
   "story.tutorial.c7.bed.start": "Bir yatak, üssünü uyandığın yer yapar. Elle bir tane yap (6 kütük, 8 bitki lifi), yerleştir ve yanında {key:Interact} tuşuna bas.",
   "story.tutorial.c7.bed.chip": "Yatağı uyanma noktan yap",
   "story.tutorial.c7.bed.hint": "{key:Interact} tuşuna basarken yatağın tam yanında dur. Bir iyileştirme tankı da uyanma noktası olarak işe yarar.",

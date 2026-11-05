@@ -16,6 +16,10 @@ namespace BlocksBeyondTheStars.Client
     /// and the live weather thickens/darkens them, raises low storm towers and hides the high cirrus in storms.
     /// Hidden in space, on airless bodies, and on planets with no cloud cover. Built-in/URP, always-included
     /// <c>BlocksBeyondTheStars/Cloud</c> shader.
+    /// <para>#3202: the drift and the look live in <see cref="CloudDeck"/> (Client.Core): each cloud's azimuth advances by
+    /// one world step, so a weather flip or a wind ramp changes the speed and never where the clouds are; cover, darkening,
+    /// wind, storm towers and cirrus ease toward the new weather over ~10 s and single clouds fade in and out. The deck
+    /// snaps when it re-appears (after space, a hyperjump, another world) and on a capture snap.</para>
     /// </summary>
     public sealed class Clouds : MonoBehaviour
     {
@@ -35,7 +39,7 @@ namespace BlocksBeyondTheStars.Client
 
         private readonly Transform[] _clouds = new Transform[MaxClouds];
         private readonly Material[] _mats = new Material[MaxClouds];
-        private readonly float[] _angle = new float[MaxClouds];   // azimuth around the camera (radians)
+        private readonly float[] _angle = new float[MaxClouds];   // starting azimuth around the camera (radians)
         private readonly float[] _elev = new float[MaxClouds];    // elevation above the horizon (radians)
         private readonly float[] _dist = new float[MaxClouds];
         private readonly float[] _size = new float[MaxClouds];
@@ -46,6 +50,13 @@ namespace BlocksBeyondTheStars.Client
         private readonly float[] _pulse = new float[MaxClouds];   // lifecycle speed
         private readonly bool[] _high = new bool[MaxClouds];      // the high cirrus layer
         private bool _built;
+
+        private CloudDeck _deck;       // #3202: accumulated drift + eased look (Client.Core)
+        private bool _shown;           // the deck was on screen last frame (re-appearing snaps instead of easing)
+        private bool _snapPending;     // a capture asked every eased look to settle (GameBootstrap.CaptureSnap)
+        private string _shownBiome;    // the world the deck last showed — another world snaps
+        private Sky _sky;              // the smoothed day fraction (sits on the same rig object)
+        private bool _skyLooked;
 
         private void Awake()
         {
@@ -142,8 +153,14 @@ namespace BlocksBeyondTheStars.Client
                 _pulse[i] = 0.05f + (float)rng.NextDouble() * 0.08f;
             }
 
+            _deck = new CloudDeck(_angle, _drift);
             _built = true;
         }
+
+        private void OnEnable() => GameBootstrap.CaptureSnap += OnCaptureSnap;
+
+        /// <summary>A capture asks every eased look to settle (#2405): the next frame snaps instead of easing.</summary>
+        private void OnCaptureSnap() => _snapPending = true;
 
         private void Update()
         {
@@ -153,37 +170,26 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var env = Game != null ? Game.Environment : null;
-            bool show = env != null && !env.SpaceSky && (Game == null || !Game.SpaceViewActive) && env.CloudDensity > 0.001f;
+            bool show = env != null && !env.SpaceSky && !Game.SpaceViewActive && env.CloudDensity > 0.001f;
             if (!show)
             {
                 HideAll();
+                _shown = false;
                 return;
             }
 
-            // Day brightness (mirrors Sky): clouds darken at night — uses the player's local time.
-            float sunHeight = Mathf.Sin((Game.LocalTimeOfDay - 0.25f) * Mathf.PI * 2f);
+            // World time, not frame time (#908): the deck drifts, eases and boils on this clock, so it parks itself while
+            // the world is held instead of sailing on over a frozen landscape.
+            float worldDt = Game.WorldDeltaTime;
+            CloudStyle look = TickDeck(env, worldDt);
+
+            // Day brightness (mirrors Sky): clouds darken at night. The Sky's own smoothed day fraction — the raw local
+            // time only moves on the server's 5 s heartbeat (#3202).
+            float tod = SkyDayFraction();
+            float sunHeight = Mathf.Sin((tod - 0.25f) * Mathf.PI * 2f);
             float day = Mathf.Clamp01(sunHeight * 0.5f + 0.5f);
-
-            // Cover: per-planet base raised by the live weather. Storms also raise low cloud "towers"
-            // (stormTall) and pull the thin high cirrus out of the sky (cirrusFade).
-            // #2174: one table for every view that shows weather (the orbit shells and maps use it too).
-            var style = WeatherLook.Sky(env.Weather, env.CloudDensity);
-            float weatherCover = style.Cover, darken = style.Darken, windScale = style.WindScale;
-            float stormTall = style.StormTall, cirrusFade = style.CirrusFade;
-
-            // The authoritative wind (#900) rides on top of the per-state scale, so the sky's drift speed and
-            // the precipitation's slant agree with each other instead of each guessing on its own.
-            windScale *= 0.6f + 1.8f * (Game != null ? Game.WindSpeed : 0f);
-
-            float cover = Mathf.Clamp01(Mathf.Max(env.CloudDensity, weatherCover));
-            int count = Mathf.Clamp(Mathf.RoundToInt(MaxClouds * cover), 0, MaxClouds);
-            float opacity = Mathf.Lerp(0.45f, 0.95f, cover);
-
-            Color baseColor = Rgb(env.CloudColor);
-            // Brightness from day + storm darkening; a touch of the star's colour by day (#3125), more at low sun (sunset glow).
-            float bright = (0.35f + 0.65f * day) * darken;
-            Color tint = baseColor * bright;
-            tint = Color.Lerp(tint, tint * Rgb(env.SunColor), 0.1f + 0.25f * (1f - day));
+            Color tint = CloudTint(env, day, look.Darken);
+            float opacity = Mathf.Lerp(0.45f, 0.95f, look.Cover);
 
             // World-space direction toward the sun (shared with Sky/SkyBodies). Lets each puff have a lit
             // and a shadowed side; falls back to straight up before the first lighting update.
@@ -194,63 +200,109 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Vector3 camPos = Camera.transform.position;
-            // World time, not frame time (#908): the cloud deck drifts and boils on this clock, so it parks
-            // itself while the world is held instead of sailing on over a frozen landscape.
-            float worldNow = Game != null ? Game.WorldTime : Time.time;
-            float wind = worldNow * 0.012f * windScale;
-            float t = worldNow;
-
+            float t = Game.WorldTime; // the constant-rate lifecycle only — the drift is accumulated in the deck
             for (int i = 0; i < MaxClouds; i++)
             {
-                // High cirrus is hidden in heavy weather; everything past the cover count is off.
-                bool active = i < count && !(_high[i] && cirrusFade <= 0.01f);
-                if (!active)
-                {
-                    if (_clouds[i].gameObject.activeSelf)
-                    {
-                        _clouds[i].gameObject.SetActive(false);
-                    }
-
-                    continue;
-                }
-
-                if (!_clouds[i].gameObject.activeSelf)
-                {
-                    _clouds[i].gameObject.SetActive(true);
-                }
-
-                // Lifecycle: each puff slowly swells and fades, and gently bobs — clouds form and dissipate
-                // instead of riding a rigid ring.
-                float life = 0.6f + 0.4f * Mathf.Sin(t * _pulse[i] + _phase[i]);
-                float sizeMul = 0.82f + 0.32f * life;
-                float alphaLife = 0.55f + 0.45f * life;
-                float elev = _elev[i] + 0.015f * Mathf.Sin(t * 0.04f + _phase[i]);
-
-                float a = _angle[i] + wind * _drift[i];
-                float ce = Mathf.Cos(elev);
-                Vector3 dir = new Vector3(Mathf.Cos(a) * ce, Mathf.Sin(elev), Mathf.Sin(a) * ce);
-                _clouds[i].position = camPos + dir * _dist[i];
-                _clouds[i].rotation = Quaternion.LookRotation(camPos - _clouds[i].position);
-
-                float vs = _vscale[i] * (_high[i] ? 1f : 1f + stormTall);     // storm towers grow low clouds tall
-                float s = _size[i] * sizeMul;
-                _clouds[i].localScale = new Vector3(s * _aspect[i], s * vs, s);
-
-                float alpha = opacity * alphaLife;
-                if (_high[i])
-                {
-                    alpha *= cirrusFade * 0.7f;                               // cirrus is thinner / fades first
-                }
-
-                Color cloudTint = tint;
-                cloudTint.a = Mathf.Clamp01(alpha);
-                Color shade = cloudTint * 0.45f;
-                shade.a = cloudTint.a;
-
-                _mats[i].SetColor(ColorId, ShaderColor.Srgb(cloudTint));
-                _mats[i].SetColor(ShadeColorId, ShaderColor.Srgb(shade));
-                _mats[i].SetVector(CloudSunDirId, sunDir);
+                PlaceCloud(i, camPos, t, look, opacity, tint, sunDir);
             }
+        }
+
+        /// <summary>One frame of the deck (#3202): snap or ease the look toward the weather's target, then drift every cloud
+        /// by one world step at the eased wind. Snaps when the deck re-appears, on another world and on a capture snap.</summary>
+        private CloudStyle TickDeck(BlocksBeyondTheStars.Networking.Messages.WorldEnvironment env, float worldDt)
+        {
+            // Cover: per-planet base raised by the live weather. Storms also raise low cloud "towers" (stormTall) and pull
+            // the thin high cirrus out of the sky (cirrusFade). #2174: one table for every view that shows weather.
+            CloudStyle target = CloudDeck.Target(env.Weather, env.CloudDensity);
+            if (!_shown || _snapPending || !string.Equals(_shownBiome, env.Biome, System.StringComparison.Ordinal))
+            {
+                _deck.Snap(target);
+                _shown = true;
+                _snapPending = false;
+                _shownBiome = env.Biome;
+            }
+            else
+            {
+                _deck.EaseToward(target, worldDt);
+            }
+
+            // The authoritative wind (#900, already smoothed by GameBootstrap) rides on top of the per-state scale, so the
+            // sky's drift speed and the precipitation's slant agree with each other instead of each guessing on its own.
+            CloudStyle look = _deck.Look;
+            _deck.Drift(worldDt, look.WindScale * (0.6f + 1.8f * Game.WindSpeed));
+            return look;
+        }
+
+        /// <summary>The Sky's smoothed local day fraction (it sits on the same rig object), or the raw local time without one.</summary>
+        private float SkyDayFraction()
+        {
+            if (!_skyLooked)
+            {
+                _skyLooked = true;
+                _sky = GetComponent<Sky>();
+            }
+
+            return _sky != null ? _sky.DayFraction : Game.LocalTimeOfDay;
+        }
+
+        /// <summary>The deck's colour: the planet's cloud colour, darkened by night and storms, with a touch of the star's
+        /// colour by day (#3125) and more at low sun (sunset glow).</summary>
+        private static Color CloudTint(BlocksBeyondTheStars.Networking.Messages.WorldEnvironment env, float day, float darken)
+        {
+            Color baseColor = Rgb(env.CloudColor);
+            float bright = (0.35f + 0.65f * day) * darken;
+            Color tint = baseColor * bright;
+            return Color.Lerp(tint, tint * Rgb(env.SunColor), 0.1f + 0.25f * (1f - day));
+        }
+
+        /// <summary>Positions, sizes and colours cloud <paramref name="i"/> for this frame — or hides it when the cover does
+        /// not reach it (or it is high cirrus in heavy weather).</summary>
+        private void PlaceCloud(int i, Vector3 camPos, float t, in CloudStyle look, float opacity, Color tint, Vector4 sunDir)
+        {
+            // Each cloud fades in and out with its share of the cover instead of popping (#3202).
+            float presence = CloudDeck.Presence(i, MaxClouds, look.Cover);
+            bool active = presence > 0.001f && !(_high[i] && look.CirrusFade <= 0.01f);
+            if (_clouds[i].gameObject.activeSelf != active)
+            {
+                _clouds[i].gameObject.SetActive(active);
+            }
+
+            if (!active)
+            {
+                return;
+            }
+
+            // Lifecycle: each puff slowly swells and fades, and gently bobs — clouds form and dissipate
+            // instead of riding a rigid ring.
+            float life = 0.6f + 0.4f * Mathf.Sin(t * _pulse[i] + _phase[i]);
+            float sizeMul = 0.82f + 0.32f * life;
+            float alphaLife = 0.55f + 0.45f * life;
+            float elev = _elev[i] + 0.015f * Mathf.Sin(t * 0.04f + _phase[i]);
+
+            float a = _deck.Angle(i);
+            float ce = Mathf.Cos(elev);
+            Vector3 dir = new Vector3(Mathf.Cos(a) * ce, Mathf.Sin(elev), Mathf.Sin(a) * ce);
+            _clouds[i].position = camPos + dir * _dist[i];
+            _clouds[i].rotation = Quaternion.LookRotation(camPos - _clouds[i].position);
+
+            float vs = _vscale[i] * (_high[i] ? 1f : 1f + look.StormTall);     // storm towers grow low clouds tall
+            float s = _size[i] * sizeMul;
+            _clouds[i].localScale = new Vector3(s * _aspect[i], s * vs, s);
+
+            float alpha = opacity * alphaLife * presence;
+            if (_high[i])
+            {
+                alpha *= look.CirrusFade * 0.7f;                               // cirrus is thinner / fades first
+            }
+
+            Color cloudTint = tint;
+            cloudTint.a = Mathf.Clamp01(alpha);
+            Color shade = cloudTint * 0.45f;
+            shade.a = cloudTint.a;
+
+            _mats[i].SetColor(ColorId, ShaderColor.Srgb(cloudTint));
+            _mats[i].SetColor(ShadeColorId, ShaderColor.Srgb(shade));
+            _mats[i].SetVector(CloudSunDirId, sunDir);
         }
 
         private void HideAll()
@@ -269,7 +321,12 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private void OnDisable() => HideAll();
+        private void OnDisable()
+        {
+            GameBootstrap.CaptureSnap -= OnCaptureSnap;
+            HideAll();
+            _shown = false; // re-enabled later: snap, there is nothing on screen to ease from
+        }
 
         private static int[] Shuffle(int[] a, System.Random rng)
         {
