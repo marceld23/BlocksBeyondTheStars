@@ -132,7 +132,6 @@ namespace BlocksBeyondTheStars.Client
         private GameObject _hatchMarker; // #3159: that marker on the voxel ship — shown on an EVA only, where it is needed
         private Material _hullMat;  // the ship's hull material — re-tinted when the player picks a colour (item 32)
         private int _appliedHullRgb = -1; // last hull colour applied (cube material tint or voxel re-mesh), to detect live changes
-        private AudioSource _engine;
         private readonly Dictionary<string, GameObject> _entities = new Dictionary<string, GameObject>();
         // Reused by the per-frame SyncEntities pass (same pattern as _remoteSeen/_remoteRemove below).
         private readonly HashSet<string> _entitySeen = new HashSet<string>();
@@ -523,12 +522,7 @@ namespace BlocksBeyondTheStars.Client
             RetintSunOnNewMap(); // #3075
             BillboardSun();
 
-            // Engine loop: swells in cruise, throttle nudges the pitch.
-            if (_engine != null)
-            {
-                _engine.volume = Mathf.MoveTowards(_engine.volume, (_phase == Phase.Cruise && !_eva) ? 0.25f : 0.08f, Time.deltaTime * 0.5f);
-                _engine.pitch = 1f + 0.2f * Mathf.Clamp01(Mathf.Abs(CaptureForward()));
-            }
+            UpdateFlightAudio(); // #3248: the layered engine, the cockpit bed, the RCS puffs and the other ships' engines
 
             // Engine flame: a real ParticleSystem thruster (BuildThruster) whose emission + jet speed track the
             // throttle. The small Unlit nozzle core (_exhaust) just glows at the vent; the old stretching flame +
@@ -653,16 +647,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 ClientAudio.Instance?.Cue("ship_launch");
             }
-            var engClip = Resources.Load<AudioClip>("audio/engine_idle") ?? ProceduralAudio.Generate("engine_idle");
-            if (engClip != null)
-            {
-                _engine = gameObject.AddComponent<AudioSource>();
-                _engine.clip = engClip;
-                _engine.loop = true;
-                _engine.spatialBlend = 0f;
-                _engine.volume = 0f;
-                _engine.Play();
-            }
+
+            StartFlightAudio(); // #3248: the engine layers + the cockpit bed (SpaceView.Audio.cs)
 
             _camPrevParent = Camera.transform.parent;
             _camPrevLocalPos = Camera.transform.localPosition;
@@ -747,11 +733,7 @@ namespace BlocksBeyondTheStars.Client
                 _root = null;
             }
 
-            if (_engine != null)
-            {
-                Destroy(_engine);
-                _engine = null;
-            }
+            StopFlightAudio(); // #3248
 
             if (Game.Network != null && _combatSubscribed)
             {

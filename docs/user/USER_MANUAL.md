@@ -662,6 +662,52 @@ and towards 100 % a little more glow around lamps. It is strongest at home, gent
 danger is close. At 0 % you see the plain picture. It changes only how the game looks, never how it plays, and it
 costs no frame rate.
 
+### What you hear (Settings → Audio)
+
+The sounds are balanced against each other: footsteps, mining, tools, animals and the weather now play at levels that
+fit together. Mining stone and the scrap pistol used to be nearly silent, while animal calls were the loudest thing in
+the game.
+
+The **Master** slider turns everything up or down. **Effects** turns every game sound up or down, including the
+ship's engine.
+
+**Your body.**
+- Your footsteps follow your pace (sneaking is slower and quieter, running quicker) and the ground under your feet:
+  rock, grass, sand, snow, metal, wood, leaves, shallow water, grates and crystal.
+- A hard landing thuds; a hop is just a step.
+- You splash when you jump into water and climb out, and your strokes are heard while you swim.
+- After a long run you take a calm breath; when oxygen runs low your breathing gets quicker, and at low health you
+  hear a soft heartbeat.
+- In third person you hear the world from where your character stands.
+- You hear the footsteps and landings of the other players near you.
+
+**In vacuum.** On a spacewalk, on foot in space or on an airless world you hear the world **through your suit**:
+- the wind is gone and a soft suit hum surrounds you;
+- what you touch (your steps, your drill) stays clear, and everything farther away is muffled and quieter;
+- a lift-off from an airless body makes no sonic boom.
+- on a spacewalk your suit's thrusters puff softly when you start or turn a move.
+
+**Under a roof.** A sound outside reaches you muffled when you are under a roof or inside your ship, and the other way
+round.
+
+**Animals.**
+- You hear the nearest animals walk, fly, slither, splash and graze. Only the nearest two of a herd make footsteps, so a
+  herd never turns into a drum roll.
+- Each species has an alarm call that its herd repeats when one of them is startled, a quiet content sound when you feed
+  or tame it, and a begging call.
+- Day animals sing most at dawn and dusk, night animals at night; rain hushes them and a storm silences them, and when
+  the storm ends they all call for a moment.
+- Now and then an animal of this planet calls from far away, even one you have not met yet.
+
+**Your ship.**
+- Your ship hums in its own voice, deeper for a big hull.
+- Aboard, you hear the reactor, the life support and the cargo hold where they are.
+- After a landing the hull ticks as it cools, and rain drums on the roof.
+- Outside at night you can find your parked ship by its quiet hum.
+- In flight the engine swells with the throttle, a quick push to full throttle adds a short afterburner surge, and
+  steering gives soft thruster puffs.
+- Other ships' engines rise and fall in pitch as they pass you.
+
 ### Arcade (minigames)
 - The **DataQubes Arcade** holds 20 built-in minigames. Locked cabinets unlock through data cubes you find
   in the world. Each **star** you earn on a completed run pays **knowledge once**: 5 per star on the first

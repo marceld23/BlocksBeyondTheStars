@@ -25,6 +25,7 @@ namespace BlocksBeyondTheStars.Client
         Idle,
         Trade,
         Alert,
+        Ack, // #3238: a server-sent nod — the short "mm-hm" the bundled npc_*_ack clips were made for
     }
 
     /// <summary>
@@ -212,6 +213,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 NpcReaction.Trade => "trade",
                 NpcReaction.Alert => "alert",
+                NpcReaction.Ack => "ack",
                 _ => "idle",
             };
 
@@ -220,6 +222,7 @@ namespace BlocksBeyondTheStars.Client
         {
             NpcReaction.Alert => 0.85f,
             NpcReaction.Trade => 0.7f,
+            NpcReaction.Ack => 0.5f,
             _ => 0.35f,
         };
 

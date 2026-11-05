@@ -19,7 +19,7 @@ namespace BlocksBeyondTheStars.Client
     /// after dusk (#2825, <see cref="NightAmbience"/>). Respects master/SFX volumes from
     /// <see cref="ClientSettings"/>. Recorded SFX are ElevenLabs-generated (see NOTICES / SOUND_DESIGN).
     /// </summary>
-    public sealed class ClientAudio : MonoBehaviour
+    public sealed partial class ClientAudio : MonoBehaviour
     {
         public GameBootstrap Game;
         public ClientSettings Settings;
@@ -231,12 +231,12 @@ namespace BlocksBeyondTheStars.Client
                 Game.BlockChangeApplied += OnBlockApplied; // old→new transition, not the raw message (#655)
                 n.CraftCompleted += m =>
                 {
-                    // Crafting at the algae tank bubbles (recorded cue) instead of the generic confirm beep.
-                    if (m.Success
-                        && Game.Content?.GetRecipe(m.RecipeKey)?.Station == BlocksBeyondTheStars.Shared.Definitions.CraftingStation.AlgaeTank
-                        && _clips.ContainsKey("algae_tank_craft"))
+                    // A station with its own recorded craft sound (the algae tank's bubbles, the decontaminator's rinse, #3238)
+                    // plays it instead of the generic confirm beep.
+                    string stationCue = m.Success && Game.Content?.GetRecipe(m.RecipeKey) is { } recipe ? StationCraftCue(recipe.Station) : null;
+                    if (stationCue != null)
                     {
-                        Cue("algae_tank_craft");
+                        Cue(stationCue);
                         return;
                     }
 
@@ -258,11 +258,12 @@ namespace BlocksBeyondTheStars.Client
             float sfx = SfxVol();
             _duck = Mathf.MoveTowards(_duck, _duckTarget, Time.deltaTime / DuckFadeSeconds);
             float bed = sfx * _duck; // #2495: the ambience beds' level (ducked under a cutscene)
+            TickMix(bed, _ambienceId); // #3241 vacuum + suit tone, #3247 rain on the hull
 
             // Ship interior hum swells while aboard, fades out on foot.
             if (_hum != null)
             {
-                float target = (Game != null && Game.Aboard) ? bed * 0.45f : 0f;
+                float target = (Game != null && Game.Aboard && !ShipHumOverride) ? bed * 0.45f : 0f;
                 _hum.volume = Mathf.MoveTowards(_hum.volume, target, Time.deltaTime * 0.6f);
             }
 
@@ -282,7 +283,7 @@ namespace BlocksBeyondTheStars.Client
                 // The smoothed intensity (#900), so a bed swells and fades with the episode instead of
                 // jumping at every 5 s broadcast.
                 float intensity = Game != null ? Game.WeatherIntensity : (Game?.Environment?.Intensity ?? 0.4f);
-                float target = bed * Mathf.Clamp(0.2f + 0.45f * intensity, 0.18f, 0.6f);
+                float target = bed * Mathf.Clamp(0.2f + 0.45f * intensity, 0.18f, 0.6f) * BedShare(_ambienceId);
                 if (weatherBed && Game != null && !Game.ExposedToSky && !onPlanet)
                 {
                     target = 0f;
@@ -347,12 +348,12 @@ namespace BlocksBeyondTheStars.Client
                 _jet.volume = Mathf.MoveTowards(_jet.volume, on ? sfx * 0.5f : 0f, Time.deltaTime * 5f);
             }
 
-            // Glider wind loop while gliding (PlayerController calls GlideTick each frame it glides). The recording is
-            // mastered quiet, so it plays near full SFX level; a slower fade than the jet — the wind swells and dies away.
+            // Glider wind loop while gliding (PlayerController calls GlideTick each frame it glides). Levelled like every bed
+            // since #3237 (it was mastered ~20 dB quiet and played at 0.95); a slower fade than the jet — the wind swells.
             if (_glide != null && _glide.clip != null)
             {
                 bool on = Time.time - _glideRefresh < 0.15f;
-                _glide.volume = Mathf.MoveTowards(_glide.volume, on ? sfx * 0.95f : 0f, Time.deltaTime * 2.5f);
+                _glide.volume = Mathf.MoveTowards(_glide.volume, on ? sfx * 0.45f : 0f, Time.deltaTime * 2.5f);
             }
 
             // The rope's winch while it reels (PlayerController calls RopeTick each frame of a pull, #2322).
@@ -590,29 +591,6 @@ namespace BlocksBeyondTheStars.Client
             _speederIsBoat = boat;
         }
 
-        /// <summary>Synthesized jetpack thrust: a low rumble under filtered hiss (used when no recording exists).</summary>
-        private static AudioClip JetClip()
-        {
-            const int rate = 44100;
-            const float duration = 1f; // loops seamlessly enough for a continuous hiss
-            int samples = Mathf.CeilToInt(rate * duration);
-            var clip = AudioClip.Create("jetpack_loop", samples, 1, rate, false);
-            var data = new float[samples];
-            var rng = new System.Random(91);
-            float lp = 0f;
-            for (int i = 0; i < samples; i++)
-            {
-                float t = i / (float)rate;
-                float white = (float)(rng.NextDouble() * 2 - 1);
-                lp += (white - lp) * 0.25f; // low-pass the noise into an airy hiss
-                float rumble = Mathf.Sin(2f * Mathf.PI * 55f * t) * 0.25f + Mathf.Sin(2f * Mathf.PI * 90f * t) * 0.12f;
-                data[i] = (lp * 0.6f + rumble) * 0.5f;
-            }
-
-            clip.SetData(data, 0);
-            return clip;
-        }
-
         /// <summary>True when the player's head (≈ the camera/ears, ~1.5 above the player root) sits inside a
         /// water or lava block — the cue to muffle the world underwater.</summary>
         private bool HeadInFluid()
@@ -807,30 +785,7 @@ namespace BlocksBeyondTheStars.Client
         /// since their variant is baked ahead of time rather than looked up by name (#903). The underwater
         /// muffle still applies here, so a baked voice ducks under water like every other one-shot.</summary>
         public void AtClip(AudioClip clip, Vector3 pos, float pitch = 1f, float vol = 1f, string label = "voice")
-        {
-            if (clip == null)
-            {
-                return;
-            }
-
-            if (_submerged)
-            {
-                clip = SampleKit.Muffle(clip);
-            }
-
-            // #1516: pooled emitters instead of a GameObject + AudioSource per one-shot (creature phrases, growls,
-            // factory hums — 5–20 spawns/s) with a deferred Destroy each.
-            var src = PooledSfxSource();
-            src.transform.position = pos;
-            src.clip = clip;
-            src.spatialBlend = 1f;
-            src.minDistance = 4f;
-            src.maxDistance = 20f;                       // B1: creatures fade out much closer (was 45)
-            src.rolloffMode = AudioRolloffMode.Linear;   // B1: linear → truly silent past maxDistance
-            src.pitch = pitch;
-            src.volume = Mathf.Clamp01(vol * SfxVol());
-            src.Play();
-        }
+            => PlayAt(clip, pos, pitch, vol, label, AudioMixRules.CategoryFor(label)); // #3249: budget, occlusion, range
 
         /// <summary>#2592: plays the clip <paramref name="id"/> on a CALLER-OWNED positional source — the NPC voices keep their
         /// own babble/reaction channels so the voice budget can fade and cut them (a pooled one-shot has no handle). Same
@@ -904,7 +859,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>#3140: the effects level (master × effects) for a component that runs its own looping source — the
         /// transition cover's cloud wind. A fallback level while no audio component exists.</summary>
-        public static float EffectsVolume => Instance != null ? Instance.SfxVol() : 0.64f;
+        public static float EffectsVolume => Instance != null ? Instance.SfxVol() : 0.8f;
 
         /// <summary>#2495: the level the ambience beds duck to while a cutscene plays (<c>CutsceneRules.AmbienceDuck</c>; 1 =
         /// not ducked). Set by the director every scene frame and back to 1 at the scene's end; the beds ease there.</summary>
@@ -1056,11 +1011,11 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_lastShield >= 0f && s.Shield < _lastShield - 0.1f)
             {
-                Cue("ship_shield_hit");
+                Cue("ship_shield_hit", HitLevel(_lastShield - s.Shield));
             }
             else if (_lastHull >= 0f && s.Hull < _lastHull - 0.1f)
             {
-                Cue("ship_hull_hit");
+                Cue("ship_hull_hit", HitLevel(_lastHull - s.Hull));
             }
 
             _lastHull = s.Hull;
@@ -1186,12 +1141,9 @@ namespace BlocksBeyondTheStars.Client
             _fxLoops.Clear();
         }
 
-        private float SfxVol()
-        {
-            float master = Settings?.MasterVolume ?? 0.8f;
-            float sfx = Settings?.SfxVolume ?? 0.8f;
-            return master * sfx;
-        }
+        /// <summary>The effects level. The master bus is <c>AudioListener.volume</c> (ClientSettings.Apply) and scales every
+        /// source already — multiplying it in here as well made effects follow master² (#3237).</summary>
+        private float SfxVol() => Settings?.SfxVolume ?? 0.8f;
 
         private void OnDestroy()
         {
@@ -1210,45 +1162,6 @@ namespace BlocksBeyondTheStars.Client
 
             _bed?.Dispose(); // the browser's baked muffled copies (#2805) — code-created clips are never collected
             _night?.Dispose();
-        }
-
-        /// <summary>Generates a short decaying sine tone as a fallback <see cref="AudioClip"/>.</summary>
-        private static AudioClip Tone(float frequency, float duration, float volume)
-        {
-            const int rate = 44100;
-            int samples = Mathf.CeilToInt(rate * duration);
-            var clip = AudioClip.Create("tone", samples, 1, rate, false);
-            var data = new float[samples];
-            for (int i = 0; i < samples; i++)
-            {
-                float t = i / (float)rate;
-                float envelope = Mathf.Exp(-t * 12f);
-                data[i] = Mathf.Sin(2f * Mathf.PI * frequency * t) * envelope * volume;
-            }
-
-            clip.SetData(data, 0);
-            return clip;
-        }
-
-        /// <summary>Generates a 2 s seamless low hull-hum loop (two low sines + faint air hiss).</summary>
-        private static AudioClip Hum()
-        {
-            const int rate = 44100;
-            const float duration = 2f;
-            int samples = Mathf.CeilToInt(rate * duration);
-            var clip = AudioClip.Create("hum", samples, 1, rate, false);
-            var data = new float[samples];
-            var rng = new System.Random(7);
-            for (int i = 0; i < samples; i++)
-            {
-                float t = i / (float)rate;
-                float s = Mathf.Sin(2f * Mathf.PI * 80f * t) * 0.5f + Mathf.Sin(2f * Mathf.PI * 120f * t) * 0.22f;
-                s += (float)(rng.NextDouble() * 2 - 1) * 0.03f;
-                data[i] = s * 0.5f;
-            }
-
-            clip.SetData(data, 0);
-            return clip;
         }
     }
 }

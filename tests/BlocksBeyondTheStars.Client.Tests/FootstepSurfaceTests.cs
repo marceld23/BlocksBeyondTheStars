@@ -99,16 +99,89 @@ public sealed class FootstepSurfaceTests
     [Theory]
     [InlineData("steel_floor", "step_metal")]
     [InlineData("metal_panel", "step_metal")]
-    [InlineData("iron_ore", "step_metal")]
+    [InlineData("iron_wall", "step_metal")]
     [InlineData("sand", "step_sand")]
     [InlineData("red_sand", "step_sand")]
     [InlineData("grass", "step_grass")]
+    [InlineData("alien_grass", "step_grass")]
     [InlineData("snow", "step_snow")]
     [InlineData("ice", "step_snow")]
     [InlineData("stone", "step_rock")]
+    [InlineData("dirt", "step_rock")]
+    [InlineData("", "step_rock")]
     [InlineData(null, "step_rock")]
-    public void TheKeyHeuristic_IsTheOldOne(string? key, string cue)
+    public void TheKeyHeuristic_KeepsTheOldSurfaces(string? key, string cue)
         => Assert.Equal(cue, FootstepSurface.CueFor(key));
+
+    /// <summary>#3239: the five new surfaces, and the old heuristic's slips — an ore clanked like metal for its "iron", a
+    /// sandstone crunched like a beach, a "device_eye" squeaked like snow for its "ice".</summary>
+    [Theory]
+    [InlineData("water", "step_water")]
+    [InlineData("wood_planks", "step_wood")]
+    [InlineData("wood_planks_mahogany", "step_wood")]
+    [InlineData("wood_log", "step_wood")]
+    [InlineData("giant_log", "step_wood")]
+    [InlineData("wood_crate", "step_wood")]
+    [InlineData("crate", "step_wood")]
+    [InlineData("trapdoor", "step_wood")]
+    [InlineData("door_wood", "step_wood")]
+    [InlineData("tree_leaves", "step_leaves")]
+    [InlineData("pine_needles", "step_leaves")]
+    [InlineData("palm_frond", "step_leaves")]
+    [InlineData("bridge_deck", "step_grate")]
+    [InlineData("lift_platform", "step_grate")]
+    [InlineData("crystal", "step_crystal")]
+    [InlineData("crystal_conduit", "step_crystal")]
+    [InlineData("glass", "step_crystal")]
+    [InlineData("obsidian", "step_crystal")]
+    [InlineData("cargo_floor", "step_metal")]
+    [InlineData("transport_crate", "step_metal")]
+    [InlineData("copper_block", "step_metal")]
+    [InlineData("logic_block", "step_metal")]
+    [InlineData("scrap_pile", "step_metal")]
+    [InlineData("iron_ore", "step_rock")]
+    [InlineData("tainted_iron_ore", "step_rock")]
+    [InlineData("moss_stone", "step_rock")]
+    [InlineData("sandstone", "step_rock")]
+    [InlineData("device_eye", "step_rock")]
+    [InlineData("black_sand", "step_sand")]
+    [InlineData("salt", "step_sand")]
+    public void TheKeyHeuristic_KnowsTheNewSurfaces(string key, string cue)
+        => Assert.Equal(cue, FootstepSurface.CueFor(key));
+
+    /// <summary>#3239: what covers the ground at the feet colours the step — the plants there have no collider, so the cell
+    /// under the feet alone is always the soil beneath them, and shallow water is the cell at the feet, not under them.</summary>
+    [Fact]
+    public void TheCoverAtTheFeet_ColoursTheStep_OverTheFloorBelow()
+    {
+        var wading = new Grid().World(0, 0, 0, "sand").World(0, 1, 0, "water");
+        Assert.Equal("step_water", wading.CueStandingOnCellZero());
+
+        var mossy = new Grid().World(0, 0, 0, "dirt").World(0, 1, 0, "flora_moss");
+        Assert.Equal("step_leaves", mossy.CueStandingOnCellZero());
+
+        var tuft = new Grid().World(0, 0, 0, "dirt").World(0, 1, 0, "flora_grasstuft");
+        Assert.Equal("step_grass", tuft.CueStandingOnCellZero());
+
+        var flower = new Grid().World(0, 0, 0, "snow").World(0, 1, 0, "flora_flower");
+        Assert.Equal("step_snow", flower.CueStandingOnCellZero()); // a flower adds nothing: the floor speaks
+
+        Assert.Null(FootstepSurface.CoverCueFor("air"));
+        Assert.Null(FootstepSurface.CoverCueFor(null));
+        Assert.Null(FootstepSurface.CoverCueFor("water_spout")); // a machine, not water
+    }
+
+    [Fact]
+    public void ATake_FallsBackToTakeOne_AndAMissingSurfaceToRock()
+    {
+        var bundled = new HashSet<string> { "step_wood", "step_wood_2", "step_rock", "step_rock_2", "step_rock_3" };
+        Assert.Equal("step_wood", FootstepSurface.TakeClip("step_wood", 1, bundled.Contains));
+        Assert.Equal("step_wood_2", FootstepSurface.TakeClip("step_wood", 2, bundled.Contains));
+        Assert.Equal("step_wood", FootstepSurface.TakeClip("step_wood", 3, bundled.Contains)); // take 3 is missing
+        Assert.Equal("step_rock_3", FootstepSurface.TakeClip("step_leaves", 3, bundled.Contains)); // no leaves at all
+        Assert.Equal("step_grate_3", FootstepSurface.TakeClip("step_grate", 3, null)); // no lookup: trust the name
+        Assert.Equal("step_rock", FootstepSurface.TakeClip("", 1, null));
+    }
 
     /// <summary>The Unity half, guarded as source text (the Unity scripts cannot load headless): the footsteps, the sneak
     /// edge-stop and the ladder check read the ship first; a monorail wagon's floor is metal; the fluid probes keep the

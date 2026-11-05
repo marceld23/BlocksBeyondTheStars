@@ -527,24 +527,11 @@ namespace BlocksBeyondTheStars.Client
             // barrier is gone. The transform runs unbounded in both axes; the server canonicalises the
             // authoritative position and chunks reposition to the nearest copy (SceneX/SceneZ).
 
-            // Footsteps while walking on the ground; landing thud after a fall.
-            if (grounded && Mathf.Abs(h) + Mathf.Abs(v) > 0.1f)
-            {
-                _stepTimer -= Time.deltaTime;
-                if (_stepTimer <= 0f)
-                {
-                    _stepTimer = 0.45f;
-                    ClientAudio.Instance?.Cue(SurfaceStep(), 0.45f);
-                }
-            }
-            else
-            {
-                _stepTimer = 0f;
-            }
-
+            // Footsteps, swim strokes and splashes (#3239/#3240, PlayerController.Audio.cs); a landing's sound by its fall speed.
+            MoveAudio(grounded, inWater, h, v, prevVy);
             if (grounded && !_wasGrounded && !inWater)
             {
-                ClientAudio.Instance?.Cue("land", 0.6f);
+                LandingAudio(prevVy);
                 Weapons?.Dust(transform.position);
                 // Impact kick. #2746: the pad does not buzz on every jump's landing — only a hard one rumbles (below).
                 FxCamera.AddTrauma(Mathf.Clamp01(-prevVy / 12f) * 0.55f, rumble: false);

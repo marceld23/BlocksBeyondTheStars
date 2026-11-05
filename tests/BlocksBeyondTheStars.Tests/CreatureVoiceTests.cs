@@ -82,7 +82,7 @@ public class CreatureVoiceTests
                 Assert.Contains(parts[1], calls);
                 Assert.Contains(int.Parse(parts[2]), offsets);
                 Assert.InRange(int.Parse(parts[3]), 0, 2); // layer detune step
-                Assert.InRange(int.Parse(parts[4]), 0, 8); // VoiceOp
+                Assert.InRange(int.Parse(parts[4]), 0, 12); // VoiceOp (#3244 appended Glide..Truncate)
                 Assert.InRange(int.Parse(parts[5]), 0, 2); // op amount
                 Assert.InRange(int.Parse(parts[6]), 0, 2); // reverb tail
             }

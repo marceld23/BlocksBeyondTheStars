@@ -39,6 +39,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             SpaceFx.Fire(look, av.Root.transform, new Bounds(Vector3.zero, new Vector3(2.4f, 1.2f, 4f)), target, look.Is("drill_beam"));
+            PlayRemoteShotSound(look.Style, av.Root.transform.position); // #3248: heard where their ship is
         }
 
         /// <summary>A space entity was destroyed (#2156): hostiles explode, salvage drops just go (the tractor shows
@@ -417,8 +418,9 @@ namespace BlocksBeyondTheStars.Client
             // #2156: every module its own look (data-driven fx) — they all drew the same 0.16-unit cube.
             _ = col;
             Vector3 hit = _root.transform.TransformPoint(new Vector3(target.X, target.Y, target.Z));
-            SpaceFx.Fire(FxLook.ForModule(Game.Content, weaponKey), _ship.transform, ShipLocalBounds(), hit, mining);
-            ClientAudio.Instance?.Cue(mining ? "ship_mine" : "ship_laser");
+            var look = FxLook.ForModule(Game.Content, weaponKey);
+            SpaceFx.Fire(look, _ship.transform, ShipLocalBounds(), hit, mining);
+            PlayOwnShotSound(look.Style, mining); // #3238: a cannon fires the recorded ship-weapon shot (SpaceView.Audio.cs)
             // #2158: the other pilots in this flight instance see the shot too (cosmetic, instance-frame positions).
             Game.Network?.SendFx(BlocksBeyondTheStars.Shared.Definitions.FxActionKinds.Shot, weaponKey,
                 _ship.transform.localPosition, new Vector3(target.X, target.Y, target.Z), true);
@@ -459,6 +461,7 @@ namespace BlocksBeyondTheStars.Client
                 _shield?.Shatter(); // #2156: the shield breaks — the bubble bursts into hex sparkles
             }
 
+            PlayShieldRechargeCue(s); // #3248: the first rise after a drop hums once
             _lastHull = s.Hull;
             _lastShield = s.Shield;
         }
@@ -568,6 +571,7 @@ namespace BlocksBeyondTheStars.Client
 
             _ = to;
             var wFrom = _root.transform.TransformPoint(from);
+            PlayHostileShotSound(wFrom); // #3248: the enemy's shot is heard at the enemy, not only seen
             var b = ShipLocalBounds();
             var toShip = (_ship.transform.position - wFrom).normalized;
             var hitLocal = b.center - _ship.transform.InverseTransformDirection(toShip) * b.extents.magnitude * 0.6f

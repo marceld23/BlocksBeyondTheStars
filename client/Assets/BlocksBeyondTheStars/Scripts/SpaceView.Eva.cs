@@ -53,6 +53,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _eva = true;
+            _evaPuffs = null; // #3241: a push held through the airlock is a fresh one out here
             ClearTargetLock(sound: false); // #2277: the target lock belongs to the helm
             ClientAudio.Instance?.Cue("scan_ping"); // a soft suit blip as the airlock cycles
         }
@@ -98,6 +99,7 @@ namespace BlocksBeyondTheStars.Client
             float strafe = InputMap.MoveX();
             float lift = (InputMap.JumpHeld() ? 1f : 0f)
                        - ((InputMap.CrouchHeld()) ? 1f : 0f);
+            EvaThrusterPuff(strafe, lift, fwd); // #3241: a short puff when the push starts or turns
             Vector3 dir = rot * (Vector3.forward * fwd + Vector3.right * strafe) + Vector3.up * lift;
             Vector3 delta = dir * (EvaSpeed * Time.deltaTime);
 
@@ -191,6 +193,21 @@ namespace BlocksBeyondTheStars.Client
                         BeginVisit(); // #2724: into the docked friend's ship
                         break;
                 }
+            }
+        }
+
+        private SuitThrusterPuffs _evaPuffs;
+
+        /// <summary>#3241: the suit's little thrusters puff when a push starts or turns (<see cref="SuitThrusterPuffs"/>) —
+        /// heard through the suit, as <see cref="ClientAudio.PlayOwn"/> treats the player's own sounds in vacuum, and never a
+        /// constant hiss while the push holds.</summary>
+        private void EvaThrusterPuff(float strafe, float lift, float forward)
+        {
+            _evaPuffs ??= new SuitThrusterPuffs(new System.Random());
+            var puff = _evaPuffs.Tick(Time.deltaTime, strafe, lift, forward);
+            if (!puff.IsNone)
+            {
+                ClientAudio.Instance?.PlayOwn(puff.Id, puff.Volume, puff.Pitch);
             }
         }
 

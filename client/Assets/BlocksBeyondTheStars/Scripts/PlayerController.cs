@@ -212,7 +212,6 @@ namespace BlocksBeyondTheStars.Client
         private const float AwaitFloorMaxSeconds = 30f;
         private bool _wasGrounded = true;
 
-        private float _stepTimer;
         private int _lastWorldEpoch;
 
         /// <summary>#1998: a push from a stomp or a sandworm strike (horizontal, blocks/s), easing off.</summary>
@@ -754,6 +753,8 @@ namespace BlocksBeyondTheStars.Client
                     Game.HoldingRotatableBlock = false;
                 }
             }
+
+            LateAudio(); // #3240: the ears, the bubble bed and the breath/heartbeat layer (PlayerController.Audio.cs)
         }
 
         private void OnDestroy()

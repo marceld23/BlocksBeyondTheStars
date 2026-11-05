@@ -15,7 +15,7 @@ namespace BlocksBeyondTheStars.Client
     /// removes it. Positions are interpolated toward the latest authoritative value. Presence
     /// is cosmetic — the server stays the source of truth.
     /// </summary>
-    public sealed class RemotePlayers : MonoBehaviour
+    public sealed partial class RemotePlayers : MonoBehaviour
     {
         public GameBootstrap Game;
         public WeaponFx Weapons; // shared VFX layer, for remote jetpack thrust flames
@@ -53,6 +53,7 @@ namespace BlocksBeyondTheStars.Client
             public double LastUpdate;      // when the newest presence arrived — drives the stale timeout (#958)
             public bool TimedOut;          // hidden because updates stopped (kept separate from Hidden: that
                                            // flag only toggles visibility on server-sent EDGES)
+            public StepState Steps;        // #3239: footsteps read from the drawn body (RemotePlayers.Steps.cs)
         }
 
         // Presence arrives at ~10 Hz for every subject inside the viewer's area of interest. When the stream
@@ -291,6 +292,8 @@ namespace BlocksBeyondTheStars.Client
                     DropRope(r);
                 }
             }
+
+            TickRemoteSteps(); // #3239: the nearest players' footsteps and landings, once every body is posed
         }
 
         /// <summary>#2295: rising faster than this (m/s) is a jump — the coils stretch once.</summary>

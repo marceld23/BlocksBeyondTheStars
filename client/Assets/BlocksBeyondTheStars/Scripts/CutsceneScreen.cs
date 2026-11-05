@@ -127,7 +127,7 @@ namespace BlocksBeyondTheStars.Client
             _source.clip = _clips[_last];
             _source.pitch = CutsceneVoice.Pitch(UnityEngine.Random.value);
             var settings = _settings?.Invoke();
-            float master = settings != null ? settings.MasterVolume : 0.8f;
+            const float master = 1f; // the master bus is AudioListener.volume (#3237) — not a second time here
             float sfx = settings != null ? settings.SfxVolume : 1f;
             _source.volume = CutsceneVoice.Volume(master, sfx);
             _source.Play();

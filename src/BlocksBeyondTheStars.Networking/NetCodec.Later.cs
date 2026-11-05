@@ -30,5 +30,9 @@ public static partial class NetCodec
         Register(315, typeof(OpenBagIntent));                // Client -> Server
         Register(316, typeof(MoveBagItemIntent));            // Client -> Server
         Register(317, typeof(BagContents));                  // Server -> Client
+
+        // #3245 distant fauna: the species of the world just entered, once per world entry. No protocol bump — an older
+        // client drops the unknown tag and simply hears no distant calls.
+        Register(318, typeof(FaunaRoster));                  // Server -> Client
     }
 }

@@ -199,7 +199,7 @@ namespace BlocksBeyondTheStars.Client
                 _climbTapTimer = 0.3f;
                 _climbNoRoomHinted = false;
                 _climbNoRoomFor = 0f;
-                ClientAudio.Instance?.Cue("climb_grab", 0.5f);
+                ClientAudio.Instance?.Cue("climb_grab", 0.35f); // #3239: the levelled clip (#3237) is louder
                 Weapons?.Dust(pos + (new Vector3(hold.DirX, 0f, hold.DirZ) * 0.45f) + (Vector3.up * 1.2f));
             }
 
@@ -344,7 +344,7 @@ namespace BlocksBeyondTheStars.Client
                 if (_climbSlideTimer <= 0f)
                 {
                     _climbSlideTimer = 0.9f;
-                    audio.Cue("climb_slide", 0.4f);
+                    audio.Cue("climb_slide", 0.3f); // #3239: the levelled clip (#3237) is louder — 0.4 stood out
                 }
             }
             else if (moving)
@@ -354,7 +354,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     _climbTapTimer = 0.55f / Mathf.Max(0.5f, _grip.SpeedFactor);
                     var wallCell = pos + (new Vector3(_wall.DirX, 0f, _wall.DirZ) * ClimbProbe.WallReach) + (Vector3.up * ClimbProbe.HandHeight);
-                    audio.Cue(StepCueFor(BlockKeyAt(wallCell)), 0.3f);
+                    PlayClimbTap(StepCueFor(BlockKeyAt(wallCell))); // #3239: the wall's step takes, alternating hands
                 }
             }
 
@@ -364,7 +364,7 @@ namespace BlocksBeyondTheStars.Client
                 if (_climbBreathTimer <= 0f)
                 {
                     _climbBreathTimer = Mathf.Lerp(2.2f, 1.3f, _grip.Strain);
-                    audio.Cue("climb_strain", 0.3f + (0.3f * _grip.Strain));
+                    audio.Cue("climb_strain", 0.15f + (0.15f * _grip.Strain)); // #3239: ~19 dB louder since #3237
                 }
             }
             else
@@ -419,7 +419,7 @@ namespace BlocksBeyondTheStars.Client
             _pullTo = target;
             _pullT = 0f;
             _verticalVelocity = 0f;
-            ClientAudio.Instance?.Cue("climb_grab", 0.45f);
+            ClientAudio.Instance?.Cue("climb_grab", 0.3f); // #3239: the levelled clip (#3237) is louder
         }
 
         /// <summary>Drives a running pull-up (#2190): the body rises in its own column first, then swings over the

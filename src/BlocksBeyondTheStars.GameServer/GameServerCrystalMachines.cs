@@ -88,8 +88,8 @@ public sealed partial class GameServer
                     c.NextBeat = _uptime + CrystalNetRules.MoveBeatSeconds;
                     FabricatorCraft(c);
                     break;
-                case CrystalDeviceKind.AutoDrill when held && _uptime >= c.NextBeat:
-                    AutoDrillStep(c);
+                case CrystalDeviceKind.AutoDrill:
+                    AutoDrillBeat(c, held); // #3238: the beat + its working loop (GameServerCrystalDrillSound.cs)
                     break;
                 case CrystalDeviceKind.DrillLaser when held && _uptime >= c.NextBeat:
                     DrillLaserStep(c);

@@ -29,6 +29,9 @@ and **how it is sourced**. This was the M26 audio plan; the bulk of it has since
 - **Variety from few assets:** pitch/rate-shift a small bank per instance (esp. creatures) instead
   of authoring one sound per species — the game has unbounded procedural species.
 - Every bundled audio file is logged in `NOTICES.md` with source + licence.
+- **Every clip is levelled to its class target** (`tools/audio/level_clips.py`, guarded by `AudioLevelManifestTests`, §27);
+  the master slider is `AudioListener.volume` alone. Every 3D one-shot gets a distance profile, a voice budget and roof
+  occlusion by its cue id (§28); vacuum is heard through the suit (§29).
 
 ## Cost gate (ElevenLabs)
 
@@ -82,15 +85,18 @@ click-on-press + hover-on-enter).
 | hover speeder: engine loop ✓ + startup / shutdown / impact ✓ (`vehicle_*`) | 4 | EL ✓ |
 | boat (#1215): outboard putter loop ✓ (`boat_engine_loop`, seamless) + launch / board / dismount splash ✓ (`boat_splash`) | 2 | EL ✓ |
 
-The footstep surface is picked by `Client.Core/FootstepSurface` (a key heuristic: iron/metal/steel → metal, sand, grass,
-snow/ice, else rock) from the cell under the feet — a parked ship's cell first (ship-as-object: the ship interior in
-space and a docked friend's ship too), then the world's (#2743; the world alone read air on a ship's deck, so every step
-there sounded like rock). A monorail wagon's floor is metal. The sneak edge-stop and the ladder check read the same way.
+**Footsteps (#3239)** follow `Client.Core/Audio/FootstepRules` + `FootstepCadence`: the interval follows the horizontal speed (0.45 s at the world's walk, down to 0.32 s running, 0.6 s sneaking at 60 % level), the feet alternate (±3 % pitch, ±8 % level), the three takes of a surface (`step_x`, `_2`, `_3`) never repeat back to back, and every step carries ±4 % pitch / ±10 % level. `FootstepSurface` reads what covers the ground at the feet first (shallow water → `step_water`, moss/needles/leaves → `step_leaves`, a grass tuft → grass), then the cell under the feet — a parked ship's cell first, then the world's (#2743; the world alone read air on a ship's deck). The key heuristic knows rock, grass, sand, snow, metal, wood, leaves, grate (bridge deck, lift platform), crystal/glass, and treats ores as the stone they sit in. A landing is picked by the fall speed against the world's safe fall speed: nothing for a stair (< 0.28 s in the air), a footstep for a hop, `land` for a drop, `land_heavy` from 0.85 × the safe speed. Water (`SwimSounds`): a splash when the feet hit the water falling (by speed), a smaller one leaving it after a swim, strokes every ~0.95 s, a very quiet bubble bed while the head is under, a gasp after a dive over 6 s. A climber's hand-over-hand taps use the wall's step takes. Other players' steps and landings are read from their drawn body; only the nearest three within 16 m play, through the remote-player voice budget. On a spacewalk the suit thrusters puff (`suit_thruster`/`_2`) when a push starts or turns by more than 60°, at most every 0.25 s. All own body sounds go through `ClientAudio.PlayOwn` (2D, pitched, the cabin's room aboard, the suit in vacuum). In third person the one AudioListener (a child of the camera, "Player Ears") sits at the head, keeping the camera's rotation; in first person, the flight view and cinematics it is on the camera.
 
 ## 5. Vitals & alerts — *procedural*
 
 low-oxygen warning (loop), low-health heartbeat, hunger pang, take-damage, death, respawn, heal-tank
 restore → **~7**, procedural cues (alarms/tones).
+
+**The body layer (#3240, `Client.Core/Audio/BodySounds`, light by decision):** a calm exhale after a run of more than 5 s,
+a jetpack burn of more than 3 s or a hard landing, at most every 8 s; at or below the HUD's 25 O₂ alarm line a soft
+`breath_quick` every 5–7 s in addition to the beeps; below 20 % health a soft `heartbeat_soft` every 1.1–1.4 s at 0.25,
+fading in over 4 s. All of it stops at once while dead or respawning, in a menu, a cinematic or a cutscene; no breath while
+the head is under water.
 
 ## 6. Ship as a place — *procedural loops + ElevenLabs one-shots*
 
@@ -184,8 +190,9 @@ robot bright / deep / neutral. Each clip is non-verbal babble (questioning, excl
 **Reactions — the optional layer** (`NpcVoice.ReactionsEnabled`, on): `npc_human_{idle,trade,alert}` for humans,
 `NpcVoice.RobotReactionPrefix` (`npc_alien_`, decided in the maintainer's sound review — one constant) for androids. A
 finished market trade → the nearest vendor nods and plays *trade*; an alarm bubble (`Kind = Alert`) plays *alert*
-instead of a babble; a rare quiet *idle* murmur from an NPC within 6 m (each NPC every 30–60 s). The old *greet* and
-*ack* grunts are replaced by the babble (never both for one bubble).
+instead of a babble; a rare quiet *idle* murmur from an NPC within 6 m (each NPC every 30–60 s); a server-sent **nod**
+gesture plays the short *ack* "mm-hm" (#3238, `NpcReaction.Ack`, through the same budget, never over a babble). The old
+*greet* grunt is replaced by the babble (never both for one bubble) — its clips were removed in #3238.
 
 **The voice budget** (`NpcVoiceGate` — maintainer requirement: a station deck or a busy village must never become a
 jumble). Every NPC sound asks it first; a refused request is dropped, never queued — the bubble still shows, silent.
@@ -266,7 +273,7 @@ All cues are 3D at the device cell. See [CRYSTAL_NET.md](CRYSTAL_NET.md).
 | melody block: 8 notes (C4…C5) × 4 instruments (crystal sine / bell / bass / blip) | rising edge | `note_<inst>_<n>` — no files | **procedural** (`ProceduralAudio.Note`, pre-filled into the cue table) |
 | announcer | rising edge (a toast to the owner + allies) | `ai_blip` (existing VEGA chirp) | EL (existing) |
 | switch flip / button press | the player's Interact | `crystal_switch`, `crystal_button` | EL |
-| auto-drill | working (loop while it mines) | `auto_drill_loop` | EL |
+| auto-drill | working (loop while its network holds it ON and it is not blocked — wired by #3238, `GameServerCrystalDrillSound`) | `auto_drill_loop` | EL |
 | drill laser (#2108) | one cell cut (per `WorldFx laser`) | `drill_laser_zap` | EL |
 | clone tank | growing (loop for 60 s), stop on release | `clone_tank_bubble` | EL |
 | fabricator | one craft done | `fabricator_craft` | EL |
@@ -544,6 +551,240 @@ together.
 | drill test spin | a drill is drawn — the bit spins up and winds down | `drill_spinup` | "short handheld sci-fi power drill test spin, a quick rising electric whirr that spins up and winds back down, light and clean, no impact, toy-like game sound" (0.8 s, 0.5) |
 | cosmetic reload | a gun is drawn — tipped and racked once | `gun_reload` | "short sci-fi energy pistol cosmetic reload, a crisp mechanical click-clack of a power cell snapping in, then a tiny soft rising charge chirp, friendly game sound, no shot" (0.8 s, 0.5) |
 | blade twirl | a blade is drawn, and now and then while it is held | `blade_twirl` | "very short light airy swish of a small glowing energy blade twirled in the hand, a quick whirling whoosh with a faint shimmering hum, no impact" (0.6 s, 0.5) |
+
+## 27. Levels: every clip on its class target (#3237)
+
+The ElevenLabs renders went into the game at whatever level the generator produced. Unity's `normalize` import flag acts
+only during a `forceToMono` downmix, which was on for the 74 creature calls only. So groups the code plays at the same
+volume sat far apart (EBU R128 momentary max):
+
+| Group | Spread | Example |
+|---|---|---|
+| footsteps | 20 dB | `step_metal` −43, `step_snow` −23 |
+| mining | 32 dB | `mine_stone` −43, `mine_metal` −11 |
+| hand weapons | 33 dB | `weapon_scrap` −42, `weapon_plasma` −8 |
+| jump / land | 28 dB | `land` −37, `jump` −9 |
+| rain family | 48 dB | `drizzle_loop` −52, `storm_loop` −4 |
+
+**The rule now:** every clip in `Resources/audio` sits on its **class target**, ± 3 dB. One-shots are measured by their
+loudest moment, loops and beds by their integrated loudness. The exception is a clip whose peak already reaches −2 dBFS,
+like a click or a gunshot: it may stay below its target.
+
+| Class | Metric | Target (LUFS) | What |
+|---|---|---|---|
+| step | momentary max | −24 | footsteps (all surfaces and takes) |
+| foley | momentary max | −20 | climbing, landing, swimming, breath, wings, suit puffs, RCS, cooling ticks, cargo creaks |
+| creature | momentary max | −10 | creature calls and combat banks |
+| voice | momentary max | −11 | NPC babble and reactions, VEGA's chatter |
+| sting | momentary max | −9 | festival jingles, chapter stings, splash stings |
+| oneshot | momentary max | −12 | everything else that plays once |
+| weather | integrated | −18 | weather beds (rain, storm, wind, sand …), rain on the hull |
+| bed | integrated | −20 | biome, night and fluid beds, quiet ambience loops |
+| machine | integrated | −18 | engines, motors, hums |
+
+The targets sit at each class's old median, so the mix keeps the shape the code volumes were tuned for and only the
+outliers moved. Two classes were wholly too quiet and moved as a class: steps (median −35) and body foley (median −37).
+
+**How to add or replace a clip:**
+1. Put the raw files in a folder.
+2. Run `python tools/audio/level_clips.py --import <folder>`. This trims silence off steps and foley, levels each clip,
+   writes a `.meta` (loops Compressed In Memory, one-shots Decompress On Load and mono) and rewrites
+   `tools/audio/audio_levels.json` (class, level, peak, SHA-256).
+3. `AudioLevelManifestTests` fails for any clip that is missing from the manifest, has changed since it was levelled, or
+   sits off its target.
+
+Never boost a clip by more than ~25 dB: re-generate it instead (the batch file `tools/audio/sound_immersion_batch.py`
+holds every prompt of the 2026-11 set). `--apply --only <ids>` re-levels single clips. All `.meta` files carry
+`normalize: 0`, so Unity's peak normalisation no longer undoes the levelling.
+
+**The master bus.** `AudioListener.volume` is the master slider (`ClientSettings.Apply`). The effects level
+(`ClientAudio.SfxVol`), the UI sounds, VEGA's cutscene voice, voice chat and the splash stings used to multiply master in
+a second time (effects followed master²); they no longer do. The flight engine now follows the effects slider (it played
+at an absolute level).
+
+## 28. Mixing: distance profiles, roof occlusion, voice budgets (#3249)
+
+Every 3D one-shot goes through one path (`ClientAudio.PlayAt` in ClientAudio.Mix.cs). The rules are Unity-free
+(`AudioMixRules`, tested in `AudioMixRulesTests`).
+
+- **Distance profile by cue id** (full volume inside min, linear to silence at max):
+
+  | Profile | Range | Cues |
+  |---|---|---|
+  | small | 2–14 m | steps, wings, slither, splashes, breath, climbing |
+  | medium | 4–20 m | the default |
+  | large | 10–80 m | giants, blasts, warps, horns, other ships' shots |
+  | huge | 20–160 m | ship launch/landing/touchdown, engine thrust, explosions, the sky giant |
+
+- **Voice budget per category:** creature calls 4, creature foley 6, other players' steps 3. A refused request is
+  dropped, never queued. At the cap a nearer sound replaces the farthest one of its kind.
+- **Roof occlusion:** a sound with a roof (or a parked ship's hull) on exactly one side, the listener's or its own, plays
+  its baked muffled copy (`SampleKit.Muffle`, so the browser hears it too) at half level. Nothing within 6 m is occluded.
+  This is the weather beds' rule (#2805) applied to one-shots.
+- `PlayOwn(id, vol, pitch)` plays the player's own body sounds: 2D, with a pitch, with a small baked metal-room tail
+  aboard the ship and the suit treatment in vacuum.
+- `AtTagged(id, pos, pitch, vol, category)` lets a caller name the budget a cue counts against.
+
+## 29. Stylised vacuum (#3241)
+
+Maintainer decision: the vacuum is **stylised, not silent**. In vacuum the player hears the world through the suit. "In
+vacuum" (`VacuumAudio`, tested) means:
+- a spacewalk;
+- on foot in space;
+- the surface of a body without air: an airless type, a space sky, or no atmosphere density.
+
+A cabin, the ship and a station deck have air again. In vacuum:
+- the weather, wind and biome beds stop;
+- a soft suit room tone plays (`suit_room_tone`, 0.35 of the bed level);
+- sounds out there arrive muffled at 0.45;
+- what the player touches (within 3.5 m: their own steps, the drill, the mining target) stays clear at 0.8;
+- the player's own body sounds are a little duller;
+- cues that need air never play (`sonic_boom`, the wind loops, `cloud_rush`, the glider's wind).
+
+A lift-off from an airless body makes no sonic boom (`ClientAudio.WorldAirless`), seen from the cockpit or from the ground.
+On a spacewalk, short suit-thruster puffs (`suit_thruster`, `_2`) mark the moves. UI, VEGA and the music are unchanged.
+
+## 30. Creatures: foley, repertoire, rhythm, herd, combat from the own voice, distant fauna (#3242–#3246)
+
+All of this sits in `CreatureView.Audio.cs`; the rules are Unity-free and unit-tested.
+
+**Movement foley without clutter (#3242, `CreatureFoleyGate`).** Animals used to move in silence. Foley added naively
+turns a herd into rain: twelve four-legged grazers plant about 100 feet a second. So:
+- **per species**, only the **two nearest moving animals** make footfalls;
+- **per animal**, at most one footfall per gait cycle (a big body steps slower), never for tiny animals (size < 0.6),
+  only while moving, within 12 m × √size (capped at 24 m);
+- **globally**, at most **6 foley events a second** and never two closer than 70 ms;
+- the mixer caps concurrent foley voices at 6 on top.
+
+| Sound | Trigger | Clips |
+|---|---|---|
+| footfall | `CreatureFeet.FootPlanted` (the rig's foot comes down; giants keep their stomp) | the surface's step set (`FootstepSurface`), pitch ∝ 1/size, level ∝ size, clearly under the player's own steps |
+| wing beat | an airborne flier that is not gliding; only the 2 nearest, each ≥ 0.5 s apart | `wing_flap`, `_2` |
+| slither | the nearest limbless crawler within 10 m — ONE shared 3D loop, never one per animal | `slither_loop` |
+| splash | a water/shore animal crossing the surface within 14 m (≥ 1.5 s apart) | `water_splash_in` / `_out` |
+| chewing | a calm, awake animal standing still for 2 s within 7 m, every 6–12 s | `eat`, pitched by size, quiet |
+
+**Repertoire (#3243).** A species has more than one thing to say:
+- **contact call**: the voice genome's call, as before;
+- **alarm call**: `CreatureVoice.AlarmCall`, a second call of the same body class (its own salt, so the main call never
+  moved). It is spoken as 2–3 quick rising pulses when a herd member is hurt or turns hostile. Up to 3 conspecifics
+  within 25 m echo it 0.2–0.6 s apart, so the herd startles together;
+- **content sound**: the size's calm `_idle` bank clip (bundled since the creature banks, never played until #3238)
+  through the species' timbre. It plays when fed (stops begging close by), when tamed, and on 30 % of a companion's idle
+  phrases;
+- **begging**: the call, higher (×1.1) and bowl-shaped.
+
+**Rhythm (#3243, `CreatureCallRhythm`).** The species' calling interval is multiplied by:
+- the hour against its activity: diurnal ×0.55 at dawn and dusk (a chorus), ×1 by day, ×2.2 at night; nocturnal ×0.85
+  at night; crepuscular ×0.5 in the twilight; cathemeral ×1;
+- the weather: rain ×2.5, a storm ×5;
+- the end of a storm: ×0.5 for 25 s (a burst of calls).
+
+An answer comes from the nearest real herd member (else from a spot nearby). The answer chance grows with the group:
+0.12 + 0.05 per conspecific, at most 0.4.
+
+**Combat cues from the own voice (#3244).** Hurt, alert, attack and die no longer come from the 24 shared bank files
+alone. `SampleKit.CombatVariant` shapes the species' call, with the bank file as a quiet layer underneath (0.38):
+- hurt: cut to 250 ms, gliding up 1→1.3, driven;
+- attack: cut to 180 ms, driven;
+- alert: the call gliding up a little;
+- die: gliding down 1→0.7, fading, with a tail.
+
+Hostile species bake their four cues at spawn (one bake per frame, #901); calm ones bake on their first blow. Four new
+ops were appended to `VoiceOp` (never inserted: the value is part of every bake key): `Glide`, `Vibrato`, `Stutter`,
+`Truncate`. A third of the voices that had no op now roll Glide, Vibrato or Stutter (a separate salt, so no voice that
+already had an op changed).
+
+**New material (#3246).**
+- an **ethereal** class for medusae and tentacled glowers: `creature_call_ethereal` (+`_2`), `creature_call_chime_drone`;
+- an **insect** class for six-plus legs or segmented bodies with legs: `creature_call_buzz` (+`_2`),
+  `creature_call_rattle`, chitter, click;
+- one more arachnid call `creature_call_click_hiss` and one more biped call `creature_call_gibber_squeal`;
+- re-takes of the near-silent `creature_call_echo_click` and `creature_call_flutter`.
+
+The pools only grew (rendezvous selection keeps ~(N−1)/N of the species on their voice). The alternate take `*_2` now
+also plays for baked voices.
+
+**Distant fauna (#3245).** The client only learns about the animals near it, so a world whose animals were out of sight
+used to sound empty. On every world entry (join, travel, respawn, station, ship interior, ship visit) the server sends
+`FaunaRoster` (tag 318, no protocol bump). It carries each species' id, `VoiceSeed`, its `VoiceTraits` fields and its
+`Activity`, goes out with the environment send that follows the `WorldReset`, once per world (the 5 s heartbeat costs
+one reference compare), and is empty on stations, in ship interiors and when the creature-abundance rule is Off.
+
+`Client.Core/Audio/DistantFauna` (Unity-free, seeded, covered by `DistantFaunaTests`) plays one distant call every
+20–60 s:
+- **When it is quiet:** nothing calls in rain or a storm, under a roof, in vacuum, in space or during a cutscene. A call
+  that came due meanwhile plays 2–8 s after the silence lifts.
+- **Who calls:**
+  - a species awake at this hour may always call, a sleeping one only now and then;
+  - water and shore species only near water, cave species only underground (where nothing else calls);
+  - a species already within hearing does not call from afar;
+  - the same species never twice in a row while another one may;
+  - medusas and tentacled bodies rarely.
+- **How it sounds:** the caller stands 40–120 blocks out (small animals at most 75), at a random bearing, its level
+  falling from 0.6 to 0.35. The client plays the species' own call (`CreatureVoices.Derive(VoiceSeed, VoiceTraits)`, the
+  voice it has up close), dull and with a long tail. It is placed at a short virtual distance in that direction, so the
+  panning gives the bearing while the scheduler sets the level.
+
+## 31. The ship as a place (#3247)
+
+| Sound | Trigger | # | Source |
+|---|---|---|---|
+| hull hum from the design ✓ — pitch from the hull's size, reactor pulse, life-support air cycle, jump-coil shimmer | aboard | 1 | proc ✓ (`ShipSoundscape.SynthesizeHum`) |
+| module emitters ✓ — reactor, life support, medbay tank, cargo creaks; the nearest 3 within 8 m | aboard, walking | 4 | EL ✓ (`reactor_hum`, `life_support_cycle`, `cargo_creak*`) + `clone_tank_bubble` |
+| cooling ticks ✓ — pings slowing down over ~30 s | after a landing, aboard and outside | 2 | EL ✓ (`ship_cooling_tick*`) |
+| parked-ship idle hum ✓ | outside, within 15 m of your own hull | 1 | EL ✓ (`ship_exterior_idle`) |
+| structure creaks ✓ — rare, ≥ 8 s apart | aboard, hull < 30 % | 2 | EL ✓ (`hull_creak*`) |
+| rain on the hull ✓ | aboard on a planet in rain, drizzle, a storm or an acid storm | 1 | EL ✓ (`rain_on_hull`) |
+| the airlock hatch ✓ — `door_open` / `door_close` instead of the plain slide | your own ship's outer door, aboard | 2 | EL ✓ (bundled since P2, never played until #3238) |
+
+**The hum.** The ship's hum is generated from its design. `ShipSoundscape` (Client.Core) sets the base pitch from the
+hull's size (a scout at 96 Hz, the hammerhead around 65 Hz) and adds a reactor pulse, the life support's breathing air
+and a jump generator's shimmer. The result is one seamless 4 s loop, so there is nothing to download.
+`ShipSoundscapeView` plays it in place of the router's old two-sine hum (`ClientAudio.ShipHumOverride`), at the bed level,
+so it ducks under a cutscene (`ClientAudio.BedLevel`).
+
+**Aboard.** Only the nearest three module emitters within 8 m play, quietly and faded by distance:
+- the reactor at the engines;
+- the life support at the ceiling;
+- the medbay tank and the cargo hold at their stations.
+
+While rain drums on the hull, the muffled outdoor rain eases to 35 % and `rain_on_hull` carries it.
+
+**After landing and outside.** After a landing the hull ticks as it cools for about half a minute, heard aboard and
+outside. Outside, a quiet idle hum comes from the nearest point of your own parked ship within 15 m, so a child can find
+the ship by ear at night.
+
+**Damage.** Below 30 % hull the structure creaks now and then. A downed wreck has no power and so no hum.
+
+Everything is volume, pitch and position (Unity Web has no filters or Doppler), and a missing recording simply stays
+silent. The client knows no ship power value, so the "hum dips at low power" idea is not built.
+
+## 32. Flight audio (#3248)
+
+**The engine.** The ship's engine is three layers instead of one loop (`FlightEngineMix`, Client.Core, tested):
+- a steady **idle** hum at the old engine level;
+- a **thrust** layer that swells gently with the throttle (and when you strafe);
+- a short **afterburner** surge (`engine_boost`) when you push the throttle quickly from low to full, which then settles
+  back, so full throttle is never a constant roar.
+
+The pitch rises a little with drive. Every flight sound follows the effects slider.
+
+**Perspective and manoeuvring.** In the cockpit view (V) you hear a quiet cockpit-electronics bed (`cockpit_ambience`)
+and a darker engine: the idle carries, thrust and afterburner are held back, the pitch sits lower. The third-person view
+hears the full exterior engine. Starting or reversing a strafe, yaw or pitch gives a soft manoeuvring-thruster puff
+(`rcs_puff`, `_2`; at most a few per second, alternating).
+
+**Other ships.** The nearest three other ships within about 90 units have their own 3D engine sound: big hulls rumble
+lower, drones whine higher. Each fades with distance and rises or drops in pitch as it approaches or passes. This
+Doppler is hand-made, so it also works in the browser build. Other pilots' and enemies' shots are heard from where they
+fire (the large range).
+
+**Weapons and hits.**
+- The cannons play the recorded `ship_weapon` shot (bundled since P2, never played until #3238), the laser keeps its
+  zap, mining keeps the mining zap.
+- When your shield starts recharging after hits, `shield_recharge` plays once (at most every 5 s).
+- Hull and shield hit cues are as loud as the blow, like the camera shake (0.45 for a scratch up to 1).
 
 ---
 

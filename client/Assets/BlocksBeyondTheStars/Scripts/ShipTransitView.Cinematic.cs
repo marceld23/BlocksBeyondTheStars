@@ -326,7 +326,11 @@ namespace BlocksBeyondTheStars.Client
             {
                 f.Boomed = true;
                 ShipCinematicFx.VapourCone(centre, (f.Nose + Vector3.up * 2f).normalized, f.Box.extents.magnitude);
-                ClientAudio.Instance?.At("sonic_boom", centre, 1f, 0.9f);
+                if (!(ClientAudio.Instance?.WorldAirless ?? false))
+                {
+                    ClientAudio.Instance?.At("sonic_boom", centre, 1f, 0.9f); // #3241: no air, no boom
+                }
+
             }
         }
 

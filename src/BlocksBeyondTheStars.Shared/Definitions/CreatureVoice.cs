@@ -19,6 +19,12 @@ public enum VoiceOp
     Crush,       // bit + rate reduction — chittery, artificial
     ReverseTail, // a reversed, quieter echo of the sample after it — alien, keeps the attack
     Shape,       // envelope reshape — a clipped bark, or a slow drawn-out swell
+
+    // #3244 — appended, never inserted: the enum value is part of every bake key and of old worlds' rolled voices.
+    Glide,       // a pitch bend inside one pulse — a whoop, a rising or falling cry
+    Vibrato,     // real pitch modulation (the tremolo only moves the level)
+    Stutter,     // the onset repeated 2–4 times — a rattle, a cackle
+    Truncate,    // cut short with a fade — a clipped yip
 }
 
 /// <summary>How the pitch moves across a species' call phrase (#902).</summary>
@@ -41,9 +47,10 @@ public readonly struct CreatureVoice
 {
     public CreatureVoice(string call, string layerCall, int layerOffsetMs, int layerDetune,
         VoiceOp op, int opAmount, int tail, int pulses, int pulseGapMs, VoiceContour contour,
-        float cadenceMin, float cadenceMax, int pitchStep)
+        float cadenceMin, float cadenceMax, int pitchStep, string alarmCall = "")
     {
         PitchStep = pitchStep;
+        AlarmCall = string.IsNullOrEmpty(alarmCall) ? call : alarmCall;
         Call = call;
         LayerCall = layerCall;
         LayerOffsetMs = layerOffsetMs;
@@ -60,6 +67,10 @@ public readonly struct CreatureVoice
 
     /// <summary>The base sample id (a <c>creature_call_*</c> clip).</summary>
     public string Call { get; }
+
+    /// <summary>#3243: the species' alarm call — a second sample from the same body class, spoken short and rising when
+    /// the animal (or a herd member) is startled. The base call when the class has nothing else to offer.</summary>
+    public string AlarmCall { get; }
 
     /// <summary>A second sample mixed in behind the base one, or empty for none (#904).</summary>
     public string LayerCall { get; }
@@ -149,13 +160,28 @@ public static class CreatureVoices
 
     /// <summary>#2009: what an arachnid can say — a hiss, a chitter, a click. Its size would otherwise put it in the
     /// titan's bellow pool, and a speeder-sized spider that moos is wrong in a way a child notices at once.</summary>
-    private static readonly string[] Arachnid = { "creature_call_hiss", "creature_call_sizzle", "creature_call_chitter", "creature_call_click" };
+    private static readonly string[] Arachnid =
+    {
+        "creature_call_hiss", "creature_call_sizzle", "creature_call_chitter", "creature_call_click",
+        "creature_call_click_hiss", // #3246
+    };
+
+    /// <summary>#3246: what a medusa or a glowing drifter says — a glassy hum-song, a soft chiming drone. Before this it
+    /// borrowed a habitat call and only an envelope op set it apart.</summary>
+    private static readonly string[] Ethereal = { "creature_call_ethereal", "creature_call_chime_drone" };
+
+    /// <summary>#3246: what a many-legged or segmented crawler says — a wing buzz, a mandible rattle, a chitter.</summary>
+    private static readonly string[] Insect =
+    {
+        "creature_call_buzz", "creature_call_rattle", "creature_call_chitter", "creature_call_click",
+    };
 
     /// <summary>#2083: what a biped says — gibberish chatter in the shape of "meins, meins!" (Marcel's wish for Paul and Ben's
     /// bipeds: not a word, so it reads in every language). A biped draws from this pool INSTEAD of its habitat pool.</summary>
     private static readonly string[] BipedCalls =
     {
         "creature_call_gibber", "creature_call_gibber_high", "creature_call_gibber_chatter", "creature_call_gibber_grumble",
+        "creature_call_gibber_squeal", // #3246
     };
 
     // Habitat-flavoured pools: cave dwellers sound deep + echoey, amphibians wet + croaky, water
@@ -170,6 +196,8 @@ public static class CreatureVoices
         "creature_call_cluck", "creature_call_wail",
         // #906 — land top-up so the biggest pool keeps pace with the multipliers.
         "creature_call_bark", "creature_call_grunt", "creature_call_caw",
+        // #3246 — the insect and spider calls (appended: rendezvous keeps ~(N−1)/N of species on their voice).
+        "creature_call_buzz", "creature_call_rattle", "creature_call_click_hiss",
     };
 
     private static readonly string[] CaveCalls =
@@ -178,6 +206,8 @@ public static class CreatureVoices
         "creature_call_whistle", "creature_call_click", "creature_call_thrum",
         // #906
         "creature_call_knock", "creature_call_echo_click", "creature_call_groan", "creature_call_flutter",
+        // #3246
+        "creature_call_chime_drone", "creature_call_rattle", "creature_call_click_hiss",
     };
 
     private static readonly string[] AmphibianCalls =
@@ -186,6 +216,8 @@ public static class CreatureVoices
         "creature_call_cluck", "creature_call_burble",
         // #906
         "creature_call_ribbit", "creature_call_slurp", "creature_call_peep", "creature_call_bubble_pop",
+        // #3246
+        "creature_call_buzz",
     };
 
     private static readonly string[] WaterCalls =
@@ -195,6 +227,8 @@ public static class CreatureVoices
         // #906 — this was the most starved pool of all (five voices for every ocean in the game).
         "creature_call_sonar", "creature_call_bubble_pop", "creature_call_moo_deep", "creature_call_squelch",
         "creature_call_chime_wet",
+        // #3246
+        "creature_call_ethereal", "creature_call_chime_drone",
     };
 
     private static readonly string[] LavaCalls =
@@ -211,6 +245,8 @@ public static class CreatureVoices
         "creature_call_warble", "creature_call_keen",
         // #906
         "creature_call_caw", "creature_call_shriek", "creature_call_flutter", "creature_call_pipe",
+        // #3246
+        "creature_call_ethereal", "creature_call_buzz",
     };
 
     /// <summary>Every call id the voice system can pick — used by the client to pre-fill/verify its
@@ -220,7 +256,7 @@ public static class CreatureVoices
         get
         {
             var set = new List<string>();
-            foreach (var pool in new[] { LandCalls, CaveCalls, AmphibianCalls, WaterCalls, LavaCalls, AirCalls, BipedCalls })
+            foreach (var pool in new[] { LandCalls, CaveCalls, AmphibianCalls, WaterCalls, LavaCalls, AirCalls, BipedCalls, Ethereal, Insect, Arachnid })
             {
                 foreach (var name in pool)
                 {
@@ -270,8 +306,12 @@ public static class CreatureVoices
         var contour = PickContour(seed, t);
         var (cadMin, cadMax) = PickCadence(seed, t, pulses);
 
+        // #3243: the alarm call — another call of the same body class (own salt, so the main call never moves).
+        var alarmPool = Without(candidates, call);
+        string alarm = alarmPool.Count > 0 ? Rendezvous(seed, "alarm", alarmPool) : call;
+
         return new CreatureVoice(call, layer, layerOffset, layerDetune, op, amount, tail,
-            pulses, gap, contour, cadMin, cadMax, Roll(seed, "pitch", 37));
+            pulses, gap, contour, cadMin, cadMax, Roll(seed, "pitch", 37), alarm);
     }
 
     /// <summary>The locale key describing this voice on a scan (#907) — the voice becomes a readable
@@ -384,6 +424,14 @@ public static class CreatureVoices
         else if (t.BodyPlan == "Arachnid")
         {
             want = Arachnid; // #2009: before the size rule — an arachnid is titan-sized but hisses and chitters
+        }
+        else if (t.BodyPlan == "Medusa" || (t.Glows && t.Tentacles > 0))
+        {
+            want = Ethereal; // #3246: a drifting lantern hums and chimes
+        }
+        else if (t.Legs >= 6 || (t.BodySegments >= 3 && t.Legs > 0))
+        {
+            want = Insect; // #3246: before the size rule as well — a big beetle buzzes, it does not bellow
         }
         else if (t.BodyPlan == "Titan" || t.Size >= 2.6f)
         {
@@ -504,11 +552,20 @@ public static class CreatureVoices
             return VoiceOp.Thin;
         }
 
-        return new[]
+        var op = new[]
         {
             VoiceOp.None, VoiceOp.None, VoiceOp.None,
             VoiceOp.Crush, VoiceOp.ReverseTail, VoiceOp.Shape, VoiceOp.Comb, VoiceOp.Tremolo,
         }[Roll(seed, "op", 8)];
+
+        // #3244: the new ops take over a third of the dry voices — a separate salt, so no voice that already had an op
+        // changes, and the other two thirds of the dry ones stay dry ("no op" must stay common).
+        if (op == VoiceOp.None && Roll(seed, "op.v2", 3) == 0)
+        {
+            op = new[] { VoiceOp.Glide, VoiceOp.Vibrato, VoiceOp.Stutter }[Roll(seed, "op.v2.pick", 3)];
+        }
+
+        return op;
     }
 
     private static int PickTail(int seed, VoiceTraits t)

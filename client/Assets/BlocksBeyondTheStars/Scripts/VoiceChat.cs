@@ -551,7 +551,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            float vol = Mathf.Clamp01((Settings?.VoiceVolume ?? 1f) * (Settings?.MasterVolume ?? 1f));
+            float vol = Mathf.Clamp01(Settings?.VoiceVolume ?? 1f); // master: AudioListener.volume (#3237)
             _recycleScratch.Clear();
             foreach (var kv in _speakers)
             {
