@@ -1494,7 +1494,10 @@ players.
   attach to the build; the hull sits on the keel's ground level. Mining a construction block gives it back;
   taking the last block out cancels the build. The hull can't grow into another player's base zone (your own and
   your allies' zones are fine), onto a landing pad, a station, a factory or a parked ship, or through solid ground —
-  clear the yard first.
+  clear the yard first. The same holds later for a **parked** ship you keep building on (a self-built one growing
+  over its roof, or a ship extended on foot): furnishing inside the ship's own box is always free, but a block that
+  makes it bigger can't reach into another player's base zone, a station, a factory, another ship or solid ground,
+  and only its own pad.
 - A flyable ship needs: at least **20 blocks**, exactly **one Ship Helm**, at least **one Ship Engine**, a
   **door**, and an **airtight hull** — glass and doors seal fine, any open gap does not.
 - Stand at the helm and press **E** ("Commission ship"). If something is missing the message tells you what;
@@ -4383,7 +4386,7 @@ confirmation is the brief HUD toast.
 | Command | Effect |
 |---|---|
 | `/give Item [Count] [Player]` | Give an item to yourself or a target player; the answer says what was given and what did not fit. A sample, seedling or preparation needs its content in the key (a plain one is refused) |
-| `/tp X Y Z` | Teleport to coordinates |
+| `/tp X Y Z` | Teleport to coordinates on the body you stand on (not while flying in space; `NaN`/`Infinity` are refused) |
 | `/tp Target` | Teleport to a landmark **on the body you are standing on** — see *Named teleport targets* below |
 | `/tp` | List every named target here, with the exact word to type and its distance |
 | `/tpp Player` | Teleport to a player on the body you are on — you land **beside** them, never inside them (#1055) |
@@ -4481,7 +4484,8 @@ survival world, the parent keeps the survival challenge. It also works the other
 and the setting **persists** — it survives rejoins and restarts until an admin changes it. Like the other
 tools in this section it is moderation, not a cheat: it works even when admin cheats are off. The world's
 own difficulty sliders (oxygen/hunger rates, hazards) still apply to a survival-playing player, and world
-options like PvP or structure damage are never per-player.
+options like PvP are never per-player. (The `allowPlayerStructureDamage` and `shipDamageByPlayers` rules in
+`server.json` are not implemented yet and change nothing, #3225.)
 
 #### World mode — Explorer, Creative or Sandbox on a running world
 

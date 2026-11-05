@@ -68,7 +68,7 @@ public sealed class CustomShipTests : IDisposable
     /// <summary>Lays a keel at a fixed column and returns the keel's world cell. The pilot stands beside
     /// it with instant build, so construction edits need no materials. The yard the tests build in is cleared
     /// first: a hull no longer grows through world blocks (#3198), and this column stands under a bush's leaves.</summary>
-    private static Vector3i LayKeel(SvGameServer server, BlocksBeyondTheStars.GameServer.PlayerSession pilot)
+    internal static Vector3i LayKeel(SvGameServer server, BlocksBeyondTheStars.GameServer.PlayerSession pilot)
     {
         int sy = SurfaceY(server, 40, 40);
         var core = new Vector3i(40, sy + 1, 40);
@@ -98,7 +98,7 @@ public sealed class CustomShipTests : IDisposable
 
     /// <summary>Builds a valid 5×4×5 hull around the keel at local (0,0,0): full floor + roof, wall ring
     /// with one slide door, a helm and an engine inside. Returns the helm's structure-local cell.</summary>
-    private static Vector3i BuildValidHull(SvGameServer server)
+    internal static Vector3i BuildValidHull(SvGameServer server)
     {
         const string yard = "shipyard:Pilot";
 

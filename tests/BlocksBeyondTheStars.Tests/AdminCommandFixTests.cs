@@ -552,4 +552,107 @@ public sealed class AdminCommandFixTests : IDisposable
             Assert.Empty(LinesTo(sent, admin));
         }
     }
+
+    // ---------------- /tp X Y Z and /goto Body X Y Z (#3226) ----------------
+
+    /// <summary>Runs <c>/tp X Y Z</c> and returns what the server sent because of it.</summary>
+    private static List<(int Conn, object Msg)> TeleportTo(SvGameServer server, RecordingTransport t, PlayerSession who,
+        float x, float y, float z)
+    {
+        int before = t.Sent.Count;
+        server.HandleForTest(who, new AdminCommandIntent { Command = "teleport_to_location", X = x, Y = y, Z = z });
+        return t.Sent.Skip(before).ToList();
+    }
+
+    /// <summary>#3226: the chat reads "NaN" and "Infinity" as numbers. A position like that is never repaired in space and
+    /// made every later save of the player throw — the teleport is refused and the admin stays where they stood.</summary>
+    [Theory]
+    [InlineData(float.NaN, 90f, 2f)]
+    [InlineData(float.PositiveInfinity, 90f, 2f)]
+    [InlineData(305f, float.NegativeInfinity, 2f)]
+    [InlineData(305f, 90f, float.NaN)]
+    public void TeleportToCoordinates_ThatAreNoNumber_IsRefused_AndTheAdminStays(float x, float y, float z)
+    {
+        var t = new RecordingTransport();
+        var server = NewServer("tp_nan", t, out var repo);
+        using (repo)
+        {
+            var admin = OnFoot(server, "Admin", admin: true);
+            var before = admin.State.Position;
+
+            var sent = TeleportTo(server, t, admin, x, y, z);
+
+            Assert.Equal(before, admin.State.Position);
+            Assert.Equal("@srv.tp.bad_target", Assert.Single(RefusalsTo(sent, admin)));
+            Assert.DoesNotContain(sent, s => s.Msg is RespawnNotice);
+        }
+    }
+
+    /// <summary>#3226: out in space coordinates name no place on a world — refused like <c>/tp &lt;name&gt;</c> and
+    /// <c>/tpp</c>, the pilot's position untouched.</summary>
+    [Fact]
+    public void TeleportToCoordinates_OutInSpace_IsRefused_AndTheAdminStays()
+    {
+        var t = new RecordingTransport();
+        var server = NewServer("tp_space", t, out var repo, c => c.Rules.FreeSpaceFlight = true);
+        using (repo)
+        {
+            var admin = OnFoot(server, "Admin", admin: true);
+            admin.State.AboardShip = true; // a launch starts at the helm
+            server.EnterSpace("Admin");
+            Assert.True(server.InSpace("Admin"));
+            var before = admin.State.Position;
+
+            var sent = TeleportTo(server, t, admin, 1f, 70f, 1f);
+
+            Assert.Equal(before, admin.State.Position);
+            Assert.Equal("@srv.tp.no_surface_targets", Assert.Single(RefusalsTo(sent, admin)));
+            Assert.DoesNotContain(sent, s => s.Msg is RespawnNotice);
+        }
+    }
+
+    [Fact]
+    public void TeleportToCoordinates_OnTheGround_StillWorks()
+    {
+        var t = new RecordingTransport();
+        var server = NewServer("tp_ground", t, out var repo);
+        using (repo)
+        {
+            var admin = OnFoot(server, "Admin", admin: true);
+
+            var sent = TeleportTo(server, t, admin, AdminX + 5f, 90f, 2f);
+
+            Assert.Equal(new Vector3f(AdminX + 5f, 90f, 2f), admin.State.Position);
+            Assert.Empty(RefusalsTo(sent, admin));
+            Assert.Contains(sent, s => s.Conn == admin.ConnectionId && s.Msg is RespawnNotice { Reason: "@srv.tp.done" });
+        }
+    }
+
+    /// <summary>#3226: the fleet admin's <c>/goto &lt;body&gt; x y z</c> refuses a coordinate that is no number with its usage
+    /// line, before any travel; a real coordinate on the same body still jumps.</summary>
+    [Theory]
+    [InlineData("NaN 90 2")]
+    [InlineData("305 Infinity 2")]
+    [InlineData("305 90 -Infinity")]
+    public void Goto_ACoordinateThatIsNoNumber_IsRefusedWithTheUsageLine_AndTheAdminStays(string coordinates)
+    {
+        var t = new RecordingTransport();
+        var server = NewServer("goto_nan", t, out var repo, c => c.FleetAdminPlayers = new List<string> { "Admin" });
+        using (repo)
+        {
+            var admin = OnFoot(server, "Admin", admin: true);
+            Assert.True(admin.IsFleetAdmin);
+            string body = admin.CurrentLocationId;
+            var before = admin.State.Position;
+
+            var sent = Run(server, t, admin, "goto", body + " " + coordinates);
+
+            Assert.Equal(before, admin.State.Position);
+            Assert.Equal(body, admin.CurrentLocationId);
+            Assert.Equal("@srv.obs.usage_goto", Assert.Single(RefusalsTo(sent, admin)));
+
+            Run(server, t, admin, "goto", body + " 305 90 2");
+            Assert.Equal(new Vector3f(305f, 90f, 2f), admin.State.Position);
+        }
+    }
 }

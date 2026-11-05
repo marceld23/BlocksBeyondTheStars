@@ -184,8 +184,9 @@ public sealed class ServerConfig
     /// live host without attaching a profiler. Also settable via <c>BBS_TICK_TIMING_LOG_SECONDS</c>.</summary>
     public double TickTimingLogSeconds { get; set; }
 
-    public string Difficulty { get; set; } = "normal";
-    public bool AllowGuests { get; set; } = true;
+    // #3222: "difficulty" and "allowGuests" are gone — nothing ever read them, and an operator who set
+    // "allowGuests": false expected a locked world. An old server.json that still carries them loads as before
+    // (unknown keys are ignored); the access controls are ServerPassword and the whitelist.
 
     /// <summary>Bind address for the admin UI; defaults to loopback so it is not public (§13.3).</summary>
     public string AdminBindAddress { get; set; } = "127.0.0.1";
