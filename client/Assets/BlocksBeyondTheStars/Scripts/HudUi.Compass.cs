@@ -56,7 +56,7 @@ namespace BlocksBeyondTheStars.Client
             // Compass (round).
             var comp = new GameObject("Compass", typeof(RectTransform));
             comp.transform.SetParent(root, false);
-            UiKit.Place(comp, W - 130f, 10, 120, 120);
+            UiKit.Place(comp, W - 130f, HudRightColumn.CompassY, HudRightColumn.CompassSize, HudRightColumn.CompassSize); // #3217: one column layout
             if (UiHolo.Available)
             {
                 var face = comp.AddComponent<Image>();
@@ -92,22 +92,22 @@ namespace BlocksBeyondTheStars.Client
             // Both distance lines carry their localized name ("Ship 114 m", "Waypoint 138 m") in the blip's
             // colour — #1594: a first-time player saw two coloured dots and two numbers and did not know the
             // blue one was the ship. The planet map has a legend; this is the compass's.
-            _compassDist = UiText.Add(comp.transform, 0, 100, 120, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _compassDist = UiText.Add(comp.transform, 0, HudRightColumn.CaptionY(0), 120, HudRightColumn.CaptionRowH, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             // Waypoint distance on its own line under the ship distance — before #592 the compass number
             // was the SHIP only and the waypoint's distance existed nowhere outside the map panel.
-            _compassWpDist = UiText.Add(comp.transform, 0, 118, 120, 18, string.Empty, 14, new Color(1f, 0.85f, 0.3f), TextAnchor.MiddleCenter, FontStyle.Bold);
+            _compassWpDist = UiText.Add(comp.transform, 0, HudRightColumn.CaptionY(1), 120, HudRightColumn.CaptionRowH, string.Empty, 14, new Color(1f, 0.85f, 0.3f), TextAnchor.MiddleCenter, FontStyle.Bold);
             // The Guardian core (#1792): a third line + blip in the map marker's colour, only while the finale body
             // publishes the core POI — the one place on that planet worth walking to, so it gets the ship's treatment.
-            _compassCoreDist = UiText.Add(comp.transform, 0, 136, 120, 18, string.Empty, 14, WorldMap.GuardianCoreCol, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _compassCoreDist = UiText.Add(comp.transform, 0, HudRightColumn.CaptionY(2), 120, HudRightColumn.CaptionRowH, string.Empty, 14, WorldMap.GuardianCoreCol, TextAnchor.MiddleCenter, FontStyle.Bold);
             _compassCore = Blip(comp.transform, WorldMap.GuardianCoreCol, 10f);
             // The net-fragment signal (#1859): the story chip says "follow VEGA's signal", so the signal gets the
             // core's treatment — a blip in the map marker's colour plus a distance line. It SHARES the core's
-            // caption row (the core wins when both exist): a fourth row would sit on the time-of-day panel below.
-            _compassFragDist = UiText.Add(comp.transform, 0, 136, 120, 18, string.Empty, 14, FragmentSignalCol, TextAnchor.MiddleCenter, FontStyle.Bold);
+            // caption row (the core wins when both exist): the clock panel starts right under it (HudRightColumn, #3217).
+            _compassFragDist = UiText.Add(comp.transform, 0, HudRightColumn.CaptionY(2), 120, HudRightColumn.CaptionRowH, string.Empty, 14, FragmentSignalCol, TextAnchor.MiddleCenter, FontStyle.Bold);
             _compassFrag = Blip(comp.transform, FragmentSignalCol, 10f);
             // VEGA's story help marker (#2570): the goal flag of the map in its violet, plus "Goal 120 m" on the same shared
             // row — after the core, before the fragment (it is the one thing VEGA just pointed the player at).
-            _compassStoryDist = UiText.Add(comp.transform, 0, 136, 120, 18, string.Empty, 14, WorldMap.StoryTargetCol, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _compassStoryDist = UiText.Add(comp.transform, 0, HudRightColumn.CaptionY(2), 120, HudRightColumn.CaptionRowH, string.Empty, 14, WorldMap.StoryTargetCol, TextAnchor.MiddleCenter, FontStyle.Bold);
             _compassStory = Blip(comp.transform, WorldMap.StoryTargetCol, 14f, "map_mark_flag");
             // A landed trader ship (#1904): its map marker's ship icon in trade gold. Created before the own-ship blip
             // so that one stays on top where the two meet.

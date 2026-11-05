@@ -1436,6 +1436,8 @@ namespace BlocksBeyondTheStars.Client
                         drawFace = true;
                     }
 
+                    drawFace &= !traits.IsCaplessSill(id, dir.Y); // #3220: the open lift gate has no lid
+
                     // A submerged fluid cell (the same fluid sits directly above it) must NOT draw its vertical
                     // SIDE faces: they'd paint the surface-looking water tile onto an underwater edge — e.g. the
                     // step between deep (swimmable) and shallow water — which looks wrong seen from below (B43).
@@ -2916,6 +2918,10 @@ namespace BlocksBeyondTheStars.Client
         private sealed partial class BlockTraits
         {
             public readonly GameContent Content;
+
+            /// <summary>#3220: the numeric id of the open lift gate (-1 when the content has none) — a sill that draws only its
+            /// side faces (<see cref="IsCaplessSill"/>).</summary>
+            public readonly int SillId = -1;
             private readonly uint[] _flags;
             private readonly float[] _emission;
             private readonly Vector2[] _material;
@@ -2987,8 +2993,17 @@ namespace BlocksBeyondTheStars.Client
                     _material[i] = BlockMaterialSlow(content, id);
                     _scatter[i] = (sbyte)ScatterType(key);
                     _solidFloraShape[i] = (byte)SolidFloraShape(key);
+                    if (key == "lift_gate_open")
+                    {
+                        SillId = i;
+                    }
                 }
             }
+
+            /// <summary>#3220 (Lyxette): an open lift gate is a sill — its side tile keeps only the bottom rail, so it has
+            /// no lid. Its top and bottom faces are never drawn: the opaque fence plate at hip height read as a second lift
+            /// platform the player walked through.</summary>
+            public bool IsCaplessSill(BlockId id, int faceDirY) => faceDirY != 0 && id.Value == SillId;
 
             // An id beyond the table (no definition) behaves like a null key: no traits, collidable, no scatter.
             public uint FlagsOf(BlockId id) => id.Value < _flags.Length ? _flags[id.Value] : TraitCollidable;

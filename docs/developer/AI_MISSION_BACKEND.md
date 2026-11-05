@@ -122,7 +122,8 @@ The board's delivery jobs are coined by the server (`GameServerMissions.BuildBoa
 each one gets an **authored story** of its item and place from `data/board_stories.json` (`BoardStory`, loaded into
 `GameContent.BoardStories`; `GameServerBoardStories.cs`): a title, a description that says **who** needs the goods
 (`{giver}` = the board's quartermaster) and **why**, and a **thank-you** that says what came of it. Places are
-`settlement`, `station`, `base` (the own base's resident quartermaster) and `ship` (radio orders at the own ship's
+`settlement`, `station`, `base` (the own base's resident quartermaster, who passes on a neighbour's or visitor's need —
+never "your base needs", #3227: the player fetches goods for someone else) and `ship` (radio orders at the own ship's
 board — no giver). The story is picked by its own stable hash of the job id (`PickBoardStory`), so the board rolls stay
 untouched and a held job keeps its story across reloads; without a story the place's plain texts are used
 (`mission.<place>.gather.*`, never "settlement" on a station). The server sends the story as **display text** in the

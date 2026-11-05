@@ -212,5 +212,20 @@ namespace BlocksBeyondTheStars.Client
             t.textWrappingMode = TextWrappingModes.Normal;
             t.overflowMode = truncate ? TextOverflowModes.Truncate : TextOverflowModes.Overflow;
         }
+
+        /// <summary>#3218: shrink-to-fit for a fixed readout line — the label keeps its size while the text fits its rect and
+        /// shrinks (down to <paramref name="minSize"/>) when a long word, a chip or a longer language would run past it,
+        /// instead of overflowing out of its panel.</summary>
+        public static void Fit(TMP_Text t, float minSize = 10f)
+        {
+            if (t == null)
+            {
+                return;
+            }
+
+            t.fontSizeMax = t.fontSize;
+            t.fontSizeMin = Mathf.Min(minSize, t.fontSize);
+            t.enableAutoSizing = true;
+        }
     }
 }
