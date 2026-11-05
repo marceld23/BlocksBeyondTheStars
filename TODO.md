@@ -70,6 +70,11 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
   `ConnectionGate`) — nobody can hold the transport slots without logging in.
 - **#3195** The WebSocket gateway queues sends per connection with one pump and drops a client that stops reading
   (> 32 MB queued or one write blocked 60 s) (`WebSocketServerTransport.SendQueue.cs`).
+- **#3250** (✅ 2026-11-05, follow-up: main CI was red since this PR) On Linux a WebSocket the server drops (#3194 gate,
+  kick, any end of the receive loop) stayed open at the TCP level: the managed HttpListener's WebSocket stream does not
+  own the socket, and its Dispose only keep-alive-closes the response. The receive loop now force-closes the connection
+  (`ctx.Response.Abort()` before the WebSocket's Dispose). The Slow test `ConnectionGateTests.WebSocket_…WrongVersionJoin…`
+  caught it on main only (Slow tests skip the PR gate); verified on Linux (WSL) before and after.
 - **#3196** Hull-colour rebroadcasts go through a per-player bucket (burst 3, one per second) and the last colour is always
   relayed by the `HullRelay` step (`GameServerHullRelay.cs`).
 - **#3197** `OnClientDisconnected` runs named, separately guarded steps and always removes the session — a failing save

@@ -466,6 +466,14 @@ public sealed partial class WebSocketServerTransport : IServerTransport
             // #3195: whatever still waits in the outbox is released now, not when the last pump gives up.
             Volatile.Write(ref client.Closed, 1);
             DrainOutbox(client);
+
+            // #3250: close the TCP connection itself. On Linux the managed HttpListener builds the WebSocket on a
+            // NetworkStream that does not own the socket, so neither Abort() (DisconnectClient: the #3194 gate, kicks) nor
+            // Dispose() closes it — the wrapper's Dispose only calls Response.Close(), a keep-alive close that parks the
+            // connection for the next HTTP request. A dropped client stayed connected and never saw the close. Abort()
+            // forces it (socket shut down, connection unregistered) and must run BEFORE the WebSocket's Dispose, which marks
+            // the response disposed and turns Abort into a no-op. On Windows (http.sys) the WebSocket's teardown already did.
+            try { ctx.Response.Abort(); } catch { }
             try { client.Socket.Dispose(); } catch { }
         }
     }
