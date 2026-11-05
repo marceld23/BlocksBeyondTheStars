@@ -140,7 +140,9 @@ public sealed class VegaLineBudgetTests
     /// <summary>The characters a line shows: a token counted as <see cref="TokenWidth"/>, a slot as <see cref="SlotWidth"/>.</summary>
     internal static int ShownLength(string text)
     {
-        string shown = KeyToken.Replace(text, new string('K', TokenWidth));
+        // #3206: a range token shows its number — the loader fills it before any line reaches the panel.
+        string shown = BlocksBeyondTheStars.Shared.Localization.RangeTokens.Fill(text);
+        shown = KeyToken.Replace(shown, new string('K', TokenWidth));
         shown = Slot.Replace(shown, new string('N', SlotWidth));
         return shown.Length;
     }

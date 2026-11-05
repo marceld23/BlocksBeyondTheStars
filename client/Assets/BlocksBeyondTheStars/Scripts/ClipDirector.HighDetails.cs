@@ -28,8 +28,8 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            _highBefore = new[] { s.HighRelief, s.HighGrass, s.HighFlowers, s.HighRoomReflections, s.HighDecals, s.HighVolumetricLight };
-            s.HighRelief = s.HighGrass = s.HighFlowers = s.HighRoomReflections = s.HighDecals = s.HighVolumetricLight = on;
+            _highBefore = new[] { s.HighRelief, s.HighGrass, s.HighFlowers, s.HighRoomReflections, s.HighDecals, s.HighVolumetricLight, s.HighLampShadows };
+            s.HighRelief = s.HighGrass = s.HighFlowers = s.HighRoomReflections = s.HighDecals = s.HighVolumetricLight = s.HighLampShadows = on;
             s.Apply();
             Debug.Log($"[Clip] highDetails={(on ? "All" : "Off")} (restored on exit)");
         }
@@ -47,6 +47,7 @@ namespace BlocksBeyondTheStars.Client
             s.HighRoomReflections = _highBefore[3];
             s.HighDecals = _highBefore[4];
             s.HighVolumetricLight = _highBefore[5];
+            s.HighLampShadows = _highBefore[6]; // #3233
             _highBefore = null;
         }
     }

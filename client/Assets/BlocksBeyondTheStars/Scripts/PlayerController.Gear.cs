@@ -10,7 +10,7 @@ using UnityEngine;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// The worn active gear and the HUD gear strip (#2290): the suit lamp and its light cone (<see cref="UpdateLamp"/>), the
+    /// The worn active gear and the HUD gear strip (#2290): the suit lamp (<see cref="UpdateLamp"/>, <see cref="PublishLamp"/>), the
     /// stealth toggle, the periodic check of the worn gear (<see cref="UpdateGearPeriodically"/>), the jetpack's thrust and
     /// flames (<see cref="UpdateJetpack"/>) and the spring boots' jump (<see cref="SpringJump"/>).
     /// </summary>
@@ -113,40 +113,26 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private bool _lampOn;
-        private GameObject _lampCone; // visible warm light shaft, shown while the lamp is on
-        private static readonly int LampPosId = Shader.PropertyToID("_Sc_LampPos");
-        private static readonly int LampDirId = Shader.PropertyToID("_Sc_LampDir");
-        private static readonly int LampColId = Shader.PropertyToID("_Sc_LampColor");
 
-        /// <summary>Feeds the suit headlamp / flashlight (toggle L) into the world shaders as globals — the
-        /// block + lit shaders run their own lighting, so the lamp is a shader spotlight cast from the
-        /// camera, not a Unity Light. Requires the <c>suit_lamp</c> equipment to be carried. #3154: dark while a cinematic
-        /// owns the camera (the lift-off shot lit the ship from its own camera) — not switched off: it shines again after.</summary>
+        /// <summary>The lamp shines this frame (worn, switched on, no cinematic) — <see cref="PublishLamp"/> places it.</summary>
+        private bool _lampLit;
+
+        /// <summary>Decides whether the suit headlamp (toggle L) shines this frame — the <c>suit_lamp</c> must be worn —
+        /// and reports every effective change to the server: VEGA's "it's dark and your lamp is off" tip (#1077) and,
+        /// since #3234, the other players see the beam. #3154: dark while a cinematic owns the camera (the lift-off shot lit
+        /// the ship from its own camera) — not switched off: it shines again after. The light itself is a shader spotlight
+        /// (ADR 0003, <see cref="Headlamp"/>), placed in <see cref="PublishLamp"/> once the camera has moved this frame.</summary>
         private void UpdateLamp()
         {
             bool on = _lampOn && Camera != null && HasItem("suit_lamp");
-            bool lit = on && !(Game != null && Game.CinematicCameraActive);
-            if (lit)
+            _lampLit = on && !(Game != null && Game.CinematicCameraActive);
+            if (!_lampLit)
             {
-                var t = Camera.transform;
-                Vector3 p = t.position, f = t.forward;
-                Shader.SetGlobalVector(LampPosId, new Vector4(p.x, p.y, p.z, 26f));   // range
-                Shader.SetGlobalVector(LampDirId, new Vector4(f.x, f.y, f.z, 0.80f)); // cone cos (~37°)
-                Shader.SetGlobalColor(LampColId, ShaderColor.Srgb(new Color(1.6f, 1.5f, 1.3f, 1f))); // warm, HDR intensity
-                EnsureLampCone();
-            }
-            else
-            {
-                Shader.SetGlobalColor(LampColId, new Color(0f, 0f, 0f, 0f));
+                Headlamp.ClearLocal();
             }
 
-            if (_lampCone != null)
-            {
-                _lampCone.SetActive(lit);
-            }
+            Avatar?.SetLampLit(on); // #3231: the lamp on the own avatar's helmet glows (third person)
 
-            // Tell the server about every effective change (toggle, forced-off in space, lamp dropped) so
-            // VEGA's "it's dark and your lamp is off" tip (#1077) sees the real state; nothing else uses it.
             if (on != _lampReported)
             {
                 _lampReported = on;
@@ -157,52 +143,27 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The lamp state last reported to the server (a fresh session starts "off" on both ends).</summary>
         private bool _lampReported;
 
-        /// <summary>Builds the visible light shaft (a faint warm translucent cone) once, parented to the
-        /// camera so it always points where the player looks. The actual lighting is the shader spotlight
-        /// above; this is the volumetric beam you see in the dark.</summary>
-        private void EnsureLampCone()
+        /// <summary>
+        /// #3229/#3231: puts the lit lamp where it is worn, after the camera has moved this frame (LateUpdate — the beam
+        /// no longer trails a fast turn by a frame). First person: on the right of the helmet, a little above the eye, so
+        /// surfaces get relief from it; whenever the camera is away from the eye — third person, the speeder's chase camera —
+        /// the lamp on the avatar's helmet, not the camera behind it. Both aim at the point the crosshair covers a few
+        /// metres out.
+        /// </summary>
+        private void PublishLamp()
         {
-            if (_lampCone != null || Camera == null)
+            if (!_lampLit || Camera == null)
             {
                 return;
             }
 
-            _lampCone = new GameObject("LampCone");
-            _lampCone.transform.SetParent(Camera.transform, false);
-            _lampCone.transform.localPosition = new Vector3(0f, -0.08f, 0.4f);
-            _lampCone.transform.localRotation = Quaternion.identity;
-
-            _lampCone.AddComponent<MeshFilter>().sharedMesh = BuildConeMesh(10f, 1.9f, 24);
-            var mr = _lampCone.AddComponent<MeshRenderer>();
-            var shader = Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Color");
-            mr.sharedMaterial = new Material(shader) { color = ShaderColor.Srgb(new Color(1f, 0.94f, 0.76f, 0.06f)) };
-            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            mr.receiveShadows = false;
-        }
-
-        /// <summary>A hollow cone mesh: apex at the origin opening along +Z to a base ring (light shaft).</summary>
-        private static Mesh BuildConeMesh(float length, float radius, int seg)
-        {
-            var verts = new Vector3[seg + 1];
-            var uvs = new Vector2[seg + 1];
-            verts[0] = Vector3.zero; // apex (at the lamp)
-            for (int i = 0; i < seg; i++)
-            {
-                float a = i / (float)seg * Mathf.PI * 2f;
-                verts[i + 1] = new Vector3(Mathf.Cos(a) * radius, Mathf.Sin(a) * radius, length);
-            }
-
-            var tris = new int[seg * 3];
-            for (int i = 0; i < seg; i++)
-            {
-                tris[i * 3] = 0;
-                tris[i * 3 + 1] = 1 + i;
-                tris[i * 3 + 2] = 1 + (i + 1) % seg;
-            }
-
-            var m = new Mesh { vertices = verts, uv = uvs, triangles = tris };
-            m.RecalculateBounds();
-            return m;
+            var eye = Camera.transform;
+            bool awayFromEye = ThirdPerson || (eye.position - transform.TransformPoint(FirstPersonEye)).sqrMagnitude > 1f;
+            Vector3 lamp = awayFromEye && Avatar != null && Avatar.TryHelmetLamp(out var helmet) ? helmet : Headlamp.HelmetFromEye(eye);
+            float behind = Vector3.Distance(eye.position, lamp); // third person: aim past the avatar, not at its back
+            var aim = eye.position + (eye.forward * (HeadlampRules.AimDistance + behind));
+            var axis = aim - lamp;
+            Headlamp.PublishLocal(lamp, axis.sqrMagnitude > 1e-6f ? axis.normalized : eye.forward);
         }
 
         /// <summary>True while the gear is WORN (#2110: the suit's slots, never the backpack) — the lamp, the jetpack and

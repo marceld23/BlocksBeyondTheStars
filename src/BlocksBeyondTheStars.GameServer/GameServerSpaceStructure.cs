@@ -1337,6 +1337,15 @@ public sealed partial class GameServer
             return;
         }
 
+        // #3221: a cell a parked ship grows by — a self-built one, or an authored one past its design box (#2120) — takes a
+        // world cell, like the keel site's (#3198): held to the protections of hand placement. Its own box is its own:
+        // furnishing inside it stays free.
+        if (ParkedShipCellRefusal(session, rec, pos, selfBuilt: _ship.IsCustom) is { } refusal)
+        {
+            Reject(session, "structure", refusal);
+            return;
+        }
+
         bool free = !Rules.CraftingCostsMaterialsFor(p.ModeOverride) || p.InstantBuild;
         var buildPool = new MaterialPool(_content, p, _ship);
         if (!free)
@@ -1392,7 +1401,8 @@ public sealed partial class GameServer
         if (blockDef.Key == BedBlock && FurnitureShapes.TryBedPartnerOffset(shape, out int fdx, out int fdz))
         {
             var foot = new Vector3i(pos.X + fdx, pos.Y, pos.Z + fdz);
-            if (!ShipCellBuildable(rec, foot) || !s.Get(foot).IsAir || PlacedDoorCovering(s, foot) is not null)
+            if (!ShipCellBuildable(rec, foot) || !s.Get(foot).IsAir || PlacedDoorCovering(s, foot) is not null
+                || ParkedShipCellRefusal(session, rec, foot, selfBuilt: false) is not null) // #3221: the foot is a cell too
             {
                 shape = PropShapes.BedSingleCell; // no room for the foot half in this cabin — keep the short bed
             }

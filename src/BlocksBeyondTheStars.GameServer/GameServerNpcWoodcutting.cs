@@ -72,8 +72,9 @@ public sealed partial class GameServer
     private const double NpcFellMinCellsPerSecond = 24.0;
     private const int NpcFellMaxCellsPerTick = 12;
 
-    /// <summary>Players within this many blocks hear the tree come down (short-range and quiet, as every NPC sound).</summary>
-    private const float NpcFellSoundRange = 48f;
+    /// <summary>Players within this many blocks hear the tree come down (short-range and quiet, as every NPC sound; 64 since
+    /// #3207).</summary>
+    private const float NpcFellSoundRange = 64f;
 
     /// <summary>The client's cue id for a felled tree coming down (#2647).</summary>
     internal const string NpcTreeFallSoundId = "tree_fall";

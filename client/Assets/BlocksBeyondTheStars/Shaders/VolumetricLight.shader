@@ -15,8 +15,12 @@
 //   Pass 3  composite — a depth-aware bilinear upsample, ADDED onto the camera colour (Blend One One). It only ever adds
 //                        light, so it can never darken the picture (the retired full-screen fog pass darkened the frame
 //                        through its colour copy); extinction stays with the existing haze and only shapes the beams.
-// Only the sun casts beams: torches, lanterns, lava and the headlamp are the baked flood-fill block light (ADR 0003), not
-// Unity lights with a shadow map, so they get none (a possible later extension).
+// The sun and the suit headlamps (#3232) cast beams. The headlamps' in-scattering rides the same 24 steps: each lamp's
+// beam profile and falloff (Headlamp.hlsl) × the same air density, with a mostly even phase — looking along your own beam
+// you see its backscatter, so it stays faint in clear air and shows in fog, dust and rain, like real light. The own lamp
+// needs no occlusion (the view ray runs along its light and ends at the wall it hits); another player's lamp is checked
+// against the High occupancy volume with a few coarse taps. Torches, lanterns and lava are the baked flood-fill block
+// light (ADR 0003) and cast no beams.
 // WebGL 2 / WebGPU rules: fixed loop counts; inside the loop only explicit-LOD texture reads (SAMPLE_TEXTURE2D_LOD,
 // SampleCmpLevelZero) — no implicit derivatives in non-uniform control flow.
 //
@@ -29,6 +33,8 @@
 //   _Sc_VolLight  x = intensity (every fade folded in), y = share of the haze's hue in the beam colour,
 //                 z = cap on the added light per pixel (keeps the bloom sane)
 //   _Sc_VolTexel  xy = 1 / half-res size, zw = half-res size
+//   _Sc_VolLamp   x = the headlamp beams' intensity (fade folded in, 0 = off), y = HG g of the lamp phase, z = the lamps'
+//                 reach (m: the march stops there when the sun part is off), w unused
 //   _Sc_Light     the sun's light (Sky.cs: star colour × day brightness × weather dim, linear; a > 0.5 = set)
 Shader "BlocksBeyondTheStars/VolumetricLight"
 {
@@ -91,10 +97,12 @@ Shader "BlocksBeyondTheStars/VolumetricLight"
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
             #include "AtmosphereCommon.hlsl"
+            #include "Headlamp.hlsl" // #3232: the headlamps' beams (profile, falloff, the remote lamps, occupancy)
 
             #define VOL_STEPS 24
 
             float4 _Sc_Light;
+            float4 _Sc_VolLamp;
 
             // Interleaved gradient noise (Jimenez 2014): a stable per-pixel offset of the steps, so 24 steps read as a
             // fine grain the blur removes instead of as bands.
@@ -161,6 +169,44 @@ Shader "BlocksBeyondTheStars/VolumetricLight"
                 return sun * lerp(float3(1.0, 1.0, 1.0), hue, share);
             }
 
+            // #3232: Henyey-Greenstein for a lamp beam, half of it even: `cosTheta` between the light's way (lamp → p) and
+            // the way to the camera. A mostly even phase keeps the own beam (seen from behind, ~180°) faintly visible.
+            float VolLampPhase(float cosTheta)
+            {
+                float g = _Sc_VolLamp.y;
+                float denom = max(1.0 + g * g - 2.0 * g * cosTheta, 1e-4);
+                return 0.5 + 0.5 * (1.0 - g * g) / (denom * sqrt(denom));
+            }
+
+            // #3232: the headlamps' light scattered toward the camera at air point p (before the colour and the density).
+            float VolLampAt(float3 p, float3 dir)
+            {
+                float acc = 0.0;
+                if (_Sc_LampColor.a > 0.5)
+                {
+                    float r = BbtsLampRadiance(_Sc_LampPos.xyz, _Sc_LampDir.xyz, _Sc_LampPos.w, p);
+                    acc += r > 0.0 ? r * VolLampPhase(dot(normalize(p - _Sc_LampPos.xyz), -dir)) : 0.0;
+                }
+
+                int count = (int)_Sc_RLampCount;
+                [loop]
+                for (int k = 0; k < BBTS_REMOTE_LAMPS; k++)
+                {
+                    if (k >= count)
+                    {
+                        break;
+                    }
+
+                    float r = BbtsLampRadiance(_Sc_RLampPos[k].xyz, _Sc_RLampDir[k].xyz, _Sc_RLampPos[k].w, p);
+                    if (r > 0.0)
+                    {
+                        acc += r * VolLampPhase(dot(normalize(p - _Sc_RLampPos[k].xyz), -dir)) * BbtsLampShadowN(p, _Sc_RLampPos[k].xyz, 6.0);
+                    }
+                }
+
+                return acc;
+            }
+
             float4 FragMarch(Varyings input) : SV_Target
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
@@ -180,9 +226,17 @@ Shader "BlocksBeyondTheStars/VolumetricLight"
                 // reach instead of out to the shadow distance.
                 bool hazeAir = _Sc_Fog.w > 0.5 && _Sc_Fog.z > 0.001;
                 float marchDist = min(sceneDist, hazeAir ? _Sc_VolMarch.x : min(_Sc_VolMarch.x, max(_Sc_VolDust.y, 1.0)));
+                bool sunOn = _Sc_VolLight.x > 0.0;
+                bool lampOn = _Sc_VolLamp.x > 0.0;
+                if (!sunOn)
+                {
+                    marchDist = min(marchDist, max(_Sc_VolLamp.z, 1.0)); // #3232: only the lamps — spend the steps in their reach
+                }
+
                 float jitter = VolJitter(input.positionCS.xy);
 
                 float scatter = 0.0;
+                float lampScatter = 0.0;
                 float trans = 1.0;
                 UNITY_LOOP
                 for (int i = 0; i < VOL_STEPS; i++)
@@ -195,13 +249,23 @@ Shader "BlocksBeyondTheStars/VolumetricLight"
                     float t = lerp(t0, t1, jitter);
                     float3 p = cam + dir * t;
                     float sigma = VolDensity(p, t);
-                    scatter += VolSun(p) * sigma * ds * trans;
+                    if (sunOn)
+                    {
+                        scatter += VolSun(p) * sigma * ds * trans;
+                    }
+
+                    if (lampOn)
+                    {
+                        lampScatter += VolLampAt(p, dir) * sigma * ds * trans;
+                    }
+
                     trans *= exp(-sigma * ds * _Sc_VolMarch.w);
                 }
 
                 float3 sunDir = _Sc_FogSunDir.xyz * rsqrt(max(dot(_Sc_FogSunDir.xyz, _Sc_FogSunDir.xyz), 1e-6));
                 float phase = VolPhase(dot(dir, sunDir));
                 float3 light = VolBeamColor(dir) * (scatter * phase * _Sc_VolLight.x);
+                light += _Sc_LampColor.rgb * (lampScatter * _Sc_VolLamp.x); // #3232: the headlamp beams
                 return float4(clamp(light, 0.0, _Sc_VolLight.z), eye);
             }
             ENDHLSL

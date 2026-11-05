@@ -33,6 +33,10 @@ namespace BlocksBeyondTheStars.Client
         private const int MaxLamps = 6;
         private const float OutdoorAlpha = 0.5f;
         private const float LampAlpha = 0.55f;
+        private const float BeamAlpha = 0.35f;     // #3230: the beam dust — its own colour is near black, the lamp lights it
+        private const float MoteLampLight = 1.5f;   // #3230: how strongly the headlamps light every mote (Particle _LampLit)
+        private static readonly Vector3 AirBox = new Vector3(26f, 12f, 26f);
+        private static readonly Vector3 BeamBox = new Vector3(8f, 5f, 8f); // #3230: dense near the visor, where the beam is
 
         private ParticleSystem _ps;
         private Transform _dust;     // the particle object (a child — moved independently of the shared root)
@@ -66,6 +70,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _mat = new Material(shader) { mainTexture = BuildDot() };
+            _mat.SetFloat("_LampLit", MoteLampLight); // #3230: a mote drifting through a headlamp beam lights up
 
             var go = new GameObject("AmbientDust");
             go.transform.SetParent(transform, false); // child of the rig root; we move only THIS, never the root
@@ -88,7 +93,7 @@ namespace BlocksBeyondTheStars.Client
 
             var shape = _ps.shape;
             shape.shapeType = ParticleSystemShapeType.Box;
-            shape.scale = new Vector3(26f, 12f, 26f);
+            shape.scale = AirBox;
 
             // The style's steady drift: spores and embers rise, ash and frost settle (set per style in ApplyStyle).
             var vel = _ps.velocityOverLifetime;
@@ -139,7 +144,7 @@ namespace BlocksBeyondTheStars.Client
             bool airless = Game.SpaceViewActive || !string.IsNullOrEmpty(Game.StationName)
                            || (Game.Environment != null && Game.Environment.SpaceSky) || Game.OnFootInSpace;
             bool home = Game.AtHome && !Game.SpaceViewActive;
-            var mode = AmbientMotes.ModeFor(airless, Game.Aboard, home, OpenAir(), FxKit.ReducedEffects);
+            var mode = AmbientMotes.ModeFor(airless, Game.Aboard, home, OpenAir(), FxKit.ReducedEffects, Headlamp.LocalLit); // #3230
             if (mode != _mode)
             {
                 if (_mode == AmbientMoteMode.Outdoor && (home || Game.Aboard))
@@ -155,7 +160,12 @@ namespace BlocksBeyondTheStars.Client
 
             // Live density: the quality preset and Reduced effects (FxKit.Configure) apply without a restart.
             var em = _ps.emission;
-            em.rateOverTime = _mode == AmbientMoteMode.Outdoor ? AmbientMotes.OutdoorRate * _style.Rate * FxKit.Density : 0f;
+            em.rateOverTime = _mode switch
+            {
+                AmbientMoteMode.Outdoor => AmbientMotes.OutdoorRate * _style.Rate * FxKit.Density,
+                AmbientMoteMode.Beam => AmbientMotes.BeamRate * FxKit.Density, // #3230
+                _ => 0f,
+            };
 
             if (_mode == AmbientMoteMode.Lamplight)
             {
@@ -237,9 +247,12 @@ namespace BlocksBeyondTheStars.Client
             _styleTheme = theme;
             // #3004: a festival's motes (petals at Hanami, lamplight in the lights festivals …) replace the world's own outdoors.
             var festival = _mode == AmbientMoteMode.Lamplight ? null : AmbientMotes.ByName(FestivalMood.Effects(Game)?.Motes);
-            _style = festival ?? (_mode == AmbientMoteMode.Lamplight ? AmbientMotes.Lamplight : AmbientMotes.StyleFor(biome, theme));
+            _style = _mode == AmbientMoteMode.Beam ? AmbientMotes.BeamDust // #3230: no festival petals in a dark cave
+                : festival ?? (_mode == AmbientMoteMode.Lamplight ? AmbientMotes.Lamplight : AmbientMotes.StyleFor(biome, theme));
 
-            float alpha = _mode == AmbientMoteMode.Lamplight ? LampAlpha : OutdoorAlpha;
+            float alpha = _mode == AmbientMoteMode.Lamplight ? LampAlpha : _mode == AmbientMoteMode.Beam ? BeamAlpha : OutdoorAlpha;
+            var shape = _ps.shape;
+            shape.scale = _mode == AmbientMoteMode.Beam ? BeamBox : AirBox;
             _tintA = FxKit.Lin(new Color(_style.R, _style.G, _style.B, alpha));
             _tintB = FxKit.Lin(new Color(_style.R2, _style.G2, _style.B2, alpha));
 

@@ -24,6 +24,7 @@ namespace BlocksBeyondTheStars.Client
         private static readonly int DustId = Shader.PropertyToID("_Sc_VolDust");
         private static readonly int LightId = Shader.PropertyToID("_Sc_VolLight");
         private static readonly int TexelId = Shader.PropertyToID("_Sc_VolTexel");
+        private static readonly int LampId = Shader.PropertyToID("_Sc_VolLamp");
 
         private static GraphicsFormat? _format;
 
@@ -38,6 +39,10 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>_Sc_VolLight: intensity (fades folded in), the haze-hue share and the cap on the added light.</summary>
         public Vector4 Light;
+
+        /// <summary>#3232 _Sc_VolLamp: the headlamp beams' intensity (fade folded in, 0 = off), the lamp phase's HG g and the
+        /// lamps' reach.</summary>
+        public Vector4 Lamp;
 
         public VolumetricLightPass(Material mat, RenderPassEvent passEvent)
         {
@@ -68,7 +73,7 @@ namespace BlocksBeyondTheStars.Client
         private sealed class MarchData
         {
             public Material Mat;
-            public Vector4 March, Dust, Light, Texel;
+            public Vector4 March, Dust, Light, Texel, Lamp;
         }
 
         private sealed class CompositeData
@@ -120,6 +125,7 @@ namespace BlocksBeyondTheStars.Client
                 data.Dust = Dust;
                 data.Light = Light;
                 data.Texel = texel;
+                data.Lamp = Lamp;
                 builder.UseTexture(depth);
                 TextureHandle shadows = resources.mainShadowsTexture;
                 if (shadows.IsValid())
@@ -135,6 +141,7 @@ namespace BlocksBeyondTheStars.Client
                     ctx.cmd.SetGlobalVector(DustId, d.Dust);
                     ctx.cmd.SetGlobalVector(LightId, d.Light);
                     ctx.cmd.SetGlobalVector(TexelId, d.Texel);
+                    ctx.cmd.SetGlobalVector(LampId, d.Lamp);
                     Blitter.BlitTexture(ctx.cmd, new Vector4(1f, 1f, 0f, 0f), d.Mat, 0);
                 });
             }

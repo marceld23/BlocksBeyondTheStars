@@ -94,12 +94,13 @@ public sealed class BasePadTests : IDisposable
         using (repo)
         {
             var owner = Player(server, "Owner");
-            Assert.Equal("@srv.basepad.no_base", server.PlaceBasePadForTest(owner, PadEast));
+            string noBase = "@srv.basepad.no_base:" + BasePadRules.ReachXZ; // #3206: the reach rides along as the text's {name}
+            Assert.Equal(noBase, server.PlaceBasePadForTest(owner, PadEast));
 
             FoundBase(server, owner, Core);
             Assert.Null(server.PlaceBasePadForTest(owner, PadEast));
             Assert.Equal("@srv.basepad.overlap", server.PlaceBasePadForTest(owner, new Vector3i(PadEast.X + 10, PadEast.Y, PadEast.Z)));
-            Assert.Equal("@srv.basepad.no_base", server.PlaceBasePadForTest(owner, new Vector3i(Core.X + BasePadRules.ReachXZ + 5, Core.Y, Core.Z)));
+            Assert.Equal(noBase, server.PlaceBasePadForTest(owner, new Vector3i(Core.X + BasePadRules.ReachXZ + 5, Core.Y, Core.Z)));
             Assert.Null(server.PlaceBasePadForTest(owner, PadWest));
             Assert.Null(server.PlaceBasePadForTest(owner, PadNorth));
             Assert.Null(server.PlaceBasePadForTest(owner, PadSouth));

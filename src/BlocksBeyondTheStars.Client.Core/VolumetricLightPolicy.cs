@@ -93,6 +93,24 @@ namespace BlocksBeyondTheStars.Client
             return strength > 0f ? new VolumetricLightTarget(strength, dust) : VolumetricLightTarget.Off;
         }
 
+        /// <summary>
+        /// #3232: the target for the suit headlamps' beams — the same air and dust as the sunbeams, but at any hour: a lamp
+        /// shines at night. Off without a lit lamp (own or another player's), with the switch off, in the flight view,
+        /// behind a menu, where there is no air, in the open air with the haze off, and under water (the water's own fog
+        /// carries no beam model).
+        /// </summary>
+        public static VolumetricLightTarget LampTargetFor(bool enabled, bool anyLamp, bool spaceView, bool menuOpen, bool air,
+            bool hazeOn, bool indoors, bool sheltered, float underwater)
+        {
+            if (!anyLamp || underwater > 0.5f)
+            {
+                return VolumetricLightTarget.Off;
+            }
+
+            var target = TargetFor(enabled, spaceView, menuOpen, air, hazeOn, indoors, sheltered, sunUp: 1f, underwater: 0f, weather: 0f);
+            return target.Strength > 0f ? new VolumetricLightTarget(1f, target.Dust) : VolumetricLightTarget.Off;
+        }
+
         /// <summary>0 with the sun at or below the horizon, rising smoothly to 1 at <see cref="SunFadeFull"/>.</summary>
         public static float SunFade(float sunUp)
         {

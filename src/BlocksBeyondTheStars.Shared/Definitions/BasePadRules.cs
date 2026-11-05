@@ -40,8 +40,10 @@ public static class BasePadRules
     /// <summary>Blocks above the pad that must stay clear for a ship (the communal pads keep the same volume).</summary>
     public const int Clearance = 16;
 
-    /// <summary>How far (horizontally, either axis) a pad may stand from its base core.</summary>
-    public const int ReachXZ = 48;
+    /// <summary>How far (horizontally, either axis) a pad may stand from its base core. 64 since #3207 — the game's one
+    /// design radius, the guaranteed full-column streaming radius — and still inside the base index box (±96). The texts
+    /// read it through the <c>{range_base_pad}</c> token (#3206).</summary>
+    public const int ReachXZ = 64;
 
     /// <summary>How far above or below its base core a pad may stand.</summary>
     public const int ReachY = 32;

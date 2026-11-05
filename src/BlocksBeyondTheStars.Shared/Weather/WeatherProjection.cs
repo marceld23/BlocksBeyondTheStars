@@ -166,9 +166,29 @@ public static class WeatherProjection
         return (def.Key, Math.Clamp(envelope * peak, 0f, 1f));
     }
 
+    /// <summary>The most surface water (<see cref="PlanetType.WaterAbundance"/>) a sand world may have and still count as
+    /// dry — the worldgen's own "dry world" line (props for dry worlds need ≤ 0.3).</summary>
+    public const double DrySandMaxWater = 0.3;
+
+    /// <summary>#3212: true for the dry sand worlds (desert, badlands, sand sea …) whose rain blows as a sandstorm. A sand
+    /// surface alone is not enough — the archipelago and the coral and rainbow seas have sandy islands but are mostly
+    /// water and rain like any tropical world. Water abundance left on "auto" counts as the moderate amount worldgen
+    /// gives a world with air (0.55), so only a world that says it is dry blows sand.</summary>
+    public static bool IsDrySandWorld(PlanetType? planet)
+    {
+        if (planet?.SurfaceBlock != "sand")
+        {
+            return false;
+        }
+
+        double water = planet.WaterAbundance ?? (planet.IsAirless ? 0.0 : 0.55);
+        return water <= DrySandMaxWater;
+    }
+
     /// <summary>The precipitation form for a state at a temperature: nothing unless something falls; events carry
     /// their own form (the episode's roll); a type may name what its ladder rain falls as (#2063); otherwise the
-    /// climate decides — sand worlds blow sand, very hot worlds rain ash, cold ones hail/snow/sleet.</summary>
+    /// climate decides — dry sand worlds blow sand (<see cref="IsDrySandWorld"/>), very hot worlds rain ash, cold ones
+    /// hail/snow/sleet.</summary>
     public static string Precipitation(string? state, PlanetType? planet, float temperature, string? episodePrecip)
     {
         var def = WeatherCatalog.Find(state);
@@ -192,7 +212,7 @@ public static class WeatherProjection
 
         // Ladder rain (and the two wet events) resolves by climate, position-dependent: the snow line has to agree
         // with where worldgen actually freezes water.
-        if (planet?.SurfaceBlock == "sand")
+        if (IsDrySandWorld(planet))
         {
             return "sandstorm"; // dry worlds blow sand
         }

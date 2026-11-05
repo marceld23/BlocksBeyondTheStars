@@ -556,15 +556,16 @@ public sealed partial class GameServer
 
     /// <summary>True if the position is within ANY player's parked-ship bounds in this world (so no one
     /// builds world blocks inside a ship, no flora/creatures spawn there, and standing inside any ship
-    /// counts as "aboard").</summary>
-    private bool ShipInteriorContains(Vector3f p)
+    /// counts as "aboard"). <paramref name="exceptKey"/> leaves one parked ship out — #3221: a parked ship that grows
+    /// is not in its own way.</summary>
+    private bool ShipInteriorContains(Vector3f p, string? exceptKey = null)
     {
         foreach (var (key, rec) in _worlds.Active.LandedShips)
         {
             // A construction site is deliberately NOT a ship interior: standing in the open frame must not
             // count as "aboard" (free life support before the hull is airtight, #950). World-block placement
             // inside the site is guarded separately (ConstructionContains).
-            if (!rec.Placed || IsConstructionKey(key))
+            if (!rec.Placed || IsConstructionKey(key) || key == exceptKey)
             {
                 continue;
             }

@@ -203,7 +203,7 @@ namespace BlocksBeyondTheStars.Client
             Shader.SetGlobalColor("_Sc_Light", Color.white);
             Shader.SetGlobalVector("_Sc_SunDir", SunDir); // light the voxel ship from the VISIBLE sun, not a third direction
             Shader.SetGlobalColor("_Sc_FloraTint", new Color(0f, 0f, 0f, 0f));
-            Shader.SetGlobalColor("_Sc_LampColor", new Color(0f, 0f, 0f, 0f)); // suit headlamp off
+            Headlamp.AllOff(); // suit headlamps off (#3229: the own and the other players')
             Shader.SetGlobalFloat("_Sc_Indoor", 0f);
             Shader.SetGlobalVector("_Sc_Fog", new Vector4(0f, 1f, 0f, 0f)); // distance haze off
         }

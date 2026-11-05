@@ -40,6 +40,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
             // refraction (the surface bends what's beneath it; plain alpha-blending can't do that).
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareOpaqueTexture.hlsl"
             #include "AtmosphereCommon.hlsl" // atmosphere package (#2408): water and glass haze like the terrain (#2393)
+            #include "Headlamp.hlsl"         // #3229: the headlamps light the panes and the water, and shine in its mirror
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
             float4 _Sc_Light;
@@ -189,6 +190,11 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 // night: a faint cool fill, strongest when the sun light is weak (night/storm), fading out by day.
                 float nightFloor = saturate(0.6 - dot(light, float3(0.299, 0.587, 0.114)));
                 col += albedo * float3(0.10, 0.13, 0.20) * nightFloor * shade;
+
+                // #3229: the headlamps on the pane or the water body, with the face's own gloss (a lake and polished glass
+                // glint where they face the lamp). The gas branches below replace `col` — a haze takes no glint.
+                col += BbtsHeadlamps(i.wp, N, normalize(_WorldSpaceCameraPos - i.wp), albedo, float3(0.04, 0.04, 0.04),
+                    clamp(1.0 - i.mat.r, 0.08, 1.0));
 
                 // What makes a face WATER is a see-through tile — but that alone is not enough, and trusting
                 // it alone was the bug behind #1372/#1373: clear glass shipped with a fully transparent tile
@@ -506,6 +512,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     // Glint capped well below the old x4 blow-out: it should sparkle, not white out the bed below.
                     float sunSpec = min(pow(saturate(dot(Rw, normalize(_Sc_SunDir.xyz))), 220.0) * 1.5, 1.5);
                     reflCol += light * sunSpec * (1.0 - haze); // the glint fades with the veil like the rest of the surface
+                    reflCol += BbtsHeadlampMirror(i.wp, Rw) * (1.0 - haze); // #3229: a lamp shining across the lake mirrors in it
                     col = lerp(col, reflCol, saturate(fres) * 0.5); // #2413
 
                     alpha = 1.0; // bed + reflection composited here → opaque output, no hardware double-blend

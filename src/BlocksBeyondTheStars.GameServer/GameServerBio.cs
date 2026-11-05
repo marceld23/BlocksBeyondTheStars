@@ -37,9 +37,9 @@ public sealed partial class GameServer
     /// <summary>Seconds before the same living animal gives another sample to the sampler.</summary>
     private const double SamplerCooldownPerAnimal = 300.0;
 
-    /// <summary>Reach of the sampler around its aim point; a giant is reached from much further off.</summary>
+    /// <summary>Reach of the sampler around its aim point; a giant is reached from much further off (64 since #3207).</summary>
     private const float SamplerRange = 6f;
-    private const float SamplerGiantRange = 48f;
+    private const float SamplerGiantRange = 64f;
 
     private readonly Dictionary<uint, BioSpeciesEntry> _bioRegister = new();
     private bool _bioRegisterDirty;

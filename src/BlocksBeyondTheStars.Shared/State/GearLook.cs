@@ -59,6 +59,12 @@ public static class GearLook
     /// <summary>The suit battery (#2297).</summary>
     public const int SuitBattery = 16384;
 
+    /// <summary>#3234: the suit lamp is switched on (set together with <see cref="Lamp"/>) — only the server's presence
+    /// sets it, from the lamp state the client reports; other clients light their world with the beam and make the lamp
+    /// glow. A bit of the mask rather than a field of its own: a presence must stay under the compression threshold.
+    /// <see cref="Mask"/> never sets it (it is a state of the lamp, not a piece of gear).</summary>
+    public const int LampLit = 32768;
+
     /// <summary>The mask of the gear <paramref name="worn"/> says is worn (by base key — a piece the bio lab changed is
     /// still the same piece).</summary>
     public static int Mask(Func<string, bool> worn)

@@ -253,7 +253,7 @@ namespace BlocksBeyondTheStars.Client
                 float sunHeight = Mathf.Sin((t - 0.25f) * Mathf.PI * 2f);
                 float d = Mathf.Clamp01(sunHeight * 0.5f + 0.5f);
                 day = d * (2f - d); // the same ease the Sky's light level uses
-                weather = Mathf.Clamp01(env.Intensity);
+                weather = Mathf.Clamp01(Game.WeatherIntensity); // #3202: the smoothed intensity, like the Sky
             }
 
             float daylight = skyOpen * day * Mathf.Lerp(1f, 0.7f, weather);
@@ -263,7 +263,9 @@ namespace BlocksBeyondTheStars.Client
 
             // Dark earns up to +0.9 EV; a lit room or daylight earns nothing. Night under the open sky counts as dark
             // too, which is what lets the eyes "get used to" a moonless night without re-tuning the night floor.
-            float dark = 1f - Mathf.Clamp01(SceneBrightness / 0.55f);
+            // #3230: with the suit lamp lit the eyes adapt to the lit spot — the dark around the beam earns less of the boost
+            // and reads darker (the shaders' ambient floor keeps it readable).
+            float dark = 1f - Mathf.Clamp01(HeadlampRules.AdaptedBrightness(SceneBrightness, Headlamp.LocalLit) / 0.55f);
             _adaptTarget = AdaptMaxEv * Mathf.Pow(dark, 1.5f);
         }
     }

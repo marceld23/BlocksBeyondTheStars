@@ -101,7 +101,7 @@ rations, worn gear), `tutorial`, `location`, `environment`, `ship`, `surrounding
 `<key>#<Form>`, e.g. `stone#Fence`), `nearby`, `space` (the flight
 instance while in space; the planet lists stay empty then) and `historyBefore` (one sample per second, ~30 s).
 `nearby` lists, within 24 blocks, `creatures`, `npcs`, `players`, `containers` and `doors`, and since #2555
-within 48 blocks the planet `machines` — the Guardian robots, scan-drones and bandits (`_planetEnemies` +
+within 64 blocks the planet `machines` — the Guardian robots, scan-drones and bandits (`_planetEnemies` +
 `_bandits`), each with `kind`, `Hostile`, position, `Hull`, `motion` (`patrolling`, `pausing`, `chasing`,
 `fleeing`, `dazed`, or `leavingWater` for a walking robot on its way out of deep water, #2554), `water` on its
 feet (`dry`, `wading`, `deep`) and `banditPhase` for a bandit. `tutorial` (#2555) holds `activeSteps` (the

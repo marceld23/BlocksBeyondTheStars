@@ -152,6 +152,17 @@ namespace BlocksBeyondTheStars.Client
                     // #1817: Unity Web has no C# threads (System.Threading is unsupported), so chunk generation
                     // stays inline on this thread; the pool would fail to start anyway, this makes it explicit.
                     ChunkGenWorkers = 0,
+
+                    // #3208: desktop and dedicated hosts stream the full vertical column 4 chunks around the player and
+                    // 3 chunks up; the browser keeps the old 3 / 2 — every extra chunk is generated on this render
+                    // thread and held in the wasm heap of a tablet that can run out of memory (#1438).
+                    NearColumnRadiusChunks = 3,
+                    NearColumnChunksUp = 2,
+
+                    // #3211: Crystal Net and base chunks stay loaded while the player is elsewhere on the same body.
+                    // A quarter of the desktop default (128 chunks ≈ 1 MB of voxels); without generation workers they
+                    // load one per tick, so landing on a body never stalls a frame on a mass load.
+                    MaxAnchoredChunks = 128,
                 };
 
                 // Same as the native bundled host (#642): the solo player is the WorldAdmin, so admin

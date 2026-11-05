@@ -406,8 +406,14 @@ titan flatness, the large-body volume (#750), a founded base's **sealed rooms** 
 the cached air fill — #1314: nothing spawns inside a room the player has made airtight) and its **walled
 areas** (`InWalledBaseArea`, `GameServerBaseWalls.cs` — #1315): an outside-in flood from the boundary of
 the base's reach box (at least 97×97, grown with the build up to 385×385, #1862) at the candidate's feet level
-through passable cells; whatever it never reaches is fenced in, roof or no roof. Cached per (base, level),
-fail-open on unloaded columns, shut doors and closed energy gates count as walls; fliers and cave dwellers stay
+through passable cells; whatever it never reaches is fenced in, roof or no roof. Cached per (base, level) and
+**time-sliced** (#3209, `GameServerBaseWallsJobs.cs`): the query that starts a fill works the whole fill of the smallest
+box at once (so an ordinary base answers on the spot), `TickBaseWallFills` moves the rest of a big one within 2 ms per
+tick (at least 4096 cells), and until it is done the level answers from its last finished fill — a level that never
+finished one reads open, and so does every cell outside the last finished fill's box (a box that grew is open in its
+new strip until the refill is done). The budget is the full 8 cells per column up to the cap (≈1.19M cells at 385×385; the old
+600k cap starved boxes past reach ~136); running fills share a 16 MB scratch cap, finished levels a 32 MB cache cap.
+Fail-open on unloaded columns, shut doors and closed energy gates count as walls; fliers and cave dwellers stay
 ungated — except that a flier neither spawns nor stays over a closed yard of a base that uses energy fences (#3148,
 `InFencedBaseYard` in `GameServerFences.cs`: the fence guards the air above it), hostile machines are out of scope. Independent of that fill, no land animal (nor an amphibian ashore) spawns **on a block a player
 placed** (#2521, `OnPlayerBuiltFloor`: the cell under the feet — plus the feet cell when a slab fills it — has an
@@ -676,7 +682,8 @@ Environment is sent **per player, for their position**, not as one world broadca
   far the episode has swelled** + a day/night swing (±6 °C with air, ±16 °C airless) + the altitude
   lapse and the underground blend.
 - **Precipitation form**: events carry their own (`acid`, `meteor`, `spores`, `dust`, `ash`); ladder
-  rain resolves by climate — sand surface → `sandstorm`, ≥55 °C → `ash`, ≤−15 °C → `hail`, ≤2 °C →
+  rain resolves by climate — a dry sand world (sand surface and `waterAbundance` ≤ 0.3, `auto` counting as wet;
+  `WeatherProjection.IsDrySandWorld`, #3212 — the sandy island seas rain) → `sandstorm`, ≥55 °C → `ash`, ≤−15 °C → `hail`, ≤2 °C →
   `snow`, ≤5 °C → `sleet`, else the episode's own roll of `rain` or `drizzle`.
 
 ### Determinism

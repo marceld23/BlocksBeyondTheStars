@@ -70,11 +70,12 @@ public readonly struct ShipVisitView
 /// </summary>
 public static class ShipVisitRules
 {
-    /// <summary>How close another pilot must be for K to dock — the server's <c>DockRange</c>.</summary>
-    public const float DockRange = 48f;
+    /// <summary>How close another pilot must be for K to dock — the server's <c>DockRange</c> (64 since #3207, the game's one
+    /// design radius; the two must stay equal).</summary>
+    public const float DockRange = 64f;
 
     /// <summary>How close the partner's parked ship must float for E to go over — the same range as docking.</summary>
-    public const float VisitRange = 48f;
+    public const float VisitRange = DockRange;
 
     /// <summary>True for a pose that can be a docking partner: a real player (not an NPC trader, not an empty id) in the
     /// flight instance — at the helm, on a spacewalk, or walking inside their parked ship (the server measures that pilot

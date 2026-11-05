@@ -46,6 +46,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             #include "FxCommon.hlsl" // VFX overhaul (#2152): FX lights + scan wave globals
             #include "AtmosphereCommon.hlsl" // atmosphere package (#2408): haze + height fog, cloud shadows, torch flicker
             #include "FloraAccent.hlsl" // #2834: the flora re-tint with the accent colours of blossoms and berries
+            #include "Headlamp.hlsl"    // #3229: the suit headlamps (own + other players'), with the High occupancy shadows
 
             TEXTURE2D(_MainTex);   SAMPLER(sampler_MainTex);
             TEXTURE2D(_NormalTex); SAMPLER(sampler_NormalTex);
@@ -61,9 +62,6 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             float4 _Sc_Light;
             float4 _Sc_SunDir;
             float4 _Sc_Sky;
-            float4 _Sc_LampPos;
-            float4 _Sc_LampDir;
-            float4 _Sc_LampColor;
             float  _Sc_Indoor;
             float4 _Sc_FloraTint;
 
@@ -451,16 +449,8 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                     col += albedo * bl * 2.0; // no direction baked (uniform/none) → flat fallback
                 }
 
-                if (_Sc_LampColor.a > 0.5)
-                {
-                    float3 toFrag = i.wp - _Sc_LampPos.xyz;
-                    float ld = length(toFrag);
-                    float3 dir = toFrag / max(ld, 1e-4);
-                    float cone = saturate((dot(dir, normalize(_Sc_LampDir.xyz)) - _Sc_LampDir.w) / max(1e-3, 1.0 - _Sc_LampDir.w));
-                    float atten = saturate(1.0 - ld / _Sc_LampPos.w);
-                    float ndl2 = saturate(dot(N, -dir));
-                    col += albedo * _Sc_LampColor.rgb * cone * atten * atten * ndl2;
-                }
+                // #3229: the suit headlamps — an LED beam with inverse-square falloff and the surface's own glint.
+                col += BbtsHeadlamps(i.wp, N, V, albedo, F0, rough);
 
                 // VFX overhaul (#2152): muzzle flashes, plasma bolts and explosions light the terrain (8 FX lights).
                 col += BbtsFxLights(i.wp, N, albedo);
@@ -610,15 +600,13 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             #pragma multi_compile_fog
             #include "UnityCG.cginc"
             #include "FloraAccent.hlsl" // #2834: the flora re-tint with the accent colours of blossoms and berries
+            #include "Headlamp.hlsl"    // #3229: the suit headlamps (unshadowed here — no SRP texture macros)
 
             sampler2D _MainTex;
             sampler2D _NormalTex; // tangent-space normal map (Sobel-derived from the atlas)
             fixed4 _Sc_Light;   // system sun colour x day brightness x weather (a>0.5 = set)
             float4 _Sc_SunDir;  // world-space direction TO the sun
             fixed4 _Sc_Sky;     // sky colour for environment reflections
-            float4 _Sc_LampPos;   // headlamp: xyz world pos, w range
-            float4 _Sc_LampDir;   // headlamp: xyz forward dir, w cone cos
-            fixed4 _Sc_LampColor; // headlamp: rgb colour*intensity, a = enabled
             float _Sc_Indoor;     // ship-interior fill (0..1): lights skylight-occluded cabin faces
             fixed4 _Sc_IndoorColor; // #2814: the fill's colour (a > 0.5 = set)
             fixed4 _Sc_FloraTint; // planet flora base hue (rgb); flora faces are desaturated + re-tinted to it
@@ -871,18 +859,9 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                     col += albedo * i.bl * 2.0; // no direction baked (uniform/none) → flat fallback
                 }
 
-                // Headlamp / flashlight — a custom spotlight (this shader bypasses Unity's light passes,
-                // so the lamp is fed in as globals by the player instead of a real Light).
-                if (_Sc_LampColor.a > 0.5)
-                {
-                    float3 toFrag = i.wp - _Sc_LampPos.xyz;
-                    float ld = length(toFrag);
-                    float3 dir = toFrag / max(ld, 1e-4);
-                    float cone = saturate((dot(dir, normalize(_Sc_LampDir.xyz)) - _Sc_LampDir.w) / max(1e-3, 1.0 - _Sc_LampDir.w));
-                    float atten = saturate(1.0 - ld / _Sc_LampPos.w);
-                    float ndl2 = saturate(dot(N, -dir));
-                    col += albedo * _Sc_LampColor.rgb * cone * atten * atten * ndl2;
-                }
+                // Headlamps — custom spotlights (this shader bypasses Unity's light passes, so the lamps are fed in
+                // as globals by the player instead of real Lights; Headlamp.hlsl, #3229).
+                col += BbtsHeadlamps(i.wp, N, V, albedo, F0, rough);
 
                 fixed4 outc = fixed4(col, 1);
                 UNITY_APPLY_FOG(i.fogCoord, outc); // fade into the sky-coloured distance fog

@@ -77,7 +77,10 @@ namespace BlocksBeyondTheStars.Client
             "clouds" => "☁",
             "rain" or "drizzle" => "☂",
             "storm" => "⚡",
-            "blizzard" or "gale" => "❄",
+            "blizzard" => "❄",
+            // #3215: a gale blows grit, not snow — the wavy dash (U+3030) reads as wind. Rajdhani and the symbol subset
+            // lack it; the Noto CJK fonts in both fallback chains carry it (WeatherGlyphFontTests checks the chain).
+            "gale" => "〰",
             "fog" or "ground_fog" => "≈",
             "heatwave" => "☀",
             "acid_rain" => "☣",

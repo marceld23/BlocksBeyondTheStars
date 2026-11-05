@@ -653,7 +653,7 @@ drifts from the code), and the authors' path is [STORY_PACK_AUTHORING.md](STORY_
 | `chat:sent` | — | a chat line went out on the radio (never a slash command, a refused or a filtered-out line) | `GameServer.cs` (`HandleChat`) |
 | `ally:joined` | `alliance` \| `crew` | an alliance formed (both partners) or a crew joined (the newcomer and the founder) | `GameServerAlliances.cs` (`EstablishAlliance`), `CrewSystem.cs` (`RespondCrewInvite`) |
 | `paint:block` | block key | the paint tool painted (or wiped) a design on a placed block | `GameServerPaint.cs` (`HandlePaintBlock`) |
-| `poi:reached` | — | within 48 blocks of a buried vault's entrance or a crashed wreck (the 1 Hz advisor check, raised right before the `poi` hint) | `GameServerShipAi.cs` (`TickShipAi`, `NearVegaPoi`) |
+| `poi:reached` | — | within 64 blocks of a buried vault's entrance or a crashed wreck (the 1 Hz advisor check, raised right before the `poi` hint) | `GameServerShipAi.cs` (`TickShipAi`, `NearVegaPoi`) |
 
 Since #2479 the in-flight jump (`JumpFlightToSystem`) raises `hyperjump:any` after the warp-in's flight state and star map
 went out (it was raised before the warp), so a card a step plays for it lands on the warp-in like the finale's arrival card.

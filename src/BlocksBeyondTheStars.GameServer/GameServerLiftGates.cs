@@ -28,7 +28,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <item><b>A mined motor</b> closes its gates: the shaft has no platform any more.</item>
 /// </list>
 /// Cost: one pass over the shaft's ring (16 columns × the lift's height, chunk-cache reads only) per lift every half second
-/// and on arrival / departure; a BlockChanged only for a gate that really switches.
+/// and on arrival / departure; a BlockChanged only for a gate that really switches. #3204: with the 256-cell shaft a column
+/// is read a chunk segment at a time — at most 16 columns × 17 cache lookups and 16 × 255 array reads per pass, unloaded
+/// segments skipped whole — so the pass stays a few microseconds however tall the lift is.
 /// </summary>
 public sealed partial class GameServer
 {
@@ -97,14 +99,34 @@ public sealed partial class GameServer
     }
 
     /// <summary>One column of the ring, bottom up: each run of stacked gates belongs to the floor of its lowest gate (the
-    /// floor is one below the cell a player stands in — the platform's height there).</summary>
+    /// floor is one below the cell a player stands in — the platform's height there). #3204: with a 256-cell shaft the column
+    /// is read a chunk segment at a time — one cache lookup per 16 cells, then plain array reads — and a segment whose chunk
+    /// is not loaded is skipped whole (it reads as air, as before: no gate there until it is loaded).</summary>
     private void SyncLiftGateColumn(ServerLift lift, int x, int z, int? openFloor, (BlockId Closed, BlockId Open) gates, ref bool sounded)
     {
         int runFloor = int.MinValue;
+        var column = WorldConstants.CanonicalBlock(new Vector3i(x, 0, z), _world.Circumference);
+        ChunkData? chunk = null;
+        int chunkY = int.MinValue;
         for (int y = lift.Motor.Y + 2; y - lift.Motor.Y <= CrystalNetRules.LiftMaxHeight; y++)
         {
-            var cell = WorldConstants.CanonicalBlock(new Vector3i(x, y, z), _world.Circumference);
-            var id = _world.GetBlockIfLoaded(cell);
+            var cell = new Vector3i(column.X, y, column.Z);
+            var coord = WorldConstants.WorldToChunk(cell);
+            if (coord.Y != chunkY)
+            {
+                chunkY = coord.Y;
+                chunk = _world.LoadedChunkOrNull(coord);
+            }
+
+            if (chunk is null)
+            {
+                runFloor = int.MinValue;                            // an unloaded segment reads as air …
+                y = ((chunkY + 1) * WorldConstants.ChunkSize) - 1; // … so the next cell to read is the next segment's first
+                continue;
+            }
+
+            var local = WorldConstants.WorldToLocal(cell);
+            var id = chunk.Get(local.X, local.Y, local.Z);
             bool isOpen = id.Value == gates.Open.Value;
             if (!isOpen && id.Value != gates.Closed.Value)
             {

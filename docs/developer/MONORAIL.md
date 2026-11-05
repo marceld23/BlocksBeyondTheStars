@@ -7,7 +7,7 @@ Unity-free in `Shared`.
 
 ## Shared
 
-- `Shared/Definitions/RailRules.cs` — the constants (auto-link range 32 / 30°, linker range 48, two links per pylon, 64
+- `Shared/Definitions/RailRules.cs` — the constants (auto-link range 32 / 30°, linker range 64, two links per pylon, 64
   pylons per line, hover height 0.5, the wagon box 6 × 3 × 3.2, the speed table 4 / 8 / 12 blocks/s, the stop halt 8 s,
   boarding reach 4, stow reach 5), `AutoLinkFits`, the seat offsets per wagon kind, `ClampLocal` / `OutsideWagon`
   (the rider's box), `WagonArc` (the wagons hang behind the cab by the train's fixed **facing**, #2741), the train's

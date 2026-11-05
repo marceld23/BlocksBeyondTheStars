@@ -137,6 +137,7 @@ public sealed partial class GameServer
             TickStep.Dt("TickVillageLife", TickVillageLife), // #2600: villagers talk to each other (1 Hz, scan every 3 s)
             TickStep.Dt("TickVillageFestivals", TickVillageFestivals), // #2604: the village festival (1 Hz + the tune's notes)
             TickStep.Dt("TickAirFills", TickAirFills), // #2650: time-sliced base/station air fills move on
+            TickStep.Dt("TickBaseWallFills", TickBaseWallFills), // #3209: time-sliced walled-yard fills move on
             TickStep.Dt("TickStationStaffing", TickStationStaffing), // #1487: crew only staffs posts in sealed rooms
             TickStep.Dt("TickPlanetTraders", TickPlanetTraders), // #2603: traders land on occupied bodies even when nobody flies (5 s)
             TickStep.Dt("TickLandedTraders", TickLandedTraders), // P3: materialize/lift-off a peaceful trader parked on this surface
@@ -155,6 +156,7 @@ public sealed partial class GameServer
             TickStep.Plain("StreamWorldTextures", StreamWorldTextures), // #1958: one page of the texture list per client per tick
             TickStep.Plain("ServeFarTiles", ServeFarTiles), // #1871: far-terrain tile builds under a per-tick budget
             TickStep.Plain("FlushEntityLists", FlushEntityLists), // #1530: one list per type + one player state per session per tick
+            TickStep.Plain("ChunkAnchors", TickChunkAnchors), // #3211: Crystal Net + base chunks away from the players load a few per tick
             TickStep.Plain("SweepFarChunks", SweepFarChunks, TickWhen.SweepDue), // only on a chunk-sweep tick (throttled)
             TickStep.Plain("RefreshFarTiles", RefreshFarTiles, TickWhen.FarTilesDue), // #1821: only when an edit changed a far tile
         };
