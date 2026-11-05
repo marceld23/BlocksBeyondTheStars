@@ -3,7 +3,9 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Concurrent;
 using System.Net;
+using System.Net.Sockets;
 using System.Net.WebSockets;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -471,8 +473,8 @@ public sealed partial class WebSocketServerTransport : IServerTransport
             DrainOutbox(client);
 
             // #3250: the loop also ends on its own (the client closed, the handshake window ran out) — close the TCP
-            // connection here too, before the WebSocket's Dispose (see AbortConnection). A no-op after AbortConnection.
-            try { ctx.Response.Abort(); } catch { }
+            // connection here too, before the WebSocket's Dispose (see AbortConnection). Harmless after an earlier drop.
+            AbortConnection(client);
             try { client.Socket.Dispose(); } catch { }
         }
     }
@@ -538,14 +540,47 @@ public sealed partial class WebSocketServerTransport : IServerTransport
     /// <summary>#3250: drops a connection for real. On Linux the managed HttpListener builds the WebSocket on a NetworkStream
     /// that does not own the socket: WebSocket.Abort() only disposes that stream, and the WebSocket's Dispose only calls
     /// Response.Close() — a keep-alive close that parks the connection for the next HTTP request. The client dropped by the
-    /// #3194 gate, a kick or the #3195 send queue stayed connected and never saw the close. Response.Abort() forces the
-    /// connection closed (socket shut down, connection unregistered); it must run FIRST — once the WebSocket has disposed the
-    /// stream, closing the response throws before it reaches the socket. Aborting the WebSocket then ends the receive loop.
-    /// On Windows (http.sys) the WebSocket's own abort already closed the connection.</summary>
+    /// #3194 gate, a kick or the #3195 send queue stayed connected and never saw the close.
+    /// <list type="number">
+    /// <item>The TCP socket is shut down first (<see cref="ManagedSocketOf"/>): that never blocks, and the client sees the
+    /// close at once.</item>
+    /// <item>Response.Abort() then closes the connection for good (socket closed, connection unregistered from the
+    /// listener). Closing the response writes its final chunk, which on a live socket would block forever on a client that
+    /// stopped reading (the #3195 slow consumer) — on the shut-down socket the write fails at once and the listener ignores
+    /// that. It must also run before the WebSocket is aborted: once the WebSocket has disposed the stream, closing the
+    /// response throws before it reaches the socket.</item>
+    /// <item>Aborting the WebSocket ends the receive loop.</item>
+    /// </list>
+    /// On Windows (http.sys) there is no managed socket to find, and the WebSocket's own abort closes the connection.</summary>
     private static void AbortConnection(Client client)
     {
-        try { client.Context?.Response.Abort(); } catch { }
+        if (client.Context is { } ctx)
+        {
+            try { ManagedSocketOf(ctx)?.Shutdown(SocketShutdown.Both); } catch { }
+            try { ctx.Response.Abort(); } catch { }
+        }
+
         try { client.Socket.Abort(); } catch { }
+    }
+
+    private static readonly PropertyInfo? ManagedConnectionProperty =
+        typeof(HttpListenerContext).GetProperty("Connection", BindingFlags.Instance | BindingFlags.NonPublic);
+
+    /// <summary>#3250: the TCP socket under a managed (Linux/macOS) HttpListener connection — its internal
+    /// <c>HttpListenerContext.Connection</c> (an <c>HttpConnection</c>) and that one's <c>_socket</c>. The public API offers
+    /// no way to close it without writing first. Null on Windows (http.sys has no such members), once the connection closed
+    /// its socket, or should a runtime rename the internals (the drop then falls back to Response.Abort alone).</summary>
+    private static Socket? ManagedSocketOf(HttpListenerContext ctx)
+    {
+        try
+        {
+            object? connection = ManagedConnectionProperty?.GetValue(ctx);
+            return connection?.GetType().GetField("_socket", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(connection) as Socket;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public void Broadcast(byte[] payload, DeliveryMode mode)
