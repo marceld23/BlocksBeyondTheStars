@@ -788,6 +788,7 @@ public sealed partial class GameServer
         resident.BlockSet += cell => MarkBaseAirDirty(resident, cell); // #2543: ...and its sealed-room air
         resident.PlayerBlockSet += cell => GrowBaseWallReach(resident, cell); // #1862: what a player builds sizes the base's fill box
         resident.PlayerBlockSet += cell => GrowBaseAirTop(resident, cell); // #2651: ...and lifts its sky line over the tallest build
+        resident.PlayerBlockSet += cell => NoteBaseAnchorEdit(resident, cell); // #3211: ...and joins the base's anchored chunks
         resident.BlockSet += cell => MarkBaseIndexDirty(resident, cell); // #1865: a bed, a post or a crop changed near a base
         resident.BlockSet += cell => OnSentryChainCellSet(resident, cell); // #2879: a sentry post or power relay came or went
         var npcWorld = world;
@@ -2853,8 +2854,23 @@ public sealed partial class GameServer
 
     /// <summary>Horizontal radius (chunks, Chebyshev) within which the FULL vertical span streams — so caves,
     /// overhangs and digging straight down near the player are always covered. Beyond it, only the surface band
-    /// (below) streams. Small view distances (≤ this) are therefore unaffected by the vertical LOD.</summary>
-    private const int NearFullColumnRadius = 3;
+    /// (below) streams. Small view distances (≤ this) are therefore unaffected by the vertical LOD. #3208: a host
+    /// knob (<see cref="ServerConfig.NearColumnRadiusChunks"/>, default 4 = 64 blocks; 3 before, and still 3 in the
+    /// browser), because it is also the guaranteed radius of every loaded-only reader (base walls, air, NPC paths,
+    /// fluids, the Crystal Net). It never reaches past the player's streaming disc (view distance + 1).</summary>
+    private int NearFullColumnRadius => _config.NearColumnRadiusChunks;
+
+    /// <summary>#3208: chunks below the player's chunk a near column streams (48 blocks down, fixed).</summary>
+    private const int NearColumnChunksDown = 3;
+
+    /// <summary>#3208: chunks above the player's chunk a near column streams — <see cref="ServerConfig.NearColumnChunksUp"/>
+    /// (3 = 48 blocks up by default; 2 before, and still 2 in the browser).</summary>
+    private int NearColumnChunksUp => _config.NearColumnChunksUp;
+
+    /// <summary>#3208: whether column (dx, dz) chunks from the player's chunk streams its full vertical span — pure, so the
+    /// streamed set's shape is unit-testable for every radius without a world.</summary>
+    internal static bool IsNearFullColumn(int dx, int dz, int nearRadius)
+        => System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dz)) <= nearRadius;
 
     /// <summary>For far columns, how many chunks below / above the column's surface chunk still stream — the
     /// visible shell of distant terrain (cliffs just under the surface, trees/features just above). Kept small;
@@ -2898,8 +2914,9 @@ public sealed partial class GameServer
     /// <summary>Extra chunk rings streamed BEYOND the player's view radius (and beyond the client's fog edge, which
     /// sits at the view radius). This terrain loads while it is still fully hazed, so as the player walks forward the
     /// newly-revealed edge is already meshed and simply fades in through the fog instead of popping in from nothing
-    /// (#388). The extra ring is always past <see cref="NearFullColumnRadius"/>, so it streams only the cheap far
-    /// surface band, and stays within the sweep's keepRadius (maxViewRadius + 4) so it is not immediately evicted.</summary>
+    /// (#388). Past <see cref="NearFullColumnRadius"/> the extra ring streams only the cheap far surface band (at a view
+    /// distance below the near radius it is a near column — #3208), and it stays within the sweep's keepRadius
+    /// (maxViewRadius + 4) so it is not immediately evicted.</summary>
     private const int LoadAheadRings = 1;
 
     /// <summary>Whether the column (dx, dz) chunks from the player's chunk belongs to a view of
@@ -3157,9 +3174,9 @@ public sealed partial class GameServer
             // band around THAT column's actual surface streams — the deep underground + high air far away are
             // never seen, so skipping them roughly halves the chunk count at a large view distance (faster fill,
             // lighter client). Surface-relative (not player-relative) so a distant valley or peak well off the
-            // player's own altitude still streams its visible shell.
-            var planet = _world.Planet;
-            int seaLevel = _generator.SeaLevel(planet); // int.MinValue on a dry world; cached per world
+            // player's own altitude still streams its visible shell. See StreamColumnSpan.
+            int seaLevel = _generator.SeaLevel(_world.Planet); // int.MinValue on a dry world; cached per world
+            int nearRadius = NearFullColumnRadius; // #3208: the host's knob, read once per pass
             var pending = new List<(ChunkCoord Coord, int Key)>();
             for (int dx = -streamRadius; dx <= streamRadius; dx++)
                 for (int dz = -streamRadius; dz <= streamRadius; dz++)
@@ -3169,45 +3186,7 @@ public sealed partial class GameServer
                         continue; // a square corner past the round fog edge — never visible, and outside the sweep's keep radius
                     }
 
-                    int loDy, hiDy;
-                    if (System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dz)) <= NearFullColumnRadius)
-                    {
-                        loDy = -3;
-                        hiDy = 2; // full near column (unchanged behaviour)
-                    }
-                    else
-                    {
-                        // SurfaceHeight is the TERRAIN top — under a sea that is the seabed, and the generator
-                        // fills everything from there up to the sea level with the sea fluid. Anchoring the band
-                        // at the seabed therefore cut a deep ocean off mid-water, and the client (which reads a
-                        // missing chunk as air) rendered that cut as a wavy water SURFACE hanging in mid-water,
-                        // with fake waterfall streaks down the band's side edges (#987). FarColumnBand stretches
-                        // a submerged column up to its real waterline instead.
-                        // #1507: cached per canonical column on the world — the band is a pure function of the
-                        // generator's surface and the world's sea level, so it never changes for a world.
-                        var bands = _worlds.Active.FarColumnBands;
-                        var columnKey = (WorldConstants.CanonicalChunkX(center.X + dx, _world.Circumference),
-                            WorldConstants.CanonicalChunkZ(center.Z + dz, _world.Circumference));
-                        if (!bands.TryGetValue(columnKey, out var band))
-                        {
-                            int worldX = (center.X + dx) * WorldConstants.ChunkSize + WorldConstants.ChunkSize / 2;
-                            int worldZ = (center.Z + dz) * WorldConstants.ChunkSize + WorldConstants.ChunkSize / 2;
-                            // #2333: a band over the chunk column (a crown, an arch bar, a sky island) streams with it.
-                            int bandTop = _generator.HighestBandTopInSquare(planet,
-                                (center.X + dx) * WorldConstants.ChunkSize, (center.Z + dz) * WorldConstants.ChunkSize, WorldConstants.ChunkSize);
-                            band = FarColumnBand(_generator.SurfaceHeight(planet, worldX, worldZ), seaLevel, bandTop);
-                            if (bands.Count >= FarColumnBandCacheCap)
-                            {
-                                bands.Clear(); // a lap around a big world at VD 8 is ~50k columns; keep the table bounded
-                            }
-
-                            bands[columnKey] = band;
-                        }
-
-                        loDy = band.LoCy - center.Y;
-                        hiDy = band.HiCy - center.Y;
-                    }
-
+                    var (loDy, hiDy) = StreamColumnSpan(center, dx, dz, nearRadius, seaLevel);
                     for (int dy = loDy; dy <= hiDy; dy++)
                     {
                         int cy = center.Y + dy;
@@ -3299,6 +3278,45 @@ public sealed partial class GameServer
         {
             pool.Speculate(_world, _streamSpeculate);
         }
+    }
+
+    /// <summary>The chunk-Y span (relative to the player's chunk <paramref name="center"/>) that column (dx, dz) streams:
+    /// the full near column (<see cref="NearColumnChunksDown"/> down, <see cref="NearColumnChunksUp"/> up) within
+    /// <paramref name="nearRadius"/>, otherwise the far column's surface band.
+    /// <para>SurfaceHeight is the TERRAIN top — under a sea that is the seabed, and the generator fills everything from
+    /// there up to the sea level with the sea fluid. Anchoring the band at the seabed therefore cut a deep ocean off
+    /// mid-water, and the client (which reads a missing chunk as air) rendered that cut as a wavy water SURFACE hanging
+    /// in mid-water, with fake waterfall streaks down the band's side edges (#987). <see cref="FarColumnBand(int,int,int)"/>
+    /// stretches a submerged column up to its real waterline instead. #1507: the band is cached per canonical column on
+    /// the world — a pure function of the generator's surface and the world's sea level, so it never changes for a world.</para></summary>
+    private (int LoDy, int HiDy) StreamColumnSpan(ChunkCoord center, int dx, int dz, int nearRadius, int seaLevel)
+    {
+        if (IsNearFullColumn(dx, dz, nearRadius))
+        {
+            return (-NearColumnChunksDown, NearColumnChunksUp);
+        }
+
+        var bands = _worlds.Active.FarColumnBands;
+        var columnKey = (WorldConstants.CanonicalChunkX(center.X + dx, _world.Circumference),
+            WorldConstants.CanonicalChunkZ(center.Z + dz, _world.Circumference));
+        if (!bands.TryGetValue(columnKey, out var band))
+        {
+            var planet = _world.Planet;
+            int worldX = (center.X + dx) * WorldConstants.ChunkSize + WorldConstants.ChunkSize / 2;
+            int worldZ = (center.Z + dz) * WorldConstants.ChunkSize + WorldConstants.ChunkSize / 2;
+            // #2333: a band over the chunk column (a crown, an arch bar, a sky island) streams with it.
+            int bandTop = _generator.HighestBandTopInSquare(planet,
+                (center.X + dx) * WorldConstants.ChunkSize, (center.Z + dz) * WorldConstants.ChunkSize, WorldConstants.ChunkSize);
+            band = FarColumnBand(_generator.SurfaceHeight(planet, worldX, worldZ), seaLevel, bandTop);
+            if (bands.Count >= FarColumnBandCacheCap)
+            {
+                bands.Clear(); // a lap around a big world at VD 8 is ~50k columns; keep the table bounded
+            }
+
+            bands[columnKey] = band;
+        }
+
+        return (band.LoCy - center.Y, band.HiCy - center.Y);
     }
 
     /// <summary>Sends one chunk to a session right now and records it as sent. The regular streaming pass
@@ -3455,10 +3473,12 @@ public sealed partial class GameServer
         }
 
         // Keep a margin beyond the widest player's horizontal streaming radius so the diagonal/vertical fringe of
-        // the streamed column (dy -3..+2) is never evicted while still in view. A single shared keep radius (the
-        // max across players) is safe: it can only keep MORE than any one player needs, never less.
+        // the streamed column (dy -3..+3, #3208) is never evicted while still in view. A single shared keep radius (the
+        // max across players) is safe: it can only keep MORE than any one player needs, never less. #3211: the
+        // anchored chunks (Crystal Nets, base builds) stay resident wherever they are — refreshed here, at the sweep's pace.
         int keepRadius = maxViewRadius + 4;
-        var removed = _world.UnloadFarChunks(anchors, keepRadius);
+        RefreshChunkAnchors();
+        var removed = _world.UnloadFarChunks(anchors, keepRadius, _worlds.Active.ChunkAnchors.Anchored);
 
         // Also drop the evicted coords from every player's sent-set. A swept chunk is far from EVERY anchor (that
         // is the sweep's condition), so this is safe for all sessions — and it lets the client unload the same far

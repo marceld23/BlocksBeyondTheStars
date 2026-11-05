@@ -19,7 +19,7 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private const float CreatureReportRange = 48f; // blocks around the admin the report covers
+    internal const float CreatureReportRange = 64f; // blocks around the admin the report covers (64 since #3207)
     private const int CreatureReportMaxLines = 24;  // a whole herd still fits the chat
 
     private void AdminCreatures(PlayerSession session)

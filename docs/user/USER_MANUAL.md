@@ -367,8 +367,8 @@ While flying:
 | **Caps Lock** (hold) | Push-to-talk voice, as on foot (needs a **worn** radio; see §7 → Voice chat) |
 | **W/A/S/D** | Fly through the **system** — every planet/moon is out there at its real position |
 | **L** | Land — on the body you've flown up to (the HUD shows "land on <name>") or, if none is near, back where you launched. Opens the **landing map**: the planet's real terrain, the day/night band and — switchable with **☁ Weather: on/off** (remembered) — its **live weather**, with drifting fronts marked "◀ front ▶". Every pad says the weather waiting there (e.g. "⚡ Storm", "☀ Clear"), so you can pick a sunny pad. Click a free pad (or its number key) to land; a base with **landing pads** shows one marker at its core — click it to pick one of its pads (see *Landing pads at your base*); **Esc** cancels |
-| **E** | Board a nearby space station (within range of its hull; the ship flies round to the station's hangar mouth and docks there before you board) — or, next to a **wormhole**, fly through it (see *Wormholes* below). **Docked with a friend** whose ship floats parked within 48 m (they walk inside it, or are out on a spacewalk): **go over** into their ship as a guest — "E: go over to Lena's ship" (whichever is nearest — the friend's ship, a station or a planet — takes **E**). While the friend sits at the helm the line reads "Lena is flying"; **E** then asks them to step inside, and they get a message saying so |
-| **K** / **U** | **Dock** with the nearest other pilot within 48 m (never an NPC trader; they answer the usual docking request) / **undock**. Docked, the line under the crosshair reads "Docked with Lena · U: undock". Pad and touch: both are in the **Actions** list (L3 / ACT), together with *Go over to the docked ship* |
+| **E** | Board a nearby space station (within range of its hull; the ship flies round to the station's hangar mouth and docks there before you board) — or, next to a **wormhole**, fly through it (see *Wormholes* below). **Docked with a friend** whose ship floats parked within 64 m (they walk inside it, or are out on a spacewalk): **go over** into their ship as a guest — "E: go over to Lena's ship" (whichever is nearest — the friend's ship, a station or a planet — takes **E**). While the friend sits at the helm the line reads "Lena is flying"; **E** then asks them to step inside, and they get a message saying so |
+| **K** / **U** | **Dock** with the nearest other pilot within 64 m (never an NPC trader; they answer the usual docking request) / **undock**. Docked, the line under the crosshair reads "Docked with Lena · U: undock". Pad and touch: both are in the **Actions** list (L3 / ACT), together with *Go over to the docked ship* |
 | **Last hotbar slot → hold fire** | The **ship scanner** (every ship has one): point the nose at a planet, moon, asteroid, station, wreck, life pod, anomaly, wormhole or machine and **hold fire** until the ring fills. See *Ship scanner* in §5 |
 | **T** | **Target lock — next target** (pad **LB**, touch **TARGET**): attacking enemies first, then other enemies, then stations / wrecks / debris fields / life pods / anomalies / wormholes, then other pilots and traders. With a **mining laser** selected and nobody attacking, the three nearest asteroids or wreckage fragments in its reach come right after the enemies. **Hold T** (~½ s) to let the lock go. See *Target lock* below |
 | **R** | **Nearest enemy** (pad **R3**, touch: in the **ACT** list) — press again for the next nearest |
@@ -592,7 +592,12 @@ The air and the weather leave their mark on the world (atmosphere package, Octob
 - **Wet ground and snow caps**: rain darkens and glosses the open ground and dries again over minutes; snowfall caps
   the upward faces (roofs too) and the snow melts when it warms up. Under a roof — in your house, under an
   overhang — the floor stays dry. The weather next to the temperature in the HUD names what actually falls: a
-  rainy sky on a freezing world reads **Snow** (or Sleet, Hail; Sandstorm on a sand world, Ash fall on a lava world).
+  rainy sky on a freezing world reads **Snow** (or Sleet, Hail; Sandstorm on a dry desert world, Ash fall on a lava
+  world). Sandy island worlds — the archipelago and the coral and rainbow seas — get ordinary rain.
+- **Wind-blown grit**: a **gale** (〰 in the HUD) and a sandstorm drive thin streaks of grit along the wind — the same
+  way the grass sways and the clouds drift. The grit takes the colour of the world's ground (white spindrift on
+  frozen worlds, reddish dust on the red deserts) and darkens at night. The clouds pick up speed and thicken or
+  thin out over a few seconds when the weather changes, instead of jumping.
 - **Rain splashes** where drops meet the ground near you; rain, snow, hail and ash are soft drops and flakes.
 - **Shooting stars** cross the night sky now and then (often in a meteor shower); very rarely a distant ship blinks by.
 - **Underwater haze and light patterns**: under water the view closes in to a few metres in the water's colour,
@@ -1225,7 +1230,7 @@ players.
     and the wings fold. It needs air: on airless worlds, above the atmosphere, in space and under water it stays
     folded. Landing from a glide does no fall damage, and opening a menu mid-glide keeps you gliding.
   - **Suit battery** (module; blueprint after the jetpack): suit energy 150 instead of 100.
-  - **Radar scanner** (module): while worn, the round compass also shows **creatures** within ~48 m (hostile
+  - **Radar scanner** (module): while worn, the round compass also shows **creatures** within ~64 m (hostile
     red, the others green) and **other players** (cyan), with a soft blip when a hostile comes into range.
   - **Stealth suit** (chest): **B** switches the cloak on and off — hostile creatures stop noticing you while it
     drains suit energy; it ends by itself when the energy runs out. Other players cannot see you while it is
@@ -1916,10 +1921,10 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   or machines switched off in the world rules.
 - **Player docking**: press **K** near another player to request docking; **U** to undock. Docking is
   modal and gated by server rules + a `docking_module`. **K** and **U** work at the helm and on a spacewalk
-  too: **K** asks the nearest other pilot within 48 m (never an NPC trader), and while docked the flight view
+  too: **K** asks the nearest other pilot within 64 m (never an NPC trader), and while docked the flight view
   reads "Docked with Lena · U: undock". **Trading (T)** works while docked as well.
 - **Visiting a friend's ship**: docked in space, you can **go over** into your friend's ship while it floats
-  parked — your friend walks inside it or is out on a spacewalk — within 48 m: **E** at the helm ("E: go over
+  parked — your friend walks inside it or is out on a spacewalk — within 64 m: **E** at the helm ("E: go over
   to Lena's ship"), or **E** on a spacewalk ("E: board Lena's ship"). While your friend sits at the helm the
   line reads "Lena is flying", and **E** asks them to step inside (they get a message). Aboard you are a
   **guest**: the hint reads "Visiting Lena's ship · U: back to my ship"; the host's cockpit, console, cargo
@@ -1953,7 +1958,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   together**; every base keeps at least its founding settler. **Mining** a base core removes that base. Walk up and
   press **E** on a stone to **name or rename** that base and see who lives there (only the owner can).
 - **Who sees your base** (#2997): you, your allies and your crew mates always see it on the planet map. Anyone else
-  sees it only once they have **found** it — by coming within about **48 blocks** of its core, or with a **Quantum
+  sees it only once they have **found** it — by coming within about **64 blocks** of its core, or with a **Quantum
   scanner** planet scan of the world (*"You found a base: …"*). Found bases stay on the map. Colours: your own **teal**,
   an ally's **green**, a found stranger's **amber** with the owner's name. Anyone may still walk in and breathe there.
 - **The base gathers** (#2999): every base core collects resources of **its own world** over time — the common ores
@@ -2074,7 +2079,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 
 ### Landing pads at your base (#3069)
 - Craft a **Landing Pad** at a workshop (`stone` ×6 + `iron_plate` ×3 + `cable` ×1 — available from the start) and place
-  it **within 48 blocks of one of your base cores**. The pad block marks the middle of a **17 × 17 landing square** — the
+  it **within 64 blocks of one of your base cores**. The pad block marks the middle of a **17 × 17 landing square** — the
   size of a public pad, so every ship fits. Up to **4 pads per base**.
 - The square must be **clear 16 blocks up** (blocks or water in it are refused; grass and flowers are fine), and it may
   not touch a public pad, another landing pad or someone else's base. While you hold the pad, a **preview** on the
@@ -2333,11 +2338,21 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
     pulls the first one back. It never moves crates, devices, doors or someone else's base.
   - **Lift** — a **lift motor** at the bottom of a 3×3 shaft, a **lift stop** beside the shaft on each floor —
     the bottom floor too: put each stop right next to the shaft, two blocks from the middle of the motor, at most
-    48 blocks above it. Press a stop (or send it a signal) and the platform comes to that floor; a signal on the
-    motor sends it to the next stop. A lift needs **no crystal conduits** — pressing is enough. Stand on the
-    platform and it carries you; it waits while anything stands under it. Keep the shaft free: a block in it stops
-    the lift (the motor's amber light), and pressing tells you where it stands. A stop that belongs to no lift, or a
-    motor without stops, says so when pressed. Snow never settles in a lift shaft.
+    **256 blocks** above it. Press a stop (or send it a signal) and the platform comes to that floor; a signal on the
+    motor sends it to the next stop. A lift needs **no crystal conduits** — pressing is enough, and its stops and
+    motor never use up your Crystal Net networks, however many floors it has. Stand on the platform and it carries
+    you; it waits while anything stands under it. Short rides go at an easy walking pace; **long rides speed up**
+    (smoothly, up to 12 blocks a second, and slow down again before the floor), so even the full 256 blocks take
+    less than half a minute. Keep the shaft free: a block in it stops the lift (the motor's amber light), and
+    pressing tells you where it stands. A block further up the shaft, or one put in while the platform rides, stops
+    it early enough that you keep your head clear of the block. The shaft also needs room for you at each floor:
+    two free blocks above the platform, where you stand — a floor without them can't be ridden to. A stop that belongs to no lift, or a motor without stops, says so when pressed. Snow never settles in
+    a lift shaft.
+    - **Space elevator.** A tall lift can reach above the planet's air (the atmosphere line, where you start to float).
+      Stops up there work like any other floor. When a ride carries you out of the air, the game tells you once that
+      your **suit now supplies the oxygen** — keep an eye on it. Step off the platform up there and you float as on any
+      tower above the line; ride back down to breathe again. (On an airless moon or asteroid there is no air to leave,
+      so it says nothing.)
     - **Choosing the floor.** Press **Interact** while you **stand on the platform**, or at a stop where the platform
       **waits** (its amber light is on; the prompt says *"E: Choose a floor"*), and the **floor picker** opens: every
       floor of the lift, the top one at the top, the floor the platform is at marked. Click **Go** and the platform
@@ -2388,7 +2403,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   animals from the **samples** in your sample case — from any world — and **crosses** two species into a new one:
   see § The bio lab.
 - **Where it works.** On planets, moons, asteroids, **your own space stations** and **your own ship** — and only
-  **while someone is on that world**: your base wakes up with you. **Machines that were running when you left
+  **while someone is on that world**: your base wakes up with you. While you are on the world, your networks and bases
+  keep working even when you are far away from them (the server keeps the chunks they stand in loaded — a few hundred
+  per world, fewer in the browser game). **Machines that were running when you left
   catch up** for a while when you come back (one hour by default — a world rule, Tab → Character → world rules,
   *Machines catch up*), and VEGA tells you what they did; timers, sounds and moving blocks just start again.
 - **In your ship.** Conduits, switches, buttons, step plates, proximity sensors, logic, timer and dice blocks,
@@ -2403,7 +2420,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - **Limits, in plain words.** A network can hold 256 blocks, a world 64 networks and 32 sensors — and one player
   may use half of each, so nobody gets locked out — 8 sound devices can play at once, and each player gets 4
   auto-drills, 4 matter senders, 4 fabricators, 2 clone tanks, 6 living clones, 8 bridge motors, 8 pistons, 4
-  lifts and 8 signal senders. In a ship: 16 networks of up to 128 blocks and 8 sensors. Place something beyond a limit and it simply does nothing — VEGA tells you, and
+  lifts (with as many floors each as you like — a lift's stops count as no network) and 8 signal senders. In a ship: 16 networks of up to 128 blocks and 8 sensors. Place something beyond a limit and it simply does nothing — VEGA tells you, and
   mining something back frees the slot.
 
 ### Wrecks: repair & claim
@@ -2881,7 +2898,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   bed** you place inside your base brings **one more resident**, up to **32** people — as many as a city (the first
   settler's news says so too). "Inside" is the same for beds and machines, on every floor: the core zone, a
   sealed room, inside your walls, or any **closed room** (walls, a roof and a door) at the base — a bed out in the
-  open field brings nobody. A **village's own** beds, shops and machines never count for your base, even when your
+  open field brings nobody. That holds as far out as your walls reach (up to 192 blocks from the core in a big
+  fortress), and your residents walk that far too. On a huge base a bed out in the open yard may take a few seconds
+  before it counts — the base checks a big wall ring bit by bit. A **village's own** beds, shops and machines never count for your base, even when your
   walls take the village in — the villagers keep their homes; what you build there yourself counts as usual.
   **Placing a bed tells you what it did**: *"This bed counts — residents 2/32"*, that it is
   outside your base, or that your base is full; aiming at your own core shows *Residents: 2/32* too. Residents
@@ -3717,7 +3736,7 @@ look up: what a mix does follows from what goes in, and the same things always g
   game. On the lab's *Change* page the case shows only deposits (nothing else changes a tool) and marks the ones
   that would change the chosen piece with **✓ works**.
 - **The sampler** (`bio_sampler`, workshop, comes with the bio lab blueprint): a **right-click** gadget that takes
-  a sample from a **living** animal without hurting it — 6 blocks reach, 48 for a giant. A hostile animal
+  a sample from a **living** animal without hurting it — 6 blocks reach, 64 for a giant. A hostile animal
   must be held in stasis first — except a giant, which cannot be frozen: there the long reach is the hurdle.
   The same animal gives a sample only every five minutes. A **companion** also
   brings a sample of its species along with its regular gift.
@@ -3878,8 +3897,8 @@ look up: what a mix does follows from what goes in, and the same things always g
   long as the line does not bend more than about **30°** — and a glowing blue **energy band** appears between them, with
   pulses of light travelling along it. **Stack**
   pylons to lift the line over things. A line that would run **through solid blocks is refused** ("Obstacle") — give it
-  room. A pylon carries **at most two links** (no forks). The **rail linker** couples any two pylons by hand (use it on
-  the first, then the second): close a **loop**, join two lines, or — on two linked pylons — uncouple them.
+  room. A pylon carries **at most two links** (no forks). The **rail linker** couples any two pylons up to **64 blocks** apart by hand (use
+  it on the first, then the second): close a **loop**, join two lines, or — on two linked pylons — uncouple them.
 - **Stops.** A **rail stop** placed beside the line (within four blocks) halts a train on autopilot for a few seconds. It
   is a Crystal-Net device: a signal on its port (a switch, a button, a sensor) sends the halted train off at once. The
   band glows amber where a stop catches it.
@@ -4418,8 +4437,8 @@ and that option is off by default on hosted worlds.
 | `/players` | Every player this world knows — role, body, position and when they were last seen. Offline players come from the save |
 | `/builds [Player]` | Named structures (bases, beacons, beam pads, stations) with owner, body and a ready-to-use `/goto` line; optionally for one player |
 | `/where Player` | One player's body, position and last-seen time — works while they are offline |
-| `/basewalls` | Why animals do (not) spawn in a yard: the nearest base core, the enclosure fill at your feet level (cells reached, budget, fail-open), whether your own cell reads enclosed / sealed / open **for animals**, and the rules (2-high walls, hinge doors leak, unloaded chunks read as open; walking Guardian robots step up two blocks and are stopped by a wall of three or more and by water two or more blocks deep, hovering scan-drones by four or more; fliers are not). Since #2542 also the **air at your cell** and why there is none (leaky — since #2649 every closed room of a base breathes, however big, and every door holds air) and the air rules; since #2614 a leak names where the air gets out (the block or the opening, its coordinates and its height) |
-| `/creatures` | Creature footing within 48 blocks: per animal its species and motion class, feet height, the real ground of its column, the delta between them, the generator's noise surface and a verdict (ok / floating / BURIED) — the readout for "animals standing in the ground" reports |
+| `/basewalls` | Why animals do (not) spawn in a yard: the nearest base core, the enclosure fill at your feet level (cells reached, budget, fail-open — and, on a big base right after a change, that a refresh is still running: ask again in a few seconds), whether your own cell reads enclosed / sealed / open **for animals**, and the rules (2-high walls, hinge doors leak, unloaded chunks read as open; walking Guardian robots step up two blocks and are stopped by a wall of three or more and by water two or more blocks deep, hovering scan-drones by four or more; fliers are not). Since #2542 also the **air at your cell** and why there is none (leaky — since #2649 every closed room of a base breathes, however big, and every door holds air) and the air rules; since #2614 a leak names where the air gets out (the block or the opening, its coordinates and its height) |
+| `/creatures` | Creature footing within 64 blocks: per animal its species and motion class, feet height, the real ground of its column, the delta between them, the generator's noise surface and a verdict (ok / floating / BURIED) — the readout for "animals standing in the ground" reports |
 | `/silence Player [Minutes]` | Pauses that player's chat for a while (10 minutes by default, a day at most). They are told how long, and can keep playing — see below |
 | `/unsilence Player` | Ends the pause right away |
 | `/kick Player` | Ends that player's session right now. **Momentary** — they can come back; to keep someone out for good, block them in *Manage world → Manage players* (below) |

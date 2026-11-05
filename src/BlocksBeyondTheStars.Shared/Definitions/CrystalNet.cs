@@ -340,9 +340,11 @@ public static class CrystalNetRules
     public const int MaxPistonsPerOwner = 8;
     public const int MaxPistonPushesPerTick = 4;
 
-    /// <summary>#2266: the lift — a 3×3 platform, a shaft of at most this height, this many cells per second.</summary>
+    /// <summary>#2266: the lift — a 3×3 platform, a shaft of at most this height, this many cells per second. #3204: the
+    /// shaft reaches 256 cells (a space elevator through the atmosphere line); <see cref="LiftSpeed"/> is the speed of a short
+    /// ride and the floor of the speed curve a long ride follows (<see cref="LiftMotion"/>).</summary>
     public const int LiftPlatformRadius = 1;
-    public const int LiftMaxHeight = 48;
+    public const int LiftMaxHeight = 256;
     public const float LiftSpeed = 3f;
     public const int MaxLiftsPerOwner = 4;
 
@@ -540,6 +542,16 @@ public static class CrystalNetRules
     /// in front of it) and drives the network on its drive face.</summary>
     public static bool IsGate(CrystalDeviceKind kind) => kind is CrystalDeviceKind.LogicBlock or CrystalDeviceKind.TimerBlock
         or CrystalDeviceKind.DeviceEye or CrystalDeviceKind.DiceBlock;
+
+    /// <summary>#3205: the parts of a lift. A lift motor or a lift stop on its own is a lift, not a circuit: it never opens a
+    /// network that counts against the network caps (<see cref="MaxLiftsPerOwner"/> is a lift's budget) — wired into a
+    /// circuit, that circuit's network counts as before.</summary>
+    public static bool IsLiftPart(CrystalDeviceKind kind) => kind is CrystalDeviceKind.LiftMotor or CrystalDeviceKind.LiftStop;
+
+    /// <summary>#3205: whether a cell makes its network count against the network caps (<see cref="MaxNetsPerWorld"/>,
+    /// <see cref="MaxNetsPerPlayer"/>): a conduit or a real device does; a passive port (a lamp, a fire, …) and a lift part do
+    /// not. A network counts when one of its cells does.</summary>
+    public static bool CountsForNetCap(CrystalDeviceKind kind) => !IsPassivePort(kind) && !IsLiftPart(kind);
 
     /// <summary>#2092: the kinds whose own output drives their network — the switch, the button, the step plate, the
     /// sensors and the watcher, and (#2263) the signal receiver. Every other member only LISTENS: its report (blocked,

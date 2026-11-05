@@ -1148,7 +1148,9 @@ public sealed partial class GameServer
         var w = TryWandererEncounter(session, roll: false, admin: true, out string reason);
         if (w is null)
         {
-            Reject(session, "admin", "@srv.admin.wanderer_" + reason);
+            // #3206: "too close" names the clearance in the text's {name} — the number lives here, not in fourteen locales.
+            Reject(session, "admin", "@srv.admin.wanderer_" + reason
+                + (reason == "too_close" ? ":" + WandererPlaceClearance.ToString("0", System.Globalization.CultureInfo.InvariantCulture) : string.Empty));
             return;
         }
 

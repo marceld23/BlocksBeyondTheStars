@@ -208,7 +208,8 @@ public sealed class ServerWorld
 
     /// <summary>Like <see cref="GetBlock"/> but never loads or generates: cells in unloaded chunks read as
     /// air. For opportunistic periodic scans (e.g. the heal-tank regen field) that must not drag chunks
-    /// into the cache — a placed device always sits in a chunk its nearby player keeps resident anyway.</summary>
+    /// into the cache — a placed device sits in a chunk its nearby player keeps resident, or, far from every player
+    /// on the body, in a chunk the server anchors (Crystal Net cells and base builds, #3211, up to the host cap).</summary>
     public BlockId GetBlockIfLoaded(Vector3i world)
     {
         world = WorldConstants.CanonicalBlock(world, Circumference); // longitude wraps
@@ -339,6 +340,12 @@ public sealed class ServerWorld
     /// the coords that were dropped — the caller also clears them from each player's sent-set so they re-stream
     /// (fresh) if the player returns.</summary>
     public IReadOnlyList<ChunkCoord> UnloadFarChunks(IReadOnlyCollection<ChunkCoord> anchors, int keepRadius)
+        => UnloadFarChunks(anchors, keepRadius, null);
+
+    /// <summary>Like <see cref="UnloadFarChunks(IReadOnlyCollection{ChunkCoord}, int)"/>, but a chunk in
+    /// <paramref name="pinned"/> (canonical coords — the server's anchored Crystal Net and base chunks, #3211) stays
+    /// resident however far it is from every anchor.</summary>
+    public IReadOnlyList<ChunkCoord> UnloadFarChunks(IReadOnlyCollection<ChunkCoord> anchors, int keepRadius, ISet<ChunkCoord>? pinned)
     {
         if (anchors.Count == 0)
         {
@@ -361,10 +368,10 @@ public sealed class ServerWorld
         var toRemove = new List<ChunkCoord>();
         foreach (var coord in _loaded.Keys)
         {
-            bool near = false;
+            bool near = pinned is not null && pinned.Contains(coord);
             foreach (var anchor in canonicalAnchors)
             {
-                if (WorldConstants.WrappedChunkDistanceSquared(coord, anchor, Circumference) <= keepSq)
+                if (near || WorldConstants.WrappedChunkDistanceSquared(coord, anchor, Circumference) <= keepSq)
                 {
                     near = true;
                     break;

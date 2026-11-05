@@ -72,6 +72,22 @@ public sealed class LiftRidingTests
         Assert.Null(LiftRiding.WaitingAtStop(moving, 12, 202, 10, Circumference));
     }
 
+    /// <summary>#3204: the client mirrors the server's 256-cell shaft — a stop at the very top belongs to the lift (a space
+    /// elevator), one cell higher does not, and the platform waiting up there opens the picker.</summary>
+    [Fact]
+    public void AStopUpTo256CellsAboveTheMotor_BelongsToTheLift_AndNoHigher()
+    {
+        Assert.Equal(256, BlocksBeyondTheStars.Shared.Definitions.CrystalNetRules.LiftMaxHeight);
+        var lifts = new[] { Lift() };
+        Assert.Same(lifts[0], LiftRiding.LiftOfStop(lifts, 12, 200 + 49, 10, Circumference));  // past the old 48
+        Assert.Same(lifts[0], LiftRiding.LiftOfStop(lifts, 10, 200 + 256, 12, Circumference)); // the top floor
+        Assert.Null(LiftRiding.LiftOfStop(lifts, 12, 200 + 257, 10, Circumference));            // beyond the shaft
+
+        var atTheTop = new[] { Lift(platformY: 455f) };
+        Assert.Same(atTheTop[0], LiftRiding.WaitingAtStop(atTheTop, 8, 456, 10, Circumference));
+        Assert.Same(atTheTop[0], LiftRiding.StandingOn(atTheTop, 10.5, 456, 10.5, Circumference));
+    }
+
     [Fact]
     public void TheFloors_ComeBottomFirst_WithTheirNames_AndWhereThePlatformIs()
     {

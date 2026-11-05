@@ -599,7 +599,7 @@ line of the course has a slot, and the offer line carries the course title only.
 
 `move:climbed` is measured like walking: only while a step listens, only rising in the climbing pose, never a report more than
 4 blocks from the last one. `poi:reached` is the 1 Hz advisor check behind VEGA's `poi` hint (a vault entrance or the crashed
-wreck within 48 blocks), raised right before it. Left out (the issue's scope; every do step of a course counts): the
+wreck within 64 blocks), raised right before it. Left out (the issue's scope; every do step of a course counts): the
 synthesis' C16.5 as a do step (the client sends its colours at every join, so "changed the look" cannot be told apart — a
 read now), C12.2 armour as a do step (now the fend-off step's hint), C12.4 camp bounties (a sentence in the robbers' line),
 C18.3 "follow a revealed marker" (a read: chests a settler reveals are found and looted like any other).

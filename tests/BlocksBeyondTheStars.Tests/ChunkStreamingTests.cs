@@ -415,8 +415,8 @@ public sealed class ChunkStreamingTests : IDisposable
             Seed = 1,
             AutoSaveIntervalMinutes = 9999,
             PlaceStarterShip = false,
-            ViewDistanceChunks = 5,   // radius 5 > the near-full-column radius (3), so there are "far" columns
-            ChunkStreamPerTick = 64,  // drain the whole view quickly
+            ViewDistanceChunks = 5,   // radius 5 > the near-full-column radius (4 by default, #3208), so there are "far" columns
+            ChunkStreamPerTick = 64,  // drain the whole view quickly (the setter caps it at 20)
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
@@ -424,19 +424,19 @@ public sealed class ChunkStreamingTests : IDisposable
         var p = server.AddLocalPlayer("Surveyor");
         var center = WorldConstants.WorldToChunk(p.State.Position.ToBlock());
 
-        for (int i = 0; i < 30; i++)
+        for (int i = 0; i < 60; i++)
         {
             server.TickForTest(0.1); // short dt so the 10 s far-chunk sweep never trips
         }
 
-        // The player's own column (dx=0) keeps the full 6-layer vertical span (-3..+2) for caves/digging.
+        // The player's own column (dx=0) keeps the full 7-layer vertical span (-3..+3, #3208) for caves/digging.
         int nearLayers = 0;
-        for (int cy = center.Y - 3; cy <= center.Y + 2; cy++)
+        for (int cy = center.Y - 3; cy <= center.Y + 3; cy++)
         {
             if (server.World.IsChunkLoaded(new ChunkCoord(center.X, cy, center.Z))) nearLayers++;
         }
 
-        // A far column (dx=5, Chebyshev 5 > 3) streams only the band around its surface — count over a wide
+        // A far column (dx=5, Chebyshev 5 > 4) streams only the band around its surface — count over a wide
         // vertical window so we catch the band wherever the terrain there sits.
         int farLayers = 0;
         for (int cy = center.Y - 8; cy <= center.Y + 8; cy++)
@@ -455,7 +455,7 @@ public sealed class ChunkStreamingTests : IDisposable
             if (key is "water" or "lava") { submerged = true; break; }
         }
 
-        Assert.Equal(6, nearLayers); // near column: full vertical span
+        Assert.Equal(7, nearLayers); // near column: full vertical span
         Assert.InRange(farLayers, 1, submerged ? 6 : 3); // far column: the surface band, stretched to the waterline when flooded
     }
 

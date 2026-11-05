@@ -516,10 +516,9 @@ public sealed partial class GameServer
         // Interest management (AoI): only update a viewer about subjects near enough for them to actually see.
         // Beyond the streamed view distance (+ a margin) the remote avatar sits in unloaded/culled terrain, so
         // skipping it saves bandwidth + CPU and lets the player count scale past the small-coop default without
-        // an O(players²) presence flood. Derived from the world's view distance so it auto-scales and can never
-        // be tighter than what clients render; a player straddling a world-wrap seam still counts as near.
-        double aoi = (_config.ViewDistanceChunks + 4) * WorldConstants.ChunkSize;
-        double aoiSq = aoi * aoi;
+        // an O(players²) presence flood. Per viewer (#3213): each one's own view distance, so it can never be
+        // tighter than what that client renders; a player straddling a world-wrap seam still counts as near.
+        var aoiSq = PresenceAoiSquares(joined);
 
         // #1530: a change of the joined set (a join, a leave, a spectate toggle) forgets what every viewer has
         // seen, so the next beat is a full resend — a joiner or an un-spectating admin sees everyone at once.
@@ -554,14 +553,15 @@ public sealed partial class GameServer
             ulong hash = PresenceHash(presence);
             byte[]? payload = null;
             var subjectPos = subject.State.Position;
-            foreach (var viewer in joined)
+            for (int v = 0; v < joined.Count; v++)
             {
+                var viewer = joined[v];
                 if (viewer.ConnectionId == subject.ConnectionId)
                 {
                     continue;
                 }
 
-                if (WrapDistSq(subjectPos, viewer.State.Position) > aoiSq)
+                if (WrapDistSq(subjectPos, viewer.State.Position) > aoiSq[v])
                 {
                     continue; // out of this viewer's area of interest
                 }
@@ -590,6 +590,37 @@ public sealed partial class GameServer
                 PruneDepartedViewers(subject.Sync.PresenceSentTo, joined); // #3051: trim, never wipe
             }
         }
+    }
+
+    /// <summary>Chunks the presence area of interest reaches past a viewer's view distance — a remote avatar walking in
+    /// from the fog is already moving when it comes into sight.</summary>
+    private const int PresenceAoiMarginChunks = 4;
+
+    /// <summary>Reused per beat by <see cref="PresenceAoiSquares"/> (one entry per joined player, in the list's order).</summary>
+    private double[] _presenceAoiSq = System.Array.Empty<double>();
+
+    /// <summary>
+    /// #3213: how far (squared, blocks) each of <paramref name="viewers"/> is told about other players: their OWN view
+    /// distance as they stream it (<see cref="EffectiveViewRadius"/>, never less than the host's), plus
+    /// <see cref="PresenceAoiMarginChunks"/>. It used to be the host's view distance for everyone — a desktop client at
+    /// 8–16 chunks renders terrain out to 160–288 blocks, and other players froze or vanished there while still in plain
+    /// sight beyond the host default's 128. Entry <c>i</c> belongs to <c>viewers[i]</c>; O(players) per beat.
+    /// </summary>
+    private double[] PresenceAoiSquares(List<PlayerSession> viewers)
+    {
+        if (_presenceAoiSq.Length < viewers.Count)
+        {
+            _presenceAoiSq = new double[viewers.Count];
+        }
+
+        for (int i = 0; i < viewers.Count; i++)
+        {
+            int chunks = System.Math.Max(_config.ViewDistanceChunks, EffectiveViewRadius(viewers[i]));
+            double aoi = (double)(chunks + PresenceAoiMarginChunks) * WorldConstants.ChunkSize;
+            _presenceAoiSq[i] = aoi * aoi;
+        }
+
+        return _presenceAoiSq;
     }
 
     /// <summary>#3051: drops the entries of viewers no longer joined in this world. It used to be a wipe above 64

@@ -428,7 +428,8 @@ public sealed partial class GameServer
 
         if (NearestOwnCoreInReach(me, body, pos) is not { } home)
         {
-            return "@srv.basepad.no_base";
+            // #3206: the server's own reach rides along — the text names no number of its own.
+            return "@srv.basepad.no_base:" + BasePadRules.ReachXZ.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
         if (PadsOfBase(home) >= BasePadRules.MaxPerBase)

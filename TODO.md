@@ -24,6 +24,43 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌦️ Calm clouds, real gale grit, a 256-block space elevator and wider ranges (Marcel's analysis 2026-11-05) — #3202–#3215, branch feat/weather-lift-ranges-2026-11 — ✅ done 2026-11-05 (⚠ playtest open; no save-version or terrain-generation change; protocol unchanged — server `srv.*` texts now carry the range as an argument, so a NEW client on an OLD server shows a literal `{name}` in four messages)
+
+- **#3202** Clouds no longer jump or whirl: each cloud's angle is accumulated per world step (`CloudDeck` in Client.Core)
+  instead of `WorldTime × windScale`, the look (cover, darkening, wind, storm towers, cirrus) eases over ~10 s, single
+  clouds fade instead of popping, snaps on reappear / world change / capture. Sky, AtmosphereProbe and WeatherFx read the
+  smoothed `Game.WeatherIntensity`; the cloud day tint reads the Sky's smoothed time.
+- **#3203** Gale/sandstorm grit: thin streaks (dust ≈ 0.12 × 0.54 m, was a ~1 m square since #2399) flying with the wind,
+  per-grain size/alpha/tint, fades at age, edge and camera, ground-tinted (white spindrift on ice worlds, rust on red
+  deserts), darkened at night, ground-coloured wash, never spawned under a roof; rain and snow keep their old wind
+  strength but now follow the wind direction; all falling weather eases in/out (settled on capture snaps); counts
+  scaled by `FxKit.Density` (`WindGrit` in Client.Core); the sky snaps its weather easing on arrival at a new world. Six new scenes in `scripts/clip-manifests/atmosphere-check.json`.
+- **#3204** Lift up to **256** blocks — a space elevator: speed curve 3 → 12 blocks/s with ease-in/out (`LiftMotion`,
+  never above one layer per tick), the shaft is checked layer by layer during the ride (a block stops the platform below
+  it, rider headroom included), a one-time "your suit supplies the oxygen" hint when a ride ends above the air.
+- **#3205** Lift stops and motors no longer count against the per-player / per-world crystal network caps.
+- **#3206** `{range_…}` tokens in locale texts, filled from the code constants when a table is parsed
+  (`RangeTokens`); server `srv.*` texts pass the number as an argument.
+- **#3207** Design radii 48 → 64: base pad reach, base discovery, blueprint copy, docking / ship visit, rail linker,
+  creature fast lane + radar, bio sampler, festival hero, tree-felling sound, VEGA point of interest, `/bump`,
+  `/creatures`, drone sky scan, NPC grid path default box.
+- **#3208** Near full-column stream radius is a host setting: `--near-column-radius` (default 4 = 64 blocks, browser 3),
+  `--near-column-up` (default 3, browser 2); +~177 chunks (~1.4 MB) per player at view 4. Phone-browser unload widened
+  to (view + 5) × 16 so it never drops a chunk the server still counts as sent.
+- **#3209** Base-walls yard fill is time-sliced like the air engine (a starting query still answers an ordinary base at
+  once); the 600k-cell knee is gone; cells outside a stale (smaller) finished fill read open, never "fenced in".
+- **#3210** Base index box and the residents' path box follow the walls reach (up to 192).
+- **#3211** Sparse chunk anchoring: chunks with crystal-net cells, lift shafts and a base's player-built chunks stay
+  resident while a player is on the same body (`--max-anchored-chunks`, default 512, browser 128); base edit lists are
+  cached per base.
+- **#3212** Only dry sand worlds (water ≤ 0.3) get sandstorms — archipelago, coral and rainbow seas get rain.
+- **#3213** Player position updates reach each viewer's own view distance (host's as the floor).
+- **#3214** Base-walls hint, Codex and tutorial no longer say the walls clear "up to 48".
+- **#3215** The gale chip shows 〰 instead of ❄.
+- Texts: 18 keys re-translated into the twelve community languages (machine pass + hand QA).
+
+---
+
 ### 📬 Player reports 2026-11-04 (Lyxette, the school club — Ben, Marie, Justus — and a Sandbox playtest, v2026.11.4) — choose the lift's floor, device names you can see, a lift gate, bridges that don't crumble, traders that land at your Market base and say where, trader landings like your own, avatars without blue gaps, gap-free brush strokes, board jobs with a story, wooden planks, ship modules findable from Crafting — #3171–#3182, branch fix/reports-2026-11-04 — ✅ done 2026-11-04 in PR #3183 (`970522dd`), released in v2026.11.5 (⚠ playtest open; **save version 11** for five new blocks — block ids shift; protocol: additive fields only (`BlockChanged.Moved`, `NetLift.Levels/LevelNames/LevelHasStop`, `MissionResult.Thanks`, `ShipTransitFx.ApproachSeconds`), no terrain-generation change)
 
 - **#3171** Lift floor picker: E on the stop where the platform waits, or E while standing on the platform, opens the

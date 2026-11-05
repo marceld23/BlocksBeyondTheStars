@@ -119,6 +119,64 @@ public sealed class ServerConfig
     /// <summary>Upper bound for <see cref="ChunkGenWorkers"/>.</summary>
     public const int ChunkGenWorkersCeiling = 8;
 
+    /// <summary>#3208: horizontal radius (chunks, Chebyshev) around each player within which the FULL vertical column
+    /// streams — and so stays resident on the server — instead of the thin surface band of a far column. It is the
+    /// guaranteed radius of every system that reads blocks only where chunks are loaded (base walls, air, NPC paths,
+    /// drones, fluids, the Crystal Net's adjacency, drills): 4 chunks = 64 blocks sideways. It never reaches past a
+    /// player's own streaming disc (view distance + 1), so a small view distance shrinks it with the view. Clamped to
+    /// <see cref="NearColumnRadiusMin"/>..<see cref="NearColumnRadiusCeiling"/>. The in-browser local server keeps 3
+    /// (the pre-#3208 value). CLI <c>--near-column-radius</c>, env <c>BBS_NEAR_COLUMN_RADIUS</c>.</summary>
+    public int NearColumnRadiusChunks
+    {
+        get => _nearColumnRadiusChunks;
+        set => _nearColumnRadiusChunks = Math.Clamp(value, NearColumnRadiusMin, NearColumnRadiusCeiling);
+    }
+
+    private int _nearColumnRadiusChunks = 4;
+
+    /// <summary>Lower bound for <see cref="NearColumnRadiusChunks"/>.</summary>
+    public const int NearColumnRadiusMin = 2;
+
+    /// <summary>Upper bound for <see cref="NearColumnRadiusChunks"/> (8 chunks ≈ 128 blocks).</summary>
+    public const int NearColumnRadiusCeiling = 8;
+
+    /// <summary>#3208: how many chunks ABOVE the player's chunk a near column streams (below it is always 3, i.e. 48
+    /// blocks down). 3 makes the guaranteed reach up 48 blocks like the reach down; 2 is the pre-#3208 span (32 blocks
+    /// up), which the in-browser local server keeps. Clamped to <see cref="NearColumnChunksUpMin"/>..
+    /// <see cref="NearColumnChunksUpCeiling"/> — a fourth chunk up would reach past the far-chunk sweep's keep radius
+    /// at view distance 1 and be evicted and re-streamed every sweep. CLI <c>--near-column-up</c>, env
+    /// <c>BBS_NEAR_COLUMN_UP</c>.</summary>
+    public int NearColumnChunksUp
+    {
+        get => _nearColumnChunksUp;
+        set => _nearColumnChunksUp = Math.Clamp(value, NearColumnChunksUpMin, NearColumnChunksUpCeiling);
+    }
+
+    private int _nearColumnChunksUp = 3;
+
+    /// <summary>Lower bound for <see cref="NearColumnChunksUp"/>.</summary>
+    public const int NearColumnChunksUpMin = 2;
+
+    /// <summary>Upper bound for <see cref="NearColumnChunksUp"/>.</summary>
+    public const int NearColumnChunksUpCeiling = 3;
+
+    /// <summary>#3211: how many chunks per world the server keeps resident AWAY from its players — the chunks that hold
+    /// Crystal Net cells and lift shafts, then the chunks with player builds within each base's reach (nearest the core
+    /// first) — while at least one player is on the same body. A body nobody is on still loads and ticks nothing. 0 =
+    /// off (only players keep chunks, the pre-#3211 behaviour). Each chunk costs about 8 KB of voxels; the default 512
+    /// is ≈ 4 MB per occupied world. Clamped to 0..<see cref="MaxAnchoredChunksCeiling"/>; the in-browser local server
+    /// uses 128. CLI <c>--max-anchored-chunks</c>, env <c>BBS_MAX_ANCHORED_CHUNKS</c>.</summary>
+    public int MaxAnchoredChunks
+    {
+        get => _maxAnchoredChunks;
+        set => _maxAnchoredChunks = Math.Clamp(value, 0, MaxAnchoredChunksCeiling);
+    }
+
+    private int _maxAnchoredChunks = 512;
+
+    /// <summary>Upper bound for <see cref="MaxAnchoredChunks"/> (≈ 64 MB of voxels per occupied world).</summary>
+    public const int MaxAnchoredChunksCeiling = 8192;
+
     /// <summary>Opt-in tick profiling (#1504): when > 0, the server accumulates the wall-clock time of every
     /// Guard-wrapped tick system and logs one summary line every this-many seconds of sim time — the top systems
     /// by milliseconds per second, tick p50/p95/max and how many ticks overran the tick budget. 0 (the default)

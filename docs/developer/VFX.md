@@ -292,7 +292,17 @@ the shader side):
 - **Weather drops** (`WeatherFx3D`): one particle system fed through `SetParticles` with the simulation paused —
   the class still integrates every drop itself (open-sky columns, roofs, the hull), the system only draws them:
   velocity-stretched streaks for rain, sleet, acid and sand, round flakes for snow, hail, ash and spores. A drop
-  that meets the ground within 14 m leaves a `Dust` splash (every fourth hit; none for the dry forms).
+  that meets the ground within 14 m leaves a `Dust` splash (every fourth hit; none for the dry forms). Since #3203
+  everything rides the world's wind direction (the grass sway's direction) — falling weather with its old strength
+  (`WindGrit.FallDrive`: slant + 12 × wind²), the grit with the wind applied once (`WindGrit.Drive`) — the pool scales
+  with `FxKit.Density`, spawns are checked per cell for open sky and kept inside the drops' sphere, and the effect eases
+  in and out instead of popping (a capture snap settles it). The blown grit of a gale (`dust`) and a
+  sandstorm is thin streaks (`WindGrit.Shape`: width from the thin axis, length from the long one) in the ground's
+  average atlas colour or white spindrift on frozen worlds (`WindGrit.LookFor`), varied per grain, faded in, at the
+  pool edge and near the camera, and multiplied by the `_Sc_Light` block light so it does not glow at night
+  (`WeatherFx3D.Grit.cs`); it spawns through the air upwind and skims along the ground instead of dying on it.
+- **Cloud deck** (`Clouds`): the drift is accumulated per world step and the look eases toward the weather over
+  ~10 s (`CloudDeck`, Client.Core, #3202) — the old `world time × wind` placement jumped whenever the wind changed.
 - **Shooting stars** (`ShootingStars`): a stretched particle on the night dome every 45–110 s (2–5 s in a meteor
   shower), and very rarely a slow blinking "distant ship". Off by day, in space, aboard a station.
 - **Light-shaft cards** (`LightShafts`): Cloud-shader quads hanging along the sun direction from openings the chunk

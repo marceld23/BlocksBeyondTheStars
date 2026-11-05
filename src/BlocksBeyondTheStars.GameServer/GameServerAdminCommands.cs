@@ -143,7 +143,8 @@ public sealed partial class GameServer
 
         // #1728: /basewalls is a read-only report about the caller's OWN walls, and the one question a builder
         // cannot otherwise answer. A player whose ring keeps letting animals in has exactly two possible
-        // reasons — a gap somewhere, or a compound larger than the fill's 48-block reach — and no way to tell
+        // reasons — a gap somewhere, or a compound larger than the fill's reach (since #1862 it grows with what
+        // the base built, from SealedRoomMaxReach = 48 up to WalledReachCap = 192 blocks) — and no way to tell
         // them apart. She had to guess, and guessed at both. The owner of a base on this body may ask about it.
         bool ownsABaseHere = _bases.Any(b => b.Planet == _world.LocationId && b.OwnerId == p.PlayerId);
         bool basewallsForOwner = ownsABaseHere

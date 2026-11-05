@@ -92,7 +92,7 @@ stack and different ones never mix.
     (`naturalDeposit` — a block a player placed yields nothing, so placing and re-mining is no sample farm);
   - defeating an animal → one sample with its loot (`BioOnCreatureDefeated`);
   - a companion's regular gift → one sample (`BioOnCompanionGift`);
-  - the **sampler** gadget → one sample from a living animal without harm: 6 blocks reach (48 for a giant), a
+  - the **sampler** gadget → one sample from a living animal without harm: 6 blocks reach (64 for a giant), a
     hostile animal must be in stasis — unless it is a giant, which the stasis projector cannot freeze — and the
     same animal gives one every 5 minutes (`UseBioSampler`). Refusals: `srv.bio.sample_case_full` for a full
     case, `srv.bio.register_full` for a full species register.

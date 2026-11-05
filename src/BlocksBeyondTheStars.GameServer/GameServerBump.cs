@@ -43,8 +43,8 @@ public sealed partial class GameServer
     private double _uptime;
     private int _bumpCount;
 
-    /// <summary>How far around the reporter the snapshot lists planet machines and bandits (#2555).</summary>
-    private const float BumpMachineRange = 48f;
+    /// <summary>How far around the reporter the snapshot lists planet machines and bandits (#2555; 64 since #3207).</summary>
+    private const float BumpMachineRange = 64f;
 
     /// <summary>The prefix of VEGA's once-hint milestones (<c>vega:hint:&lt;id&gt;</c>, <c>#2</c>…, <c>#done</c>).</summary>
     private const string VegaHintPrefix = "vega:hint:";

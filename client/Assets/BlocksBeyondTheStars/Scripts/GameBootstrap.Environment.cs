@@ -314,7 +314,8 @@ namespace BlocksBeyondTheStars.Client
             SnapWeatherSmoothing();
         }
 
-        /// <summary>Jump the client-side weather easing to the current environment (captures only).</summary>
+        /// <summary>Jump the client-side weather easing to the current environment (captures, and the first environment of
+        /// a world — #3202).</summary>
         private void SnapWeatherSmoothing()
         {
             var env = Environment;
@@ -328,6 +329,14 @@ namespace BlocksBeyondTheStars.Client
             _windDirection = env.WindDirection;
             _envAge = 0f;
         }
+
+        /// <summary>True when two environments describe the same world: the same planet type, sky and cloud colour (seeded
+        /// per world) and size. Two worlds of one type almost never share all of them; a false "another world" only snaps
+        /// the weather easing once.</summary>
+        private static bool SameWorld(WorldEnvironment a, WorldEnvironment b)
+            => a != null && b != null
+               && string.Equals(a.Biome, b.Biome, System.StringComparison.Ordinal)
+               && a.SkyColor == b.SkyColor && a.CloudColor == b.CloudColor && a.Circumference == b.Circumference;
 
         // --- Weather smoothing (#900) ---------------------------------------------------------------
         // The server broadcasts the environment on a 5 s heartbeat (plus on state changes and on a big
@@ -512,8 +521,16 @@ namespace BlocksBeyondTheStars.Client
             Network.SystemWeatherReceived += m => SystemWeather.Apply(m, Time.realtimeSinceStartupAsDouble); // #2173
             Network.WorldEnvironmentReceived += m =>
             {
+                bool anotherWorld = !SameWorld(Environment, m);
                 Environment = m;
                 _envAge = 0f; // restart the extrapolation window (#900)
+                if (anotherWorld)
+                {
+                    // #3202: the first environment, or another world's — start from its weather instead of easing over
+                    // from the last world's (joining an ongoing storm used to light the world as clear for ~1.5 s).
+                    SnapWeatherSmoothing();
+                }
+
                 Circumference = m.Circumference > 0 ? m.Circumference : WorldConstants.Circumference;
                 World?.SetCircumference(Circumference); // chunk/block wrap at this world's size
                 ChunkMesher.GroveCircumference = Circumference; // #2856: so does the grove colour drift

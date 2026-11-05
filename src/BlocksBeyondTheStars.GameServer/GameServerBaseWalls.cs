@@ -35,10 +35,17 @@ namespace BlocksBeyondTheStars.GameServer;
 /// the fill crossed every pond on its surface and a hand-dug moat fenced nothing.</item>
 /// <item>Cached per (base, feet level) like the air's <c>_baseAirGroups</c>: invalidated by a block set or a gate toggled inside
 /// the box (#1367, with <see cref="WalledRecomputeInterval"/> as the backstop), a budget that scales with the
-/// box (<see cref="WalledFillBudgetFor"/>), <see cref="ServerWorld.GetBlockIfLoaded"/> so an idle base never
+/// box (<see cref="WalledFillBudgetFor"/> — the full 8 cells per column up to the 385-wide box at the cap, #3209),
+/// <see cref="ServerWorld.GetBlockIfLoaded"/> so an idle base never
 /// drags chunk generation. <b>Fail-open</b>: an unloaded column reads as air, the fill leaks in, the spawn is
 /// allowed — the same direction the air system fails; a fill that runs out of budget answers "open" for
 /// everything at that level as well (logged once when a level flips to that state).</item>
+/// <item><b>Time-sliced</b> (#3209, the air engine's model): a fill is a resumable job (<see cref="WalledFillJob"/>). The
+/// query that starts one works a fixed minimum of it at once — the whole fill of the smallest box, so an ordinary base is
+/// answered on the spot, deterministically — and <see cref="TickBaseWallFills"/> moves what is left within a per-tick time
+/// budget plus a fixed minimum of cells. Meanwhile the level keeps answering from its last finished fill, which the new one
+/// replaces in one step when done; a level that never finished a fill reads open (the fail-open direction). Memory is
+/// capped: running fills share a scratch cap, finished levels a cache cap (see GameServerBaseWallsJobs.cs).</item>
 /// <item><b>Closed doors count as walls</b> (a deliberate divergence from the air model, where every door holds air
 /// open or shut, #2651): a shut wooden gate keeps animals out; an open one is a gap. Proximity-operated doors (slide,
 /// energy) count as walls whatever their state (#1358): they open only for a player and close by themselves,
@@ -54,11 +61,11 @@ public sealed partial class GameServer
 {
     /// <summary>Cells the outside-in fill may visit per level, per column of its box (#1862: the budget scales
     /// with the box so a 200×200 fortress does not fail open on sight): the level's own slice, the walkable terrain
-    /// within the band and a fair amount of cave on top of that. The minimum 97×97 box gets ~75k, the old flat 60k.</summary>
+    /// within the band and a fair amount of cave on top of that. The minimum 97×97 box gets ~75k, the old flat 60k.
+    /// #3209: no total cap any more — the 600k cap squeezed every box wider than ~273 (reach ~136) below 8 per column, so a
+    /// big fortress failed open sooner; time-slicing bounds the cost per tick instead, and the reach cap bounds the total
+    /// (385² · 8 ≈ 1.19M cells at reach 192).</summary>
     private const int WalledFillBudgetPerColumn = 8;
-
-    /// <summary>Hard cap on one fill's cell budget, whatever the box (a 385×385 box would otherwise ask for 1.2M).</summary>
-    private const int WalledFillBudgetCap = 600000;
 
     /// <summary>Blocks the fill box extends past the outermost player-built cell (#1862), so the seeds stand on
     /// open ground outside the outer wall, never on or inside it.</summary>
@@ -76,34 +83,50 @@ public sealed partial class GameServer
 
     /// <summary>Seconds a level's fill is trusted without a change inside its box (#1367). The air system's
     /// 1.5 s was shorter than the 1.5–4 s between spawn attempts, so nearly every attempt recomputed; a block
-    /// set or a gate toggled inside the box marks the level dirty instead, so the interval only backs that up.</summary>
+    /// set or a gate toggled inside the box marks the level dirty instead, so the interval only backs that up.
+    /// Counted from the end of the last fill (#3209).</summary>
     private const double WalledRecomputeInterval = 8.0;
 
+    /// <summary>The longest the backstop grows to for a level whose sliced (expensive) fills keep finding nothing new
+    /// (#3209, like the air's backoff): it doubles from <see cref="WalledRecomputeInterval"/> after each such fill and falls
+    /// back at the first change.</summary>
+    private const double WalledRecomputeIntervalMax = 32.0;
+
     /// <summary>One base's reachable-from-outside set at one feet level (everything else in the box is enclosed).
-    /// The set is a bitset over the box's band rows (#1862: a 385×385 box holds up to 600k reachable cells, and a
-    /// hilly base keeps two dozen levels — a hash set per level would be hundreds of MB).</summary>
+    /// The set is a bitset over the box's band rows (#1862: a 385×385 box holds up to 1.2M reachable cells, and a
+    /// hilly base keeps two dozen levels — a hash set per level would be hundreds of MB). The fields describe the last
+    /// FINISHED fill — what every query answers from — while <see cref="Job"/> works on the next one (#3209).</summary>
     private sealed class WalledLevel
     {
+        public int BaseId;
         public string Body = string.Empty;
         public Vector3i Center;   // the base core — the fill's box is the reach cube around it
         public int FeetY;
         public int Reach;         // the box's Chebyshev half-extent at the time of the fill
         public int YMin;          // the band's lowest row (the bitset's row 0)
         public int Rows;          // band rows held by the bitset
-        public System.Collections.BitArray? Reached; // box-relative ((y − YMin) · side + dx) · side + dz
+        public ulong[]? Reached;  // box-relative ((y − YMin) · side + dx) · side + dz; null until a fill finished
         public int ReachableCount;
         public int Budget;        // cells the fill was allowed (the /basewalls report)
-        public bool FailOpen; // the fill ran out of budget — nothing at this level reads as enclosed
-        public bool Dirty = true; // a block changed / a gate toggled inside the box since the last fill
-        public double ComputedAt = double.NegativeInfinity;
-        public int Computes; // fills run for this level (test seam)
+        public bool BudgetOut;    // the last fill ran out of budget
+        public bool FailOpen = true; // nothing at this level reads as enclosed: no fill finished yet, or it ran out of budget
+        public bool Dirty = true; // a block changed / a gate toggled inside the box since the last fill started
+        public double ComputedAt = double.NegativeInfinity; // when the last fill finished
+        public double LastUsed;   // the last query (the cache drops the least recently used level first)
+        public double Backstop = WalledRecomputeInterval;
+        public int Computes; // fills finished for this level (test seam)
+        public WalledFillJob? Job; // the next fill, in progress (#3209)
 
-        /// <summary>Whether the fill reached a canonical cell (false for anything outside the box or the band).</summary>
+        /// <summary>Whether a canonical cell reads OPEN at this level: the finished fill reached it — or it lies outside that
+        /// fill's box or band, or no fill finished yet. Only a cell inside the box that the fill never reached is fenced in.
+        /// #3209 review: this used to answer false (= fenced in) outside the box; while a refill for a box that grew is still
+        /// running, the last finished fill is the smaller old box, and the strip between the two read as walled — a bed placed
+        /// in the open there counted as inside (and stuck, see the index's bulkhead rule). Unknown is open, never walled.</summary>
         public bool Contains(Vector3i canonical, int circ)
         {
             if (Reached is null)
             {
-                return false;
+                return true;
             }
 
             int side = 2 * Reach + 1;
@@ -112,11 +135,38 @@ public sealed partial class GameServer
             int dy = canonical.Y - YMin;
             if (dx < 0 || dx >= side || dz < 0 || dz >= side || dy < 0 || dy >= Rows)
             {
-                return false;
+                return true;
             }
 
-            return Reached[(dy * side + dx) * side + dz];
+            int i = (dy * side + dx) * side + dz;
+            return (Reached[i >> 6] & (1UL << (i & 63))) != 0;
         }
+
+        /// <summary>Whether the last finished fill reads the canonical cell as fenced in: inside its box, never reached.</summary>
+        public bool Encloses(Vector3i canonical, int circ) => !FailOpen && !Contains(canonical, circ);
+
+        /// <summary>Whether the level's answer is current for base <paramref name="b"/> (#3209 review): a finished fill for the
+        /// base's present box, no fill running and no change since — what may be written into durable state (the index's
+        /// bulkhead rule). A level that is merely being refilled answers from its last fill, which can be out of date.</summary>
+        public bool Settled(ServerBase b, int reach)
+            => Reached is not null && Job is null && !Dirty && Reach == reach && Center == b.Cell;
+
+        /// <summary>Whether a finished job found exactly what this level already holds (#3209: no news for the index).</summary>
+        public bool SameResult(WalledFillJob job)
+            => Reached is not null && Reach == job.Reach && Center == job.Center && YMin == job.YMin && Rows == job.Rows
+               && BudgetOut == job.BudgetOut && ReachableCount == job.Count
+               && new System.ReadOnlySpan<ulong>(Reached).SequenceEqual(job.Reached);
+
+        /// <summary>Whether a canonical cell lies in this level's box — the finished fill's or the running one's.</summary>
+        public bool BoxHolds(Vector3i canonical, int circ)
+            => (Reached is not null && InBox(Center, Reach, canonical, circ))
+               || (Job is { } job && InBox(job.Center, job.Reach, canonical, circ));
+
+        private bool InBox(Vector3i center, int reach, Vector3i canonical, int circ)
+            => System.Math.Abs(WorldConstants.WrapDeltaX(canonical.X - center.X, circ)) <= reach
+               && System.Math.Abs(WorldConstants.WrapDeltaZ(canonical.Z - center.Z, circ)) <= reach
+               && System.Math.Abs(canonical.Y - FeetY) <= WalledFillBand + 1
+               && System.Math.Abs(canonical.Y - center.Y) <= reach + 1;
     }
 
     private readonly Dictionary<(int BaseId, int FeetY), WalledLevel> _baseWalls = new();
@@ -128,9 +178,9 @@ public sealed partial class GameServer
     /// <summary>Fills computed so far (test seam for the cache behaviour, #1367).</summary>
     public int WalledFillComputesForTest { get; private set; }
 
-    /// <summary>Cells the fill may visit for a box of <paramref name="side"/> columns per axis (#1862).</summary>
-    private static int WalledFillBudgetFor(int side)
-        => System.Math.Min(WalledFillBudgetCap, side * side * WalledFillBudgetPerColumn);
+    /// <summary>Cells the fill may visit for a box of <paramref name="side"/> columns per axis (#1862) — the full per-column
+    /// budget for every box up to the cap (#3209).</summary>
+    private static int WalledFillBudgetFor(int side) => side * side * WalledFillBudgetPerColumn;
 
     /// <summary>The largest half-extent a box may have on this world: the cap, or a quarter lap on a small body so
     /// the box never wraps onto itself.</summary>
@@ -207,8 +257,10 @@ public sealed partial class GameServer
 
     /// <summary>A player set a block on a resident world (#1862): every base on it whose reach is already known and
     /// within the cap of the cell grows its box to hold the cell (plus the margin), and its cached levels are
-    /// refilled — the seeds must move out past the new wall. A base whose reach is not computed yet needs nothing:
-    /// its first <see cref="BaseWallReach"/> reads the edit from the store, which was written before this event.</summary>
+    /// refilled — the seeds must move out past the new wall. The base index follows the reach (#3210), so it is rebuilt
+    /// too: the block-set event that marks it dirty fires before this one and measured the cell against the old box. A
+    /// base whose reach is not computed yet needs nothing: its first <see cref="BaseWallReach"/> reads the edit from the
+    /// store, which was written before this event.</summary>
     private void GrowBaseWallReach(ServerWorld world, Vector3i cell)
     {
         if (_baseWallReach.Count == 0)
@@ -242,6 +294,11 @@ public sealed partial class GameServer
                     kv.Value.Dirty = true;
                 }
             }
+
+            if (_baseIndex.TryGetValue(b.Id, out var idx))
+            {
+                idx.Dirty = true; // #3210: the index box grew with the reach
+            }
         }
     }
 
@@ -256,7 +313,8 @@ public sealed partial class GameServer
 
     /// <summary>Marks every cached level whose fill box holds <paramref name="cell"/> for recomputation (#1367):
     /// called for every block set on a resident world and for every hand-operated gate toggled. A level's box is
-    /// the base's reach cube, clipped to the walking band around its feet level (plus the one-row margins).</summary>
+    /// the base's reach cube, clipped to the walking band around its feet level (plus the one-row margins) — the box of
+    /// its finished fill or of the one running (#3209: a change during a running fill refills once that one is done).</summary>
     private void MarkBaseWallsDirty(ServerWorld world, Vector3i cell)
     {
         if (_baseWalls.Count == 0)
@@ -268,15 +326,7 @@ public sealed partial class GameServer
         var canonical = WorldConstants.CanonicalBlock(cell, circ);
         foreach (var level in _baseWalls.Values)
         {
-            if (level.Dirty || level.Body != world.LocationId)
-            {
-                continue;
-            }
-
-            if (System.Math.Abs(WorldConstants.WrapDeltaX(canonical.X - level.Center.X, circ)) <= level.Reach
-                && System.Math.Abs(WorldConstants.WrapDeltaZ(canonical.Z - level.Center.Z, circ)) <= level.Reach
-                && System.Math.Abs(canonical.Y - level.FeetY) <= WalledFillBand + 1
-                && System.Math.Abs(canonical.Y - level.Center.Y) <= level.Reach + 1)
+            if (!level.Dirty && level.Body == world.LocationId && level.BoxHolds(canonical, circ))
             {
                 level.Dirty = true;
             }
@@ -287,20 +337,22 @@ public sealed partial class GameServer
     /// X only, so a base near the seam got a truncated box and its yards failed open).</summary>
     private int WrapAbsZ(int dz) => System.Math.Abs(WorldConstants.WrapDeltaZ(dz, _world.Circumference));
 
-    /// <summary>Scratch classification of the fill's box (one byte per cell, reused across fills).</summary>
-    private byte[]? _wallScratch;
-
-    private static readonly (int Dx, int Dz)[] WallFillDirs = { (1, 0), (-1, 0), (0, 1), (0, -1) };
-
     /// <summary>True if the cell lies inside a founded base's reach box on this world and the outside-in fill
     /// at that feet level cannot reach it — i.e. walls (or shut doors) close it off from the open terrain.
     /// Ownership is ignored, like every base predicate: a visitor's yard is a yard too. <paramref name="counts"/> limits
-    /// the question to some bases (#3148: the fliers' rule asks only bases that use energy fences).</summary>
-    private bool InWalledBaseArea(Vector3i cell, System.Func<ServerBase, bool>? counts = null)
+    /// the question to some bases (#3148: the fliers' rule asks only bases that use energy fences). Answers from the
+    /// level's last finished fill (#3209); <paramref name="complete"/> (test seams) runs a pending fill to the end first.</summary>
+    private bool InWalledBaseArea(Vector3i cell, System.Func<ServerBase, bool>? counts = null, bool complete = false)
+        => InWalledBaseArea(cell, out _, counts, complete);
+
+    /// <summary><see cref="InWalledBaseArea(Vector3i, System.Func{ServerBase, bool}?, bool)"/>, also saying whether every level
+    /// it asked was <see cref="WalledLevel.Settled"/> — whether the answer may go into durable state (#3209 review).</summary>
+    private bool InWalledBaseArea(Vector3i cell, out bool settled, System.Func<ServerBase, bool>? counts = null, bool complete = false)
     {
         string body = _world.LocationId;
         int circ = _world.Circumference;
         var canonical = WorldConstants.CanonicalBlock(cell, circ);
+        settled = true;
         foreach (var b in _bases)
         {
             if (b.Planet != body || !WithinBaseWallReach(b, canonical) || (counts is not null && !counts(b)))
@@ -308,8 +360,9 @@ public sealed partial class GameServer
                 continue;
             }
 
-            var level = RefreshBaseWalls(b, canonical.Y);
-            if (!level.FailOpen && !level.Contains(canonical, circ))
+            var level = RefreshBaseWalls(b, canonical.Y, complete);
+            settled &= level.Settled(b, BaseWallReach(b));
+            if (level.Encloses(canonical, circ))
             {
                 return true;
             }
@@ -318,45 +371,66 @@ public sealed partial class GameServer
         return false;
     }
 
-    private WalledLevel RefreshBaseWalls(ServerBase b, int feetY)
+    /// <summary>
+    /// The base's walled-yard level at a feet level, for answering (#3209): a new fill starts when the level has none yet,
+    /// was marked dirty, its box moved or grew, or its backstop ran out — and the starting query works a fixed minimum of
+    /// it at once (<see cref="StepStartedWalledFill"/>), so an ordinary base is answered right here. Whatever is left runs
+    /// in <see cref="TickBaseWallFills"/>; until it is done the level answers from its last finished fill. With
+    /// <paramref name="complete"/> (the first <c>/basewalls</c> look at a level, test seams) the fill runs to the end now —
+    /// bounded by its cell budget.
+    /// </summary>
+    private WalledLevel RefreshBaseWalls(ServerBase b, int feetY, bool complete = false)
     {
-        string body = _world.LocationId;
-        var key = (b.Id, feetY);
-        if (!_baseWalls.TryGetValue(key, out var level))
+        var level = WalledLevelFor(b, feetY);
+        level.LastUsed = _uptime;
+        int reach = BaseWallReach(b);
+        bool started = level.Job is null && NeedsWalledFill(level, b, reach) && StartWalledFill(level, b, reach, force: complete);
+        if (level.Job is { } job)
         {
-            // Keep the cache bounded: a base queried at many terrain levels drops its stalest ones.
-            if (_baseWalls.Count(kv => kv.Key.BaseId == b.Id) >= WalledLevelsPerBase)
+            if (complete)
             {
-                var stalest = _baseWalls.Where(kv => kv.Key.BaseId == b.Id).OrderBy(kv => kv.Value.ComputedAt).First().Key;
-                _baseWalls.Remove(stalest);
+                job.Step(-1, 0);
+                job.LastStepped = _uptime;
+            }
+            else
+            {
+                StepStartedWalledFill(job, started, firstFill: level.Reached is null);
             }
 
-            _baseWalls[key] = level = new WalledLevel();
-        }
-
-        int reach = BaseWallReach(b);
-        if (level.Body != body || level.Dirty || level.Center != b.Cell || level.Reach != reach
-            || _uptime - level.ComputedAt >= WalledRecomputeInterval)
-        {
-            bool wasFailOpen = level.FailOpen;
-            level.Body = body;
-            level.Center = b.Cell;
-            level.FeetY = feetY;
-            level.Reach = reach;
-            level.ComputedAt = _uptime;
-            ComputeReachableFromOutside(b, feetY, reach, level);
-            level.Dirty = false;
-            level.Computes++;
-            WalledFillComputesForTest++;
-            if (level.FailOpen && !wasFailOpen)
+            if (job.Done)
             {
-                _log.Info($"Base walls: the fill for base #{b.Id} ({b.Name}) at feet level {feetY} ran out of budget " +
-                          $"({level.Budget} cells, reach {reach}) — nothing at that level reads as fenced in until it fits.");
+                CommitWalledFill(level);
             }
         }
 
         return level;
     }
+
+    /// <summary>The cached level of a base at a feet level — a new, empty one when there is none (the base's least recently
+    /// used level makes room when it already holds <see cref="WalledLevelsPerBase"/>).</summary>
+    private WalledLevel WalledLevelFor(ServerBase b, int feetY)
+    {
+        var key = (b.Id, feetY);
+        if (!_baseWalls.TryGetValue(key, out var level))
+        {
+            // Keep the cache bounded: a base queried at many terrain levels drops the ones asked least recently.
+            if (_baseWalls.Count(kv => kv.Key.BaseId == b.Id) >= WalledLevelsPerBase)
+            {
+                var stalest = _baseWalls.Where(kv => kv.Key.BaseId == b.Id).OrderBy(kv => kv.Value.LastUsed).First().Key;
+                RemoveWalledLevel(stalest);
+            }
+
+            _baseWalls[key] = level = new WalledLevel { BaseId = b.Id, Body = _world.LocationId, FeetY = feetY, LastUsed = _uptime };
+        }
+
+        return level;
+    }
+
+    /// <summary>Whether a level needs a new fill: none finished yet, a change inside its box, its box moved or grew, another
+    /// body, or the backstop ran out (counted from the end of the last fill).</summary>
+    private bool NeedsWalledFill(WalledLevel level, ServerBase b, int reach)
+        => level.Reached is null || level.Dirty || level.Body != _world.LocationId || level.Center != b.Cell
+           || level.Reach != reach || _uptime - level.ComputedAt >= level.Backstop;
 
     /// <summary>Test seam (#1367): how many times the fill for the level a cell lies on has been computed for
     /// the first base in reach — WITHOUT refreshing it. 0 when no level is cached there.</summary>
@@ -387,197 +461,6 @@ public sealed partial class GameServer
         }
 
         return 0;
-    }
-
-    // Scratch cell classes: bits 0–1 = free (unknown / free / solid), bits 2–3 = carries feet (unknown / yes / no),
-    // bits 4–5 = the cell is a fluid (unknown / yes / no) — read for the cell UNDER a candidate (#1862).
-    private const byte WallFreeMask = 0x03, WallFree = 0x01, WallSolid = 0x02;
-    private const byte WallSupportMask = 0x0C, WallSupports = 0x04, WallNoSupport = 0x08;
-    private const byte WallFluidMask = 0x30, WallFluid = 0x10, WallNotFluid = 0x20;
-
-    /// <summary>
-    /// The walking flood from the fill box's boundary through cells an animal could pass (#1315, #1347):
-    /// a cell is <i>free</i> when it is neither a colliding block nor a fluid (walk-through props pass, as
-    /// the creature body gate reads them) and not covered by a door that counts as wall; the fill may stand in
-    /// a free cell that is <i>supported</i> (a colliding block under it, or ONE cell of fluid over something
-    /// that is not fluid — a pond is waded on its surface, never flooded through its volume, while fluid over
-    /// fluid is a moat and carries no feet, #1862; grass, props and tree canopies carry no feet either, which
-    /// also keeps the fill out of every tree crown) or that lies on the queried level itself (the original
-    /// horizontal slice — a moat directly under that level is refused there too). From a
-    /// cell it steps to the four neighbour columns at the same height, one up (onto a supported cell — a
-    /// step, never a levitation) or one down (through a free cell above the landing). Seeds: every boundary
-    /// column's free cells on the level, plus its supported free cells within <see cref="WalledFillBand"/>,
-    /// so the fill can come down a slope from higher ground. The band also bounds the flood, so a deep cave
-    /// system under the base cannot eat the budget. Writes the level's bitset, count, budget and fail-open flag.
-    /// </summary>
-    private void ComputeReachableFromOutside(ServerBase b, int feetY, int r, WalledLevel level)
-    {
-        int circ = _world.Circumference;
-        int side = 2 * r + 1;
-        int yMin = System.Math.Max(feetY - WalledFillBand, b.Cell.Y - r);
-        int yMax = System.Math.Min(feetY + WalledFillBand, b.Cell.Y + r);
-        int rows = yMax - yMin + 3; // the band plus the support row under it and the head row above it
-        int cells = side * side * rows;
-        if (_wallScratch is null || _wallScratch.Length < cells)
-        {
-            _wallScratch = new byte[cells];
-        }
-
-        var scratch = _wallScratch;
-        System.Array.Clear(scratch, 0, cells);
-        var wallDoors = DoorCellsWhere(d => !d.Open || !DoorBlocks.IsHandOperated(d.Kind)); // #1358: proximity doors are walls in any state
-        var reached = new System.Collections.BitArray(side * side * (yMax - yMin + 1));
-        var frontier = new Queue<Vector3i>();
-        int count = 0;
-        level.YMin = yMin;
-        level.Rows = yMax - yMin + 1;
-        level.Reached = reached;
-        level.Budget = WalledFillBudgetFor(side);
-        level.FailOpen = false;
-
-        // dx/dz are box-relative (0..side-1); y is absolute and may run one row past the band on each side.
-        Vector3i World(int dx, int y, int dz)
-            => WorldConstants.CanonicalBlock(new Vector3i(b.Cell.X - r + dx, y, b.Cell.Z - r + dz), circ);
-
-        bool Free(int dx, int y, int dz)
-        {
-            if (y < yMin - 1 || y > yMax + 1)
-            {
-                return false; // outside the band (and its one-row margins) — nothing is walked there
-            }
-
-            int i = ((y - (yMin - 1)) * side + dx) * side + dz;
-            byte v = (byte)(scratch[i] & WallFreeMask);
-            if (v == 0)
-            {
-                var c = World(dx, y, dz);
-                var id = _world.GetBlockIfLoaded(c);
-                // #3148: an energy gate's membrane is no solid block, but no animal passes it — a fence ring with its gate
-                // is a closed yard (a gate or fence a conduit holds open is a gap, as it is for the animals).
-                bool free = !wallDoors.Contains(c)
-                    && !IsCollidingBlock(id, fluidsPass: false, foliagePasses: false)
-                    && !IsClosedFenceBlock(c, id.Value);
-                v = free ? WallFree : WallSolid;
-                scratch[i] |= v;
-            }
-
-            return v == WallFree;
-        }
-
-        // Whether the cell (dx, y, dz) is a fluid (any y: a cell below the scratch rows is read from the world directly).
-        bool Fluid(int dx, int y, int dz)
-        {
-            if (y < yMin - 1 || y > yMax + 1)
-            {
-                return IsFluid(_world.GetBlockIfLoaded(World(dx, y, dz)).Value);
-            }
-
-            int i = ((y - (yMin - 1)) * side + dx) * side + dz;
-            byte v = (byte)(scratch[i] & WallFluidMask);
-            if (v == 0)
-            {
-                v = IsFluid(_world.GetBlockIfLoaded(World(dx, y, dz)).Value) ? WallFluid : WallNotFluid;
-                scratch[i] |= v;
-            }
-
-            return v == WallFluid;
-        }
-
-        // Whether the cell UNDER (dx, y, dz) carries feet: a colliding block, or one cell of fluid over something that
-        // is not fluid (#1862: a pond is waded, a moat two or more deep is not) — not air, grass, a prop or a canopy.
-        bool Supported(int dx, int y, int dz)
-        {
-            int by = y - 1;
-            if (by < yMin - 1)
-            {
-                return false;
-            }
-
-            int i = ((by - (yMin - 1)) * side + dx) * side + dz;
-            byte v = (byte)(scratch[i] & WallSupportMask);
-            if (v == 0)
-            {
-                bool supports = IsCollidingBlock(_world.GetBlockIfLoaded(World(dx, by, dz)), fluidsPass: false, foliagePasses: true)
-                    && !(Fluid(dx, by, dz) && Fluid(dx, by - 1, dz));
-                v = supports ? WallSupports : WallNoSupport;
-                scratch[i] |= v;
-            }
-
-            return v == WallSupports;
-        }
-
-        // Where the fill may stand: a free cell in the band that has something under it, or that is on the queried
-        // level and not over a moat (the level slice passes over air and a one-deep pond, never fluid over fluid).
-        bool Standable(int dx, int y, int dz)
-            => y >= yMin && y <= yMax && Free(dx, y, dz)
-               && (Supported(dx, y, dz) || (y == feetY && !Fluid(dx, y - 1, dz)));
-
-        void Visit(int dx, int y, int dz)
-        {
-            int i = ((y - yMin) * side + dx) * side + dz;
-            if (!reached[i])
-            {
-                reached[i] = true;
-                count++;
-                frontier.Enqueue(new Vector3i(dx, y, dz)); // box-relative on the queue
-            }
-        }
-
-        void Seed(int dx, int dz)
-        {
-            for (int y = yMin; y <= yMax; y++)
-            {
-                if (Standable(dx, y, dz))
-                {
-                    Visit(dx, y, dz);
-                }
-            }
-        }
-
-        for (int d = 0; d < side; d++)
-        {
-            Seed(d, 0);
-            Seed(d, side - 1);
-            Seed(0, d);
-            Seed(side - 1, d);
-        }
-
-        int budget = level.Budget;
-        while (frontier.Count > 0)
-        {
-            if (budget-- <= 0)
-            {
-                level.FailOpen = true; // too much open ground to walk — nothing at this level may read as fenced in
-                break;
-            }
-
-            var cell = frontier.Dequeue();
-            foreach (var (ddx, ddz) in WallFillDirs)
-            {
-                int nx = cell.X + ddx, nz = cell.Z + ddz, y = cell.Y;
-                if (nx < 0 || nx >= side || nz < 0 || nz >= side)
-                {
-                    continue;
-                }
-
-                if (Standable(nx, y, nz))
-                {
-                    Visit(nx, y, nz); // a level step
-                }
-
-                if (Standable(nx, y + 1, nz))
-                {
-                    Visit(nx, y + 1, nz); // one step up onto something (a supported cell, or the level slice)
-                }
-
-                if (Free(nx, y, nz) && Standable(nx, y - 1, nz))
-                {
-                    Visit(nx, y - 1, nz); // one step down, through the free cell above the landing
-                }
-            }
-        }
-
-        level.ReachableCount = count;
     }
 
     /// <summary>Cells covered by the doors that satisfy <paramref name="pick"/> in the active world: the door's
@@ -612,12 +495,13 @@ public sealed partial class GameServer
         return cells;
     }
 
-    /// <summary>Drops a removed base's cached wall levels and its fill-box reach (called when its core is mined).</summary>
+    /// <summary>Drops a removed base's cached wall levels (and their running fills) and its fill-box reach (called when its
+    /// core is mined).</summary>
     private void ForgetBaseWalls(int baseId)
     {
         foreach (var key in _baseWalls.Keys.Where(k => k.BaseId == baseId).ToList())
         {
-            _baseWalls.Remove(key);
+            RemoveWalledLevel(key);
         }
 
         _baseWallReach.Remove(baseId);
@@ -677,17 +561,20 @@ public sealed partial class GameServer
             .Replace("{x}", nearest.Cell.X.ToString()).Replace("{y}", nearest.Cell.Y.ToString()).Replace("{z}", nearest.Cell.Z.ToString())
             .Replace("{dist}", nearestDist.ToString()).Replace("{reach}", BaseWallReach(nearest).ToString()));
 
-        var level = RefreshBaseWalls(nearest, cell.Y);
+        // #3209: the first look at a level runs its fill to the end (bounded by the cell budget, once — the result is cached);
+        // after that the report reads the last finished fill like every other query and says when a refresh is running.
+        var level = RefreshBaseWalls(nearest, cell.Y, complete: !WalledFillFinished(nearest, cell.Y));
+        string verdict = L(level.BudgetOut ? "srv.basewalls.fail_open" : "srv.basewalls.complete");
         lines.Add(L("srv.basewalls.level")
             .Replace("{y}", cell.Y.ToString())
             .Replace("{cells}", level.ReachableCount.ToString())
             .Replace("{budget}", level.Budget.ToString())
-            .Replace("{verdict}", L(level.FailOpen ? "srv.basewalls.fail_open" : "srv.basewalls.complete")));
+            .Replace("{verdict}", level.Job is null ? verdict : verdict + " · " + L("srv.basewalls.refilling")));
 
         // The animal verdict (does anything spawn here?) — "walled in" is about the wall ring, not air, so the line says
         // "for animals" (#2615): it used to stand right above "Air at your cell: none — leaky" and read as a contradiction.
         string state = InSealedBaseRoom(cell) ? L("srv.basewalls.here_sealed")
-            : !level.FailOpen && !level.Contains(cell, _world.Circumference) ? L("srv.basewalls.here_enclosed")
+            : level.Encloses(cell, _world.Circumference) ? L("srv.basewalls.here_enclosed")
             : L("srv.basewalls.here_open");
         lines.Add(L("srv.basewalls.here").Replace("{state}", state));
         lines.Add(L("srv.basewalls.rules"));
@@ -717,11 +604,12 @@ public sealed partial class GameServer
     public IReadOnlyList<string> BaseWallsReportForTest(PlayerSession session, bool ownOnly = false)
         => BaseWallsReport(session, ownOnly);
 
-    /// <summary>Test seam: whether a cell reads as fenced in by a base's walls right now (cache refreshed).</summary>
-    public bool InWalledBaseAreaForTest(int x, int y, int z) => InWalledBaseArea(new Vector3i(x, y, z));
+    /// <summary>Test seam: whether a cell reads as fenced in by a base's walls right now (cache refreshed, a pending fill run
+    /// to the end — the slicing has its own tests, #3209).</summary>
+    public bool InWalledBaseAreaForTest(int x, int y, int z) => InWalledBaseArea(new Vector3i(x, y, z), complete: true);
 
     /// <summary>Test seam: the size of the outside-in fill at a cell's level for the first base in reach, and
-    /// whether that fill ran out of budget (an answer of "open" that means nothing).</summary>
+    /// whether that fill ran out of budget (an answer of "open" that means nothing). Refreshed and run to the end.</summary>
     public (int Reachable, bool FailOpen) WalledFillForTest(int x, int y, int z)
     {
         var canonical = WorldConstants.CanonicalBlock(new Vector3i(x, y, z), _world.Circumference);
@@ -729,11 +617,15 @@ public sealed partial class GameServer
         {
             if (b.Planet == _world.LocationId && WithinBaseWallReach(b, canonical))
             {
-                var level = RefreshBaseWalls(b, canonical.Y);
+                var level = RefreshBaseWalls(b, canonical.Y, complete: true);
                 return (level.ReachableCount, level.FailOpen);
             }
         }
 
         return (0, false);
     }
+
+    /// <summary>Whether a level of the base has finished a fill (the report runs only a level's first fill to the end).</summary>
+    private bool WalledFillFinished(ServerBase b, int feetY)
+        => _baseWalls.TryGetValue((b.Id, feetY), out var level) && level.Reached is not null;
 }

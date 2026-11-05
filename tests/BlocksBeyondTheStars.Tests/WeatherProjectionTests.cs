@@ -87,9 +87,49 @@ public sealed class WeatherProjectionTests
         Assert.Equal("snow", WeatherProjection.Precipitation("rain", temperate, -3f, "rain"));
         Assert.Equal("hail", WeatherProjection.Precipitation("storm", temperate, -20f, "rain"));
         Assert.Equal("ash", WeatherProjection.Precipitation("rain", temperate, 70f, "rain"));
-        Assert.Equal("sandstorm", WeatherProjection.Precipitation("rain", new PlanetType { SurfaceBlock = "sand" }, 30f, "rain"));
+        Assert.Equal("sandstorm", WeatherProjection.Precipitation("rain", new PlanetType { SurfaceBlock = "sand", WaterAbundance = 0.0 }, 30f, "rain"));
         Assert.Equal("acid", WeatherProjection.Precipitation("storm", new PlanetType { Precipitation = "acid" }, 15f, "rain"));
         Assert.Equal("spores", WeatherProjection.Precipitation("spore_bloom", temperate, 15f, "none"));
+    }
+
+    [Theory]
+    [InlineData("archipelago")]
+    [InlineData("coral_sea")]
+    [InlineData("rainbow_sea")]
+    public void Precipitation_OnAWetSandWorld_StaysRain(string planetKey)
+    {
+        // #3212: a sandy surface on a world that is mostly sea rains like any tropical world — no sandstorms.
+        var planet = ContentLoader.LoadFromDirectory(TestPaths.DataDir()).GetPlanet(planetKey)!;
+        Assert.Equal("sand", planet.SurfaceBlock);
+        Assert.False(WeatherProjection.IsDrySandWorld(planet));
+        Assert.Equal("rain", WeatherProjection.Precipitation("rain", planet, 26f, "rain"));
+        Assert.Equal("drizzle", WeatherProjection.Precipitation("rain", planet, 26f, "drizzle"));
+        Assert.Equal("rain", WeatherProjection.Precipitation("storm", planet, 26f, "rain"));
+    }
+
+    [Theory]
+    [InlineData("desert")]
+    [InlineData("red_desert")]
+    [InlineData("badlands")]
+    [InlineData("sand_sea")]
+    [InlineData("bone_desert")]
+    public void Precipitation_OnADrySandWorld_BlowsSand(string planetKey)
+    {
+        var planet = ContentLoader.LoadFromDirectory(TestPaths.DataDir()).GetPlanet(planetKey)!;
+        Assert.True(WeatherProjection.IsDrySandWorld(planet));
+        Assert.Equal("sandstorm", WeatherProjection.Precipitation("rain", planet, 40f, "rain"));
+        Assert.Equal("sandstorm", WeatherProjection.Precipitation("storm", planet, 40f, "rain"));
+    }
+
+    [Fact]
+    public void IsDrySandWorld_TreatsAutoWaterAsWet_AndNeedsASandSurface()
+    {
+        Assert.False(WeatherProjection.IsDrySandWorld(null));
+        Assert.False(WeatherProjection.IsDrySandWorld(new PlanetType { SurfaceBlock = "grass", WaterAbundance = 0.0 }));
+        Assert.False(WeatherProjection.IsDrySandWorld(new PlanetType { SurfaceBlock = "sand" })); // auto water = moderate
+        Assert.True(WeatherProjection.IsDrySandWorld(new PlanetType { SurfaceBlock = "sand", WaterAbundance = 0.3 }));
+        Assert.False(WeatherProjection.IsDrySandWorld(new PlanetType { SurfaceBlock = "sand", WaterAbundance = 0.31 }));
+        Assert.True(WeatherProjection.IsDrySandWorld(new PlanetType { SurfaceBlock = "sand", Atmosphere = "none" })); // airless = dry
     }
 
     [Theory]

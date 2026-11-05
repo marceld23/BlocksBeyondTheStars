@@ -694,7 +694,8 @@ public sealed partial class GameServer
         _fluidKeepSq = keep * keep;
     }
 
-    /// <summary>No player on the world (tests, a server-side stamp) keeps the old behaviour: load what is read.</summary>
+    /// <summary>No player on the world (tests, a server-side stamp) keeps the old behaviour: load what is read. #3211: an
+    /// anchored chunk (a Crystal Net or base chunk the sweep keeps resident) may be loaded too — the anchor loader is about to.</summary>
     private bool FluidMayLoad(ChunkCoord coord)
     {
         if (_fluidAnchors.Count == 0)
@@ -710,7 +711,7 @@ public sealed partial class GameServer
             }
         }
 
-        return false;
+        return _worlds.Active.ChunkAnchors.Anchored.Contains(coord);
     }
 
     /// <summary>#1824: moves parked cells back into the woken set once their neighbourhood may be read again — after
