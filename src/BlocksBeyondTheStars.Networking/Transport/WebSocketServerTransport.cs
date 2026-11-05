@@ -37,6 +37,9 @@ public sealed partial class WebSocketServerTransport : IServerTransport
         public WebSocket Socket = null!;
         public int Id;
 
+        /// <summary>#3250: the upgraded HTTP request — its connection is what really holds the TCP socket on Linux.</summary>
+        public HttpListenerContext? Context;
+
         // #3195: the bounded send queue (WebSocketServerTransport.SendQueue.cs). One pump at a time drains the outbox in
         // order — what the per-client SemaphoreSlim did, but with the waiting bytes counted, so a client that stops
         // reading is dropped instead of growing the server's memory without limit.
@@ -373,7 +376,7 @@ public sealed partial class WebSocketServerTransport : IServerTransport
         }
 
         int id = Interlocked.Increment(ref _nextId);
-        var client = new Client { Socket = wsCtx.WebSocket, Id = id };
+        var client = new Client { Socket = wsCtx.WebSocket, Id = id, Context = ctx };
         _clients[id] = client;
         _events.Enqueue((EventKind.Connect, id, Array.Empty<byte>()));
 
@@ -414,7 +417,7 @@ public sealed partial class WebSocketServerTransport : IServerTransport
                         catch (OperationCanceledException) when (!_cts.IsCancellationRequested)
                         {
                             LogWarning($"Dropped browser WebSocket connection {id}: no message within the handshake window.");
-                            client.Socket.Abort(); // the pending receive was cancelled — a graceful close can't complete
+                            AbortConnection(client); // the pending receive was cancelled — a graceful close can't complete
                             return;
                         }
                     }
@@ -467,12 +470,8 @@ public sealed partial class WebSocketServerTransport : IServerTransport
             Volatile.Write(ref client.Closed, 1);
             DrainOutbox(client);
 
-            // #3250: close the TCP connection itself. On Linux the managed HttpListener builds the WebSocket on a
-            // NetworkStream that does not own the socket, so neither Abort() (DisconnectClient: the #3194 gate, kicks) nor
-            // Dispose() closes it — the wrapper's Dispose only calls Response.Close(), a keep-alive close that parks the
-            // connection for the next HTTP request. A dropped client stayed connected and never saw the close. Abort()
-            // forces it (socket shut down, connection unregistered) and must run BEFORE the WebSocket's Dispose, which marks
-            // the response disposed and turns Abort into a no-op. On Windows (http.sys) the WebSocket's teardown already did.
+            // #3250: the loop also ends on its own (the client closed, the handshake window ran out) — close the TCP
+            // connection here too, before the WebSocket's Dispose (see AbortConnection). A no-op after AbortConnection.
             try { ctx.Response.Abort(); } catch { }
             try { client.Socket.Dispose(); } catch { }
         }
@@ -532,8 +531,21 @@ public sealed partial class WebSocketServerTransport : IServerTransport
         {
             Volatile.Write(ref client.Closed, 1);
             DrainOutbox(client);
-            try { client.Socket.Abort(); } catch { }
+            AbortConnection(client);
         }
+    }
+
+    /// <summary>#3250: drops a connection for real. On Linux the managed HttpListener builds the WebSocket on a NetworkStream
+    /// that does not own the socket: WebSocket.Abort() only disposes that stream, and the WebSocket's Dispose only calls
+    /// Response.Close() — a keep-alive close that parks the connection for the next HTTP request. The client dropped by the
+    /// #3194 gate, a kick or the #3195 send queue stayed connected and never saw the close. Response.Abort() forces the
+    /// connection closed (socket shut down, connection unregistered); it must run FIRST — once the WebSocket has disposed the
+    /// stream, closing the response throws before it reaches the socket. Aborting the WebSocket then ends the receive loop.
+    /// On Windows (http.sys) the WebSocket's own abort already closed the connection.</summary>
+    private static void AbortConnection(Client client)
+    {
+        try { client.Context?.Response.Abort(); } catch { }
+        try { client.Socket.Abort(); } catch { }
     }
 
     public void Broadcast(byte[] payload, DeliveryMode mode)
