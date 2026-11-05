@@ -24,6 +24,48 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🔊 Sound immersion — levels, mixing, vacuum, creatures, the ship, flight, the player's body — #3237–#3249, branch feat/sound-immersion — ✅ done 2026-11-05 (⚠ playtest open)
+
+Analysis + Marcel's answers 2026-11-05: offline-level every clip with a guard test, wire the unused clips where they fit,
+vacuum **stylised**, breath/heartbeat **only light**, distant fauna from **all** species of the planet, new clips
+generated with the ElevenLabs tools; creature movement must never get intrusive or repetitive (herd budget).
+Docs: [SOUND_DESIGN.md](docs/developer/SOUND_DESIGN.md) §4, §5, §27–§32, USER_MANUAL "What you hear", NOTICES.
+
+- ✅ **#3237** Every SFX clip levelled to a per-class target (`tools/audio/level_clips.py`, manifest
+  `tools/audio/audio_levels.json`, guard `AudioLevelManifestTests`). Same-volume groups sat 20–48 dB apart (mining stone,
+  the scrap pistol, the landing and drizzle were near-silent). All `.meta` `normalize: 0`. The master volume was applied
+  twice (AudioListener + `SfxVol`, UI, cutscene voice, voice chat, splash); the flight engine ignored the effects slider.
+- ✅ **#3238** The 16 never-played clips: `decontaminate` (decontaminator crafting), `ship_weapon` (the cannons),
+  `auto_drill_loop` (server loop while a drill works), `door_open`/`door_close` (the own ship's airlock hatch),
+  `npc_*_ack` (a server-sent nod, `NpcReaction.Ack`), the six `creature_*_calm/hostile_idle` (the content sound);
+  `night_amb`, `npc_human_greet`, `npc_alien_greet` removed.
+- ✅ **#3239** Footsteps: cadence by pace (sneak/walk/run), left/right offsets, three takes per surface without repeats,
+  five new surfaces (wood, leaves, shallow water, grate, crystal), the landing by fall speed (`land_heavy`), other
+  players' footsteps (budget of 3).
+- ✅ **#3240** Splash in/out, swim strokes, bubbles under water, a gasp after a long dive; a light breath/heartbeat layer
+  (`BodySounds`); the third-person listener at the player's head.
+- ✅ **#3241** Stylised vacuum (`VacuumAudio`): no wind/weather beds, a suit room tone, far sounds muffled, touched ones
+  clear, no sonic boom on airless bodies, EVA suit-thruster puffs.
+- ✅ **#3242** Creature foley under `CreatureFoleyGate`: per species only the 2 nearest moving animals step, at most 6
+  foley events/s, wing beats for the 2 nearest fliers, one shared slither loop, splashes, quiet grazing.
+- ✅ **#3243** Repertoire (alarm call echoed by up to 3 herd members, content sound, begging), `CreatureCallRhythm` (dawn
+  chorus, rain hush, storm silence + burst), answers from real herd members.
+- ✅ **#3244** Combat cues shaped from the species' own call (`SampleKit.CombatVariant`); `VoiceOp` + Glide, Vibrato,
+  Stutter, Truncate (appended).
+- ✅ **#3245** `FaunaRoster` (tag 318) on every world entry; `DistantFauna` plays a planet species from 40–120 blocks
+  every 20–60 s when it is quiet.
+- ✅ **#3246** Ethereal and insect call classes, a biped and an arachnid call, re-takes of two near-silent calls; `_2`
+  takes for baked voices.
+- ✅ **#3247** The ship hum from the design (`ShipSoundscape`), module emitters (nearest 3 in 8 m), cooling ticks after a
+  landing, the parked ship's idle hum outside, creaks below 30 % hull, rain on the hull. Not built: a low-power dip (the
+  client knows no ship power).
+- ✅ **#3248** Layered flight engine (idle/thrust/afterburner surge), RCS puffs, cockpit vs exterior, other ships' engines
+  with a hand-made Doppler, audible shots, shield recharge, damage-scaled hits.
+- ✅ **#3249** `AudioMixRules`: distance profiles per cue (small/medium/large/huge), roof occlusion for one-shots, voice
+  budgets (creatures 4, foley 6, remote players 3).
+- ⚠ **Open:** playtest the whole mix on a "many"-abundance world (herd, flier flock, a storm ending), on an asteroid and
+  on a spacewalk, aboard in rain, a landing (cooling ticks) and a dogfight (other ships' engines); the browser build
+  (bakes, memory with the combat variants).
 ### 🔦 Suit headlamp as real light — LED beam, glints, beam in the air, voxel shadows, other players' lamps — #3229–#3234, branch feat/headlamp-realism — ✅ done 2026-11-05 (⚠ playtest open: brightness balance in caves, third person, two players)
 
 - **#3229** One shared `Headlamp.hlsl` replaces five copies: an LED beam (12° hotspot, reflector ring, 34° spill at
@@ -1830,7 +1872,7 @@ let the outside sound like outside. Rules: [docs/developer/ART_BIBLE.md](docs/de
 
 **Open after the merge:** playtest of the whole package (home grade strength, evening amber, lamp colours on every ship,
 mote amounts, rest camera height on a bunk, all the audio levels); the WebGL weather-bed override and muffled bake have
-not run in a browser; the old `night_amb.mp3` is bundled but unused (cut it from the browser download?).
+not run in a browser; the old `night_amb.mp3` was bundled but unused — removed with #3238 (2026-11-05).
 
 **Released** in **v2026.10.22** "the cosy release" (2026-10-19).
 

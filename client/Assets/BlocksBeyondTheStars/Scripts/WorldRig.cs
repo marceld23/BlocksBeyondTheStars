@@ -113,7 +113,11 @@ namespace BlocksBeyondTheStars.Client
             camGo.transform.SetParent(player.transform);
             camGo.transform.localPosition = new Vector3(0f, 1.6f, 0f);
             var cam = camGo.AddComponent<Camera>();
-            camGo.AddComponent<AudioListener>(); // hear procedural SFX (M26)
+            // Hear the SFX (M26) through the scene's one AudioListener, on a child of the camera: it turns with the camera,
+            // and in third person PlayerController puts it at the head instead of 3.5 m behind it (#3240).
+            var ears = new GameObject("Player Ears");
+            ears.transform.SetParent(camGo.transform, false);
+            ears.AddComponent<AudioListener>();
             camGo.tag = "MainCamera";
             // Unity's default near plane (0.3) cuts through the first-person viewmodel: the forearm's rear
             // ~6 cm sat behind it and was clipped into a hollow open tube whenever a swing raised it into
@@ -155,6 +159,7 @@ namespace BlocksBeyondTheStars.Client
             var pc = player.AddComponent<PlayerController>();
             pc.Game = boot;
             pc.Camera = cam;
+            pc.Ears = ears.transform; // #3240
             pc.Avatar = avatar;
             pc.MouseSensitivity = shell.Settings.MouseSensitivity;
             pc.InvertY = shell.Settings.InvertY;
@@ -639,6 +644,11 @@ namespace BlocksBeyondTheStars.Client
             var shipDamage = root.AddComponent<ShipDamageView>();
             shipDamage.Game = boot;
             shipDamage.Camera = cam;
+
+            // #3247: the ship as a place, by ear — the design hum, module emitters, cooling ticks, the idle hum outside.
+            var shipSound = root.AddComponent<ShipSoundscapeView>();
+            shipSound.Game = boot;
+            shipSound.Camera = cam;
 
             // Ship-restamp materialize sweep (holo ring + shimmer when the hull is swapped at a pad).
             var shipBuild = root.AddComponent<ShipBuildFx>();

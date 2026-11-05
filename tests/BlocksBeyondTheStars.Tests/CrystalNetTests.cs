@@ -491,6 +491,41 @@ public sealed class CrystalNetTests : IDisposable
     }
 
     [Fact]
+    public void AnAutoDrill_HeldOn_RunsItsWorkingLoop_AndStopsItWhenSwitchedOff()
+    {
+        // #3238: auto_drill_loop was bundled since #2058 but nothing ever started it.
+        var transport = new RecordingTransport();
+        var server = NewServer(out var repo, transport);
+        using (repo)
+        {
+            var p = Builder(server, new Vector3f(0, 200, 0), "crystal_switch", "auto_drill_1", "crate");
+            var stone = _content.GetBlock("stone")!.NumericId;
+            for (int x = 0; x <= 4; x++)
+            {
+                for (int z = -2; z <= 2; z++)
+                {
+                    server.World.SetBlock(new Vector3i(x, 199, z), stone);
+                }
+            }
+
+            server.PlaceBlock("Builder", 1, 200, 0, "crystal_switch");
+            server.PlaceBlock("Builder", 2, 200, 0, "auto_drill_1");
+            server.PlaceBlock("Builder", 3, 200, 0, "crate");
+            Ticks(server, 0.7);
+            transport.Sent.Clear();
+
+            server.SetCrystalDeviceForTest(p, new Vector3i(1, 200, 0), action: 0); // switch ON
+            Ticks(server, 0.7);
+            var start = transport.Messages().OfType<SoundFx>().Single(s => s.Loop);
+            Assert.Equal("auto_drill_loop", start.SoundId);
+
+            server.SetCrystalDeviceForTest(p, new Vector3i(1, 200, 0), action: 0); // switch OFF
+            Ticks(server, 0.7);
+            Assert.Contains(transport.Messages().OfType<SoundFx>(), s => s.Stop && s.SourceId == start.SourceId);
+        }
+    }
+
+    [Fact]
     public void ACloneTank_GrowsAWildAnimal_OfAScannedSpecies()
     {
         var server = NewServer(out var repo);

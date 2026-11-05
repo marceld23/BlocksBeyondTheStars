@@ -248,7 +248,7 @@ public sealed class CreatureArachnidTests
         {
             var traits = new VoiceTraits("Land", "Territorial", "Arachnid", 3.3f, 8, 6, 2, 2, 0, false, false);
             var v = CreatureVoices.Derive(seed, traits);
-            Assert.Contains(v.Call, new[] { "creature_call_hiss", "creature_call_sizzle", "creature_call_chitter", "creature_call_click" });
+            Assert.Contains(v.Call, new[] { "creature_call_hiss", "creature_call_sizzle", "creature_call_chitter", "creature_call_click", "creature_call_click_hiss" }); // #3246 added the clicking hiss
             Assert.InRange(v.Pulses, 2, 4);
             Assert.True(v.CadenceMin >= 9f && v.CadenceMin < 14f, $"seed {seed}: cadence {v.CadenceMin} — quicker than a titan");
         }

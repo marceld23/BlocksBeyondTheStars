@@ -591,7 +591,7 @@ namespace BlocksBeyondTheStars.Client
 
             var src = gameObject.AddComponent<AudioSource>();
             src.spatialBlend = 0f;
-            src.volume = Mathf.Clamp01(Settings?.MasterVolume ?? 0.8f);
+            src.volume = 1f; // the master bus is AudioListener.volume — set by Settings.Apply (#3237)
             src.PlayOneShot(clip);
         }
 
@@ -613,7 +613,7 @@ namespace BlocksBeyondTheStars.Client
 
             var src = gameObject.AddComponent<AudioSource>();
             src.spatialBlend = 0f;
-            src.volume = Mathf.Clamp01(Settings?.MasterVolume ?? 0.8f);
+            src.volume = 1f; // the master bus is AudioListener.volume — set by Settings.Apply (#3237)
             src.PlayOneShot(clip);
         }
 
@@ -1669,7 +1669,7 @@ namespace BlocksBeyondTheStars.Client
             // Keep the (procedural) UI click/hover volume in step with the audio settings.
             if (Settings != null)
             {
-                UiSound.Volume = Mathf.Clamp01(Settings.MasterVolume * Settings.SfxVolume) * 0.6f;
+                UiSound.Volume = Mathf.Clamp01(Settings.SfxVolume) * 0.6f; // master: AudioListener.volume (#3237)
             }
 
             if (_autoJoinWhenReady && ContentReady && Phase == ShellPhase.MainMenu)

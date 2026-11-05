@@ -25,7 +25,7 @@ namespace BlocksBeyondTheStars.Client
     /// <para>Everything that reaches a cache key is quantised on purpose (see <see cref="CreatureVoice"/>):
     /// a continuous op amount would give every species a bespoke bake and the cache could never hit.</para>
     /// </summary>
-    public static class SampleKit
+    public static partial class SampleKit
     {
         /// <summary>LRU ceiling. A baked ~1.2 s mono clip is ~200 KB, so this bounds the sampler at
         /// roughly 13 MB even if a player never returns to the menu.</summary>
@@ -360,6 +360,10 @@ namespace BlocksBeyondTheStars.Client
                 case VoiceOp.Crush: return Crush(d, a);
                 case VoiceOp.ReverseTail: return ReverseTail(d, a);
                 case VoiceOp.Shape: return Shape(d, rate, a);
+                case VoiceOp.Glide: return Glide(d, a);             // #3244 (SampleKit.Combat.cs)
+                case VoiceOp.Vibrato: return Vibrato(d, rate, a);
+                case VoiceOp.Stutter: return Stutter(d, rate, a);
+                case VoiceOp.Truncate: return Truncate(d, rate, a);
                 default: return d;
             }
         }

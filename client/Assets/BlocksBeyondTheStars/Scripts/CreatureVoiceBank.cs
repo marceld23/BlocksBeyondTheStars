@@ -48,14 +48,20 @@ namespace BlocksBeyondTheStars.Client
         public static CreatureVoice For(NetCreature c)
         {
             int seed = c.VoiceSeed != 0 ? c.VoiceSeed : TraitHash(c);
+            return For(seed, new VoiceTraits(c.Habitat, c.Temperament, c.BodyPlan, c.Size, c.Legs, c.Eyes,
+                c.Horns, c.BodySegments, c.Tentacles, c.HasGasSac, c.Glows));
+        }
+
+        /// <summary>#3245: the voice of a species known only from the world's roster (a distant caller) — the same voice the
+        /// animal has up close, from the same seed and traits.</summary>
+        public static CreatureVoice For(int seed, VoiceTraits traits)
+        {
             if (_voices.TryGetValue(seed, out var cached))
             {
                 return cached;
             }
 
             var audio = ClientAudio.Instance;
-            var traits = new VoiceTraits(c.Habitat, c.Temperament, c.BodyPlan, c.Size, c.Legs, c.Eyes,
-                c.Horns, c.BodySegments, c.Tentacles, c.HasGasSac, c.Glows);
             var voice = CreatureVoices.Derive(seed, traits, audio != null ? audio.Has : (System.Func<string, bool>)null);
             _voices[seed] = voice;
             return voice;
@@ -64,12 +70,17 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Queues the bakes this voice needs (its call, and its combat bank cues). Called when a
         /// creature first appears, so the sampler work happens before the first utterance rather than
         /// during it.</summary>
-        public static void Prewarm(CreatureVoice voice, string bank, bool echo)
+        public static void Prewarm(CreatureVoice voice, string bank, bool echo, bool hostile)
         {
-            Enqueue(voice.Call, voice, echo);
+            Enqueue(voice.Call, voice, echo, force: false);
+            if (!hostile)
+            {
+                return; // #3244: a calm species bakes its combat cues lazily, on the first blow — most are never hit
+            }
+
             foreach (var cue in BankCues)
             {
-                Enqueue(bank + cue, voice, echo);
+                Enqueue(bank + cue, voice, echo, force: true); // derived from the call: always a bake
             }
         }
 
@@ -103,11 +114,17 @@ namespace BlocksBeyondTheStars.Client
                 return null;
             }
 
+            int tail = Mathf.Max(voice.Tail, echo ? 2 : 0); // a cave dweller keeps its cavern regardless
+            if (TryCombatCue(clipId, out var cue))
+            {
+                // #3244: hurt/alert/attack/die are shaped from the species' OWN call; the bank file only sits underneath.
+                return SampleKit.CombatVariant(audio.Clip(voice.Call), src, cue, voice.Op, voice.OpAmount, tail);
+            }
+
             // The layer only ever joins the species' own signature call — layering a death scream with an
             // idle chirp would read as two animals, and it would double the sampler's key space for nothing.
             bool isCall = clipId == voice.Call;
             var layer = isCall && voice.LayerCall.Length > 0 ? audio.Clip(voice.LayerCall) : null;
-            int tail = Mathf.Max(voice.Tail, echo ? 2 : 0); // a cave dweller keeps its cavern regardless
             return SampleKit.Variant(src, layer, voice.Op, voice.OpAmount, tail,
                 voice.LayerOffsetMs, voice.LayerDetune);
         }
@@ -146,9 +163,29 @@ namespace BlocksBeyondTheStars.Client
         /// hostile creature in every world screams out of the same five files (#903).</summary>
         private static readonly string[] BankCues = { "_hurt", "_alert", "_attack", "_die" };
 
-        private static void Enqueue(string clipId, CreatureVoice voice, bool echo)
+        /// <summary>#3244: a size bank's combat cue (<c>creature_medium_hostile_hurt</c> …) — not a call, not the companion
+        /// growl, not the idle murmur.</summary>
+        private static bool TryCombatCue(string clipId, out CombatCue cue)
         {
-            if (!voice.NeedsBake && !echo)
+            cue = CombatCue.Hurt;
+            if (clipId == null || clipId.StartsWith("creature_call_", System.StringComparison.Ordinal)
+                || !(clipId.StartsWith("creature_small_", System.StringComparison.Ordinal)
+                     || clipId.StartsWith("creature_medium_", System.StringComparison.Ordinal)
+                     || clipId.StartsWith("creature_large_", System.StringComparison.Ordinal)))
+            {
+                return false;
+            }
+
+            if (clipId.EndsWith("_hurt", System.StringComparison.Ordinal)) { cue = CombatCue.Hurt; return true; }
+            if (clipId.EndsWith("_alert", System.StringComparison.Ordinal)) { cue = CombatCue.Alert; return true; }
+            if (clipId.EndsWith("_attack", System.StringComparison.Ordinal)) { cue = CombatCue.Attack; return true; }
+            if (clipId.EndsWith("_die", System.StringComparison.Ordinal)) { cue = CombatCue.Die; return true; }
+            return false;
+        }
+
+        private static void Enqueue(string clipId, CreatureVoice voice, bool echo, bool force)
+        {
+            if (!force && !voice.NeedsBake && !echo)
             {
                 return; // dry sample — nothing to render
             }

@@ -171,7 +171,11 @@ namespace BlocksBeyondTheStars.Client
                 _boomed = true;
                 var centre = _stand.transform.position + (_hullBox.center - _restPos);
                 ShipCinematicFx.VapourCone(centre, (_nose + Vector3.up * 2f).normalized, _hullBox.extents.magnitude);
-                ClientAudio.Instance?.Cue("sonic_boom", 0.9f);
+                if (!(ClientAudio.Instance?.WorldAirless ?? false))
+                {
+                    ClientAudio.Instance?.Cue("sonic_boom", 0.9f); // #3241: no air, no boom
+                }
+
                 FxCamera.AddTrauma(0.3f);
             }
         }

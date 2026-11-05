@@ -91,6 +91,11 @@ public sealed class PlayerSession
             : null;
     }
 
+    /// <summary>#3245: the species table whose <c>FaunaRoster</c> this client was last sent (the world's roster array, compared
+    /// by reference), or null — then the next environment send carries the roster again. Cleared by every
+    /// <c>WorldReset</c>, so each world entry tells the client its world's animals once.</summary>
+    public Shared.Definitions.CreatureSpecies[]? FaunaRosterSent { get; set; }
+
     /// <summary>#2436: the storage crate whose crate screen this player has open, or null — the server re-sends that
     /// crate's contents after every change for as long as it is set. Transient; cleared when the screen closes or the
     /// crate is gone.</summary>

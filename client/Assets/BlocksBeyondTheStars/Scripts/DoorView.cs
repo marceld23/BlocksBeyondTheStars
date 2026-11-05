@@ -607,7 +607,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var at = d.Go.transform.position + Vector3.up * 1f;
-            string id = IsHinged(d.Kind) ? "door_hinge" : (d.Open ? "door_slide_open" : "door_slide_close");
+            bool hatch = !IsHinged(d.Kind) && audio.Has("door_open") && SealsOwnShip(d); // #3238: the own ship's airlock
+            string id = IsHinged(d.Kind) ? "door_hinge" : hatch ? (d.Open ? "door_open" : "door_close") : (d.Open ? "door_slide_open" : "door_slide_close");
             audio.At(id, at, 1f, 0.85f);
         }
 

@@ -18,6 +18,11 @@ namespace BlocksBeyondTheStars.Client
         /// one-key delta per first meeting.</summary>
         public event Action<EnemyLog>? EnemyLogReceived;
 
+        /// <summary>The species of the world just entered (#3245), once per world entry, after its <c>WorldReset</c> (or the
+        /// join) and its first <c>WorldEnvironment</c> — the roster the distant-fauna scheduler (<see cref="DistantFauna"/>)
+        /// lets call from far away. Empty for a world without fauna.</summary>
+        public event Action<FaunaRoster>? FaunaRosterReceived;
+
         /// <summary>
         /// Server → client message type → the typed event it raises, built once per process. No reflection, so IL2CPP
         /// and managed stripping in the Unity player cannot remove anything. The lookup is by the message's exact type,
@@ -134,6 +139,7 @@ namespace BlocksBeyondTheStars.Client
             On<WorldTextureList>(map, (c, m) => c.WorldTextureListReceived?.Invoke(m));
             On<OwnedShips>(map, (c, m) => c.OwnedShipsReceived?.Invoke(m));
             On<WorldEnvironment>(map, (c, m) => c.WorldEnvironmentReceived?.Invoke(m));
+            On<FaunaRoster>(map, (c, m) => c.FaunaRosterReceived?.Invoke(m)); // #3245
             On<WorldReset>(map, (c, m) => c.HandleWorldReset(m));
             On<NpcList>(map, (c, m) => c.NpcsReceived?.Invoke(m));
             On<DoorList>(map, (c, m) => c.DoorsReceived?.Invoke(m));

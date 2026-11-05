@@ -641,6 +641,7 @@ public sealed partial class GameServer
         }
 
         Send(session, env);
+        SendFaunaRosterIfDue(session); // #3245: once per world entry — a no-op on the heartbeat
     }
 
     /// <summary>Each player in the world gets the weather of THEIR biome (per-player, not one broadcast).</summary>

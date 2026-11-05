@@ -373,7 +373,8 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Picks the footstep clip from the block under the player's feet (key heuristic) — a parked ship's deck
         /// first, then the world (#2743: the ship is its own object, so the world alone read air there and every step on a
-        /// ship sounded like rock). A monorail wagon's floor is steel.</summary>
+        /// ship sounded like rock). A monorail wagon's floor is steel. #3239: feet in shallow water wade, and a walk-through
+        /// plant at the feet (moss, a grass tuft) colours the step over the soil below it.</summary>
         private string SurfaceStep()
         {
             if (_train.Frame != null)
@@ -387,7 +388,13 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var p = transform.position;
-            return FootstepSurface.CueFor(ShipOrWorldKeyAt(new Vector3(p.x, p.y - 0.5f, p.z)));
+            if (FeetInWater() && !InGasSea(p))
+            {
+                return FootstepSurface.WaterCue;
+            }
+
+            return FootstepSurface.CoverCueFor(ShipOrWorldKeyAt(new Vector3(p.x, p.y + 0.1f, p.z)))
+                ?? FootstepSurface.CueFor(ShipOrWorldKeyAt(new Vector3(p.x, p.y - 0.5f, p.z)));
         }
 
         /// <summary>The footstep clip for a block key (key heuristic) — the floor underfoot, or the wall a climber's

@@ -7303,6 +7303,7 @@ public sealed partial class GameServer
                 reset.WorldId = WorldIdOf(session.CurrentLocationId); // the stream that follows is this world's
                 session.AnnouncedWorldId = reset.WorldId; // #2117: the world the client now accepts chunks for
                 session.Streaming.FarInfoDue = true; // #1820: the far view needs the new world's generator settings
+                session.FaunaRosterSent = null; // #3245: the environment send after the reset tells the world's species
                 break;
             case BlockChanged change:
                 change.WorldId = WorldIdOf(session.CurrentLocationId);

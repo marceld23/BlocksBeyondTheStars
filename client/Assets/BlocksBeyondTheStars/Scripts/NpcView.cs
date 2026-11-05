@@ -511,6 +511,7 @@ namespace BlocksBeyondTheStars.Client
                     break;
                 case NpcGestures.Nod:
                     n.Avatar.Nod();
+                    React(npcId, NpcReaction.Ack); // #3238: the nod's "mm-hm", through the voice budget (never over a babble)
                     break;
                 case NpcGestures.Cheer:
                     n.Avatar.Cheer();
