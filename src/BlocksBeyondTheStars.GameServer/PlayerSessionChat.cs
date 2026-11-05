@@ -8,8 +8,28 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <summary>Per-connection chat bookkeeping of a <see cref="PlayerSession"/> (RAM only, never persisted).</summary>
 public sealed class PlayerSessionChat
 {
-    /// <summary>Environment.TickCount of the last accepted chat line (rate limiting).</summary>
-    public int LastChatTick { get; set; }
+    /// <summary>The shortest gap, in milliseconds, between two accepted chat lines or chat commands (rate limiting).</summary>
+    public const int MinLineIntervalMs = 700;
+
+    /// <summary>The server's chat clock (ms, see <c>GameServerChatThrottle.cs</c>) at the last accepted chat line or chat
+    /// command (rate limiting); null until the first one. #3187: it used to start at 0 and be compared against the 32-bit
+    /// <c>Environment.TickCount</c>, which is negative from 24.9 to 49.7 days of host uptime — every line then counted as
+    /// "too fast", for good, and chat and <c>/report</c> went silent on long-running servers.</summary>
+    public long? LastChatTick { get; set; }
+
+    /// <summary>Spends the rate-limit slot at <paramref name="nowMs"/>: true (and stamped) for the first line ever and for a
+    /// line at least <see cref="MinLineIntervalMs"/> after the last accepted one. A clock that reads earlier than the stamp
+    /// lets the line through rather than locking the chat until it catches up.</summary>
+    public bool TryTakeSlot(long nowMs)
+    {
+        if (LastChatTick is { } last && nowMs - last is >= 0 and < MinLineIntervalMs)
+        {
+            return false;
+        }
+
+        LastChatTick = nowMs;
+        return true;
+    }
 
     /// <summary>Whether this session was already told once that a chat line of theirs was masked (#1207) —
     /// the notice is sent on the first masked line only, not on every one.</summary>

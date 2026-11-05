@@ -92,14 +92,11 @@ public sealed partial class GameServer
     /// images are dropped (anti-abuse) so a snapshot is still written, just without the picture.</summary>
     private void HandleBumpReport(PlayerSession session, BumpReport report)
     {
-        // Rate-limit like chat so a snapshot (and its screenshot) can't be spammed per packet.
-        int now = Environment.TickCount;
-        if (now - session.Chat.LastChatTick < 700)
+        // Rate-limit like chat so a snapshot (and its screenshot) can't be spammed per packet — the same slot clock (#3187).
+        if (!TakeChatSlot(session))
         {
             return;
         }
-
-        session.Chat.LastChatTick = now;
 
         const int MaxImageBytes = 2 * 1024 * 1024; // 2 MB cap
         var image = report.Image;

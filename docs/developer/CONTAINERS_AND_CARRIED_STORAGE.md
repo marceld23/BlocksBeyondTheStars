@@ -41,7 +41,9 @@ follows the paint-design precedent — the item carries a reference, the save ca
 - **Transport crate** (`transport_crate`, a block — a crate like the workshop one when placed). Mining it with something
   inside (`GameServer.PackTransportCrate`, called by the break path before the contents would be handed out) moves the
   stacks into a new record, turns the block's one dropped `transport_crate` into the record key and removes the container
-  — record, container and row in one transaction. Placing a record key (`PlaceCrateFrom`) creates the crate with the
+  — record, container and row in one transaction. When a player mines it (`BreakTransportCrateAndSave`, #3193) that
+  transaction also covers the cell, the banked key and the player's save (plus the fleet when aboard, the key may land
+  in the hold), so a crash can no longer leave a record without its key. Placing a record key (`PlaceCrateFrom`) creates the crate with the
   record's stacks and deletes the record, in one transaction with the player's save. A packed crate is **always paid for**,
   even where placing is free (Sandbox, instant build), or a dead copy of the key would stay behind. A space structure /
   ship hull edit refuses a record key (`@srv.carried.unpack_in_world`): a hull cell is no world crate.
@@ -63,10 +65,11 @@ follows the paint-design precedent — the item carries a reference, the save ca
 | Discard (the bin) | refused while the record holds something (`@srv.carried.not_empty`); the client hides the button | the contents would be destroyed with it |
 | Recipes, disassembly, vendors | never match: they compare exact base keys (`MaterialPool`, the lab's soft `u` tag only) | a filled bag is no plain bag |
 | Placing a packed crate | the key is consumed (even when placing is free), the record deleted with the new crate written | the contents exist exactly once — in the world |
-| A crash mid-move | bag moves and crate placement commit record + player together | the items are never in both places after a restart |
+| A crash mid-move | bag moves, crate placement and a player mining a filled crate commit record + player together | the items are never in both places after a restart |
 
-Orphans are possible in one direction only: a crash after a crate was **mined** but before the next player save leaves a
-record no item points at (the contents are lost, as a mined plain crate's would be). Nothing is ever duplicated.
+Orphans are possible in one direction only, and only in a tiny window: when a mined crate's key fits neither in the
+backpack nor in the hold it is spilled to the ground right after the commit, and a crash exactly between the two leaves a
+record no item points at. Nothing is ever duplicated.
 
 **Save compatibility.** The block raised `WorldMetadata.CurrentSaveVersion` to 11 (block ids shift). An older build never
 loads the `carried` rows, so a packed crate or a filled bag opened there reads as empty — another reason the version

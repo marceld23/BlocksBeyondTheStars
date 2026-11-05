@@ -57,11 +57,28 @@ public sealed partial class GameServer
         return ship;
     }
 
+    /// <summary>
+    /// #3192: a fleet id no ship of <paramref name="fleet"/> holds yet — <paramref name="stem"/> plus a number, counted up
+    /// from the fleet size until the id is free. The size alone repeats once the fleet shrinks (a keel site dismantled to
+    /// its last block leaves the fleet), and the next crafted ship, claimed wreck or creative grant then overwrote a ship
+    /// of the same id — cargo hold, modules and save row included. Every path that founds a fleet ship takes its id here.
+    /// </summary>
+    internal static string UniqueShipId(IReadOnlyDictionary<string, ShipState> fleet, string stem)
+    {
+        int n = fleet.Count;
+        while (fleet.ContainsKey(stem + n))
+        {
+            n++;
+        }
+
+        return stem + n;
+    }
+
     /// <summary>Adds a ship to the owned fleet without material cost (used by repaired wreck claims).</summary>
     private string AddOwnedShipFromDefinition(ShipDefinition def, string idPrefix)
     {
         string safePrefix = string.IsNullOrWhiteSpace(idPrefix) ? def.Key : idPrefix;
-        string id = $"{safePrefix}_{def.Key}_{_ships.Count}";
+        string id = UniqueShipId(_ships, $"{safePrefix}_{def.Key}_"); // #3192: never over an existing ship
         _ships[id] = BuildShipFromDefinition(def);
         if (CurrentOrFirst() is { } owner)
         {

@@ -1487,7 +1487,9 @@ players.
   time per player).
 - Build the hull straight onto the keel, block by block, up to **15×15 blocks and 15 high**. Blocks must
   attach to the build; the hull sits on the keel's ground level. Mining a construction block gives it back;
-  taking the last block out cancels the build.
+  taking the last block out cancels the build. The hull can't grow into another player's base zone (your own and
+  your allies' zones are fine), onto a landing pad, a station, a factory or a parked ship, or through solid ground —
+  clear the yard first.
 - A flyable ship needs: at least **20 blocks**, exactly **one Ship Helm**, at least **one Ship Engine**, a
   **door**, and an **airtight hull** — glass and doors seal fine, any open gap does not.
 - Stand at the helm and press **E** ("Commission ship"). If something is missing the message tells you what;
@@ -2948,7 +2950,10 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   `waiting…` badge. Both **Confirm**; the swap executes atomically once both sides are ready (changing an
   offer resets both confirmations, and your Confirm button turns green while you wait). **Esc** / pad **B**
   or **Cancel** aborts. If you know more than your partner you can also *teach knowledge* here (`−` / `+` /
-  Max in the "You give" box).
+  Max in the "You give" box). If one of you has no room for what they would receive, the swap is refused with
+  *not enough room* — nothing moves, the window stays open and you both confirm again after making space. Only what
+  is in your backpack (and, aboard, your cargo hold) can be traded — the gear you wear never is. You can have one
+  trade and one open trade request at a time; a second request to someone who already has one is refused as busy.
 - **Vendors / market:** press **E** next to a settlement or space-station **vendor** and pick **Trade** (or press **E**
   again) to open that vendor's **trade screen** (*you give → you get*). A vendor's themed goods only trade while that
   vendor stands right beside you (the grocer only inside his shop). Barter trades there swap your raw resources for

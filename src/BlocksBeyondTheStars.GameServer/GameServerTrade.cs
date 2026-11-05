@@ -60,7 +60,10 @@ public sealed partial class GameServer
             return;
         }
 
-        if (fromPlayer == toPlayer || ActiveTrade(fromPlayer) is not null || ActiveTrade(toPlayer) is not null)
+        // #3200: one open invitation per target. A second one used to replace the first without a word — the first asker
+        // waited for an answer that could no longer come, and the target's "accept" went to whoever had asked last.
+        bool targetAsked = _tradeRequests.TryGetValue(toPlayer, out var pending) && pending != fromPlayer;
+        if (fromPlayer == toPlayer || ActiveTrade(fromPlayer) is not null || ActiveTrade(toPlayer) is not null || targetAsked)
         {
             Reject(from, "trade", "@srv.trade.busy");
             return;
@@ -96,17 +99,61 @@ public sealed partial class GameServer
         _tradeRequests.Remove(player);
         if (!accept || !CanTradeTogether(requester, player))
         {
-            if (FindSessionByPlayerId(requester) is { } r)
+            TellAsker(requester, "@srv.trade.declined");
+            return;
+        }
+
+        // #3200: the invitation was checked when it was SENT; either side may have started another trade since (one player
+        // inviting two, both accepting) — a second session made the first partner's window jump and left the second stuck.
+        if (ActiveTrade(requester) is not null || ActiveTrade(player) is not null)
+        {
+            if (FindSessionByPlayerId(player) is { } answering)
             {
-                Send(r, new TradeClosed { Completed = false, Reason = "@srv.trade.declined" });
+                Reject(answering, "trade", "@srv.trade.busy");
             }
 
+            TellAsker(requester, "@srv.trade.busy");
             return;
         }
 
         var session = new TradeSession { A = requester, B = player };
         _trades.Add(session);
+        WithdrawInvitationsOf(requester, player);
         SendTradeUpdate(session);
+    }
+
+    /// <summary>A line to a player whose invitation is off. #3200: a plain message, no longer a <see cref="TradeClosed"/> —
+    /// the asker has no trade window that could close, but a <see cref="TradeClosed"/> also cleared the invitation THEY were
+    /// looking at (or shut the window of a trade they had meanwhile started), which then hung unanswerable on the
+    /// server.</summary>
+    private void TellAsker(string requester, string reason)
+    {
+        if (FindSessionByPlayerId(requester) is { } r)
+        {
+            Send(r, new ServerMessage { Text = reason });
+        }
+    }
+
+    /// <summary>#3200: once two players trade, every other invitation to or from either of them is withdrawn — an
+    /// invitation on the target's screen closes (it is a modal window), an asker who waits is told.</summary>
+    private void WithdrawInvitationsOf(string a, string b)
+    {
+        var stale = _tradeRequests.Where(kv => kv.Key == a || kv.Key == b || kv.Value == a || kv.Value == b).ToList();
+        foreach (var (target, asker) in stale)
+        {
+            _tradeRequests.Remove(target);
+            if (target == a || target == b)
+            {
+                if (asker != a && asker != b) // the partners' invitation to each other needs no word
+                {
+                    TellAsker(asker, "@srv.trade.busy");
+                }
+            }
+            else if (ActiveTrade(target) is null && FindSessionByPlayerId(target) is { } shown)
+            {
+                Send(shown, new TradeClosed { Completed = false, Reason = "@srv.trade.busy" });
+            }
+        }
     }
 
     public void SetTradeOffer(string player, IEnumerable<ItemAmount> items)
@@ -126,11 +173,9 @@ public sealed partial class GameServer
             .GroupBy(i => i.Item)
             .Select(g => new ItemAmount(g.Key, (int)System.Math.Min(g.Sum(i => (long)i.Count), int.MaxValue)))
             .ToList();
-        // Validate against the offering player's OWN ship cargo, not the ship cursor (`_ship`). In normal
-        // message dispatch the cursor already is this player, but keying off their own session removes the
-        // cursor dependency so the check is correct regardless of who the server is currently serving.
-        var ownShip = s.Ships.TryGetValue(s.ActiveShipId, out var sh) ? sh : _noShip;
-        var pool = new MaterialPool(_content, s.State, ownShip);
+        // Validate against the offering player's OWN ship cargo, not the ship cursor (`_ship`) — see TradePool. #3201: and
+        // never against the worn gear, which the trade window does not list either.
+        var pool = TradePool(s);
         if (!pool.Has(offer))
         {
             Reject(s, "trade", "@srv.trade.missing_items");
@@ -218,14 +263,8 @@ public sealed partial class GameServer
             return;
         }
 
-        // Each side's pool must wrap that side's OWN ship cargo — not the ship cursor (`_ship`), which
-        // points at whoever's message triggered the commit (the confirmer). Using `_ship` for both would
-        // make a partner-aboard trade read/remove items from the confirmer's hold: item dupe/loss. Same
-        // pattern the mission payout uses (GameServerMissions.RewardMissionPoster).
-        var shipA = sa.Ships.TryGetValue(sa.ActiveShipId, out var psa) ? psa : _noShip;
-        var shipB = sb.Ships.TryGetValue(sb.ActiveShipId, out var psb) ? psb : _noShip;
-        var poolA = new MaterialPool(_content, sa.State, shipA);
-        var poolB = new MaterialPool(_content, sb.State, shipB);
+        var poolA = TradePool(sa);
+        var poolB = TradePool(sb);
 
         // Re-validate both sides still hold their offers (they could have used items meanwhile).
         if (!poolA.Has(session.OfferA) || !poolB.Has(session.OfferB))
@@ -235,24 +274,80 @@ public sealed partial class GameServer
             return;
         }
 
-        // Atomic swap: take from each side, give to the other (returning anything that doesn't fit).
+        // #3191: both sides are dry-run BEFORE anything moves — give your own offer, take the partner's. The swap used to
+        // take both offers and hand back whatever did not fit, ignoring what the hand-back itself could not store: with
+        // two full backpacks the partner's goods filled the very slot the giver had just freed, and the rest vanished
+        // while both players read "Trade complete". A side without room now refuses; the trade stays open to adjust.
+        bool roomA = poolA.CanExchange(session.OfferA, session.OfferB);
+        bool roomB = poolB.CanExchange(session.OfferB, session.OfferA);
+        if (!roomA || !roomB)
+        {
+            RefuseTradeForRoom(session, sa, sb, roomA, roomB);
+            return;
+        }
+
         poolA.Remove(session.OfferA);
         poolB.Remove(session.OfferB);
-        foreach (var item in session.OfferA)
+        HandOverTradeGoods(sb, poolB, session.OfferA);
+        HandOverTradeGoods(sa, poolA, session.OfferB);
+        TransferTradeKnowledge(session, sa, sb);
+
+        _trades.Remove(session);
+        SendInventory(sa); // carries the (possibly updated) knowledge total to each client
+        SendInventory(sb);
+        CloseTrade(session, completed: true, "@srv.trade.complete");
+    }
+
+    /// <summary>The pool one side of a trade draws from and pays into. It wraps that side's OWN ship cargo — not the ship
+    /// cursor (`_ship`), which points at whoever's message triggered the commit (the confirmer); using `_ship` for both
+    /// would make a partner-aboard trade read/remove items from the confirmer's hold: item dupe/loss (the pattern the
+    /// mission payout uses, GameServerMissions.RewardMissionPoster). #3201: and it leaves the worn gear out.</summary>
+    private MaterialPool TradePool(PlayerSession side)
+    {
+        var ship = side.Ships.TryGetValue(side.ActiveShipId, out var own) ? own : _noShip;
+        return MaterialPool.WithoutEquipment(_content, side.State, ship);
+    }
+
+    /// <summary>#3191: a trade a side has no room for is refused before anything moves. Both ready flags reset, so the two
+    /// can change their offers (or make room) and confirm again; the side without room is told so, the partner why.</summary>
+    private void RefuseTradeForRoom(TradeSession session, PlayerSession sa, PlayerSession sb, bool roomA, bool roomB)
+    {
+        session.ConfirmA = false;
+        session.ConfirmB = false;
+        TellTradeRoom(sa, sb, roomA, roomB);
+        TellTradeRoom(sb, sa, roomB, roomA);
+        SendTradeUpdate(session);
+    }
+
+    private void TellTradeRoom(PlayerSession who, PlayerSession partner, bool room, bool partnerRoom)
+    {
+        if (!room)
         {
-            int leftover = poolB.Add(item.Item, item.Count);
-            if (leftover > 0) poolA.Add(item.Item, leftover); // recipient full → hand it back
+            Reject(who, "trade", "@srv.trade.no_room");
+        }
+        else if (!partnerRoom)
+        {
+            Reject(who, "trade", "@srv.trade.partner_no_room:" + partner.State.PlayerId);
+        }
+    }
+
+    /// <summary>Pays one side's offer into the receiving pool. #3191: the dry run said everything fits, so nothing should
+    /// be left over — should anything still be, it lies at the receiver's feet instead of vanishing.</summary>
+    private void HandOverTradeGoods(PlayerSession receiver, MaterialPool pool, List<ItemAmount> goods)
+    {
+        foreach (var item in goods)
+        {
+            pool.Add(item.Item, item.Count);
         }
 
-        foreach (var item in session.OfferB)
-        {
-            int leftover = poolA.Add(item.Item, item.Count);
-            if (leftover > 0) poolB.Add(item.Item, leftover);
-        }
+        SpillPoolOverflow(receiver, pool, receiver.State.Position.ToBlock());
+    }
 
-        // Knowledge transfer (item 11): the giver KEEPS their points; the receiver gains, capped by the
-        // teach-up-to-your-level + give-once rule. Both credits are computed from the pre-transfer state so a
-        // mutual teach in one trade is symmetric, then applied and recorded in each giver's give-once ledger.
+    /// <summary>Knowledge transfer (item 11): the giver KEEPS their points; the receiver gains, capped by the
+    /// teach-up-to-your-level + give-once rule. Both credits are computed from the pre-transfer state so a mutual teach in
+    /// one trade is symmetric, then applied and recorded in each giver's give-once ledger.</summary>
+    private static void TransferTradeKnowledge(TradeSession session, PlayerSession sa, PlayerSession sb)
+    {
         int creditAtoB = System.Math.Min(session.KnowledgeA, KnowledgeTeachable(sa.State, sb.State));
         int creditBtoA = System.Math.Min(session.KnowledgeB, KnowledgeTeachable(sb.State, sa.State));
         if (creditAtoB > 0)
@@ -266,11 +361,6 @@ public sealed partial class GameServer
             sa.State.KnowledgePoints += creditBtoA;
             sb.State.KnowledgeGivenTo[sa.State.PlayerId] = (sb.State.KnowledgeGivenTo.TryGetValue(sa.State.PlayerId, out var gb) ? gb : 0) + creditBtoA;
         }
-
-        _trades.Remove(session);
-        SendInventory(sa); // carries the (possibly updated) knowledge total to each client
-        SendInventory(sb);
-        CloseTrade(session, completed: true, "@srv.trade.complete");
     }
 
     /// <summary>Cancels any pending request or open trade involving a player (e.g. on disconnect).</summary>

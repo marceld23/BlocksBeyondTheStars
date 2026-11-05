@@ -24,6 +24,49 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛡️ Server fixes 2026-11 — reconnect without rollback, chat on long-running hosts, trades that keep every item, crates, ships and keels, network hardening for public worlds — #3186–#3201, branch fix/server-fixes-2026-11 — ✅ done 2026-11-05 (⚠ playtest open; no save-version, protocol or terrain-generation change; two new locale keys in all 14 languages)
+
+- **#3186** Rejoin while the old session is still connected (#964 eviction): the player record is loaded again after the
+  eviction saved the old session, so the new session starts from the latest state — no rollback to the last autosave, no
+  duplicated items (`LoadJoiningPlayer`, used by the network join and `AddLocalPlayer`).
+- **#3187** Chat, `/report*` and `/bump` throttles run on a server `Stopwatch` with a "never sent" start instead of
+  `Environment.TickCount` from 0 — they no longer drop every line on hosts with 24.9–49.7 days of uptime
+  (`GameServerChatThrottle.TakeChatSlot`).
+- **#3188** A body waiting for the respawn choice is not killed again: `RespawnPlayer` returns while a choice is pending
+  (`PlayerSessionRespawn.ChoicePending`), and creature, enemy and bandit hits skip such a body — no repeated death
+  flash/sound, saves or deadline resets.
+- **#3189** `RefreshOpenCrates` only touches sessions on the active world — a container change on another world no longer
+  empties and closes an open crate screen.
+- **#3190** `NetCodec.Decode` reads the LZ4 header first and drops a packet whose declared size exceeds what LZ4 can
+  produce from the received bytes (255× + 1 KB) — the 14-byte packet no longer allocates 64 MB (`NetCodec.Lz4Guard.cs`).
+- **#3191** Trades dry-run both sides (`MaterialPool.CanExchange`) and refuse with `srv.trade.no_room` /
+  `srv.trade.partner_no_room` instead of destroying what does not fit; a last leftover is spilled at the receiver's feet.
+- **#3192** Ship ids come from `UniqueShipId` (counts up until free) for crafting, wreck claims, Creative grants and the
+  keel — dismantling a keel no longer lets the next crafted ship overwrite an existing one and its cargo.
+- **#3193** A player mining a filled transport crate commits the record, the cell, the banked key and the player (plus the
+  fleet when aboard) in one transaction (`BreakTransportCrateAndSave`).
+- **#3194** Connections that have not joined within 30 s are closed (`GameServerConnectionGate.cs`, tick step
+  `ConnectionGate`) — nobody can hold the transport slots without logging in.
+- **#3195** The WebSocket gateway queues sends per connection with one pump and drops a client that stops reading
+  (> 32 MB queued or one write blocked 60 s) (`WebSocketServerTransport.SendQueue.cs`).
+- **#3196** Hull-colour rebroadcasts go through a per-player bucket (burst 3, one per second) and the last colour is always
+  relayed by the `HullRelay` step (`GameServerHullRelay.cs`).
+- **#3197** `OnClientDisconnected` runs named, separately guarded steps and always removes the session — a failing save
+  no longer leaves a ghost session that locks the player out (`GameServerSessionLifecycle.cs`).
+- **#3198** A keel construction site can't grow into a foreign base zone, a landing pad, a station, a factory, a parked
+  ship or solid ground (`GameServerConstructionGuard.cs`, existing refusal tokens).
+- **#3199** Placement checks the reach right after the build-height band (rule order) and `HandleMine` right after the
+  height guard — far intents no longer load or generate chunks.
+- **#3200** A trade invitation can't be accepted while either side trades; a starting trade withdraws the partners' other
+  invitations, a second invitation to someone already asked is refused as busy.
+- **#3201** Trades use a pool without worn gear (`MaterialPool.WithoutEquipment`).
+- Tests: `ReconnectAndGhostTests`, `ChatThrottleClockTests`, `RespawnChoiceTests`, `CrateRefreshAcrossWorldsTests`,
+  `Lz4BombTests`, `TradeRoomTests`, `TradeInvitationTests`, `ShipIdCollisionTests`, `CarriedContentsTests`,
+  `ConnectionGateTests`, `WebSocketSendQueueTests` (Slow), `HullColourThrottleTests`, `DisconnectGhostSessionTests`,
+  `KeelBaseProtectionTests`, `FarBlockEditReachTests`, updated `PlacementRuleOrderTests` / `TickScheduleTests`.
+- Open follow-up: editing a commissioned self-built ship while it is parked (`HandleLandedShipEdit`) has no base/pad
+  protection check yet (same gap as #3198, for parked ships).
+
 ### 📬 Player reports 2026-11-04 (Lyxette, the school club — Ben, Marie, Justus — and a Sandbox playtest, v2026.11.4) — choose the lift's floor, device names you can see, a lift gate, bridges that don't crumble, traders that land at your Market base and say where, trader landings like your own, avatars without blue gaps, gap-free brush strokes, board jobs with a story, wooden planks, ship modules findable from Crafting — #3171–#3182, branch fix/reports-2026-11-04 — ✅ done 2026-11-04 in PR #3183 (`970522dd`), released in v2026.11.5 (⚠ playtest open; **save version 11** for five new blocks — block ids shift; protocol: additive fields only (`BlockChanged.Moved`, `NetLift.Levels/LevelNames/LevelHasStop`, `MissionResult.Thanks`, `ShipTransitFx.ApproachSeconds`), no terrain-generation change)
 
 - **#3171** Lift floor picker: E on the stop where the platform waits, or E while standing on the platform, opens the

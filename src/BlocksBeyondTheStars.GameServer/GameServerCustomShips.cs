@@ -323,13 +323,9 @@ public sealed partial class GameServer
             SendInventory(session);
         }
 
-        // The new fleet entry: geometry lives in the blob, stats derive from it, nothing in ships.json.
-        string id = "built_custom_" + session.Ships.Count;
-        while (session.Ships.ContainsKey(id))
-        {
-            id = "built_custom_" + (session.Ships.Count + id.Length); // collision-proof without extra state
-        }
-
+        // The new fleet entry: geometry lives in the blob, stats derive from it, nothing in ships.json. #3192: the id comes
+        // from the shared helper — the old fallback (fleet size + id length) could settle on a value that was taken too.
+        string id = UniqueShipId(session.Ships, "built_custom_");
         session.Ships[id] = new ShipState
         {
             ShipType = ShipState.CustomShipType,
@@ -405,12 +401,13 @@ public sealed partial class GameServer
 
     /// <summary>True when a world position lies inside the player-built construction volume — keeps world
     /// blocks out of the site the same way <see cref="ShipInteriorContains"/> guards parked ships (the site
-    /// itself is deliberately NOT "aboard": an open frame must not hand out ship life support).</summary>
-    private bool ConstructionContains(Vector3f p)
+    /// itself is deliberately NOT "aboard": an open frame must not hand out ship life support). <paramref name="exceptKey"/>
+    /// leaves one site out — #3198: a site that grows is not in its own way.</summary>
+    private bool ConstructionContains(Vector3f p, string? exceptKey = null)
     {
         foreach (var (key, rec) in _worlds.Active.LandedShips)
         {
-            if (!IsConstructionKey(key) || !rec.Placed)
+            if (!IsConstructionKey(key) || !rec.Placed || key == exceptKey)
             {
                 continue;
             }
@@ -551,6 +548,13 @@ public sealed partial class GameServer
         if (blockDef.Key == ShipHelmBlock && cells.Values.Any(b => IsBlockId(b, ShipHelmBlock)))
         {
             Reject(session, "structure", "@srv.ship.one_helm");
+            return;
+        }
+
+        // #3198: the new cell takes a world cell too — the protections of hand placement apply to it.
+        if (ConstructionCellRefusal(session, rec, pos) is { } refusal)
+        {
+            Reject(session, "structure", refusal);
             return;
         }
 

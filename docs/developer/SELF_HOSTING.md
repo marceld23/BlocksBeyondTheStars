@@ -210,6 +210,13 @@ secret is stored in the save. The very first player ever to join a fresh world b
   hosts must allow WebSocket upgrade traffic to the game server. Azure Container Apps should use HTTP/auto
   ingress to target port 31415 for WebGL, then clients use the app's `wss://...` URL. Native UDP clients
   still need a UDP-capable host.
+- **Connection limits (both transports)**: a connection that has not joined the world within **30 s** is
+  closed (#3194) — silent connections, ones that only sent something else and ones whose join was refused — so
+  nobody can hold the transport slots without logging in. The log says `Connection N did not join within 30s —
+  closing it.` A browser client that stops reading what the server sends is dropped once more than **32 MB** wait
+  for it or one write is blocked for **60 s** (#3195; log: `Dropped browser WebSocket connection N: it is not reading
+  what the server sends (…)`); a normal join of a whole view needs a few MB at most. Incoming packets whose declared
+  LZ4 size is more than LZ4 can produce from the bytes received are dropped before anything is allocated (#3190).
 - **Admin UI**: HTTP `adminPort` (default 31416), bound to `127.0.0.1` by default so it
   is **not** reachable from outside. Only change `adminBindAddress` if you understand the
   risk, and always set an `adminPassword` first.

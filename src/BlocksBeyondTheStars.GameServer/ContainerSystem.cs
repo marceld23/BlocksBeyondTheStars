@@ -607,12 +607,15 @@ internal sealed class ContainerSystem
     }
 
     /// <summary>Re-sends the contents of every crate someone has open (#2436) — after any stash, loot, move or filter
-    /// change. A crate that is gone (mined) sends an empty list, which closes the screen.</summary>
+    /// change. A crate that is gone (mined) sends an empty list, which closes the screen. #3189: only for the players on
+    /// the active world — the store searched is that world's, and a player on another world, whose crate is not in it,
+    /// was sent an empty crate (the screen showed their full crate as empty) and stopped getting updates.</summary>
     private void RefreshOpenCrates()
     {
+        string activeWorld = _host.Worlds.Active?.LocationId ?? string.Empty;
         foreach (var s in _host.Sessions.Values)
         {
-            if (!s.Joined || string.IsNullOrEmpty(s.OpenContainerId))
+            if (!s.Joined || string.IsNullOrEmpty(s.OpenContainerId) || s.CurrentLocationId != activeWorld)
             {
                 continue;
             }

@@ -988,6 +988,19 @@ public sealed class TutorialBuildingCoursesTests : IDisposable
         int x = origin.X + 30, z = origin.Z + 30;
         int sy = SurfaceTopY(server, x, z);
         var core = new Vector3i(x, sy + 1, z);
+        // #3198: a hull cell may no longer run through solid ground, and this spot can sit on a slope — clear the yard
+        // for the 5×4×5 hull (plus a margin) to air first, as CustomShipTests.LayKeel does.
+        for (int cx = core.X - 1; cx <= core.X + 5; cx++)
+        {
+            for (int cy = core.Y; cy <= core.Y + 4; cy++)
+            {
+                for (int cz = core.Z - 1; cz <= core.Z + 5; cz++)
+                {
+                    server.World.SetBlock(new Vector3i(cx, cy, cz), BlockId.Air);
+                }
+            }
+        }
+
         p.State.InstantBuild = true;
         p.State.AboardShip = false;
         p.State.Position = new Vector3f(core.X + 2.5f, core.Y + 1.5f, core.Z + 2.5f);

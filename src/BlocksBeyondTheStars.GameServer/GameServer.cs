@@ -2578,6 +2578,14 @@ public sealed partial class GameServer
     /// </summary>
     private void RespawnPlayer(PlayerSession session, string reason)
     {
+        // #3188: a body that is still choosing where to wake up has died already. A creature, machine or robber left beside it
+        // used to run this again every tick — a fresh death flash and sound, a reset choice deadline, a save and a log line
+        // each time, and a "no salvage capsule" note after the choice although one lies at the death spot.
+        if (session.Respawn.ChoicePending)
+        {
+            return;
+        }
+
         // Deaths dealt by AI ticks (creatures, guardians, bandits, speeder crashes) arrive here with the
         // ship cursor still on whoever the server served last — everything downstream (_ship/_shipPlaced/
         // _healTank) would resolve to THAT player's ship, respawning the victim inside someone else's hull
@@ -3682,47 +3690,13 @@ public sealed partial class GameServer
         bool known = _openConnections.Remove(connectionId) | _sessions.ContainsKey(connectionId);
         if (_sessions.TryGetValue(connectionId, out var session) && session.Joined)
         {
-            EndShipVisitsOf(session); // #2723: a quitting guest's visit ends here; a quitting host's guest goes home first
-            ClearDocking(session.State.PlayerId);
-            LeaveSpace(session.State.PlayerId);
-            // #1925: NOT LeaveStation — that undocks to the planet (which then got saved) and relaunches the leaver
-            // into a space instance LeaveSpace had just cleared. The save keeps them aboard; the rejoin re-boards.
-            ForgetStationBoarding(session);
-            ForgetShipInterior(session.State.PlayerId); // #2722: …and the walk inside the floating ship ends with the session
-            CancelTradesFor(session.State.PlayerId);
-            EndNpcConversation(session, tellClient: false); // #2616: the talking NPC goes back to its day at once
-            SetCurrent(session);
-            SaveFleet(session); // the whole fleet + the fleet index on the state, before it is written below
-            session.State.LastSeenUtc = WallUtcNowIso(); // #2595: "last online" — the next join's welcome-back reads it
-            _repo.SavePlayer(session.State);
-
+            // #3197: each step guarded on its own (GameServerSessionLifecycle.cs) — whatever throws, the save still tries and
+            // the session still leaves _sessions, so no joined ghost keeps the name and blocks the rejoin.
+            RunLeaveSteps(LeaveTeardownSteps, session, string.Empty);
             string loc = session.CurrentLocationId;
             _sessions.Remove(connectionId);
             _stepListenersDirty = true; // #2466: the leaver's active steps no longer need the event bus
-            ClearAlliancePending(session.State.PlayerId); // drop transient requests; refresh online allies' rosters
-            ClearCrewPending(session.State.PlayerId);     // drop crew invites; let mates see the Online flag drop
-            OnMarkerOwnerLeftWorld(session, loc, disconnected: true); // pings vanish, shared markers stay indexed (#1293)
-            SetActiveWorld(loc);
-            RemoveLandedShip(session); // the parked ship object leaves with its owner (ship-as-object)
-            RemoveConstructionSite(session); // the half-built hull despawns too — it lives on in the fleet save
-            BroadcastToWorld(new PlayerLeft { PlayerId = session.State.PlayerId }); // remove their avatar in-world
-            BroadcastLandingPads(); // the leaver's pad is free again — everyone's map must show it (#1020)
-            foreach (var other in _sessions.Values)
-            {
-                if (other.Joined && other.State.IsAdmin)
-                {
-                    SendRules(other); // the admins' player-mode roster (#1121) loses this player
-                }
-            }
-
-            if (!string.IsNullOrEmpty(loc) && loc != _meta.ActiveLocationId && !OccupiedLocations().Contains(loc))
-            {
-                // Move the cursor off the world we're about to drop, back to the (always-resident) default
-                // body. Without this the Unload would target the world the disconnect just made Active and
-                // silently no-op, leaking that world (and leaving the empty server ticking the orphan).
-                SetActiveWorld(_meta.ActiveLocationId);
-                _worlds.Unload(loc); // last player left this body — drop it from memory (edits persisted)
-            }
+            RunLeaveSteps(LeaveCleanupSteps, session, loc);
         }
         else
         {
@@ -4106,29 +4080,11 @@ public sealed partial class GameServer
         // `marcel` ≠ `Marcel` mismatch would grant nothing with no error anywhere.
         bool fleetAdmin = IsFleetAdminName(name);
 
-        PlayerState state;
-        try
+        if (!TryLoadJoiningPlayer(connectionId, name, out var state))
         {
-            state = _repo.LoadPlayer(name) ?? CreateNewPlayer(name);
-            ClampInventory(state.Inventory, $"player '{name}' inventory");
-            EnsureEquipmentInitialised(state); // #2110: a pre-slot save's gear moves into the slots once
-            state.InTrain = string.Empty;      // #2113: a train bond never survives a join — the player stands where they were
-            state.TrainSeat = -1;
-            ClampInventory(state.Equipment, $"player '{name}' equipment");
-            ClampInventory(state.RationStore, $"player '{name}' ration store");
-            ClampInventory(state.SampleCase, $"player '{name}' sample case");
-        }
-        catch (InvalidDataException ex)
-        {
-            _log.Error($"Failed to load player '{name}' (connection {connectionId}): persisted data is corrupted. " +
-                       $"The database record was kept untouched for manual recovery. Error: {ex.Message} -> {ex.InnerException?.Message}\n{ex.StackTrace}");
-
-            SendTo(connectionId, new JoinRejected
-            {
-                Reason = "@srv.join.data_corrupted"
-            });
             return;
         }
+
         string tokenHash = HashNameToken(join.Token);
 
         // Reconnect eviction (#964). A client that dies without closing its socket cleanly — PC crash, hard
@@ -4143,6 +4099,14 @@ public sealed partial class GameServer
             _log.Info($"Player '{name}' reconnected — dropping their previous session (connection {stale.ConnectionId}).");
             _transport.DisconnectClient(stale.ConnectionId);
             OnClientDisconnected(stale.ConnectionId); // saves + tears the old session down synchronously
+
+            // #3186: the record loaded above is older than what the old session has just written — the new session is built
+            // from that save (its fleet and hold are restored from it as well), never from the last autosave: the backpack
+            // would roll back, and items moved into the hold since then would exist twice.
+            if (!TryLoadJoiningPlayer(connectionId, name, out state))
+            {
+                return;
+            }
         }
 
         // A fleet admin gets a reserved slot on top of MaxPlayers: they come to observe a world, and a full
@@ -4599,14 +4563,7 @@ public sealed partial class GameServer
         PlayerState state;
         try
         {
-            state = _repo.LoadPlayer(name) ?? CreateNewPlayer(name);
-            ClampInventory(state.Inventory, $"player '{name}' inventory");
-            EnsureEquipmentInitialised(state); // #2110: a pre-slot save's gear moves into the slots once
-            state.InTrain = string.Empty;      // #2113: a train bond never survives a join — the player stands where they were
-            state.TrainSeat = -1;
-            ClampInventory(state.Equipment, $"player '{name}' equipment");
-            ClampInventory(state.RationStore, $"player '{name}' ration store");
-            ClampInventory(state.SampleCase, $"player '{name}' sample case");
+            state = LoadJoiningPlayer(name);
         }
         catch (InvalidDataException ex)
         {
@@ -5020,6 +4977,15 @@ public sealed partial class GameServer
             return;
         }
 
+        // #3199: the reach next — pure arithmetic, while the block read below loads or generates the target chunk on the
+        // tick thread. X and Z are free, so a far target used to cost a chunk per intent (a far air cell even a ghost-block
+        // heal) before it was refused. Every path below asked for this same reach already: the doors, the fire and the torch.
+        if (!WithinReach(session.State, pos))
+        {
+            Reject(session, "mine", "@out_of_reach");
+            return;
+        }
+
         // A player-built door fills an air cell as an entity — mining it removes the door + returns the item.
         if (RemovePlayerDoorAt(session, pos))
         {
@@ -5139,12 +5105,6 @@ public sealed partial class GameServer
             return;
         }
 
-        if (!WithinReach(session.State, pos))
-        {
-            Reject(session, "mine", "@out_of_reach");
-            return;
-        }
-
         var tool = ActiveTool(session.State);
         if (!ToolCanMine(tool, def))
         {
@@ -5220,9 +5180,19 @@ public sealed partial class GameServer
     /// cargo hold, when aboard) cannot take stays in the pool's leftovers, and the caller spills it onto the
     /// ground as a drop packet (#853). Mining used to be refused outright in that situation — correct while
     /// there was no world container to spill into (#600/#607), and pure frustration once there is one.
-    /// </para></summary>
+    /// </para>
+    /// <para>A filled transport crate is broken together with the miner's save (#3193, see
+    /// <see cref="BreakTransportCrateAndSave"/>): its packed key must reach the database with the record it points at.</para></summary>
     private void BreakBlockAt(PlayerSession session, Vector3i pos, BlockDefinition def, MaterialPool pool)
-        => BreakBlockCore(session, session.State.PlayerId, pos, def, pool, null);
+    {
+        if (FilledTransportCrateAt(def, pos) is not null)
+        {
+            BreakTransportCrateAndSave(session, pos, def, pool);
+            return;
+        }
+
+        BreakBlockCore(session, session.State.PlayerId, pos, def, pool, null);
+    }
 
     /// <summary>The break itself, with or without a player: a machine (#2055: the auto-drill) mines through the same
     /// path — drops composed the same way, the same wakes and hooks — but banks the yield through <paramref name="bank"/>
@@ -6456,13 +6426,11 @@ public sealed partial class GameServer
         // like chat so it can't be spammed to write a dev snapshot per packet (disk/log growth).
         if (text.StartsWith("/bump", System.StringComparison.OrdinalIgnoreCase))
         {
-            int bumpNow = System.Environment.TickCount;
-            if (bumpNow - session.Chat.LastChatTick < 700)
+            if (!TakeChatSlot(session))
             {
-                return; // rate limit
+                return; // rate limit (#3187: one slot clock for every chat line and command — GameServerChatThrottle.cs)
             }
 
-            session.Chat.LastChatTick = bumpNow;
             HandleBump(session, text.Length > 5 ? text.Substring(5).Trim() : string.Empty);
             return;
         }
@@ -6472,13 +6440,11 @@ public sealed partial class GameServer
         // NOT "/report": that is the client-side PLAYER report to the worlds portal (ReportChatCommand).
         if (text.Equals("/reportpaint", System.StringComparison.OrdinalIgnoreCase))
         {
-            int reportNow = System.Environment.TickCount;
-            if (reportNow - session.Chat.LastChatTick < 700)
+            if (!TakeChatSlot(session))
             {
                 return; // rate limit
             }
 
-            session.Chat.LastChatTick = reportNow;
             HandlePaintReport(session);
             return;
         }
@@ -6487,13 +6453,11 @@ public sealed partial class GameServer
         if (text.StartsWith("/reporttexture", System.StringComparison.OrdinalIgnoreCase)
             && (text.Length == 14 || text[14] == ' '))
         {
-            int reportNow = System.Environment.TickCount;
-            if (reportNow - session.Chat.LastChatTick < 700)
+            if (!TakeChatSlot(session))
             {
                 return; // rate limit
             }
 
-            session.Chat.LastChatTick = reportNow;
             HandleWorldTextureReport(session, text.Length > 14 ? text.Substring(15) : string.Empty);
             return;
         }
@@ -6501,13 +6465,11 @@ public sealed partial class GameServer
         // The same for player-designed forms (#843) — geometry can be just as rude as a painting.
         if (text.Equals("/reportshape", System.StringComparison.OrdinalIgnoreCase))
         {
-            int reportNow = System.Environment.TickCount;
-            if (reportNow - session.Chat.LastChatTick < 700)
+            if (!TakeChatSlot(session))
             {
                 return; // rate limit
             }
 
-            session.Chat.LastChatTick = reportNow;
             HandleCustomShapeReport(session);
             return;
         }
@@ -6520,13 +6482,11 @@ public sealed partial class GameServer
         if (text.Equals("/report", System.StringComparison.OrdinalIgnoreCase)
             || text.StartsWith("/report ", System.StringComparison.OrdinalIgnoreCase))
         {
-            int reportNow = System.Environment.TickCount;
-            if (reportNow - session.Chat.LastChatTick < 700)
+            if (!TakeChatSlot(session))
             {
                 return; // rate limit
             }
 
-            session.Chat.LastChatTick = reportNow;
             HandlePlayerReport(session, text.Substring("/report".Length).Trim());
             return;
         }
@@ -6579,13 +6539,10 @@ public sealed partial class GameServer
             return;
         }
 
-        int now = System.Environment.TickCount;
-        if (now - session.Chat.LastChatTick < 700)
+        if (!TakeChatSlot(session))
         {
             return; // rate limit
         }
-
-        session.Chat.LastChatTick = now;
 
         // Anti-spam (#1208). The 700 ms limit above stops a held key; these two sliding windows stop a
         // burst of distinct lines and someone who keeps tripping the content filter. An auto-muted

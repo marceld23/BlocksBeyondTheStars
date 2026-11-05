@@ -14,6 +14,10 @@ public sealed class PlayerSessionRespawn
     /// move intents are ignored. On timeout the ship respawn runs as the safe default.</summary>
     public double RespawnChoiceDeadline { get; set; }
 
+    /// <summary>Whether a respawn choice is pending (<see cref="RespawnChoiceDeadline"/> set): the player lies dead at the
+    /// death spot, so nothing may kill them again (#3188) — the choice and the timeout both clear the deadline first.</summary>
+    public bool ChoicePending => RespawnChoiceDeadline > 0;
+
     /// <summary>Death context captured when the choice was offered (consumed on resolution).</summary>
     public bool PendingRespawnSalvaged { get; set; }
     public bool PendingRespawnSameWorld { get; set; }

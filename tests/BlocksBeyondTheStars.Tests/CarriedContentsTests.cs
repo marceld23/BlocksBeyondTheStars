@@ -215,6 +215,32 @@ public sealed class CarriedContentsTests : IDisposable
     }
 
     [Fact]
+    public void AMinedTransportCrate_ReachesTheSaveWithItsKey_WithoutAnAutosave()
+    {
+        // #3193: packing wrote the record and deleted the crate row at once, but the key pointing at the record waited in
+        // the backpack in RAM for the next autosave — a hard server stop in between orphaned the crate's whole contents.
+        string packed;
+        string playerId;
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = Player(server);
+            FilledCrate(server, p);
+            server.MineBlock(p.PlayerId, 1, 200, 0);
+            packed = PackedKey(p);
+            playerId = p.PlayerId;
+        } // the hard stop: no Stop(), no SaveAll — the database is all that is left
+
+        using var reopened = new SqliteWorldRepository(new SaveGamePaths(_root, "carried"));
+        reopened.Initialize();
+        var saved = reopened.LoadPlayer(playerId);
+        Assert.NotNull(saved);
+        Assert.Equal(1, saved.Inventory.CountOf(packed));
+        var record = Assert.Single(reopened.ListContainers("carried"));
+        Assert.Contains(record.Items, s => s.Item == "iron_ore" && s.Count == 10);
+    }
+
+    [Fact]
     public void APackedCrate_OnTheGround_IsPickedUpOnce_AndStillCarriesItsContents()
     {
         var server = Started(out var repo);

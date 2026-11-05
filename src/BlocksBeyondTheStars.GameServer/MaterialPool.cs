@@ -18,17 +18,32 @@ public sealed class MaterialPool
     private readonly GameContent _content;
     private readonly Inventory _personal;
     private readonly Inventory? _cargo;
-    private readonly Inventory _equipment;
+    private readonly Inventory? _equipment;
 
     public MaterialPool(GameContent content, PlayerState player, ShipState ship)
+        // #2110: an upgrade (tank II ← tank I) may consume the piece being worn
+        : this(content, player.Inventory, player.AboardShip ? ship.Cargo : null, player.Equipment)
     {
-        _content = content;
-        _personal = player.Inventory;
-        _cargo = player.AboardShip ? ship.Cargo : null;
-        _equipment = player.Equipment; // #2110: an upgrade (tank II ← tank I) may consume the piece being worn
     }
 
-    public int Count(string item) => _personal.CountOf(item) + (_cargo?.CountOf(item) ?? 0) + _equipment.CountOf(item)
+    private MaterialPool(GameContent content, Inventory personal, Inventory? cargo, Inventory? equipment)
+    {
+        _content = content;
+        _personal = personal;
+        _cargo = cargo;
+        _equipment = equipment;
+    }
+
+    /// <summary>
+    /// #3201: the pool a player-to-player trade counts, takes from and pays into — the backpack and, aboard, the hold, but
+    /// never the worn gear. The #2110 rule that lets an upgrade recipe consume the piece being worn made a worn cloak,
+    /// jetpack or tank tradeable once the backpack held a second copy, and nothing re-applied the gear effects after it
+    /// left: the cloak kept running, oxygen stayed above the new maximum.
+    /// </summary>
+    public static MaterialPool WithoutEquipment(GameContent content, PlayerState player, ShipState ship)
+        => new(content, player.Inventory, player.AboardShip ? ship.Cargo : null, equipment: null);
+
+    public int Count(string item) => _personal.CountOf(item) + (_cargo?.CountOf(item) ?? 0) + (_equipment?.CountOf(item) ?? 0)
         + CountChanged(_personal, item) + CountChanged(_cargo, item) + CountChanged(_equipment, item);
 
     // #2206: a tool or a piece of gear the bio lab changed carries the change in its key and is still that tool — an
@@ -137,7 +152,7 @@ public sealed class MaterialPool
             }
         }
 
-        if (remaining > 0)
+        if (remaining > 0 && _equipment is not null)
         {
             int fromWorn = System.Math.Min(remaining, _equipment.CountOf(item));
             _equipment.Remove(item, fromWorn); // #2110: the worn piece goes last
@@ -283,6 +298,27 @@ public sealed class MaterialPool
             }
 
             if (leftover > 0)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// #3191: true when the pool, after giving <paramref name="give"/> away, can store everything in
+    /// <paramref name="take"/> — the question of a two-way swap (a trade). It runs the real <see cref="Remove"/> and
+    /// <see cref="Add"/> on clones of the containers, so the answer counts every slot the give frees, every top-up and
+    /// every changed or worn piece exactly as the swap itself will. Caller checks <see cref="Has"/> first.
+    /// </summary>
+    public bool CanExchange(IEnumerable<ItemAmount> give, IEnumerable<ItemAmount> take)
+    {
+        var copy = new MaterialPool(_content, _personal.Clone(), _cargo?.Clone(), _equipment?.Clone());
+        copy.Remove(give);
+        foreach (var add in take)
+        {
+            if (copy.Add(add.Item, add.Count) > 0)
             {
                 return false;
             }

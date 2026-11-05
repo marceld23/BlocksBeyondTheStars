@@ -66,16 +66,10 @@ public sealed partial class GameServer
         {
             session.HullColor = intent.Hull; // item 32 (0 = a client that didn't send one — keep the default)
 
-            // Ship-as-object: a repaint while the ship stands on a pad re-announces the parked object, so
-            // everyone on the world (incl. the owner) sees the new hull colour immediately.
-            if (session.Joined && SetActiveWorld(session.CurrentLocationId))
-            {
-                var rec = _worlds.Active.LandedFor(session.State.PlayerId);
-                if (rec.Placed)
-                {
-                    BroadcastToWorld(LandedShipMessage(session.State.PlayerId, rec, removed: false));
-                }
-            }
+            // Ship-as-object: a repaint while the ship stands on a pad re-announces the parked object, so everyone on the
+            // world (incl. the owner) sees the new hull colour — through the hull relay's own bucket (#3196,
+            // GameServerHullRelay.cs): at once for a few changes, then coalesced to one rebroadcast a second.
+            RelayHullChange(session);
         }
     }
 

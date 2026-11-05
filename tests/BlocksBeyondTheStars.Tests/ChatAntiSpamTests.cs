@@ -71,11 +71,11 @@ public sealed class ChatAntiSpamTests : IDisposable
         return (alice, bob);
     }
 
-    /// <summary>Says one line, re-arming the 700 ms slot first — that limit is TickCount-based and is not
-    /// what these tests are about.</summary>
+    /// <summary>Says one line, re-arming the 700 ms slot first — that limit runs on a real-time clock and is not
+    /// what these tests are about (ChatThrottleClockTests covers it, #3187).</summary>
     private static void Say(SvGameServer server, BlocksBeyondTheStars.GameServer.PlayerSession who, string text)
     {
-        who.Chat.LastChatTick = Environment.TickCount - 10_000;
+        who.Chat.LastChatTick = null; // as if the sender had never spoken
         server.Chat(who.State.Name, text);
     }
 
