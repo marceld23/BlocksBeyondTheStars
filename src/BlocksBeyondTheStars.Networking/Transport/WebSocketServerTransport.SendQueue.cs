@@ -135,7 +135,7 @@ public sealed partial class WebSocketServerTransport
             // so the receive loop ends and the server sees the connection leave, instead of a session that gets nothing.
             Volatile.Write(ref client.Closed, 1);
             DrainOutbox(client);
-            try { client.Socket.Abort(); } catch { }
+            AbortConnection(client);
         }
     }
 
@@ -160,7 +160,7 @@ public sealed partial class WebSocketServerTransport
         Interlocked.Increment(ref _slowConsumerDrops);
         LogWarning($"Dropped browser WebSocket connection {client.Id}: it is not reading what the server sends ({why}).");
         DrainOutbox(client);
-        try { client.Socket.Abort(); } catch { }
+        AbortConnection(client);
     }
 
     /// <summary>Per poll: drops every client whose current socket write has been blocked for longer than
