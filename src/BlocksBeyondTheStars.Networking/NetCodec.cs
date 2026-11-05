@@ -932,9 +932,14 @@ public static partial class NetCodec
             return null;
         }
 
+        var body = new ReadOnlyMemory<byte>(payload, bodyOffset, payload.Length - bodyOffset);
+        if (!Lz4DeclarationIsPlausible(body))
+        {
+            return null; // #3190: a declared LZ4 size these bytes cannot produce — dropped before MessagePack allocates it
+        }
+
         try
         {
-            var body = new ReadOnlyMemory<byte>(payload, bodyOffset, payload.Length - bodyOffset);
             return MessagePackSerializer.Deserialize(type, body, Options);
         }
         catch (Exception)

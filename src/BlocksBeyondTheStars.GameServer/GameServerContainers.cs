@@ -87,6 +87,10 @@ public sealed partial class GameServer : IContainerHost
     /// <summary>Test seam: registers a container verbatim (a world loot container or a player crate).</summary>
     public void AddContainerForTest(StoredContainer container) => AddContainer(container);
 
+    /// <summary>Test seam: a player opens the crate screen for a crate on the active world (mirrors the open intent).</summary>
+    public void OpenContainerForTest(PlayerSession session, string containerId)
+        => HandleOpenContainer(session, new OpenContainerIntent { ContainerId = containerId, Open = true });
+
     // IContainerHost: each member delegates to the server's own member of the same name (never to the interface member,
     // which would recurse).
     List<StoredContainer> IContainerHost.ContainerStore => _containers;

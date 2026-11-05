@@ -25,8 +25,11 @@ namespace BlocksBeyondTheStars.GameServer;
 /// Duplication safety rests on three rules: a record key is minted only here (a client-named key is never handed out:
 /// the Sandbox catalog and the admin give strip it), it never stacks (<see cref="GameContent.MaxStackOf"/> answers 1), and
 /// a record is emptied exactly when its key is consumed (a placed crate, an emptied bag). Every write that moves items
-/// between a record and a backpack runs in one transaction with the player's save, so a crash cannot leave the items in
-/// both places.
+/// between a record and a player runs in one transaction with that player's save — placing a packed crate, filling or
+/// emptying a bag, and a player mining a filled transport crate (#3193: the new record and the packed key in the backpack
+/// or the hold) — so a crash cannot leave the items in both places, nor a record that no saved item points at. A key that
+/// fits nowhere goes to the ground as a drop packet, and a crate a crystal drill breaks hands its key to the crate beside
+/// the drill; both are written right after the record.
 /// </para>
 /// </summary>
 internal sealed class CarriedContentsSystem

@@ -66,11 +66,19 @@ public sealed class CustomShipTests : IDisposable
     }
 
     /// <summary>Lays a keel at a fixed column and returns the keel's world cell. The pilot stands beside
-    /// it with instant build, so construction edits need no materials.</summary>
+    /// it with instant build, so construction edits need no materials. The yard the tests build in is cleared
+    /// first: a hull no longer grows through world blocks (#3198), and this column stands under a bush's leaves.</summary>
     private static Vector3i LayKeel(SvGameServer server, BlocksBeyondTheStars.GameServer.PlayerSession pilot)
     {
         int sy = SurfaceY(server, 40, 40);
         var core = new Vector3i(40, sy + 1, 40);
+        for (int x = core.X - 2; x <= core.X + 15; x++) // the 15-block cap row grows along +X
+            for (int y = core.Y; y <= core.Y + 5; y++)
+                for (int z = core.Z - 1; z <= core.Z + 5; z++)
+                {
+                    server.World.SetBlock(new Vector3i(x, y, z), BlockId.Air);
+                }
+
         pilot.State.InstantBuild = true;
         pilot.State.Position = new Vector3f(core.X + 2.5f, core.Y + 1.5f, core.Z + 2.5f);
         server.PlaceShipCoreForTest("Pilot", core.X, core.Y, core.Z);

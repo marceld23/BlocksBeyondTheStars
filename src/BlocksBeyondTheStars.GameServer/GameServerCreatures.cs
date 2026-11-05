@@ -383,7 +383,9 @@ public sealed partial class GameServer
             foreach (var session in targets)
             {
                 var p = session.State;
-                if (HostilesIgnore(p)) // cloaked, god-mode, creative-override (#1121) and Sandbox (#2712) players aren't detected
+                // Cloaked, god-mode, creative-override (#1121) and Sandbox (#2712) players aren't detected — nor is a body awaiting
+                // its respawn choice (#3188): another bite would only replay the death.
+                if (HostilesIgnore(p) || session.Respawn.ChoicePending)
                 {
                     continue;
                 }

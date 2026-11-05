@@ -119,6 +119,37 @@ public sealed class ReconnectAndGhostTests : IDisposable
     }
 
     [Fact]
+    public void Rejoin_WhileTheOldSessionLives_StartsFromItsLatestState_NoLossNoDuplicate()
+    {
+        // #3186: the join read the record BEFORE the eviction saved the old session, so the new session got the last
+        // autosave's backpack — but the hold the eviction had just saved. Items moved into the hold since then existed twice,
+        // and everything gained since then was gone.
+        var transport = new RecordingTransport();
+        var server = NewServer("reconn_state", transport);
+
+        Join(server, 1, "Pilot", "token-a");
+        var old = server.Sessions[1];
+        int diamonds = old.State.Inventory.CountOf("diamond");
+        int ingots = old.State.Inventory.CountOf("iron_ingot");
+        old.State.Inventory.Add("diamond", 64, 1024);
+        server.SaveAllForTest(); // the last autosave: 64 more diamonds in the backpack
+
+        // Since then, in memory only: the 64 diamonds went into the hold, and 10 iron ingots into the backpack.
+        var oldHold = old.Ships[old.ActiveShipId].Cargo;
+        int heldDiamonds = oldHold.CountOf("diamond");
+        old.State.Inventory.Remove("diamond", 64);
+        oldHold.Add("diamond", 64, 1024);
+        old.State.Inventory.Add("iron_ingot", 10, 1024);
+
+        Join(server, 2, "Pilot", "token-a"); // the same player back while the old session still looks alive
+
+        var fresh = server.Sessions[2];
+        Assert.Equal(diamonds, fresh.State.Inventory.CountOf("diamond"));                         // not 64 extra …
+        Assert.Equal(heldDiamonds + 64, fresh.Ships[fresh.ActiveShipId].Cargo.CountOf("diamond")); // … they are in the hold
+        Assert.Equal(ingots + 10, fresh.State.Inventory.CountOf("iron_ingot"));                    // and nothing gained is lost
+    }
+
+    [Fact]
     public void Rejoin_WithAWrongToken_IsStillRefused()
     {
         // Eviction must not become a name-stealing tool: without the right token the live session stands.
