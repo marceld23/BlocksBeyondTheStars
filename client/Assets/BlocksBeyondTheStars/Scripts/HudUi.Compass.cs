@@ -37,8 +37,9 @@ namespace BlocksBeyondTheStars.Client
         private readonly System.Collections.Generic.List<RectTransform> _compassMarkers = new(); // named markers + pings (#1217)
 
         // The radar scanner on the compass (#2292): pooled contact blips, the hostiles in range last frame (a new one pings)
-        // and the other players' positions, read from the presence list at 5 Hz.
-        private const float RadarRange = 48f;
+        // and the other players' positions, read from the presence list at 5 Hz. 64 since #3207 — the server's creature motion
+        // stream reaches as far, and every animal in that circle exists (the 70-block creature leash).
+        private const float RadarRange = 64f;
         private static readonly Color RadarHostileCol = new Color(1f, 0.3f, 0.25f);
         private static readonly Color RadarCreatureCol = new Color(0.4f, 0.95f, 0.45f);
         private static readonly Color RadarPlayerCol = new Color(0.35f, 1f, 0.92f);

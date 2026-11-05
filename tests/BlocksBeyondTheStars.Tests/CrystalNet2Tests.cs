@@ -863,4 +863,41 @@ public sealed class CrystalNet2Tests : IDisposable
             Assert.Equal(CrystalNetRules.MaxNetsPerPlayer + 1, server.CrystalNetSnapshots.Count); // someone else still builds
         }
     }
+
+    /// <summary>#3205: an unwired lift stop (and a lift's own motor) is a lift, not a circuit — a tall lift keeps every one of
+    /// its floors however many there are, and its builder still has the whole share of networks for circuits. Wiring a stop
+    /// into a circuit makes that circuit count like any other.</summary>
+    [Fact]
+    public void ALiftWithMoreStopsThanAShareOfNetworks_KeepsEveryFloor_AndItsBuilderStillBuildsAFullShare()
+    {
+        var server = NewServer(out var repo);
+        using (repo)
+        {
+            var motor = new Vector3i(2, 200, 2);
+            var p = Player(server, "Builder", new Vector3f(6, 203, 2), "lift_motor", "lift_stop", "crystal_conduit");
+            server.PlaceBlock("Builder", motor.X, motor.Y, motor.Z, "lift_motor");
+            int stops = CrystalNetRules.MaxNetsPerPlayer + 2; // more floors than a player's whole share of networks
+            for (int i = 0; i < stops; i++)
+            {
+                int y = motor.Y + 3 + (i * 2); // a floor every other cell (unwired: no two stops touch), up to 269
+                p.State.Position = new Vector3f(6, y, 2);
+                server.PlaceBlock("Builder", 4, y, 2, "lift_stop");
+            }
+
+            Ticks(server, 1.0); // the floors are read
+            Assert.Equal(stops + 1, server.LiftLevelsForTest(motor)!.Count); // every stop is a floor (and the bottom one)
+
+            for (int i = 0; i < CrystalNetRules.MaxNetsPerPlayer; i++)
+            {
+                p.State.Position = new Vector3f(i * 2, 203, 20);
+                server.PlaceBlock("Builder", i * 2, 200, 20, "crystal_conduit"); // islands: a circuit each
+                Assert.NotNull(server.CrystalLevelAt(new Vector3i(i * 2, 200, 20)));
+            }
+
+            var wire = new Vector3i(5, motor.Y + 3, 2); // beside the lowest stop: it would wire it into one circuit more
+            p.State.Position = new Vector3f(7, wire.Y, 2);
+            server.PlaceBlock("Builder", wire.X, wire.Y, wire.Z, "crystal_conduit");
+            Assert.Null(server.CrystalLevelAt(wire)); // the share is full: refused (inert) like any other new circuit
+        }
+    }
 }

@@ -616,7 +616,7 @@ public sealed partial class GameServer
 
     private bool NearVegaPoi(BlocksBeyondTheStars.Shared.Geometry.Vector3f pos)
     {
-        const double r2 = 48.0 * 48.0;
+        const double r2 = 64.0 * 64.0; // #3207: the game's one design radius (was 48)
         for (int i = 0; i < _vaultEntrances.Count; i++)
         {
             var v = _vaultEntrances[i];

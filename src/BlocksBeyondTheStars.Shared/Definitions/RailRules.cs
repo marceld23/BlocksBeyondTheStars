@@ -32,8 +32,9 @@ public static class RailRules
     public const float AutoLinkRange = 32f;
     public const float AutoLinkMaxAngleDeg = 30f;
 
-    /// <summary>The linker gadget couples any two pylons within this many blocks (a branch the auto-link refused).</summary>
-    public const float LinkerRange = 48f;
+    /// <summary>The linker gadget couples any two pylons within this many blocks (a branch the auto-link refused). 64 since
+    /// #3207, the game's one design radius.</summary>
+    public const float LinkerRange = 64f;
 
     /// <summary>A pylon carries at most two links: a line is a path or a loop, never a fork (a fork would need a switch).</summary>
     public const int MaxLinksPerPylon = 2;

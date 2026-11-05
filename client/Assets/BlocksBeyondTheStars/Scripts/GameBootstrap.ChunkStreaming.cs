@@ -172,7 +172,11 @@ namespace BlocksBeyondTheStars.Client
 
             float cull = Mathf.Min(ChunkDrawDistanceBlocks, (vd + 2) * WorldConstants.ChunkSize);
             float collider = Mathf.Min(ChunkColliderDistanceBlocks, cull);
-            float unload = Mathf.Min(ChunkUnloadDistanceBlocks, (vd + 4) * WorldConstants.ChunkSize);
+            // #3208: one chunk past the server's sent-set prune (vd + 4 chunks, measured chunk to chunk). This unload
+            // measures player to chunk centre, which can lie up to ~14 blocks farther, so at exactly (vd + 4) × 16 the
+            // client dropped corner chunks of the near full column (4 chunks out, 3 down/up) that the server still
+            // counted as sent — a hole that never re-streamed until the player walked away and back.
+            float unload = Mathf.Min(ChunkUnloadDistanceBlocks, (vd + 5) * WorldConstants.ChunkSize);
             return (cull, collider, unload);
         }
 

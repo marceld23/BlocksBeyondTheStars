@@ -383,7 +383,9 @@ network (before #2092 a blocked machine latched its own control line ON).
 | Cap | Value | Enforced where |
 |---|---|---|
 | cells per network | 256 | `JoinCrystalNet` — a merge over the cap leaves the new cell inert |
-| networks per world | 64 | `OverCrystalCap` — only a brand-new network counts |
+| networks per world | 64 | `OverCrystalCap` — only a brand-new network counts (`OpensCountedNet`) |
+| networks per player | 32 (half the world's) | `OverCrystalCap` / `CountNets` (#2267) |
+| lifts per owner | 4 | `OverCrystalCap` — a lift's only budget: its motor and stops count as no network (#3205) |
 | sensors per world | 32 | `OverCrystalCap` (step plate, proximity, daylight, storage) |
 | sound devices playing | 8 | `SetCrystalLoop` / `PlayCrystalSound` — no ninth siren |
 | auto-drills / matter senders / fabricators per owner | 4 / 4 / 4 | `OverCrystalCap` |
@@ -395,6 +397,14 @@ network (before #2092 a blocked machine latched its own control line ON).
 Gates (logic block, timer block, Device Eye) never open a network and do not count against the network cap;
 the Device Eye is not a sensor (it reads a device's status, no world query) and does not count against the
 sensor cap.
+
+**Lift parts (#3205).** A lift motor or a lift stop (`CrystalNetRules.IsLiftPart`) is a lift, not a circuit: a cell of
+one never opens a counted network, and `CountNets` skips them like passive ports (`CountsForNetCap`), so the network of
+an unwired stop or of a motor on its own is not counted. Before, every stop of a tall lift opened its own counted
+network — a 16-floor lift used half a player's share, and a stop over the cap registered inert, so its floor silently
+vanished. A new cell beside a lift part whose network holds nothing else is still a brand-new network for the cap
+(`OpensCountedNet` → `NetCountsForCaps`): wiring a lone stop into a circuit makes that network count, so the stops are
+no way around the cap. See [MOVING_BLOCKS.md](MOVING_BLOCKS.md) §5.
 
 A cell over a cap registers **inert**: it exists, it is listed, it does nothing, and the player is told
 (`vega.sys.crystal_cap`); mining something frees the slot. The first conduit a player ever places triggers

@@ -20,8 +20,9 @@ namespace BlocksBeyondTheStars.GameServer;
 public sealed partial class GameServer
 {
     /// <summary>How close the player must be to the region they copy from / paste to (blocks). Generous —
-    /// the corners were aim-selected anyway — but stops remote copying of other people's builds.</summary>
-    private const int BlueprintRangeBlocks = 48;
+    /// the corners were aim-selected anyway — but stops remote copying of other people's builds. 64 since #3207, the
+    /// game's one design radius (the guaranteed full-column streaming radius, so the region is always loaded).</summary>
+    private const int BlueprintRangeBlocks = 64;
 
     /// <summary>Paste cooldown (seconds): a paste is up to 4096 placements in one intent.</summary>
     private const double BlueprintPasteCooldown = 3.0;

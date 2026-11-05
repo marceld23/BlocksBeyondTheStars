@@ -150,7 +150,16 @@ public sealed class GameRules
     public bool KeepInventoryOnDeath { get; set; }
     public bool KeepShipOnDeath { get; set; } = true;
 
+    /// <summary><b>Not implemented yet</b> (#3225): no server code reads this rule, so every value behaves the same.
+    /// It is meant to say whether players may damage what other players built; today that is decided by the base,
+    /// station, factory and landing-pad protections alone. It can be set in <c>server.json</c> (<c>rules</c>) and the
+    /// presets write it, but it changes nothing — implementing it is a separate feature decision.</summary>
     public StructureDamageMode AllowPlayerStructureDamage { get; set; } = StructureDamageMode.Off;
+
+    /// <summary><b>Not implemented yet</b> (#3225): no server code reads this rule, so every value behaves the same.
+    /// It is meant to say whether players' ship weapons may damage other players' ships; today another player's ship is
+    /// no combat target at all, so a ship weapon never hits it. It can be set in <c>server.json</c> (<c>rules</c>) and
+    /// the presets write it, but it changes nothing — implementing it is a separate feature decision.</summary>
     public StructureDamageMode ShipDamageByPlayers { get; set; } = StructureDamageMode.Off;
 
     public bool AdminCheats { get; set; }

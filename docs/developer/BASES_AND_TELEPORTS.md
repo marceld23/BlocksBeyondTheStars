@@ -79,7 +79,7 @@ per partner group, the union of their boxes).
 
 The base list is filtered per recipient on the server (`SendBases` → `SeesBase`): own and allied (or crew) bases always,
 anyone else's only once discovered. Discoveries are saved per player (`PlayerState.DiscoveredBases`, `"body|x|y|z"`). Two ways
-in: walking within `BaseRules.DiscoveryRadius` (48 blocks, horizontal) of a core — checked every 2 s per occupied world in the
+in: walking within `BaseRules.DiscoveryRadius` (64 blocks since #3207, horizontal) of a core — checked every 2 s per occupied world in the
 `TickBaseVisits` step, which also runs the friendly guests — and a Quantum (tier 3) planet scan of the body
 (`DiscoverAllBasesOn`). `NetBase.Relation` tells the client whose base it is (the map's teal / green / amber). An alliance or
 crew change re-sends the lists of both players (piggybacked on `RefreshMarkersFor`). Unchanged on purpose: anyone may still
@@ -157,7 +157,7 @@ chooser read the same ones); the server side is `GameServerBasePads.cs`.
   Everyone, default Allies), table `base_pad`, loaded server-wide at start (`LoadAllBasePads`) because the land chooser asks
   about bodies that are not loaded. Up to `MaxPerBase` (4) per base; the block marks the middle of a 17 × 17 square, the
   size of a communal pad, so every ship fits.
-- **Which base.** The owner's base core on the body nearest to the pad within `ReachXZ` 48 / `ReachY` 32 — worked out live
+- **Which base.** The owner's base core on the body nearest to the pad within `ReachXZ` 64 (48 before #3207) / `ReachY` 32 — worked out live
   (`BaseOfPad`), never stored. The 17³ core zone is exactly one landing square, so a pad cannot sit inside it; it sits in the
   base's reach instead and brings its own protection. A pad whose core was mined is **inactive**: listed to nobody, not
   claimable, a parked ship stays.
@@ -204,7 +204,7 @@ chooser read the same ones); the server side is `GameServerBasePads.cs`.
   player already holds is never closed to them, and nothing moves a parked ship. An admin placing such a block in a
   landing volume is told once per pad and session (#3147, `PlayerSession.PadBuildHints`).
 - **Client.** `Client.Core/BasePadView` groups a list's base pads by base (the land map shows one marker per base at its
-  core — four pads within 48 blocks are one pixel there — and a list on click) and finds a pad by cell; `BasePadUi` is the
+  core — four pads within 64 blocks are one pixel there — and a list on click) and finds a pad by cell; `BasePadUi` is the
   E dialog, `BasePadPreview` the green/red square while the pad is held, `WorldMap.BasePads` the world-map markers.
 
 ## Tests

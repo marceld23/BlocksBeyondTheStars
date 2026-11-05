@@ -46,6 +46,13 @@ Hard rules (CI fails on violations; `locale_report.py --check` finds them first)
   `string.Format` after the key-binding tokens are expanded (`VegaText.Compose`, #2363). There is no
   plural or conditional syntax, so something like `{count?100:100}` is shown to players literally. Where
   the English has a plain number, write the plain number.
+- **Range tokens** (#3206): a distance the code defines is written as a `{range_…}` token — "within
+  `{range_base_pad}` blocks of your base core" — and the locale loader puts the number in when it reads
+  the table (`RangeTokens`, `ContentLoader.ParseLocaleTable`). Keep the token like any other placeholder
+  (never replace it with the number you see in the game): the next balance change then reaches every
+  language at once. A new token needs an entry in `RangeTokens` (`RangeTokensTests` fails on an unknown
+  one). Server messages pass the server's own number as their `{name}` argument instead
+  (`@srv.basepad.no_base:64`).
 - No blank values, no invented keys.
 - Keep formatting characters (`\n`, leading `[`, trailing `:`) intact.
 - No word that mixes Latin and Cyrillic letters ("Uплінк", an Italian "Rottа" whose last letter is a Cyrillic а) and

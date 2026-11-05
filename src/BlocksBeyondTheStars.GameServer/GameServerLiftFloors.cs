@@ -96,7 +96,7 @@ public sealed partial class GameServer
 
         if (LiftMotorOf(cell) is not { } motor)
         {
-            Send(session, new ServerMessage { Text = "@srv.lift.stop_no_shaft" });
+            Send(session, new ServerMessage { Text = LiftStopNoShaftText });
             return;
         }
 

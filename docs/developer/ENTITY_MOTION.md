@@ -35,7 +35,7 @@ Additive wire fields (older peers ignore them; an older server leaves them 0):
 ### The creature motion stream
 
 `CreatureMotionFrame` (tag 301) goes to each player every `CreatureMotionInterval` (0.125 s → every second 15 Hz
-tick, 7.5 Hz) with the animals within `CreatureMotionRange` (48 blocks) of that player. It packs `Stride` = 8
+tick, 7.5 Hz) with the animals within `CreatureMotionRange` (64 blocks since #3207; the compass radar shows the same circle) of that player. It packs `Stride` = 8
 integers per id: X, Y, Z (hundredths of a block), VelX, VelY, VelZ (hundredths of a block/s), the heading
 (thousandths of a radian) and flag bits (`FlagAirborne`, `FlagPerched`). Integers keep both the MessagePack and the
 browser JSON form small (~30 bytes per animal). Farther animals ride the 2 Hz list only. An older client drops the
@@ -190,7 +190,7 @@ that pose, and clears the pilot's interpolation buffer when the pose switches be
 
 | Knob | Where | Value |
 |---|---|---|
-| Motion stream beat / radius | `GameServer.CreatureMotionInterval` / `CreatureMotionRange` | 0.125 s / 48 blocks |
+| Motion stream beat / radius | `GameServer.CreatureMotionInterval` / `CreatureMotionRange` | 0.125 s / 64 blocks |
 | Machine + bandit sync | `EnemyMotionSyncInterval` | 0.125 s |
 | Render delay | `MotionInterpolator.DelayIntervals`, `JitterMargin`, per-user min/max | 1.25 × spacing + 0.05 s |
 | Coast after starvation | `MotionInterpolator.MaxExtrapolation` | ≤ 0.25 s |

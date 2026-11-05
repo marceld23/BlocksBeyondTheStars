@@ -175,7 +175,8 @@ public sealed class CodexTextGuardTests
     {
         foreach (var (key, value) in WikiTable(code))
         {
-            string rendered = WikiMarkup.ToUnityRichText(value, text => LineText.ExpandKeyTokens(text, action => "[" + action + "]"));
+            // The table is read the way the Codex reads it: the loader fills the range tokens first (#3206).
+            string rendered = WikiMarkup.ToUnityRichText(RangeTokens.Fill(value), text => LineText.ExpandKeyTokens(text, action => "[" + action + "]"));
             Assert.False(rendered.Contains('{', StringComparison.Ordinal) || rendered.Contains('}', StringComparison.Ordinal), $"{code}:{key} → {rendered}");
         }
     }

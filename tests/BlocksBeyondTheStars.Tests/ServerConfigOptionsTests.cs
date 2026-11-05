@@ -18,7 +18,7 @@ namespace BlocksBeyondTheStars.Tests;
 [Collection(ServerConfigEnvironmentCollection.Name)]
 public sealed class ServerConfigOptionsTests
 {
-    /// <summary>The 53 environment variables <see cref="ServerConfig.ApplyEnvironment"/> reads, in the order it applies and
+    /// <summary>The 56 environment variables <see cref="ServerConfig.ApplyEnvironment"/> reads, in the order it applies and
     /// reports them.</summary>
     private static readonly string[] HistoricalEnvironmentOrder =
     {
@@ -26,7 +26,7 @@ public sealed class ServerConfigOptionsTests
         "BBS_FLEET_ADMINS", "BBS_ADMIN_PASSWORD", "BBS_ADMIN_BIND", "BBS_ENABLE_WEBSOCKET", "BBS_WEBSOCKET_BIND", "BBS_SAVES",
         "BBS_DATA", "BBS_USERCONTENT", "BBS_DATABASE_PROVIDER", "BBS_POSTGRES_CONNECTION_STRING", "BBS_SEED",
         "BBS_START_PLANET", "BBS_TICK_RATE", "BBS_VIEW_DISTANCE", "BBS_CHUNK_STREAM_PER_TICK", "BBS_CHUNK_STREAM_BUDGET_MS",
-        "BBS_CHUNK_GEN_WORKERS", "BBS_BACKUP_INTERVAL_MINUTES", "BBS_BACKUP_KEEP", "BBS_TICK_TIMING_LOG_SECONDS",
+        "BBS_CHUNK_GEN_WORKERS", "BBS_NEAR_COLUMN_RADIUS", "BBS_NEAR_COLUMN_UP", "BBS_MAX_ANCHORED_CHUNKS", "BBS_BACKUP_INTERVAL_MINUTES", "BBS_BACKUP_KEEP", "BBS_TICK_TIMING_LOG_SECONDS",
         "BBS_FREE_FLIGHT", "BBS_SPACE_COMBAT", "BBS_SHIP_WEAPONS", "BBS_SPACE_NPCS", "BBS_BANDITS", "BBS_AI_LEVEL",
         "BBS_AI_BACKEND_URL", "BBS_AI_TIMEOUT_SECONDS", "BBS_AI_LINES_PER_MINUTE", "BBS_CRASH_REPORT_ENDPOINT",
         "BBS_CRASH_REPORT_KEY", "BBS_NOTIFY_URL", "BBS_BLOCKED_WORDS", "BBS_WATCH_WORDS", "BBS_CHAT_FILTER", "BBS_FESTIVALS",
@@ -44,13 +44,13 @@ public sealed class ServerConfigOptionsTests
     };
 
     /// <summary>Every switch spelling the command line accepts (canonical names and aliases, lower-case, without <c>--</c>).</summary>
-    private static readonly string[] HistoricalSwitches98 =
+    private static readonly string[] HistoricalSwitchSpellings =
     {
         "port", "gameplay-port", "admin-port", "saves", "saves-root", "data", "data-dir", "usercontent", "user-content",
         "no-config", "stdin-stop", "database", "database-provider", "postgres", "postgres-connection",
         "postgres-connection-string", "world", "world-name", "name", "server-name", "max-players", "view-distance",
         "view-distance-chunks", "chunk-stream-per-tick", "chunk-stream-budget-ms", "chunk-budget-ms", "chunk-gen-workers",
-        "backup-interval-minutes", "backup-keep", "free-flight", "space-combat", "ship-weapons", "space-npcs", "password",
+        "near-column-radius", "near-column-up", "max-anchored-chunks", "backup-interval-minutes", "backup-keep", "free-flight", "space-combat", "ship-weapons", "space-npcs", "password",
         "admins", "admin-players", "fleet-admins", "no-player-admins", "seed", "start-planet", "admin-bind", "game-mode",
         "creative-flight", "admin-cheats", "voice", "voice-chat", "chat-filter", "festivals", "chat-mode", "unlock-all-blueprints",
         "start-all-ships", "creative-kit", "guarantee-start-cube", "creatures", "planet-enemies", "ufos", "bandits", "oxygen",
@@ -90,6 +90,9 @@ public sealed class ServerConfigOptionsTests
         { "chunk-stream-budget-ms", "2.5", "chunk-stream-budget-ms" },
         { "chunk-budget-ms", "2.5", "chunk-stream-budget-ms" },
         { "chunk-gen-workers", "7", "chunk-gen-workers" },
+        { "near-column-radius", "5", "near-column-radius" },
+        { "near-column-up", "2", "near-column-up" },
+        { "max-anchored-chunks", "64", "max-anchored-chunks" },
         { "backup-interval-minutes", "7", "backup-interval-minutes" },
         { "backup-keep", "7", "backup-keep" },
         { "free-flight", "true", "free-flight" },
@@ -177,8 +180,8 @@ public sealed class ServerConfigOptionsTests
     {
         var covered = HistoricalSwitches().Select(row => (string)row[0]).ToList();
 
-        Assert.Equal(96, covered.Count);
-        Assert.Equal(HistoricalSwitches98.Except(new[] { "no-config", "stdin-stop" }).OrderBy(s => s, StringComparer.Ordinal),
+        Assert.Equal(99, covered.Count);
+        Assert.Equal(HistoricalSwitchSpellings.Except(new[] { "no-config", "stdin-stop" }).OrderBy(s => s, StringComparer.Ordinal),
             covered.OrderBy(s => s, StringComparer.Ordinal));
     }
 
@@ -331,6 +334,17 @@ public sealed class ServerConfigOptionsTests
         Assert.Equal(ServerConfig.ChunkGenWorkersCeiling, workers.ChunkGenWorkers);
         Assert.Empty(workers.ApplyCommandLine(new[] { "--chunk-gen-workers", "-1" }));
 
+        // #3208 / #3211: negative values are refused, the setters clamp the rest into their ranges.
+        var ranges = new ServerConfig();
+        Assert.Equal(new[] { "near-column-radius", "near-column-up", "max-anchored-chunks" },
+            ranges.ApplyCommandLine(new[] { "--near-column-radius", "99", "--near-column-up", "9", "--max-anchored-chunks", "999999" }));
+        Assert.Equal((ServerConfig.NearColumnRadiusCeiling, ServerConfig.NearColumnChunksUpCeiling, ServerConfig.MaxAnchoredChunksCeiling),
+            (ranges.NearColumnRadiusChunks, ranges.NearColumnChunksUp, ranges.MaxAnchoredChunks));
+        ranges.ApplyCommandLine(new[] { "--near-column-radius", "0", "--near-column-up", "0", "--max-anchored-chunks", "0" });
+        Assert.Equal((ServerConfig.NearColumnRadiusMin, ServerConfig.NearColumnChunksUpMin, 0),
+            (ranges.NearColumnRadiusChunks, ranges.NearColumnChunksUp, ranges.MaxAnchoredChunks));
+        Assert.Empty(ranges.ApplyCommandLine(new[] { "--near-column-radius", "-1", "--near-column-up", "-1", "--max-anchored-chunks", "-1" }));
+
         var perTick = new ServerConfig();
         Assert.Empty(perTick.ApplyCommandLine(new[] { "--chunk-stream-per-tick", "0" }));
         Assert.Empty(perTick.ApplyCommandLine(new[] { "--chunk-stream-budget-ms", "-1" }));
@@ -426,8 +440,8 @@ public sealed class ServerConfigOptionsTests
     [Fact]
     public void Environment_AppliesEveryHistoricalVariableInTheHistoricalOrder()
     {
-        Assert.Equal(53, HistoricalEnvironmentOrder.Length);
-        Assert.Equal(53, HistoricalEnvironmentOrder.Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(56, HistoricalEnvironmentOrder.Length);
+        Assert.Equal(56, HistoricalEnvironmentOrder.Distinct(StringComparer.Ordinal).Count());
 
         // Sample values: valid for each parser. Any non-empty value counts as applied, so the order assertion is
         // unaffected. The classes that reload the config through AdminService.LoadConfig (AdminServiceTests,
@@ -459,6 +473,9 @@ public sealed class ServerConfigOptionsTests
             ["BBS_CHUNK_STREAM_PER_TICK"] = "7",
             ["BBS_CHUNK_STREAM_BUDGET_MS"] = "2.5",
             ["BBS_CHUNK_GEN_WORKERS"] = "7",
+            ["BBS_NEAR_COLUMN_RADIUS"] = "5",
+            ["BBS_NEAR_COLUMN_UP"] = "2",
+            ["BBS_MAX_ANCHORED_CHUNKS"] = "64",
             ["BBS_BACKUP_INTERVAL_MINUTES"] = "7",
             ["BBS_BACKUP_KEEP"] = "7",
             ["BBS_TICK_TIMING_LOG_SECONDS"] = "2.5",
@@ -502,6 +519,7 @@ public sealed class ServerConfigOptionsTests
 
             Assert.Equal(HistoricalEnvironmentOrder, applied);
             Assert.Equal(32000, config.GameplayPort);
+            Assert.Equal((5, 2, 64), (config.NearColumnRadiusChunks, config.NearColumnChunksUp, config.MaxAnchoredChunks));
             Assert.Equal(new[] { "A", "B" }, config.AdminPlayers);
             Assert.Equal("lava", config.StartPlanet);
             Assert.Equal(2.5, config.TickTimingLogSeconds);
@@ -612,9 +630,9 @@ public sealed class ServerConfigOptionsTests
     // --- The option table itself (ServerConfigOptions.All) ---
 
     [Fact]
-    public void Table_HasExactly108Rows_EachWithANameAndHelp()
+    public void Table_HasExactly111Rows_EachWithANameAndHelp()
     {
-        Assert.Equal(108, ServerConfigOptions.All.Count);
+        Assert.Equal(111, ServerConfigOptions.All.Count);
         foreach (var option in ServerConfigOptions.All)
         {
             Assert.True(option.CommandLineName is not null || option.EnvironmentName is not null, "a row needs a switch or a variable");
@@ -642,12 +660,12 @@ public sealed class ServerConfigOptionsTests
             .SelectMany(option => option.CommandLineAliases.Prepend(option.CommandLineName!))
             .ToList();
 
-        Assert.Equal(98, HistoricalSwitches98.Length);
-        Assert.Equal(98, spellings.Count);
+        Assert.Equal(101, HistoricalSwitchSpellings.Length);
+        Assert.Equal(101, spellings.Count);
         Assert.Equal(spellings.Count, spellings.Distinct(StringComparer.Ordinal).Count());
         Assert.All(spellings, name => Assert.Equal(name.ToLowerInvariant(), name));
-        Assert.Equal(HistoricalSwitches98.OrderBy(s => s, StringComparer.Ordinal), spellings.OrderBy(s => s, StringComparer.Ordinal));
-        Assert.Equal(85, ServerConfigOptions.All.Count(option => option.CommandLineName is not null));
+        Assert.Equal(HistoricalSwitchSpellings.OrderBy(s => s, StringComparer.Ordinal), spellings.OrderBy(s => s, StringComparer.Ordinal));
+        Assert.Equal(88, ServerConfigOptions.All.Count(option => option.CommandLineName is not null));
     }
 
     [Fact]
@@ -656,7 +674,7 @@ public sealed class ServerConfigOptionsTests
         var rows = ServerConfigOptions.All.Where(option => option.EnvironmentName is not null).ToList();
 
         Assert.Equal(HistoricalEnvironmentOrder, rows.Select(option => option.EnvironmentName!));
-        // The 52 rows carrying a variable come first; the rest are command-line-only.
+        // The 56 rows carrying a variable come first; the rest are command-line-only.
         Assert.Equal(rows, ServerConfigOptions.All.Take(rows.Count));
 
         var fallbacks = rows
@@ -665,8 +683,8 @@ public sealed class ServerConfigOptionsTests
         Assert.Equal(HistoricalFallbacks.OrderBy(kv => kv.Key, StringComparer.Ordinal), fallbacks.OrderBy(kv => kv.Key, StringComparer.Ordinal));
         Assert.DoesNotContain(HistoricalFallbacks.Values, fallback => HistoricalEnvironmentOrder.Contains(fallback, StringComparer.Ordinal));
 
-        // 56 distinct variable names in all: 52 canonical + 4 fallbacks.
-        Assert.Equal(57, rows.SelectMany(option => option.EnvironmentFallbacks.Prepend(option.EnvironmentName!)).Distinct(StringComparer.Ordinal).Count());
+        // 60 distinct variable names in all: 56 canonical + 4 fallbacks.
+        Assert.Equal(60, rows.SelectMany(option => option.EnvironmentFallbacks.Prepend(option.EnvironmentName!)).Distinct(StringComparer.Ordinal).Count());
     }
 
     [Fact]

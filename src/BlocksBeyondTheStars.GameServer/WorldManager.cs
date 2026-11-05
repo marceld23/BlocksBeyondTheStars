@@ -230,6 +230,10 @@ internal sealed class LoadedWorld
     /// per column instead of once per player per tick (a SurfaceHeight call = a full noise chain each).</summary>
     public Dictionary<(int Cx, int Cz), (int LoCy, int HiCy)> FarColumnBands { get; } = new();
 
+    /// <summary>#3211: the chunks this world keeps resident away from its players (Crystal Nets, lift shafts, base builds)
+    /// and the ones still waiting to be loaded — see <c>GameServerChunkAnchors.cs</c>.</summary>
+    public GameServer.ChunkAnchorState ChunkAnchors { get; } = new();
+
     // #1530: entity-list dirty flags — every Broadcast* call marks, GameServer.FlushEntityLists sends each list at
     // most ONCE per tick (TickCreatures alone used to emit up to five CreatureLists in one tick, and the enemy +
     // bandit sync timers published the same combined list twice per 0.2 s).

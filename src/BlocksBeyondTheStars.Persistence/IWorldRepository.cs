@@ -693,6 +693,13 @@ public interface IWorldRepository : IDisposable
     /// longitude seam must be asked as two boxes.</summary>
     bool TryGetPlayerBlockEditBounds(string planet, Vector3i min, Vector3i max, out Vector3i lo, out Vector3i hi);
 
+    /// <summary>#3211: the distinct chunks (<see cref="WorldConstants.WorldToChunk(Vector3i)"/> of the cells — floor
+    /// division, also for negative coordinates) that hold at least one block edit inside the inclusive box carrying a
+    /// player <see cref="BlockEdit.Owner"/>, at most <paramref name="limit"/> of them, in no particular order. One
+    /// aggregate query, so the server can keep a base's built chunks resident without reading a single voxel.
+    /// Coordinates are canonical — a box that straddles the longitude seam must be asked as two boxes.</summary>
+    IReadOnlyList<ChunkCoord> ListPlayerEditedChunks(string planet, Vector3i min, Vector3i max, int limit);
+
     /// <summary>#1865: every stored edit inside the inclusive box whose block is one of <paramref name="blocks"/>
     /// OR whose packed shape descriptor carries one of <paramref name="shapeIndices"/> (the 6-bit form index,
     /// <c>(shape &gt;&gt; 2) &amp; 63</c>) — capped at <paramref name="limit"/> rows. Air edits never match. A base

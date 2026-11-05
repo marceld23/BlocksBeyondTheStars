@@ -40,7 +40,8 @@ public sealed partial class GameServer
 
     /// <summary>A pad within this horizontal distance (blocks) of a player — or of the owner's base, for the hail — is "right
     /// here" (#3175): the toast says "look up!", the hail "parked near your base". Farther away both name the distance and the
-    /// direction. A base's own pads always count as near it (they stand at most <see cref="BasePadRules.ReachXZ"/> out per axis).</summary>
+    /// direction. A base's own pads always count as near it — they ARE the base (<see cref="TraderFarFromOwnBase"/> skips them;
+    /// at <see cref="BasePadRules.ReachXZ"/> out on both axes a pad's corner lies farther than this radius).</summary>
     internal const float TraderNearbyRadius = 80f;
 
     /// <summary>The once-flag id prefix of the #3175 VEGA hint: <c>market_pad:&lt;body&gt;|x|y|z:&lt;reason&gt;</c>, one per base and
