@@ -11,6 +11,76 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.7] — 2026-11-06
+
+The dark-caves release. **Caves, dug tunnels and nights are dark again** — take the suit lamp or a torch; tree shade and
+houses keep their look, and a new setting helps if it is too dark. The **chat opens as a big window** in the middle of the
+screen. **Ships, towns, stations and skins can be submitted** from the editors, just like textures. **Rail pylons link
+straight across the planet's seam**, a **penned pet stays in its pen**, the **landing and lift-off scenes never put the camera
+inside buildings**, the **world list opens at once** even with hundreds of worlds, the loading screen **says what the world
+is doing**, and **every editor text fits** in all 14 languages. Thank you, Lyxette, for the reports!
+
+ℹ️ **Compatibility:** no new blocks — the **save version stays at 11**, the terrain generation at **32** and the network
+protocol at **version 11**. The light of covered places is re-baked on load (nothing in your save changes). As always, keep
+game and server on the same version: the desktop game updates itself at start, and the browser is always current.
+
+### 🌑 Dark caves, tunnels and nights (#3265)
+
+- **Underground is dark:** a tunnel you dig or a cave you walk into used to be lit like the shade under a tree — every
+  place up to six blocks under the surface got the same light. Now only the nearest opening lets light in: it fades over
+  the first eight blocks from a cave mouth, and deeper inside it is dark — never pitch black, outlines stay faintly
+  visible. The suit lamp, torches and glowing cave plants light it up.
+- **The eyes adapt less:** the automatic eye adaptation used to brighten every dark scene almost back to dusk. Underground
+  it now helps only a little and slowly (about five seconds), at night above ground even less — nights are darker and
+  feel like night. Tree shade and houses by day look as before.
+- **Creatures and players** in a cave or at night no longer glow as if in daylight; cave water and glass no longer mirror
+  the noon sky; a lit camp in a cave stays cosy, and your own base stays dimly cosy without lamps.
+- **New setting "Visibility in the dark"** (Settings → Graphics) for anyone who finds it too dark.
+- **VEGA** reminds you of the lamp and torches from three blocks of rock overhead.
+
+### 💬 A big chat window (#3264)
+
+- Press **Enter** and the chat opens as a large, half-transparent window in the middle of the screen — twice as wide,
+  with 200 lines of history, a scrollbar and a "New messages ↓" marker. After a command like `/help` it stays open so you
+  can read the answer; **Esc** closes it.
+- While it is closed, new messages still appear in the small strip on the left. The window makes room for VEGA when she
+  speaks, and with a gamepad it sits above the on-screen keyboard.
+
+### 🚀 Submit ships, towns, stations and skins (#3262)
+
+- The **Ship Designer**, the **Station and Town editors** and the **Avatar Designer** have a **Submit** button, like the
+  texture editor: your creation goes to the developers with a preview picture; after a review it can come into the game
+  for everyone. Everything is checked by a person first, and you choose whether your nickname is shown.
+- The avatar export now keeps your face and body paint; editor texts no longer tell you to run developer tools.
+
+### 🚆 Rails and fences (#3256, #3257)
+
+- **Straight pylon lines across the planet's seam** — where the world wraps around — reported "too sharp" and refused
+  to link (Lyxette). Fixed, including the train's path over the seam.
+- A new pylon now also links to the **nearest free line end** when it cannot link to the one you placed last — fill
+  gaps, extend the other end. When nothing is in range, the game tells you to use the **Rail Linker**.
+- **Energy fence:** the texts now explain it properly — a gapless ring, edge to edge, one block high is enough, no
+  power needed, an energy gate as the entrance. Your **own pet stays in its pen** instead of jumping after you.
+
+### 🎬 Landing and lift-off between buildings (#3258)
+
+- On a pad between buildings, the cinematic camera could end up inside a wall and everything around the ship vanished.
+  The scenes now check every camera spot and path against the blocks first, pick a free one (also high above the roofs),
+  and switch to the **cockpit view** for exactly the part where buildings are in the way.
+
+### ⏳ Faster start (#3259, #3260, #3261)
+
+- **Singleplayer** opens the world list at once, even with hundreds of saved worlds (it used to freeze the menu for
+  seconds); while the list is read, "Loading worlds…" spins.
+- The **loading screen says what the world is doing** — "Searching for landing sites…", "Building settlements…",
+  "Settlers are moving in…" — and the game prepares its graphics while the world is being built.
+
+### 🔤 Editor texts that fit (#3263)
+
+- No button text in the editors is cut, broken mid-word or squeezed to tiny letters any more — in all 14 languages. The
+  texture editor's tools sit three to a row, the town editor's values have room, hints wrap, and default names and
+  error lines are translated.
+
 ## [2026.11.6] — 2026-11-06
 
 The sound-and-light release. **Every sound is levelled and mixed anew**: animals rustle, call to each other and fall
@@ -10110,7 +10180,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.6...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.7...HEAD
+[2026.11.7]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.6...v2026.11.7
 [2026.11.6]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.5...v2026.11.6
 [2026.11.5]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.4...v2026.11.5
 [2026.11.4]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.3...v2026.11.4

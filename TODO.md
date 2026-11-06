@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 📬 Reports 2026-11-06 + Marcel's findings — rails across the seam, fence pens, the cinematic camera between buildings, a fast world list, boot stages on the loading screen, dark caves and nights, a big chat window, submitting ships/towns/skins, editor texts that fit — #3256–#3265, branch fix/reports-and-singleplayer-wait-2026-11-06 — ✅ done 2026-11-06 in PR #PRNUM (`MERGESHA`) (⚠ playtest open; no save-version, protocol or terrain-generation change; ReportHost change → the reports image must be deployed before the client release)
+### 📬 Reports 2026-11-06 + Marcel's findings — rails across the seam, fence pens, the cinematic camera between buildings, a fast world list, boot stages on the loading screen, dark caves and nights, a big chat window, submitting ships/towns/skins, editor texts that fit — #3256–#3265, branch fix/reports-and-singleplayer-wait-2026-11-06 — ✅ done 2026-11-06 in PR #3266 (`bc32729d`), released in v2026.11.7 (⚠ playtest open; no save-version, protocol or terrain-generation change; ReportHost change → the reports image must be deployed before the client release)
 
 - **#3256** (Lyxette) Straight rail pylons refused to auto-link with "too sharp": the direction of a line's last link was
   taken from raw cell coordinates while the new one was wrapped — across the world's X seam a straight line read as a
