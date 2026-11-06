@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 using UnityEngine;
 
@@ -44,6 +45,14 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>1 under the open sky … 0 underground / indoors, eased over ~0.5 s.</summary>
         public float CameraExposure { get; private set; } = 1f;
 
+        /// <summary>#3265: 1 underground — at least <see cref="EyeAdaptationRules.UndergroundCover"/> light-stopping blocks over
+        /// the head, rock not leaves — … 0 above ground (open sky, a forest, a house), eased over ~0.5 s. The dark-only terms
+        /// (the adaptation's underground cap, the models' light, the cosy damping) key on this, not on
+        /// <see cref="CameraExposure"/>, which is 0 under any tree crown too.</summary>
+        public float UndergroundFactor { get; private set; }
+
+        private bool _underground;
+
         /// <summary>0 (pitch dark) … 1 (full daylight) estimate of the light at the player.</summary>
         public float SceneBrightness { get; private set; } = 1f;
 
@@ -83,6 +92,7 @@ namespace BlocksBeyondTheStars.Client
             Probe(force: true);
             FogFloor = _fogFloorTarget;
             CameraExposure = Game != null && Game.ExposedToSky ? 1f : 0f;
+            UndergroundFactor = _underground ? 1f : 0f;
             AdaptationEv = _adaptTarget;
             UrpScenePost.Instance?.SetAdaptation(AdaptationEnabled ? AdaptationEv : 0f);
         }
@@ -112,6 +122,7 @@ namespace BlocksBeyondTheStars.Client
 
             bool exposed = Game.ExposedToSky && !Game.SpaceViewActive;
             CameraExposure = Mathf.MoveTowards(CameraExposure, exposed ? 1f : 0f, dt * 2f);
+            UndergroundFactor = Mathf.MoveTowards(UndergroundFactor, _underground && !Game.SpaceViewActive ? 1f : 0f, dt * 2f);
 
             // #2401: a slow stream of bubbles rises past the visor while submerged — a few a second, drifting up.
             if (BubblesEnabled && Camera != null && !Game.SpaceViewActive && Game.IsWaterAt(Camera.transform.position))
@@ -259,12 +270,29 @@ namespace BlocksBeyondTheStars.Client
             SceneBrightness = Mathf.Clamp01(Mathf.Max(daylight, interior, lamp, 0.03f));
 
             // Dark earns a boost; a lit room or daylight earns nothing. Night under the open sky counts as dark too, which
-            // lets the eyes "get used to" a moonless night — #3265: but only +0.2 EV there and +0.35 EV underground ("Visibility
-            // in the dark" raises that), so neither is brightened back toward dusk.
+            // lets the eyes "get used to" a moonless night — #3265: but only +0.2 EV above ground at night and +0.35 EV
+            // underground ("Visibility in the dark" raises that), so neither is brightened back toward dusk. Above ground by day
+            // (a forest floor, a house) the boost is the old one — the crowns close the probe's columns, but it is no cave.
             // #3230: with the suit lamp lit the eyes adapt to the lit spot — the dark around the beam earns less of the boost
             // and reads darker (the shaders' dark floor keeps it readable).
-            bool openSky = Game.ExposedToSky && !Game.SpaceViewActive;
-            _adaptTarget = EyeAdaptationRules.Target(SceneBrightness, Headlamp.LocalLit, openSky, DarkVisibility, ReducedEffects);
+            _underground = !Game.SpaceViewActive && SkyStoppersOverhead(world, content, px, py, pz) >= EyeAdaptationRules.UndergroundCover;
+            _adaptTarget = EyeAdaptationRules.Target(SceneBrightness, Headlamp.LocalLit, _underground, day, DarkVisibility, ReducedEffects);
+        }
+
+        /// <summary>#3265: light-stopping blocks (rock, opaque cubes — not leaves, plants, glass or water) over the head, counted
+        /// up to <see cref="EyeAdaptationRules.UndergroundCover"/>.</summary>
+        private static int SkyStoppersOverhead(ClientWorld world, GameContent content, int px, int py, int pz)
+        {
+            int count = 0;
+            for (int y = py + 2; y <= py + ProbeUp && count < EyeAdaptationRules.UndergroundCover; y++)
+            {
+                if (world.TryGetBlock(px, y, pz, out var id) && ChunkMesher.StopsSky(content, id))
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
     }
 }

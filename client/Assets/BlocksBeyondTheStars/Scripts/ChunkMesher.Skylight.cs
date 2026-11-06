@@ -30,6 +30,12 @@ namespace BlocksBeyondTheStars.Client
             return field;
         }
 
+        /// <summary>#3265: whether <paramref name="id"/> stops the daylight coming down — rock, an opaque cube; leaves, plants,
+        /// glass and water do not. The same rule as the build's skylight, for readers outside a build (the eye adaptation's
+        /// "underground" probe).</summary>
+        public static bool StopsSky(BlocksBeyondTheStars.Shared.Content.GameContent content, BlockId id)
+            => content != null && TraitsFor(content).StopsSkyFn(id);
+
         private sealed partial class BlockTraits
         {
             private System.Func<BlockId, bool> _stopsSkyFn;

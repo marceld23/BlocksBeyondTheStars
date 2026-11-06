@@ -48,7 +48,9 @@ namespace BlocksBeyondTheStars.Client
         {
             Shader.SetGlobalFloat(DarkFloorId, DarkLightRules.DarkFloor(DarkVisibility));
             float luma = 0.299f * linearLight.r + 0.587f * linearLight.g + 0.114f * linearLight.b;
-            float exposure = Probe != null ? Probe.CameraExposure : 1f;
+            // Above ground = 1 (a forest floor at noon keeps daylit models), underground = 0 — not CameraExposure, which a
+            // tree crown closes too.
+            float exposure = Probe != null ? 1f - Probe.UndergroundFactor : 1f;
             _modelLight = DarkLightRules.ModelLight(luma, exposure, interiorFill, DarkVisibility);
             Shader.SetGlobalFloat(ModelLightId, _modelLight);
         }
@@ -62,9 +64,10 @@ namespace BlocksBeyondTheStars.Client
             Shader.SetGlobalFloat(DarkFloorId, DarkLightRules.DarkFloor(DarkVisibility));
         }
 
-        /// <summary>#3265: a dark cave is no cosy place — the cosy grade's lift and softening fade with the camera's exposure
-        /// (to 30 % underground), unless a lamp, torch or campfire lights the spot (a lit camp in a cave stays cosy).</summary>
+        /// <summary>#3265: a dark cave is no cosy place — the cosy grade's lift and softening fade underground (to 30 %, by the
+        /// probe's <see cref="AtmosphereProbe.UndergroundFactor"/>; a forest or a house stays cosy), unless a lamp, torch or
+        /// campfire lights the spot (a lit camp in a cave stays cosy).</summary>
         private float DarkPlaceFactor(bool lampLit)
-            => lampLit || Probe == null ? 1f : Mathf.Lerp(0.3f, 1f, Probe.CameraExposure);
+            => lampLit || Probe == null ? 1f : Mathf.Lerp(1f, 0.3f, Probe.UndergroundFactor);
     }
 }

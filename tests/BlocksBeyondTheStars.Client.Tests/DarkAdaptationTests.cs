@@ -15,32 +15,41 @@ public sealed class DarkAdaptationTests
     [Fact]
     public void TheDarkUnderground_EarnsOnlyTheUndergroundCap()
     {
-        Assert.Equal(EyeAdaptationRules.UndergroundCapEv, EyeAdaptationRules.Target(0.03f, false, exposedToSky: false, 0f, false), 4);
-        Assert.Equal(EyeAdaptationRules.UndergroundCapEvMax, EyeAdaptationRules.Target(0.03f, false, exposedToSky: false, 1f, false), 4);
+        Assert.Equal(EyeAdaptationRules.UndergroundCapEv, EyeAdaptationRules.Target(0.03f, false, underground: true, day: 1f, 0f, false), 4);
+        Assert.Equal(EyeAdaptationRules.UndergroundCapEvMax, EyeAdaptationRules.Target(0.03f, false, underground: true, day: 0f, 1f, false), 4);
     }
 
     [Fact]
-    public void AMoonlessNightUnderTheOpenSky_EarnsLessThanACave()
-        => Assert.Equal(EyeAdaptationRules.OpenSkyCapEv, EyeAdaptationRules.Target(0.03f, false, exposedToSky: true, 1f, false), 4);
+    public void AMoonlessNightAboveGround_EarnsLessThanACave()
+        => Assert.Equal(EyeAdaptationRules.OpenSkyCapEv, EyeAdaptationRules.Target(0.03f, false, underground: false, day: 0f, 1f, false), 4);
+
+    [Fact]
+    public void ForestOrRoofShadeByDay_KeepsTheFullBoost()
+    {
+        // A forest floor at noon is dark for the probe (the crowns close the 3×3 columns) but no cave: the boost it earned
+        // before #3265 stays, so the canopy shade keeps its look.
+        Assert.Equal(EyeAdaptationRules.DarkBoost(0.05f, false), EyeAdaptationRules.Target(0.05f, false, underground: false, day: 1f, 0f, false), 4);
+        Assert.True(EyeAdaptationRules.Cap(false, 1f, 0f) > EyeAdaptationRules.Cap(true, 1f, 0f));
+    }
 
     [Fact]
     public void DaylightAndALitRoom_EarnNothing()
     {
-        Assert.Equal(0f, EyeAdaptationRules.Target(0.9f, false, true, 0f, false));
-        Assert.Equal(0f, EyeAdaptationRules.Target(0.6f, false, false, 1f, false)); // a cabin's interior fill
+        Assert.Equal(0f, EyeAdaptationRules.Target(0.9f, false, false, 1f, 0f, false));
+        Assert.Equal(0f, EyeAdaptationRules.Target(0.6f, false, false, 1f, 1f, false)); // a cabin's interior fill
     }
 
     [Fact]
     public void ALitLamp_EarnsLessThanTheDarkAroundIt()
     {
-        float withLamp = EyeAdaptationRules.Target(0.03f, lampLit: true, exposedToSky: false, 0f, false);
+        float withLamp = EyeAdaptationRules.Target(0.03f, lampLit: true, underground: true, day: 1f, 0f, false);
         Assert.True(withLamp > 0f && withLamp < EyeAdaptationRules.UndergroundCapEv, $"lamp-lit boost {withLamp}");
         Assert.Equal(EyeAdaptationRules.DarkBoost(HeadlampRules.AdaptationBrightness, false), withLamp, 5);
     }
 
     [Fact]
     public void ReducedEffects_HalveTheCeiling()
-        => Assert.Equal(EyeAdaptationRules.MaxEv * 0.5f, EyeAdaptationRules.Target(0f, false, false, 1f, reducedEffects: true), 4);
+        => Assert.Equal(EyeAdaptationRules.MaxEv * 0.5f, EyeAdaptationRules.Target(0f, false, true, 0f, 1f, reducedEffects: true), 4);
 
     [Fact]
     public void TheEyes_AdaptToTheDarkInAboutFiveSeconds_AndSquintBackQuickly()

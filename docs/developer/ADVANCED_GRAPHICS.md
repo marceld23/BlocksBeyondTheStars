@@ -246,8 +246,11 @@ moonless night ≈ 18 % (was 28 %).
   sun glint darkened by it, and the haze gets the real value. Open water is unchanged.
 - **Haze underground:** `BbtsHazeAmountScaled` × `lerp(saturate(sky·2), 1, camera exposure)` (not under water) — a long
   tunnel's far end no longer sinks into a bright sky-coloured veil.
-- **Eye adaptation** (`EyeAdaptationRules`, Client.Core): the dark's boost (up to +0.9 EV) is capped at +0.35 EV with no
-  open sky overhead and +0.2 EV under the open night sky; toward the dark at 0.07 EV/s (~5 s to the cap), toward the
+- **Eye adaptation** (`EyeAdaptationRules`, Client.Core): the dark's boost (up to +0.9 EV) is capped at +0.35 EV
+  underground — `AtmosphereProbe.UndergroundFactor`: at least three sky-stopping blocks over the head (rock, not leaves,
+  glass or water; `ChunkMesher.StopsSky`) — and above ground eases from +0.2 EV at night to the old +0.9 EV by day, so a
+  forest floor or a house at noon keeps its look (`ExposedToSky` is false under any tree crown, so it is not the signal;
+  the models' light and the cosy damping key on `UndergroundFactor` too); toward the dark at 0.07 EV/s (~5 s to the cap), toward the
   light still 2.5 EV/s. `HeadlampRules.AdaptedBrightness` still counts a lit lamp as light. The `[Atmosphere]` capture
   log line carries `adaptEv` and `modelLight`.
 - **Models** (`LitColor`: creatures, avatars, doors, held items): key light, floor and fill × `_Sc_ModelLight`
