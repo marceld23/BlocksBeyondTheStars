@@ -11,6 +11,107 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.6] — 2026-11-06
+
+The sound-and-light release. **Every sound is levelled and mixed anew**: animals rustle, call to each other and fall
+silent in a storm, your steps follow your pace, the ship hums like a place, flight roars in layers, and space sounds like
+space. The **suit lamp is a real light** now — a calm LED beam that fades with distance, glints on wet rock, shows its beam
+in fog and lights up the other players' lamps too. **Lifts reach 256 blocks** — a space elevator — and ride smoothly.
+**Clouds no longer jump**, gales blow real grit, many ranges grew from 48 to 64 blocks, and a long list of server fixes
+makes reconnects, trades, crates and public worlds safer. Thank you, Lyxette and Justus, for the reports!
+
+ℹ️ **Compatibility:** no new blocks — the **save version stays at 11**, the terrain generation at **32** and the network
+protocol at **version 11**. Server messages now carry their ranges as numbers, so a new game on an older self-hosted
+server shows a raw `{name}` in four messages. As always, keep game and server on the same version: the desktop game
+updates itself at start, and the browser is always current.
+
+### 🔊 Sounds that make the world feel alive (#3237–#3249)
+
+- **Levelled and mixed:** every sound effect is levelled to its kind, so mining stone, the scrap pistol, a landing or
+  drizzle are no longer near-silent next to loud neighbours. The master volume no longer counts twice, and the flight
+  engine follows the **Effects volume** slider. Sounds carry as far as their size (a click stays close, a launch carries far),
+  a roof muffles what happens outside, and only a few creatures, footsteps and players sound at once.
+- **Your body:** steps follow your pace (sneaking, walking, running) with three takes per surface that never repeat back
+  to back, and five new surfaces — wood, leaves, shallow water, grating and crystal. A landing sounds as hard as the fall.
+  Water splashes in and out, swim strokes, bubbles and a gasp after a long dive; a light breath and heartbeat when it gets
+  tough. Other players' steps can be heard.
+- **Space:** on airless bodies and on a spacewalk there is no wind and no weather, only a soft suit hum; far sounds come
+  muffled, what you touch sounds clear, and the **suit thrusters** puff. No sonic boom where there is no air.
+- **Animals:** the nearest animals step, flap, slither, splash and graze — never more than a few at once. Herds answer an
+  **alarm call**, content animals hum, the young beg, there is a **dawn chorus**, a hush in rain and storm and a burst of
+  calls when the storm ends. In combat each species uses its own voice. When it is quiet, the planet's species call from
+  far away. New voices: ethereal, insect, biped and spider calls.
+- **The ship as a place:** its hum comes from its design, modules sound where they stand, the hull ticks while it cools
+  after a landing, creaks below 30 % and drums in the rain; a parked ship can be heard from outside.
+- **Flight:** a layered engine (idle, thrust, afterburner), manoeuvring puffs, cockpit and outside sound, other ships'
+  engines with a Doppler sweep and their shots, a shield-recharge sound and hits that sound as heavy as they are.
+- Sounds that were never played now are: decontamination, the ship's weapon, the auto-drill, doors opening and closing,
+  NPC acknowledgements and the animals' idle calls. 73 new sound clips.
+
+### 🔦 The suit lamp is a real light (#3229–#3234)
+
+- A calm, slightly cool **LED beam**: a bright 12° centre with a soft spill instead of light across the whole screen. It
+  fades with distance like real light (rock 10 m away is about ten times darker than at arm's length), comes from the
+  helmet and **glints** on glossy faces and water. The flat cone in front of the camera is gone.
+- In caves dust drifts in the beam; your eyes adapt to the lamp, so the dark around it reads a little darker.
+- **Third person** and the speeder's chase camera light from your avatar's helmet, and the lamp glows.
+- On the **High** preset the beam shows in fog and dusty caves and ends at the wall it hits, and blocks cast **lamp
+  shadows** — switch them in **Settings → Graphics → Details (High) → Suit lamp shadows**.
+- **Other players' lamps** light the world around them too (the nearest four).
+
+### 🛗 A space elevator (#3204, #3205, #3220)
+
+- **Lifts reach 256 blocks.** The platform starts gently, speeds up to 12 blocks a second and slows down before the stop:
+  short rides keep their old pace, the full height takes about 23 seconds instead of 85. A block in the shaft stops the
+  platform below it with an amber light instead of refusing the ride. A floor needs two free blocks above the platform.
+- Lift stops and motors no longer count against your crystal-network limit.
+- An **open lift gate** is now a sill on the floor — only its bottom rail stays — instead of looking like a second
+  platform. The gate is hip-high, not knee-high.
+
+### 🌦️ Calm clouds and real gale grit (#3202, #3203, #3212, #3215)
+
+- **Clouds no longer jump** or whirl when the weather or the wind changes; they drift steadily and the weather eases
+  over a few seconds. Rain and snow follow the wind's direction.
+- **Gales** blow thin streaks of grit instead of large brown squares: white spindrift on ice, rust on red deserts, darker
+  at night, never under a roof. The gale chip shows 〰.
+- Only dry sand worlds get sandstorms; archipelagos, coral and rainbow seas get rain.
+
+### 📏 Wider ranges (#3206–#3211, #3213, #3214)
+
+- Many reaches grew from **48 to 64 blocks**: base pad reach and discovery, blueprint copies, docking and ship visits, the
+  rail linker, the radar, the bio sampler, VEGA's points of interest, `/bump`, the drone's sky scan and more. Texts now
+  name the real number in every language.
+- The world around you streams in full columns a little further (a host setting), crystal networks, lift shafts and
+  your base stay loaded while you are on the same planet, and other players are seen as far as your view distance.
+- Base walls are checked in the background in larger bases; hints, Codex and tutorial no longer say "up to 48".
+
+### 🧭 HUD and board jobs (#3217–#3219, #3227)
+
+- The right-hand column is tidy: the compass captions no longer show through the clock, the weather and festival chips
+  get their own row, and the playtime uses two lines. No language runs off the screen any more.
+- **Base board jobs** now tell of a neighbour's or visitor's need — the toolmaker next door, the beekeeper down the road,
+  the lighthouse keeper on the cliffs — instead of your own base.
+
+### 🛡️ Fair and safe on every server (#3186–#3201, #3221–#3226, #3250)
+
+- **Reconnecting** while the old connection still hangs no longer rolls back or duplicates items, and a failed save can
+  no longer lock you out with a ghost session. A body waiting for the respawn choice is not killed again.
+- **Trades** check both sides first and refuse when something wouldn't fit instead of destroying it; worn gear is never
+  traded, and only one trade or invitation runs at a time.
+- Mining a filled transport crate is saved in one step; an open crate screen no longer empties when something changes on
+  another world.
+- Every new ship gets its own id — no ship is overwritten after a keel was dismantled. Keel sites and **parked ships**
+  can't grow into a foreign base, a landing pad, a station, a factory, another ship or the ground.
+- Chat, `/report` and `/bump` keep working on servers that run for weeks. Far-away block edits are refused before the
+  world is touched (`@out_of_reach`). `/tp` and `/goto` refuse impossible targets.
+- **Public worlds:** oversized packets are dropped, connections that never join are closed after 30 seconds, slow
+  browser connections can't pile up memory, hull-colour changes are throttled, and a dropped browser connection is closed
+  properly on Linux servers too.
+
+### 🌍 Languages
+
+- All new and changed texts in all 14 languages.
+
 ## [2026.11.5] — 2026-11-05
 
 The floor-picker release. **Lifts take you to the floor you choose**, devices show the **names** you give them, and a
@@ -10009,7 +10110,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.5...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.6...HEAD
+[2026.11.6]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.5...v2026.11.6
 [2026.11.5]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.4...v2026.11.5
 [2026.11.4]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.3...v2026.11.4
 [2026.11.3]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.2...v2026.11.3
