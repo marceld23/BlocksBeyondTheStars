@@ -419,7 +419,11 @@ float3 BbtsHazeTerms(float3 wp, float skylight, float heightScale, bool noise)
 float BbtsHazeCombine(float3 terms, float skylight)
 {
     float covered = _Sc_Underwater.x > 0.5 ? 1.0 : lerp(saturate(skylight * 2.0), 1.0, saturate(_Sc_FogHeight.w));
-    return (1.0 - (1.0 - terms.x) * (1.0 - terms.y) * (1.0 - terms.z)) * _Sc_Fog.z * covered;
+    float veil = (1.0 - (1.0 - terms.x) * (1.0 - terms.y)) * _Sc_Fog.z * covered;
+    // #3272: the cloud band fills a slot canyon as much as an open slope, so the skylight does not mask it (the capture of a
+    // ridge in rain stood in the cloud with nothing to see); its own camera gate (_Sc_MistCam.w: 0 underground, aboard and
+    // under water, inside BbtsBandAmount) keeps it out of caves. With the camera in the open both forms are identical.
+    return 1.0 - (1.0 - veil) * (1.0 - terms.z * _Sc_Fog.z);
 }
 
 // 0..1 haze at world position `wp`. `skylight` is the fragment's own sky exposure (0 cave … 1 open); surfaces that
