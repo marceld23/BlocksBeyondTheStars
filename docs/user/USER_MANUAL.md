@@ -505,6 +505,20 @@ separate unlock; admins can still disable it through server world rules.
 - **Codex and DataQubes screens** — use the top-right **Close** button, **Esc**, or **Tab** to return to play.
   **< Menu** returns from the full-screen screen to the normal Tab menu.
 
+### Quality preset (Settings → Graphics)
+
+- **Potato · Low · Medium · High** — how much the graphics may cost. You can pick any of them at any time; the game
+  never locks one.
+- **Automatic on a new install:** the game picks the preset itself until you choose one by hand. The desktop client
+  starts on **Medium**, the browser and tablets on **Low**. Each start it watches how smoothly the menu runs and moves
+  one step at most: down when even the menu struggles, up to **Medium** when there is room. **High** comes only after
+  the game has measured about half a minute of real play on Medium with room to spare. It then switches at the **next start**,
+  never while you play. A laptop running on battery does not step up.
+- **Your choice wins:** once you pick a preset yourself, the game never changes it again. A game you already had keeps
+  the preset it had before this update.
+- **When the world runs slowly** (well under 25 frames per second for half a minute), a short note says that a lower
+  preset or a shorter view distance helps. It shows once per session and changes nothing by itself.
+
 ### View distance and far view (Settings → Graphics)
 
 - **View distance (chunks, 1–16)** — how far the real, walkable world streams around you. It costs the most:

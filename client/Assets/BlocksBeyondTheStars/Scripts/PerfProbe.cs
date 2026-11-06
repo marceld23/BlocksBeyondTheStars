@@ -206,7 +206,7 @@ namespace BlocksBeyondTheStars.Client
                 if (!string.IsNullOrEmpty(_presetOverride)
                     && Enum.TryParse<QualityPreset>(_presetOverride, ignoreCase: true, out var qp))
                 {
-                    shell.Settings.Preset = qp;
+                    shell.Settings.Preset = qp; // the calibration is off on probe runs (AutoQualityCalibrator.Enabled)
                 }
 
                 if (_vdOverride > 0)
@@ -487,6 +487,10 @@ namespace BlocksBeyondTheStars.Client
             public float p95Ms;
             public float p99Ms;
             public float maxMs;
+            // #3280/#3283: FrameTimingManager breakdown, p50/p90 in ms (0 = the platform reports none): the GPU time,
+            // the main thread's wait for Present (VSync slack), the main and the render thread.
+            public float gpuP50Ms, gpuP90Ms, presentWaitP50Ms, presentWaitP90Ms;
+            public float cpuMainP50Ms, cpuMainP90Ms, cpuRenderP50Ms, cpuRenderP90Ms;
             public int framesOver33Ms;
             public int framesOver100Ms;
             public int gcGen0;
@@ -515,6 +519,7 @@ namespace BlocksBeyondTheStars.Client
         {
             Debug.Log($"[PerfProbe] Phase '{name}' — sampling {seconds:0}s...");
             var samples = new List<float>(Mathf.CeilToInt(seconds) * 300); // generous: fits 300 FPS without regrowth
+            var timing = new GpuFrameTime.Recorder();
             int gc0 = GC.CollectionCount(0), gc1 = GC.CollectionCount(1), gc2 = GC.CollectionCount(2);
             long mem = GC.GetTotalMemory(false);
             int builds0 = GameBootstrap.MeshBuildsDispatched;
@@ -526,6 +531,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 float dt = Time.unscaledDeltaTime;
                 samples.Add(dt * 1000f);
+                timing.Add();
                 t += dt;
                 census.Tick();
                 yield return null;
@@ -560,6 +566,9 @@ namespace BlocksBeyondTheStars.Client
             r.p95Ms = Percentile(samples, 0.95f);
             r.p99Ms = Percentile(samples, 0.99f);
             r.maxMs = max;
+            float[] ft = timing.Percentiles();
+            (r.gpuP50Ms, r.gpuP90Ms, r.presentWaitP50Ms, r.presentWaitP90Ms) = (ft[0], ft[1], ft[2], ft[3]);
+            (r.cpuMainP50Ms, r.cpuMainP90Ms, r.cpuRenderP50Ms, r.cpuRenderP90Ms) = (ft[4], ft[5], ft[6], ft[7]);
             done(r);
         }
 
@@ -691,7 +700,7 @@ namespace BlocksBeyondTheStars.Client
             foreach (var ph in result.phases)
             {
                 txt.AppendLine($"[{ph.name}] {ph.frames} frames / {ph.seconds:0.0}s — avg {ph.avgMs:0.00} ms ({1000f / Mathf.Max(0.001f, ph.avgMs):0} FPS), "
-                             + $"p50 {ph.p50Ms:0.00}, p95 {ph.p95Ms:0.00}, p99 {ph.p99Ms:0.00}, max {ph.maxMs:0.0} ms; "
+                             + $"p50 {ph.p50Ms:0.00}, p95 {ph.p95Ms:0.00}, p99 {ph.p99Ms:0.00}, max {ph.maxMs:0.0} ms; GPU p50/p90 {ph.gpuP50Ms:0.00}/{ph.gpuP90Ms:0.00}, present wait {ph.presentWaitP50Ms:0.00}/{ph.presentWaitP90Ms:0.00}, main {ph.cpuMainP50Ms:0.00}/{ph.cpuMainP90Ms:0.00}, render {ph.cpuRenderP50Ms:0.00}/{ph.cpuRenderP90Ms:0.00} ms; "
                              + $">33ms: {ph.framesOver33Ms}, >100ms: {ph.framesOver100Ms}; "
                              + $"GC {ph.gcGen0}/{ph.gcGen1}/{ph.gcGen2}, managed Δ {ph.managedMemDeltaBytes / (1024f * 1024f):0.0} MB, mesh builds {ph.meshBuilds}");
             }

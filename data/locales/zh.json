@@ -5964,6 +5964,7 @@
   "ui.pause.title": "已暂停",
   "ui.pause.waiting_for": "已暂停 {0}/{1} — 等待：{2}",
   "ui.pause.world_held": "世界已停止 — 所有人都在暂停菜单中。",
+  "ui.perf.slow_hint": "这里游戏运行缓慢。设置 → 图形：选择较低的画质预设或缩短视距会有帮助。",
   "ui.pause.return_ship": "回到我的飞船",
   "ui.pause.return_ship_cooldown": "回到我的飞船 — {0} 后可用",
   "ui.pause.return_ship_fight": "回到我的飞船——战斗中，还需 {0} 秒",

@@ -5964,6 +5964,7 @@
   "ui.pause.title": "En pause",
   "ui.pause.waiting_for": "En pause {0}/{1} — en attente de : {2}",
   "ui.pause.world_held": "Monde suspendu — tout le monde est dans le menu pause.",
+  "ui.perf.slow_hint": "Le jeu tourne lentement ici. Paramètres → Graphismes : un préréglage de qualité inférieur ou une distance d'affichage plus courte aide.",
   "ui.pause.return_ship": "Retourner à mon vaisseau",
   "ui.pause.return_ship_cooldown": "Retourner à mon vaisseau — prêt dans {0}",
   "ui.pause.return_ship_fight": "Retourner à mon vaisseau — combat, encore {0} s",

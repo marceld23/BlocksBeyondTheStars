@@ -24,6 +24,25 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🎚️ Automatic graphics preset — desktop calibration, GPU time, High only after a world measurement, a slow-world hint (Marcel's analysis 2026-11-06) — #3279–#3283, branch feat/auto-quality-calibration — ✅ done 2026-11-06 (⚠ playtest open; client only — no save-version, protocol or terrain-generation change; one new locale key in all 14 languages)
+
+Marcel asked when High can be chosen and how the client could tell at runtime whether High is feasible. Answers: the
+desktop calibrates new installs, a slow world only hints, measuring is fine, no warning on a hand-picked High. Details
+in docs/developer/ADVANCED_GRAPHICS.md § "Automatic preset calibration".
+
+- **#3279** A new desktop install starts on Medium with `PresetAuto` (the browser kept Low); the calibrator runs on
+  every platform. No step-up on a software renderer or on battery. Existing installs keep their preset.
+- **#3280** GPU frame time from `FrameTimingManager` (Frame Timing Stats on, `GpuFrameTime`); step-ups read it, the
+  browser keeps the VSync wall-clock rule. PerfProbe writes GPU p50/p90 and switches `PresetAuto` off for its run.
+- **#3281** The menu sample steps up to Medium at most; **High** needs a world sample at Medium on the same GPU
+  (`WorldPerfWatch`, kept in `ClientSettings.AutoWorld*`) and switches at the next start, never during play. A step
+  down from High remembers the GPU. Rules in Client.Core `QualityCalibration` (16 tests).
+- **#3282** One toast per session when a 30 s window in the world runs under 25 fps ("a lower preset or a shorter view
+  distance helps"); never changes a setting.
+- **#3283** PerfProbe Medium vs High on the reference laptop → `HighGpuCostFactor` (numbers in ADVANCED_GRAPHICS.md).
+- Playtest: fresh desktop install → `[AutoQuality]` log lines (session start, shell sample, world sample); a slow scene
+  shows the hint once; picking a preset by hand stops all of it.
+
 ### 📬 Reports 2026-11-06 + Marcel's findings — rails across the seam, fence pens, the cinematic camera between buildings, a fast world list, boot stages on the loading screen, dark caves and nights, a big chat window, submitting ships/towns/skins, editor texts that fit — #3256–#3265, branch fix/reports-and-singleplayer-wait-2026-11-06 — ✅ done 2026-11-06 in PR #3266 (`bc32729d`), released in v2026.11.7 (⚠ playtest open; no save-version, protocol or terrain-generation change; ReportHost change → the reports image must be deployed before the client release)
 
 - **#3256** (Lyxette) Straight rail pylons refused to auto-link with "too sharp": the direction of a line's last link was

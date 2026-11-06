@@ -5964,6 +5964,7 @@
   "ui.pause.title": "Pausado",
   "ui.pause.waiting_for": "Pausado {0}/{1} — à espera de: {2}",
   "ui.pause.world_held": "Mundo parado — todos estão no menu de pausa.",
+  "ui.perf.slow_hint": "O jogo está rodando devagar aqui. Configurações → Gráficos: uma predefinição de qualidade mais baixa ou uma distância de visualização menor ajuda.",
   "ui.pause.return_ship": "Voltar para minha nave",
   "ui.pause.return_ship_cooldown": "Voltar para minha nave — pronto em {0}",
   "ui.pause.return_ship_fight": "Voltar para minha nave — luta, faltam {0} s",

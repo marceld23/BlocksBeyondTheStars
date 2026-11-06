@@ -5964,6 +5964,7 @@
   "ui.pause.title": "일시 중지",
   "ui.pause.waiting_for": "일시 중지 {0}/{1} — 대기 중: {2}",
   "ui.pause.world_held": "월드 정지 — 모두가 일시 중지 메뉴에 있습니다.",
+  "ui.perf.slow_hint": "여기서는 게임이 느리게 실행되고 있어요. 설정 → 그래픽: 낮은 품질 프리셋이나 시야 거리 줄이기가 도움이 돼요.",
   "ui.pause.return_ship": "내 우주선으로 돌아가기",
   "ui.pause.return_ship_cooldown": "내 우주선으로 돌아가기 — {0} 후 사용 가능",
   "ui.pause.return_ship_fight": "내 우주선으로 돌아가기 — 전투 중, {0}초 남음",

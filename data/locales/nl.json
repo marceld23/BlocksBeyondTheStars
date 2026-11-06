@@ -5964,6 +5964,7 @@
   "ui.pause.title": "Gepauzeerd",
   "ui.pause.waiting_for": "Gepauzeerd {0}/{1} — wachten op: {2}",
   "ui.pause.world_held": "Wereld stilgezet — iedereen zit in het pauzemenu.",
+  "ui.perf.slow_hint": "Het spel loopt hier traag. Instellingen → Grafisch: een lagere kwaliteitspreset of een kortere zichtafstand helpt.",
   "ui.pause.return_ship": "Terug naar mijn schip",
   "ui.pause.return_ship_cooldown": "Terug naar mijn schip — klaar in {0}",
   "ui.pause.return_ship_fight": "Terug naar mijn schip — gevecht, nog {0} s",

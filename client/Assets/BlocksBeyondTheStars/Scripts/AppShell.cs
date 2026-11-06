@@ -211,6 +211,7 @@ namespace BlocksBeyondTheStars.Client
             var crashGo = new GameObject("CrashReporter");
             crashGo.AddComponent<CrashReporter>().Settings = Settings;
             InputMap.Use(Settings); // route remappable controls through the loaded bindings (Stream C)
+            AutoQualityCalibrator.SessionStart(Settings); // #3281: Medium → High on last session's world measurement
             Settings.Apply();
 
             // The player's local texture pack (#1952) — read once, before the first atlas is built, so the menu
@@ -220,17 +221,16 @@ namespace BlocksBeyondTheStars.Client
             TexturePackFolder.Reload();
 
             // Browser build (#1423): a phone/tablet-class device is touch-first before any touch happens —
-            // pre-latch so the very first canvas gets touch-sized hit behavior — and the shell frame-time
-            // calibrator steps the auto-managed preset up/down by what THIS device actually measures.
-            if (Application.platform == RuntimePlatform.WebGLPlayer)
+            // pre-latch so the very first canvas gets touch-sized hit behavior.
+            if (Application.platform == RuntimePlatform.WebGLPlayer && BrowserDevice.IsMobileBrowser)
             {
-                if (BrowserDevice.IsMobileBrowser)
-                {
-                    TouchControlsUi.NoteTouch();
-                }
-
-                gameObject.AddComponent<AutoQualityCalibrator>().Shell = this;
+                TouchControlsUi.NoteTouch();
             }
+
+            // Every platform (#3279): the shell frame-time calibrator steps an auto-managed preset by what THIS device
+            // measures, and the world watch records the measurement High needs and hints when the world runs slowly.
+            gameObject.AddComponent<AutoQualityCalibrator>().Shell = this;
+            gameObject.AddComponent<WorldPerfWatch>().Shell = this;
             if (StreamingAssetsCache.UsesRemoteStreamingAssets)
             {
                 StartCoroutine(LoadContentForStartup());

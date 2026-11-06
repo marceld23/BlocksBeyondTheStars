@@ -177,7 +177,7 @@ namespace BlocksBeyondTheStars.Client
         // Graphics
         public QualityPreset Preset = QualityPreset.Medium;
 
-        /// <summary>True while <see cref="Preset"/> is auto-managed: set on a browser/mobile first run and
+        /// <summary>True while <see cref="Preset"/> is auto-managed: set on every first run (desktop too since #3279) and
         /// consumed by <see cref="AutoQualityCalibrator"/>, which steps the preset by measured frame time.
         /// Cleared the moment the player picks a preset by hand — a manual choice is never overridden.
         /// Existing installs load this as false, so their persisted preset stays untouched.</summary>
@@ -976,12 +976,11 @@ namespace BlocksBeyondTheStars.Client
             bool freshInstall = !File.Exists(FilePath) && !File.Exists(BackupPath) && !File.Exists(TokenPath);
 
             ClientSettings settings = TryReadSettingsFile(FilePath);
-            bool recovering = settings == null && File.Exists(FilePath);
+            bool recovering = settings == null && (File.Exists(FilePath) || File.Exists(BackupPath));
             if (recovering)
             {
-                // The settings file exists but can't be parsed. Never reset it silently — that used to
-                // destroy the only copy of the name-claim token and permanently lock the player out of
-                // their own name (#410). Preserve the evidence, then fall back to the last good backup.
+                // Unreadable — or gone while its backup survived (#3284). Never reset silently: that destroyed the only copy
+                // of the name-claim token (#410). Preserve the evidence, then fall back to the last good backup.
                 PreserveCorruptFile();
                 settings = TryReadSettingsFile(BackupPath);
                 LoadNoticeKey = settings != null ? "ui.settings.recovered_backup" : "ui.settings.reset_defaults";
@@ -1066,15 +1065,14 @@ namespace BlocksBeyondTheStars.Client
                     _ => "en",
                 };
 
-                // Tablets and the browser build are GPU-weak next to a desktop, and the scene is heavy (custom
-                // URP, SSAO, SMAA, PBR). Start those on a Lite preset so the first run is playable; the player
-                // can still raise it in Settings. Only on a genuine first run — a returning player keeps theirs.
-                // PresetAuto hands the preset to the shell frame-time calibration (#1423), which steps it up on
-                // capable devices (a desktop browser is not stuck on Low forever) and down on struggling ones.
+                // Only on a genuine first run — a returning player keeps theirs. PresetAuto hands the preset to the
+                // frame-time calibration (#1423; every platform since #3279), which steps it up on capable devices and
+                // down on struggling ones. Desktop starts on Medium; tablets and the browser build are GPU-weak next to
+                // a desktop and the scene is heavy (custom URP, SSAO, SMAA, PBR), so they start on Low.
+                settings.PresetAuto = true;
                 if (Application.isMobilePlatform || Application.platform == RuntimePlatform.WebGLPlayer)
                 {
                     settings.Preset = QualityPreset.Low;
-                    settings.PresetAuto = true;
 
                     // Phone/tablet-class browser (#1424): shorter horizon, and the synth music engine instead
                     // of the MP3 library — no download and no browser-side decodeAudioData, whose ~80 MB PCM
@@ -1181,6 +1179,7 @@ namespace BlocksBeyondTheStars.Client
         {
             try
             {
+                if (!File.Exists(FilePath)) return; // #3284: missing, not corrupt — nothing to preserve
                 if (File.Exists(CorruptPath)) File.Delete(CorruptPath);
                 File.Move(FilePath, CorruptPath);
                 Debug.LogWarning($"Preserved unreadable client settings as '{Path.GetFileName(CorruptPath)}'.");

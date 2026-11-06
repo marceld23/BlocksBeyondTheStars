@@ -269,6 +269,35 @@ moonless night ≈ 18 % (was 28 %).
   (was 6 blocks of anything; leaves, plants, water and glass no longer count — `GameServer.CoversFromSky`).
 - Night itself is untouched (`Sky` night floor 0.35): measure the open night with the clip recorder before lowering it.
 
+### Automatic preset calibration (#1423, #3279–#3283)
+
+A **new install** on every platform starts with `ClientSettings.PresetAuto` on: desktop on Medium, the browser and
+tablets on Low. A preset picked by hand in Settings → Graphics clears the flag for good. Existing installs load the flag
+as off, so their saved preset never moves. The rules are Unity-free in Client.Core (`QualityCalibration`, tested in
+`QualityCalibrationTests`); three places feed them:
+
+- **Session start** (`AutoQualityCalibrator.SessionStart`, in `AppShell.Awake` before the first `Apply`): **Medium →
+  High**, and only on a **world measurement** taken at Medium on the same GPU (`ClientSettings.AutoWorld*`). The menu
+  backdrop is a space scene without terrain, SSAO on ground, shadow cascades or grass, so it cannot vouch for High.
+- **Shell sample** (`AutoQualityCalibrator`, 6 s warm-up + 15 s over studio logo, splash, intro and main menu): one
+  notch per session — down when the wall-clock median is over 40 ms, up **at most to Medium** when there is headroom.
+  A step down from High remembers the GPU (`AutoHighRejectedGpu`); High is not tried on it again.
+- **World** (`WorldPerfWatch`, after `WorldReady` + 12 s, never during a cutscene, the space view, loading or an
+  unfocused window): one 20 s sample per session, kept only for the next start. A slow world **never changes a
+  setting** by itself. Instead, a 30 s window with a median over 40 ms shows the `ui.perf.slow_hint` toast once per
+  session — for hand-picked and auto presets alike, unless Potato and a view distance of 2 leave nothing to lower.
+
+**Headroom.** With GPU time, the GPU p90 × the preset's cost factor has to fit 80 % of the 16.7 ms budget, and the
+wall-clock median has to stay at or under 20 ms (a CPU that already misses 50 fps gains nothing). The GPU time comes
+from `FrameTimingManager` (`GpuFrameTime`; Player Settings → Frame Timing Stats is on). Without GPU time — the browser,
+or an API without timer queries — the VSync-capped wall-clock p90 has to stay under 18 ms. A software renderer
+(Microsoft Basic Render Driver, llvmpipe, softpipe, SwiftShader) and a laptop on battery never step up.
+
+**The High cost factor** (`QualityCalibration.HighGpuCostFactor`, #3283) — PerfProbe, MEASUREMENT_PENDING.
+
+PerfProbe (`-perfProbe -perfPreset <name>`) writes the GPU p50/p90 next to the wall-clock numbers and switches
+`PresetAuto` off for its run, so a re-measurement only needs the same command line on a quiet machine.
+
 ## Design rationale worth keeping
 
 - **Why URP.** TAA, SSR, a maintained post stack, Forward+ many-lights and Shader Graph are first-class
@@ -334,6 +363,8 @@ Ordered by impact ÷ effort. These are the next polish milestones; each is prese
 - The dark (#3265): `ChunkMesher.Skylight.cs`, `Sky.Dark.cs`, `AtmosphereProbe.cs`, `AtmosphereCommon.hlsl`
   (`BbtsSkyAmbient`, `BbtsDarkFloor`, `BbtsSkyLightScale`); Client.Core `SkylightRules`, `SkylightField`,
   `EyeAdaptationRules`, `DarkLightRules`.
+- Preset calibration (#3279–#3283): `AutoQualityCalibrator.cs`, `WorldPerfWatch.cs`, `GpuFrameTime.cs`,
+  `ClientSettings.AutoQuality.cs`, `PerfProbe.cs`; Client.Core `QualityCalibration`.
 
 ## Open questions
 
