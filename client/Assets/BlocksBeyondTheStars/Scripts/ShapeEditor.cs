@@ -283,17 +283,17 @@ namespace BlocksBeyondTheStars.Client
             canvasGo.AddComponent<RawImage>().texture = _tex;
 
             _layerLabel = UiKit.AddText(panel, 24f, 60f, 300f, 30f, string.Empty, 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            UiKit.AddButton(panel, 330f, 56f, 80f, 38f, "▲", () => StepLayer(1));
-            UiKit.AddButton(panel, 420f, 56f, 80f, 38f, "▼", () => StepLayer(-1));
+            UiKit.AddFitButton(panel, 330f, 56f, 80f, 38f, "▲", () => StepLayer(1));
+            UiKit.AddFitButton(panel, 420f, 56f, 80f, 38f, "▼", () => StepLayer(-1));
 
             // Authoring helpers — the difference between "possible" and "pleasant".
             float hx = 24f, hy = 596f;
-            UiKit.AddButton(panel, hx, hy, 232f, 44f, L("ui.shape.custom.copy_below"), CopyLayerBelow);
-            UiKit.AddButton(panel, hx + 248f, hy, 232f, 44f, L("ui.shape.custom.mirror_x"), () => Mirror(mirrorX: true));
-            UiKit.AddButton(panel, hx, hy + 52f, 232f, 44f, L("ui.shape.custom.mirror_z"), () => Mirror(mirrorX: false));
-            UiKit.AddButton(panel, hx + 248f, hy + 52f, 232f, 44f, L("ui.shape.custom.clear_layer"), ClearLayer);
-            UiKit.AddButton(panel, hx, hy + 104f, 232f, 44f, L("ui.shape.custom.clear_all"), ClearAll);
-            UiKit.AddButton(panel, hx + 248f, hy + 104f, 232f, 44f, L("ui.shape.custom.grid_toggle"),
+            UiKit.AddFitButton(panel, hx, hy, 232f, 44f, L("ui.shape.custom.copy_below"), CopyLayerBelow);
+            UiKit.AddFitButton(panel, hx + 248f, hy, 232f, 44f, L("ui.shape.custom.mirror_x"), () => Mirror(mirrorX: true));
+            UiKit.AddFitButton(panel, hx, hy + 52f, 232f, 44f, L("ui.shape.custom.mirror_z"), () => Mirror(mirrorX: false));
+            UiKit.AddFitButton(panel, hx + 248f, hy + 52f, 232f, 44f, L("ui.shape.custom.clear_layer"), ClearLayer);
+            UiKit.AddFitButton(panel, hx, hy + 104f, 232f, 44f, L("ui.shape.custom.clear_all"), ClearAll);
+            UiKit.AddFitButton(panel, hx + 248f, hy + 104f, 232f, 44f, L("ui.shape.custom.grid_toggle"),
                 () => SetGrid(_grid == CustomShape.GridLarge ? CustomShape.GridSmall : CustomShape.GridLarge));
 
             _budgetLabel = UiKit.AddText(panel, 24f, 760f, 480f, 26f, string.Empty, 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
@@ -302,8 +302,8 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(panel, 24f, 800f, 480f, 24f, L("ui.shape.custom.name"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddInput(panel, 24f, 828f, 480f, 46f, _name, v => _name = v, L("ui.shape.custom.name_hint"), 24);
 
-            UiKit.AddButton(panel, 24f, 890f, 232f, 56f, L(ApplyLabelKey), Apply);
-            UiKit.AddButton(panel, 272f, 890f, 232f, 56f, L("ui.menu.back"), Close);
+            UiKit.AddFitButton(panel, 24f, 890f, 232f, 56f, L(ApplyLabelKey), Apply);
+            UiKit.AddFitButton(panel, 272f, 890f, 232f, 56f, L("ui.menu.back"), Close);
 
             // 3-D preview.
             UiKit.AddText(panel, 530f, 76f, 380f, 24f, L("ui.shape.custom.preview"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
@@ -313,7 +313,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(panel, 930f, 76f, 226f, 24f, L("ui.shape.custom.library"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             if (OnSaveDesign != null)
             {
-                UiKit.AddButton(panel, 930f, 104f, 226f, 48f, L("ui.shape.custom.save"), () =>
+                UiKit.AddFitButton(panel, 930f, 104f, 226f, 48f, L("ui.shape.custom.save"), () =>
                 {
                     OnSaveDesign(Encode(), _name);
                     RebuildLibraryList();
@@ -322,15 +322,16 @@ namespace BlocksBeyondTheStars.Client
 
             // Sharing (#846): a form travels as a short code the player can paste anywhere — the library
             // files are local, this is what crosses machines.
-            UiKit.AddButton(panel, 930f, 158f, 110f, 40f, L("ui.shape.custom.export"), ExportCode);
-            UiKit.AddButton(panel, 1046f, 158f, 110f, 40f, L("ui.shape.custom.import"), ImportCode);
+            // Full column width, one under the other: "Code kopieren" took two lines in 110 px (#3263).
+            UiKit.AddFitButton(panel, 930f, 158f, 226f, 40f, L("ui.shape.custom.export"), ExportCode);
+            UiKit.AddFitButton(panel, 930f, 204f, 226f, 40f, L("ui.shape.custom.import"), ImportCode);
 
             var listGo = new GameObject("FormLibraryList", typeof(RectTransform));
             listGo.transform.SetParent(panel, false);
-            _libList = UiKit.Place(listGo, 930f, 210f, 226f, 660f);
+            _libList = UiKit.Place(listGo, 930f, 252f, 226f, 650f);
             RebuildLibraryList();
 
-            UiKit.AddText(panel, 24f, 952f, panelW - 48f, 24f, L("ui.shape.custom.hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiKit.AddText(panel, 24f, 952f, panelW - 48f, 24f, L("ui.shape.custom.hint"), 14, UiKit.TextCol, TextAnchor.MiddleLeft); // an instruction (#3263)
             UpdateLabels();
         }
 
@@ -467,14 +468,14 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var entries = LibraryProvider() ?? new List<(string, string)>();
-            const int maxShown = 14;
+            const int maxShown = 13; // 13 rows of 50 px under the stacked export/import buttons (#3263)
             float y = 0f;
             for (int i = 0; i < entries.Count && i < maxShown; i++)
             {
                 var entry = entries[i];
                 int blocks = CustomShape.CellCount(entry.Voxels);
                 string label = blocks > 1 ? entry.Name + " ×" + blocks : entry.Name; // a form over several blocks (#1961)
-                UiKit.AddButton(_libList, 0f, y, 226f, 42f, label, () => LoadFrom(entry.Voxels, entry.Name));
+                UiKit.AddFitButton(_libList, 0f, y, 226f, 42f, label, () => LoadFrom(entry.Voxels, entry.Name));
                 y += 50f;
             }
         }

@@ -201,6 +201,24 @@ namespace BlocksBeyondTheStars.Client
 
         private string L(string key) => _shell?.L(key) ?? key;
 
+        /// <summary><paramref name="key"/>'s text, or <paramref name="fallback"/> when the table has none.</summary>
+        private string LOr(string key, string fallback)
+        {
+            string text = L(key);
+            return string.IsNullOrEmpty(text) || text == key ? fallback : text;
+        }
+
+        /// <summary>A kit kind's name instead of its id (#3263).</summary>
+        private string KindText(string kind) => LOr("ui.kit.kind." + kind, kind);
+
+        /// <summary>A tier's name instead of its id — the metropolis without "(city district)" (#3263).</summary>
+        private string TierText(string tier)
+            => tier == StructureRoles.MetropolisTier ? LOr("ui.tier_short.metropolis", tier) : LOr("ui.tier." + tier, tier);
+
+        /// <summary>A module's function (station) or plot role (settlement) by its name instead of its id (#3263).</summary>
+        private string FunctionText(string function)
+            => string.IsNullOrEmpty(function) ? string.Empty : LOr("ui.function." + function, LOr("ui.role_short." + function, function));
+
         /// <summary>The module picker (#1890): every module of the kit's kind (station modules for a station kit, settlement
         /// modules for a village, district modules for a city), filterable by key, function, style or tier.</summary>
         private void OpenPicker(string kitKind, Action<string> pick)
@@ -215,7 +233,7 @@ namespace BlocksBeyondTheStars.Client
             var (overlay, panel) = UiKit.AddModalOverlay(_canvas, 0f, 0f, PW, PH);
             _picker = overlay;
             UiKit.AddText(panel, 20f, 12f, 500f, 30f, L("ui.kit.pick_module"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddButton(panel, PW - 120f, 12f, 100f, 30f, L("ui.kit.close"), ClosePicker);
+            UiKit.AddFitButton(panel, PW - 120f, 12f, 100f, 30f, L("ui.kit.close"), ClosePicker);
             var list = UiKit.ScrollList(panel, 20f, 92f, PW - 40f, PH - 112f);
             UiKit.AddText(panel, 20f, 52f, 80f, 30f, L("ui.kit.filter"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
             // The field stays while typing; only the rows below are rebuilt (rebuilding the field would drop its focus).
@@ -238,14 +256,14 @@ namespace BlocksBeyondTheStars.Client
             foreach (var t in pool)
             {
                 string style = t.IsAlienStyle ? L("ui.style.alien") : string.Empty;
-                string label = $"{t.Key}  ·  {t.FunctionOrRole}  ·  {t.Tier}  ·  {t.Width}×{t.Height}×{t.Length}" + (style.Length > 0 ? "  ·  " + style : string.Empty);
+                string label = $"{t.Key}  ·  {FunctionText(t.FunctionOrRole)}  ·  {TierText(t.Tier)}  ·  {t.Width}×{t.Height}×{t.Length}" + (style.Length > 0 ? "  ·  " + style : string.Empty);
                 if (f.Length > 0 && label.ToLowerInvariant().IndexOf(f, StringComparison.Ordinal) < 0)
                 {
                     continue;
                 }
 
                 string key = t.Key;
-                UiKit.AddButton(list, 0f, 0f, width, 30f, label, () => { ClosePicker(); pick(key); });
+                UiKit.AddFitButton(list, 0f, 0f, width, 30f, label, () => { ClosePicker(); pick(key); });
             }
         }
 
@@ -276,7 +294,7 @@ namespace BlocksBeyondTheStars.Client
             var (overlay, panel) = UiKit.AddModalOverlay(_canvas, 0f, 0f, W, H);
             _overlay = overlay;
             UiKit.AddText(panel, 20f, 12f, 600f, 30f, L("ui.kit.title"), 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddButton(panel, W - 120f, 12f, 100f, 30f, L("ui.kit.close"), Close);
+            UiKit.AddFitButton(panel, W - 120f, 12f, 100f, 30f, L("ui.kit.close"), Close);
 
             // Left: the kit list.
             UiKit.AddText(panel, 20f, 50f, 240f, 24f, L("ui.kit.list"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
@@ -285,14 +303,15 @@ namespace BlocksBeyondTheStars.Client
             {
                 int idx = i;
                 var k = _kits[i];
-                string label = (i == _current ? "▶ " : string.Empty) + (string.IsNullOrEmpty(k.name) ? k.key : k.name) + "  ·  " + k.kind + "/" + k.tier;
-                UiKit.AddButton(list, 0f, 0f, 240f, 30f, label, () => { _current = idx; Rebuild(); });
+                string label = (i == _current ? "▶ " : string.Empty) + (string.IsNullOrEmpty(k.name) ? k.key : k.name) + "  ·  " + KindText(k.kind) + " / " + TierText(k.tier);
+                UiKit.AddFitButton(list, 0f, 0f, 240f, 36f, label, () => { _current = idx; Rebuild(); }); // 36: two 13 px lines
             }
 
-            UiKit.AddButton(panel, 20f, H - 84f, 120f, 34f, L("ui.kit.new"), NewKit);
+            // One above the other, the list column wide: "Использовать" did not fit 120 px (#3263).
+            UiKit.AddFitButton(panel, 20f, H - 88f, 250f, 34f, L("ui.kit.new"), NewKit);
             if (Kit != null)
             {
-                UiKit.AddButton(panel, 150f, H - 84f, 120f, 34f, L("ui.kit.use"), () => { _useKit?.Invoke(Kit.key); Close(); });
+                UiKit.AddFitButton(panel, 20f, H - 50f, 250f, 34f, L("ui.kit.use"), () => { _useKit?.Invoke(Kit.key); Close(); });
             }
 
             // Right: the fields + the entries.
@@ -303,19 +322,19 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            float x0 = 300f, y = 50f;
+            float x0 = FieldsX, y = 50f;
             Field(panel, x0, y, L("ui.kit.key"), k2.key, v => k2.key = EditorSceneKit.Slug(v));
-            Field(panel, x0 + 380f, y, L("ui.kit.name"), k2.name, v => k2.name = v);
+            Field(panel, x0 + ColumnStep, y, L("ui.kit.name"), k2.name, v => k2.name = v);
             y += 40f;
             var kinds = _editorKind == StructureKit.KindStation ? new[] { StructureKit.KindStation } : new[] { StructureKit.KindSettlement, StructureKit.KindCity };
-            Stepper(panel, x0, y, L("ui.kit.kind"), k2.kind, kinds, v => { k2.kind = v; Rebuild(); });
+            Stepper(panel, x0, y, L("ui.kit.kind"), k2.kind, kinds, KindText, v => { k2.kind = v; Rebuild(); });
             var tiers = k2.kind == StructureKit.KindStation ? new[] { "small", "medium", "large", "huge", "colossal" }
                 : k2.kind == StructureKit.KindCity ? new[] { StructureRoles.MetropolisTier }
                 : new[] { "hamlet", "village", "town", "city" };
-            Stepper(panel, x0 + 380f, y, L("ui.kit.tier"), k2.tier, tiers, v => k2.tier = v);
+            Stepper(panel, x0 + ColumnStep, y, L("ui.kit.tier"), k2.tier, tiers, TierText, v => k2.tier = v);
             y += 40f;
-            Field(panel, x0, y, L("ui.struct.pack"), k2.pack, v => k2.pack = EditorSceneKit.Slug(v));
-            IntField(panel, x0 + 380f, y, L("ui.kit.weight"), k2.weight, v => k2.weight = Mathf.Max(1, v));
+            Field(panel, x0, y, L("ui.kit.pack"), k2.pack, v => k2.pack = EditorSceneKit.Slug(v)); // "Pack", not the long struct label (#3263)
+            IntField(panel, x0 + ColumnStep, y, L("ui.kit.weight"), k2.weight, v => k2.weight = Mathf.Max(1, v));
             y += 40f;
             if (k2.kind != StructureKit.KindStation)
             {
@@ -324,25 +343,25 @@ namespace BlocksBeyondTheStars.Client
             }
 
             IntField(panel, x0, y, L("ui.kit.modules_min"), k2.modulesMin, v => k2.modulesMin = Mathf.Max(0, v));
-            IntField(panel, x0 + 380f, y, L("ui.kit.modules_max"), k2.modulesMax, v => k2.modulesMax = Mathf.Max(0, v));
+            IntField(panel, x0 + ColumnStep, y, L("ui.kit.modules_max"), k2.modulesMax, v => k2.modulesMax = Mathf.Max(0, v));
             y += 40f;
             if (k2.kind == StructureKit.KindStation)
             {
                 Field(panel, x0, y, L("ui.kit.start"), k2.start, v => k2.start = EditorSceneKit.Slug(v));
-                IntField(panel, x0 + 380f, y, L("ui.kit.max_extent"), k2.maxExtent, v => k2.maxExtent = Mathf.Max(0, v));
+                IntField(panel, x0 + ColumnStep, y, L("ui.kit.max_extent"), k2.maxExtent, v => k2.maxExtent = Mathf.Max(0, v));
                 y += 40f;
                 // #1920: the station's exterior detail — how many the composer mounts (0 = none); the test assembly shows it.
                 IntField(panel, x0, y, L("ui.kit.solar_wings"), k2.solarWings, v => k2.solarWings = Mathf.Max(0, v));
-                IntField(panel, x0 + 190f, y, L("ui.kit.antennas"), k2.antennas, v => k2.antennas = Mathf.Max(0, v));
-                IntField(panel, x0 + 380f, y, L("ui.kit.domes"), k2.domes, v => k2.domes = Mathf.Max(0, v));
+                IntField(panel, x0 + IntStep, y, L("ui.kit.antennas"), k2.antennas, v => k2.antennas = Mathf.Max(0, v));
+                IntField(panel, x0 + (2f * IntStep), y, L("ui.kit.domes"), k2.domes, v => k2.domes = Mathf.Max(0, v));
                 y += 40f;
             }
             else if (k2.kind == StructureKit.KindCity)
             {
                 IntField(panel, x0, y, L("ui.kit.grid"), k2.grid, v => k2.grid = v);
-                IntField(panel, x0 + 190f, y, L("ui.kit.district"), k2.districtSize, v => k2.districtSize = v);
-                IntField(panel, x0 + 380f, y, L("ui.kit.street"), k2.street, v => k2.street = v);
-                IntField(panel, x0 + 570f, y, L("ui.kit.height"), k2.height, v => k2.height = v);
+                IntField(panel, x0 + IntStep, y, L("ui.kit.district"), k2.districtSize, v => k2.districtSize = v);
+                IntField(panel, x0 + (2f * IntStep), y, L("ui.kit.street"), k2.street, v => k2.street = v);
+                IntField(panel, x0 + (3f * IntStep), y, L("ui.kit.height"), k2.height, v => k2.height = v);
                 y += 40f;
                 Field(panel, x0, y, L("ui.kit.role_map"), string.Join(" ", k2.roleMap), v => k2.roleMap = SplitList(v, ' '));
                 y += 40f;
@@ -350,14 +369,14 @@ namespace BlocksBeyondTheStars.Client
             else
             {
                 IntField(panel, x0, y, L("ui.kit.cols_min"), k2.colsMin, v => k2.colsMin = v);
-                IntField(panel, x0 + 190f, y, L("ui.kit.cols_max"), k2.colsMax, v => k2.colsMax = v);
-                IntField(panel, x0 + 380f, y, L("ui.kit.rows_min"), k2.rowsMin, v => k2.rowsMin = v);
-                IntField(panel, x0 + 570f, y, L("ui.kit.rows_max"), k2.rowsMax, v => k2.rowsMax = v);
+                IntField(panel, x0 + IntStep, y, L("ui.kit.cols_max"), k2.colsMax, v => k2.colsMax = v);
+                IntField(panel, x0 + (2f * IntStep), y, L("ui.kit.rows_min"), k2.rowsMin, v => k2.rowsMin = v);
+                IntField(panel, x0 + (3f * IntStep), y, L("ui.kit.rows_max"), k2.rowsMax, v => k2.rowsMax = v);
                 y += 40f;
                 IntField(panel, x0, y, L("ui.kit.plot_stride"), k2.plotStride, v => k2.plotStride = v);
-                IntField(panel, x0 + 190f, y, L("ui.kit.building"), k2.building, v => k2.building = v);
-                IntField(panel, x0 + 380f, y, L("ui.kit.storeys"), k2.storeys, v => k2.storeys = v);
-                UiKit.AddButton(panel, x0 + 570f, y, 180f, 30f, (k2.modulesOnly ? "☑ " : "☐ ") + L("ui.kit.modules_only"), () => { k2.modulesOnly = !k2.modulesOnly; Rebuild(); });
+                IntField(panel, x0 + IntStep, y, L("ui.kit.building"), k2.building, v => k2.building = v);
+                IntField(panel, x0 + (2f * IntStep), y, L("ui.kit.storeys"), k2.storeys, v => k2.storeys = v);
+                UiKit.AddFitButton(panel, x0 + (3f * IntStep), y, 192f, 30f, (k2.modulesOnly ? "☑ " : "☐ ") + L("ui.kit.modules_only"), () => { k2.modulesOnly = !k2.modulesOnly; Rebuild(); });
                 y += 40f;
             }
 
@@ -382,43 +401,58 @@ namespace BlocksBeyondTheStars.Client
                 le.minHeight = 34f;
                 // #1890: the module is picked from the pool (the key stays typeable for a module that is not saved yet).
                 UiKit.AddInput(row, 0f, 2f, 180f, 30f, e.module, v => e.module = EditorSceneKit.Slug(v), string.Empty, 0, 14);
-                UiKit.AddButton(row, 184f, 2f, 36f, 30f, "…", () => OpenPicker(k2.kind, key => { e.module = key; Rebuild(); }));
+                UiKit.AddFitButton(row, 184f, 2f, 36f, 30f, "…", () => OpenPicker(k2.kind, key => { e.module = key; Rebuild(); }));
                 UiKit.AddInput(row, 230f, 2f, 50f, 30f, e.min.ToString(), v => { if (int.TryParse(v, out var n)) e.min = Mathf.Max(0, n); }, string.Empty, 0, 14);
                 UiKit.AddInput(row, 290f, 2f, 50f, 30f, e.max.ToString(), v => { if (int.TryParse(v, out var n)) e.max = Mathf.Max(0, n); }, string.Empty, 0, 14);
-                UiKit.AddButton(row, 350f, 2f, 90f, 30f, e.required ? "☑" : "☐", () => { e.required = !e.required; Rebuild(); });
+                UiKit.AddFitButton(row, 350f, 2f, 90f, 30f, e.required ? "☑" : "☐", () => { e.required = !e.required; Rebuild(); });
                 UiKit.AddInput(row, 450f, 2f, 60f, 30f, e.weight.ToString(), v => { if (int.TryParse(v, out var n)) e.weight = Mathf.Max(1, n); }, string.Empty, 0, 14);
-                UiKit.AddButton(row, 520f, 2f, 80f, 30f, e.rotate ? "☑" : "☐", () => { e.rotate = !e.rotate; Rebuild(); });
-                UiKit.AddButton(row, 610f, 2f, 110f, 30f, L("ui.kit.remove"), () => { k2.entries.RemoveAt(idx); Rebuild(); });
+                UiKit.AddFitButton(row, 520f, 2f, 80f, 30f, e.rotate ? "☑" : "☐", () => { e.rotate = !e.rotate; Rebuild(); });
+                UiKit.AddFitButton(row, 610f, 2f, 110f, 30f, L("ui.kit.remove"), () => { k2.entries.RemoveAt(idx); Rebuild(); });
             }
 
-            UiKit.AddButton(panel, x0, H - 84f, 160f, 34f, L("ui.kit.add_entry"), () => { k2.entries.Add(new KitEntryJson()); Rebuild(); });
-            UiKit.AddButton(panel, x0 + 180f, H - 84f, 160f, 34f, L("ui.kit.save"), Save);
-            UiKit.AddButton(panel, x0 + 360f, H - 84f, 160f, 34f, L("ui.kit.delete"), Delete);
-            UiKit.AddText(panel, x0 + 540f, H - 84f, 520f, 34f, _status, 13, UiKit.Ok, TextAnchor.MiddleLeft);
+            UiKit.AddFitButton(panel, x0, H - 84f, 160f, 34f, L("ui.kit.add_entry"), () => { k2.entries.Add(new KitEntryJson()); Rebuild(); });
+            UiKit.AddFitButton(panel, x0 + 180f, H - 84f, 160f, 34f, L("ui.kit.save"), Save);
+            UiKit.AddFitButton(panel, x0 + 360f, H - 84f, 160f, 34f, L("ui.kit.delete"), Delete);
+            // Two lines inside the panel — it ran 280 px past the panel's right edge (#3263).
+            var status = UiKit.AddText(panel, x0 + 540f, H - 96f, W - 20f - (x0 + 540f), 54f, _status, 13, UiKit.Ok, TextAnchor.MiddleLeft);
+            status.horizontalOverflow = HorizontalWrapMode.Wrap;
+        }
+
+        /// <summary>The field grid (#3263): a 140 px label column (it was 110–130, and "Plot stride", "Solar wings" and
+        /// the long pack label ran into their inputs), two text columns, four number columns.</summary>
+        internal const float FieldsX = 284f, ColumnStep = 400f, IntStep = 200f, FieldLabelW = 140f;
+
+        private static void FieldLabel(Transform panel, float x, float y, string label)
+        {
+            var text = UiKit.AddText(panel, x, y, FieldLabelW, 30f, label, 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiKit.FitLabelSingleLine(text, FieldLabelW, UiKit.EditorMinFontSize, 14);
         }
 
         private void Field(Transform panel, float x, float y, string label, string value, Action<string> onChange)
         {
-            UiKit.AddText(panel, x, y, 130f, 30f, label, 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            UiKit.AddInput(panel, x + 135f, y, 230f, 30f, value ?? string.Empty, onChange, string.Empty, 0, 14);
+            FieldLabel(panel, x, y, label);
+            UiKit.AddInput(panel, x + FieldLabelW + 4f, y, 228f, 30f, value ?? string.Empty, onChange, string.Empty, 0, 14);
         }
 
         private void IntField(Transform panel, float x, float y, string label, int value, Action<int> onChange)
         {
-            UiKit.AddText(panel, x, y, 110f, 30f, label, 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            var input = UiKit.AddInput(panel, x + 115f, y, 70f, 30f, value.ToString(), v => { if (int.TryParse(v, out var n)) onChange(n); }, string.Empty, 0, 14);
+            FieldLabel(panel, x, y, label);
+            var input = UiKit.AddInput(panel, x + FieldLabelW + 4f, y, 50f, 30f, value.ToString(), v => { if (int.TryParse(v, out var n)) onChange(n); }, string.Empty, 0, 14);
             input.contentType = InputField.ContentType.IntegerNumber;
         }
 
-        private void Stepper(Transform panel, float x, float y, string label, string value, string[] options, Action<string> onChange)
+        /// <summary>A picked value shown by its name (<paramref name="display"/>), stored as its id.</summary>
+        private void Stepper(Transform panel, float x, float y, string label, string value, string[] options, Func<string, string> display,
+            Action<string> onChange)
         {
-            UiKit.AddText(panel, x, y, 110f, 30f, label, 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            var text = UiKit.AddText(panel, x + 115f, y, 190f, 30f, value, 14, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddButton(panel, x + 310f, y, 40f, 30f, "→", () =>
+            FieldLabel(panel, x, y, label);
+            var text = UiKit.AddText(panel, x + FieldLabelW + 4f, y, 166f, 30f, display(value), 14, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.FitLabelLines(text, 14, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize);
+            UiKit.AddFitButton(panel, x + FieldLabelW + 176f, y, 44f, 30f, "→", () =>
             {
                 int i = Array.IndexOf(options, value);
                 value = options[(i + 1) % options.Length];
-                text.text = value;
+                text.text = display(value);
                 onChange(value);
             });
         }
@@ -428,7 +462,7 @@ namespace BlocksBeyondTheStars.Client
             var j = new KitJson
             {
                 key = "my_kit_" + (_kits.Count + 1),
-                name = "My Kit " + (_kits.Count + 1),
+                name = string.Format(L("ui.ed.default.kit"), _kits.Count + 1),
                 kind = _editorKind == StructureKit.KindStation ? StructureKit.KindStation : StructureKit.KindSettlement,
                 tier = _editorKind == StructureKit.KindStation ? "small" : "village",
             };
@@ -459,7 +493,8 @@ namespace BlocksBeyondTheStars.Client
             }
             catch (Exception e)
             {
-                _status = string.Format(L("ui.ed.export_failed"), e.Message);
+                Debug.LogWarning($"[KitEditorPanel] Saving kit '{k.key}' failed: {e}");
+                _status = L("ui.ed.export_failed_hint"); // a friendly line; the exception goes to the log (#3263)
             }
 
             Rebuild();
@@ -483,7 +518,8 @@ namespace BlocksBeyondTheStars.Client
             }
             catch (Exception e)
             {
-                _status = string.Format(L("ui.ed.export_failed"), e.Message);
+                Debug.LogWarning($"[KitEditorPanel] Deleting kit '{k.key}' failed: {e}");
+                _status = L("ui.ed.delete_failed_hint");
             }
 
             _kits.RemoveAt(_current);

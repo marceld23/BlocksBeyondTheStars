@@ -98,7 +98,7 @@ namespace BlocksBeyondTheStars.Client
                 for (int i = 0; i < modes; i++)
                 {
                     int mode = i;
-                    var b = UiKit.AddButton(body, 32f + (i % 4) * (cellW + gap), y + (i / 4) * (cellH + gap), cellW, cellH,
+                    var b = UiKit.AddFitButton(body, 32f + (i % 4) * (cellW + gap), y + (i / 4) * (cellH + gap), cellW, cellH,
                         lever ? L(i == 1 ? "ui.crystal.output_on" : "ui.crystal.output_off") : L("ui.crystal.mode." + group + "." + i),
                         () => { _mode = mode; Build(); });
                     if (_mode == mode && b.GetComponent<Image>() is { } img)
@@ -115,7 +115,7 @@ namespace BlocksBeyondTheStars.Client
                 // The direction: written as yaw= (0..3 the quarter turns, 4 up, 5 down) — the brush turn's front otherwise.
                 string yaw = CrystalMenuEdits.ValueOf(_config, "yaw");
                 UiKit.AddText(body, 32f, y + 6f, 360f, 36f, L("ui.ed.device.direction"), 18, UiKit.TextCol, TextAnchor.MiddleLeft);
-                UiKit.AddButton(body, 400f, y, 300f, 48f, yaw == null ? L("ui.ed.device.dir_front") : L("ui.ed.device.dir." + yaw), () =>
+                UiKit.AddFitButton(body, 400f, y, 300f, 48f, yaw == null ? L("ui.ed.device.dir_front") : L("ui.ed.device.dir." + yaw), () =>
                 {
                     int next = yaw == null ? 0 : (int.TryParse(yaw, out int v) ? v + 1 : 0);
                     _config = next > CrystalNetRules.YawDown
@@ -133,14 +133,14 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(body, 32f, y + 6f, 360f, 36f, L("ui.ed.device.settings"), 18, UiKit.TextCol, TextAnchor.MiddleLeft);
             UiKit.AddInput(body, 400f, y, 520f, 48f, _config, v => _config = v ?? string.Empty, "period=2;count=4", 96);
             y += 56f;
-            UiKit.AddText(body, 400f, y, 520f, 26f, L("ui.ed.device.settings_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiKit.AddText(body, 400f, y, 520f, 26f, L("ui.ed.device.settings_hint"), 14, UiKit.TextCol, TextAnchor.MiddleLeft); // an instruction (#3263)
 
-            UiKit.AddButton(body, 32f, H - 72f, 300f, 48f, L("ui.ed.device.apply"), () =>
+            UiKit.AddFitButton(body, 32f, H - 72f, 300f, 48f, L("ui.ed.device.apply"), () =>
             {
                 _onApply?.Invoke(_mode, _config.Replace("|", string.Empty).Trim(), _label.Replace("|", string.Empty).Trim());
                 Close();
             });
-            UiKit.AddButton(body, W - 32f - 220f, H - 72f, 220f, 48f, L("ui.crystal.close"), Close);
+            UiKit.AddFitButton(body, W - 32f - 220f, H - 72f, 220f, 48f, L("ui.crystal.close"), Close);
         }
 
         private static string Without(string config, string key)

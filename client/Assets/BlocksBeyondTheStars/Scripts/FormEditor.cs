@@ -562,10 +562,10 @@ namespace BlocksBeyondTheStars.Client
         {
             var panel = AddColumn(root, 16f, 360f);
             UiKit.AddText(panel, 14f, 10f, 330f, 24f, L("ui.shape.custom.library"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddButton(panel, 14f, 42f, 162f, 40f, L("ui.form.new"), NewForm);
-            UiKit.AddButton(panel, 184f, 42f, 162f, 40f, L("ui.form.duplicate"), Duplicate);
-            UiKit.AddButton(panel, 14f, 88f, 162f, 40f, L("ui.shape.custom.export"), CopyCode);
-            UiKit.AddButton(panel, 184f, 88f, 162f, 40f, L("ui.shape.custom.import"), PasteCode);
+            UiKit.AddFitButton(panel, 14f, 42f, 162f, 40f, L("ui.form.new"), NewForm);
+            UiKit.AddFitButton(panel, 184f, 42f, 162f, 40f, L("ui.form.duplicate"), Duplicate);
+            UiKit.AddFitButton(panel, 14f, 88f, 162f, 40f, L("ui.shape.custom.export"), CopyCode);
+            UiKit.AddFitButton(panel, 184f, 88f, 162f, 40f, L("ui.shape.custom.import"), PasteCode);
             // The column is shared (#1969): the forms above, the preview material below — each scrolls alone.
             _libraryContent = UiKit.ScrollList(panel, 14f, 138f, 332f, 362f, 4f);
             RebuildLibrary();
@@ -594,8 +594,8 @@ namespace BlocksBeyondTheStars.Client
                 string name = entry.Name, voxels = entry.Voxels;
                 int cells = CustomShape.CellCount(voxels);
                 string label = cells > 1 ? name + "  · " + string.Format(L("ui.form.blocks"), cells) : name;
-                UiKit.AddButton(row, 0f, 0f, 262f, 42f, label, () => LoadEntry(name, voxels));
-                UiKit.AddButton(row, 268f, 0f, 46f, 42f, "✕", () => DeleteEntry(name));
+                UiKit.AddFitButton(row, 0f, 0f, 262f, 42f, label, () => LoadEntry(name, voxels));
+                UiKit.AddFitButton(row, 268f, 0f, 46f, 42f, "✕", () => DeleteEntry(name));
             }
         }
 
@@ -603,8 +603,8 @@ namespace BlocksBeyondTheStars.Client
         {
             var panel = AddColumn(root, 392f, 700f);
             _layerLabel = UiKit.AddText(panel, 30f, 12f, 320f, 30f, string.Empty, 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddButton(panel, 400f, 8f, 80f, 38f, "▲", () => StepLayer(1));
-            UiKit.AddButton(panel, 488f, 8f, 80f, 38f, "▼", () => StepLayer(-1));
+            UiKit.AddFitButton(panel, 400f, 8f, 80f, 38f, "▲", () => StepLayer(1));
+            UiKit.AddFitButton(panel, 488f, 8f, 80f, 38f, "▼", () => StepLayer(-1));
 
             var frame = new GameObject("CanvasFrame", typeof(RectTransform));
             frame.transform.SetParent(panel, false);
@@ -617,24 +617,24 @@ namespace BlocksBeyondTheStars.Client
             _canvasImg = canvasGo.AddComponent<RawImage>();
 
             float y = 56f + CanvasPx + 14f;
-            UiKit.AddButton(panel, 30f, y, 208f, 40f, L("ui.shape.custom.copy_below"), () => Do(_model.CopyLayerBelow));
-            UiKit.AddButton(panel, 246f, y, 208f, 40f, L("ui.shape.custom.clear_layer"), () => Do(_model.ClearLayer));
-            UiKit.AddButton(panel, 462f, y, 208f, 40f, L("ui.form.fill_layer"), () => Do(_model.FillLayer));
+            UiKit.AddFitButton(panel, 30f, y, 208f, 40f, L("ui.shape.custom.copy_below"), () => Do(_model.CopyLayerBelow));
+            UiKit.AddFitButton(panel, 246f, y, 208f, 40f, L("ui.shape.custom.clear_layer"), () => Do(_model.ClearLayer));
+            UiKit.AddFitButton(panel, 462f, y, 208f, 40f, L("ui.form.fill_layer"), () => Do(_model.FillLayer));
             y += 46f;
-            UiKit.AddButton(panel, 30f, y, 208f, 40f, L("ui.shape.custom.mirror_x"), () => Do(() => _model.Mirror(alongX: true)));
-            UiKit.AddButton(panel, 246f, y, 208f, 40f, L("ui.shape.custom.mirror_z"), () => Do(() => _model.Mirror(alongX: false)));
-            UiKit.AddButton(panel, 462f, y, 208f, 40f, L("ui.shape.custom.clear_all"), () => Do(_model.ClearAll));
+            UiKit.AddFitButton(panel, 30f, y, 208f, 40f, L("ui.shape.custom.mirror_x"), () => Do(() => _model.Mirror(alongX: true)));
+            UiKit.AddFitButton(panel, 246f, y, 208f, 40f, L("ui.shape.custom.mirror_z"), () => Do(() => _model.Mirror(alongX: false)));
+            UiKit.AddFitButton(panel, 462f, y, 208f, 40f, L("ui.shape.custom.clear_all"), () => Do(_model.ClearAll));
             y += 46f;
-            UiKit.AddButton(panel, 30f, y, 100f, 40f, "←", () => Do(() => _model.Shift(-1, 0, 0)));
-            UiKit.AddButton(panel, 136f, y, 100f, 40f, "→", () => Do(() => _model.Shift(1, 0, 0)));
-            UiKit.AddButton(panel, 246f, y, 100f, 40f, "↑", () => Do(() => _model.Shift(0, 0, 1)));
-            UiKit.AddButton(panel, 352f, y, 100f, 40f, "↓", () => Do(() => _model.Shift(0, 0, -1)));
-            UiKit.AddButton(panel, 462f, y, 100f, 40f, "⤒", () => Do(() => _model.Shift(0, 1, 0)));
-            UiKit.AddButton(panel, 568f, y, 102f, 40f, "⤓", () => Do(() => _model.Shift(0, -1, 0)));
+            UiKit.AddFitButton(panel, 30f, y, 100f, 40f, "←", () => Do(() => _model.Shift(-1, 0, 0)));
+            UiKit.AddFitButton(panel, 136f, y, 100f, 40f, "→", () => Do(() => _model.Shift(1, 0, 0)));
+            UiKit.AddFitButton(panel, 246f, y, 100f, 40f, "↑", () => Do(() => _model.Shift(0, 0, 1)));
+            UiKit.AddFitButton(panel, 352f, y, 100f, 40f, "↓", () => Do(() => _model.Shift(0, 0, -1)));
+            UiKit.AddFitButton(panel, 462f, y, 100f, 40f, "⤒", () => Do(() => _model.Shift(0, 1, 0)));
+            UiKit.AddFitButton(panel, 568f, y, 102f, 40f, "⤓", () => Do(() => _model.Shift(0, -1, 0)));
             y += 46f;
-            UiKit.AddButton(panel, 30f, y, 208f, 40f, L("ui.tex.undo"), DoUndo);
-            UiKit.AddButton(panel, 246f, y, 208f, 40f, L("ui.tex.redo"), DoRedo);
-            _gridButton = UiKit.AddButton(panel, 462f, y, 208f, 40f, L("ui.shape.custom.grid_toggle"), ToggleGrid);
+            UiKit.AddFitButton(panel, 30f, y, 208f, 40f, L("ui.tex.undo"), DoUndo);
+            UiKit.AddFitButton(panel, 246f, y, 208f, 40f, L("ui.tex.redo"), DoRedo);
+            _gridButton = UiKit.AddFitButton(panel, 462f, y, 208f, 40f, L("ui.shape.custom.grid_toggle"), ToggleGrid);
             y += 50f;
             _budgetLabel = UiKit.AddText(panel, 30f, y, 640f, 24f, string.Empty, 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
             y += 26f;
@@ -685,7 +685,7 @@ namespace BlocksBeyondTheStars.Client
             FootprintRow(panel, y + 46f, "ui.form.height", 0, 1, 0);
             FootprintRow(panel, y + 92f, "ui.form.length", 0, 0, 1);
             y += 146f;
-            var note = UiKit.AddText(panel, 16f, y, 764f, 66f, L("ui.form.footprint_note"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
+            var note = UiKit.AddText(panel, 16f, y, 764f, 66f, L("ui.form.footprint_note"), 14, UiKit.TextCol, TextAnchor.UpperLeft); // an instruction (#3263)
             note.horizontalOverflow = HorizontalWrapMode.Wrap;
 
             // Name + save.
@@ -693,18 +693,18 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(panel, 16f, y, 764f, 22f, L("ui.shape.custom.name"), 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 26f;
             _nameInput = UiKit.AddInput(panel, 16f, y, 470f, 44f, _name, v => _name = v, L("ui.shape.custom.name_hint"), 24);
-            UiKit.AddButton(panel, 494f, y, 286f, 44f, L("ui.form.save"), Save, "btn_singleplayer");
+            UiKit.AddFitButton(panel, 494f, y, 286f, 44f, L("ui.form.save"), Save, "btn_singleplayer");
             y += 54f;
             StatusLabel = UiKit.AddText(panel, 16f, y, 600f, 48f, string.Empty, 14, UiKit.Ok, TextAnchor.UpperLeft);
             StatusLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddButton(panel, 620f, 1010f - 52f, 160f, 40f, L("ui.menu.back"), Close);
+            UiKit.AddFitButton(panel, 620f, 1010f - 52f, 160f, 40f, L("ui.menu.back"), Close);
         }
 
         private void FootprintRow(Transform panel, float y, string labelKey, int dw, int dh, int dl)
         {
             UiKit.AddText(panel, 16f, y, 240f, 40f, L(labelKey), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.AddButton(panel, 270f, y, 80f, 40f, "−", () => StepFootprint(-dw, -dh, -dl));
-            UiKit.AddButton(panel, 358f, y, 80f, 40f, "+", () => StepFootprint(dw, dh, dl));
+            UiKit.AddFitButton(panel, 270f, y, 80f, 40f, "−", () => StepFootprint(-dw, -dh, -dl));
+            UiKit.AddFitButton(panel, 358f, y, 80f, 40f, "+", () => StepFootprint(dw, dh, dl));
         }
 
         private string MaterialLabel(BlockDefinition block) =>

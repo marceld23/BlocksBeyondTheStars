@@ -744,6 +744,9 @@ namespace BlocksBeyondTheStars.Client
 
         // ── UI ───────────────────────────────────────────────────────────────────────────────────
 
+        /// <summary>The hint line under the buttons: room for three lines at 13 px — the narrow host is 700 px wide (#3263).</summary>
+        internal const float HintH = 52f;
+
         private void BuildUi()
         {
             bool hasLibrary = OnSaveDesign != null || LibraryProvider != null;
@@ -815,16 +818,16 @@ namespace BlocksBeyondTheStars.Client
             float halfW = (toolW - gap) / 2f;
             float quarterW = (toolW - halfW - 2f * gap) / 2f;
 
-            var fillBtn = UiKit.AddButton(panel, 24f, toolsY, halfW, toolH, L("ui.face.fill"), () => SetFilling(!_filling));
+            var fillBtn = UiKit.AddFitButton(panel, 24f, toolsY, halfW, toolH, L("ui.face.fill"), () => SetFilling(!_filling));
             _fillButton = fillBtn.image;
             _fillLabel = fillBtn.GetComponentInChildren<Text>();
-            UiKit.AddButton(panel, 24f + halfW + gap, toolsY, halfW, toolH, L("ui.face.fill_all"), FillWholeRegion);
+            UiKit.AddFitButton(panel, 24f + halfW + gap, toolsY, halfW, toolH, L("ui.face.fill_all"), FillWholeRegion);
 
-            var pickBtn = UiKit.AddButton(panel, 24f, toolsY + row2, halfW, toolH, L("ui.face.pick"), () => SetPicking(!_picking));
+            var pickBtn = UiKit.AddFitButton(panel, 24f, toolsY + row2, halfW, toolH, L("ui.face.pick"), () => SetPicking(!_picking));
             _pickButton = pickBtn.image;
             _pickLabel = pickBtn.GetComponentInChildren<Text>();
-            _undoButton = UiKit.AddButton(panel, 24f + halfW + gap, toolsY + row2, quarterW, toolH, L("ui.face.undo"), Undo);
-            _redoButton = UiKit.AddButton(panel, 24f + halfW + quarterW + 2f * gap, toolsY + row2, quarterW, toolH, L("ui.face.redo"), Redo);
+            _undoButton = UiKit.AddFitButton(panel, 24f + halfW + gap, toolsY + row2, quarterW, toolH, L("ui.face.undo"), Undo);
+            _redoButton = UiKit.AddFitButton(panel, 24f + halfW + quarterW + 2f * gap, toolsY + row2, quarterW, toolH, L("ui.face.redo"), Redo);
             RefreshHistoryButtons();
 
             BuildColorWheel(panel, wide ? 900f : 470f, wide ? 300f : paletteLabelY + 8f);
@@ -836,11 +839,14 @@ namespace BlocksBeyondTheStars.Client
 
             // Buttons.
             float buttonsY = toolsY + 104f; // clears the second tool row
-            UiKit.AddButton(panel, 24f, buttonsY, 220f, 56f, L("ui.face.apply"), Apply);
-            UiKit.AddButton(panel, 260f, buttonsY, 180f, 56f, L("ui.face.clear"), ClearCanvas);
-            UiKit.AddButton(panel, 456f, buttonsY, 220f, 56f, L("ui.menu.back"), Close);
+            UiKit.AddFitButton(panel, 24f, buttonsY, 220f, 56f, L("ui.face.apply"), Apply);
+            UiKit.AddFitButton(panel, 260f, buttonsY, 180f, 56f, L("ui.face.clear"), ClearCanvas);
+            UiKit.AddFitButton(panel, 456f, buttonsY, 220f, 56f, L("ui.menu.back"), Close);
 
-            _hint = UiKit.AddText(panel, 24f, buttonsY + 62f, panelW - 48f, 24f, L(HintKeyNow()), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            // An instruction: normal colour; 14 px down to 13 on one line, else up to three lines at 13 — the narrow host's
+            // panel is 700 px and the hints are up to 1100 (#3263).
+            _hint = UiKit.AddText(panel, 24f, buttonsY + 58f, panelW - 48f, HintH, L(HintKeyNow()), 14, UiKit.TextCol, TextAnchor.UpperLeft);
+            UiKit.FitLabelLines(_hint, 14, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize, 3);
 
             // Design library column (paint host only): name + save the current canvas, reload saved designs,
             // and share one as a code (#846) — the same set of moves the form library offers.
@@ -850,7 +856,7 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddInput(panel, 700f, 92f, 226f, 42f, _name, v => _name = v, L("ui.paint.name"), 24, 16);
                 if (OnSaveDesign != null)
                 {
-                    UiKit.AddButton(panel, 700f, 140f, 226f, 44f, L("ui.paint.save"), () =>
+                    UiKit.AddFitButton(panel, 700f, 140f, 226f, 44f, L("ui.paint.save"), () =>
                     {
                         OnSaveDesign(FacePalette.Encode(_grid, _grid.Length), _name);
                         RebuildLibraryList();
@@ -859,9 +865,10 @@ namespace BlocksBeyondTheStars.Client
 
                 if (OnShare != null)
                 {
-                    UiKit.AddButton(panel, 700f, 190f, 110f, 40f, L("ui.shape.custom.export"),
+                    // Full column width, one under the other: "Code kopieren" took two 15 px lines in 110 px (#3263).
+                    UiKit.AddFitButton(panel, 700f, 190f, 226f, 40f, L("ui.shape.custom.export"),
                         () => OnShare(FacePalette.Encode(_grid, _grid.Length), _name));
-                    UiKit.AddButton(panel, 816f, 190f, 110f, 40f, L("ui.shape.custom.import"), () =>
+                    UiKit.AddFitButton(panel, 700f, 236f, 226f, 40f, L("ui.shape.custom.import"), () =>
                     {
                         if (OnImport?.Invoke() is { } imported)
                         {
@@ -877,7 +884,7 @@ namespace BlocksBeyondTheStars.Client
 
                 var listGo = new GameObject("PaintLibraryList", typeof(RectTransform));
                 listGo.transform.SetParent(panel, false);
-                _libList = UiKit.Place(listGo, 700f, 240f, 226f, 580f);
+                _libList = UiKit.Place(listGo, 700f, 286f, 226f, 534f);
                 RebuildLibraryList();
             }
 
@@ -899,7 +906,7 @@ namespace BlocksBeyondTheStars.Client
             for (int i = 0; i < _subjects.Count; i++)
             {
                 int which = i;
-                var btn = UiKit.AddButton(panel, 24f + i * (tabW + gap), 50f, tabW, 36f, L(_subjects[i].LabelKey),
+                var btn = UiKit.AddFitButton(panel, 24f + i * (tabW + gap), 50f, tabW, 36f, L(_subjects[i].LabelKey),
                     () => SwitchSubject(which));
                 _tabFrames[i] = btn.image;
             }
@@ -989,7 +996,7 @@ namespace BlocksBeyondTheStars.Client
             for (int i = 0; i < entries.Count && i < maxShown; i++)
             {
                 string pixels = entries[i].Pixels;
-                UiKit.AddButton(_libList, 0f, y, 226f, 42f, entries[i].Name, () =>
+                UiKit.AddFitButton(_libList, 0f, y, 226f, 42f, entries[i].Name, () =>
                 {
                     BeginGridEdit();
                     LoadFrom(pixels);
@@ -1014,14 +1021,14 @@ namespace BlocksBeyondTheStars.Client
             const float w = 226f;
             UiKit.AddText(panel, x, 64f, w, 24f, L("ui.avatar.outfits"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             _outfitName = UiKit.AddInput(panel, x, 92f, w, 42f, _outfitTyped, v => _outfitTyped = v, L("ui.avatar.outfit_name"), 24, 16);
-            UiKit.AddButton(panel, x, 142f, w, 44f, L("ui.avatar.outfit_save"), SaveOutfitPressed);
-            UiKit.AddButton(panel, x, 194f, w, 40f, L("ui.avatar.outfit_rename"), RenameOutfitPressed);
+            UiKit.AddFitButton(panel, x, 142f, w, 44f, L("ui.avatar.outfit_save"), SaveOutfitPressed);
+            UiKit.AddFitButton(panel, x, 194f, w, 40f, L("ui.avatar.outfit_rename"), RenameOutfitPressed);
 
             var listGo = new GameObject("OutfitList", typeof(RectTransform));
             listGo.transform.SetParent(panel, false);
             _outfitList = UiKit.Place(listGo, x, 246f, w, 380f);
 
-            _outfitEmpty = UiKit.AddText(panel, x, 252f, w, 90f, L("ui.avatar.outfit_none"), 13, UiKit.CyanDim, TextAnchor.UpperLeft);
+            _outfitEmpty = UiKit.AddText(panel, x, 252f, w, 90f, L("ui.avatar.outfit_none"), 13, UiKit.TextCol, TextAnchor.UpperLeft); // an instruction (#3263)
             _outfitEmpty.horizontalOverflow = HorizontalWrapMode.Wrap;
 
             _outfitStatus = UiKit.AddText(panel, x, 636f, w, 90f, string.Empty, 13, UiKit.Ok, TextAnchor.UpperLeft);
@@ -1061,11 +1068,11 @@ namespace BlocksBeyondTheStars.Client
             {
                 int idx = i;
                 string name = string.IsNullOrEmpty(names[i]) ? "?" : names[i];
-                var wear = UiKit.AddButton(_outfitList, 0f, y, 170f, 40f, name, () => WearOutfitPressed(idx));
+                var wear = UiKit.AddFitButton(_outfitList, 0f, y, 170f, 40f, name, () => WearOutfitPressed(idx));
                 var label = wear.GetComponentInChildren<Text>();
                 label.color = idx == _selectedOutfit ? UiKit.Cyan : UiKit.TextCol;
                 _outfitLabels.Add(label);
-                UiKit.AddButton(_outfitList, 178f, y, 48f, 40f, "✕", () => DeleteOutfitPressed(idx));
+                UiKit.AddFitButton(_outfitList, 178f, y, 48f, 40f, "✕", () => DeleteOutfitPressed(idx));
                 y += 46f;
             }
         }
@@ -1620,7 +1627,7 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         private void BuildRegionColumn(Transform panel, float canvasY)
         {
-            const float tile = 112f, labelH = 16f, gap = 8f, colGap = 24f;
+            const float tile = 112f, labelH = 18f, gap = 8f, colGap = 24f; // 18: room for the 13 px region names (#3263)
             const float baseX = 580f;
             float baseY = canvasY + (_regionRows > 1 ? 24f : 0f); // leave room for the limb headers
             _regionFrames = new Image[_regionCols * _regionRows];
@@ -1641,7 +1648,7 @@ namespace BlocksBeyondTheStars.Client
                     float y = baseY + col * (labelH + tile + gap);
                     var keys = Current.ColumnLabelKeys;
                     UiKit.AddText(panel, x, y, tile, labelH, L(keys[Mathf.Min(col, keys.Length - 1)]),
-                        12, UiKit.CyanDim, TextAnchor.MiddleCenter);
+                        UiKit.EditorMinFontSize, UiKit.CyanDim, TextAnchor.MiddleCenter);
 
                     // Highlight frame behind the tile; the tile itself is a click-to-select RawImage button.
                     var frameGo = new GameObject("RegionFrame", typeof(RectTransform));

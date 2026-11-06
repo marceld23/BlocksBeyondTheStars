@@ -20,6 +20,9 @@ namespace BlocksBeyondTheStars.Client
         private const int Cols = 4;
         private const float CellW = 140f, CellH = 108f, Gap = 8f;
 
+        /// <summary>The caption under a form's icon: room for two lines at 13 px.</summary>
+        internal const float CaptionH = 36f;
+
         private readonly AppShell _shell;
         private readonly GameObject _overlay;
         private readonly Transform _panel;
@@ -76,16 +79,18 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     int shape = i == 0 ? EditorPlacementRules.AutoForm : BuiltInForms.Options[i - 1].Shape;
-                    string name = i == 0 ? L("ui.ed.form_auto") : L(BuiltInForms.Options[i - 1].LocKey);
+                    string name = i == 0 ? AutoCaption() : L(BuiltInForms.Options[i - 1].LocKey);
                     float x = c * (CellW + Gap);
-                    var btn = UiKit.AddButton(row, x, 0f, CellW, CellH, string.Empty, () => { onPick?.Invoke(shape); Close(); });
+                    var btn = UiKit.AddFitButton(row, x, 0f, CellW, CellH, string.Empty, () => { onPick?.Invoke(shape); Close(); });
                     var icon = new GameObject("FormIcon", typeof(RectTransform));
                     icon.transform.SetParent(btn.transform, false);
                     UiKit.Place(icon, (CellW - 64f) * 0.5f, 8f, 64f, 64f);
                     var raw = icon.AddComponent<RawImage>();
                     raw.raycastTarget = false;
                     PaintIcon(raw, atlas, tileId, shape);
-                    var cap = UiKit.AddText(btn.transform, 2f, CellH - 30f, CellW - 4f, 26f, name, 12, UiKit.TextCol, TextAnchor.MiddleCenter, FontStyle.Bold);
+                    // 15 px down to 13 on one line, else two lines at 13 — "Automatic (the block's own form)" was 12 px (#3263).
+                    var cap = UiKit.AddText(btn.transform, 2f, CellH - CaptionH, CellW - 4f, CaptionH - 2f, name, 15, UiKit.TextCol, TextAnchor.MiddleCenter, FontStyle.Bold);
+                    UiKit.FitLabelLines(cap, 15, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize);
                     cap.raycastTarget = false;
                     UiKit.AddOutline(cap);
                     if (shape == current)
@@ -100,7 +105,16 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            UiKit.AddButton(_panel, 20f, H - 54f, W - 40f, 40f, L("ui.menu.back"), Close);
+            UiKit.AddFitButton(_panel, 20f, H - 54f, W - 40f, 40f, L("ui.menu.back"), Close);
+        }
+
+        /// <summary>The Automatic cell's caption: "Automatic (the block's own form)" where it fits two lines of the cell,
+        /// else the short "Auto" — Russian and Ukrainian need three lines for the long one (#3263).</summary>
+        private string AutoCaption()
+        {
+            string full = L("ui.ed.form_auto");
+            var fit = UiKit.FitLines(full, CellW - 4f, CaptionH - 2f, FontStyle.Bold, 15, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize);
+            return fit.Fits ? full : L("ui.ed.form_auto_short");
         }
 
         /// <summary>Draws a form's icon into <paramref name="raw"/>: the form on the block's tile (the in-game

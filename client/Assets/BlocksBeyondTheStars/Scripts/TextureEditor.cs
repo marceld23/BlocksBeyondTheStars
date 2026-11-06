@@ -26,7 +26,7 @@ namespace BlocksBeyondTheStars.Client
     /// on any install. The tools themselves are <see cref="PixelCanvasModel"/> (engine-free, pinned by the headless
     /// suite); this class is the uGUI around it. Mouse and gamepad (<see cref="PadCanvasFocus"/>).
     /// </summary>
-    public sealed class TextureEditor : MonoBehaviour
+    public sealed partial class TextureEditor : MonoBehaviour
     {
         /// <summary>Menu host: set by <see cref="AppShell"/>.</summary>
         public AppShell Shell;
@@ -450,7 +450,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private bool _lastButtonWasSecondary;
-        private TextureSubmitDialog _submit;
+        private CreationSubmitDialog _submit;
 
         /// <summary>What erasing writes: see-through where the tile may have holes, the secondary colour where it may
         /// not (a block tile is opaque by rule).</summary>
@@ -817,7 +817,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (_submit == null)
             {
-                _submit = gameObject.AddComponent<TextureSubmitDialog>();
+                _submit = gameObject.AddComponent<CreationSubmitDialog>();
                 _submit.Localize = L;
                 _submit.Settings = Shell != null ? Shell.Settings : null;
                 _submit.OnOutcome = SetStatus;
@@ -860,7 +860,8 @@ namespace BlocksBeyondTheStars.Client
             }
             catch (Exception e)
             {
-                SetStatus(L("ui.editor.export_failed") + " " + e.Message, UiKit.Warn);
+                Debug.LogWarning($"[TextureEditor] Export of '{_entry.Key}' failed: {e}");
+                SetStatus(L("ui.ed.export_failed_hint"), UiKit.Warn); // a friendly line; the exception goes to the log (#3263)
             }
         }
 
@@ -906,7 +907,8 @@ namespace BlocksBeyondTheStars.Client
             }
             catch (Exception e)
             {
-                SetStatus(e.Message, UiKit.Warn);
+                Debug.LogWarning($"[TextureEditor] Could not open the texture folder: {e}");
+                SetStatus(L("ui.ed.open_folder_failed"), UiKit.Warn);
             }
         }
 
@@ -1157,8 +1159,8 @@ namespace BlocksBeyondTheStars.Client
 
                 string part = face.Part == "*" ? L("ui.tex.part.any") : LocalOr("ui.tex.part." + face.Part, face.Part);
                 string side = face.Side == "*" ? string.Empty : " · " + LocalOr("ui.tex.side." + face.Side, face.Side);
-                var label = UiKit.AddText(frame.transform, 3f, 1f, Mathf.Max(60f, w), 16f, part + side, 11,
-                    new Color(1f, 0.92f, 0.55f), TextAnchor.UpperLeft, FontStyle.Bold);
+                var label = UiKit.AddText(frame.transform, 3f, 1f, Mathf.Max(60f, w), 18f, part + side, UiKit.EditorMinFontSize,
+                    new Color(1f, 0.92f, 0.55f), TextAnchor.UpperLeft, FontStyle.Bold); // 13 px, not 11 (#3263)
                 label.raycastTarget = false;
                 label.horizontalOverflow = HorizontalWrapMode.Overflow;
             }
@@ -1168,300 +1170,6 @@ namespace BlocksBeyondTheStars.Client
         {
             string text = L(key);
             return string.IsNullOrEmpty(text) || text == key ? fallback : text;
-        }
-
-        // ---------------------------------------------------------------- UI
-
-        private void BuildUi()
-        {
-            _ui = UiKit.CreateCanvas("Texture Editor UI");
-            _ui.sortingOrder = WorldHost != null ? 40 : 5;
-            var root = _ui.transform;
-            if (WorldHost != null)
-            {
-                UiKit.AddModalDim(root); // over a running world: the scene behind must not shine through the panels
-            }
-
-            UiKit.AddText(root, 16f, 2f, 1400f, 26f, L("ui.tex.title"), 17, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-
-            BuildBrowser(root);
-            BuildCanvasPanel(root);
-            BuildRightPanel(root);
-
-            _hint = UiKit.AddText(root, 16f, 1080f - 30f, 1880f, 24f, L("ui.tex.hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            UiNav.Enable(_ui.gameObject, padHints: false); // this editor draws its own hint line
-            _pad = new PadCanvasFocus(_ui.gameObject, _canvasRt);
-            SetTool(Tool.Brush);
-            SetBrushSize(1);
-            SetPrimary(_primary);
-        }
-
-        private void BuildBrowser(Transform root)
-        {
-            var panel = UiKit.AddPanel(root, 16f, 32f, 360f, 1010f, UiKit.PanelFill).transform;
-            UiKit.AddText(panel, 14f, 10f, 330f, 24f, L("ui.tex.browser"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddInput(panel, 14f, 40f, 332f, 34f, string.Empty, v =>
-            {
-                _search = v;
-                _list?.Rebuild(_search);
-            }, L("ui.tex.search"), 40, 15);
-
-            _listContent = UiKit.ScrollList(panel, 14f, 82f, 332f, 914f);
-            _rows.Clear();
-            foreach (var e in _entries)
-            {
-                _rows.Add(new EditorPaletteKit.Entry
-                {
-                    Id = e.Key,
-                    Label = e.Label,
-                    Kind = "block",
-                    Group = e.Group,
-                    Color = new Color(0.4f, 0.5f, 0.6f),
-                    Icon = e.Block != null ? EditorPaletteKit.TileSprite(_atlas, e.Block.NumericId.Value) : null,
-                });
-            }
-
-            _list = new PaletteListUi(Shell != null ? Shell : FindAnyObjectByType<AppShell>(), _listContent, _rows);
-            bool first = true;
-            _list.OnSelected = index =>
-            {
-                if (first)
-                {
-                    first = false; // Rebuild reports the initial selection; Start opens it itself
-                    return;
-                }
-
-                if (index >= 0 && index < _entries.Count && !ReferenceEquals(_entries[index], _entry))
-                {
-                    Open(_entries[index]);
-                }
-            };
-            _list.Rebuild(string.Empty);
-        }
-
-        private void BuildCanvasPanel(Transform root)
-        {
-            var panel = UiKit.AddPanel(root, 388f, 32f, 700f, 1010f, UiKit.PanelFill).transform;
-            _title = UiKit.AddText(panel, 30f, 8f, 640f, 24f, string.Empty, 17, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _layerLabel = UiKit.AddText(panel, 30f, 30f, 640f, 18f, string.Empty, 12, UiKit.CyanDim, TextAnchor.MiddleLeft);
-
-            // A checkerboard under the canvas, so see-through texels read as see-through and not as black.
-            var checker = new Texture2D(2, 2, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Repeat };
-            checker.SetPixels32(new[] { new Color32(70, 74, 84, 255), new Color32(104, 108, 118, 255), new Color32(104, 108, 118, 255), new Color32(70, 74, 84, 255) });
-            checker.Apply(false);
-            var checkerGo = new GameObject("Checker", typeof(RectTransform));
-            checkerGo.transform.SetParent(panel, false);
-            UiKit.Place(checkerGo, 30f, 52f, CanvasPx, CanvasPx);
-            var checkerImg = checkerGo.AddComponent<RawImage>();
-            checkerImg.texture = checker;
-            checkerImg.uvRect = new Rect(0f, 0f, 16f, 16f);
-            checkerImg.raycastTarget = false;
-            _checker = checker;
-
-            var canvasGo = new GameObject("TextureCanvas", typeof(RectTransform));
-            canvasGo.transform.SetParent(panel, false);
-            _canvasRt = UiKit.Place(canvasGo, 30f, 52f, CanvasPx, CanvasPx);
-            _canvasImg = canvasGo.AddComponent<RawImage>();
-            _canvasImg.texture = _tex;
-
-            var slotGo = new GameObject("FaceSlots", typeof(RectTransform));
-            slotGo.transform.SetParent(_canvasRt, false);
-            _slotLayer = UiKit.Place(slotGo, 0f, 0f, CanvasPx, CanvasPx);
-
-            // Frame strip.
-            float y = 52f + CanvasPx + 10f;
-            _frameLabel = UiKit.AddText(panel, 30f, y, 640f, 20f, string.Empty, 13, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            y += 22f;
-            for (int i = 0; i < TextureTiles.MaxFrames; i++)
-            {
-                int index = i;
-                float x = 30f + (i * 60f);
-                _thumbFrames[i] = UiKit.AddImage(panel, x - 2f, y - 2f, 56f, 56f, UiKit.SolidSprite, Color.white);
-                var go = new GameObject("Frame" + i, typeof(RectTransform));
-                go.transform.SetParent(panel, false);
-                UiKit.Place(go, x, y, 52f, 52f);
-                _thumbImgs[i] = go.AddComponent<RawImage>();
-                _thumbImgs[i].texture = _thumbs[i];
-                var btn = go.AddComponent<Button>();
-                btn.transition = Selectable.Transition.None;
-                btn.onClick.AddListener(() => SelectFrame(index));
-            }
-
-            UiKit.AddButton(panel, 520f, y, 74f, 24f, L("ui.tex.frame_add"), () => { if (_entry != null && _entry.IsIcon) { SetStatus(L("ui.tex.icon_one_frame"), UiKit.Warn); return; } if (!_model.DuplicateFrame()) { SetStatus(L("ui.tex.frame_limit"), UiKit.Warn); } AfterChange(); });
-            UiKit.AddButton(panel, 598f, y, 72f, 24f, L("ui.tex.frame_del"), () => { _model.DeleteFrame(); AfterChange(); });
-            UiKit.AddButton(panel, 520f, y + 28f, 36f, 24f, "◀", () => { _model.MoveFrame(-1); AfterChange(); });
-            UiKit.AddButton(panel, 558f, y + 28f, 36f, 24f, "▶", () => { _model.MoveFrame(1); AfterChange(); });
-            UiKit.AddButton(panel, 598f, y + 28f, 72f, 24f, L("ui.tex.fps"), CycleFps);
-            y += 62f;
-
-            // Tools.
-            AddToolButton(panel, 30f, y, Tool.Brush, "ui.tex.tool.brush");
-            AddToolButton(panel, 138f, y, Tool.Eraser, "ui.tex.tool.eraser");
-            AddToolButton(panel, 246f, y, Tool.Fill, "ui.tex.tool.fill");
-            AddToolButton(panel, 354f, y, Tool.Pipette, "ui.tex.tool.pipette");
-            AddToolButton(panel, 462f, y, Tool.Line, "ui.tex.tool.line");
-            AddToolButton(panel, 570f, y, Tool.Rectangle, "ui.tex.tool.rect");
-            y += 40f;
-
-            UiKit.AddButton(panel, 30f, y, 40f, 32f, "−", () => SetBrushSize(_brushSize - 1));
-            _sizeLabel = UiKit.AddText(panel, 74f, y, 130f, 32f, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleCenter);
-            UiKit.AddButton(panel, 208f, y, 40f, 32f, "+", () => SetBrushSize(_brushSize + 1));
-            var mirrorX = UiKit.AddButton(panel, 262f, y, 100f, 32f, L("ui.tex.mirror_x"), null);
-            mirrorX.onClick.AddListener(() => { _model.MirrorX = !_model.MirrorX; Tint(mirrorX, _model.MirrorX); });
-            var mirrorY = UiKit.AddButton(panel, 366f, y, 100f, 32f, L("ui.tex.mirror_y"), null);
-            mirrorY.onClick.AddListener(() => { _model.MirrorY = !_model.MirrorY; Tint(mirrorY, _model.MirrorY); });
-            var slots = UiKit.AddButton(panel, 470f, y, 100f, 32f, L("ui.tex.slots"), null);
-            Tint(slots, _showSlots);
-            slots.onClick.AddListener(() => { _showSlots = !_showSlots; Tint(slots, _showSlots); RebuildSlotOverlay(); });
-            var play = UiKit.AddButton(panel, 574f, y, 96f, 32f, L("ui.tex.play"), null);
-            play.onClick.AddListener(() =>
-            {
-                _playing = !_playing && _model.FrameCount > 1;
-                _playFrame = _model.ActiveFrame;
-                _playClock = 0f;
-                Tint(play, _playing);
-                UploadActiveFrame();
-            });
-            y += 40f;
-
-            UiKit.AddButton(panel, 30f, y, 80f, 32f, L("ui.tex.undo"), DoUndo);
-            UiKit.AddButton(panel, 114f, y, 80f, 32f, L("ui.tex.redo"), DoRedo);
-            UiKit.AddButton(panel, 198f, y, 80f, 32f, L("ui.tex.flip_h"), () => { _model.Flip(true); AfterChange(); });
-            UiKit.AddButton(panel, 282f, y, 80f, 32f, L("ui.tex.flip_v"), () => { _model.Flip(false); AfterChange(); });
-            UiKit.AddButton(panel, 366f, y, 36f, 32f, "←", () => { _model.Shift(-8, 0); AfterChange(); });
-            UiKit.AddButton(panel, 404f, y, 36f, 32f, "→", () => { _model.Shift(8, 0); AfterChange(); });
-            UiKit.AddButton(panel, 442f, y, 36f, 32f, "↑", () => { _model.Shift(0, -8); AfterChange(); });
-            UiKit.AddButton(panel, 480f, y, 36f, 32f, "↓", () => { _model.Shift(0, 8); AfterChange(); });
-            UiKit.AddButton(panel, 530f, y, 140f, 32f, L("ui.tex.fill_all"), () => { _model.Clear(_primary); AfterChange(); });
-            y += 40f;
-
-            UiKit.AddButton(panel, 30f, y, 104f, 32f, L("ui.tex.brighter"), () => { _model.Adjust(0.06f, 0f, 0f); AfterChange(); });
-            UiKit.AddButton(panel, 138f, y, 104f, 32f, L("ui.tex.darker"), () => { _model.Adjust(-0.06f, 0f, 0f); AfterChange(); });
-            UiKit.AddButton(panel, 246f, y, 104f, 32f, L("ui.tex.contrast_up"), () => { _model.Adjust(0f, 0.12f, 0f); AfterChange(); });
-            UiKit.AddButton(panel, 354f, y, 104f, 32f, L("ui.tex.contrast_down"), () => { _model.Adjust(0f, -0.12f, 0f); AfterChange(); });
-            UiKit.AddButton(panel, 462f, y, 104f, 32f, L("ui.tex.saturate"), () => { _model.Adjust(0f, 0f, 0.15f); AfterChange(); });
-            UiKit.AddButton(panel, 570f, y, 100f, 32f, L("ui.tex.desaturate"), () => { _model.Adjust(0f, 0f, -0.15f); AfterChange(); });
-        }
-
-        private Texture2D _checker;
-
-        private void AddToolButton(Transform panel, float x, float y, Tool tool, string key)
-        {
-            var button = UiKit.AddButton(panel, x, y, 100f, 34f, L(key), () => SetTool(tool));
-            _toolButtons[tool] = button.GetComponent<Image>();
-        }
-
-        private static void Tint(Button button, bool on)
-        {
-            var img = button.GetComponent<Image>();
-            if (img != null)
-            {
-                img.color = on ? new Color(0.45f, 0.82f, 1f, 1f) : Color.white;
-            }
-        }
-
-        private void BuildRightPanel(Transform root)
-        {
-            var panel = UiKit.AddPanel(root, 1100f, 32f, 804f, 1010f, UiKit.PanelFill).transform;
-
-            // 3-D preview and the tiled 3×3 view (seams!) side by side.
-            UiKit.AddText(panel, 16f, 8f, 380f, 22f, L("ui.tex.preview"), 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            var previewGo = new GameObject("Preview3D", typeof(RectTransform));
-            previewGo.transform.SetParent(panel, false);
-            UiKit.Place(previewGo, 16f, 34f, 380f, 380f);
-            previewGo.AddComponent<RawImage>().texture = _preview.Target;
-
-            UiKit.AddText(panel, 408f, 8f, 380f, 22f, L("ui.tex.tiled"), 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            var tiledGo = new GameObject("Tiled", typeof(RectTransform));
-            tiledGo.transform.SetParent(panel, false);
-            UiKit.Place(tiledGo, 408f, 34f, 380f, 380f);
-            var tiled = tiledGo.AddComponent<RawImage>();
-            tiled.texture = _tex;
-            tiled.uvRect = new Rect(0f, 0f, 3f, 3f);
-            tiled.raycastTarget = false;
-
-            // Colour: saturation/value square, hue bar, alpha bar.
-            float cy = 430f;
-            UiKit.AddText(panel, 16f, cy, 300f, 22f, L("ui.tex.color"), 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            cy += 26f;
-            _svTex = new Texture2D(48, 48, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
-            _svRt = AddRaw(panel, 16f, cy, 220f, 220f, _svTex);
-            _hueTex = new Texture2D(96, 1, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
-            var hue = new Color32[96];
-            for (int i = 0; i < hue.Length; i++)
-            {
-                hue[i] = Color.HSVToRGB(i / 95f, 1f, 1f);
-            }
-
-            _hueTex.SetPixels32(hue);
-            _hueTex.Apply(false);
-            _hueRt = AddRaw(panel, 16f, cy + 228f, 220f, 22f, _hueTex);
-            var alphaBar = UiKit.AddImage(panel, 16f, cy + 256f, 220f, 18f, UiKit.SolidSprite, new Color(1f, 1f, 1f, 0.55f));
-            _alphaRt = (RectTransform)alphaBar.transform;
-            UiKit.AddText(panel, 16f, cy + 274f, 220f, 16f, L("ui.tex.alpha_bar"), 11, UiKit.CyanDim, TextAnchor.MiddleLeft);
-
-            // Primary / secondary swatch, swap, hex.
-            float sx = 252f;
-            _secondarySwatch = UiKit.AddImage(panel, sx + 34f, cy + 28f, 56f, 56f, UiKit.SolidSprite, Color.black);
-            _primarySwatch = UiKit.AddImage(panel, sx, cy, 56f, 56f, UiKit.SolidSprite, Color.white);
-            UiKit.AddButton(panel, sx + 100f, cy, 110f, 30f, L("ui.tex.swap"), SwapColors);
-            _hexField = UiKit.AddInput(panel, sx + 100f, cy + 36f, 110f, 30f, "ffffff", null, "rrggbb", 9, 14);
-            _hexField.onEndEdit.AddListener(OnHexEntered);
-
-            // The tile's own colours — a repaint stays in the tile's palette (and a pad can pick from these).
-            UiKit.AddText(panel, sx, cy + 96f, 300f, 18f, L("ui.tex.tile_colors"), 12, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            for (int i = 0; i < 24; i++)
-            {
-                int index = i;
-                var sw = UiKit.AddImage(panel, sx + ((i % 8) * 34f), cy + 118f + ((i / 8) * 34f), 30f, 30f, UiKit.SolidSprite, Color.white);
-                var btn = sw.gameObject.AddComponent<Button>();
-                btn.transition = Selectable.Transition.None;
-                btn.targetGraphic = sw;
-                btn.onClick.AddListener(() =>
-                {
-                    if (index < _tileColors.Count)
-                    {
-                        SetPrimary(_tileColors[index]);
-                    }
-                });
-                _tileSwatches.Add(sw);
-            }
-
-            // Saving.
-            float by = 750f;
-            UiKit.AddText(panel, 16f, by, 770f, 22f, L("ui.tex.save_title"), 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            by += 28f;
-            UiKit.AddButton(panel, 16f, by, 250f, 40f, L("ui.tex.save_local"), SaveForMe);
-            UiKit.AddButton(panel, 274f, by, 250f, 40f, L("ui.tex.remove_local"), RemoveMine);
-            UiKit.AddButton(panel, 532f, by, 256f, 40f, L("ui.tex.export"), ExportForGame);
-            by += 46f;
-            UiKit.AddButton(panel, 16f, by, 250f, 34f, L("ui.tex.reset"), ResetToOfficial);
-            var before = UiKit.AddButton(panel, 274f, by, 250f, 34f, L("ui.tex.before"), null);
-            var hold = before.gameObject.AddComponent<HoldButton>();
-            hold.OnHold = ShowOfficial;
-            UiKit.AddButton(panel, 532f, by, 126f, 34f, L("ui.tex.copy_code"), CopyCode);
-            UiKit.AddButton(panel, 662f, by, 126f, 34f, L("ui.tex.paste_code"), PasteCode);
-            by += 40f;
-            UiKit.AddButton(panel, 16f, by, 250f, 34f, L("ui.tex.open_folder"), OpenFolder);
-            UiKit.AddButton(panel, 274f, by, 250f, 34f, L("ui.tex.reload_folder"), ReloadFolder);
-            _publishButton = UiKit.AddButton(panel, 532f, by, 126f, 34f, L("ui.tex.publish"), Publish);
-            _unpublishButton = UiKit.AddButton(panel, 662f, by, 126f, 34f, L("ui.tex.unpublish"), Unpublish);
-            by += 42f;
-
-            _status = UiKit.AddText(panel, 16f, by, 600f, 56f, string.Empty, 13, UiKit.Ok, TextAnchor.UpperLeft);
-            _status.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddButton(panel, 628f, 1010f - 52f, 160f, 40f, L("ui.menu.back"), Close);
-            // Offer the texture for the game itself (#1965) — its own dialog with the three consents.
-            UiKit.AddButton(panel, 398f, 1010f - 52f, 222f, 40f, L("ui.tex.submit.open"), OpenSubmit, "btn_feedback");
-        }
-
-        private static RectTransform AddRaw(Transform parent, float x, float y, float w, float h, Texture tex)
-        {
-            var go = new GameObject("Raw", typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            var rt = UiKit.Place(go, x, y, w, h);
-            go.AddComponent<RawImage>().texture = tex;
-            return rt;
         }
     }
 

@@ -106,7 +106,7 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddText(row, 8f, 4f, W - 80f, 24f, L("ui.ed.none"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
             }
 
-            UiKit.AddButton(_panel, 20f, H - 54f, W - 40f, 40f, L("ui.menu.back"), Close);
+            UiKit.AddFitButton(_panel, 20f, H - 54f, W - 40f, 40f, L("ui.menu.back"), Close);
         }
 
         /// <summary>The "replace your current build?" step: shown instead of loading straight away when
@@ -118,8 +118,8 @@ namespace BlocksBeyondTheStars.Client
             var msg = UiKit.AddText(_panel, 20f, 70f, W - 40f, 120f,
                 string.Format(L("ui.ed.confirm_replace"), currentCells, item.Label), 16, UiKit.Warn, TextAnchor.UpperLeft);
             msg.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddButton(_panel, 20f, 210f, (W - 52f) / 2f, 42f, L("ui.ed.confirm_load"), () => { item.Load?.Invoke(); Close(); });
-            UiKit.AddButton(_panel, 32f + (W - 52f) / 2f, 210f, (W - 52f) / 2f, 42f, L("ui.menu.back"), Close);
+            UiKit.AddFitButton(_panel, 20f, 210f, (W - 52f) / 2f, 42f, L("ui.ed.confirm_load"), () => { item.Load?.Invoke(); Close(); });
+            UiKit.AddFitButton(_panel, 32f + (W - 52f) / 2f, 210f, (W - 52f) / 2f, 42f, L("ui.menu.back"), Close);
         }
 
         /// <summary>Row height under <see cref="UiKit.ScrollList"/> must be set on the rect itself — the
@@ -145,7 +145,7 @@ namespace BlocksBeyondTheStars.Client
         {
             var row = Row(list, 38f);
             float rowW = W - 32f - 16f; // list width minus the layout padding (4 + 12 for the scrollbar)
-            var btn = UiKit.AddButton(row, 0f, 2f, rowW, 34f, string.Empty, () =>
+            var btn = UiKit.AddFitButton(row, 0f, 2f, rowW, 34f, string.Empty, () =>
             {
                 if (currentCells > 0)
                 {

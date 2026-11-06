@@ -354,16 +354,17 @@ namespace BlocksBeyondTheStars.Client
             // Tools.
             var left = AddColumn(root, 16f, 360f);
             UiKit.AddText(left, 14f, 10f, 330f, 24f, L("ui.toollook.my_tools"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            var note = UiKit.AddText(left, 14f, 38f, 332f, 62f, L("ui.toollook.note"), 13, UiKit.CyanDim, TextAnchor.UpperLeft);
-            note.horizontalOverflow = HorizontalWrapMode.Wrap;
-            _toolList = UiKit.ScrollList(left, 14f, 106f, 332f, 890f, 4f);
+            // An instruction: normal colour, as many lines as the language needs — the list starts below it (#3263).
+            UiKit.AddMeasuredText(left, 14f, 38f, 332f, L("ui.toollook.note"), 13, UiKit.TextCol, out float noteH);
+            float listY = Mathf.Max(106f, 38f + noteH + 6f);
+            _toolList = UiKit.ScrollList(left, 14f, listY, 332f, 996f - listY, 4f);
 
             // Canvas.
             var mid = AddColumn(root, 392f, 700f);
             _title = UiKit.AddText(mid, 30f, 10f, 640f, 28f, string.Empty, 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             _layerLabel = UiKit.AddText(mid, 30f, 44f, 300f, 28f, string.Empty, 16, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.AddButton(mid, 360f, 40f, 70f, 36f, "▲", () => StepLayer(1));
-            UiKit.AddButton(mid, 438f, 40f, 70f, 36f, "▼", () => StepLayer(-1));
+            UiKit.AddFitButton(mid, 360f, 40f, 70f, 36f, "▲", () => StepLayer(1));
+            UiKit.AddFitButton(mid, 438f, 40f, 70f, 36f, "▼", () => StepLayer(-1));
 
             var canvasGo = new GameObject("LookCanvas", typeof(RectTransform));
             canvasGo.transform.SetParent(mid, false);
@@ -388,20 +389,20 @@ namespace BlocksBeyondTheStars.Client
             }
 
             py += (3 * 58f) + 8f;
-            UiKit.AddButton(mid, px, py, 290f, 40f, L("ui.toollook.glow_toggle"), () => Do(() => _model.ToggleGlow(_color)));
+            UiKit.AddFitButton(mid, px, py, 290f, 40f, L("ui.toollook.glow_toggle"), () => Do(() => _model.ToggleGlow(_color)));
             py += 44f;
             _glowLabel = UiKit.AddText(mid, px, py, 290f, 22f, string.Empty, 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
             py += 40f;
-            UiKit.AddButton(mid, px, py, 290f, 40f, L("ui.shape.custom.copy_below"), () => Do(_model.CopyLayerBelow));
+            UiKit.AddFitButton(mid, px, py, 290f, 40f, L("ui.shape.custom.copy_below"), () => Do(_model.CopyLayerBelow));
             py += 46f;
-            UiKit.AddButton(mid, px, py, 290f, 40f, L("ui.shape.custom.mirror_x"), () => Do(_model.MirrorX));
+            UiKit.AddFitButton(mid, px, py, 290f, 40f, L("ui.shape.custom.mirror_x"), () => Do(_model.MirrorX));
             py += 46f;
-            UiKit.AddButton(mid, px, py, 290f, 40f, L("ui.shape.custom.clear_layer"), () => Do(_model.ClearLayer));
+            UiKit.AddFitButton(mid, px, py, 290f, 40f, L("ui.shape.custom.clear_layer"), () => Do(_model.ClearLayer));
             py += 46f;
-            UiKit.AddButton(mid, px, py, 290f, 40f, L("ui.shape.custom.clear_all"), () => Do(_model.ClearAll));
+            UiKit.AddFitButton(mid, px, py, 290f, 40f, L("ui.shape.custom.clear_all"), () => Do(_model.ClearAll));
             py += 46f;
-            UiKit.AddButton(mid, px, py, 141f, 40f, L("ui.tex.undo"), DoUndo);
-            UiKit.AddButton(mid, px + 149f, py, 141f, 40f, L("ui.tex.redo"), DoRedo);
+            UiKit.AddFitButton(mid, px, py, 141f, 40f, L("ui.tex.undo"), DoUndo);
+            UiKit.AddFitButton(mid, px + 149f, py, 141f, 40f, L("ui.tex.redo"), DoRedo);
             py += 50f;
             _budgetLabel = UiKit.AddText(mid, px, py, 290f, 24f, string.Empty, 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
 
@@ -414,17 +415,17 @@ namespace BlocksBeyondTheStars.Client
             PreviewView = view.AddComponent<RawImage>();
 
             float by = 660f;
-            UiKit.AddButton(right, 16f, by, 380f, 52f, L("ui.toollook.save"), Save, "btn_singleplayer");
-            UiKit.AddButton(right, 404f, by, 376f, 52f, L("ui.toollook.use_standard"), UseStandard);
+            UiKit.AddFitButton(right, 16f, by, 380f, 52f, L("ui.toollook.save"), Save, "btn_singleplayer");
+            UiKit.AddFitButton(right, 404f, by, 376f, 52f, L("ui.toollook.use_standard"), UseStandard);
             by += 60f;
-            UiKit.AddButton(right, 16f, by, 186f, 40f, L("ui.tex.copy_code"), CopyCode);
-            UiKit.AddButton(right, 210f, by, 186f, 40f, L("ui.tex.paste_code"), PasteCode);
+            UiKit.AddFitButton(right, 16f, by, 186f, 40f, L("ui.tex.copy_code"), CopyCode);
+            UiKit.AddFitButton(right, 210f, by, 186f, 40f, L("ui.tex.paste_code"), PasteCode);
             by += 50f;
             StatusLabel = UiKit.AddText(right, 16f, by, 764f, 60f, string.Empty, 14, UiKit.Ok, TextAnchor.UpperLeft);
             StatusLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
-            var rules = UiKit.AddText(right, 16f, by + 70f, 764f, 80f, L("ui.toollook.rules"), 13, UiKit.CyanDim, TextAnchor.UpperLeft);
+            var rules = UiKit.AddText(right, 16f, by + 70f, 764f, 80f, L("ui.toollook.rules"), 13, UiKit.TextCol, TextAnchor.UpperLeft); // an instruction (#3263)
             rules.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddButton(right, 620f, 1010f - 52f, 160f, 40f, L("ui.menu.back"), Close);
+            UiKit.AddFitButton(right, 620f, 1010f - 52f, 160f, 40f, L("ui.menu.back"), Close);
 
             EndShell(root, "ui.toollook.hint");
         }
@@ -448,7 +449,7 @@ namespace BlocksBeyondTheStars.Client
                 var item = tool;
                 bool own = Shell?.Settings != null && Shell.Settings.GetToolLook(tool.Key).Length > 0;
                 string label = (own ? "★ " : string.Empty) + ToolName(tool);
-                var button = UiKit.AddButton(row, 0f, 0f, 314f, 42f, label, () => Open(item), "item_" + tool.Key);
+                var button = UiKit.AddFitButton(row, 0f, 0f, 314f, 42f, label, () => Open(item), "item_" + tool.Key);
                 if (tool == _tool)
                 {
                     UiKit.AddOutline(button.targetGraphic);
