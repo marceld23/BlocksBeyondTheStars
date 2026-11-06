@@ -24,13 +24,15 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🌫️ Fog wisps, cloud fog at altitude, fog banks, a mist of each world's own, real smoke at vents and volcanoes (Marcel's analysis 2026-11-06) — #3269–#3277, branch feat/fog-wisps-cloud-fog-vent-smoke — ✅ done 2026-11-06 in PR #PRNUM (`MERGESHA`) (⚠ playtest open; no save-version or terrain-generation change; protocol additive — five new contractless `WorldEnvironment` fields, an older client ignores them, an older server sends defaults = the look before)
+### 🌫️ Fog wisps, cloud fog at altitude, fog banks, a mist of each world's own, real smoke at vents and volcanoes (Marcel's analysis 2026-11-06) — #3269–#3277, branch feat/fog-wisps-cloud-fog-vent-smoke — ✅ done 2026-11-06 in PR #3278 (⚠ playtest open; no save-version or terrain-generation change; protocol additive — five new contractless `WorldEnvironment` fields, an older client ignores them, an older server sends defaults = the look before)
 
 - **#3269** Per-world mist profile `Shared.World.MistProfiles` (pure function of seed × location × type, mixed hash): amount from
   the new `mist` value on all 55 planet types (replaces the hardcoded client switch `Sky.MistFor`) ± a per-world jitter × air
   density; colour — ~40 % white/light grey, ~60 % tinted by the type's family (volcanic, toxic, ice, lush, arid, exotic, pastel),
   always bright (luma ≥ 0.74); wispiness; fog frequency ×0.35–2.2 on the `fog`/`ground_fog` chances (surface and ambient body
-  sims); a cloud band on the cloud line whose base is now the "summits are wetter" line (surface, pads, orbit weather map).
+  sims); a cloud band above the world's measured relief (`WorldGenerator.SurfaceAltitudes`: ≥ 26 above the median ground, above
+  the upper tenth of the land — a band on the type's cloud line lay on the ground of flat worlds); the "summits are wetter" line is
+  the type-relief version of the band base (surface, pads, orbit weather map agree).
   Sent as `MistAmount`/`MistColor`/`MistWispiness`/`CloudBaseY`/`CloudTopY`. `MistProfileTests` (13), `MistProfileServerTests` (2).
 - **#3270** The weather fog colours (fog, dust, sand, ion storm) reached no custom shader — `WeatherFx3D`'s `RenderSettings` fog is
   gone; the tints now go into the real haze (sky, distance haze, mist), festival fog tints colour the mist; `Sky.MirrorLegacyFog`

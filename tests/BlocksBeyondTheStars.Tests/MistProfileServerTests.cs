@@ -59,7 +59,10 @@ public sealed class MistProfileServerTests : IDisposable
         var env = LastEnvironment(server, transport);
 
         var planet = _content.GetPlanet(server.Galaxy.FindBody(server.ActiveLocationId)!.PlanetType!)!;
-        var expected = MistProfiles.For(1, server.ActiveLocationId, planet, server.AtmosphereDensity, airless: false);
+        // #3272: the visible band is placed against the world's measured relief (the generator's calibration).
+        server.World.ApplyGeneratorMode();
+        var terrain = server.World.Generator.SurfaceAltitudes(server.World.Planet);
+        var expected = MistProfiles.For(1, server.ActiveLocationId, planet, server.AtmosphereDensity, airless: false, terrain);
         Assert.True(expected.Amount > 0f, "a jungle world breeds mist");
         Assert.Equal(expected.Amount, env.MistAmount);
         Assert.Equal(expected.ColorRgb, env.MistColor);
@@ -67,9 +70,10 @@ public sealed class MistProfileServerTests : IDisposable
         Assert.Equal(expected.CloudBaseY, env.CloudBaseY);
         Assert.Equal(expected.CloudTopY, env.CloudTopY);
         Assert.True(env.CloudTopY > env.CloudBaseY + 4f, "a cloudy world has a band");
+        Assert.True(env.CloudBaseY >= terrain.MedianY + MistProfiles.MinBandClearance, "the band floats well above the median ground");
+        Assert.True(env.CloudBaseY >= terrain.UpperY + 4, "only the land above the upper tenth reaches into the band");
 
-        // The summits-are-wetter line is the band's base — and the shared function the pad weather and the orbit map use.
-        Assert.Equal((double)env.CloudBaseY, server.CloudLineYForTest);
+        // The summits-are-wetter line is the shared type-relief line the pad weather and the orbit map use too.
         Assert.Equal(MistProfiles.SummitLineY(1, server.ActiveLocationId, planet), server.CloudLineYForTest);
     }
 

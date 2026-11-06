@@ -79,7 +79,7 @@ public sealed class MistProfileTests
         Assert.True(profiles.Select(m => m.ColorRgb).Distinct().Count() > 100, "the mist colour must vary per world");
         Assert.True(profiles.Select(m => m.Wispiness).Distinct().Count() > 150, "the wispiness must vary per world");
         Assert.True(profiles.Select(m => m.FogFrequency).Distinct().Count() > 150, "the fog frequency must vary per world");
-        Assert.True(profiles.Select(m => m.CloudBaseY).Distinct().Count() >= 15, "the cloud band must sit at different heights");
+        Assert.True(profiles.Select(m => m.CloudBaseY).Distinct().Count() >= 12, "the cloud band must sit at different heights"); // a 0..12 lift
 
         // Neighbouring bodies and the same body in another save differ too (the mixed hash, not h·31+c).
         Assert.NotEqual(Profile("sys0-p1", jungle), Profile("sys0-p2", jungle));
@@ -240,17 +240,27 @@ public sealed class MistProfileTests
     {
         foreach (var p in Content.Planets.Values.Where(p => HasAir(p) && p.CloudDensity >= 0.05))
         {
-            double line = WeatherProjection.CloudLineY(p);
+            double line = System.Math.Max(WeatherProjection.CloudLineY(p), p.BaseHeight + MistProfiles.FallbackBandClearance);
             foreach (var world in Worlds(60))
             {
                 var m = Profile(world, p);
                 Assert.True(m.HasCloudBand, $"{p.Key}/{world}: a cloudy world needs a band");
                 Assert.True(m.CloudTopY > m.CloudBaseY + 4f, $"{p.Key}/{world}: the band is too thin");
-                Assert.InRange(m.CloudBaseY, line - 8.001, line + 12.001);
+                Assert.InRange(m.CloudBaseY, line - 0.001, line + 12.001);
                 Assert.InRange(m.CloudTopY - m.CloudBaseY, 14f - 0.001f, 34f + 0.001f);
                 Assert.Equal((double)m.CloudBaseY, MistProfiles.SummitLineY(Seed, world, p)); // the weather's summit line
                 Assert.Equal((m.CloudBaseY, m.CloudTopY), MistProfiles.CloudBand(Seed, world, p, airless: false));
             }
+        }
+
+        // #3272: with the world's measured relief the band clears the median ground and the upper tenth of the land.
+        var swamp = Planet("swamp");
+        foreach (var world in Worlds(40))
+        {
+            var flat = MistProfiles.CloudBand(Seed, world, swamp, airless: false, new TerrainAltitudes(70, 76));
+            Assert.InRange(flat.BaseY, 70 + MistProfiles.MinBandClearance - 0.001, 70 + MistProfiles.MinBandClearance + 12.001);
+            var peaks = MistProfiles.CloudBand(Seed, world, swamp, airless: false, new TerrainAltitudes(90, 140));
+            Assert.InRange(peaks.BaseY, 144 - 0.001, 144 + 12.001);
         }
 
         static double Thickness(string key) => Worlds(200).Select(w => Profile(w, Planet(key))).Average(m => m.CloudTopY - m.CloudBaseY);

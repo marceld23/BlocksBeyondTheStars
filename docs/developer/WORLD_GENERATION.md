@@ -676,7 +676,7 @@ A planet's authored `weather` value sets the world's ladder band rather than pin
 
 - **Fronts** are weather cells drifting along the world's east–west wrap; where one passes, the ladder
   reads 1–2 steps wetter, so a storm visibly arrives and moves on.
-- **Altitude**: above the world's summit line (`MistProfiles.SummitLineY`: the base of its cloud band,
+- **Altitude**: above the world's summit line (`MistProfiles.SummitLineY`: the base of its type-relief cloud band,
   #3269, or the planet's base height + amplitude on a world without one) the weather reads one step
   wetter — summits sit in cloud and snow while the valley stays clear.
 - The per-biome offset now **rotates slowly** over the shared clock, so the wet biome isn't wet forever.
@@ -705,7 +705,14 @@ mixed hash with its own salt, so neighbouring bodies and two worlds of one type 
 | `ColorRgb` | 40 % of worlds white or light grey (cool or warm), 60 % a clear tint from the type's `MistFamily` palette (read from traits: toxic, exotic, ice, volcanic, lush, arid, else pastel); always luma ≥ 0.74, saturation ≤ 0.45; a type's `mistColor` overrides it (Toxica-Maxima) |
 | `Wispiness` 0..1 | per-world roll 0.15..1, a little higher on volatile and wind-carved worlds |
 | `FogFrequency` 0.35..2.2 | multiplier on the `fog` / `ground_fog` event weights, skewed toward the mist amount |
-| `CloudBaseY`..`CloudTopY` | the type's cloud line −8..+12 blocks, 14..34 blocks thick with the cloud cover |
+| `CloudBaseY`..`CloudTopY` | +0..12 blocks above the world's measured relief — the upper tenth of the land + 4 and at least 26 above the median ground (`WorldGenerator.SurfaceAltitudes`, the calibration's height sample) — 14..34 blocks thick with the cloud cover |
+
+The band is placed against the **measured** relief on purpose (#3272): the type's base height and amplitude
+miss a world's real heights by up to ~16 blocks (styles and drama rolls scale the amplitude), so a band on the
+type's cloud line lay on the ground of flat worlds and every rain put the whole swamp into a cloud. Views
+without a generator (and the weather's summit line, `MistProfiles.SummitLineY`, which the pad weather and the
+orbit map share) use the type's relief with a larger clearance instead: the classic cloud line, at least 42
+above the base height.
 
 Airless, space-sky, void and gas worlds (and types without cloud cover, for the band) get none. The
 server computes the profile once per world load (`InitWeather`), sends it in the additive

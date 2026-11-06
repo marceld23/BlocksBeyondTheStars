@@ -289,7 +289,8 @@ public sealed partial class GameServer
         _atmosphereDensity = AtmosphereDensityFor(planet, airless, _world.LocationId);
         // #3269: the world's mist — amount (air density folded in), colour, wispiness, fog frequency and the cloud band. One
         // pure function shared with the client, so the orbit view can show any body's mist without being on it.
-        _worlds.Active.Mist = MistProfiles.For(_meta.Seed, _world.LocationId, planet, _atmosphereDensity, airless);
+        _worlds.Active.Mist = MistProfiles.For(_meta.Seed, _world.LocationId, planet, _atmosphereDensity, airless,
+            MeasuredAltitudes(planet, airless)); // #3272: the visible band against the world's real relief
 
         // #2173: a body of an occupied system already carries its AMBIENT weather — the world ADOPTS that sim
         // (the same object: this world ticks it while loaded, the ambient table while not), so the storm seen
@@ -381,6 +382,19 @@ public sealed partial class GameServer
             ? 0
             : WeatherCatalog.MaxSeverity;
         return sim;
+    }
+
+    /// <summary>#3272: the active world's measured surface altitudes (median and upper tenth, from the generator's cached
+    /// calibration) for the visible cloud band — null where no band can form (airless, void, a world without a surface).</summary>
+    private TerrainAltitudes? MeasuredAltitudes(PlanetType? planet, bool airless)
+    {
+        if (airless || planet is null || planet.Void || planet.IsGasWorld || _world.Circumference <= 0)
+        {
+            return null;
+        }
+
+        _world.ApplyGeneratorMode();
+        return _world.Generator.SurfaceAltitudes(_world.Planet);
     }
 
     /// <summary>Per-world air thickness 0..1: 0 airless, else the type's value or a seeded 0.2..0.8.</summary>

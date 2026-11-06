@@ -9,7 +9,7 @@ namespace BlocksBeyondTheStars.Client
     /// (partial of <see cref="GeyserView"/>). All through the shared <see cref="FxKit"/> emitters, density-scaled.</summary>
     public sealed partial class GeyserView
     {
-        private const float SteamPerSecond = 3f;    // calm steam puffs per second at density 1, close by
+        private const float SteamPerSecond = 4f;    // calm steam puffs per second at density 1, close by
         private const float PuffsPerSecond = 16f;   // eruption billows per second at full strength
         private const float BitsPerSecond = 34f;    // droplets (water) or embers (volcanic) per second at full strength
         private const float SmokeDrift = 0.6f;      // the Smoke emitter's speed limit: what a puff drifts at in the end
@@ -33,7 +33,7 @@ namespace BlocksBeyondTheStars.Client
 
             float far = Mathf.Lerp(1f, 1.7f, v.Distance / VentRules.SteamRange);
             var color = _volcanic ? Color.Lerp(_steam, AshColor, 0.3f) : _steam;
-            color.a = 0.42f;
+            color.a = 0.55f;
             Vector3 lean = v.Open ? wind * 0.4f : Vector3.zero;
             while (v.SteamAcc >= 1f)
             {
@@ -42,7 +42,7 @@ namespace BlocksBeyondTheStars.Client
                 var vel = new Vector3(Random.Range(-0.06f, 0.06f), Random.Range(0.9f, 1.4f), Random.Range(-0.06f, 0.06f)) + lean;
                 // The speed limit drags the puff to SmokeDrift within a second; the life ends before the ceiling.
                 float life = Mathf.Min(Random.Range(3.6f, 5.2f), Mathf.Max(0.8f, (v.Headroom - 0.4f) / SmokeDrift));
-                FxKit.Emit(FxKit.Kind.Smoke, at, vel, Random.Range(0.55f, 0.85f) * far, life, color);
+                FxKit.Emit(FxKit.Kind.Smoke, at, vel, Random.Range(1.1f, 1.6f) * far, life, color); // ~0.5 m at birth, 2–3 m at the top
             }
         }
 

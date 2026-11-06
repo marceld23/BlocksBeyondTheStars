@@ -165,7 +165,7 @@ fields.
 - the world episode;
 - plus the persistent per-biome offset, which rotates every 6 system-days;
 - plus any front covering the longitude;
-- plus one step above the summit line (`MistProfiles.SummitLineY`, #3269: the base of the body's cloud band,
+- plus one step above the summit line (`MistProfiles.SummitLineY`, #3269: the base of the body's type-relief cloud band,
   else the type's `WeatherProjection.CloudLineY`);
 - clamped into the world's ladder band.
 

@@ -140,7 +140,7 @@ Shader "BlocksBeyondTheStars/ParticleSmoke"
                 // Erosion: the field is low at the puff's edge and in the noise's valleys; the threshold rises with age.
                 float field = t.a * (0.55 + 0.45 * t.r);
                 float threshold = -0.2 + 0.95 * _Erosion * pow(saturate(age), 1.3);
-                float alpha = i.color.a * t.a * saturate((field - threshold) / 0.22);
+                float alpha = i.color.a * t.a * saturate((field - threshold) / 0.3); // a soft frayed rim, not a cut edge
 
                 float3 V = normalize(i.toCam);
                 float level = _Sc_ModelLight > 0.0 ? _Sc_ModelLight : 1.0;
@@ -207,7 +207,7 @@ Shader "BlocksBeyondTheStars/ParticleSmoke"
             {
                 fixed4 t = tex2D(_MainTex, i.uv.xy);
                 float threshold = -0.2 + 0.95 * _Erosion * pow(saturate(i.uv.z), 1.3);
-                float alpha = i.color.a * t.a * saturate((t.a * (0.55 + 0.45 * t.r) - threshold) / 0.22);
+                float alpha = i.color.a * t.a * saturate((t.a * (0.55 + 0.45 * t.r) - threshold) / 0.3);
                 return fixed4(i.color.rgb * lerp(0.8, 1.1, t.g), alpha);
             }
             ENDCG

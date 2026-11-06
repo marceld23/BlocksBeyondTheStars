@@ -71,6 +71,20 @@ public sealed partial class WorldGenerator
         return calib;
     }
 
+    /// <summary>#3272: the world's measured surface altitudes — the median ground and the 90th percentile of the whole-world
+    /// height sample the sea level and the altitude biomes are calibrated from (the same cached calibration). The server places
+    /// the visible cloud band against them, so a flat world never stands in its clouds and a mountain world's summits do.</summary>
+    public Shared.World.TerrainAltitudes SurfaceAltitudes(PlanetType planet)
+    {
+        var heights = CalibFor(planet).SortedHeights;
+        if (heights.Length == 0)
+        {
+            return new Shared.World.TerrainAltitudes(planet.BaseHeight, planet.BaseHeight + planet.Amplitude);
+        }
+
+        return new Shared.World.TerrainAltitudes(heights[heights.Length / 2], heights[(int)(0.9 * (heights.Length - 1))]);
+    }
+
     private WorldCalibration Calibrate(PlanetType planet)
     {
         WorldCalibration calib;

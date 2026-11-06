@@ -23,7 +23,7 @@ namespace BlocksBeyondTheStars.Client
         public const float FarRateShare = 0.3f;
 
         /// <summary>How strongly the world's mist colour tints the steam (0 = white, 1 = the mist colour).</summary>
-        public const float MistTint = 0.3f;
+        public const float MistTint = 0.15f;
 
         /// <summary>The darkest any steam channel may get (sRGB 0..1).</summary>
         public const float MinChannel = 0.72f;

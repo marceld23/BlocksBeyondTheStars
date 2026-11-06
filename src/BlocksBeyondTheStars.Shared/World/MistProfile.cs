@@ -23,6 +23,10 @@ public readonly record struct MistProfile(float Amount, int ColorRgb, float Wisp
     public bool HasCloudBand => CloudTopY - CloudBaseY >= MistProfiles.MinBandThickness;
 }
 
+/// <summary>A world's measured surface altitudes (#3272), world Y: the median ground and the upper tenth of the land (90th
+/// percentile), from the generator's whole-world height sample. The cloud band is placed against them.</summary>
+public readonly record struct TerrainAltitudes(int MedianY, int UpperY);
+
 /// <summary>The palette family a type's mist colours come from (#3269), read from its data traits.</summary>
 public enum MistFamily
 {
@@ -144,7 +148,8 @@ public static class MistProfiles
     /// <summary>The mist profile of one world. <paramref name="atmosphereDensity"/> is that world's 0..1 air thickness (the
     /// server's per-world value; thicker air breeds more mist), <paramref name="airless"/> whether it has no air weather
     /// (an airless body or a space-sky surface). Airless, space-sky, void and gas worlds get <see cref="MistProfile.None"/>.</summary>
-    public static MistProfile For(long worldSeed, string? locationId, PlanetType? planet, double atmosphereDensity, bool airless)
+    public static MistProfile For(long worldSeed, string? locationId, PlanetType? planet, double atmosphereDensity, bool airless,
+        TerrainAltitudes? terrain = null)
     {
         if (airless || planet is { IsAirless: true } || planet is { SpaceSky: true } || planet is { Void: true } || planet is { IsGasWorld: true })
         {
@@ -152,7 +157,7 @@ public static class MistProfiles
         }
 
         float amount = AmountOf(worldSeed, locationId, planet, atmosphereDensity);
-        var (baseY, topY) = CloudBand(worldSeed, locationId, planet, airless: false);
+        var (baseY, topY) = CloudBand(worldSeed, locationId, planet, airless: false, terrain);
         return new MistProfile(
             amount,
             ColorOf(worldSeed, locationId, planet),
@@ -162,11 +167,24 @@ public static class MistProfiles
             topY);
     }
 
-    /// <summary>The cloud band of one world, absolute world Y: the server's cloud line (<see cref="WeatherProjection.CloudLineY"/>)
-    /// lifted by a per-world −8..+12 blocks, 14..34 blocks thick, growing with the type's cloud cover. (0, 0) = none:
-    /// airless, space-sky, void and gas worlds and types without cloud cover. Independent of the air density on purpose — the
-    /// weather's summit line (<see cref="SummitLineY"/>) needs only what every view knows.</summary>
-    public static (float BaseY, float TopY) CloudBand(long worldSeed, string? locationId, PlanetType? planet, bool airless)
+    /// <summary>The band's base stands at least this far above the world's median ground (blocks), so a flat world never
+    /// stands in its own clouds — only hills and summits that rise well above the land reach them.</summary>
+    public const double MinBandClearance = 26.0;
+
+    /// <summary>Without measured altitudes the type's base height stands in for the median ground; the real median of a world
+    /// sits up to ~16 blocks above it (the height function scales the amplitude per style and drama roll), so the stand-in
+    /// keeps a larger clearance.</summary>
+    public const double FallbackBandClearance = 42.0;
+
+    /// <summary>The cloud band of one world, absolute world Y, 14..34 blocks thick (growing with the type's cloud cover) and
+    /// lifted 0..12 blocks per world. With the world's measured <paramref name="terrain"/> (the server's generator
+    /// calibration) its base sits just above the upper tenth of the land and at least <see cref="MinBandClearance"/> above
+    /// the median ground — mountain summits reach into it, a flat world's land never does. Without it (any view that has no
+    /// generator, and the weather's summit line) the type's relief stands in: the classic cloud line, at least
+    /// <see cref="FallbackBandClearance"/> above the base height. (0, 0) = none: airless, space-sky, void and gas worlds and
+    /// types without cloud cover. Independent of the air density on purpose.</summary>
+    public static (float BaseY, float TopY) CloudBand(long worldSeed, string? locationId, PlanetType? planet, bool airless,
+        TerrainAltitudes? terrain = null)
     {
         if (airless || planet is null || planet.IsAirless || planet.SpaceSky || planet.Void || planet.IsGasWorld
             || planet.CloudDensity < 0.05)
@@ -175,17 +193,21 @@ public static class MistProfiles
         }
 
         ulong h = Word64(worldSeed, locationId, BandSalt);
-        int lift = -8 + StableHashing.Index(h, 21); // −8..+12 blocks around the cloud line
+        int lift = StableHashing.Index(h, 13); // 0..12 blocks above the clearance
         double cover = System.Math.Clamp(planet.CloudDensity, 0.0, 1.0);
         double shape = 0.75 + 0.5 * ((h & 0xFFFF) / 65535.0); // ×0.75..1.25 per world
         double thickness = System.Math.Clamp(14.0 + 20.0 * cover * shape, 14.0, 34.0);
-        float baseY = (float)(WeatherProjection.CloudLineY(planet) + lift);
+        double floorY = terrain is { } t
+            ? System.Math.Max(t.UpperY + 4.0, t.MedianY + MinBandClearance)
+            : System.Math.Max(WeatherProjection.CloudLineY(planet), planet.BaseHeight + FallbackBandClearance);
+        float baseY = (float)(floorY + lift);
         return (baseY, baseY + (float)thickness);
     }
 
-    /// <summary>The altitude above which a position reads one weather ladder step wetter (summits in the cloud): the cloud
-    /// band's base where the world has a band, else the type's classic <see cref="WeatherProjection.CloudLineY"/>. The
-    /// server's surface weather, its landing-pad weather and the orbit map all use this one line.</summary>
+    /// <summary>The altitude above which a position reads one weather ladder step wetter (summits in the cloud): the base of
+    /// the type-relief cloud band (no measured altitudes, so every view agrees) where the world has a band, else the type's
+    /// classic <see cref="WeatherProjection.CloudLineY"/>. The server's surface weather, its landing-pad weather and the orbit
+    /// map all use this one line; the visible band of the active world is measured and may sit a little apart.</summary>
     public static double SummitLineY(long worldSeed, string? locationId, PlanetType? planet)
     {
         bool airless = planet is null || planet.IsAirless || planet.SpaceSky;
