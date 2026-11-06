@@ -24,6 +24,54 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Reports 2026-11-06 + Marcel's findings — rails across the seam, fence pens, the cinematic camera between buildings, a fast world list, boot stages on the loading screen, dark caves and nights, a big chat window, submitting ships/towns/skins, editor texts that fit — #3256–#3265, branch fix/reports-and-singleplayer-wait-2026-11-06 — ✅ done 2026-11-06 in PR #PRNUM (`MERGESHA`) (⚠ playtest open; no save-version, protocol or terrain-generation change; ReportHost change → the reports image must be deployed before the client release)
+
+- **#3256** (Lyxette) Straight rail pylons refused to auto-link with "too sharp": the direction of a line's last link was
+  taken from raw cell coordinates while the new one was wrapped — across the world's X seam a straight line read as a
+  U-turn; Z deltas (link range, clearance, the train spline `RailSpline`) were unwrapped too. New
+  `GameServerRailAutoLink`: the last placed pylon first, else the nearest free line end (≤ 1 link, 2–32 blocks, bend
+  ≤ 30°, cheapest by distance + bend), one link per placement; "branch" is checked before "too sharp"; a hint
+  (`srv.rail.no_link_hint`) when nothing links. `RailAutoLinkTests` (9).
+- **#3257** (Lyxette) Energy fence: a penned pet no longer leaves its pen by the 24-block leash while a fence/closed gate
+  cuts its way to the owner (`LeashCompanion`, 1 s cache); the item/block texts say "fence element", gapless edge to edge,
+  one block high, no power, the gate as entrance (14 languages); stale class comment fixed. `EnergyFenceTests` (+2).
+- **#3258** Landing/lift-off cinematics put the camera inside buildings on a built-up pad (Physics shot spot with uncooked
+  colliders, an unchecked fallback, unchecked glides) → the #1823 visibility walk hid what it could not see. New voxel shot
+  plan (`TransitionShotPlan`, `TransitionFlightPath`, `TransitionCockpit` in Client.Core): 48 candidate spots × 16 samples
+  per stage, line of sight to the hull, clear camera paths; a cockpit camera behind the helm (the ship's "cockpit" station,
+  else a `ship_helm` cell, else the eye) for exactly the blocked part, cut on a beat; a blink instead of a blocked glide; a
+  per-frame safety net; the station decor rides the flying hull. Docs: `SEAMLESS_TRANSITIONS.md`.
+- **#3259** Singleplayer froze the menu for seconds with many worlds (264 worlds: cold 5.8 s — the sort stat'ed
+  `world.db` twice per comparison): `WorldListCache` prefetches on a background task when the menu shows, one stat per
+  world; the list opens at once, rows in slices of 25, a spinner + "Loading worlds…" while it reads.
+- **#3260** The loading screen names the server's real boot stage: the server logs `[boot] > n/N id` START lines, the
+  client maps ids to 11 grouped, localized messages (`BootStageText`).
+- **#3261** Shader variants warm progressively (6 ms per frame) while the loading screen waits for the server;
+  `[LaunchTiming]` log line; "Building the world…" during the hand-off.
+- **#3265** Caves, tunnels and nights were far too bright: every cell ≤ 6 blocks under its column top got the canopy
+  shade skylight (#1608) and the eye adaptation added up to +0.9 EV to every dark scene. New skylight rule
+  (`SkylightRules`/`SkylightField`: thin cover × nearest opening, gradient over 8 blocks from a tunnel mouth, shafts as
+  wells), `BbtsSkyAmbient` (0.02 at sky 0) + `_Sc_DarkFloor`, `EyeAdaptationRules` (underground +0.35 EV, open night
+  +0.2 EV, slow dark adaptation), `_Sc_ModelLight` for creatures/avatars, haze/cosy damped underground, a gentle fill in
+  the own base, VEGA's lamp hint from 3 blocks overhead, new setting "Visibility in the dark". Estimates: cave ≈ 7 % of
+  noon (was ≈ 103 %), open night ≈ 17.5 % (was 28 %).
+- **#3264** The chat opens as a big centred, half-transparent window (768 × 520, Tab-menu reveal, 200 lines, scrollbar,
+  "New messages ↓", stays open after a command); the compact left lane keeps showing incoming lines while it is closed;
+  the window yields to VEGA's speech panel, docks above the gamepad keyboard; crosshair and prompts hide while chatting.
+  `ChatUi` split into partials; `ChatWindowLayout` (Client.Core) + `ChatBigWindowEditModeTests`.
+- **#3262** Ships, towns/stations and avatar skins can be submitted like textures: `CreationSubmission` (Client.Core),
+  `CreationSubmitDialog`, a Submit button in the three editors with an editor-camera preview; ReportHost categories
+  `ship`/`structure`/`avatar` with attachments, gzip, 2 MB caps, 365-day retention and a review card listing every free
+  text; `tools/pull_submissions.py`, `gen_pioneer_skins.py --from-skin`; the avatar export keeps face and body paint; no
+  more "run tools/…" in player texts; privacy texts (parents' page, portal in 14 languages).
+- **#3263** Editor texts fit in all 14 languages: `UiKit.FitButtonLabel` (one line ≥ 14 px, else two lines between words
+  ≥ 13 px — never 11 px), texture tool rows three to a row, wider structure value rows, wrapped hints, localized default
+  names and friendly error lines; a headless fit test with a font-advance table generated from the bundled fonts
+  (`tools/gen_font_advances.py`, 17 528 checks) + `EditorTextFitEditModeTests`.
+- 91 new and 6 changed keys, translated into the 12 community languages with hand QA (rail item names in ru/pl/uk).
+
+---
+
 ### 🔊 Sound immersion — levels, mixing, vacuum, creatures, the ship, flight, the player's body — #3237–#3249, branch feat/sound-immersion — ✅ done 2026-11-05 in PR #3253 (`baa2dbbc`), released in v2026.11.6 (⚠ playtest open)
 
 Analysis + Marcel's answers 2026-11-05: offline-level every clip with a guard test, wire the unused clips where they fit,

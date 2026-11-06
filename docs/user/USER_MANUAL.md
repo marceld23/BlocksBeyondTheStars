@@ -25,7 +25,11 @@ Last updated: 2026-10-04.
   wheel, the scrollbar or the gamepad; **✕** deletes a save after a confirmation) or
   start a **New world**: type a name and press **Create / Play**, or press **Random world** for a surprise
   world — under the name you typed, or as `world_<number>` when the name box is empty, still says
-  `new_world` or holds the name of a world you already have. **Host Game** → host a world for friends, **Join Server**, or
+  `new_world` or holds the name of a world you already have. The world picker opens at once even with hundreds of
+  saves; if the list is still being read, the left side shows a spinner and **Loading worlds…**, and *Create / Play*
+  and *Random world* wait until it is there (they check your name against it). While a world starts, the loading
+  screen's bottom line says what is happening right now — e.g. *Searching for landing sites…*, *Building
+  settlements…*, *Settlers are moving in…*, then *Connecting…* and *Building the world…*. **Host Game** → host a world for friends, **Join Server**, or
   **Official Worlds** → online multiplayer on the official servers (see below).
 - **Host Game (in-game multiplayer hosting):** the same world picker as singleplayer — *any* saved world
   can be hosted ("open to LAN" style) or a new one created — plus a host bar with **max players** (2–16)
@@ -191,7 +195,7 @@ Last updated: 2026-10-04.
 | **N** | Advance the current **VEGA** dialogue line (also fast-completes the typewriter; also opens the folded VEGA tab) — rebindable; gamepad **View** (Back), touch **NEXT ▶** |
 | **Tab** | Open / close the gameplay menu (Inventory, Crafting, Blueprints, Ship, Map, Missions, Journal, …, Character); also closes full-screen menu screens such as the Codex |
 | **M** | Toggle the world map (top-down planet view; click to set a waypoint) — rebindable; touch **MAP** |
-| **Enter** | Open the chat box (Esc cancels) |
+| **Enter** | Open the chat window in the middle of the screen (Enter sends, Esc closes; after a `/` command it stays open — see §7 → Chat) |
 | **J** | Hide / show the chat scrollback for this session (rebindable; see also Settings → Comfort → Chat display) |
 | **Caps Lock** (hold) | Push-to-talk voice (if the server enabled voice; needs a **worn** radio; key is configurable — see §7 → Voice chat) |
 | **Esc** | Close the current screen; if no game screen is open, open the pause menu (Resume · Settings · **Back to my ship** while on foot · Quit) |
@@ -212,7 +216,7 @@ buttons — retuning is tracked in issue #195):
 | **RB** | Mine / attack (hold to keep mining) |
 | **LB** | Place the selected hotbar block / use the held gadget (hold: reel in on the energy rope) |
 | **D-pad ◄ ►** | Cycle hotbar slot |
-| **D-pad ▲** | Open the chat (with the on-screen keyboard) |
+| **D-pad ▲** | Open the chat (the on-screen keyboard, with the chat window above it) |
 | **D-pad ▼** | Turn the building block you are holding |
 | **(A)** | Jump (hold in air = jetpack, or glide while falling with a glider; in water = swim up; jump at a wall, push the stick towards it and hold (A) to hold on and climb — let go of (A) to slide down, **(B)** drops you off, see §5 → Climbing walls) |
 | **(X)** | Use / board / interact |
@@ -346,6 +350,11 @@ cockpit asks "Launch into space?"** — confirm with the button, **E** or **Ente
   The dive starts the moment you pick a pad (#3152) — the new world loads behind the clouds meanwhile. If the server
   turns the landing down (the pad was taken or built over in the meantime), the clouds open again and you are back at
   the helm where you picked the pad, with the reason on screen.
+- **Ship between buildings** (#3258): if your pad stands in a hall, a courtyard or next to a high wall, the camera
+  looks for a spot that can see your ship — beside it, over the rooftops or high up like a crane — and never ends up
+  inside a wall. Whatever no spot can see plays from your **cockpit**: the camera sits behind the helm and looks out
+  through the windows while the ship sinks onto its pad (or lifts off) — and switches outside or back to your eyes at
+  the right moment, with a quick blink where the way would go through a wall.
 - **The landing map opens at once** (#3151): until the server has sent the pads it shows a spinner and "Reading landing
   pads…". On your first approach to a world its pads are searched first, which can take a few seconds; later visits are
   quick.
@@ -580,8 +589,9 @@ The air and the weather leave their mark on the world (atmosphere package, Octob
 - **Mist in the valleys** gathers in the low ground around dawn and dusk and in fog weather, and burns off toward
   noon; looking toward a low sun, the haze glows golden. Caves and interiors stay clear.
 - **Cloud shadows** drift over the land with the wind.
-- **Eyes adapt to the dark**: a cave starts dark and resolves after a few seconds; stepping back into daylight
-  dazzles for a moment. Nothing flashes — it is a slow ramp.
+- **Eyes adapt to the dark**: a cave starts dark and gets a little easier to see in over about five seconds (it stays
+  dark — see *Caves and nights are dark* below); stepping back into daylight dazzles for a moment. Nothing flashes —
+  it is a slow ramp.
 - **Flickering torchlight**: the light of torches, campfires and lanterns breathes; lamps and crystals stay steady.
 - **Wind in leaves and grass**: crowns, plants and grass tufts sway — gently on a calm day, hard in a storm. Plants
   out of the wind — in caves, indoors and under a roof or a thick canopy — only stir in a faint draught. Kelp,
@@ -670,6 +680,25 @@ The **Cosiness** slider (0–100 %, default 50 %) sets how strong this is: warme
 and towards 100 % a little more glow around lamps. It is strongest at home, gentle outside, and switched off wherever
 danger is close. At 0 % you see the plain picture. It changes only how the game looks, never how it plays, and it
 costs no frame rate.
+
+### Caves and nights are dark (Settings → Graphics → Visibility in the dark)
+
+Caves, tunnels you dig and moonless nights are **dark** — not pitch black (you still see the shapes around you), but
+dark enough that you want light. Switch on your **suit lamp** (**L** — a new pilot already wears one) or place
+**torches** and lanterns; glowing cave plants and crystals help too. VEGA reminds you when you are under three or more
+blocks of rock without light.
+
+- A tunnel is lit near its entrance and gets darker the further you dig: about **eight blocks** in it is dark. Under a
+  tree, an overhang or a thin roof (one block) it stays shady but bright; under two blocks it gets dimmer, under three
+  or more only the light from the nearest opening reaches you.
+- The floor of a deep, narrow shaft is dim — only a slit of sky reaches it.
+- Your eyes get used to the dark a little over about five seconds — in a cave a bit more than under the open night sky —
+  and back in daylight they adjust quickly.
+- Creatures, other players and the things you hold are lit like the world around them: dark in a cave, bright in the
+  sun. Glowing patterns, your lamp and other players' lamps still make them easy to spot.
+- A room of **your own base** keeps a gentle light even without lamps; your ship's cabin stays lit as always.
+- Still too dark for you? Raise **Visibility in the dark** (0–100 %, default 0 %). It lifts the darkest places and
+  lets your eyes adapt more in caves. The **Brightness** slider still brightens the whole picture.
 
 ### What you hear (Settings → Audio)
 
@@ -3760,13 +3789,18 @@ called **stories**:
   **bond is high** (≥ 70) a companion at your side keeps robbers from picking you at all — wander off from it and
   hold-ups are possible again; and every **ten minutes** a present companion **drops a little of what its kind
   gives** (the species' drop item) at its feet — auto-picked, and a **penned** pet stockpiles it for your next visit.
-- **Energy fence pens**: craft **energy fence** pylons (`energy_fence`, workshop, no blueprint — 2 metal
+- **Energy fence pens**: craft **energy fence** elements (`energy_fence`, workshop, no blueprint — 2 metal
   panels + 2 cable → 4) and ring in a pen: no creature — wild, tamed or hostile machine — can cross the
-  humming pylons, so animals stay home and fiends stay out. Placed side by side, the blocks join into one fence —
+  humming fence, so animals stay home and fiends stay out. The fence works **block by block** — there is no field
+  between two elements — so the ring must be **gapless, edge to edge**: any gap lets animals out, and so can a corner
+  where two elements only touch diagonally (a 10 × 10 pen takes 36 elements). **One block high is enough** (it guards
+  the air above too, see below), and the fence **needs no power**. Placed side by side, the blocks join into one fence —
   metal rails along the top and bottom and glowing energy beams running from block to block, with gaps you can
   see through (but nothing can pass). Add an **energy gate** (`energy_gate`,
   workshop — 2 metal panels + 1 energy cell + 1 circuit board) as the entrance: you and settlement folk
   walk straight through its membrane while fauna bounce off; there is nothing to open or close.
+  **Your own penned pet stays in its pen** when you walk away: a companion more than 24 blocks behind is normally
+  brought back to your side, but not while an energy fence (or a closed gate) stands between it and you.
   **The fence guards the air above it too** (#3148): a flying creature cannot cross a fence line either, up to the
   highest a flier hovers (about 12 blocks over the ground; a roof between the fence and the flier ends the guard). Over a
   closed yard of a base that uses energy fences no wild fliers spawn, and a wild flier found inside one — penned in when
@@ -3957,10 +3991,16 @@ look up: what a mix does follows from what goes in, and the same things always g
 - **The line.** Craft **rail pylons** (blueprint *Monorail*, or buy them from a **rail dealer** — place a *Rail Dealer's
   Post* at your base). Place a row of pylons: each one **links itself** to the last one you placed within **32 blocks**, as
   long as the line does not bend more than about **30°** — and a glowing blue **energy band** appears between them, with
-  pulses of light travelling along it. **Stack**
+  pulses of light travelling along it. If the last one you placed does not take it (it is out of range, gone, or the
+  bend is too sharp), the new pylon links to the **nearest free line end** instead — a lone pylon or the end of a line,
+  within 32 blocks and 30° of that line — preferring the end whose line runs on the straightest. So you can fill a gap,
+  extend the other end of a line or put back a pylon you mined, and it joins up by itself. A new pylon takes **one** link
+  this way; when nothing is in range, the game tells you to use the rail linker. Lines run across the world's edges just
+  like anywhere else. **Stack**
   pylons to lift the line over things. A line that would run **through solid blocks is refused** ("Obstacle") — give it
   room. A pylon carries **at most two links** (no forks). The **rail linker** couples any two pylons up to **64 blocks** apart by hand (use
-  it on the first, then the second): close a **loop**, join two lines, or — on two linked pylons — uncouple them.
+  it on the first, then the second): close a **loop**, join two lines, link a pylon to both neighbours, or — on two
+  linked pylons — uncouple them. Everything the automatic link does not do, the linker does.
 - **Stops.** A **rail stop** placed beside the line (within four blocks) halts a train on autopilot for a few seconds. It
   is a Crystal-Net device: a signal on its port (a switch, a button, a sensor) sends the halted train off at once. The
   band glows amber where a stop catches it.
@@ -4156,7 +4196,9 @@ outer hull.
   fabrics, the leaves and frames of **doors**, the parts of **factory machines** and, in **icon mode**, the item
   icons. A block texture with several frames **plays in the world** — a campfire can really flicker. Brush, eraser, fill, pipette, line, rectangle, brush size,
   mirror symmetry, flip / shift / brightness, undo and redo, up to eight **animation frames**, a 3-D preview on
-  the real shape and a 3×3 view that shows how a tile repeats. **Use for me** puts the texture into *your*
+  the real shape and a 3×3 view that shows how a tile repeats. The drawing tools sit under the canvas, three to a
+  row (the frame buttons under the frames); undo / redo, flip, shift and the colour adjustments sit beside the
+  colour picker. **Use for me** puts the texture into *your*
   texture pack (a folder next to your settings; PNG files you can also edit in any paint program — *Open
   folder* / *Reload folder*); **Remove mine** brings the shipped one back; **hold "Before"** to compare;
   **Copy / Paste code** shares a texture as text. A block tile can never get a hole — the editor fills it, so
@@ -4253,7 +4295,7 @@ residents' evening seats) or a workshop (workbench, forge, crates). Every buildi
 **Room** marker and space for a bed. Kit modules of the shipped kits are 8 × 8 blocks; the size line shows the storey
 height they may use.
 
-**Kits…** (on the *Use as* row, in both modes) opens the kit panel: every shipped kit of the editor's kind plus your own.
+**Kits…** (right under the *Use as* row — on the *Kit* row of a module — in both modes) opens the kit panel: every shipped kit of the editor's kind plus your own.
 The **…** button beside a module row opens the module picker — every module of the kit's kind with its function, tier,
 size and style, filterable. A kit has a key, name, kind
 (*station*, *settlement* or *city*), size tier, weight and planet types, how many modules it uses (min / max)
@@ -4269,12 +4311,26 @@ rebuilds a station, village or city differently.
 **Textures.** Placed blocks show their real block textures (dye and glow tint them like in-game); station tiles,
 ship elements and interaction markers are drawn as plain colour swatches so they stand out.
 
+**Submit — your ship, station, town or skin for the game.** Next to *Save* in the Ship, Station and Town editors
+(and next to *Export skin* in the Avatar Designer) sits **Submit**. It sends what you built to the developers together
+with a picture the editor takes of it, in the same dialog as the texture editor's *Submit to the developers*: a name, a
+**nickname** (please not your real name — or *No name*), an optional note and three boxes to tick (you made it yourself,
+the developers may use, change and distribute it with the game, you are at least 16 or your parents agreed). Sent are
+the design (a ship's `ship.json` + `layout.json`; a station or town module's `structure.json` + `layout.json` and, for a
+kit module, its kit; a skin's colours, face and paintings), the picture, its name and **every text in it** (ship name
+and description, signs and device labels), your nickname, your note, the game version and an anonymous id for the
+answer — **no e-mail, no location**. A person looks at every submission by hand before anything goes into the game; the
+answer reaches you **in the game**, and a submission that is not adopted is deleted after twelve months at the latest.
+The Station / Town editor first runs the same checks as *Save* (ports, seal, door lanes) and does not send a module of
+more than 60 000 cells; a design that is still too big after packing is refused with a message too. Without a
+connection the submission waits and goes out the next time you start the game.
+
 | Editor | Designs | Export → merge tool |
 |---|---|---|
 | **Ship Editor** | Custom ship types (hull, viewports, lights, engine, hatch, station tiles) | `ship.json` + `layout.json` → `tools/merge_ship.py` |
 | **Station Editor** | Space stations or station kit modules (hull/glass/light + hangar/vendor/mission/heal/quarters/console/cabin/lounge markers, docking ports) and station kits | `structure.json` + `layout.json` (+ `kit.json`) → `tools/merge_structure.py` |
 | **Town Editor** | Settlements/villages or their modules (walls, windows, ladders/stairs, lamps + vendor/mission/NPC markers) and settlement / city kits | `structure.json` + `layout.json` (+ `kit.json`) → `tools/merge_structure.py` |
-| **Avatar Editor** | Player skin (per-part colours + gear preview) and up to eight saved **outfits** | `skin.json` → `tools/merge_avatar.py` (Apply also saves locally) |
+| **Avatar Editor** | Player skin (per-part colours, pixel face, body paintings + gear preview) and up to eight saved **outfits** | `skin.json` (the whole look) → `tools/gen_pioneer_skins.py --from-skin` — an adopted skin becomes a pioneer's look (Apply also saves locally) |
 | **Item & Recipe Editor** | Items (stats, tool/weapon properties, worn + eaten effects) + recipes (station, inputs, market vendor theme) + optional blueprint gating | `content.json` → `tools/merge_recipe.py` |
 | **Material Editor** | Block materials: paint a 64×64 tile, set mining (hardness/tool/drops), palette section, dyeable/shapeable, look (gloss/metal/glow/colour), world spawn (frequency/depth/world-type) | `material.json` + `texture.bytes` → `tools/merge_material.py` |
 
@@ -4304,7 +4360,7 @@ reminds you.
 ## 7. Chat & admin / cheat commands
 
 ### Chat
-- Press **Enter**, type, **Enter** to send (scrollback in the chat panel). Normal chat requires a **radio
+- Press **Enter**, type, **Enter** to send. Normal chat requires a **radio
   worn** in a module slot of your suit (**Inventory → Suit**) — in your hand, on the quick-bar or in the backpack it
   does nothing, and the server says so ("Your radio must be worn …"). Messages are rate-limited and length-capped.
 - **`/pos`** (#2993) prints where you are: the world's name and your block coordinates (**X · Y · Z**). It needs no
@@ -4312,11 +4368,25 @@ reminds you.
 - **Tab → Alliances → Radio** sends a line too and shows your radio: the one you wear and how far it reaches, or a
   warning when none is worn — with a radio in your backpack (or, aboard, in the hold) a **Wear …** button puts it
   into a free module slot right there.
-- The scrollback **fades out on its own** a few seconds after the last line (opening the chat box always
-  brings the recent lines back). **Long answers scroll:** while the chat box is open, the **mouse wheel** or
-  **PageUp/PageDown** pages back through the recent lines — a dim ▲/▼ row says when more is out of view. The
-  answer to a command you typed keeps the whole chat column for a moment, even while VEGA is talking. Prefer it always visible — or never? **Settings → Comfort → Chat
-  display** offers *Fade out / Always on / Off*, and **J** hides/shows it on the spot for the session.
+- **The chat window.** Enter opens a **big window in the middle of the screen** (half see-through, so you still
+  see the world around it) with everything said this session — the last 200 lines — a title row with **×**, a
+  hint row and the box you type into. **Enter** sends a line and closes the window; after a **command** (a line
+  starting with `/`, such as `/help` or `/tp`) the window **stays open** so you can read the answer — **Esc** (or
+  **×**) closes it. The mouse is free while it is open: the **mouse wheel**, **PageUp/PageDown** or the
+  **scrollbar** page back through the history, and when new lines arrive while you are reading further up, a
+  **"New messages ↓"** button takes you back down. While the window is open the crosshair and the "Use" prompt step
+  aside (you are not moving anyway), and if something hurts you, what it was is written into the chat as a red line.
+  The window makes room for **VEGA**: while she is talking it moves to the right of her speech panel. A menu, a
+  cutscene, a landing or launch, the death screen or a question (launch? trade?) closes it.
+- **Incoming lines** show in a small column at the left edge while the window is closed, and **fade out on their
+  own** a few seconds after the last line (lines you already read in the window do not come back there). When a
+  long answer does not fit, a dim ▲ row says so — press Enter to read it all in the window. Prefer the column always
+  visible — or never? **Settings → Comfort → Chat display** offers *Fade out / Always on / Off*, and **J**
+  hides/shows it on the spot for the session.
+- **With a gamepad** (d-pad ▲) the on-screen keyboard opens and the chat window sits above it, showing the latest
+  lines; after a command the keyboard comes back for the next one, **(B)** closes both. **On a touch screen** the
+  window stays in the upper half, above the device's keyboard (in a tablet browser: tap **CHAT** again for the next
+  line after a command, **×** closes the window).
 - **Kept friendly by default.** The server screens every line before it is relayed: swear words are
   replaced by `***` (you are told once per session), slurs and hate terms are not sent at all (you are
   told), and phone numbers, e-mail addresses and links are masked — on *Safe* worlds (the family
