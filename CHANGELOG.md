@@ -48,7 +48,7 @@ game and server on the same version: the desktop game updates itself at start, a
 
 ### 🚀 Submit ships, towns, stations and skins (#3262)
 
-- The **Ship Designer**, the **Station and Town editors** and the **Avatar Designer** have a **Submit** button, like the
+- The **Ship Editor**, the **Station Editor**, the **Town Editor** and the **Avatar Designer** have a **Submit** button, like the
   texture editor: your creation goes to the developers with a preview picture; after a review it can come into the game
   for everyone. Everything is checked by a person first, and you choose whether your nickname is shown.
 - The avatar export now keeps your face and body paint; editor texts no longer tell you to run developer tools.

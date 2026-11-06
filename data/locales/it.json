@@ -6371,7 +6371,7 @@
   "ui.tex.submit.queued": "Nessuna connessione – la invieremo la prossima volta che avvii il gioco.",
   "ui.tex.submit.failed": "Non è andata a buon fine. Riprova più tardi – oppure usa “Export”.",
   "ui.tex.submit.not_configured": "Questa build non può inviare texture. Usa “Export” e mandaci la cartella.",
-  "ui.submit.button": "Submit",
+  "ui.submit.button": "Invia",
   "ui.submit.empty": "Costruisci qualcosa prima – non c'è nulla da inviare.",
   "ui.submit.too_many_cells": "Troppo grande per l'invio: {0} celle, al massimo sono consentite {1}. Rendilo un po' più piccolo.",
   "ui.submit.too_large": "Troppo grande per l'invio, anche compresso. Rendilo un po' più piccolo.",

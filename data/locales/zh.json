@@ -6371,7 +6371,7 @@
   "ui.tex.submit.queued": "无连接——我们会在下次启动游戏时发送。",
   "ui.tex.submit.failed": "提交失败。请稍后再试，或使用“导出”。",
   "ui.tex.submit.not_configured": "此版本无法提交材质。请使用“导出”并把文件夹发给我们。",
-  "ui.submit.button": "Submit",
+  "ui.submit.button": "提交",
   "ui.submit.empty": "先建造一些东西 — 目前没有可提交的内容。",
   "ui.submit.too_many_cells": "太大无法提交：{0} 单元，最多允许 {1}。稍微缩小一点。",
   "ui.submit.too_large": "即使打包后也太大无法提交。稍微缩小一点。",
