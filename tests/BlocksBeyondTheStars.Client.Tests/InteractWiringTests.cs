@@ -45,7 +45,8 @@ public sealed class InteractWiringTests
     public void TheHudPrompt_NamesThePick_AndTheCrateLineOffersOpenOnlyForTheAimedCrate()
     {
         string hud = ClientTestPaths.ScriptPartsText("HudUi");
-        Assert.Contains("_prompt.text = Game.SpaceViewActive ? string.Empty : OnFootPrompt(loc);", hud);
+        // #3264: the prompt also steps aside while the big chat window is open.
+        Assert.Contains("_prompt.text = Game.SpaceViewActive || chatOpen ? string.Empty : OnFootPrompt(loc);", hud);
 
         string onFoot = Body(hud, "private string OnFootPrompt(");
         Assert.Contains("Game.InteractionFrame >= Time.frameCount - 1 ? Game.Interaction : InteractKind.None", onFoot);
