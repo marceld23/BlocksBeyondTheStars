@@ -272,6 +272,15 @@ public sealed class PlanetType
     /// 0 = clear skies. Airless bodies have none.</summary>
     public double CloudDensity { get; set; } = 0.45;
 
+    /// <summary>0..1 — how much valley mist a world of this type breeds at its best hour (#3269): swamps and rain forests
+    /// high, deserts low, 0 = none. Each world jitters it and scales it with its air density
+    /// (<c>Shared.World.MistProfiles</c>), so two worlds of one type differ. Null = the general 0.45.</summary>
+    public double? Mist { get; set; }
+
+    /// <summary>A fixed mist colour for this type, packed 0xRRGGBB (#3269, for authored landmarks like Toxica-Maxima);
+    /// 0 = the per-world seeded colour from the type's palette family.</summary>
+    public int MistColor { get; set; }
+
     /// <summary>
     /// How much life this world has: "none" (barren), "few" or "many". Drives how many
     /// procedural <see cref="CreatureSpecies"/> the world derives and the live spawn caps. "authored" (#1763)

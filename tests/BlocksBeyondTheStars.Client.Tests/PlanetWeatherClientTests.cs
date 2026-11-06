@@ -305,7 +305,7 @@ public sealed class PlanetWeatherClientTests
 
         var pixels = new WeatherMapPixels();
         WeatherMapProjector.Project(map, SystemWeatherState.Episode(bw), state.Fronts(bw, 0.0, circ), join.WorldSeed,
-            state.SystemTimeDays(0.0), planet, (float)planet.CloudDensity, bw.Precip, pixels);
+            state.SystemTimeDays(0.0), planet, (float)planet.CloudDensity, bw.Precip, pixels, body.Id); // #3269: the body's band
 
         int compared = 0, differing = 0;
         for (int y = 0; y < map.Height; y++)

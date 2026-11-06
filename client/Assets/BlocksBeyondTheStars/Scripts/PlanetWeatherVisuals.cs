@@ -276,7 +276,7 @@ namespace BlocksBeyondTheStars.Client
             double now = Time.realtimeSinceStartupAsDouble;
             var state = game.SystemWeather;
             WeatherMapProjector.Project(map, SystemWeatherState.Episode(body), state.Fronts(body, now, map.Circumference),
-                game.WorldSeed, state.SystemTimeDays(now), planet, cloudDensity, body.Precip, pixels);
+                game.WorldSeed, state.SystemTimeDays(now), planet, cloudDensity, body.Precip, pixels, body.BodyId); // #3269: the world's summit line
         }
 
         /// <summary>The weather glyph of a body for a map marker (#2178), in the HUD's warning colour for violent and

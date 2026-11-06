@@ -69,6 +69,10 @@ public sealed class WeatherContext
     /// <summary>Optional per-planet event-weight overrides from <c>planets.json</c>.</summary>
     public IReadOnlyDictionary<string, double>? EventWeights { get; set; }
 
+    /// <summary>This world's multiplier on the fog and ground-fog chances (#3269, <c>MistProfile.FogFrequency</c>,
+    /// ~0.35..2.2): one world of a type is a fog world, the next almost never foggy. 1 = the type's own weights.</summary>
+    public double FogFrequency { get; set; } = 1.0;
+
     /// <summary>East–west wrap of this world, in blocks — the axis the fronts travel along.</summary>
     public int Circumference { get; set; } = 6000;
 
@@ -415,8 +419,9 @@ public sealed class WeatherSim
     }
 
     /// <summary>How likely each event is on this world right now: hard gates first (atmosphere,
-    /// temperature, planet type), then the time-of-day and per-planet weighting.</summary>
-    private static double EventWeight(WeatherDef def, WeatherContext ctx)
+    /// temperature, planet type), then the time-of-day and per-planet weighting, then the world's own fog
+    /// frequency (#3269). Internal for the tests.</summary>
+    internal static double EventWeight(WeatherDef def, WeatherContext ctx)
     {
         if (def.NeedsAir && ctx.Airless)
         {
@@ -447,6 +452,11 @@ public sealed class WeatherSim
         if (w > 0 && ctx.EventWeights is not null && ctx.EventWeights.TryGetValue(def.Key, out double over))
         {
             w *= Math.Max(0, over);
+        }
+
+        if (def.Key is "fog" or "ground_fog")
+        {
+            w *= Math.Max(0, ctx.FogFrequency); // #3269: one world of a type is a fog world, the next almost never foggy
         }
 
         return w;
@@ -566,6 +576,7 @@ public sealed class WeatherSim
             BaseTemperature = ctx.BaseTemperature,
             PlanetKey = ctx.PlanetKey,
             EventWeights = ctx.EventWeights,
+            FogFrequency = ctx.FogFrequency,
             Circumference = ctx.Circumference,
             Dynamic = ctx.Dynamic,
         };

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Weather;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -112,10 +113,12 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Projects the weather onto <paramref name="map"/> into <paramref name="output"/> (resized to the map).
-        /// <paramref name="cloudDensity"/> is the planet's base cover (0 on airless bodies: no clouds at all).</summary>
+        /// <paramref name="cloudDensity"/> is the planet's base cover (0 on airless bodies: no clouds at all).
+        /// <paramref name="bodyId"/> (#3269) places the summit line at the body's own cloud band, as the server does
+        /// (<see cref="MistProfiles.SummitLineY"/>); null = the type's classic cloud line.</summary>
         public static void Project(PlanetMapData map, in WeatherEpisode episode, IReadOnlyList<WeatherFrontState>? fronts,
             long worldSeed, double systemTimeDays, PlanetType? planet, float cloudDensity, string? episodePrecip,
-            WeatherMapPixels output)
+            WeatherMapPixels output, string? bodyId = null)
         {
             if (map is null || output is null)
             {
@@ -124,7 +127,7 @@ namespace BlocksBeyondTheStars.Client
 
             output.Resize(map.Width, map.Height);
             bool airless = planet is null || planet.IsAirless || planet.SpaceSky;
-            double cloudLine = WeatherProjection.CloudLineY(planet);
+            double cloudLine = bodyId is null ? WeatherProjection.CloudLineY(planet) : MistProfiles.SummitLineY(worldSeed, bodyId, planet);
             bool ladder = WeatherCatalog.Find(episode.State)?.IsLadder ?? true;
             int circ = Math.Max(1, map.Circumference);
             double visualMin = circ * VisualFrontHalfWidthShare;

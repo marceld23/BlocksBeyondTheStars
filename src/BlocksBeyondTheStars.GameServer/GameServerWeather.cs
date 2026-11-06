@@ -220,6 +220,9 @@ public sealed partial class GameServer
     /// <summary>This world's daytime sky/atmosphere base hue (0xRRGGBB) — seeded per world (atmosphere worlds).</summary>
     public int SkyColor => _skyColor;
 
+    /// <summary>This world's summit line (#3269: the cloud band's base, else the type's relief line) — test seam.</summary>
+    public double CloudLineYForTest => _worlds.Active.CloudLineY;
+
     /// <summary>The planet's uniform flora base hue (0xRRGGBB) — all plant life is re-tinted to this.</summary>
     public int FloraTint => _floraTint;
 
@@ -284,6 +287,9 @@ public sealed partial class GameServer
         // Per-world air thickness (drives fog density + fog-weather chance): airless bodies are clear-vacuum (0);
         // otherwise the planet's explicit value, or a seeded 0.2..0.8 so worlds range from crisp to hazy.
         _atmosphereDensity = AtmosphereDensityFor(planet, airless, _world.LocationId);
+        // #3269: the world's mist — amount (air density folded in), colour, wispiness, fog frequency and the cloud band. One
+        // pure function shared with the client, so the orbit view can show any body's mist without being on it.
+        _worlds.Active.Mist = MistProfiles.For(_meta.Seed, _world.LocationId, planet, _atmosphereDensity, airless);
 
         // #2173: a body of an occupied system already carries its AMBIENT weather — the world ADOPTS that sim
         // (the same object: this world ticks it while loaded, the ambient table while not), so the storm seen
@@ -303,9 +309,10 @@ public sealed partial class GameServer
 
         _worlds.Active.WeatherEventWeights = planet?.WeatherEvents;
 
-        // Mountain tops sit one ladder step wetter than the valley floor (#900). The line is the planet's
-        // own relief — base height plus its amplitude — so a flat world effectively has none.
-        _worlds.Active.CloudLineY = WeatherProjection.CloudLineY(planet);
+        // Mountain tops sit one ladder step wetter than the valley floor (#900). The line is the base of the world's cloud
+        // band (#3269), so a summit that stands in the clouds also reads wetter; a world without a band keeps the planet's
+        // own relief line — base height plus its amplitude — so a flat world effectively has none.
+        _worlds.Active.CloudLineY = MistProfiles.SummitLineY(_meta.Seed, _world.LocationId, planet);
 
         _dayFraction = InitialDayFraction;
         _sinceEnvBroadcast = 0;
@@ -402,6 +409,7 @@ public sealed partial class GameServer
             AtmosphereDensity = _atmosphereDensity,
             Airless = airless,
             Toxic = !airless && !string.Equals(planet.Atmosphere, "breathable", System.StringComparison.OrdinalIgnoreCase),
+            FogFrequency = _worlds.Active.Mist.FogFrequency, // #3269
         };
     }
 
@@ -421,6 +429,7 @@ public sealed partial class GameServer
             BaseTemperature = planet?.BaseTemperature ?? 15,
             PlanetKey = _worlds.Active.PlanetType ?? string.Empty,
             EventWeights = _worlds.Active.WeatherEventWeights,
+            FogFrequency = _worlds.Active.Mist.FogFrequency, // #3269: a fog world or a clear one
             Circumference = _world.Circumference,
             Dynamic = _planetWeatherMode == "dynamic",
         };
@@ -488,6 +497,11 @@ public sealed partial class GameServer
             LatitudeLimit = WorldConstants.LatitudeLimitFor(_world.Circumference),
             CloudDensity = _cloudDensity,
             AtmosphereDensity = (float)_atmosphereDensity,
+            MistAmount = _worlds.Active.Mist.Amount,        // #3269
+            MistColor = _worlds.Active.Mist.ColorRgb,
+            MistWispiness = _worlds.Active.Mist.Wispiness,
+            CloudBaseY = _worlds.Active.Mist.CloudBaseY,
+            CloudTopY = _worlds.Active.Mist.CloudTopY,
             Breathable = _breathable,
             SpaceSky = _spaceSky,
             Biome = _biome,
