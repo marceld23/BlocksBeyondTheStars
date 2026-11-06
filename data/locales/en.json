@@ -5967,6 +5967,7 @@
   "ui.pause.title": "Paused",
   "ui.pause.waiting_for": "Paused {0}/{1} — waiting for: {2}",
   "ui.pause.world_held": "World held — everyone is in the pause menu.",
+  "ui.perf.slow_hint": "The game is running slowly here. Settings → Graphics: a lower quality preset or a shorter view distance helps.",
   "ui.pause.return_ship": "Back to my ship",
   "ui.pause.return_ship_cooldown": "Back to my ship — ready in {0}",
   "ui.pause.return_ship_fight": "Back to my ship — fight, {0} s left",

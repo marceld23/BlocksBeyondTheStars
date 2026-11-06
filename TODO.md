@@ -24,6 +24,30 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🎚️ Automatic graphics preset — desktop calibration, GPU time, High only after a world measurement, a slow-world hint (Marcel's analysis 2026-11-06) — #3279–#3284, branch feat/auto-quality-calibration — ✅ done 2026-11-06 in PR #3285 (⚠ playtest open; client only — no save-version, protocol or terrain-generation change; one new locale key in all 14 languages)
+
+Marcel asked when High can be chosen and how the client could tell at runtime whether High is feasible. Answers: the
+desktop calibrates new installs, a slow world only hints, measuring is fine, no warning on a hand-picked High. Details
+in docs/developer/ADVANCED_GRAPHICS.md § "Automatic preset calibration".
+
+- **#3279** A new desktop install starts on Medium with `PresetAuto` (the browser kept Low); the calibrator runs on
+  every platform. No step-up on a software renderer or on battery. Existing installs keep their preset.
+- **#3280** GPU frame time from `FrameTimingManager` (Frame Timing Stats on, `GpuFrameTime`); step-ups read it, the
+  browser keeps the VSync wall-clock rule. PerfProbe writes GPU p50/p90 and switches `PresetAuto` off for its run.
+- **#3281** The menu sample steps up to Medium at most; **High** needs a world sample at Medium on the same GPU
+  (`WorldPerfWatch`, kept in `ClientSettings.AutoWorld*`) and switches at the next start, never during play. A step
+  down from High remembers the GPU. Rules in Client.Core `QualityCalibration` (16 tests).
+- **#3282** One toast per session when a 30 s window in the world runs under 25 fps ("a lower preset or a shorter view
+  distance helps"); never changes a setting.
+- **#3283** PerfProbe Medium vs High on the reference laptop (RTX 2000 Ada, VD 8): High costs 1.5–3.0 × Medium's GPU
+  p90 → `HighGpuCostFactor` 2.0; that laptop correctly stays on Medium (High 37–43 fps). Table in ADVANCED_GRAPHICS.md.
+  Verified on the player build: fresh install → Medium + auto; world sample saved ("no room for High"); a fast sample
+  → next start "Medium → High" with the High details on.
+- **#3284** (review side finding) a missing settings file with a surviving `.bak` recovers the backup.
+- Unattended runs (`-perfProbe`, `-captureClip`, `-captureShots`) leave the calibration off unless `-autoQuality`.
+- Playtest: fresh desktop install → `[AutoQuality]` log lines (session start, shell sample, world sample); a slow scene
+  shows the hint once; picking a preset by hand stops all of it.
+
 ### 🌫️ Fog wisps, cloud fog at altitude, fog banks, a mist of each world's own, real smoke at vents and volcanoes (Marcel's analysis 2026-11-06) — #3269–#3277, branch feat/fog-wisps-cloud-fog-vent-smoke — ✅ done 2026-11-06 in PR #3278 (⚠ playtest open; no save-version or terrain-generation change; protocol additive — five new contractless `WorldEnvironment` fields, an older client ignores them, an older server sends defaults = the look before)
 
 - **#3269** Per-world mist profile `Shared.World.MistProfiles` (pure function of seed × location × type, mixed hash): amount from

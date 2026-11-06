@@ -5967,6 +5967,7 @@
   "ui.pause.title": "一時停止中",
   "ui.pause.waiting_for": "一時停止 {0}/{1} — 待機中: {2}",
   "ui.pause.world_held": "ワールド停止中 — 全員が一時停止メニューにいます。",
+  "ui.perf.slow_hint": "ここではゲームの動作が遅くなっています。設定 → グラフィック：品質プリセットを下げるか、描画距離を短くすると改善します。",
   "ui.pause.return_ship": "自分の船に戻る",
   "ui.pause.return_ship_cooldown": "自分の船に戻る — 待ち時間 {0}",
   "ui.pause.return_ship_fight": "自分の船に戻る — 戦闘中、あと {0} 秒",

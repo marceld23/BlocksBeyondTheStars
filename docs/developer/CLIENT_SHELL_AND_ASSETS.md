@@ -83,8 +83,9 @@ First-version settings (a deliberately small subset of §6.2):
 | Accessibility | Reduced effects, camera-shake off, larger UI (flags wired; effects applied later) |
 
 - **Presets** map to view distance + later to shadow/particle/postprocessing quality. A
-  **Potato** preset exists for weak / low-power machines (spec §6.3). Auto-detect
-  of sensible defaults is deferred (we default to Medium).
+  **Potato** preset exists for weak / low-power machines (spec §6.3). A new install calibrates its preset from
+  measured frame times (desktop starts on Medium, the browser on Low; High only after a measurement in the world) until
+  the player picks one by hand — see [ADVANCED_GRAPHICS.md](ADVANCED_GRAPHICS.md) § "Automatic preset calibration".
 
 ## Textures & visual style (answers §7.2)
 
