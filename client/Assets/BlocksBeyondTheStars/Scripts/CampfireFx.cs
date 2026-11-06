@@ -15,7 +15,8 @@ namespace BlocksBeyondTheStars.Client
     /// material of its own — scaled by the effect density (quality preset × Reduced effects), thinned with distance, and
     /// fewer fires on Low (3) and Potato (2). Smoke and sparks never rise through a roof: their lifetime follows the free
     /// headroom over the fire, and a block right on top smothers the show. The smoke drifts with the wind under open
-    /// sky and darkens at night. Render-only; the crackle is the audio's.
+    /// sky; the smoke shader (#3274) lights it with the world's light, so it darkens at night by itself, and the fire's
+    /// glow only warms it a little after dark. Render-only; the crackle is the audio's.
     /// </summary>
     public sealed class CampfireFx : MonoBehaviour
     {
@@ -81,9 +82,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float density = FxKit.Density;
-            float day = Daylight();
-            var smoke = Color.Lerp(new Color(0.30f, 0.26f, 0.24f), new Color(0.62f, 0.62f, 0.64f), day);
-            smoke.a = 0.28f; // thin and soft: the Smoke emitter's own fade peaks at 0.75 of this
+            var smoke = SmokeColor();
             Vector3 wind = Game.WindVector * 0.35f;
 
             for (int i = 0; i < _fires.Count; i++)
@@ -167,7 +166,17 @@ namespace BlocksBeyondTheStars.Client
             FxKit.Emit(FxKit.Kind.Smoke, at, v, Random.Range(0.32f, 0.46f), life, color);
         }
 
-        /// <summary>0 at night … 1 at noon — the same ease the Sky's light level uses; dims the smoke after dark.</summary>
+        /// <summary>The smoke's colour: #3274 — the smoke shader already dims the puffs with the world's light, so the night
+        /// colour no longer darkens them a second time, it only takes a little of the fire's warm glow. Thin and soft: the
+        /// Smoke emitter's own fade peaks at 0.75 of the alpha, and the puffs erode as they rise.</summary>
+        private Color SmokeColor()
+        {
+            var smoke = Color.Lerp(new Color(0.7f, 0.58f, 0.48f), new Color(0.64f, 0.63f, 0.65f), Daylight());
+            smoke.a = 0.3f;
+            return smoke;
+        }
+
+        /// <summary>0 at night … 1 at noon — the same ease the Sky's light level uses; warms the smoke after dark.</summary>
         private float Daylight()
         {
             float t = Game.LocalTimeOfDay;

@@ -14,7 +14,7 @@ namespace BlocksBeyondTheStars.Client
     /// Client-side cache of chunks received from the server. This is a *view* of the
     /// authoritative world, not the source of truth: edits arrive as server messages.
     /// </summary>
-    public sealed class ClientWorld
+    public sealed partial class ClientWorld
     {
         private readonly Dictionary<ChunkCoord, ChunkData> _chunks = new Dictionary<ChunkCoord, ChunkData>();
 
@@ -223,6 +223,7 @@ namespace BlocksBeyondTheStars.Client
 
             _chunks[coord] = chunk;
             ScanChunkLightSources(coord, chunk);
+            ScanChunkMarkers(coord, chunk); // #3275: geyser vents and other marker blocks
         }
 
         /// <summary>Drops all cached chunks (used when travelling to another world).</summary>
@@ -230,6 +231,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _chunks.Clear();
             _lightSources.Clear();
+            ClearMarkers();
         }
 
         /// <summary>Drops a single chunk the client has travelled well out of view of, so the client-side chunk
@@ -246,6 +248,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Clear this chunk's glow-block light sources too: one bucket remove (#1515).
             _lightSources.Remove(coord);
+            RemoveChunkMarkers(coord);
             return true;
         }
 
@@ -320,6 +323,7 @@ namespace BlocksBeyondTheStars.Client
 
             int rgb = CellLight(block, pos, tint, glow);
             IndexLightSource(affected, pos, rgb != 0 && CastsLight(rgb, pos) ? rgb : 0);
+            IndexMarker(affected, pos, block);
 
             // #2407: a surface-only emitter beside the changed cell may just have gained or lost its air neighbour —
             // mining the rock off a lava face lights the face, bricking a crystal in puts it out.

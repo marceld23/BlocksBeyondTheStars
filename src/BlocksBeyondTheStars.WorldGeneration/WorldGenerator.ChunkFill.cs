@@ -167,9 +167,7 @@ public sealed partial class WorldGenerator
         // steam/lava vents on volcanic/ashen worlds. A marker block at the surface; the client attaches the
         // eruption VFX + hiss when the player is near. Deterministic, very sparse (landmark-rare).
         var geyserVentId = _content.GetBlock("geyser_vent")?.NumericId ?? BlockId.Air;
-        double geyserWater = planet.WaterAbundance
-            ?? (string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase) ? 0.0 : 0.55);
-        bool geysers = !geyserVentId.IsAir && (geyserWater > 0.25 || GeyserVolcanicFor(planet, volcanoWorld));
+        bool geysers = !geyserVentId.IsAir && (GeyserWaterFor(planet) > GeyserWetThreshold || GeyserVolcanicFor(planet, volcanoWorld));
 
         // Aquatic flora: seabed plants (kelp stalks / coral reefs / seagrass) + lily pads on the surface, only
         // where the sea is water (never lava). World gen places them directly in the submerged columns below.
