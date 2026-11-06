@@ -587,7 +587,24 @@ separate unlock; admins can still disable it through server world rules.
 The air and the weather leave their mark on the world (atmosphere package, October 2026):
 
 - **Mist in the valleys** gathers in the low ground around dawn and dusk and in fog weather, and burns off toward
-  noon; looking toward a low sun, the haze glows golden. Caves and interiors stay clear.
+  noon; looking toward a low sun, the haze glows golden. Caves and interiors stay clear. Every world has a mist of
+  its own: how much of it there is, how often fog weather comes, how torn it is and its colour — many worlds have
+  white mist, others a yellow, green, blue, pink or violet one. Two worlds of the same kind can differ. **Gas
+  giants are never clear**: a dense amber, rose, lilac or teal haze hangs over the gas sea all day and in every weather,
+  swelling and thinning slowly, and the view always stays short.
+- **Fog wisps drifting in the wind**: the mist is not one even blanket — it lies in banks with clear gaps between
+  them that drift and change with the wind.
+- **Cloud fog on high peaks**: when the weather brings clouds, rain or fog, the clouds hang at a height of their own
+  above the land. Climb a summit or a tower, or ride the lift up into them, and the view closes in to a few dozen
+  metres of white (you can always see what is right around you). Above the clouds a **sea of clouds** lies below
+  you (Medium and up, not in the browser). On clear days the summits stand in the sun. The low clouds overhead fade
+  away as you climb into them.
+- **Fog banks in the air**: at dawn, at dusk and in fog weather, soft fog banks hang over the valleys and drift with
+  the wind (Low and up; not on Potato or in the browser).
+- **Smoke and steam** look like smoke now: soft, billowing puffs lit by the sun, that fray at the edges as they
+  fade (campfires, vents, volcanoes). **Geyser vents** steam all the time and erupt now and then at random —
+  water vents throw up spray that falls back, volcanic vents dark ash and glowing embers. **Volcanoes** with a lava
+  crater smoke steadily, so you can spot them from far away.
 - **Cloud shadows** drift over the land with the wind.
 - **Eyes adapt to the dark**: a cave starts dark and gets a little easier to see in over about five seconds (it stays
   dark — see *Caves and nights are dark* below); stepping back into daylight dazzles for a moment. Nothing flashes —
@@ -620,8 +637,9 @@ The air and the weather leave their mark on the world (atmosphere package, Octob
 
 The row **Atmosphere effects** sets them all at once — **Off**, **Some** (the cheap ones, what the browser's Low
 preset also gets), **All** — or **Custom**, which opens one switch per effect. The expensive effects (cloud shadows,
-light shafts, the emitter light, soft particles, caustics) need the **Medium** preset or better regardless of the
-switch. **Reduce flashes** keeps the torchlight steady; **Reduced effects** makes the eye adaptation gentler. From
+light shafts, the emitter light, soft particles, caustics, the sea of clouds) need the **Medium** preset or better
+regardless of the switch; the fog banks in the air need **Low** or better. The fog wisps and the cloud fog itself run
+on every preset, the browser included. **Reduce flashes** keeps the torchlight steady; **Reduced effects** makes the eye adaptation gentler. From
 orbit, planets with air show a lit atmosphere rim with a warm terminator and a dark night side.
 
 ### Ground details (Settings → Graphics → Ground details)

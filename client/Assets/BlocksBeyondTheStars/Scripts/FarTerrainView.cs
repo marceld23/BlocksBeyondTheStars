@@ -94,6 +94,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Patches currently built (diagnostics).</summary>
         public int PatchCount => _patches.Count;
 
+        /// <summary>#3277: this world's generator for MAIN-THREAD queries (the one the column mask uses; never the worker's) —
+        /// the volcano crater smoke asks it where the craters are. Null before the world's info arrived and on a void world.
+        /// Exists whatever the far-view range, even with the far view switched off.</summary>
+        public FarTerrainSource MainThreadSource => _maskSource;
+
         private static bool Inline => Application.platform == RuntimePlatform.WebGLPlayer;
         private static float BudgetMs => BrowserDevice.IsMobileBrowser ? 1.5f : Application.platform == RuntimePlatform.WebGLPlayer ? 2.5f : 3f;
 

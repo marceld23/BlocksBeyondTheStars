@@ -321,6 +321,13 @@ namespace BlocksBeyondTheStars.Client
                     return 8f - d + covered + CaptureFreeCount(x, y, z) * 0.1f - horiz * 0.05f;
                 }
 
+                case "geyser":
+                {
+                    // #3275: open sky some 5–12 blocks from a geyser vent, facing it — its steam and eruptions in frame.
+                    float d = CaptureOpenSky(x, y + 2, z) ? CaptureNearestKey(x, y, z, "geyser_vent", 12, -4, 2, out yaw) : float.NaN;
+                    return float.IsNaN(d) || d < 5f ? float.NaN : 12f - Mathf.Abs(d - 8f) - horiz * 0.05f;
+                }
+
                 default:
                     return float.NaN;
             }

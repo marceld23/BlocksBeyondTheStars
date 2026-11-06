@@ -62,7 +62,7 @@ RULES: list[tuple[str, str]] = [
     ("weather", r"^(rain_loop|storm_loop|drizzle_loop|gale_loop|blizzard_loop|sandstorm_loop|ash_loop|acid_hiss|"
                 r"ion_crackle|spore_amb|meteor_streak|toxic_storm_loop|wind_light|wind_strong|rain_on_hull)$"),
     ("bed", r"^(amb_|night_|water_(brook|fall|shore|surf)$|lava_fall$|lava_bubble$|fire_crackle$|energy_fence_hum$|glider_wind$|"
-            r"underwater_bubbles$|suit_room_tone$|cockpit_ambience$|life_support_cycle$|slither_loop$)"),
+            r"underwater_bubbles$|suit_room_tone$|cockpit_ambience$|life_support_cycle$|slither_loop$|vent_hiss$)"),
     ("machine", r"^(engine_idle|engine_boost|drill_loop|auto_drill_loop|vehicle_engine_loop|"
                 r"boat_engine_loop|rope_reel|lift_motor|factory_hum|data_cube_hum|anomaly_hum|wormhole_hum|"
                 r"pod_beacon|beam_idle|clone_tank_bubble|reactor_hum|ship_exterior_idle|alarm_siren_\d)$"),

@@ -40,6 +40,7 @@ namespace BlocksBeyondTheStars.Client
         {
             "BlocksBeyondTheStars/Particle",
             "BlocksBeyondTheStars/ParticleAlpha",
+            "BlocksBeyondTheStars/ParticleSmoke", // #3274: the first campfire or vent puff compiles behind the loading veil
             "BlocksBeyondTheStars/FxBeam",
             "BlocksBeyondTheStars/FxRing",
             "BlocksBeyondTheStars/FxShell",
@@ -51,6 +52,8 @@ namespace BlocksBeyondTheStars.Client
             "BlocksBeyondTheStars/FxTunnel",
             "BlocksBeyondTheStars/Wormhole", // #2242: no hitch when the first rift comes into view
             "BlocksBeyondTheStars/Decal", // #3058: the first scorch mark (High) compiles behind the loading veil
+            "BlocksBeyondTheStars/MistCard", // #3273: the first fog bank of a misty dawn costs no hitch
+            "BlocksBeyondTheStars/CloudSea", // #3272: nor the sea of clouds on the first summit
         };
 
         /// <summary>The ground detail only ever draws GPU-instanced, so its variants carry INSTANCING_ON next to the sun-shadow

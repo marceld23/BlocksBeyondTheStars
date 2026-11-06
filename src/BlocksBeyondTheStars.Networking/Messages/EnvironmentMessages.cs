@@ -99,6 +99,31 @@ public sealed class WorldEnvironment
     /// distance) and, server-side, the chance of fog weather. 0 on airless bodies.</summary>
     public float AtmosphereDensity { get; set; } = 0.4f;
 
+    /// <summary>#3269: this world's mist profile (<c>Shared.World.MistProfiles</c>) — how much valley mist it breeds at its
+    /// best hour, 0..1 (0 = none; airless and space-sky worlds). Seeded per world from the type's <c>mist</c> value, so two
+    /// worlds of one type differ. Additive (contractless): an older server sends the default, the old general value.</summary>
+    public float MistAmount { get; set; } = 0.45f;
+
+    /// <summary>#3269: the colour of this world's mist and cloud fog, packed 0xRRGGBB; −1 = no colour of its own, the mist
+    /// takes the sky colour (what every world did before, and what an older server sends).</summary>
+    public int MistColor { get; set; } = -1;
+
+    /// <summary>#3269/#3271: 0..1 how torn the mist is — 0 a smooth blanket, 1 ragged wisps with clear gaps between them.</summary>
+    public float MistWispiness { get; set; } = 0.5f;
+
+    /// <summary>#3269/#3272: the cloud band at altitude, absolute world Y. Between <see cref="CloudBaseY"/> and
+    /// <see cref="CloudTopY"/> the camera stands inside the clouds when the weather brings them; above the top a sea of
+    /// clouds lies below. <see cref="CloudTopY"/> ≤ <see cref="CloudBaseY"/> = no band (airless worlds, an older server).</summary>
+    public float CloudBaseY { get; set; }
+
+    /// <summary>The top of the cloud band, see <see cref="CloudBaseY"/>.</summary>
+    public float CloudTopY { get; set; }
+
+    /// <summary>#3269 follow-up: 0..1 the share of <see cref="MistAmount"/> that never burns off — the world is always hazy,
+    /// the haze swelling and thinning slowly and the view kept short (the gas giants). 0 = the mist comes and goes with the
+    /// hour and the weather (every other world, and what an older server sends).</summary>
+    public float MistFloor { get; set; }
+
     /// <summary>Whether the planet's atmosphere is breathable (no suit-oxygen drain on the surface).</summary>
     public bool Breathable { get; set; }
 

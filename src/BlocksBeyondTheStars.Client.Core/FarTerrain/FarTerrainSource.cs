@@ -55,6 +55,7 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
         private readonly bool _seaIsGas; // #2112
         private readonly bool _pondsAndRivers;
         private readonly bool _bands; // #2333: the world can carry extra bands (sky islands, arch bars, crowns)
+        private bool? _ventsVolcanic; // #3275: asked once
 
         public PlanetType Planet { get; }
         public int Circumference { get; }
@@ -121,6 +122,16 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
 
         /// <summary>The generator's natural terrain height at a column (the top solid block's Y).</summary>
         public int GroundHeight(int worldX, int worldZ) => _generator.SurfaceHeight(Planet, worldX, worldZ);
+
+        /// <summary>#3277: the volcano craters within <paramref name="radius"/> blocks of a column, in that column's frame —
+        /// the generator's own answer (<see cref="WorldGenerator.VolcanoCratersNear"/>), so the crater smoke stands where
+        /// the streamed volcano is.</summary>
+        public void VolcanoCratersNear(int worldX, int worldZ, int radius, List<VolcanoCrater> result)
+            => _generator.VolcanoCratersNear(Planet, worldX, worldZ, radius, result);
+
+        /// <summary>#3275: whether this world's geyser vents are volcanic (ash, embers) rather than water geysers
+        /// (<see cref="WorldGenerator.VentsAreVolcanic"/>).</summary>
+        public bool VentsAreVolcanic => _ventsVolcanic ??= _generator.VentsAreVolcanic(Planet);
 
         /// <summary>Samples a column. <paramref name="detail"/> adds ponds, rivers and the biome surface block (the near
         /// level); the coarse level reads the planet's default surface to stay cheap.</summary>

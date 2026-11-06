@@ -20,6 +20,10 @@ namespace BlocksBeyondTheStars.Client
     /// one world step, so a weather flip or a wind ramp changes the speed and never where the clouds are; cover, darkening,
     /// wind, storm towers and cirrus ease toward the new weather over ~10 s and single clouds fade in and out. The deck
     /// snaps when it re-appears (after space, a hyperjump, another world) and on a capture snap.</para>
+    /// <para>#3272: the dome rides with the camera, so on a summit or the lift it used to float "above" you. Climbing through
+    /// the world's cloud band (<c>CloudBaseY</c>..<c>CloudTopY</c>) fades the low cumulus and stratus out
+    /// (<see cref="CloudSeaRules.DomeLowFade"/>); above it the sea of clouds (<see cref="CloudSea"/>) lies below and only
+    /// the high cirrus stay overhead.</para>
     /// </summary>
     public sealed class Clouds : MonoBehaviour
     {
@@ -57,6 +61,7 @@ namespace BlocksBeyondTheStars.Client
         private string _shownBiome;    // the world the deck last showed — another world snaps
         private Sky _sky;              // the smoothed day fraction (sits on the same rig object)
         private bool _skyLooked;
+        private float _lowFade = 1f;   // #3272: how much of the LOW clouds stays at the camera's height (cirrus unaffected)
 
         private void Awake()
         {
@@ -200,6 +205,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Vector3 camPos = Camera.transform.position;
+            // #3272: climbing through the world's cloud band, the low clouds fade out — they no longer hover overhead while
+            // you stand in a cloud or look down on the sea of clouds (CloudSea). The high cirrus stay.
+            _lowFade = CloudSeaRules.DomeLowFade(camPos.y, env.CloudBaseY, env.CloudTopY);
             float t = Game.WorldTime; // the constant-rate lifecycle only — the drift is accumulated in the deck
             for (int i = 0; i < MaxClouds; i++)
             {
@@ -260,7 +268,7 @@ namespace BlocksBeyondTheStars.Client
         private void PlaceCloud(int i, Vector3 camPos, float t, in CloudStyle look, float opacity, Color tint, Vector4 sunDir)
         {
             // Each cloud fades in and out with its share of the cover instead of popping (#3202).
-            float presence = CloudDeck.Presence(i, MaxClouds, look.Cover);
+            float presence = CloudDeck.Presence(i, MaxClouds, look.Cover) * (_high[i] ? 1f : _lowFade);
             bool active = presence > 0.001f && !(_high[i] && look.CirrusFade <= 0.01f);
             if (_clouds[i].gameObject.activeSelf != active)
             {

@@ -187,6 +187,9 @@ namespace BlocksBeyondTheStars.Client
                 AtmoToggle(ref y, "light_shafts", S.LightShafts, v => S.LightShafts = v);
                 AtmoToggle(ref y, "emitter_light", S.EmitterLight, v => S.EmitterLight = v);
                 AtmoToggle(ref y, "soft_particles", S.SoftParticles, v => S.SoftParticles = v);
+                AtmoToggle(ref y, "fog_wisps", S.FogWisps, v => S.FogWisps = v);    // #3271
+                AtmoToggle(ref y, "cloud_fog", S.CloudFog, v => S.CloudFog = v);    // #3272
+                AtmoToggle(ref y, "fog_banks", S.FogBanks, v => S.FogBanks = v);    // #3273
             }
 
             HighDetailRows(ref y); // #3061: the desktop-class extras of the High preset
@@ -703,6 +706,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 sky.FogEnabled = S.DistanceHaze;
                 sky.HeightFogEnabled = S.AtmosphereEffect(S.HeightFog, cheap: true);
+                sky.FogWispsEnabled = S.AtmosphereEffect(S.FogWisps, cheap: true); // #3271
+                sky.CloudFogEnabled = S.AtmosphereEffect(S.CloudFog, cheap: true); // #3272
                 sky.CloudShadowsEnabled = S.AtmosphereEffect(S.CloudShadows, cheap: false);
                 sky.FlickerScale = !S.ReduceFlashes && S.AtmosphereEffect(S.TorchFlicker, cheap: true) ? 1f : 0f;
                 sky.GlowPulseEnabled = !S.ReduceFlashes; // #2822
@@ -725,6 +730,19 @@ namespace BlocksBeyondTheStars.Client
             if (shafts != null)
             {
                 shafts.MaxCards = WorldRig.ShaftCardsFor(S);
+            }
+
+            var mistCards = FindAnyObjectByType<MistCards>(); // #3273
+            if (mistCards != null)
+            {
+                mistCards.MaxCards = MistCards.BudgetFor(S);
+                mistCards.CoverageCap = MistCards.CoverageCapFor(S);
+            }
+
+            var cloudSea = FindAnyObjectByType<CloudSea>(); // #3272
+            if (cloudSea != null)
+            {
+                cloudSea.Enabled = CloudSea.EnabledFor(S);
             }
 
             var stars = FindAnyObjectByType<ShootingStars>();

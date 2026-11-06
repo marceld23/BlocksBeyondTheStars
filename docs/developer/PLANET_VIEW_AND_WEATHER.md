@@ -136,6 +136,9 @@ the same `NewWeatherSim` set-up of ladder band, season, volatility and event wei
 - **The orbital clock** (`_systemTimeDays`) now advances once per server tick. Before, it advanced once per
   occupied world, so two loaded worlds ran it twice as fast. The per-biome offsets rotate on it.
 - **Restarts:** ambient weather is runtime-only, like the orbital clock. A restart starts every body fresh.
+- **Fog frequency (#3269):** each `BodyWeather` carries its world's `MistProfile.FogFrequency`, so the ambient
+  sim rolls fog and ground fog exactly as often as the loaded world does (`WeatherContext.FogFrequency`
+  multiplies both event weights).
 
 **`SystemWeather` (tag 281).** One snapshot per system lists, per body:
 - the episode: state, ladder severity, band, peak, intensity and the rolled precipitation form;
@@ -162,7 +165,8 @@ fields.
 - the world episode;
 - plus the persistent per-biome offset, which rotates every 6 system-days;
 - plus any front covering the longitude;
-- plus one step above the cloud line;
+- plus one step above the summit line (`MistProfiles.SummitLineY`, #3269: the base of the body's type-relief cloud band,
+  else the type's `WeatherProjection.CloudLineY`);
 - clamped into the world's ladder band.
 
 Events (fog, blizzard, ion storm, …) blanket the world and ignore every shift. `Precipitation` turns a state and a
@@ -170,6 +174,8 @@ temperature into what falls.
 
 `WeatherMapProjector` (Client.Core) runs the same functions per map pixel on the snapshot. A headless test projects
 the real server's snapshot onto a baked map and compares it pixel by pixel with the server's own `BiomeWeatherAt`.
+The surface, `FillPadWeather` and the projector all take the summit line from the body's mist profile; the projector
+needs the body id for it (its optional `bodyId` argument — without one it falls back to the type's cloud line).
 
 **Fronts are drawn wider than they are.** A front's true band is 140–520 blocks, 1–4 pixels on a 96-pixel map. The
 views feather it out to at least 4 % of the circumference (`VisualFrontHalfWidthShare`). The pixel's *true* state,
@@ -228,6 +234,9 @@ which is what the pad captions and the surface use, never changes; only the draw
   - the once-per-tick orbital clock;
   - the shared tints.
 - `WeatherProjectionTests` — the shared formula and precipitation.
+- `MistProfileTests` / `MistProfileServerTests` (#3269) — the mist profile's properties (determinism, per-world
+  variety, none without air, bright colours with ~60 % tinted, the band on the cloud line, fog weights scale with
+  the fog frequency) and its wiring into `WorldEnvironment` and the summit line.
 - `PlanetGlobeTests` — the globe mesh (counts, seam, pole vertices, outward winding, the mapping `PlanetSpin` turns)
   and the polar caps.
 - `PlanetWeatherClientTests`:

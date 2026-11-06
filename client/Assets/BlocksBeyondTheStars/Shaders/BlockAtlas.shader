@@ -461,8 +461,9 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // the frame like a full-screen pass. The mesher skylight keeps caves clear of the height fog.
                 if (_Sc_Fog.w > 0.5)
                 {
-                    float haze = BbtsHazeAmount(i.wp, sky);
-                    col = lerp(col, BbtsHazeColor(i.wp), haze);
+                    float4 hz = BbtsHaze(i.wp, sky, 1.0); // #3271/#3272: amount + colour (mist, cloud band) in one pass
+                    float haze = hz.a;
+                    col = lerp(col, hz.rgb, haze);
 
                     // #1748: a beacon must outlast the haze. The emission above went into `col` BEFORE this
                     // lerp, so a warning light on a far tower faded exactly like the rock beside it. Half the

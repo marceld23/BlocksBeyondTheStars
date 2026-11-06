@@ -8,14 +8,16 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// In-world weather (M27 polish, P7 weather rest): actual 3D rain falling around the player during
-    /// rain/storm, plus storm fog that cuts view distance. The drops are a recycled pool whose positions this
+    /// rain/storm. (The weather's fog lives in the shared haze since #3270: <c>Sky.Mist.cs</c> tints the sky, the distance
+    /// haze and the mist toward the fog, dust or ion-storm colour — this class used to set Unity's fog, which none of the
+    /// project's shaders read.) The drops are a recycled pool whose positions this
     /// class integrates itself; since #2399 they are DRAWN by one particle system (soft streaks stretched along
     /// their fall, soft flakes for snow and ash) fed through <c>SetParticles</c> each frame — the simulation has no
     /// emission and no gravity, so the world-aware placement below stays the only thing that moves a drop. Drops are gated per
     /// *column*, not by the player's own sky exposure: each drop only spawns where the sky is open above it and
     /// dies on hitting a solid block, so rain stays visible outside a cave mouth while the player stands inside,
     /// yet never falls through roofs or ceilings. A drop that reaches the ground near the camera leaves a small
-    /// splash. Storm fog keys on the player's exposure (global fog would fill the cave/room). Both are off in the
+    /// splash. The drops are off in the
     /// space view and while a menu is up. Density/speed/slant scale with the authoritative
     /// <c>WorldEnvironment.Intensity</c>. The looping rain/storm bed + thunder live in
     /// <see cref="ClientAudio"/>; the screen wash + lightning flash in <see cref="WeatherFx"/>.
@@ -57,13 +59,6 @@ namespace BlocksBeyondTheStars.Client
         private readonly Dictionary<(int X, int Y, int Z), bool> _skyOpen = new Dictionary<(int X, int Y, int Z), bool>(512);
         private float _skyCacheTimer;
         private string _loggedPrecip = "none"; // diagnostics: last precipitation kind written to the log
-
-        // Saved global fog state so storm fog restores cleanly when the weather clears / we leave the world.
-        private bool _fogSaved;
-        private bool _prevFog;
-        private Color _prevFogColor;
-        private float _prevFogDensity;
-        private FogMode _prevFogMode;
 
         private void Start()
         {
@@ -154,11 +149,6 @@ namespace BlocksBeyondTheStars.Client
             // may fall, so rain stays visible outside the cave mouth while the player stands inside.
             bool inWorld = env != null && !Game.SpaceViewActive && !Game.MenuOpen;
             bool active = inWorld && precip != "none";
-
-            // Fog is keyed on the WEATHER, not on the precipitation: fog, ground fog and an ion storm
-            // drop nothing at all yet are exactly the states that close the view in (#900). It still
-            // keys on the player's own exposure — otherwise a sheltered cave/room would fill with fog.
-            ApplyFog(env, precip, inWorld && Game.ExposedToSky);
 
             // #3203: when the weather ends the drops ease out (the last kind keeps drawing while the envelope falls) instead
             // of vanishing in one frame. Leaving the world — the space view, a menu — still clears them at once.
@@ -480,31 +470,6 @@ namespace BlocksBeyondTheStars.Client
             return open;
         }
 
-        /// <summary>True while the camera sits within a few blocks of the ground it stands on — the height
-        /// gate for ground fog, which must hang in the valleys and not follow you up a mountain.</summary>
-        private bool IsNearGround(Vector3 p)
-        {
-            var w = Game?.World;
-            if (w == null)
-            {
-                return true;
-            }
-
-            int x = Mathf.FloorToInt(p.x), z = Mathf.FloorToInt(p.z);
-            for (int dy = 1; dy <= GroundFogHeight; dy++)
-            {
-                if (!w.GetBlock(x, Mathf.FloorToInt(p.y) - dy, z).IsAir)
-                {
-                    return true; // solid ground close below → we're down in the mist
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>How far above the ground the ground-fog layer reaches, in blocks.</summary>
-        private const int GroundFogHeight = 7;
-
         private void HideAll()
         {
             if (_alive == null || _ps == null)
@@ -522,80 +487,6 @@ namespace BlocksBeyondTheStars.Client
             if (any || _ps.particleCount > 0)
             {
                 _ps.SetParticles(_particles, 0);
-            }
-        }
-
-        /// <summary>Storm fog: a low grey-blue fog that cuts view distance during a storm (scaled by
-        /// intensity), restoring the previous fog state when the storm passes or we leave the world.</summary>
-        private void ApplyFog(BlocksBeyondTheStars.Networking.Messages.WorldEnvironment env, string precip, bool active)
-        {
-            // A sandstorm or a gale always blinds you; so do the obscuring events and a full storm (#900).
-            // Ground fog is deliberately NOT global: it only closes in while the camera is near the ground,
-            // so from a hilltop you look out OVER it — Unity's fog has no height falloff of its own.
-            bool nearGround = Cam == null || Game?.World == null || IsNearGround(Cam.transform.position);
-            bool fog = active && (precip is "sandstorm" or "dust"
-                                  || env.Weather is "storm" or "toxic_storm" or "blizzard" or "fog" or "ion_storm"
-                                  || (env.Weather == "ground_fog" && nearGround));
-            if (fog)
-            {
-                if (!_fogSaved)
-                {
-                    _prevFog = RenderSettings.fog;
-                    _prevFogColor = RenderSettings.fogColor;
-                    _prevFogDensity = RenderSettings.fogDensity;
-                    _prevFogMode = RenderSettings.fogMode;
-                    _fogSaved = true;
-                }
-
-                RenderSettings.fog = true;
-                RenderSettings.fogMode = FogMode.ExponentialSquared;
-                float intensity = Mathf.Clamp01(Game != null ? Game.WeatherIntensity : env.Intensity);
-                if (precip is "sandstorm" or "dust")
-                {
-                    RenderSettings.fogColor = GritWash; // choking dust in the grit's colour, dimmed at night (#3203; was a fixed tan)
-                    RenderSettings.fogDensity = 0.012f + intensity * 0.020f;
-                }
-                else if (env.Weather is "fog" or "ground_fog")
-                {
-                    RenderSettings.fogColor = new Color(0.80f, 0.83f, 0.86f);          // soft grey murk
-                    RenderSettings.fogDensity = (env.Weather == "fog" ? 0.010f : 0.006f) + intensity * 0.022f;
-                }
-                else if (env.Weather == "ion_storm")
-                {
-                    RenderSettings.fogColor = new Color(0.42f, 0.55f, 0.78f);          // charged blue haze
-                    RenderSettings.fogDensity = 0.003f + intensity * 0.008f;
-                }
-                else
-                {
-                    RenderSettings.fogColor = precip == "ash" ? new Color(0.34f, 0.26f, 0.22f) // smoky
-                                            : precip == "acid" ? new Color(0.40f, 0.52f, 0.32f) // acrid green
-                                            : precip == "snow" || precip == "sleet" || precip == "hail" ? new Color(0.74f, 0.78f, 0.84f) // white-out
-                                            : new Color(0.45f, 0.50f, 0.58f);          // grey-blue rain storm
-                    // A blizzard closes in far harder than an ordinary storm.
-                    float bite = env.Weather == "blizzard" ? 0.022f : 0.010f;
-                    RenderSettings.fogDensity = 0.004f + intensity * bite;
-                }
-            }
-            else if (_fogSaved)
-            {
-                RestoreFog();
-            }
-        }
-
-        private void RestoreFog()
-        {
-            RenderSettings.fog = _prevFog;
-            RenderSettings.fogColor = _prevFogColor;
-            RenderSettings.fogDensity = _prevFogDensity;
-            RenderSettings.fogMode = _prevFogMode;
-            _fogSaved = false;
-        }
-
-        private void OnDestroy()
-        {
-            if (_fogSaved)
-            {
-                RestoreFog(); // don't leave storm fog on when the world tears down
             }
         }
     }

@@ -45,6 +45,7 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             "BlocksBeyondTheStars/BlockAtlas",
             "BlocksBeyondTheStars/BlockAtlasTransparent",
             "BlocksBeyondTheStars/Cloud",
+            "BlocksBeyondTheStars/CloudSea",     // #3272: the sea of clouds below a summit (CloudSea, Medium+ desktop)
             "BlocksBeyondTheStars/Decal",        // #3058: the High preset's scorch marks and craters (FxDecals)
             "BlocksBeyondTheStars/FarTerrain",
             "BlocksBeyondTheStars/FxBeam",   // VFX overhaul (#2152): beams, rings, shells, holograms, chips, dust, warp, cracks
@@ -60,9 +61,11 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             "BlocksBeyondTheStars/HeatHaze",
             "BlocksBeyondTheStars/LitColor",
             "BlocksBeyondTheStars/MeadowFlower", // #3056: the High preset's meadow flowers (GrassShells.Flowers)
+            "BlocksBeyondTheStars/MistCard",     // #3273: fog banks in the air (MistCards, Low+ desktop)
             "BlocksBeyondTheStars/Nebula",
             "BlocksBeyondTheStars/Particle",
             "BlocksBeyondTheStars/ParticleAlpha",
+            "BlocksBeyondTheStars/ParticleSmoke", // #3274: sun-lit, eroding smoke puffs (FxKit Smoke/Plume)
             "BlocksBeyondTheStars/PlanetRing",
             "BlocksBeyondTheStars/PlanetLimb",   // #2400: the lit atmosphere rim of a planet seen from orbit
             "BlocksBeyondTheStars/ScatterLit",
