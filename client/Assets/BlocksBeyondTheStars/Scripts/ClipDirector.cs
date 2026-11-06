@@ -1276,20 +1276,25 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>The twelve per-effect switches of the atmosphere group, in a fixed order, so a capture run can
+        /// <summary>The fifteen per-effect switches of the atmosphere group, in a fixed order, so a capture run can
         /// put them back exactly (a Custom selection included).</summary>
         private static bool[] AtmosphereSwitches(ClientSettings s) => new[]
         {
             s.HeightFog, s.CloudShadows, s.EyeAdaptation, s.TorchFlicker, s.WindSway, s.WetSurfaces,
             s.WeatherParticles, s.ShootingStars, s.Underwater, s.LightShafts, s.EmitterLight, s.SoftParticles,
+            s.FogWisps, s.CloudFog, s.FogBanks, // #3271–#3273
         };
 
         private static void RestoreAtmosphereSwitches(ClientSettings s, bool[] v)
         {
-            if (v == null || v.Length < 12)
+            if (v == null || v.Length < 15)
             {
                 return;
             }
+
+            s.FogWisps = v[12];
+            s.CloudFog = v[13];
+            s.FogBanks = v[14];
 
             s.HeightFog = v[0];
             s.CloudShadows = v[1];

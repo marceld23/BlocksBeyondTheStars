@@ -4,13 +4,17 @@
 // Unity's fog never engages on the project's custom unlit voxel shaders, so the haze is an explicit blend toward
 // the sky colour, driven by per-frame GLOBALS that Sky.cs sets (Shader.SetGlobal*; outside every UnityPerMaterial
 // cbuffer — the SRP Batcher rule of #573). Before this file the blend lived in BlockAtlas and FarTerrain only, so
-// creatures, ships, particles and clouds stood razor-sharp in front of a hazed landscape. Two terms:
+// creatures, ships, particles and clouds stood razor-sharp in front of a hazed landscape. Three terms:
 //   * distance haze — linear from _Sc_Fog.x to _Sc_Fog.y metres, the chunk-ring veil the game always had;
 //   * height fog    — mist that lies in the low places: density exp(-k·(y − floor)) above a floor height, integrated
 //                     along the view ray (3-point Simpson, cheap and good enough), masked by the fragment's skylight
-//                     (caves stay clear) and by the camera's own exposure (underground nothing mists up).
+//                     (caves stay clear) and by the camera's own exposure (underground nothing mists up). #3271 tears
+//                     it into wisps: the density at the Simpson points is modulated by the wind-drifted noise sheet;
+//   * cloud band    — #3272: the clouds at altitude between the world's band base and top, integrated analytically
+//                     along the ray, with holes from the cloud-shadow sheet; the nearest metres always stay readable.
 // The haze colour is the sky colour warmed toward the sun when looking at it (in-scatter), so a low sun reads
-// golden through the mist and the opposite side stays cool.
+// golden through the mist and the opposite side stays cool; the mist and the band blend in their own lit colours
+// (BbtsHaze returns amount and colour from one evaluation — prefer it over BbtsHazeAmount + BbtsHazeColor).
 //
 // Globals:
 //   _Sc_Fog         x = start, y = end (metres), z = max haze (0 indoors / switched off), w = on
@@ -29,6 +33,19 @@
 //   _Sc_GlowPulse    1 = glowing plants breathe, 0 = steady (Reduce flashes)
 // Dark package (#3265):
 //   _Sc_DarkFloor    the flat floor every lit surface keeps (0.045 … 0.15 with "Visibility in the dark"; 0 = unset → 0.045)
+// Fog package (#3270–#3272; Sky.Mist.cs sets them, MistLook in Client.Core holds the rules). Every one reads as "off"
+// while unset (all zero), so the menu and the previews keep the plain haze:
+//   _Sc_MistWisp      x = wisp strength 0..1 (0 = the smooth blanket of #2406, exactly), y = wisp noise frequency (1/metres),
+//                     zw = the wind drift of the wisp sheet (texture units, wrapped)
+//   _Sc_MistCam       values at the camera, from the CPU: x = the wisp factor there (saves the third sample), y = the morph
+//                     between the noise sheets' green and blue 0..1, z = the morph's contrast, w = the cloud band's camera
+//                     gate 0..1 (0 underground, aboard, under water)
+//   _Sc_MistColor     rgb = the lit mist colour (linear), a = 1 the height fog takes it, 0 = it takes the haze colour (a
+//                     world without a mist colour of its own: the look before #3271)
+//   _Sc_CloudBand     x = band base Y, y = band top Y, z = cover 0..1 (0 = no band), w = soft edge thickness (metres)
+//   _Sc_CloudBandColor rgb = the lit cloud colour (linear), a unused
+//   _Sc_CloudNoise    RGBA since #3271: r = the cloud-shadow sheet (unchanged), g and b = two independent, rank-equalised
+//                     sheets (uniform 0..1: a threshold t leaves the share t below it) for the wisps and the band's holes
 #ifndef BBTS_ATMOSPHERE_COMMON_INCLUDED
 #define BBTS_ATMOSPHERE_COMMON_INCLUDED
 
@@ -49,6 +66,11 @@ float4 _Sc_IndoorColor; // #2814: the interior fill's colour (a > 0.5 = set)
 float  _Sc_CozyLight;   // #2820: block-light gain of the cosiness slider (0 = unset)
 float  _Sc_GlowPulse;   // #2822: glowing plants breathe (1) or stay steady (0)
 float  _Sc_DarkFloor;   // #3265: the flat dark floor (see BbtsDarkFloor)
+float4 _Sc_MistWisp;       // #3271: see the header
+float4 _Sc_MistCam;        // #3271/#3272: see the header
+float4 _Sc_MistColor;      // #3271: see the header
+float4 _Sc_CloudBand;      // #3272: see the header
+float4 _Sc_CloudBandColor; // #3272: see the header
 TEXTURE2D(_Sc_CloudNoise); SAMPLER(sampler_Sc_CloudNoise);
 
 // #2814: the colour the interior fill lights the cabin in — white where nothing set it (a station, the menu, a preview).
@@ -261,6 +283,145 @@ float BbtsMistDensity(float y)
     return exp(-_Sc_FogHeight.y * max(y - _Sc_FogHeight.x, 0.0));
 }
 
+// The constants MistLook (Client.Core) shares with the shader — MistLookTests pins each pair (#3271/#3272).
+#define BBTS_WISP_LOW 0.3
+#define BBTS_WISP_HIGH 0.7
+#define BBTS_WISP_SHEAR float2(0.35, -0.2)
+#define BBTS_BAND_CLEAR 6.0
+#define BBTS_BAND_K0 0.04
+#define BBTS_BAND_K1 0.03
+#define BBTS_BAND_HOLE_TILE 96.0
+
+// Vertex stages (particles and decals take their haze per vertex) read the smooth averages — no texture fetch in a vertex
+// shader (the project's shaders compile at the default target); every fragment stage reads the wisps and the holes.
+#if defined(SHADER_STAGE_VERTEX)
+#define BBTS_HAZE_NOISE false
+#else
+#define BBTS_HAZE_NOISE true
+#endif
+
+// #3271: the mist's wisps at `p` — 0..2 times the smooth density (0 in a gap, 2 in a bank, about 1 on average). The noise
+// sheet drifts with the wind (_Sc_MistWisp.zw), shears a little with height so a bank's top is not its foot, and its two
+// even, independent channels (green, blue) morph into each other (_Sc_MistCam.y, contrast restored by .z), so the banks
+// slowly change shape. Strength 0 returns exactly 1. One LOD-0 sample (legal inside any branch on every API).
+float BbtsWispAt(float3 p)
+{
+    float2 uv = (p.xz + p.y * BBTS_WISP_SHEAR) * _Sc_MistWisp.y + _Sc_MistWisp.zw;
+    float2 gb = SAMPLE_TEXTURE2D_LOD(_Sc_CloudNoise, sampler_Sc_CloudNoise, uv, 0).gb;
+    float n = 0.5 + (lerp(gb.x, gb.y, _Sc_MistCam.y) - 0.5) * _Sc_MistCam.z;
+    float bank = smoothstep(BBTS_WISP_LOW, BBTS_WISP_HIGH, n) * 2.0;
+    return lerp(1.0, bank, _Sc_MistWisp.x);
+}
+
+// #3272: the cloud band's density at height y — a trapezoid: 0 at the base, rising to 1 over the soft edge, 1 through the
+// middle, back to 0 over the edge below the top (Sky.Mist.cs keeps the edge at a quarter of the band).
+float BbtsBandDensity(float y)
+{
+    float e = max(_Sc_CloudBand.w, 0.5);
+    return saturate((y - _Sc_CloudBand.x) / e) * saturate((_Sc_CloudBand.y - y) / e);
+}
+
+// The trapezoid integrated from below the band up to y — the metres of full cloud a vertical ray passes: four clamped
+// squares, one per corner of the profile (above the top it is the band's area, thickness − edge).
+float BbtsBandIntegral(float y)
+{
+    float e = max(_Sc_CloudBand.w, 0.5);
+    float a = max(y - _Sc_CloudBand.x, 0.0);
+    float b = max(y - _Sc_CloudBand.x - e, 0.0);
+    float c = max(y - _Sc_CloudBand.y + e, 0.0);
+    float d = max(y - _Sc_CloudBand.y, 0.0);
+    return (a * a - b * b - c * c + d * d) / (2.0 * e);
+}
+
+// #3272: 0..1 how much of the cloud band lies between the camera and `wp`. The band's density is integrated exactly along
+// the ray (a nearly level ray takes the density at its middle height). With `noise` one hole sample comes off the even
+// green sheet near where the ray is inside the band (about `cover` of the area is filled; it drifts with the cloud
+// shadows), else the average fill. The first BBTS_BAND_CLEAR metres never count, so inside a full cloud ~15 m stay
+// readable and ~40 m fade into the cloud. The camera gate (_Sc_MistCam.w) keeps it out of caves, cabins and the water.
+float BbtsBandAmount(float3 wp, float3 cam, float camDist, bool noise)
+{
+    float cover = _Sc_CloudBand.z;
+    float lo = min(cam.y, wp.y);
+    float hi = max(cam.y, wp.y);
+    if (cover < 0.001 || _Sc_MistCam.w < 0.001 || hi <= _Sc_CloudBand.x || lo >= _Sc_CloudBand.y)
+    {
+        return 0.0;
+    }
+
+    float dy = wp.y - cam.y;
+    bool steep = abs(dy) > 1.0;
+    float sdy = steep ? dy : 1.0;
+    float avg = steep ? (BbtsBandIntegral(wp.y) - BbtsBandIntegral(cam.y)) / sdy : BbtsBandDensity((cam.y + wp.y) * 0.5);
+
+    float fill = cover;
+    if (noise)
+    {
+        // Where to read the holes: the middle of the ray's stretch inside the band, at most ~24 m past where it enters it
+        // (inside a cloud, the patch right ahead decides what you see).
+        float yIn = clamp(cam.y, _Sc_CloudBand.x, _Sc_CloudBand.y);
+        float yOut = clamp(wp.y, _Sc_CloudBand.x, _Sc_CloudBand.y);
+        float sIn = steep ? saturate((yIn - cam.y) / sdy) : 0.0;
+        float sMid = steep ? saturate(((yIn + yOut) * 0.5 - cam.y) / sdy) : 0.5;
+        float3 p = lerp(cam, wp, min(sMid, sIn + 24.0 / max(camDist, 1.0)));
+        float2 uv = (p.xz + _Sc_CloudShadow.yz) * (1.0 / BBTS_BAND_HOLE_TILE);
+        float n = SAMPLE_TEXTURE2D_LOD(_Sc_CloudNoise, sampler_Sc_CloudNoise, uv, 0).g;
+        float t = 1.1 - 1.2 * cover;
+        fill = smoothstep(t - 0.08, t + 0.08, n);
+    }
+
+    float depth = max(camDist - BBTS_BAND_CLEAR, 0.0) * avg * fill;
+    return (1.0 - exp(-depth * (BBTS_BAND_K0 + BBTS_BAND_K1 * cover))) * _Sc_MistCam.w;
+}
+
+// The three haze terms at `wp`, each 0..1: x = the distance veil, y = the height fog (masked by the fragment's skylight,
+// the camera's exposure and `heightScale`), z = the cloud band. `noise` = with the wisps and the band's holes (the real
+// haze); without them the smooth averages, ALU only (BbtsHazeColor's estimate). Wisps off = the #2406 formula exactly.
+float3 BbtsHazeTerms(float3 wp, float skylight, float heightScale, bool noise)
+{
+    float3 cam = _WorldSpaceCameraPos;
+    float camDist = distance(wp, cam);
+    float dist = saturate((camDist - _Sc_Fog.x) / max(1.0, _Sc_Fog.y - _Sc_Fog.x));
+
+    float height = 0.0;
+    if (_Sc_FogHeight.z > 0.001)
+    {
+        float3 mid = (cam + wp) * 0.5;
+        float dc = BbtsMistDensity(cam.y);
+        float dm = BbtsMistDensity(mid.y);
+        float dw = BbtsMistDensity(wp.y);
+        // #3271: the wisps, sampled only where the mist has any density; the camera's own factor comes from the CPU.
+        if (noise && _Sc_MistWisp.x > 0.001)
+        {
+            dc *= _Sc_MistCam.x;
+            if (dm > 0.002)
+            {
+                dm *= BbtsWispAt(mid);
+            }
+
+            if (dw > 0.002)
+            {
+                dw *= BbtsWispAt(wp);
+            }
+        }
+
+        float depth = camDist * (dc + 4.0 * dm + dw) / 6.0;
+        // 0.035 per metre at full strength: ~40 m through dense mist leaves a quarter of the scene.
+        height = 1.0 - exp(-depth * 0.035 * _Sc_FogHeight.z);
+        height *= saturate(skylight) * _Sc_FogHeight.w * heightScale;
+    }
+
+    return float3(dist, height, BbtsBandAmount(wp, cam, camDist, noise));
+}
+
+// The terms combined into the 0..1 haze amount. #3265: with the camera under cover there is no sky to blend toward — a
+// long tunnel's far end sank into a bright sky haze. Underground (camera exposure 0) a surface keeps the haze by its own
+// skylight only (open ground seen from a cave mouth keeps it); under water the murk is the water, not the sky, and stays.
+float BbtsHazeCombine(float3 terms, float skylight)
+{
+    float covered = _Sc_Underwater.x > 0.5 ? 1.0 : lerp(saturate(skylight * 2.0), 1.0, saturate(_Sc_FogHeight.w));
+    return (1.0 - (1.0 - terms.x) * (1.0 - terms.y) * (1.0 - terms.z)) * _Sc_Fog.z * covered;
+}
+
 // 0..1 haze at world position `wp`. `skylight` is the fragment's own sky exposure (0 cave … 1 open); surfaces that
 // carry none pass 1 and rely on the camera-exposure term. `heightScale` scales the height-fog term only: a water
 // surface passes 0.5 (#2412) — the mist floor lies ON the water (the probe's lowest column tops are the water itself),
@@ -272,25 +433,7 @@ float BbtsHazeAmountScaled(float3 wp, float skylight, float heightScale)
         return 0.0;
     }
 
-    float3 cam = _WorldSpaceCameraPos;
-    float camDist = distance(wp, cam);
-    float dist = saturate((camDist - _Sc_Fog.x) / max(1.0, _Sc_Fog.y - _Sc_Fog.x));
-
-    float height = 0.0;
-    if (_Sc_FogHeight.z > 0.001)
-    {
-        float3 mid = (cam + wp) * 0.5;
-        float depth = camDist * (BbtsMistDensity(cam.y) + 4.0 * BbtsMistDensity(mid.y) + BbtsMistDensity(wp.y)) / 6.0;
-        // 0.035 per metre at full strength: ~40 m through dense mist leaves a quarter of the scene.
-        height = 1.0 - exp(-depth * 0.035 * _Sc_FogHeight.z);
-        height *= saturate(skylight) * _Sc_FogHeight.w * heightScale;
-    }
-
-    // #3265: with the camera under cover there is no sky to blend toward — a long tunnel's far end sank into a bright sky
-    // haze. Underground (camera exposure 0) a surface keeps the haze by its own skylight only (open ground seen from a cave
-    // mouth keeps it); under water the murk is the water, not the sky, and stays.
-    float covered = _Sc_Underwater.x > 0.5 ? 1.0 : lerp(saturate(skylight * 2.0), 1.0, saturate(_Sc_FogHeight.w));
-    return (1.0 - (1.0 - dist) * (1.0 - height)) * _Sc_Fog.z * covered;
+    return BbtsHazeCombine(BbtsHazeTerms(wp, skylight, heightScale, BBTS_HAZE_NOISE), skylight);
 }
 
 float BbtsHazeAmount(float3 wp, float skylight)
@@ -298,19 +441,56 @@ float BbtsHazeAmount(float3 wp, float skylight)
     return BbtsHazeAmountScaled(wp, skylight, 1.0);
 }
 
-// The colour the haze blends toward at `wp`: the sky, warmed toward the sun when looking at it.
-float3 BbtsHazeColor(float3 wp)
+// The haze colour for the terms: the distance veil takes the sky warmed toward the sun when looking at it (in-scatter),
+// the mist its own lit colour (#3271; the veil's while _Sc_MistColor.a is 0), the band the lit cloud colour (#3272) — both
+// catch some of the sun's warmth too — mixed by the terms' weights.
+float3 BbtsHazeMix(float3 wp, float3 terms)
 {
     float3 sky = (_Sc_FogSky.a < 0.5) ? float3(1.0, 1.0, 1.0) : _Sc_FogSky.rgb;
     float3 V = normalize(wp - _WorldSpaceCameraPos);
-    float toSun = pow(saturate(dot(V, normalize(_Sc_FogSunDir.xyz))), 8.0);
-    return lerp(sky, _Sc_FogSun.rgb, toSun * _Sc_FogSun.a);
+    float toSun = pow(saturate(dot(V, normalize(_Sc_FogSunDir.xyz))), 8.0) * _Sc_FogSun.a;
+    float3 veil = lerp(sky, _Sc_FogSun.rgb, toSun);
+    if (_Sc_MistColor.a < 0.001 && _Sc_CloudBand.z < 0.001)
+    {
+        return veil; // no mist colour of its own and no band: the look before #3271, exactly
+    }
+
+    float3 mist = lerp(veil, lerp(_Sc_MistColor.rgb, _Sc_FogSun.rgb, toSun * 0.6), saturate(_Sc_MistColor.a));
+    float3 cloud = lerp(_Sc_CloudBandColor.rgb, _Sc_FogSun.rgb, toSun * 0.3);
+    float w = terms.x + terms.y + terms.z;
+    return w > 1e-4 ? (veil * terms.x + mist * terms.y + cloud * terms.z) / max(w, 1e-4) : veil;
+}
+
+// The colour the haze blends toward at `wp`, for shaders that ask for amount and colour separately: the terms are
+// estimated without the noise (ALU only). BbtsHaze is cheaper and exact — prefer it.
+float3 BbtsHazeColor(float3 wp)
+{
+    if (_Sc_MistColor.a < 0.001 && _Sc_CloudBand.z < 0.001)
+    {
+        return BbtsHazeMix(wp, float3(1.0, 0.0, 0.0));
+    }
+
+    return BbtsHazeMix(wp, BbtsHazeTerms(wp, 1.0, 1.0, false));
+}
+
+// #3271/#3272: the haze at `wp` from ONE evaluation of the terms: rgb = the colour to blend toward, a = the 0..1 amount
+// (BbtsHazeAmountScaled's). `heightScale` as there (1 for every surface but water).
+float4 BbtsHaze(float3 wp, float skylight, float heightScale)
+{
+    if (_Sc_Fog.w < 0.5)
+    {
+        return float4(1.0, 1.0, 1.0, 0.0);
+    }
+
+    float3 terms = BbtsHazeTerms(wp, skylight, heightScale, BBTS_HAZE_NOISE);
+    return float4(BbtsHazeMix(wp, terms), BbtsHazeCombine(terms, skylight));
 }
 
 // Opaque surfaces: blend the lit colour toward the haze.
 float3 BbtsApplyHaze(float3 col, float3 wp, float skylight)
 {
-    return lerp(col, BbtsHazeColor(wp), BbtsHazeAmount(wp, skylight));
+    float4 haze = BbtsHaze(wp, skylight, 1.0);
+    return lerp(col, haze.rgb, haze.a);
 }
 
 // Sky objects (the cloud billboards sit far beyond the chunk ring, so the distance term would always swallow them):
