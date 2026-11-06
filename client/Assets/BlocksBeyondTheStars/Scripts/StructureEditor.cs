@@ -20,8 +20,9 @@ namespace BlocksBeyondTheStars.Client
     /// <b>space station</b> or a <b>settlement</b> (village/town) by hand: an empty build room you fly
     /// through (hold RMB to look, WASD/QE to move) and place blocks + interaction markers into. A side
     /// panel sets the name + size tier; <b>Save</b> writes a template bundle (structure.json +
-    /// layout.json) a developer folds into the game's template pools with tools/merge_structure.py.
-    /// Self-contained on the client; the palette + size tiers switch by <see cref="EditorMode"/>.
+    /// layout.json) a developer folds into the game's template pools with tools/merge_structure.py;
+    /// <b>Submit</b> (#3262, <c>StructureEditor.Submit.cs</c>) sends the same bundle — with its kit — to the
+    /// developers for review. Self-contained on the client; the palette + size tiers switch by <see cref="EditorMode"/>.
     /// <para>
     /// <b>LOAD</b> (#1395) offers the shipped templates (from the loaded content) and the templates already
     /// saved to the user-content folder as starting points, next to the user's exports. A shipped template
@@ -29,7 +30,7 @@ namespace BlocksBeyondTheStars.Client
     /// it, so saving under the original key would only put a clone next to the original.
     /// </para>
     /// </summary>
-    public sealed class StructureEditor : MonoBehaviour
+    public sealed partial class StructureEditor : MonoBehaviour
     {
         public enum Mode { Station, Settlement }
 
@@ -68,15 +69,16 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The form brush's name: "Automatic" (the block's own form, #1975) or the built-in form's name.</summary>
         private string FormName(int shape)
-            => shape < 0 ? L("ui.ed.form_auto") : L(BuiltInForms.LocKeyOf(shape) ?? "ui.shape.cube");
+            => shape < 0 ? L("ui.ed.form_auto_short") : L(BuiltInForms.LocKeyOf(shape) ?? "ui.shape.cube"); // "Auto": a 112 px value (#3263)
 
-        private string TierLabel(string slug) => L("ui.tier." + slug);
+        /// <summary>A tier's name as a compact value — the metropolis without its "(city district)" (#3263).</summary>
+        private string TierLabel(string slug) => L(slug == StructureRoles.MetropolisTier ? "ui.tier_short.metropolis" : "ui.tier." + slug);
 
-        /// <summary>The "Use as" label of a role (#1826): whole structure, or one of the module roles.</summary>
-        private string RoleLabel(string role) => L("ui.role." + (string.IsNullOrEmpty(role) ? "whole" : role));
+        /// <summary>The function value of a settlement module (#1826) — the role's short name, without "(module)" (#3263).</summary>
+        private string RoleLabel(string role) => L("ui.role_short." + (string.IsNullOrEmpty(role) ? "whole" : role));
 
         private string _key = "my_structure";
-        private string _name = "My Structure";
+        private string _name = string.Empty; // the localized default is set in Start (#3263)
         private string _pack = "default";   // template pack; a world enables a set of packs
         private int _weight = 1;            // relative selection weight within its tier
         private string _role = string.Empty; // #1826: "" = a whole structure, else a building-module role (StructureRoles)
@@ -102,7 +104,7 @@ namespace BlocksBeyondTheStars.Client
                 ? new[] { "small", "medium", "large", "huge", "colossal" } // colossal = the rare mega-station (#1402)
                 : new[] { "hamlet", "village", "town", "city", StructureRoles.MetropolisTier }; // metropolis = a city-composer district module (#1826)
             _key = EditorMode == Mode.Station ? "my_station" : "my_settlement";
-            _name = EditorMode == Mode.Station ? "My Station" : "My Settlement";
+            _name = L(EditorMode == Mode.Station ? "ui.ed.default.station" : "ui.ed.default.settlement");
 
             _cam = EditorSceneKit.CreateEditorCamera(transform, 1600f);
             EditorSceneKit.Frame(_cam.transform, ref _pitch, _yaw, _design.Keys, MaxW, MaxL); // opening view (#1390)
@@ -281,9 +283,9 @@ namespace BlocksBeyondTheStars.Client
 
         private void Update()
         {
-            if (_cam == null)
+            if (_cam == null || CreationSubmitDialog.IsAnyOpen)
             {
-                return;
+                return; // the submit dialog (#3262) owns the keys and the mouse while it is open
             }
 
             bool flying = Input.GetMouseButton(1);
@@ -770,50 +772,11 @@ namespace BlocksBeyondTheStars.Client
                 return; // #1877: a broken port or a leaking module never leaves the editor
             }
 
-            int maxX = 0, maxY = 0, maxZ = 0;
-            var layout = new LayoutJson();
-            foreach (var kv in _design)
-            {
-                var d = kv.Value;
-                layout.cells.Add(new CellJson
-                {
-                    x = kv.Key.X, y = kv.Key.Y, z = kv.Key.Z,
-                    kind = string.IsNullOrEmpty(d.Kind) ? "block" : d.Kind, id = d.Id,
-                    tint = d.Tint, glow = d.Glow, shape = d.Shape, port = d.Port ?? string.Empty,
-                    mode = DeviceMode(d), config = DeviceConfig(d), label = DeviceLabel(d), // #2260
-                });
-                maxX = Mathf.Max(maxX, kv.Key.X);
-                maxY = Mathf.Max(maxY, kv.Key.Y);
-                maxZ = Mathf.Max(maxZ, kv.Key.Z);
-            }
-
-            layout.width = maxX + 1;
-            layout.height = maxY + 1;
-            layout.length = maxZ + 1;
-
-            string modeName = EditorMode == Mode.Station ? "station" : "settlement";
-            string pack = string.IsNullOrWhiteSpace(_pack) ? "default" : Slug(_pack);
-            int weight = Mathf.Max(1, _weight);
-            var planetTypes = EditorMode == Mode.Settlement ? PlanetTypeList() : new List<string>();
-            // #1826: a module's role rides along; a city-district module always carries the metropolis tier.
-            // #1877: a kit module carries its kit and function too (the settlement role mirrors a known function so
-            // the legacy per-plot composer still recognises it).
-            SyncRole();
-            string role = EditorMode == Mode.Settlement ? _role ?? string.Empty : string.Empty;
-            string kitKey = _moduleMode ? Slug(_kit) : string.Empty;
-            string function = _moduleMode ? _function ?? string.Empty : string.Empty;
-            string style = _moduleMode && EditorMode == Mode.Settlement ? _style ?? string.Empty : string.Empty;
-            string tier = StructureRoles.IsCityRole(role) ? StructureRoles.MetropolisTier : _tiers[_tier];
-            var meta = new MetaJson
-            {
-                key = key, name = _name, kind = modeName, tier = tier, pack = pack, weight = weight, layout = $"{key}.json",
-                planetTypes = planetTypes, role = role, kit = kitKey, function = function, style = style,
-            };
-
+            var (meta, layout) = BuildExport(key);
             try
             {
                 // 1) Export bundle (the "ship into the game" path via tools/merge_structure.py).
-                string dir = Path.Combine(AppPaths.Root, modeName + "_exports", key);
+                string dir = Path.Combine(AppPaths.Root, meta.kind + "_exports", key);
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, "structure.json"), JsonUtility.ToJson(meta, true));
                 File.WriteAllText(Path.Combine(dir, "layout.json"), JsonUtility.ToJson(layout, true));
@@ -822,19 +785,20 @@ namespace BlocksBeyondTheStars.Client
                 //    reads — so this structure can appear in your NEXT new world without any merge/rebuild.
                 var tpl = new TemplateJson
                 {
-                    key = key, name = _name, tier = tier, kind = modeName, pack = pack, weight = weight,
-                    planetTypes = planetTypes, role = role, kit = kitKey, function = function, style = style,
+                    key = key, name = _name, tier = meta.tier, kind = meta.kind, pack = meta.pack, weight = meta.weight,
+                    planetTypes = meta.planetTypes, role = meta.role, kit = meta.kit, function = meta.function, style = meta.style,
                     width = layout.width, height = layout.height, length = layout.length, cells = layout.cells,
                 };
-                string userDir = Path.Combine(AppPaths.Root, "usercontent", modeName + "_templates");
+                string userDir = Path.Combine(AppPaths.Root, "usercontent", meta.kind + "_templates");
                 Directory.CreateDirectory(userDir);
                 File.WriteAllText(Path.Combine(userDir, key + ".json"), JsonUtility.ToJson(tpl, true));
 
-                SetStatus(string.Format(L("ui.ed.saved_structure"), key, _design.Count, pack));
+                SetStatus(string.Format(L("ui.ed.saved_structure"), key, _design.Count, meta.pack));
             }
             catch (Exception e)
             {
-                SetStatus(string.Format(L("ui.ed.export_failed"), e.Message));
+                Debug.LogWarning($"[StructureEditor] Export failed: {e}");
+                SetStatus(L("ui.ed.export_failed_hint")); // a friendly line; the exception goes to the log (#3263)
             }
         }
 
@@ -1041,6 +1005,7 @@ namespace BlocksBeyondTheStars.Client
             int skipped = ApplyCells(cells, skippedIds);
 
             _key = copy ? key + "_2" : key;
+            _basedOn = copy ? key : string.Empty; // a submission names the shipped template it started from (#3262)
             _name = string.IsNullOrEmpty(name) ? key : name;
             _pack = string.IsNullOrEmpty(pack) ? "default" : pack;
             _weight = Mathf.Max(1, weight);
@@ -1187,7 +1152,8 @@ namespace BlocksBeyondTheStars.Client
             }
             catch (Exception e)
             {
-                SetStatus(string.Format(L("ui.ed.load_failed"), e.Message));
+                Debug.LogWarning($"[StructureEditor] Load failed: {e}");
+                SetStatus(L("ui.ed.load_failed_hint")); // a friendly line; the exception goes to the log (#3263)
                 return;
             }
 
@@ -1227,7 +1193,8 @@ namespace BlocksBeyondTheStars.Client
             }
             catch (Exception e)
             {
-                SetStatus(string.Format(L("ui.ed.load_failed"), e.Message));
+                Debug.LogWarning($"[StructureEditor] Load failed: {e}");
+                SetStatus(L("ui.ed.load_failed_hint")); // a friendly line; the exception goes to the log (#3263)
             }
         }
 
@@ -1525,7 +1492,8 @@ namespace BlocksBeyondTheStars.Client
             }
             catch (Exception e)
             {
-                SetStatus(string.Format(L("ui.ed.assemble_failed"), e.Message));
+                Debug.LogWarning($"[StructureEditor] Assembling the kit failed: {e}");
+                SetStatus(L("ui.ed.assemble_failed_hint")); // a friendly line; the exception goes to the log (#3263)
                 return;
             }
 
@@ -1557,233 +1525,5 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private static string Slug(string s) => EditorSceneKit.Slug(s);
-
-        // ----------------------------- UI (uGUI) -----------------------------
-
-        private const float PanelH = 1048f;
-        private Canvas _canvas;
-        private Text _statusLabel;
-        private Text _blocksLabel;
-        private Text _tierLabel;
-        private Text _roleLabel;
-        private Text _sizeHintLabel;
-        private Text _weightLabel;
-        private Text _shapeLabel;
-        private Text _orientLabel;
-        private Transform _palListParent;
-        private PaletteListUi _palList;
-        private int _lastPlaced = -1;
-
-        private void OnDestroy()
-        {
-            _kitPanel?.Close();
-            _kitPanel = null;
-            _view?.Dispose();
-            _ghost?.Dispose();
-            _overlay?.Dispose();
-            _ghostMeshes?.Dispose();
-            _formPicker?.Close();
-            _formPicker = null;
-            _atlas?.Release(); // palette sprites reference this texture; the editor holds a reference (#423 lesson, shared since #1523)
-            _atlas = null;
-            if (_canvas != null)
-            {
-                Destroy(_canvas.gameObject);
-            }
-        }
-
-        private void SetStatus(string s) { _status = s; if (_statusLabel != null) _statusLabel.text = s; }
-
-        private void BuildUi()
-        {
-            _canvas = UiKit.CreateCanvas("Structure Editor UI");
-            _canvas.sortingOrder = 5;
-            var root = _canvas.transform;
-
-            // Left: palette (markers + every placeable block), grouped by category, with a search filter.
-            (_palListParent, _palList) = EditorPaletteKit.AddPalettePanel(Shell, root, PanelH, L("ui.struct.palette"), L("ui.pal.search"),
-                _palette, _selected, _search, v => { _search = v ?? string.Empty; _palList.Rebuild(_search); }, i => _selected = i);
-
-            // Right: metadata.
-            var meta = RightPanel(root, 380f, PanelH);
-            string title = EditorMode == Mode.Station ? L("ui.struct.title_station") : L("ui.struct.title_settlement");
-            UiKit.AddText(meta, 16f, 12f, 348f, 26f, title, 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-
-            float y = 56f;
-            UiKit.AddText(meta, 16f, y, 348f, 22f, L("ui.struct.key"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            y += 26f;
-            UiKit.AddInput(meta, 16f, y, 348f, 30f, _key, v => _key = v);
-            y += 40f;
-            UiKit.AddText(meta, 16f, y, 348f, 22f, L("ui.struct.name"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            y += 26f;
-            UiKit.AddInput(meta, 16f, y, 348f, 30f, _name, v => _name = v);
-            y += 44f;
-
-            // Size tier stepper.
-            UiKit.AddText(meta, 16f, y, 150f, 30f, L("ui.struct.tier"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _tierLabel = UiKit.AddText(meta, 176f, y, 120f, 30f, TierLabel(_tiers[_tier]), 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddButton(meta, 300f, y, 30f, 30f, "→", () =>
-            {
-                _tier = (_tier + 1) % _tiers.Length;
-                _tierLabel.text = TierLabel(_tiers[_tier]);
-                if (_sizeHintLabel != null) _sizeHintLabel.text = SizeHint(_tiers[_tier]);
-            });
-            y += 32f;
-
-            // What the procedural generator builds for this tier, so a template matches its scale (#1402).
-            _sizeHintLabel = UiKit.AddText(meta, 16f, y, 348f, 22f, SizeHint(_tiers[_tier]), 12, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            y += 26f;
-
-            // Use as (#1826 / #1877): a complete structure, or a MODULE of a kit with a function — the composers dock
-            // station modules port to port and stamp settlement / city modules into plots and districts.
-            // #1890: the kit panel is reachable from here in both modes — editing a kit needs no module on the table.
-            UiKit.AddText(meta, 16f, y, 120f, 30f, L("ui.struct.role"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _roleLabel = UiKit.AddText(meta, 136f, y, 118f, 30f, L(_moduleMode ? "ui.use.module" : "ui.use.whole"), 13, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddButton(meta, 290f, y, 74f, 30f, L("ui.struct.kits"), OpenKitPanel);
-            UiKit.AddButton(meta, 256f, y, 30f, 30f, "→", () =>
-            {
-                _moduleMode = !_moduleMode;
-                if (_moduleMode && string.IsNullOrEmpty(_function))
-                {
-                    _function = Functions()[0];
-                }
-
-                SyncRole();
-                RebuildUi();
-            });
-            y += 32f;
-            if (_moduleMode)
-            {
-                UiKit.AddText(meta, 16f, y, 56f, 30f, L("ui.struct.kit"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
-                UiKit.AddInput(meta, 74f, y, 290f, 30f, _kit, v => _kit = v ?? string.Empty);
-                y += 36f;
-                UiKit.AddText(meta, 16f, y, 150f, 30f, L("ui.struct.function"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
-                var functionLabel = UiKit.AddText(meta, 176f, y, 120f, 30f, FunctionLabel(_function), 13, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-                UiKit.AddButton(meta, 300f, y, 30f, 30f, "→", () =>
-                {
-                    var list = Functions();
-                    int i = System.Array.IndexOf(list, _function ?? string.Empty);
-                    _function = list[(i + 1) % list.Length];
-                    SyncRole();
-                    functionLabel.text = FunctionLabel(_function);
-                    _tierLabel.text = TierLabel(_tiers[_tier]);
-                    if (_sizeHintLabel != null) _sizeHintLabel.text = SizeHint(_tiers[_tier]);
-                });
-                y += 32f;
-                if (EditorMode == Mode.Station)
-                {
-                    UiKit.AddText(meta, 16f, y, 150f, 30f, L("ui.struct.port_door"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
-                    var doorLabel = UiKit.AddText(meta, 176f, y, 120f, 30f, L("ui.door_opt." + StructurePorts.DoorOptions[_portDoor]), 13, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-                    UiKit.AddButton(meta, 300f, y, 30f, 30f, "→", () =>
-                    {
-                        _portDoor = (_portDoor + 1) % StructurePorts.DoorOptions.Length;
-                        doorLabel.text = L("ui.door_opt." + StructurePorts.DoorOptions[_portDoor]);
-                    });
-                }
-                else
-                {
-                    // #1890: a settlement module is built for humans or for aliens; a kit uses the settlement's own.
-                    UiKit.AddText(meta, 16f, y, 150f, 30f, L("ui.struct.style"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
-                    var styleLabel = UiKit.AddText(meta, 176f, y, 120f, 30f, L(_style == StructureTemplate.StyleAlien ? "ui.style.alien" : "ui.style.human"), 13, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-                    UiKit.AddButton(meta, 300f, y, 30f, 30f, "→", () =>
-                    {
-                        _style = _style == StructureTemplate.StyleAlien ? string.Empty : StructureTemplate.StyleAlien;
-                        styleLabel.text = L(_style == StructureTemplate.StyleAlien ? "ui.style.alien" : "ui.style.human");
-                    });
-                }
-
-                y += 32f;
-                UiKit.AddButton(meta, 16f, y, 168f, 30f, L("ui.struct.check_seal"), CheckSeal);
-                UiKit.AddButton(meta, 196f, y, 168f, 30f, L("ui.struct.assemble"), Assemble);
-                y += 36f;
-            }
-
-            // Template pack (a world enables a set of packs) + selection weight within the tier.
-            UiKit.AddText(meta, 16f, y, 348f, 22f, L("ui.struct.pack"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            y += 26f;
-            UiKit.AddInput(meta, 16f, y, 348f, 30f, _pack, v => _pack = v);
-            y += 44f;
-            UiKit.AddText(meta, 16f, y, 150f, 30f, L("ui.struct.weight"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _weightLabel = UiKit.AddText(meta, 176f, y, 80f, 30f, _weight.ToString(), 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddButton(meta, 260f, y, 30f, 30f, "−", () => { _weight = Mathf.Max(1, _weight - 1); _weightLabel.text = _weight.ToString(); });
-            UiKit.AddButton(meta, 300f, y, 30f, 30f, "+", () => { _weight = Mathf.Min(99, _weight + 1); _weightLabel.text = _weight.ToString(); });
-            y += 50f;
-
-            // Settlements may restrict themselves to planet types (#1115); stations float in space.
-            if (EditorMode == Mode.Settlement)
-            {
-                UiKit.AddText(meta, 16f, y, 348f, 22f, L("ui.struct.planet_types"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
-                y += 26f;
-                UiKit.AddInput(meta, 16f, y, 348f, 30f, _planetTypes, v => _planetTypes = v ?? string.Empty);
-                y += 44f;
-            }
-
-            // ── Procedural starting point (#1401): run the world-gen generator for this tier + seed and
-            // load the result into the room to refine into a template. ──
-            UiKit.AddText(meta, 16f, y, 348f, 24f, L("ui.struct.generate_title"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            y += 28f;
-            UiKit.AddText(meta, 16f, y, 56f, 30f, L("ui.struct.seed"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            var seedInput = UiKit.AddInput(meta, 74f, y, 86f, 30f, _seed.ToString(), v => { if (int.TryParse(v, out var s)) _seed = s; });
-            seedInput.contentType = InputField.ContentType.IntegerNumber;
-            UiKit.AddButton(meta, 166f, y, 76f, 30f, L("ui.struct.reroll"), () =>
-            {
-                _seed = UnityEngine.Random.Range(1, 1000000);
-                seedInput.SetTextWithoutNotify(_seed.ToString());
-            });
-            UiKit.AddButton(meta, 248f, y, 116f, 30f, L("ui.struct.generate"), GenerateProcedural);
-            y += 38f;
-            if (EditorMode == Mode.Settlement)
-            {
-                UiKit.AddText(meta, 16f, y, 130f, 30f, L("ui.struct.surface"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
-                UiKit.AddInput(meta, 150f, y, 214f, 30f, _surface, v => _surface = v ?? string.Empty);
-                y += 38f;
-            }
-
-            y += 8f;
-
-            // ── Block brush: dye + glow colour + shape + orientation applied to newly placed BLOCK cells ──
-            UiKit.AddText(meta, 16f, y, 348f, 24f, L("ui.struct.brush"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            y += 30f;
-            UiKit.AddText(meta, 16f, y, 70f, 30f, L("ui.struct.dye"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            UiKit.AddInput(meta, 92f, y, 150f, 30f, HexOf(_brushTint), v => _brushTint = ParseHex(v));
-            UiKit.AddButton(meta, 250f, y, 80f, 30f, L("ui.struct.brush_none"), () => { _brushTint = 0; RebuildUi(); });
-            y += 38f;
-            UiKit.AddText(meta, 16f, y, 70f, 30f, L("ui.struct.glow"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            UiKit.AddInput(meta, 92f, y, 150f, 30f, HexOf(_brushGlow), v => _brushGlow = ParseHex(v));
-            UiKit.AddButton(meta, 250f, y, 80f, 30f, L("ui.struct.brush_none"), () => { _brushGlow = 0; RebuildUi(); });
-            y += 42f;
-            UiKit.AddText(meta, 16f, y, 90f, 30f, L("ui.struct.shape"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _formIcon = FormIcon(meta, 108f, y + 1f, 28f);
-            _shapeLabel = UiKit.AddText(meta, 142f, y, 116f, 30f, FormName(_brushShape), 13, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddButton(meta, 262f, y, 102f, 30f, L("ui.ed.form_pick"), OpenFormPicker); // the in-game form grid (#1975)
-            y += 38f;
-            UiKit.AddText(meta, 16f, y, 90f, 30f, L("ui.struct.orient"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _orientLabel = UiKit.AddText(meta, 116f, y, 140f, 30f, (_brushOrient * 90) + "°", 15, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddButton(meta, 262f, y, 68f, 30f, "↻ R", () => { _brushOrient = (_brushOrient + 1) & 3; _orientLabel.text = (_brushOrient * 90) + "°"; });
-            y += 46f;
-
-            _lastPlaced = _design.Count;
-            _blocksLabel = UiKit.AddText(meta, 16f, y, 348f, 24f, string.Format(L("ui.ed.placed"), _design.Count), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-
-            // Footer: save gets a full-width row of its own so the label never has to shrink; load +
-            // back share the row below.
-            _statusLabel = UiKit.AddText(meta, 16f, PanelH - 208f, 348f, 84f, string.Empty, 13, UiKit.Ok, TextAnchor.UpperLeft);
-            _statusLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddButton(meta, 16f, PanelH - 116f, 348f, 42f, L("ui.struct.save"), Export);
-            UiKit.AddButton(meta, 16f, PanelH - 66f, 168f, 40f, L("ui.struct.load"), OpenLoadPicker);
-            UiKit.AddButton(meta, 196f, PanelH - 66f, 168f, 40f, L("ui.menu.back"), () => Shell?.CloseStructureEditor());
-
-            // Controls hint.
-            EditorSceneKit.AddBottomHint(root, 1200f, L("ui.struct.hint"));
-        }
-
-        /// <summary>Parses a 6-hex-digit colour string to 0xRRGGBB (0 = empty/invalid = "none").</summary>
-        private static int ParseHex(string s) => EditorSceneKit.ParseHex(s);
-
-        private static string HexOf(int rgb) => EditorSceneKit.HexOf(rgb);
-
-        private static RectTransform RightPanel(Transform root, float w, float h) => EditorSceneKit.RightPanel(root, w, h);
-
-        private string L(string key) => Shell?.L(key) ?? key;
     }
 }

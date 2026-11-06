@@ -15,7 +15,7 @@ namespace BlocksBeyondTheStars.Client
     /// helpers — all in code, no bundled assets. Colours match the deep-blue / cyan mockup.
     /// Layout helpers use top-left anchored coordinates in a 1920×1080 reference space.
     /// </summary>
-    public static class UiKit
+    public static partial class UiKit
     {
         public static readonly Color Cyan = new Color(0.40f, 0.82f, 1.00f);
         public static readonly Color CyanDim = new Color(0.30f, 0.55f, 0.72f);

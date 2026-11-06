@@ -402,7 +402,10 @@ its own canvas (`sortingOrder` 5000, `UiNav`-enabled), with the layout and every
   `ActivateInputField` arms a flag the field re-reads next Update), and **A on the field** opens the
   keyboard; the result is written back through `field.text`, so the field's own `onValueChanged` listeners
   fire exactly as they would after typing.
-- `ChatUi.OpenInput` takes the same route, and **d-pad up** opens it (`InputAction.OpenChat`).
+- `ChatUi.OpenInput` takes the same route, and **d-pad up** opens it (`InputAction.OpenChat`). Since #3264 the chat
+  opens the keyboard with `dim: false` (no full-screen scrim) and docks its big history window above the keyboard's
+  panel — `OnScreenKeyboardUi.PanelTop` (1920 × 1080 reference) converted by `ChatWindowLayout.OskTopInHud`; after a
+  slash command the keyboard reopens for the next line, and B closes both.
 - While the keyboard is up, `InputMap.ModalCapture` blanks `UiCancel`/`UiMenu` for every *other* screen, so
   one press of B closes exactly one thing; the keyboard itself reads the physical button through
   `InputMap.PadDown`. `UiKit.TextFieldFocused()` reports true, which is the gate the rest of the game
@@ -421,7 +424,10 @@ would be dead. `TouchTextEntry` (`Scripts/TouchTextEntry.cs`) + `client/Assets/P
 fall back to the browser's `window.prompt()` (which opens the OS keyboard on every mobile browser):
 `UiKit.AddInput` attaches the bridge to every themed input field (main-menu name/host/port/password,
 settings, feedback), and `ChatUi.OpenInput` — also reachable via the touch CHAT button — prompts directly
-and submits. On every other platform `TouchTextEntry.NeedsPrompt` is false and nothing is even attached.
+and submits. Since #3264 it first opens the big chat window in the upper half (without its reveal animation) and
+prompts one frame later, so the history shows behind the blocking prompt; after a slash command the window stays
+open (CHAT again prompts for the next line, × closes it). On every other platform `TouchTextEntry.NeedsPrompt` is
+false and nothing is even attached.
 
 ## Web / performance (P5)
 

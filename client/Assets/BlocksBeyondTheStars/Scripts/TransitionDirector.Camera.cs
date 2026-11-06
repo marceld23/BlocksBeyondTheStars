@@ -7,7 +7,9 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>The transition cinematics' camera (#3140/#3141): it takes the player camera like the cutscene rig does,
     /// flies a shot (a spot, a point to look at, a blend from wherever the camera was) and glides back into the player's
-    /// eyes before it lets go — never a cut while the world is visible.</summary>
+    /// eyes before it lets go. Since #3258 the shot is planned against the voxel world and can also sit in the cockpit
+    /// (riding with the hull) for whatever no outside spot can see — the cuts between the two land on the cinematic's beats,
+    /// and a way home that would cross walls becomes a short blink (<c>TransitionDirector.Shot.cs</c>).</summary>
     public sealed partial class TransitionDirector
     {
         private bool _cameraTaken;
@@ -67,6 +69,7 @@ namespace BlocksBeyondTheStars.Client
             _shotPos = pos;
             _shotLook = look;
             _toEye = false;
+            _mode = ShotMode.Outside;
             _blendSeconds = Mathf.Max(0.0001f, seconds);
             _blend = seconds <= 0f ? 1f : 0f;
         }
@@ -113,6 +116,10 @@ namespace BlocksBeyondTheStars.Client
                 var parent = Camera.transform.parent;
                 pos = parent != null ? parent.TransformPoint(_restLocalPos) : _restLocalPos;
                 rot = parent != null ? parent.rotation * _restLocalRot : _restLocalRot;
+            }
+            else if (_mode == ShotMode.Cockpit && _stand != null)
+            {
+                CockpitWorldPose(out pos, out rot); // #3258: rides with the hull — sinks, rises and sways with it
             }
             else
             {
@@ -161,44 +168,12 @@ namespace BlocksBeyondTheStars.Client
         {
             ReleaseCamera();
             EndShipCinematic();
+            EndShot();
             HoldScreen(false);
         }
 
         /// <summary>True when the player asked to skip (Esc / the pad's cancel / a tap on the hint) — only while a
         /// cinematic owns the camera.</summary>
         private bool SkipRequested() => _cameraTaken && !Game.ChatTyping && CinematicFrame.SkipPressed();
-
-        /// <summary>
-        /// A clear camera spot around a ship standing in <paramref name="box"/>: rear-quarter first (the engines in frame),
-        /// then the other quarters and the sides — the first whose spot is free and from which the ship can be seen. Falls
-        /// back to straight above the rear when everything around is walled in (a pad in a canyon).
-        /// </summary>
-        private Vector3 ShotSpot(Bounds box, float distance, float height)
-        {
-            var c = box.center;
-            float reach = box.extents.magnitude + distance;
-            for (int i = 0; i < SpotDirs.Length; i++)
-            {
-                var dir = SpotDirs[i].normalized;
-                for (int k = 0; k < 2; k++)
-                {
-                    float d = k == 0 ? reach : reach * 0.7f;
-                    var spot = new Vector3(c.x + dir.x * d, box.min.y + height, c.z + dir.z * d);
-                    var edge = c + dir * (box.extents.magnitude + 0.5f);
-                    if (!Physics.CheckSphere(spot, 0.7f) && !Physics.Linecast(spot, edge))
-                    {
-                        return spot;
-                    }
-                }
-            }
-
-            return c + new Vector3(0f, box.extents.y + height + 6f, -box.extents.z - 4f);
-        }
-
-        private static readonly Vector3[] SpotDirs =
-        {
-            new Vector3(0.8f, 0f, -1f), new Vector3(-0.8f, 0f, -1f), new Vector3(1f, 0f, 0.6f), new Vector3(-1f, 0f, 0.6f),
-            new Vector3(1f, 0f, 0f), new Vector3(-1f, 0f, 0f), new Vector3(0f, 0f, -1f), new Vector3(0f, 0f, 1f),
-        };
     }
 }

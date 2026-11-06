@@ -46,6 +46,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
             float4 _Sc_Light;
             float4 _Sc_SunDir;
             float4 _Sc_Sky;   // sky colour (set by Sky.cs) — water SSR sky fallback
+            float _Sc_Indoor; // #3265: the interior fill (aboard, on a station, the home base) — lights sky-occluded panes
             float _Sc_ScreenFx; // 1 when the depth+opaque textures exist (Medium+); 0 on Low → water uses the simple look
             float4 _Sc_WaterTint; // #1758: per-world water colour (Sky.cs); read in mode 1
             float _Sc_WaterMode;  // #1758: 0 = the classic blue, 1 = tint, 2 = static rainbow bands by position
@@ -80,6 +81,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 float3 wp : TEXCOORD2;
                 float4 mat : TEXCOORD3;
                 float4 water : TEXCOORD4;
+                float sky : TEXCOORD5; // #3265: the mesher's skylight (TEXCOORD1.x) — cave water and glass are lit like the cave
             };
 
             // #1957 animated tiles. TEXCOORD1.y = tint mode (low 4 bits) + 16*frames + 256*speedIndex + 1024*stripStart
@@ -164,6 +166,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 o.wp = wp;
                 o.mat = v.color;
                 o.water = v.water;
+                o.sky = saturate(v.sky.x);
                 return o;
             }
 
@@ -171,7 +174,13 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
             {
                 float4 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
                 float3 albedo = tex.rgb;
-                float3 light = (_Sc_Light.a < 0.5) ? float3(1, 1, 1) : _Sc_Light.rgb;
+                float3 sunLight = (_Sc_Light.a < 0.5) ? float3(1, 1, 1) : _Sc_Light.rgb;
+                // #3265: water and glass took the full sun and sky light wherever they were, so a cave pool or a window deep
+                // in a dug base glowed like noon. The light every term below uses is the sky's, scaled by the surface's own
+                // skylight (1 in the open — unchanged —, 0.73 in a roof's shade, ~0.03 in a sealed cave), plus the cabin's
+                // interior fill where the sky does not reach.
+                float3 light = sunLight * BbtsSkyLightScale(i.sky)
+                    + BbtsIndoorColor() * (_Sc_Indoor * 0.5 * (1.0 - i.sky));
 
                 float3 N = normalize(i.wn);
                 float3 L = normalize(_Sc_SunDir.xyz);
@@ -185,10 +194,13 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
 
                 float3 col = albedo * light * (0.55 + 0.45 * ndl * shadow) * shade;
                 col += albedo * emission * 2.0;        // emissive energy-field glow (bloom catches it)
+                // #3265: the opaque surfaces' flat dark floor where the sky does not reach (nothing changes in the open).
+                col += albedo * BbtsDarkFloor() * (1.0 - i.sky) * shade;
 
                 // Match the opaque night ambient floor so water/glass don't read darker than the terrain at
                 // night: a faint cool fill, strongest when the sun light is weak (night/storm), fading out by day.
-                float nightFloor = saturate(0.6 - dot(light, float3(0.299, 0.587, 0.114)));
+                // #3265: gated by the skylight like the opaque one, so a cave pool stays dark at night too.
+                float nightFloor = saturate(0.6 - dot(sunLight, float3(0.299, 0.587, 0.114))) * i.sky;
                 col += albedo * float3(0.10, 0.13, 0.20) * nightFloor * shade;
 
                 // #3229: the headlamps on the pane or the water body, with the face's own gloss (a lake and polished glass
@@ -448,7 +460,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     // copy already hazed by the opaque pass, and so does every SSR hit below, so the old pass over the
                     // finished composite veiled shallow water twice — the sea was the haziest surface in the frame.
                     // #2412: the height fog at half strength (hazeHeightScale), see BbtsHazeAmountScaled.
-                    float haze = BbtsHazeAmountScaled(i.wp, 1.0, hazeHeightScale);
+                    float haze = BbtsHazeAmountScaled(i.wp, i.sky, hazeHeightScale); // #3265: the real skylight
                     col = lerp(col, BbtsHazeColor(i.wp), haze);
                     col = lerp(bed, col, saturate(alpha));
                     // #1758: the bed is seen THROUGH coloured water — recolour the composite as well, else the
@@ -473,7 +485,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     // at a grazing angle (was 0.45 × 0.35 = 16 %, too faint to find the surface from the shore),
                     // 4 % head-on, so from above you still look into the water.
                     float fres = lerp(0.08, 0.6, pow(1.0 - saturate(dot(-Vw, rn)), 4.0));
-                    float3 reflCol = _Sc_Sky.rgb; // most of a water reflection is the sky
+                    float3 reflCol = _Sc_Sky.rgb * BbtsSkyLightScale(i.sky); // most of a water reflection is the sky (#3265: none in a cave)
                     float3 sp = i.wp;
                     float stepLen = 0.5;
                     // Texel LOADS, not samples, inside the march: a sample needs screen derivatives, which a loop
@@ -511,7 +523,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     }
                     // Glint capped well below the old x4 blow-out: it should sparkle, not white out the bed below.
                     float sunSpec = min(pow(saturate(dot(Rw, normalize(_Sc_SunDir.xyz))), 220.0) * 1.5, 1.5);
-                    reflCol += light * sunSpec * (1.0 - haze); // the glint fades with the veil like the rest of the surface
+                    reflCol += sunLight * BbtsSkyLightScale(i.sky) * sunSpec * (1.0 - haze); // the glint fades with the veil (#3265: and in a cave)
                     reflCol += BbtsHeadlampMirror(i.wp, Rw) * (1.0 - haze); // #3229: a lamp shining across the lake mirrors in it
                     col = lerp(col, reflCol, saturate(fres) * 0.5); // #2413
 
@@ -551,7 +563,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     // The shared haze (#2393) for glass, fields, waterfalls and the simple water path (Potato/Low: a
                     // hardware blend over an already hazed background), once, on the pane's own colour. The
                     // screen-space water hazed itself above (#2411). Cave water is kept clear by the camera's exposure.
-                    outc.rgb = lerp(outc.rgb, BbtsHazeColor(i.wp), BbtsHazeAmountScaled(i.wp, 1.0, hazeHeightScale));
+                    outc.rgb = lerp(outc.rgb, BbtsHazeColor(i.wp), BbtsHazeAmountScaled(i.wp, i.sky, hazeHeightScale)); // #3265: the real skylight
                 }
 
                 return outc;

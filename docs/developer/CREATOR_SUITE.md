@@ -171,7 +171,9 @@ Every F1 and client crash report carries `reportJson.texturePack` (replaced keys
 [REPORT_HOST.md](REPORT_HOST.md). **The consent wording** (`ui.tex.submit.check_1..3`) was approved as it
 stands; changing what a sentence MEANS requires bumping `TextureSubmission.ConsentTextVersion`.
 
-**Adopting a submission:** `tools/pull_texture_submissions.py --fetch` → `tools/merge_texture.py <bundle>` →
+**Adopting a submission:** `tools/pull_submissions.py --kind texture --fetch` (the old
+`tools/pull_texture_submissions.py` is a wrapper for exactly that; ships, station/town modules and avatar skins are
+pulled with `--kind ship|structure|avatar`, #3262) → `tools/merge_texture.py <bundle>` →
 credit the painter in `NOTICES.md` under the **nickname** they gave (never a real name) → answer the report
 with *fixed in version* set (that also exempts it from the twelve-month deletion). School-club textures keep
 their own rule: each one is released individually by the maintainer.
@@ -190,6 +192,25 @@ Unity-free models carry the rules: `PixelCanvasModelTests`, `FormCanvasModelTest
 `HeldItemShapesTests` (Client.Tests); `TextureTilesTests`, `WorldTextureTests`, `MultiCellFormTests`,
 `ToolLookTests`, `ReportHostTextureSubmissionTests`, `NetCodecTests` (Tests). PR CI never compiles
 `client/Assets` — a **local Unity build** is part of every change there.
+
+### Editor texts fit their boxes (#3263)
+
+Every editor builds its buttons with `UiKit.AddFitButton` (or calls `UiKit.FitButtonLabel` on a label): one line
+down to 14 px, else two lines broken only **between words** at 13 px or more, else a warning in the log — never the
+11 px and the mid-word break ("Spiegel|n ↕") of `UiKit.AddButton`'s Best Fit, which the rest of the game keeps. The rule
+is the Unity-free `ButtonLabelFit` (Client.Core); it is re-applied when a label's text changes. Hint lines and picked
+values use `UiKit.FitLabelLines` with their own sizes, one-line labels `UiKit.FitLabelSingleLine(…, 13, max)`, and an
+instruction under a control `UiKit.AddMeasuredText` (as tall as its lines). Words are 13 px or more everywhere in the
+editors; instructions are in the normal text colour — dim cyan is for section labels and decoration only.
+
+- **`EditorTextFitTests`** (Client.Tests, runs in PR CI): a catalogue of every editor text — its box as the code lays it
+  out, its size and rule — checked in all 14 languages (a missing community key reads English) with glyph advances
+  generated from the bundled fonts in their fallback order (`tools/gen_font_advances.py` → `UiFontAdvances.g.cs`;
+  re-run it after changing or re-subsetting a font). It also covers this release's new texts outside the editors (world
+  list, loading stages, chat window, the dark-visibility setting). **Moving or resizing a control means updating its
+  entry**; `EveryKeyTheEditorsName_IsCatalogued` fails for a key an editor names without one.
+- **`EditorTextFitEditModeTests`** (EditMode, local Unity run): builds each editor screen per language and measures
+  every `Text` with Unity's own `TextGenerator` — words ≥ 13 px, no word broken, nothing cut or past its box.
 
 ## 10. Known limits
 

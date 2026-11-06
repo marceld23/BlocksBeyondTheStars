@@ -19,6 +19,12 @@ Usage (from the repository root, no dependencies):
         Adds (or replaces) a skin painted in the game: the applied look of the settings file, or one of its saved
         outfits (--hair <palette index> gives the pioneer hair; 0 = bald). Where the file lives and how to paint a good one: docs/developer/WILDERNESS_FOLK.md section 8.
 
+    uv run --no-project python tools/gen_pioneer_skins.py --from-skin <skin.json> [--key justus_ranger] \\
+        --author Justus [--hair 5]
+        Adds (or replaces) a skin from the Avatar Designer's skin.json: its Export (avatar_exports/<key>/skin.json) or
+        a submission unpacked by `tools/pull_submissions.py --kind avatar --fetch` (#3262). The key defaults to the
+        file's own; review the face and paintings before adopting — they are a player's pixel art.
+
     uv run --no-project python tools/gen_pioneer_skins.py --check
         Validates the file (the same rules as the content test).
 """
@@ -649,11 +655,21 @@ def generated_skins() -> list[dict]:
 # ---------------------------------------------------------------- importing a painted skin
 
 
-def nearest_index(color: dict | None, fallback: int) -> int:
-    """The palette index nearest a Unity colour ({"r":0..1,"g":..,"b":..})."""
-    if not isinstance(color, dict):
+def rgb_of(color: dict | str | None) -> tuple[int, int, int] | None:
+    """A Unity colour ({"r":0..1,"g":..,"b":..}) or a "#RRGGBB" string as 0..255 RGB; None when it is neither."""
+    if isinstance(color, dict):
+        return tuple(round(float(color.get(k, 0.0)) * 255) for k in ("r", "g", "b"))
+    if isinstance(color, str) and re.fullmatch(r"#?[0-9a-fA-F]{6}", color.strip()):
+        value = color.strip().lstrip("#")
+        return tuple(int(value[i : i + 2], 16) for i in (0, 2, 4))
+    return None
+
+
+def nearest_index(color: dict | str | None, fallback: int) -> int:
+    """The palette index nearest a Unity colour ({"r":0..1,"g":..,"b":..}) or a "#RRGGBB" string."""
+    rgb = rgb_of(color)
+    if rgb is None:
         return fallback
-    rgb = tuple(round(float(color.get(k, 0.0)) * 255) for k in ("r", "g", "b"))
     best, best_d = fallback, None
     for i, p in enumerate(PALETTE):
         if p is None:
@@ -705,6 +721,36 @@ def skin_from_settings(
         "armPixels": (look.get("ArmPixels") or "").lower(),
         "legPixels": (look.get("LegPixels") or "").lower(),
         "helmetPixels": (look.get("HelmetPixels") or "").lower(),
+    }
+    if len(face) == 16 * 16:  # an old 16x16 face: upscale it like the game does
+        entry["facePixels"] = "".join(
+            face[(y // 2) * 16 + x // 2] for y in range(SIZE) for x in range(SIZE)
+        )
+    return entry
+
+
+def skin_from_file(path: Path, key: str | None, author: str, hair: int = HAIR_BROWN[1]) -> dict:
+    """A pool entry from the Avatar Designer's skin.json (#3262): four "#RRGGBB" colours, the 32x32 face and the
+    body paintings under the same names the pool uses. A file from before the full export (colours only) still works —
+    its face and paintings stay empty. A player's look has no hair; the pioneer gets ``hair`` (0 = bald)."""
+    skin = json.loads(path.read_text(encoding="utf-8"))
+    key = key or str(skin.get("key") or "")
+    if not re.fullmatch(r"[a-z0-9_]+", key):
+        raise SystemExit(f"the skin's key {key!r} is not a pool key — pass --key (a-z, 0-9, _)")
+    face = (skin.get("facePixels") or "").lower()
+    entry = {
+        "key": key,
+        "author": author,
+        "skin": nearest_index(skin.get("skin"), LIGHT),
+        "hair": hair,
+        "torso": nearest_index(skin.get("torso"), BLUE[1]),
+        "arms": nearest_index(skin.get("arms"), BLUE[1]),
+        "legs": nearest_index(skin.get("legs"), SLATE),
+        "facePixels": face,
+        "torsoPixels": (skin.get("torsoPixels") or "").lower(),
+        "armPixels": (skin.get("armPixels") or "").lower(),
+        "legPixels": (skin.get("legPixels") or "").lower(),
+        "helmetPixels": (skin.get("helmetPixels") or "").lower(),
     }
     if len(face) == 16 * 16:  # an old 16x16 face: upscale it like the game does
         entry["facePixels"] = "".join(
@@ -785,10 +831,18 @@ def main() -> int:
         help="client_settings.json to take a painted skin from",
     )
     parser.add_argument(
+        "--from-skin",
+        type=Path,
+        help="an Avatar Designer skin.json (Export or a pulled submission) to take a painted skin from",
+    )
+    parser.add_argument(
         "--outfit",
         help="a saved outfit's name in that file (default: the applied look)",
     )
-    parser.add_argument("--key", help="the new skin's key (a-z, 0-9, _)")
+    parser.add_argument(
+        "--key",
+        help="the new skin's key (a-z, 0-9, _); --from-skin defaults to the file's",
+    )
     parser.add_argument("--author", default="player", help="who painted it")
     parser.add_argument(
         "--hair",
@@ -829,6 +883,10 @@ def main() -> int:
         )
         hand_made = [s for s in hand_made if s.get("key") != args.key] + [entry]
         print(f"added '{args.key}' by {args.author}")
+    elif args.from_skin:
+        entry = skin_from_file(args.from_skin, args.key, args.author, args.hair)
+        hand_made = [s for s in hand_made if s.get("key") != entry["key"]] + [entry]
+        print(f"added '{entry['key']}' by {args.author}")
 
     skins = list(generated.values()) + hand_made
     problems = validate({"skins": skins})

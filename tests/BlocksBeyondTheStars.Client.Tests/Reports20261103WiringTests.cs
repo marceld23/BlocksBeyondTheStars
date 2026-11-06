@@ -25,14 +25,40 @@ public sealed class Reports20261103WiringTests
     public void TheWeatherSurface_MeasuresTheExposurePastTheMeshersShadeFloor()
     {
         var timeout = TimeSpan.FromSeconds(2);
-        var mesher = Regex.Match(Script("ChunkMesher.cs"), @"const float ShadeFloor = (?<v>[0-9.]+)f;", RegexOptions.ExplicitCapture, timeout);
+        // #3265: the mesher's skylight rules moved to Client.Core (SkylightRules), so the constant is read directly.
         var shader = Regex.Match(Shader("AtmosphereCommon.hlsl"), @"#define BBTS_SHADE_FLOOR (?<v>[0-9.]+)", RegexOptions.ExplicitCapture, timeout);
-        Assert.True(mesher.Success, "ChunkMesher's ShadeFloor moved — update this guard");
         Assert.True(shader.Success, "AtmosphereCommon's BBTS_SHADE_FLOOR is gone");
-        Assert.Equal(float.Parse(mesher.Groups["v"].Value, CultureInfo.InvariantCulture), float.Parse(shader.Groups["v"].Value, CultureInfo.InvariantCulture));
+        Assert.Equal(SkylightRules.ShadeFloor, float.Parse(shader.Groups["v"].Value, CultureInfo.InvariantCulture));
+        Assert.Contains("SkylightField", Script("ChunkMesher.Skylight.cs")); // the mesher's skylight is the shared rule's
 
         // A roof's shade (skylight == the floor) must count as no exposure at all, not 55 %.
         Assert.Contains("float exposed = saturate(N.y) * saturate((skylight - BBTS_SHADE_FLOOR) / (1.0 - BBTS_SHADE_FLOOR));", Shader("AtmosphereCommon.hlsl"));
+    }
+
+    /// <summary>#3265: one sky-ambient ramp for every opaque world surface — unchanged from the shade floor up, falling to
+    /// almost nothing below it (a cave is dark, not shade) — plus the flat dark floor every lit surface keeps. The Built-in
+    /// passes (CG) cannot include AtmosphereCommon, so they repeat the formula; all four places are pinned here.</summary>
+    [Fact]
+    public void TheSkyAmbient_IsOneRampInEveryWorldShader()
+    {
+        const string ramp = "lerp(0.32, 0.78, sky) - 0.30 * saturate(1.0 - sky / BBTS_SHADE_FLOOR)";
+        Assert.Contains("return " + ramp + ";", Shader("AtmosphereCommon.hlsl"));
+        Assert.Contains("return _Sc_DarkFloor > 0.0 ? _Sc_DarkFloor : 0.045;", Shader("AtmosphereCommon.hlsl")); // unset = the default
+        Assert.Equal(DarkLightRules.DarkFloorMin, 0.045f);
+
+        string atlas = Shader("BlockAtlas.shader");
+        Assert.Contains("float amb = BbtsSkyAmbient(sky);", atlas);                                              // URP
+        Assert.Contains("float amb = lerp(0.32, 0.78, sky) - 0.30 * saturate(1.0 - sky / 0.55);", atlas);        // Built-in
+        Assert.Contains("float amb = BbtsSkyAmbient(sky);", Shader("MeadowLight.hlsl"));
+        Assert.Contains("lerp(0.32, 0.78, sky) - 0.30 * saturate(1.0 - sky / 0.55)", Shader("ScatterLit.shader")); // Built-in
+        foreach (var file in new[] { "BlockAtlas.shader", "MeadowLight.hlsl", "ScatterLit.shader" })
+        {
+            Assert.DoesNotContain("+ 0.05)", Shader(file)); // the flat floor is the global now
+        }
+
+        // The skylight below the floor reaches the shaders (and the models follow the world light): see the summary.
+        Assert.Contains("_Sc_ModelLight", Shader("LitColor.shader"));
+        Assert.Contains("BbtsSkyLightScale(i.sky)", Shader("BlockAtlasTransparent.shader"));
     }
 
     [Theory]

@@ -167,7 +167,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The sent-reports memory. <see cref="SentReportsLog"/> caches its file on first use, which suits the
         /// per-world instance; the shell instance lives as long as the app while the world's instance writes the same
-        /// file in between, so it reads the file fresh each time (as <see cref="TextureSubmitDialog"/> does).</summary>
+        /// file in between, so it reads the file fresh each time (as <see cref="CreationSubmitDialog"/> does).</summary>
         private SentReportsLog SentLog => ShellMode ? new SentReportsLog(SentLogPath) : _sentLog;
 
         /// <summary>True while the shell instance's feedback dialog or reply window is on screen (#2523) — AppShell then

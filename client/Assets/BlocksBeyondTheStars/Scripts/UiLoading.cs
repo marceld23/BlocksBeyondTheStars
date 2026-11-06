@@ -56,11 +56,12 @@ namespace BlocksBeyondTheStars.Client
             var tip = UiKit.AddText(root, 1240f, 802f, 570f, 64f, shell.L(tipKeys[Random.Range(0, tipKeys.Length)]), 17, UiKit.TextCol, TextAnchor.UpperLeft);
             tip.horizontalOverflow = HorizontalWrapMode.Wrap;
 
-            // Status row.
-            UiKit.AddText(root, 110f, 910f, 1700f, 24f, shell.L("ui.loading.status"), 17, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            // Status row: the server's boot stage while it builds the world (#3260), else the flavour line.
+            var status = UiKit.AddText(root, 110f, 910f, 1700f, 24f, shell.L("ui.loading.status"), 17, UiKit.CyanDim, TextAnchor.MiddleLeft);
 
             var updater = canvas.gameObject.AddComponent<LoadingUpdater>();
             updater.Shell = shell;
+            updater.Status = status;
             updater.Title = title;
             updater.Fill = fill;
             updater.Percent = percent;
@@ -78,17 +79,29 @@ namespace BlocksBeyondTheStars.Client
         private sealed class LoadingUpdater : MonoBehaviour
         {
             public AppShell Shell;
+            public Text Status;
             public Text Title;
             public Image Fill;
             public Text Percent;
 
             private int _shownDone = -1, _shownTotal = -1; // the data line last written, so a still frame allocates nothing
+            private string _shownStatusKey;                // the status row's key last written (#3260)
 
-            private void Update()
+            // LateUpdate, not Update: the shell decides the hand-off in its own Update, and the frame that says
+            // "Building the world…" must already carry it when it renders (#3261) — whatever order the two run in.
+            private void LateUpdate()
             {
                 if (Shell == null)
                 {
                     return;
+                }
+
+                // #3260: the stage the bundled server announced last, grouped into a message a child understands.
+                string statusKey = Shell.LoadingStatusKey;
+                if (Status != null && statusKey != _shownStatusKey)
+                {
+                    _shownStatusKey = statusKey;
+                    Status.text = Shell.L(statusKey);
                 }
 
                 float p;

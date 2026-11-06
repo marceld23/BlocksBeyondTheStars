@@ -1072,7 +1072,7 @@ The client's story cinematics — the staged prologue (`VegaPanel` + `PrologueCi
 - **`GameBootstrap.Cutscenes`** (`CutsceneGate`, `Client.Core`): a static set of open reasons (`prologue`,
   `resolution`, `intro`; `Begin`/`End`/`Set` are idempotent per reason, so overlapping scenes never clear each
   other); `GameBootstrap.CutsceneActive` is "any reason open". Readers: `HudUi` (crosshair included, plus the pickup
-  fly-ins), `TouchControlsUi`, `ChatUi` (hidden, and Enter opens nothing), `ScreenLabelLayer` (nameplates and
+  fly-ins), `TouchControlsUi`, `ChatUi` (hidden, an open chat window closes, and Enter opens nothing), `ScreenLabelLayer` (nameplates and
   health bars), the IMGUI overlays of `FinaleView` and `WeatherFx`, `MemoryFlashback`, `PlayerInteractions`,
   `ContextActionsUi`/`HotbarActionUi`/`GameMenu`/`FeedbackUi` (nothing opens behind the frame), `PlayerController`
   and `SpaceView` (controls freeze like a menu), `AppShell` (Esc belongs to the scene) and `VegaPanel`, which yields

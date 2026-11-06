@@ -34,7 +34,8 @@ namespace BlocksBeyondTheStars.Client
     /// <see cref="TransitionCover"/> (the cloud layer, or a glare on an airless body) and hands over behind it. The cover
     /// holds — the clouds keep drifting — until the server has set the player down on the destination and the ground has
     /// settled (<see cref="TransitionGate"/>), then opens onto the own ship sinking onto its pad with fire and dust; the
-    /// camera glides into the player's eyes when it has touched down.</item>
+    /// camera glides into the player's eyes when it has touched down. Where buildings hide the pad the shot plan (#3258)
+    /// picks a spot that sees it, and plays what none can see from the cockpit.</item>
     /// <item><b>Launch</b>: when the server opens the flight, the flight view waits (<see cref="ClaimDeparture"/>) while the
     /// ship lifts off on the real surface — ignition, dust, lift, the climb with its vapour cone — until it punches into the
     /// clouds; behind them the flight view opens (<see cref="TakeEmergence"/>) with the ship breaking out above the cloud
@@ -100,6 +101,7 @@ namespace BlocksBeyondTheStars.Client
             DropUnclaimedHull();
             float dt = Mathf.Min(Time.deltaTime, 0.1f);
             _stageTime += dt;
+            UpdateBlink(dt); // #3258: a blink may end the touchdown at its darkest — the stage below sees that
             switch (_stage)
             {
                 case Stage.Arrival: UpdateArrival(dt); break;

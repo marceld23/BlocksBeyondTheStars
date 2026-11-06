@@ -70,7 +70,9 @@ public static class ReportHostAdminEndpoints
                 .SelectMany(pid => runtime.Store.ListReplies(pid))
                 .OrderBy(x => x.CreatedUnix).ThenBy(x => x.Id)
                 .ToList();
-            return Results.Content(ReportHostPages.Detail(record, replies, runtime.Csrf, owner, pair, runtime.Store.Attachments(record.Id)), "text/html; charset=utf-8");
+            // A submitted creation's card opens its file to list the free text inside for review (#3262).
+            return Results.Content(ReportHostPages.Detail(record, replies, runtime.Csrf, owner, pair, runtime.Store.Attachments(record.Id),
+                a => runtime.Store.AttachmentPath(a) is { } path ? File.ReadAllBytes(path) : null), "text/html; charset=utf-8");
         });
 
         // The reply form on the detail page: an answer, or a follow-up question (flips the status to
@@ -116,12 +118,12 @@ public static class ReportHostAdminEndpoints
 
             return Results.Redirect($"/admin/report/{id}");
         });
-        // Attachments of a texture submission (#1966) as downloads with their name, for the operator — see
+        // Attachments of a submission (#1966, #3262) as downloads with their name, for the operator — see
         // ReportHostRuntime.ServeAttachment.
         app.MapGet("/admin/report/{id}/attachment/{index:int}", (HttpContext ctx, string id, int index)
             => runtime.GuardAdmin(ctx) is { } denied ? denied : runtime.ServeAttachment(id, index));
 
-        // The picture of a texture submission, INLINE for the admin page's preview.
+        // The picture of a texture submission, INLINE for the admin page's preview (a creation's preview is the screenshot).
         app.MapGet("/admin/report/{id}/attachment/{index:int}/view", (HttpContext ctx, string id, int index) =>
         {
             if (runtime.GuardAdmin(ctx) is { } denied)

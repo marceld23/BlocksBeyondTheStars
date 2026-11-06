@@ -55,7 +55,7 @@ public static class ReportHostPlayerEndpoints
 
             string id = runtime.Store.Add(parsed, ReportHostRuntime.NowUnix());
             runtime.Store.Prune(runtime.Config.RetentionDays, ReportHostRuntime.NowUnix());
-            runtime.Store.PruneTextureSubmissions(runtime.Config.TextureRetentionDays, ReportHostRuntime.NowUnix());
+            runtime.Store.PruneSubmissions(runtime.Config.SubmissionRetentionDays, ReportHostRuntime.NowUnix());
             runtime.Log.LogInformation("Report {Id} stored ({Category}{Kind}, v{Version}, screenshot: {Shot}).",
                 id, parsed.Category, parsed.Kind.Length > 0 ? "/" + parsed.Kind : "", parsed.GameVersion,
                 parsed.ScreenshotBytes != null);

@@ -42,7 +42,7 @@ namespace BlocksBeyondTheStars.Client
         };
 
         // --- material ---
-        private string _key = "my_material", _name = "My Material", _desc = "A custom material.";
+        private string _key = "my_material", _name = string.Empty, _desc = string.Empty; // localized defaults: Start (#3263)
         private float _hardness = 3f;
         private int _tool;            // index into Tools
         private int _minTier;
@@ -77,6 +77,8 @@ namespace BlocksBeyondTheStars.Client
                 filterMode = FilterMode.Point,
             };
             FillBase(true);
+            _name = L("ui.ed.default.material");
+            _desc = L("ui.ed.default.material_desc");
             BuildUi();
         }
 
@@ -193,9 +195,9 @@ namespace BlocksBeyondTheStars.Client
             Stepper(left, ref by, "B", () => _baseB, v => { _baseB = (int)v; RefreshBase(); }, 0, 255, 15, "0");
 
             by += 6f;
-            UiKit.AddButton(left, 20f, by, 150f, 34f, L("ui.material.fill"), () => FillBase(true));
-            UiKit.AddButton(left, 180f, by, 150f, 34f, L("ui.material.flat"), () => FillBase(false));
-            UiKit.AddButton(left, 340f, by, 160f, 34f, L("ui.material.clear"), () => { _baseR = _baseG = _baseB = 20; RefreshBase(); FillBase(false); });
+            UiKit.AddFitButton(left, 20f, by, 150f, 34f, L("ui.material.fill"), () => FillBase(true));
+            UiKit.AddFitButton(left, 180f, by, 150f, 34f, L("ui.material.flat"), () => FillBase(false));
+            UiKit.AddFitButton(left, 340f, by, 160f, 34f, L("ui.material.clear"), () => { _baseR = _baseG = _baseB = 20; RefreshBase(); FillBase(false); });
 
             // ── Right: mechanics + look + world placement + footer ───────────────────────────────
             var right = UiKit.AddPanel(root, 572f, 30f, 470f, 1010f, UiKit.PanelFill).transform;
@@ -226,17 +228,18 @@ namespace BlocksBeyondTheStars.Client
             y += 26f;
             Stepper(right, ref y, L("ui.material.min_depth"), () => _minDepth, v => _minDepth = (int)v, 0, 256, 2, "0", RefreshSpawnEstimate);
             Stepper(right, ref y, L("ui.material.max_depth"), () => _maxDepth, v => _maxDepth = (int)v, 8, 2048, 64, "0");
-            InputRow(right, ref y, L("ui.material.source_png"), _sourceImage, v => _sourceImage = v, PathLimit);
+            StackedInputRow(right, ref y, L("ui.material.source_png"), _sourceImage, v => _sourceImage = v, PathLimit);
             RefreshSpawnEstimate();
 
             // Footer.
             _status = UiKit.AddText(right, 16f, 1010f - 152f, 446f, 78f, string.Empty, 13, UiKit.Ok, TextAnchor.UpperLeft);
             _status.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddButton(right, 16f, 1010f - 70f, 260f, 40f, L("ui.material.save"), Export);
-            UiKit.AddButton(right, 286f, 1010f - 70f, 168f, 40f, L("ui.menu.back"), () => Shell?.CloseMaterialEditor());
+            UiKit.AddFitButton(right, 16f, 1010f - 70f, 260f, 40f, L("ui.material.save"), Export);
+            UiKit.AddFitButton(right, 286f, 1010f - 70f, 168f, 40f, L("ui.menu.back"), () => Shell?.CloseMaterialEditor());
 
-            // Controls hint.
-            UiKit.AddText(root, 16f, 1072f - 28f, 1400f, 24f, L("ui.material.hint"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            // Controls hint: an instruction — normal colour, and two lines at 13 px rather than running off the screen (#3263).
+            var hint = UiKit.AddText(root, 16f, 1043f, HintW, EditorSceneKit.BottomHintHeight, L("ui.material.hint"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+            UiKit.FitLabelLines(hint, 15, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize);
 
             SetPaint(_paint, _swatchImgs[0]);
         }
@@ -314,7 +317,8 @@ namespace BlocksBeyondTheStars.Client
             }
             catch (Exception e)
             {
-                SetStatus(L("ui.editor.export_failed") + " " + e.Message);
+                Debug.LogWarning($"[MaterialEditor] Export failed: {e}");
+                SetStatus(L("ui.ed.export_failed_hint")); // a friendly line; the exception goes to the log (#3263)
             }
         }
 
@@ -332,6 +336,20 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Character limits sized so the typed text always FITS its field instead of scrolling out
         /// of sight (#514); a source path may be longer — it scrolls while you type it.</summary>
         private const int KeyLimit = 28, NameLimit = 32, DescLimit = 160, PathLimit = 120;
+
+        /// <summary>The bottom hint line: the screen's width less the margins.</summary>
+        internal const float HintW = 1888f;
+
+        /// <summary>The label column of the form rows (#3263).</summary>
+        internal const float InputLabelW = 180f, StepperLabelW = 248f;
+
+        /// <summary>A row label that shrinks to 13 px on one line rather than run into its field (#3263).</summary>
+        private static void RowLabel(Transform p, float y, float width, string label)
+        {
+            var text = UiKit.AddText(p, 16f, y, width, 30f, label, 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+            UiKit.FitLabelSingleLine(text, width, UiKit.EditorMinFontSize, 15);
+        }
+
 
         /// <summary>Form-field text size — smaller than the UiKit default so a full key/name fits the box.</summary>
         private const int FieldFont = 15;
@@ -388,15 +406,25 @@ namespace BlocksBeyondTheStars.Client
 
         private static void InputRow(Transform p, ref float y, string label, string value, Action<string> onChange, int maxLength)
         {
-            UiKit.AddText(p, 16f, y, 180f, 30f, label, 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+            RowLabel(p, y, InputLabelW, label);
             UiKit.AddInput(p, 200f, y, 256f, 30f, value, onChange, string.Empty, maxLength, FieldFont);
             y += 38f;
+        }
+
+        /// <summary>A label over a full-width field — for a label longer than the 180 px column ("Исходный PNG
+        /// (необязательно)", #3263).</summary>
+        private static void StackedInputRow(Transform p, ref float y, string label, string value, Action<string> onChange, int maxLength)
+        {
+            var text = UiKit.AddText(p, 16f, y, 440f, 22f, label, 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+            UiKit.FitLabelSingleLine(text, 440f, UiKit.EditorMinFontSize, 15);
+            UiKit.AddInput(p, 16f, y + 24f, 440f, 30f, value, onChange, string.Empty, maxLength, FieldFont);
+            y += 62f;
         }
 
         /// <summary>A wrapping multi-line field for sentence-length text (see ContentEditor).</summary>
         private static void TextAreaRow(Transform p, ref float y, string label, string value, Action<string> onChange)
         {
-            UiKit.AddText(p, 16f, y, 180f, 30f, label, 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+            RowLabel(p, y, InputLabelW, label);
             UiKit.AddInput(p, 200f, y, 256f, 64f, value, onChange, string.Empty, DescLimit, FieldFont, multiline: true);
             y += 72f;
         }
@@ -405,7 +433,7 @@ namespace BlocksBeyondTheStars.Client
         private static void Stepper(Transform p, ref float y, string label, Func<float> get, Action<float> set,
             float min, float max, float step, string fmt, Action onChanged = null)
         {
-            UiKit.AddText(p, 16f, y, 200f, 30f, label, 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+            RowLabel(p, y, StepperLabelW, label);
             var val = UiKit.AddText(p, 300f, y, 80f, 30f, get().ToString(fmt), 15, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             void Apply(float delta)
             {
@@ -414,8 +442,8 @@ namespace BlocksBeyondTheStars.Client
                 onChanged?.Invoke();
             }
 
-            UiKit.AddButton(p, 268f, y + 1f, 28f, 28f, "−", () => Apply(-step));
-            UiKit.AddButton(p, 384f, y + 1f, 28f, 28f, "+", () => Apply(step));
+            UiKit.AddFitButton(p, 268f, y + 1f, 28f, 28f, "−", () => Apply(-step));
+            UiKit.AddFitButton(p, 384f, y + 1f, 28f, 28f, "+", () => Apply(step));
             y += 38f;
         }
 
@@ -423,16 +451,18 @@ namespace BlocksBeyondTheStars.Client
         /// into the raw identifier list.</param>
         private static void CycleRow(Transform p, ref float y, string label, string[] labels, Func<int> get, Action<int> set)
         {
-            UiKit.AddText(p, 16f, y, 150f, 30f, label, 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            var val = UiKit.AddText(p, 200f, y, 180f, 30f, labels[get()], 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddButton(p, 384f, y + 1f, 28f, 28f, "→", () => { set((get() + 1) % labels.Length); val.text = labels[get()]; });
+            RowLabel(p, y, InputLabelW, label); // 180 px, not 150 — "Required tool" ran into its value (#3263)
+            // Two 13 px lines at the most ("Трансмутационная установка"): 36 px tall inside the 38 px row pitch.
+            var val = UiKit.AddText(p, 200f, y - 3f, 180f, 36f, labels[get()], 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.FitLabelLines(val, 15, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize);
+            UiKit.AddFitButton(p, 384f, y + 1f, 28f, 28f, "→", () => { set((get() + 1) % labels.Length); val.text = labels[get()]; });
             y += 38f;
         }
 
         private void ToggleRow(Transform p, ref float y, string label, Func<bool> get, Action<bool> set)
         {
-            UiKit.AddText(p, 16f, y, 180f, 30f, label, 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            var btn = UiKit.AddButton(p, 200f, y, 154f, 30f, OffOn(get()), null);
+            RowLabel(p, y, InputLabelW, label);
+            var btn = UiKit.AddFitButton(p, 200f, y, 154f, 30f, OffOn(get()), null);
             var caption = btn.GetComponentInChildren<Text>();
             btn.onClick.AddListener(() =>
             {

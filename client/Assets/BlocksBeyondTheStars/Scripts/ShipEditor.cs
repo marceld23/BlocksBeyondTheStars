@@ -18,7 +18,8 @@ namespace BlocksBeyondTheStars.Client
     /// room you fly through (hold RMB to look, WASD/QE to move) and place blocks into: hull, viewports,
     /// all ship stations, a hatch, lights and an engine. A side panel sets the design's name, stats and
     /// blueprint/craft costs. Save writes a ship-type bundle (ship.json + layout.json) that a developer
-    /// folds into the game with tools/merge_ship.py. Self-contained on the client (no server).
+    /// folds into the game with tools/merge_ship.py; Submit (#3262, <c>ShipEditor.Submit.cs</c>) sends the same
+    /// bundle to the developers for review. Self-contained on the client (no server).
     /// <para>
     /// Coordinates (#1396, #1397): the layout's interior origin (0,0,0) sits at <see cref="Origin"/> in the
     /// room, so exterior cells at negative x/z (wings, engines, nav lights — every shipped layout has them)
@@ -36,7 +37,7 @@ namespace BlocksBeyondTheStars.Client
     /// the picking ray's origin. B leaves the viewport; from the panels it leaves the editor.
     /// </para>
     /// </summary>
-    public sealed class ShipEditor : MonoBehaviour
+    public sealed partial class ShipEditor : MonoBehaviour
     {
         public AppShell Shell;
 
@@ -79,12 +80,12 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The form brush's name: "Automatic" (the block's own form, #1975) or the built-in form's name.</summary>
         private string FormName(int shape)
-            => shape < 0 ? L("ui.ed.form_auto") : L(BuiltInForms.LocKeyOf(shape) ?? "ui.shape.cube");
+            => shape < 0 ? L("ui.ed.form_auto_short") : L(BuiltInForms.LocKeyOf(shape) ?? "ui.shape.cube"); // "Auto": a 118 px value (#3263)
 
         // --- editable metadata ---
         private string _key = "my_ship";
-        private string _shipName = "My Ship";
-        private string _desc = "A custom ship.";
+        private string _shipName = string.Empty; // the localized defaults are set in Start (#3263)
+        private string _desc = string.Empty;
         private string _requiredBlueprint = string.Empty;
         private float _hull = 100f, _shield = 20f, _flightSpeed = 1f, _handling = 1f;
         private int _cargo = 48;
@@ -116,6 +117,8 @@ namespace BlocksBeyondTheStars.Client
             // Editor-local block atlas: gives the palette (and the placed cells) the real material look.
             _atlas = Shell != null && Shell.Content != null ? BlockTextureAtlas.Acquire(Shell.Content) : null; // shared per process (#1523)
             _palette = BuildPalette();
+            _shipName = L("ui.ed.default.ship");
+            _desc = L("ui.ed.default.ship_desc");
 
             _cam = EditorSceneKit.CreateEditorCamera(transform, 800f);
             _yaw = 0f;
@@ -202,9 +205,9 @@ namespace BlocksBeyondTheStars.Client
 
         private void Update()
         {
-            if (_cam == null)
+            if (_cam == null || CreationSubmitDialog.IsAnyOpen)
             {
-                return;
+                return; // the submit dialog (#3262) owns the keys and the mouse while it is open
             }
 
             bool pad = InputMap.ActiveDevice == InputDeviceKind.Gamepad;
@@ -633,16 +636,18 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The brush's form row: icon + name + "Change…", which opens the in-game form grid (#1975).</summary>
         private void FormRow()
         {
-            var row = Row(_form, 30f);
-            UiKit.AddText(row, 4f, 0f, 90f, 30f, L("ui.struct.shape"), 15, UiKit.TextCol);
+            var row = Row(_form, 36f); // two 13 px lines for a long form name ("Ліжко (бік для голови)", #3263)
+            var label = UiKit.AddText(row, 4f, 0f, 86f, 36f, L("ui.struct.shape"), 15, UiKit.TextCol);
+            UiKit.FitLabelSingleLine(label, 86f, UiKit.EditorMinFontSize, 15);
             var iconGo = new GameObject("FormIcon", typeof(RectTransform));
             iconGo.transform.SetParent(row, false);
-            UiKit.Place(iconGo, 96f, 1f, 28f, 28f);
+            UiKit.Place(iconGo, 92f, 4f, 28f, 28f);
             _formIcon = iconGo.AddComponent<RawImage>();
             _formIcon.raycastTarget = false;
             EditorFormPicker.PaintIcon(_formIcon, _atlas, BrushTile(), _brushShape);
-            _formLabel = UiKit.AddText(row, 130f, 0f, 120f, 30f, FormName(_brushShape), 13, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddButton(row, 254f, 1f, 102f, 28f, L("ui.ed.form_pick"), OpenFormPicker);
+            _formLabel = UiKit.AddText(row, 126f, 0f, 114f, 36f, FormName(_brushShape), 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.FitLabelLines(_formLabel, 15, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize);
+            UiKit.AddFitButton(row, 244f, 4f, 112f, 28f, L("ui.ed.form_pick"), OpenFormPicker);
         }
 
         private void OpenFormPicker()
@@ -680,6 +685,9 @@ namespace BlocksBeyondTheStars.Client
         // ----------------------------- UI (modern uGUI) -----------------------------
 
         private const float PanelH = 1048f;
+
+        /// <summary>The label column of a stepper row (#3263).</summary>
+        internal const float StepperLabelW = 204f;
 
         private Canvas _canvas;
         private RectTransform _form;
@@ -731,20 +739,20 @@ namespace BlocksBeyondTheStars.Client
             var meta = RightPanel(root, 380f, PanelH);
             UiKit.AddText(meta, 16f, 12f, 348f, 26f, L("ui.ship.title"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
 
-            _form = UiKit.ScrollList(meta, 8f, 48f, 364f, PanelH - 48f - 164f, 3f);
+            _form = UiKit.ScrollList(meta, 8f, 48f, 364f, PanelH - 48f - 204f, 3f); // the form scrolls; the status gets 5 lines (#3263)
             BuildForm();
 
-            // Pinned footer: status, then save on a full-width row of its own (so the label never has
-            // to shrink), then load + back sharing the row below.
-            _statusLabel = UiKit.AddText(meta, 12f, PanelH - 160f, 356f, 46f, string.Empty, 13, UiKit.Ok);
+            // Pinned footer: status, then save + submit (#3262) on a row of their own, then load + back
+            // sharing the row below.
+            _statusLabel = UiKit.AddText(meta, 12f, PanelH - 200f, 356f, 86f, string.Empty, 13, UiKit.Ok);
             _statusLabel.alignment = TextAnchor.UpperLeft;
             _statusLabel.horizontalOverflow = HorizontalWrapMode.Wrap; // "skipped 3 cells: …" needs a second line
-            UiKit.AddButton(meta, 12f, PanelH - 110f, 356f, 42f, L("ui.struct.save"), Export);
-            UiKit.AddButton(meta, 12f, PanelH - 62f, 172f, 38f, L("ui.struct.load"), OpenLoadPicker);
-            UiKit.AddButton(meta, 196f, PanelH - 62f, 172f, 38f, L("ui.menu.back"), () => Shell?.CloseShipEditor());
+            AddSaveAndSubmit(meta, PanelH - 110f);
+            UiKit.AddFitButton(meta, 12f, PanelH - 62f, 172f, 38f, L("ui.struct.load"), OpenLoadPicker);
+            UiKit.AddFitButton(meta, 196f, PanelH - 62f, 172f, 38f, L("ui.menu.back"), () => Shell?.CloseShipEditor());
 
-            // Bottom-centre controls hint.
-            _hintLabel = EditorSceneKit.AddBottomHint(root, 1100f, L("ui.struct.hint")); // RefreshPadChrome swaps this for the pad wording
+            // Bottom-centre controls hint, between the two side panels; RefreshPadChrome swaps it for the pad wording.
+            _hintLabel = EditorSceneKit.AddBottomHint(root, EditorSceneKit.BottomHintWidth(300f, 380f), L("ui.struct.hint"));
 
             BuildReticle(root);
         }
@@ -802,9 +810,7 @@ namespace BlocksBeyondTheStars.Client
             Stepper(L("ui.ship.int_w"), () => _intW, v => { _intW = Mathf.RoundToInt(v); RebuildFrame(); }, 3f, MaxW - Origin.X, 1f, "0");
             Stepper(L("ui.ship.int_l"), () => _intL, v => { _intL = Mathf.RoundToInt(v); RebuildFrame(); }, 3f, MaxL - Origin.Z, 1f, "0");
             Stepper(L("ui.ship.int_h"), () => _intH, v => { _intH = Mathf.RoundToInt(v); RebuildFrame(); }, 2f, MaxH - 1, 1f, "0");
-            var hint = FormLabel(L("ui.ship.interior_hint"));
-            hint.fontSize = 12;
-            hint.color = UiKit.CyanDim;
+            WrappedFormLabel(L("ui.ship.interior_hint")); // an instruction: 13 px, normal colour, all its lines (#3263)
 
             // Block brush: dye + glow colour + shape + orientation applied to newly placed BLOCK cells
             // (every block is dyeable + shapeable in-game; shaped blocks orient at placement).
@@ -822,8 +828,9 @@ namespace BlocksBeyondTheStars.Client
 
             // CRAFT COST is the last section so its dynamic rows can simply append to the form.
             var head = Row(_form, 28f);
-            UiKit.AddText(head, 4f, 0f, 240f, 28f, L("ui.ship.cost"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddButton(head, 252f, 0f, 104f, 26f, L("ui.ship.cost_add"), () =>
+            var costTitle = UiKit.AddText(head, 4f, 0f, 216f, 28f, L("ui.ship.cost"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.FitLabelSingleLine(costTitle, 216f, UiKit.EditorMinFontSize, 16);
+            UiKit.AddFitButton(head, 224f, 0f, 132f, 28f, L("ui.ship.cost_add"), () =>
             {
                 _craftCost.Add(new CostRow { Item = "iron_plate", Count = 1 });
                 RefreshCostRows();
@@ -863,7 +870,7 @@ namespace BlocksBeyondTheStars.Client
             ui.Item = UiKit.AddInput(row, 4f, 2f, 200f, 26f, string.Empty, null, L("ui.ship.cost_item"));
             ui.Count = UiKit.AddInput(row, 210f, 2f, 72f, 26f, string.Empty, null);
             ui.Count.contentType = InputField.ContentType.IntegerNumber;
-            UiKit.AddButton(row, 288f, 2f, 30f, 26f, "×", () =>
+            UiKit.AddFitButton(row, 288f, 2f, 30f, 26f, "×", () =>
             {
                 if (ui.Bound != null)
                 {
@@ -895,6 +902,16 @@ namespace BlocksBeyondTheStars.Client
             return UiKit.AddText(row, 4f, 0f, 352f, 22f, text, 15, UiKit.TextCol);
         }
 
+        /// <summary>A form row as tall as its wrapped text at 13 px (<see cref="UiKit.MeasureHeight"/>) — the interior hint
+        /// was one clipped 12 px line, cut in every language (#3263).</summary>
+        private void WrappedFormLabel(string text)
+        {
+            float h = Mathf.Ceil(UiKit.MeasureHeight(text, 352f, UiKit.EditorMinFontSize, FontStyle.Normal, false)) + 4f;
+            var row = Row(_form, h);
+            var label = UiKit.AddText(row, 4f, 2f, 352f, h - 4f, text, UiKit.EditorMinFontSize, UiKit.TextCol, TextAnchor.UpperLeft);
+            label.horizontalOverflow = HorizontalWrapMode.Wrap;
+        }
+
         private void FormHeader(string text)
         {
             Row(_form, 8f); // spacer
@@ -913,10 +930,12 @@ namespace BlocksBeyondTheStars.Client
         {
             string Show() => display != null ? display(get()) : get().ToString(fmt);
             var row = Row(_form, 30f);
-            UiKit.AddText(row, 4f, 0f, 156f, 30f, label, 15, UiKit.TextCol);
-            var valTxt = UiKit.AddText(row, 196f, 0f, 72f, 30f, Show(), 15, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddButton(row, 164f, 1f, 28f, 28f, "−", () => { set(Mathf.Clamp(get() - step, min, max)); valTxt.text = Show(); });
-            UiKit.AddButton(row, 272f, 1f, 28f, 28f, "+", () => { set(Mathf.Clamp(get() + step, min, max)); valTxt.text = Show(); });
+            // A 204 px label column with −/value/+ at the right edge — "Cargo slots" and friends ran under the − (#3263).
+            var text = UiKit.AddText(row, 4f, 0f, StepperLabelW, 30f, label, 15, UiKit.TextCol);
+            UiKit.FitLabelSingleLine(text, StepperLabelW, UiKit.EditorMinFontSize, 15);
+            var valTxt = UiKit.AddText(row, 246f, 0f, 66f, 30f, Show(), 15, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddFitButton(row, 214f, 1f, 28f, 28f, "−", () => { set(Mathf.Clamp(get() - step, min, max)); valTxt.text = Show(); });
+            UiKit.AddFitButton(row, 316f, 1f, 28f, 28f, "+", () => { set(Mathf.Clamp(get() + step, min, max)); valTxt.text = Show(); });
         }
 
         private static RectTransform RightPanel(Transform root, float w, float h) => EditorSceneKit.RightPanel(root, w, h);
@@ -944,43 +963,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // Cells go out in layout coordinates (room minus the interior origin, #1397); the interior size is
-            // the explicit cabin frame, not the bounding box of everything placed (#1396).
-            var layout = new ExportLayoutJson { width = _intW, height = _intH, length = _intL };
-            foreach (var kv in _design)
-            {
-                var d = kv.Value;
-                layout.cells.Add(new ExportCellJson
-                {
-                    x = kv.Key.X - Origin.X, y = kv.Key.Y - Origin.Y, z = kv.Key.Z - Origin.Z,
-                    kind = string.IsNullOrEmpty(d.Kind) ? "block" : d.Kind, id = d.Id,
-                    tint = d.Tint, glow = d.Glow, shape = d.Shape,
-                });
-            }
-
-            var ship = new ExportShipJson
-            {
-                key = key,
-                name = _shipName,
-                description = _desc,
-                requiredBlueprint = string.IsNullOrWhiteSpace(_requiredBlueprint) ? null : _requiredBlueprint.Trim(),
-                layout = $"{key}.json",
-                baseHull = Mathf.Round(_hull),
-                baseShield = Mathf.Round(_shield),
-                flightSpeed = (float)Math.Round(_flightSpeed, 2),
-                handling = (float)Math.Round(_handling, 2),
-                cargoSlots = _cargo,
-                startModules = new List<string>(_startModules),
-            };
-
-            foreach (var c in _craftCost)
-            {
-                if (!string.IsNullOrWhiteSpace(c.Item) && c.Count > 0)
-                {
-                    ship.craftCost.Add(new ExportCostJson { item = c.Item.Trim(), count = c.Count });
-                }
-            }
-
+            var (ship, layout) = BuildExport(key);
             try
             {
                 string dir = Path.Combine(AppPaths.Root, "ship_exports", key);
@@ -991,7 +974,8 @@ namespace BlocksBeyondTheStars.Client
             }
             catch (Exception e)
             {
-                _status = string.Format(L("ui.ed.export_failed"), e.Message);
+                Debug.LogWarning($"[ShipEditor] Export failed: {e}");
+                _status = L("ui.ed.export_failed_hint"); // a friendly line; the exception goes to the log (#3263)
             }
         }
 
@@ -1122,7 +1106,7 @@ namespace BlocksBeyondTheStars.Client
             var skippedIds = new List<string>();
             int skipped = ApplyCells(cells, skippedIds);
 
-            _key = def.Key;
+            _key = _basedOn = def.Key; // a submission names the shipped ship it started from (#3262)
             _shipName = L(def.NameKey);
             _desc = L(def.DescriptionKey);
             _requiredBlueprint = def.RequiredBlueprint ?? string.Empty;
@@ -1146,6 +1130,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Clears the current build and rebuilds it from a saved design's <c>layout.json</c>.</summary>
         private void LoadDesign(string key)
         {
+            _basedOn = string.Empty; // the player's own design; a shipped key is recognised at submit time
             string dir = Path.Combine(AppPaths.Root, "ship_exports", key);
             string layoutPath = Path.Combine(dir, "layout.json");
             if (!File.Exists(layoutPath))
@@ -1197,7 +1182,8 @@ namespace BlocksBeyondTheStars.Client
             }
             catch (Exception e)
             {
-                _status = string.Format(L("ui.ed.load_failed"), e.Message);
+                Debug.LogWarning($"[ShipEditor] Load failed: {e}");
+                _status = L("ui.ed.load_failed_hint"); // a friendly line; the exception goes to the log (#3263)
             }
         }
 

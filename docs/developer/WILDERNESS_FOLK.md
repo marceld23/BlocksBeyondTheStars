@@ -303,6 +303,12 @@ parts:
   face is scaled up, the same key replaces the earlier version. Run the Client.Tests `PixelSkinTests`, commit
   `data/pioneer_skins.json` — the next build's pioneers may wear it.
 
+  A skin a player **submitted** from the Avatar Designer (#3262) — or one written by its *Export skin* — arrives as
+  `skin.json` (four `#RRGGBB` colours plus `facePixels`, `torsoPixels`, `armPixels`, `legPixels`, `helmetPixels`):
+  `python tools/pull_submissions.py --kind avatar --fetch` unpacks it, then
+  `uv run --no-project python tools/gen_pioneer_skins.py --from-skin <dir>/skin.json --author <nickname> [--key …] [--hair …]`
+  adds it the same way (the key defaults to the file's). Look at the face and the paintings first — it is a player's pixel art.
+
 ## Tests
 
 `LodgeTests`, `LodgeResidentTests`, `NpcWorkTests` (§2–§4), `NpcGatheringTests`, `NpcWoodcuttingTests`, `NpcMiningTests`,

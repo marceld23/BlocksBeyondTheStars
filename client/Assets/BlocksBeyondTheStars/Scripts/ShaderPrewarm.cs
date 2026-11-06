@@ -15,10 +15,15 @@ namespace BlocksBeyondTheStars.Client
     /// terrain, lit models, vertex-coloured models) × fog × shadow × soft-shadow keywords are warmed once per
     /// process, behind the opaque world-loading veil (GameBootstrap.Start), so the cost lands where a load is
     /// expected. Variants a shader does not declare are skipped (the collection refuses them).
+    /// <para>#3261: the desktop loading screen now warms the same collection a few variants per frame while it waits
+    /// for the bundled server (<see cref="WarmUpSome"/>); <see cref="WarmUp"/> in GameBootstrap then only finishes what
+    /// is left — usually nothing. Caveat unchanged: on DX12/Vulkan a variant warm-up is not a full pipeline warm-up.</para>
     /// </summary>
     public static class ShaderPrewarm
     {
         private static bool _done;
+        private static ShaderVariantCollection _collection; // built once, warmed piecewise and/or at once (#3261)
+        private static int _variants;                       // variants the collection holds
 
         private static readonly string[] Shaders =
         {
@@ -64,7 +69,11 @@ namespace BlocksBeyondTheStars.Client
         private static readonly string[] ShadowKeywords = { null, "_MAIN_LIGHT_SHADOWS", "_MAIN_LIGHT_SHADOWS_CASCADE" };
         private static readonly string[] SoftKeywords = { null, "_SHADOWS_SOFT" };
 
-        /// <summary>Warms the variant set once per process. Returns the number of variants added (0 on later calls).</summary>
+        /// <summary>Variants the loading screen warmed ahead of the world while it waited for the server (#3261).</summary>
+        public static int WarmedEarly { get; private set; }
+
+        /// <summary>Warms the variant set once per process — whatever <see cref="WarmUpSome"/> has not warmed yet. Returns
+        /// the number of variants this call warmed (0 on later calls, and when the server wait already warmed them all).</summary>
         public static int WarmUp()
         {
             if (_done)
@@ -72,7 +81,64 @@ namespace BlocksBeyondTheStars.Client
                 return 0;
             }
 
+            var collection = Collection();
+            int left = Mathf.Max(0, _variants - collection.warmedUpVariantCount);
+            if (left > 0)
+            {
+                collection.WarmUp();
+            }
+
+            Finish();
+            return left;
+        }
+
+        /// <summary>
+        /// #3261: warms variants one at a time until <paramref name="budgetMs"/> is spent (always at least one), so the
+        /// loading screen spreads the compile over the frames in which it waits for the bundled server anyway — a new
+        /// world boots for 10–20 s, and these ~100 variants used to be compiled in one block AFTER that, behind the
+        /// world veil. Returns true once every variant is warm; <see cref="WarmUp"/> then has nothing left to do.
+        /// </summary>
+        public static bool WarmUpSome(double budgetMs)
+        {
+            if (_done)
+            {
+                return true;
+            }
+
+            var collection = Collection();
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            bool all;
+            do
+            {
+                all = collection.WarmUpProgressively(1);
+            }
+            while (!all && watch.Elapsed.TotalMilliseconds < budgetMs);
+
+            WarmedEarly = collection.warmedUpVariantCount;
+            if (all)
+            {
+                Finish();
+            }
+
+            return all;
+        }
+
+        /// <summary>Everything is warm: drop the collection (the compiled variants stay with their shaders).</summary>
+        private static void Finish()
+        {
             _done = true;
+            _collection = null;
+        }
+
+        /// <summary>The variant set, built once (no compiling — that is <see cref="WarmUp"/>'s and
+        /// <see cref="WarmUpSome"/>'s job). Rebuilt if Unity unloaded it in between.</summary>
+        private static ShaderVariantCollection Collection()
+        {
+            if (_collection != null)
+            {
+                return _collection;
+            }
+
             var collection = new ShaderVariantCollection();
             var keywords = new List<string>(3);
             int added = 0;
@@ -114,12 +180,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             added += AddInstanced(collection, keywords);
-            if (added > 0)
-            {
-                collection.WarmUp();
-            }
-
-            return added;
+            _variants = added;
+            _collection = collection;
+            return collection;
         }
 
         /// <summary>Adds the instanced × shadow × soft-shadow variants of <see cref="InstancedShaders"/>.</summary>

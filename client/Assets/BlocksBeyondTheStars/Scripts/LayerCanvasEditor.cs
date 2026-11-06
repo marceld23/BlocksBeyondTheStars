@@ -357,7 +357,7 @@ namespace BlocksBeyondTheStars.Client
         /// <see cref="CanvasRt"/> must exist by now.</summary>
         protected void EndShell(Transform root, string hintKey)
         {
-            HintLabel = UiKit.AddText(root, 16f, 1080f - 30f, 1880f, 24f, L(hintKey), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            HintLabel = UiKit.AddText(root, 16f, 1080f - 30f, 1880f, 24f, L(hintKey), 14, UiKit.TextCol, TextAnchor.MiddleLeft); // an instruction (#3263)
             UiNav.Enable(Ui.gameObject, padHints: false); // this editor draws its own hint line
             Pad = new PadCanvasFocus(Ui.gameObject, CanvasRt);
         }

@@ -10,9 +10,10 @@ namespace BlocksBeyondTheStars.Client
     /// The singleplayer world picker (uGUI): lists existing save worlds to resume and lets the player
     /// start a brand-new world by name (a new name = a new, differently-seeded world), so different
     /// worlds can be tested without overwriting. Shown on <see cref="ShellPhase.SaveSelect"/> over the
-    /// menu backdrop; AppShell spawns/destroys it per phase.
+    /// menu backdrop; AppShell spawns/destroys it per phase. The world list itself (left panel) is
+    /// <see cref="WorldListView"/> (UiSaveSelect.WorldList.cs): read in the background, built in slices (#3259).
     /// </summary>
-    public static class UiSaveSelect
+    public static partial class UiSaveSelect
     {
         // The world list (left panel): a clipped viewport under the header, rows at a fixed pitch.
         private const float ListY = 56f;
@@ -93,20 +94,6 @@ namespace BlocksBeyondTheStars.Client
             return trimEnd ? sb.ToString().TrimEnd(' ', '.') : sb.ToString();
         }
 
-        /// <summary>True when a save with this name already exists (case-insensitive, like the filesystem).</summary>
-        private static bool WorldExists(string name)
-        {
-            foreach (string w in LocalServerLauncher.ListWorlds())
-            {
-                if (string.Equals(w, name, System.StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
         /// <summary>The world list's clipped, vertically scrolling viewport inside the left panel
         /// (<see cref="ListY"/>..+<see cref="ListH"/>); <paramref name="content"/> takes the rows, placed absolutely
         /// (top-left) at <see cref="RowPitch"/>. The caller sizes the content's height from the world count.</summary>
@@ -155,48 +142,16 @@ namespace BlocksBeyondTheStars.Client
             Text confirmText = null;
             string[] target = { null };
 
-            // Every save gets a row. The list used to stop at the nine rows the panel holds, and ListWorlds sorts
-            // newest first — so a tenth world silently vanished, the player's OLDEST ones, unplayable and
-            // undeletable, while "New world" still called their names taken (#2010). A long list scrolls instead.
+            // #3259: the rows come from the world list read in the background and arrive a slice per frame — the
+            // screen opens at once whatever the number of worlds (WorldListView, UiSaveSelect.WorldList.cs).
             float restoreScrollY = _restoreScrollY;
             _restoreScrollY = 0f;
-            RectTransform list = null;
-            var worlds = LocalServerLauncher.ListWorlds();
-            if (worlds.Length == 0)
+            var worldList = WorldListView.Attach(canvas.gameObject, shell, left, restoreScrollY, w => Launch(w), w =>
             {
-                UiKit.AddText(left, 20f, 70f, 680f, 28f, shell.L("ui.save.none"), 17, UiKit.TextCol, TextAnchor.MiddleLeft);
-            }
-            else
-            {
-                float contentH = worlds.Length * RowPitch - (RowPitch - RowH);
-                bool scrolls = contentH > ListH;
-                var scroll = BuildWorldListViewport(left, out list);
-                list.sizeDelta = new Vector2(0f, Mathf.Max(ListH, contentH));
-
-                // A list that fits keeps the old row widths; a scrolling one narrows them for the scrollbar.
-                // The bar is the full-size, draggable one (not the thin inline strip): it is what says "there is
-                // more below", and a child must be able to grab it.
-                float rowW = scrolls ? 590f : 612f;
-                if (scrolls)
-                {
-                    UiKit.AddVerticalScrollbar(left, scroll, 686f, ListY, 14f, ListH);
-                    list.anchoredPosition = new Vector2(0f, Mathf.Clamp(restoreScrollY, 0f, contentH - ListH));
-                }
-
-                for (int i = 0; i < worlds.Length; i++)
-                {
-                    string w = worlds[i];
-                    long played = LocalServerLauncher.ReadWorldPlaytimeSeconds(w);
-                    string label = played > 0 ? $"▸  {w}    ({FormatPlaytime(played)})" : $"▸  {w}";
-                    UiKit.AddButton(list, 0f, i * RowPitch, rowW, RowH, label, () => Launch(w), "btn_singleplayer");
-                    UiKit.AddButton(list, rowW + 8f, i * RowPitch, 60f, RowH, "✕", () =>
-                    {
-                        target[0] = w;
-                        if (confirmText != null) confirmText.text = shell.L("ui.save.delete_confirm").Replace("{world}", w);
-                        if (confirm != null) confirm.SetActive(true);
-                    }, "btn_exit");
-                }
-            }
+                target[0] = w;
+                if (confirmText != null) confirmText.text = shell.L("ui.save.delete_confirm").Replace("{world}", w);
+                if (confirm != null) confirm.SetActive(true);
+            });
 
             // ── New world (right) ─────────────────────────────────────────────────────────────
             var right = UiHolo.AddPanel(root, 850f, 250f, 700f, 540f, UiKit.Panel, 18f, 1.5f, 1f).transform;
@@ -328,7 +283,12 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
-                if (WorldExists(world))
+                if (!worldList.Loaded)
+                {
+                    return; // the button waits for the list (#3259) — its duplicate check needs it
+                }
+
+                if (worldList.Has(world))
                 {
                     SayName("ui.save.name_taken", true);
                     return;
@@ -342,13 +302,19 @@ namespace BlocksBeyondTheStars.Client
             // random seed under that name; an empty, untouched or taken one keeps world_<n> (RandomWorldName).
             void CreateRandom()
             {
+                if (!worldList.Loaded)
+                {
+                    return; // waits for the list (#3259): a taken name must not be reused
+                }
+
                 var pick = RandomWorldName.Resolve(SanitizeWorldName(name[0]), RandomWorldName.DefaultName,
-                    LocalServerLauncher.ListWorlds(), new System.Random());
+                    worldList.Names(), new System.Random());
                 Launch(pick.Name, UnlockAll(), AllShips(), Kit(), mode[0] == 2, worldOptions, Flight(), pick.Seed);
             }
 
-            UiKit.AddButton(right, 20f, 428f, 320f, 50f, shell.L("ui.save.create"), CreateNamed, "btn_singleplayer");
-            UiKit.AddButton(right, 360f, 428f, 320f, 50f, shell.L("ui.save.random"), CreateRandom, "btn_join");
+            worldList.GateUntilLoaded( // disabled while the list is still being read (#3259)
+                UiKit.AddButton(right, 20f, 428f, 320f, 50f, shell.L("ui.save.create"), CreateNamed, "btn_singleplayer"),
+                UiKit.AddButton(right, 360f, 428f, 320f, 50f, shell.L("ui.save.random"), CreateRandom, "btn_join"));
             UiKit.AddText(right, 20f, 486f, 660f, 54f, shell.L("ui.save.hint"), 14, UiKit.CyanDim, TextAnchor.UpperLeft).horizontalOverflow = HorizontalWrapMode.Wrap;
 
             // ── Host options (host mode only): player cap + optional join password ───────────────
@@ -407,7 +373,7 @@ namespace BlocksBeyondTheStars.Client
                     LocalServerLauncher.DeleteWorld(target[0]);
                 }
 
-                _restoreScrollY = list != null ? list.anchoredPosition.y : 0f; // the rebuild keeps the list where it was
+                _restoreScrollY = worldList.ScrollY; // the rebuild keeps the list where it was
                 shell.RefreshSaveSelect(); // force a rebuild so the deleted world drops off the list (B59)
             }, "btn_exit");
             UiKit.AddButton(panel.transform, 370f, 160f, 290f, 58f, shell.L("ui.save.delete_no"), () => confirm.SetActive(false), "btn_singleplayer");

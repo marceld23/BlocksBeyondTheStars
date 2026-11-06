@@ -277,6 +277,17 @@ namespace BlocksBeyondTheStars.Client
             le.minHeight = le.preferredHeight = height;
         }
 
+        /// <summary>The width of a row's name (#3263).</summary>
+        private const float LabelW = 230f;
+
+        /// <summary>A row is 36 px — two 13 px lines — and 52 px for a name that needs three ("Шлюз корпуса: … (герметичный
+        /// блок, не проходная дверь)").</summary>
+        private static float RowHeightFor(string label)
+        {
+            var fit = UiKit.FitLines(label, LabelW, 36f, FontStyle.Normal, 15, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize);
+            return fit.Fits ? 36f : 52f;
+        }
+
         private void AddHeader(string title)
         {
             var row = new GameObject("Header", typeof(RectTransform));
@@ -290,7 +301,8 @@ namespace BlocksBeyondTheStars.Client
             var e = _entries[entryIndex];
             var row = new GameObject("Row", typeof(RectTransform));
             row.transform.SetParent(_parent, false);
-            SetRowHeight(row, 36f);
+            float rowH = RowHeightFor(e.Label);
+            SetRowHeight(row, rowH);
 
             var img = row.AddComponent<Image>();
             img.sprite = UiKit.ButtonSprite;
@@ -304,7 +316,7 @@ namespace BlocksBeyondTheStars.Client
 
             var iconGo = new GameObject("Icon", typeof(RectTransform));
             iconGo.transform.SetParent(row.transform, false);
-            UiKit.Place(iconGo, 8f, 6f, 24f, 24f);
+            UiKit.Place(iconGo, 8f, (rowH - 24f) / 2f, 24f, 24f);
             var iconImg = iconGo.AddComponent<Image>();
             iconImg.raycastTarget = false;
             if (e.Icon != null)
@@ -317,7 +329,9 @@ namespace BlocksBeyondTheStars.Client
                 iconImg.color = e.Color;
             }
 
-            UiKit.AddText(row.transform, 40f, 0f, 230f, 36f, e.Label, 15, UiKit.TextCol);
+            var label = UiKit.AddText(row.transform, 40f, 0f, LabelW, rowH, e.Label, 15, UiKit.TextCol);
+            // A long block name shrinks to 13 px and takes more lines instead of being cut by the list's mask (#3263).
+            UiKit.FitLabelLines(label, 15, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize, 3);
             _rowImages.Add(img);
             _rowToEntry.Add(entryIndex);
         }

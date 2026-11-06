@@ -254,6 +254,11 @@ namespace BlocksBeyondTheStars.Client
         /// home, gentle outside, nothing where danger is. Colour work only (no gameplay, no cost). 0.5 = the default look;
         /// 0 = the plain grade. Driven into <see cref="UrpScenePost"/>.</summary>
         public float Cosiness = 0.5f;
+        /// <summary>"Visibility in the dark" (#3265), 0..1: caves, dug tunnels and moonless nights are dark on purpose — this
+        /// lifts the dark floor every surface keeps (0.045 → 0.15), the eye adaptation underground (+0.35 → +0.7 EV) and the
+        /// creatures' light in the dark, for players who find it too dark. 0 = the intended look. Driven into
+        /// <see cref="Sky"/> and <see cref="AtmosphereProbe"/>; an older settings file lacks the field and reads 0.</summary>
+        public float DarkVisibility = 0f;
         /// <summary>Screen-space lens flare on the sun + bright emitters (cheap, very sci-fi).</summary>
         public bool LensFlare = true;
         /// <summary>Subtle camera motion blur while flying the ship / driving the speeder (High+ only).</summary>
@@ -997,6 +1002,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             settings.UiScale = Mathf.Clamp(settings.UiScale, UiKit.UserScaleMin, UiKit.UserScaleMax);
+            settings.DarkVisibility = Mathf.Clamp01(settings.DarkVisibility); // #3265: a hand-edited file stays in range
 
             // Migration (#1209): MutedVoicePlayers becomes MutedPlayers (voice AND text). Nothing ever wrote
             // the old field, so in practice this list is empty — but a hand-edited settings file must not

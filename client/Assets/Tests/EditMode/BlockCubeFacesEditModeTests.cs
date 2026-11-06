@@ -169,7 +169,10 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
 
                         for (int f = 0; f < BlockCubeFaces.FaceCount; f++)
                         {
-                            Assert.That(perFace[f], Is.EqualTo(4), $"'{key}': the world should draw face {f} of a lone cube once.");
+                            // #3220: the open lift gate is a sill — the mesher draws no lid (top/bottom) for it, on purpose.
+                            bool capless = key == "lift_gate_open" && (f == BlockCubeFaces.FacePlusY || f == BlockCubeFaces.FaceMinusY);
+                            int expected = capless ? 0 : 4;
+                            Assert.That(perFace[f], Is.EqualTo(expected), $"'{key}': the world should draw face {f} of a lone cube {(capless ? "never (a capless sill)" : "once")}.");
                         }
                     }
                     finally

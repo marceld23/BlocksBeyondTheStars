@@ -12,9 +12,11 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// Standalone avatar skin designer (menu tool, sibling of <see cref="ShipEditor"/>). A slowly
     /// rotating live <see cref="PlayerAvatar"/> preview with per-part colour controls and gear toggles;
-    /// <b>Apply</b> saves the colours into <see cref="ClientSettings"/> (so the in-game avatar uses them)
-    /// and <b>Export</b> writes a skin bundle (skin.json) a developer can fold into the game with
-    /// tools/merge_avatar.py. Self-contained on the client (no server); modern uGUI.
+    /// <b>Apply</b> saves the colours into <see cref="ClientSettings"/> (so the in-game avatar uses them),
+    /// <b>Export</b> writes the whole skin (colours, face, body paintings) as <c>skin.json</c> and <b>Submit</b>
+    /// (#3262, <c>AvatarEditor.Submit.cs</c>) sends that same file to the developers for review; a skin they adopt
+    /// becomes a pioneer's look via <c>tools/gen_pioneer_skins.py --from-skin</c>. Self-contained on the client (no
+    /// server); modern uGUI.
     /// <para>
     /// The <b>Outfits</b> panel beside it (#1047) keeps up to <see cref="ClientSettings.MaxOutfits"/> named
     /// looks (colours + face + body paint) in the settings file: <i>Save outfit</i> stores the designer's
@@ -24,7 +26,7 @@ namespace BlocksBeyondTheStars.Client
     /// so the server never learns about outfits; it only ever sees the applied look on the next join.
     /// </para>
     /// </summary>
-    public sealed class AvatarEditor : MonoBehaviour
+    public sealed partial class AvatarEditor : MonoBehaviour
     {
         public AppShell Shell;
 
@@ -45,7 +47,7 @@ namespace BlocksBeyondTheStars.Client
             BlocksBeyondTheStars.Shared.State.GearLook.Legs, BlocksBeyondTheStars.Shared.State.GearLook.Jetpack,
             BlocksBeyondTheStars.Shared.State.GearLook.Lamp,
         };
-        private string _name = "My Skin";
+        private string _name = string.Empty; // the localized default is set in Start (#3263)
         private Text _status;
         private string _face = string.Empty; // encoded pixel face (same format as the in-game editor)
         private readonly string[] _bodyPaint = new string[BodyPaintKit.PartCount]; // body paintings (#874)
@@ -61,9 +63,13 @@ namespace BlocksBeyondTheStars.Client
         private int _selectedOutfit = -1;
         private const float OutfitPanelW = 300f, OutfitPanelH = 480f, OutfitRowH = 32f, OutfitRowStep = 38f, OutfitRowsY = 56f;
 
+        /// <summary>The controls hint under the preview: from x = 40 to 24 px short of the control panel (#3263).</summary>
+        internal const float HintW = 1920f - 16f - 420f - 24f - 40f;
+
         private void Start()
         {
             var s = Shell?.Settings;
+            _name = L("ui.ed.default.skin");
             _col[0] = s?.SkinColor ?? AppearancePalette.Colors[0];
             _col[1] = s?.TorsoColor ?? AppearancePalette.Colors[4];
             _col[2] = s?.ArmColor ?? AppearancePalette.Colors[4];
@@ -135,8 +141,9 @@ namespace BlocksBeyondTheStars.Client
             ColorRow(panel, ref y, L("ui.settings.torso"), 1);
             ColorRow(panel, ref y, L("ui.settings.arms"), 2);
             ColorRow(panel, ref y, L("ui.settings.legs"), 3);
-            UiKit.AddText(panel, 24f, y, w - 48f, 20f, L("ui.appearance.more_colors"), 13, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            y += 26f;
+            // An instruction: normal colour, 13 px, as many lines as the language needs (#3263).
+            UiKit.AddMeasuredText(panel, 24f, y, w - 48f, L("ui.appearance.more_colors"), 13, UiKit.TextCol, out float moreH);
+            y += Mathf.Max(20f, moreH) + 6f;
 
             y += 8f;
             UiKit.AddText(panel, 20f, y, w - 40f, 22f, L("ui.avatar.gear_preview"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
@@ -153,26 +160,33 @@ namespace BlocksBeyondTheStars.Client
 
             // One button instead of five (#899): face, torso, arms, legs and helmet are tabs of the shared
             // appearance screen, which also carries the base colours for the part being painted.
-            UiKit.AddButton(panel, 20f, y, w - 40f, 34f, L("ui.appearance.title"), OpenAppearanceEditor);
+            UiKit.AddFitButton(panel, 20f, y, w - 40f, 34f, L("ui.appearance.title"), OpenAppearanceEditor);
             y += 52f;
             UiKit.AddText(panel, 20f, y, w - 40f, 22f, L("ui.avatar.name"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
             y += 26f;
             _nameInput = UiKit.AddInput(panel, 20f, y, w - 40f, 30f, _name, v => _name = v);
             y += 44f;
 
-            UiKit.AddButton(panel, 20f, y, w - 40f, 38f, L("ui.avatar.apply"), Apply);
+            UiKit.AddFitButton(panel, 20f, y, w - 40f, 38f, L("ui.avatar.apply"), Apply);
             y += 46f;
-            UiKit.AddButton(panel, 20f, y, w - 40f, 38f, L("ui.avatar.export"), Export);
+            AddExportAndSubmit(panel, y, w - 40f);
             y += 50f;
             _status = UiKit.AddText(panel, 20f, y, w - 40f, 60f, string.Empty, 14, UiKit.Ok, TextAnchor.UpperLeft);
             _status.horizontalOverflow = HorizontalWrapMode.Wrap;
 
-            UiKit.AddButton(panel, 20f, h - 56f, 200f, 40f, L("ui.menu.back"), () => Shell?.CloseAvatarEditor());
+            UiKit.AddFitButton(panel, 20f, h - 56f, 200f, 40f, L("ui.menu.back"), () => Shell?.CloseAvatarEditor());
 
-            // Controls hint (bottom-left under the preview).
-            UiKit.AddText(root, 40f, 1020f, 900f, 26f, L("ui.avatar.hint"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
-
+            AddControlsHint(root);
             UiNav.Enable(_canvas.gameObject); // gamepad can drive the designer + outfits (inert on KB/mouse)
+        }
+
+        /// <summary>The controls hint, bottom-left under the preview: an instruction, so in the normal colour, and 16 px down
+        /// to 13 on one line, else two lines at 13 (#3263).</summary>
+        private void AddControlsHint(Transform root)
+        {
+            var hint = UiKit.AddText(root, 40f, 1080f - 14f - EditorSceneKit.BottomHintHeight, HintW, EditorSceneKit.BottomHintHeight,
+                L("ui.avatar.hint"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
+            UiKit.FitLabelLines(hint, 16, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize);
         }
 
         // --- outfits (#1047) ---
@@ -194,13 +208,13 @@ namespace BlocksBeyondTheStars.Client
             img.color = UiKit.PanelFill;
 
             UiKit.AddText(_outfitPanel, 16f, 14f, OutfitPanelW - 32f, 28f, L("ui.avatar.outfits"), 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _outfitEmpty = UiKit.AddText(_outfitPanel, 16f, OutfitRowsY, OutfitPanelW - 32f, 80f, L("ui.avatar.outfit_none"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
+            _outfitEmpty = UiKit.AddText(_outfitPanel, 16f, OutfitRowsY, OutfitPanelW - 32f, 80f, L("ui.avatar.outfit_none"), 14, UiKit.TextCol, TextAnchor.UpperLeft);
             _outfitEmpty.horizontalOverflow = HorizontalWrapMode.Wrap;
 
             float y = OutfitRowsY + ClientSettings.MaxOutfits * OutfitRowStep + 12f;
-            UiKit.AddButton(_outfitPanel, 16f, y, OutfitPanelW - 32f, 38f, L("ui.avatar.outfit_save"), SaveOutfit);
+            UiKit.AddFitButton(_outfitPanel, 16f, y, OutfitPanelW - 32f, 38f, L("ui.avatar.outfit_save"), SaveOutfit);
             y += 46f;
-            UiKit.AddButton(_outfitPanel, 16f, y, OutfitPanelW - 32f, 38f, L("ui.avatar.outfit_rename"), RenameSelectedOutfit);
+            UiKit.AddFitButton(_outfitPanel, 16f, y, OutfitPanelW - 32f, 38f, L("ui.avatar.outfit_rename"), RenameSelectedOutfit);
 
             RefreshOutfitList();
         }
@@ -254,10 +268,10 @@ namespace BlocksBeyondTheStars.Client
                 int idx = i;
                 float y = OutfitRowsY + i * OutfitRowStep;
                 var name = string.IsNullOrEmpty(outfits[i].Name) ? "?" : outfits[i].Name;
-                var load = UiKit.AddButton(_outfitPanel, 16f, y, OutfitPanelW - 32f - 56f, OutfitRowH, name, () => LoadOutfit(idx));
+                var load = UiKit.AddFitButton(_outfitPanel, 16f, y, OutfitPanelW - 32f - 56f, OutfitRowH, name, () => LoadOutfit(idx));
                 var label = load.GetComponentInChildren<Text>();
                 label.color = idx == _selectedOutfit ? UiKit.Cyan : UiKit.TextCol;
-                var del = UiKit.AddButton(_outfitPanel, OutfitPanelW - 16f - 48f, y, 48f, OutfitRowH, "✕", () => DeleteOutfit(idx));
+                var del = UiKit.AddFitButton(_outfitPanel, OutfitPanelW - 16f - 48f, y, 48f, OutfitRowH, "✕", () => DeleteOutfit(idx));
                 _outfitRows.Add(load.gameObject);
                 _outfitRows.Add(del.gameObject);
                 _outfitLabels.Add(label);
@@ -471,8 +485,8 @@ namespace BlocksBeyondTheStars.Client
             _swatch[which] = img;
 
             int idx = which;
-            UiKit.AddButton(panel, 214f, y, 80f, 30f, "→", () => CyclePart(idx, 1));
-            UiKit.AddButton(panel, 300f, y, 80f, 30f, "←", () => CyclePart(idx, -1));
+            UiKit.AddFitButton(panel, 214f, y, 80f, 30f, "→", () => CyclePart(idx, 1));
+            UiKit.AddFitButton(panel, 300f, y, 80f, 30f, "←", () => CyclePart(idx, -1));
             y += 38f;
         }
 
@@ -487,7 +501,7 @@ namespace BlocksBeyondTheStars.Client
         {
             UiKit.AddText(panel, 24f, y, 200f, 30f, label, 16, UiKit.TextCol, TextAnchor.MiddleLeft);
             int idx = which;
-            var btn = UiKit.AddButton(panel, 240f, y, 140f, 30f, OffOn(false), () => ToggleGear(idx));
+            var btn = UiKit.AddFitButton(panel, 240f, y, 140f, 30f, OffOn(false), () => ToggleGear(idx));
             _gearLabel[which] = btn.GetComponentInChildren<Text>();
             y += 38f;
         }
@@ -586,12 +600,6 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        [Serializable]
-        private sealed class SkinJson
-        {
-            public string key, name, skin, torso, arms, legs;
-        }
-
         private void Export()
         {
             string key = EditorSceneKit.Slug(_name);
@@ -601,26 +609,17 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var skin = new SkinJson
-            {
-                key = key,
-                name = _name,
-                skin = Hex(_col[0]),
-                torso = Hex(_col[1]),
-                arms = Hex(_col[2]),
-                legs = Hex(_col[3]),
-            };
-
             try
             {
                 string dir = Path.Combine(AppPaths.Root, "avatar_exports", key);
                 Directory.CreateDirectory(dir);
-                File.WriteAllText(Path.Combine(dir, "skin.json"), JsonUtility.ToJson(skin, true));
+                File.WriteAllText(Path.Combine(dir, "skin.json"), JsonUtility.ToJson(BuildSkin(key), true));
                 SetStatus($"{L("ui.avatar.exported")}\n{dir}");
             }
             catch (Exception e)
             {
-                SetStatus(L("ui.editor.export_failed") + " " + e.Message);
+                Debug.LogWarning($"[AvatarEditor] Export failed: {e}");
+                SetStatus(L("ui.ed.export_failed_hint")); // a friendly line; the exception goes to the log (#3263)
             }
         }
 

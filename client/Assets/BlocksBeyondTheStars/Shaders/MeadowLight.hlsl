@@ -34,9 +34,9 @@ float3 BbtsMeadowShade(float3 albedo, float3 wp, float sky, float3 bl, float tra
         ? lerp(MainLightRealtimeShadow(TransformWorldToShadowCoord(wp)), 1.0, GetMainLightShadowFade(wp)) * BbtsCloudShade(wp)
         : 0.0;
 
-    float amb = lerp(0.32, 0.78, sky);
+    float amb = BbtsSkyAmbient(sky); // #3265: the block shader's ramp and dark floor (AtmosphereCommon)
     float sunOpen = saturate(sky * 2.0);
-    float3 col = albedo * (light * (amb + 0.5 * ndl * sunOpen * shadow) + 0.05);
+    float3 col = albedo * (light * (amb + 0.5 * ndl * sunOpen * shadow) + BbtsDarkFloor());
 
     // The night floor: a faint cool fill on open-sky surfaces while the sun light is weak.
     float nightFloor = saturate(0.6 - dot(light, float3(0.299, 0.587, 0.114)));

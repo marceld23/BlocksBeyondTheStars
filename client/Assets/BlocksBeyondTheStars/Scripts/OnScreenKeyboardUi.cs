@@ -49,20 +49,46 @@ namespace BlocksBeyondTheStars.Client
         private System.Action<string> _onDone;
         private System.Action _onCancel;
         private GameObject _restoreSelection; // the field that opened us; reselected on Done / Cancel (#1289)
+        private bool _dim = true;             // #3264: the chat keeps the screen behind readable (its history docks above)
+        private static float _panelTop = -1f;
 
         /// <summary>True while the keyboard owns the input. Read by <see cref="UiKit.TextFieldFocused"/>,
         /// so every existing "am I typing?" check covers it without knowing this class exists.</summary>
         public static bool IsOpen => _instance != null && _instance._canvas != null;
+
+        /// <summary>#3264: the panel's top edge in the keyboard's 1920 × 1080 reference (anchored top-left, like every
+        /// <see cref="UiKit.Place"/> element) for its tallest page. The opened chat window docks above it —
+        /// <c>ChatWindowLayout.OskTopInHud</c> converts it into HUD units.</summary>
+        public static float PanelTop
+        {
+            get
+            {
+                if (_panelTop < 0f)
+                {
+                    int rows = Mathf.Max(OnScreenKeyboardLayout.Rows(KeyboardPage.Letters, false).Length,
+                        OnScreenKeyboardLayout.Rows(KeyboardPage.Symbols, false).Length);
+                    _panelTop = (1080f - PanelHeight(rows)) / 2f;
+                }
+
+                return _panelTop;
+            }
+        }
+
+        /// <summary>The panel's height for a page of <paramref name="rows"/> key rows: the title and preview line on
+        /// top, the key rows, the command row and a bottom margin.</summary>
+        private static float PanelHeight(int rows) => 150f + ((rows + 1) * (KeyH + Gap)) + 22f;
 
         /// <summary>Opens the keyboard over everything else. <paramref name="onDone"/> receives the finished
         /// text; <paramref name="onCancel"/> (optional) runs when the player backs out instead. Opening it a
         /// second time replaces the first — the last caller wins rather than stacking two keyboards.
         /// <paramref name="mask"/> shows bullets instead of the text (passwords, PINs); <paramref name="kind"/>
         /// filters the keys a number field will take; <paramref name="restoreSelection"/> is reselected when
-        /// the keyboard closes through Done or Cancel, so the pad lands back on the field it came from (#1289).</summary>
+        /// the keyboard closes through Done or Cancel, so the pad lands back on the field it came from (#1289).
+        /// <paramref name="dim"/> false leaves out the full-screen scrim: the chat (#3264) shows its history above the
+        /// keyboard, and under the scrim it would be unreadable.</summary>
         public static void Open(string title, string initial, int maxLength, System.Action<string> onDone,
             System.Action onCancel = null, bool mask = false, KeyboardContentKind kind = KeyboardContentKind.Text,
-            GameObject restoreSelection = null)
+            GameObject restoreSelection = null, bool dim = true)
         {
             if (_instance == null)
             {
@@ -75,6 +101,7 @@ namespace BlocksBeyondTheStars.Client
                 _instance = go.AddComponent<OnScreenKeyboardUi>();
             }
 
+            _instance._dim = dim;
             _instance.Show(title, initial, maxLength, onDone, onCancel, mask, kind, restoreSelection);
         }
 
@@ -184,10 +211,13 @@ namespace BlocksBeyondTheStars.Client
         private void BuildContent()
         {
             string[] rows = OnScreenKeyboardLayout.Rows(_page, _shift);
-            float panelH = 150f + (rows.Length + 1) * (KeyH + Gap) + 22f;
+            float panelH = PanelHeight(rows.Length);
             float px = (1920f - PanelW) / 2f;
             float py = (1080f - panelH) / 2f;
-            UiKit.AddModalDim(_root); // scrim first — uGUI draws in child order, so it must sit behind the panel
+            if (_dim)
+            {
+                UiKit.AddModalDim(_root); // scrim first — uGUI draws in child order, so it must sit behind the panel
+            }
             UiKit.AddDialogPanel(_root, px, py, PanelW, panelH);
 
             UiKit.AddText(_root, px + 30f, py + 18f, PanelW - 60f, 34f, _title, 22, UiKit.Cyan, TextAnchor.MiddleLeft,

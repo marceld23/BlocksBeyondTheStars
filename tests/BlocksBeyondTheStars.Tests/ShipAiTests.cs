@@ -905,6 +905,28 @@ public sealed class ShipAiTests : IDisposable
         Assert.Single(lines, l => l.LineKey == "vega.hint.tier_gate");
     }
 
+    /// <summary>#3265: VEGA's lamp and torch hints count a player as underground from three blocks of rock overhead — where
+    /// the client's skylight turns a dug tunnel dark — and only blocks that keep the daylight out count: a tree's crown, a
+    /// glass roof or water overhead are no cave.</summary>
+    [Fact]
+    public void Underground_StartsUnderThreeLightStoppingBlocks()
+    {
+        Assert.Equal(3, SvGameServer.VegaTipUndergroundSolid);
+        foreach (var key in new[] { "stone", "dirt", "wood_planks", "lava" })
+        {
+            var def = _content.GetBlock(key)!;
+            Assert.True(SvGameServer.CoversFromSky(def.NumericId, def), key + " keeps the daylight out");
+        }
+
+        foreach (var key in new[] { "tree_leaves", "glass", "glass_clear", "water" })
+        {
+            var def = _content.GetBlock(key)!;
+            Assert.False(SvGameServer.CoversFromSky(def.NumericId, def), key + " lets the daylight through");
+        }
+
+        Assert.False(SvGameServer.CoversFromSky(Shared.Primitives.BlockId.Air, null));
+    }
+
     private static void SqliteWorldRepositoryReset()
     {
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();

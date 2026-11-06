@@ -15,8 +15,20 @@ namespace BlocksBeyondTheStars.Client
         private readonly AppShell _shell;
         private float _elapsed;
 
+        /// <summary>#3261: time per frame the shader warm-up may take while the screen waits for the bundled server — the
+        /// bar keeps moving, and a new world's 10–20 s boot leaves plenty of frames for the ~100 variants.</summary>
+        private const double WarmUpBudgetMs = 6.0;
+
+        /// <summary>Seconds the screen is up before the warm-up starts, so the screen itself appears without a hitch.</summary>
+        private const float WarmUpDelaySeconds = 0.25f;
+
         /// <summary>How long to hold the loading screen before launching (raised when hosting a local server).</summary>
         public float MinShow = 0.6f;
+
+        /// <summary>#3261: true for the one frame between the launch verdict and <see cref="AppShell.LaunchGame"/>. That frame
+        /// is rendered with the status row saying "Building the world…", so the blocking rig build that follows freezes
+        /// on the right words instead of the server's last stage.</summary>
+        public bool HandingOff { get; private set; }
 
         /// <summary>Bar fill 0..1: the time ramp over MinShow, or the creeping hold band while the bundled
         /// server still generates its world (<see cref="LoadingHandoffPolicy.Progress"/>).</summary>
@@ -29,12 +41,28 @@ namespace BlocksBeyondTheStars.Client
             if (_shell.Phase != ShellPhase.Loading)
             {
                 _elapsed = 0f;
+                HandingOff = false;
                 return;
             }
 
             if (!_shell.ContentReady)
             {
                 return;
+            }
+
+            if (HandingOff)
+            {
+                HandingOff = false;
+                _elapsed = 0f;
+                _shell.LaunchGame(); // the previous frame showed "Building the world…" — the rig build runs behind it
+                return;
+            }
+
+            // #3261: the client's own preparation used to wait for the server and then run in one block behind the world
+            // veil. Shader variants need no world — compile them a few per frame while the server generates.
+            if (_shell.LocalServerBooting && _elapsed >= WarmUpDelaySeconds)
+            {
+                ShaderPrewarm.WarmUpSome(WarmUpBudgetMs);
             }
 
             // MinShow is the minimum time the screen shows, never a deadline the world start has to beat:
@@ -48,8 +76,7 @@ namespace BlocksBeyondTheStars.Client
             switch (LoadingHandoffPolicy.Next(_elapsed, MinShow, _shell.BrowserWorldBooting, _shell.LocalServerBooting))
             {
                 case LoadingHandoffPolicy.Verdict.Launch:
-                    _elapsed = 0f;
-                    _shell.LaunchGame();
+                    HandingOff = true; // one rendered frame with the client-prep line first, then LaunchGame (above)
                     break;
 
                 case LoadingHandoffPolicy.Verdict.GiveUp:

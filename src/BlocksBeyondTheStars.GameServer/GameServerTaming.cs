@@ -794,10 +794,11 @@ public sealed partial class GameServer
 
         // Leash (#855): now that walls actually stop a companion it can fall behind for good — an owner who
         // walks around a building leaves the pet probing the masonry. Past this range it simply catches up by
-        // being re-placed beside its owner, which is what players expect of a pet that "follows you anywhere".
+        // being re-placed beside its owner, which is what players expect of a pet that "follows you anywhere" —
+        // unless an energy fence pens it (#3257, LeashCompanion): then it stays in its pen.
         if (WrapDistSq(c.Position, owner.State.Position) > CompanionLeashRange * CompanionLeashRange)
         {
-            c.Position = CompanionSpotNear(sp, c.Id, owner.State.Position);
+            LeashCompanion(c, sp, owner.State.Position, moveDt);
             return;
         }
 
@@ -807,7 +808,7 @@ public sealed partial class GameServer
         c.Loco = res.State;
 
         // Companions respect energy fences like wild fauna do — a penned companion stays penned even
-        // when its owner steps out through the gate membrane (that is the point of the pen). Walls stop them
+        // when its owner steps out through the gate membrane, and past the leash too. Walls stop them
         // like they stop wild fauna (#855) — a pet used to walk straight through the player's own base.
         // They keep their freedom from the TERRAIN gate (a pet must be able to follow its owner down anything
         // and across water), but run the same vertical mechanics (#1331): a walker pet jumps the doorstep and

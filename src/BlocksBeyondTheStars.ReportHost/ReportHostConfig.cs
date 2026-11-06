@@ -59,16 +59,29 @@ public sealed class ReportHostConfig
     /// budget on polls — and a leaked key still cannot hammer the inbox.</summary>
     public int ReplyPerMinute { get; set; } = 30;
 
-    /// <summary>Files a texture submission may carry (#1966): the picture as a PNG and the texture in the game's own
-    /// format. Other report kinds carry none — their one image stays the screenshot.</summary>
+    /// <summary>Files a submission may carry: a texture's picture as a PNG and the texture in the game's own format
+    /// (#1966), or the one JSON document of a ship, station/town module or avatar skin (#3262). Other report kinds
+    /// carry none — their one image stays the screenshot.</summary>
     public int MaxAttachments { get; set; } = 4;
 
-    /// <summary>Size cap per attachment. Eight raw 64×64 frames are 131 KB; a PNG strip is far smaller.</summary>
+    /// <summary>Size cap per attachment of a texture or avatar submission. Eight raw 64×64 frames are 131 KB; a PNG
+    /// strip is far smaller; a whole painted skin is under 30 KB.</summary>
     public int MaxAttachmentBytes { get; set; } = 400_000;
 
-    /// <summary>Days to keep a texture submission that was NOT adopted (no "fixed in version" set); 0 keeps them
-    /// forever. The privacy page promises twelve months at the latest, so that is the default.</summary>
-    public int TextureRetentionDays { get; set; } = 365;
+    /// <summary>Size cap per attachment of a ship or structure submission (#3262): the client sends at most 1.5 MB
+    /// (gzipped above 300 KB). The request body stays capped by <see cref="MaxBodyBytes"/>.</summary>
+    public int MaxCreationAttachmentBytes { get; set; } = 2_000_000;
+
+    /// <summary>Days to keep a submission (any of <see cref="ReportIngest.SubmissionCategories"/>) that was NOT adopted
+    /// (no "fixed in version" set); 0 keeps them forever. The privacy page promises twelve months at the latest, so
+    /// that is the default.</summary>
+    public int SubmissionRetentionDays { get; set; } = 365;
+
+    /// <summary>The attachment size cap for a report of <paramref name="category"/>.</summary>
+    public int MaxAttachmentBytesFor(string category)
+        => category == ReportIngest.ShipCategory || category == ReportIngest.StructureCategory
+            ? MaxCreationAttachmentBytes
+            : MaxAttachmentBytes;
 
     /// <summary>Days to keep reports; 0 (default) keeps them forever. Pruning also removes the screenshot
     /// file (reports carry an optional e-mail, so retention is a privacy lever, not just disk hygiene).</summary>
@@ -106,8 +119,11 @@ public sealed class ReportHostConfig
         if (Env("BBS_REPORTS_INGEST_PER_MINUTE") is { } rlStr && int.TryParse(rlStr, out var rl)) { c.IngestPerMinute = rl; }
         if (Env("BBS_REPORTS_REPLY_PER_MINUTE") is { } rpStr && int.TryParse(rpStr, out var rp)) { c.ReplyPerMinute = rp; }
         if (Env("BBS_REPORTS_RETENTION_DAYS") is { } rdStr && int.TryParse(rdStr, out var rd)) { c.RetentionDays = rd; }
-        if (Env("BBS_REPORTS_TEXTURE_RETENTION_DAYS") is { } trStr && int.TryParse(trStr, out var tr)) { c.TextureRetentionDays = tr; }
+        // The texture-era name still works; the general one (#3262) wins when both are set.
+        if (Env("BBS_REPORTS_TEXTURE_RETENTION_DAYS") is { } trStr && int.TryParse(trStr, out var tr)) { c.SubmissionRetentionDays = tr; }
+        if (Env("BBS_REPORTS_SUBMISSION_RETENTION_DAYS") is { } srStr && int.TryParse(srStr, out var sr)) { c.SubmissionRetentionDays = sr; }
         if (Env("BBS_REPORTS_MAX_ATTACHMENT_BYTES") is { } abStr && int.TryParse(abStr, out var ab)) { c.MaxAttachmentBytes = ab; }
+        if (Env("BBS_REPORTS_MAX_CREATION_ATTACHMENT_BYTES") is { } cbStr && int.TryParse(cbStr, out var cb)) { c.MaxCreationAttachmentBytes = cb; }
         if (Env("BBS_REPORTS_TRUST_PROXY") is { } tpStr && bool.TryParse(tpStr, out var tp)) { c.TrustProxy = tp; }
         if (Env("BBS_REPORTS_NOTIFY_URL") is { } notifyUrl) { c.NotifyUrl = notifyUrl; }
 

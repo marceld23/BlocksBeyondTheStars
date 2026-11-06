@@ -2,26 +2,25 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
-using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// Player chat overlay: a scrollback of recent lines plus an input box opened with <b>Enter</b> (Esc
-    /// cancels). Sending requires a comm radio (server-enforced; the rejection shows as a toast). Messages
-    /// broadcast to all connected players.
-    ///
-    /// The scrollback lives in a holo window (#1799) — the same chrome as VEGA's speech panel, fitted to the
-    /// lines it shows — so the text reads on snow, sand and sky where the bare overlay of #643 washed out.
-    /// The window comes and goes with its content: lines age out after <see cref="FadeSeconds"/> unless the
-    /// player picked another <see cref="ChatVisibility"/>, the toggle key (default J) mutes it for the
-    /// session, and no lines means no window. Opening the input always brings the recent lines back,
-    /// whatever the mode — /help and /report answers would be unreadable otherwise (#636) — and the input
-    /// row joins the window as its bottom row until Enter/Esc closes it again.
+    /// Player chat. Sending requires a comm radio (server-enforced; the rejection shows as a toast); messages broadcast to
+    /// all connected players, and server replies and local command answers land in the same history.
+    /// <list type="bullet">
+    /// <item><b>Closed:</b> incoming lines show in a compact holo lane at the left edge (<c>ChatUi.Lane.cs</c>, #1799) —
+    /// they age out after a few seconds unless the player picked another <see cref="ChatVisibility"/>, the toggle key
+    /// (default J) mutes the lane for the session, and the lane yields to VEGA's speech panel and objective chip.</item>
+    /// <item><b>Open</b> (Enter, d-pad up, the touch CHAT button): a big centred, half-transparent window with the
+    /// session's history (200 lines), a scrollbar, a title and hint row and the input row (<c>ChatUi.Window.cs</c>,
+    /// <c>ChatUi.WindowView.cs</c>, #3264). The lane hides meanwhile and comes back without the lines read in the
+    /// window.</item>
+    /// </list>
+    /// This file holds the history, the network events and the slash commands.
     /// </summary>
-    public sealed class ChatUi : MonoBehaviour
+    public sealed partial class ChatUi : MonoBehaviour
     {
         public GameBootstrap Game;
 
@@ -31,165 +30,11 @@ namespace BlocksBeyondTheStars.Client
 
         private readonly List<ChatLine> _lines = new();
         private Canvas _canvas;
-        private RectTransform _window;
-        private CanvasGroup _windowGroup;
-        private TextMeshProUGUI _log;
-        private RectTransform _inputRow;
-        private InputField _input;
-        private RectTransform _banner;
-        private CanvasGroup _bannerGroup;
-        private TextMeshProUGUI _bannerText;
-        private float _bannerAlpha;
-        private bool _typing, _subscribed, _built, _hostAnnounced, _reportTipShown, _hiddenByKey, _capturing, _windowShown;
-        private int _openFrame = -1;
-        private float _nextRefresh = float.MaxValue;
-        private int _scroll;                 // #1922: lines hidden below the shown block while the box is open (ChatScrollback)
-        private float _commandLaneUntil;     // #1922: a typed command's answer keeps the whole lane this long
-        private const int MaxLog = 40;
-        private const int VisibleLines = 12; // the full lane fits 12 rows at 18 px; a /tp list is usually 8-15 lines
-        private const float FadeSeconds = 12f;   // how long a line stays up in the Auto mode
-        private const float FadeOutSeconds = 0.6f; // the window's dim-out once its last line has aged out
-        private const float ShowSeconds = 0.15f;   // the window's fade-in, and its fade-out on an explicit close
-        private const int LogFontSize = 18;        // between the old bare overlay (16) and VEGA's chip (20)
+        private bool _subscribed, _built, _hostAnnounced, _reportTipShown, _hiddenByKey, _capturing;
+        private int _appended;          // lines appended this session — the lane's "already read" mark counts against it
+        private const int MaxLog = 200; // #3264: the session's history (was 40); only the slice in view is ever laid out
 
-        // The left lane in HUD reference space (1536×864) — see EnsureBuilt, ResolveLane and ResolveWindow.
-        private const float LaneX = 10f, LaneW = 380f;
-        private const float LaneTop = 280f, LaneBottom = 590f; // between the toast (268) and VEGA's chip (594)
-        private const float InputRowY = 596f, InputRowH = 44f, LaneGap = 6f;
-        private const float WindowPad = 10f; // holo window inset around the text block
-
-        // The "You are in chat" banner (#1845): centred under the crosshair column — HudUi's interact prompt
-        // sits at H/2+24 and the loot line at H/2+48 (both 22 high), so the banner starts below them.
-        // The width follows the text (ResolveBannerWidth): a fixed 420 was narrower than the German and English
-        // lines themselves, which ran out past both edges of the box.
-        private const float BannerH = 52f;
-        public const float BannerMinW = 320f, BannerMaxW = 960f, BannerPadX = 28f;
-        private const float BannerMinFontSize = 14f;
-        private const float BannerY = UiKit.HudRefH / 2f + 84f;
-        private const float BannerFadeSeconds = 0.15f;
-        private const float BannerFontSize = 22f;
-
-        // VEGA visibility as of the last refresh — the lane is re-resolved when either flips (Update).
-        private bool _vegaSpeechSeen, _vegaChipSeen;
-
-        /// <summary>Where the scrollback and the input row sit this frame, in HUD reference units.</summary>
-        public readonly struct ChatLane
-        {
-            public ChatLane(float logY, float logH, float inputY)
-            {
-                LogY = logY;
-                LogH = logH;
-                InputY = inputY;
-            }
-
-            public float LogY { get; }
-
-            public float LogH { get; }
-
-            public float InputY { get; }
-        }
-
-        /// <summary>
-        /// Lane arbitration with VEGA: the chat (#643) and VEGA's speech panel + objective chip (#482) were
-        /// both placed in the "free" left column, and the chat — sorted above VEGA — drew straight across a
-        /// story line while its input row sat exactly on the objective chip. VEGA is the story-critical,
-        /// transient one, so the chat yields: while a speech line is up the scrollback ends above the
-        /// panel, and while typing with either VEGA element up the input row stacks directly under the
-        /// (shortened) scrollback instead of on top of the chip. With VEGA quiet the lane is the old one.
-        /// Pure so an EditMode test can pin the geometry.
-        /// </summary>
-        public static ChatLane ResolveLane(bool typing, bool speechVisible, bool chipVisible)
-        {
-            float bottom = speechVisible ? VegaPanel.SpeechY - LaneGap : LaneBottom;
-            float inputY = InputRowY;
-            if (typing && (speechVisible || chipVisible))
-            {
-                inputY = bottom - InputRowH;
-                bottom = inputY - LaneGap;
-            }
-
-            return new ChatLane(LaneTop, Mathf.Max(0f, bottom - LaneTop), inputY);
-        }
-
-        /// <summary>The holo window's rect this frame plus where its two rows sit inside it, in HUD reference
-        /// units. <see cref="H"/> is 0 when there is nothing to frame (no lines, not typing).</summary>
-        public readonly struct ChatWindow
-        {
-            public ChatWindow(float y, float h, float textH, float inputY, float capacity)
-            {
-                Y = y;
-                H = h;
-                TextH = textH;
-                InputY = inputY;
-                Capacity = capacity;
-            }
-
-            /// <summary>Window top, canvas space (x = <c>LaneX</c>, width = <c>LaneW</c>).</summary>
-            public float Y { get; }
-
-            /// <summary>Window height; 0 = hidden.</summary>
-            public float H { get; }
-
-            /// <summary>Height of the text block inside the window (0 = no block). It sits at <c>WindowPad</c>.</summary>
-            public float TextH { get; }
-
-            /// <summary>Window-local top of the input row (only meaningful while typing).</summary>
-            public float InputY { get; }
-
-            /// <summary>The tallest text block that fits — the caller drops rows until its block measures at most this.</summary>
-            public float Capacity { get; }
-        }
-
-        /// <summary>
-        /// The window hugs its content (#1799): it ends where the lane ends (or under the input row while
-        /// typing), grows upward by exactly the measured text block plus padding, and never rises above the
-        /// lane top — the toast sits right there. While typing the input row is the window's bottom row, so
-        /// the box the player types into is framed together with the lines it answers; with no lines that
-        /// leaves a compact input frame. No text and no typing → no window at all. Pure for the EditMode test.
-        /// </summary>
-        public static ChatWindow ResolveWindow(bool typing, bool speechVisible, bool chipVisible, float contentH)
-        {
-            var lane = ResolveLane(typing, speechVisible, chipVisible);
-            float bottom = typing ? lane.InputY + InputRowH : lane.LogY + lane.LogH;
-            float inputH = typing ? InputRowH : 0f;
-            float capacity = Mathf.Max(0f, bottom - LaneTop - inputH - 2f * WindowPad);
-            float textH = Mathf.Clamp(contentH, 0f, capacity);
-            float textBlock = textH > 0f ? textH + 2f * WindowPad : 0f;
-            float h = textBlock + inputH;
-            return new ChatWindow(bottom - h, h, textH, textBlock, capacity);
-        }
-
-        /// <summary>
-        /// The banner's alpha for this frame (#1845): it eases toward 1 while the player is typing and back to 0
-        /// once the box closes, over <see cref="BannerFadeSeconds"/> of unscaled time (the world may be held),
-        /// and is cut to 0 outright under a menu — a dialog that opened over the chat must not carry the "you
-        /// are in chat" claim on top of itself. Pure for the EditMode test; the caller deactivates the panel at 0.
-        /// </summary>
-        public static float ResolveBannerAlpha(float current, bool typing, bool menuOpen, float unscaledDt)
-        {
-            if (menuOpen)
-            {
-                return 0f;
-            }
-
-            float target = typing ? 1f : 0f;
-            float step = unscaledDt <= 0f ? 0f : unscaledDt / BannerFadeSeconds;
-            return Mathf.MoveTowards(Mathf.Clamp01(current), target, step);
-        }
-
-        /// <summary>
-        /// The banner's width for a line measured at <paramref name="textWidth"/> (TMP's unwrapped preferred
-        /// width): the text plus <see cref="BannerPadX"/> on each side, never narrower than
-        /// <see cref="BannerMinW"/> and never wider than <see cref="BannerMaxW"/>. Past the cap the label's
-        /// auto-size shrinks the font instead. Pure for the EditMode test.
-        /// </summary>
-        public static float ResolveBannerWidth(float textWidth)
-        {
-            float w = Mathf.Ceil(Mathf.Max(0f, textWidth)) + 2f * BannerPadX;
-            return Mathf.Clamp(w, BannerMinW, BannerMaxW);
-        }
-
-        /// <summary>A scrollback entry with the (unscaled) time it arrived, which is what the fade reads.</summary>
+        /// <summary>A history entry with the (unscaled) time it arrived, which is what the lane's fade reads.</summary>
         private readonly struct ChatLine
         {
             public ChatLine(string text, float time)
@@ -204,7 +49,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Chat visibility for THIS frame: the player's setting, unless the toggle key muted the
-        /// log for the session.</summary>
+        /// lane for the session.</summary>
         private ChatVisibility Mode => _hiddenByKey
             ? ChatVisibility.Off
             : Settings?.ChatVisibility ?? ChatVisibility.Auto;
@@ -217,19 +62,35 @@ namespace BlocksBeyondTheStars.Client
             }
 
             EnsureBuilt();
+            Subscribe();
+            AnnounceOnce();
+            UpdateContextVisibility();
+            UpdateWindowFrame(); // the big window: yields, refocus, scrolling, re-layout (ChatUi.Window.cs)
+            UpdateLaneFrame();   // the compact lane: VEGA flips and the fade tick (ChatUi.Lane.cs)
+            HandleKeys();
+        }
 
+        private void Subscribe()
+        {
             if (!_subscribed)
             {
                 Game.Network.ChatReceived += OnChat;
-                // Server replies land in the scrollback too (#642): a /tp target list arrives as a burst
-                // of ServerMessages, and the single-line HUD toast (GameBootstrap.LastMessage) shows only
+                // Server replies land in the history too (#642): a /tp target list arrives as a burst of
+                // ServerMessages, and the single-line HUD toast (GameBootstrap.LastMessage) shows only
                 // whichever line came last. The toast path stays — chat is the readable copy.
                 Game.Network.ServerMessageReceived += OnServerMessage;
                 Game.Network.ActionRejected += OnActionRejected;
                 _subscribed = true;
             }
 
-            // In-game host: announce the LAN address once (chat scrollback + toast) so the host
+            HookHud(); // #3264: the damage cause goes into the open window's history (ChatUi.Window.cs)
+        }
+
+        /// <summary>The one-off lines of a session: the LAN address of an in-game host, and where the report paths are on
+        /// an official hosted world.</summary>
+        private void AnnounceOnce()
+        {
+            // In-game host: announce the LAN address once (chat history + toast) so the host
             // can tell friends where to join.
             if (!_hostAnnounced && !string.IsNullOrEmpty(Game.HostInfo) && Game.Localizer != null)
             {
@@ -246,63 +107,39 @@ namespace BlocksBeyondTheStars.Client
                 _reportTipShown = true;
                 Append($"<color=#80E5D2>{ChatMarkup.RichSafe(Game.Localizer.Get("ui.chat.report_tip"))}</color>");
             }
+        }
 
-            // Context hiding, mirroring the HudUi rules: while piloting the ship the flight view draws its
-            // own overlay and the left lane belongs to it; EVA keeps the chat (you are still "on foot").
-            // Typing overrides — the input must never vanish mid-sentence, however the state flips. The
-            // /bump capture guard: that path blanks the canvas itself for its end-of-frame screenshot, and
-            // this toggle must not fight it within the frame. A cutscene hides it too (#2461) — new lines keep arriving
-            // in the scrollback and show again afterwards.
-            bool hideForContext = ((Game.SpaceViewActive && !Game.InEva) || GameBootstrap.CutsceneActive) && !_typing;
+        /// <summary>
+        /// Context hiding, mirroring the HudUi rules: while piloting the ship the flight view draws its own overlay and the
+        /// left lane belongs to it; EVA keeps the chat (you are still "on foot"). An open window overrides — the input must
+        /// never vanish mid-sentence, however the state flips. The /bump capture guard: that path blanks the canvas itself
+        /// for its end-of-frame screenshot, and this toggle must not fight it within the frame. A cutscene hides it too
+        /// (#2461) — new lines keep arriving in the history and show again afterwards.
+        /// </summary>
+        private void UpdateContextVisibility()
+        {
+            bool hideForContext = ((Game.SpaceViewActive && !Game.InEva) || GameBootstrap.CutsceneActive) && !WindowOpen;
             if (_canvas != null && !_capturing && _canvas.enabled == hideForContext)
             {
                 _canvas.enabled = !hideForContext;
             }
+        }
 
-            UpdateBanner();
-
-            // Lane arbitration (see ResolveLane): whenever VEGA's speech panel or objective chip appears or
-            // goes, the scrollback re-lays out around it. Two bool reads per frame — no allocation.
-            var vega = Game.Views.Vega;
-            bool speechUp = vega != null && vega.SpeechVisible;
-            bool chipUp = vega != null && vega.ChipVisible;
-            if (speechUp != _vegaSpeechSeen || chipUp != _vegaChipSeen)
-            {
-                RefreshLog();
-            }
-
-            // #1922: scroll-back while the box is open — the wheel and PageUp/PageDown page through the recent lines,
-            // so a long answer (/help admin, a /tp list) is readable to its first line.
-            if (_typing)
-            {
-                int scrolled = ChatScrollback.Step(_scroll, _lines.Count, Input.mouseScrollDelta.y,
-                    Input.GetKeyDown(KeyCode.PageUp), Input.GetKeyDown(KeyCode.PageDown));
-                if (scrolled != _scroll)
-                {
-                    _scroll = scrolled;
-                    RefreshLog();
-                }
-            }
-
-            // Fade tick: the scrollback ages out on its own, so re-render when the next line is due to go
-            // (RefreshLog parks _nextRefresh at float.MaxValue whenever nothing is pending).
-            if (Time.unscaledTime >= _nextRefresh)
-            {
-                RefreshLog();
-            }
-
-            // Open the input with Enter — or, on a pad, with d-pad up: the chat box was the last thing on
-            // the HUD a controller could not reach at all (#1211/#1220). KeypadEnter stays a raw second key
-            // rather than a binding: it is the SAME key to a player, not a second one to configure.
-            if (!_typing && !Game.MenuOpen && !GameBootstrap.CutsceneActive
+        private void HandleKeys()
+        {
+            // Open the window with Enter — or, on a pad, with d-pad up: the chat box was the last thing on the HUD a
+            // controller could not reach at all (#1211/#1220). KeypadEnter stays a raw second key rather than a binding:
+            // it is the SAME key to a player, not a second one to configure. Never in the frame the window closed: the
+            // Enter that sent a line must not open it again.
+            if (!WindowOpen && Time.frameCount != _closedFrame
                 && (InputMap.Down(InputAction.OpenChat) || Input.GetKeyDown(KeyCode.KeypadEnter)))
             {
                 OpenInput();
             }
 
-            // Mute/unmute the scrollback for this session (default J). The setting picks the default
+            // Mute/unmute the lane for this session (default J). The setting picks the default
             // behaviour; this is the in-the-moment "get it off my screen" without opening the menu.
-            if (!_typing && !Game.MenuOpen && InputMap.Down(InputAction.ToggleChat))
+            if (!WindowOpen && !Game.MenuOpen && InputMap.Down(InputAction.ToggleChat))
             {
                 _hiddenByKey = !_hiddenByKey;
                 Game.ShowMessage(HudUi.ExpandKeyTokens(Game.Localizer, L(_hiddenByKey ? "ui.chat.hidden" : "ui.chat.shown"))); // "press {key:ToggleChat} again" (#2502)
@@ -310,142 +147,21 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>
-        /// Fades the "You are in chat" banner (#1845) in while the keyboard box is open and out once it closes.
-        /// Players kept typing into the world because nothing said the chat had the keys — the placeholder in
-        /// the small box at the left edge was the only hint. The pad's on-screen keyboard is its own full-screen
-        /// take-over and needs no banner (and its Enter/Esc wording would be wrong there), so this reads
-        /// <see cref="_typing"/> — the InputField path — not <c>Game.ChatTyping</c>.
-        /// </summary>
-        private void UpdateBanner()
-        {
-            if (_banner == null || _bannerGroup == null)
-            {
-                return;
-            }
-
-            bool wasHidden = _bannerAlpha <= 0f;
-            _bannerAlpha = ResolveBannerAlpha(_bannerAlpha, _typing, Game.MenuOpen, Time.unscaledDeltaTime);
-            bool shown = _bannerAlpha > 0f;
-            bool refit = shown && wasHidden && _bannerText != null;
-            if (refit)
-            {
-                _bannerText.text = L("ui.chat.typing_banner"); // re-read on every show: the language can change mid-session
-            }
-
-            if (_banner.gameObject.activeSelf != shown)
-            {
-                _banner.gameObject.SetActive(shown);
-            }
-
-            if (refit)
-            {
-                FitBanner(); // after activation, so TMP measures a live label
-            }
-
-            if (shown)
-            {
-                _bannerGroup.alpha = _bannerAlpha;
-            }
-        }
-
-        /// <summary>Sizes the banner to its current text and re-centres it on the crosshair column.</summary>
-        private void FitBanner()
-        {
-            float w = ResolveBannerWidth(_bannerText.GetPreferredValues(_bannerText.text).x);
-            UiKit.Place(_banner.gameObject, (UiKit.HudRefW - w) / 2f, BannerY, w, BannerH);
-            UiKit.Place(_bannerText.gameObject, 0f, 0f, w, BannerH);
-        }
-
-        /// <summary>Appends a rendered line to the scrollback, stamped with the moment it arrived (the fade
-        /// reads that), trims the buffer and re-renders.</summary>
+        /// <summary>Appends a rendered line to the history, stamped with the moment it arrived (the lane's fade reads
+        /// that), trims the buffer and re-renders whichever view is up.</summary>
         private void Append(string rendered)
         {
             _lines.Add(new ChatLine(rendered, Time.unscaledTime));
+            _heights.Add(float.NaN); // measured when the window first lays it out
+            _appended++;
             if (_lines.Count > MaxLog)
             {
                 _lines.RemoveAt(0);
+                _heights.RemoveAt(0);
             }
 
-            _scroll = _typing ? ChatScrollback.OnLineAdded(_scroll, _lines.Count) : 0;
+            OnHistoryLineAdded(); // the open window keeps a reader's place (ChatUi.Window.cs)
             RefreshLog();
-        }
-
-        /// <summary>Opens the chat input box (the same path as pressing Enter). Public so the touch layer's
-        /// CHAT button can open it — tablets have no Enter key. On WebGL-touch (no soft keyboard in the
-        /// browser) it skips the dead InputField and goes straight through the browser prompt.</summary>
-        public void OpenInput()
-        {
-            // Not while a /bump screenshot holds the canvas off for its end-of-frame capture: the focus guard would
-            // release the field under the hidden canvas within the opening frame, whose OnEndEdit is ignored, and
-            // the box would be stuck "typing" without focus. The capture is over by the next frame.
-            if (_typing || _capturing || Game == null || Game.MenuOpen)
-            {
-                return;
-            }
-
-            if (TouchTextEntry.NeedsPrompt)
-            {
-                string label = Game.Localizer != null ? Game.Localizer.Get("ui.chat.hint") : "Chat";
-                Submit(TouchTextEntry.Prompt(label, string.Empty));
-                return;
-            }
-
-            if (OnScreenKeyboardUi.WantedFor())
-            {
-                // A pad has no keyboard: type the line on the on-screen grid. Like the browser-prompt path
-                // above this does not enter _typing (the grid owns the screen while it is up), but
-                // ChatTyping still goes up — it is what stops the chat overlay from fading, the context
-                // list from opening underneath and the L3/Feedback hotkeys from firing mid-sentence — and
-                // it comes back down whichever way the grid is closed.
-                var game = Game;
-                string padLabel = game.Localizer != null ? game.Localizer.Get("ui.chat.hint") : "Chat";
-                game.ChatTyping = true;
-                OnScreenKeyboardUi.Open(padLabel, string.Empty, _input != null ? _input.characterLimit : 0,
-                    text =>
-                    {
-                        if (game != null)
-                        {
-                            game.ChatTyping = false;
-                        }
-
-                        Submit(text);
-                    },
-                    () =>
-                    {
-                        if (game != null)
-                        {
-                            game.ChatTyping = false;
-                        }
-                    });
-                return;
-            }
-
-            _typing = true;
-            _scroll = 0;
-            _openFrame = Time.frameCount;
-            Game.ChatTyping = true;
-            _inputRow.gameObject.SetActive(true);
-            _input.text = string.Empty;
-
-            // Show the chat canvas BEFORE the field wakes and focuses: in the flight view Update keeps it disabled
-            // while nobody types, and it only re-enables it on the NEXT frame. The field would focus under a
-            // disabled canvas this frame — its Text caches "no canvas" and the caret rebuild at the end of the frame
-            // throws in InputField.GenerateCaret (the 2026.9.9 crash report). The /bump capture owns the canvas while
-            // it runs.
-            if (_canvas != null && !_capturing)
-            {
-                _canvas.enabled = true;
-            }
-
-            // Wake and place the window BEFORE focusing the field (#1806): the input row lives inside the
-            // holo window since #1801, and the window is inactive whenever it has nothing to show (empty
-            // scrollback, aged-out lines, muted). uGUI's ActivateInputField silently no-ops on a field
-            // under an inactive parent — the row then appeared but took no keys, and with _typing already
-            // set neither Enter nor Esc could get the player out. While typing the window always has a
-            // height (ResolveWindow), so RefreshLog is guaranteed to activate it.
-            RefreshLog();
-            _input.ActivateInputField();
         }
 
         private void OnDisable()
@@ -455,14 +171,11 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.ChatReceived -= OnChat;
                 Game.Network.ServerMessageReceived -= OnServerMessage;
                 Game.Network.ActionRejected -= OnActionRejected;
+                _subscribed = false;
             }
 
-            if (Game != null && _typing)
-            {
-                Game.ChatTyping = false;
-            }
-
-            ReleaseSelection();
+            UnhookHud();
+            DropWindowOnDisable();
         }
 
         private void OnChat(BlocksBeyondTheStars.Networking.Messages.ChatMessage m)
@@ -508,50 +221,14 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private void OnEndEdit(string text)
-        {
-            if (Time.frameCount == _openFrame)
-            {
-                return; // ignore the Enter that opened the box
-            }
+        /// <summary>True for a slash command: after one the window stays open until Esc, so its answer can be read
+        /// where it was asked (#3264 — replaces #1922's "the answer keeps the whole lane" trick).</summary>
+        private static bool IsCommand(string text) => (text ?? string.Empty).TrimStart().StartsWith("/", System.StringComparison.Ordinal);
 
-            // Enter submits; clicking away / Esc cancels.
-            bool enter = Input.GetKey(KeyCode.Return) || Input.GetKey(KeyCode.KeypadEnter);
-            if (enter)
-            {
-                Submit(text);
-            }
-
-            _typing = false;
-            _scroll = 0;
-            Game.ChatTyping = false;
-            _input.text = string.Empty;
-            _inputRow.gameObject.SetActive(false);
-            ReleaseSelection();
-            RefreshLog();
-        }
-
-        /// <summary>Drops the EventSystem selection if it still points at the chat box. uGUI never
-        /// deselects a deactivated InputField on its own, so after Esc/Enter the hidden box stayed the
-        /// "selected" object until the next world click — and every "is a text field focused?" check
-        /// (the VEGA continue key first of all) kept answering yes (#1634).</summary>
-        private void ReleaseSelection()
-        {
-            var es = UnityEngine.EventSystems.EventSystem.current;
-            if (es != null && _input != null && es.currentSelectedGameObject == _input.gameObject)
-            {
-                es.SetSelectedGameObject(null);
-            }
-        }
-
-        /// <summary>Sends a finished chat line (also the touch/browser prompt path, which has no Enter key).</summary>
+        /// <summary>Sends a finished chat line (also the pad keyboard and the touch/browser prompt paths).</summary>
         private void Submit(string text)
         {
             string t = (text ?? string.Empty).Trim();
-            if (t.StartsWith("/", System.StringComparison.Ordinal))
-            {
-                _commandLaneUntil = Time.unscaledTime + FadeSeconds; // its answer gets the whole lane (#1922)
-            }
 
             // Ordinary prose is capped at the server's 200-char chat limit anyway — trim it here so what
             // the player sends is what arrives. Share codes pass through untrimmed: the server answers
@@ -563,7 +240,7 @@ namespace BlocksBeyondTheStars.Client
             if (t.StartsWith("/bump", System.StringComparison.OrdinalIgnoreCase))
             {
                 // Bug report: grab a screenshot first, then send it with the description. The capture
-                // runs next frame (after the chat box closes), so the input box stays out of the shot.
+                // runs at the end of the frame with the chat canvas switched off, so the window stays out of the shot.
                 string desc = t.Length > 5 ? t.Substring(5).Trim() : string.Empty;
                 StartCoroutine(CaptureBumpAndSend(desc, t));
             }
@@ -1067,184 +744,11 @@ namespace BlocksBeyondTheStars.Client
             Append($"<color=#7fd4ff>{ChatMarkup.RichSafe(s)}</color>");
         }
 
-        /// <summary>
-        /// Re-renders the scrollback for the current moment: which lines are still young enough to show,
-        /// and how bright. Called when something changed or a line is due to expire — never blindly every
-        /// frame; <see cref="_nextRefresh"/> carries the next moment worth redrawing at.
-        /// </summary>
-        private void RefreshLog()
-        {
-            if (_log == null || _window == null)
-            {
-                return;
-            }
-
-            var vega = Game?.Views.Vega;
-            _vegaSpeechSeen = vega != null && vega.SpeechVisible;
-            _vegaChipSeen = vega != null && vega.ChipVisible;
-
-            _nextRefresh = float.MaxValue;
-            var mode = Mode;
-
-            // While the input is open the recent scrollback shows in full, whatever the mode: you cannot
-            // answer what you cannot read, and "off" still has to show /help and /report replies.
-            bool keepAll = _typing || mode == ChatVisibility.Always;
-            bool showLines = keepAll || mode != ChatVisibility.Off;
-            float now = Time.unscaledTime;
-
-            // #1922: while typing, and for the fade time after a typed command, the chat keeps its WHOLE lane even over
-            // VEGA's speech panel (the chat canvas draws above it). Yielding left ~90 px there — /help lost its first
-            // line and /help admin half its entries. Idle chat still yields, as #1798 wants.
-            bool commandLane = !_typing && now < _commandLaneUntil;
-            bool speechLane = _vegaSpeechSeen && !_typing && !commandLane;
-            if (commandLane && _vegaSpeechSeen)
-            {
-                _nextRefresh = _commandLaneUntil; // give the lane back to VEGA once the answer has been up its time
-            }
-
-            int end = _typing ? ChatScrollback.End(_scroll, _lines.Count) : _lines.Count;
-            int from = showLines ? Mathf.Max(0, end - VisibleLines) : _lines.Count;
-            if (showLines && !keepAll)
-            {
-                // Auto: drop what has aged out. The oldest row still up is the next to go, so that is the
-                // next moment worth redrawing at; once the last one is gone the whole window dims out.
-                while (from < _lines.Count && now - _lines[from].Time >= FadeSeconds)
-                {
-                    from++;
-                }
-
-                if (from < _lines.Count)
-                {
-                    _nextRefresh = Mathf.Min(_nextRefresh, _lines[from].Time + FadeSeconds);
-                }
-            }
-
-            // Fit the block to the window's capacity: drop the oldest lines until what is left measures in
-            // (TMP lays the block out against the window's inner width without rendering it). At most a
-            // dozen measurements per refresh, and refreshes are rare (a new line, a fade tick, a VEGA flip).
-            // A window that is hidden right now is woken for the measurement — TMP needs a live rect.
-            string block = from < end ? Compose(from, end, trimmed: false) : string.Empty;
-            float textH = 0f;
-            if (block.Length > 0)
-            {
-                if (!_window.gameObject.activeSelf)
-                {
-                    _window.gameObject.SetActive(true);
-                }
-
-                float capacity = ResolveWindow(_typing, speechLane, _vegaChipSeen, float.MaxValue).Capacity;
-                textH = Measure(block);
-                while (from < end - 1 && textH > capacity)
-                {
-                    from++;
-                    block = Compose(from, end, trimmed: true);
-                    textH = Measure(block);
-                }
-            }
-
-            var win = ResolveWindow(_typing, speechLane, _vegaChipSeen, textH);
-            bool visible = win.H > 0f;
-            if (visible)
-            {
-                // Content and geometry change only while there is something to show: a window on its way
-                // out keeps its last lines so they dim rather than vanish a beat before the frame does.
-                _log.text = block;
-                UiKit.Place(_window.gameObject, LaneX, win.Y, LaneW, win.H);
-                UiKit.Place(_log.gameObject, WindowPad, WindowPad, LaneW - 2f * WindowPad, Mathf.Max(win.TextH, 1f));
-                if (_inputRow != null)
-                {
-                    UiKit.Place(_inputRow.gameObject, 0f, win.InputY, LaneW, InputRowH);
-                }
-            }
-
-            // Lines that aged out dim over their final moment; an explicit close (Esc, the J key, the Off
-            // mode) or an empty scrollback goes as briskly as the window came.
-            bool agedOut = !visible && showLines && _lines.Count > 0 && !_typing;
-            SetWindowShown(visible, agedOut ? FadeOutSeconds : ShowSeconds);
-        }
-
-        /// <summary>Height of <paramref name="block"/> laid out at the window's inner width, canvas units.</summary>
-        private float Measure(string block)
-            => _log.GetPreferredValues(block, LaneW - 2f * WindowPad, 10000f).y;
-
-        /// <summary>Fades the holo window in (<see cref="ShowSeconds"/>) or out over <paramref name="fadeOut"/>
-        /// and deactivates it once gone. A line arriving mid-fade simply reverses the tween from where it is.</summary>
-        private void SetWindowShown(bool shown, float fadeOut)
-        {
-            if (_window == null || _windowGroup == null)
-            {
-                return;
-            }
-
-            if (shown)
-            {
-                if (!_window.gameObject.activeSelf)
-                {
-                    _window.gameObject.SetActive(true);
-                }
-
-                if (!_windowShown)
-                {
-                    _windowShown = true;
-                    UiTween.Alpha(_windowGroup, 1f, ShowSeconds);
-                }
-
-                return;
-            }
-
-            if (!_windowShown)
-            {
-                if (_window.gameObject.activeSelf)
-                {
-                    _window.gameObject.SetActive(false); // woken for a measurement that found nothing to show
-                }
-
-                return;
-            }
-
-            _windowShown = false;
-            UiTween.Alpha(_windowGroup, 0f, fadeOut, UiTween.Ease.OutCubic, 0f, () =>
-            {
-                if (_window != null && !_windowShown)
-                {
-                    _window.gameObject.SetActive(false);
-                }
-            });
-        }
-
-        /// <summary>The scrollback from index <paramref name="from"/> up to (excluding) <paramref name="end"/>, one per row,
-        /// with a dim hint row where lines are out of view (#1922): while typing "older lines — wheel / PageUp" above and
-        /// "newer lines" below; otherwise, when lines were dropped to fit, "press Enter to read everything".</summary>
-        private string Compose(int from, int end, bool trimmed)
-        {
-            var sb = new System.Text.StringBuilder();
-            if (_typing ? from > 0 : trimmed)
-            {
-                sb.AppendLine(HintRow(_typing ? "ui.chat.scroll_older" : "ui.chat.scroll_open"));
-            }
-
-            for (int i = from; i < end; i++)
-            {
-                sb.AppendLine(_lines[i].Text);
-            }
-
-            if (_typing && end < _lines.Count)
-            {
-                sb.AppendLine(HintRow("ui.chat.scroll_newer"));
-            }
-
-            return sb.ToString();
-        }
-
-        private string HintRow(string key) => $"<color=#80E5D2><size=85%>{ChatMarkup.RichSafe(L(key))}</size></color>";
-
         private void OnDestroy()
         {
-            // A window fade still running would poke a destroyed CanvasGroup — drop it first.
-            if (_windowGroup != null)
-            {
-                UiTween.Kill(_windowGroup);
-            }
+            // A window fade still running would poke a destroyed CanvasGroup — drop them first.
+            KillLaneTweens();
+            KillWindowTweens();
 
             // Top-level canvas — destroy it with the component so chat doesn't linger on the menu.
             if (_canvas != null)
@@ -1265,89 +769,9 @@ namespace BlocksBeyondTheStars.Client
             // against the HUD at every scale step, and diegetic means it rides the visor pipeline with the
             // rest of the HUD rather than floating flat in front of the glass.
             _canvas = UiKit.CreateDiegeticCanvas("ChatUI", UiKit.HudRefW, UiKit.HudRefH);
-            _canvas.sortingOrder = 25; // below menus (50) / map (60), above the HUD (10) and the world
-            var root = _canvas.transform;
-
-            // Both rows live in the left lane between the vitals panel (ends y 260) and the scan panel
-            // (starts y 650). The old bottom-left placement covered ~85 % of the scan panel plus the left
-            // hotbar cells and the controls hint line. WIDTH IS CAPPED for the same reason the scan panel
-            // caps its own: the hotbar backplate owns x 400…1136, so this lane must not reach x 400.
-            // In the flight view the lane is clear too — its instruments sit at the very bottom (y 818+).
-            // The lane is SHARED with VEGA (speech panel y 396…586, objective chip y 594…642): RefreshLog
-            // re-places the window via ResolveLane/ResolveWindow whenever VEGA shows or hides one of hers.
-            //
-            // The window (#1799) is VEGA's speech-panel chrome — same fill, radius and glow — so the two
-            // read as one family in the column; the bare overlay of #643 had no backplate and washed out
-            // on bright ground. It starts hidden and transparent; RefreshLog sizes it to its lines and
-            // fades it in and out (a CanvasGroup — UiHolo keeps the vertex alpha free for exactly that).
-            var panel = UiHolo.AddPanel(root, LaneX, LaneBottom, LaneW, 1f, new Color(0.05f, 0.10f, 0.16f, 0.82f), 12f, 1.5f, 1.2f);
-            panel.gameObject.name = "ChatWindow";
-            _window = panel.rectTransform;
-            _windowGroup = _window.gameObject.AddComponent<CanvasGroup>();
-            _windowGroup.alpha = 0f;
-            _windowGroup.interactable = true;
-            _windowGroup.blocksRaycasts = true; // the input field inside must stay clickable
-
-            _log = UiText.Add(_window, WindowPad, WindowPad, LaneW - 2f * WindowPad, 1f, string.Empty, LogFontSize, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Normal, UiText.Look.Outline);
-            UiText.Wrap(_log); // wrap inside the window; the block is fitted to its measured height, never clipped
-
-            // Input row (hidden until typing): the window's bottom row while the box is open, so what the
-            // player types sits in the same frame as the lines it answers.
-            var rowGo = new GameObject("ChatInputRow", typeof(RectTransform));
-            rowGo.transform.SetParent(_window, false);
-            _inputRow = rowGo.GetComponent<RectTransform>();
-            UiKit.Place(rowGo, 0f, 0f, LaneW, InputRowH);
-            var inputGo = new GameObject("ChatInput", typeof(RectTransform));
-            inputGo.transform.SetParent(_inputRow, false);
-            UiKit.Place(inputGo, WindowPad, 6, LaneW - 2f * WindowPad, 32);
-            var img = inputGo.AddComponent<Image>();
-            var field = UiHolo.Apply(img, UiHolo.Style.Panel, 6f, 1f, 0.5f); // a darker holo well inside the window
-            if (field != null)
-            {
-                img.color = new Color(0.02f, 0.05f, 0.10f, 1f);
-                field.FillOpacity = 0.9f;
-            }
-            else
-            {
-                img.color = new Color(0.04f, 0.09f, 0.18f, 0.95f); // bitmap fallback: the old flat field
-            }
-
-            _input = inputGo.AddComponent<InputField>();
-            var txt = UiKit.AddText(inputGo.transform, 8, 0, LaneW - 2f * WindowPad - 16f, 32, string.Empty, LogFontSize, UiKit.TextCol, TextAnchor.MiddleLeft);
-            txt.supportRichText = false;
-            var ph = UiKit.AddText(inputGo.transform, 8, 0, LaneW - 2f * WindowPad - 16f, 32, L("ui.chat.send_hint"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Italic);
-            _input.textComponent = txt;
-            _input.placeholder = ph;
-            // Room for a pasted build share code — the server refuses over-long codes with a clear hint
-            // instead of truncating, and Submit() trims ordinary prose to the 200-char chat cap (#1154).
-            _input.characterLimit = 4096;
-            _input.lineType = InputField.LineType.SingleLine;
-            _input.onEndEdit.AddListener(OnEndEdit);
-            // The chat field is built by hand (not UiKit.AddInput), so it takes the focus guard itself: the chat canvas
-            // is the one that hides in the flight view.
-            inputGo.AddComponent<InputFocusGuard>().Init(_input);
-            _inputRow.gameObject.SetActive(false);
-            _window.gameObject.SetActive(false); // no lines yet — no window (RefreshLog wakes it)
-
-            // "You are in chat" banner (#1845): the same holo chrome as the window, centred under the crosshair
-            // column, fading with the input box (UpdateBanner). Purely informational — it must never take a
-            // click or the pad focus away from the box or the world, hence no raycasts anywhere on it.
-            var bannerPanel = UiHolo.AddPanel(root, (UiKit.HudRefW - BannerMinW) / 2f, BannerY, BannerMinW, BannerH,new Color(0.05f, 0.10f, 0.16f, 0.82f), 12f, 1.5f, 1.2f);
-            bannerPanel.gameObject.name = "ChatTypingBanner";
-            bannerPanel.raycastTarget = false;
-            _banner = bannerPanel.rectTransform;
-            _bannerGroup = _banner.gameObject.AddComponent<CanvasGroup>();
-            _bannerGroup.alpha = 0f;
-            _bannerGroup.interactable = false;
-            _bannerGroup.blocksRaycasts = false;
-            _bannerText = UiText.Add(_banner, 0f, 0f, BannerMinW, BannerH, L("ui.chat.typing_banner"), BannerFontSize, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold, UiText.Look.Outline);
-            _bannerText.raycastTarget = false;
-            // Only a line wider than BannerMaxW ever shrinks: TMP measures the preferred width at fontSizeMax.
-            _bannerText.enableAutoSizing = true;
-            _bannerText.fontSizeMin = BannerMinFontSize;
-            _bannerText.fontSizeMax = BannerFontSize;
-            _banner.gameObject.SetActive(false);
-
+            _canvas.sortingOrder = 25; // below menus (50) / map (60), above the HUD (10), VEGA (11) and the world
+            BuildLane(_canvas.transform);
+            BuildBigWindow(_canvas.transform);
             _built = true;
         }
 

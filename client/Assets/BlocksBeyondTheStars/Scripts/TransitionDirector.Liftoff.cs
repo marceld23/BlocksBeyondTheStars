@@ -11,15 +11,17 @@ namespace BlocksBeyondTheStars.Client
     /// vapour cone and its boom — and it climbs away into the sky until it punches into the clouds (or the glare of an
     /// airless world), where the flight view takes over. The server removed the parked hull the moment the flight opened;
     /// <see cref="LandedShipView"/> hands that hull here (<see cref="AdoptDepartingShip"/>) instead of dropping it, so the
-    /// very ship the player stood in is the one that flies.
+    /// very ship the player stood in is the one that flies. #3258: the glide out to the spot only plays when its way is
+    /// clear and the spot sees the whole lift-off; else the lift-off starts at the helm and cuts outside on the first beat
+    /// from which the planned spot sees the climb — or stays in the cockpit up to the clouds when no spot ever does.
     /// </summary>
     public sealed partial class TransitionDirector
     {
-        private const float IgniteAt = 0.35f;
-        private const float LiftAt = 1.6f;
-        private const float ClimbAt = 2.8f;
-        private const float BoomAt = 3.3f;
-        private const float CloudsAt = 4.1f;
+        private const float IgniteAt = TransitionFlightPath.IgniteAt;
+        private const float LiftAt = TransitionFlightPath.LiftAt;
+        private const float ClimbAt = TransitionFlightPath.ClimbAt;
+        private const float BoomAt = TransitionFlightPath.BoomAt;
+        private const float CloudsAt = TransitionFlightPath.CloudsAt;
         private const float WaitForHull = 0.35f;
 
         private GameObject _adopted;
@@ -105,7 +107,7 @@ namespace BlocksBeyondTheStars.Client
             LiftoffBeats();
             HideRealHatch(true);
             FlyHull(dt);
-            AimLiftoff();
+            LiftoffShot();
             if (_stageTime >= CloudsAt)
             {
                 CloseDepartureCover(0.55f, ownStage: false); // the hull climbs on into the closing clouds
@@ -134,9 +136,22 @@ namespace BlocksBeyondTheStars.Client
                 new Color(1f, 0.62f, 0.3f), 0f, 18f, flicker: true);
             _ignited = _lifted = _climbing = _boomed = false;
             _nose = Vector3.forward;
-            _spot = ShotSpot(_hullBox, Mathf.Max(11f, _hullBox.extents.magnitude * 1.8f), 1.8f);
+            PlanShot(TransitionShotStage.Liftoff, _adoptedModel, Mathf.Max(11f, _hullBox.extents.magnitude * 1.8f), 1.8f);
             TakeCamera();
-            AimShot(_spot, _hullBox.center, 0.9f);
+            if (_plan != null && _plan.Glide)
+            {
+                AimShot(_spot, _hullBox.center, TransitionFlightPath.LiftoffGlideSeconds); // the classic glide out to the spot
+            }
+            else if (_cabinGlide)
+            {
+                GoInside(TransitionFlightPath.LiftoffGlideSeconds); // #3258: through the cabin to the helm
+            }
+            else
+            {
+                HoldEye();
+                Blink(() => GoInside(0f));
+            }
+
             _stageTime = 0f;
         }
 
@@ -185,15 +200,10 @@ namespace BlocksBeyondTheStars.Client
         private void FlyHull(float dt)
         {
             float t = _stageTime;
-            float rise = t < LiftAt ? 0f : Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((t - LiftAt) / (ClimbAt - LiftAt))) * 5f;
-            float climbT = Mathf.Max(0f, t - ClimbAt);
-            float pitch = Mathf.SmoothStep(0f, 16f, Mathf.Clamp01((t - LiftAt - 0.4f) / 1.2f));
-            _nose = Quaternion.Euler(-pitch, 0f, 0f) * Vector3.forward;
-            var climb = (_nose * 0.6f + Vector3.up).normalized * (climbT * climbT * 14f);
-            float wobble = t > LiftAt && t < ClimbAt + 0.5f ? 0.8f : 0.2f;
-            var shake = new Vector3(Mathf.Sin(t * 13f), 0f, Mathf.Cos(t * 11f)) * 0.05f * wobble;
-            _stand.transform.SetPositionAndRotation(_restPos + Vector3.up * rise + climb + shake,
-                Quaternion.Euler(-pitch, 0f, Mathf.Sin(t * 2.3f) * 1.5f * wobble));
+            var pose = TransitionFlightPath.Liftoff(t); // #3258: the same path the shot plan sampled
+            _nose = new Vector3(0f, pose.NoseY, pose.NoseZ);
+            _stand.transform.SetPositionAndRotation(_restPos + new Vector3(pose.X, pose.Y, pose.Z),
+                Quaternion.Euler(pose.RotX, 0f, pose.RotZ));
 
             float power = t < IgniteAt ? 0f : t < LiftAt ? Mathf.Lerp(0.2f, 0.75f, (t - IgniteAt) / (LiftAt - IgniteAt)) : 1f;
             var fallback = _hullBox.center - _restPos + Vector3.down * _hullBox.extents.y;
@@ -201,7 +211,7 @@ namespace BlocksBeyondTheStars.Client
             ShipCinematicFx.EngineFire(_stand.transform, _exhausts, fallback, push, power);
             FxLights.Set(_light, new Color(1f, 0.62f, 0.3f), 3.4f * power);
             var ground = new Vector3(_hullBox.center.x, _hullBox.min.y, _hullBox.center.z);
-            float height = rise + climb.y;
+            float height = pose.Y;
             ShipCinematicFx.DustSwirl(ground, _hullBox.extents.magnitude + 3f, power * Mathf.Clamp01(1f - height / 18f), _dust);
             if (power > 0.1f)
             {
@@ -209,13 +219,34 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>The camera keeps the hull in frame: low beside it while it lifts, tilting up and rising a little after
-        /// it as it climbs away.</summary>
-        private void AimLiftoff()
+        /// <summary>The lift-off's camera. Outside it keeps the hull in frame: low beside it while it lifts, tilting up and
+        /// rising a little after it as it climbs away — and goes into the cockpit for good the moment that view gets blocked
+        /// (#3258). In the cockpit it cuts outside on the planned beat (never once the clouds close, nor after the safety net
+        /// took it in).</summary>
+        private void LiftoffShot()
         {
             var centre = _stand.transform.position + (_hullBox.center - _restPos);
             float follow = Mathf.Clamp01((_stageTime - ClimbAt) / 1.5f);
             var spot = _spot + Vector3.up * (Mathf.Max(0f, centre.y - _hullBox.center.y) * 0.25f * follow);
+            if (_mode == ShotMode.Cockpit)
+            {
+                bool cutOut = !_stayInside && _plan != null && _plan.HasOutside && _blinkTime < 0f
+                              && _stageTime >= _plan.OutsideFrom && _stageTime < CloudsAt;
+                if (cutOut)
+                {
+                    AimShot(spot, centre, 0f);
+                }
+
+                return;
+            }
+
+            if (OutsideBlocked(centre))
+            {
+                _stayInside = true;
+                GoInside(0f);
+                return;
+            }
+
             MoveShot(spot, centre);
         }
 

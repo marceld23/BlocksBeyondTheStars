@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using BlocksBeyondTheStars.Client;
+using BlocksBeyondTheStars.Client.Feedback;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Localization;
 using NUnit.Framework;
@@ -15,18 +16,35 @@ using UnityEngine.UI;
 namespace BlocksBeyondTheStars.Client.Tests.EditMode
 {
     /// <summary>
-    /// The texture editor's "Submit to the developers" dialog (#1965), built for real (Open → Build; edit mode runs no
-    /// Update). Pins #2575 — the three consent sentences were inset with offsetMin/offsetMax on a POINT-anchored label,
-    /// came out −24 wide and rendered as empty boxes, so no texture could be submitted — and #2576: Submit stays
-    /// clickable and, with a box still open, says what is missing and rings the open boxes instead of being a dead
-    /// button. The consent sentences are checked in every game language: each must fit its box completely.
+    /// The editors' "Submit to the developers" dialog — textures (#1965), ships, station/town modules and avatar skins
+    /// (#3262) — built for real (Open → Build; edit mode runs no Update). Pins #2575 — the three consent sentences were
+    /// inset with offsetMin/offsetMax on a POINT-anchored label, came out −24 wide and rendered as empty boxes, so
+    /// nothing could be submitted — and #2576: Submit stays clickable and, with a box still open, says what is missing
+    /// and rings the open boxes instead of being a dead button. The consent sentences of EVERY kind are checked in
+    /// every game language: each must fit its box completely.
     /// </summary>
-    public sealed class TextureSubmitDialogEditModeTests
+    public sealed class CreationSubmitDialogEditModeTests
     {
         private readonly List<GameObject> _spawned = new();
         private bool _hadEventSystem, _hadUiSound;
 
         private static IEnumerable<GameLocale> Locales => (GameLocale[])Enum.GetValues(typeof(GameLocale));
+
+        private static readonly string[] Kinds =
+        {
+            CreationSubmission.KindTexture, CreationSubmission.KindShip, CreationSubmission.KindStructure, CreationSubmission.KindAvatar,
+        };
+
+        private static IEnumerable<object[]> LocalesAndKinds()
+        {
+            foreach (var locale in Locales)
+            {
+                foreach (string kind in Kinds)
+                {
+                    yield return new object[] { locale, kind };
+                }
+            }
+        }
 
         [SetUp]
         public void SetUp()
@@ -38,7 +56,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         [TearDown]
         public void TearDown()
         {
-            var canvas = GameObject.Find(TextureSubmitDialog.CanvasName);
+            var canvas = GameObject.Find(CreationSubmitDialog.CanvasName);
             if (canvas != null)
             {
                 UnityEngine.Object.DestroyImmediate(canvas);
@@ -68,21 +86,22 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             }
         }
 
-        [TestCaseSource(nameof(Locales))]
-        public void ConsentSentences_AreVisibleAndFitTheirBoxCompletely(GameLocale locale)
+        [TestCaseSource(nameof(LocalesAndKinds))]
+        public void ConsentSentences_AreVisibleAndFitTheirBoxCompletely(GameLocale locale, string kind)
         {
             var table = LocaleTable(locale);
             var english = LocaleTable(GameLocale.English);
-            OpenDialog(key => table.TryGetValue(key, out var text) || english.TryGetValue(key, out text) ? text : key);
+            OpenDialog(key => table.TryGetValue(key, out var text) || english.TryGetValue(key, out text) ? text : key, kind);
             RequireFontRasterization();
 
             for (int i = 1; i <= 3; i++)
             {
-                var button = Part<Button>(TextureSubmitDialog.ConsentName + i);
+                var button = Part<Button>(CreationSubmitDialog.ConsentName + i);
                 var box = ((RectTransform)button.transform).rect;
                 var label = button.GetComponentInChildren<Text>();
                 var rt = label.rectTransform;
-                string key = "ui.tex.submit.check_" + i;
+                string key = CreationSubmitDialog.TextKey(kind, "check_" + i);
+                Assert.IsTrue(english.ContainsKey(key), $"consent {i} of '{kind}' has an English sentence ({key})");
                 string sentence = table.TryGetValue(key, out var own) ? own : english[key];
 
                 Assert.Greater(rt.rect.width, 0f, $"consent {i}: the label must have a width — it was −24 and drew nothing (#2575)");
@@ -97,7 +116,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
                 var generator = new TextGenerator();
                 generator.Populate(label.text, settings);
                 Assert.GreaterOrEqual(generator.characterCountVisible, label.text.Length,
-                    $"consent {i} ({locale.Code()}): the sentence must fit its box completely, even at the smallest best-fit size — "
+                    $"consent {i} of '{kind}' ({locale.Code()}): the sentence must fit its box completely, even at the smallest best-fit size — "
                     + "a consent the child cannot read in full is no consent");
             }
         }
@@ -106,7 +125,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         public void Submit_IsClickableBeforeAnyBoxIsTicked()
         {
             OpenDialog(key => key);
-            Assert.IsTrue(Part<Button>(TextureSubmitDialog.SubmitName).interactable,
+            Assert.IsTrue(Part<Button>(CreationSubmitDialog.SubmitName).interactable,
                 "a Submit that is merely off looks clickable and does nothing — it must answer instead (#2576)");
         }
 
@@ -114,51 +133,93 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         public void SubmitWithAConsentMissing_SaysWhatIsMissingAndRingsOnlyTheOpenBoxes()
         {
             OpenDialog(key => key);
-            Click(TextureSubmitDialog.ConsentName + 1);
-            Click(TextureSubmitDialog.SubmitName);
+            Click(CreationSubmitDialog.ConsentName + 1);
+            Click(CreationSubmitDialog.SubmitName);
 
-            Assert.AreEqual("ui.tex.submit.need_consent", Part<Text>(TextureSubmitDialog.StatusName).text,
+            Assert.AreEqual("ui.tex.submit.need_consent", Part<Text>(CreationSubmitDialog.StatusName).text,
                 "the status line names what is missing");
             Assert.IsFalse(Ring(1).enabled, "a ticked box gets no ring");
             Assert.IsTrue(Ring(2).enabled, "an open box is ringed");
             Assert.IsTrue(Ring(3).enabled, "an open box is ringed");
-            Assert.IsTrue(Part<Button>(TextureSubmitDialog.SubmitName).interactable, "nothing was sent — Submit still answers");
+            Assert.IsTrue(Part<Button>(CreationSubmitDialog.SubmitName).interactable, "nothing was sent — Submit still answers");
 
-            Click(TextureSubmitDialog.ConsentName + 2);
+            Click(CreationSubmitDialog.ConsentName + 2);
             Assert.IsFalse(Ring(2).enabled, "ticking a box takes its ring away");
             Assert.IsTrue(Ring(3).enabled);
 
-            Click(TextureSubmitDialog.ConsentName + 3);
+            Click(CreationSubmitDialog.ConsentName + 3);
             Assert.IsFalse(Ring(3).enabled);
-            Assert.AreEqual(string.Empty, Part<Text>(TextureSubmitDialog.StatusName).text, "all three ticked: the hint goes away");
-            StringAssert.StartsWith("☑", Part<Button>(TextureSubmitDialog.ConsentName + 2).GetComponentInChildren<Text>().text);
+            Assert.AreEqual(string.Empty, Part<Text>(CreationSubmitDialog.StatusName).text, "all three ticked: the hint goes away");
+            StringAssert.StartsWith("☑", Part<Button>(CreationSubmitDialog.ConsentName + 2).GetComponentInChildren<Text>().text);
+        }
+
+        [Test]
+        public void EveryCreationKind_HasItsOwnTitleAndConsent_AndSharesTheAgeSentence()
+        {
+            foreach (string kind in Kinds)
+            {
+                if (kind == CreationSubmission.KindTexture)
+                {
+                    continue;
+                }
+
+                Assert.AreEqual($"ui.submit.{kind}.title", CreationSubmitDialog.TextKey(kind, "title"));
+                Assert.AreEqual($"ui.submit.{kind}.check_1", CreationSubmitDialog.TextKey(kind, "check_1"));
+                Assert.AreEqual("ui.tex.submit.check_3", CreationSubmitDialog.TextKey(kind, "check_3"));
+                Assert.AreEqual("ui.submit.not_configured", CreationSubmitDialog.TextKey(kind, "not_configured"));
+            }
+
+            Assert.AreEqual("ui.tex.submit.title", CreationSubmitDialog.TextKey(CreationSubmission.KindTexture, "title"),
+                "the texture keeps its approved wording");
+        }
+
+        [Test]
+        public void ACreationDialog_ShowsItsKindsWording()
+        {
+            OpenDialog(key => key, CreationSubmission.KindShip);
+            StringAssert.EndsWith("ui.submit.ship.check_1", Part<Button>(CreationSubmitDialog.ConsentName + 1).GetComponentInChildren<Text>().text);
+            StringAssert.EndsWith("ui.tex.submit.check_3", Part<Button>(CreationSubmitDialog.ConsentName + 3).GetComponentInChildren<Text>().text);
         }
 
         [Test]
         public void Cancel_ClosesTheDialog()
         {
             var dialog = OpenDialog(key => key);
-            Click(TextureSubmitDialog.CancelName);
+            Click(CreationSubmitDialog.CancelName);
             Assert.IsFalse(dialog.IsOpen);
-            Assert.IsNull(GameObject.Find(TextureSubmitDialog.CanvasName));
+            Assert.IsNull(GameObject.Find(CreationSubmitDialog.CanvasName));
         }
 
         // ---------------------------------------------------------------- helpers
 
-        private TextureSubmitDialog OpenDialog(Func<string, string> localize)
+        private CreationSubmitDialog OpenDialog(Func<string, string> localize, string kind = CreationSubmission.KindTexture)
         {
-            var host = new GameObject("TextureEditorUnderTest");
+            var host = new GameObject("EditorUnderTest");
             _spawned.Add(host);
-            var dialog = host.AddComponent<TextureSubmitDialog>();
+            var dialog = host.AddComponent<CreationSubmitDialog>();
             dialog.Localize = localize;
-            dialog.Open("ash", "Ash", new[] { new byte[16] }, 0);
+            if (kind == CreationSubmission.KindTexture)
+            {
+                dialog.Open("ash", "Ash", new[] { new byte[16] }, 0);
+            }
+            else
+            {
+                dialog.Open(new CreationSubmitRequest
+                {
+                    Kind = kind,
+                    Key = "my_" + kind,
+                    DisplayName = "Mine",
+                    Payload = new CreationPayload { CellCount = 1 }.Add(kind + ".json", "{}"),
+                });
+            }
+
             Assert.IsTrue(dialog.IsOpen, "the dialog opened");
             return dialog;
         }
 
         private static T Part<T>(string name) where T : Component
         {
-            var canvas = GameObject.Find(TextureSubmitDialog.CanvasName);
+            var canvas = GameObject.Find(CreationSubmitDialog.CanvasName);
             Assert.IsNotNull(canvas, "the dialog canvas exists");
             foreach (var part in canvas.GetComponentsInChildren<T>(true))
             {
@@ -172,7 +233,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             return null;
         }
 
-        private static Image Ring(int consent) => Part<Image>(TextureSubmitDialog.ConsentRingName + consent);
+        private static Image Ring(int consent) => Part<Image>(CreationSubmitDialog.ConsentRingName + consent);
 
         private static void Click(string name) => Click(Part<Button>(name));
 

@@ -306,11 +306,16 @@ namespace BlocksBeyondTheStars.Client
 
             // Procedurally generate the block texture atlas and a material that samples it
             // (M27). Falls back to whatever WorldRig assigned if the shader is missing.
+            var prepWatch = System.Diagnostics.Stopwatch.StartNew(); // #3261: [LaunchTiming]
             Atlas = BlockTextureAtlas.Acquire(Content); // #1523: one atlas per process, shared with menu/intro/editors
+            LaunchTiming.Note("atlas", prepWatch.Elapsed.TotalMilliseconds);
 
             // #1521: compile the world shaders' variants now, behind the opaque loading veil, instead of one
             // hitch each when the weather/sun/preset first switches a keyword mid-game. Once per process.
+            // #3261: the desktop loading screen warms them while the server boots — this only finishes the rest.
+            prepWatch.Restart();
             int warmedVariants = ShaderPrewarm.WarmUp();
+            LaunchTiming.Note("shaders", prepWatch.Elapsed.TotalMilliseconds, $"{warmedVariants} here, {ShaderPrewarm.WarmedEarly} while waiting");
             if (warmedVariants > 0)
             {
                 Debug.Log($"[Shaders] Prewarmed {warmedVariants} variants.");
@@ -533,6 +538,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void Update()
         {
+            LaunchTiming.Flush(); // #3261: once, on the world's first frame — every Start of the rig has run by now
             Network?.Poll();
             _worldHold?.Tick(Time.realtimeSinceStartup); // #2461: one keep-alive for every holder (menu, feedback, …)
             _worldClock.Advance(Time.deltaTime); // after Poll, so a PauseState that just landed takes effect now

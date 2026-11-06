@@ -40,7 +40,7 @@ public static class ReportHostApp
         var log = app.Logger;
 
         int prunedAtStart = store.Prune(config.RetentionDays, ReportHostRuntime.NowUnix());
-        prunedAtStart += store.PruneTextureSubmissions(config.TextureRetentionDays, ReportHostRuntime.NowUnix());
+        prunedAtStart += store.PruneSubmissions(config.SubmissionRetentionDays, ReportHostRuntime.NowUnix());
         // Reports stored before the reply channel (#1327) get their reply key derived from the player id they
         // already carry, so their reporters can be answered too. Idempotent — a no-op after the first start.
         int backfilled = store.BackfillReplyKeys();

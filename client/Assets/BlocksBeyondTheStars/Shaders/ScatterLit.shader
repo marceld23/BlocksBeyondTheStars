@@ -170,6 +170,7 @@ Shader "BlocksBeyondTheStars/ScatterLit"
 
             fixed4 _Sc_Light;
             float4 _Sc_SunDir;
+            float _Sc_DarkFloor;  // #3265: the flat dark floor (0 = unset → 0.045), see AtmosphereCommon's BbtsDarkFloor
             float4 _Sc_GrassTint; // #2835: see the URP pass
             float4 _Sc_Season;    // #3042: see the URP pass
 
@@ -234,7 +235,10 @@ Shader "BlocksBeyondTheStars/ScatterLit"
                 float sky = saturate(i.light.a);
                 float ndl = saturate(normalize(_Sc_SunDir.xyz).y);
                 float3 albedo = ScatterBase(i.color);
-                float3 col = albedo * (light * (lerp(0.32, 0.78, sky) + 0.5 * ndl * saturate(sky * 2.0)) + 0.05) + albedo * i.light.rgb;
+                // #3265: AtmosphereCommon's BbtsSkyAmbient ramp and dark floor, repeated (CG cannot include it).
+                float amb = lerp(0.32, 0.78, sky) - 0.30 * saturate(1.0 - sky / 0.55);
+                float darkFloor = _Sc_DarkFloor > 0.0 ? _Sc_DarkFloor : 0.045;
+                float3 col = albedo * (light * (amb + 0.5 * ndl * saturate(sky * 2.0)) + darkFloor) + albedo * i.light.rgb;
                 fixed4 outc = fixed4(col, 1);
                 UNITY_APPLY_FOG(i.fogCoord, outc);
                 return outc;

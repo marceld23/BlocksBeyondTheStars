@@ -64,10 +64,12 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         // change (15838 / 12876 verts, 6148 + 140 tris); the deep and sky chunks are unchanged.
         // Re-pinned 2026-11-04 (#3174, #3181): five new blocks (the lift gate pair, three plank sorts) shifted the ids and the
         // atlas slots. Vertex and triangle counts did not change (15838 / 12876 verts, 6148 + 140 tris); sky unchanged.
+        // Re-pinned 2026-11-06 (#3265): the skylight rule (thin cover × nearest opening, wells) changes the baked sky values
+        // of covered cells. Geometry did not change (15838 / 12876 verts, 7580 + 306 / 6148 + 140 tris); sky unchanged.
         private static readonly Dictionary<string, ulong> Pinned = new Dictionary<string, ulong>
         {
-            ["deep (5,1,7)"] = 0x1602da1f724b5bbdUL,
-            ["surface (5,2,7)"] = 0xc09c758c6b0606e1UL,
+            ["deep (5,1,7)"] = 0x6fd62ed3de158a3dUL,
+            ["surface (5,2,7)"] = 0xdf248467c2307031UL,
             ["sky (5,3,7)"] = 0xd6a8cf1a27eab505UL,
         };
 

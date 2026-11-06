@@ -231,7 +231,11 @@ the `Client.Core` assembly, see [CLIENT_TESTING.md](CLIENT_TESTING.md)):
   in Client.Core); widget classes are reopened only when a second consumer needs a widget as an
   object. `CraftingTechShipUI.cs` is the screen's shell with one
   `CraftingTechShipUI.<Part>.cs` file per tab or page plus the shared `.Recipes`, `.Stations` and
-  `.Scaffolding` parts. `UiMainMenu.Build` is a short orchestrator over a private `Builder` with one
+  `.Scaffolding` parts. `ChatUi.cs` holds the chat history, the network events and the slash commands;
+  `ChatUi.Lane.cs` is the compact lane of incoming lines at the left edge and `ChatUi.Window.cs` /
+  `.WindowView.cs` the big centred window the chat opens into (#3264) — its place among VEGA, the HUD columns
+  and the on-screen keyboard is the pure `ChatWindowLayout` and its history slicing `ChatScrollback`, both in
+  Client.Core. `UiMainMenu.Build` is a short orchestrator over a private `Builder` with one
   `Build*` method per block of the menu, called in draw order — the order is behaviour (the boot
   stagger, raycasts and gamepad focus follow the hierarchy), pinned by
   `MainMenuHierarchyEditModeTests`; the menu's native-only Official-worlds overlay is the partial

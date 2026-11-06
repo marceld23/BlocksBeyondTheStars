@@ -9,7 +9,8 @@ Unity-free in `Shared`.
 
 - `Shared/Definitions/RailRules.cs` — the constants (auto-link range 32 / 30°, linker range 64, two links per pylon, 64
   pylons per line, hover height 0.5, the wagon box 6 × 3 × 3.2, the speed table 4 / 8 / 12 blocks/s, the stop halt 8 s,
-  boarding reach 4, stow reach 5), `AutoLinkFits`, the seat offsets per wagon kind, `ClampLocal` / `OutsideWagon`
+  boarding reach 4, stow reach 5), `AutoLinkFits`, `AutoLinkBendDegrees` / `AutoLinkCost` (the fallback's ranking:
+  distance + 0.5 blocks per degree of bend, #3256), the seat offsets per wagon kind, `ClampLocal` / `OutsideWagon`
   (the rider's box), `WagonArc` (the wagons hang behind the cab by the train's fixed **facing**, #2741), the train's
   motion — `TrainSpan`, `CabRange` (where the cab's arc may run so every wagon stays on an open line), `Advance` (runs
   the arc; a loop wraps, an open line bounces off the range's ends — only the direction flips, the rest of the step runs
@@ -18,8 +19,9 @@ Unity-free in `Shared`.
   `LocalToWorld` / `WorldToLocal` (the frame: local X across, Y up from the floor, Z toward
   the cab; heading = radians about +Y, forward (cos, 0, sin), right (sin, 0, −cos)) and `FrameId` (`train:wagon`).
 - `Shared/Definitions/RailSpline.cs` — a Catmull-Rom spline through the pylon tops with an arc-length table, the
-  `SandwormPath` idea in 3D: unwrapped along X relative to the first point so a line over the world seam is one curve,
-  wrapped back on the way out; open (a path, the train reverses at the ends) or closed (a loop); `PointAt`, `YawAt`,
+  `SandwormPath` idea in 3D: unwrapped along X and Z (#3256 — Z wraps at the latitude period) relative to the first
+  point so a line over either world seam is one curve, wrapped back on the way out (`Nearest` measures both the short
+  way round); open (a path, the train reverses at the ends) or closed (a loop); `PointAt`, `YawAt`,
   `PoseAt` (the wagon centre + heading), `Nearest`, `NormalizeArc`. The wire carries only the points; both sides build
   the same curve.
 
@@ -36,11 +38,20 @@ TrainLocalX/Y/Z` (never a persisted bond: a join clears it).
 
 - **Graph.** `RailWorldState` on `LoadedWorld`: nodes keyed by the pylon's top cell (stacking re-keys the node upward,
   mining the top drops it down), links as data. `OnRailBlockPlaced` (after the Crystal Net hook in `HandlePlace`'s
-  `JoinPlacedBlockToNets`, `GameServerPlacement.cs`) auto-links to the builder's previous pylon (`LastPylon`) when
-  `LinkRefusal` is null: range, the bend rule against the previous link's direction, the two-link cap, the 64-pylon
-  cap, and the **clearance check** `LinkClear` — the wagon box (three columns across, four cells up from the hover
-  height) swept one block at a time along the straight run between the two tops; any solid, non-liquid, non-flora
-  block that is not a pylon or a stop refuses ("Obstacle").
+  `JoinPlacedBlockToNets`, `GameServerPlacement.cs`) auto-links (`AutoLinkPlacedPylon`, `GameServerRailAutoLink.cs`)
+  to the builder's previous pylon (`LastPylon`) when `LinkRefusal` is null: range, the two-link cap ("branch" — checked
+  before the bend since #3256, so a full pylon says "no forks"), the bend rule against the previous link's direction,
+  the 64-pylon cap, and the **clearance check** `LinkClear` — the wagon box (three columns across, four cells up from
+  the hover height) swept one block at a time along the straight run between the two tops; any solid, non-liquid,
+  non-flora block that is not a pylon or a stop refuses ("Obstacle"). Every delta (the range, the previous direction
+  `LineDirectionInto`, the clearance sweep) runs the short way round both seams — #3256: the previous direction used to
+  be raw, so the first straight pylon after a link over x = 0 read as a U-turn ("too sharp"). When the previous pylon
+  does not take the new one (none — mining and a world load forget it —, out of range, refused), `BestFreeLineEnd`
+  tries every **free line end** (≤ 1 link, not the generated intercity line) in auto-link range whose own line the new
+  pylon continues within 30°, cheapest first by `RailRules.AutoLinkCost`, until one passes `LinkRefusal` — fill a gap,
+  extend the other end, re-place a mined pylon; the straighter continuation beats a parallel line's nearer end. One
+  link per placement. When nothing links the builder hears the previous pylon's refusal, or — out of range / none —
+  `srv.rail.no_link_hint` (use the linker); the world's very first pylon keeps VEGA's `vega.sys.rail_first`.
   `UseRailLinker` (the `rail_linker` gadget: first use picks A, second couples A–B or uncouples them). `RebuildRailLines`
   walks every component from an end (a loop from its first pylon), keeps a line's id while its first pylon stands,
   builds the spline, and lands every `rail_stop` device within `StopReach` of a line on it. The graph and the trains
@@ -231,5 +242,8 @@ Tests: `RailTests` (auto-link, the bend and the obstacle, the linker's loop and 
 across the seam and the frame's round trip, the cab and the wagons, running and reversing, speed and halt, stow, the
 stop and the signal, two riders — one walking, one seated — riding along, walking out, leaving; a reversing train
 carrying a rider on the rear bench and a walker in the cab without a jump, coupling at the line's start; the dealer,
-the kit and the locales), `RailRulesTrainMotionTests` (`Advance` / `CabRange` / `LeadArc`, pure) and
+the kit and the locales), `RailAutoLinkTests` (#3256: a straight row across the X and the Z seam, the spline over the
+Z seam, the fallback's ranking, extending the other end and filling a gap, a re-placed pylon after mining, a parallel
+line's nearer end not stolen, "branch" before "too sharp", the linker hint but VEGA's welcome on the first pylon),
+`RailRulesTrainMotionTests` (`Advance` / `CabRange` / `LeadArc`, pure) and
 `TrainDrawArcTests` (Client.Tests: the drawn arc bounces with the server, never jumps).

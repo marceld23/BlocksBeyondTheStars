@@ -245,8 +245,18 @@ namespace BlocksBeyondTheStars.Client
             return rt;
         }
 
+        /// <summary>The height of the bottom hint: room for two lines at 13 px.</summary>
+        public const float BottomHintHeight = 36f;
+
+        /// <summary>How wide the centred bottom hint may be between a left panel of <paramref name="leftPanelW"/> and a
+        /// right one of <paramref name="rightPanelW"/> (both 16 px from the edges of the 1920 reference width), with
+        /// 12 px to spare on each side — it ran over both panels in 8 of 14 languages (#3263).</summary>
+        public static float BottomHintWidth(float leftPanelW, float rightPanelW)
+            => 2f * (Mathf.Min(960f - 16f - leftPanelW, 1920f - 16f - rightPanelW - 960f) - 12f);
+
         /// <summary>The bottom-centre controls hint line: a <paramref name="width"/>-wide, non-raycast label 14 px
-        /// above the bottom edge of <paramref name="root"/>, showing <paramref name="text"/>.</summary>
+        /// above the bottom edge of <paramref name="root"/>, showing <paramref name="text"/> — 16 px down to 13 px on one
+        /// line, else two lines at 13 px (<see cref="UiKit.FitLabelLines"/>, again whenever the text is swapped).</summary>
         public static Text AddBottomHint(Transform root, float width, string text)
         {
             var hintGo = new GameObject("Hint", typeof(RectTransform));
@@ -254,8 +264,8 @@ namespace BlocksBeyondTheStars.Client
             var hrt = hintGo.GetComponent<RectTransform>();
             hrt.anchorMin = hrt.anchorMax = new Vector2(0.5f, 0f);
             hrt.pivot = new Vector2(0.5f, 0f);
-            hrt.sizeDelta = new Vector2(width, 24f);
-            hrt.anchoredPosition = new Vector2(0f, 14f);
+            hrt.sizeDelta = new Vector2(width, BottomHintHeight);
+            hrt.anchoredPosition = new Vector2(0f, 10f);
             var hint = hintGo.AddComponent<Text>();
             hint.font = UiKit.Font;
             hint.fontSize = 16;
@@ -264,6 +274,7 @@ namespace BlocksBeyondTheStars.Client
             hint.horizontalOverflow = HorizontalWrapMode.Overflow;
             hint.raycastTarget = false;
             hint.text = text;
+            UiKit.FitLabelLines(hint, 16, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize);
             return hint;
         }
 

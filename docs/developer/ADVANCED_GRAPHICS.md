@@ -50,7 +50,7 @@ renders in **linear colour space**, and the hand-written shaders are all dual-pi
   shallows twice (#2411); the height fog counts half on a water surface, because the probe's mist floor *is* the water
   (`BbtsHazeAmountScaled`, #2412); the sky sheen caps at 30 % of the sky at a grazing angle instead of 16 % (#2413);
   `_Sc_SeaLevel` (from the far-terrain world info) keeps wet ground and snow caps off the seabed (#2414); the weather
-  surface measures its exposure past the mesher's shade floor (`BBTS_SHADE_FLOOR` = `ChunkMesher.ShadeFloor` 0.55), so
+  surface measures its exposure past the mesher's shade floor (`BBTS_SHADE_FLOOR` = `SkylightRules.ShadeFloor` 0.55), so
   a roofed floor gets no snow cap and no wet gloss (#3164 — it got 55 % of both); the far-terrain
   sea takes the world's water tint and the rainbow bands from the same globals as the near water — vertex alpha 0.5
   marks it (#2415); the IMGUI underwater wash thins to ~15 % while the shader-side underwater haze is active (#2416).
@@ -98,8 +98,8 @@ renders in **linear colour space**, and the hand-written shaders are all dual-pi
     `ShadowsMidtonesHighlights` cool lean turns warm, the mood LUT drops to a quarter (#2813). The cabin fill gets a
     colour, `_Sc_IndoorColor` — warm white by day, amber in the evening (`Sky.CabinEvening`: the planet's sun when
     landed, the real clock in the space ship-interior world), and the evening fill is a fifth brighter so the cabin
-    does not sink with the outdoor night (#2814/#2815). The transparent shader keeps its neutral light: it has no
-    skylight channel, so a cabin fill there would also warm the lake outside the window.
+    does not sink with the outdoor night (#2814/#2815). Since #3265 the transparent shader reads the skylight too and
+    adds the fill only where the sky does not reach, so the lake outside the window stays untouched.
   - *Cosiness slider* (`ClientSettings.Cosiness`, default 0.5, #2820): multiplied by `Sky.CozyPlaceTarget` (home 1,
     lit camp 0.8, gentle worlds 0.6, harsh 0.3–0.4, storms half, a hostile within 24 m or Valuma's unease 0); softens
     contrast and lifts shadows from 0 %, warms from 15 %, and from 50 % lowers the bloom threshold a little and lifts the
@@ -215,6 +215,60 @@ volumetric march); `Headlamp.cs` sets its globals, `HeadlampRules` (Client.Core)
   field, so the presence stays under the compression threshold) re-sends the presence on a toggle; the
   client uploads the nearest four lit lamps within 48 m as `_Sc_RLamp*` arrays from each avatar's helmet along its head.
 
+### Caves, tunnels and nights are dark (#3265)
+
+A dug tunnel lit like tree shade along its whole length, and the eye adaptation brightening every dark scene ×1.78, made a
+cave about as bright as noon. Caves and moonless nights are now dark — never pitch black (silhouettes stay readable) —
+and the suit lamp, torches and glowing cave flora are what lights them. Expected (scene-linear vs. noon on open ground,
+top face, sun-like star): a cave without light ≈ 6–7 % by day and ≈ 5 % at night (was ~100 % / 21 %), an open
+moonless night ≈ 18 % (was 28 %).
+
+- **Mesher skylight** (`ChunkMesher.Skylight.cs` → `SkylightField` / `SkylightRules` in Client.Core, tested headless in
+  `SkylightFieldTests`): open overhead → 1, except at the bottom of a one-block-wide well (≥ 6 of the 8 neighbours are
+  walls at the cell's height: a 1×1 shaft, a narrow trench) — `WellLight` by the lowest wall above the cell: 1 block → 1,
+  3 → 0.55, ≥ 8 → 0.25 (a one-block hole stays lit). Covered → max(the 5×5 kernel's open share, the shade floor
+  0.55 × max(thin cover × depth fade, near opening)). *Thin cover* counts the light-stopping blocks between the cell and
+  its column top (the block-light flood's rule — leaves, plants, glass, water, slim props and cutout cubes do not count):
+  0–1 → 1, 2 → 0.5, ≥ 3 → 0, times the #1608 depth fade (full to 6 deep, gone at 14), so a crown or a one-block roof
+  keeps 0.55 exactly as before. *Near opening* = the nearest column open at the cell's own height — the kernel's rings,
+  then the 8 compass directions at 3–7 blocks — ≤ 2 → 1, linear to 0 at 8, times that opening's own skylight (the tunnel
+  at the foot of a deep shaft is never brighter than the shaft's floor). The column window grew to 16 + 2 × 10 (the
+  probes plus the opening's kernel); per-cell values are cached per build. Every skylight consumer keyed on ≥ 0.55
+  (wet surfaces, snow caps, sway shelter, ground scatter, plant glow, height fog) reads exactly as before.
+- **Sky ambient** (`BbtsSkyAmbient` in `AtmosphereCommon.hlsl`): `lerp(0.32, 0.78, sky) − 0.30 · saturate(1 − sky/0.55)` —
+  unchanged from the shade floor up, 0.02 instead of 0.32 at sky 0, so a cave no longer follows the sun (noon vs. night
+  differs only by the small `light` share). Used by `BlockAtlas` (URP; the Built-in pass repeats the formula), the
+  meadow (`MeadowLight.hlsl`) and the Built-in `ScatterLit`; `Reports20261103WiringTests` pins all four. The flat
+  `+ 0.05` is the global `_Sc_DarkFloor` (`BbtsDarkFloor`, default 0.045; unset reads as the default).
+- **Water and glass** (`BlockAtlasTransparent`) get the mesher skylight (`TEXCOORD5`): their light is
+  `sun × BbtsSkyLightScale(sky)` (the ramp normalised to the open sky: 1 / 0.73 / 0.03) plus the interior fill on
+  sky-occluded panes; the night fill is gated by the skylight, the dark floor added below it, the sky reflection and the
+  sun glint darkened by it, and the haze gets the real value. Open water is unchanged.
+- **Haze underground:** `BbtsHazeAmountScaled` × `lerp(saturate(sky·2), 1, camera exposure)` (not under water) — a long
+  tunnel's far end no longer sinks into a bright sky-coloured veil.
+- **Eye adaptation** (`EyeAdaptationRules`, Client.Core): the dark's boost (up to +0.9 EV) is capped at +0.35 EV
+  underground — `AtmosphereProbe.UndergroundFactor`: at least three sky-stopping blocks over the head (rock, not leaves,
+  glass or water; `ChunkMesher.StopsSky`) — and above ground eases from +0.2 EV at night to the old +0.9 EV by day, so a
+  forest floor or a house at noon keeps its look (`ExposedToSky` is false under any tree crown, so it is not the signal;
+  the models' light and the cosy damping key on `UndergroundFactor` too); toward the dark at 0.07 EV/s (~5 s to the cap), toward the
+  light still 2.5 EV/s. `HeadlampRules.AdaptedBrightness` still counts a lit lamp as light. The `[Atmosphere]` capture
+  log line carries `adaptEv` and `modelLight`.
+- **Models** (`LitColor`: creatures, avatars, doors, held items): key light, floor and fill × `_Sc_ModelLight`
+  (`DarkLightRules.ModelLight`, set per camera in `Sky.OnBeginCamera` — previews and the menu keep 1): the world light's
+  luma from 0.12 (moonless night) to 1 (noon), sinking toward 0.15 while the camera is underground, lifted by an interior
+  fill. The glow pattern, the headlamps and the FX lights stay on top, so a hostile in the dark stays visible.
+- **Cosy grade:** the place factor of `Sky.CozyPlaceTarget` × `lerp(0.3, 1, camera exposure)` unless fixtures light the
+  spot (`LampLight > 0.3`) — a dark cave gets no shadow lift, a lit camp in a cave stays cosy. Home is unchanged.
+- **Own base:** a room of the player's own base (`AtHome`, not aboard) gets a gentle interior fill of 0.3
+  (`DarkLightRules.HomeBaseFill`, `Sky.Dark.cs`), so a dug home without lamps is dim-cosy, not cave-dark. The distance
+  haze still fades with the cabin fill only.
+- **"Visibility in the dark"** (`ClientSettings.DarkVisibility`, 0–100 % in steps of 25, default 0): the dark floor
+  0.045 → 0.15, the underground adaptation cap +0.35 → +0.7 EV and the models' dark value 0.12 → 0.4. The Brightness
+  slider and the eye-adaptation switch stay as they were.
+- **VEGA** (server): the lamp and torch hints count a player as underground from 3 light-stopping blocks overhead
+  (was 6 blocks of anything; leaves, plants, water and glass no longer count — `GameServer.CoversFromSky`).
+- Night itself is untouched (`Sky` night floor 0.35): measure the open night with the clip recorder before lowering it.
+
 ## Design rationale worth keeping
 
 - **Why URP.** TAA, SSR, a maintained post stack, Forward+ many-lights and Shader Graph are first-class
@@ -277,6 +331,9 @@ Ordered by impact ÷ effort. These are the next polish milestones; each is prese
   `VolumetricLightPolicy`, `LampOccupancy`.
 - Suit headlamp (#3229–#3234): `Shaders/Headlamp.hlsl`, `Headlamp.cs`, `PlayerController.Gear.cs`,
   `PlayerAvatar.Lamp.cs`, `RemotePlayers.Lamps.cs`; Client.Core `HeadlampRules`.
+- The dark (#3265): `ChunkMesher.Skylight.cs`, `Sky.Dark.cs`, `AtmosphereProbe.cs`, `AtmosphereCommon.hlsl`
+  (`BbtsSkyAmbient`, `BbtsDarkFloor`, `BbtsSkyLightScale`); Client.Core `SkylightRules`, `SkylightField`,
+  `EyeAdaptationRules`, `DarkLightRules`.
 
 ## Open questions
 

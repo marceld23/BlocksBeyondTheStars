@@ -47,7 +47,9 @@ namespace BlocksBeyondTheStars.Client.Feedback
     ///
     /// The dialog tells the player exactly what is sent; this builder is where that promise is kept: no e-mail,
     /// no location, no machine facts, no screenshot, and the in-game player name is NOT used — only the nickname
-    /// the player typed for this purpose (or none).
+    /// the player typed for this purpose (or none). Ships, station/town modules and avatar skins travel the same
+    /// way through <see cref="CreationSubmission"/> (#3262); this body stays exactly as it was, so the texture's pull
+    /// tool and merge path are untouched.
     /// </summary>
     public static class TextureSubmission
     {
@@ -140,24 +142,15 @@ namespace BlocksBeyondTheStars.Client.Feedback
                         ["nickname"] = nickname,
                         ["frames"] = frames.Count,
                         ["fps"] = frames.Count > 1 ? fps : 0,
-                        ["consent"] = new Dictionary<string, object>
-                        {
-                            ["self"] = form.PaintedMyself,
-                            ["grant"] = form.GrantsUse,
-                            ["age"] = form.OldEnoughOrParentsAgreed,
-                            ["textVersion"] = ConsentTextVersion,
-                        },
+                        ["consent"] = CreationSubmission.Consent(form.PaintedMyself, form.GrantsUse, form.OldEnoughOrParentsAgreed, ConsentTextVersion),
                     },
                 },
                 Attachments = attachments,
             };
         }
 
-        /// <summary>One line, trimmed, capped — free text from a child's keyboard.</summary>
-        private static string Clean(string? text, int max)
-        {
-            string value = (text ?? string.Empty).Replace('\r', ' ').Replace('\n', ' ').Trim();
-            return value.Length <= max ? value : value.Substring(0, max).TrimEnd();
-        }
+        /// <summary>One line, trimmed, capped — free text from a child's keyboard (shared with
+        /// <see cref="CreationSubmission"/>, the ship/structure/avatar form of this report, #3262).</summary>
+        private static string Clean(string? text, int max) => CreationSubmission.Clean(text, max);
     }
 }
