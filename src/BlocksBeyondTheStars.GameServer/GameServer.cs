@@ -384,6 +384,7 @@ public sealed partial class GameServer
         // Persist any newly generated structure-loot guard keys so caches don't respawn on reload.
         _repo.SaveMetadata(_meta);
 
+        _boot?.BeginFinish(); // #3260: the loading screen says "Connecting…" from here
         FinishFormatterWarmUp(warmUp); // #1987: the formatters must be ready before the port opens
         _boot?.Finish();
         _boot = null; // only the initial boot is reported — a travel-time LoadWorld runs unreported

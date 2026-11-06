@@ -113,6 +113,16 @@ namespace BlocksBeyondTheStars.Client
                    && stages > 0 && stage >= 0;
         }
 
+        /// <summary>
+        /// Reads a server boot START line (#3260) — <c>[boot] &gt; 7/12 landing_pads</c> for a pass,
+        /// <c>[boot]   &gt; settlements</c> for a step inside one (stage and stages 0) — into its stable stage id, which
+        /// the loading screen turns into its status message (<see cref="BootStageText.KeyFor"/>). The finish lines above
+        /// are not start lines, and <see cref="TryParseBootStage"/> rejects these (the <c>&gt;</c> is no number), so one
+        /// stdout line never feeds both. Pure logic in Client.Core (tested headless in BootStageTextTests).
+        /// </summary>
+        public static bool TryParseBootStart(string line, out int stage, out int stages, out string id)
+            => BootStageText.TryParseStart(line, out stage, out stages, out id);
+
         private static float Clamp01(float v) => v < 0f ? 0f : (v > 1f ? 1f : v);
     }
 }

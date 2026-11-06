@@ -115,5 +115,24 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             Assert.That(TryParseBootStage("[boot] nonsense", out _, out _), Is.False);
             Assert.That(TryParseBootStage(null, out _, out _), Is.False);
         }
+
+        // ---- #3260: the start lines name the stage; they never move the bar ----
+
+        [Test]
+        public void BootStartLine_NamesTheStage_AndIsNoFinishLine()
+        {
+            const string start = "2026-11-06 09:20:01 [INFO] [boot] > 7/12 landing_pads";
+            Assert.That(TryParseBootStart(start, out int stage, out int stages, out string id), Is.True);
+            Assert.That(stage, Is.EqualTo(7));
+            Assert.That(stages, Is.EqualTo(12));
+            Assert.That(id, Is.EqualTo("landing_pads"));
+            Assert.That(TryParseBootStage(start, out _, out _), Is.False, "a start line must not count as a finished pass");
+
+            Assert.That(TryParseBootStart("[boot]   > settlements", out _, out _, out id), Is.True);
+            Assert.That(id, Is.EqualTo("settlements"));
+            Assert.That(TryParseBootStage("[boot]   > settlements", out _, out _), Is.False);
+
+            Assert.That(TryParseBootStart("[boot] 7/12 landing pads (9113 ms)", out _, out _, out _), Is.False, "and a finish line is no start line");
+        }
     }
 }

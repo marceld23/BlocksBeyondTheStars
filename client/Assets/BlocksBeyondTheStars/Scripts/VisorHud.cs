@@ -105,7 +105,9 @@ namespace BlocksBeyondTheStars.Client
 
             if (PipelineWanted())
             {
+                var watch = System.Diagnostics.Stopwatch.StartNew();
                 EngagePipeline();
+                LaunchTiming.Note("visor", watch.Elapsed.TotalMilliseconds); // #3261: its render targets, in [LaunchTiming]
             }
         }
 

@@ -599,6 +599,51 @@ under a millisecond stays quiet:
 [boot] 11/12 structures (4111 ms)
 ```
 
+**Start lines (#3260).** Every pass and step is also announced *before* it runs, with a stable id (the name
+trimmed, lower-cased, spaces as `_` — `BootProgress.StageId`), and the final pass is announced before the
+server waits for its formatters and opens the port:
+
+```
+[boot] > 7/12 landing_pads
+[boot] 7/12 landing pads (7947 ms)
+[boot] > 11/12 structures
+[boot]   > settlements
+[boot]   · settlements (4095 ms)
+…
+[boot] > 12/12 ready
+[boot] 12/12 ready (16897 ms total)
+```
+
+The finish lines are unchanged (the bar, the measurements and older clients read only those; an older parser
+rejects a start line because `>` is no number). The launcher keeps the id of the latest start line
+(`LoadingHandoffPolicy.TryParseBootStart` → `LocalServerLauncher.BootStageId`), and the loading screen's status
+row shows a grouped, kid-friendly message for it — `BootStageText` in Client.Core maps the ids onto
+`ui.loading.stage.<group>` keys (galaxy, nature, landing_pads, creatures, settlements, residents, ruins,
+treasure, world, ready), an unknown id reads "Preparing the world…", and a server that prints no start lines
+keeps the old flavour line. **A new boot pass or step needs a row in that table** — `BootStageTextTests` scans
+`GameServer*.cs` for `BootStage("…")`/`BootDetail("…")` and fails on an unmapped one. The browser's in-process
+host is not wired: its boot runs synchronously inside one frame, so no status row could update anyway.
+
+**Client side of the wait (#3261).** While the desktop loading screen waits for the bundled server it compiles
+the world's shader variants a few per frame (`ShaderPrewarm.WarmUpSome`, ~6 ms per frame); `GameBootstrap`'s
+`ShaderPrewarm.WarmUp` then only finishes what is left. The frame before the hand-off shows "Building the
+world…", and the world's first frame logs where the client's own preparation went (illustrative numbers):
+
+```
+[LaunchTiming] rig=310ms atlas=0ms shaders=2ms(0 here, 107 while waiting) visor=40ms total=520ms
+```
+
+(`rig` = `WorldRig.Build`, `atlas` = `BlockTextureAtlas.Acquire` — normally already built for the menu
+backdrop, `visor` = the visor HUD's render targets, `total` = `LaunchGame` to the world's first `Update`.)
+
+**Before the wait: the world picker (#3259).** The singleplayer world list is read off the main thread by
+`WorldListCache` (Client.Core; `LocalServerLauncher.WorldList`): the shell starts the scan when the main menu
+shows, with one `world.db` timestamp per world plus the playtime sidecar, and drops the list when a world is
+created, played or left (a delete just removes its entry). `UiSaveSelect` opens at once and builds its rows 25
+per frame (`UiSaveSelect.WorldList.cs`); a list still being read shows a spinner and "Loading worlds…" after
+150 ms, and *Create* / *Random world* stay disabled until it is there. Measured before: 264 saves froze the
+menu for 0.3 s on a warm file cache and 5.8 s on the first click after a game start.
+
 Two things to know when reading the numbers: the **NetCodec warm-up** (7–8 s of MessagePack codegen) runs on
 a background thread beside these passes since #1987, so its line reports a duration that overlaps them; and
 a body's **landing pads** are searched once and then pinned in the save (#1989, see

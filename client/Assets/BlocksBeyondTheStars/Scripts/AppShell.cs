@@ -140,6 +140,23 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>How far that boot has come, 0..1 — negative while the server has reported no pass yet
         /// (#1988). The loading bar follows this instead of the clock, so it moves with the world build.</summary>
         public float LocalServerBootProgress => _hostLocal ? _localServer.BootProgress : -1f;
+
+        /// <summary>#3260/#3261: the loading screen's status row — the stage the bundled server announced last ("Searching
+        /// for landing sites…"), "Connecting…" once it is ready, "Building the world…" in the hand-off frame, and the old
+        /// flavour line when no stage is known (a remote join, the browser host, an older server).</summary>
+        public string LoadingStatusKey => BootStageText.StatusKey(_loading != null && _loading.HandingOff, LocalServerBooting,
+            _hostLocal && _localServer.Ready, _hostLocal ? _localServer.BootStageId : null, "ui.loading.status");
+
+        /// <summary>#3259: starts reading the singleplayer world list in the background, so the world picker opens from
+        /// memory. Called when the main menu shows; a no-op while the list is still valid. Browsers have no world list
+        /// (one in-process world per browser) and no threads, so they skip it.</summary>
+        private static void PrefetchWorldList()
+        {
+#if !(UNITY_WEBGL && !UNITY_EDITOR)
+            LocalServerLauncher.WorldList.Prefetch();
+#endif
+        }
+
         private GameObject _gameRoot;
 
         public bool ContentReady { get; private set; }
@@ -871,6 +888,7 @@ namespace BlocksBeyondTheStars.Client
             MenuNotice = "";
             Settings.LastWorld = worldName;
             Settings.Save();
+            LocalServerLauncher.InvalidateWorldList(); // #3259: this world is created or written now — the list re-reads
 
             // Prepare the launch on the main thread (it reads Unity paths), but DON'T spawn the server yet:
             // show the loading screen first (below), then spawn it on a background thread. Otherwise the
@@ -1140,6 +1158,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 _localServer.Stop();
                 _hostLocal = false;
+                LocalServerLauncher.InvalidateWorldList(); // #3259: the final save moved this world to the top of the list
             }
 
             HostInfo = "";
@@ -1159,7 +1178,10 @@ namespace BlocksBeyondTheStars.Client
             }
 
             DestroyMenuBackground();
+            LaunchTiming.Begin(); // #3261: the world's first frame logs where the client's preparation went
+            var rigWatch = System.Diagnostics.Stopwatch.StartNew();
             _gameRoot = WorldRig.Build(this);
+            LaunchTiming.Note("rig", rigWatch.Elapsed.TotalMilliseconds);
             CurrentBoot = Boot(); // hand the live world to the music director
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
@@ -1711,6 +1733,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 _uiMenu = UiMainMenu.Build(this);
                 UiKit.BootScreen(_uiMenu); // the HUD's boot-up feel for the shell screens too (#1796)
+                PrefetchWorldList(); // #3259: by the time "Singleplayer" is clicked, the world list is in memory
                 // One-per-session background load of the release notes (#543), with the player's language.
                 WhatsNew.BeginFetch(this, GameLocaleExtensions.Parse(Settings.Language).Code());
 
@@ -2006,15 +2029,15 @@ namespace BlocksBeyondTheStars.Client
                         Phase = ShellPhase.MainMenu;
                     }
                 }
-                else if (Phase == ShellPhase.ShipEditor)
+                else if (Phase == ShellPhase.ShipEditor && !CreationSubmitDialog.OwnsCancel)
                 {
-                    CloseShipEditor();
+                    CloseShipEditor(); // the submit dialog (#3262) takes its own cancel first, as in the texture editor
                 }
-                else if (Phase == ShellPhase.AvatarEditor)
+                else if (Phase == ShellPhase.AvatarEditor && !CreationSubmitDialog.OwnsCancel)
                 {
                     CloseAvatarEditor();
                 }
-                else if (Phase == ShellPhase.StructureEditor)
+                else if (Phase == ShellPhase.StructureEditor && !CreationSubmitDialog.OwnsCancel)
                 {
                     CloseStructureEditor();
                 }
@@ -2026,7 +2049,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     CloseMaterialEditor();
                 }
-                else if (Phase == ShellPhase.TextureEditor && !TextureSubmitDialog.OwnsCancel && !PadCanvasFocus.OwnsCancel)
+                else if (Phase == ShellPhase.TextureEditor && !CreationSubmitDialog.OwnsCancel && !PadCanvasFocus.OwnsCancel)
                 {
                     CloseTextureEditor(); // the submit dialog (#1965) and the pad's canvas mode take their own cancel first
                 }

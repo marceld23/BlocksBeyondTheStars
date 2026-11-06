@@ -62,6 +62,15 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        // #3260: the server announces each pass before running it ("[boot] > 7/12 landing_pads"); the id of the latest one
+        // is what the loading screen names. Volatile: written by the stdout reader thread, read on the main thread.
+        private volatile string _bootStageId;
+
+        /// <summary>The stable id of the boot pass or step the spawned server is running now (<c>landing_pads</c>,
+        /// <c>settlements</c>, … <c>ready</c>), or null while it has announced none — an older server never does, and
+        /// the loading screen then keeps its flavour line (<see cref="BootStageText.StatusKey"/>).</summary>
+        public string BootStageId => _bootStageId;
+
         // #2223: latched when the server refused the world because a newer build saved it — its log line behind
         // GameServer.SaveTooNewMarker (read off the same stdout reader as the ready line) or its exit code
         // GameServer.SaveTooNewExitCode. Volatile: set from the reader thread, read on the main thread.
@@ -98,58 +107,49 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Root folder holding the singleplayer save worlds (one subfolder per world).</summary>
         public static string SavesRoot => Path.Combine(AppPaths.Root, "singleplayer-saves");
 
-        /// <summary>Existing singleplayer world names (subfolders that contain a world.db), newest first.</summary>
-        public static string[] ListWorlds()
+        private static WorldListCache _worldList;
+
+        /// <summary>The singleplayer world list, read on a background task (#3259): the shell prefetches it when the main
+        /// menu shows, the world picker builds from it, and creating, playing or deleting a world drops it. Created on the
+        /// main thread on first use (<see cref="SavesRoot"/> reads the app's data root).</summary>
+        public static WorldListCache WorldList
         {
-            if (!Directory.Exists(SavesRoot))
+            get
             {
-                return Array.Empty<string>();
-            }
-
-            var dirs = new System.Collections.Generic.List<string>();
-            foreach (var dir in Directory.GetDirectories(SavesRoot))
-            {
-                if (File.Exists(Path.Combine(dir, "world.db")))
+                string root = SavesRoot;
+                if (_worldList == null || _worldList.SavesRoot != root)
                 {
-                    dirs.Add(dir);
+                    _worldList = new WorldListCache(root);
                 }
-            }
 
-            dirs.Sort((a, b) => File.GetLastWriteTimeUtc(Path.Combine(b, "world.db")).CompareTo(File.GetLastWriteTimeUtc(Path.Combine(a, "world.db"))));
-            return dirs.ConvertAll(Path.GetFileName).ToArray();
+                return _worldList;
+            }
         }
 
-        /// <summary>Shape of the <c>world.meta.json</c> sidecar the server writes beside each <c>world.db</c>
-        /// (field names match the server's <c>WorldSaveSummary</c> so Unity's JsonUtility reads it verbatim).</summary>
-        [Serializable]
-        private sealed class WorldMetaSidecar
+        /// <summary>Drops the cached world list (a world was created, played or left), without touching the disk or the
+        /// app paths — safe from any thread. The next menu visit reads it again.</summary>
+        public static void InvalidateWorldList() => _worldList?.Invalidate();
+
+        /// <summary>Existing singleplayer world names (subfolders that contain a world.db), newest first. Reads the disk
+        /// on the calling thread — one timestamp per world, sorted on the collected values (#3259: the old comparator
+        /// stat-ed both files on every comparison). The picker uses <see cref="WorldList"/> instead.</summary>
+        public static string[] ListWorlds()
         {
-            public string WorldName;
-            public long PlaytimeSeconds;
-            public string LastPlayedUtc;
+            var worlds = WorldListCache.Scan(SavesRoot, withPlaytime: false);
+            var names = new string[worlds.Count];
+            for (int i = 0; i < names.Length; i++)
+            {
+                names[i] = worlds[i].Name;
+            }
+
+            return names;
         }
 
         /// <summary>Reads a world's accumulated playtime (seconds) from its <c>world.meta.json</c> sidecar.
         /// Returns -1 when no sidecar exists yet (e.g. a save from before playtime tracking) so the caller can
         /// simply omit the figure rather than show "0".</summary>
         public static long ReadWorldPlaytimeSeconds(string worldName)
-        {
-            try
-            {
-                string path = Path.Combine(SavesRoot, worldName, "world.meta.json");
-                if (!File.Exists(path))
-                {
-                    return -1;
-                }
-
-                var s = JsonUtility.FromJson<WorldMetaSidecar>(File.ReadAllText(path));
-                return s != null ? s.PlaytimeSeconds : -1;
-            }
-            catch
-            {
-                return -1;
-            }
-        }
+            => WorldListCache.ReadPlaytimeSeconds(Path.Combine(SavesRoot, worldName));
 
         /// <summary>Permanently deletes a singleplayer world's save folder (its whole directory). Returns true
         /// if it was removed. Guards against empty names / paths outside the saves root.</summary>
@@ -170,6 +170,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 Directory.Delete(dir, recursive: true);
+                _worldList?.Forget(worldName); // the picker rebuilt after the delete shows at once, without a rescan (#3259)
                 Debug.Log($"Deleted singleplayer world '{worldName}'.");
                 return true;
             }
@@ -208,6 +209,7 @@ namespace BlocksBeyondTheStars.Client
             _saveTooNew = false; // nor its refusal: this launch may open another world
             _bootStage = 0;
             _bootStages = 0;
+            _bootStageId = null;
 
             Port = port;
             if (string.IsNullOrWhiteSpace(worldName))
@@ -333,36 +335,9 @@ namespace BlocksBeyondTheStars.Client
 
             _ready = false;
             _saveTooNew = false;
+            _bootStageId = null;
             var proc = new Process { StartInfo = _pendingPsi, EnableRaisingEvents = true };
-            proc.OutputDataReceived += (_, e) =>
-            {
-                if (string.IsNullOrEmpty(e.Data))
-                {
-                    return;
-                }
-
-                Debug.Log($"[server] {e.Data}");
-
-                // #2223: "[fatal] save-too-new: World '…' was saved by a newer version of the game …" — the server
-                // refuses the world, leaves it untouched and exits.
-                if (e.Data.Contains(SvGameServer.SaveTooNewMarker))
-                {
-                    _saveTooNew = true;
-                }
-
-                // #1988: "[boot] 4/12 landing pads (4120 ms)" — how far the world build has come.
-                if (LoadingHandoffPolicy.TryParseBootStage(e.Data, out int stage, out int stages))
-                {
-                    _bootStages = stages;
-                    _bootStage = stage;
-                }
-
-                // GameServer.Start's final line: "Server '<name>' started on port <n>, world '<w>' (...)".
-                if (!_ready && e.Data.Contains("started on port"))
-                {
-                    _ready = true;
-                }
-            };
+            proc.OutputDataReceived += (_, e) => OnServerLine(e.Data);
             proc.ErrorDataReceived += (_, e) => { if (!string.IsNullOrEmpty(e.Data)) Debug.LogWarning($"[server] {e.Data}"); };
 
             try
@@ -378,6 +353,44 @@ namespace BlocksBeyondTheStars.Client
             {
                 Debug.LogError($"Failed to start local server: {e.Message}");
                 return false;
+            }
+        }
+
+        /// <summary>One line of the spawned server's stdout (the reader thread — no Unity APIs but the log): relayed to
+        /// the player log and read for the signals the loading screen waits on.</summary>
+        private void OnServerLine(string line)
+        {
+            if (string.IsNullOrEmpty(line))
+            {
+                return;
+            }
+
+            Debug.Log($"[server] {line}");
+
+            // #2223: "[fatal] save-too-new: World '…' was saved by a newer version of the game …" — the server
+            // refuses the world, leaves it untouched and exits.
+            if (line.Contains(SvGameServer.SaveTooNewMarker))
+            {
+                _saveTooNew = true;
+            }
+
+            // #1988: "[boot] 4/12 landing pads (4120 ms)" — how far the world build has come.
+            if (LoadingHandoffPolicy.TryParseBootStage(line, out int stage, out int stages))
+            {
+                _bootStages = stages;
+                _bootStage = stage;
+            }
+
+            // #3260: "[boot] > 7/12 landing_pads" / "[boot]   > settlements" — what it is doing right now.
+            if (LoadingHandoffPolicy.TryParseBootStart(line, out _, out _, out string stageId))
+            {
+                _bootStageId = stageId;
+            }
+
+            // GameServer.Start's final line: "Server '<name>' started on port <n>, world '<w>' (...)".
+            if (!_ready && line.Contains("started on port"))
+            {
+                _ready = true;
             }
         }
 
