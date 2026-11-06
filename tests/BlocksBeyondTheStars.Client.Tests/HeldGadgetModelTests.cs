@@ -12,7 +12,7 @@ using Xunit;
 namespace BlocksBeyondTheStars.Client.Tests;
 
 /// <summary>#2837: every gadget used to be the same four-cube emitter in another colour (and the remote control's own model
-/// was never drawn). Now a gadget draws its <c>heldModel</c> like a drill or a gun does, and each of the 21 gadgets has
+/// was never drawn). Now a gadget draws its <c>heldModel</c> like a drill or a gun does, and each of the 22 gadgets has
 /// one; the emitter is left as the fallback of a gadget without a model.</summary>
 public sealed class HeldGadgetModelTests
 {
@@ -25,7 +25,7 @@ public sealed class HeldGadgetModelTests
         "blueprint_tool", "field_medkit", "stasis_projector", "terrain_blaster", "fluid_pump", "terrain_scanner",
         "creature_translator", "weather_scanner", "camera", "paint_tool", "shape_tool", "shape_stencil", "binoculars",
         "thermal_binoculars", "rail_linker", "rail_cab", "wagon_seats", "wagon_sleeper", "wagon_bar", "bio_sampler",
-        "remote_control",
+        "remote_control", "hunter_robot", // #3295: the folded hunter robot, switched on from the hand
     };
 
     public static TheoryData<string> GadgetKeys()

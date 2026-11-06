@@ -140,7 +140,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Reachability tier for the list ordering (#826) — see <see cref="CraftGate.ReachTier"/>.</summary>
-        private int ReachTier(string requiredBlueprint, List<BlocksBeyondTheStars.Shared.Definitions.ItemAmount> cost, bool stationInReach = true)
+        private int ReachTier(string requiredBlueprint, IEnumerable<BlocksBeyondTheStars.Shared.Definitions.ItemAmount> cost, bool stationInReach = true)
             => CraftGate.ReachTier(requiredBlueprint, cost, stationInReach, Gate);
 
         /// <summary>True for a factory recipe while no spawned factory terminal in reach has it on its roster — the
