@@ -14,8 +14,8 @@ namespace BlocksBeyondTheStars.Shared.Definitions;
 /// server and every client build the same curve from the same pylon list (the wire sends the points), so a train's
 /// arc position is all that has to travel: both sides read the same pose at the same arc. A closed line (the last pylon
 /// linked back to the first) is a loop; an open one is a path the train reverses on at both ends. The points are
-/// unwrapped along X relative to the first point, so a line across the world seam is one continuous curve; the pose's
-/// X is wrapped back on the way out.
+/// unwrapped along X and Z relative to the first point, so a line across either world seam (X at the circumference, Z
+/// at the latitude period) is one continuous curve; the pose's X and Z are wrapped back on the way out.
 /// </summary>
 public sealed class RailSpline
 {
@@ -49,7 +49,8 @@ public sealed class RailSpline
             return spline;
         }
 
-        // Unwrap along X so a line over the seam is continuous.
+        // Unwrap along X and Z so a line over either seam is continuous (#3256: Z wraps too, at the latitude period —
+        // a line over the Z seam used to run its last span the long way round the world).
         var ctrl = new List<Vector3f>(pylonTops.Count);
         var first = pylonTops[0];
         ctrl.Add(first);
@@ -58,7 +59,8 @@ public sealed class RailSpline
         {
             var p = pylonTops[i];
             float dx = (float)WorldConstants.WrapDeltaX((double)(p.X - prev.X), circumference);
-            var un = new Vector3f(prev.X + dx, p.Y, p.Z);
+            float dz = (float)WorldConstants.WrapDeltaZ((double)(p.Z - prev.Z), circumference);
+            var un = new Vector3f(prev.X + dx, p.Y, prev.Z + dz);
             ctrl.Add(un);
             prev = un;
         }
@@ -218,7 +220,7 @@ public sealed class RailSpline
             var p = _points[i];
             float dx = (float)WorldConstants.WrapDeltaX((double)(world.X - p.X), _circumference);
             float dy = world.Y - p.Y;
-            float dz = world.Z - p.Z;
+            float dz = (float)WorldConstants.WrapDeltaZ((double)(world.Z - p.Z), _circumference);
             float d = dx * dx + dy * dy + dz * dz;
             if (d < bestD)
             {

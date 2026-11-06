@@ -28,9 +28,15 @@ public static class RailRules
     public static readonly string[] WagonItems = { CabItemKey, "wagon_seats", "wagon_sleeper", "wagon_bar" };
 
     /// <summary>A pylon links itself to the previously placed pylon of the same builder when it stands within this many
-    /// blocks and the line would not bend more than <see cref="AutoLinkMaxAngleDeg"/> against the line so far.</summary>
+    /// blocks and the line would not bend more than <see cref="AutoLinkMaxAngleDeg"/> against the line so far — and when
+    /// that one does not take it (none, out of range, refused), to the best free line end in range (#3256).</summary>
     public const float AutoLinkRange = 32f;
     public const float AutoLinkMaxAngleDeg = 30f;
+
+    /// <summary>The fallback auto-link's ranking (#3256): every degree a free line end's line would bend to reach the new
+    /// pylon counts as this many blocks of extra distance — so the straight continuation of a line wins over the nearer end
+    /// of a parallel line that would have to swerve (the full 30° costs as much as 15 blocks).</summary>
+    public const float AutoLinkBendCostPerDegree = 0.5f;
 
     /// <summary>The linker gadget couples any two pylons within this many blocks (a branch the auto-link refused). 64 since
     /// #3207, the game's one design radius.</summary>
@@ -124,6 +130,27 @@ public static class RailRules
         float cos = (prevDir.X * dx + prevDir.Z * dz) / (pl * hl);
         return cos >= Math.Cos(AutoLinkMaxAngleDeg * Math.PI / 180.0);
     }
+
+    /// <summary>How many degrees the line bends (horizontally) when it runs on from <paramref name="from"/> to
+    /// <paramref name="to"/> after arriving along <paramref name="prevDir"/>: 0 for the first link of a line (no previous
+    /// direction) or a step straight up. Both points must be unwrapped against each other (the caller's frame).</summary>
+    public static float AutoLinkBendDegrees(Vector3f from, Vector3f to, Vector3f prevDir)
+    {
+        float dx = to.X - from.X, dz = to.Z - from.Z;
+        float pl = (float)Math.Sqrt(prevDir.X * prevDir.X + prevDir.Z * prevDir.Z);
+        float hl = (float)Math.Sqrt(dx * dx + dz * dz);
+        if (pl < 1e-3f || hl < 1e-3f)
+        {
+            return 0f;
+        }
+
+        float cos = Math.Clamp((prevDir.X * dx + prevDir.Z * dz) / (pl * hl), -1f, 1f);
+        return (float)(Math.Acos(cos) * 180.0 / Math.PI);
+    }
+
+    /// <summary>The fallback auto-link's cost of a free line end (#3256): its distance plus its bend at
+    /// <see cref="AutoLinkBendCostPerDegree"/> — the lowest cost that also passes every link rule wins.</summary>
+    public static float AutoLinkCost(float distance, float bendDegrees) => distance + bendDegrees * AutoLinkBendCostPerDegree;
 
     /// <summary>The seat spots of a wagon kind (wagon-local: X across, Y up from the floor, Z along, +Z toward the cab).</summary>
     public static IReadOnlyList<Vector3f> SeatOffsets(string wagonItem) => wagonItem switch

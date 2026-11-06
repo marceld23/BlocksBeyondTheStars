@@ -54,7 +54,11 @@ seed); a register entry or tamed clone from before the stamp is given its origin
 **Residence & lifecycle.** A companion is **home-planet resident**: present only when the owner is on its home
 body, otherwise stored. On arrival/world-load it re-spawns near the player (`ReconcileCompanions`) with a
 `Follow` behaviour (`CreatureBehaviour.FollowStep` — approach owner if far, idle-wander when close, snap if
-stuck, never path into ships/bases); it despawns when the player leaves. Companions are invulnerable + harmless,
+stuck, never path into ships/bases); it despawns when the player leaves. The snap is the leash (#855,
+`CompanionLeashRange` 24): a pet farther behind is re-placed beside its owner — except a **penned** one (#3257,
+`LeashCompanion` in `GameServerFences.cs`): while an energy fence or a closed gate cuts the straight way from the pet
+toward its owner (sampled up to 64 blocks from the pet, loaded cells only, cached 1 s per companion) it stays and
+potters about in its pen. An NPC tamer's pet keeps the plain leash. Companions are invulnerable + harmless,
 excluded from the wild cap/prune, and capped at 6 per world. Invulnerable means against players too (#2281): every
 companion — the own, another player's, a tamer NPC's pet — is refused in `AttackCombatEntity`
 (`ProtectedFromPlayers`, reply `srv.attack.companion`), and the client's crosshair pick and melee/auto-aim cone skip

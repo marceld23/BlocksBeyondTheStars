@@ -19,7 +19,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// The monorail hover train (#2113, Justus' idea; Marcel's decisions 2026-09-27). Three parts:
 /// <list type="bullet">
 /// <item><b>The rail graph.</b> Pylons (<c>rail_pylon</c> blocks) are nodes keyed by their top cell; links between them are
-/// data, not blocks. A pylon placed within 32 blocks and ≈30° of the builder's previously placed pylon links itself; the
+/// data, not blocks. A pylon placed within 32 blocks and ≈30° of the builder's previously placed pylon links itself —
+/// failing that, to the best-continuing free line end in the same range (#3256); the
 /// <c>rail_linker</c> gadget couples or uncouples any two pylons explicitly (a loop's closing link, a link the auto-link
 /// refused). Every link is <b>clearance-checked</b>: the wagon's box, swept along the spline between the two tops, must
 /// not run through a solid block ("Hindernis"). A pylon carries at most two links, so a connected component is a path
@@ -125,7 +126,7 @@ public sealed partial class GameServer
     // =====================================================================================================
 
     /// <summary>A placed block joins the rail graph: a pylon becomes a node (on top of another pylon it raises that node)
-    /// and auto-links to the builder's previous pylon; a stop registers on the nearest line.</summary>
+    /// and auto-links (<see cref="AutoLinkPlacedPylon"/>); a stop registers on the nearest line.</summary>
     private void OnRailBlockPlaced(PlayerSession session, Vector3i pos, BlockDefinition def)
     {
         if (def.Key == RailRules.PylonBlockKey)
@@ -155,32 +156,8 @@ public sealed partial class GameServer
             }
 
             rails.Nodes[pos] = new RailNode { Cell = pos };
-            string who = session.State.PlayerId;
-            if (rails.LastPylon.TryGetValue(who, out var prev) && rails.Nodes.TryGetValue(prev, out var prevNode) && prev != pos)
-            {
-                var prevDir = default(Vector3f);
-                foreach (var l in prevNode.Links)
-                {
-                    prevDir = new Vector3f(prev.X - l.X, 0f, prev.Z - l.Z); // the line's direction into the previous pylon
-                }
-
-                string? why = LinkRefusal(prev, pos, prevDir, auto: true);
-                if (why is null)
-                {
-                    Link(prev, pos);
-                    Send(session, new ServerMessage { Text = "@srv.rail.linked" });
-                }
-                else if (why != "@srv.rail.too_far")
-                {
-                    Send(session, new ServerMessage { Text = why }); // a refused auto-link says why; out of range is simply a new line
-                }
-            }
-            else if (rails.Nodes.Keys.Count(k => !IsGeneratedPylon(k)) == 1)
-            {
-                SendVegaLine(session, "vega.sys.rail_first", 3);
-            }
-
-            rails.LastPylon[who] = pos;
+            AutoLinkPlacedPylon(session, pos); // #3256: the last placed pylon, else the best free line end
+            rails.LastPylon[session.State.PlayerId] = pos;
             RailGraphChanged();
         }
         else if (def.Key == RailRules.StopBlockKey)
@@ -267,8 +244,10 @@ public sealed partial class GameServer
     /// <summary>The top of a pylon in world space: the centre of the cell above it, plus the line's rise.</summary>
     private static Vector3f PylonTop(Vector3i cell) => new(cell.X + 0.5f, cell.Y + RailRules.LineRise, cell.Z + 0.5f);
 
-    /// <summary>Why two pylons may not be linked — null when they may: range (the auto-link's or the linker's), the
-    /// bend rule (auto-link only), a third link on either pylon, a line grown to its cap, or a solid block in the way.</summary>
+    /// <summary>Why two pylons may not be linked — null when they may: range (the auto-link's or the linker's), a third
+    /// link on either pylon, the bend rule (auto-link only; #3256: after the two-link cap, so a full pylon says "no forks"
+    /// rather than "too sharp"), a line grown to its cap, or a solid block in the way. Both deltas run the short way round
+    /// the world's seams (#3256: Z wraps at the latitude period, as X does at the circumference).</summary>
     private string? LinkRefusal(Vector3i a, Vector3i b, Vector3f prevDir, bool auto)
     {
         var rails = Rails;
@@ -290,7 +269,8 @@ public sealed partial class GameServer
         var ta = PylonTop(a);
         var tb = PylonTop(b);
         float dx = (float)WorldConstants.WrapDeltaX((double)(tb.X - ta.X), _world.Circumference);
-        float dy = tb.Y - ta.Y, dz = tb.Z - ta.Z;
+        float dz = (float)WorldConstants.WrapDeltaZ((double)(tb.Z - ta.Z), _world.Circumference);
+        float dy = tb.Y - ta.Y;
         float dist = (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
         float range = auto ? RailRules.AutoLinkRange : RailRules.LinkerRange;
         if (dist > range || dist < 2f)
@@ -298,14 +278,14 @@ public sealed partial class GameServer
             return "@srv.rail.too_far";
         }
 
-        if (auto && !RailRules.AutoLinkFits(ta, new Vector3f(ta.X + dx, tb.Y, tb.Z), prevDir))
-        {
-            return "@srv.rail.too_sharp";
-        }
-
         if (na.Links.Count >= RailRules.MaxLinksPerPylon || nb.Links.Count >= RailRules.MaxLinksPerPylon)
         {
             return "@srv.rail.branch";
+        }
+
+        if (auto && !RailRules.AutoLinkFits(ta, new Vector3f(ta.X + dx, tb.Y, ta.Z + dz), prevDir))
+        {
+            return "@srv.rail.too_sharp";
         }
 
         if (ComponentSize(a) + ComponentSize(b) > RailRules.MaxPylonsPerLine)
@@ -339,7 +319,8 @@ public sealed partial class GameServer
         var ta = PylonTop(a);
         var tb = PylonTop(b);
         float dx = (float)WorldConstants.WrapDeltaX((double)(tb.X - ta.X), _world.Circumference);
-        float dy = tb.Y - ta.Y, dz = tb.Z - ta.Z;
+        float dz = (float)WorldConstants.WrapDeltaZ((double)(tb.Z - ta.Z), _world.Circumference); // #3256: Z wraps too
+        float dy = tb.Y - ta.Y;
         float len = (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
         int steps = Math.Max(1, (int)Math.Ceiling(len));
         float hl = (float)Math.Sqrt(dx * dx + dz * dz);

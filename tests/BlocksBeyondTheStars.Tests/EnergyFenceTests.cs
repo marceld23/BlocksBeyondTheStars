@@ -254,6 +254,61 @@ public sealed class EnergyFenceTests : IDisposable
         }
     }
 
+    /// <summary>A jungle world with the owner standing at the origin and a companion materialised beside them (inside a
+    /// ring of radius 3 when <paramref name="fenced"/>). Returns the owner.</summary>
+    private BlocksBeyondTheStars.GameServer.PlayerSession OwnerWithCompanion(SvGameServer server, bool fenced, string id)
+    {
+        var p = server.AddLocalPlayer("Owner");
+        p.State.AboardShip = false;
+        p.State.Position = new Vector3f(0.5f, SurfaceY(server, 0, 0) + 1, 0.5f);
+        if (fenced)
+        {
+            BuildFenceRing(server, 0, 0, r: 3);
+        }
+
+        var sp = server.SpeciesRoster[0];
+        p.State.TamedCreatures.Add(new TamedCreature { Id = id, HomeBodyId = server.World.LocationId, Name = "Penny", SpeciesId = sp.Id, Species = sp });
+        server.Tick(0.5);
+        Assert.Contains(server.Creatures, c => c.CompanionId == id);
+        return p;
+    }
+
+    [Fact]
+    public void APennedCompanion_StaysInItsPen_WhenItsOwnerWalksPastTheLeash()
+    {
+        // #3257: the leash re-placed a pet more than 24 blocks from its owner beside them — out of its pen. A fence across
+        // the way between them now keeps it home.
+        var server = Started("jungle", out var repo);
+        using (repo)
+        {
+            var p = OwnerWithCompanion(server, fenced: true, "tc_penned");
+            p.State.Position = new Vector3f(40.5f, SurfaceY(server, 40, 0) + 1, 0.5f);
+            for (int i = 0; i < 6; i++)
+            {
+                server.Tick(0.5);
+                var c = server.Creatures.First(x => x.CompanionId == "tc_penned");
+                Assert.True(System.Math.Abs(c.Position.X - 0.5f) <= 3.5f && System.Math.Abs(c.Position.Z - 0.5f) <= 3.5f,
+                    $"the leash pulled the companion out of its pen (tick {i}, at {c.Position.X:F1},{c.Position.Z:F1})");
+            }
+        }
+    }
+
+    [Fact]
+    public void WithoutAFence_ACompanionLeftBehind_StillCatchesUp()
+    {
+        var server = Started("jungle", out var repo);
+        using (repo)
+        {
+            var p = OwnerWithCompanion(server, fenced: false, "tc_free");
+            p.State.Position = new Vector3f(40.5f, SurfaceY(server, 40, 0) + 1, 0.5f);
+            server.Tick(0.5);
+            var c = server.Creatures.First(x => x.CompanionId == "tc_free");
+            float dx = c.Position.X - p.State.Position.X, dz = c.Position.Z - p.State.Position.Z;
+            Assert.True(dx * dx + dz * dz <= 6f * 6f,
+                $"a companion left behind without a fence must catch up (still {System.Math.Sqrt(dx * dx + dz * dz):F1} away)");
+        }
+    }
+
     [Fact]
     [Trait("Category", "Slow")]
     public void APlanetEnemy_CannotCross_AFenceLine()
