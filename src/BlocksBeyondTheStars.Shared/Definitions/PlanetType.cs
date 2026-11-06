@@ -281,6 +281,11 @@ public sealed class PlanetType
     /// 0 = the per-world seeded colour from the type's palette family.</summary>
     public int MistColor { get; set; }
 
+    /// <summary>0..1 the share of the type's mist that never burns off (#3269 follow-up): the haze stays all day and in
+    /// every weather, swelling and thinning slowly, and the view stays short. The gas giants are never clear; null/0 = the
+    /// mist comes and goes with the hour and the weather, as on every other world.</summary>
+    public double? MistFloor { get; set; }
+
     /// <summary>
     /// How much life this world has: "none" (barren), "few" or "many". Drives how many
     /// procedural <see cref="CreatureSpecies"/> the world derives and the live spawn caps. "authored" (#1763)

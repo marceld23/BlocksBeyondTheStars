@@ -1035,7 +1035,7 @@
   // drifts between the islands. Placed by the galaxy (the LoneGiant system's planet + an outermost-orbit roll), never by
   // the ordinary type roll (spawnWeight 0).
   {
-    "key": "gas_giant", "minTerrainGeneration": 18, "exotic": true, "floraTheme": "tundra", "baseTemperature": -120, "nameKey": "planet.gas_giant.name", "atmosphereHeight": 420, "cloudColor": 13145196, "cloudDensity": 0.85, "mist": 0.0, "skyColor": 6048107,
+    "key": "gas_giant", "minTerrainGeneration": 18, "exotic": true, "floraTheme": "tundra", "baseTemperature": -120, "nameKey": "planet.gas_giant.name", "atmosphereHeight": 420, "cloudColor": 13145196, "cloudDensity": 0.85, "mist": 0.9, "mistFloor": 0.75, "skyColor": 6048107,
     "seaFluid": "gas", "floatingIslands": true,
     "baseHeight": 40, "amplitude": 6, "terrainScale": 60.0, "terrainStyle": "flats",
     "surfaceBlock": "stone", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3, "caveThreshold": 0.0, "dataCacheRarity": 0.0008,

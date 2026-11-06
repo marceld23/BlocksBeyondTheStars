@@ -9,6 +9,7 @@
     { "name": "jungle_geyser",     "scene": "surface", "planet": "jungle",         "lengthSeconds": 6, "fps": 4, "hud": false, "camera": "pan", "yawStart": -20, "yawEnd": 20, "timeOfDay": 0.45, "weather": "clear", "pose": "geyser" },
     { "name": "lava_geyser",       "scene": "surface", "planet": "lava",           "lengthSeconds": 6, "fps": 4, "hud": false, "camera": "pan", "yawStart": -20, "yawEnd": 20, "timeOfDay": 0.8,  "weather": "clear", "pose": "geyser" },
     { "name": "lava_glow_smoke",   "scene": "surface", "planet": "lava",           "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -30, "yawEnd": 30, "timeOfDay": 0.5,  "weather": "clear", "pose": "lava" },
-    { "name": "ocean_volcano",     "scene": "surface", "planet": "ocean",          "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "orbit", "orbitRadius": 30, "orbitHeight": 60, "yawStart": 0, "yawEnd": 180, "timeOfDay": 0.45, "weather": "clear" }
+    { "name": "gas_giant_noon",    "scene": "surface", "planet": "gas_giant",      "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "orbit", "orbitRadius": 45, "orbitHeight": 24, "yawStart": 0, "yawEnd": 90, "timeOfDay": 0.5, "weather": "clear" },
+    { "name": "ocean_volcano",    "scene": "surface", "planet": "ocean",          "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "orbit", "orbitRadius": 30, "orbitHeight": 60, "yawStart": 0, "yawEnd": 180, "timeOfDay": 0.45, "weather": "clear" }
   ]
 }

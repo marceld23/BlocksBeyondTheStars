@@ -706,6 +706,7 @@ mixed hash with its own salt, so neighbouring bodies and two worlds of one type 
 | `Wispiness` 0..1 | per-world roll 0.15..1, a little higher on volatile and wind-carved worlds |
 | `FogFrequency` 0.35..2.2 | multiplier on the `fog` / `ground_fog` event weights, skewed toward the mist amount |
 | `CloudBaseY`..`CloudTopY` | +0..12 blocks above the world's measured relief — the upper tenth of the land + 4 and at least 26 above the median ground (`WorldGenerator.SurfaceAltitudes`, the calibration's height sample) — 14..34 blocks thick with the cloud cover |
+| `Floor` 0..1 | the share of the mist that never burns off — the type's `mistFloor` (the gas giant: 0.75; every other type none); the client keeps the haze at least `Amount × Floor`, swelling between 65 % and 100 % of it over ~4 min (`MistLook.PersistentMist`), and pulls the distance haze in toward a quarter of the view (`PersistentFar`). Gas worlds get mist in their own family (amber, rose, lilac, teal — never white) and no cloud band. |
 
 The band is placed against the **measured** relief on purpose (#3272): the type's base height and amplitude
 miss a world's real heights by up to ~16 blocks (styles and drama rolls scale the amplitude), so a band on the
@@ -714,9 +715,9 @@ without a generator (and the weather's summit line, `MistProfiles.SummitLineY`, 
 orbit map share) use the type's relief with a larger clearance instead: the classic cloud line, at least 42
 above the base height.
 
-Airless, space-sky, void and gas worlds (and types without cloud cover, for the band) get none. The
+Airless, space-sky and void worlds get none, gas worlds no band (and types without cloud cover no band). The
 server computes the profile once per world load (`InitWeather`), sends it in the additive
-`WorldEnvironment` fields `MistAmount` / `MistColor` / `MistWispiness` / `CloudBaseY` / `CloudTopY`, and
+`WorldEnvironment` fields `MistAmount` / `MistColor` / `MistWispiness` / `CloudBaseY` / `CloudTopY` / `MistFloor`, and
 feeds `FogFrequency` into the `WeatherContext` of the world and of its ambient body sim. Nothing is
 saved, so it needs no save-version bump.
 

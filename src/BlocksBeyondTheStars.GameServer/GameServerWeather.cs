@@ -516,6 +516,7 @@ public sealed partial class GameServer
             MistWispiness = _worlds.Active.Mist.Wispiness,
             CloudBaseY = _worlds.Active.Mist.CloudBaseY,
             CloudTopY = _worlds.Active.Mist.CloudTopY,
+            MistFloor = _worlds.Active.Mist.Floor,          // the gas giants' haze that never burns off
             Breathable = _breathable,
             SpaceSky = _spaceSky,
             Biome = _biome,

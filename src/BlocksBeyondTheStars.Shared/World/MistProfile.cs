@@ -11,12 +11,14 @@ namespace BlocksBeyondTheStars.Shared.World;
 /// the colour of its mist and cloud fog (<see cref="ColorRgb"/>, 0xRRGGBB, −1 = none → the sky colour), how torn the mist is
 /// (<see cref="Wispiness"/>, 0 a smooth blanket … 1 ragged wisps), how often fog weather comes compared with the type's own
 /// weights (<see cref="FogFrequency"/>, a multiplier) and the cloud band at altitude (<see cref="CloudBaseY"/> ..
-/// <see cref="CloudTopY"/>, absolute world Y; top ≤ base = no band). Built by <see cref="MistProfiles.For"/>.
+/// <see cref="CloudTopY"/>, absolute world Y; top ≤ base = no band). <see cref="Floor"/> (0..1, #3269 follow-up) is the share of
+/// the mist that never burns off — the gas giants are always hazy. Built by <see cref="MistProfiles.For"/>.
 /// </summary>
-public readonly record struct MistProfile(float Amount, int ColorRgb, float Wispiness, float FogFrequency, float CloudBaseY, float CloudTopY)
+public readonly record struct MistProfile(float Amount, int ColorRgb, float Wispiness, float FogFrequency, float CloudBaseY, float CloudTopY,
+    float Floor = 0f)
 {
     /// <summary>No mist, no colour of its own, the type's own fog chances and no cloud band — airless bodies, space-sky
-    /// surfaces, void decks and the gas sea.</summary>
+    /// surfaces and void decks.</summary>
     public static MistProfile None => new(0f, -1, 0f, 1f, 0f, 0f);
 
     /// <summary>Whether the world has a cloud band (at least <see cref="MistProfiles.MinBandThickness"/> blocks thick).</summary>
@@ -50,6 +52,9 @@ public enum MistFamily
 
     /// <summary>Crystal, alien and rainbow worlds: violet, cyan, rose, magenta, turquoise.</summary>
     Exotic,
+
+    /// <summary>The gas giants: amber, rose, lilac, teal — always tinted, never white.</summary>
+    Gas,
 }
 
 /// <summary>
@@ -136,6 +141,14 @@ public static class MistProfiles
         (30f, 0.28f, 0.40f, 3), // apricot
     };
 
+    private static readonly (float Hue, float SatLo, float SatHi, int Weight)[] GasSet =
+    {
+        (34f, 0.30f, 0.44f, 4),  // amber
+        (350f, 0.24f, 0.36f, 2), // rose
+        (270f, 0.24f, 0.36f, 2), // lilac
+        (182f, 0.24f, 0.38f, 2), // teal
+    };
+
     private static readonly (float Hue, float SatLo, float SatHi, int Weight)[] ExoticSet =
     {
         (275f, 0.25f, 0.40f, 2), // violet
@@ -147,11 +160,12 @@ public static class MistProfiles
 
     /// <summary>The mist profile of one world. <paramref name="atmosphereDensity"/> is that world's 0..1 air thickness (the
     /// server's per-world value; thicker air breeds more mist), <paramref name="airless"/> whether it has no air weather
-    /// (an airless body or a space-sky surface). Airless, space-sky, void and gas worlds get <see cref="MistProfile.None"/>.</summary>
+    /// (an airless body or a space-sky surface). Airless, space-sky and void worlds get <see cref="MistProfile.None"/>; the gas
+    /// worlds a dense mist that never fully burns off (the type's <see cref="PlanetType.MistFloor"/>) and no cloud band.</summary>
     public static MistProfile For(long worldSeed, string? locationId, PlanetType? planet, double atmosphereDensity, bool airless,
         TerrainAltitudes? terrain = null)
     {
-        if (airless || planet is { IsAirless: true } || planet is { SpaceSky: true } || planet is { Void: true } || planet is { IsGasWorld: true })
+        if (airless || planet is { IsAirless: true } || planet is { SpaceSky: true } || planet is { Void: true })
         {
             return MistProfile.None;
         }
@@ -164,7 +178,8 @@ public static class MistProfiles
             WispinessOf(worldSeed, locationId, planet),
             FogFrequencyOf(worldSeed, locationId, amount),
             baseY,
-            topY);
+            topY,
+            amount > 0f ? (float)System.Math.Clamp(planet?.MistFloor ?? 0.0, 0.0, 1.0) : 0f);
     }
 
     /// <summary>The band's base stands at least this far above the world's median ground (blocks), so a flat world never
@@ -223,6 +238,11 @@ public static class MistProfiles
         if (planet is null)
         {
             return MistFamily.Pastel;
+        }
+
+        if (planet.IsGasWorld)
+        {
+            return MistFamily.Gas; // the gas sea's own haze colours, before its toxic air or its cold
         }
 
         string flora = planet.FloraTheme ?? string.Empty;
@@ -286,7 +306,7 @@ public static class MistProfiles
         float u1 = (shade & 0xFFFF) / 65535f;
         float u2 = ((shade >> 16) & 0xFFFF) / 65535f;
         float u3 = ((shade >> 32) & 0xFFFF) / 65535f;
-        if (Unit(worldSeed, locationId, WhiteSalt) < WhiteShare)
+        if (Unit(worldSeed, locationId, WhiteSalt) < WhiteShare && !(planet?.IsGasWorld ?? false))
         {
             float hue = u3 < 0.5f ? 210f : 38f; // slightly cool or slightly warm
             return HsvToRgb(hue, 0.02f + 0.04f * u1, 0.86f + 0.12f * u2);
@@ -333,6 +353,7 @@ public static class MistProfiles
         MistFamily.Lush => LushSet,
         MistFamily.Arid => AridSet,
         MistFamily.Exotic => ExoticSet,
+        MistFamily.Gas => GasSet,
         _ => PastelSet,
     };
 

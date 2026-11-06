@@ -179,8 +179,13 @@ namespace BlocksBeyondTheStars.Client
                 far = Mathf.Lerp(far, far * 0.7f, dawn);
             }
 
-            return far;
+            // #3269 follow-up: a world that is never clear (the gas giants) keeps its view short, the haze swelling and thinning.
+            return MistLook.PersistentFar(far, renderDist, PersistentMist(env));
         }
+
+        /// <summary>The haze that never burns off on this world right now (0 on every world without a mist floor).</summary>
+        private float PersistentMist(WorldEnvironment env)
+            => env == null ? 0f : MistLook.PersistentMist(env.MistAmount, env.MistFloor, Game != null ? Game.WorldTime : Time.time);
 
         /// <summary>#3270: Unity's own fog. Only the few materials still on Unity's legacy <c>Unlit/Color</c> and
         /// <c>Unlit/Transparent</c> shaders read it (geyser cubes, lava falls, mining sparks, unlit creature parts, ship build
@@ -248,7 +253,9 @@ namespace BlocksBeyondTheStars.Client
         private float ApplyHeightFog(WorldEnvironment env, float tod, float day, float exposure)
         {
             string weather = env?.Weather ?? string.Empty;
-            float world = env != null && Probe != null ? MistLook.HeightFogStrength(env.MistAmount, tod, day, weather) : 0f;
+            float world = env != null && Probe != null
+                ? MistLook.HeightFogStrength(env.MistAmount, tod, day, weather, PersistentMist(env)) // the gas giants never clear
+                : 0f;
             MistStrength01 = world;
             float mist = HeightFogEnabled ? world : 0f;
             float floor = MistLook.FogFloor(Probe != null ? Probe.FogFloor : 0f, weather);

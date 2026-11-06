@@ -57,8 +57,12 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 - **#3276** `GeyserView` no longer leaks two materials per eruption nor mixes `Time.time` with the world time (cube plumes gone).
 - **#3277** Volcano craters smoke: `WorldGenerator.VolcanoCratersNear` + `VolcanoSmokeView` — a tall wind-bent column per crater in
   far-view range, 1–4 craters by preset; ash on volcanic worlds, steam elsewhere.
+- **Gas giants always hazy** (Marcel, during the PR): new type value `mistFloor` (gas giant 0.75, mist 0.9) → `MistProfile.Floor` →
+  `WorldEnvironment.MistFloor`; the client keeps the height fog at least amount × floor, swelling 65–100 % over ~4 min
+  (`MistLook.PersistentMist`), and pulls the distance haze toward a quarter of the view (`PersistentFar`); gas worlds' mist comes
+  from its own colour family (amber, rose, lilac, teal), no cloud band. Vent steam got a looping `vent_hiss` bed (ElevenLabs).
 - ⚠ **Open:** playtest the look on a few worlds (wisps at dawn, a summit in the clouds, the sea of clouds from the lift, fog banks,
-  vents near and far, a volcano from ~300 m, campfire smoke by night); a steady vent hiss sound (eruptions reuse `geyser_erupt`);
+  vents near and far, a volcano from ~300 m, campfire smoke by night, a gas giant over a few minutes);
   the old exp² fog's view-distance cut in blizzards/gales never reached the custom shaders and was not carried over.
 
 ### 📬 Reports 2026-11-06 + Marcel's findings — rails across the seam, fence pens, the cinematic camera between buildings, a fast world list, boot stages on the loading screen, dark caves and nights, a big chat window, submitting ships/towns/skins, editor texts that fit — #3256–#3265, branch fix/reports-and-singleplayer-wait-2026-11-06 — ✅ done 2026-11-06 in PR #3266 (`bc32729d`), released in v2026.11.7 (⚠ playtest open; no save-version, protocol or terrain-generation change; ReportHost change → the reports image must be deployed before the client release)

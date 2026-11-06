@@ -25,6 +25,42 @@ public sealed class MistLookTests
     private static float Day(float tod) => MistLook.Clamp01((MathF.Sin((tod - 0.25f) * MathF.PI * 2f) * 0.5f) + 0.5f);
 
     [Fact]
+    public void AGasGiant_IsAlwaysHazy_SometimesLessDense_NeverClear()
+    {
+        const float amount = 0.8f, floor = 0.75f;
+        float low = 1f, high = 0f;
+        for (float t = 0f; t < 3600f; t += 5f)
+        {
+            float p = MistLook.PersistentMist(amount, floor, t);
+            low = Math.Min(low, p);
+            high = Math.Max(high, p);
+            foreach (string weather in Weathers)
+            {
+                foreach (float tod in new[] { 0.0f, 0.27f, 0.5f, 0.73f })
+                {
+                    Assert.True(MistLook.HeightFogStrength(amount, tod, Day(tod), weather, p) >= p, "the haze never burns off");
+                }
+            }
+
+            float far = MistLook.PersistentFar(1000f, 400f, p);
+            Assert.InRange(far, 400f * MistLook.PersistentFarShare, 400f); // the view stays short, never closes completely
+        }
+
+        Assert.True(low >= (amount * floor * MistLook.SwellLow) - 0.001f, "never thinner than the swell's low");
+        Assert.True(high - low > 0.1f, $"the haze must swell and thin ({low:0.00}..{high:0.00})");
+        Assert.True(low > 0.35f, "even at its thinnest the gas giant stays hazy");
+    }
+
+    [Fact]
+    public void WithoutAMistFloor_NothingStays()
+    {
+        Assert.Equal(0f, MistLook.PersistentMist(0.8f, 0f, 123f));
+        Assert.Equal(0f, MistLook.PersistentMist(0f, 0.75f, 123f));
+        Assert.Equal(1000f, MistLook.PersistentFar(1000f, 400f, 0f));
+        Assert.Equal(MistLook.HeightFogStrength(0.6f, 0.5f, 1f, "clear"), MistLook.HeightFogStrength(0.6f, 0.5f, 1f, "clear", 0f));
+    }
+
+    [Fact]
     public void AnAirlessWorld_HasNoMist_AtAnyHourInAnyWeather()
     {
         foreach (string weather in Weathers)

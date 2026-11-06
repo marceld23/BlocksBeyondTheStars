@@ -119,6 +119,11 @@ public sealed class WorldEnvironment
     /// <summary>The top of the cloud band, see <see cref="CloudBaseY"/>.</summary>
     public float CloudTopY { get; set; }
 
+    /// <summary>#3269 follow-up: 0..1 the share of <see cref="MistAmount"/> that never burns off — the world is always hazy,
+    /// the haze swelling and thinning slowly and the view kept short (the gas giants). 0 = the mist comes and goes with the
+    /// hour and the weather (every other world, and what an older server sends).</summary>
+    public float MistFloor { get; set; }
+
     /// <summary>Whether the planet's atmosphere is breathable (no suit-oxygen drain on the surface).</summary>
     public bool Breathable { get; set; }
 

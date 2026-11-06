@@ -164,6 +164,44 @@ namespace BlocksBeyondTheStars.Client
         public static float HeightFogStrength(float mistAmount, float timeOfDay, float day, string? weather)
             => Clamp01(Clamp01(mistAmount) * TimeFactor(timeOfDay, day) * WeatherFactor(weather));
 
+        /// <summary>Seconds of one slow swell of a persistent haze (<see cref="PersistentMist"/>).</summary>
+        public const float SwellPeriod = 240f;
+
+        /// <summary>The persistent haze's share of its floor at its thinnest (it swells back to the full floor).</summary>
+        public const float SwellLow = 0.65f;
+
+        /// <summary>The nearest the distance haze closes in at a full persistent haze, as a share of the render distance.</summary>
+        public const float PersistentFarShare = 0.25f;
+
+        /// <summary>0..1 the mist that never burns off (#3269 follow-up, the gas giants: <c>WorldEnvironment.MistFloor</c>):
+        /// the world's amount × its floor, swelling and thinning slowly over the world clock (two incommensurate waves,
+        /// <see cref="SwellLow"/>..1 of the floor) — sometimes less dense, never clear. 0 on a world without a floor.</summary>
+        public static float PersistentMist(float mistAmount, float mistFloor, float worldTime)
+        {
+            if (mistFloor <= 0f || mistAmount <= 0f)
+            {
+                return 0f;
+            }
+
+            double t = worldTime * (2.0 * Math.PI / SwellPeriod);
+            float wave = 0.5f + (0.5f * (float)((0.6 * Math.Sin(t)) + (0.4 * Math.Sin((t * 2.37) + 1.3))));
+            float swell = SwellLow + ((1f - SwellLow) * Clamp01(wave));
+            return Clamp01(Clamp01(mistAmount) * Clamp01(mistFloor) * swell);
+        }
+
+        /// <summary>The height fog with a persistent haze under it: never below <paramref name="persistent"/>, whatever the
+        /// hour and the weather.</summary>
+        public static float HeightFogStrength(float mistAmount, float timeOfDay, float day, string? weather, float persistent)
+            => Math.Max(HeightFogStrength(mistAmount, timeOfDay, day, weather), Clamp01(persistent));
+
+        /// <summary>Where the distance haze completes under a persistent haze: pulled in toward <see cref="PersistentFarShare"/>
+        /// of <paramref name="renderDist"/> as the haze thickens; unchanged without one.</summary>
+        public static float PersistentFar(float far, float renderDist, float persistent)
+        {
+            float p = Clamp01(persistent);
+            return p <= 0f ? far : Math.Min(far, renderDist * (1f - ((1f - PersistentFarShare) * p)));
+        }
+
         /// <summary>The world Y the mist is densest at: a little above the probe's valley floor, higher in fog weather.</summary>
         public static float FogFloor(float probeFloor, string? weather) => probeFloor + 1.5f + (IsFogWeather(weather) ? 3f : 0f);
 

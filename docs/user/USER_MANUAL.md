@@ -589,7 +589,9 @@ The air and the weather leave their mark on the world (atmosphere package, Octob
 - **Mist in the valleys** gathers in the low ground around dawn and dusk and in fog weather, and burns off toward
   noon; looking toward a low sun, the haze glows golden. Caves and interiors stay clear. Every world has a mist of
   its own: how much of it there is, how often fog weather comes, how torn it is and its colour — many worlds have
-  white mist, others a yellow, green, blue, pink or violet one. Two worlds of the same kind can differ.
+  white mist, others a yellow, green, blue, pink or violet one. Two worlds of the same kind can differ. **Gas
+  giants are never clear**: a dense amber, rose, lilac or teal haze hangs over the gas sea all day and in every weather,
+  swelling and thinning slowly, and the view always stays short.
 - **Fog wisps drifting in the wind**: the mist is not one even blanket — it lies in banks with clear gaps between
   them that drift and change with the wind.
 - **Cloud fog on high peaks**: when the weather brings clouds, rain or fog, the clouds hang at a height of their own

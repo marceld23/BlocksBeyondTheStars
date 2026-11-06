@@ -87,12 +87,11 @@ public sealed class MistProfileTests
     }
 
     [Fact]
-    public void AirlessSpaceSkyVoidAndGasWorlds_HaveNoMistAndNoBand()
+    public void AirlessSpaceSkyAndVoidWorlds_HaveNoMistAndNoBand()
     {
-        var none = Content.Planets.Values.Where(p => !HasAir(p)).ToList();
+        var none = Content.Planets.Values.Where(p => !HasAir(p) && !p.IsGasWorld).ToList();
         Assert.Contains(none, p => p.IsAirless);
         Assert.Contains(none, p => p.SpaceSky);
-        Assert.Contains(none, p => p.IsGasWorld);
         foreach (var p in none)
         {
             foreach (var world in Worlds(20))
@@ -107,6 +106,30 @@ public sealed class MistProfileTests
 
         // The caller's own "no air" verdict wins as well.
         Assert.Equal(MistProfile.None, MistProfiles.For(Seed, "sys0-p1", Planet("jungle"), 0.8, airless: true));
+    }
+
+    [Fact]
+    public void GasWorlds_AreAlwaysHazy_InTheirOwnColours_WithoutACloudBand()
+    {
+        var gas = Content.Planets.Values.Where(p => p.IsGasWorld && !p.IsAirless && !p.SpaceSky && !p.Void).ToList();
+        Assert.NotEmpty(gas);
+        foreach (var p in gas)
+        {
+            Assert.Equal(MistFamily.Gas, MistProfiles.FamilyOf(p));
+            foreach (var world in Worlds(60))
+            {
+                var m = Profile(world, p);
+                Assert.True(m.Amount >= 0.4f, $"{p.Key}/{world}: a gas giant is soupy ({m.Amount})");
+                Assert.InRange(m.Floor, 0.5f, 1f); // the haze never burns off
+                Assert.False(m.HasCloudBand, $"{p.Key}: the gas sea has no cloud band above land");
+                int c = m.ColorRgb;
+                int r = (c >> 16) & 0xFF, g = (c >> 8) & 0xFF, b = c & 0xFF;
+                Assert.True(System.Math.Max(r, System.Math.Max(g, b)) - System.Math.Min(r, System.Math.Min(g, b)) > 20,
+                    $"{p.Key}/{world}: the gas haze is always tinted, never plain white ({c:X6})");
+            }
+        }
+
+        Assert.All(Worlds(20), w => Assert.Equal(0f, Profile(w, Planet("jungle")).Floor)); // every other world burns off
     }
 
     [Fact]
