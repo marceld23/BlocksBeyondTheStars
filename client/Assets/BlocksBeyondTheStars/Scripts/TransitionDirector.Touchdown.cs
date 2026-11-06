@@ -12,13 +12,15 @@ namespace BlocksBeyondTheStars.Client
     /// its engine fire — slowing as it nears the ground, the dust in the ground's colour racing out from under it — until
     /// it settles with a thump, the engines spool down and steam vents; then the camera glides into the player's eyes. A
     /// render-only stand-in flies (the real hull keeps its colliders on the pad, hidden meanwhile), so nothing the server
-    /// placed ever moves.
+    /// placed ever moves. #3258: the shot plan watches from outside only while a spot can see the descent; the rest (the
+    /// last metres and the thump, or all of it) plays from the cockpit, and the way home from there glides through the
+    /// cabin when it is open, else blinks.
     /// </summary>
     public sealed partial class TransitionDirector
     {
-        private const float DescendSeconds = 3.3f;
-        private const float SettleSeconds = 0.8f;
-        private const float EyeSeconds = 1.1f;
+        private const float DescendSeconds = TransitionFlightPath.DescendSeconds;
+        private const float SettleSeconds = TransitionFlightPath.SettleSeconds;
+        private const float EyeSeconds = TransitionFlightPath.EyeSeconds;
 
         private GameObject _stand;          // the flying stand-in (touchdown) or the adopted hull (lift-off)
         private GameObject _hiddenHull;     // the real parked hull, hidden while its stand-in flies
@@ -56,13 +58,21 @@ namespace BlocksBeyondTheStars.Client
                          ?? ShipHatchDoor.Build(_stand.transform, ShipHatchDoor.PlanFor(model), Vector3.zero);
             HideRealHatch(true);
             _restPos = root.transform.position;
-            _drop = 34f + _hullBox.size.y * 2.5f;
+            _drop = TransitionFlightPath.TouchdownDrop(_hullBox.size.y);
             _stand.transform.position = _restPos + Vector3.up * _drop;
             PrepareShipFx(model);
             _impact = false;
-            _spot = ShotSpot(_hullBox, Mathf.Max(10f, _hullBox.extents.magnitude * 1.6f), 2.2f);
+            PlanShot(TransitionShotStage.Touchdown, model, Mathf.Max(10f, _hullBox.extents.magnitude * 1.6f), 2.2f);
             TakeCamera();
-            AimShot(_spot, _stand.transform.position + (_hullBox.center - _restPos), 0f);
+            if (_plan != null && _plan.HasOutside)
+            {
+                AimShot(_spot, _stand.transform.position + (_hullBox.center - _restPos), 0f);
+            }
+            else
+            {
+                GoInside(0f); // #3258: no spot sees the descent — the cover opens on the cockpit
+            }
+
             ClientAudio.Instance?.Cue("engine_thrust", 0.7f);
             SetStage(Stage.Touchdown);
             return true;
@@ -100,29 +110,55 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float t = Mathf.Clamp01(_stageTime / DescendSeconds);
-            float e = 1f - (1f - t) * (1f - t) * (1f - t);
-            float height = _drop * (1f - e);
-            float sway = (1f - e) * 0.6f;
-            _stand.transform.SetPositionAndRotation(
-                _restPos + Vector3.up * height + new Vector3(Mathf.Sin(_stageTime * 1.7f), 0f, Mathf.Cos(_stageTime * 1.3f)) * sway,
-                Quaternion.Euler(5f * (1f - e), 0f, 2.5f * Mathf.Sin(_stageTime * 2.1f) * (1f - e)));
-            DescentFx(t, height);
+            var pose = TransitionFlightPath.Touchdown(_stageTime, _drop);
+            _stand.transform.SetPositionAndRotation(_restPos + new Vector3(pose.X, pose.Y, pose.Z), Quaternion.Euler(pose.RotX, 0f, pose.RotZ));
+            DescentFx(t, pose.Y);
             if (t >= 1f && !_impact)
             {
                 Impact();
             }
 
-            var centre = _stand.transform.position + (_hullBox.center - _restPos);
-            float push = Mathf.Clamp01((_stageTime - DescendSeconds) / SettleSeconds);
-            MoveShot(Vector3.Lerp(_spot, Vector3.Lerp(_spot, centre, 0.25f), push), centre);
-            if (_stageTime >= DescendSeconds + SettleSeconds)
-            {
-                BlendToEye(EyeSeconds);
-            }
-
+            TouchdownShot();
             if (AtEye)
             {
                 FinishTouchdown();
+            }
+        }
+
+        /// <summary>#3258: the touchdown's camera — outside while the plan (and the safety net) say a spot sees the stand-in,
+        /// with the push-in as it settles; into the cockpit at the planned cut or the moment the view gets blocked; then home
+        /// to the eyes: a glide where the way is clear, else a blink.</summary>
+        private void TouchdownShot()
+        {
+            if (_mode == ShotMode.Outside && !_toEye)
+            {
+                var centre = _stand.transform.position + (_hullBox.center - _restPos);
+                bool cut = _plan != null && _plan.OutsideTo < _plan.Duration && _stageTime >= _plan.OutsideTo;
+                if (cut || OutsideBlocked(centre))
+                {
+                    GoInside(0f);
+                }
+                else
+                {
+                    float push = Mathf.Clamp01((_stageTime - DescendSeconds) / SettleSeconds);
+                    MoveShot(Vector3.Lerp(_spot, Vector3.Lerp(_spot, centre, 0.25f), push), centre);
+                }
+            }
+
+            if (_homing || _stageTime < DescendSeconds + SettleSeconds)
+            {
+                return;
+            }
+
+            _homing = true;
+            bool glide = _mode == ShotMode.Outside ? EyeGlideClear() : _cabinGlide;
+            if (glide)
+            {
+                BlendToEye(EyeSeconds);
+            }
+            else
+            {
+                Blink(FinishTouchdown);
             }
         }
 

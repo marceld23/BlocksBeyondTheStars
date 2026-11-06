@@ -35,12 +35,38 @@ namespace BlocksBeyondTheStars.Client
             {
                 Rebuild();
             }
+        }
 
+        /// <summary>Places the decor — in LateUpdate, after every Update moved what it follows (the player's scene copy, and
+        /// since #3258 a flying hull: the transition director moves it in its Update, at a later execution order).</summary>
+        private void LateUpdate()
+        {
+            if (Game == null)
+            {
+                return;
+            }
+
+            // #3258: while the own ship sinks onto its pad or lifts off in a transition cinematic, its decor rides with the
+            // flying hull — the cockpit camera looks right at the console.
+            Transform hull = null;
+            Vector3 rest = default;
+            var transitions = Game.Views.Transitions;
+            bool ride = transitions != null && transitions.TryOwnShipRide(out hull, out rest);
             foreach (var (go, world) in _decor)
             {
-                if (go != null)
+                if (go == null)
                 {
-                    go.transform.position = Game.ScenePos(world.x, world.y, world.z);
+                    continue;
+                }
+
+                var at = Game.ScenePos(world.x, world.y, world.z);
+                if (ride)
+                {
+                    go.transform.SetPositionAndRotation(hull.TransformPoint(at - rest), hull.rotation);
+                }
+                else
+                {
+                    go.transform.SetPositionAndRotation(at, Quaternion.identity);
                 }
             }
         }
