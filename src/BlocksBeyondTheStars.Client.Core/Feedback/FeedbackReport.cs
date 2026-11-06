@@ -61,8 +61,9 @@ namespace BlocksBeyondTheStars.Client.Feedback
         /// <summary>The attached screenshot, or null when none was captured / it was too large.</summary>
         public FeedbackScreenshot? Screenshot { get; set; }
 
-        /// <summary>Files that travel with the report — only a texture submission (#1965) has any: the picture as a
-        /// PNG and the raw tile. Null (= not serialized) for every other report.</summary>
+        /// <summary>Files that travel with the report — only a submission has any: a texture's picture as a PNG and
+        /// the raw tile (#1965), or the export files of a ship, station/town module or avatar skin as one JSON
+        /// document (#3262). Null (= not serialized) for every other report.</summary>
         public List<FeedbackAttachment>? Attachments { get; set; }
 
         /// <summary>The file name to suggest for the screenshot upload — not serialized into the payload root

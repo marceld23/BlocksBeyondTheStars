@@ -72,7 +72,7 @@ namespace BlocksBeyondTheStars.Client
                     && !Game.MenuInputHandledThisFrame)
                 {
                     Game.MarkMenuInputHandled();
-                    if (TextureSubmitDialog.OwnsCancel)
+                    if (CreationSubmitDialog.OwnsCancel)
                     {
                         return; // the submit dialog (#1965) takes this press
                     }

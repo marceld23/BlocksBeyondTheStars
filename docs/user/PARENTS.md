@@ -87,6 +87,14 @@ exactly the players you invited, and you hold every switch (robots, bandits and 
   submission by hand before anything goes into the game; one we do not adopt is deleted after twelve months at
   the latest. If you do not want a submission to be used, write to us — we delete it, and a texture that has
   already shipped is removed with the next version.
+- **Sending in a ship, a station or town, or a character skin.** The Ship, Station and Town editors and the Avatar
+  Designer have the same *Submit* button with the same dialog: nickname instead of a real name (or none), an optional
+  note, and the same three confirmations. What is sent: the design itself, a picture of it, its name and **every text
+  inside it** (for example a ship's description or the labels on signs and devices), the nickname, the note, the game
+  version and an anonymous id through which we can answer in the game — no e-mail, no real name, no location. A person
+  reads every submission, including all of those texts, before anything goes into the game; names are never taken
+  over automatically. What we do not adopt is deleted after twelve months at the latest; the same deletion request
+  as for textures applies.
 - **Textures other players made.** On a multiplayer world its administrators can replace textures for
   everyone there. *Tab menu → Character → Show this world's textures → Off* switches that off for your child's game, on
   every world.

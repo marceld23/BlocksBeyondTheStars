@@ -90,7 +90,7 @@ public static class BugReportStatus
     }
 }
 
-/// <summary>One stored attachment of a texture submission (#1966).</summary>
+/// <summary>One stored attachment of a submission (texture #1966; ship, structure, avatar #3262).</summary>
 public sealed record AttachmentRecord(string ReportId, int Index, string FileName, string Mime, string StoredFile, int Bytes);
 
 /// <summary>
@@ -248,7 +248,7 @@ public sealed class ReportStore : IDisposable
         return id;
     }
 
-    // ---------------- Attachments (texture submissions, #1966) ----------------
+    // ---------------- Attachments (submissions: textures #1966; ships, structures, avatar skins #3262) ----------------
 
     /// <summary>The attachments of a report, in the order they were sent.</summary>
     public IReadOnlyList<AttachmentRecord> Attachments(string reportId)
@@ -321,10 +321,10 @@ public sealed class ReportStore : IDisposable
         }
     }
 
-    /// <summary>Removes texture submissions older than <paramref name="retentionDays"/> that were NOT adopted — a
-    /// submission counts as adopted once the operator set "fixed in version" (the release that ships it). 0 keeps
-    /// them forever. Returns how many were removed.</summary>
-    public int PruneTextureSubmissions(int retentionDays, long nowUnix)
+    /// <summary>Removes submissions (textures, ships, structures, avatar skins — <see cref="ReportIngest.SubmissionCategories"/>)
+    /// older than <paramref name="retentionDays"/> that were NOT adopted — a submission counts as adopted once the
+    /// operator set "fixed in version" (the release that ships it). 0 keeps them forever. Returns how many were removed.</summary>
+    public int PruneSubmissions(int retentionDays, long nowUnix)
     {
         if (retentionDays <= 0)
         {
@@ -336,8 +336,8 @@ public sealed class ReportStore : IDisposable
         lock (_gate)
         {
             using var select = _db.CreateCommand();
-            select.CommandText = "SELECT id FROM bugreport WHERE category = $c AND created_unix < $cutoff AND fixed_in_version = '';";
-            select.Parameters.AddWithValue("$c", ReportIngest.TextureCategory);
+            // The IN list comes from constants only (ReportIngest.SubmissionCategoriesSql), never from input.
+            select.CommandText = $"SELECT id FROM bugreport WHERE category IN ({ReportIngest.SubmissionCategoriesSql}) AND created_unix < $cutoff AND fixed_in_version = '';";
             select.Parameters.AddWithValue("$cutoff", cutoff);
             using var reader = select.ExecuteReader();
             while (reader.Read())

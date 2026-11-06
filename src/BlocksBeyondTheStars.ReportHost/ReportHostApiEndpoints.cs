@@ -77,7 +77,7 @@ public static class ReportHostApiEndpoints
             return Results.File(path, record.ScreenshotFile.EndsWith(".png", StringComparison.Ordinal) ? "image/png" : "image/jpeg");
         });
 
-        // A texture submission's files (#1966) as downloads, for the pull tool — see ReportHostRuntime.ServeAttachment.
+        // A submission's files (#1966, #3262) as downloads, for the pull tool — see ReportHostRuntime.ServeAttachment.
         app.MapGet("/api/reports/{id}/attachment/{index:int}", (HttpContext ctx, string id, int index)
             => runtime.GuardReadKey(ctx) is { } denied ? denied : runtime.ServeAttachment(id, index));
 

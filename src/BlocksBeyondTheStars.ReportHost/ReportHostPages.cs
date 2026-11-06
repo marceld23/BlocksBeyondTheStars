@@ -28,8 +28,9 @@ public static class ReportHostPages
         sb.Append("</span></h1>");
 
         // Operators keep confusing the two inboxes — say explicitly what lands here vs. in the fleet admin (#379).
-        sb.Append("<p class='hint'>This inbox receives in-game feedback (the F1/F2 dialog), crash reports and " +
-                  "/bump snapshots. Player reports and the portal website's feedback form live in the fleet " +
+        sb.Append("<p class='hint'>This inbox receives in-game feedback (the F1/F2 dialog), crash reports, " +
+                  "/bump snapshots and the players' submissions from the editors (texture, ship, structure, avatar). " +
+                  "Player reports and the portal website's feedback form live in the fleet " +
                   "admin — <code>play.&lt;your domain&gt;/admin</code>.</p>");
 
         sb.Append("<form method='get' action='/admin' class='filters'>");
@@ -40,7 +41,7 @@ public static class ReportHostPages
         }
 
         sb.Append("</select> <select name='category'><option value=''>all categories</option>");
-        foreach (var c in new[] { "feedback", "crash", ReportIngest.TextureCategory })
+        foreach (var c in new[] { "feedback", "crash" }.Concat(ReportIngest.SubmissionCategories))
         {
             sb.Append($"<option value='{c}'{(c == category ? " selected" : "")}>{c}</option>");
         }
@@ -326,7 +327,10 @@ public static class ReportHostPages
     /// <paramref name="replies"/> are ITS replies. Null or <paramref name="r"/> itself = the row owns its thread.</param>
     /// <param name="pair">The rows the status buttons and delete act on (<see cref="PairOf"/>, #1380) — the
     /// page says so when there is more than one. Null = <paramref name="r"/> alone.</param>
-    public static string Detail(BugReportRecord r, IReadOnlyList<ReplyRecord>? replies = null, AdminCsrf? csrf = null, BugReportRecord? threadOwner = null, IReadOnlyList<BugReportRecord>? pair = null, IReadOnlyList<AttachmentRecord>? attachments = null)
+    /// <param name="readAttachment">Loads an attachment's bytes, so the card of a submitted creation can list the free
+    /// text inside it (#3262). Null = the card lists the files only.</param>
+    public static string Detail(BugReportRecord r, IReadOnlyList<ReplyRecord>? replies = null, AdminCsrf? csrf = null, BugReportRecord? threadOwner = null, IReadOnlyList<BugReportRecord>? pair = null, IReadOnlyList<AttachmentRecord>? attachments = null,
+        Func<AttachmentRecord, byte[]?>? readAttachment = null)
     {
         attachments ??= Array.Empty<AttachmentRecord>();
         replies ??= Array.Empty<ReplyRecord>();
@@ -362,22 +366,11 @@ public static class ReportHostPages
 
         sb.Append("</table></div>");
 
-        if (attachments.Count > 0)
-        {
-            // A texture submission (#1966): the picture blown up with hard pixels, and every file as a download.
-            sb.Append("<div class='card'><h2>Submitted texture</h2>");
-            foreach (var a in attachments.Where(a => a.Mime == "image/png"))
-            {
-                sb.Append($"<p><img src='/admin/report/{r.Id}/attachment/{a.Index}/view' alt='texture' style='image-rendering:pixelated;height:256px;border:1px solid #456'></p>");
-            }
-
-            sb.Append("<p>");
-            sb.Append(string.Join(" · ", attachments.Select(a =>
-                $"<a href='/admin/report/{r.Id}/attachment/{a.Index}'>{E(a.FileName)}</a> <span class='sub'>({a.Bytes} B)</span>")));
-            sb.Append("</p><p class='hint'>Adopt it with <code>tools/pull_texture_submissions.py</code> + <code>tools/merge_texture.py</code>; set “fixed in version” so the player hears from which release on it ships — a submission without it is deleted after the retention period.</p></div>");
-        }
-
-        if (r.ScreenshotFile.Length > 0)
+        // A submission (#1966 texture, #3262 ship / structure / avatar): its own review card. The preview of a creation
+        // rides in the screenshot field — the card shows it, so the plain screenshot card is skipped for those.
+        sb.Append(SubmissionCard.Render(r, attachments, readAttachment));
+        bool creation = ReportIngest.IsSubmission(r.Category) && r.Category != ReportIngest.TextureCategory;
+        if (r.ScreenshotFile.Length > 0 && !creation)
         {
             sb.Append($"<div class='card'><h2>Screenshot</h2><a href='/admin/report/{r.Id}/screenshot'><img src='/admin/report/{r.Id}/screenshot' alt='screenshot'></a></div>");
         }

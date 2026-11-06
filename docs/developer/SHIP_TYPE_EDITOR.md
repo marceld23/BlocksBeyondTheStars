@@ -4,7 +4,8 @@
 > shipped. `client/.../ShipEditor.cs` is the menu-launched free-fly build room (palette of hull/glass/
 > lights/doors/engine/hatch/station markers/weapons + a metadata/stats/craft-cost panel + a LOAD button to
 > re-open saved designs); it exports a `{ship.json, layout.json}` bundle to
-> `persistentDataPath/ship_exports/<key>/`. `tools/merge_ship.py` folds a bundle into `data/ships.json` +
+> `persistentDataPath/ship_exports/<key>/` — and **Submit** (#3262) sends the same bundle to the developers' inbox
+> (`tools/pull_submissions.py --kind ship` unpacks it again, see REPORT_HOST.md). `tools/merge_ship.py` folds a bundle into `data/ships.json` +
 > `data/ship_layouts/<key>.json`, and the server stamps the real voxel layout when a ship type has one
 > (`GameServerSpaceStructure.BuildShipStructureFrom` / `data/ship_layouts/` ships scout/corvette/hauler).
 > Phases P1–P3 below are done; P2's new elements (hatch/lights/engine) and P4 polish (LOAD + a richer

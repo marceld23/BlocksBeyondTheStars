@@ -153,7 +153,7 @@ left out: the hand-off into a world must not wait on a form, and the editors' ow
   (only with a report in `sent.json`). While a world is loaded it sleeps — the world's own instance polls —
   closes anything it had open without acknowledging it and drops its queue, so a thread is shown by whichever
   instance is awake. Because `SentReportsLog` caches its file on first use and the shell instance lives as long
-  as the app, shell mode opens the log fresh for every read and write (as `TextureSubmitDialog` does).
+  as the app, shell mode opens the log fresh for every read and write (as `CreationSubmitDialog` does).
 - **Spool.** Only the world's instance flushes `FeedbackSpool` at its start — two instances draining it at once
   could send a queued report twice — so a report queued offline from the menu goes out with the next world.
 - **Language.** The dialogs are built once per instance; the shell instance rebuilds them when Settings changed
@@ -187,7 +187,7 @@ part of the texture. The pixel work (`ReadbackPixels`) lives in Client.Core and 
 
 **"Submit to the developers"** in the texture editor offers a painted texture for the game itself. It rides
 this channel — same endpoint, spam key, spool, reply thread — but is its own dialog
-(`TextureSubmitDialog`), because it asks for something else: three explicit consents (painted it myself /
+(`CreationSubmitDialog`, which serves ships, stations/towns and skins too since #3262), because it asks for something else: three explicit consents (painted it myself /
 the developers may use, change and distribute it / 16 or older, or the parents agreed). Nothing is sent
 until all three are ticked, but Submit stays clickable: pressed with a box still open, it names what is
 missing (`ui.tex.submit.need_consent`) and rings the open boxes in amber (#2576) — a button that was merely off
@@ -196,8 +196,8 @@ looked clickable and did nothing. Consent is never remembered between textures.
 - The consent sentences are laid out as a point-anchored rect (position + size) with best fit 15→11, so the
   whole sentence fits its box in every language. Do not inset a `UiKit.AddButton` label with
   `offsetMin`/`offsetMax`: that is an inset only on a stretched rect — on the button's point-anchored label it
-  produced a width of −24 and all three sentences vanished (#2575). `TextureSubmitDialogEditModeTests` builds
-  the real dialog and checks the fit in all 14 languages.
+  produced a width of −24 and all three sentences vanished (#2575). `CreationSubmitDialogEditModeTests` builds
+  the real dialog and checks the fit in all 14 languages, for every kind.
 
 - The body is built by `TextureSubmission.Build` (Client.Core, unit-tested): `reportJson.reportType =
   "texture-submission"`, `reportJson.texture { key, kind, name, nickname, frames, fps, consent{…, textVersion} }`
@@ -214,6 +214,40 @@ looked clickable and did nothing. Consent is never remembered between textures.
   the reply poll runs and the answer ("ships in version …") reaches the player in the game.
 - A build without the inbox key (local, fork) cannot submit and says so; "Export" still works.
 
+### Ships, stations/towns and avatar skins (#3262)
+
+The Ship Designer, the Station/Town editor (station and settlement mode) and the Avatar Designer have a **Submit**
+button next to Save / Export skin. They share the texture's dialog — renamed `CreationSubmitDialog`, one dialog for
+all four kinds — and its flow (consents, nickname or "no name", spool, `SentReportsLog`, reply thread). Per kind the
+dialog has its own title, intro, name label, the first two consent sentences, "what is sent" and the thank-you
+(`ui.submit.<kind>.*`, `CreationSubmitDialog.TextKey`); the age consent, nickname, note and buttons are shared, and
+the texture keeps its approved `ui.tex.submit.*` wording unchanged.
+
+- The body is built by `CreationSubmission.Build` (Client.Core, unit-tested in `CreationSubmissionTests`):
+  `reportJson.reportType = "<kind>-submission"` (`ship`, `structure`, `avatar`) and `reportJson.<kind> { key, name,
+  nickname, note, gameVersion, blockFingerprint (GameContent.BlockFingerprint), formatVersion: 1, cellCount, basedOn,
+  payload{fileName, mimeType, bytes, rawBytes}, consent{self, grant, age, textVersion} }` (+ `structureKind` and
+  `kit` for a structure). Never a top-level `reportJson.kind` — the inbox would file it as a crash.
+- **One attachment**: a compact JSON document `{ formatVersion, kind, key, files: { "ship.json": {…},
+  "layout.json": {…} } }` — the editor's own export files by name (a structure adds `kit.json` when its module
+  belongs to a kit; a skin is `skin.json`). Above 300 KB it is gzipped (`application/gzip`). The **preview PNG**
+  (640×360 from a throwaway clone of the editor camera into a RenderTexture + `GpuReadback`,
+  `EditorPreviewCapture`; the avatar's from an `AvatarPreviewRig`) rides in the ordinary `screenshot` field.
+- **Caps** (`CreationSubmission.MaxPayloadBytes` / `MaxCells`): ship and structure ≤ 1.5 MB after compression,
+  avatar ≤ 100 KB; a structure ≤ 60 000 cells. Above a cap nothing is sent and the dialog says so
+  (`ui.submit.too_large`, `ui.submit.too_many_cells`); the structure editor checks the cell cap and runs
+  `ValidateForExport` (ports, seal, door lanes) before it even opens the dialog. A preview above 1 MB is dropped,
+  never the creation. The key is reduced to `[a-z0-9_]` (the pull tool's folder name); the typed name travels as is.
+- `basedOn` is the shipped ship/template the player loaded as a starting point (LOAD → built-in), or the shipped key
+  the design still carries — the reviewer sees at once whether it is a remix.
+- The same data minimisation as for textures: no e-mail, no install token, no machine facts; `playerName` is the
+  nickname. The free text inside the files (ship name/description, device labels and configs, the skin's name) is
+  listed on the inbox card for a human review — see *Creation submissions* in [REPORT_HOST.md](REPORT_HOST.md).
+- The Avatar Designer's **Export** now writes the whole skin (colours as `#RRGGBB`, `facePixels`, `torsoPixels`,
+  `armPixels`, `legPixels`, `helmetPixels`, `formatVersion: 2`) — the format `tools/gen_pioneer_skins.py --from-skin`
+  reads; the old export dropped everything but the four colours.
+- Saving no longer tells players to run tools: `ui.ed.saved_ship` / `ui.ed.saved_structure` point at Submit.
+
 ## Code map
 
 | Concern | File |
@@ -229,10 +263,11 @@ looked clickable and did nothing. Consent is never remembered between textures.
 | Tests (local `HttpListener` endpoint) | `tests/BlocksBeyondTheStars.Client.Tests/FeedbackUploaderTests.cs` |
 | Tests (spool life cycle) | `tests/BlocksBeyondTheStars.Client.Tests/FeedbackSpoolTests.cs` |
 | UI + capture + dual send | `client/Assets/BlocksBeyondTheStars/Scripts/FeedbackUi.cs` |
-| Texture submission: body / dialog | `src/BlocksBeyondTheStars.Client.Core/Feedback/TextureSubmission.cs` / `client/Assets/BlocksBeyondTheStars/Scripts/TextureSubmitDialog.cs` |
+| Texture submission: body / dialog | `src/BlocksBeyondTheStars.Client.Core/Feedback/TextureSubmission.cs` / `client/Assets/BlocksBeyondTheStars/Scripts/CreationSubmitDialog.cs` (+ `.Send.cs`) |
+| Ship / structure / avatar submission: body / preview / editors | `src/BlocksBeyondTheStars.Client.Core/Feedback/CreationSubmission.cs` / `client/Assets/BlocksBeyondTheStars/Scripts/EditorPreviewCapture.cs` / `ShipEditor.Submit.cs`, `StructureEditor.Submit.cs`, `AvatarEditor.Submit.cs` |
 | Texture-pack note in reports | `src/BlocksBeyondTheStars.Client.Core/Feedback/TexturePackReportInfo.cs` (snapshot kept by `GameTextures.ReportInfo`) |
-| Tests (submission body, consent gate, texture-pack note) | `tests/BlocksBeyondTheStars.Client.Tests/TextureSubmissionTests.cs` |
-| Tests (submit dialog: consent layout in 14 languages, missing-consent hint) | `client/Assets/Tests/EditMode/TextureSubmitDialogEditModeTests.cs` |
+| Tests (submission body, consent gate, texture-pack note) | `tests/BlocksBeyondTheStars.Client.Tests/TextureSubmissionTests.cs` · `CreationSubmissionTests.cs` (shape, gzip, caps, consent, no personal data) |
+| Tests (submit dialog: consent layout in 14 languages × 4 kinds, missing-consent hint) | `client/Assets/Tests/EditMode/CreationSubmitDialogEditModeTests.cs` |
 | Wired into the world | `client/Assets/BlocksBeyondTheStars/Scripts/WorldRig.cs` |
 | Wired into the menu (shell mode, #2523) | `client/Assets/BlocksBeyondTheStars/Scripts/AppShell.cs` |
 | API key (build secret) | `client/Assets/BlocksBeyondTheStars/Scripts/BugReportBuildSecrets.cs` |

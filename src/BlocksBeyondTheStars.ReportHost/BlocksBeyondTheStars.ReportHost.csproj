@@ -1,8 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
-    <!-- Only for the shared AdminNotifier (#938) and the shared BasicAuth admin gate; the inbox stays deployable on its own. -->
+    <!-- Only for the shared AdminNotifier (#938), the shared BasicAuth admin gate and the block fingerprint (#3262);
+         the inbox stays deployable on its own. -->
     <ProjectReference Include="..\BlocksBeyondTheStars.Shared\BlocksBeyondTheStars.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- #3262: the block keys of the build this inbox is made from. The admin card of a submitted ship or structure
+         warns when the player built it with a different block set (GameContent.FingerprintOfBlockKeys). -->
+    <EmbeddedResource Include="..\..\data\blocks.json" LogicalName="BlocksBeyondTheStars.ReportHost.blocks.json" Link="Content\blocks.json" />
   </ItemGroup>
 
   <ItemGroup>

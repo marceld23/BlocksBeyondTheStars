@@ -155,7 +155,7 @@ public sealed class ReportHostRuntime
         return null;
     }
 
-    // Attachments of a texture submission (#1966) — served as DOWNLOADS with their name, for the pull tool
+    // Attachments of a submission (#1966, #3262) — served as DOWNLOADS with their name, for the pull tool
     // (read key) and for the operator (admin).
     public IResult ServeAttachment(string id, int index)
     {

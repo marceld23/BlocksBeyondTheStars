@@ -86,6 +86,14 @@ haben, und Sie halten jeden Schalter (Roboter, Banditen und andere Gegner, Sprac
   kommt; was wir nicht übernehmen, löschen wir spätestens nach zwölf Monaten. Wenn Sie nicht möchten, dass
   eine Einreichung verwendet wird, schreiben Sie uns – wir löschen sie, und eine bereits veröffentlichte
   Textur entfernen wir mit der nächsten Version.
+- **Schiffe, Stationen, Städte und Skins einreichen.** Schiffs-, Stations- und Stadt-Editor sowie der
+  Avatar-Designer haben denselben *Einreichen*-Knopf mit demselben Dialog: Spitzname statt echtem Namen (oder
+  keiner), eine freiwillige Notiz und dieselben drei Bestätigungen. Gesendet werden: das Werk selbst, ein Bild
+  davon, sein Name und **alle Texte darin** (z. B. die Beschreibung eines Schiffs oder Beschriftungen von Schildern
+  und Geräten), der Spitzname, die Notiz, die Spielversion und eine anonyme Kennung, über die wir im Spiel antworten
+  können – keine E-Mail, kein echter Name, kein Standort. Ein Mensch liest jede Einreichung samt all dieser Texte,
+  bevor irgendetwas ins Spiel kommt; Namen werden nie automatisch übernommen. Was wir nicht übernehmen, löschen wir
+  spätestens nach zwölf Monaten; für Löschwünsche gilt dasselbe wie bei Texturen.
 - **Texturen anderer Spieler.** In einer Mehrspieler-Welt können deren Administratoren Texturen für alle
   dort ersetzen. *Tab-Menü → Charakter → Texturen dieser Welt anzeigen → Aus* schaltet das für das Spiel Ihres
   Kindes ab, in jeder Welt.

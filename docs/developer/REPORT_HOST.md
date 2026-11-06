@@ -24,7 +24,7 @@ game server (crash flush) ──┘    (x-bugreport-key)    + files    └──
 | `GET /api/reports?since=&status=&category=&source=&limit=&cursor=` | header `x-report-read-key` | Delta-sync list: `{ items, nextCursor, hasMore }`, ascending `createdAt` |
 | `GET /api/reports/{id}` | read key | One report (full, incl. parsed `reportJson` without the reply key) |
 | `GET /api/reports/{id}/screenshot` | read key | The screenshot image |
-| `GET /api/reports/{id}/attachment/{index}` | read key | One file of a texture submission, as a named download (see *Texture submissions*) |
+| `GET /api/reports/{id}/attachment/{index}` | read key | One file of a submission (texture, ship, structure, avatar), as a named download (see *Texture submissions* / *Creation submissions*) |
 | `PATCH /api/reports/{id}` `{"status":"new\|triaged\|waiting_for_player\|player_replied\|done"}` | admin Basic Auth, JSON content type | Triage from scripts/CI — covers the whole report pair (#1380); the answer lists the rows changed as `reportIds` |
 | `DELETE /api/reports/{id}` | admin Basic Auth | Permanent delete of the report and its paired half (incl. screenshots + reply threads) |
 | `POST /api/reports/{id}/replies` `{"text","question":bool,"fixedInVersion"?}` | admin Basic Auth, JSON content type | Developer answer / follow-up question (#1327) — scriptable twin of the detail-page form |
@@ -33,13 +33,13 @@ game server (crash flush) ──┘    (x-bugreport-key)    + files    └──
 | `POST /api/replies` `{"key","reportId","text"}` | header `x-bugreport-key` | The player's in-game answer to a question (max 3 per report) |
 | `GET /admin`, `/admin/report/{id}` | admin Basic Auth | Server-rendered admin UI: list, filters, detail, screenshot, status buttons, reply thread + form, delete |
 | `POST /admin/report/{id}/reply`, `/status`, `/delete` | admin Basic Auth + `csrf` form field | The detail page's forms (see *Admin CSRF guard* below) |
-| `GET /admin/report/{id}/attachment/{index}`, `…/{index}/view` | admin Basic Auth | The same file for the operator; `/view` serves a PNG inline for the detail page's preview |
+| `GET /admin/report/{id}/attachment/{index}`, `…/{index}/view` | admin Basic Auth | The same file for the operator (PNG, raw tile, JSON or gzip); `/view` serves a PNG inline for the detail page's preview |
 | `GET /admin/export?status=&category=` | admin Basic Auth | One-click JSON file download of everything matching the filters (the UI's "Download JSON" button): every stored column except the reporter's reply key, which is also stripped from the exported copy of the payload (`ReportJson`; the database keeps it), so the file carries no reply key (#2921). Caveat: `PlayerId` is still exported, and for client-direct reports (desktop, play.\*) that is the install's player token, from which the reply key can be re-derived (`FeedbackReplyKey.Derive`) |
 | `GET /healthz` | none | Liveness |
 
 List items are camelCase (`id`, `title`, `description`, `email`, `gameVersion`, …, `status`,
 `createdAt` ISO-8601 UTC, `screenshotUrl` or null, `attachments` — `[{ index, fileName, mimeType, bytes, url }]`,
-empty for everything but a texture submission —, `reportJson` as a parsed object: the stored payload minus the
+empty for everything but a submission —, `reportJson` as a parsed object: the stored payload minus the
 client's top-level `replyKey`, so neither the list nor the single report ever carries a reply key, #2921). `since` and the
 keyset `cursor` (`<createdUnix>:<id>`, returned as `nextCursor`) are both exclusive, so a puller that
 stores the last `createdAt`/cursor never re-fetches or skips rows.
@@ -66,8 +66,9 @@ $page.items | ForEach-Object { "{0}  {1}  {2}" -f $_.createdAt, $_.category, $_.
 | `BBS_REPORTS_INGEST_PER_MINUTE` | `10` | Per-IP fixed-window rate limit for `POST /api/bugreport` only (`0` = off) |
 | `BBS_REPORTS_REPLY_PER_MINUTE` | `30` | Per-**reply-key** fixed-window rate limit for the player reply routes `/api/replies*` (`0` = off) — separate from ingest on purpose (#1352): every install polls for answers, so a LAN class behind one NAT must never spend the report budget on polls |
 | `BBS_REPORTS_RETENTION_DAYS` | `0` (keep forever) | Prune reports + screenshots after N days — reports can carry an e-mail, so this is also a privacy lever |
-| `BBS_REPORTS_TEXTURE_RETENTION_DAYS` | `365` | Delete texture submissions that were **not adopted** after N days (`0` = keep) — the promise the submit dialog and the privacy page make |
-| `BBS_REPORTS_MAX_ATTACHMENT_BYTES` | `400000` | Size cap per attachment of a texture submission (at most 4 files) |
+| `BBS_REPORTS_SUBMISSION_RETENTION_DAYS` | `365` | Delete submissions (texture, ship, structure, avatar) that were **not adopted** after N days (`0` = keep) — the promise the submit dialog and the privacy page make. The older name `BBS_REPORTS_TEXTURE_RETENTION_DAYS` still works; the new one wins when both are set |
+| `BBS_REPORTS_MAX_ATTACHMENT_BYTES` | `400000` | Size cap per attachment of a texture or avatar submission (at most 4 files) |
+| `BBS_REPORTS_MAX_CREATION_ATTACHMENT_BYTES` | `2000000` | Size cap per attachment of a ship or structure submission (the client sends ≤ 1.5 MB, gzipped above 300 KB); the body cap above still applies |
 | `BBS_REPORTS_TRUST_PROXY` | `false` | Rate-limit on the first `X-Forwarded-For` entry — only behind a trusted proxy |
 
 Everything fails closed: with no keys configured the service stores nothing, serves nothing and admin
@@ -76,8 +77,9 @@ while the report is kept (mirroring the client), screenshots are stored as files
 database), `429` on rate limit, `413` past the body cap.
 
 Incoming reports are bucketed at ingest: `category` = `crash` when the payload's `reportJson.kind` is
-set (as `CrashReportWriter` does), `texture` when `reportJson.reportType` is `texture-submission`,
-otherwise `feedback`; `source`/`kind` are lifted out of
+set (as `CrashReportWriter` does), the submission category when `reportJson.reportType` is
+`<category>-submission` for one of `texture`, `ship`, `structure`, `avatar` (`ReportIngest.SubmissionCategoryOf`; one
+`IsSubmission` rule decides attachments and retention), otherwise `feedback`; `source`/`kind` are lifted out of
 `reportJson` for filtering.
 
 ## Texture submissions (#1966)
@@ -96,21 +98,63 @@ as a PNG and the texture in the game's raw tile format.
 - **Category `texture`** — its own filter in the admin list, so submissions neither drown in the feedback nor
   count as crashes.
 - **Attachments are files**, like screenshots: `attachments/<reportId>_<index>.<ext>`, a row each in
-  `report_attachment`. Only `image/png`, `application/octet-stream` and `application/json` are stored; the
-  file name is rebuilt by the server (`texture<index>.<ext>`) and never taken from the client. A file over the
-  cap, of another type or with broken base64 is dropped and the report kept. Only a texture submission may carry
-  attachments at all. The base64 never reaches the database.
+  `report_attachment`. Only `image/png`, `application/octet-stream`, `application/json` and `application/gzip` are
+  stored; the file name is rebuilt by the server (`<category><index>.<ext>`, e.g. `texture0.png`, `ship0.gz`) and
+  never taken from the client. A file over the cap, of another type or with broken base64 is dropped and the report
+  kept. Only a submission may carry attachments at all. The base64 never reaches the database.
 - **Consent travels with the row.** The three checkboxes of the submit dialog (painted it myself / the developers
   may use, change and distribute it in every version and on every platform / 16 or older, or the parents
-  agreed) and the version of the text the player saw stay in `reportJson`. `tools/pull_texture_submissions.py`
+  agreed) and the version of the text the player saw stay in `reportJson`. `tools/pull_submissions.py`
   refuses to unpack a submission without all three.
-- **Retention.** A submission that was not adopted is deleted after `BBS_REPORTS_TEXTURE_RETENTION_DAYS`
-  (default 365) — row, reply thread and files. *Adopted* means the operator set **fixed in version** (the
+- **Retention.** A submission that was not adopted is deleted after `BBS_REPORTS_SUBMISSION_RETENTION_DAYS`
+  (default 365) — row, reply thread and files (`ReportStore.PruneSubmissions`, every submission category). *Adopted* means the operator set **fixed in version** (the
   release that ships the texture); that also tells the player in the game. Deleting a report by hand removes
   its files as well.
-- **Adopting one:** `python tools/pull_texture_submissions.py --fetch` unpacks each submission into the
+- **Adopting one:** `python tools/pull_submissions.py --kind texture --fetch` (or the old
+  `tools/pull_texture_submissions.py`, now a wrapper for exactly that) unpacks each submission into the
   bundle layout "Export for the game" writes; `python tools/merge_texture.py <bundle>` copies it into the
   game. Credit the painter in `NOTICES.md` under the **nickname** they gave, never a real name.
+
+## Creation submissions — ships, stations/towns, avatar skins (#3262)
+
+The Ship Designer, the Station/Town editor and the Avatar Designer send the same kind of report (built by the client's
+`CreationSubmission`, see [PLAYER_FEEDBACK.md](PLAYER_FEEDBACK.md)):
+
+```json
+{ "reportType": "ship-submission",
+  "ship": { "key": "star_hopper", "name": "Star Hopper", "nickname": "Layex", "note": "…", "gameVersion": "2026.11.7",
+            "blockFingerprint": "…", "formatVersion": 1, "cellCount": 564, "basedOn": "hammerhead",
+            "payload": { "fileName": "ship.json.gz", "mimeType": "application/gzip", "bytes": 31000, "rawBytes": 412000 },
+            "consent": { "self": true, "grant": true, "age": true, "textVersion": 1 } } }
+```
+
+(`structure-submission` / `avatar-submission` alike; a structure adds `structureKind` and `kit`). The one attachment
+is the export bundle as a JSON document `{ formatVersion, kind, key, files: { "<name>.json": {…} } }` — compact
+`application/json`, gzipped above 300 KB — and the preview PNG rides in `screenshot`.
+
+- **Categories `ship`, `structure`, `avatar`** next to `texture` — each its own filter in the admin list.
+- **Caps:** a ship or structure file may be up to `BBS_REPORTS_MAX_CREATION_ATTACHMENT_BYTES` (2 MB; the client stops
+  at 1.5 MB), an avatar file `BBS_REPORTS_MAX_ATTACHMENT_BYTES` (400 KB; a skin is ~30 KB); the 4 MB body cap stays.
+- **The detail card is a review sheet** (`SubmissionCard`): the preview, name / nickname / note / key / cell count /
+  game version / format / `basedOn`, the consent state (an incomplete one is flagged "do not adopt"), the file as a
+  download — and **every free text inside the file** (ship name and description, device labels and configs, sign
+  texts, …; a "structural" field such as a block id is listed too when its value is not a plain key), deduplicated
+  with a count. Players are often children and a name or label becomes visible to everyone once adopted — read the
+  list before adopting. A gzip that unpacks past 32 MB is not opened.
+- **Block fingerprint warning:** the card compares the submission's `blockFingerprint` with the one of the block set
+  this inbox was **built from** (`data/blocks.json` is embedded into the ReportHost assembly,
+  `GameContent.FingerprintOfBlockKeys`). A mismatch means blocks may have been renamed or removed since — the pull tool
+  then lists the unknown keys. Rebuild/redeploy the reports image with a release so "this inbox's build" stays current.
+- **Retention** as for textures (`BBS_REPORTS_SUBMISSION_RETENTION_DAYS`, 365 days unless adopted).
+- **Adopting one:** `python tools/pull_submissions.py --kind ship|structure|avatar [--fetch]` — consent check, unpack
+  into `analysis/submissions/{ship,station,settlement,avatar}_exports/<key>/` (the editors' own export layout, plus a
+  `submission.json` with author, report id, `basedOn` and the **unknown block keys** checked against
+  `data/blocks.json`), then `tools/merge_ship.py` / `tools/merge_structure.py <dir>` (the latter also folds a
+  `kit.json`) or `tools/gen_pioneer_skins.py --from-skin <dir>/skin.json --key … --author <nickname>`. Names are never
+  copied into the locale files automatically; ship stats are re-balanced by hand at merge. Credit the author in
+  `NOTICES.md` under the nickname and set *fixed in version*.
+- **Deploy order:** the reports image must be deployed **before** a client release that sends these kinds — an older
+  inbox files them as plain `feedback` and keeps no attachment.
 
 ## Reply threads — answering players in-game (#1327)
 
@@ -284,8 +328,9 @@ names.
 | SQLite + screenshot store | `src/BlocksBeyondTheStars.ReportHost/ReportStore.cs` |
 | Admin pages (server-rendered) | `src/BlocksBeyondTheStars.ReportHost/ReportHostPages.cs` |
 | Rate limiter / Basic Auth / admin CSRF token | `IngestRateLimiter.cs` / `src/BlocksBeyondTheStars.Shared/Security/BasicAuth.cs` (one implementation shared with the WorldHost admin UI) / `AdminCsrf.cs` |
-| Texture submissions: pull + adopt | `tools/pull_texture_submissions.py` → `tools/merge_texture.py` |
-| Tests | `tests/BlocksBeyondTheStars.Tests/ReportHostTests.cs` (store, parsing, pages) · `ReportHostTextureSubmissionTests.cs` (category, attachments, retention, download routes) · `ReportHostHttpTests.cs` (the real app over HTTP on a loopback port: reply routes, limiter split) · `ReportHostReplyLifecycleTests.cs` (`gone` marker; admin CSRF + JSON gate on a second host with the admin UI on) · `ReportHostRouteTableTests.cs` (the complete route table, pinned) · `ReportHostReadApiHttpTests.cs` (read API, `/healthz`, `/`, admin list, export, screenshots, operator reply and DELETE over HTTP: status codes, headers and JSON shapes) |
+| Submissions: pull + adopt | `tools/pull_submissions.py --kind texture\|ship\|structure\|avatar` → `tools/merge_texture.py` / `merge_ship.py` / `merge_structure.py` / `gen_pioneer_skins.py --from-skin` |
+| Submission review card (free text, fingerprint) | `src/BlocksBeyondTheStars.ReportHost/ReportHostSubmissionCard.cs` (+ `.FreeText.cs`) |
+| Tests | `tests/BlocksBeyondTheStars.Tests/ReportHostTests.cs` (store, parsing, pages) · `ReportHostTextureSubmissionTests.cs` (category, attachments, retention, download routes) · `ReportHostCreationSubmissionTests.cs` (ship/structure/avatar categories, caps, gzip, retention, review card, fingerprint) · `ReportHostHttpTests.cs` (the real app over HTTP on a loopback port: reply routes, limiter split) · `ReportHostReplyLifecycleTests.cs` (`gone` marker; admin CSRF + JSON gate on a second host with the admin UI on) · `ReportHostRouteTableTests.cs` (the complete route table, pinned) · `ReportHostReadApiHttpTests.cs` (read API, `/healthz`, `/`, admin list, export, screenshots, operator reply and DELETE over HTTP: status codes, headers and JSON shapes) |
 | Image / compose | `Dockerfile.reports` / `docker-compose.reports.yml` |
 
 The admin pages HTML-encode every stored string — report content is hostile input rendered in the

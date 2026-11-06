@@ -41,14 +41,15 @@ public sealed class ParsedReport
 
     public byte[]? ScreenshotBytes;
 
-    /// <summary>The files of a texture submission (#1966), already decoded and capped. Empty for every other kind.</summary>
+    /// <summary>The files of a submission — a texture (#1966), a ship, a station/town module or an avatar skin
+    /// (#3262) — already decoded and capped. Empty for every other kind.</summary>
     public List<ParsedAttachment> Attachments = new();
 
     /// <summary>File extension for the stored screenshot ("jpg" or "png"), derived from mimeType.</summary>
     public string ScreenshotExtension = "jpg";
 }
 
-/// <summary>One decoded attachment of a texture submission: a safe file name, a whitelisted type, the bytes.</summary>
+/// <summary>One decoded attachment of a submission: a safe file name, a whitelisted type, the bytes.</summary>
 public sealed record ParsedAttachment(string FileName, string Mime, byte[] Bytes);
 
 /// <summary>
@@ -61,14 +62,48 @@ public sealed record ParsedAttachment(string FileName, string Mime, byte[] Bytes
 /// </summary>
 public static class ReportIngest
 {
-    /// <summary>Parses <paramref name="body"/>; returns null and an <paramref name="error"/> code
-    /// (<c>invalid_json</c>, <c>empty_description</c>) when the payload is unusable.</summary>
     /// <summary><c>reportJson.reportType</c> of a texture a player painted and submitted from the game (#1966).</summary>
     public const string TextureSubmissionType = "texture-submission";
 
     /// <summary>The category of such a submission — a third bucket next to "feedback" and "crash".</summary>
     public const string TextureCategory = "texture";
 
+    /// <summary>A ship from the Ship Designer (#3262), <c>reportType</c> <c>ship-submission</c>.</summary>
+    public const string ShipCategory = "ship";
+
+    /// <summary>A station or town module from the Station/Town editor (#3262), <c>structure-submission</c>.</summary>
+    public const string StructureCategory = "structure";
+
+    /// <summary>A skin from the Avatar Designer (#3262), <c>avatar-submission</c>.</summary>
+    public const string AvatarCategory = "avatar";
+
+    /// <summary>Every submission category: its <c>reportType</c> is <c>&lt;category&gt;-submission</c>, its files are kept
+    /// (<see cref="ParsedReport.Attachments"/>) and a submission that was not adopted is deleted after the
+    /// submission retention period.</summary>
+    public static readonly IReadOnlyList<string> SubmissionCategories = new[] { TextureCategory, ShipCategory, StructureCategory, AvatarCategory };
+
+    /// <summary>The submission categories as an SQL list (<c>'texture','ship',…</c>) — built from the constants above
+    /// only, never from input.</summary>
+    public static readonly string SubmissionCategoriesSql = string.Join(",", SubmissionCategories.Select(c => "'" + c + "'"));
+
+    /// <summary>The one rule for "is this a player's submission" (#3262).</summary>
+    public static bool IsSubmission(string category) => SubmissionCategories.Contains(category);
+
+    /// <summary>The submission category a <c>reportType</c> names (<c>ship-submission</c> → <c>ship</c>), or empty.</summary>
+    public static string SubmissionCategoryOf(string reportType)
+    {
+        const string suffix = "-submission";
+        if (!reportType.EndsWith(suffix, StringComparison.Ordinal))
+        {
+            return string.Empty;
+        }
+
+        string category = reportType[..^suffix.Length];
+        return IsSubmission(category) ? category : string.Empty;
+    }
+
+    /// <summary>Parses <paramref name="body"/>; returns null and an <paramref name="error"/> code
+    /// (<c>invalid_json</c>, <c>empty_description</c>) when the payload is unusable.</summary>
     public static ParsedReport? Parse(string body, ReportHostConfig config, out string error)
     {
         error = string.Empty;
@@ -123,10 +158,12 @@ public static class ReportIngest
                 reportType = Str(rj, "reportType", 40);
             }
 
-            // A crash kind still wins (that is what the crash pipeline sends); a texture submission gets its own
-            // bucket so it neither drowns in the feedback list nor — as any "kind" used to — lands among the crashes.
+            // A crash kind still wins (that is what the crash pipeline sends); a submission (texture, ship, structure,
+            // avatar) gets its own bucket so it neither drowns in the feedback list nor — as any "kind" used to —
+            // lands among the crashes.
+            string submission = SubmissionCategoryOf(reportType);
             report.Category = report.Kind.Length > 0 ? "crash"
-                : reportType == TextureSubmissionType ? TextureCategory
+                : submission.Length > 0 ? submission
                 : "feedback";
 
             // Reply-thread credential (#1327): only a syntactically valid key is kept — anything else is
@@ -138,7 +175,7 @@ public static class ReportIngest
             }
 
             ExtractScreenshot(root, config, report);
-            if (report.Category == TextureCategory)
+            if (IsSubmission(report.Category))
             {
                 ExtractAttachments(root, config, report);
             }
@@ -176,9 +213,10 @@ public static class ReportIngest
         report.ScreenshotExtension = Str(shot, "mimeType", 60).ToLowerInvariant() == "image/png" ? "png" : "jpg";
     }
 
-    /// <summary>Decodes the attachments of a texture submission. Like the screenshot, anything off drops that file
-    /// and keeps the report: over the count or size cap, bad base64, a type that is not on the short whitelist. The
-    /// stored name is rebuilt from a fixed pattern — never taken from the client, so no path can be smuggled in.</summary>
+    /// <summary>Decodes the attachments of a submission. Like the screenshot, anything off drops that file and keeps
+    /// the report: over the count or size cap (per category, <see cref="ReportHostConfig.MaxAttachmentBytesFor"/>),
+    /// bad base64, a type that is not on the short whitelist. The stored name is rebuilt from a fixed pattern
+    /// (<c>&lt;category&gt;&lt;n&gt;.&lt;ext&gt;</c>) — never taken from the client, so no path can be smuggled in.</summary>
     private static void ExtractAttachments(JsonElement root, ReportHostConfig config, ParsedReport report)
     {
         if (!root.TryGetProperty("attachments", out var list) || list.ValueKind != JsonValueKind.Array)
@@ -186,6 +224,7 @@ public static class ReportIngest
             return;
         }
 
+        int maxBytes = config.MaxAttachmentBytesFor(report.Category);
         foreach (var item in list.EnumerateArray())
         {
             if (report.Attachments.Count >= config.MaxAttachments || item.ValueKind != JsonValueKind.Object)
@@ -199,10 +238,11 @@ public static class ReportIngest
                 "image/png" => "png",
                 "application/octet-stream" => "bytes",
                 "application/json" => "json",
+                "application/gzip" => "gz",
                 _ => string.Empty,
             };
             string base64 = Str(item, "base64", int.MaxValue);
-            if (extension.Length == 0 || base64.Length == 0 || base64.Length > (config.MaxAttachmentBytes / 3 * 4) + 4)
+            if (extension.Length == 0 || base64.Length == 0 || base64.Length > (maxBytes / 3 * 4) + 4)
             {
                 continue;
             }
@@ -217,12 +257,12 @@ public static class ReportIngest
                 continue;
             }
 
-            if (bytes.Length == 0 || bytes.Length > config.MaxAttachmentBytes)
+            if (bytes.Length == 0 || bytes.Length > maxBytes)
             {
                 continue;
             }
 
-            report.Attachments.Add(new ParsedAttachment($"texture{report.Attachments.Count}.{extension}", mime, bytes));
+            report.Attachments.Add(new ParsedAttachment($"{report.Category}{report.Attachments.Count}.{extension}", mime, bytes));
         }
     }
 

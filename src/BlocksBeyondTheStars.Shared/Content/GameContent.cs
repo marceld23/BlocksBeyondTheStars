@@ -547,27 +547,32 @@ public sealed partial class GameContent
     /// test suite) must hand the fingerprint over explicitly instead.</summary>
     public static string? LastBuiltBlockFingerprint => _lastBuiltBlockFingerprint;
 
-    private string ComputeBlockFingerprint()
+    private string ComputeBlockFingerprint() => FingerprintInIdOrder(_blocksById.Where(b => b is not null).Select(b => b!.Key));
+
+    /// <summary>The <see cref="BlockFingerprint"/> of a block set known only by its keys (#3262) — what a service without
+    /// the whole content (the report inbox, from <c>data/blocks.json</c>) computes. The numeric ids follow the ordinal
+    /// key order with <c>air</c> first (<see cref="AssignBlockIds"/>), so the keys alone decide the value.</summary>
+    public static string FingerprintOfBlockKeys(IEnumerable<string> keys)
+        => FingerprintInIdOrder(keys.Distinct(StringComparer.Ordinal)
+            .OrderBy(k => k == "air" ? 0 : 1)
+            .ThenBy(k => k, StringComparer.Ordinal));
+
+    private static string FingerprintInIdOrder(IEnumerable<string> keysInIdOrder)
     {
         const ulong offsetBasis = 14695981039346656037UL;
         const ulong prime = 1099511628211UL;
 
         ulong hash = offsetBasis;
         bool first = true;
-        foreach (var block in _blocksById)
+        foreach (string key in keysInIdOrder)
         {
-            if (block is null)
-            {
-                continue;
-            }
-
             if (!first)
             {
                 hash = (hash ^ (byte)'\n') * prime;
             }
 
             first = false;
-            foreach (byte b in System.Text.Encoding.UTF8.GetBytes(block.Key))
+            foreach (byte b in System.Text.Encoding.UTF8.GetBytes(key))
             {
                 hash = (hash ^ b) * prime;
             }

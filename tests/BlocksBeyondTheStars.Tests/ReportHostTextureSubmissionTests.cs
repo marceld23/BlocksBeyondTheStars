@@ -184,9 +184,9 @@ public sealed class ReportHostTextureSubmissionTests : IDisposable
         string feedback = store.Add(ReportIngest.Parse(SubmissionPayload(reportType: ""), config, out _)!, nowUnix: 0);
         Assert.True(store.SetFixedInVersion(adopted, "2026.10.1"));
 
-        Assert.Equal(365, config.TextureRetentionDays); // what the privacy page promises
-        Assert.Equal(0, store.PruneTextureSubmissions(0, nowUnix: 9_999 * day)); // 0 = keep forever
-        int removed = store.PruneTextureSubmissions(config.TextureRetentionDays, nowUnix: 366 * day);
+        Assert.Equal(365, config.SubmissionRetentionDays); // what the privacy page promises
+        Assert.Equal(0, store.PruneSubmissions(0, nowUnix: 9_999 * day)); // 0 = keep forever
+        int removed = store.PruneSubmissions(config.SubmissionRetentionDays, nowUnix: 366 * day);
 
         Assert.Equal(1, removed);
         Assert.Null(store.Get(oldOne));
