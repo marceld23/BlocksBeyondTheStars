@@ -76,13 +76,19 @@ public sealed partial class WorldGenerator
     /// the visible cloud band against them, so a flat world never stands in its clouds and a mountain world's summits do.</summary>
     public Shared.World.TerrainAltitudes SurfaceAltitudes(PlanetType planet)
     {
-        var heights = CalibFor(planet).SortedHeights;
+        var calib = CalibFor(planet);
+        var heights = calib.SortedHeights;
         if (heights.Length == 0)
         {
             return new Shared.World.TerrainAltitudes(planet.BaseHeight, planet.BaseHeight + planet.Amplitude);
         }
 
-        return new Shared.World.TerrainAltitudes(heights[heights.Length / 2], heights[(int)(0.9 * (heights.Length - 1))]);
+        // The sea's surface is the ground there: a sea floor far below the water must not drag the median down (a swamp's
+        // median column lies under water, which put its band on the land).
+        int sea = calib.SeaLevel;
+        int median = System.Math.Max(heights[heights.Length / 2], sea);
+        int upper = System.Math.Max(heights[(int)(0.9 * (heights.Length - 1))], sea);
+        return new Shared.World.TerrainAltitudes(median, upper);
     }
 
     private WorldCalibration Calibrate(PlanetType planet)
