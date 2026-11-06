@@ -855,6 +855,7 @@ public sealed partial class GameServer
 
         BroadcastPlanetEnemies(); // the active world's list goes out either way (as before)
         PersistStoryState();
+        SnapshotGuardianRewardRoster(); // #3294: every player of the world is owed a reward crate (GameServerGuardianReward)
         BroadcastStoryState();
     }
 

@@ -184,6 +184,13 @@ public static class CreatureVoices
         "creature_call_gibber_squeal", // #3246
     };
 
+    /// <summary>#3295: what the friendly hunter robot says — happy beeps, a chirp, a little trill. Like the biped, the robot
+    /// draws from this pool INSTEAD of its habitat pool (a client without the samples keeps the habitat pool).</summary>
+    private static readonly string[] RobotCalls =
+    {
+        "creature_call_robot_chirp", "creature_call_robot_beep", "creature_call_robot_trill",
+    };
+
     // Habitat-flavoured pools: cave dwellers sound deep + echoey, amphibians wet + croaky, water
     // creatures burble, lava critters hiss/rumble, fliers shriek/trill. Land uses the full pool.
     private static readonly string[] LandCalls =
@@ -256,7 +263,7 @@ public static class CreatureVoices
         get
         {
             var set = new List<string>();
-            foreach (var pool in new[] { LandCalls, CaveCalls, AmphibianCalls, WaterCalls, LavaCalls, AirCalls, BipedCalls, Ethereal, Insect, Arachnid })
+            foreach (var pool in new[] { LandCalls, CaveCalls, AmphibianCalls, WaterCalls, LavaCalls, AirCalls, BipedCalls, Ethereal, Insect, Arachnid, RobotCalls })
             {
                 foreach (var name in pool)
                 {
@@ -365,13 +372,14 @@ public static class CreatureVoices
     /// its samples — a client without them keeps the habitat pool rather than going silent — and the habitat pool otherwise.</summary>
     public static IReadOnlyList<string> PoolFor(string habitat, string bodyPlan, System.Func<string, bool>? available = null)
     {
-        if (bodyPlan == "Biped")
+        var own = bodyPlan == "Biped" ? BipedCalls : bodyPlan == "Robot" ? RobotCalls : null; // #3295: the robot's beeps
+        if (own != null)
         {
-            foreach (var name in BipedCalls)
+            foreach (var name in own)
             {
                 if (available == null || available(name))
                 {
-                    return BipedCalls;
+                    return own;
                 }
             }
         }
@@ -417,9 +425,10 @@ public static class CreatureVoices
     private static List<string> NarrowByBody(IReadOnlyList<string> pool, VoiceTraits t)
     {
         string[]? want = null;
-        if (t.BodyPlan == "Biped")
+        if (t.BodyPlan is "Biped" or "Robot")
         {
-            want = BipedCalls; // #2083: its own pool — small bodies would otherwise narrow to the shrill calls
+            // #2083: its own pool — small bodies would otherwise narrow to the shrill calls; #3295: the robot keeps to its beeps
+            want = t.BodyPlan == "Robot" ? RobotCalls : BipedCalls;
         }
         else if (t.BodyPlan == "Arachnid")
         {

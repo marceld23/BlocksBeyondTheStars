@@ -23,6 +23,21 @@ namespace BlocksBeyondTheStars.Client
         /// lets call from far away. Empty for a world without fauna.</summary>
         public event Action<FaunaRoster>? FaunaRosterReceived;
 
+        /// <summary>#3292: the trader discount this player trades with changed (the flower set — their own or an ally's
+        /// near them). The value itself stays in <see cref="TraderDiscountPercent"/>.</summary>
+        public event Action<TraderDiscountInfo>? TraderDiscountReceived;
+
+        /// <summary>#3292: the trader discount in whole percent as the server last said (0 = none, and on every join);
+        /// the vendor screen, the crafting page and <see cref="CraftGate"/> price a market trade with it
+        /// (<c>MarketPricing</c>), so they show what the server takes.</summary>
+        public int TraderDiscountPercent { get; private set; }
+
+        /// <summary>#3292: the ally whose flowers give the discount, or empty (the player's own gear, or none).</summary>
+        public string TraderDiscountFrom { get; private set; } = string.Empty;
+
+        /// <summary>#3292: <see cref="TraderDiscountPercent"/> as the fraction <c>MarketPricing</c> takes.</summary>
+        public float TraderDiscount => BlocksBeyondTheStars.Shared.Definitions.MarketPricing.FromPercent(TraderDiscountPercent);
+
         /// <summary>
         /// Server → client message type → the typed event it raises, built once per process. No reflection, so IL2CPP
         /// and managed stripping in the Unity player cannot remove anything. The lookup is by the message's exact type,
@@ -140,6 +155,7 @@ namespace BlocksBeyondTheStars.Client
             On<OwnedShips>(map, (c, m) => c.OwnedShipsReceived?.Invoke(m));
             On<WorldEnvironment>(map, (c, m) => c.WorldEnvironmentReceived?.Invoke(m));
             On<FaunaRoster>(map, (c, m) => c.FaunaRosterReceived?.Invoke(m)); // #3245
+            On<TraderDiscountInfo>(map, (c, m) => c.HandleTraderDiscount(m)); // #3292
             On<WorldReset>(map, (c, m) => c.HandleWorldReset(m));
             On<NpcList>(map, (c, m) => c.NpcsReceived?.Invoke(m));
             On<DoorList>(map, (c, m) => c.DoorsReceived?.Invoke(m));
@@ -215,10 +231,19 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _joined = true;
+            TraderDiscountPercent = 0; // #3292: a fresh session starts without one — the server pushes it when there is one
+            TraderDiscountFrom = string.Empty;
             AdoptWorld(m.WorldId);
             ResyncHotbarSlot(); // #2525: the server restored the slot saved at the quit; the hand on screen wins
             JoinAccepted?.Invoke(m);
             ReplayHeldBeforeJoin();
+        }
+
+        private void HandleTraderDiscount(TraderDiscountInfo m)
+        {
+            TraderDiscountPercent = Math.Max(0, Math.Min(100, m.Percent));
+            TraderDiscountFrom = m.FromName ?? string.Empty;
+            TraderDiscountReceived?.Invoke(m);
         }
 
         private void HandleWorldReset(WorldReset m)

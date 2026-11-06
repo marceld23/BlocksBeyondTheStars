@@ -211,6 +211,11 @@ components, a category sidebar and blueprint state.
   on a landing — remotes derive both from their interpolated height); the glider is a folded pack whose wings
   (`avatar_glider`, orange) unfold over 0.3 s on `SetGliding(true)` (local `PlayerController.Gliding`, remote
   `PlayerPresence.Gliding`) and replaces the jetpack on the back; the suit battery is a pulsing cyan cell on the belt.
+  #3290–#3292: three bits per slot above the old ones (`GearLook.HeadStyle`/`ChestStyle`/`LegsStyle`, bits 16–24; 0 =
+  classic, 1 guardian, 2 robber, 3 flower; the generic Helmet/Chest/Legs bit stays set) pick a set's look, drawn in
+  `PlayerAvatar.GearSets.cs` instead of the classic plates of that slot: guardian = dark plates with small self-lit red
+  accents (keep them small — red is the enemy machines' colour), robber = cloth mask with filter canisters and grille
+  (the mouth hides under it and comes back) and a black jacket with a collar, flower = a blossom wreath and bracelets.
   The own stealth cloak (`Game.Stealthed`) turns the third-person figure into shimmering glass (`SetStealthShimmer`) —
   other players never see a cloaked player at all. Movement: the spring boots scale the ground jump's impulse by
   √(1 + `SuitEquipment.JumpBoost`); holding Jump while falling with the glider where there is air (an atmosphere, below

@@ -23,11 +23,13 @@ namespace BlocksBeyondTheStars.Client
         // They are cheap (a few list scans) and are polled once per frame at most.
 
         /// <summary>A lootable container is within loot reach (LootContainer applies) — #2726: not a cache that belongs to a
-        /// village's people (the HUD says whose it is, the server refuses the take), so the Actions list does not offer it.</summary>
+        /// village's people (the HUD says whose it is, the server refuses the take), so the Actions list does not offer it;
+        /// #3294: nor someone else's owner-locked crate (the owner's own one is offered).</summary>
         public bool NearContainer => Game != null
             && InteractReach.NearestContainer(Game.Containers, transform.position.x, transform.position.y, transform.position.z,
                 Game.Circumference, crateOnly: false) is { } nearest
-            && string.IsNullOrEmpty(nearest.OwnedBy);
+            && string.IsNullOrEmpty(nearest.OwnedBy)
+            && InteractReach.LockedFor(nearest, Game.LocalPlayerId).Length == 0;
 
         /// <summary>#2018: the selected hotbar item is food an animal would eat AND a begging animal is within
         /// <c>HerdRules.FeedProbeRange</c> (FeedCreature applies). The creature list arrives at 2 Hz, so the scan over it

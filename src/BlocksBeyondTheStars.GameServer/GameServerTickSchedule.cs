@@ -147,9 +147,12 @@ public sealed partial class GameServer
             TickStep.Plain("TickCompanionPayoff", TickCompanionPayoff), // #1210: companions growl at hostiles, stall robbers, drop produce (1 Hz)
             TickStep.Plain("TickCompanionScouting", TickCompanionScouting), // #1225: a deeply bonded companion shares a landmark now and then
             TickStep.Plain("TickSentries", TickSentries), // #1214: base sentry posts fire at hostiles near a home base (2 Hz)
+            TickStep.Plain("TickRobotCompanions", TickRobotCompanions), // #3295: the friendly hunter robot guards its owner (2 Hz)
+            TickStep.Plain("TickOwnerCrates", TickOwnerCrates), // #3294: owner-locked crates (finale reward, robot parts) for players on foot (1 Hz)
             TickStep.Plain("TickBurning", TickBurning), // #1700: lava and fire hurt animals, robbers and machines too (2 Hz)
             TickStep.Dt("TickHealTanks", TickHealTanks), // base/station regen field: heal + feed + suit recharge
             TickStep.Dt("TickStationsInReach", TickStationsInReach), // #1070: Tab-menu station gates follow the player
+            TickStep.Dt("TickTraderDiscounts", TickTraderDiscounts), // #3292: the flower set's trader discount, pushed on change (1 Hz)
             TickStep.Dt("TickVoidRescue", TickVoidRescue),
             TickStep.Dt("TickShipAi", TickShipAi), // VEGA advisor hints + memory-fragment redemption
             TickStep.Plain("StreamChunks", StreamChunks),

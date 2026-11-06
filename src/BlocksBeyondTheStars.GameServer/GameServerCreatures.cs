@@ -2444,7 +2444,8 @@ public sealed partial class GameServer
     private static int CreatureBodyHeight(CreatureSpecies sp) => sp.BodyPlan switch
     {
         CreatureBodyPlan.Arachnid => ArachnidRules.BodyHeightCells(sp.Size, CreatureBodyMinHeight, CreatureBodyMaxHeight), // #2009: low and wide
-        CreatureBodyPlan.Biped => BipedRules.BodyHeightCells(sp.Size, sp.HeadRatio, CreatureBodyMinHeight, CreatureBodyMaxHeight), // #2081: its real height
+        CreatureBodyPlan.Biped or CreatureBodyPlan.Robot // #3295: the robot stands on the biped's proportions
+            => BipedRules.BodyHeightCells(sp.Size, sp.HeadRatio, CreatureBodyMinHeight, CreatureBodyMaxHeight), // #2081: its real height
         _ => System.Math.Clamp((int)System.Math.Ceiling(sp.Size * 1.8f), CreatureBodyMinHeight, CreatureBodyMaxHeight),
     };
 

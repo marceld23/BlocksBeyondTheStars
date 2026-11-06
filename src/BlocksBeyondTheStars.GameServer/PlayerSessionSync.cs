@@ -51,4 +51,10 @@ public sealed class PlayerSessionSync
     public long SentSamplesSignature { get; set; }
     public bool SentSamplesOnce { get; set; }
     public HashSet<uint> BioBookSeeds { get; } = new();
+
+    // #3292: the trader discount as last pushed (TraderDiscountInfo, whole percent + the ally it comes from) and the
+    // countdown to the next look (once a second) — a push only when either changed.
+    public int SentTraderDiscount { get; set; }
+    public string SentTraderDiscountFrom { get; set; } = string.Empty;
+    public double TraderDiscountCheckIn { get; set; }
 }

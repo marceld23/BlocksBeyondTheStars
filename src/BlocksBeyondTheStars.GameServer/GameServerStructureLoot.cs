@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using System.Linq;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
@@ -75,9 +76,11 @@ public sealed partial class GameServer
     /// <summary>
     /// Why a player may not take from, put into, sort or rearrange this container, or "" when they may: a lodge's store
     /// (#2640, <see cref="LodgeStoreRefusal"/> — "That's Mira's — ask them!") or a cache that stands in an intact village
-    /// (#2726, <see cref="VillageOwningCache"/> — "That belongs to the people of Karth Village.").
+    /// (#2726, <see cref="VillageOwningCache"/> — "That belongs to the people of Karth Village.") — or #3294 an owner-locked
+    /// crate (<see cref="ContainerSystem.IsOwnerLocked"/>): <paramref name="playerId"/> may take only from their own, and
+    /// <paramref name="putIn"/> is refused for everyone, the owner too, so nobody can fill a reward crate to grief it.
     /// </summary>
-    private string OwnedContainerRefusal(StoredContainer container)
+    private string OwnedContainerRefusal(StoredContainer container, string playerId, bool putIn)
     {
         string lodge = LodgeStoreRefusal(container.Id);
         if (lodge.Length > 0)
@@ -85,8 +88,47 @@ public sealed partial class GameServer
             return lodge;
         }
 
+        if (ContainerSystem.IsOwnerLocked(container))
+        {
+            return putIn ? "@srv.loot.owner_locked:" + container.OwnerName
+                : container.Owner != playerId ? "@srv.loot.owner_only:" + container.OwnerName
+                : string.Empty;
+        }
+
         return VillageOwningCache(container) is { } village ? "@srv.loot.village_owned:" + village.Name : string.Empty;
     }
+
+    /// <summary>#3294: why a player may not mine the block at <paramref name="pos"/> because it is an owner-locked crate, or ""
+    /// — nobody mines a locked crate before its owner has emptied it (mining would hand its stacks to the miner). An admin
+    /// may, and it is written to the cheat log.</summary>
+    private string LockedCrateMineRefusal(PlayerSession session, Vector3i pos)
+    {
+        if (_containers.FirstOrDefault(c => c.Kind == "crate" && c.Position.Equals(pos)) is not { } crate
+            || !ContainerSystem.IsOwnerLocked(crate))
+        {
+            return string.Empty;
+        }
+
+        if (session.State.IsAdmin)
+        {
+            if (_lockedCrateAdminLogged.Add(crate.Id)) // once per crate — a crate takes several mining hits
+            {
+                CheatLog(session.State, $"mined {crate.OwnerName}'s locked crate at ({pos.X}, {pos.Y}, {pos.Z})");
+            }
+
+            return string.Empty;
+        }
+
+        return "@srv.loot.owner_locked_mine:" + crate.OwnerName;
+    }
+
+    /// <summary>#3294: the locked crates an admin's mining was already written to the cheat log for.</summary>
+    private readonly HashSet<string> _lockedCrateAdminLogged = new(System.StringComparer.Ordinal);
+
+    /// <summary>#3294: whether the cell holds an owner-locked crate — the terrain blaster leaves it standing (its spill would
+    /// hand the owner's items to whoever picks them up).</summary>
+    private bool IsLockedCrateAt(Vector3i pos)
+        => _containers.FirstOrDefault(c => c.Kind == "crate" && c.Position.Equals(pos)) is { } crate && ContainerSystem.IsOwnerLocked(crate);
 
     /// <summary>Rolls the loot for a marker — general salvage, a recoverable module, or a data cache.</summary>
     private List<ItemStack> BuildStructureLoot(string markerType, System.Random rng)

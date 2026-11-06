@@ -319,7 +319,8 @@ namespace BlocksBeyondTheStars.Client
             IReadOnlyList<(Vector3i Pos, int Rgb)> lights = null,
             System.Func<int, int, int, int> worldShape = null,
             System.Func<int, Rect?> designUv = null,
-            System.Func<int, int, int, bool> worldLoaded = null)
+            System.Func<int, int, int, bool> worldLoaded = null,
+            System.Func<int, int, int> biomePalette = null) // #3289: column → biome palette (planet chunks only), ChunkMesher.BiomeLooks.cs
         {
             // Pooled output buffers: every build used to allocate ~13 fresh List<>s whose backing arrays are
             // large (a dense chunk's vertex list alone runs to six figures of bytes), making chunk (re)meshing
@@ -722,6 +723,7 @@ namespace BlocksBeyondTheStars.Client
                 // a still tile. Faces that show another tile (a log's cap, a furniture part's slot, a painted
                 // design, a variant) must not carry it.
                 float animCode = atlas != null ? atlas.AnimationCode(id.Value) : 0f;
+                ApplyBiomeLook(atlas, biomePalette, id, origin.X + x, origin.Z + z, ref uv, ref animCode); // #3289: the biome's colours
                 // Per-block reflection params (gloss, metal) for the lit atlas shader.
                 var mat = traits.MaterialOf(id);
                 float matR = mat.x, matG = mat.y;
@@ -782,7 +784,7 @@ namespace BlocksBeyondTheStars.Client
                     emission = Mathf.Max(emission, GlowCellEmission);
                 }
 
-                int surfaceTint = modTint != 0 ? modTint : modGlow;
+                int surfaceTint = SurfaceTintOf(atlas, id, modTint, modGlow); // #3289: a glowing rune keeps its own colours
                 bool dyed = surfaceTint != 0;
                 Color dye = dyed ? RgbToColor(surfaceTint) : Color.black;
                 float floraFlag = dyed ? 3f : (isWood || tintedBody) ? 4f : floraTinted ? 1f : painted ? 2f : 0f;
@@ -1232,13 +1234,15 @@ namespace BlocksBeyondTheStars.Client
                     Vector3 shBlDir = BlockLightDirAt(wx, wy + 1, wz);
                     Color shTint = designId != 0 ? Color.black : dyed ? dye : (isWood || floraTinted) ? speciesTint : Color.black;
                     float shTintMode = designId != 0 ? 0f : dyed ? 3f : isWood ? 4f : floraTinted ? 1f : 0f; // 3 dye, 4 bark, 1 flora (matches cubes)
-                    AddShapedBlock(verts, designId != 0 ? trisP : tris, colliderTris, colliderVerts, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
+                    // #3287: a shaped see-through block (a glass stair or sphere) goes to the transparent submesh like a
+                    // glass cube does, and clear glass keeps its clear-pane code — otherwise it would be drawn opaque.
+                    AddShapedBlock(verts, designId != 0 ? trisP : transparent ? trisT : tris, colliderTris, colliderVerts, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
                         ShapeCode.ShapeOf(shapeDesc), ShapeCode.OrientationOf(shapeDesc), ShapeCode.UpFaceOf(shapeDesc), new Vector3(x, y, z),
                         designId != 0 ? designRect : uv,
                         matR, matG, emission, shTint, shTintMode, shSky, shBl, shBlDir,
                         slots: designId != 0 ? null : ShapeFaceTextures.SlotsFor(content, id), slotAtlas: atlas, // a painted design IS the surface
                         formCell: ShapeCode.CellOf(shapeDesc), // #1961: which block of a form over several blocks this is
-                        animCode: designId != 0 ? 0f : animCode, ownTile: uv);
+                        animCode: designId != 0 ? 0f : animCode, ownTile: uv, leafCode: transparent ? leafFlag : 0f);
 
                     // Flower pot (#809): a small cross-billboard flower sits on the shaped planter, tinted
                     // like wild flora on this world (per-world species hue). Purely visual — no collider.

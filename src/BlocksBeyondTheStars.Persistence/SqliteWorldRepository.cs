@@ -137,7 +137,8 @@ public sealed class SqliteWorldRepository : IWorldRepository
             CREATE TABLE IF NOT EXISTS container (
                 id TEXT PRIMARY KEY, planet TEXT NOT NULL, kind TEXT NOT NULL,
                 x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL, json TEXT NOT NULL,
-                filter TEXT NOT NULL DEFAULT '', lifetime REAL NOT NULL DEFAULT 0);
+                filter TEXT NOT NULL DEFAULT '', lifetime REAL NOT NULL DEFAULT 0,
+                owner TEXT NOT NULL DEFAULT '', owner_name TEXT NOT NULL DEFAULT '');
             CREATE TABLE IF NOT EXISTS door (
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
                 kind TEXT NOT NULL, axisx INTEGER NOT NULL, PRIMARY KEY (planet, x, y, z));
@@ -233,6 +234,9 @@ public sealed class SqliteWorldRepository : IWorldRepository
             // Creature-loot drop packets expire (#1312): remaining lifetime in seconds, 0 = never (every
             // pre-existing packet is mining overflow and keeps the #853 promise that nothing is destroyed).
             TryExecute("ALTER TABLE container ADD COLUMN lifetime REAL NOT NULL DEFAULT 0;");
+            // Owner-locked crates (#3294): '' = anybody's, which is every pre-existing container.
+            TryExecute("ALTER TABLE container ADD COLUMN owner TEXT NOT NULL DEFAULT '';");
+            TryExecute("ALTER TABLE container ADD COLUMN owner_name TEXT NOT NULL DEFAULT '';");
             // Player-station stamp anchor (#1481): 0 = never stamped, so a pre-existing station anchors itself on its
             // first boarding after the upgrade, exactly where the old min-of-cells stamp put it.
             TryExecute("ALTER TABLE space_structure ADD COLUMN stamped INTEGER NOT NULL DEFAULT 0;");
@@ -1004,11 +1008,11 @@ public sealed class SqliteWorldRepository : IWorldRepository
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "INSERT INTO container (id, planet, kind, x, y, z, json, filter, lifetime) " +
-                              "VALUES ($id, $p, $k, $x, $y, $z, $json, $filter, $lifetime) " +
+            cmd.CommandText = "INSERT INTO container (id, planet, kind, x, y, z, json, filter, lifetime, owner, owner_name) " +
+                              "VALUES ($id, $p, $k, $x, $y, $z, $json, $filter, $lifetime, $owner, $ownerName) " +
                               "ON CONFLICT(id) DO UPDATE SET planet=excluded.planet, kind=excluded.kind, " +
                               "x=excluded.x, y=excluded.y, z=excluded.z, json=excluded.json, filter=excluded.filter, " +
-                              "lifetime=excluded.lifetime;";
+                              "lifetime=excluded.lifetime, owner=excluded.owner, owner_name=excluded.owner_name;";
             cmd.Parameters.AddWithValue("$id", container.Id);
             cmd.Parameters.AddWithValue("$p", container.Planet);
             cmd.Parameters.AddWithValue("$k", container.Kind);
@@ -1018,6 +1022,8 @@ public sealed class SqliteWorldRepository : IWorldRepository
             cmd.Parameters.AddWithValue("$json", json);
             cmd.Parameters.AddWithValue("$filter", filter);
             cmd.Parameters.AddWithValue("$lifetime", container.LifetimeLeft);
+            cmd.Parameters.AddWithValue("$owner", container.Owner ?? string.Empty); // #3294
+            cmd.Parameters.AddWithValue("$ownerName", container.OwnerName ?? string.Empty);
             cmd.ExecuteNonQuery();
         }
     }
@@ -1028,7 +1034,7 @@ public sealed class SqliteWorldRepository : IWorldRepository
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "SELECT id, kind, x, y, z, json, filter, lifetime FROM container WHERE planet = $p;";
+            cmd.CommandText = "SELECT id, kind, x, y, z, json, filter, lifetime, owner, owner_name FROM container WHERE planet = $p;";
             cmd.Parameters.AddWithValue("$p", planet);
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -1045,6 +1051,8 @@ public sealed class SqliteWorldRepository : IWorldRepository
                         ? new List<string>()
                         : JsonSerializer.Deserialize<List<string>>(filterJson, JsonOptions) ?? new List<string>(),
                     LifetimeLeft = reader.GetDouble(7),
+                    Owner = reader.GetString(8), // #3294
+                    OwnerName = reader.GetString(9),
                 });
             }
         }

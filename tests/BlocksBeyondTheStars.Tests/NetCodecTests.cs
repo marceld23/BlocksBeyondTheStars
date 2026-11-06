@@ -364,6 +364,7 @@ public sealed class NetCodecTests
         [316] = typeof(MoveBagItemIntent),       // #3099
         [317] = typeof(BagContents),             // #3099
         [318] = typeof(FaunaRoster),             // #3245
+        [319] = typeof(TraderDiscountInfo),      // #3292
 
     };
 

@@ -78,7 +78,7 @@ public sealed partial class GameServer
             CleanLegacyStampResidueOnce(rec, pad); // #3069: never on a base pad — it would wipe what the player built there
         }
 
-        int y0 = PadSurfaceY(pad.CenterX, pad.CenterZ); // median, raised over whatever the player built on the pad (#1318)
+        int y0 = HullSurfaceY(pad.CenterX, pad.CenterZ, s.Width, s.Length); // median, raised only over what was built UNDER the hull (#1318, #3286)
         // The structure sits ON the levelled pad surface (origin.y = first cell layer above the ground).
         rec.Origin = new Vector3i(pad.CenterX - s.Width / 2, y0 + 1, pad.CenterZ - s.Length / 2);
         DeriveLandedAnchors(rec);
@@ -95,6 +95,36 @@ public sealed partial class GameServer
         // The player's half-built ship (if their keel lies on this world) re-places alongside the parked
         // ship — join, landing, respawn and ship switch all route through here (#948).
         EnsureConstructionSite(_current);
+    }
+
+    /// <summary>
+    /// The height a parked hull stands at (#3286): the pad's generated median, raised over whatever the player
+    /// built since (#1318) — but read only in the columns UNDER the hull's own footprint. The touchdown height
+    /// (<see cref="PadSurfaceY"/>) samples the pad centre and its corners at ±4, which lie OUTSIDE the 5×7
+    /// starter box: one step of a staircase built beside the ship lifted it on the next join, and it hung five
+    /// cells in the air. Every footprint column counts (the pad is levelled 17×17, wider than any hull), so a
+    /// block under the hull still lifts it and it never parks inside a paved yard.
+    /// </summary>
+    private int HullSurfaceY(int cx, int cz, int width, int length)
+    {
+        if (BasePadGroundAt(cx, cz) is int baseGround)
+        {
+            return baseGround; // #3069: the ship stands on the pad block — the square above it is kept clear
+        }
+
+        int median = PadGroundY(cx, cz);
+        int top = median;
+        int x0 = cx - width / 2;
+        int z0 = cz - length / 2;
+        for (int dx = 0; dx < width; dx++)
+        {
+            for (int dz = 0; dz < length; dz++)
+            {
+                top = System.Math.Max(top, BuiltColumnTop(x0 + dx, z0 + dz, median));
+            }
+        }
+
+        return top;
     }
 
     /// <summary>Pre-resolves a landed structure's gameplay anchors (stations, doors, heal-tank) from its

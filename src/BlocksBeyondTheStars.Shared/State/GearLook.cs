@@ -65,6 +65,48 @@ public static class GearLook
     /// <see cref="Mask"/> never sets it (it is a state of the lamp, not a piece of gear).</summary>
     public const int LampLit = 32768;
 
+    // #3290–#3292: which SET the piece in a slot belongs to — three bits per slot on top of the generic Helmet / Chest /
+    // Legs bit (which stays set, so an older client still draws a plain piece there). 0 = the classic look (the plain
+    // plates and the titanium ones, told apart by their own bits above), 1 = the guardian set, 2 = the robber disguise,
+    // 3 = the flower set, 4–7 reserved. A mask that uses them is above 0xFFFF and costs a wearer two bytes more on the
+    // wire; the presence gains no field (a minimal presence must stay under the compression threshold).
+
+    /// <summary>The first bit of the head piece's style (bits 16–18).</summary>
+    public const int HeadStyleShift = 16;
+
+    /// <summary>The first bit of the chest piece's style (bits 19–21).</summary>
+    public const int ChestStyleShift = 19;
+
+    /// <summary>The first bit of the leg piece's style (bits 22–24).</summary>
+    public const int LegsStyleShift = 22;
+
+    /// <summary>The three bits of one slot's style, before the shift.</summary>
+    public const int StyleBits = 7;
+
+    /// <summary>The classic look (plain or titanium plates).</summary>
+    public const int StyleClassic = 0;
+
+    /// <summary>#3290: the guardian set — dark plates with small red lights.</summary>
+    public const int StyleGuardian = 1;
+
+    /// <summary>#3291: the robber disguise — the mask with its breathing filters, the black jacket.</summary>
+    public const int StyleRobber = 2;
+
+    /// <summary>#3292: the flower set — the blossom wreath, the flower bracelets.</summary>
+    public const int StyleFlower = 3;
+
+    /// <summary>The style of the head piece in <paramref name="mask"/> (0 = classic).</summary>
+    public static int HeadStyle(int mask) => (mask >> HeadStyleShift) & StyleBits;
+
+    /// <summary>The style of the chest piece in <paramref name="mask"/> (0 = classic).</summary>
+    public static int ChestStyle(int mask) => (mask >> ChestStyleShift) & StyleBits;
+
+    /// <summary>The style of the leg pieces in <paramref name="mask"/> (0 = classic).</summary>
+    public static int LegsStyle(int mask) => (mask >> LegsStyleShift) & StyleBits;
+
+    /// <summary>The bits of <paramref name="style"/> in the slot that starts at <paramref name="shift"/>.</summary>
+    public static int Style(int shift, int style) => (style & StyleBits) << shift;
+
     /// <summary>The mask of the gear <paramref name="worn"/> says is worn (by base key — a piece the bio lab changed is
     /// still the same piece).</summary>
     public static int Mask(Func<string, bool> worn)
@@ -76,6 +118,7 @@ public static class GearLook
         g |= Bit(worn("titan_chest"), Chest | TitanChest);
         g |= Bit(worn("armor_legs"), Legs);
         g |= Bit(worn("titan_legs"), Legs | TitanLegs);
+        g |= SetPieces(worn);
         g |= Bit(worn("jetpack"), Jetpack);
         g |= Bit(worn("glider"), Glider);
         g |= Bit(worn("suit_lamp"), Lamp);
@@ -85,6 +128,20 @@ public static class GearLook
         g |= Bit(worn("climbing_gloves"), ClimbingGloves);
         g |= Bit(worn("climbing_claws"), ClimbingClaws);
         g |= Bit(worn("suit_battery"), SuitBattery);
+        return g;
+    }
+
+    /// <summary>#3290–#3292: the pieces of the guardian, robber and flower sets — the slot's generic bit plus its style.</summary>
+    private static int SetPieces(Func<string, bool> worn)
+    {
+        int g = 0;
+        g |= Bit(worn("guardian_helmet"), Helmet | Style(HeadStyleShift, StyleGuardian));
+        g |= Bit(worn("robber_mask"), Helmet | Style(HeadStyleShift, StyleRobber));
+        g |= Bit(worn("flower_wreath"), Helmet | Style(HeadStyleShift, StyleFlower));
+        g |= Bit(worn("guardian_chest"), Chest | Style(ChestStyleShift, StyleGuardian));
+        g |= Bit(worn("robber_jacket"), Chest | Style(ChestStyleShift, StyleRobber));
+        g |= Bit(worn("flower_bracelets"), Chest | Style(ChestStyleShift, StyleFlower));
+        g |= Bit(worn("guardian_legs"), Legs | Style(LegsStyleShift, StyleGuardian));
         return g;
     }
 

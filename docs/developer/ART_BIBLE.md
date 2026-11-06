@@ -105,6 +105,29 @@ New planet types: add data (`planets.json`) + a `GradeFor` entry; never hardcode
   leaves them alone. The client varies leaf and bark tints gently per grove (a low-frequency field), so one wood is not
   a set of copies.
 
+**Biome looks (#3289, 2026-11-06).** The rune stone and the ancient brick take the colours of the biome they stand in —
+per COLUMN, not per world, so one world shows several:
+
+- **Data.** Every biome surface block names one of eight palettes (`"biomePalette"` in `data/blocks.json`: verdant,
+  desert, frost, volcanic, marsh, rock, crystal, toxic — `BiomePalettes` in Shared, append-only); a block with
+  `"biomeLooks": true` ships one tile per palette, `<block>_<palette>.bytes`. Validation rejects an unknown palette and a
+  look key that is a block; content tests hold that every biome surface of every planet type has a palette and every look
+  tile is bundled and opaque. A new surface block needs a `biomePalette`; a new look block needs its eight tiles.
+- **Client.** The look tiles are texture-only keys (`BlockFaceTextures.TextureOnlyKeys`) in the atlas's extras band.
+  `BiomeLookResolver` (Client.Core) asks a private, server-identical generator — the far terrain's setup
+  (`FarWorldGenerator`) from `FarTerrainWorldInfo` — for `BiomeSurfaceKeyAt` of a column (one lock, a bounded column
+  cache; mesh jobs call it from worker threads). The chunk mesher swaps the cell's own tile for the palette's
+  (`ChunkMesher.BiomeLooks.cs`), cube and shape alike; ship and speeder meshes pass no lookup and keep the own tile, as do
+  icons and the held block. A texture pack or world texture of the block itself wins over a look that was not repainted
+  too (`BlockTextureAtlas.BiomeLooks.cs`). Chunks meshed before the world info arrived are meshed again.
+- **Glow.** A glow-only cell of a look block keeps its tile's colours (it still shines and lights its surroundings); a
+  dye still recolours it. The server stamps a monument's rune glow in the palette colour of its column
+  (`GameServerMonumentGlow.cs`, `BiomePalettes.GlowOf`) at stamping time — once per world, so older worlds keep their
+  glow; `MonumentGenerator` and its random draws are untouched, so layouts and re-derived bounds stay identical.
+- **Art.** `tools/ai-assets/recolour_biome_looks.py` (deterministic, no model) recolours Screelit's notes in place —
+  every note keeps its pixels' coverage, only its gradient changes — and tints the frame; the bricks are tinted toward the
+  biome's stone and their moss becomes its growth.
+
 ## 5. Ship rooms (interior palette)
 
 From the room-identity pass (`GameServerSpaceStructure.PaintStationAccents` + decor in

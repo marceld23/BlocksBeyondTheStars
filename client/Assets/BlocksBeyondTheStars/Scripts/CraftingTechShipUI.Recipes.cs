@@ -113,7 +113,8 @@ namespace BlocksBeyondTheStars.Client
         private CraftGateInput Gate => new CraftGateInput(Game.Content, FreeCrafting(), Game.UnlockedBlueprints,
             Game.Personal, Game.Cargo, Game.Equipment, Game.Aboard, PersonalSlotTotal, Game.CargoSlots,
             _gateMarketAvailable ??= MarketAvailableNow, _gateMarketOfferedHere ??= MarketOfferedHereNow,
-            _gateFactoryAway ??= IsFactoryRecipeAway, _gateStationAvailable ??= StationAvailable);
+            _gateFactoryAway ??= IsFactoryRecipeAway, _gateStationAvailable ??= StationAvailable,
+            Game.Network != null ? Game.Network.TraderDiscount : 0f); // #3292: market trades at the flower discount
 
         private bool MarketAvailableNow() => Game.MarketAvailable;
         private bool MarketOfferedHereNow(RecipeDefinition r) => Game.MarketOfferedHere(r);

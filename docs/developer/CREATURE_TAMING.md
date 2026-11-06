@@ -171,8 +171,40 @@ eaten inside that loop. VEGA explains it once (`vega.hint.favourite_food`); the 
 After a favourite squabble the herd comes back after 5 s instead of the 60-s cooldown. Toxic food never counts. Mini-Michi-Paul
 (Paul and Ben's biped) loves bananas: two bananas tame one. Tests: `BipedServerTests`.
 
+## The friendly hunter robot (#3295, 2026-11-06)
+
+The first companion that is not an animal. The finale's reward crate (#3294, `GameServerGuardianReward.cs`) holds a
+`robot_core`; the workshop recipe `hunter_robot` (core + 8 titanium ore) makes the `hunter_robot` gadget item. Using it
+(`HandleUseGadget` → `DeployRobot`, `GameServerRobotCompanion.cs`) adds a `TamedCreature` with `Kind = "robot"`,
+`Roams = true`, `Bond = 100` and the fixed `RobotSpecies()` snapshot (species id `robot_hunter`,
+`CreatureBodyPlan.Robot` — appended last, never rolled), then spawns it like any companion. Refused in space, on a void
+world, aboard / in a ship interior and while the player already has a robot (the item is kept).
+
+- **Roaming:** `CompanionLivesOn(tc, body)` replaces the old `HomeBodyId == body` test in `ReconcileCompanions` and
+  `SpawnCompanionsForSession` — a roaming companion appears on every non-void world its owner is on; a knocked-out one
+  nowhere. The robot never waits behind the six-pet cap.
+- **Not an animal:** `ApplyBondDecay` skips it, `HandleFeedCompanion` refuses (`srv.robot.no_food`), `ScanSubject`
+  answers `ui.scan.robot`, the bio sampler's `NearestLivingCreature` passes it by. "Release" is `PowerDownRobot`: the
+  item comes back (refused with a full backpack).
+- **Guarding** (`TickRobotCompanions`, per world at 2 Hz): the base sentry's target rules (`NearestSentryTarget` — hostile
+  machines and creatures, bandits only once they fight; never players, NPCs, traders or companions) from its chest, the
+  sentry's damage per shot, the sentry's cyan `SentryShot` tracer, kills through `KillBySentry` with the owner credited.
+  Nothing on a world where planet enemies are off.
+- **Knock-out:** only the fight the robot started hurts it — while it has shot within 3 s and its target is alive and
+  within 8 blocks, it loses the target's `DamagePerSecond` inside its own pass (the enemy AI is unchanged; nothing else
+  ever hurts a companion). Ten seconds without a fight heal it. At 0: `CreatureDefeated` (the client breaks it apart),
+  the record is marked `KnockedOut`, and an owner-locked crate with the recipe's inputs (read from the recipe, so a data
+  change follows) goes down where it fell — or, with no free spot there, through the reward crate's delivery pass in
+  front of the owner with its one-minute backpack fallback. The record is removed in the same transaction that writes
+  the crate.
+- **Wire:** nothing new — `NetCreature.BodyPlan == "Robot"`; the client's `CreatureBuilder.Robot.cs` draws the hunter's
+  armour on the biped rig with light-blue (#7FE8FF) lights, and `CreatureVoice` gives the plan its own three beeps
+  (`creature_call_robot_*`). The Creatures tab shows "follows you everywhere" and *Switch off* for it.
+
+Tests: `RobotCompanionTests`, `GuardianRewardTests`, `OwnerLockedCrateTests`.
+
 ## Known remaining gaps / deferred (P4)
 
 - Needs a Unity client build.
-- Riding (B4), companion mortality, a portable companion that travels with you, a slow "study" knowledge
-  trickle while accompanied, dye / accessories. (Feed/bond — B3 — shipped with #1225.)
+- Riding (B4), companion mortality, a slow "study" knowledge trickle while accompanied, dye / accessories. (Feed/bond —
+  B3 — shipped with #1225; a portable companion that travels with you — the hunter robot — with #3295.)

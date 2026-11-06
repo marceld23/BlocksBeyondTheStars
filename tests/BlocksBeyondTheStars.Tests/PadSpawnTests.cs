@@ -101,6 +101,50 @@ public sealed class PadSpawnTests : IDisposable
     }
 
     [Fact]
+    public void AStaircaseBesideTheHull_DoesNotLiftTheParkedShip()
+    {
+        // #3286: a school-club player built a concrete staircase up the side of the starter ship; on the next join the
+        // ship hung five cells in the air. The touchdown samples at the pad corners (±4) lie outside the 5×7 hull.
+        var server = Started(out var repo, "stairs", ship: true);
+        using (repo)
+        {
+            var (px, py, pz) = server.LandingPadForTest(0);
+            var concrete = _content.GetBlock("concrete")!.NumericId;
+            foreach (var (dx, dz) in new[] { (-4, -4), (4, -4), (-4, 4), (4, 4) })
+                for (int y = py + 1; y <= py + 5; y++)
+                {
+                    server.World.SetBlock(new Vector3i(px + dx, y, pz + dz), concrete); // stair posts beside every corner
+                }
+
+            server.AddLocalPlayer("Host");
+            var (origin, size) = server.LandedShipBoundsForTest("Host");
+            Assert.True(size.X / 2 < 4 && size.Z / 2 < 4, $"the premise needs a hull narrower than the corner samples (size {size})");
+            Assert.Equal(py + 1, origin.Y); // still on the levelled pad — nothing was built under it
+        }
+    }
+
+    [Fact]
+    public void ABlockUnderTheHullsEdge_StillLiftsTheParkedShip()
+    {
+        // #3286: the hull height reads every column of its own footprint — also edge columns the five touchdown samples
+        // never looked at — so a block under the hull can never end up inside its floor (#1318).
+        var server = Started(out var repo, "underedge", ship: true);
+        using (repo)
+        {
+            var (px, py, pz) = server.LandingPadForTest(0);
+            var concrete = _content.GetBlock("concrete")!.NumericId;
+            for (int y = py + 1; y <= py + 3; y++)
+            {
+                server.World.SetBlock(new Vector3i(px + 2, y, pz - 3), concrete); // under the starter box's corner cell
+            }
+
+            server.AddLocalPlayer("Host");
+            var (origin, _) = server.LandedShipBoundsForTest("Host");
+            Assert.Equal(py + 3 + 1, origin.Y);
+        }
+    }
+
+    [Fact]
     public void AnUntouchedPad_KeepsTheOldTouchdownHeight()
     {
         var server = Started(out var repo, "plain", ship: false);
@@ -314,8 +358,9 @@ public sealed class PadSpawnTests : IDisposable
         using (repo)
         {
             var (px, py, pz) = server.LandingPadForTest(0);
-            server.World.SetBlock(new Vector3i(px + 4, py + 1, pz + 4), _content.GetBlock("concrete")!.NumericId); // built
-            server.DepositWeatherSnowForTest(px + 4, py + 2, pz + 4); // snowed on
+            // Under the hull's corner cell (#3286: a block BESIDE the hull no longer lifts it).
+            server.World.SetBlock(new Vector3i(px + 2, py + 1, pz + 3), _content.GetBlock("concrete")!.NumericId); // built
+            server.DepositWeatherSnowForTest(px + 2, py + 2, pz + 3); // snowed on
 
             server.AddLocalPlayer("Host");
             var (origin, _) = server.LandedShipBoundsForTest("Host");

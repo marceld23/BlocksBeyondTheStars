@@ -50,8 +50,9 @@ namespace BlocksBeyondTheStars.Client
         public CraftGateInput(GameContent content, bool creative, ICollection<string> unlockedBlueprints,
             NetItemStack[]? personal, NetItemStack[]? cargo, NetItemStack[]? equipment, bool aboard, int personalSlots, int cargoSlots,
             Func<bool> marketAvailable, Func<RecipeDefinition, bool> marketOfferedHere,
-            Func<RecipeDefinition, bool> factoryAway, Func<CraftingStation, bool> stationAvailable)
+            Func<RecipeDefinition, bool> factoryAway, Func<CraftingStation, bool> stationAvailable, float traderDiscount = 0f)
         {
+            TraderDiscount = traderDiscount;
             Content = content;
             Creative = creative;
             UnlockedBlueprints = unlockedBlueprints;
@@ -106,6 +107,10 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>True when the server says a crafting station is usable right now (hand: always).</summary>
         public Func<CraftingStation, bool> StationAvailable { get; }
+
+        /// <summary>#3292: the trader discount the server last pushed (0..1, <c>NetworkClient.TraderDiscount</c>) — a market
+        /// trade's inputs are priced with it (<see cref="MarketPricing"/>), exactly as the server's barter takes them.</summary>
+        public float TraderDiscount { get; }
     }
 
     /// <summary>
@@ -137,7 +142,7 @@ namespace BlocksBeyondTheStars.Client
                 return CraftBlock.NeedBlueprint;
             }
 
-            if (!HasAll(r.Inputs, input, count))
+            if (!HasAll(Cost(r, input), input, count))
             {
                 return CraftBlock.NeedMaterials;
             }
@@ -226,7 +231,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             int m = cap;
-            foreach (var inp in r.Inputs)
+            foreach (var inp in Cost(r, input))
             {
                 if (inp.Count <= 0)
                 {
@@ -265,6 +270,12 @@ namespace BlocksBeyondTheStars.Client
 
             return HasAll(cost, input) ? 0 : 1;
         }
+
+        /// <summary>The inputs of ONE <paramref name="r"/> as the player pays them (#3292): a market trade at the trader
+        /// discount (<see cref="MarketPricing.Inputs"/>, the server's own rule), everything else at its recipe's numbers.
+        /// The crafting page and the vendor screen list these.</summary>
+        public static IReadOnlyList<ItemAmount> Cost(RecipeDefinition r, in CraftGateInput input)
+            => MarketPricing.Inputs(r, input.TraderDiscount);
 
         /// <summary>True when no blueprint is required or the player has researched it.</summary>
         public static bool BlueprintOk(string? bp, in CraftGateInput input)

@@ -25,6 +25,14 @@ public sealed class StoredContainer
     /// 0 = never, which is every crate, capsule and mining-overflow packet — and every packet saved before
     /// this shipped. Checkpointed to the store every so often, not per tick.</summary>
     public double LifetimeLeft { get; set; }
+
+    /// <summary>#3294: the player id this crate is locked to (the finale's reward crate, a knocked-out robot's parts); empty =
+    /// anybody's, which is every container saved before this shipped. While it is set AND the crate holds items only the owner
+    /// takes, nobody puts anything in and nobody but an admin mines it; emptied, the server clears it again.</summary>
+    public string Owner { get; set; } = string.Empty;
+
+    /// <summary>#3294: the owner's display name at the time the crate was locked — the "only {name} can open it" line.</summary>
+    public string OwnerName { get; set; } = string.Empty;
 }
 
 /// <summary>A player-built door, persisted by its world cell so it survives the deterministic door rebuild.</summary>

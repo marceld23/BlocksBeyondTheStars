@@ -280,7 +280,9 @@ public sealed class ToxicWorldTests
         Assert.Equal(0.25f, SuitEquipment.CorrosionResistance(items, k => k == "suit_liner_1"));
         Assert.Equal(0.65f, SuitEquipment.CorrosionResistance(items, k => k is "suit_liner_1" or "suit_liner_3"));
         Assert.True(SuitEquipment.IsSuitGear(_content.GetItem("suit_liner_2")!));
-        Assert.All(items.Where(i => i.CorrosionResistance > 0), i => Assert.StartsWith("suit_liner_", i.Key));
+        // The liners carry it — and, a little, the guardian chest plate (#3290), below the first liner so a liner always wins.
+        Assert.All(items.Where(i => i.CorrosionResistance > 0 && i.Key != "guardian_chest"), i => Assert.StartsWith("suit_liner_", i.Key));
+        Assert.True(_content.GetItem("guardian_chest")!.CorrosionResistance < _content.GetItem("suit_liner_1")!.CorrosionResistance);
     }
 
     // --- helpers ---

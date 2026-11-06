@@ -65,6 +65,7 @@ public static class CreatureFootprint
                 return 2.2f * Unit(size, 8f);
 
             case CreatureBodyPlan.Biped:
+            case CreatureBodyPlan.Robot: // #3295: the hunter robot stands on the biped's proportions
                 {
                     float s = Math.Clamp(size, 0.3f, 2.5f);
                     float headRatio = sp.HeadRatio > 0f ? sp.HeadRatio : 1.6f; // the builder's fallback
@@ -127,6 +128,7 @@ public static class CreatureFootprint
                 return 1.2f * Unit(size, 3f);
 
             case CreatureBodyPlan.Biped:
+            case CreatureBodyPlan.Robot: // #3295: upright like the biped
             case CreatureBodyPlan.Ray:
             case CreatureBodyPlan.Medusa:
             case CreatureBodyPlan.Colossus:

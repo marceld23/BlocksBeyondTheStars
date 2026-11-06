@@ -29,28 +29,28 @@
     } },
   { "key": "scan_drone", "nameKey": "enemy.scan_drone.name", "descriptionKey": "enemy.scan_drone.desc", "tipKey": "enemy.scan_drone.tip", "where": "planet",
     "tiers": {
-      "normal": { "hull": 25, "damagePerSecond": 2, "loot": [ { "item": "carbon", "count": 2 } ] }
+      "normal": { "hull": 25, "damagePerSecond": 2, "loot": [ { "item": "carbon", "count": 2 }, { "item": "guardian_plate", "count": 1 } ] }
     } },
   { "key": "guardian_robot", "nameKey": "enemy.guardian_robot.name", "descriptionKey": "enemy.guardian_robot.desc", "tipKey": "enemy.guardian_robot.tip", "where": "planet",
     "tiers": {
-      "normal": { "hull": 30, "damagePerSecond": 4, "loot": [ { "item": "carbon", "count": 2 } ] }
+      "normal": { "hull": 30, "damagePerSecond": 4, "loot": [ { "item": "carbon", "count": 2 }, { "item": "guardian_plate", "count": 2 } ] }
     } },
   { "key": "hunter", "nameKey": "enemy.hunter.name", "descriptionKey": "enemy.hunter.desc", "tipKey": "enemy.hunter.tip", "where": "planet",
     "tiers": {
-      "normal": { "hull": 60, "damagePerSecond": 6, "loot": [ { "item": "carbon", "count": 2 } ] }
+      "normal": { "hull": 60, "damagePerSecond": 6, "loot": [ { "item": "carbon", "count": 2 }, { "item": "guardian_plate", "count": 2 } ] }
     } },
   { "key": "tank_spider", "nameKey": "enemy.tank_spider.name", "descriptionKey": "enemy.tank_spider.desc", "tipKey": "enemy.tank_spider.tip", "where": "planet",
     "tiers": {
-      "normal": { "hull": 20, "damagePerSecond": 0, "burstDamage": 30, "loot": [ { "item": "carbon", "count": 2 } ] }
+      "normal": { "hull": 20, "damagePerSecond": 0, "burstDamage": 30, "loot": [ { "item": "carbon", "count": 2 }, { "item": "guardian_plate", "count": 1 } ] }
     } },
   { "key": "bandit", "nameKey": "enemy.bandit.name", "descriptionKey": "enemy.bandit.desc", "tipKey": "enemy.bandit.tip", "where": "planet",
     "tiers": {
-      "normal": { "hull": 35, "damagePerSecond": 5, "loot": [ { "item": "iron_plate", "count": 2 } ] },
-      "camp":   { "hull": 35, "damagePerSecond": 5, "loot": [ { "item": "iron_plate", "count": 2 }, { "item": "carbon", "count": 2 } ] }
+      "normal": { "hull": 35, "damagePerSecond": 5, "loot": [ { "item": "iron_plate", "count": 2 }, { "item": "robber_cloth", "count": 1 } ] },
+      "camp":   { "hull": 35, "damagePerSecond": 5, "loot": [ { "item": "iron_plate", "count": 2 }, { "item": "carbon", "count": 2 }, { "item": "robber_cloth", "count": 2 } ] }
     } },
   { "key": "bandit_gunner", "nameKey": "enemy.bandit_gunner.name", "descriptionKey": "enemy.bandit_gunner.desc", "tipKey": "enemy.bandit_gunner.tip", "where": "planet",
     "tiers": {
-      "normal": { "hull": 35, "damagePerSecond": 3, "loot": [ { "item": "iron_plate", "count": 2 } ] },
-      "camp":   { "hull": 35, "damagePerSecond": 3, "loot": [ { "item": "iron_plate", "count": 2 }, { "item": "carbon", "count": 2 } ] }
+      "normal": { "hull": 35, "damagePerSecond": 3, "loot": [ { "item": "iron_plate", "count": 2 }, { "item": "robber_cloth", "count": 1 } ] },
+      "camp":   { "hull": 35, "damagePerSecond": 3, "loot": [ { "item": "iron_plate", "count": 2 }, { "item": "carbon", "count": 2 }, { "item": "robber_cloth", "count": 2 } ] }
     } }
 ]

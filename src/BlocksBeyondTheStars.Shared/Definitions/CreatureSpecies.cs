@@ -57,6 +57,7 @@ public enum CreatureBodyPlan
     Worm,     // a legless slitherer (#2109, generation 18): a head and a chain of 6–12 links that runs a wave — never legs
     Leviathan, // the deep sea's giant (#2111, generation 18): the sandworm's mover in water — cruises under the surface, breaches, hunts fish and boats
     SkyGiant,  // the gas giant's giant (#2112, generation 18): a 40–80 block sky-sailer drifting between the islands, passive — a spectacle
+    Robot,     // the friendly hunter robot (#3295): a companion only, never rolled — the hunter's armour on the biped's rig, light-blue lights
 }
 
 /// <summary>

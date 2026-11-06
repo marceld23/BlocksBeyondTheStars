@@ -600,7 +600,10 @@ namespace BlocksBeyondTheStars.Client
         /// the shared <see cref="Animate"/> null-safe (drones skip limb posing). The pod is grey plating and
         /// vanished against grey asteroid rock (#1840), so it also carries self-lit red accents (same unlit
         /// <see cref="_eyeMat"/> — red is the Guardian colour, never blue): an equatorial threat strip that
-        /// reads from every side, caps on the three fin tips, an emitter under the belly and a wider eye.</summary>
+        /// reads from every side, caps on the three fin tips, an emitter under the belly and a wider eye. The one blue
+        /// machine is the exception that proves the rule (#3295): the player's own friendly hunter robot — a companion,
+        /// drawn by <c>CreatureBuilder.Robot</c>, never by this enemy view — wears the hunter's armour with LIGHT-blue
+        /// lights (#7FE8FF), clearly apart from the robbers' #4dadff, so an enemy machine is still red without exception.</summary>
         private static Entry BuildDrone(string id, Transform parent)
         {
             EnsureMaterials();

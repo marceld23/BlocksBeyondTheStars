@@ -140,12 +140,21 @@ public static class BlockFaceTextures
 
     /// <summary>The tile keys the blocks' slots name that are NOT blocks (#2124) — the bundled textures a face shows
     /// on its own, which the client deals into the atlas's extras band. Distinct and in ordinal order, so every
-    /// client (and the content tests) derive the same list, hence the same atlas slots, from the same content.</summary>
+    /// client (and the content tests) derive the same list, hence the same atlas slots, from the same content.
+    /// #3289: the biome looks of a block (<see cref="BiomePalettes.LookKeysOf"/>) are such tiles too.</summary>
     public static List<string> TextureOnlyKeys(IEnumerable<BlockDefinition> blocks, Func<string, bool> isBlock)
     {
         var keys = new SortedSet<string>(StringComparer.Ordinal);
         foreach (var def in blocks)
         {
+            foreach (string look in BiomePalettes.LookKeysOf(def))
+            {
+                if (!isBlock(look))
+                {
+                    keys.Add(look);
+                }
+            }
+
             if (def.Faces == null)
             {
                 continue;

@@ -211,6 +211,8 @@ public sealed class MaterialEconomyTests
             "name_tag",
             // #3099: the storage bag is carried and opened, never used up.
             "storage_bag",
+            // #3290-#3292: the guardian armour, the robber disguise and the flower set are worn, never used up.
+            "guardian_helmet", "guardian_chest", "guardian_legs", "robber_mask", "robber_jacket", "flower_wreath", "flower_bracelets",
         };
         var unconsumedComponents = _c.Items.Values
             .Where(i => i.Category == ItemCategory.Component && !uses.ContainsKey(i.Key))

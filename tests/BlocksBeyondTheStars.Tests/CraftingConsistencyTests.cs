@@ -41,6 +41,19 @@ public sealed class CraftingConsistencyTests
             foreach (var o in r.Outputs) set.Add(o.Item);
         }
 
+        // #3290/#3291: what a defeated enemy drops (data/enemies.json) — the guardian set's robot metal, the robbers' cloth.
+        foreach (var e in _c.Enemies)
+        {
+            foreach (var tier in e.Tiers.Values)
+            {
+                foreach (var l in tier.Loot) set.Add(l.Item);
+            }
+        }
+
+        // #3294: code-granted — the finale's reward crate holds the robot core (GameServerGuardianReward), the hunter robot's
+        // one ingredient that no recipe or drop makes.
+        set.Add("robot_core");
+
         return set;
     }
 
@@ -233,6 +246,7 @@ public sealed class CraftingConsistencyTests
             ("oxygen_tank_3", "oxygen_tank_2"),
             ("vibro_knife", "machete"),
             ("plasma_sword", "vibro_knife"),
+            ("guardian_sword", "vibro_knife"), // #3290: the red-bladed sibling of the plasma sword
             ("laser_pistol", "gauss_pistol"),
             ("plasma_blaster", "laser_pistol"),
             ("spring_boots", "boots"), // #2295

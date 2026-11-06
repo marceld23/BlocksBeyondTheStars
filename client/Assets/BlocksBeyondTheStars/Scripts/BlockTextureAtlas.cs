@@ -126,6 +126,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             PaintFaceTiles(content);
+            RefreshBiomeLooks(); // #3289: which extras-band slot each biome look sits in
             BuildVariants(content);
             BuildCapTiles(content);
             foreach (var b in content.Blocks.Values)
@@ -440,6 +441,7 @@ namespace BlocksBeyondTheStars.Client
         private void FinishRepaint()
         {
             PublishAnimation();
+            RefreshBiomeLooks(); // #3289: a repaint of a look block or of one of its looks may switch its looks on or off
             PublishGasPalette();
             Texture.Apply(updateMipmaps: true);
             var oldNormals = NormalTexture;

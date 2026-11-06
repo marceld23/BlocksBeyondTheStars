@@ -89,6 +89,12 @@ public static class EnemyCatalog
     public const string Bandit = "bandit";
     public const string BanditGunner = "bandit_gunner";
 
+    /// <summary>#3290: the robot metal the Guardian's machines drop — the guardian set is made of it.</summary>
+    public const string GuardianPlate = "guardian_plate";
+
+    /// <summary>#3291: the dark cloth robbers drop — the robber disguise is sewn from it.</summary>
+    public const string RobberCloth = "robber_cloth";
+
     /// <summary>Every enemy in the Codex's order: space first (the player meets drones on the first flight), then the
     /// ground.</summary>
     public static IReadOnlyList<EnemyDefinition> Defaults() => new[]
@@ -98,12 +104,12 @@ public static class EnemyCatalog
         Make(Cruiser, EnemyWhere.Space, ("normal", 260f, 0f, 10f, Loot(("data_fragment", 8)))),
         Make(BanditShip, EnemyWhere.Space, ("normal", 55f, 120f, 5f, Loot(("data_fragment", 2), ("titanium_plate", 2)))),
         Make(HunterShuttle, EnemyWhere.Space, ("normal", 35f, 0f, 2f, Loot(("data_fragment", 2), ("circuit_board", 1)))), // #3097
-        Make(ScanDrone, EnemyWhere.Planet, ("normal", 25f, 0f, 2f, Loot(("carbon", 2)))),
-        Make(GuardianRobot, EnemyWhere.Planet, ("normal", 30f, 0f, 4f, Loot(("carbon", 2)))),
-        Make(Hunter, EnemyWhere.Planet, ("normal", 60f, 0f, 6f, Loot(("carbon", 2)))),
-        Bursting(Make(TankSpider, EnemyWhere.Planet, ("normal", 20f, 0f, 0f, Loot(("carbon", 2)))), 30f), // #3096
-        Make(Bandit, EnemyWhere.Planet, ("normal", 35f, 0f, 5f, Loot(("iron_plate", 2))), ("camp", 35f, 0f, 5f, Loot(("iron_plate", 2), ("carbon", 2)))),
-        Make(BanditGunner, EnemyWhere.Planet, ("normal", 35f, 0f, 3f, Loot(("iron_plate", 2))), ("camp", 35f, 0f, 3f, Loot(("iron_plate", 2), ("carbon", 2)))),
+        Make(ScanDrone, EnemyWhere.Planet, ("normal", 25f, 0f, 2f, Loot(("carbon", 2), (GuardianPlate, 1)))), // #3290: robot metal
+        Make(GuardianRobot, EnemyWhere.Planet, ("normal", 30f, 0f, 4f, Loot(("carbon", 2), (GuardianPlate, 2)))),
+        Make(Hunter, EnemyWhere.Planet, ("normal", 60f, 0f, 6f, Loot(("carbon", 2), (GuardianPlate, 2)))),
+        Bursting(Make(TankSpider, EnemyWhere.Planet, ("normal", 20f, 0f, 0f, Loot(("carbon", 2), (GuardianPlate, 1)))), 30f), // #3096
+        Make(Bandit, EnemyWhere.Planet, ("normal", 35f, 0f, 5f, Loot(("iron_plate", 2), (RobberCloth, 1))), ("camp", 35f, 0f, 5f, Loot(("iron_plate", 2), ("carbon", 2), (RobberCloth, 2)))), // #3291
+        Make(BanditGunner, EnemyWhere.Planet, ("normal", 35f, 0f, 3f, Loot(("iron_plate", 2), (RobberCloth, 1))), ("camp", 35f, 0f, 3f, Loot(("iron_plate", 2), ("carbon", 2), (RobberCloth, 2)))),
     };
 
     /// <summary>#3096: gives every tier of <paramref name="def"/> the burst damage of a bursting enemy.</summary>

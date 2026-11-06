@@ -144,5 +144,24 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The block cell a world coordinate falls in (floor, so negative coordinates land in the right cell).</summary>
         public static int Cell(float v) => (int)Math.Floor(v);
+
+        /// <summary>#3294: an owner-locked crate — the finale's reward crate or a knocked-out robot's parts: it names an owner
+        /// and still holds something. Nobody may put anything in; only the owner may take.</summary>
+        public static bool IsOwnerLocked(NetContainer? container)
+            => container != null && !string.IsNullOrEmpty(container.OwnerId) && container.ItemCount > 0;
+
+        /// <summary>#3294: the name of the player a crate is locked to when it is locked for <paramref name="localPlayerId"/> —
+        /// someone else's reward crate the HUD and the Actions list must not offer G for; "" when this player may loot it (it
+        /// is theirs, or nobody's). The server refuses the take either way; this keeps the prompt honest. Unlike
+        /// <c>OwnedBy</c> (a village's cache, "not yours" for everyone) the owner here may loot.</summary>
+        public static string LockedFor(NetContainer? container, string? localPlayerId)
+        {
+            if (container == null || !IsOwnerLocked(container) || string.Equals(container.OwnerId, localPlayerId, StringComparison.Ordinal))
+            {
+                return string.Empty;
+            }
+
+            return string.IsNullOrEmpty(container.OwnerName) ? container.OwnerId : container.OwnerName;
+        }
     }
 }

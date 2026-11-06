@@ -85,6 +85,15 @@ public sealed class NetContainer
     /// says whose it is instead of offering the loot key; the server refuses the take either way. Contractless-additive:
     /// an older client never reads it and only meets the refusal.</summary>
     public string OwnedBy { get; set; } = string.Empty;
+
+    /// <summary>#3294: the player this crate is locked to while it still holds items (the finale's reward crate, a knocked-out
+    /// robot's parts) — only they may take, nobody may put anything in or mine it. Empty = not locked (also once emptied).
+    /// Unlike <see cref="OwnedBy"/> the owner themself may loot it, so the client compares it with its own player id
+    /// (<c>InteractReach.LockedFor</c>). Contractless-additive: an older client ignores it and only meets the refusal.</summary>
+    public string OwnerId { get; set; } = string.Empty;
+
+    /// <summary>#3294: the display name of <see cref="OwnerId"/> — the "only {name} can open it" line.</summary>
+    public string OwnerName { get; set; } = string.Empty;
 }
 
 /// <summary>Lootable containers on the current planet (salvage capsules / corpses), sent on join + on change.

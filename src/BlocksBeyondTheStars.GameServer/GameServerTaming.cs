@@ -229,7 +229,7 @@ public sealed partial class GameServer
         var p = session.State;
         string body = _world.LocationId;
 
-        if (p.TamedCreatures.Count(t => t.HomeBodyId == body) >= MaxCompanionsPerWorld)
+        if (p.TamedCreatures.Count(t => t.HomeBodyId == body && !t.Roams) >= MaxCompanionsPerWorld) // #3295: the robot is no pet slot
         {
             _tameAttempts.Remove(p.PlayerId);
             Send(session, new TameResult { CreatureId = creature.Id, Success = false, MessageKey = "creature.tame.msg.full" });
@@ -573,7 +573,7 @@ public sealed partial class GameServer
         int n = 0;
         foreach (var c in _creatures)
         {
-            if (c.OwnerId == ownerId)
+            if (c.OwnerId == ownerId && !IsRobotEntity(c)) // #3295: the robot takes no pet's place
             {
                 n++;
             }
@@ -625,7 +625,7 @@ public sealed partial class GameServer
         {
             foreach (var tc in s.State.TamedCreatures)
             {
-                if (tc.HomeBodyId == body)
+                if (CompanionLivesOn(tc, body)) // #3295: the robot roams with its owner (and a knocked-out one is gone)
                 {
                     valid.Add(tc.Id);
                 }
@@ -648,7 +648,7 @@ public sealed partial class GameServer
         {
             foreach (var tc in s.State.TamedCreatures)
             {
-                if (tc.HomeBodyId != body)
+                if (!CompanionLivesOn(tc, body))
                 {
                     continue;
                 }
@@ -658,9 +658,9 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                if (CompanionCountFor(s.State.PlayerId) >= MaxCompanionsPerWorld)
+                if (!IsRobotCompanion(tc) && CompanionCountFor(s.State.PlayerId) >= MaxCompanionsPerWorld)
                 {
-                    break;
+                    continue; // #3295: the robot never waits behind a full set of pets
                 }
 
                 SpawnCompanionEntity(s.State.PlayerId, tc, s.State.Position);
@@ -684,14 +684,14 @@ public sealed partial class GameServer
         string body = _world.LocationId;
         foreach (var tc in session.State.TamedCreatures)
         {
-            if (tc.HomeBodyId != body || _creatures.Any(c => c.CompanionId == tc.Id))
+            if (!CompanionLivesOn(tc, body) || _creatures.Any(c => c.CompanionId == tc.Id))
             {
                 continue;
             }
 
-            if (CompanionCountFor(session.State.PlayerId) >= MaxCompanionsPerWorld)
+            if (!IsRobotCompanion(tc) && CompanionCountFor(session.State.PlayerId) >= MaxCompanionsPerWorld)
             {
-                break;
+                continue; // #3295: the robot never waits behind a full set of pets
             }
 
             SpawnCompanionEntity(session.State.PlayerId, tc, session.State.Position);
@@ -892,6 +892,12 @@ public sealed partial class GameServer
         var tc = session.State.TamedCreatures.FirstOrDefault(t => t.Id == intent.CompanionId);
         if (tc is null)
         {
+            return;
+        }
+
+        if (IsRobotCompanion(tc))
+        {
+            PowerDownRobot(session, tc); // #3295: a robot is not set free — it powers down back into its item
             return;
         }
 

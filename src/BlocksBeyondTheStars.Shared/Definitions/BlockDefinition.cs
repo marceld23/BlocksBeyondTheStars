@@ -205,6 +205,20 @@ public sealed class BlockDefinition
     /// </summary>
     public bool Accent { get; set; }
 
+    /// <summary>
+    /// #3289: the biome palette (<see cref="BiomePalettes"/>) a column wears when this block is its BIOME SURFACE — the
+    /// colours a <see cref="BiomeLooks"/> block standing in that column takes. Set in <c>data/blocks.json</c> on every
+    /// block a planet names as a biome's (or its own) surface; null = no palette, a look block there keeps its own tile.
+    /// </summary>
+    public string? BiomePalette { get; set; }
+
+    /// <summary>
+    /// #3289: the block takes the colours of the biome it stands in — one extra tile per palette,
+    /// <c>Resources/textures/&lt;key&gt;_&lt;palette&gt;.bytes</c> (<see cref="BiomePalettes.LookKey"/>). Purely visual: the
+    /// client mesher picks the tile by the column's biome; ships, stations, held items and icons keep the block's own tile.
+    /// </summary>
+    public bool BiomeLooks { get; set; }
+
     // --- Assigned by the registry, not present in JSON ---
 
     /// <summary>Dense numeric id assigned at load time; what chunks actually store.</summary>

@@ -783,6 +783,11 @@ public sealed partial class GameServer
             return; // some other hold-up is already on this player's screen — hold position and retry next tick
         }
 
+        if (LetDisguisedMarkPass(mark, bandit))
+        {
+            return; // #3291: the robber disguise — "one of us", and he walks on (GameServerGearPerks.cs)
+        }
+
         var demand = BuildBanditDemand(mark.State, includeCargo: false);
         if (demand.Count == 0)
         {
