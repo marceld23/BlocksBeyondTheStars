@@ -83,10 +83,12 @@ namespace BlocksBeyondTheStars.Client
             UpdateToast(Time.deltaTime); // #1860: the status toast ages out even while a menu hides the canvas
 
             // While the binocular optic is raised its own reticle takes over — two crosshairs stacked on top of
-            // each other read as a rendering bug (BinocularOptic owns the flag and always clears it).
-            if (_crosshair != null && _crosshair.activeSelf == SuppressCrosshair)
+            // each other read as a rendering bug (BinocularOptic owns the flag and always clears it). #3264: the open
+            // chat window sits over the centre of the screen, and the controls are frozen meanwhile anyway.
+            bool hideCrosshair = SuppressCrosshair || Game.ChatTyping;
+            if (_crosshair != null && _crosshair.activeSelf == hideCrosshair)
             {
-                _crosshair.SetActive(!SuppressCrosshair);
+                _crosshair.SetActive(!hideCrosshair);
             }
 
             if (show)
@@ -353,10 +355,12 @@ namespace BlocksBeyondTheStars.Client
             // a stale on-foot "Use: Cockpit" into the centre of the space view (you reach the cockpit/helm on
             // foot inside the ship; from the flight view you press F to step inside).
             // #3088: the line names what E does — the very pick PlayerController acts on (HudUi.Interact.cs).
-            _prompt.text = Game.SpaceViewActive ? string.Empty : OnFootPrompt(loc);
+            // #3264: both lines step aside while the chat window is open — it covers the centre, and E is frozen then.
+            bool chatOpen = Game.ChatTyping;
+            _prompt.text = Game.SpaceViewActive || chatOpen ? string.Empty : OnFootPrompt(loc);
             // Only actionable on foot (#751): PlayerController never polls the loot key while the
             // flight view is up or a speeder is driven, so showing the prompt there was a dead key.
-            _loot.text = Game.SpaceViewActive || !string.IsNullOrEmpty(Game.InSpeeder) ? string.Empty : FeedOrLootText(loc);
+            _loot.text = Game.SpaceViewActive || chatOpen || !string.IsNullOrEmpty(Game.InSpeeder) ? string.Empty : FeedOrLootText(loc);
 
             RefreshScan(loc);
             RefreshWreck(loc);

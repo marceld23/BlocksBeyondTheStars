@@ -31,6 +31,10 @@ namespace BlocksBeyondTheStars.Client
         private string _causeKey = string.Empty;
         private float _o2BeepTimer; // periodic low-oxygen warning tone (interval shrinks as O₂ drops)
 
+        /// <summary>#3264: raised with the cause's locale key on every damage pulse. The open chat window covers the
+        /// centred cause label (which hides meanwhile), so it writes the cause into its history instead.</summary>
+        public event System.Action<string> DamageCauseShown;
+
         /// <summary>Tints the screen red + names the cause whenever the player's health drops (B21), so
         /// environmental damage (lava, suffocation, starvation) or a hit never kills you "out of nowhere".
         /// #2518: the 15 Hz health drops are summed into one effect per half second (<see cref="DamageFeedback"/>) and
@@ -49,6 +53,7 @@ namespace BlocksBeyondTheStars.Client
 
                 _causeTimer = 2.2f;
                 _causeKey = InferDamageCause();
+                DamageCauseShown?.Invoke(_causeKey);
                 UrpScenePost.Instance?.PulseVignette(pulse.Vignette); // the red edge — all a chip of damage gets
                 VisorHud.Kick(pulse.VisorGlitch); // the hologram glitches with the hit
                 FxCamera.AddDamageTrauma(pulse.Trauma); // #2152: the hit rattles the view (capped, #2518)
@@ -87,7 +92,8 @@ namespace BlocksBeyondTheStars.Client
             if (_causeTimer > 0f) { _causeTimer -= dt; }
             if (_dmgCause != null)
             {
-                bool showCause = _causeTimer > 0f && Game.Health > 0f && !Game.ScreenMenuOpen; // #2530: a bite mid-ritual still says so
+                // #2530: a bite mid-ritual still says so. #3264: under the open chat window the history says it instead.
+                bool showCause = _causeTimer > 0f && Game.Health > 0f && !Game.ScreenMenuOpen && !Game.ChatTyping;
                 _dmgCause.text = showCause && Game.Localizer != null ? Game.Localizer.Get(_causeKey) : string.Empty;
             }
         }
