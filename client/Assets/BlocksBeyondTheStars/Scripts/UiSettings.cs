@@ -93,6 +93,15 @@ namespace BlocksBeyondTheStars.Client
             var cosinessHint = UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 40, L("ui.settings.cosiness_hint"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
             cosinessHint.horizontalOverflow = HorizontalWrapMode.Wrap;
             y += 44f;
+            // #3265: caves and moonless nights are dark on purpose; this lifts the dark for players who find it too much —
+            // 0–100 % in steps of 25, applied live (the dark floor, the eye adaptation underground, the creatures' light).
+            Stepper(ref y, L("ui.settings.dark_visibility"), S.DarkVisibility, 0f, 1f,
+                () => { S.DarkVisibility = Mathf.Clamp01(Mathf.Round((S.DarkVisibility - 0.25f) * 4f) / 4f); ApplyLiveWorld(); Rebuild(); },
+                () => { S.DarkVisibility = Mathf.Clamp01(Mathf.Round((S.DarkVisibility + 0.25f) * 4f) / 4f); ApplyLiveWorld(); Rebuild(); },
+                Mathf.RoundToInt(S.DarkVisibility * 100f) + "%");
+            // As tall as its lines: Russian and Japanese need three (#3263).
+            UiKit.AddMeasuredText(_content, _x + CtrlX, y, _rowW - CtrlX, L("ui.settings.dark_visibility_hint"), 14, UiKit.CyanDim, out float darkHintH);
+            y += Mathf.Max(40f, darkHintH) + 4f;
             // Window mode cycles Windowed → Borderless → Exclusive and applies immediately so the player sees
             // the window change without leaving the menu (resolution/mode changes are pushed via Apply()).
             Cycle(ref y, L("ui.settings.window_mode"), L(WindowModeKey(S.Window)),
@@ -700,6 +709,7 @@ namespace BlocksBeyondTheStars.Client
                 sky.WindSwayEnabled = S.AtmosphereEffect(S.WindSway, cheap: true);
                 sky.WetSurfacesEnabled = S.AtmosphereEffect(S.WetSurfaces, cheap: true);
                 sky.UnderwaterEnabled = S.AtmosphereEffect(S.Underwater, cheap: true);
+                sky.DarkVisibility = S.DarkVisibility; // #3265
             }
 
             var probe = FindAnyObjectByType<AtmosphereProbe>();
@@ -707,6 +717,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 probe.AdaptationEnabled = S.AtmosphereEffect(S.EyeAdaptation, cheap: true);
                 probe.ReducedEffects = S.ReducedEffects;
+                probe.DarkVisibility = S.DarkVisibility; // #3265
                 probe.BubblesEnabled = S.AtmosphereEffect(S.Underwater, cheap: true);
             }
 

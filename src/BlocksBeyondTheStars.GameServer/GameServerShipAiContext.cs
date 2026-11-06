@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
@@ -61,7 +62,12 @@ public sealed partial class GameServer
 
     /// <summary>Column scan above the head; this many solid blocks up there = underground.</summary>
     private const int VegaTipColumnScan = 40;
-    private const int VegaTipUndergroundSolid = 6;
+
+    /// <summary>#3265: three light-stopping blocks overhead — the client's skylight turns a cell under that much rock dark
+    /// (SkylightRules.CoverSolid), so VEGA's lamp and torch hints start where the dark does (a dug tunnel), not six blocks
+    /// down. Leaves, plants, water and glass do not count (<see cref="CoversFromSky(BlockId, BlockDefinition)"/>): a tree's
+    /// crown is no cave roof.</summary>
+    internal const int VegaTipUndergroundSolid = 3;
 
     /// <summary>Ore rarity (per planet ore table) at or below which VEGA calls an ore "rare here".</summary>
     private const double VegaTipRareOreRarity = 0.03;
@@ -1193,11 +1199,11 @@ public sealed partial class GameServer
         var centre = WorldConstants.CanonicalBlock(new Vector3i(
             (int)System.Math.Floor(p.X), (int)System.Math.Floor(p.Y + 1f), (int)System.Math.Floor(p.Z)), _world.Circumference);
 
-        // Column above the head — a real cave roof is many blocks thick, a hut roof or canopy is not.
+        // Column above the head — a real cave roof or a dug tunnel's cap is several blocks thick, a hut roof or canopy is not.
         int solid = 0;
         for (int y = 2; y <= VegaTipColumnScan; y++)
         {
-            if (!_world.GetBlockIfLoaded(new Vector3i(centre.X, centre.Y + y, centre.Z)).IsAir)
+            if (CoversFromSky(_world.GetBlockIfLoaded(new Vector3i(centre.X, centre.Y + y, centre.Z))))
             {
                 solid++;
             }
@@ -1256,6 +1262,29 @@ public sealed partial class GameServer
                 }
 
         probe.ExposedOres.Sort((a, b2) => a.DistSq.CompareTo(b2.DistSq));
+    }
+
+    /// <summary>A block overhead counts toward "underground" (<see cref="CoversFromSky(BlockId, BlockDefinition)"/>).</summary>
+    private bool CoversFromSky(BlockId id) => CoversFromSky(id, id.IsAir ? null : _world.Definition(id));
+
+    /// <summary>#3265: whether a block overhead keeps the daylight out, like the client's skylight rule (the block-light
+    /// flood's): air, the see-through blocks (water, the gas sea, glass, fields, fire), plants and a tree's leaves let it
+    /// through, so standing under a crown or a glass roof is not "underground". An unknown id counts as rock.</summary>
+    internal static bool CoversFromSky(BlockId id, BlockDefinition? def)
+    {
+        if (id.IsAir)
+        {
+            return false;
+        }
+
+        if (def is null)
+        {
+            return true;
+        }
+
+        return def.Category != "flora" && !TreeFoliage.IsKey(def.Key)
+               && def.Key is not ("water" or "gas" or "gas_dense" or "fire" or "glass" or "glass_clear" or "force_field"
+                   or "force_field_off" or "energy_gate" or "phase_block_open");
     }
 
     /// <summary>An ore the player can actually see: at least one of its six neighbours is air.</summary>

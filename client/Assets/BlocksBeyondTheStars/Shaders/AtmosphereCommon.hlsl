@@ -27,6 +27,8 @@
 //   _Sc_IndoorColor rgb = the colour of the interior fill (warm white at home, amber in the evening), a > 0.5 = set
 //   _Sc_CozyLight    the block-light gain of the cosiness slider (1 … 1.3; 0 = unset, read as 1)
 //   _Sc_GlowPulse    1 = glowing plants breathe, 0 = steady (Reduce flashes)
+// Dark package (#3265):
+//   _Sc_DarkFloor    the flat floor every lit surface keeps (0.045 … 0.15 with "Visibility in the dark"; 0 = unset → 0.045)
 #ifndef BBTS_ATMOSPHERE_COMMON_INCLUDED
 #define BBTS_ATMOSPHERE_COMMON_INCLUDED
 
@@ -46,6 +48,7 @@ float  _Sc_AtmoDebug;  // capture diagnostics (-atmoDebug N): 1 = show _Sc_Surfa
 float4 _Sc_IndoorColor; // #2814: the interior fill's colour (a > 0.5 = set)
 float  _Sc_CozyLight;   // #2820: block-light gain of the cosiness slider (0 = unset)
 float  _Sc_GlowPulse;   // #2822: glowing plants breathe (1) or stay steady (0)
+float  _Sc_DarkFloor;   // #3265: the flat dark floor (see BbtsDarkFloor)
 TEXTURE2D(_Sc_CloudNoise); SAMPLER(sampler_Sc_CloudNoise);
 
 // #2814: the colour the interior fill lights the cabin in — white where nothing set it (a station, the menu, a preview).
@@ -138,6 +141,30 @@ float BbtsWeatherSurface(inout float3 albedo, inout float gloss, float3 wp, floa
     }
 
     return cap;
+}
+
+// #3265 (caves, dug tunnels and nights far too bright): the sky ambient of an opaque world surface by its skylight.
+// Unchanged from the shade floor up (open sky 0.78, a roof's or a crown's shade 0.573); below it — a tunnel or cave the
+// mesher found sealed off from the sky — it falls to 0.02 instead of the old cave level of 0.32, so a cave is dark by day
+// as by night and a lamp or a torch is what lights it. The Built-in passes of BlockAtlas and ScatterLit repeat the formula
+// with the number (CG cannot include this file); Reports20261103WiringTests pins all four places.
+float BbtsSkyAmbient(float sky)
+{
+    return lerp(0.32, 0.78, sky) - 0.30 * saturate(1.0 - sky / BBTS_SHADE_FLOOR);
+}
+
+// #3265: the flat floor every lit surface keeps — dark, never pitch black; "Visibility in the dark" raises it (Sky.Dark.cs
+// sets the global). Unset (0: a preview or the menu before any world) reads as the default.
+float BbtsDarkFloor()
+{
+    return _Sc_DarkFloor > 0.0 ? _Sc_DarkFloor : 0.045;
+}
+
+// #3265: how strongly a see-through surface (water, glass) takes the sky and sun light at its skylight — the same ramp,
+// normalised to the open sky: 1 in the open, 0.73 in a roof's shade, ~0.03 in a sealed cave.
+float BbtsSkyLightScale(float sky)
+{
+    return BbtsSkyAmbient(saturate(sky)) / 0.78;
 }
 
 // Vertex sway for leaves, grass and flora (#2397). `foliage` = a tree crown / cutout leaf (TEXCOORD2.x > 0.5), `flora` =
@@ -259,7 +286,11 @@ float BbtsHazeAmountScaled(float3 wp, float skylight, float heightScale)
         height *= saturate(skylight) * _Sc_FogHeight.w * heightScale;
     }
 
-    return (1.0 - (1.0 - dist) * (1.0 - height)) * _Sc_Fog.z;
+    // #3265: with the camera under cover there is no sky to blend toward — a long tunnel's far end sank into a bright sky
+    // haze. Underground (camera exposure 0) a surface keeps the haze by its own skylight only (open ground seen from a cave
+    // mouth keeps it); under water the murk is the water, not the sky, and stays.
+    float covered = _Sc_Underwater.x > 0.5 ? 1.0 : lerp(saturate(skylight * 2.0), 1.0, saturate(_Sc_FogHeight.w));
+    return (1.0 - (1.0 - dist) * (1.0 - height)) * _Sc_Fog.z * covered;
 }
 
 float BbtsHazeAmount(float3 wp, float skylight)

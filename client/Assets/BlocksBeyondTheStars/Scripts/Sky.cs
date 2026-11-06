@@ -159,6 +159,7 @@ namespace BlocksBeyondTheStars.Client
             bool world = cam == Camera || WorldCameras.Contains(cam);
             Shader.SetGlobalVector(FogId, world ? _fogVector : FogOff);
             Shader.SetGlobalVector(CloudShadowId, world ? _cloudShadowVector : Vector4.zero);
+            Shader.SetGlobalFloat(ModelLightId, world ? _modelLight : 1f); // #3265: a preview keeps the studio light
         }
 
         private void SetFog(Vector4 fog)
@@ -315,6 +316,7 @@ namespace BlocksBeyondTheStars.Client
                 UrpScenePost.Instance?.ApplyGrade(Color.white, 1f, 1f);        // colour grade off on the URP volume
                 UrpScenePost.Instance?.SetMoodLut(null);                       // …and drop the biome mood LUT in space
                 Headlamp.AllOff(); // #3229: no suit lamp (own or another player's) in the flight view
+                ResetDarkGlobals(); // #3265: the hull in the flight view keeps the studio light
                 Shader.SetGlobalFloat(IndoorId, 0f);
                 Shader.SetGlobalColor(IndoorColorId, Color.white);
                 Shader.SetGlobalColor(FloraTintId, new Color(0f, 0f, 0f, 0f)); // no planet flora tint in space
@@ -496,7 +498,9 @@ namespace BlocksBeyondTheStars.Client
             // The evening amber is a little brighter than the day fill, so the cabin does not sink with the outdoor night.
             float indoorTarget = litInterior ? stationDim * (constantLight ? 1f : 1f + 0.2f * _evening) : 0f; // #1869: a station's fill follows its night
             _indoor = Mathf.MoveTowards(_indoor, indoorTarget, Time.deltaTime * 3f);
-            Shader.SetGlobalFloat(IndoorId, _indoor);
+            float interiorFill = InteriorFill(litInterior, home); // #3265: + a gentle fill in the own base's rooms (Sky.Dark.cs)
+            Shader.SetGlobalFloat(IndoorId, interiorFill);
+            PublishDarkGlobals(ShaderColor.Srgb(tint), interiorFill);
             // A station keeps its clean neutral deck light; the ship and the home base get the warm fill.
             float warmFill = constantLight ? 0f : _homeBlend;
             Color fill = Color.Lerp(Color.white, Color.Lerp(HomeFillDay, HomeFillEvening, _evening), warmFill);
@@ -679,10 +683,13 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float place = _placeCosiness;
-            if (Probe != null && Probe.LampLight > 0.3f)
+            bool lampLit = Probe != null && Probe.LampLight > 0.3f;
+            if (lampLit)
             {
                 place = Mathf.Max(place, 0.8f); // a campfire, a lantern-lit hut, a village street
             }
+
+            place *= DarkPlaceFactor(lampLit); // #3265: no cosy lift in a dark cave (Sky.Dark.cs)
 
             string weather = Game.Environment?.Weather ?? string.Empty;
             bool rough = weather is "storm" or "gale" or "blizzard" or "ion_storm" or "toxic_storm" or "acid_rain" or "meteor_shower";
@@ -883,7 +890,7 @@ namespace BlocksBeyondTheStars.Client
             if (Game != null && Game.CaptureEnvActive && Time.unscaledTime >= _nextAtmosphereLog)
             {
                 _nextAtmosphereLog = Time.unscaledTime + 2f;
-                Debug.Log($"[Atmosphere] fog start={fogStart:F1} end={far:F1} max={maxHaze:F2} | mist={mist:F2} floor={fogFloor:F1} k={falloff:F3} exposure={exposure:F2} biome={biome} tod={tod:F2} | cloud cover={cover:F2} strength={strength:F2} | wet={_wet:F2} snow={_snow:F2} submerged={_submerged:F2} | aboard={Game.Aboard} station='{Game.StationName}' sky={Game.ExposedToSky} indoor={_indoor:F2} pos={Game.PlayerPosition} | globals surface={Shader.GetGlobalVector(SurfaceId)} height={Shader.GetGlobalVector(FogHeightId)} cloud={Shader.GetGlobalVector(CloudShadowId)} noise={(Shader.GetGlobalTexture(CloudNoiseId) != null)} | lights={Game.World?.LightSourceCount ?? -1} natural={Game.World?.NaturalLightSourceCount ?? -1} emitters={BlocksBeyondTheStars.Client.ClientWorld.NaturalEmittersLight}");
+                Debug.Log($"[Atmosphere] fog start={fogStart:F1} end={far:F1} max={maxHaze:F2} | mist={mist:F2} floor={fogFloor:F1} k={falloff:F3} exposure={exposure:F2} adaptEv={(Probe != null ? Probe.AdaptationEv : 0f):F2} modelLight={_modelLight:F2} biome={biome} tod={tod:F2} | cloud cover={cover:F2} strength={strength:F2} | wet={_wet:F2} snow={_snow:F2} submerged={_submerged:F2} | aboard={Game.Aboard} station='{Game.StationName}' sky={Game.ExposedToSky} indoor={_indoor:F2} pos={Game.PlayerPosition} | globals surface={Shader.GetGlobalVector(SurfaceId)} height={Shader.GetGlobalVector(FogHeightId)} cloud={Shader.GetGlobalVector(CloudShadowId)} noise={(Shader.GetGlobalTexture(CloudNoiseId) != null)} | lights={Game.World?.LightSourceCount ?? -1} natural={Game.World?.NaturalLightSourceCount ?? -1} emitters={BlocksBeyondTheStars.Client.ClientWorld.NaturalEmittersLight}");
             }
         }
 
@@ -1035,6 +1042,7 @@ namespace BlocksBeyondTheStars.Client
             Headlamp.AllOff(); // every headlamp off (#3229: the other players' too)
             UrpScenePost.Instance?.SetMoodLut(null); // drop the biome mood LUT (menu/space)
             Shader.SetGlobalFloat(IndoorId, 0f); // interior fill off (menu/space)
+            ResetDarkGlobals(); // #3265: the menu's models keep the studio light
             Shader.SetGlobalColor(FloraTintId, new Color(0f, 0f, 0f, 0f)); // flora tint off (menu/space)
             SetFog(FogOff); // distance haze off (menu/space)
             SetCloudShadow(Vector4.zero);

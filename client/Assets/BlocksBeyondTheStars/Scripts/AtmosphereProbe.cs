@@ -31,6 +31,9 @@ namespace BlocksBeyondTheStars.Client
         public bool AdaptationEnabled = true;
         public bool ReducedEffects;
 
+        /// <summary>#3265: "Visibility in the dark" (0..1, settings) — raises the underground cap of the adaptation.</summary>
+        public float DarkVisibility;
+
         /// <summary>Bubbles while the camera is under water (#2401), from the settings.</summary>
         public bool BubblesEnabled = true;
         private float _bubbleTimer;
@@ -51,9 +54,7 @@ namespace BlocksBeyondTheStars.Client
         private const int GridHalf = 3;      // 7×7 columns
         private const int GridStep = 8;      // blocks between columns
         private const int ProbeUp = 48, ProbeDown = 48;
-        private const float AdaptDarkRate = 0.35f;  // EV/s toward the dark (eyes adapt slowly)
-        private const float AdaptLightRate = 2.5f;  // EV/s toward the light (a quick squint)
-        private const float AdaptMaxEv = 0.9f;
+        // The adaptation's ceiling, caps and rates: EyeAdaptationRules (Client.Core, #3265).
 
         private float _probeTimer;
         private float _fogFloorTarget;
@@ -131,14 +132,10 @@ namespace BlocksBeyondTheStars.Client
 
             // Eye adaptation (#2395): the exposure offset the dark earns. Adapting to the dark takes seconds, the
             // squint back to the light is quick — so stepping out of a cave blooms for a moment, stepping in starts
-            // dark and resolves. Never a flash (WCAG 2.3.1): the fastest ramp is 2.5 EV/s, nothing oscillates.
-            float darkRate = ReducedEffects ? AdaptDarkRate * 2f : AdaptDarkRate;
-            float lightRate = ReducedEffects ? AdaptLightRate * 0.6f : AdaptLightRate;
-            float maxEv = ReducedEffects ? AdaptMaxEv * 0.5f : AdaptMaxEv;
-            float target = AdaptationEnabled && !Game.SpaceViewActive ? Mathf.Min(_adaptTarget, maxEv) : 0f;
-            AdaptationEv = target > AdaptationEv
-                ? Mathf.MoveTowards(AdaptationEv, target, dt * darkRate)
-                : Mathf.MoveTowards(AdaptationEv, target, dt * lightRate);
+            // dark and resolves. #3265: capped (a cave stays dark, a night stays night) and slow, ~5 s into a cave;
+            // the rules and their numbers are EyeAdaptationRules. Never a flash (WCAG 2.3.1).
+            float target = AdaptationEnabled && !Game.SpaceViewActive ? _adaptTarget : 0f;
+            AdaptationEv = EyeAdaptationRules.Step(AdaptationEv, target, dt, ReducedEffects);
             UrpScenePost.Instance?.SetAdaptation(AdaptationEv);
         }
 
@@ -261,12 +258,13 @@ namespace BlocksBeyondTheStars.Client
             float lamp = _lampLight * 0.55f;
             SceneBrightness = Mathf.Clamp01(Mathf.Max(daylight, interior, lamp, 0.03f));
 
-            // Dark earns up to +0.9 EV; a lit room or daylight earns nothing. Night under the open sky counts as dark
-            // too, which is what lets the eyes "get used to" a moonless night without re-tuning the night floor.
+            // Dark earns a boost; a lit room or daylight earns nothing. Night under the open sky counts as dark too, which
+            // lets the eyes "get used to" a moonless night — #3265: but only +0.2 EV there and +0.35 EV underground ("Visibility
+            // in the dark" raises that), so neither is brightened back toward dusk.
             // #3230: with the suit lamp lit the eyes adapt to the lit spot — the dark around the beam earns less of the boost
-            // and reads darker (the shaders' ambient floor keeps it readable).
-            float dark = 1f - Mathf.Clamp01(HeadlampRules.AdaptedBrightness(SceneBrightness, Headlamp.LocalLit) / 0.55f);
-            _adaptTarget = AdaptMaxEv * Mathf.Pow(dark, 1.5f);
+            // and reads darker (the shaders' dark floor keeps it readable).
+            bool openSky = Game.ExposedToSky && !Game.SpaceViewActive;
+            _adaptTarget = EyeAdaptationRules.Target(SceneBrightness, Headlamp.LocalLit, openSky, DarkVisibility, ReducedEffects);
         }
     }
 }

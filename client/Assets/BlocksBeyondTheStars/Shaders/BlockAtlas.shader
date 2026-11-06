@@ -305,9 +305,10 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // Per-vertex AO (mesher, in .b) widened to a visible contact-shadow range, then multiplied by
                 // the texture-scale cavity AO (normal map alpha). Diffuse-only — spec/reflection stay crisp.
                 float faceAo = lerp(0.62, 1.0, i.mat.b) * lerp(1.0, nrm.a, 0.6);
-                // #1611: the fully occluded (cave / interior) end of the ambient sat at 0.26 — lifted to 0.32 so a
-                // cave wall keeps a faint readable texture while still clearly asking for the lamp.
-                float amb = lerp(0.32, 0.78, sky); // #1457: sky-lit faces turned away from the sun sat at 0.70 — a shade too dark by day
+                // #1457 (open sky 0.70 → 0.78), #1611 (sealed end 0.26 → 0.32), #3265: the sky ambient ramp of AtmosphereCommon —
+                // unchanged from the shade floor up, almost nothing in a sealed cave or tunnel (0.02), where the flat dark
+                // floor below, the lamps and the torches are what is left. Dark, never pitch black.
+                float amb = BbtsSkyAmbient(sky);
                 // #1608: the shadow map owns "is the sun blocked". The mesher skylight gates the direct sun (and the
                 // specular below) at half weight only — saturate(sky*2) — so partially covered ground keeps the sun
                 // spots the foliage alpha-clip punches through a canopy (dappled light), instead of the skylight
@@ -317,7 +318,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // day, amber in the evening; white on a station and wherever nothing set it).
                 float3 indoorCol = BbtsIndoorColor();
                 float indoorShare = _Sc_Indoor * (1.0 - sky);
-                float3 col = albedo * (light * (amb + 0.5 * ndl * sunOpen * shadow) + 0.05 * lerp(float3(1, 1, 1), indoorCol, saturate(indoorShare))) * faceAo;
+                float3 col = albedo * (light * (amb + 0.5 * ndl * sunOpen * shadow) + BbtsDarkFloor() * lerp(float3(1, 1, 1), indoorCol, saturate(indoorShare))) * faceAo;
                 col += albedo * indoorCol * (indoorShare * 0.5) * faceAo;
 
                 // Night/atmosphere ambient floor: a faint cool fill on open-sky faces, strongest when the sun
@@ -609,6 +610,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             fixed4 _Sc_Sky;     // sky colour for environment reflections
             float _Sc_Indoor;     // ship-interior fill (0..1): lights skylight-occluded cabin faces
             fixed4 _Sc_IndoorColor; // #2814: the fill's colour (a > 0.5 = set)
+            float _Sc_DarkFloor;  // #3265: the flat dark floor (0 = unset → 0.045), see AtmosphereCommon's BbtsDarkFloor
             fixed4 _Sc_FloraTint; // planet flora base hue (rgb); flora faces are desaturated + re-tinted to it
             float _LeafCutoff;    // alpha-test threshold for cutout foliage (leaf tiles carry a baked alpha mask)
 
@@ -756,8 +758,10 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // (outdoors ~0.70, a readable cave floor of 0.24). The directional adds the sunny side on top.
                 // A small flat term (sun/sky-independent) guarantees a minimum readable level, so blocks in a
                 // dark hole or deep cave are dim but never pure black.
-                float amb = lerp(0.32, 0.78, sky); // #1457 (0.70 → 0.78); #1611 (0.26 → 0.32): occluded faces keep a faint readable texture
-                fixed3 col = albedo * (light * (amb + 0.5 * ndl * sky) + 0.05) * faceAo;
+                // #1457 (0.70 → 0.78); #1611 (0.26 → 0.32); #3265: BbtsSkyAmbient of AtmosphereCommon, repeated here (CG cannot
+                // include it) — unchanged from the shade floor 0.55 up, 0.02 in a sealed cave — plus the flat dark floor global.
+                float amb = lerp(0.32, 0.78, sky) - 0.30 * saturate(1.0 - sky / 0.55);
+                fixed3 col = albedo * (light * (amb + 0.5 * ndl * sky) + (_Sc_DarkFloor > 0.0 ? _Sc_DarkFloor : 0.045)) * faceAo;
 
                 // Ship interior fill: a neutral, day/night-independent fill on skylight-occluded faces only
                 // (so the cabin is lit but the sunlit outdoors seen through windows is untouched).

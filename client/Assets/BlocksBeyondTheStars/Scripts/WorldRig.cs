@@ -512,6 +512,7 @@ namespace BlocksBeyondTheStars.Client
             probe.Camera = cam;
             probe.AdaptationEnabled = shell.Settings.AtmosphereEffect(shell.Settings.EyeAdaptation, cheap: true);
             probe.ReducedEffects = shell.Settings.ReducedEffects;
+            probe.DarkVisibility = shell.Settings.DarkVisibility; // #3265: "Visibility in the dark"
 
             var sky = root.AddComponent<Sky>();
             sky.Game = boot;
@@ -526,6 +527,7 @@ namespace BlocksBeyondTheStars.Client
             sky.WindSwayEnabled = shell.Settings.AtmosphereEffect(shell.Settings.WindSway, cheap: true);
             sky.WetSurfacesEnabled = shell.Settings.AtmosphereEffect(shell.Settings.WetSurfaces, cheap: true);
             sky.UnderwaterEnabled = shell.Settings.AtmosphereEffect(shell.Settings.Underwater, cheap: true);
+            sky.DarkVisibility = shell.Settings.DarkVisibility; // #3265
             probe.BubblesEnabled = sky.UnderwaterEnabled;
 
             // Light-shaft cards at cave mouths and canopy gaps (#2402): Medium 6, High 12, off below.

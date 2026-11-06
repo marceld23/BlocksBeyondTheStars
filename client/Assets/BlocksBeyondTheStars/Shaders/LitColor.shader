@@ -1,7 +1,8 @@
 // Simple lit, optionally-textured opaque shader (M27). Used by the menu backdrop, avatars, held items, ship
 // preview, doors, station + structure models so they're shaded in 3D (instead of flat Unlit/Color) and can
 // carry a texture. Uses a fixed key-light direction (no scene Light needed) plus an ambient floor, so it is
-// robust in stripped builds and independent of any runtime lighting globals.
+// robust in stripped builds. #3265: in the world the key light and floor are scaled by _Sc_ModelLight (the world's light;
+// unset = 1, so the menu and the previews keep the plain studio look).
 //
 // DUAL-PIPELINE (URP migration): SubShader 1 is the URP port (HLSL, UniversalForward + a ShadowCaster so these
 // models CAST the sun's shadows, and they RECEIVE it on the directional term); SubShader 2 is the original
@@ -52,6 +53,10 @@ Shader "BlocksBeyondTheStars/LitColor"
             // per renderer through a MaterialPropertyBlock while the flash lasts, 0 everywhere else.
             float _HitFlash;
 
+            // #3265: the world's light on the fixed studio light (Sky.Dark.cs, per camera: 1 for previews and the menu;
+            // 0 = unset, read as 1). A global, outside UnityPerMaterial (SRP Batcher, #573).
+            float _Sc_ModelLight;
+
             // SRP Batcher (#573): every per-MATERIAL property (i.e. everything in the Properties block above)
             // must sit in this one cbuffer, and its layout must be IDENTICAL in every pass of this SubShader —
             // the ShadowCaster below repeats it verbatim. Texture/sampler handles stay outside, and so do the
@@ -90,7 +95,11 @@ Shader "BlocksBeyondTheStars/LitColor"
                 float fill = saturate(dot(N, normalize(float3(-0.55, 0.25, 0.5)))) * _Fill; // opposite flank, unshadowed
                 float4 texel = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
                 float3 tex = texel.rgb;
-                float3 col = _Color.rgb * tex * (_Floor + (1.1 - _Floor) * ndl * shadow + fill); // peak stays 1.1 at _Floor==0.35, _Fill==0
+                // #3265: creatures, avatars, doors and held items lit the same day and night, in the sun and in a cave — in the
+                // world the key light, floor and fill follow the world's light (moonless night ~0.12, a cave ~0.15; Sky.Dark.cs).
+                // The glow pattern, the headlamps and the FX lights below stay on top, so a hostile in the dark stays visible.
+                float modelLight = _Sc_ModelLight > 0.0 ? _Sc_ModelLight : 1.0;
+                float3 col = _Color.rgb * tex * ((_Floor + (1.1 - _Floor) * ndl * shadow + fill) * modelLight); // peak stays 1.1 at _Floor==0.35, _Fill==0
 
                 // #3229: the headlamps; models carry no gloss channel — a soft dielectric sheen (F0 0.04).
                 col += BbtsHeadlamps(i.wp, N, normalize(_WorldSpaceCameraPos - i.wp), _Color.rgb * tex, float3(0.04, 0.04, 0.04), 0.7);
@@ -209,6 +218,7 @@ Shader "BlocksBeyondTheStars/LitColor"
             float _Glow;
             sampler2D _MainTex;
             float4 _MainTex_ST;
+            float _Sc_ModelLight; // #3265: the world's light on the studio light (see the URP pass; 0 = unset → 1)
             #include "Headlamp.hlsl" // #3229: the suit headlamps (unshadowed here — no SRP texture macros)
 
             struct appdata
@@ -245,7 +255,8 @@ Shader "BlocksBeyondTheStars/LitColor"
                 float fill = saturate(dot(N, normalize(float3(-0.55, 0.25, 0.5)))) * _Fill; // opposite flank, unshadowed
                 fixed4 texel = tex2D(_MainTex, i.uv);
                 fixed3 tex = texel.rgb;
-                fixed3 col = _Color.rgb * tex * (_Floor + (1.1 - _Floor) * ndl + fill); // peak stays 1.1 at _Floor==0.35, _Fill==0
+                float modelLight = _Sc_ModelLight > 0.0 ? _Sc_ModelLight : 1.0; // #3265
+                fixed3 col = _Color.rgb * tex * ((_Floor + (1.1 - _Floor) * ndl + fill) * modelLight); // peak stays 1.1 at _Floor==0.35, _Fill==0
                 col += _Color.rgb * tex * (_Glow * (1.0 - texel.a)); // #2862: a creature's glow pattern, unlit
 
                 // Headlamps (shared globals with the block shader, Headlamp.hlsl).

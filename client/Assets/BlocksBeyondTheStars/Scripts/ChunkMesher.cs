@@ -77,14 +77,11 @@ namespace BlocksBeyondTheStars.Client
         // tops and the block-light flood all address a bounded window around the chunk, so a flat array indexed by
         // (coordinate - window origin) replaces a tuple-keyed dictionary (order 10^5 hash lookups per chunk).
         [System.ThreadStatic] private static byte[] _aoDenseScratch;      // AoWindow³: 0 unknown, 1 open, 2 occluder
-        [System.ThreadStatic] private static int[] _colTopDenseScratch;   // SkyWindow²: column top (int.MinValue = none)
-        [System.ThreadStatic] private static byte[] _colTopKnownScratch;  // SkyWindow²: 1 = computed
         [System.ThreadStatic] private static LightField _lightFieldDense;
         [System.ThreadStatic] private static byte[] _lightOpaqueDense;    // LightField.W³: 0 unknown, 1 open, 2 opaque
         [System.ThreadStatic] private static Queue<int> _lightQueueDense;
         [System.ThreadStatic] private static List<int> _lightTouchedScratch;
         private const int AoWindow = 20;   // probes reach [-2, 18) around the chunk
-        private const int SkyWindow = 24;  // the 5×5 kernel around [-1, 17) → [-3, 19)
 
         /// <summary>#1528: the coloured block-light field of one build as a dense window — the flood reaches at
         /// most LightRadius - 1 cells past a source, sources lie within LightRadius of the chunk, so a
@@ -389,87 +386,10 @@ namespace BlocksBeyondTheStars.Client
                 return grad.sqrMagnitude > 1e-6f ? grad.normalized : Vector3.zero;
             }
 
-            // Per-column "highest solid block" cache → a face is sky-lit only if the air cell it faces is
-            // above its column's top (so caves, building/ship interiors and overhang undersides go dark,
-            // while open ground + cliff faces stay sunlit). The sun/sky terms are scaled by this in the
-            // block shader; the headlamp + emissive blocks light regardless, so caves need a lamp/lights.
-            // #1528: dense window instead of a long-keyed dictionary; a probe outside the window (never, by the
-            // kernel's reach) is simply computed uncached.
-            var colTopDense = _colTopDenseScratch ??= new int[SkyWindow * SkyWindow];
-            var colTopKnown = _colTopKnownScratch ??= new byte[SkyWindow * SkyWindow];
-            System.Array.Clear(colTopKnown, 0, colTopKnown.Length);
-            int skyOx = origin.X - 3, skyOz = origin.Z - 3;
-            int Top(int wx, int wz)
-            {
-                int kx = wx - skyOx, kz = wz - skyOz;
-                int key = (uint)kx < SkyWindow && (uint)kz < SkyWindow ? kz * SkyWindow + kx : -1;
-                if (key >= 0 && colTopKnown[key] != 0)
-                {
-                    return colTopDense[key];
-                }
-
-                int top = int.MinValue;
-                for (int yy = origin.Y + n + 48; yy >= origin.Y - 16; yy--)
-                {
-                    if (!worldBlock(wx, yy, wz).IsAir)
-                    {
-                        top = yy;
-                        break;
-                    }
-                }
-
-                if (key >= 0)
-                {
-                    colTopDense[key] = top;
-                    colTopKnown[key] = 1;
-                }
-
-                return top;
-            }
-
-            // Soft skylight for an air cell a face looks into: 1 if it sees the open sky directly, otherwise a
-            // smooth 0..1 from how much of a 5x5 horizontal neighbourhood is open at this height. This turns the
-            // old hard 0/1 edge into a gradient, so a cave MOUTH (some open neighbours) is softly lit and
-            // overhang shadows feather, while a DEEP cave (no open neighbours) stays ~0 and still needs a lamp.
-            const int SkyKernel = 2; // 5x5 (radius 2)
-            // Shade vs. underground (#1608): a cell just below its column top — under a tree canopy, an overhang,
-            // a roof — used to get the same 0 as a cell twenty blocks down a cave, so every shaded patch lit like
-            // a cave (ambient at the cave floor, no direct sun, no night fill) and needed the lamp at noon. The
-            // depth below the top now sets a floor: full shade (ShadeFloor) within ShadeDepthFull blocks of the
-            // cover, fading to the old 0 by ShadeDepthNone blocks, so deep caves stay dark and still need a lamp.
-            const int ShadeDepthFull = 6;
-            const int ShadeDepthNone = 14;
-            const float ShadeFloor = 0.55f;
-            float Skylight(int wx, int wy, int wz)
-            {
-                int top = Top(wx, wz);
-                if (wy > top)
-                {
-                    return 1f; // open straight up to the sky
-                }
-
-                int open = 0, total = 0;
-                for (int ox = -SkyKernel; ox <= SkyKernel; ox++)
-                for (int oz = -SkyKernel; oz <= SkyKernel; oz++)
-                {
-                    total++;
-                    if (wy > Top(wx + ox, wz + oz))
-                    {
-                        open++;
-                    }
-                }
-
-                // Linear fraction: a mouth (≈half its neighbourhood open) lands mid-bright and softly lit, a
-                // couple of blocks deeper falls off to the dark cave floor — a smooth gradient, deep stays ~0.
-                float fraction = open / (float)total;
-
-                // Depth below the cover (1 = directly under it) → the shade floor; deep = the plain fraction.
-                int depth = top - wy + 1;
-                float shade = depth <= ShadeDepthFull
-                    ? ShadeFloor
-                    : ShadeFloor * Mathf.Clamp01((ShadeDepthNone - depth) / (float)(ShadeDepthNone - ShadeDepthFull));
-                return Mathf.Max(fraction, shade);
-            }
+            // Skylight of the air cell a face looks into (1 = open sky … 0 = sealed off): ChunkMesher.Skylight.cs and the
+            // Client.Core rules behind it (#1608 shade floor, #3265 caves and dug tunnels dark from eight blocks in).
+            var skylightField = BeginSkylight(worldBlock, traits, origin);
+            float Skylight(int wx, int wy, int wz) => skylightField.At(wx, wy, wz);
 
             // A cell in a chunk the client does not hold is NOT open air — the streamer either has not sent it
             // yet or (past the far-column vertical LOD) never will. worldBlock cannot express that: it hands back
@@ -1675,6 +1595,7 @@ namespace BlocksBeyondTheStars.Client
                 var id = chunk.Get(x, y, z);
                 return traits.ExposesOpaqueFace(id) || !ShapeCode.IsCube(chunk.GetShape(x, y, z)); // a cube with a stored front (#2124) is still a cube
             });
+            skylightField.End(); // the reused field must not keep this build's chunks alive
             data.Pack();
 
             // Return plain data — the Unity Mesh upload happens in ChunkMeshData.ToMeshes() on the main thread.
