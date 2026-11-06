@@ -24,6 +24,41 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌫️ Fog wisps, cloud fog at altitude, fog banks, a mist of each world's own, real smoke at vents and volcanoes (Marcel's analysis 2026-11-06) — #3269–#3277, branch feat/fog-wisps-cloud-fog-vent-smoke — ✅ done 2026-11-06 in PR #PRNUM (`MERGESHA`) (⚠ playtest open; no save-version or terrain-generation change; protocol additive — five new contractless `WorldEnvironment` fields, an older client ignores them, an older server sends defaults = the look before)
+
+- **#3269** Per-world mist profile `Shared.World.MistProfiles` (pure function of seed × location × type, mixed hash): amount from
+  the new `mist` value on all 55 planet types (replaces the hardcoded client switch `Sky.MistFor`) ± a per-world jitter × air
+  density; colour — ~40 % white/light grey, ~60 % tinted by the type's family (volcanic, toxic, ice, lush, arid, exotic, pastel),
+  always bright (luma ≥ 0.74); wispiness; fog frequency ×0.35–2.2 on the `fog`/`ground_fog` chances (surface and ambient body
+  sims); a cloud band on the cloud line whose base is now the "summits are wetter" line (surface, pads, orbit weather map).
+  Sent as `MistAmount`/`MistColor`/`MistWispiness`/`CloudBaseY`/`CloudTopY`. `MistProfileTests` (13), `MistProfileServerTests` (2).
+- **#3270** The weather fog colours (fog, dust, sand, ion storm) reached no custom shader — `WeatherFx3D`'s `RenderSettings` fog is
+  gone; the tints now go into the real haze (sky, distance haze, mist), festival fog tints colour the mist; `Sky.MirrorLegacyFog`
+  is the one writer left (a linear copy of the haze for objects still on Unity's `Unlit/*` shaders). Cloud shadows now drift WITH
+  the wind (the offset had the wrong sign).
+- **#3271** Fog wisps: the height fog is modulated by two wind-scrolled, slowly morphing noise sheets (`_Sc_CloudNoise` is RGBA now,
+  `CloudNoiseSheet`), banks and gaps at the same mean density, strength = the world's wispiness; mist takes the world's colour, lit
+  by day and sky light. Client.Core `MistLook` holds the math (`MistLookTests`, 28). `Sky.ApplyFog` moved to `Sky.Mist.cs`
+  (Sky.cs 1062 → 827 lines). Switch "Fog wisps drifting in the wind" (every preset).
+- **#3272** Cloud fog at altitude: a band term in the haze between `CloudBaseY` and `CloudTopY` (soft edges, noise holes, ~15–40 m
+  visibility inside, the nearest metres always clear, never in caves/aboard/under water), cover from `CloudBandRules.Cover` (clear
+  = none, clouds patchy, rain/storm/fog closed); a sea of clouds (`CloudSea` + `CloudSea.shader`, Medium+ desktop) at the band top;
+  the low dome clouds fade out through the band (`CloudSeaRules.DomeLowFade`). Switch "Cloud fog on high peaks".
+- **#3273** Fog banks in the air: `MistCards` (one dynamic mesh, `MistCard.shader`) — large soft cards at the valley fog floor,
+  drifting with the wind, faded near the camera, Low 4 · Medium 10 · High 20, browser/Potato none, screen-coverage cap; Client.Core
+  `MistCardRules`, `MistNoise`. Switch "Fog banks in the air".
+- **#3274** Smoke: `ParticleSmoke.shader` — procedural puff atlas (`SmokePuffs`), a fake sphere normal lit by the sun, alpha
+  erosion with age, warm → cool, soft/near fade; FxKit `Smoke` plus the new `Plume` and `Spray` kinds; campfire smoke follows.
+- **#3275** Geyser vents steam all the time (≤ 96 blocks) and erupt at random (`VentSchedule`: 8–40 s, strength 0.4–1, world clock)
+  within 48 blocks — billows plus droplets on water vents, ash, embers and a glow on volcanic ones; found through the new
+  `ClientWorld` marker index instead of a ±7-block scan; steam tinted by the mist colour.
+- **#3276** `GeyserView` no longer leaks two materials per eruption nor mixes `Time.time` with the world time (cube plumes gone).
+- **#3277** Volcano craters smoke: `WorldGenerator.VolcanoCratersNear` + `VolcanoSmokeView` — a tall wind-bent column per crater in
+  far-view range, 1–4 craters by preset; ash on volcanic worlds, steam elsewhere.
+- ⚠ **Open:** playtest the look on a few worlds (wisps at dawn, a summit in the clouds, the sea of clouds from the lift, fog banks,
+  vents near and far, a volcano from ~300 m, campfire smoke by night); a steady vent hiss sound (eruptions reuse `geyser_erupt`);
+  the old exp² fog's view-distance cut in blizzards/gales never reached the custom shaders and was not carried over.
+
 ### 📬 Reports 2026-11-06 + Marcel's findings — rails across the seam, fence pens, the cinematic camera between buildings, a fast world list, boot stages on the loading screen, dark caves and nights, a big chat window, submitting ships/towns/skins, editor texts that fit — #3256–#3265, branch fix/reports-and-singleplayer-wait-2026-11-06 — ✅ done 2026-11-06 in PR #3266 (`bc32729d`), released in v2026.11.7 (⚠ playtest open; no save-version, protocol or terrain-generation change; ReportHost change → the reports image must be deployed before the client release)
 
 - **#3256** (Lyxette) Straight rail pylons refused to auto-link with "too sharp": the direction of a line's last link was
