@@ -2507,6 +2507,12 @@
    "peak": -4.6,
    "sha256": "06d6cdb1780d8959c344b33055b46b72cfd7ff223865fdb5713fee9020b3d37d"
   },
+  "vent_hiss": {
+   "class": "bed",
+   "level": -20.0,
+   "peak": -11.8,
+   "sha256": "2b3abce4366c444e7649010a89abcd187159093e21f783736797082a5d4661e8"
+  },
   "water_brook": {
    "class": "bed",
    "level": -20.5,

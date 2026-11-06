@@ -45,7 +45,7 @@ Shader "BlocksBeyondTheStars/ParticleAlpha"
                 o.positionCS = TransformWorldToHClip(wp);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 o.color = v.color;
-                o.haze = float4(BbtsHazeColor(wp), BbtsHazeAmount(wp, 1.0)); // per vertex: tiny particle, flat haze
+                o.haze = BbtsHaze(wp, 1.0, 1.0); // per vertex: tiny particle, flat haze (#3271: amount + colour in one pass)
                 o.screenPos = ComputeScreenPos(o.positionCS);
                 return o;
             }

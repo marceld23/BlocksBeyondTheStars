@@ -460,8 +460,9 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     // copy already hazed by the opaque pass, and so does every SSR hit below, so the old pass over the
                     // finished composite veiled shallow water twice — the sea was the haziest surface in the frame.
                     // #2412: the height fog at half strength (hazeHeightScale), see BbtsHazeAmountScaled.
-                    float haze = BbtsHazeAmountScaled(i.wp, i.sky, hazeHeightScale); // #3265: the real skylight
-                    col = lerp(col, BbtsHazeColor(i.wp), haze);
+                    float4 hz = BbtsHaze(i.wp, i.sky, hazeHeightScale); // #3265: the real skylight; #3271: colour in one pass
+                    float haze = hz.a;
+                    col = lerp(col, hz.rgb, haze);
                     col = lerp(bed, col, saturate(alpha));
                     // #1758: the bed is seen THROUGH coloured water — recolour the composite as well, else the
                     // refracted sand wins over the tint and rainbow water looks like a sandy sea with a hue.
@@ -563,7 +564,8 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     // The shared haze (#2393) for glass, fields, waterfalls and the simple water path (Potato/Low: a
                     // hardware blend over an already hazed background), once, on the pane's own colour. The
                     // screen-space water hazed itself above (#2411). Cave water is kept clear by the camera's exposure.
-                    outc.rgb = lerp(outc.rgb, BbtsHazeColor(i.wp), BbtsHazeAmountScaled(i.wp, i.sky, hazeHeightScale)); // #3265: the real skylight
+                    float4 paneHaze = BbtsHaze(i.wp, i.sky, hazeHeightScale); // #3265: the real skylight; #3271: one pass
+                    outc.rgb = lerp(outc.rgb, paneHaze.rgb, paneHaze.a);
                 }
 
                 return outc;

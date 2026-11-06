@@ -297,6 +297,15 @@ namespace BlocksBeyondTheStars.Client
         public bool EmitterLight = true;
         /// <summary>Particles fade softly into surfaces (#2403). Medium+ (needs the depth texture).</summary>
         public bool SoftParticles = true;
+        /// <summary>#3271: the mist breaks into wisps and banks that drift with the wind (noise in the height fog). Cheap: all
+        /// presets. Off = the smooth blanket of #2406.</summary>
+        public bool FogWisps = true;
+        /// <summary>#3272: cloud fog at altitude — summits and towers stand in the clouds when the weather brings them, a sea of
+        /// clouds lies below above the band. The shader band is cheap (all presets); the cloud deck needs Medium+ and a desktop.</summary>
+        public bool CloudFog = true;
+        /// <summary>#3273: soft fog banks hanging in the air over the valleys (a few large cards). Low and up (Potato and the
+        /// browser get none), budgeted by preset.</summary>
+        public bool FogBanks = true;
 
         /// <summary>Whether an atmosphere effect runs: its own switch, and — unless it is one of the cheap ones — a
         /// preset of Medium or better.</summary>
@@ -329,6 +338,9 @@ namespace BlocksBeyondTheStars.Client
             LightShafts = all;
             EmitterLight = all;
             SoftParticles = all;
+            FogWisps = some;  // #3271
+            CloudFog = some;  // #3272
+            FogBanks = all;   // #3273
         }
 
         // Audio (0..1)

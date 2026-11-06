@@ -626,6 +626,7 @@ namespace BlocksBeyondTheStars.Client
             string waterBed = string.Empty; // best water bed seen so far (a waterfall outranks calm water)
             bool campfire = false;          // a lit campfire nearby (#2806) — outranks water, not a spreading fire or lava
             bool fence = false;             // energy fence/gate nearby — soft hum bed when no fluid plays
+            bool vent = false;              // a geyser vent nearby (#3275) — its steam hiss
             bool stop = false;
             for (int dx = -3; dx <= 3 && !stop; dx++)
             {
@@ -649,6 +650,7 @@ namespace BlocksBeyondTheStars.Client
                             }
                         }
                         else if (k == "energy_fence" || k == "energy_gate") { fence = true; }
+                        else if (k == "geyser_vent") { vent = true; } // #3275: the vent's steady steam hisses
                     }
                 }
             }
@@ -657,6 +659,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 found = "fire_crackle"; // a campfire you sit at crackles over the brook beside it, a little softer (#2806)
             }
+
+            found = found.Length == 0 && vent ? "vent_hiss" : found; // #3275: over water and the fence hum, under fire/lava
 
             if (found.Length == 0 && waterBed.Length == 0 && fence)
             {

@@ -78,6 +78,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Height fog (#2406), cloud shadows (#2394) and the torch-light flicker scale (#2396), from the settings.</summary>
         public bool HeightFogEnabled = true;
+        /// <summary>#3271 fog wisps and #3272 cloud fog (the shader band) — from the settings, cheap: every preset.</summary>
+        public bool FogWispsEnabled = true;
+        public bool CloudFogEnabled = true;
         public bool CloudShadowsEnabled = true;
         public float FlickerScale = 1f;
 
@@ -174,57 +177,7 @@ namespace BlocksBeyondTheStars.Client
             Shader.SetGlobalVector(CloudShadowId, shadow);
         }
 
-        /// <summary>A small tiling value-noise sheet (3 octaves) for the cloud shadows — baked once, no asset.</summary>
-        private static Texture2D BuildCloudNoise()
-        {
-            const int size = 64;
-            var tex = new Texture2D(size, size, TextureFormat.R8, mipChain: false, linear: true)
-            {
-                name = "CloudShadowNoise",
-                wrapMode = TextureWrapMode.Repeat,
-                filterMode = FilterMode.Bilinear,
-            };
-            var rng = new System.Random(20261009);
-            float[,] lattice = new float[8, 8];
-            for (int y = 0; y < 8; y++)
-            {
-                for (int x = 0; x < 8; x++)
-                {
-                    lattice[x, y] = (float)rng.NextDouble();
-                }
-            }
-
-            float Sample(float fx, float fy, int cells)
-            {
-                // Bilinear value noise on a wrapping lattice of `cells` points (cells divides 8).
-                float gx = fx * cells, gy = fy * cells;
-                int x0 = Mathf.FloorToInt(gx), y0 = Mathf.FloorToInt(gy);
-                float tx = gx - x0, ty = gy - y0;
-                tx = tx * tx * (3f - 2f * tx);
-                ty = ty * ty * (3f - 2f * ty);
-                int step = 8 / cells;
-                float V(int x, int y) => lattice[(x % cells) * step, (y % cells) * step];
-                float a = Mathf.Lerp(V(x0, y0), V(x0 + 1, y0), tx);
-                float b = Mathf.Lerp(V(x0, y0 + 1), V(x0 + 1, y0 + 1), tx);
-                return Mathf.Lerp(a, b, ty);
-            }
-
-            var pixels = new Color32[size * size];
-            for (int y = 0; y < size; y++)
-            {
-                for (int x = 0; x < size; x++)
-                {
-                    float fx = x / (float)size, fy = y / (float)size;
-                    float v = Sample(fx, fy, 2) * 0.55f + Sample(fx, fy, 4) * 0.3f + Sample(fx, fy, 8) * 0.15f;
-                    byte b = (byte)Mathf.Clamp(Mathf.RoundToInt(v * 255f), 0, 255);
-                    pixels[y * size + x] = new Color32(b, b, b, 255);
-                }
-            }
-
-            tex.SetPixels32(pixels);
-            tex.Apply(false, true);
-            return tex;
-        }
+        // BuildCloudNoise lives in Sky.Mist.cs (#3271: the texture gained two even channels for the wisps and the cloud band).
 
         private void BuildSunRays()
         {
@@ -322,7 +275,7 @@ namespace BlocksBeyondTheStars.Client
                 Shader.SetGlobalColor(FloraTintId, new Color(0f, 0f, 0f, 0f)); // no planet flora tint in space
                 SetFog(FogOff); // distance haze off in space
                 SetCloudShadow(Vector4.zero);
-                RenderSettings.fog = false;
+                ClearMist(); // #3271/#3272: no mist, no cloud band, Unity's legacy fog off (Sky.Mist.cs)
                 if (_sunDisc != null)
                 {
                     _sunDisc.gameObject.SetActive(false);
@@ -375,8 +328,11 @@ namespace BlocksBeyondTheStars.Client
                 Vector3 wind = Game.WindVector;
                 float speed = 0.8f + 4f * Game.WindSpeed;
                 Vector2 dir = wind.sqrMagnitude > 1e-6f ? new Vector2(wind.x, wind.z).normalized : new Vector2(0.7f, 0.7f);
-                _cloudOffset += dir * (speed * worldDt);
+                // #3272: the sheet is sampled at (position + offset) / 96, so the offset runs AGAINST the wind for the shadows
+                // (and the cloud band's holes, which drift with the same offset) to travel downwind like the grit and the leaves.
+                _cloudOffset -= dir * (speed * worldDt);
                 _windTime += worldDt;
+                TickMistDrift(dir, worldDt); // #3271: the wisps drift with the wind (Sky.Mist.cs)
                 bool sway = WindSwayEnabled && !(Game.Environment?.SpaceSky ?? false);
                 Shader.SetGlobalVector(WindId, new Vector4(dir.x * Game.WindSpeed, _windTime, dir.y * Game.WindSpeed, sway ? 1f : 0f));
                 TickWeatherTraces(worldDt);
@@ -543,6 +499,9 @@ namespace BlocksBeyondTheStars.Client
                 Color glow = new Color(1f, 0.45f, 0.22f);
                 glow = Color.Lerp(glow, glow * sunHue, 0.5f);
                 sky = Color.Lerp(sky, glow, twilight * 0.6f * (1f - weatherIntensity));
+
+                // #3270: a fog, dust or ion-storm episode tints the sky — and with it the haze — toward its colour (Sky.Mist.cs).
+                sky = WeatherHazeSky(sky, weatherIntensity);
             }
             sky.a = 1f;
             // The shader global gets the linear value; the engine-managed consumers below (ambient, camera
@@ -568,10 +527,10 @@ namespace BlocksBeyondTheStars.Client
             if (Camera != null && (Game == null || !Game.SpaceViewActive))
             {
                 Camera.clearFlags = CameraClearFlags.SolidColor;
-                Camera.backgroundColor = sky;
+                Camera.backgroundColor = InCloudSky(sky); // #3272: standing in a cloud, the sky behind is cloud too
             }
 
-            ApplyFog(sky, weatherIntensity, day, spaceSky);
+            ApplyFog(sky, warmSun, weatherIntensity, day, spaceSky); // Sky.Mist.cs
 
             if (_sun != null)
             {
@@ -735,167 +694,6 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>
-        /// Distance fog in the sky colour, so the world fades into the horizon. Storms pull it in,
-        /// night thickens it a little; airless bodies (space sky) and the space view stay clear. The
-        /// fog-enabled block shader applies it; other scenes' shaders ignore RenderSettings.fog.
-        /// </summary>
-        private void ApplyFog(Color sky, float weatherIntensity, float day, bool spaceSky)
-        {
-            bool fog = !spaceSky && (Game == null || !Game.SpaceViewActive);
-            RenderSettings.fog = fog;
-            if (Game != null)
-            {
-                Game.FogActive = fog; // #1822: the renderer cull reads it
-            }
-
-            if (!fog)
-            {
-                SetFog(FogOff); // distance haze off
-                SetCloudShadow(Vector4.zero);
-                return;
-            }
-
-            RenderSettings.fogColor = sky;
-            RenderSettings.fogMode = FogMode.Linear;
-            var festivalFx = FestivalMood.Effects(Game); // #3004: a cosmetic fog tint (Halloween's violet-grey, Hanami's pink)
-            if (festivalFx != null && FestivalMood.TryParseTint(festivalFx.FogTint, out var festivalTint))
-            {
-                RenderSettings.fogColor = Color.Lerp(sky, festivalTint, 0.5f);
-            }
-
-            // Scale the fog to the actual render distance (view-distance chunks × 16-block chunk), so the haze
-            // engages WITHIN the streamed terrain instead of beyond it (the old fixed 240 m sat past the ~32 m
-            // render edge → invisible) and softly hides the chunk pop-in at the boundary.
-            float renderDist = Mathf.Max(32f, ViewChunks * 16f);
-
-            // Per-world air thickness sets where the haze sits: thin air fogs right at the far edge, soupy air hazes
-            // well inside the view. The multiplier is capped at 1.0 so fogEnd NEVER sits past the streamed terrain
-            // edge (renderDist = the client's view radius): the old 1.0–1.6 range pushed the haze beyond the loaded
-            // chunks, so the outermost ring streamed in un-hazed and popped (#388). Paired with the load-ahead ring
-            // the server streams one chunk beyond this basis (GameServer.StreamChunks), the last VISIBLE ring is
-            // fully hazed before it materializes and fades in as the player approaches.
-            float airDensity = Game?.Environment?.AtmosphereDensity ?? 0.4f;
-            // #1822: with far terrain behind the chunks the haze no longer has to hide their edge — it reaches out
-            // toward the far-view range, by how thin the air is (FarHaze). Far view off = the mapping above, unchanged.
-            int farView = Game?.FarView != null ? Game.FarView.ActiveRange : 0;
-            float far = BlocksBeyondTheStars.Client.FarTerrain.FarHaze.BaseFar(renderDist, farView, airDensity);
-
-            far *= Mathf.Lerp(1f, 0.8f, weatherIntensity); // storms haze in a bit more
-            far *= Mathf.Lerp(0.9f, 1f, day);                // night a touch hazier than day
-
-            // Fog weather (a transient state like rain/storm): a real pea-souper — well inside the view.
-            if (string.Equals(Game?.Environment?.Weather, "fog", System.StringComparison.Ordinal))
-            {
-                far = Mathf.Min(far, renderDist * Mathf.Lerp(0.5f, 0.28f, Mathf.Clamp01(weatherIntensity)));
-            }
-
-            // #3004: a festival's cosy haze pulls the fog in a little (never a pea-souper: at most 40 % nearer).
-            if (festivalFx != null && festivalFx.FogBoost > 0f)
-            {
-                far *= 1f - 0.4f * Mathf.Clamp01(festivalFx.FogBoost);
-            }
-
-            // Sandstorms / ash storms CRUSH visibility — a wall of dust you can get lost in.
-            string precip = Game?.Environment?.Precipitation ?? string.Empty;
-            if (precip is "sandstorm" or "ash")
-            {
-                far = Mathf.Min(far, renderDist * 0.3f);
-            }
-
-            // Dawn/dusk valley fog: a soft haze band around sunrise/sunset on calm days, burning off toward noon.
-            float tod = Game?.Environment != null ? Game.LocalTimeOfDay : 0.5f;
-            float dawn = Mathf.Max(0f, 1f - Mathf.Abs(tod - 0.27f) * 14f) + Mathf.Max(0f, 1f - Mathf.Abs(tod - 0.73f) * 14f);
-            if (dawn > 0f && weatherIntensity < 0.4f)
-            {
-                far = Mathf.Lerp(far, far * 0.7f, dawn);
-            }
-
-            // Where the haze begins, as a fraction of the far edge: thin/clear-air worlds stay CRISP across the
-            // near + mid distance and only veil the far edge (high start), while soupy worlds haze from much
-            // closer in (low start). This keeps the per-planet/per-atmosphere character while letting a clear
-            // world actually show the farther terrain the (now larger) view distance streams. Weather that already
-            // crushed `far` keeps its near, dense look — a small `far` lands the haze close even at a high factor.
-            float startFactor = Mathf.Lerp(0.78f, 0.55f, Mathf.Clamp01(airDensity));
-            float fogStart = far * startFactor;
-            RenderSettings.fogStartDistance = fogStart;
-            RenderSettings.fogEndDistance = far;
-
-            // The actual visible haze: an explicit distance blend the block shader applies (Unity's MixFog is dead
-            // on the unlit voxels). Reaches FULL opacity at fogEnd (was capped at 0.6–0.75, which left the far edge
-            // 25–40% visible → the pop). At full strength the last ring dissolves completely into the sky colour
-            // before it appears; per-world character now lives in WHERE the haze sits (fogStart/fogEnd above), not
-            // how opaque it gets. Faded out indoors via _indoor so the cabin never hazes.
-            float maxHaze = (FogEnabled ? 1f : 0f) * (1f - _indoor); // 0 indoors or when the player disabled fog
-
-            // #2401: under water the view closes in to a few metres in the water's own colour (clear seas see farther
-            // than murky swamps — the atmosphere density stands in for the water's clarity), independent of the
-            // player's haze switch: this is the water, not the weather. Eased over ~0.3 s so a dive does not snap.
-            bool under = UnderwaterEnabled && Camera != null && Game != null && !Game.SpaceViewActive
-                         && Game.IsWaterAt(Camera.transform.position);
-            _submerged = Mathf.MoveTowards(_submerged, under ? 1f : 0f, Time.deltaTime * 3.5f);
-            UnderwaterFog = _submerged;
-            if (_submerged > 0.001f)
-            {
-                float clarity = 1f - Mathf.Clamp01(airDensity) * 0.6f;
-                float waterFar = 5f + 18f * clarity;
-                fogStart = Mathf.Lerp(fogStart, 0.5f, _submerged);
-                far = Mathf.Lerp(far, waterFar, _submerged);
-                maxHaze = Mathf.Lerp(maxHaze, 1f, _submerged);
-                Color water = WaterColours.Blend(new Color(0.08f, 0.26f, 0.42f), Game.Environment, 0.8f, Time.time);
-                Color deep = Color.Lerp(sky, water * Mathf.Lerp(0.6f, 1f, day), _submerged);
-                deep.a = 1f;
-                Shader.SetGlobalColor(FogSkyId, ShaderColor.Srgb(deep));
-                Shader.SetGlobalVector(FogSunId, new Vector4(0f, 0f, 0f, 0f)); // no golden haze under water
-            }
-
-            Shader.SetGlobalVector(UnderwaterId, new Vector4(under ? 1f : 0f, under ? WaterSurfaceAbove(Camera.transform.position) : 0f, Time.time, 0f));
-            // #2414: the sea surface (from the far-terrain world info the server sends on join) keeps wet ground and snow
-            // caps off the seabed; a world without a sea (or before the info arrived) publishes a very low value.
-            Shader.SetGlobalFloat(SeaLevelId, Game?.FarView != null ? Game.FarView.SeaSurfaceY : -1e9f);
-            SetFog(new Vector4(fogStart, far, maxHaze, (FogEnabled || _submerged > 0.001f) ? 1f : 0f));
-
-            // #2406: height fog — mist in the low ground. The floor comes from the probe (the valleys around the player),
-            // the strength from the biome, the time of day (dawn and dusk mist, a little at night, almost none at
-            // noon), the weather (fog weather thickens it, a storm's wind blows it away) and the air density. The
-            // camera's own exposure fades it out underground; the shaders mask it further with the skylight.
-            string biome = Game?.Environment?.Biome ?? string.Empty;
-            float dawnMist = Mathf.Max(0f, 1f - Mathf.Abs(tod - 0.27f) * 8f) + 0.7f * Mathf.Max(0f, 1f - Mathf.Abs(tod - 0.73f) * 8f);
-            float timeFactor = Mathf.Max(0.3f + 0.7f * Mathf.Clamp01(dawnMist), (1f - day) * 0.6f);
-            string weatherKey = Game?.Environment?.Weather ?? string.Empty;
-            float weatherFactor = weatherKey switch
-            {
-                "fog" or "ground_fog" => 1.6f,
-                "rain" or "drizzle" => 1.2f,
-                "storm" or "gale" or "blizzard" => 0.7f,
-                _ => 1f,
-            };
-            float mist = HeightFogEnabled && Probe != null
-                ? Mathf.Clamp01(MistFor(biome) * timeFactor * weatherFactor * Mathf.Lerp(0.5f, 1.2f, Mathf.Clamp01(airDensity)))
-                : 0f;
-            float fogFloor = (Probe != null ? Probe.FogFloor : 0f) + 1.5f + (weatherKey is "fog" or "ground_fog" ? 3f : 0f);
-            float falloff = 1f / (6f + 6f * mist); // thicker mist reaches higher
-            float exposure = Probe != null ? Probe.CameraExposure : 1f;
-            Shader.SetGlobalVector(FogHeightId, new Vector4(fogFloor, falloff, mist, exposure));
-
-            // #2394: cloud shadows — the sheet drifts with the wind (Update accumulates the offset); cover follows the
-            // planet's cloud density and the weather; the strength is capped at a quarter of the direct sun so no scene
-            // turns gloomy, and it fades out at low sun and in airless skies.
-            float cover = Mathf.Clamp01((Game?.Environment?.CloudDensity ?? 0.45f) * 0.9f + weatherIntensity * 0.4f);
-            float strength = CloudShadowsEnabled ? 0.25f * Mathf.Clamp01(day * 2f) * exposure : 0f;
-            SetCloudShadow(new Vector4(cover, _cloudOffset.x, _cloudOffset.y, strength));
-
-            // Capture diagnostics (#2405): one line every two seconds while a capture pins the environment, so a
-            // look-check run's Player.log says what the atmosphere globals were.
-            if (Game != null && Game.CaptureEnvActive && Time.unscaledTime >= _nextAtmosphereLog)
-            {
-                _nextAtmosphereLog = Time.unscaledTime + 2f;
-                Debug.Log($"[Atmosphere] fog start={fogStart:F1} end={far:F1} max={maxHaze:F2} | mist={mist:F2} floor={fogFloor:F1} k={falloff:F3} exposure={exposure:F2} adaptEv={(Probe != null ? Probe.AdaptationEv : 0f):F2} modelLight={_modelLight:F2} biome={biome} tod={tod:F2} | cloud cover={cover:F2} strength={strength:F2} | wet={_wet:F2} snow={_snow:F2} submerged={_submerged:F2} | aboard={Game.Aboard} station='{Game.StationName}' sky={Game.ExposedToSky} indoor={_indoor:F2} pos={Game.PlayerPosition} | globals surface={Shader.GetGlobalVector(SurfaceId)} height={Shader.GetGlobalVector(FogHeightId)} cloud={Shader.GetGlobalVector(CloudShadowId)} noise={(Shader.GetGlobalTexture(CloudNoiseId) != null)} | lights={Game.World?.LightSourceCount ?? -1} natural={Game.World?.NaturalLightSourceCount ?? -1} emitters={BlocksBeyondTheStars.Client.ClientWorld.NaturalEmittersLight}");
-            }
-        }
-
-        private float _nextAtmosphereLog;
-
         /// <summary>#2398: the traces the weather leaves. Wet rises within ~20 s of rain and dries over minutes (faster
         /// by day); snow builds over a minute of snowfall, stays while it is cold and melts over minutes above
         /// freezing. Client-side only, derived from the environment the server already sends; a capture snaps them.</summary>
@@ -940,39 +738,6 @@ namespace BlocksBeyondTheStars.Client
             Shader.SetGlobalVector(SurfaceId, new Vector4(_wet, _snow, 1f, 0f));
         }
 
-        /// <summary>The world Y of the water surface above a submerged point: walk up through the water cells (the
-        /// caustics only play on faces below it).</summary>
-        private float WaterSurfaceAbove(Vector3 p)
-        {
-            int x = Mathf.FloorToInt(p.x), z = Mathf.FloorToInt(p.z), y = Mathf.FloorToInt(p.y);
-            for (int i = 0; i < 48; i++)
-            {
-                if (!Game.IsWaterAt(new Vector3(x + 0.5f, y + i + 0.5f, z + 0.5f)))
-                {
-                    return y + i;
-                }
-            }
-
-            return y + 48;
-        }
-
-        /// <summary>How much mist a biome breeds at its best hour (0 = none).</summary>
-        private static float MistFor(string biome)
-        {
-            switch ((biome ?? string.Empty).ToLowerInvariant())
-            {
-                case "swamp": return 0.9f;
-                case "fungal": return 0.85f;
-                case "jungle": case "karst": case "forest": return 0.7f;
-                case "lava": case "volcanic": case "arena_nigra": return 0.6f;
-                case "ocean": case "ice": case "tundra": return 0.5f;
-                case "crystal": return 0.35f;
-                case "desert": return 0.15f;
-                case "gas_giant": return 0f;
-                default: return 0.45f;
-            }
-        }
-
         /// <summary>Places the glowing sun billboard in the sky in the sun direction, tinted by the
         /// system sun colour and faded near/below the horizon. Hidden during the space view.</summary>
         private void UpdateSunDisc(float sunHeight, Color sunColor, bool spaceSky)
@@ -1007,7 +772,7 @@ namespace BlocksBeyondTheStars.Client
             // Fade in as the sun rises; a touch brighter against an airless black sky.
             float a = Mathf.Clamp01(sunHeight * 1.6f + 0.3f) * (spaceSky ? 1.25f : 1f);
             Color c = sunColor;
-            c.a = Mathf.Clamp01(a);
+            c.a = Mathf.Clamp01(a) * (1f - 0.85f * _inCloud); // #3272: inside a cloud the sun is only a glow
             _sunDiscMat.SetColor(ColorId, ShaderColor.Srgb(c));
 
             // God-ray shafts: a big additive ray fan at the sun, depth-tested (SunRays shader) so foreground
@@ -1028,7 +793,7 @@ namespace BlocksBeyondTheStars.Client
                     float lowBoost = Mathf.Lerp(1.3f, 0.7f, Mathf.Clamp01(sunHeight)); // longer shafts near the horizon
                     float strength = Mathf.Clamp01(sunHeight * 2.5f) * lowBoost * Mathf.Lerp(0.35f, 0.9f, Mathf.Clamp01(airDensity));
                     Color rc = sunColor;
-                    rc.a = Mathf.Clamp01(strength * 0.14f); // overall additive ray brightness (subtle)
+                    rc.a = Mathf.Clamp01(strength * 0.14f) * (1f - _inCloud); // overall additive ray brightness (subtle); none in a cloud (#3272)
                     _sunRaysMat.SetColor(ColorId, ShaderColor.Srgb(rc));
                 }
             }
@@ -1049,7 +814,7 @@ namespace BlocksBeyondTheStars.Client
             Shader.SetGlobalFloat(FlickerScaleId, 0f);
             Shader.SetGlobalVector(WindId, Vector4.zero); // no sway in the menu / space view
             Shader.SetGlobalVector(SurfaceId, Vector4.zero); // dry ground in the menu / space view
-            RenderSettings.fog = false; // don't leak fog into the menu / space view
+            ClearMist(); // #3271/#3272: no mist or cloud band, and Unity's legacy fog off — nothing leaks into the menu / space view
             if (_sunDisc != null)
             {
                 _sunDisc.gameObject.SetActive(false);

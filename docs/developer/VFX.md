@@ -47,7 +47,7 @@ All effect code lives in `client/Assets/BlocksBeyondTheStars/Scripts`.
 
 What `FxKit` provides:
 
-- **Shared emitters.** One world-space `ParticleSystem` per particle kind, fed only through `Emit(EmitParams)`, so there is no GameObject churn. The kinds are `Sparks` (stretched, gravity), `Motes`, `Glow` (flash cards), `Dust`, `Smoke`, `Debris` and `DebrisFloat` (lit mesh cubes).
+- **Shared emitters.** One world-space `ParticleSystem` per particle kind, fed only through `Emit(EmitParams)`, so there is no GameObject churn. The kinds are `Sparks` (stretched, gravity), `Motes`, `Glow` (flash cards), `Dust`, `Smoke` (textured, sun-lit, eroding puffs since #3274), `Plume` (big, long-lived column puffs without a speed limit, #3277), `Spray` (alpha streaks under gravity: water droplets, #3275), `Debris` and `DebrisFloat` (lit mesh cubes).
 - **A material cache** keyed by shader + style (+ colour).
 - **Pooled renderers** for beams (LineRenderer + `FxBeam`), rings, shells and holo cubes.
 - **One tween list** that animates all of them.
@@ -70,6 +70,7 @@ All of these are URP SubShaders. The FX shaders fall back to `Particle`/`Particl
 | `FxSpaceDust` | Camera-wrapped dust quads stretched along velocity, one draw call. |
 | `FxTunnel` | The hyperjump tunnel streaks. |
 | `Wormhole` | The wormhole rift (#2242): a jagged tear with a hot inner edge and a halo; on Medium+ (`_Sc_ScreenFx`) it bends the scene behind it via `SampleSceneColor`. See [WORMHOLES.md](WORMHOLES.md). |
+| `ParticleSmoke` | The `Smoke` and `Plume` puffs (#3274): a procedural puff atlas, a fake sphere normal lit by the sun, alpha erosion over the lifetime. See "Smoke, geyser vents and volcano craters" below. |
 
 Edits to existing shaders:
 
@@ -312,7 +313,8 @@ the shader side):
   are shader-side (`AtmosphereCommon.hlsl`, `Sky.ApplyFog`). The older IMGUI wash in `WeatherFx` thins to ~15 % while
   that haze is active (`Sky.UnderwaterFog`, #2416) and keeps its 34 % with the effect off.
 - **Soft particles** (#2403): `Particle` / `ParticleAlpha` fade within 0.5 m of the depth behind them on Medium+
-  (`_Sc_ScreenFx` × `_Sc_SoftParticles`).
+  (`_Sc_ScreenFx` × `_Sc_SoftParticles`). `ParticleSmoke` (#3274) fades over 0.5 m or 0.6 × the puff's half size,
+  whichever is more, so a 15 m volcano puff never cuts a hard line into the slope.
 
 ### Ambient motes and campfires (cozy package: #2808, #2818, #2821)
 
@@ -337,11 +339,69 @@ the shader side):
   ember sparks (`FxKit` `Motes`, ~2.4/s) and a thin, soft smoke column (`Smoke`, ~1.6/s, alpha ≈ 0.2). Density-scaled,
   thinned with distance, at most 6 fires (Low 3, Potato 2). Sparks and smoke die before the ceiling: their lifetime
   follows the free headroom over the fire (a block right on top stops both). The smoke leans with the wind under open
-  sky and darkens at night. No particle system or material of its own.
+  sky; since #3274 the smoke shader dims it with the world's light at night, and the colour only warms a little after
+  dark (the fire's glow). No particle system or material of its own.
 - **Finding lamps and fires** (`NearbyLights`): no grid walk. The world's light-source index
   (`ClientWorld.LightSourcesNear`, only the chunk buckets in reach) plus the lamps of the parked ships, which are
   objects outside the world grid (`LandedShipView`) — a ship's lamp list (`ShipMeshBuilder.LightSources`) is built once
   per hull change. A lit campfire is a light, a cold one is not, so the index finds exactly the burning ones.
+
+### Smoke, geyser vents and volcano craters (fog & smoke package: #3274–#3277)
+
+- **The smoke look** (`ParticleSmoke` shader, `FxKit.Smoke.cs`, #3274). The cheap stylised recipe — the AAA six-way
+  lighting needs VFX Graph and simulated flipbooks, which the browser cannot run:
+  - *Shape*: a procedural 128² atlas of 2×2 billowy puffs (`SmokePuffs`, Client.Core, tested headless): A = density,
+    G = the billows (high on each lobe's dome, low in the creases), R = an erosion noise. Baked once per process, linear,
+    mipmapped. Each particle picks a tile and a mirror from its stable random, starts at a random angle and turns slowly
+    (`EmitParams.rotation` / `angularVelocity` in `FxKit.Emit`).
+  - *Light*: a fake sphere normal from the vertex's offset to the particle centre plus the view axis, so it is right
+    whatever the particle's rotation. Wrap lighting from `_Sc_SunDir`: a bright sun side, a darker far side tinted 30 %
+    toward the sky's hue, a thin silver lining with the sun behind the puff. The sun's hue is `_Sc_Light` normalised (it
+    turns warm at sunset because the Sky warms the light there); the level is `_Sc_ModelLight` (#3265), so smoke darkens
+    at night and in caves like every model. With no sun to speak of (night) the direction fades to an even dim light.
+  - *Erosion*: alpha × saturate((density × (0.55 + 0.45 × noise) − threshold) / 0.22), the threshold rising from −0.2
+    to 0.75 over the lifetime — the edges fray and holes open instead of the whole puff fading evenly.
+  - *Colour over life*: young puffs a little warm, old ones a little cool; the haze per vertex (`BbtsHaze`); soft
+    particles (above); a near fade within ~2 m so a puff drifting through the camera never fills the view.
+  - *Vertex streams* (`FxKit.SmokeStreams`, order = layout): POSITION, COLOR, TEXCOORD0 = (uv, `AgePercent`,
+    `StableRandomX`), TEXCOORD1.xyz = `Center`. The `Smoke` and `Plume` emitters sort by distance. Without the shader
+    (a stripped build) both fall back to the old soft dot on `ParticleAlpha`. The Built-in RP fallback pass keeps the atlas
+    and the erosion, unlit.
+  - Every `Smoke` user benefits without a change (defeat puff, blaster, impacts, the tank spider's valve, ship smoke,
+    contrails); the campfire's own night darkening was dropped because the shader now does it.
+- **Geyser vents** (`GeyserView`, `GeyserView.Emit.cs`, #3275/#3276). The vents come from the world's **marker
+  index** (`ClientWorld.SetMarkerBlocks` / `MarkersNear`, `ClientWorld.Markers.cs`): a per-chunk bucket of the
+  registered blocks' cells, filled when a chunk is stored, kept in step by block changes, dropped with the chunk, measured
+  the short way round both seams — like the light-source index. Refreshed twice a second; no grid walk (the old view read
+  ~2 000 cells every 0.75 s and saw vents only within 7 blocks).
+  - *Steady steam* within 96 blocks (`VentRules.SteamRange`): ~3 soft puffs a second at density 1, thinned to 30 % at
+    the edge (bigger puffs far away), leaning with the wind under open sky, dying before a roof (the headroom over the
+    vent, up to 10 cells; a smothered vent stays quiet). It calms while the vent erupts.
+  - *Eruptions* within 48 blocks (`VentRules.EruptionRange`) and with at least 4 free cells overhead, at random:
+    `VentSchedule` (Client.Core, tested) cuts the world time into 24 s slots, each holding one eruption at a hashed
+    offset in its first 16 s with a hashed strength (0.4..1, big ones rarer) — so 8–40 s apart, deterministic per vent
+    cell, O(1) for any clock, and a long frame or clock jump fires at most one fresh eruption (never a backlog). One
+    clock: the world time (#3276 mixed `Time.time` with it). An eruption lasts 1.2–3.6 s with the strength: billowing
+    `Smoke` puffs thrown up at 7–15 m/s that the emitter's speed limit drags to a drift while they swell; a water geyser
+    adds white `Spray` droplets arcing back (gone at the vent's height again), a volcanic vent dark ash, `Sparks` embers
+    and a short warm glow (`FxKit.Flash` + `FxLights.Flash`, dimmed by Reduce flashes). Throw speeds stay under
+    √(2·g·headroom). The existing `geyser_erupt` sound plays at the vent (louder with the strength); there is no steady
+    hiss yet.
+  - *Look*: volcanic or water from the world's traits — `WorldGenerator.VentsVolcanicFor` (lava or the volcanic tag,
+    or a dry world whose vents come from its volcanoes), not a list of planet keys. The steam is white with 30 % of the
+    world's mist colour (`VentRules.SteamTint`; −1 = white), never darker than 0.72 per channel.
+  - *Budget*: at most 3 / 5 / 8 / 12 vents (Potato → High), nearest first; everything density-scaled through the shared
+    emitters — no GameObject, particle system or material of its own (the old view leaked two materials and spawned 16
+    primitive cubes per eruption, #3276).
+- **Volcano craters smoke** (`VolcanoSmokeView`, #3277). `WorldGenerator.VolcanoCratersNear` answers every crater
+  within a radius (centre in the asking point's frame, crater radius, rim height, lava-pool top) from the volcano
+  hotspot grid; the client asks the far terrain's main-thread generator (`FarTerrainView.MainThreadSource`, configured
+  exactly like the server's), so no network data. Every 3 s or 32 blocks walked, craters within the far-view range
+  (160 blocks without far terrain, 400 at most). Over each a steady column of big `Plume` puffs (6–10 m, 14–20 s,
+  ~1.4/s at density 1) rises out of the pool at ~3 m/s; one shared force on the `Plume` emitter (`FxKit.SetPlumeForce`)
+  bends the column with the wind the higher it climbs and lets the lift fade as it cools. Dark ash on volcanic worlds,
+  a lighter grey steam (mist-tinted) elsewhere. 1 / 2 / 3 / 4 craters (Potato → High). Off in the flight view; the
+  haze fades far columns like the land under them.
 
 ### Multiplayer (#2158)
 
@@ -407,7 +467,8 @@ and the lower presets never create one.
 
 Emitter caps per kind are in `FxKit.BaseBudget`. Full breaks are limited to 6 per frame. The space dust is 900 quads at High, scaled down with density.
 The ambient motes (15/s outdoors, 2.5/s lamplight, 160 at most) and the campfires (6 fires; Low 3, Potato 2) scale
-with the same density.
+with the same density. So do the geyser vents (12 vents; Medium 8, Low 5, Potato 3) and the volcano craters (4; Medium 3,
+Low 2, Potato 1); the `Smoke` cap is 240 (#3275: + the vents), `Plume` 140, `Spray` 240.
 
 ## Accessibility
 

@@ -521,6 +521,8 @@ namespace BlocksBeyondTheStars.Client
             sky.ViewChunks = shell.Settings.ViewDistanceChunks; // scale distance fog to the render distance
             sky.FogEnabled = shell.Settings.DistanceHaze;       // "Distance haze & sun rays" toggle → distance haze + god-rays
             sky.HeightFogEnabled = shell.Settings.AtmosphereEffect(shell.Settings.HeightFog, cheap: true);
+            sky.FogWispsEnabled = shell.Settings.AtmosphereEffect(shell.Settings.FogWisps, cheap: true); // #3271
+            sky.CloudFogEnabled = shell.Settings.AtmosphereEffect(shell.Settings.CloudFog, cheap: true); // #3272
             sky.CloudShadowsEnabled = shell.Settings.AtmosphereEffect(shell.Settings.CloudShadows, cheap: false);
             sky.FlickerScale = !shell.Settings.ReduceFlashes && shell.Settings.AtmosphereEffect(shell.Settings.TorchFlicker, cheap: true) ? 1f : 0f;
             sky.GlowPulseEnabled = !shell.Settings.ReduceFlashes; // #2822: glowing plants breathe unless flashes are reduced
@@ -536,6 +538,16 @@ namespace BlocksBeyondTheStars.Client
             shafts.Camera = cam;
             shafts.Probe = probe;
             shafts.MaxCards = ShaftCardsFor(shell.Settings);
+
+            // Fog banks in the air (#3273): a few large mist cards over the valleys — Low 4, Medium 10, High 20; none on
+            // Potato or in the browser.
+            var mistCards = root.AddComponent<MistCards>();
+            mistCards.Game = boot;
+            mistCards.Camera = cam;
+            mistCards.Probe = probe;
+            mistCards.Sky = sky;
+            mistCards.MaxCards = MistCards.BudgetFor(shell.Settings);
+            mistCards.CoverageCap = MistCards.CoverageCapFor(shell.Settings);
 
             // Volumetric sun light (#3060): the real beams on High (desktop); the shaft cards stand down meanwhile.
             var volumetric = root.AddComponent<VolumetricSunLight>();
@@ -606,6 +618,14 @@ namespace BlocksBeyondTheStars.Client
             clouds.Game = boot;
             clouds.Camera = cam;
 
+            // The sea of clouds below a summit (#3272): the cloud band seen from above — Medium+ on a desktop ("Cloud fog").
+            var cloudSea = root.AddComponent<CloudSea>();
+            cloudSea.Game = boot;
+            cloudSea.Camera = cam;
+            cloudSea.Probe = probe;
+            cloudSea.Sky = sky;
+            cloudSea.Enabled = CloudSea.EnabledFor(shell.Settings);
+
             // Weather overlay (screen wash + lightning, M27 polish).
             var weather = root.AddComponent<WeatherFx>();
             weather.Game = boot;
@@ -621,9 +641,13 @@ namespace BlocksBeyondTheStars.Client
             creatures.Game = boot;
             creatures.ReducedEffects = shell.Settings.ReducedEffects; // pulls the rig detail distances in
 
-            // Geyser / vent eruptions (item 21): rising plume + hiss at geyser_vent blocks.
+            // Geyser vents (#3275): steady steam within 96 blocks, random eruptions within 48 (the world's marker index).
             var geysers = root.AddComponent<GeyserView>();
             geysers.Game = boot;
+
+            // Volcano craters smoke (#3277): a tall wind-bent column over every crater in reach (the far terrain's generator).
+            var volcanoSmoke = root.AddComponent<VolcanoSmokeView>();
+            volcanoSmoke.Game = boot;
 
             // Waterfall mist: spray rising off the impact wherever water falls more than three blocks.
             var waterfalls = root.AddComponent<WaterfallMistView>();

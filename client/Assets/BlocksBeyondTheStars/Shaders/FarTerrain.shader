@@ -126,8 +126,9 @@ Shader "BlocksBeyondTheStars/FarTerrain"
                 {
                     // The shared haze (#2393/#2406); open sky out there. The sea counts the height fog half, like the near
                     // water (#2412), so the two meet at the chunk ring instead of stepping.
-                    float haze = BbtsHazeAmountScaled(i.wp, 1.0, lerp(1.0, 0.5, water));
-                    col = lerp(col, BbtsHazeColor(i.wp), haze);
+                    float4 hz = BbtsHaze(i.wp, 1.0, lerp(1.0, 0.5, water)); // #3271/#3272: amount + colour in one pass
+                    float haze = hz.a;
+                    col = lerp(col, hz.rgb, haze);
                     col += albedo * lava * haze; // a lava glow still reads at the edge of the view
                 }
 

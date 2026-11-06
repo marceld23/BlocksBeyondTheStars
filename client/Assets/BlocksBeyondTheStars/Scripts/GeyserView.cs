@@ -2,155 +2,223 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
+using BlocksBeyondTheStars.WorldGeneration;
 using UnityEngine;
 
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// Item 21 — geyser / vent eruptions. Scans the blocks around the player for <c>geyser_vent</c> cells and, on
-    /// a per-vent timer, erupts a rising plume of particles + a hiss at each. Purely cosmetic (the server owns the
-    /// world). The plume colour follows the world type: pale water/steam on wet worlds, dark ash/ember on
-    /// volcanic ones. Mirrors the other world VFX views (CreatureView / WeatherFx); wired up in WorldRig.
+    /// Geyser vents (#3275, #3276): every <c>geyser_vent</c> within <see cref="VentRules.SteamRange"/> blocks breathes a
+    /// calm steam column all the time — leaning with the wind under open sky, dying before a roof — and, within
+    /// <see cref="VentRules.EruptionRange"/>, erupts at random intervals (<see cref="VentSchedule"/>: 8–40 s apart, of
+    /// varying strength): a burst of billowing puffs thrown up fast that drag to a drift and swell, plus white droplets
+    /// arcing back on a water geyser, or dark ash, glowing embers and a short warm glow on a volcanic vent. Whether a
+    /// world's vents are volcanic comes from its traits (<see cref="WorldGenerator.VentsVolcanicFor"/>); the steam takes a
+    /// light tint of the world's mist colour.
+    /// <para>The vents come from the world's marker index (<see cref="ClientWorld.MarkersNear"/>), refreshed twice a second —
+    /// no walk of the block grid. At most <see cref="VentRules.MaxVents"/> vents, nearest first, fewer puffs far away.
+    /// Everything goes through the shared <see cref="FxKit"/> emitters: no GameObject, particle system or material of its
+    /// own (the old view spawned 16 primitive cubes and two never-destroyed materials per eruption, #3276). One clock — the
+    /// world time — schedules everything, so nothing erupts behind the pause menu. Render-only; the server owns the world.</para>
     /// </summary>
-    public sealed class GeyserView : MonoBehaviour
+    public sealed partial class GeyserView : MonoBehaviour
     {
         public GameBootstrap Game;
 
-        private const int ScanR = 7;            // block radius around the player to look for vents
-        private const float ScanInterval = 0.75f;
-        private readonly Dictionary<Vector3Int, float> _vents = new(); // world cell → next eruption time
-        private float _scanTimer;
+        private const float RefreshSeconds = 0.5f;
+        private const int MaxHeadroom = 10;     // free cells counted over a vent; this many = open air (wind, full eruptions)
+        private const int EruptHeadroom = 4;    // a vent with less room over it only breathes
+
+        private sealed class Vent
+        {
+            public Vector3i Cell;        // canonical world cell (the key, and the schedule's seed)
+            public Vector3 Base;         // the top face's centre, in the scene
+            public float Distance;       // to the player
+            public int Headroom;         // free cells over the vent (0 = smothered)
+            public bool Open;            // nothing over it within MaxHeadroom: the wind takes the steam
+            public VentSchedule Schedule;
+            public float SteamAcc;
+            public float EruptAge = -1f; // seconds into the current eruption, < 0 = none
+            public float EruptLength;
+            public float Strength;
+            public float PuffAcc;
+            public float BitAcc;         // droplets or embers
+            public bool Seen;
+        }
+
+        private readonly Dictionary<Vector3i, Vent> _vents = new Dictionary<Vector3i, Vent>();
+        private readonly List<Vent> _active = new List<Vent>();
+        private readonly List<Vent> _scratch = new List<Vent>();
+        private readonly List<(Vector3i Pos, ushort Block)> _hits = new List<(Vector3i Pos, ushort Block)>();
+        private ClientWorld _world;
+        private ushort _ventId;
+        private int _epoch = -1;
+        private float _refreshTimer;
+        private bool _volcanic;
+        private Color _steam = Color.white;
 
         private void Update()
         {
-            if (Game?.World == null || Game.Content == null)
+            if (Game == null || Game.World == null || Game.Content == null || Game.SpaceViewActive || !EnsureIndex())
             {
+                _active.Clear();
                 return;
             }
 
-            _scanTimer -= Time.deltaTime;
-            if (_scanTimer <= 0f)
+            _refreshTimer -= Time.deltaTime;
+            if (_refreshTimer <= 0f)
             {
-                _scanTimer = ScanInterval;
-                Rescan();
+                _refreshTimer = RefreshSeconds;
+                Refresh();
             }
 
-            // World time (#908): no vent goes off behind the pause menu. A plume already in flight is left to
-            // finish its half-second arc rather than freezing in mid-air.
+            // World time (#908): nothing erupts behind the pause menu, and the schedule never mixes clocks (#3276).
+            float dt = Game.WorldDeltaTime;
             float now = Game.WorldTime;
-            // Erupt any vent whose timer is up (snapshot the keys — Erupt doesn't mutate the dict).
-            foreach (var cell in _ventKeys())
+            Vector3 wind = Game.WindVector;
+            for (int i = 0; i < _active.Count; i++)
             {
-                if (now >= _vents[cell])
+                var v = _active[i];
+                if (v.Schedule.Poll(now, out float strength) && v.Distance <= VentRules.EruptionRange && v.Headroom >= EruptHeadroom)
                 {
-                    Erupt(cell);
-                    _vents[cell] = now + Random.Range(4f, 9f); // stagger the next eruption
+                    StartEruption(v, strength);
+                }
+
+                if (dt <= 0f)
+                {
+                    continue;
+                }
+
+                Breathe(v, dt, wind);
+                if (v.EruptAge >= 0f)
+                {
+                    Erupt(v, dt, wind);
                 }
             }
         }
 
-        private List<Vector3Int> _keyScratch = new();
-        private List<Vector3Int> _ventKeys()
+        private void OnDisable() => _active.Clear();
+
+        /// <summary>Registers the vent block with the world's marker index — again whenever the world (and with it the
+        /// content) was rebuilt. False while the content has no vent block.</summary>
+        private bool EnsureIndex()
         {
-            _keyScratch.Clear();
-            foreach (var k in _vents.Keys) _keyScratch.Add(k);
-            return _keyScratch;
+            if (_epoch != Game.WorldEpoch)
+            {
+                // Travel: the old world's vents must not breathe at their old spots until the next refresh.
+                _epoch = Game.WorldEpoch;
+                _vents.Clear();
+                _active.Clear();
+                _refreshTimer = 0f;
+            }
+
+            if (ReferenceEquals(_world, Game.World))
+            {
+                return _ventId != 0;
+            }
+
+            _world = Game.World;
+            _vents.Clear();
+            _active.Clear();
+            var def = Game.Content.GetBlock("geyser_vent");
+            _ventId = def != null ? def.NumericId.Value : (ushort)0;
+            if (_ventId != 0)
+            {
+                _world.SetMarkerBlocks(new[] { _ventId });
+            }
+
+            return _ventId != 0;
         }
 
-        private void Rescan()
+        /// <summary>The vents in reach, their headroom and distance; the active list nearest first, capped per preset. The
+        /// look follows the world (volcanic or water, the mist colour).</summary>
+        private void Refresh()
         {
             var p = Game.PlayerPosition;
-            int px = Mathf.FloorToInt(p.x), py = Mathf.FloorToInt(p.y), pz = Mathf.FloorToInt(p.z);
-
-            for (int dx = -ScanR; dx <= ScanR; dx++)
-            for (int dy = -4; dy <= 4; dy++)
-            for (int dz = -ScanR; dz <= ScanR; dz++)
+            _hits.Clear();
+            _world.MarkersNear(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.z), (int)VentRules.SteamRange + 2, _hits);
+            foreach (var v in _vents.Values)
             {
-                int wx = px + dx, wy = py + dy, wz = pz + dz;
-                if (Game.Content.BlockById(Game.World.GetBlock(wx, wy, wz))?.Key == "geyser_vent")
+                v.Seen = false;
+            }
+
+            for (int i = 0; i < _hits.Count; i++)
+            {
+                if (_hits[i].Block == _ventId)
                 {
-                    var cell = new Vector3Int(wx, wy, wz);
-                    if (!_vents.ContainsKey(cell))
-                    {
-                        _vents[cell] = Time.time + Random.Range(0.5f, 4f); // first eruption soon after discovery
-                    }
+                    Track(_hits[i].Pos, p);
                 }
             }
 
-            // Forget vents that left range or were mined away.
-            var stale = new List<Vector3Int>();
-            foreach (var cell in _vents.Keys)
+            _scratch.Clear();
+            foreach (var v in _vents.Values)
             {
-                if (Mathf.Abs(cell.x - px) > ScanR + 2 || Mathf.Abs(cell.y - py) > 6 || Mathf.Abs(cell.z - pz) > ScanR + 2
-                    || Game.Content.BlockById(Game.World.GetBlock(cell.x, cell.y, cell.z))?.Key != "geyser_vent")
+                if (!v.Seen)
                 {
-                    stale.Add(cell);
+                    _scratch.Add(v);
                 }
             }
 
-            foreach (var cell in stale) _vents.Remove(cell);
+            foreach (var gone in _scratch)
+            {
+                _vents.Remove(gone.Cell);
+            }
+
+            _active.Clear();
+            foreach (var v in _vents.Values)
+            {
+                if (v.Headroom > 0 && v.Distance <= VentRules.SteamRange)
+                {
+                    _active.Add(v);
+                }
+            }
+
+            _active.Sort((a, b) => a.Distance.CompareTo(b.Distance));
+            int cap = VentRules.MaxVents((int)FxKit.Preset);
+            if (_active.Count > cap)
+            {
+                _active.RemoveRange(cap, _active.Count - cap);
+            }
+
+            RefreshLook();
         }
 
-        private void Erupt(Vector3Int cell)
+        /// <summary>Updates (or starts tracking) the vent at <paramref name="pos"/> — a position in the player's frame, so it
+        /// is already the scene position.</summary>
+        private void Track(Vector3i pos, Vector3 player)
         {
-            Vector3 at = Game.ScenePos(cell.x + 0.5f, cell.y + 1f, cell.z + 0.5f); // just above the vent, seam-aware
-            string biome = Game.Environment?.Biome ?? string.Empty;
-            bool volcanic = biome == "ashen" || biome == "lava";
-            Color lo = volcanic ? new Color(0.55f, 0.20f, 0.07f) : new Color(0.80f, 0.90f, 1f);  // ember vs water
-            Color hi = volcanic ? new Color(0.62f, 0.62f, 0.64f) : new Color(0.97f, 0.99f, 1f);  // grey vs white steam
+            var cell = WorldConstants.CanonicalBlock(pos, Game.Circumference);
+            if (!_vents.TryGetValue(cell, out var v))
+            {
+                v = new Vent { Cell = cell, Schedule = new VentSchedule(cell.X, cell.Y, cell.Z), SteamAcc = Random.value };
+                _vents[cell] = v;
+            }
 
-            ClientAudio.Instance?.At("geyser_erupt", at, 1f, 0.9f);
+            v.Seen = true;
+            v.Base = new Vector3(pos.X + 0.5f, pos.Y + 1f, pos.Z + 0.5f);
+            v.Distance = Vector3.Distance(v.Base, player);
+            int free = 0;
+            while (free < MaxHeadroom && NearbyLights.AirAt(Game, pos.X, pos.Y + 1 + free, pos.Z))
+            {
+                free++;
+            }
 
-            var root = new GameObject("geyser_plume");
-            root.transform.SetParent(transform, true); // under the game root → no leak into menus
-            root.transform.position = at;
-            root.AddComponent<Plume>().Init(lo, hi);
+            v.Headroom = free;
+            v.Open = free >= MaxHeadroom;
         }
 
-        /// <summary>A short-lived rising column of fading (shrinking) particle cubes. Uses the same build-safe
-        /// unlit shader as the other VFX; "fade" is a scale-down so no transparent shader is needed.</summary>
-        private sealed class Plume : MonoBehaviour
+        /// <summary>Volcanic or water vents and the steam's tint, from the world's traits and mist colour.</summary>
+        private void RefreshLook()
         {
-            private const float MaxLife = 1.4f;
-            private readonly List<Transform> _t = new();
-            private readonly List<Vector3> _v = new();
-            private float _life;
-
-            public void Init(Color lo, Color hi)
-            {
-                var shader = Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque");
-                var matLo = new Material(shader) { color = ShaderColor.Srgb(lo) };
-                var matHi = new Material(shader) { color = ShaderColor.Srgb(hi) };
-
-                for (int i = 0; i < 16; i++)
-                {
-                    var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    go.name = "geyser_p";
-                    var col = go.GetComponent<Collider>();
-                    if (col != null) Destroy(col);
-                    go.transform.SetParent(transform, false);
-                    go.transform.localPosition = new Vector3(Random.Range(-0.18f, 0.18f), Random.Range(0f, 0.4f), Random.Range(-0.18f, 0.18f));
-                    go.transform.localScale = Vector3.one * Random.Range(0.12f, 0.3f);
-                    go.GetComponent<Renderer>().sharedMaterial = Random.value < 0.5f ? matLo : matHi;
-                    _t.Add(go.transform);
-                    _v.Add(new Vector3(Random.Range(-0.7f, 0.7f), Random.Range(4f, 7f), Random.Range(-0.7f, 0.7f)));
-                }
-
-                Destroy(gameObject, MaxLife + 0.2f);
-            }
-
-            private void Update()
-            {
-                _life += Time.deltaTime;
-                for (int i = 0; i < _t.Count; i++)
-                {
-                    var v = _v[i];
-                    v.y -= 8f * Time.deltaTime; // gravity arcs the spout
-                    _v[i] = v;
-                    _t[i].position += v * Time.deltaTime;
-                    _t[i].localScale *= Mathf.Max(0f, 1f - 0.85f * Time.deltaTime); // shrink → "fade"
-                }
-            }
+            var env = Game.Environment;
+            var planet = env != null ? Game.Content.GetPlanet(env.Biome ?? string.Empty) : null;
+            // A world grows vents only when it is wet or has volcanoes, so where a vent stands, "volcano world" is the
+            // honest answer for the dry case — the same rule the generator uses with its own volcano flag.
+            _volcanic = planet != null && WorldGenerator.VentsVolcanicFor(planet, volcanoWorld: true);
+            var (r, g, b) = VentRules.SteamTint(env != null ? env.MistColor : -1);
+            _steam = new Color(r, g, b);
         }
     }
 }

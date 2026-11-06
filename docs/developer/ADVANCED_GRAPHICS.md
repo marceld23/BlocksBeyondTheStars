@@ -54,6 +54,45 @@ renders in **linear colour space**, and the hand-written shaders are all dual-pi
   a roofed floor gets no snow cap and no wet gloss (#3164 — it got 55 % of both); the far-terrain
   sea takes the world's water tint and the rainbow bands from the same globals as the near water — vertex alpha 0.5
   marks it (#2415); the IMGUI underwater wash thins to ~15 % while the shader-side underwater haze is active (#2416).
+- **Mist, wisps and the cloud band** (2026-11, #3270–#3272; the haze code moved to `Sky.Mist.cs`, the rules to
+  `MistLook` in Client.Core, tested headless in `MistLookTests`):
+  - *Mist amount:* the height fog's strength is the world's `WorldEnvironment.MistAmount` (the server's per-world mist
+    profile, #3269 — the air density is already in it) × the time of day × the weather; the client's hardcoded biome
+    switch `Sky.MistFor` and its own air-density factor are gone. Floor and falloff are unchanged (`MistLook.FogFloor`,
+    `MistLook.Falloff`).
+  - *Wisps (#3271):* `BbtsHazeTerms` multiplies the mist density at the Simpson mid and end points by a wisp factor
+    (`BbtsWispAt`, 0 in a gap … 2 in a bank, ~1 on average) from the noise texture's green and blue channels — two
+    rank-equalised, independent sheets (`CloudNoiseSheet.BakeEven`; red stays the #2394 cloud-shadow sheet), drifting
+    downwind (`_Sc_MistWisp.zw`), sheared a little with height and slowly morphing into each other (`_Sc_MistCam.yz`). The
+    camera point's factor is computed on the CPU from the same bytes (`_Sc_MistCam.x`), so the wisps cost two LOD-0
+    samples per pixel, only where the mist has density. Strength = the world's `MistWispiness` × the "Fog wisps" switch;
+    0 is the #2406 blanket exactly. All presets incl. Potato and the browser. Vertex stages (particles, decals hazed per
+    vertex) take the smooth averages instead (`BBTS_HAZE_NOISE`, no texture fetch in a vertex shader).
+  - *Mist colour:* `_Sc_MistColor` — the world's `MistColor` lit by `MistLook.LitMist` (daylight with a quarter of the
+    sky's own light and a touch of the star's hue; a dark blue-grey at night, never black, never glowing). A world without
+    its own colour (−1) keeps the haze colour exactly (alpha 0). A festival's fog tint (#3004) now colours the mist.
+  - *Cloud band (#3272, shader part):* a third term between `CloudBaseY` and `CloudTopY` — a trapezoid profile (soft
+    edges a quarter of the band) integrated analytically along the ray (`BbtsBandIntegral`), holes from the green sheet at
+    a 96-block tile drifting with the cloud shadows (about `cover` of the area is cloud), cover =
+    `CloudBandRules.Cover(weather, intensity, cloud density)` × the "Cloud fog" switch, eased over ~20 s. The first 6 m in
+    front of the camera never count and the extinction is 0.04–0.07/m, so inside a closed cloud ~15 m stay readable and
+    ~40 m fade out (`MistLook.BandAmount`). Gated off underground (`AtmosphereProbe.UndergroundFactor`), aboard and under
+    water (`_Sc_MistCam.w`). Standing in the band, the camera background turns to the cloud colour and the sun disc and
+    rays dim. One more sample, only for rays that cross the band. `Sky.CloudBandCover01`, `MistStrength01` and
+    `MistColorLit` publish the state for the mist cards and the cloud deck.
+  - *Colour mixing:* `BbtsHaze(wp, skylight, heightScale)` returns amount and colour from one evaluation (veil in the sky
+    colour, mist in its colour, band in the lit cloud colour, mixed by their weights); the block, water, far-terrain and
+    particle shaders and `BbtsApplyHaze` use it. `BbtsHazeColor` still works for shaders that ask separately (a noise-free,
+    ALU-only estimate of the weights).
+  - *Weather colour (#3270):* fog (grey), a gale's or sandstorm's grit (the ground's colour), an ion storm (blue) and
+    storms (ash, acid, white-out, rain grey) tint the sky — and with it the distance haze, the camera background and the
+    legacy fog — and the mist toward their colour by intensity, keeping the sky's brightness (`MistLook.WeatherTint` /
+    `ApplyTint`); ground fog tints only the mist. `WeatherFx3D` used to write these colours into `RenderSettings.fog`,
+    which no project shader reads; that path is gone. `Sky.MirrorLegacyFog` is now the only writer of Unity's fog: a
+    linear copy of the distance haze for the few materials still on Unity's `Unlit/Color` / `Unlit/Transparent` (geyser
+    cubes, lava falls, mining sparks, unlit creature parts, ship FX), so they still fade with the landscape.
+  - The cloud-shadow sheet now drifts downwind (its offset was added with the wrong sign, so it moved against the wind
+    the grit and the leaves follow).
 - **Wind sway by cutout code** (2026-10-13, #2519/#2520): `TEXCOORD2.x` of the opaque chunk mesh is a *cutout code*,
   not a flag — every code above 0.5 is alpha-clipped, and `BbtsBlockSway` (`AtmosphereCommon.hlsl`, called by the
   forward, shadow and depth passes alike) reads how the vertex moves: **1** a tree-crown shell face sways as one rigid
@@ -314,6 +353,57 @@ GPU p90 at Medium. Measure on a quiet machine: a second game rendering at the sa
 PerfProbe (`-perfProbe -perfPreset <name>`) writes the GPU p50/p90 next to the wall-clock numbers and switches
 `PresetAuto` off for its run, so a re-measurement only needs the same command line on a quiet machine.
 
+### Fog banks in the air (#3273)
+
+The haze is mixed into the surface a pixel hits, so on its own it can never hang a bank of mist in front of the open sky.
+`MistCards` adds a few large, soft, camera-facing cards over the valleys — the rule of the package is *a few large cards,
+never many small particles* (Valheim's thousands of fog particles are a known frame-rate sink; its mods replace them with
+a few ground-mist planes).
+
+- **Placement:** a pool of cards 6–20 m wide (height 32–50 % of the width) in a ring 15–70 m around the camera, at
+  `AtmosphereProbe.FogFloor` + 1–4 m. A spot holds mist only where the highest ground under the card's footprint (five
+  column scans) lies at most 3 m above the fog floor — never on a hill, a ridge or a tree crown, never inside the ground or
+  a parked hull (`LandedShipCovers`). Cards drift with the smoothed wind (0.25 + 2.2 × wind m/s), live 45–100 s, fade in
+  and out over 6 s, breathe a little in width, and their two noise offsets evolve; a card that leaves the ring, outlives
+  its life or is walked into dissolves and comes back elsewhere.
+- **Fades:** per card toward the far edge of the ring (the last 15 m) and while the camera would stand in it; per pixel
+  in the shader nothing within 2 m of the camera, fully there from 10 m (`MistCardRules.PixelNearFade`) — never "in your
+  face". Soft particles from Medium (`_Sc_ScreenFx` × `_Sc_SoftParticles`, 2 m).
+- **Look:** count and opacity from `Sky.MistStrength01` (the world's mist × time of day × weather — dawn, dusk and fog
+  weather strongest): nothing below 0.1, the whole budget from 0.55, a card's peak alpha 0.15–0.55. The colour is the
+  height fog's own lit mist colour, read in the shader from the shared include (`BbtsHazeMix(wp, (0,1,0))`), so a card is
+  exactly the mist the land behind it sinks into; the card itself sits inside the haze (`BbtsHaze`). The shape is not
+  baked: a soft ellipse whose rim the tileable noise bites into (`MistNoise` in Client.Core → `MistNoiseTexture`, 128²
+  RG, mip-mapped; the fine octave is sampled at twice the tiling, so the wrapped offsets never show a seam).
+- **Gate:** only under the open sky — the probe's eased camera exposure × (1 − underground); never aboard, on a station,
+  on a spacewalk, above the atmosphere line, in the flight view or under water.
+- **Budget:** Potato 0 · Low 4 · Medium 10 · High 20, the browser (and other light devices) none
+  (`MistCardRules.Budget`), behind *Settings → Atmosphere effects → Fog banks* (`ClientSettings.FogBanks`). On top a cap
+  on the screen area all cards in front of the camera cover (Low 0.6, Medium 1.0, High 1.4 screens): the largest (=
+  nearest) card dissolves first. All cards are ONE dynamic mesh written far to near every frame (one draw call, correct
+  blending order), `MistCard.shader` (URP only, always-included).
+
+### The sea of clouds and the dome clouds at altitude (#3272)
+
+The haze shader's cloud band is what you stand in between the world's `CloudBaseY` and `CloudTopY`; two client pieces
+complete it from the outside.
+
+- **Sea of clouds** (`CloudSea`, Medium+ on a desktop, *Cloud fog* switch): a flat disc (a centre vertex and 40 rings ×
+  64 segments, radii growing as (k/40)^1.6, 90 % of the far plane wide, 300–2000 blocks) follows the camera in XZ at
+  `CloudTopY`. `CloudSea.shader` cuts the cloud out of world-fixed noise — the coarse octave drifts with the wind, the
+  fine one (three times the tiling) evolves on its own, both wrapped at one tile — with the threshold from the weather's
+  cover (`Sky.CloudBandCover01`, the same `CloudBandRules.Cover` the band uses): nothing on a clear day, holes with
+  clouds, nearly closed in rain (`CloudSeaRules.Threshold/Opacity`). A third sample toward the sun gives the billows a lit
+  and a shaded side; the colour is the band's own lit colour (`_Sc_CloudBandColor`), so the cloud you climb out of is the
+  cloud below (the C# side's cloud-colour tint stands in while no band colour is set). The rim fades out, the distance
+  haze takes it into the horizon, and with the depth texture it melts into the mountain flanks that pierce it (8 m).
+  Visible only from above: it fades in from 1 m under the top to fully there 6 m above it
+  (`CloudSeaRules.DeckVisibility`); inside the band the band term is the cloud. Never in space, on a station, aboard or
+  underground. The class is not called `CloudDeck`: that name is the dome clouds' drift (#3202).
+- **Dome clouds** (`Clouds`): the low cumulus and stratus fade out while the camera climbs through the band
+  (`CloudSeaRules.DomeLowFade`: all below the base, none above the top), so they no longer hover overhead while you stand
+  in a cloud or look down on the sea; the high cirrus stay. Only by height — on a world without a band nothing changes.
+
 ## Design rationale worth keeping
 
 - **Why URP.** TAA, SSR, a maintained post stack, Forward+ many-lights and Shader Graph are first-class
@@ -381,6 +471,9 @@ Ordered by impact ÷ effort. These are the next polish milestones; each is prese
   `EyeAdaptationRules`, `DarkLightRules`.
 - Preset calibration (#3279–#3283): `AutoQualityCalibrator.cs`, `WorldPerfWatch.cs`, `GpuFrameTime.cs`,
   `ClientSettings.AutoQuality.cs`, `PerfProbe.cs`; Client.Core `QualityCalibration`.
+
+- Fog banks and the sea of clouds (#3272/#3273): `MistCards.cs` + `MistCard.shader`, `CloudSea.cs` + `CloudSea.shader`,
+  `MistNoiseTexture.cs`, the dome fade in `Clouds.cs`; Client.Core `MistCardRules`, `CloudSeaRules`, `MistNoise`.
 
 ## Open questions
 

@@ -39,6 +39,7 @@ public sealed partial class GameServer
         public double AtmosphereDensity;
         public bool Airless;
         public bool Toxic;
+        public double FogFrequency = 1.0; // #3269: the body's mist profile — the same fog chances as its loaded world
     }
 
     private readonly Dictionary<string, BodyWeather> _bodyWeather = new(StringComparer.Ordinal);
@@ -168,6 +169,7 @@ public sealed partial class GameServer
             Airless = airless,
             Toxic = !airless && !string.Equals(planet.Atmosphere, "breathable", StringComparison.OrdinalIgnoreCase),
         };
+        bw.FogFrequency = MistProfiles.For(_meta.Seed, body.Id, planet, bw.AtmosphereDensity, airless).FogFrequency; // #3269
 
         if (loaded is not null && string.Equals(loaded.PlanetType, planet.Key, StringComparison.Ordinal))
         {
@@ -196,6 +198,7 @@ public sealed partial class GameServer
         BaseTemperature = bw.Planet.BaseTemperature,
         PlanetKey = bw.Planet.Key,
         EventWeights = bw.Planet.WeatherEvents,
+        FogFrequency = bw.FogFrequency,
         Circumference = bw.Circumference,
         Dynamic = true,
     };
@@ -302,7 +305,7 @@ public sealed partial class GameServer
         bool dynamic = loaded is null || loaded.PlanetWeatherMode == "dynamic";
         var episode = EpisodeOf(sim, dynamic);
         double timeOfDay = BodyArrivalTimeOfDay(body.Id);
-        double cloudLine = WeatherProjection.CloudLineY(planet);
+        double cloudLine = MistProfiles.SummitLineY(_meta.Seed, body.Id, planet); // #3269: the loaded world's own line
         bool breathable = string.Equals(planet.Atmosphere, "breathable", StringComparison.OrdinalIgnoreCase);
         bool ladder = WeatherCatalog.Find(sim.State)?.IsLadder ?? true;
         double warmth = SeasonOf(body.Id, planet, planet.DayLengthSeconds).Warmth; // #3041: the body's own season

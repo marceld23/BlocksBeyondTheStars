@@ -25,7 +25,7 @@ namespace BlocksBeyondTheStars.Client
     /// Render-only: nothing here touches game state. Lives on the world root (WorldRig); <see cref="Ensure"/> creates a
     /// stand-alone host for callers outside a world.
     /// </summary>
-    public sealed class FxKit : MonoBehaviour
+    public sealed partial class FxKit : MonoBehaviour
     {
         public static FxKit Instance { get; private set; }
 
@@ -141,7 +141,8 @@ namespace BlocksBeyondTheStars.Client
             /// <summary>Alpha-blended dust that drifts out and settles.</summary>
             Dust,
 
-            /// <summary>Alpha-blended soft puffs that rise and grow (smoke, steam, the defeat puff).</summary>
+            /// <summary>Alpha-blended soft puffs that rise and grow (smoke, steam, the defeat puff). Since #3274 textured,
+            /// sun-lit and eroding (<c>ParticleSmoke</c>), each turning slowly; a speed limit drags fast puffs to a drift.</summary>
             Smoke,
 
             /// <summary>Lit mesh cubes tumbling under gravity (block chips, robot parts, rubble).</summary>
@@ -149,6 +150,14 @@ namespace BlocksBeyondTheStars.Client
 
             /// <summary>Lit mesh cubes tumbling WITHOUT gravity (space rubble, wreck parts).</summary>
             DebrisFloat,
+
+            /// <summary>Big, long-lived smoke puffs for tall columns (#3277: volcano craters): the <see cref="Smoke"/> look
+            /// without its speed limit or lift — they keep the velocity they were given and swell a lot.</summary>
+            Plume,
+
+            /// <summary>Alpha-blended streaks stretched along their velocity, falling under gravity (#3275: a geyser's
+            /// water droplets). Unlike <see cref="Sparks"/> they do not glow.</summary>
+            Spray,
         }
 
         private readonly Dictionary<Kind, ParticleSystem> _emitters = new Dictionary<Kind, ParticleSystem>();
@@ -159,9 +168,11 @@ namespace BlocksBeyondTheStars.Client
             [Kind.Motes] = 700,
             [Kind.Glow] = 160,
             [Kind.Dust] = 300,
-            [Kind.Smoke] = 160,
+            [Kind.Smoke] = 240, // #3274/#3275: + the vents' steady steam and eruptions
             [Kind.Debris] = 220,
             [Kind.DebrisFloat] = 160,
+            [Kind.Plume] = 140,
+            [Kind.Spray] = 240,
         };
 
         /// <summary>Emits ONE particle of <paramref name="kind"/>. Colours are sRGB-authored (converted here).</summary>
@@ -186,6 +197,12 @@ namespace BlocksBeyondTheStars.Client
             {
                 ep.rotation3D = new Vector3(UnityEngine.Random.Range(0f, 360f), UnityEngine.Random.Range(0f, 360f), UnityEngine.Random.Range(0f, 360f));
                 ep.angularVelocity3D = UnityEngine.Random.insideUnitSphere * 540f;
+            }
+            else if (kind == Kind.Smoke || kind == Kind.Plume)
+            {
+                // #3274: every puff at its own angle, turning slowly (the big column puffs slower still).
+                ep.rotation = UnityEngine.Random.Range(0f, 360f);
+                ep.angularVelocity = UnityEngine.Random.Range(-1f, 1f) * (kind == Kind.Plume ? 9f : 22f);
             }
 
             ps.Emit(ep, 1);
@@ -247,14 +264,13 @@ namespace BlocksBeyondTheStars.Client
 
         private ParticleSystem BuildEmitter(Kind kind)
         {
-            bool debris = kind == Kind.Debris || kind == Kind.DebrisFloat;
-            bool alpha = kind == Kind.Dust || kind == Kind.Smoke;
-            Material mat = debris ? DebrisMaterial() : alpha ? SoftAlphaMaterial() : kind == Kind.Glow ? GlowMaterial() : SparkMaterial();
+            Material mat = MaterialFor(kind);
             if (mat == null)
             {
                 return null;
             }
 
+            bool debris = kind == Kind.Debris || kind == Kind.DebrisFloat;
             var go = new GameObject("Fx" + kind);
             go.transform.SetParent(transform, false);
             var ps = go.AddComponent<ParticleSystem>();
@@ -265,14 +281,7 @@ namespace BlocksBeyondTheStars.Client
             main.playOnAwake = false;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
             main.maxParticles = Mathf.Max(16, Mathf.RoundToInt(BaseBudget[kind] * Mathf.Max(0.35f, Density)));
-            main.gravityModifier = kind switch
-            {
-                Kind.Sparks => 1.1f,
-                Kind.Dust => 0.18f,
-                Kind.Smoke => -0.06f,
-                Kind.Debris => 1.3f,
-                _ => 0f,
-            };
+            main.gravityModifier = GravityFor(kind);
             if (debris)
             {
                 main.startRotation3D = true;
@@ -287,41 +296,11 @@ namespace BlocksBeyondTheStars.Client
 
             var col = ps.colorOverLifetime;
             col.enabled = true;
-            var grad = new Gradient();
-            switch (kind)
-            {
-                case Kind.Glow:
-                    grad.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
-                        new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0.6f, 0.35f), new GradientAlphaKey(0f, 1f) });
-                    break;
-                case Kind.Smoke:
-                case Kind.Dust:
-                    grad.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
-                        new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.75f, 0.12f), new GradientAlphaKey(0.45f, 0.6f), new GradientAlphaKey(0f, 1f) });
-                    break;
-                case Kind.Debris:
-                case Kind.DebrisFloat:
-                    grad.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
-                        new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) });
-                    break;
-                default:
-                    grad.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
-                        new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0.8f, 0.5f), new GradientAlphaKey(0f, 1f) });
-                    break;
-            }
-
-            col.color = new ParticleSystem.MinMaxGradient(grad);
+            col.color = new ParticleSystem.MinMaxGradient(AlphaOverLifetime(kind));
 
             var sol = ps.sizeOverLifetime;
             sol.enabled = true;
-            sol.size = kind switch
-            {
-                Kind.Glow => new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, 0.55f), new Keyframe(0.25f, 1f), new Keyframe(1f, 1.15f))),
-                Kind.Smoke => new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, 0.4f), new Keyframe(1f, 1.8f))),
-                Kind.Dust => new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 0.7f, 1f, 1.4f)),
-                Kind.Debris or Kind.DebrisFloat => new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, 1f), new Keyframe(0.7f, 1f), new Keyframe(1f, 0f))),
-                _ => new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 1f, 1f, 0.15f)),
-            };
+            sol.size = SizeOverLifetime(kind);
 
             if (debris)
             {
@@ -337,30 +316,92 @@ namespace BlocksBeyondTheStars.Client
                 limit.dampen = 0.08f;
             }
 
-            var r = go.GetComponent<ParticleSystemRenderer>();
+            ConfigureRenderer(go.GetComponent<ParticleSystemRenderer>(), kind, mat);
+            ps.Play();
+            return ps;
+        }
+
+        /// <summary>The material a kind draws with (null when its shader is missing from the build).</summary>
+        private static Material MaterialFor(Kind kind) => kind switch
+        {
+            Kind.Debris or Kind.DebrisFloat => DebrisMaterial(),
+            Kind.Smoke or Kind.Plume => SmokeMaterial(),
+            Kind.Dust => SoftAlphaMaterial(),
+            Kind.Spray => StreakMaterial(),
+            Kind.Glow => GlowMaterial(),
+            _ => SparkMaterial(),
+        };
+
+        private static float GravityFor(Kind kind) => kind switch
+        {
+            Kind.Sparks => 1.1f,
+            Kind.Dust => 0.18f,
+            Kind.Smoke => -0.06f,
+            Kind.Debris => 1.3f,
+            Kind.Spray => 1f,
+            _ => 0f,
+        };
+
+        /// <summary>The colour-over-lifetime gradient: white (the start colour carries the hue) with the kind's alpha curve.</summary>
+        private static Gradient AlphaOverLifetime(Kind kind)
+        {
+            GradientAlphaKey[] alpha = kind switch
+            {
+                Kind.Glow => new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0.6f, 0.35f), new GradientAlphaKey(0f, 1f) },
+                Kind.Smoke or Kind.Dust => new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.75f, 0.12f), new GradientAlphaKey(0.45f, 0.6f), new GradientAlphaKey(0f, 1f) },
+                Kind.Plume => new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.85f, 0.1f), new GradientAlphaKey(0.6f, 0.55f), new GradientAlphaKey(0f, 1f) },
+                Kind.Spray => new[] { new GradientAlphaKey(0.95f, 0f), new GradientAlphaKey(0.85f, 0.6f), new GradientAlphaKey(0f, 1f) },
+                Kind.Debris or Kind.DebrisFloat => new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) },
+                _ => new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0.8f, 0.5f), new GradientAlphaKey(0f, 1f) },
+            };
+            var grad = new Gradient();
+            grad.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) }, alpha);
+            return grad;
+        }
+
+        private static ParticleSystem.MinMaxCurve SizeOverLifetime(Kind kind) => kind switch
+        {
+            Kind.Glow => new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, 0.55f), new Keyframe(0.25f, 1f), new Keyframe(1f, 1.15f))),
+            Kind.Smoke => new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, 0.4f), new Keyframe(1f, 1.8f))),
+            Kind.Plume => new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, 0.45f), new Keyframe(0.3f, 1f), new Keyframe(1f, 1.75f))),
+            Kind.Dust => new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 0.7f, 1f, 1.4f)),
+            Kind.Spray => new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 1f, 1f, 0.6f)),
+            Kind.Debris or Kind.DebrisFloat => new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, 1f), new Keyframe(0.7f, 1f), new Keyframe(1f, 0f))),
+            _ => new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 1f, 1f, 0.15f)),
+        };
+
+        private static void ConfigureRenderer(ParticleSystemRenderer r, Kind kind, Material mat)
+        {
             r.sharedMaterial = mat;
             r.shadowCastingMode = ShadowCastingMode.Off;
             r.receiveShadows = false;
             r.sortMode = ParticleSystemSortMode.None;
-            if (debris)
+            switch (kind)
             {
-                r.renderMode = ParticleSystemRenderMode.Mesh;
-                r.mesh = CubeMesh;
-                r.alignment = ParticleSystemRenderSpace.World;
+                case Kind.Debris:
+                case Kind.DebrisFloat:
+                    r.renderMode = ParticleSystemRenderMode.Mesh;
+                    r.mesh = CubeMesh;
+                    r.alignment = ParticleSystemRenderSpace.World;
+                    break;
+                case Kind.Sparks:
+                    r.renderMode = ParticleSystemRenderMode.Stretch;
+                    r.velocityScale = 0.035f;
+                    r.lengthScale = 1.6f;
+                    break;
+                case Kind.Spray:
+                    r.renderMode = ParticleSystemRenderMode.Stretch;
+                    r.velocityScale = 0.05f;
+                    r.lengthScale = 1.5f;
+                    break;
+                case Kind.Smoke:
+                case Kind.Plume:
+                    ConfigureSmokeRenderer(r);
+                    break;
+                default:
+                    r.renderMode = ParticleSystemRenderMode.Billboard;
+                    break;
             }
-            else if (kind == Kind.Sparks)
-            {
-                r.renderMode = ParticleSystemRenderMode.Stretch;
-                r.velocityScale = 0.035f;
-                r.lengthScale = 1.6f;
-            }
-            else
-            {
-                r.renderMode = ParticleSystemRenderMode.Billboard;
-            }
-
-            ps.Play();
-            return ps;
         }
 
         // ---------------------------------------------------------------- materials, textures, meshes

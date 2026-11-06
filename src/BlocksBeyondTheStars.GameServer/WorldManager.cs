@@ -491,6 +491,10 @@ internal sealed class LoadedWorld
     public double AtmosphereHeight { get; set; }
     public double AtmosphereDensity { get; set; }
 
+    /// <summary>This world's mist profile (#3269): mist amount, colour, wispiness, fog frequency and the cloud band —
+    /// computed once per load in <c>InitWeather</c> (<see cref="MistProfiles.For"/>), sent in the environment message.</summary>
+    public MistProfile Mist { get; set; } = MistProfile.None;
+
     /// <summary>This world's live weather (#900): the current episode, its intensity envelope, wind, the
     /// season phase and the drifting fronts. Created in <c>InitWeather</c> from a seed salted with the
     /// world's <c>LocationId</c> — sharing one RNG stream across worlds was why every planet in a save
@@ -501,7 +505,8 @@ internal sealed class LoadedWorld
     public IReadOnlyDictionary<string, double>? WeatherEventWeights { get; set; }
 
     /// <summary>Absolute Y above which the weather reads one ladder step wetter — mountain tops sit in
-    /// cloud/snow while the valley below stays clear. Derived from the planet's base height + amplitude.</summary>
+    /// cloud/snow while the valley below stays clear. The base of the world's cloud band (#3269), else the planet's
+    /// base height + amplitude (<see cref="MistProfiles.SummitLineY"/>).</summary>
     public double CloudLineY { get; set; } = double.MaxValue;
 
     /// <summary>Weather-deposited snow cells on this world (#900), with the seconds of warmth left before

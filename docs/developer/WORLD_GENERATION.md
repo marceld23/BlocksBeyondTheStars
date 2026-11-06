@@ -141,7 +141,7 @@ single source of truth for nearly everything about a world:
 | **Atmosphere** | `Atmosphere` (breathable/toxic/none), `OxygenExtractability`, `AtmosphereDensity`, `AtmosphereHeight`, `SpaceSky` | O₂ drain, haze/fog, whether water is possible, "in space" line |
 | **Terrain** | `BaseHeight`, `Amplitude`, `TerrainScale`, `TerrainStyle`, `FloatingIslands`, `Cratered` | Shape & ruggedness |
 | **Blocks** | `SurfaceBlock`, `SubSurfaceBlock`, `DeepBlock`, `SurfaceDepth`, `Ores`, `CaveThreshold` | Material layers, ore veins, caves |
-| **Weather** | `DayLengthSeconds`, `StormChance`, `BaseTemperature`, `Weather`, `CloudColor`, `CloudDensity` | Day length, storm bias, clouds |
+| **Weather** | `DayLengthSeconds`, `StormChance`, `BaseTemperature`, `Weather`, `CloudColor`, `CloudDensity`, `Mist`, `MistColor` | Day length, storm bias, clouds, valley mist (§9 "Mist profile") |
 | **Fluids** | `WaterAbundance`, `LavaAbundance` | Sea level & sea type |
 | **Life** | `Biomes`, `FloraTheme`, `FloraDensity`, `TreeDensity`, `CreatureAbundance` | Which biomes/plants/creatures |
 | **Selection** | `SpawnWeight`, `Selectable`, `Exotic`, `Void` | How often it appears as a random planet |
@@ -222,6 +222,12 @@ rise into space. That is intended (#2276, "a summit at the edge of space"): inst
 the float above the line readable (toast with the controls, a one-time VEGA hint, a ZERO-G badge) and survivable (the
 suit sinks gently with no vertical input, and the way back below the line carries a fall grace until the first
 landing — see `GameServer.UpdateAboveAtmosphere`).
+
+Two read-only queries serve the client's world effects (`WorldGenerator.VolcanoCraters.cs`, see
+[VFX.md](VFX.md) "Smoke, geyser vents and volcano craters"): `VolcanoCratersNear` (#3277) lists every crater within a
+radius — centre in the asking point's frame, crater radius, rim height, lava-pool top — for the crater smoke, which the
+client reads from its far-terrain generator; `VentsAreVolcanic` / `VentsVolcanicFor` (#3275) say whether the world's
+geyser vents throw ash (lava or the volcanic tag, or a dry world whose vents come only from its volcanoes) or water.
 
 **e) Overriding shapes** — `TerrainStyle` (mesa, **tablelands**, dunes, **badlands**, spires,
 **karst**, flats… — the bold three are #579; generation-1 worlds roll 1–3 styles from a per-type
@@ -670,8 +676,9 @@ A planet's authored `weather` value sets the world's ladder band rather than pin
 
 - **Fronts** are weather cells drifting along the world's east–west wrap; where one passes, the ladder
   reads 1–2 steps wetter, so a storm visibly arrives and moves on.
-- **Altitude**: above the world's cloud line (planet base height + amplitude) the weather reads one
-  step wetter — summits sit in cloud and snow while the valley stays clear.
+- **Altitude**: above the world's summit line (`MistProfiles.SummitLineY`: the base of its type-relief cloud band,
+  #3269, or the planet's base height + amplitude on a world without one) the weather reads one step
+  wetter — summits sit in cloud and snow while the valley stays clear.
 - The per-biome offset now **rotates slowly** over the shared clock, so the wet biome isn't wet forever.
 
 Environment is sent **per player, for their position**, not as one world broadcast.
@@ -685,6 +692,34 @@ Environment is sent **per player, for their position**, not as one world broadca
   rain resolves by climate — a dry sand world (sand surface and `waterAbundance` ≤ 0.3, `auto` counting as wet;
   `WeatherProjection.IsDrySandWorld`, #3212 — the sandy island seas rain) → `sandstorm`, ≥55 °C → `ash`, ≤−15 °C → `hail`, ≤2 °C →
   `snow`, ≤5 °C → `sleet`, else the episode's own roll of `rain` or `drizzle`.
+
+### Mist profile (#3269)
+
+Every world with air has its own mist. [`MistProfiles.For`](../../src/BlocksBeyondTheStars.Shared/World/MistProfile.cs)
+(seed, location, type, air density) is a pure function like `AtmosphereTints`; each value draws from the
+mixed hash with its own salt, so neighbouring bodies and two worlds of one type differ.
+
+| Value | Rule |
+|---|---|
+| `Amount` 0..1 | the type's `mist` (`planets.json`, default 0.45) ± 0.15 per world, × the air factor 0.5..1.2 |
+| `ColorRgb` | 40 % of worlds white or light grey (cool or warm), 60 % a clear tint from the type's `MistFamily` palette (read from traits: toxic, exotic, ice, volcanic, lush, arid, else pastel); always luma ≥ 0.74, saturation ≤ 0.45; a type's `mistColor` overrides it (Toxica-Maxima) |
+| `Wispiness` 0..1 | per-world roll 0.15..1, a little higher on volatile and wind-carved worlds |
+| `FogFrequency` 0.35..2.2 | multiplier on the `fog` / `ground_fog` event weights, skewed toward the mist amount |
+| `CloudBaseY`..`CloudTopY` | +0..12 blocks above the world's measured relief — the upper tenth of the land + 4 and at least 26 above the median ground (`WorldGenerator.SurfaceAltitudes`, the calibration's height sample) — 14..34 blocks thick with the cloud cover |
+| `Floor` 0..1 | the share of the mist that never burns off — the type's `mistFloor` (the gas giant: 0.75; every other type none); the client keeps the haze at least `Amount × Floor`, swelling between 65 % and 100 % of it over ~4 min (`MistLook.PersistentMist`), and pulls the distance haze in toward a quarter of the view (`PersistentFar`). Gas worlds get mist in their own family (amber, rose, lilac, teal — never white) and no cloud band. |
+
+The band is placed against the **measured** relief on purpose (#3272): the type's base height and amplitude
+miss a world's real heights by up to ~16 blocks (styles and drama rolls scale the amplitude), so a band on the
+type's cloud line lay on the ground of flat worlds and every rain put the whole swamp into a cloud. Views
+without a generator (and the weather's summit line, `MistProfiles.SummitLineY`, which the pad weather and the
+orbit map share) use the type's relief with a larger clearance instead: the classic cloud line, at least 42
+above the base height.
+
+Airless, space-sky and void worlds get none, gas worlds no band (and types without cloud cover no band). The
+server computes the profile once per world load (`InitWeather`), sends it in the additive
+`WorldEnvironment` fields `MistAmount` / `MistColor` / `MistWispiness` / `CloudBaseY` / `CloudTopY` / `MistFloor`, and
+feeds `FogFrequency` into the `WeatherContext` of the world and of its ambient body sim. Nothing is
+saved, so it needs no save-version bump.
 
 ### Determinism
 
