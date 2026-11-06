@@ -33,9 +33,9 @@
       "key": "tools", "nameKey": "category.tools.name", "group": "gear", "icon": "cat_tools", "iconItem": "titanium_drill",
       "fallbackFor": [ "Tool" ],
       "items": [ "titanium_drill", "diamond_drill", "mining_beam", "terrain_blaster", "fluid_pump", "paint_tool", "shape_tool", "shape_stencil",
-                 "blueprint_tool", "wood_pickaxe", "remote_control", "rail_linker", "energy_rope_gun", "bio_sampler" ],
+                 "blueprint_tool", "wood_pickaxe", "remote_control", "rail_linker", "energy_rope_gun", "bio_sampler", "guardian_drill" ],
       "blueprints": [ "titanium_drill", "diamond_drill", "mining_beam", "terrain_blaster", "fluid_pump", "paint_tool", "shape_tool",
-                      "energy_rope_gun", "tractor_beam", "asteroid_breaker" ],
+                      "energy_rope_gun", "tractor_beam", "asteroid_breaker", "guardian_drill" ],
       "modules": [ "tractor_beam", "asteroid_breaker" ]
     },
     {
@@ -51,10 +51,10 @@
     {
       "key": "combat", "nameKey": "category.combat.name", "group": "gear", "icon": "cat_weapons", "iconItem": "laser_pistol",
       "derive": [ "weapon" ],
-      "items": [ "helmet", "armor_chest", "armor_legs", "titan_helmet", "titan_chest", "titan_legs", "stealth_suit", "stasis_projector",
-                 "sentry_post", "energy_fence", "energy_gate", "force_field", "alarm_siren" ],
-      "blueprints": [ "machete", "vibro_knife", "plasma_sword", "gauss_pistol", "laser_pistol", "plasma_blaster", "shock_gloves", "energy_gloves",
-                      "helmet", "armor_chest", "armor_legs", "titan_helmet", "titan_chest", "titan_legs", "stealth_suit", "stasis_projector",
+      "items": [ "helmet", "armor_chest", "armor_legs", "titan_helmet", "titan_chest", "titan_legs", "guardian_helmet", "guardian_chest",
+                 "guardian_legs", "stealth_suit", "stasis_projector", "sentry_post", "energy_fence", "energy_gate", "force_field", "alarm_siren" ],
+      "blueprints": [ "machete", "vibro_knife", "plasma_sword", "guardian_sword", "gauss_pistol", "laser_pistol", "plasma_blaster", "shock_gloves", "energy_gloves",
+                      "helmet", "armor_chest", "armor_legs", "titan_helmet", "titan_chest", "titan_legs", "guardian_gear", "stealth_suit", "stasis_projector",
                       "sentry_post", "door_energy", "hull_plating", "shield_generator", "asteroid_breaker", "ship_cannon_1", "laser_cannon_2",
                       "ship_corvette", "ship_hammerhead", "ship_thunderbolt", "ship_deathblock" ],
       "modules": [ "hull_plating", "shield_generator", "asteroid_breaker", "ship_laser_basic", "ship_cannon_1", "laser_cannon_2" ],
@@ -65,7 +65,7 @@
       "derive": [ "suitGear" ],
       "blueprints": [ "oxygen_tank_1", "oxygen_tank_2", "oxygen_tank_3", "oxygen_extractor", "suit_liner_1", "suit_liner_2", "suit_liner_3",
                       "suit_battery", "suit_lamp", "helmet", "armor_chest", "armor_legs", "boots", "titan_helmet", "titan_chest", "titan_legs",
-                      "stealth_suit", "jetpack", "glider", "spring_boots", "climbing_gloves", "climbing_claws", "suit_teleporter",
+                      "guardian_gear", "stealth_suit", "jetpack", "glider", "spring_boots", "climbing_gloves", "climbing_claws", "suit_teleporter",
                       "quantum_teleporter", "comm_radio", "system_radio", "galaxy_radio", "radar_scanner", "oxygen_generator" ],
       "modules": [ "oxygen_generator", "life_support" ]
     },

@@ -266,6 +266,22 @@ ITEMS = [
     ("prep_coating", "a small round metal tin, open, filled with shimmering teal-green protective coating paste and a small brush"),
     # #2317 the energy rope gun (2026-10-05): the grappling pistol, its rope leaving the muzzle.
     ("energy_rope_gun", "a compact sci-fi grappling pistol with a chunky dark gunmetal body, an orange grip, a round silver rope spool on its side and a short wide barrel from which a short glowing bright cyan energy rope with a small three-pronged hook shoots out, soft cyan glow"),
+    # #3290-#3292 (2026-11-06): the guardian set from robot metal, the robber disguise and the flower set.
+    ("guardian_plate", "a thick dark gunmetal-grey robot armour plate with bevelled edges and rivets and one small thin glowing red light strip, salvaged from a sci-fi robot"),
+    ("guardian_helmet", "a sci-fi armoured helmet of dark gunmetal-grey robot plates, open face, a brow ridge with one thin glowing red visor slit and small sensor blocks over the ears"),
+    ("guardian_chest", "a sci-fi armoured chest plate of dark gunmetal-grey robot plates with shoulder pads and one thin glowing red light band across the chest"),
+    ("guardian_legs", "a pair of sci-fi armoured leg plates of dark gunmetal-grey robot metal with knee guards, each knee with one small glowing red dot"),
+    ("guardian_sword", "a sci-fi energy sword seen diagonally, a chunky dark gunmetal hilt and crossguard and a wide solid brightly glowing red hologram blade with a white-hot core and a strong red glow"),
+    ("guardian_drill", "a handheld sci-fi laser drill, dark gunmetal body with a short emitter nozzle shooting a thin straight bright red laser beam, a small red light strip on top and a dark grip"),
+    ("robber_cloth", "a neatly folded stack of dark charcoal-black sturdy cloth fabric with visible stitching"),
+    ("robber_mask", "a black cloth face mask on its own (no face, no person) that covers nose and mouth, two round grey breathing-filter canisters on its sides and a small dark grille in the middle, kid-friendly, not scary"),
+    ("robber_jacket", "a black jacket with a high turned-up collar and a grey zip down the front, front view, no person"),
+    ("blue_blossom", "a single pretty bright blue bell-shaped blossom with a white centre and a short green stem with one leaf"),
+    ("flower_wreath", "a round wreath of woven green leaves with eight pretty bright blue blossoms with white centres, seen from slightly above"),
+    ("flower_bracelets", "a pair of green woven bracelets, each decorated with three small bright blue blossoms with white centres"),
+    # #3294/#3295 (2026-11-06): the finale's reward and the friendly hunter robot built from it (light-blue lights, never red).
+    ("robot_core", "a round sci-fi robot power core the size of a fist, a dark gunmetal casing with bolted segments and a bright glowing light-blue energy heart in the middle, soft light-blue glow"),
+    ("hunter_robot", "a small friendly sci-fi robot folded up into a compact cube for carrying, dark gunmetal and grey plates, one wide glowing light-blue visor slit and a small light-blue reactor light, kid-friendly, cute, not scary"),
 ]
 
 # Ship MODULES (builder UI). Space-view laser/tractor reuse ship_laser_basic / tractor_beam.

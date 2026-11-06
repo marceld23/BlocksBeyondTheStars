@@ -283,7 +283,7 @@ public sealed partial class GameServer
             return (!isCreature, isCreature);
         }
 
-        KillBySentry(target, cell, home);
+        KillBySentry(target, cell, home.OwnerId);
         return (!isCreature, isCreature);
     }
 
@@ -374,8 +374,10 @@ public sealed partial class GameServer
     /// machines, and for a base scout the homestead bounty + <c>base:defended</c>. What is NOT mirrored is the
     /// generic "defeat" achievement: the player did not land the blow, and a turret farming that counter would
     /// cheapen it. The owner is looked up by id rather than passed in from the tick because
-    /// <see cref="OwnerIsHome"/> only proves they are joined; the session object is what the credit needs.</summary>
-    private void KillBySentry(CombatEntity target, Vector3i sentryCell, ServerBase home)
+    /// <see cref="OwnerIsHome"/> only proves they are joined; the session object is what the credit needs. #3295: the
+    /// friendly hunter robot finishes its targets through here too, its owner credited the same way (<paramref name="shooter"/>
+    /// only names it in the log).</summary>
+    private void KillBySentry(CombatEntity target, Vector3i sentryCell, string ownerId, string shooter = "Sentry")
     {
         bool isCreature = _creatures.Contains(target);
         _planetEnemies.Remove(target);
@@ -392,13 +394,13 @@ public sealed partial class GameServer
             OnCreatureKilled(target, null); // 2026-09: a sentry may bring down the shapeshifter too
             ForgetClone(target); // #2214: a clone the turret brought down leaves its tank's list at once
             BroadcastCreatures();
-            _log.Info($"Sentry at {sentryCell.X},{sentryCell.Y},{sentryCell.Z} brought down '{target.Name}' ({target.Id}).");
+            _log.Info($"{shooter} at {sentryCell.X},{sentryCell.Y},{sentryCell.Z} brought down '{target.Name}' ({target.Id}).");
             return;
         }
 
         BroadcastToWorld(new PlanetEnemyDefeated { Id = target.Id });
 
-        var owner = _sessions.Values.FirstOrDefault(s => s.Joined && s.State.PlayerId == home.OwnerId);
+        var owner = _sessions.Values.FirstOrDefault(s => s.Joined && s.State.PlayerId == ownerId);
         if (target.IsBandit)
         {
             OnBanditKilled(target, owner); // camps still clear — no story credit, bandits are people (#2599: the owner's deed)
@@ -421,7 +423,7 @@ public sealed partial class GameServer
             _enemySpawnTimer = System.Math.Min(_enemySpawnTimer, -EnemyKillSpawnGrace);
         }
 
-        _log.Info($"Sentry at {sentryCell.X},{sentryCell.Y},{sentryCell.Z} destroyed '{target.Name}' ({target.Id}).");
+        _log.Info($"{shooter} at {sentryCell.X},{sentryCell.Y},{sentryCell.Z} destroyed '{target.Name}' ({target.Id}).");
     }
 
     /// <summary>The block a sentry is.</summary>

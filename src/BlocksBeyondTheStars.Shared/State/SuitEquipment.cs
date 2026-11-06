@@ -108,6 +108,44 @@ public static class SuitEquipment
         return BaseSuitEnergy + bonus;
     }
 
+    /// <summary>#3292: the most a trader ever takes off — the whole flower set.</summary>
+    public const float MaxTraderDiscount = 0.25f;
+
+    /// <summary>The trader discount of the worn gear (#3292, 0..0.25): the worn pieces add up (the wreath and the bracelets),
+    /// capped. What a player trades with is the best of this and the discount of an ally near them — the server's rule.</summary>
+    public static float TraderDiscount(IEnumerable<ItemDefinition> items, Func<string, bool> worn)
+    {
+        float sum = 0f;
+        foreach (var item in items)
+        {
+            if (item.TraderDiscount > 0f && worn(item.Key))
+            {
+                sum += item.TraderDiscount;
+            }
+        }
+
+        return Math.Min(MaxTraderDiscount, sum);
+    }
+
+    /// <summary>#3291: whether the worn gear is the full robber disguise — a disguise piece for the head AND one for the
+    /// chest. The mask alone or the jacket alone fools nobody.</summary>
+    public static bool BanditDisguised(IEnumerable<ItemDefinition> items, Func<string, bool> worn)
+    {
+        bool head = false, chest = false;
+        foreach (var item in items)
+        {
+            if (!item.BanditDisguise || !worn(item.Key))
+            {
+                continue;
+            }
+
+            head |= item.EquipSlot == EquipSlots.Head;
+            chest |= item.EquipSlot == EquipSlots.Chest;
+        }
+
+        return head && chest;
+    }
+
     /// <summary>A rank for "the best piece for a slot" — what the one-time migration and a full backpack pick by.</summary>
     public static float Rank(ItemDefinition def)
         => def.OxygenBonus * 10f + def.SuitEnergyBonus * 10f + def.ThermalInsulation * 100f + def.CorrosionResistance * 100f

@@ -122,6 +122,12 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
+                if (BiomeLookEntry(content, localize, key) is { } biomeLook)
+                {
+                    entries.Add(biomeLook); // #3289: "Rune Stone (Desert)", beside the rune stone
+                    continue;
+                }
+
                 entries.Add(new TextureEntry
                 {
                     Key = key,
@@ -225,6 +231,31 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return TexturePreviewKind.Cube;
+        }
+
+        /// <summary>#3289: a biome look (<c>rune_stone_desert</c>) is another tile of its block — listed beside it, under its
+        /// name and the biome's: "Rune Stone (Desert)". Null for any other key.</summary>
+        private static TextureEntry BiomeLookEntry(GameContent content, Func<string, string> localize, string key)
+        {
+            if (content == null || !BiomePalettes.TryParseLookKey(content, key, out var block, out int palette))
+            {
+                return null;
+            }
+
+            string Localized(string locKey, string fallback)
+            {
+                string text = localize != null ? localize(locKey) : null;
+                return string.IsNullOrEmpty(text) || text == locKey ? fallback : text;
+            }
+
+            string paletteName = BiomePalettes.Names[palette];
+            return new TextureEntry
+            {
+                Key = key,
+                Label = $"{Localized(block.NameKey, block.Key)} ({Localized("ui.tex.biome." + paletteName, paletteName)})",
+                Group = string.IsNullOrEmpty(block.Category) ? "building" : block.Category,
+                Preview = PreviewOf(block),
+            };
         }
     }
 }

@@ -104,7 +104,7 @@ namespace BlocksBeyondTheStars.Client
             if (_category != "market")
             {
                 entries = entries
-                    .OrderBy(e => ReachTier(e.r.RequiredBlueprint, e.r.Inputs, stationInReach: !IsFactoryRecipeAway(e.r)))
+                    .OrderBy(e => ReachTier(e.r.RequiredBlueprint, CraftGate.Cost(e.r, Gate), stationInReach: !IsFactoryRecipeAway(e.r)))
                     .ThenBy(e => RecipeTitle(e.r, e.outItem), NameOrder)
                     .ThenBy(e => e.r.Station == CraftingStation.Factory ? 1 : 0)
                     .ToList();
@@ -467,7 +467,7 @@ namespace BlocksBeyondTheStars.Client
 
             UiKit.AddText(_detail, 8, y, 620, 28, L("ui.craft.needs"), 22, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
             y += 34f;
-            foreach (var inp in r.Inputs)
+            foreach (var inp in CraftGate.Cost(r, Gate)) // #3292: a market trade at the flower discount, as the server takes it
             {
                 y = IngredientRow(inp, y, 20);
             }

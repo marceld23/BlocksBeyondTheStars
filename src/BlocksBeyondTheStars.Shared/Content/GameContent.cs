@@ -613,12 +613,16 @@ public sealed partial class GameContent
     }
 
     /// <summary>
-    /// Curated building/terrain materials that the always-available Dye/Glow action may recolour. Machines,
-    /// doors, ice/fluids, flora, ores and special blocks are deliberately excluded (they carry their own
-    /// optics/logic). A block may also opt in explicitly via <c>tintable</c> in JSON; this only ADDS to the
-    /// curated defaults — glass and the light fixtures opt in that way (#1126: coloured glass + tinted
-    /// lamps), which makes them dyeable WITHOUT joining the shapeable set below (shaped glass would need a
-    /// transparent shaped mesh). Applied here so client and server derive the identical set.
+    /// The plain cube materials that the always-available Dye/Glow action may recolour and the Shape action may
+    /// re-form (#3287: EVERY cube material a player can hold — the wooden planks of #3181 had been forgotten).
+    /// Deliberately excluded, because they carry their own optics or logic: fluids/gas/fire/lava/tar/oil, light
+    /// blocks and their switched-off twins, glowing crystal, function blocks (machines, doors, phase block,
+    /// crystal conduit, engine nozzle, bridge deck, lift platform), picture/prop blocks (crates, rug, flower pot,
+    /// gift box, gaming set, broken machine, geyser vent, ladder, stairs), foliage, ores (never placeable) and
+    /// unobtainable blocks. <c>ShapeableCubeTests</c> pins that no other cube material is left out. A block may
+    /// also opt in to dye explicitly via <c>tintable</c> in JSON; this only ADDS to the defaults — glass and the
+    /// light fixtures opt in that way (#1126: coloured glass + tinted lamps). Glass joins the shapeable set
+    /// through <see cref="ShapeableOnlyDefaults"/>. Applied here so client and server derive the identical set.
     /// </summary>
     private static readonly HashSet<string> TintableDefaults = new(StringComparer.Ordinal)
     {
@@ -628,6 +632,23 @@ public sealed partial class GameContent
         "iron_wall", "steel_wall", "bronze_block", "brass_block", "steel_floor", "metal_panel", "concrete",
         "cargo_floor", "medbay_panel", "lab_panel", "engine_panel",
         "ancient_brick", "rune_stone", // #1834 ruin masonry: a mined pillar keeps its form, a mined rune its glow
+        // #3287: every other cube material — sawn wood (the planks keep their board look as stairs), the remaining
+        // logs and giant-plant stems, the metal storage blocks, wall and scrap blocks, and the rest of the terrain.
+        "wood_planks", "wood_planks_light", "wood_planks_mahogany", "giant_log", "tainted_log", "fifi_stem", "paul_stem",
+        "iron_block", "copper_block", "gold_block", "silver_block", "aluminium_block", "tin_block", "nickel_block",
+        "cobalt_block", "platinum_block", "lead_block", "zinc_block", "tungsten_block", "titanium_block",
+        "insulated_wall", "rusted_panel", "scrap_metal", "scrap_pile",
+        "ice", "peat", "coral_rock", "obsidian", "black_sand", "tainted_soil", "tainted_subsoil", "tainted_stone",
+    };
+
+    /// <summary>
+    /// Cube materials that may be re-formed although they are not in <see cref="TintableDefaults"/> (their dye
+    /// opt-in comes from JSON): the two glass panes (#3287) — the client draws a shaped see-through block in the
+    /// transparent pass, so a glass stair stays glass.
+    /// </summary>
+    private static readonly HashSet<string> ShapeableOnlyDefaults = new(StringComparer.Ordinal)
+    {
+        "glass", "glass_clear",
     };
 
     private void MarkTintableDefaults()
@@ -642,14 +663,14 @@ public sealed partial class GameContent
     }
 
     /// <summary>
-    /// Marks which blocks the always-available "Shape" action may re-form into spheres/ramps/pyramids/…
-    /// We reuse the curated tintable building-material set: exactly the plain solids that look right as a
-    /// custom hull (machines/doors/glass/flora/fluids/light blocks stay excluded). Applied here so client
-    /// and server derive the identical set.
+    /// Marks which blocks the always-available "Shape" action may re-form into spheres/ramps/pyramids/…:
+    /// every cube material of <see cref="TintableDefaults"/> plus the glass panes of
+    /// <see cref="ShapeableOnlyDefaults"/> (machines/doors/flora/fluids/light blocks stay excluded). Applied
+    /// here so client and server derive the identical set.
     /// </summary>
     private void MarkShapeableDefaults()
     {
-        foreach (var key in TintableDefaults)
+        foreach (var key in TintableDefaults.Concat(ShapeableOnlyDefaults))
         {
             if (_blocks.TryGetValue(key, out var block))
             {

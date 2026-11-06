@@ -54,4 +54,21 @@ public sealed class TamedCreature
     /// <summary>#3035: the companion wears a name tag — its name floats above it as a hologram. Set when a name tag was used on
     /// it; it stays for good.</summary>
     public bool NameTag { get; set; }
+
+    /// <summary>The <see cref="Kind"/> of the friendly hunter robot (#3295), built from the finale's robot core.</summary>
+    public const string RobotKind = "robot";
+
+    /// <summary>#3295: what kind of companion this is — empty for a tamed animal (every record saved before this shipped),
+    /// <see cref="RobotKind"/> for the hunter robot: its bond is fixed, it does not eat, it cannot be scanned or sampled, it
+    /// guards its owner, and releasing it powers it down back into its item.</summary>
+    public string Kind { get; set; } = string.Empty;
+
+    /// <summary>#3295: the companion follows its owner to every world instead of living on <see cref="HomeBodyId"/> (the
+    /// robot). False for every animal.</summary>
+    public bool Roams { get; set; }
+
+    /// <summary>#3295: the robot was knocked out in a fight — it is gone from the world and its parts wait for their
+    /// owner-locked crate (placed as soon as the owner stands on open ground; never lost). The record goes once the crate
+    /// is out.</summary>
+    public bool KnockedOut { get; set; }
 }

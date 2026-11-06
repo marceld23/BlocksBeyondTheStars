@@ -125,7 +125,8 @@ block keeps its picture where it belongs and names tiles for its other faces:
   default and a top-view picture (the workbench's tools, the hydro tray's seedlings) stays on top. `part` is `body` for
   a cube; `rect` only applies to forms (a cube face always shows its whole tile).
 - `tile` names a block key **or a bundled texture that is no block** (`client/Assets/Resources/textures/face_*.bytes` —
-  casings, lids, sides). `BlockFaceTextures.TextureOnlyKeys` lists those keys in ordinal order and `FaceTileBand`
+  casings, lids, sides). `BlockFaceTextures.TextureOnlyKeys` lists those keys — plus the biome looks of #3289
+  (`rune_stone_desert` …, see ART_BIBLE.md) — in ordinal order and `FaceTileBand`
   (Client.Core) deals them one slot each into the atlas's **extras band** (400..511); `BlockTextureAtlas` paints them
   and `ShapeFaceTextures` maps faces onto the same slots, both derived from the content alone. A key the band has no
   room for is logged as an error (and fails `AtlasSlotAllocatorTests`), never silently dropped. The derived band

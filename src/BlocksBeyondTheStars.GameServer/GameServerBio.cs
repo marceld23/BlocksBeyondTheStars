@@ -641,6 +641,11 @@ public sealed partial class GameServer
         double bestSq = double.MaxValue;
         foreach (var c in _creatures)
         {
+            if (IsRobotEntity(c))
+            {
+                continue; // #3295: the hunter robot is not alive — there is nothing to sample
+            }
+
             float range = c.IsGiant ? SamplerGiantRange : SamplerRange;
             double d = WrapDistSq(at, c.Position);
             if (d <= range * range && d < bestSq)

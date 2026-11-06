@@ -162,6 +162,10 @@ public sealed partial class GameServer
                 happened = DeployVehicle(session, item.Key); // unfolds a hover speeder / launches a boat ahead (consumes the item, #1215)
                 cooldown = SpeederDeployCooldown;
                 break;
+            case HunterRobotItem: // #3295: the friendly hunter robot switches on beside the player (consumes the item)
+                happened = DeployRobot(session);
+                cooldown = SpeederDeployCooldown;
+                break;
             case RailRules.LinkerItemKey: // #2113: the linker couples two pylons (first pick, second pick)
                 if (!UseRailLinker(session, target))
                 {
@@ -329,7 +333,8 @@ public sealed partial class GameServer
         var b = _world.GetBlock(p);
         if (b.IsAir || IsShipBlock(p) || IsSettlementBlock(p) || IsStationBlock(p)
             || IsBaseProtected(p, session.State.PlayerId, session.State.IsAdmin)
-            || BasePadBusy(p)) // #3069: a landing pad that holds a ship
+            || BasePadBusy(p) // #3069: a landing pad that holds a ship
+            || IsLockedCrateAt(p)) // #3294: an owner-locked crate — its spill would hand the owner's items to anyone
         {
             return;
         }

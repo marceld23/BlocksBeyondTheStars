@@ -599,6 +599,19 @@ namespace BlocksBeyondTheStars.Client
                 return loc.Get("srv.loot.village_owned").Replace("{name}", nearest.OwnedBy);
             }
 
+            // #3294: someone else's owner-locked crate (a reward crate, a robot's parts) says whose it is; the owner's own one
+            // offers G only — nothing goes in until it is empty.
+            string lockedFor = InteractReach.LockedFor(nearest, Game.LocalPlayerId);
+            if (lockedFor.Length > 0)
+            {
+                return loc.Get("srv.loot.owner_only").Replace("{name}", lockedFor);
+            }
+
+            if (InteractReach.IsOwnerLocked(nearest))
+            {
+                return $"{ExpandKeyTokens(loc, loc.Get("ui.hud.loot"))} ({nearest.ItemCount})  ·  {loc.Get("ui.hud.reward_crate")}";
+            }
+
             // A storage crate (Task 5 Stage 3b) shows the take/store keys; salvage capsules just say "loot".
             // A dedicated crate (#1032) announces its filter, so "H did nothing" reads as "wrong crate".
             if (nearest.Kind == "crate")

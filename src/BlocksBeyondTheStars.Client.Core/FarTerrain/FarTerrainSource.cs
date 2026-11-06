@@ -88,18 +88,8 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
         /// <summary>Builds the source for a world, or null for a void world / an unknown planet type.</summary>
         public static FarTerrainSource? Create(GameContent content, long worldSeed, FarTerrainWorldInfo info)
         {
-            if (info.Void || content.GetPlanet(info.PlanetType) is not { } planet || planet.Void)
-            {
-                return null;
-            }
-
-            var generator = new WorldGenerator(worldSeed, content);
-            generator.SetContinentsEnabled(info.ContinentsEnabled);
-            generator.SetLavaCoreVolcanoes(info.LavaCoreVolcanoes);
-            generator.SetTerrainGeneration(info.TerrainGeneration);
-            generator.SetWorldMode(info.Circumference > 0 ? info.Circumference : WorldConstants.Circumference,
-                info.Cratered, UnpackPads(info.Pads), string.IsNullOrEmpty(info.LocationId) ? null : info.LocationId);
-            return new FarTerrainSource(content, generator, planet, info);
+            var generator = FarWorldGenerator.Create(content, worldSeed, info, out var planet); // #3289: shared with the biome looks
+            return generator == null ? null : new FarTerrainSource(content, generator, planet, info);
         }
 
         internal static List<LandingPadFlatten> UnpackPads(int[]? packed)

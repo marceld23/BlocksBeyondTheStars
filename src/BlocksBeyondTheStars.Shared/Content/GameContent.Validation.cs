@@ -940,6 +940,7 @@ public sealed partial class GameContent
         }
 
         ValidateEnemies(problems); // #2971: data/enemies.json
+        ValidateBiomePalettes(problems); // #3289: data/blocks.json biomePalette / biomeLooks
 
         if (problems.Count > 0)
         {

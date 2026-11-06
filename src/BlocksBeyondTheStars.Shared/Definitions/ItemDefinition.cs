@@ -189,6 +189,16 @@ public sealed class ItemDefinition
     /// only the best worn piece counts — tiers, no stacking.</summary>
     public float SuitEnergyBonus { get; set; }
 
+    /// <summary>Trader discount 0..1 (#3292, the flower set): the share of a market trade's price (its inputs) the worn
+    /// piece takes off. The worn pieces add up under <see cref="State.SuitEquipment.MaxTraderDiscount"/>; allies near the
+    /// wearer trade with it too (the best one counts, never several). Rounded per trade by
+    /// <see cref="MarketPricing.Discounted"/>.</summary>
+    public float TraderDiscount { get; set; }
+
+    /// <summary>#3291, the robber disguise: a piece robbers take for one of their own. Only the full disguise counts — a
+    /// flagged head piece AND a flagged chest piece worn together (<see cref="State.SuitEquipment.BanditDisguised"/>).</summary>
+    public bool BanditDisguise { get; set; }
+
     /// <summary>What this material <i>is</i>, wherever it was mined (#2205): trait name → level 1..3, e.g.
     /// <c>{ "conductive": 3, "heavy": 1 }</c> (<see cref="Bio.MatTrait"/>). The bio lab reads it for stabilisers and for
     /// changing tools and gear; a deposit's origin only moves these levels by one. Null = no lab traits.</summary>

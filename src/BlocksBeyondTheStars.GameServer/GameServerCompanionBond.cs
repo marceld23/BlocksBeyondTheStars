@@ -113,6 +113,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (IsRobotCompanion(tc))
+        {
+            Reject(session, "companion", "@srv.robot.no_food:" + tc.Name); // #3295: a robot does not eat — its bond is fixed
+            return;
+        }
+
         ApplyBondDecay(tc); // count the time apart BEFORE the meal, or a feed would paper over it silently
 
         // #1295: the animal has to be here. Checked first — "too far" is the reason a player can act on, and
@@ -178,7 +184,7 @@ public sealed partial class GameServer
     private static void ApplyBondDecay(TamedCreature tc)
     {
         long since = tc.LastFedUtc > 0 ? tc.LastFedUtc : tc.TamedAtUtc;
-        if (since <= 0 || tc.Bond <= TamedCreature.BondFloor)
+        if (since <= 0 || tc.Bond <= TamedCreature.BondFloor || IsRobotCompanion(tc)) // #3295: a robot's bond never fades
         {
             return;
         }

@@ -5119,6 +5119,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (LockedCrateMineRefusal(session, pos) is { Length: > 0 } lockedCrate)
+        {
+            Reject(session, "mine", lockedCrate); // #3294: an owner-locked crate stays until its owner has emptied it
+            return;
+        }
+
         var def = _world.Definition(current);
         if (def is null || !def.Mineable)
         {
@@ -5591,7 +5597,8 @@ public sealed partial class GameServer
         }
 
         var pool = new MaterialPool(_content, session.State, _ship);
-        var scaledInputs = recipe.Inputs.Select(i => new ItemAmount(i.Item, i.Count * count) { Group = i.Group }).ToList(); // #2958: keep the group
+        // #2958: keep the group. #3292: a market trade costs its inputs at the trader discount (GameServerGearPerks.cs).
+        var scaledInputs = PricedInputs(session, recipe).Select(i => new ItemAmount(i.Item, i.Count * count) { Group = i.Group }).ToList();
         if (!pool.Has(scaledInputs))
         {
             // #2585: name what is missing ("Titanium Ore (0/2)") — "Missing materials." left the player guessing.

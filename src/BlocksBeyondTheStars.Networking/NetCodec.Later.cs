@@ -34,5 +34,9 @@ public static partial class NetCodec
         // #3245 distant fauna: the species of the world just entered, once per world entry. No protocol bump — an older
         // client drops the unknown tag and simply hears no distant calls.
         Register(318, typeof(FaunaRoster));                  // Server -> Client
+
+        // #3292 the flower set's trader discount, pushed when it changes. No protocol bump — an older client drops the tag
+        // and shows the full price.
+        Register(319, typeof(TraderDiscountInfo));           // Server -> Client
     }
 }

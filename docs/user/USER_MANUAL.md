@@ -65,7 +65,7 @@ Last updated: 2026-10-04.
   that is currently online can't join twice. So pick your name once and keep it; it also keys your
   inventory/progress on each server.
 - **World options** ("Weltoptionen") at world creation: pick a preset (**Friedlich / Standard /
-  Feindselig**) or tune sliders — life & threats (creatures, planet enemies, enemy ships, UFOs),
+  Feindselig**) or tune sliders — life & threats (creatures, planet enemies, enemy ships, Guardian UFOs),
   survival (oxygen, hunger, hazards, death penalty), generated world (flora, ore, settlements,
   wrecks, vaults, stations, wormholes, exotic worlds, universe size), plus the page **"Planet types & frequency…"**
   with a frequency slider per planet type (Off · Very rare · Rare · Normal · Frequent). Each row shows its **share of
@@ -496,7 +496,8 @@ separate unlock; admins can still disable it through server world rules.
   has a **Go to blueprint** button. An item's detail (Crafting, backpack, cargo hold) shows **Needed for**: what you can
   craft with it, the blueprints whose research costs it and the modules and ships built from it — each a button to
   that page.
-- **Codex → Enemies** (#2971) — every kind of enemy, from space drones, UFOs, cruisers, raider ships and hunter shuttles to the scan
+- **Codex → Enemies** (#2971) — every kind of enemy, from space drones, Guardian UFOs (saucers of the old exploration
+  network the Guardian core turned into hunters — not aliens, #3288), cruisers, raider ships and hunter shuttles to the scan
   drones, Guardian robots, hunters, tank spiders and robbers on the ground: its **health**, **damage per second** (the
   tank spider's one burst instead, #3096; and the stronger kind's), its **loot**, what it is and a tip how to beat it — every enemy from the start (#3031), each beside a
   **picture** of it (#3032, drawn by the game from the real model). One you have **met** — it came within a weapon's
@@ -1241,8 +1242,13 @@ players.
   ship's **refinery module** does it; a forge built into the ship is only decoration). Six plates (plus
   cable, energy cells and steel) and the cheap **Titanium Drill** blueprint, researched at the cockpit, get you the
   drill that opens tier 2. VEGA's tip at the first tier gate names this route.
-- Some powered drills (titanium drill, mining beam) **draw suit energy with every swing**; with an empty
-  suit the swing is refused. The basic and diamond drills need no energy, so you can always keep mining.
+- Some powered drills (titanium drill, mining beam, guardian laser drill) **draw suit energy with every swing**; with
+  an empty suit the swing is refused. The basic and diamond drills need no energy, so you can always keep mining.
+- **Guardian laser drill** (tier 3; blueprint after the mining beam, built from guardian plates): instead of drilling
+  it shoots a thin **red laser** that takes blocks apart — one block at a time, very precisely, a little faster than
+  the diamond drill. (The mining beam clears a 3×3×3 cube; the laser never takes more than the block you aim at.)
+- **Guardian sword** (tier 3 weapon; blueprint after the plasma sword, made from the vibro knife and guardian plates):
+  a sword with a **red hologram blade** that hits as hard as the plasma sword.
 - **A full backpack does not stop you.** When neither your inventory nor (while aboard) the cargo hold has
   room, the block still breaks and the drop lands at your feet as a small **block packet**. Packets stack —
   everything you dig nearby joins the same bundle — and once you have space again, walking near one pours it
@@ -1332,6 +1338,16 @@ players.
 - **The suit gear at a glance:**
   - **Titanium helmet / chest plate / leg plates** (tier 2, workshop; blueprints after the helmet, the chest
     armour and the leg armour): more armour and warmth than the iron set.
+  - **Guardian helmet / chest plate / leg plates** (workshop; the *Guardian armour* blueprint after the titanium
+    chest plate): built from **guardian plates** — robot metal that scan drones, guardian robots, hunters and tank
+    spiders drop when you defeat them (traders also sell a few now and then). As strong as titanium, a little less
+    warm, and the chest plate keeps out a little poisonous air. Dark plates with small red lights.
+  - **Robber disguise** — the **robber mask** (head, with two breathing filters) and the black **robber jacket**
+    (chest), sewn by hand from **robber cloth** that robbers drop. They protect you not at all, but wearing **both**,
+    a robber who walks up takes you for one of his own and walks on (see §5 → Bandits).
+  - **Flower wreath** (head) and **flower bracelets** (chest, instead of a chest plate), woven by hand from **blue
+    blossoms** — every bellflower you pick gives one. Traders give you **10 %** off for the wreath, **15 %** for the
+    bracelets, **25 %** for both — and your allies near you get it too (see §5 → Vendors / market).
   - **Spring boots** (feet; blueprint after the boots): jump about 60 % higher and land 50 % softer — the coils
     under the boots stretch when you jump and squash when you land.
   - **Glider** (back, instead of the jetpack; blueprint after the jetpack): while falling, hold Jump — the
@@ -2671,6 +2687,13 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - Monuments are **freely mineable** like ruins (the masonry, `Ancient Brick` and `Rune Stone`, is
   yours to build with), and what you clear stays cleared. Roughly one in three hides a small
   **relic cache** nearby.
+- **Runes wear the colours of their land** (Screelit's idea): a `Rune Stone` shows its music notes —
+  and an `Ancient Brick` its stone and moss — in the colours of the biome it stands in: green on a
+  meadow, gold in the desert, icy blue in the frost, red-hot on volcanic ground, teal in a marsh,
+  silver on bare rock, violet among crystals and acid-green on poisoned ground. A monument's runes
+  glow in the same colour. Carry one somewhere else and it takes that place's colours; in your ship,
+  on a station, in your hand and in the inventory it shows its own blue-green notes. A **dye** still
+  recolours it, and the **Glow** action makes it shine without painting over the notes.
 - **Fossils** (worlds created from terrain generation 21 on): some relics are not built but *died* —
   a **sauropod skeleton** lying on its side, a **giant skull** you can walk into, a **serpent's spine**
   winding over the ground. They are made of **bone** and carry no runes: **scan the bones where they
@@ -2776,7 +2799,12 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   **[1] Hand it over** — the robber keeps its word, leaves, and won't bother you again for a long
   while — or **[2] Refuse** (attacking or just ignoring it counts as refusing) and it fights.
   Players with empty pockets are simply left alone. Kill a bandit and its loot is yours — including
-  anything you paid it earlier.
+  anything you paid it earlier. Robbers also drop **robber cloth**.
+- **The robber disguise:** wear the **robber mask AND the robber jacket** (sewn from robber cloth, see §5 → Inventory)
+  and a lone robber who walks up looks you over, takes you for one of his own ("Oh — you're one of us!") and walks
+  on without asking for anything; after that you are left in peace for as long as if you had paid. The mask alone or
+  the jacket alone fools nobody. Camp guards still attack (they guard their camp, they don't rob), raider ships in
+  space are not fooled, and a robber you attack fights back as always.
 - **Bandit camps** are small raider outposts (huts, palisade, campfire) whose guards attack on
   sight but never chase far from home. Their **stash** holds better loot than ruins. The camp is
   **freely mineable**; a razed camp stays razed, and once all guards are down the camp is cleared
@@ -3096,7 +3124,14 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   (iron ↔ titanium, iron → lead) — the vendors' themed goods are not offered there; its cards read *Can trade* and the button
   *Trade*. Vendors have **themes**: miners sell iron,
   copper and lead ore for silicate, traders buy crystal, gold and silver, researchers buy refined uranium and
-  sell data fragments and circuit boards, settlers trade food.
+  sell data fragments and circuit boards, settlers trade food. No two trades make goods out of nothing: copper and
+  silicate swap **4 → 3** either way, and settlers buy meat back at **4 → 1** iron ore.
+- **Flower discount:** wearing the **flower wreath** (10 %) and/or the **flower bracelets** (15 %; both together 25 %)
+  makes every trade cheaper — you give fewer of the goods (rounded per trade, never less than one, so a one-piece
+  trade stays one piece). **Your allies** (alliance or crew) get the discount too while they stand within **32 m**
+  of you on the same world; only the best discount counts, they never add up. The trade screen shows it: a green
+  badge (*Flower discount: 25 % off*, or *… from* and the ally's name when their flowers give it) and each changed
+  price as **4→3×**.
 
 ### The Journal: your stories and the objective display
 The Tab menu's **Journal** (it grew out of the old Story tab) keeps every story you follow — in the game they are
@@ -3273,6 +3308,16 @@ called **stories**:
   half as often), space stays hostile only where it is dangerous by nature — **pirate havens** and the
   opt-in *Frontier danger* tier — and raiders keep their havens, so the station **raider bounty** can still
   be earned. Worlds with planet enemies *Off* (the family presets) stay peaceful as before.
+- **A reward for the end** (#3294, an idea of Justus): when the Guardian core is shut down, **every player of the
+  world** — also those who were offline — gets **one crate with a robot core** in it. It appears on the ground two or
+  three blocks in front of you as soon as you stand **on foot on a planet** (aboard your ship it waits until you step
+  out; offline players get it on their next join, where they stand). It never lands inside a ship, a settlement, a
+  station, somebody else's base, a landing pad or the core's shaft — if there is no free spot, VEGA says so once; step
+  onto open ground, or after a minute the core simply goes into your backpack (once there is room — it is never lost).
+  Players who first join after the win get no crate. The crate is **locked to you**: only you can take from it, nobody
+  can put anything in or break it (an admin can, and it is logged) and the terrain blaster leaves it standing. Once you
+  have emptied it, it is a normal storage crate that stays where it is. Build the core into a **hunter robot** — see
+  *The friendly hunter robot* under **Taming creatures**.
 
 ### Festivals (the real-world calendar)
 - **What happens:** at certain times of the year the game plays with a slightly different mood — a cosy-spooky
@@ -3838,6 +3883,24 @@ called **stories**:
   closed yard of a base that uses energy fences no wild fliers spawn, and a wild flier found inside one — penned in when
   you closed the ring — flies off while nobody is looking. A closed gate counts as part of the ring; one a conduit holds
   open is a gap. A base without any energy fence keeps its yards free for fliers, as before.
+- **The friendly hunter robot** (#3295, an idea of Justus): the **robot core** from the finale's reward crate plus
+  **8 titanium ore** make a **Hunter Robot** at the **workshop**. Hold it and use it with the **right mouse button** on
+  open ground and it switches on beside you — the Guardian's hunter, but good: where the enemy's lights are red, yours
+  are **light blue**, and it has round tool hands instead of blades. You can have **one** robot; it cannot be switched on
+  in space, on a station or inside a ship (the item stays in your backpack). It is a companion like a tamed animal
+  (nameplate, rename and name tag, fetching, keeping robbers away), with a few differences:
+  - It **follows you to every world**, not only the one it was built on (never onto a space station).
+  - Its **bond is always full** — it never needs feeding (the Feed button stays grey) — and it cannot be scanned or
+    bio-sampled: it is a machine, not an animal.
+  - It **helps you fight**, gently: it shoots at hostile machines and wild beasts, and at robbers once they fight — never
+    at players, villagers, traders or other companions, and it waits while a robber is still talking. On a Creative or
+    Peaceful world it never shoots.
+  - In a fight it started it can be **knocked out**: the enemy it is shooting at hurts it while close. After ten seconds
+    without a fight it is whole again. At zero it breaks apart in sparks — but nothing is lost: a crate that only you can
+    open appears where it fell (or in front of you, like the reward crate) with the **robot core and the titanium ore**;
+    one craft at the workshop builds it again.
+  - **Switch off** in the Creatures tab (where animals have *Release*) folds it back into the item — make sure there is a
+    free slot in your backpack.
 
 ### The bio lab (samples, preparations, changed gear, breeding)
 Every plant, every animal and every ore vein carries something of its own — and it depends on **where and how it
@@ -4067,6 +4130,11 @@ look up: what a mix does follows from what goes in, and the same things always g
   different materials. Every shape still places, mines and
   stacks like a block (form and dye colour combine freely). Shaped forms are **player-craft only**: world-gen,
   settlements, stations and ships stay plain cubes.
+- **Every cube material takes a form** (#3287): stone and soil, every log, the **wooden planks** (a plank staircase
+  looks like sawn boards — a log staircase keeps its bark), the **metal blocks** (iron, copper, gold, lead,
+  aluminium, …), concrete and hull walls, scrap, ice, obsidian — and **glass**, which stays see-through as a stair or a
+  sphere. Only blocks with a form or job of their own keep it: fluids, lamps, crystals, machines, doors, crates and
+  other props, leaves.
 - **Sitting:** press **E** on any **chair**- or **bench**-shaped cell to sit down — the camera settles to seat height
   and other players see you sitting. **One seat, one sitter:** a seat somebody already sits on — another player or a
   villager/crew member — can't be taken (*"Someone is already sitting there."*), and people won't sit down on your

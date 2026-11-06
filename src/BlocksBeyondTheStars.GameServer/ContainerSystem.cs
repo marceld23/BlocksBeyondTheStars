@@ -26,10 +26,10 @@ internal interface IContainerHost : IServerHost
     /// <c>_containers</c>). Follows the world cursor, so read it at use time.</summary>
     List<StoredContainer> ContainerStore { get; }
 
-    // The owned stores of lodge residents and villages (GameServerStructureLoot.cs)
+    // The owned stores of lodge residents and villages (GameServerStructureLoot.cs) — #3294: and the owner-locked crates
     SettlementInstance? VillageOwningCache(StoredContainer container);
 
-    string OwnedContainerRefusal(StoredContainer container);
+    string OwnedContainerRefusal(StoredContainer container, string playerId, bool putIn);
 
     // What a looted find feeds (GameServerAchievements.cs, GameServerDerelictCrates.cs, GameServerLore.cs, GameServerStory.cs)
     void OnAchievementLoot(PlayerSession session);
@@ -118,7 +118,7 @@ internal sealed class ContainerSystem
             return;
         }
 
-        if (_host.OwnedContainerRefusal(container) is { Length: > 0 } notYours)
+        if (_host.OwnedContainerRefusal(container, playerId, putIn: false) is { Length: > 0 } notYours)
         {
             _host.Reject(session, "loot", notYours); // #2640: a lodge resident's store — look, don't take (#2726: nor a village's cache)
             return;
@@ -177,6 +177,7 @@ internal sealed class ContainerSystem
         }
 
         container.Items = leftover;
+        ReleaseOwnerWhenEmpty(container); // #3294: an emptied reward crate is a normal crate from now on
         if (container.Items.Count == 0 && container.Kind != "crate")
         {
             _host.ContainerStore.Remove(container);
@@ -250,7 +251,7 @@ internal sealed class ContainerSystem
             return;
         }
 
-        if (_host.OwnedContainerRefusal(container) is { Length: > 0 } notYours)
+        if (_host.OwnedContainerRefusal(container, playerId, putIn: true) is { Length: > 0 } notYours)
         {
             _host.Reject(session, "stash", notYours); // #2640: nothing goes into a lodge resident's store but their own work
             return;
@@ -336,9 +337,9 @@ internal sealed class ContainerSystem
             return;
         }
 
-        if (_host.OwnedContainerRefusal(container) is { Length: > 0 } notYours)
+        if (_host.OwnedContainerRefusal(container, session.State.PlayerId, putIn: false) is { Length: > 0 } notYours)
         {
-            _host.Reject(session, "stash", notYours); // #2640: a lodge resident's store is sorted by its owner
+            _host.Reject(session, "stash", notYours); // #2640: a lodge resident's store is sorted by its owner (#3294: a locked crate too)
             return;
         }
 
@@ -419,6 +420,8 @@ internal sealed class ContainerSystem
         ItemCount = c.Items.Count,
         Filter = c.Filter.ToArray(),
         OwnedBy = _host.VillageOwningCache(c)?.Name ?? string.Empty, // #2726: the HUD names the village instead of offering G
+        OwnerId = IsOwnerLocked(c) ? c.Owner : string.Empty, // #3294: only while locked — an emptied crate is anybody's
+        OwnerName = IsOwnerLocked(c) ? c.OwnerName : string.Empty,
     };
 
     /// <summary>The containers a client renders + loots. Ground drop packets share this store (and its free
@@ -488,7 +491,7 @@ internal sealed class ContainerSystem
             return false;
         }
 
-        if (_host.OwnedContainerRefusal(container) is { Length: > 0 } notYours)
+        if (_host.OwnedContainerRefusal(container, playerId, toContainer) is { Length: > 0 } notYours)
         {
             _host.Reject(session, toContainer ? "stash" : "loot", notYours); // #2640: look, don't take (or put)
             return false;
@@ -581,10 +584,28 @@ internal sealed class ContainerSystem
         }
 
         container.Items = merged.Select(kv => new ItemStack(kv.Key, kv.Value)).ToList();
+        ReleaseOwnerWhenEmpty(container); // #3294
         _repo.SaveContainer(container);
         _host.SendInventory(session);
         BroadcastContainers(); // count to the world + contents to every open crate screen
         return true;
+    }
+
+    /// <summary>#3294: an owner-locked crate — the finale's reward crate, a knocked-out robot's parts: an owner is set AND the
+    /// crate still holds something. Only the owner takes from it; nobody puts anything in; only an admin mines it.</summary>
+    internal static bool IsOwnerLocked(StoredContainer c)
+        => !string.IsNullOrEmpty(c.Owner) && c.Items.Any(s => !s.IsEmpty);
+
+    /// <summary>#3294: once the owner has taken everything the lock comes off — the crate stays where it is as a normal crate
+    /// (anyone may store in it again, or mine it). Clearing the owner here is what stops a stranger's deposit from locking
+    /// the crate to its old owner again.</summary>
+    internal static void ReleaseOwnerWhenEmpty(StoredContainer c)
+    {
+        if (!string.IsNullOrEmpty(c.Owner) && !c.Items.Any(s => !s.IsEmpty))
+        {
+            c.Owner = string.Empty;
+            c.OwnerName = string.Empty;
+        }
     }
 
     private bool WithinLootReach(PlayerSession session, StoredContainer container)

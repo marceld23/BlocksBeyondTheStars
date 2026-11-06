@@ -97,7 +97,8 @@ public sealed partial class GameServer : IContainerHost
 
     SettlementInstance? IContainerHost.VillageOwningCache(StoredContainer container) => VillageOwningCache(container);
 
-    string IContainerHost.OwnedContainerRefusal(StoredContainer container) => OwnedContainerRefusal(container);
+    string IContainerHost.OwnedContainerRefusal(StoredContainer container, string playerId, bool putIn)
+        => OwnedContainerRefusal(container, playerId, putIn);
 
     void IContainerHost.OnAchievementLoot(PlayerSession session) => OnAchievementLoot(session);
 

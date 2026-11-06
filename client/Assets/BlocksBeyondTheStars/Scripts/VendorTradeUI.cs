@@ -41,6 +41,7 @@ namespace BlocksBeyondTheStars.Client
         private Transform _rows;   // recipe cards live here; cleared + rebuilt
         private Text _title;
         private Text _subtitle;    // #2629: what the bound vendor deals in (the generic barter line at the ship's console)
+        private Text _discount;    // #3292: the flower discount badge ("Flower discount: 25 % off"), empty without one
         private bool _built, _open, _subscribed;
         private int _openedFrame;
 
@@ -97,6 +98,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network.InventoryUpdated += OnInventory;
                 Game.Network.WorldResetReceived += OnWorldReset;
+                Game.Network.TraderDiscountReceived += OnDiscount;
                 _subscribed = true;
             }
 
@@ -131,6 +133,32 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private void OnWorldReset(WorldReset m) => Close(); // travelling away from the vendor closes the screen
+
+        /// <summary>#3292: the flower discount changed (gear put on or off, an ally walked up or away) — reprice the rows.</summary>
+        private void OnDiscount(TraderDiscountInfo m)
+        {
+            if (_open)
+            {
+                Rebuild();
+            }
+        }
+
+        /// <summary>#3292: the trader discount the server last pushed (0..1) — the rows are priced with it.</summary>
+        private float Discount => Game?.Network != null ? Game.Network.TraderDiscount : 0f;
+
+        /// <summary>#3292: the badge line — "Flower discount: 25 % off", naming the ally whose flowers give it.</summary>
+        private string DiscountBadge()
+        {
+            var net = Game?.Network;
+            if (net == null || net.TraderDiscountPercent <= 0)
+            {
+                return string.Empty;
+            }
+
+            string from = net.TraderDiscountFrom;
+            string line = from.Length > 0 ? L("ui.vendor.discount_from").Replace("{name}", from) : L("ui.vendor.discount");
+            return line.Replace("{0}", net.TraderDiscountPercent.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
 
         private string L(string key) => Game?.Localizer?.Get(key) ?? key;
 
@@ -198,6 +226,7 @@ namespace BlocksBeyondTheStars.Client
             _subtitle = UiKit.AddText(_root, px + 40, py + 78, PanelW - 80, 26, L("ui.vendor.subtitle"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
             UiKit.AddText(_root, px + 40, py + 116, 380, 22, L("ui.vendor.give"), 15, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddText(_root, px + 470, py + 116, 320, 22, L("ui.vendor.get"), 15, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _discount = UiKit.AddText(_root, px + PanelW - 440, py + 116, 400, 22, string.Empty, 15, UiKit.Ok, TextAnchor.MiddleRight, FontStyle.Bold);
 
             // The rows live in a masked scroll viewport — a settlement can post more trades than the
             // fixed panel height fits (they used to clip past the panel bottom).
@@ -258,6 +287,7 @@ namespace BlocksBeyondTheStars.Client
             long day = Game.MarketDay;
             _shownInReach = inReach;
             _shownDay = day;
+            _discount.text = inReach ? DiscountBadge() : string.Empty;
 
             int row = 0;
             if (!inReach)
@@ -296,12 +326,13 @@ namespace BlocksBeyondTheStars.Client
         private void AddRow(int index, BlocksBeyondTheStars.Shared.Definitions.RecipeDefinition r)
         {
             float y = index * RowH;
-            bool afford = r.Inputs.All(inp => Pooled(inp) >= inp.Count);
+            // #3292: priced with the flower discount the server pushed — the same rule (MarketPricing) its barter takes.
+            var cost = BlocksBeyondTheStars.Shared.Definitions.MarketPricing.Inputs(r, Discount);
+            bool afford = cost.All(inp => Pooled(inp) >= inp.Count);
 
             UiKit.AddPanel(_rows, 20, y, PanelW - 40, RowH - 12, new Color(0.06f, 0.14f, 0.26f, 0.85f));
 
-            string give = string.Join("   ", r.Inputs.Select(a => $"{a.Count}× {IngredientName(a)}"
-                + (Pooled(a) < a.Count ? $"  ({Pooled(a)})" : string.Empty)));
+            string give = string.Join("   ", r.Inputs.Select((a, i) => GiveText(a, cost[i])));
             string get = string.Join("   ", r.Outputs.Select(a => $"{a.Count}× {ItemName(a.Item)}"));
 
             var giveCol = afford ? UiKit.TextCol : new Color(1f, 0.55f, 0.55f);
@@ -322,6 +353,15 @@ namespace BlocksBeyondTheStars.Client
                     img.color = new Color(0.18f, 0.20f, 0.24f, 0.9f);
                 }
             }
+        }
+
+        /// <summary>One ingredient of a row: "3× Iron Ore", with the flower discount "4→3× Iron Ore" (#3292), and what the
+        /// player holds when it is not enough.</summary>
+        private string GiveText(BlocksBeyondTheStars.Shared.Definitions.ItemAmount full, BlocksBeyondTheStars.Shared.Definitions.ItemAmount paid)
+        {
+            string count = paid.Count != full.Count ? $"{full.Count}→{paid.Count}×" : $"{paid.Count}×";
+            int held = Pooled(paid);
+            return $"{count} {IngredientName(full)}" + (held < paid.Count ? $"  ({held})" : string.Empty);
         }
 
         /// <summary>#2958: an ingredient in the backpack and hold — a group ingredient (any log) counts every member.</summary>
@@ -367,6 +407,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network.InventoryUpdated -= OnInventory;
                 Game.Network.WorldResetReceived -= OnWorldReset;
+                Game.Network.TraderDiscountReceived -= OnDiscount;
             }
 
             // A scene-root canvas, kept (disabled) once built — it goes with the rig (#2936).

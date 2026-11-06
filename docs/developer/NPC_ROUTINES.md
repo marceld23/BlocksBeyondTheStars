@@ -367,6 +367,14 @@ the furnished room (`RoomFurnisher.RoomRole` name).
   `srv.craft.not_today`). The stock rule is `MarketStock` (Shared): the client's vendor screen lists
   `MarketStock.ListFor(theme, day)` — the vendor's own goods first, then the themeless deals — and the server checks
   `MarketStock.SellsKind`, so both read one rule.
+- **The trader discount (#3292, the flower set).** A worn piece's `traderDiscount` (items.json) adds up per player under
+  `SuitEquipment.MaxTraderDiscount` (0.25). A player trades with the best of their own and every ally's
+  (`AreAllied`: alliance or crew) within `GameServer.TraderDiscountAllyRange` (32) on the same world — never a sum
+  (GameServerGearPerks.cs). `HandleCraft` prices a market recipe's inputs with `MarketPricing.Inputs` (Shared: per trade
+  `max(1, n − round(n·d))`, half up; a batch pays N × that); the vendor screen, the crafting page and `CraftGate` call the
+  same rule with the value of the `TraderDiscountInfo` push (tag 319, whole percent + the ally's name), which the per-world
+  `TickTraderDiscounts` sends on change (1 Hz) and a trade sends when it finds the client stale. `GearSetsTests` keeps
+  every pair of market trades loss-making or even at the full discount (#3293).
 - **The client's reach (#2626, `VendorReach` in Client.Core).** The "Trade" prompt, E's trade-or-talk and the crafting
   menu's market page pick the nearest vendor within `MarketStock.TradeReach` (4) — the server always accepts that. "Trade"
   binds the screen to that vendor (its NPC id): title "Name · Role", a header line `ui.vendor.theme.<theme>` (#2629), and

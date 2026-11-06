@@ -15,7 +15,7 @@ namespace BlocksBeyondTheStars.Client
     /// head, legs, optional wings/tail, colour and a bioluminescent glow all come from the species.
     /// The server stays authoritative over which creatures exist and where; this is render-only.
     /// </summary>
-    public sealed class CreatureBuilder
+    public sealed partial class CreatureBuilder
     {
         /// <summary>How the finished rig's feet find real ground. <see cref="CreatureView"/> supplies it (it
         /// owns the world handle); left null the rig animates its gait in body space, as it always did.</summary>
@@ -130,6 +130,12 @@ namespace BlocksBeyondTheStars.Client
             if (c.BodyPlan == "SkyGiant")
             {
                 BuildSkyGiant(root, c); // #2112
+                return;
+            }
+
+            if (c.BodyPlan == "Robot")
+            {
+                BuildRobot(root, c); // #3295: the friendly hunter robot (CreatureBuilder.Robot.cs)
                 return;
             }
 

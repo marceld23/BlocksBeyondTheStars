@@ -296,6 +296,7 @@ namespace BlocksBeyondTheStars.Client
             public GameContent Content;
             public BlockTextureAtlas Atlas;
             public System.Func<int, Rect?> DesignUv;
+            public System.Func<int, int, int> BiomePalette; // #3289: the world's column → palette lookup (thread-safe), or null
             public int Gen, Epoch;
             public ChunkMeshData Data;
             public string Error;
@@ -312,7 +313,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 try
                 {
-                    Data = ChunkMesher.BuildGeometry(Center, Content, Hood.BlockFn, Atlas, FloraTintFn, null, Lights, Hood.ShapeFn, DesignUv, Hood.LoadedFn);
+                    Data = ChunkMesher.BuildGeometry(Center, Content, Hood.BlockFn, Atlas, FloraTintFn, null, Lights, Hood.ShapeFn, DesignUv, Hood.LoadedFn,
+                        BiomePalette);
                 }
                 catch (System.Exception ex)
                 {
@@ -348,6 +350,7 @@ namespace BlocksBeyondTheStars.Client
             job.Content = null;
             job.Atlas = null;
             job.DesignUv = null;
+            job.BiomePalette = null;
             job.Data = null;
             job.Error = null;
             _jobPool.Push(job);
@@ -808,6 +811,7 @@ namespace BlocksBeyondTheStars.Client
             job.Atlas = Atlas;
             // Paint-design lookup snapshot (#819): an immutable id → UV map, safe on the worker thread.
             job.DesignUv = PaintAtlas?.Snapshot();
+            job.BiomePalette = _biomeLooks?.PaletteFn; // #3289: null until the world's info arrived, and on a void world
             job.Data = null;
             job.Error = null;
             MeshBuildsDispatched++;
@@ -1165,6 +1169,8 @@ namespace BlocksBeyondTheStars.Client
                     _dirty.Add(c);
                 }
             }
+
+            RemeshOnBiomeLookChange(); // #3289: a repaint switched a look block's biome looks on or off
         }
 
         /// <summary>Start's subscriptions for the chunk stream: chunk payloads and single block changes. Called once
@@ -1174,6 +1180,7 @@ namespace BlocksBeyondTheStars.Client
             Network.ChunkReceived += OnChunk;
 
             Network.BlockChanged += OnBlockChanged;
+            WireBiomeLooks(); // #3289: the world's column → biome palette lookup
         }
 
         /// <summary>Update's chunk work: drain finished mesh and collider builds, dispatch the nearest dirty

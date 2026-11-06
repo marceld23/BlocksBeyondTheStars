@@ -137,7 +137,9 @@ public sealed class BlockFaceTextureTests
         Assert.Equal(keys.OrderBy(k => k, StringComparer.Ordinal), keys); // the order the atlas deals its slots in
         foreach (string key in keys)
         {
-            Assert.StartsWith("face_", key); // the texture editor groups them by this prefix
+            // The texture editor groups face tiles by this prefix; a biome look (#3289) is listed beside its block instead.
+            Assert.True(key.StartsWith("face_", StringComparison.Ordinal) || BiomePalettes.TryParseLookKey(Content, key, out _, out _),
+                $"'{key}' is neither a face tile (face_*) nor a biome look");
             string path = Path.Combine(TexturesDir, key + ".bytes");
             Assert.True(File.Exists(path), $"face tile '{key}' is named in blocks.json but not bundled ({path})");
             byte[] raw = File.ReadAllBytes(path);

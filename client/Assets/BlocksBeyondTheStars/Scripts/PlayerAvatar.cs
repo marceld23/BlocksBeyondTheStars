@@ -1285,12 +1285,15 @@ namespace BlocksBeyondTheStars.Client
             _wingRoot = _wingL = _wingR = null;
             _hasBattery = false;
             _gearLamp = null; // #3231
+            RestoreGearSetFace(); // #3291: the mouth the robber mask hid comes back (the mask may be on again below)
             if (mask != 0)
             {
                 EnsureGearMaterials(); // nothing worn (a fresh NPC, most remote figures) makes none
             }
 
-            if (GearLook.Has(mask, GearLook.Helmet))
+            // #3290–#3292: a piece of the guardian, robber or flower set draws itself (PlayerAvatar.GearSets.cs) instead of
+            // the classic plates of its slot.
+            if (GearLook.Has(mask, GearLook.Helmet) && !BuildHeadSet(GearLook.HeadStyle(mask)))
             {
                 // An open armor shell OUTSIDE the suit helmet, so the face (and a custom pixel face) stays
                 // visible. Head-LOCAL units: the head is a 0.46-scaled unit cube, so wrapping it needs scales
@@ -1309,7 +1312,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            if (GearLook.Has(mask, GearLook.Chest))
+            if (GearLook.Has(mask, GearLook.Chest) && !BuildChestSet(GearLook.ChestStyle(mask)))
             {
                 bool titan = GearLook.Has(mask, GearLook.TitanChest);
                 var m = titan ? _gearTitan : _gearPlate;
@@ -1322,7 +1325,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            if (GearLook.Has(mask, GearLook.Legs))
+            if (GearLook.Has(mask, GearLook.Legs) && !BuildLegsSet(GearLook.LegsStyle(mask)))
             {
                 bool titan = GearLook.Has(mask, GearLook.TitanLegs);
                 var m = titan ? _gearTitan : _gearPlate;

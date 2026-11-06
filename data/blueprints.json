@@ -306,6 +306,21 @@
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 8 } ]
   },
   {
+    "key": "guardian_gear", "nameKey": "blueprint.guardian_gear.name", "descriptionKey": "blueprint.guardian_gear.desc",
+    "category": "Suit", "prerequisites": [ "titan_chest" ], "knowledgeCost": 70,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "guardian_plate", "count": 6 } ]
+  },
+  {
+    "key": "guardian_sword", "nameKey": "blueprint.guardian_sword.name", "descriptionKey": "blueprint.guardian_sword.desc",
+    "category": "Weapon", "prerequisites": [ "plasma_sword" ], "knowledgeCost": 75,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "guardian_plate", "count": 4 }, { "item": "cable", "count": 4 } ]
+  },
+  {
+    "key": "guardian_drill", "nameKey": "blueprint.guardian_drill.name", "descriptionKey": "blueprint.guardian_drill.desc",
+    "category": "Tools", "prerequisites": [ "mining_beam" ], "knowledgeCost": 100,
+    "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "guardian_plate", "count": 6 }, { "item": "circuit_board", "count": 2 } ]
+  },
+  {
     "key": "spring_boots", "nameKey": "blueprint.spring_boots.name", "descriptionKey": "blueprint.spring_boots.desc",
     "category": "Suit", "prerequisites": [ "boots" ], "knowledgeCost": 40,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 4 }, { "item": "magnet", "count": 2 } ]

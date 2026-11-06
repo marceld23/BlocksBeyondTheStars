@@ -24,6 +24,33 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player reports 2026-11-06 evening (Justus as Screelit + Ben from the school club, v2026.11.7) — a ship that no longer floats after a re-join, every cube material shapeable, Guardian UFOs, rune stones in their biome's colours, guardian / robber / flower gear with a trader discount, a reward crate after the finale, a friendly hunter robot — #3286–#3295, branch feat/reports-2026-11-06b — ✅ done 2026-11-07 (⚠ playtest open; **no save-version or block-id change** (only new items); **new SQL columns** `container.owner` / `owner_name` (added by `ALTER TABLE` on old saves); protocol: one new server→client message `TraderDiscountInfo` (tag 319) + additive `NetContainer.OwnerId/OwnerName`; no terrain-generation change — monuments stamp their rune glow per biome only where they are first stamped; ~68 new/changed locale keys in all 14 languages)
+
+- **#3286** (Ben) The parked ship hung five cells in the air after a re-join: the parking height read the pad centre and
+  its corners at ±4 — outside the 5×7 starter box — so a staircase built beside the hull lifted it. The hull now reads
+  only the columns under its own footprint (`HullSurfaceY`); the player-only touchdown keeps the five samples.
+- **#3287** (Ben: "Holztreppen") Every cube material takes a form: the planks of #3181 (forgotten in the shape list),
+  the remaining logs and plant stems, the 13 metal blocks, wall/scrap blocks, ice, obsidian and the rest of the terrain
+  — and glass, which a shaped cell now draws in the transparent pass (clear glass keeps its clear code). Guard test
+  `ShapeableCubeTests`: a new placeable cube is shapeable or named with a reason. The plank recipes stay (a shaped log
+  keeps its bark).
+- **#3288** (Justus: "Are the UFOs former SPS robots or alien ships?") The canon says: machines of the old exploration
+  network turned by the Guardian core. The world option and the Codex now say "Guardian UFOs" / "Wächter-UFOs".
+- **#3289** (Justus) Rune stones (Justus' own music-note tile) and ancient bricks show the colours of the biome they
+  stand in: 22 biome surfaces → 8 palettes; the client mesher picks the tile from a thread-safe biome resolver; a
+  monument's rune glow follows the column's palette. 16 tiles made by the deterministic `recolour_biome_looks.py`.
+- **#3290** Guardian gear: robots drop `guardian_plate`; guardian helmet/chest/legs, a red hologram sword and a precise
+  red laser drill. **#3291** Robber disguise (mask + jacket from robber cloth): a lone robber looks you over and leaves.
+  **#3292** Flower wreath + bracelets from the bellflower's blue blossom: up to 25 % off market trades for you and your
+  allies within 32 m (`MarketPricing`, live value pushed to the client). Looks via 3-bit styles per slot in `GearLook`.
+  **#3293** Two profitable market loops closed (copper ↔ silicate, meat ↔ iron) + a no-profitable-loop content test.
+- **#3294** Winning the finale puts an owner-locked crate with a robot core next to every player of the world (offline
+  players on their next join); owner-locked containers (only the owner takes, nobody mines them while full).
+  **#3295** Robot core + titanium ore → the hunter robot: a companion with light-blue lights that follows you to every
+  world, guards gently and, when knocked out, leaves its parts in an owner-locked crate.
+- **Open:** playtest everything in a real build (robot proportions + chirps, gear looks on the avatar, rune palettes on
+  monuments, glass stairs, the discount badge at a vendor).
+
 ### 🎚️ Automatic graphics preset — desktop calibration, GPU time, High only after a world measurement, a slow-world hint (Marcel's analysis 2026-11-06) — #3279–#3284, branch feat/auto-quality-calibration — ✅ done 2026-11-06 in PR #3285 (⚠ playtest open; client only — no save-version, protocol or terrain-generation change; one new locale key in all 14 languages)
 
 Marcel asked when High can be chosen and how the client could tell at runtime whether High is feasible. Answers: the

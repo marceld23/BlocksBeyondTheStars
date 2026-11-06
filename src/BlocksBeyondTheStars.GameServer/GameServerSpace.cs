@@ -582,17 +582,27 @@ public sealed partial class GameServer
         int top = median;
         foreach (var (dx, dz) in new[] { (0, 0), (-r, -r), (r, -r), (-r, r), (r, r) })
         {
-            for (int dy = PadRaiseScan; dy >= 1; dy--)
-            {
-                if (IsBodyBlockingCell(cx + dx, median + dy, cz + dz) && !IsTransientDeposit(new Vector3i(cx + dx, median + dy, cz + dz)))
-                {
-                    top = System.Math.Max(top, median + dy);
-                    break;
-                }
-            }
+            top = System.Math.Max(top, BuiltColumnTop(cx + dx, cz + dz, median));
         }
 
         return top;
+    }
+
+    /// <summary>The highest real block standing 1–<see cref="PadRaiseScan"/> cells over the pad's generated
+    /// <paramref name="median"/> in one column, or the median when there is none. Weather snow does not count
+    /// (#3135). Shared by the touchdown height (<see cref="PadSurfaceY"/>) and the parked hull's height
+    /// (<see cref="HullSurfaceY"/>).</summary>
+    private int BuiltColumnTop(int x, int z, int median)
+    {
+        for (int dy = PadRaiseScan; dy >= 1; dy--)
+        {
+            if (IsBodyBlockingCell(x, median + dy, z) && !IsTransientDeposit(new Vector3i(x, median + dy, z)))
+            {
+                return median + dy;
+            }
+        }
+
+        return median;
     }
 
     /// <summary>Test seam: a pad's centre column and generated ground height on the active world.</summary>

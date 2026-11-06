@@ -2,9 +2,25 @@
   "version": 1,
   "default": "ai",
   "textures": {
-    "gas": "hand:procedural (a seeded PIL script, #2112 — banded amber cloud tops; no model; re-drawing it needs the script, not a prompt)",
+    "ancient_brick_crystal": "hand:procedural (recolour of the ancient_brick tile by tools/ai-assets/recolour_biome_looks.py, #3289; no model)",
+    "ancient_brick_desert": "hand:procedural (recolour of the ancient_brick tile by tools/ai-assets/recolour_biome_looks.py, #3289; no model)",
+    "ancient_brick_frost": "hand:procedural (recolour of the ancient_brick tile by tools/ai-assets/recolour_biome_looks.py, #3289; no model)",
+    "ancient_brick_marsh": "hand:procedural (recolour of the ancient_brick tile by tools/ai-assets/recolour_biome_looks.py, #3289; no model)",
+    "ancient_brick_rock": "hand:procedural (recolour of the ancient_brick tile by tools/ai-assets/recolour_biome_looks.py, #3289; no model)",
+    "ancient_brick_toxic": "hand:procedural (recolour of the ancient_brick tile by tools/ai-assets/recolour_biome_looks.py, #3289; no model)",
+    "ancient_brick_verdant": "hand:procedural (recolour of the ancient_brick tile by tools/ai-assets/recolour_biome_looks.py, #3289; no model)",
+    "ancient_brick_volcanic": "hand:procedural (recolour of the ancient_brick tile by tools/ai-assets/recolour_biome_looks.py, #3289; no model)",
+    "gas":"hand:procedural (a seeded PIL script, #2112 — banded amber cloud tops; no model; re-drawing it needs the script, not a prompt)",
     "metal_panel": "hand:Screelit",
     "oil": "hand:procedural (a seeded PIL script, #2106 — no model; re-drawing it needs the script, not a prompt)",
-    "rune_stone": "hand:Screelit (texture submission 2026-10-15, refined by tools/ai-assets/refine_rune_stone.py, #2631)"
+    "rune_stone": "hand:Screelit (texture submission 2026-10-15, refined by tools/ai-assets/refine_rune_stone.py, #2631)",
+    "rune_stone_crystal": "hand:Screelit (his rune_stone recoloured by tools/ai-assets/recolour_biome_looks.py, #3289)",
+    "rune_stone_desert": "hand:Screelit (his rune_stone recoloured by tools/ai-assets/recolour_biome_looks.py, #3289)",
+    "rune_stone_frost": "hand:Screelit (his rune_stone recoloured by tools/ai-assets/recolour_biome_looks.py, #3289)",
+    "rune_stone_marsh": "hand:Screelit (his rune_stone recoloured by tools/ai-assets/recolour_biome_looks.py, #3289)",
+    "rune_stone_rock": "hand:Screelit (his rune_stone recoloured by tools/ai-assets/recolour_biome_looks.py, #3289)",
+    "rune_stone_toxic": "hand:Screelit (his rune_stone recoloured by tools/ai-assets/recolour_biome_looks.py, #3289)",
+    "rune_stone_verdant": "hand:Screelit (his rune_stone recoloured by tools/ai-assets/recolour_biome_looks.py, #3289)",
+    "rune_stone_volcanic": "hand:Screelit (his rune_stone recoloured by tools/ai-assets/recolour_biome_looks.py, #3289)"
   }
 }

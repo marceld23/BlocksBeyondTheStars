@@ -15,8 +15,8 @@ namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
 /// Coloured glass and tinted lamps (#1126, B4): glass and the light fixtures opt into the dye system via
-/// <c>tintable</c> in blocks.json — WITHOUT joining the shapeable set (shaped glass would need a transparent
-/// shaped mesh). Doors stay out: they are animated entities, not chunk voxels — their placement path returns
+/// <c>tintable</c> in blocks.json — the opt-in alone never makes a block shapeable (glass is shapeable since #3287
+/// through the explicit shape list, drawn see-through). Doors stay out: they are animated entities, not chunk voxels — their placement path returns
 /// before the tint is ever stamped, so a door dye would silently vanish.
 /// </summary>
 public sealed class TintedBlocksTests : IDisposable
@@ -70,10 +70,13 @@ public sealed class TintedBlocksTests : IDisposable
     [Fact]
     public void JsonTintableOptIn_DoesNotLeakIntoTheShapeableSet()
     {
-        // Shapeable stays the curated solid-material list: dyed glass yes, glass spheres no.
-        Assert.False(_content.GetBlock("glass")!.Shapeable);
-        Assert.False(_content.GetBlock("glass_clear")!.Shapeable); // the clear variant opts in the same way (#1274)
+        // A JSON dye opt-in never makes a block shapeable by itself: the tinted lamps stay plain fixtures. Glass is
+        // shapeable since #3287 — through the explicit shapeable list (the client draws shaped glass see-through),
+        // not through its tint opt-in.
         Assert.False(_content.GetBlock("lantern")!.Shapeable);
+        Assert.False(_content.GetBlock("light_white")!.Shapeable);
+        Assert.True(_content.GetBlock("glass")!.Shapeable);
+        Assert.True(_content.GetBlock("glass_clear")!.Shapeable); // the clear variant too (#1274)
         Assert.True(_content.GetBlock("stone")!.Shapeable); // the curated set is untouched
     }
 

@@ -113,7 +113,8 @@ namespace BlocksBeyondTheStars.Client
         private CraftGateInput Gate => new CraftGateInput(Game.Content, FreeCrafting(), Game.UnlockedBlueprints,
             Game.Personal, Game.Cargo, Game.Equipment, Game.Aboard, PersonalSlotTotal, Game.CargoSlots,
             _gateMarketAvailable ??= MarketAvailableNow, _gateMarketOfferedHere ??= MarketOfferedHereNow,
-            _gateFactoryAway ??= IsFactoryRecipeAway, _gateStationAvailable ??= StationAvailable);
+            _gateFactoryAway ??= IsFactoryRecipeAway, _gateStationAvailable ??= StationAvailable,
+            Game.Network != null ? Game.Network.TraderDiscount : 0f); // #3292: market trades at the flower discount
 
         private bool MarketAvailableNow() => Game.MarketAvailable;
         private bool MarketOfferedHereNow(RecipeDefinition r) => Game.MarketOfferedHere(r);
@@ -139,7 +140,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Reachability tier for the list ordering (#826) — see <see cref="CraftGate.ReachTier"/>.</summary>
-        private int ReachTier(string requiredBlueprint, List<BlocksBeyondTheStars.Shared.Definitions.ItemAmount> cost, bool stationInReach = true)
+        private int ReachTier(string requiredBlueprint, IEnumerable<BlocksBeyondTheStars.Shared.Definitions.ItemAmount> cost, bool stationInReach = true)
             => CraftGate.ReachTier(requiredBlueprint, cost, stationInReach, Gate);
 
         /// <summary>True for a factory recipe while no spawned factory terminal in reach has it on its roster — the

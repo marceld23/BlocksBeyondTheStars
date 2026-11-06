@@ -338,7 +338,7 @@ public sealed partial class GameServer
                     }
 
                     var (tint, glow) = s.GetModifier(x, y, z);
-                    _world.SetBlock(pos, new BlockId(b), tint, glow, s.GetShape(x, y, z));
+                    _world.SetBlock(pos, new BlockId(b), tint, MonumentGlowAt(b, glow, wx, wz), s.GetShape(x, y, z)); // #3289: the biome's glow
                 }
 
                 // A plinth down to the natural ground so nothing hangs in the air on a slope. Skipped on a sky
