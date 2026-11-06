@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🔊 Sound immersion — levels, mixing, vacuum, creatures, the ship, flight, the player's body — #3237–#3249, branch feat/sound-immersion — ✅ done 2026-11-05 (⚠ playtest open)
+### 🔊 Sound immersion — levels, mixing, vacuum, creatures, the ship, flight, the player's body — #3237–#3249, branch feat/sound-immersion — ✅ done 2026-11-05 in PR #3253 (`baa2dbbc`), released in v2026.11.6 (⚠ playtest open)
 
 Analysis + Marcel's answers 2026-11-05: offline-level every clip with a guard test, wire the unused clips where they fit,
 vacuum **stylised**, breath/heartbeat **only light**, distant fauna from **all** species of the planet, new clips
@@ -66,7 +66,7 @@ Docs: [SOUND_DESIGN.md](docs/developer/SOUND_DESIGN.md) §4, §5, §27–§32, U
 - ⚠ **Open:** playtest the whole mix on a "many"-abundance world (herd, flier flock, a storm ending), on an asteroid and
   on a spacewalk, aboard in rain, a landing (cooling ticks) and a dogfight (other ships' engines); the browser build
   (bakes, memory with the combat variants).
-### 🔦 Suit headlamp as real light — LED beam, glints, beam in the air, voxel shadows, other players' lamps — #3229–#3234, branch feat/headlamp-realism — ✅ done 2026-11-05 (⚠ playtest open: brightness balance in caves, third person, two players)
+### 🔦 Suit headlamp as real light — LED beam, glints, beam in the air, voxel shadows, other players' lamps — #3229–#3234, branch feat/headlamp-realism — ✅ done 2026-11-05 in PR #3251 (`0ba3a354`), released in v2026.11.6 (⚠ playtest open: brightness balance in caves, third person, two players)
 
 - **#3229** One shared `Headlamp.hlsl` replaces five copies: an LED beam (12° hotspot, reflector ring, 34° spill at
   20 %) instead of a linear ramp across the whole screen, windowed inverse-square falloff (10 m is now ~10× darker than
@@ -84,7 +84,7 @@ Docs: [SOUND_DESIGN.md](docs/developer/SOUND_DESIGN.md) §4, §5, §27–§32, U
 - **#3234** Multiplayer: a `GearLook.LampLit` bit in the presence's gear mask (no new field — the presence must stay under
   the 256-byte compression threshold, `ProtocolV4Tests`); the nearest four lit lamps within 48 m light every client's world.
 
-### 🌦️ Calm clouds, real gale grit, a 256-block space elevator and wider ranges (Marcel's analysis 2026-11-05) — #3202–#3215, branch feat/weather-lift-ranges-2026-11 — ✅ done 2026-11-05 (⚠ playtest open; no save-version or terrain-generation change; protocol unchanged — server `srv.*` texts now carry the range as an argument, so a NEW client on an OLD server shows a literal `{name}` in four messages)
+### 🌦️ Calm clouds, real gale grit, a 256-block space elevator and wider ranges (Marcel's analysis 2026-11-05) — #3202–#3215, branch feat/weather-lift-ranges-2026-11 — ✅ done 2026-11-05 in PR #3235 (`9f1e1b7d`), released in v2026.11.6 (⚠ playtest open; no save-version or terrain-generation change; protocol unchanged — server `srv.*` texts now carry the range as an argument, so a NEW client on an OLD server shows a literal `{name}` in four messages)
 
 - **#3202** Clouds no longer jump or whirl: each cloud's angle is accumulated per world step (`CloudDeck` in Client.Core)
   instead of `WorldTime × windScale`, the look (cover, darkening, wind, storm towers, cirrus) eases over ~10 s, single
@@ -119,7 +119,7 @@ Docs: [SOUND_DESIGN.md](docs/developer/SOUND_DESIGN.md) §4, §5, §27–§32, U
 - **#3215** The gale chip shows 〰 instead of ❄.
 - Texts: 18 keys re-translated into the twelve community languages (machine pass + hand QA).
 
-### 🛡️ Server fixes 2026-11, part 2 — parked ships guarded like keel sites, config and report-path clean-up, admin teleport checks — #3221–#3226, branch fix/server-fixes-2026-11b — ✅ done 2026-11-05 (⚠ playtest open; no save-version, protocol or terrain-generation change; no new locale keys)
+### 🛡️ Server fixes 2026-11, part 2 — parked ships guarded like keel sites, config and report-path clean-up, admin teleport checks — #3221–#3226, branch fix/server-fixes-2026-11b — ✅ done 2026-11-05 in PR #3236 (`258fa4c5`), released in v2026.11.6 (⚠ playtest open; no save-version, protocol or terrain-generation change; no new locale keys)
 
 - **#3221** Building on a **parked** ship gets the #3198 cell checks: a self-built ship growing over its roof
   (`HandleLandedShipEdit` → `ParkedShipCellRefusal`) and an authored ship extended on foot (#2120) — cells inside the
@@ -138,7 +138,7 @@ Docs: [SOUND_DESIGN.md](docs/developer/SOUND_DESIGN.md) §4, §5, §27–§32, U
 - Tests (existing classes): `KeelBaseProtectionTests` (self-built and authored parked ships), `ServerConfigTests`,
   `BugReportPathsTests`, `BlueprintTests`, `AdminCommandFixTests`.
 
-### 🧭 Player reports 2026-11-05 — the HUD's right column, the open lift gate, base jobs for someone else — #3217–#3220, #3227, branch fix/reports-2026-11-05 — ✅ done 2026-11-05 (⚠ playtest open; no save-version, protocol or block-id change)
+### 🧭 Player reports 2026-11-05 — the HUD's right column, the open lift gate, base jobs for someone else — #3217–#3220, #3227, branch fix/reports-2026-11-05 — ✅ done 2026-11-05 in PR #3228 (`b01ee24a`), released in v2026.11.6 (⚠ playtest open; no save-version, protocol or block-id change)
 
 - **#3217** The compass's third caption row (Guardian core / VEGA's goal / fragment signal, since #1792 at HUD y 146–164)
   lay on the clock panel's text line and showed through it. One layout for the right column (`HudRightColumn`): the
@@ -159,7 +159,7 @@ Docs: [SOUND_DESIGN.md](docs/developer/SOUND_DESIGN.md) §4, §5, §27–§32, U
 
 ---
 
-### 🛡️ Server fixes 2026-11 — reconnect without rollback, chat on long-running hosts, trades that keep every item, crates, ships and keels, network hardening for public worlds — #3186–#3201, branch fix/server-fixes-2026-11 — ✅ done 2026-11-05 in PR #3216 (`78b54918`) (⚠ playtest open; no save-version, protocol or terrain-generation change; two new locale keys in all 14 languages)
+### 🛡️ Server fixes 2026-11 — reconnect without rollback, chat on long-running hosts, trades that keep every item, crates, ships and keels, network hardening for public worlds — #3186–#3201, branch fix/server-fixes-2026-11 — ✅ done 2026-11-05 in PR #3216 (`78b54918`), released in v2026.11.6 (⚠ playtest open; no save-version, protocol or terrain-generation change; two new locale keys in all 14 languages)
 
 - **#3186** Rejoin while the old session is still connected (#964 eviction): the player record is loaded again after the
   eviction saved the old session, so the new session starts from the latest state — no rollback to the last autosave, no
@@ -184,7 +184,7 @@ Docs: [SOUND_DESIGN.md](docs/developer/SOUND_DESIGN.md) §4, §5, §27–§32, U
   `ConnectionGate`) — nobody can hold the transport slots without logging in.
 - **#3195** The WebSocket gateway queues sends per connection with one pump and drops a client that stops reading
   (> 32 MB queued or one write blocked 60 s) (`WebSocketServerTransport.SendQueue.cs`).
-- **#3250** (✅ 2026-11-05, follow-up: main CI was red since this PR) On Linux a WebSocket the server drops (#3194 gate,
+- **#3250** (✅ 2026-11-05 in PR #3252 (`023a6149`), released in v2026.11.6; follow-up: main CI was red since this PR) On Linux a WebSocket the server drops (#3194 gate,
   kick, any end of the receive loop) stayed open at the TCP level: the managed HttpListener's WebSocket stream does not
   own the socket, and its Dispose only keep-alive-closes the response. Every drop now goes through `AbortConnection`:
   shut the listener's TCP socket down (reflection on the internal `HttpListenerContext.Connection._socket` — the public
