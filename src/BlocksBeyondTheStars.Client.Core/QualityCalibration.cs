@@ -113,8 +113,10 @@ namespace BlocksBeyondTheStars.Client
         /// 50 fps gains nothing from a heavier preset (High adds CPU work too: grass shells, decals, the room probe).</summary>
         public const float CpuMedianLimitMs = 20f;
 
-        /// <summary>GPU time of High relative to Medium in the same world spot (#3283). Measured with PerfProbe — see
-        /// docs/developer/ADVANCED_GRAPHICS.md § "Automatic preset calibration" for the run, the machine and the numbers.</summary>
+        /// <summary>GPU time of High relative to Medium in the same world spot (#3283). PerfProbe 2026-11-06 on the reference
+        /// laptop measured 1.5–3.0 × (GPU p90; ~1.6 walking, up to 3.0 in the settled idle view); 2.0 lets a step up land at
+        /// ~60 fps or better. The run, the machine and the numbers: docs/developer/ADVANCED_GRAPHICS.md § "Automatic preset
+        /// calibration".</summary>
         public const float HighGpuCostFactor = 2.0f;
 
         /// <summary>True for a software rasterizer: such a device never steps up.</summary>

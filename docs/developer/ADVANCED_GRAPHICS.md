@@ -293,7 +293,23 @@ from `FrameTimingManager` (`GpuFrameTime`; Player Settings → Frame Timing Stat
 or an API without timer queries — the VSync-capped wall-clock p90 has to stay under 18 ms. A software renderer
 (Microsoft Basic Render Driver, llvmpipe, softpipe, SwiftShader) and a laptop on battery never step up.
 
-**The High cost factor** (`QualityCalibration.HighGpuCostFactor`, #3283) — PerfProbe, MEASUREMENT_PENDING.
+**The High cost factor** (`QualityCalibration.HighGpuCostFactor = 2.0`, #3283). PerfProbe on 2026-11-06, reference
+laptop (Ryzen 9 PRO 7940HS, RTX 2000 Ada Laptop GPU, Direct3D 12), seed 424242, view distance 8, 30 s idle + 30 s walk,
+quiet machine:
+
+| Preset | VSync | idle: fps · GPU p50 / p90 | walk: fps · GPU p50 / p90 |
+|---|---|---|---|
+| Medium | on | 60 · 8.2 / 8.7 ms | 58 · 10.4 / 14.8 ms |
+| Medium | off | 70 · 10.6 / 15.2 ms | 61 · 12.7 / 14.8 ms |
+| High | off | 42 · 21.8 / 25.2 ms | 43 · 20.5 / 22.8 ms |
+| High | on | 38 · 22.7 / 26.0 ms | 37 · 22.0 / 23.7 ms |
+
+High costs 1.5–3.0 × the GPU p90 of Medium in the same spot (about 1.6 while walking, up to 3.0 in the settled idle
+view). The main thread stays at a 6–7 ms median on both, so the step is GPU work. 2.0 makes a step up land at about
+60 fps or better. This laptop stays on Medium: its world sample read "median 16.7 ms, p90 18.6 ms, GPU p90 16.1 ms — no
+room for High", matching its 37–43 fps on High. A GPU about twice as fast gets High. The menu itself costs 5.2 ms of
+GPU p90 at Medium. Measure on a quiet machine: a second game rendering at the same time (a parallel clip capture) doubled
+`gpuFrameTime` in a first run.
 
 PerfProbe (`-perfProbe -perfPreset <name>`) writes the GPU p50/p90 next to the wall-clock numbers and switches
 `PresetAuto` off for its run, so a re-measurement only needs the same command line on a quiet machine.
