@@ -105,7 +105,7 @@
     "client/Assets/BlocksBeyondTheStars/Scripts/PlacementGhost.cs": { "lines": 352, "longMethods": 1 },
     "client/Assets/BlocksBeyondTheStars/Scripts/PlanetOverviewCard.cs": { "lines": 302, "longMethods": 1 },
     "client/Assets/BlocksBeyondTheStars/Scripts/PlayerAvatar.cs": { "lines": 2160, "longMethods": 5 },
-    "client/Assets/BlocksBeyondTheStars/Scripts/PlayerCapture.cs": { "lines": 877, "longMethods": 5 },
+    "client/Assets/BlocksBeyondTheStars/Scripts/PlayerCapture.cs": { "lines": 884, "longMethods": 5 },
     "client/Assets/BlocksBeyondTheStars/Scripts/PlayerController.Aim.cs": { "lines": 321, "longMethods": 1 },
     "client/Assets/BlocksBeyondTheStars/Scripts/PlayerController.Climb.cs": { "lines": 551, "longMethods": 1 },
     "client/Assets/BlocksBeyondTheStars/Scripts/PlayerController.Combat.cs": { "lines": 525, "longMethods": 2 },
