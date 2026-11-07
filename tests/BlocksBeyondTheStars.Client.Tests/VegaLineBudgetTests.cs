@@ -107,9 +107,10 @@ public sealed class VegaLineBudgetTests
     /// <summary>#2503: what the two patterns above miss in a description — any lone key letter ("G to take, H to store",
     /// "(press B)", "Taste B"; "A" and the roman "I" of "Oxygen Tank I" are words, "N-ten" is no key), a key named by its
     /// job ("the stow key", "die Wärmebild-Taste") and the action's name used as a key ("press Interact", "Benutzen
-    /// drücken"). "Hold the fire button" stays legal: the ship's fire control has no token yet.</summary>
+    /// drücken"). "Hold the fire button" stays legal: the ship's fire control has no token yet. A letter of a dotted
+    /// abbreviation ("G.D.S." — Justus' faction, #3334) is no key: it is followed by ".X" or follows "X.".</summary>
     internal static readonly Regex LiteralKeyInDescription = new(
-        @"(?<![\p{L}\p{N}_{:\-])[B-HJ-Z](?![\p{L}\p{N}_}\-])"
+        @"(?<![\p{L}\p{N}_{:\-])(?<![A-Z]\.)[B-HJ-Z](?![\p{L}\p{N}_}\-])(?!\.[A-Z])"
         + @"|(?i:\b(?:stow|thermal|einpack|wärmebild)[- ]?(?:key|taste)\b)"
         + @"|(?i:\bpress(?:es|ing)?\s+interact\b)|(?i:\bbenutzen\s+drücken\b|\bdrücke\s+benutzen\b)",
         RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, RegexTimeout);
@@ -340,6 +341,7 @@ public sealed class VegaLineBudgetTests
                      "fires every Nth pulse", "A simple cot of logs", "press {key:Interact} on it", "Use {key:Place} to magnify",
                      "{key:LootContainer} to take, {key:DepositToCrate} to store", "hold the fire button on a target",
                      "A swinging door that opens when you interact with it.", "its network is ON or OFF", "sein Netz ist AN oder AUS",
+                     "the old G.D.S. cities", "aus den alten G.D.S.-Städten", "when the G.D.S. sealed their city",
                  })
         {
             Assert.DoesNotMatch(LiteralKeyInDescription, fine);

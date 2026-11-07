@@ -139,3 +139,20 @@ not carry a circuit, and a flickering clock re-sent a base's whole device list t
 **Consequences.** The ship net costs one extra state per parked own ship and nothing in flight. Catch-up keeps the
 "no offline simulation" promise for everything a player can watch and only fast-forwards bounded, crate-filling work.
 A world circuit can never lock a player out of their own budget. The one-bit, visible model is unchanged.
+
+## Amendment 3 (2026-11-07, #3340 — the Ressaw conduit)
+
+**Context.** Justus' "Alte Städte" report: "Ressaw can also connect with the crystal conduits and make them more
+powerful." The buried G.D.S. ruins yield Ressaw crystals, and a base that outgrew 256 cells per network had no way on.
+
+**Decision.** "More powerful" means **more reach, not more signal**: the net stays one bit. The Ressaw conduit
+(`ressaw_conduit`) is a crystal conduit in every respect, and a network that holds at least one may grow to **512**
+cells (`CrystalNetRules.MaxCellsPerRessawNet`) instead of 256. Every other cap is unchanged (64 networks per world, a
+ship's 128 cells per network, sensors, machines). The cap is a property of the network's whole shape, not of the order
+its cells arrived in: a reload floods the stored rows once to find the networks that hold a Ressaw conduit, laying one
+into a full network re-tries the inert cells beside it, and mining the last one trims the network back to 256
+(details: [CRYSTAL_NET.md](../CRYSTAL_NET.md) §8).
+
+**Consequences.** Nothing new runs on the beats — the logic beat walks the cell table, so the world's worst case grows
+from 64 × 256 to 64 × 512 cells, and the network list a level change sends grows by three ints per extra cell. Ressaw
+conduits are rare (tier-3 crystals from the ruins), so the larger worst case stays a ceiling, not the common case.

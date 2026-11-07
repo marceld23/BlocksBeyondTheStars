@@ -1510,11 +1510,11 @@ namespace BlocksBeyondTheStars.Client
                     // look blends seamlessly across neighbouring blocks. Until #1749 the mode and flow axis
                     // were per-face hard branches, and a body of varying width — or one full of reeds — drew
                     // a mosaic of ripple directions and brightness steps.
-                    if (isGas)
+                    if (isGas || (isWater && traits.IsRessaw(id)))
                     {
                         // #2128: mode 5 → the transparent shader's gas haze (no waves, foam, reflection or depth blue);
-                        // #2134: mode 6 → the dense gas under it.
-                        var gas = new Vector4(isDenseGas ? 6f : 5f, 0f, 0f, 0f);
+                        // #2134: mode 6 → the dense gas under it; #3335: mode 7 → milky, glowing Ressaw (ChunkMesher.Ressaw.cs).
+                        var gas = new Vector4(isGas ? (isDenseGas ? 6f : 5f) : MilkyLiquidMode, 0f, 0f, 0f);
                         leafUv.Add(gas); leafUv.Add(gas); leafUv.Add(gas); leafUv.Add(gas);
                     }
                     else if (isWaterSurface && dir.Y == 1)
@@ -2773,7 +2773,7 @@ namespace BlocksBeyondTheStars.Client
             var def = content.BlockById(id);
             // alpha-blended — see through them. #3085: no longer the energy fence — it is a cutout cube now (IsCutoutCubeKey).
             return def?.Key is "glass" or "glass_clear" or "force_field" or "water" or "gas" or "gas_dense" or "fire" or "energy_gate" // #2112: the gas sea (#2134: and the dense gas under it)
-                or "phase_block_open" or "force_field_off"; // #2264: an open phase block / a switched-off field is a shimmer you see through
+                or "phase_block_open" or "force_field_off" or LiquidLook.RessawKey; // #2264: an open phase block / a switched-off field is a shimmer you see through; #3335: milky Ressaw (ChunkMesher.Ressaw.cs)
         }
 
         /// <summary>#3085: a SOLID cube whose own tile is a cutout mask (<c>TextureTiles</c>: the energy fence — rails and
@@ -2892,7 +2892,7 @@ namespace BlocksBeyondTheStars.Client
                     if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.KeepsOwnColour(key)) f |= TraitCultivated;
                     if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsHanging(key)) f |= TraitHangingFlora;
                     if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsRainbow(key)) f |= TraitRainbowFlora;
-                    if (key == "water" || key == "gas" || key == "gas_dense") f |= TraitWater; // #2112: the gas sea meshes like water (a see-through surface)
+                    if (key is "water" or "gas" or "gas_dense" or LiquidLook.RessawKey) f |= TraitWater; // #2112: the gas sea meshes like water (a see-through surface); #3335: Ressaw too
                     if (key == "gas") f |= TraitGas; // #2128: …but is shaded as a drifting haze
                     if (key == "gas_dense") f |= TraitGas | TraitDenseGas; // #2134: the dense gas under it — the darker haze (mode 6)
                     if (key == "lava") f |= TraitLava;

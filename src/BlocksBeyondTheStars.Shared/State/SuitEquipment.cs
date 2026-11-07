@@ -167,6 +167,14 @@ public static class SuitEquipment
         return head && chest && legs && feet;
     }
 
+    /// <summary>#3339: the plain suit lamp — the lamp VEGA names when it is dark and the player has none.</summary>
+    public const string SuitLampKey = "suit_lamp";
+
+    /// <summary>#3339: whether a piece is a lamp the lamp key switches — the plain suit lamp, or a lamp that keeps the night
+    /// sight running while it shines (<see cref="ItemDefinition.NightSight"/>, the Ressaw lamp). Server and client ask this
+    /// one question, so the key, the beam and the night sight never disagree about which pieces are lamps.</summary>
+    public static bool IsLamp(ItemDefinition? def) => def != null && (def.Key == SuitLampKey || def.NightSight);
+
     /// <summary>A rank for "the best piece for a slot" — what the one-time migration and a full backpack pick by.</summary>
     public static float Rank(ItemDefinition def)
         => def.OxygenBonus * 10f + def.SuitEnergyBonus * 10f + def.ThermalInsulation * 100f + def.CorrosionResistance * 100f

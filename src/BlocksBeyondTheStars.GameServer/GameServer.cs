@@ -877,6 +877,8 @@ public sealed partial class GameServer
                         BootDetail("wreck", StampWreck);
                     }
 
+                    BootDetail("ancient ruins", () => StampAncientRuins(restricted)); // #3334 (generation 35): the buried G.D.S. ruin — before the vaults, which keep clear of it
+
                     if (_config.PlaceVaults && !restricted)
                     {
                         BootDetail("vaults", StampVaults); // buried vault ruins ("Welten reicher" W-R3) — 0-2 per world, loot via containers
@@ -2111,6 +2113,7 @@ public sealed partial class GameServer
                 continue;
             }
 
+            TickLampSight(session); // #3339: a lit night-sight lamp keeps the night sight running (GameServerRessaw.cs)
             TickBioEffects(session, dt); // #2202: count the status effects down, heal and recharge
 
             float maxOxygen = MaxOxygen(p);
@@ -2189,7 +2192,7 @@ public sealed partial class GameServer
                 // Health regen never revives a dead player (0 HP) — that would outrun the death check
                 // below and quietly skip the respawn on breathable worlds.
                 p.Oxygen = System.Math.Min(maxOxygen, p.Oxygen + (float)(dt * 25));
-                if (p.Health > 0f && session.Hazards.ToxicWaterSeconds <= ToxicWaterGraceSeconds && p.Exposure < 1f) // 2026-09: toxic water and a full exposure meter stop the regen
+                if (p.Health > 0f && session.Hazards.ToxicWaterSeconds <= ToxicWaterGraceSeconds && p.Exposure < 1f && !RessawStinging(session)) // 2026-09: toxic water, a full exposure meter and (#3335) Ressaw stop the regen
                 {
                     // #2202: a "tired" side effect takes natural healing away for as long as it lasts.
                     p.Health = System.Math.Min(100f, p.Health + (float)(dt * 2) * Shared.Bio.PlayerEffects.NaturalHealingFactor(p.Effects));
@@ -2202,7 +2205,7 @@ public sealed partial class GameServer
                     p.SuitEnergy = System.Math.Min(MaxSuitEnergy(p), p.SuitEnergy + (float)(dt * 20)); // #2297: up to the worn battery
                 }
             }
-            else
+            else if (!(submerged && BreathesInRessaw(p))) // #3337: in Ressaw the full diving suit holds the tank
             {
                 // Outside without breathable air (toxic / airless) or submerged underwater: drain the tank.
                 float drain = (float)(dt * Rules.OxygenDrainPerSecond) * Shared.Bio.PlayerEffects.OxygenDrainFactor(p.Effects); // #2202
@@ -2249,6 +2252,7 @@ public sealed partial class GameServer
 
             // Toxic water (2026-09, Titas): after a short grace the water itself burns — standing on its ice is safe.
             TickToxicWater(session, dt);
+            TickRessaw(session, dt); // #3335: Ressaw stings after a short grace; the full diving suit keeps it out (GameServerRessaw.cs)
 
             // Extreme heat / cold / vacuum stress the suit (#666): climate control drains suit energy
             // first (insulation gear slows it), an empty suit means slow exposure damage.

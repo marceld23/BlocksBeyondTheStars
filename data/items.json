@@ -418,6 +418,8 @@
   // derelict_log#x<seed>; the text is written from data/derelict_logs.json).
   { "key": "spoiled_food",         "nameKey": "item.spoiled_food.name",         "category": "consumable", "maxStack": 99,   "descriptionKey": "item.spoiled_food.desc", "consumeHealth": -6, "consumeHunger": 6 },
   { "key": "derelict_log",         "nameKey": "item.derelict_log.name",         "category": "component",  "maxStack": 1,    "descriptionKey": "item.derelict_log.desc" },
+  // #3341: a note from the crates of a buried G.D.S. ruin (gds_log#x<seed>; the text is written from data/gds_logs.json).
+  { "key": "gds_log",              "nameKey": "item.gds_log.name",              "category": "component",  "maxStack": 1,    "descriptionKey": "item.gds_log.desc" },
   // #2067: the decontaminator station block — placed at a base, the planetside counterpart of its ship module.
   { "key": "decontaminator", "craftTab": "machines", "nameKey": "item.decontaminator.name", "category": "block", "maxStack": 16, "placesBlock": "decontaminator", "descriptionKey": "item.decontaminator.desc" },
   { "key": "device_eye", "craftTab": "machines", "nameKey": "item.device_eye.name", "category": "block", "maxStack": 16, "placesBlock": "device_eye", "descriptionKey": "item.device_eye.desc" },

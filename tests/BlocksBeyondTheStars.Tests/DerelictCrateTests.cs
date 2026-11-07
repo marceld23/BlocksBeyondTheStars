@@ -273,7 +273,7 @@ public sealed class DerelictCrateTests : IDisposable
             foreach (var (lang, table) in new[] { ("en", en), ("de", de) })
             {
                 Assert.True(table.TryGetValue(key, out var text) && !string.IsNullOrWhiteSpace(text), $"{lang}: missing '{key}'");
-                bool header = key == DerelictLogDefinition.HeaderKey;
+                bool header = key == _content.DerelictLogs.HeaderKey;
                 bool named = key == "srv.derelict.log_found";
                 Assert.Equal(header || named, text!.Contains("{0}"));
                 Assert.Equal(header, text.Contains("{1}"));

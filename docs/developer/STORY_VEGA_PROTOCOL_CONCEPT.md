@@ -405,6 +405,8 @@ canon fact, entity, or a reveal/ordering change — **update LORE_STRUCTURE.md i
 - **Post-finale:** all machines gone (fauna stays); world flagged *net online*; game continues.
 - **Machine/wreck coupling:** real but **count-neutral** (§9).
 - **Doc upkeep:** keep [LORE_STRUCTURE.md](LORE_STRUCTURE.md) current with every content/canon change.
+- **The G.D.S.** (#1793, #3341) are world flavour outside this arc — a reckless, never evil city people whose flooded
+  city lies under the desert; their guardians are not the Guardian core's units (LORE_STRUCTURE.md §C).
 
 **Resolved during implementation (were open):**
 - Hack form: **channel-and-defend** chosen and built (`GameServerStoryFinale.HandleCoreHack` — a

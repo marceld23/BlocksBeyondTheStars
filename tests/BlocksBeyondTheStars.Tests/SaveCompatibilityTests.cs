@@ -1009,6 +1009,7 @@ public sealed class SaveCompatibilityTests : IDisposable
         [9] = "9a538b899ef3eb98", // the festival decorations (#3024): gift_box, paper_lantern, diya_lamp, flora_marigold
         [10] = "d22a189ddc1773cc", // the base landing pad (#3069): base_pad; the transport crate (#3098): transport_crate
         [11] = "becf60463aa566d6", // the wooden planks (#3181): wood_planks, wood_planks_light, wood_planks_mahogany; the lift gate (#3174): lift_gate, lift_gate_open
+        [12] = "3c2dc70b1a64cb6b", // the buried G.D.S. ruins (#3334–#3342): ressaw, ressaw_block(_cracked), ressaw_crystal_ore, ressaw_conduit, gds_skull, gds_diving_helmet, gds_guardian_head
     };
 
     [Fact]

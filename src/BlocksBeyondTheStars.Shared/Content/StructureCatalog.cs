@@ -29,11 +29,21 @@ public sealed class StructureCatalog
     public IReadOnlyList<StructureKit> StructureKits { get; private set; } = System.Array.Empty<StructureKit>();
 
     /// <summary>Populates the optional structure-template pools (called by the content loader). Builds the
-    /// tier-matched sub-pools + the distinct pack list used by selection and the creation UI.</summary>
-    public void SetStructureTemplates(IReadOnlyList<StructureTemplate> stations, IReadOnlyList<StructureTemplate> settlements)
+    /// tier-matched sub-pools + the distinct pack list used by selection and the creation UI. #3333: a station template
+    /// flagged <see cref="StructureTemplate.Underground"/> is reported through <paramref name="warn"/> and kept as a surface
+    /// template (stations hang in space).</summary>
+    public void SetStructureTemplates(IReadOnlyList<StructureTemplate> stations, IReadOnlyList<StructureTemplate> settlements, Action<string>? warn = null)
     {
         StationTemplates = stations ?? System.Array.Empty<StructureTemplate>();
         SettlementTemplates = settlements ?? System.Array.Empty<StructureTemplate>();
+        foreach (var t in StationTemplates)
+        {
+            if (t != null && t.Underground)
+            {
+                warn?.Invoke($"Station template '{t.Key}' is marked underground — stations hang in space, so it stays a surface template.");
+                t.Underground = false;
+            }
+        }
 
         _stationsByTier = GroupByTier(StationTemplates);
         _settlementsByTier = GroupByTier(SettlementTemplates);
@@ -71,6 +81,12 @@ public sealed class StructureCatalog
             }
 
             kit.Kind = kind;
+            if (kit.Underground && kind == StructureKit.KindStation)
+            {
+                warn?.Invoke($"Structure kit '{kit.Key}': a station kit cannot be underground (stations hang in space) — treated as a surface kit.");
+                kit.Underground = false; // #3333: the flag is meaningful for settlement and city kits only
+            }
+
             var entries = new List<KitEntry>();
             foreach (var e in kit.Entries)
             {
@@ -219,8 +235,8 @@ public sealed class StructureCatalog
         return packOk && planetOk;
     }
 
-    /// <summary>The COMPLETE templates of a tier a slot may draw from — non-module, not pin-only, in the enabled
-    /// packs and on the planet — for the joint random table with the kits (#1874).</summary>
+    /// <summary>The COMPLETE templates of a tier a slot may draw from — non-module, not pin-only, not underground
+    /// (#3333), in the enabled packs and on the planet — for the joint random table with the kits (#1874).</summary>
     public IReadOnlyList<StructureTemplate> CompleteTemplatesFor(string kind, string tier, IReadOnlyCollection<string>? enabledPacks, string? planetType)
     {
         var byTier = kind == StructureKit.KindStation ? _stationsByTier : _settlementsByTier;
@@ -232,10 +248,7 @@ public sealed class StructureCatalog
 
         foreach (var t in candidates)
         {
-            bool packOk = enabledPacks is null || enabledPacks.Count == 0 || enabledPacks.Contains(t.PackOrDefault);
-            bool planetOk = t.PlanetTypes.Count == 0 || string.IsNullOrEmpty(planetType)
-                || t.PlanetTypes.Contains(planetType!, StringComparer.OrdinalIgnoreCase);
-            if (!t.PinOnly && packOk && planetOk)
+            if (!t.PinOnly && !t.Underground && TemplateFits(t, enabledPacks, planetType))
             {
                 list.Add(t);
             }
@@ -244,24 +257,68 @@ public sealed class StructureCatalog
         return list;
     }
 
+    /// <summary>#3333: the UNDERGROUND whole settlement templates a planet may carry, of any tier — not pin-only, in the
+    /// enabled packs and on the planet, in pool order. Only the underground stamper reads this; the surface pools
+    /// (<see cref="CompleteTemplatesFor"/>, <see cref="PickSettlementTemplate"/>) never offer them. A station template is
+    /// never underground (<see cref="SetStructureTemplates"/> clears the flag).</summary>
+    public IReadOnlyList<StructureTemplate> UndergroundTemplatesFor(IReadOnlyCollection<string>? enabledPacks, string? planetType)
+    {
+        var list = new List<StructureTemplate>();
+        foreach (var t in SettlementTemplates)
+        {
+            if (!t.IsModule && t.Underground && !t.PinOnly && TemplateFits(t, enabledPacks, planetType))
+            {
+                list.Add(t);
+            }
+        }
+
+        return list;
+    }
+
+    private static bool TemplateFits(StructureTemplate t, IReadOnlyCollection<string>? enabledPacks, string? planetType)
+    {
+        bool packOk = enabledPacks is null || enabledPacks.Count == 0 || enabledPacks.Contains(t.PackOrDefault);
+        bool planetOk = t.PlanetTypes.Count == 0 || string.IsNullOrEmpty(planetType)
+            || t.PlanetTypes.Contains(planetType!, StringComparer.OrdinalIgnoreCase);
+        return packOk && planetOk;
+    }
+
+    /// <summary>#3333: whether a settlement MODULE belongs underground — flagged itself, or a module of an underground kit
+    /// (its home <see cref="StructureTemplate.Kit"/>). Such a module never enters the surface module pool
+    /// (<see cref="SettlementModulesFor"/>); its kit's entries still resolve it by key. A module of a surface kit that an
+    /// underground kit merely borrows stays a surface module.</summary>
+    public bool IsUndergroundModule(StructureTemplate t)
+    {
+        if (t.Underground)
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(t.Kit))
+        {
+            return false;
+        }
+
+        var kit = KitByKey(t.Kit);
+        return kit != null && IsUndergroundKit(kit);
+    }
+
     /// <summary>The settlement building MODULES (#1826: templates with a <see cref="StructureTemplate.Role"/>)
     /// a world may compose into its settlements and city: pack-filtered like whole templates, planet-type
     /// filtered like settlements, in pool order (the composers pick by hash, so the order is part of the
-    /// determinism contract — never sort). Empty when no module fits.</summary>
+    /// determinism contract — never sort). Empty when no module fits. #3333: an underground module
+    /// (<see cref="IsUndergroundModule"/>) is never in this surface pool.</summary>
     public IReadOnlyList<StructureTemplate> SettlementModulesFor(IReadOnlyCollection<string>? enabledPacks, string? planetType)
     {
         var list = new List<StructureTemplate>();
         foreach (var t in SettlementTemplates)
         {
-            if (!t.IsModule || !StructureRoles.IsKnown(t.Role) || t.Width <= 0 || t.Height <= 0 || t.Length <= 0)
+            if (!t.IsModule || !StructureRoles.IsKnown(t.Role) || t.Width <= 0 || t.Height <= 0 || t.Length <= 0 || IsUndergroundModule(t))
             {
                 continue;
             }
 
-            bool packOk = enabledPacks is null || enabledPacks.Count == 0 || enabledPacks.Contains(t.PackOrDefault);
-            bool planetOk = t.PlanetTypes.Count == 0 || string.IsNullOrEmpty(planetType)
-                || t.PlanetTypes.Contains(planetType!, StringComparer.OrdinalIgnoreCase);
-            if (packOk && planetOk)
+            if (TemplateFits(t, enabledPacks, planetType))
             {
                 list.Add(t);
             }
@@ -336,8 +393,9 @@ public sealed class StructureCatalog
         else
         {
             // #1874: a pin-only template stays for the worlds that pinned it (the legacy replay above still
-            // sees it) and is never rolled for a new structure.
-            candidates = candidates.Where(t => !t.PinOnly).ToList();
+            // sees it) and is never rolled for a new structure. #3333: neither is an underground one — only the
+            // underground stamper seats it (a legacy replay reproduces what already stands, so it is left alone).
+            candidates = candidates.Where(t => !t.PinOnly && !t.Underground).ToList();
             if (candidates.Count == 0)
             {
                 return null;

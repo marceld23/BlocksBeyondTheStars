@@ -132,6 +132,7 @@ public sealed class FootstepSurfaceTests
     [InlineData("lift_platform", "step_grate")]
     [InlineData("crystal", "step_crystal")]
     [InlineData("crystal_conduit", "step_crystal")]
+    [InlineData("ressaw_conduit", "step_crystal")] // #3340: a crystal conduit in every respect
     [InlineData("glass", "step_crystal")]
     [InlineData("obsidian", "step_crystal")]
     [InlineData("cargo_floor", "step_metal")]

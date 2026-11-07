@@ -19,7 +19,7 @@ namespace BlocksBeyondTheStars.Client
         // lives on its own plain overlay canvas: the HUD canvas may render through the visor camera, where a tap lands
         // wrong, and on a tablet the touch layer's full-screen look pad (sort 100) would swallow every tap below it.
         /// <summary>The worn ACTIVE gear, in the strip's order — the Suit tab's "Can be used actively" list reads it too.</summary>
-        internal static readonly string[] ActiveGear = { "suit_lamp", "jetpack", "glider", "stealth_suit" };
+        internal static readonly string[] ActiveGear = { "suit_lamp", "ressaw_lamp", "jetpack", "glider", "stealth_suit" }; // #3339: the Ressaw lamp switches like the suit lamp
 
         private sealed class GearCell
         {
@@ -203,6 +203,7 @@ namespace BlocksBeyondTheStars.Client
             switch (key)
             {
                 case "suit_lamp":
+                case "ressaw_lamp":
                     return _playerRig != null && _playerRig.LampOn;
                 case "jetpack":
                     return _playerRig != null && _playerRig.JetpackActive;
@@ -220,6 +221,7 @@ namespace BlocksBeyondTheStars.Client
             switch (key)
             {
                 case "suit_lamp":
+                case "ressaw_lamp":
                     return touch ? string.Empty : ActionGlyph(loc, InputAction.ToggleLamp);
                 case "stealth_suit":
                     return touch ? string.Empty : ActionGlyph(loc, InputAction.ToggleStealth);
@@ -246,6 +248,7 @@ namespace BlocksBeyondTheStars.Client
             switch (key)
             {
                 case "suit_lamp":
+                case "ressaw_lamp":
                     if (_playerRig != null)
                     {
                         _playerRig.ToggleLamp();

@@ -1961,6 +1961,18 @@
    "peak": -0.8,
    "sha256": "edcb87f36564e3ad8af89496ffa24b87d63de582f144cbcee3ce2585452f291f"
   },
+  "ressaw_crack": {
+   "class": "oneshot",
+   "level": -18.2,
+   "peak": -0.8,
+   "sha256": "52d4088f14338d3510dfe5761e798969e750177c6428effa6272916fd660d443"
+  },
+  "ressaw_leak": {
+   "class": "oneshot",
+   "level": -15.7,
+   "peak": -0.1,
+   "sha256": "b78d0192b1d3a7bab9a63a16043fce26b8e55fa674257584c75ee85a56be0960"
+  },
   "rope_anchor": {
    "class": "oneshot",
    "level": -13.1,

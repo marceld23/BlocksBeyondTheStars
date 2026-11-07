@@ -1291,7 +1291,7 @@ namespace BlocksBeyondTheStars.Client
                 EnsureGearMaterials(); // nothing worn (a fresh NPC, most remote figures) makes none
             }
 
-            // #3290–#3292: a piece of the guardian, robber or flower set draws itself (PlayerAvatar.GearSets.cs) instead of
+            // #3290–#3292, #3337: a piece of the guardian, robber, flower or Ressaw set draws itself (PlayerAvatar.GearSets.cs) instead of
             // the classic plates of its slot.
             if (GearLook.Has(mask, GearLook.Helmet) && !BuildHeadSet(GearLook.HeadStyle(mask)))
             {
@@ -1359,7 +1359,7 @@ namespace BlocksBeyondTheStars.Client
                 _gear.Add(AddCube("GearTankCap", transform, new Vector3(0f, 1.74f, -0.22f), new Vector3(0.12f, 0.08f, 0.12f), _gearPlate));
             }
 
-            if (GearLook.Has(mask, GearLook.Boots) && _kneeL != null && _kneeR != null)
+            if (GearLook.Has(mask, GearLook.Boots) && _kneeL != null && _kneeR != null && !BuildBootsSet(GearLook.BootsStyle(mask))) // #3337
             {
                 // #2110: boots — a wider, darker block over each foot, outside the leg plates. On the knee pivots, where
                 // the feet hang (knee-local y −0.44): they used to sit on the hip pivots at −0.50, i.e. round the knee.

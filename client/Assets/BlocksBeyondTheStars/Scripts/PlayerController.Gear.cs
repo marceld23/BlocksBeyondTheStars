@@ -18,8 +18,13 @@ namespace BlocksBeyondTheStars.Client
     {
         // ---- The worn active gear, for the HUD gear strip (#2290) ----
 
-        /// <summary>The suit lamp is lit: switched on AND worn (taking it off darkens it; wearing it again relights it).</summary>
-        public bool LampOn => _lampOn && HasItem("suit_lamp");
+        /// <summary>The suit lamp is lit: switched on AND worn (taking it off darkens it; wearing it again relights it). #3339:
+        /// any lamp the lamp key switches — the suit lamp or the Ressaw lamp (<see cref="GameBootstrap.WearsLamp"/>).</summary>
+        public bool LampOn => _lampOn && WearsLamp();
+
+        /// <summary>#3339: a lamp is worn — the suit lamp, or a night-sight lamp whose night sight the server keeps running
+        /// while it shines.</summary>
+        private bool WearsLamp() => Game != null && Game.WearsLamp();
 
         /// <summary>The jetpack is firing right now (the state last reported to the server, which drains the energy).</summary>
         public bool JetpackActive => _jetpackActive;
@@ -28,7 +33,7 @@ namespace BlocksBeyondTheStars.Client
         /// Without a worn lamp it only says where to put one on (#2291) instead of flipping a switch nothing shows.</summary>
         public void ToggleLamp()
         {
-            if (!HasItem("suit_lamp"))
+            if (!WearsLamp())
             {
                 GearHint("ui.hud.no_lamp");
                 return;
@@ -117,14 +122,15 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The lamp shines this frame (worn, switched on, no cinematic) — <see cref="PublishLamp"/> places it.</summary>
         private bool _lampLit;
 
-        /// <summary>Decides whether the suit headlamp (toggle L) shines this frame — the <c>suit_lamp</c> must be worn —
+        /// <summary>Decides whether the suit headlamp (toggle L) shines this frame — a lamp must be worn (the <c>suit_lamp</c>
+        /// or, #3339, the <c>ressaw_lamp</c>, whose night sight the server runs on this same report) —
         /// and reports every effective change to the server: VEGA's "it's dark and your lamp is off" tip (#1077) and,
         /// since #3234, the other players see the beam. #3154: dark while a cinematic owns the camera (the lift-off shot lit
         /// the ship from its own camera) — not switched off: it shines again after. The light itself is a shader spotlight
         /// (ADR 0003, <see cref="Headlamp"/>), placed in <see cref="PublishLamp"/> once the camera has moved this frame.</summary>
         private void UpdateLamp()
         {
-            bool on = _lampOn && Camera != null && HasItem("suit_lamp");
+            bool on = _lampOn && Camera != null && WearsLamp(); // #3339: the Ressaw lamp shines too
             _lampLit = on && !(Game != null && Game.CinematicCameraActive);
             if (!_lampLit)
             {

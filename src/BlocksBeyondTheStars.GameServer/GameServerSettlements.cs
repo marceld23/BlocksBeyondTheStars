@@ -1668,7 +1668,8 @@ public sealed partial class GameServer
 
         return OverlapsIntercityRail(x, z, halfExtent) // #2125: the stations and the route belong to the towns
             || OverlapsRailRuin(x, z, halfExtent)      // #2166: the abandoned monorail station
-            || OverlapsLodge(x, z, halfExtent);        // #2640: the wilderness huts
+            || OverlapsLodge(x, z, halfExtent)         // #2640: the wilderness huts
+            || OverlapsAncientRuin(x, z, halfExtent);  // #3334: the buried G.D.S. ruin (a vault's chamber would cut into it)
     }
 
     // --- count + balance model ----------------------------------------------------------------------------

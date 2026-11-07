@@ -22,6 +22,7 @@ namespace BlocksBeyondTheStars.Client
         public List<KitEntryJson> entries = new List<KitEntryJson>();
         public int colsMin, colsMax, rowsMin, rowsMax, plotStride, building, storeys;
         public bool modulesOnly;
+        public bool underground; // #3333: settlement / city kits only — composed solely by the underground stamper
         public int grid, districtSize, street, height;
         public List<string> roleMap = new List<string>();
 
@@ -34,7 +35,7 @@ namespace BlocksBeyondTheStars.Client
                 solarWings = k.SolarWings, antennas = k.Antennas, domes = k.Domes,
                 planetTypes = new List<string>(k.PlanetTypes),
                 colsMin = k.ColsMin, colsMax = k.ColsMax, rowsMin = k.RowsMin, rowsMax = k.RowsMax, plotStride = k.PlotStride,
-                building = k.Building, storeys = k.Storeys, modulesOnly = k.ModulesOnly,
+                building = k.Building, storeys = k.Storeys, modulesOnly = k.ModulesOnly, underground = k.Underground,
                 grid = k.Grid, districtSize = k.DistrictSize, street = k.Street, height = k.Height, roleMap = new List<string>(k.RoleMap),
             };
             foreach (var e in k.Entries)
@@ -54,7 +55,7 @@ namespace BlocksBeyondTheStars.Client
                 SolarWings = solarWings, Antennas = antennas, Domes = domes,
                 PlanetTypes = new List<string>(planetTypes ?? new List<string>()),
                 ColsMin = colsMin, ColsMax = colsMax, RowsMin = rowsMin, RowsMax = rowsMax, PlotStride = plotStride,
-                Building = building, Storeys = storeys, ModulesOnly = modulesOnly,
+                Building = building, Storeys = storeys, ModulesOnly = modulesOnly, Underground = underground,
                 Grid = grid, DistrictSize = districtSize, Street = street, Height = height, RoleMap = new List<string>(roleMap ?? new List<string>()),
             };
             foreach (var e in entries ?? new List<KitEntryJson>())
@@ -339,6 +340,8 @@ namespace BlocksBeyondTheStars.Client
             if (k2.kind != StructureKit.KindStation)
             {
                 Field(panel, x0, y, L("ui.kit.planet_types"), string.Join(", ", k2.planetTypes), v => k2.planetTypes = SplitList(v));
+                // #3333: an underground kit is never drawn for the surface; only the underground stamper composes it.
+                UiKit.AddFitButton(panel, x0 + ColumnStep, y, 192f, 30f, (k2.underground ? "☑ " : "☐ ") + L("ui.kit.underground"), () => { k2.underground = !k2.underground; Rebuild(); });
                 y += 40f;
             }
 
@@ -479,6 +482,11 @@ namespace BlocksBeyondTheStars.Client
                 _status = L("ui.ed.need_key");
                 Rebuild();
                 return;
+            }
+
+            if (k.kind == StructureKit.KindStation)
+            {
+                k.underground = false; // #3333: stations hang in space — the server would ignore the flag anyway
             }
 
             try

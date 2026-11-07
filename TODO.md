@@ -24,6 +24,51 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🏚️ Buried G.D.S. ruins flooded with Ressaw — Justus' "Alte Städte" (player report 2026-11-01, terrain generation 35) — #3333–#3343, branch feat/ancient-gds-cities — ✅ 2026-11-07 (⚠ playtest open; **save version 11 → 12** — eight new blocks shift the block ids; terrain generation 35 — only new worlds get ruins; no protocol change; 89 new locale keys in all 14 languages)
+
+Justus (as Screelit): old underground cities of purple and red metal, flooded with a glowing corrosive liquid, logs of
+the G.D.S., diving-suit pieces in crates, skulls, Ressaw crystals stronger than titanium, a lamp that turns night into day,
+and Ressaw that makes the crystal conduits stronger. The G.D.S. already existed — his own city world `gds_desert` (#1793)
+whose guardian says "Go. Don't dig." Marcel's decisions: procedurally generated behind an editor "underground" flag; on
+G.D.S. worlds always, elsewhere rarely; new worlds only; the G.D.S. were only reckless; skulls rare among other remains;
+Ressaw stands still and leaks from cracks; milky see-through glow; tier-3 ore and a faster drill; Ressaw conduits let a net
+grow to 512; the lamp needs Ressaw only as an ingredient; everything in one package.
+
+- **#3333** `underground` on `StructureKit` / `StructureTemplate` (toggle in the kit panel and the town editor's whole-structure
+  form, kept by `tools/merge_structure.py`); surface pools skip underground kits, templates and their modules
+  (`KitsFor`, `CompleteTemplatesFor`, `SettlementModulesFor`); `UndergroundKitsFor` / `UndergroundTemplatesFor`; a station
+  with the flag is warned about and stays a surface structure. Every underground kit (city or settlement kind) and whole
+  template is really stamped: the roll slot (4 % × Vaults on every eligible planet) picks among all of them; an author's
+  structure is built faithfully (doors, loot, Crystal Net devices; no residents) in a sealed cave with a stone shaft and an
+  iron vent tower (`vega.hint.underground`); only `ruin_gds*` city kits get the G.D.S. ruin pass. STATION_SETTLEMENT_EDITOR §
+  Underground, WORLD_GENERATION § 50.
+- **#3334** Generation 35 (`AncientRuinsGeneration`): kit `ruin_gds_1` (3×3 districts of 24, 88×88, height 12) + ten
+  `gds_ruin_*` modules from `tools/gen_ancient_ruin_modules.py`, composed by the city composer and an abandoned "ruin pass"
+  (no residents, broken walls, sinkholes, Ressaw basins, ≥ 6 Ressaw blocks, ≥ 4 crates `gds_cache:<n>`, props). Seat: carved at
+  depth with a deepslate shell; `gds_desert` always in its city slot (a red-ringed glass hatch in a street by the plaza),
+  any eligible planet 4 % × the Vaults option in the roll slot (a purple/red vent tower 160–400 blocks out). One-time stamp,
+  ~100 k cells, +0.4–0.7 s first boot, +5.4 MB save. VEGA hints near an entrance. WORLD_GENERATION § 50.
+- **#3335** Block `ressaw` — a still liquid; swim + oxygen drain from the liquid flag, pumpable; after a 3 s grace 3 HP/s ×
+  hazard tier (corrosion resistance softens it, armour does not; healing pauses), own death message, VEGA hint; client: milky
+  see-through glowing surface (`ChunkMesher.Ressaw.cs`, transparent shader mode 7), milky underwater wash + 7 m fog.
+- **#3336** `ressaw_block` cracks after 5 s within ~2 blocks of a player and leaks after 4 s more (≤ 5 extra puddle cells over
+  solid floor, never into a block or a player); sounds `ressaw_crack` / `ressaw_leak`; 0.5 s beat, ≤ 4 events per world and beat.
+- **#3337** Ressaw diving suit (helmet, suit, leggings, boots, `ressawSuit`): the full set → no Ressaw damage and the tank
+  holds with the head in Ressaw; its own look (`GearLook` style 4 + boots style). Crates 0–3 of a ruin hold the four pieces.
+- **#3338** `ressaw_crystal_ore` (tier 3) at the bottom of the basins; `ressaw_drill` (tier 3, mining power 4.5 > diamond
+  3.2); blueprint `ressaw_tech` (titanium drill, 170 knowledge); workbench recipes; researchers buy spare crystals.
+- **#3339** `ressaw_lamp` (module slot): L works with any worn lamp; lit + worn → night sight (a refreshed 20 s
+  `BioEffect.NightSight`); Ressaw only as an ingredient.
+- **#3340** `ressaw_conduit`: a crystal conduit; a net with one may hold 512 cells (`CrystalNet.MaxCellsFor`), the ship's net
+  stays at 128. CRYSTAL_NET §8, ADR 0013 amendment 3.
+- **#3341** G.D.S. logs (`LogSets` / `GdsLogs`, `data/gds_logs.json`, item `gds_log#x…`): the reckless story, everyone got out;
+  read from the inventory, kept in the Codex (Discoveries → G.D.S. logs). LORE_STRUCTURE §C, DERELICT_STATIONS.
+- **#3342** Props `gds_diving_helmet`, `gds_guardian_head` (43 % each) and the rare cartoon creature `gds_skull` (14 %); plain
+  cubes facing the room. AGE_RATING_CHECKLIST updated.
+- **#3343** 8 tiles, 10 icons, 2 sounds (OpenAI / ElevenLabs via the asset scripts); NOTICES, SOUND_DESIGN § 33.
+
+Open: playtest (finding a vent tower, the hatch under the G.D.S. city, the suit in the basins, cracks, the lamp); no
+planet-map POI / `/tp` target for a ruin yet; plants standing in Ressaw show a dry gap (the wet-cell fill is water-only).
 ### 📬 Player report 2026-11-07 (Milan as Screelit, world "J&M", v2026.11.8) — the respawn-choice screen froze nothing: the mouse turned the camera and clicks mined the block below; a dead body could still mine and build; Milan into the credits — #3369–#3371, branch fix/respawn-choice-freeze — ✅ done 2026-11-07 (⚠ playtest open; no save-version, protocol or terrain-generation change; one changed locale key `ui.credits.body` in all 14 languages)
 
 Milan's F1 report "Nicht bewegen wenn tot": with a home spawn set, the death goes the deferred respawn-choice path (#462)

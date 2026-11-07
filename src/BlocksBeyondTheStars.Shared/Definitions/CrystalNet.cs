@@ -272,6 +272,13 @@ public static class CrystalNetRules
     public const int MoveStackSize = 16;
 
     public const int MaxCellsPerNet = 256;
+
+    /// <summary>#3340: a network that holds at least one Ressaw conduit (<see cref="RessawConduitBlockKey"/>) may grow to this
+    /// many cells instead of <see cref="MaxCellsPerNet"/>. The net stays one bit (ADR 0013): a Ressaw conduit buys reach, not
+    /// signal strength. It is also the bound of every flood that walks a network's cells. A ship's own net keeps
+    /// <see cref="MaxShipCellsPerNet"/>.</summary>
+    public const int MaxCellsPerRessawNet = 512;
+
     public const int MaxNetsPerWorld = 64;
     public const int MaxSensorsPerWorld = 32;
     public const int MaxSoundDevicesPlayingPerWorld = 8;
@@ -403,11 +410,30 @@ public static class CrystalNetRules
     };
 
     public const string ConduitBlockKey = "crystal_conduit";
+
+    /// <summary>#3340: the Ressaw conduit — a crystal conduit in every respect (a <see cref="CrystalDeviceKind.Conduit"/> cell:
+    /// it carries the network's ON/OFF and glows while ON), and a network holding one may grow to
+    /// <see cref="MaxCellsPerRessawNet"/> cells.</summary>
+    public const string RessawConduitBlockKey = "ressaw_conduit";
+
     public const string LightOffSuffix = "_off";
+
+    /// <summary>#3340: whether a block key is a conduit — the crystal conduit or the Ressaw conduit. The one test for "is this
+    /// block a wire" by key; the server and the client otherwise go by <see cref="KindOf"/> (both keys map to
+    /// <see cref="CrystalDeviceKind.Conduit"/>).</summary>
+    public static bool IsConduitKey(string? key) => key == ConduitBlockKey || key == RessawConduitBlockKey;
+
+    /// <summary>#3340: whether a block key is the Ressaw conduit, the conduit that lifts its network's cell cap.</summary>
+    public static bool IsRessawConduitKey(string? key) => key == RessawConduitBlockKey;
+
+    /// <summary>#3340: the cell cap of a world network: <see cref="MaxCellsPerRessawNet"/> when it holds a Ressaw conduit,
+    /// <see cref="MaxCellsPerNet"/> otherwise.</summary>
+    public static int MaxCellsFor(bool holdsRessawConduit) => holdsRessawConduit ? MaxCellsPerRessawNet : MaxCellsPerNet;
 
     private static readonly Dictionary<string, CrystalDeviceKind> KindByBlockKey = new(StringComparer.Ordinal)
     {
         [ConduitBlockKey] = CrystalDeviceKind.Conduit,
+        [RessawConduitBlockKey] = CrystalDeviceKind.Conduit, // #3340
         ["crystal_switch"] = CrystalDeviceKind.Switch,
         ["crystal_button"] = CrystalDeviceKind.Button,
         ["step_plate"] = CrystalDeviceKind.StepPlate,

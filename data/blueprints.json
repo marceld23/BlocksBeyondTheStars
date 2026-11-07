@@ -260,6 +260,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 5 }, { "item": "titanium_plate", "count": 8 }, { "item": "diamond", "count": 1 } ]
   },
   {
+    "key": "ressaw_tech", "nameKey": "blueprint.ressaw_tech.name", "descriptionKey": "blueprint.ressaw_tech.desc",
+    "category": "Suit", "prerequisites": [ "titanium_drill" ], "knowledgeCost": 170,
+    "unlockCost": [ { "item": "data_fragment", "count": 5 }, { "item": "titanium_plate", "count": 8 }, { "item": "ressaw_crystal", "count": 2 } ]
+  },
+  {
     "key": "armor_chest", "nameKey": "blueprint.armor_chest.name", "descriptionKey": "blueprint.armor_chest.desc",
     "category": "Suit", "prerequisites": [], "knowledgeCost": 18,
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 12 } ]

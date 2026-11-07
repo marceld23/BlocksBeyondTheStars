@@ -205,14 +205,16 @@ public sealed class MaterialEconomyTests
             "titan_helmet", "titan_chest", "titan_legs", "spring_boots", "glider", "suit_battery",
             // #2201/#2204/#2206: used up in the bio lab, which computes its results and has no recipes to list them in.
             "bio_sample", "mineral_sample", "prep_coating",
-            // #2633: an old station log is read (inventory, Codex), never used up.
-            "derelict_log",
+            // #2633/#3341: an old station log and a G.D.S. log are read (inventory, Codex), never used up.
+            "derelict_log", "gds_log",
             // #3035: a name tag is used up on a companion, which no recipe lists.
             "name_tag",
             // #3099: the storage bag is carried and opened, never used up.
             "storage_bag",
             // #3290-#3292: the guardian armour, the robber disguise and the flower set are worn, never used up.
             "guardian_helmet", "guardian_chest", "guardian_legs", "robber_mask", "robber_jacket", "flower_wreath", "flower_bracelets",
+            // #3337/#3339: the Ressaw diving suit and the Ressaw lamp are worn, never used up.
+            "ressaw_helmet", "ressaw_suit", "ressaw_leggings", "ressaw_boots", "ressaw_lamp",
         };
         var unconsumedComponents = _c.Items.Values
             .Where(i => i.Category == ItemCategory.Component && !uses.ContainsKey(i.Key))

@@ -176,23 +176,25 @@ public sealed partial class GameServer
         return items;
     }
 
-    /// <summary>The logs a player just took out of a container (<see cref="LootContainer"/>): each new one goes into their
-    /// Discoveries ledger (<c>log:&lt;seed&gt;</c>, named after the writer, sited where they found it — the Codex lists and
-    /// re-reads it) with a toast that says where to read it. A log already in the ledger (dropped and picked up again, or
-    /// a copy a friend left in a crate) only moves.</summary>
+    /// <summary>The logs a player just took out of a container (<see cref="LootContainer"/>) — a derelict's (#2633) or a
+    /// buried G.D.S. ruin's (#3341), any <see cref="LogSets"/> set: each new one goes into their Discoveries ledger
+    /// (<c>log:&lt;seed&gt;</c> / <c>gdslog:&lt;seed&gt;</c>, named after the writer, sited where they found it — the Codex
+    /// lists and re-reads it) with a toast that says where to read it. A log already in the ledger (dropped and picked up
+    /// again, or a copy a friend left in a crate) only moves.</summary>
     private void RecordFoundDerelictLogs(PlayerSession session, List<string> taken)
     {
         var p = session.State;
         foreach (var item in taken)
         {
-            uint seed = DerelictLogs.SeedOfItem(item);
-            string key = DerelictLogs.LedgerKey(seed);
-            if (seed == 0 || !p.Scanned.Add(key))
+            var set = LogSets.OfItem(item);
+            uint seed = set?.SeedOfItem(item) ?? 0u;
+            if (set is null || seed == 0 || !p.Scanned.Add(set.LedgerKey(seed)))
             {
                 continue;
             }
 
-            string writer = DerelictLogs.Compose(seed, _content.DerelictLogs)?.Writer ?? string.Empty;
+            string key = set.LedgerKey(seed);
+            string writer = set.Compose(seed, _content)?.Writer ?? string.Empty;
             p.ScannedNames[key] = writer;
             var site = SiteFor(session);
             if (site is not null)
@@ -201,7 +203,7 @@ public sealed partial class GameServer
             }
 
             Send(session, DiscoveryDelta(key, writer, site));
-            Send(session, new ServerMessage { Text = string.Format(Localize(session.Locale, "srv.derelict.log_found"), writer) });
+            Send(session, new ServerMessage { Text = string.Format(Localize(session.Locale, set.FoundToastKey), writer) });
         }
     }
 

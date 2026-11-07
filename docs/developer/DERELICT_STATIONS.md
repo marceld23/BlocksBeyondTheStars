@@ -366,6 +366,49 @@ records the logs, re-boarding and a restart refill nothing and keep the rest unc
 sometimes, medpacks mostly; one story per station / a different writer and job per log / stable / rendered in en + de
 without placeholders or raw keys; every fragment in en + de; spoiled food edible + harmful + refused by the dispenser).
 
+### The G.D.S. logs — a second log set (#3341)
+
+The crates of a buried G.D.S. ruin (#3333–#3343) carry their own logs, built on the same machinery. **Log sets**
+(`WorldGeneration/LogSets.cs`): a `LogSet` bundles an item base key, a Discoveries-ledger prefix, the fragments
+(`GameContent.DerelictLogs` / `GameContent.GdsLogs`, both a `DerelictLogDefinition`), the pick-up toast and the Codex
+heading; `LogSets.All` = `Derelict` (`derelict_log`, `log:`, `srv.derelict.log_found`, "Station logs") and `Gds`
+(`gds_log`, `gdslog:`, `srv.gds.log_found`, "G.D.S. logs"). Everything that handles "a log" asks `LogSets.OfItem` /
+`IsLogItem` instead of naming a set: `LootContainer` (collects the taken logs), `RecordFoundDerelictLogs` (ledger entry
+under the set's prefix + the set's toast), the inventory reader (`CraftingTechShipUI.AddDerelictLogText`), the Codex
+(`WikiUI.AppendFoundLogs`, one list per set via `LogSet.FoundIn`) and the icon lookup (`IconResolver.IconKey`, one icon
+per set: `item_gds_log`). A third set is one `LogSets` entry, a fragments file, a loader line and its locale keys.
+
+**Fragments** (`data/gds_logs.json`, same shape as `derelict_logs.json`). The key family is not in the file: the loader
+assigns it per set (`DerelictLogDefinition.TextPrefix` — `derelict.log` / `gds.log`), so the parts are `gds.log.header`
+("Cycle {0} — G.D.S. log by {1}"), `gds.log.job.<job>` (14 jobs of the glowing city: pump keeper, engineer,
+lamplighter, …, council, guardian builder), `gds.log.incident.<key>.<1..2>` (which hall cracked first: the deep hall,
+the high street, the glow gardens, the great tank, the new shaft), `gds.log.escape.<key>` (how everyone got out in
+the diving suits: the suits, the great lift, the long stairs, the bread tubs, the dry tunnel) and `gds.log.close.<key>`
+(the sealed gates, the desert city, the guardians' "Go. Don't dig.", "next time we listen", …). **The story is fixed**
+(maintainer, 2026-11-07): the G.D.S. were only reckless — never evil, no experiments, the letters never explained —
+they pumped more and more Ressaw (it lit and powered the city), ignored their engineers' warnings, the Ressaw blocks
+cracked, the city flooded, they made diving suits, got everyone out, sealed it and moved up into the desert city. Same
+tone rule as the derelict logs; `GdsLogTests` also rejects a fragment that names death, blood, injuries, experiments or
+evil (lore canon: [LORE_STRUCTURE.md](LORE_STRUCTURE.md) §C).
+
+**Seeds** (`WorldGeneration/GdsLogs.cs`). The derelict layout: `SeedFor(worldSeed, cityId, writerId, index)` puts the
+story (hash of the world body — one buried city per body, one story) in bits 16–31, the writer (the crate's cell + the
+index) in bits 4–15 and the index in bits 0–3 (it wraps at 16). The text comes from the shared `DerelictLogs.Compose`.
+
+**The crates** (`GameServerGdsCaches.cs`). The ruin stamper emits markers `gds_cache:<n>` (n = 0, 1, 2, … per ruin, at
+least four) and spawns them through `SpawnStructureLoot`, which recognises the kind (`TryParseGdsCache`) and asks
+`BuildGdsCacheLoot` instead of the generic switch — once ever per marker (`WorldMetadata.GeneratedLoot`), a `salvage`
+container. Contents, seed-pure from world seed + body + cell + n (never the stamp's rng, so the crates move no other
+roll; no frontier pick): crate n < 4 the Ressaw suit piece n (0 helmet, 1 suit, 2 leggings, 3 boots — a ruin always
+holds the whole set), 1–3 `ressaw_crystal`, one G.D.S. log (two at 40 %; crate n carries indices 2n and 2n+1), a data
+fragment (50 %, 1–2) and one pick of old salvage (cable / copper wire / circuit board / iron plate, 1–3). Cost: a few
+list adds once per crate ever, no tick work, no new message.
+
+Tests: `GdsLogTests` (one story per city / a different writer and job per log / stable / en + de without placeholders
+or raw keys / the sets never claim each other's items or ledger keys; every fragment in en + de, translated, in tone;
+crate n < 4 holds piece n, 1–3 crystals, 1–2 distinct logs, seed-pure; a `gds_cache:0` marker spawns once ever, and a
+taken log lands in the ledger as `gdslog:<seed>` named after its writer; the marker parser).
+
 ## Guardians — the guardian bay (#2635)
 
 Screelit (Justus), 2026-10-15: "Nobody lives there anymore, only inside there are sometimes robots or drones that are

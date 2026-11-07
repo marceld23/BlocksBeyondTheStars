@@ -203,22 +203,30 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>#2401: under water the view closes in to a few metres in the water's own colour (clear seas see farther
         /// than murky swamps — the atmosphere density stands in for the water's clarity), independent of the player's haze
-        /// switch: this is the water, not the weather. Eased over ~0.3 s so a dive does not snap.</summary>
+        /// switch: this is the water, not the weather. Eased over ~0.3 s so a dive does not snap. #3335: in Ressaw the murk is
+        /// its own milky white — it glows, so neither the world's water colour nor the night dims it — and the view closes in
+        /// sooner (<see cref="RessawFogFar"/>): milky, you make out shapes, not detail.</summary>
         private void ApplyUnderwater(Color sky, float day, float airDensity, ref float fogStart, ref float far, ref float maxHaze)
         {
             bool under = UnderwaterEnabled && Camera != null && Game != null && !Game.SpaceViewActive
                          && Game.IsWaterAt(Camera.transform.position);
             _submerged = Mathf.MoveTowards(_submerged, under ? 1f : 0f, Time.deltaTime * 3.5f);
             UnderwaterFog = _submerged;
+            if (under)
+            {
+                _murkIsRessaw = IsRessawAt(Camera.transform.position); // kept while the murk fades out after surfacing
+            }
+
             if (_submerged > 0.001f)
             {
                 float clarity = 1f - Mathf.Clamp01(airDensity) * 0.6f;
-                float waterFar = 5f + 18f * clarity;
+                float waterFar = _murkIsRessaw ? RessawFogFar : 5f + 18f * clarity;
                 fogStart = Mathf.Lerp(fogStart, 0.5f, _submerged);
                 far = Mathf.Lerp(far, waterFar, _submerged);
                 maxHaze = Mathf.Lerp(maxHaze, 1f, _submerged);
-                Color water = WaterColours.Blend(new Color(0.08f, 0.26f, 0.42f), Game.Environment, 0.8f, Time.time);
-                Color deep = Color.Lerp(sky, water * Mathf.Lerp(0.6f, 1f, day), _submerged);
+                Color water = _murkIsRessaw ? RessawMurk
+                    : WaterColours.Blend(new Color(0.08f, 0.26f, 0.42f), Game.Environment, 0.8f, Time.time) * Mathf.Lerp(0.6f, 1f, day);
+                Color deep = Color.Lerp(sky, water, _submerged);
                 deep.a = 1f;
                 Shader.SetGlobalColor(FogSkyId, ShaderColor.Srgb(deep));
                 Shader.SetGlobalVector(FogSunId, new Vector4(0f, 0f, 0f, 0f)); // no golden haze under water
@@ -229,6 +237,20 @@ namespace BlocksBeyondTheStars.Client
             // caps off the seabed; a world without a sea (or before the info arrived) publishes a very low value.
             Shader.SetGlobalFloat(SeaLevelId, Game?.FarView != null ? Game.FarView.SeaSurfaceY : -1e9f);
         }
+
+        /// <summary>#3335: the murk in Ressaw — a milky, faintly lilac white (the liquid glows: no day/night dimming).</summary>
+        private static readonly Color RessawMurk = new Color(0.80f, 0.81f, 0.88f);
+
+        /// <summary>#3335: how far the view reaches in Ressaw, in metres (water: 5–23 by the world's clarity).</summary>
+        private const float RessawFogFar = 7f;
+
+        private bool _murkIsRessaw; // #3335: the camera's liquid is Ressaw (latched while submerged)
+
+        /// <summary>#3335: whether the cell holding <paramref name="p"/> is Ressaw (<see cref="LiquidLook"/>).</summary>
+        private bool IsRessawAt(Vector3 p)
+            => Game.World != null && Game.Content != null
+               && LiquidLook.Of(Game.Content.BlockById(Game.World.GetBlock(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y), Mathf.FloorToInt(p.z)))?.Key)
+                  == LiquidLookKind.Ressaw;
 
         /// <summary>The world Y of the water surface above a submerged point: walk up through the water cells (the
         /// caustics only play on faces below it).</summary>

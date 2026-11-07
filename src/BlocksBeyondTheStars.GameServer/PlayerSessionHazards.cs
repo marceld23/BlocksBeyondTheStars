@@ -66,6 +66,12 @@ public sealed class PlayerSessionHazards
     /// <summary>Seconds in a toxic type's water (the damage starts after a grace).</summary>
     public double ToxicWaterSeconds { get; set; }
 
+    /// <summary>#3335: seconds in Ressaw without the full diving suit (the damage starts after a grace).</summary>
+    public double RessawSeconds { get; set; }
+
+    /// <summary>#3339: the lamp's night sight was started or renewed for this player (so switching the lamp off ends it).</summary>
+    public bool LampSight { get; set; }
+
     /// <summary>The death line of the environment hazard that hurt the player this tick (null = the generic one).</summary>
     public string? HazardDeathReason { get; set; }
 

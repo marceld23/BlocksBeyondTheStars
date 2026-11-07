@@ -111,7 +111,7 @@ public static class ContentLoader
             settlementTemplates.AddRange(LoadUserTemplates(Path.Combine(userContentDir!, "settlement_templates"), "settlement", warn));
         }
 
-        content.SetStructureTemplates(stationTemplates, settlementTemplates);
+        content.SetStructureTemplates(stationTemplates, settlementTemplates, warn);
 
         // Structure kits (#1873): the shipped pool plus one kit per file from the editor's user-content folder.
         var kits = LoadArray<StructureKit>(Path.Combine(dataDir, "structure_kits.json"));
@@ -163,11 +163,10 @@ public static class ContentLoader
         // The wilderness folk's professions (#2640) are optional the same way: no lodges.json → no lodges.
         content.SetLodges(LoadArray<LodgeProfessionDefinition>(Path.Combine(dataDir, "lodges.json")));
 
-        // The old logs in a derelict's supply crates (#2633) are optional the same way: no derelict_logs.json → no logs.
-        string derelictLogFile = Path.Combine(dataDir, "derelict_logs.json");
-        content.SetDerelictLogs(File.Exists(derelictLogFile)
-            ? JsonSerializer.Deserialize<DerelictLogDefinition>(File.ReadAllText(derelictLogFile), JsonOptions)
-            : null);
+        // The old logs in a derelict's supply crates (#2633) are optional the same way: no derelict_logs.json → no logs —
+        // and so are the G.D.S. logs in a buried ruin's crates (#3341): no gds_logs.json → no G.D.S. logs.
+        content.SetDerelictLogs(LoadLogFragments(Path.Combine(dataDir, "derelict_logs.json")));
+        content.SetGdsLogs(LoadLogFragments(Path.Combine(dataDir, "gds_logs.json")));
 
         // The enemies (#2971) are optional the same way: no enemies.json → the numbers that shipped before it.
         content.SetEnemies(LoadArray<EnemyDefinition>(Path.Combine(dataDir, "enemies.json")));
@@ -307,6 +306,10 @@ public static class ContentLoader
         var json = File.ReadAllText(path);
         return JsonSerializer.Deserialize<List<T>>(json, JsonOptions) ?? new List<T>();
     }
+
+    /// <summary>A log set's fragments (#2633 derelict, #3341 G.D.S.), or null when the file is absent.</summary>
+    private static DerelictLogDefinition? LoadLogFragments(string path)
+        => File.Exists(path) ? JsonSerializer.Deserialize<DerelictLogDefinition>(File.ReadAllText(path), JsonOptions) : null;
 
     private static Dictionary<string, string> LoadObject(string path)
         => ParseLocaleTable(File.ReadAllText(path));

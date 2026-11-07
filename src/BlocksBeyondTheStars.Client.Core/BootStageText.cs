@@ -56,6 +56,7 @@ namespace BlocksBeyondTheStars.Client
             ["text_monuments"] = "ruins", // #3310: KuBa-W's stone tablets
             ["factories"] = "ruins",
             ["wreck"] = "ruins",
+            ["ancient_ruins"] = "ruins",
             ["vaults"] = "ruins",
             ["data_cubes"] = "treasure",
             ["net_fragments"] = "treasure",

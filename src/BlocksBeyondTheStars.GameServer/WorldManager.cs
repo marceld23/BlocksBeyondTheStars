@@ -373,6 +373,11 @@ internal sealed class LoadedWorld
     public bool VaultsStamped { get; set; }
     public List<Vector3i> VaultEntrances { get; } = new();
 
+    // #3333/#3334 (generation 35): the underground structures (a G.D.S. ruin under the city, the rare roll) — 0 to 2,
+    // re-derived every load from their placement records.
+    public bool AncientRuinStamped { get; set; }
+    public List<GameServer.AncientRuinSite> AncientRuins { get; } = new();
+
     // Fallen-city ruin stamp state — ruins are mineable, so they are stamped ONCE (guarded by this flag)
     // and then live on as persisted block edits; they are NOT re-stamped on reload (that would resurrect
     // blocks the player has cleared). Ruins are not tracked as structures (just terrain + loot).

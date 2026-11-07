@@ -1,0 +1,30 @@
+// #3341: the fragments of the G.D.S. logs in the crates of a buried G.D.S. ruin (its gds_cache markers). Same shape and
+// composer as data/derelict_logs.json (WorldGeneration.DerelictLogs.Compose), written from the gds_log#x<seed> item key
+// under the locale key family gds.log: gds.log.header, gds.log.job.<job>, gds.log.incident.<key>.<1..variants>,
+// gds.log.escape.<key>, gds.log.close.<key> — English + German are mandatory, the community languages fall back to English.
+// One world's buried city tells ONE story (which hall cracked first, how they got out, the cycle — the high half of the
+// seed); every writer has their own name, job and last words (the low half).
+// The story (maintainer, 2026-11-07): the G.D.S. were only RECKLESS — never evil, no experiments, and the letters G.D.S. are
+// never explained. They pumped more and more Ressaw up from the deep (it lit and powered their city), did not listen to
+// their own engineers, the Ressaw blocks cracked and the city flooded; they made diving suits, got everyone out, sealed the
+// city and moved up into the desert city, whose guardians still say "Go. Don't dig."
+// Tone (docs/user/PARENTS.md): curious, a little sad, never frightening — nobody gets hurt on the page and everyone always
+// gets out. Keep the job list at least as long as the most logs one ruin hands out in a row (crate n carries indices 2n and
+// 2n+1, wrapping at 16), so the writers of one ruin rarely share a job.
+{
+  "dayMin": 120,
+  "dayMax": 990,
+  "jobs": [
+    "pump_keeper", "engineer", "lamplighter", "gardener", "teacher", "archivist", "suit_maker",
+    "cook", "bell_ringer", "council", "shaft_digger", "mapmaker", "guardian_builder", "messenger"
+  ],
+  "incidents": [
+    { "key": "deep_hall",   "variants": 2 },
+    { "key": "high_street", "variants": 2 },
+    { "key": "gardens",     "variants": 2 },
+    { "key": "great_tank",  "variants": 2 },
+    { "key": "new_shaft",   "variants": 2 }
+  ],
+  "escapes": [ "suits", "lift", "stairs", "tubs", "dry_tunnel" ],
+  "closings": [ "sealed", "desert_city", "guardians", "listen", "seeds", "dont_dig", "bells", "counted", "sorry", "glow" ]
+}

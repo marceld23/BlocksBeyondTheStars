@@ -990,7 +990,7 @@ namespace BlocksBeyondTheStars.Client
         public static string MineCue(string blockKey)
         {
             string k = blockKey ?? string.Empty;
-            if (k.Contains("crystal") || k.Contains("glass") || k.Contains("gem") || k.Contains("ice") || k.Contains("quartz"))
+            if (k.Contains("crystal") || k.Contains("conduit") || k.Contains("glass") || k.Contains("gem") || k.Contains("ice") || k.Contains("quartz")) // #3340: the Ressaw conduit rings like the crystal one
             {
                 return "mine_crystal";
             }

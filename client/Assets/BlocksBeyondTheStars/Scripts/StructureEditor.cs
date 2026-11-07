@@ -712,35 +712,7 @@ namespace BlocksBeyondTheStars.Client
             }, () => _formPicker = null);
         }
 
-        // ----------------------------- export -----------------------------
-
-        [Serializable] private sealed class CellJson { public int x, y, z; public string kind, id; public int tint, glow, shape; public string port = string.Empty; public int mode; public string config = string.Empty, label = string.Empty; }
-        [Serializable] private sealed class LayoutJson { public int width, height, length; public List<CellJson> cells = new(); }
-        [Serializable] private sealed class MetaJson
-        {
-            public string key, name, kind, tier, pack, layout;
-            public int weight = 1;
-            public List<string> planetTypes = new(); // carried through so a re-merge keeps the restriction (#1399)
-            public string role = string.Empty;       // #1826: "" = whole structure, else a building-module role
-            public string kit = string.Empty;        // #1877: the kit this module belongs to
-            public string function = string.Empty;   // #1877: the module's function within its kit
-            public string style = string.Empty;      // #1890: "" = human, "alien" = the alien variant
-        }
-
-        // Data-shaped StructureTemplate (matches the server's StructureTemplate JSON) written straight to
-        // the user-content folder so a structure built in-game appears in the next new world WITHOUT a merge.
-        [Serializable] private sealed class TemplateJson
-        {
-            public string key, name, tier, kind, pack;
-            public int weight = 1;
-            public List<string> planetTypes = new();
-            public string role = string.Empty;
-            public string kit = string.Empty;
-            public string function = string.Empty;
-            public string style = string.Empty;
-            public int width, height, length;
-            public List<CellJson> cells = new();
-        }
+        // ----------------------------- export (the JSON shapes live in StructureEditor.Submit.cs) -----------------------------
 
         /// <summary>The planet-types field as a list: comma/space separated keys, trimmed, empty = every world.</summary>
         private List<string> PlanetTypeList()
@@ -786,7 +758,7 @@ namespace BlocksBeyondTheStars.Client
                 var tpl = new TemplateJson
                 {
                     key = key, name = _name, tier = meta.tier, kind = meta.kind, pack = meta.pack, weight = meta.weight,
-                    planetTypes = meta.planetTypes, role = meta.role, kit = meta.kit, function = meta.function, style = meta.style,
+                    planetTypes = meta.planetTypes, role = meta.role, kit = meta.kit, function = meta.function, style = meta.style, underground = meta.underground,
                     width = layout.width, height = layout.height, length = layout.length, cells = layout.cells,
                 };
                 string userDir = Path.Combine(AppPaths.Root, "usercontent", meta.kind + "_templates");
@@ -867,7 +839,7 @@ namespace BlocksBeyondTheStars.Client
                     {
                         Label = string.IsNullOrEmpty(t.name) ? t.key : t.name,
                         Detail = Detail(t.tier, t.width, t.length, t.height, t.cells.Count),
-                        Load = () => ApplyTemplate(t.key, t.name, t.tier, t.pack, t.weight, t.planetTypes, t.cells, copy: false, role: t.role, kit: t.kit, function: t.function, style: t.style),
+                        Load = () => ApplyTemplate(t.key, t.name, t.tier, t.pack, t.weight, t.planetTypes, t.cells, copy: false, role: t.role, kit: t.kit, function: t.function, style: t.style, underground: t.underground),
                     });
                 }
             }
@@ -993,16 +965,17 @@ namespace BlocksBeyondTheStars.Client
                     mode = c.Mode, config = c.Config ?? string.Empty, label = c.Label ?? string.Empty });
             }
 
-            ApplyTemplate(t.Key, t.Name, t.Tier, t.PackOrDefault, t.Weight, t.PlanetTypes, cells, copy: true, role: t.Role, kit: t.Kit, function: t.Function, style: t.Style);
+            ApplyTemplate(t.Key, t.Name, t.Tier, t.PackOrDefault, t.Weight, t.PlanetTypes, cells, copy: true, role: t.Role, kit: t.Kit, function: t.Function, style: t.Style, underground: t.Underground);
         }
 
         /// <summary>Common load path for built-in and user templates: cells + form fields, then the status
         /// (skipped cells, copy hint) and a UI rebuild.</summary>
         private void ApplyTemplate(string key, string name, string tier, string pack, int weight, List<string> planetTypes, IEnumerable<CellJson> cells, bool copy, string role = "",
-            string kit = "", string function = "", string style = "")
+            string kit = "", string function = "", string style = "", bool underground = false)
         {
             var skippedIds = new List<string>();
             int skipped = ApplyCells(cells, skippedIds);
+            _underground = underground; // #3333
 
             _key = copy ? key + "_2" : key;
             _basedOn = copy ? key : string.Empty; // a submission names the shipped template it started from (#3262)
@@ -1189,7 +1162,8 @@ namespace BlocksBeyondTheStars.Client
                     role: meta?.role ?? string.Empty,
                     kit: meta?.kit ?? string.Empty,
                     function: meta?.function ?? string.Empty,
-                    style: meta?.style ?? string.Empty);
+                    style: meta?.style ?? string.Empty,
+                    underground: meta != null && meta.underground);
             }
             catch (Exception e)
             {
