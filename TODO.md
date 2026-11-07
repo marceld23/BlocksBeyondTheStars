@@ -55,7 +55,7 @@ duel ("Muffin" suggested). Concept doc: `docs/developer/STORY_SOUNDERS.md`.
 - **#3363/#3364** Assets (9 tiles, 14 icons, 37 sounds incl. the series' Soundi calls, 3 tracks), 14 languages, two
   spoiler-free Codex articles + the taming article, USER_MANUAL, docs; save version 13.
 - **Open:** playtest the whole arc (and the `/sounders` shortcuts); the arcade bitmap font draws no non-Latin text
-  (pre-existing, its own issue).
+  (pre-existing, #3382).
 
 ### 🏃 Running and stamina — sprint on foot, one stamina for running and climbing, a small bar under the crosshair (Justus' F1 idea 2026-11-07, Marcel's decisions 2026-11-07) — #3373–#3377, ✅ 2026-11-07, PR #3380 (`83df4ecf`) (⚠ playtest open; client-only — no save-version, protocol or terrain-generation change)
 
