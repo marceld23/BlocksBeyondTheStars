@@ -368,6 +368,8 @@ public sealed class NetCodecTests
         [320] = typeof(OpenCalendarDoorIntent),  // #3315
         [321] = typeof(FestivalCalendarState),   // #3315
         [322] = typeof(CosmeticUnlocks),         // #3315
+        [323] = typeof(UseBlockIntent),          // #3345
+        [324] = typeof(NoteSequence),            // #3345
 
     };
 
