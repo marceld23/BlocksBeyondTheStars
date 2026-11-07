@@ -166,8 +166,13 @@ public sealed class LoreSite
     /// <summary>Locale key of the readable text (bilingual DE+EN in the pack's locale files).</summary>
     public string TextKey { get; set; } = string.Empty;
 
-    /// <summary>Minimum world knowledge level (0…4) before this text can be found — the spoiler gate.</summary>
+    /// <summary>Minimum world knowledge level (0…4) before this text can be found — the spoiler gate of the WORLD story's texts.</summary>
     public int MinKnowledge { get; set; }
+
+    /// <summary>#3347: the spoiler gate of a SIDE pack's texts — the player must have reached the pack's chapter with this
+    /// 1-based number (manifest order; a chapter is reached once it ran, was done or skipped). 0 = as soon as the pack is
+    /// active for the player. A world story ignores it (its texts follow <see cref="MinKnowledge"/>).</summary>
+    public int MinChapter { get; set; }
 
     /// <summary>Relative draw weight when several texts of a site are still unfound.</summary>
     public int Weight { get; set; } = 1;
@@ -229,6 +234,10 @@ public sealed class StoryCharacter
 
     /// <summary>Key of the pack dialogue (in <see cref="StoryDefinition.Dialogs"/>) this character carries.</summary>
     public string DialogKey { get; set; } = string.Empty;
+
+    /// <summary>#3347: the planet types (<c>data/planets.json</c>) whose settlements and stations the character may appear in;
+    /// empty = everywhere. A side pack's people of one world (the Sounders on <c>sounder_world</c>) name it here.</summary>
+    public List<string> PlanetTypes { get; set; } = new();
 }
 
 /// <summary>
@@ -424,9 +433,23 @@ public sealed class StoryDefinition
     public List<StoryCharacter> Characters { get; set; } = new();
 
     /// <summary>The pack's own dialogues (#1127/#1128) — carried by the authored characters (matched by
-    /// <see cref="DialogDefinition.Character"/>). Active only while this pack is the save's story; the
-    /// engine-wide role dialogues live in <c>data/dialogs.json</c> instead.</summary>
+    /// <see cref="DialogDefinition.Character"/>). Active while this pack is the save's story — or (#3347) for a player for whom
+    /// this side pack is active; the engine-wide role dialogues live in <c>data/dialogs.json</c> instead.</summary>
     public List<BlocksBeyondTheStars.Shared.Definitions.DialogDefinition> Dialogs { get; set; } = new();
+
+    /// <summary>#3347: readable texts for the pack's Journal page (the Sounders' Song Archive), each unlocked per player by its
+    /// condition. Empty = none.</summary>
+    public List<StoryPackText> Texts { get; set; } = new();
+
+    /// <summary>#3347: locale key of the Journal section that lists <see cref="Texts"/>; empty = the built-in "Texts found".</summary>
+    public string TextsTitleKey { get; set; } = string.Empty;
+
+    /// <summary>#3357: star systems the pack adds to the galaxy, each revealed per player (<see cref="StoryPackSystem"/>).</summary>
+    public List<StoryPackSystem> Systems { get; set; } = new();
+
+    /// <summary>#3347: the pack's own milestone namespace besides <c>&lt;id&gt;:</c> (without the colon; the Sounders: <c>snd</c>) — a
+    /// dialog consequence <c>milestone:&lt;key&gt;</c> may only set keys under one of the two (<see cref="StoryPackMilestones"/>).</summary>
+    public string MilestonePrefix { get; set; } = string.Empty;
 
     /// <summary>Epilogue title shown by the resolution cinematic (#1124) — a raw string like the beat
     /// titles. Deliberately NOT part of <see cref="Beats"/>: beats reveal by progress score and

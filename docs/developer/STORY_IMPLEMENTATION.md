@@ -654,6 +654,13 @@ drifts from the code), and the authors' path is [STORY_PACK_AUTHORING.md](STORY_
 | `ally:joined` | `alliance` \| `crew` | an alliance formed (both partners) or a crew joined (the newcomer and the founder) | `GameServerAlliances.cs` (`EstablishAlliance`), `CrewSystem.cs` (`RespondCrewInvite`) |
 | `paint:block` | block key | the paint tool painted (or wiped) a design on a placed block | `GameServerPaint.cs` (`HandlePaintBlock`) |
 | `poi:reached` | — | within 64 blocks of a buried vault's entrance or a crashed wreck (the 1 Hz advisor check, raised right before the `poi` hint) | `GameServerShipAi.cs` (`TickShipAi`, `NearVegaPoi`) |
+| `rune:played` | site kind: `monument` \| `shrine` \| `ruin` \| `lone` \| `placed` | a rune stone played with the use key (#3345, the Sounders) | `GameServerRunes.cs` (`UseRuneStone`) |
+| `melody:solved` | puzzle id (`shrine_echo`, `song_of_return`, `bridge_song`, `sing_duel`, `bloom_trail` …) | the server's checker accepted a whole melody (#3346) | `GameServerMelodyPuzzles.cs`, `GameServerSingingPlants.cs` (the Bell Bloom trail) |
+| `disc:decoded` | the disc's item key | a Song Disc decoded at a Song Spindle — the note-key minigame accepted, or skipped after help (#3352) | `GameServerNoteKey.cs` |
+| `disc:inserted` | the disc's item key | a Song Disc put into the obsidian chest's socket (#3354) | `EquipmentSystem.cs` |
+| `chamber:opened` | — | a sound chamber opened with the Resonance Blaster, once per monument (#3353) | `GameServerSoundChambers.cs`, `GameServerSounderWorld.Ornasa.cs` |
+| `echo:questioned` | Echo id (`elora`, `kamo`, `feya`, `tini`) | an Echo questioned to the end of its dialog, once per Echo and player (#3356) | the Echo dialogs (the Sounders pack's code) |
+| `dialog:done` | dialog key | an NPC dialog reached an end node — a reply without a follow-up, or a line without (visible) replies (#3349) | `GameServerNpcDialogs.Packs.cs` (`DialogReachedEnd`) |
 
 Since #2479 the in-flight jump (`JumpFlightToSystem`) raises `hyperjump:any` after the warp-in's flight state and star map
 went out (it was raised before the warp), so a card a step plays for it lands on the warp-in like the finale's arrival card.
@@ -916,6 +923,140 @@ player packs of the caller (or `TargetPlayer`), and is a read-only report above 
 successor of `merge_story.py`; allows packs without beats, never rewrites a file, reports every problem at once, warns on
 unknown fields). The checks are listed in [TUTORIAL_PACK.md](TUTORIAL_PACK.md#validation).
 
+## Melody puzzles (#3346) and playable runes (#3345)
+
+A small, story-agnostic toolkit the Sounders pack (and anything else) builds on: the server runs one melody puzzle per
+player, checks every note authoritatively and reports a solution as a game event — the story listens with
+`"objective": { "event": "melody:solved", "arg": "<puzzle id>" }`.
+
+**Rules (Shared, pure — `Shared/Sounders/MelodyPuzzle*.cs`).** `MelodyPuzzleSpec` describes a puzzle (id, mode, notes,
+instrument, timing, optional melody site, time-outs); `MelodyPuzzle` holds the rules. Tones are 0–7 (C4 … C5, the melody
+block's scale and the bar's eight keys); `-1` is a rest — prompt timing, never something to play.
+
+| Mode | Prompt (what the server plays) | What the player plays | A wrong note |
+|---|---|---|---|
+| `Repeat` (Simon says) | round *i* of *R*: the melody's first ⌈(*i*+1)·*n*/*R*⌉ tones (`Rounds` 0 = one more tone per round) | the same | the round starts again, its prompt plays again |
+| `Compose` | nothing | the whole `Target` in order (e.g. the Song of Return, `SounderAlphabet.Encode("ORNEMIS")`) | the input resets — a wrong note that is the first tone counts as the start of a new try |
+| `Harmony` | the melody (`Target`) | its counter-voice: every tone `Transpose`d by `HarmonyOffset` scale steps (default +4 = a fifth above, C→G) | the input resets, the melody plays again |
+| `CallAndResponse` | `Calls[i]` | `Answers[i]` (empty = sing the call back) | the round starts again, the call plays again |
+
+`Transpose` keeps the counter-voice on the bar: a result above C' falls by an octave (7 steps — G + 4 = D, the fifth in
+the same pitch class), one below C rises by one. Wrong notes never punish: nothing is taken away, `Mistakes` only counts.
+
+**Runtime (server — `GameServerMelodyPuzzles*.cs`).** The API other server code calls:
+
+```csharp
+bool   StartMelodyPuzzle(PlayerSession s, MelodyPuzzleSpec spec);         // opens the bar, plays the first prompt; replaces a running one
+bool   CancelMelodyPuzzle(PlayerSession s, string? puzzleId = null);      // closes it without a solution
+string? RunningMelodyPuzzle(PlayerSession s);                             // the running puzzle's id
+void   RegisterMelodySolvedHandler(string puzzleId, Action<PlayerSession> handler); // after melody:solved, per solver
+MelodySite? RegisterMelodySite(string siteId, IReadOnlyList<Vector3i> pillars);    // 8 pillars, clockwise from north
+bool   UnregisterMelodySite(string siteId);
+MelodySite? FindMelodySite(string locationId, string siteId);
+MelodySite? NearestMelodySite(Vector3f pos, float range);
+MelodySite? MelodySiteAt(Vector3i cell, out int pillar);
+void   RegisterMelodySiteStarter(Func<PlayerSession, MelodySite, MelodyPuzzleSpec?> starter);
+bool   TryStrikeMelodyPillar(PlayerSession s, Vector3i cell);               // a pillar block's use handler calls this first
+```
+
+- **Input:** the melody bar sends `MelodyNoteIntent` (tag 325: tone 0–7, the puzzle id; tone -1 = leave), and the use key
+  on a pillar of the puzzle's melody site strikes that pillar's tone (a puzzle without a site takes any site's pillars).
+  The server answers with `MelodyPuzzleState` (tag 326): open/close, mode, round/rounds, entered/expected, the prompt to
+  light along (`Highlight`), the instrument, the result (`MelodyPuzzleResult`: correct, round done, try again, solved,
+  cancelled, timed out, reminder) and the judged tone. A note without a running puzzle is free play: the players nearby
+  hear it. `MelodyNoteIntent` passes `PausedMayHandle` — the bar may be open while a scene holds a singleplayer world;
+  a note only moves the sender's own puzzle, prompts and time-outs wait for the world to run.
+- **Clock** (`TickMelodyPuzzles`, post-world): a finished round's next prompt after 0.9 s, a retry's prompt after 1.1 s,
+  a reminder (the round again with its prompt) after `IdleSeconds` without a note (default 20 s; never for Compose), the
+  time limit (`TimeLimitSeconds`, default none → `TimedOut`), and the end when the player walks further than
+  `LeaveDistance` (default 24 blocks) from the site's centre — or, without a site, from where the puzzle started — changes
+  the world, flies off or logs out (`Cancelled`).
+- **Solved:** the bar closes with "Well done!", the choir sings the melody back with its fifth (`ChorusOnSolve`),
+  `melody:solved` is raised with the puzzle id, then the handlers run. **Together:** everyone running the SAME puzzle id
+  within 16 blocks of the solver (`MelodyCoopRange`) is solved with them — event and handlers for each — so friends can
+  play a shrine's puzzle together; everyone near the site hears every prompt and every struck tone.
+- **Melody sites** (per world, in memory, re-derived): pillar *i* = tone *i*, clockwise from north (+Z; east is +X), a
+  pillar counts from its cell up to three above (`MelodySiteGeometry`). The **Singing Shrine** registers itself on first
+  need from its placement record (the eight three-stone rune pillars `WriteShrine` writes; id `alien_shrine`, kind
+  `shrine`). A player-built **ring** — eight `rune_stone` columns 2–5 blocks around an `ancient_brick` or `song_spindle`
+  centre, exactly one per 45° sector, about the same distance — is found when one of its stones is struck (id
+  `ring:x,y,z` of the centre, kind `ring`) and dropped once a stone or the centre is mined: the fallback for worlds
+  without a shrine. Other code registers its own (`custom` — the Choir Tower's resonance-crystal pipes).
+- **Starting at a site:** a pillar struck while no puzzle runs asks the registered starters in order; the first spec
+  starts (its `SiteId` defaults to the struck site), otherwise the stone just sings its rune word. The story wires its
+  chapters there (the shrine's echo puzzle while chapter 2 runs, the Song of Return in chapter 6).
+
+**Runes (`GameServerRunes.cs`).** The use key on a `rune_stone` (`"usable": true` → `UseBlockIntent`) sings the stone's word
+(`SounderLexicon.WordAt(seed, x, y, z)` in the note alphabet, Sounder voice, one per player per 1.5 s) for everyone
+nearby — always, pack or not. Every use writes the per-player milestone `snd:first_rune` once (the Sounders pack's start
+rule waits for it) and the word `snd:word:<WORD>` for the Song Archive (so the stone that starts the story is archived
+too). Only while the pack runs for the player (`IsStoryPackActive(session, "sounders")`: started and enabled) does it
+raise `rune:played` with the site kind: `shrine` (the
+Singing Shrine), `monument` (inside a monument's box), `placed` (the cell's last editor is a player), `ruin` (written by a
+structure stamp — the ruined settlements), else `lone` (a stone of the natural terrain).
+
+**The melody bar (client).** `HudUi.MelodyBar` draws `GameBootstrap.MelodyBar` (`MelodyBarModel`, Client.Core): eight
+tones, each with its own colour AND symbol, keys 1–8 (they do not switch the hotbar while the bar is open —
+`InputMap.MelodyBarCapture`), the pad's d-pad for tones 1–4 and with a shoulder held 5–8 (the shoulders neither mine nor
+place meanwhile), touch taps; a tone sounds at once locally and goes to the server. Tests: `MelodyPuzzleTests`,
+`MelodyPuzzleServerTests`, `RuneStoneTests` (server/shared), `MelodyBarClientTests` (Client.Core).
+
+## Side packs: lore, dialogs, texts, systems and hidden blueprints (#3347–#3357)
+
+Before #3347 only the save's world story supplied lore texts, NPC dialogs, characters and readable texts. Now every
+**player pack active for a player** (`IsStoryPackActive(session, packId)` = started and `StoryPackEnabledFor`: not opted
+out, not switched off for the world) brings its own, for that player only. The authors' view is
+[STORY_PACK_AUTHORING.md §16](STORY_PACK_AUTHORING.md#16-what-a-side-pack-brings-besides-chapters-3347-3357).
+
+- **The world switch** (`GameRules.DisabledStoryPacks`, `--disable-stories a,b`, the Stories page's side-story switches —
+  Client.Core `WorldStoryOptions.SideStoryChoices`, festival stories excluded): `StoryPackEnabledFor` is false for a
+  switched-off pack, so it never starts (`AdvancePack`), cannot be started on request, is left out of the Journal
+  (`JournalSystem.BuildStoryPackStates`) and brings nothing. Keys a player already has stay.
+- **Lore** (`GameServerLore.TryRevealLoreText` → `EligibleLoreSites`, `GameServerStoryPacks.Content.cs`): the world story's
+  texts (gated by the world's knowledge level, as before — same order, same draw) plus every active pack's
+  `lore_sites.json` texts of the site kind, gated by `LoreSite.MinChapter` against `PackChapterReached` (the 1-based number
+  of the furthest chapter that ran, was done or skipped). One weighted pick among all of them; no world story needed.
+- **Dialogs and characters** (`GameServerNpcDialogs*.cs`): `AllDialogs(session)` = the world story's, then the active packs'
+  (priority order), then `data/dialogs.json`. `CastableCharacters()` adds the characters of every installed player pack the
+  world did not switch off to the procedural casting (`StoryCharacter.PlanetTypes` limits them). `ApplyStoryCharacter(npc,
+  characterId)` dresses a code-spawned NPC as a character (its id is what `PickDialog` matches — the Sounders' Echoes).
+  A reply's `VisibleIf` is evaluated per player (`ShownChoices`); the conversation keeps the shown indexes
+  (`NpcConversation.Shown`) so the client's reply number maps back, and the persisted `dialogflag:` keeps the real index.
+  `NpcDialogState.ChoiceMelodies` carries a sung reply's letters (only when one is sung); the client plays them locally
+  (`DialogMelody`, sound ids `note_4_<tone>`). The consequence `milestone:<key>` sets a milestone only inside the pack's
+  namespace (`StoryPackMilestones.MaySet`: `<pack id>:` or `milestonePrefix:`; the dialog's pack is `PackOfDialog`). Every
+  end — a reply without a follow-up, a line without shown replies — raises `dialog:done` (`DialogReachedEnd`).
+- **Readable texts** (`UnlockedPackTexts`): a pack's `texts[]` whose `unlockedBy` holds, only while the pack is active;
+  on the Journal as `NetStoryPack.Texts` + `TextsTitleKey` (additive); the client lists them with the reader
+  (`CraftingTechShipUI.JournalPackTexts`). Condition texts are parsed once (`ConditionTextHolds`; a broken one never holds and
+  is logged once).
+- **The 1 Hz pass** (`TickPackExtrasFor`, first thing in `TickStoryPacksFor`): a change in the unlocked texts marks the
+  Journal dirty; a change in the hidden blueprints the player may see sends `BlueprintVisibility` (tag 328, also on the
+  first pass after the join); pack systems (below).
+- **Hidden blueprints** (#3350, `BlueprintDefinition.HiddenUntil`): `BlueprintHiddenFor(session, bp)` = a condition that does
+  not hold and the blueprint not owned. `HandleUnlock` answers `@srv.unlock.unknown`; VEGA's blueprint hints and
+  `world:research_ready` skip them; the client lists one only when `BlueprintVisibility.Shown` names it or it is owned
+  (Client.Core `HiddenBlueprints.IsShown`). `GameContent.Validate` and the Python validator parse every `hiddenUntil`.
+- **Pack star systems** (#3357, `GameServerStoryPacks.Systems.cs`): `DeclaredPackSystems()` (every installed player pack's
+  `systems[]`); `RevealPackSystem` appends one the first time a player may see it (`PackSystemVisibleTo` = the pack active
+  for them and `visibleIf`), pins its map spot in `WorldMetadata.StampedFeatures` (`packsystem|<id>|<x>|<y>`) and broadcasts
+  the star map; `EnsurePackSystemsInGalaxy` re-appends the recorded ones at the end of `BuildGalaxy` (the galaxy is
+  regenerated from the seed). `SystemHiddenFor(session, systemId)` (= the Guardian's #2506 rule or `PackSystemHiddenFor`:
+  not visible, not known, not where the player is) gates `SendStarMap`, `HyperjumpToSystem` and `AllowNormalTravel`.
+  `PackSystemMapPosition`: `edge` turns the Guardian's bearing by 60°–300° (by the id) past the farthest procedural star,
+  `inside` takes the emptiest of 96 seeded spots; only procedural (`sys*`) systems count — and `GuardianFinaleMapPosition`
+  now skips non-procedural systems too, so neither moves the other. The body is `<id>-world` at a calm orbit. Wormholes
+  never touch a non-`sys*` system (`IsStoryLockedSystem`). The star map names a pack system in the player's language
+  (`StarMapSystemName`).
+- **Vocabulary** (#3349): `world:monuments`, `world:shrine`; marker providers `nearest_monument`, `pack_site:<id>`
+  (`RegisterPackSite(packId, siteId, locationId, pos)`, RAM — the placing code registers again at a world load) and
+  `story_system:<id>` (`MarkStorySystem`: appends it when the player may see it, re-sends their star map and speaks
+  `vega.step.marked_system`); the condition atom `milestone:<key>`; the cutscene anchor `system:<id>` (a chart shot rings and
+  routes to it; a client without it on its map plays a card — Client.Core `PackSystemChart`).
+
+Tests: `SidePackContentTests` (the test pack `Fixtures/story_packs/side_extras` with real handlers),
+`StoryPackExtrasValidationTests`, `StoryConditionTests`, Client.Tests `SidePackClientTests`.
+
 ## Networking (NetCodec tags)
 
 | Tag | Message | Dir | Purpose |
@@ -939,6 +1080,7 @@ unknown fields). The checks are listed in [TUTORIAL_PACK.md](TUTORIAL_PACK.md#va
 | 298 | `UiTutorialEvent` | C→S | a UI moment a tutorial step teaches (`Id`: `vega_continue`, `menu_open`, `codex_open`, `map_open`, `waypoint_set`, `progress_open`) → `ui:<id>` on the event bus; teaching only, rate-limited, passes a held world (#2469) |
 | 299 | `ObjectiveList` | S→C | the player's objectives in the chip order, one row per story, at most `MaxItems` = 3, the chip's first: `NetObjective{Source, PackId, StepId, Key, Arg, Progress, Target, Pinned}`; only to `packs1` clients (#2471, "The Journal" below) |
 | 300 | `StoryPackStates` | S→C | the Journal's stories: `NetStoryPack{Id, Kind, Scope, NameKey, ShortNameKey, DescriptionKey, Enabled, Started, Done, OptedOut, Tracked, Startable, Blocked, MandatoryRunning, Badge, Chapters[], Steps[]}` + `TrackedPackId`, `TutorialPolicy`; only to `packs1` clients (#2471) |
+| 328 | `BlueprintVisibility` | S→C | #3350: the hidden blueprints (`hiddenUntil`) this player may see now (`Shown[]`); after the join and on every change — an older client drops it |
 
 Beat speech reuses `ShipAiLine`. Every message is `Register()`'d in NetCodec.
 

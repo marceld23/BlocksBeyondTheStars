@@ -390,7 +390,8 @@ internal sealed class TutorialSystem
             if (!p.UnlockedBlueprints.Contains(bp.Key)
                 && bp.KnowledgeCost <= p.KnowledgePoints
                 && bp.Prerequisites.All(pr => p.UnlockedBlueprints.Contains(pr))
-                && bp.UnlockCost.All(c => c.Item != DataFragmentItem))
+                && bp.UnlockCost.All(c => c.Item != DataFragmentItem)
+                && string.IsNullOrWhiteSpace(bp.HiddenUntil)) // #3350: a hidden blueprint is never the lesson's
             {
                 return true;
             }

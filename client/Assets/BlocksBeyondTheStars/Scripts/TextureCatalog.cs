@@ -225,7 +225,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             if (def.Key is "torch" or "lantern"
-                || (def.Key.StartsWith("flora_", StringComparison.Ordinal) && !FloraCatalog.IsSolid(def.Key)))
+                || (FloraCatalog.IsPlantKey(def.Key) && !FloraCatalog.IsSolid(def.Key)))
             {
                 return TexturePreviewKind.Billboard;
             }

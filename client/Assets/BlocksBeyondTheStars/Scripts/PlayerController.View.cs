@@ -108,6 +108,7 @@ namespace BlocksBeyondTheStars.Client
             _heldSlot = slot;
             _heldKey = key;
             _optic?.SetHeldItem(key); // swapping away from the binoculars can never strand a zoomed view
+            Game?.OnHeldItemChangedForSounders(key); // #3353: the Resonance Blaster in hand opens the melody bar
             var (kind, tint, blockKey) = HeldItem.For(Game?.Content, key);
             _heldGloves = kind == HeldItem.Kind.Gloves;
             _heldShockGloves = _heldGloves && FxLook.ForItem(Game?.Content, key).Is(FxStyles.ShockPush);

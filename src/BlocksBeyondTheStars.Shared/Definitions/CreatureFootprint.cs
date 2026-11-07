@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using BlocksBeyondTheStars.Shared.Sounders;
 
 namespace BlocksBeyondTheStars.Shared.Definitions;
 
@@ -45,6 +46,9 @@ public static class CreatureFootprint
     /// <item><b>Ray</b> (u = ½·clamp(S, 0.4, 3.5)): the disc's half-width 0.8u plus three wing panels of 0.7u, at the
     /// middle width factor 1.1 — 3.2u, the half span.</item>
     /// <item><b>Medusa</b> (u = ½·clamp(S, 0.4, 3)): the bell's radius, 1.5u.</item>
+    /// <item>The bodies of Soaniri (#3355, #3359): the <b>Sounder</b> its hanging arms (<see cref="SounderRules.FootprintRadius"/>),
+    /// the <b>Soundi</b> its body and big head, the <b>Soundrak</b> half its crown, the <b>Soundeling</b> its fluff ball (0.6u), a
+    /// <b>Quali</b> its giant bell — each from the rule its builder draws by.</item>
     /// <item>The <b>giants</b> (colossus, sandworm, leviathan, sky giant) move by their own rules and are never spaced; they
     /// get a rough envelope — half their height or length — for the diagnostics.</item>
     /// </list></summary>
@@ -84,6 +88,13 @@ public static class CreatureFootprint
             case CreatureBodyPlan.Medusa:
                 return 1.5f * Unit(size, 3f);
 
+            case CreatureBodyPlan.Sounder:
+            case CreatureBodyPlan.Soundi:
+            case CreatureBodyPlan.Soundrak:
+            case CreatureBodyPlan.Soundeling:
+            case CreatureBodyPlan.Quali:
+                return SoundersRadius(sp.BodyPlan, size); // #3355/#3359: the bodies of Soaniri
+
             case CreatureBodyPlan.Colossus:
             case CreatureBodyPlan.Sandworm:
             case CreatureBodyPlan.Leviathan:
@@ -98,6 +109,17 @@ public static class CreatureFootprint
                 }
         }
     }
+
+    /// <summary>The bodies of Soaniri (#3355, #3359): the Sounder's hanging arms, the Soundi's body and big head, half the
+    /// Soundrak's crown (its widest part), a Soundeling's fluff ball (0.6u), a Quali's giant bell.</summary>
+    private static float SoundersRadius(CreatureBodyPlan plan, float size) => plan switch
+    {
+        CreatureBodyPlan.Sounder => SounderRules.FootprintRadius(size),
+        CreatureBodyPlan.Soundi => SoundiRules.FootprintRadius(size),
+        CreatureBodyPlan.Soundrak => SoundrakRules.FootprintRadius(size),
+        CreatureBodyPlan.Quali => QualiRules.BellRadius(size),
+        _ => 0.6f * Unit(size, 3f),
+    };
 
     /// <summary>How far apart two animals of radii <paramref name="radiusA"/> and <paramref name="radiusB"/> keep.</summary>
     public static float SeparationDistance(float radiusA, float radiusB) => SeparationFactor * (radiusA + radiusB);
@@ -129,6 +151,9 @@ public static class CreatureFootprint
 
             case CreatureBodyPlan.Biped:
             case CreatureBodyPlan.Robot: // #3295: upright like the biped
+            case CreatureBodyPlan.Sounder: // #3355/#3359: the upright ones of Soaniri and the sky drifter
+            case CreatureBodyPlan.Soundrak:
+            case CreatureBodyPlan.Quali:
             case CreatureBodyPlan.Ray:
             case CreatureBodyPlan.Medusa:
             case CreatureBodyPlan.Colossus:

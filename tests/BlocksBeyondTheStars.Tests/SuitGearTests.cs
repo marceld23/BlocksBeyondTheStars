@@ -87,8 +87,8 @@ public sealed class SuitGearTests : IDisposable
     [Fact]
     public void TheSuit_HasElevenSlots_FourOfThemModules()
     {
-        Assert.Equal(11, EquipSlots.Count);
-        Assert.Equal(11, new PlayerState().Equipment.SlotCount);
+        Assert.Equal(12, EquipSlots.Count); // #3354: the eleven of #2293 and the obsidian chest's disc socket
+        Assert.Equal(12, new PlayerState().Equipment.SlotCount);
         Assert.Equal(new[] { EquipSlot.Module1, EquipSlot.Module2, EquipSlot.Module3, EquipSlot.Module4 }, EquipSlots.ModuleSlots);
         Assert.All(EquipSlots.ModuleSlots, s => Assert.True(EquipSlots.IsModule(s)));
         Assert.False(EquipSlots.IsModule(EquipSlot.Liner));

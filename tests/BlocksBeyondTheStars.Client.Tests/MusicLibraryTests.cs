@@ -47,6 +47,7 @@ public sealed class MusicLibraryTests
     [InlineData(MusicLibrary.PlanetOcean)]
     [InlineData(MusicLibrary.PlanetVerdant)]
     [InlineData(MusicLibrary.PlanetCrystal)]
+    [InlineData(MusicLibrary.PlanetSounder)] // #3363: Soaniri, the Sounder home world
     public void SurfaceBiomes_BlendNeutralFillers_ButKeepTheMajority(string context)
     {
         Assert.True(MusicLibrary.IsSurfaceBiome(context));
@@ -134,6 +135,7 @@ public sealed class MusicLibraryTests
     [InlineData("ocean", MusicLibrary.PlanetOcean)]
     [InlineData("jungle", MusicLibrary.PlanetVerdant)]
     [InlineData("crystal_living", MusicLibrary.PlanetCrystal)]
+    [InlineData("sounder_world", MusicLibrary.PlanetSounder)] // #3363: the Sounders pack's Soaniri theme
     [InlineData("orbital_station", MusicLibrary.Station)]
     [InlineData("rocky", MusicLibrary.PlanetGeneric)]
     [InlineData(null, MusicLibrary.PlanetGeneric)]

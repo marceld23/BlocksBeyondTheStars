@@ -27,7 +27,8 @@ namespace BlocksBeyondTheStars.Client
             // chain reads top-to-bottom / left-to-right like a tech tree; A–Z in the game language within a tier (#2566).
             // #3104: the shared categories (a blueprint may sit in several); #3107: the search also finds category names.
             var shown = Game.Content.Blueprints.Values
-                .Where(bp => (_category == "all" || Cats.OfBlueprint(bp.Key).Contains(_category))
+                .Where(bp => BlueprintShown(bp) // #3350: a hidden blueprint is not in the tree yet
+                             && (_category == "all" || Cats.OfBlueprint(bp.Key).Contains(_category))
                              && MatchesSearchIn(L($"blueprint.{bp.Key}.name"), Cats.OfBlueprint(bp.Key))
                              && (!_craftableOnly || ResearchableNow(bp)))
                 .OrderBy(TechTier).ThenBy(bp => L($"blueprint.{bp.Key}.name"), NameOrder)
@@ -38,7 +39,7 @@ namespace BlocksBeyondTheStars.Client
             // Header (#1103): how much of the tree is done and what the player could research next — the
             // "how far am I" line the tab never had. Counts the whole tree, not the current filter.
             {
-                int total = Game.Content.Blueprints.Count;
+                int total = Game.Content.Blueprints.Values.Count(BlueprintShown); // #3350: hidden ones do not count yet
                 int done = 0;
                 BlueprintDefinition next = null;
                 foreach (var bp in Game.Content.Blueprints.Values)
@@ -111,7 +112,12 @@ namespace BlocksBeyondTheStars.Client
         /// materials out and so still listed "Materials missing" / "Locked" cards): not yet researched, prerequisites done,
         /// the knowledge balance covers the cost and the research materials are owned. One test with the card status, the
         /// header's "next" line and the Tech badge — see <see cref="BlueprintResearch"/>.</summary>
-        private bool ResearchableNow(BlueprintDefinition bp) => ResearchState(bp) == BlueprintResearchState.Researchable;
+        private bool ResearchableNow(BlueprintDefinition bp) => BlueprintShown(bp) && ResearchState(bp) == BlueprintResearchState.Researchable;
+
+        /// <summary>#3350: whether the research tree lists <paramref name="bp"/> for this player — a blueprint with a
+        /// <c>hiddenUntil</c> only once the server said it may be seen, or once it is researched (<see cref="HiddenBlueprints"/>).</summary>
+        private bool BlueprintShown(BlueprintDefinition bp)
+            => Game?.Network != null ? Game.Network.IsBlueprintShown(bp, Game.UnlockedBlueprints) : HiddenBlueprints.IsShown(bp, Game?.UnlockedBlueprints, null);
 
         /// <summary>Where <paramref name="bp"/> stands for this player (<see cref="BlueprintResearch.StateOf"/>), from the
         /// researched set, the knowledge balance and what inventory + cargo hold.</summary>
@@ -251,7 +257,8 @@ namespace BlocksBeyondTheStars.Client
             y = TechUnlockChips("ui.tech.unlocks_ships",
                 unlocks.Ships.Select(sh => (L($"ship.{sh}.name"), (System.Action)(() => JumpToShipBuild(sh)))), y);
             return TechUnlockChips("ui.tech.leads_to",
-                unlocks.LeadsTo.Select(b => (L($"blueprint.{b}.name"), (System.Action)(() => JumpToBlueprint(b)))), y);
+                unlocks.LeadsTo.Where(b => !Game.Content.Blueprints.TryGetValue(b, out var lead) || BlueprintShown(lead)).Select(b => // #3350
+                     (L($"blueprint.{b}.name"), (System.Action)(() => JumpToBlueprint(b)))), y);
         }
 
         private string ModuleName(string key) => Game.Content.GetShipModule(key) is { } module ? L(module.NameKey) : key;

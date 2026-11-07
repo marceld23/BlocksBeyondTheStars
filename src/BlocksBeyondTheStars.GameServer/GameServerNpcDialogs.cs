@@ -80,6 +80,10 @@ public sealed partial class GameServer
         /// <summary>The node whose choices the client shows.</summary>
         public int Node { get; set; }
 
+        /// <summary>#3347: the node's replies the client shows, as indexes into its choices (a reply whose <c>visibleIf</c> fails
+        /// is left out); null = all of them.</summary>
+        public int[]? Shown { get; set; }
+
         public double StartedAt { get; }
 
         /// <summary>Uptime of the last step (the opening or a choice).</summary>
@@ -99,9 +103,10 @@ public sealed partial class GameServer
     /// <summary>…but not forever: after this long the NPC gives up (the player stayed offline/off-radio).</summary>
     private const double DialogRadioGiveUpSeconds = 1800.0;
 
-    /// <summary>Engine dialogues plus the active story pack's own (authored characters). Order matters:
-    /// pack dialogues come FIRST so a character's authored dialogue wins over any generic role match.</summary>
-    private IEnumerable<DialogDefinition> AllDialogs()
+    /// <summary>Engine dialogues plus the active story pack's own (authored characters) and (#3347) those of the player packs
+    /// active for this player. Order matters: pack dialogues come FIRST so a character's authored dialogue wins over any
+    /// generic role match.</summary>
+    private IEnumerable<DialogDefinition> AllDialogs(PlayerSession session)
     {
         if (StoryActive && _story is not null)
         {
@@ -109,6 +114,11 @@ public sealed partial class GameServer
             {
                 yield return d;
             }
+        }
+
+        foreach (var d in ActivePackDialogs(session))
+        {
+            yield return d;
         }
 
         foreach (var d in _content.Dialogs)
@@ -142,7 +152,7 @@ public sealed partial class GameServer
 
         bool ownResident = IsOwnBaseResident(session, npc); // #2594: "welcome home" talk vs. a visitor's talk
         string job = DialogJobOf(npc); // #3089: a resident without a post talks about the base's focus
-        foreach (var d in AllDialogs())
+        foreach (var d in AllDialogs(session))
         {
             bool profession = guest || NpcProfessions.ByJob(npc.Job) != null // #2602: a guest_* job talks like a profession
                 || IsLodgeJob(npc.Job); // #2641: so do the wilderness folk (their own lodge_<job> talk, never the vendor's)
@@ -283,20 +293,19 @@ public sealed partial class GameServer
 
         var node = dialog.Nodes[0];
         string text = DialogOpeningText(session, npc, npcKey, dialog, node);
-        if (node.Choices.Count > 0)
+        int[] shown = ShownChoices(session, node); // #3347: a reply's visibleIf
+        if (shown.Length > 0)
         {
             StartNpcConversation(session, npc, dialog);
+            session.Npc.Conversation!.Shown = shown;
         }
 
-        Send(session, new NpcDialogState
-        {
-            NpcId = npc.Id,
-            Name = npc.Name,
-            Text = text,
-            Choices = node.Choices.Select(c => Localize(session.Locale, c.TextKey)).ToArray(),
-            End = node.Choices.Count == 0,
-        });
+        Send(session, DialogStepState(session, npc, text, node, shown));
         StampNpcSeen(session.State, npcKey); // #2595: an acquaintance saw the player now (existing entries only)
+        if (shown.Length == 0)
+        {
+            DialogReachedEnd(session, dialog); // #3347: a dialog of one line is over at once
+        }
     }
 
     // ---------------- #2616: the conversation's life ----------------
@@ -542,14 +551,15 @@ public sealed partial class GameServer
 
         var npc = active.Npc;
         var node = active.Node >= 0 && active.Node < active.Dialog.Nodes.Count ? active.Dialog.Nodes[active.Node] : null;
-        if (!NpcConversationValid(session, active) || node is null || intent.ChoiceIndex >= node.Choices.Count)
+        int picked = ShownChoiceIndex(active, intent.ChoiceIndex); // #3347: the client numbers the replies it was shown
+        if (!NpcConversationValid(session, active) || node is null || picked < 0 || picked >= node.Choices.Count)
         {
             EndNpcConversation(session, tellClient: true);
             return;
         }
 
         active.LastActiveAt = _uptime;
-        var choice = node.Choices[intent.ChoiceIndex];
+        var choice = node.Choices[picked];
         string npcKey = DialogNpcKey(session, npc);
         var p = session.State;
 
@@ -564,10 +574,11 @@ public sealed partial class GameServer
             RecordNpcInteraction(p, npcKey, npc.Name, npc.Role, NpcInteractionKind.Dialog, place);
         }
 
-        p.Milestones.Add(DialogFlagMilestonePrefix + active.Dialog.Key + ":" + active.Node + ":" + intent.ChoiceIndex);
+        p.Milestones.Add(DialogFlagMilestonePrefix + active.Dialog.Key + ":" + active.Node + ":" + picked);
         _dialogAction = string.Empty;
         _dialogExtraText = string.Empty;
         _dialogResponseOverride = string.Empty;
+        _dialogConsequencePack = PackOfDialog(active.Dialog); // #3347: whose milestones a milestone: consequence may set
         ApplyDialogConsequence(session, npc, npcKey, choice.Consequence, paysReward);
         RaiseGameEvent(session, GameEventKeys.NpcAnswered, npc.Role); // #2482: the neighbours course
 
@@ -599,14 +610,17 @@ public sealed partial class GameServer
                 End = true,
                 Action = _dialogAction,
             });
+            DialogReachedEnd(session, active.Dialog); // #3347
             return;
         }
 
         var next = active.Dialog.Nodes[choice.Next];
         string text = Localize(session.Locale, choice.ResponseKey) + "\n\n" + Localize(session.Locale, next.PromptKey);
-        if (next.Choices.Count > 0)
+        int[] nextShown = ShownChoices(session, next); // #3347: a reply's visibleIf
+        if (nextShown.Length > 0)
         {
             active.Node = choice.Next;
+            active.Shown = nextShown;
             HoldNpcForTalk(session, active);
         }
         else
@@ -614,14 +628,11 @@ public sealed partial class GameServer
             EndNpcConversation(session, tellClient: false); // a node without replies is a closing line
         }
 
-        Send(session, new NpcDialogState
+        Send(session, DialogStepState(session, npc, text, next, nextShown));
+        if (nextShown.Length == 0)
         {
-            NpcId = npc.Id,
-            Name = npc.Name,
-            Text = text,
-            Choices = next.Choices.Select(c => Localize(session.Locale, c.TextKey)).ToArray(),
-            End = next.Choices.Count == 0,
-        });
+            DialogReachedEnd(session, active.Dialog); // #3347
+        }
     }
 
     /// <summary>Whether the repeatable-dialogue reward is off cooldown for this (dialogue, NPC) — arming the
@@ -672,6 +683,10 @@ public sealed partial class GameServer
 
             case GuestConsequence:
                 ApplyGuestConsequence(session, npc, parts); // #2602: a guest's present at the base (once per guest and player)
+                break;
+
+            case StoryPackMilestones.Consequence when parts.Length >= 2:
+                ApplyMilestoneConsequence(session, _dialogConsequencePack, consequence.Substring(StoryPackMilestones.Consequence.Length + 1)); // #3347
                 break;
 
             case "fragment" when parts.Length >= 2 && StoryActive && _story is not null:
@@ -809,17 +824,13 @@ public sealed partial class GameServer
     /// quartermasters (their coined name is baked into their board's mission texts).</summary>
     private void ApplyAuthoredCharacter(ServerNpc npc, string placeKind, string placeKey)
     {
-        if (!StoryActive || _story is null)
-        {
-            return;
-        }
-
-        foreach (var ch in _story.Characters)
+        foreach (var ch in CastableCharacters()) // #3347: the world story's and the installed player packs' people
         {
             if (string.IsNullOrEmpty(ch.Id) || string.IsNullOrEmpty(ch.Name)
                 || npc.Role == "quartermaster"
                 || !ch.Roles.Contains(npc.Role)
-                || (!string.IsNullOrEmpty(ch.Places) && ch.Places != placeKind))
+                || (!string.IsNullOrEmpty(ch.Places) && ch.Places != placeKind)
+                || (ch.PlanetTypes.Count > 0 && !ch.PlanetTypes.Contains(_worlds.Active?.PlanetType ?? string.Empty, StringComparer.OrdinalIgnoreCase)))
             {
                 continue;
             }
@@ -835,16 +846,7 @@ public sealed partial class GameServer
                 continue; // the place already has them — one Yara per market, one Sel-9 per bazaar (#1150)
             }
 
-            var look = new Random(unchecked((int)WorldGenerator.StableHash("charlook:" + ch.Id)));
-            npc.CharacterId = ch.Id;
-            npc.Name = ch.Name;
-            npc.IsRobot = ch.Robot;
-            npc.Size = 1.0f;
-            npc.SkinRgb = ch.Robot
-                ? new uint[] { 0xBFC7CF, 0xD5DBE1, 0xA8B2BC, 0xC9CCB8 }[look.Next(4)]
-                : new uint[] { 0xFFE0C4, 0xD9A066, 0xA9713A, 0x8D5524 }[look.Next(4)];
-            npc.OutfitRgb = new uint[] { 0x3D7EBF, 0x8A63BF, 0x2FA48E, 0xC24B5A, 0xB3A05C, 0x6B8FA3 }[look.Next(6)];
-            npc.LegsRgb = new uint[] { 0x4A4E57, 0x5C5346, 0x3E4A5C, 0x6B5C4A }[look.Next(4)];
+            DressAuthoredCharacter(npc, ch);
             return; // first matching character wins — at most one face per slot
         }
     }

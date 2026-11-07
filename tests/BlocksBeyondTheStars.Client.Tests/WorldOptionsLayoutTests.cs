@@ -148,6 +148,17 @@ public sealed class WorldOptionsLayoutTests
         float rightBottom = listY + tutorialOffset + ((WorldStoryOptions.TutorialSteps.Length - 1) * tutorialPitch) + tutorialH;
         Assert.True(rightBottom + MinClearance <= footerY,
             $"The tutorial rows end at y={rightBottom}, under the footer at y={footerY}.");
+
+        // #3347: under the tutorial rows, the side stories' header and up to MaxSideStories switch rows.
+        float sideOffset = Constant(source, @"const float StoriesSideOffset = ([0-9.]+)f;", "StoriesSideOffset");
+        float sideHeader = Constant(source, @"const float StoriesSideHeaderH = ([0-9.]+)f;", "StoriesSideHeaderH");
+        float sideH = Constant(source, @"const float StoriesSideH = ([0-9.]+)f;", "StoriesSideH");
+        float sidePitch = Constant(source, @"const float StoriesSidePitch = ([0-9.]+)f;", "StoriesSidePitch");
+        Assert.True(sidePitch >= sideH + MinClearance / 2f, $"StoriesSidePitch {sidePitch} leaves no gap between {sideH} px rows.");
+        float sideTop = listY + tutorialOffset + (WorldStoryOptions.TutorialSteps.Length * tutorialPitch) + sideOffset + sideHeader;
+        float sideBottom = sideTop + ((WorldStoryOptions.MaxSideStories - 1) * sidePitch) + sideH;
+        Assert.True(sideBottom + MinClearance <= footerY,
+            $"With {WorldStoryOptions.MaxSideStories} side stories the right column ends at y={sideBottom}, under the footer at y={footerY}.");
     }
 
     /// <summary>The planet-type page is data-driven (one row per selectable type in <c>data/planets.json</c>),

@@ -99,6 +99,10 @@ public sealed class NetCreature
     /// raises the head, bounces and calls at a fast cadence. Additive; false for everything else and from an older server.</summary>
     public bool Begging { get; set; }
 
+    /// <summary>#3366: a Soundeling carrying a light a player handed it to a dark spot — the client draws the glowing lamp it
+    /// holds up. Additive (contractless): false for everything else and from an older server.</summary>
+    public bool CarriesLight { get; set; }
+
     /// <summary>#2081: the arms of a biped (2; 0 on every other plan) and its head size relative to the classic head. Additive:
     /// an older client ignores them; an older server leaves them at 0, which the client reads as no arms and a classic head.</summary>
     public int Arms { get; set; }

@@ -29,6 +29,10 @@ public enum StoryConditionKind
     /// <summary><c>lore:&lt;key&gt;</c> — the player has read that lore text (a <c>lore_sites.json</c> entry, #2476).</summary>
     Lore,
 
+    /// <summary><c>milestone:&lt;key&gt;</c> — the player has that per-player milestone (#3347; any key, colons included:
+    /// <c>milestone:snd:disc:song_disc_builders</c>). A pack sets its own with a dialog consequence or the gameplay code does.</summary>
+    Milestone,
+
     /// <summary><c>all:[a,b,…]</c> — every child holds.</summary>
     All,
 
@@ -78,6 +82,9 @@ public interface IStoryConditionContext
     /// <summary>Whether the player has read the lore text <paramref name="loreKey"/> (#2476: the <c>lore:&lt;key&gt;</c> milestone the
     /// reader writes).</summary>
     bool HasReadLore(string loreKey);
+
+    /// <summary>Whether the player has the milestone <paramref name="key"/> (#3347: a <c>milestone:&lt;key&gt;</c> condition).</summary>
+    bool HasMilestone(string key);
 }
 
 /// <summary>
@@ -91,10 +98,10 @@ public interface IStoryConditionContext
 /// list      := condition ("," condition)*
 /// atom      := "step:" pack ":" step | "chapter:" pack ":" chapter
 ///            | "pack:" pack ":" ("started" | "done" | "enabled" | "optedout")
-///            | "blueprint:" key | "world:" predicate | "lore:" key
+///            | "blueprint:" key | "world:" predicate | "lore:" key | "milestone:" key
 /// </code>
-/// Ids are letters, digits, <c>_</c>, <c>.</c> and <c>-</c> (a step id is <c>b2.2</c>). <c>ui:*</c> events are never a
-/// condition (they are client claims, synthesis §5.5).
+/// Ids are letters, digits, <c>_</c>, <c>.</c> and <c>-</c> (a step id is <c>b2.2</c>); a milestone key may also hold
+/// <c>:</c> (#3347). <c>ui:*</c> events are never a condition (they are client claims, synthesis §5.5).
 /// </summary>
 public sealed class StoryCondition
 {
@@ -115,7 +122,7 @@ public sealed class StoryCondition
     /// <summary>The pack of a <c>step:</c>, <c>chapter:</c> or <c>pack:</c> atom; empty otherwise.</summary>
     public string PackId { get; }
 
-    /// <summary>The step id, chapter id, blueprint key or world predicate of an atom; empty for combinators and
+    /// <summary>The step id, chapter id, blueprint key, world predicate, lore key or milestone key of an atom; empty for combinators and
     /// <c>pack:</c> atoms.</summary>
     public string Id { get; }
 
@@ -125,7 +132,7 @@ public sealed class StoryCondition
     /// <summary>The operands of <c>all</c> / <c>any</c> (one or more) and <c>not</c> (exactly one); empty for atoms.</summary>
     public IReadOnlyList<StoryCondition> Children { get; }
 
-    /// <summary>True for the six atom kinds.</summary>
+    /// <summary>True for the seven atom kinds.</summary>
     public bool IsAtom => Kind is not (StoryConditionKind.All or StoryConditionKind.Any or StoryConditionKind.Not);
 
     internal static StoryCondition Atom(StoryConditionKind kind, string packId, string id, StoryPackState state = StoryPackState.Started)
@@ -156,6 +163,8 @@ public sealed class StoryCondition
                 return context.IsWorldPredicateTrue(Id);
             case StoryConditionKind.Lore:
                 return context.HasReadLore(Id);
+            case StoryConditionKind.Milestone:
+                return context.HasMilestone(Id);
             case StoryConditionKind.All:
                 foreach (var child in Children)
                 {
@@ -231,6 +240,9 @@ public sealed class StoryCondition
                 break;
             case StoryConditionKind.Lore:
                 sb.Append("lore:").Append(Id);
+                break;
+            case StoryConditionKind.Milestone:
+                sb.Append("milestone:").Append(Id);
                 break;
             case StoryConditionKind.Not:
                 sb.Append("not:");
@@ -459,6 +471,17 @@ public static class StoryConditionParser
                     return StoryCondition.Atom(StoryConditionKind.Blueprint, string.Empty, ReadRequiredId("the blueprint key"));
                 case "lore":
                     return StoryCondition.Atom(StoryConditionKind.Lore, string.Empty, ReadRequiredId("the lore key"));
+                case "milestone":
+                    {
+                        string key = ReadMilestoneKey();
+                        if (key.Length == 0 || key[key.Length - 1] == ':' || key[0] == ':')
+                        {
+                            throw Error("the milestone key is missing or ends in ':'");
+                        }
+
+                        return StoryCondition.Atom(StoryConditionKind.Milestone, string.Empty, key);
+                    }
+
                 case "world":
                     {
                         int at = _pos;
@@ -477,7 +500,7 @@ public static class StoryConditionParser
                     throw Error("'ui:' events are client claims and never a condition");
                 default:
                     _pos = start;
-                    throw Error($"unknown condition '{word}:' (step, chapter, pack, blueprint, world, lore, all, any, not)");
+                    throw Error($"unknown condition '{word}:' (step, chapter, pack, blueprint, world, lore, milestone, all, any, not)");
             }
         }
 
@@ -536,6 +559,18 @@ public static class StoryConditionParser
         {
             int start = _pos;
             while (_pos < _text.Length && IsIdChar(_text[_pos]))
+            {
+                _pos++;
+            }
+
+            return _text.Substring(start, _pos - start);
+        }
+
+        /// <summary>#3347: a milestone key — id characters and <c>:</c>, up to a <c>,</c>, a <c>]</c>, a space or the end.</summary>
+        private string ReadMilestoneKey()
+        {
+            int start = _pos;
+            while (_pos < _text.Length && (IsIdChar(_text[_pos]) || _text[_pos] == ':'))
             {
                 _pos++;
             }
@@ -848,6 +883,13 @@ public static class StoryWorldPredicates
     /// lights pack).</summary>
     public const string FestivalChristmas = "festival_christmas";
 
+    /// <summary>#3349: the player's body has at least one rune monument (read or not) — a rune stone to play is there.</summary>
+    public const string Monuments = "monuments";
+
+    /// <summary>#3349: the Singing Shrine (the one-of-a-kind alien shrine) exists in this galaxy — a world stamped before the
+    /// unique sites has none.</summary>
+    public const string Shrine = "shrine";
+
     /// <summary>Every known predicate, in documentation order.</summary>
     public static readonly IReadOnlyList<string> All = new[]
     {
@@ -865,5 +907,6 @@ public static class StoryWorldPredicates
         TrainHere, Multiplayer, RadioWorn, RuinNear, TreasureNear, WreckSignal, PlanetWrecks,
         FestivalAny, FestivalHarvest, FestivalLights, FestivalNewYear, FestivalBlossoms, FestivalColours, FestivalStars,
         FestivalMidsummer, FestivalChildren, FestivalHalloween, FestivalChristmas,
+        Monuments, Shrine,
     };
 }

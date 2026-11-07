@@ -19,33 +19,19 @@ public sealed partial class GameServer
 {
     private readonly System.Random _loreRng = new(0x10FE);
 
-    /// <summary>Reveals one still-unread lore text of a site kind to a player, or does nothing when the pack
-    /// has no (eligible) text left for them there. Weighted pick, knowledge-gated, once per player per text.</summary>
+    /// <summary>Reveals one still-unread lore text of a site kind to a player, or does nothing when the packs
+    /// have no (eligible) text left for them there. Weighted pick, once per player per text — the world story's texts gated by
+    /// the world's knowledge level, an active player pack's (#3347) by the player's chapter in it.</summary>
     private void TryRevealLoreText(PlayerSession session, string site)
     {
-        if (!StoryActive || _story is null || _story.LoreSites.Count == 0 || string.IsNullOrEmpty(site))
+        if (string.IsNullOrEmpty(site))
         {
             return;
         }
 
-        int knowledge = WorldKnowledgeLevel();
         var p = session.State;
-        var eligible = new List<LoreSite>();
-        int totalWeight = 0;
-        foreach (var l in _story.LoreSites)
-        {
-            if (!string.Equals(l.Site, site, System.StringComparison.OrdinalIgnoreCase)
-                || l.MinKnowledge > knowledge
-                || string.IsNullOrEmpty(l.Key)
-                || p.Milestones.Contains(LoreMilestonePrefix + l.Key))
-            {
-                continue;
-            }
-
-            eligible.Add(l);
-            totalWeight += System.Math.Max(1, l.Weight);
-        }
-
+        var eligible = EligibleLoreSites(session, site);
+        int totalWeight = eligible.Sum(l => System.Math.Max(1, l.Weight));
         if (eligible.Count == 0)
         {
             return; // this player has read everything the site (currently) has to say

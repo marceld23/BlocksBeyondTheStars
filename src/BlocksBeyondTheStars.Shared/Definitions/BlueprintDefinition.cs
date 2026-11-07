@@ -31,4 +31,12 @@ public sealed class BlueprintDefinition
     /// them under "Unlocks" next to the recipes and modules it finds in the data by itself. Optional.
     /// </summary>
     public List<string> Features { get; set; } = new();
+
+    /// <summary>
+    /// #3350: a hidden blueprint — a condition in the story grammar (<c>milestone:snd:disc:song_disc_builders</c>, see
+    /// <c>Story.StoryConditionParser</c>), evaluated per player. Until it holds the research screen does not list the
+    /// blueprint and the server refuses to research it ("found, not researched": the Sounders' blueprints appear when the
+    /// Song Disc that carries them is decoded). A blueprint the player already owns is always shown. Empty = never hidden.
+    /// </summary>
+    public string HiddenUntil { get; set; } = string.Empty;
 }

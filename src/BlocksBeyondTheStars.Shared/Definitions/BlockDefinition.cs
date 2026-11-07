@@ -219,6 +219,13 @@ public sealed class BlockDefinition
     /// </summary>
     public bool BiomeLooks { get; set; }
 
+    /// <summary>
+    /// #3345: the use key (interact) on this block sends a <c>UseBlockIntent</c> — a rune stone plays its word, a Song
+    /// Spindle plays its disc. The server decides what happens (its per-block-key handler table); the flag only tells the
+    /// client to offer the use and send the intent. Set in <c>data/blocks.json</c> (<c>"usable": true</c>).
+    /// </summary>
+    public bool Usable { get; set; }
+
     // --- Assigned by the registry, not present in JSON ---
 
     /// <summary>Dense numeric id assigned at load time; what chunks actually store.</summary>

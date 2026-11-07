@@ -80,6 +80,10 @@ public sealed partial class GameServer : IJournalHost
 
     bool IJournalHost.StoryPackEnabledFor(PlayerSession who, string packId) => StoryPackEnabledFor(who, packId);
 
+    bool IJournalHost.StoryPackDisabledInWorld(string? packId) => StoryPackDisabledInWorld(packId);
+
+    NetStoryText[] IJournalHost.UnlockedPackTexts(PlayerSession s, CompiledPack pack) => UnlockedPackTexts(s, pack);
+
     bool IJournalHost.CanStartPackOnRequest(PlayerSession s, CompiledPack pack) => CanStartPackOnRequest(s, pack);
 
     bool IJournalHost.ChapterVisible(PlayerSession s, CompiledChapter ch) => ChapterVisible(s, ch);

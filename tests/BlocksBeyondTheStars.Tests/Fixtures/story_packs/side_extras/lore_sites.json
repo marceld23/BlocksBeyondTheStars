@@ -1,0 +1,4 @@
+[
+  { "key": "sx_lore_first", "site": "monument", "textKey": "story.side_extras.lore.first", "minChapter": 0 },
+  { "key": "sx_lore_later", "site": "monument", "textKey": "story.side_extras.lore.later", "minChapter": 2 }
+]

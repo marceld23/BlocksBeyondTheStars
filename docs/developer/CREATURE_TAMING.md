@@ -1,6 +1,7 @@
 # Creature taming & companions — how it works
 
-Status: implemented (see [../../TODO.md](../../TODO.md) for live Done/Open status). Last updated 2026-06-19.
+Status: implemented (see [../../TODO.md](../../TODO.md) for live Done/Open status). Last updated 2026-11-07 (companion
+selection, the story Soundi, duel taming and pack defence).
 
 ## Overview
 
@@ -87,7 +88,8 @@ companion plate hides while a scene hides the HUD (#3034), and names lose contro
 
 New messages (all `Register()`'d in `NetCodec`): `TameRespondIntent`, `TameProgress` (mood/need/trust),
 `TameResult`, `CompanionList`, `SetCompanionNameIntent`, `ReleaseCompanionIntent`, `RequestCompanionsIntent`;
-plus `OwnerId`/`CustomName` added to `NetCreature`.
+plus `OwnerId`/`CustomName` added to `NetCreature`. #3344 added `SetCompanionFollowIntent` (tag 327, in `PausedMayHandle`)
+and the additive `NetCompanion.Following`/`Roams`/`Kind`; #3361 the additive `TameResult.SuggestedName`.
 
 ## Design decisions (locked)
 
@@ -171,6 +173,18 @@ eaten inside that loop. VEGA explains it once (`vega.hint.favourite_food`); the 
 After a favourite squabble the herd comes back after 5 s instead of the 60-s cooldown. Toxic food never counts. Mini-Michi-Paul
 (Paul and Ben's biped) loves bananas: two bananas tame one. Tests: `BipedServerTests`.
 
+## The Feed key with a lamp: Soundelings carry lights (#3366, 2026-11-07)
+
+Not a tame: a Soundeling (Soaniri's light-loving fluff ball) is never anybody's pet, but the Feed action reaches it. With a lamp
+block item in the slot (`SoundelingRules.IsLightItem`: a "light" block that really lights — torch, lantern, every lamp) and an
+awake Soundeling within `SoundelingRules.GiveRange` (6), `HandleThrowFood` hands the lamp over before any food rule
+(`TryGiveLightToSoundeling`, `GameServerSoundelings.cs`): by day only, to one that carries nothing, and only when a dark free
+cell lies within 12 blocks — otherwise the lamp stays with the player and the server says why (`srv.soundeling.sleeping`,
+`srv.soundeling.busy`, `srv.soundeling.no_dark`). The client's Feed probe and HUD prompt (`ui.hud.give_light`) follow the same
+rule (`PlayerController.FeedGivesLight`). What the Soundeling then does (it coos, thinks it over, carries the lamp to the dark
+spot and places it as the giver's block — never in somebody else's base; curled up at night; hiding in the dark by day) is in
+[CREATURE_RIG.md](CREATURE_RIG.md) § "The bodies of Soaniri". Tests: `SoundelingServerTests`.
+
 ## The friendly hunter robot (#3295, 2026-11-06)
 
 The first companion that is not an animal. The finale's reward crate (#3294, `GameServerGuardianReward.cs`) holds a
@@ -225,6 +239,95 @@ the **red lantern nose** — an unlit red cube with a small warm-red point light
 
 Tests: `ReindeerCompanionTests` (one per player, persistence incl. `Kind`/`Roams`, roaming, send home, no food or bond
 loss, never attacks, never rolled).
+
+## Companion selection: who follows (#3344, 2026-11-07)
+
+Several pets may follow; the player picks which (`GameServerCompanionSelection.cs`). Every record carries
+`TamedCreature.Following` (default **true**, so a save from before behaves exactly as before) and a home spot
+(`HasHomeSpot` + `HomeX/Y/Z` — set where the animal was tamed; a record from before gets the spot it stands on the first time
+it stays home).
+
+- **Planet pet, following:** as before. **Not following → stays home:** while the owner is on its world it is spawned at its
+  home spot (`CompanionSpawnAnchor`), potters about within `CompanionHomeWanderRange` (8) blocks (`MoveHomeCompanion`, the
+  ordinary `FollowStep` with home as the "owner") and is **leashed to home** (`CompanionHomeLeashRange` 16) instead of to its
+  owner. It holds still while the owner is more than 96 blocks from home (no terrain reads far from every player). "Set home
+  here" moves the home to the spot the owner stands on — only on the pet's own world, on foot (`srv.companion.home_away`
+  otherwise; a travelling companion has none, `srv.companion.home_travels`).
+- **Travelling companion (robot, Rudolpho, the Soundi), not following → on board:** `CompanionLivesOn` is false, so it is not
+  spawned anywhere; one click in the tab brings it back beside its owner.
+- **Payoffs:** fetch, the growl and the robber stall, the bandit ward, the machine ward (`WardedByCompanion`), scouting and
+  the robot's guarding (it is not spawned) come only from followers (`CompanionFollowsOwner(entity)` = companion and not
+  `StaysHome`); the at-home effects — the produce drop with its bio sample — keep working.
+- **Caps unchanged:** six planet pets per world (a pet at home is one of them); a roaming companion (`CombatEntity.CompanionRoams`)
+  takes no slot (`IsAuthoredEntity` covers every roaming entity now).
+- **Live entity:** `StampCompanionSelection` puts `StaysHome`, `HomeSpot`, `CompanionRoams` and `CompanionKind` on the
+  `CombatEntity` at spawn and again on every change.
+- **Wire:** `SetCompanionFollowIntent { CompanionId, Following, All, SetHomeHere }` (tag 327). It is in `PausedMayHandle`:
+  the Tab menu may hold a singleplayer world, and the intent only changes the sender's own companions. `NetCompanion` gains
+  `Following`, `Roams` and `Kind` — the client stops inferring "travels" from the robot body plan (it still falls back to
+  the plan for an older server). The answer is a refreshed `CompanionList` and a line (`srv.companion.follows`,
+  `stays_home`, `on_board`, `all_follow`, `all_stay`, `home_set`).
+- **Client:** the Companions tab (`CraftingTechShipUI.Companions.cs`) shows per row "Follows me / Stays home / On board", the
+  toggle (Take along / Leave at home / Wait on board) and "Set home here", plus "Take all / Leave all" above the list. The
+  row decisions are Unity-free in `Client.Core/Creatures/CompanionSelection.cs`. "On this world" lists the companions here
+  and those waiting on board.
+- **Persistence:** `Snapshots.CloneTamed` copies the new fields; `TamedCreatureSnapshotTests` sets every public settable
+  property to a value that is NOT its default (a `true` default like `Following` included) and requires it back after the
+  snapshot round trip and the JSON save — a field without its `CloneTamed` line fails there.
+
+Tests: `CompanionSelectionTests` (home spawn, pottering and the home leash, the toggle and its first home spot, on board not
+spawned, take all / leave all, payoffs only from followers, set home here, the cap, dispatch while paused, a restart),
+`TamedCreatureSnapshotTests`, Client.Core `CompanionSelectionTests`.
+
+## Story companions: the Soundi (#3361, 2026-11-07)
+
+`GameServerStoryCompanions.cs`. A story grants a companion with
+`GameServer.GrantStoryCompanion(PlayerSession session, string kind, string speciesId, string suggestedName)` — the Sounders
+pack calls it after the sing duel with `("soundi", "soundi", "Muffin")`. It creates a `TamedCreature` with that `Kind`,
+`Roams = true`, `Bond = 100`, named `suggestedName`, beside the player when they stand on a world, saves the player and sends
+`TameResult { Success, CompanionId, CompanionName, SuggestedName, MessageKey = "creature.tame.msg.story" }` — the client's
+name prompt opens with the suggestion filled in and the hint `ui.companion.name_prompt_suggested` ("how about Muffin?").
+It returns the record, or null for a second companion of the same kind (one per player and kind) or the robot's/Rudolpho's
+kind (those come from their items).
+
+- **A story companion** is a record whose `Kind` is not an authored companion's (`IsStoryCompanion`). It travels like
+  Rudolpho, stays outside the six-pet cap, keeps a fixed bond that never fades (`HasFixedBond`), is never released —
+  "release" puts it on board (#3344) — and is nothing to bio-sample.
+- **Species:** the authored record of `data/creatures.json` by key: this world's own animal when it lives here
+  (`au_soundi` on Soaniri, snapshotted with this world's look), else the record built off-world through the roster generator
+  on a stand-in of the type that hosts it (`AuthoredSpeciesOffWorld`), else a code-built stand-in (`StandInStorySpecies`:
+  light blue fur, mint belly, no eyes, a bushy tail). The species id stays `au_<key>`, so the client draws the authored look.
+- **Songs:** `TickStoryCompanions` (a world tick step) lets a Soundi sing now and then — a `SoundFx` `soundi_call_01` …
+  `soundi_call_14` at its position, the first 20–40 s after it appears, then every 45–105 s (picked per companion and song).
+
+Tests: `StoryCompanionTests` (the grant and the name prompt, one per player, roaming beside six pets, release → on board,
+the song, a restart with kind, roaming and the full bond).
+
+## Duel taming and pack defence: the wild Soundis (#3365, 2026-11-07)
+
+`GameServerSoundiDuel.cs`; species flags `CreatureSpecies.DuelTame` and `PackDefender` (authored: `duelTame`,
+`packDefender` in `data/creatures.json`); the rules and numbers in `CreatureBehaviour` (`TamesByDuel`, `DefendsKin`,
+`DuelSurrenderShare` 0.2, `DuelWalkAwayRange` 24, `PackDefenceRange` 14, `PackDefenceSeconds` 20, the fight bite 2–5/s).
+
+- **Duel taming:** the creature translator on a `DuelTame` animal starts a **duel** instead of the ritual
+  (`StartCreatureDuel`): the animal is whole again, awake and provoked, and locked on the duelling player
+  (`CombatEntity.FightTargetId`) — it hunts that player only (`ApplyFightLock`, called in `MoveCreatures` once the hunt range
+  is known, forces an aggressor whatever the temperament and never tires of the chase) and bites that player only
+  (`MayFight` in the bite loop). Its health never drops below the surrender line: the hit that reaches it ends the duel —
+  the animal **gives up** (it never dies) and `CompleteTame` makes it a planet pet (`creature.tame.msg.duel`; the cap, the
+  first-tame knowledge and the name prompt as ever). Another player's hit is no part of the duel (clamped, `srv.creature_duel.busy`);
+  sentries and the hunter robot never shoot an animal in a duel or a defending pack (`SentryMayShootCreature`). The duel ends when the player
+  walks 24 blocks away or leaves the world (`walked_away`) or dies (`lost`, also from `RespawnPlayer`): the animal calms down,
+  whole again, and can be challenged any time. Starting a duel calms the pack members that defended against the player.
+- **Pack defence:** a hit on a `PackDefender` outside a duel turns it and every animal of its species within 14 blocks on
+  that attacker for 20 s (gentle bite, provoked, awake), then `TickCreatureFights` calms them (`CalmFighter`: the own bite
+  back, no target). The attacker hears `srv.creature_duel.pack` (at most every 10 s). A `DuelTame` animal never dies at a
+  player's hand, outside a duel either — it stays at the surrender line. The hook is `OnCreatureDuelHit` in
+  `AttackCombatEntity`, after the damage and before the ordinary startle/provoke path.
+
+Tests: `CreatureDuelTests` (the translator starts a duel, one-on-one incl. the bite in a running world, surrender → planet pet
+through the hook and through the real swing, walking away, dying, pack defence and calming, never dies outside a duel, a duel
+calms the defending pack).
 
 ## Known remaining gaps / deferred (P4)
 

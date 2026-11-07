@@ -36,6 +36,14 @@ components, a category sidebar and blueprint state.
   now"** toggle (`ui.tech.researchable_now`; "Enough knowledge" before) keeps only the nodes whose
   `BlueprintResearch.StateOf` (Client.Core) is `Researchable` — the same test as the card status, the header's
   "next" line and the Tech badge, mirroring the server's unlock gates (prerequisites, knowledge, materials).
+- **Hidden blueprints (#3350).** A blueprint with `hiddenUntil` (a story condition, e.g.
+  `milestone:snd:disc:song_disc_builders` — the Sounders' blueprints appear when the Song Disc that carries them is decoded)
+  is not in the tree for a player until the condition holds for them: the server refuses to research it
+  (`HandleUnlock` → `@srv.unlock.unknown`, `BlueprintHiddenFor`) and tells the client which hidden blueprints this player may
+  see (`BlueprintVisibility`, tag 328 — after the join and whenever the set changes, from the 1 Hz story pass). The client
+  lists one only when that message names it or the player owns it (Client.Core `HiddenBlueprints.IsShown`, through
+  `NetworkClient.IsBlueprintShown`): the tree, its "done/total" header, "next", the Tech badge, the cross-tab search,
+  "Leads to" and the "you now know enough for …" toast all skip it. VEGA's blueprint hints skip it on the server.
 - **Always show "why".** A disabled action states the reason — missing material (with have/need
   counts), needs a station, needs a blueprint, or disabled by a server rule. The blocking reason is
   computed client-side so cards explain *before* you click; server reject text is still surfaced.
@@ -194,6 +202,17 @@ components, a category sidebar and blueprint state.
   lamp, jetpack, glider and stealth suit with their real controls (`HudUi.GlyphText` / `HudUi.JumpGlyph`; the ACT list on
   a tablet). The slots are `AddGridSlot` buttons, so the pad walks them by geometry. Clicking any slot opens the
   **slot picker** (#2289, `ShowSlotPicker`) and a worn piece also fills the detail pane (Take off there too).
+- Disc socket (#3354): the twelfth slot, `EquipSlot.Disc` (`equipSlot: "disc"` — the Song Discs Hearing, Calm and Light).
+  The paper doll shows it under the liner, its line pointing at the chest, while the obsidian chest is worn — or while a
+  disc still sits in it after the chest came off, so it can be taken out (`ShowDiscSocket`). The server refuses a disc
+  there without the obsidian chest (`@srv.equip.disc_needs_obsidian`), raises `disc:inserted` when one goes in, and a disc
+  works only while the chest is worn (`GameServer.HasActiveSocketDisc`): Hearing shows the Echoes, Calm makes Soundraks
+  ignore the wearer, Light is the glow above. The whole obsidian set also gives quiet steps — a hunter notices its wearer
+  only within half its range (`GameServerObsidianArmour.cs`).
+- Hidden blueprints (#3350, the Sounders): `sounder_spindle`, `sounder_resonance`, `sounder_obsidian` and `sounder_voice`
+  carry `hiddenUntil: milestone:snd:disc:<disc>` — each shows in the research screen only once the Song Disc that carries
+  it is decoded (the note-key minigame, [MINIGAMES_AND_WIKI.md](MINIGAMES_AND_WIKI.md)). They cost obsidian, crystal and
+  rune stone; `sounder_voice` unlocks no item but the melody block's Sounder instruments (a `features` line).
 - Slot picker (#2289): its own canvas at sort 61 over the menu (`UiKit.AddModalOverlay`, `UiNav` on it, the menu's
   nav suspended while it is open; Esc / pad B close it first — `GameMenu` asks `CloseSlotPicker()` before closing the
   menu). One row per fitting stack (`EquipSlots.Accepts`) from the backpack and, aboard (`AboardShipNow()`), the cargo
@@ -221,6 +240,12 @@ components, a category sidebar and blueprint state.
   chest plate with a glowing air gauge and a red belt, thigh and shin plates, and the first set boots — their style took
   a fourth slot (`GearLook.BootsStyle`, bits 25–27; the generic Boots bit stays set, so older clients draw plain boots).
   The presence gained no field: a full-suit presence is still one uncompressed message (`RessawGearLookTests`).
+  #3354, the Sounders' obsidian armour: style 5 (`GearLook.StyleObsidian`) in all three slots — near-black glassy plates
+  with thin self-lit violet seams and two tall ear fins on the helmet (`PlayerAvatar.Obsidian.cs`); chest style 6
+  (`StyleObsidianGlow`) is the obsidian chest with the light disc in its socket. The one new bit, `GearLook.SocketDisc`
+  (bit 28, above the boots' style bits; only with the obsidian chest), draws a round disc on the chest; with the light disc it shines and a small
+  violet-white point light (mirrored into the FX lights like a glowing creature) makes the wearer glow softly — other
+  players see it too. The presence gains no field (#3234).
   The own stealth cloak (`Game.Stealthed`) turns the third-person figure into shimmering glass (`SetStealthShimmer`) —
   other players never see a cloaked player at all. Movement: the spring boots scale the ground jump's impulse by
   √(1 + `SuitEquipment.JumpBoost`); holding Jump while falling with the glider where there is air (an atmosphere, below

@@ -268,7 +268,7 @@ namespace BlocksBeyondTheStars.Client
             else if (kind == CrystalDeviceKind.MelodyBlock)
             {
                 y = ModeGrid(panel, y, kind, modes); // the eight notes
-                y = CycleRow(panel, y, L("ui.crystal.instrument"), "inst", new[] { "0", "1", "2", "3" }, v => L("ui.crystal.instrument." + v));
+                y = CycleRow(panel, y, L("ui.crystal.instrument"), "inst", MelodyInstruments(), v => L("ui.crystal.instrument." + v));
             }
 
             switch (kind)
@@ -453,6 +453,17 @@ namespace BlocksBeyondTheStars.Client
                 Rebuild();
             });
             return y + 60f;
+        }
+
+        /// <summary>#3345: the melody block's instruments — the Sounder voice (4) and the Sounder choir (5) only once the player
+        /// researched the hidden blueprint <c>sounder_voice</c> (or plays in Creative), the server's rule; a block a friend set
+        /// to one of them keeps showing it.</summary>
+        private string[] MelodyInstruments()
+        {
+            bool sounder = (Game?.Rules != null && Game.Rules.GameMode == "Creative")
+                || (Game?.UnlockedBlueprints?.Contains(BlocksBeyondTheStars.Shared.Sounders.SoundersIds.BlueprintVoice) ?? false)
+                || (int.TryParse(ConfigValue("inst"), out int now) && now >= BlocksBeyondTheStars.Shared.Sounders.SoundersIds.InstrumentVoice);
+            return sounder ? new[] { "0", "1", "2", "3", "4", "5" } : new[] { "0", "1", "2", "3" };
         }
 
         private float LabelRow(Transform panel, float y, string label)

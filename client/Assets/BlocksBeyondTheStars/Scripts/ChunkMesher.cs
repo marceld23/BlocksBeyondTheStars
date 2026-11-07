@@ -2134,8 +2134,10 @@ namespace BlocksBeyondTheStars.Client
             // #2851: the crowns that take the world's colour (TreeFoliage.IsTinted) — the three leaf slots, needles, fronds
             // and the giant crown. The Fifi plant's leaves and the blossom crown keep their painted colours: they are
             // foliage (cutout, walked through) but no flora, so no tint mode paints them in the planet's hue.
+            // #3358: FloraCatalog.IsPlantKey = every flora_* key plus Soaniri's singing plants (no prefix; authored, so their
+            // TraitCultivated keeps them in their own colours).
             return key != null
-                && (key.StartsWith("flora_", System.StringComparison.Ordinal)
+                && (BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsPlantKey(key)
                     || BlocksBeyondTheStars.Shared.Definitions.TreeFoliage.IsTinted(key));
         }
 
@@ -2181,7 +2183,7 @@ namespace BlocksBeyondTheStars.Client
 
             // #2085: the Fifi plant's yellow leaves are a cutout crown too — but no flora block, so they keep their colour.
             return BlocksBeyondTheStars.Shared.Definitions.TreeFoliage.IsKey(key)
-                || (key.StartsWith("flora_", System.StringComparison.Ordinal) && !SolidFlora.Contains(key));
+                || (BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsPlantKey(key) && !SolidFlora.Contains(key));
         }
 
         /// <summary>True for fluids (water/lava) — they render but are excluded from the collision mesh.</summary>
@@ -2886,7 +2888,7 @@ namespace BlocksBeyondTheStars.Client
                     // #2264: the Crystal Net's open twins are walked (or fallen) through — the mesher reads keys, not the Solid flag.
                     bool openTwin = key is "phase_block_open" or "force_field_off" or "trapdoor_open" or "lift_gate_open"; // #3174: an open lift gate
                     if (key != "water" && key != "fire" && key != "energy_gate" && !liquid && !crown && !openTwin) f |= TraitCollidable;
-                    if (key != null && key.StartsWith("flora_", System.StringComparison.Ordinal)) f |= TraitFloraPrefix;
+                    if (BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsPlantKey(key)) f |= TraitFloraPrefix; // #3358: + the singing plants
                     if (key != null && TallFlora.Contains(key)) f |= TraitTallFlora;
                     if (key != null && SolidFlora.Contains(key)) f |= TraitSolidFlora;
                     if (key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.KeepsOwnColour(key)) f |= TraitCultivated;

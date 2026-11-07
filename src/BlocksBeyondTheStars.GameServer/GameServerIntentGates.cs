@@ -40,6 +40,13 @@ public sealed partial class GameServer
             or SetPlaceNameIntent => true, // #2952: a private place name only changes the player's own ledger
         SetFestivalPrefsIntent or OpenCalendarDoorIntent => true, // #3021 "My festivals"; #3315 a calendar door (the in-game menu) only fills the opener's own bag
         SetBasePadIntent => true, // #3069: a pad's name and access — its dialog may hold a singleplayer world; it moves nothing
+        StoryMinigameResultIntent => true, // #3352: the note-key window holds a singleplayer world; it only writes the player's own ledger
+        // #3344: the Companions tab's follow choice — the Tab menu may hold a singleplayer world. It changes only the sender's
+        // own companions (one sent on board leaves the world, one taken along again steps out beside its owner).
+        SetCompanionFollowIntent => true,
+        // #3346: the melody bar can be open while a scene holds a singleplayer world (the sing duel, an Echo's question).
+        // A note only advances the sender's own puzzle; its prompts and time-outs wait for the world to run again.
+        MelodyNoteIntent => true,
         // #2466 (synthesis §5.7): the pack controls change only the player's own ledger — "skipPack" is the first tutorial
         // card's "I know the game", shown during a singleplayer hold; #2467 watching a scene again changes nothing; #2470
         // "Start the story now" starts the player's own story track. #2471 (issue: "every action is pause-whitelisted"): the

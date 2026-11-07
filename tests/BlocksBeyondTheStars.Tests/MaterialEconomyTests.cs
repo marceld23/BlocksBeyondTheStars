@@ -215,6 +215,9 @@ public sealed class MaterialEconomyTests
             "guardian_helmet", "guardian_chest", "guardian_legs", "robber_mask", "robber_jacket", "flower_wreath", "flower_bracelets",
             // #3337/#3339: the Ressaw diving suit and the Ressaw lamp are worn, never used up.
             "ressaw_helmet", "ressaw_suit", "ressaw_leggings", "ressaw_boots", "ressaw_lamp",
+            // #3352-#3354 the Sounders: the Song Discs are played in a Song Spindle and worn in the socket, the obsidian armour worn.
+            "song_disc_beginning", "song_disc_builders", "song_disc_hearing", "song_disc_hunger", "song_disc_great_song",
+            "song_disc_voices", "song_disc_calm", "song_disc_light", "song_disc", "obsidian_helmet", "obsidian_chest", "obsidian_legs",
         };
         var unconsumedComponents = _c.Items.Values
             .Where(i => i.Category == ItemCategory.Component && !uses.ContainsKey(i.Key))

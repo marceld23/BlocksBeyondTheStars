@@ -163,7 +163,29 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // #3347: a sung reply is played in the Sounder voice as it is given (locally — the server owns what it does).
+            string melody = DialogMelody.MelodyOf(_state.ChoiceMelodies, index);
+            if (melody.Length > 0)
+            {
+                StartCoroutine(SingMelody(DialogMelody.Notes(melody)));
+            }
+
             Game.Network?.SendNpcDialogChoice(index, _state.NpcId);
+        }
+
+        /// <summary>#3347: plays a sung reply note by note (instrument 4, <c>note_4_&lt;tone&gt;</c>; a rest is a short silence).</summary>
+        private System.Collections.IEnumerator SingMelody(int[] notes)
+        {
+            foreach (int tone in notes)
+            {
+                string id = DialogMelody.NoteId(tone);
+                if (id != null)
+                {
+                    ClientAudio.Instance?.PlayOwn(id, 0.8f);
+                }
+
+                yield return new WaitForSecondsRealtime(DialogMelody.NoteSeconds);
+            }
         }
 
         /// <summary>The player closes the panel (Esc, Leave, the photo/interview hand-off). #2616: while it still offered
@@ -202,13 +224,14 @@ namespace BlocksBeyondTheStars.Client
                 ReflowForLine();
             }
 
+            var toneNames = DialogMelody.ToneNames(L("ui.note.names")); // #3347: a sung reply shows its notes
             for (int i = 0; i < MaxChoices; i++)
             {
                 bool used = !_state.End && i < _state.Choices.Length;
                 _choiceButtons[i].gameObject.SetActive(used);
                 if (used)
                 {
-                    _choiceLabels[i].text = $"[{i + 1}] " + _state.Choices[i];
+                    _choiceLabels[i].text = $"[{i + 1}] " + DialogMelody.ChoiceLabel(_state.Choices[i], DialogMelody.MelodyOf(_state.ChoiceMelodies, i), toneNames);
                 }
             }
 

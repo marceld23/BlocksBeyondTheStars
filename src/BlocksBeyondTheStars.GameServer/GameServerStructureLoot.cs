@@ -42,6 +42,11 @@ public sealed partial class GameServer
         _meta.GeneratedLoot.Add(key);
 
         var items = gds ? BuildGdsCacheLoot(gdsCache, cell) : BuildStructureLoot(markerType, rng);
+        if (markerType == "relic_cache")
+        {
+            AddSounderRelicFinds(key, items); // #3352: a rare Song Spindle or Song Disc — from the cache's own key, not rng
+        }
+
         if (items.Count == 0)
         {
             return;

@@ -1324,6 +1324,17 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Feeds a companion one bait item to raise its bond (#1225).</summary>
         public void SendFeedCompanion(string companionId) => Send(new FeedCompanionIntent { CompanionId = companionId ?? string.Empty });
 
+        /// <summary>#3344: one companion follows me — or stays home (a planet pet) / waits on board (a travelling one).</summary>
+        public void SendSetCompanionFollow(string companionId, bool following)
+            => Send(new SetCompanionFollowIntent { CompanionId = companionId ?? string.Empty, Following = following });
+
+        /// <summary>#3344: "Take all" (true) / "Leave all" (false) in the Companions tab.</summary>
+        public void SendSetAllCompanionsFollow(bool following) => Send(new SetCompanionFollowIntent { All = true, Following = following });
+
+        /// <summary>#3344: "Set home here" — the spot I stand on becomes the home of a planet pet that stays home.</summary>
+        public void SendSetCompanionHomeHere(string companionId)
+            => Send(new SetCompanionFollowIntent { CompanionId = companionId ?? string.Empty, SetHomeHere = true });
+
         // --- Hover speeders ---
         /// <summary>Deploy a speeder in front of the player (reuses the gadget path on the speeder item).</summary>
         public void SendDeploySpeeder(Vector3f at) => SendUseGadget("speeder", at);

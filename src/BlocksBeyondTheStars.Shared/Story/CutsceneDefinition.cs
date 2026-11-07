@@ -294,8 +294,44 @@ public static class CutsceneAnchors
     /// card, like a heal tank that is not there.</summary>
     public const string Players = "players";
 
-    /// <summary>Every anchor.</summary>
-    public static readonly IReadOnlyList<string> All = new[] { Player, Ship, Planet, Station, StarMap, HealTank, Core, Custom, Players };
+    /// <summary>#3357: <c>system:&lt;id&gt;</c> — a pack's star system on a <c>chart</c>: named, ringed and reached by a route from the
+    /// player's system (the Sounders' Ornemis). Only on the chart; a client that does not have the system on its star map yet
+    /// plays the scene as a card.</summary>
+    public const string System = "system";
+
+    /// <summary>Every anchor (<see cref="System"/> is written with its argument: <c>system:&lt;id&gt;</c>).</summary>
+    public static readonly IReadOnlyList<string> All = new[] { Player, Ship, Planet, Station, StarMap, HealTank, Core, Custom, Players, System };
+
+    /// <summary>The system id of a <c>system:&lt;id&gt;</c> anchor, or null for any other anchor.</summary>
+    public static string? SystemIdOf(string? anchor)
+        => anchor is not null && anchor.StartsWith(System + ":", StringComparison.Ordinal) && anchor.Length > System.Length + 1
+            ? anchor.Substring(System.Length + 1)
+            : null;
+
+    /// <summary>Whether <paramref name="anchor"/> is a known anchor (a <c>system:&lt;id&gt;</c> with its id; never a bare
+    /// <c>system</c>).</summary>
+    public static bool IsKnown(string? anchor)
+    {
+        if (string.IsNullOrEmpty(anchor))
+        {
+            return false;
+        }
+
+        if (SystemIdOf(anchor) is not null)
+        {
+            return true;
+        }
+
+        foreach (string known in All)
+        {
+            if (known != System && string.Equals(known, anchor, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
 
 /// <summary>Caption styles (synthesis §6.3).</summary>

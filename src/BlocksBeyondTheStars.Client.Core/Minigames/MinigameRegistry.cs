@@ -39,6 +39,7 @@ namespace BlocksBeyondTheStars.Client.Minigames
             ("nanobot_repair", () => new NanobotRepairGame()),
             ("planet_scanner", () => new PlanetScannerGame()),
             ("void_solitaire", () => new VoidSolitaireGame()),
+            ("note_key", () => new NoteKeyGame()), // #3352 the Sounders' note alphabet (also opened by a Song Disc at a Song Spindle)
         };
 
         /// <summary>The game keys in catalogue order.</summary>

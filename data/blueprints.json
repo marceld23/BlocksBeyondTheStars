@@ -490,6 +490,33 @@
     "category": "Production", "prerequisites": [], "knowledgeCost": 22,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "metal_panel", "count": 4 }, { "item": "crystal", "count": 1 } ]
   },
+  // #3350/#3352-#3354: the Sounders' four hidden blueprints — each stays out of the research screen (and the server refuses
+  // it) until the player has decoded the Song Disc that carries it ("hiddenUntil", a story condition).
+  {
+    "key": "sounder_spindle", "nameKey": "blueprint.sounder_spindle.name", "descriptionKey": "blueprint.sounder_spindle.desc",
+    "category": "Production", "prerequisites": [], "knowledgeCost": 15,
+    "unlockCost": [ { "item": "obsidian", "count": 2 }, { "item": "crystal", "count": 2 }, { "item": "rune_stone", "count": 1 } ],
+    "hiddenUntil": "milestone:snd:disc:song_disc_beginning"
+  },
+  {
+    "key": "sounder_resonance", "nameKey": "blueprint.sounder_resonance.name", "descriptionKey": "blueprint.sounder_resonance.desc",
+    "category": "Tools", "prerequisites": [], "knowledgeCost": 30,
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "obsidian", "count": 2 }, { "item": "crystal", "count": 4 }, { "item": "rune_stone", "count": 2 } ],
+    "hiddenUntil": "milestone:snd:disc:song_disc_builders"
+  },
+  {
+    "key": "sounder_obsidian", "nameKey": "blueprint.sounder_obsidian.name", "descriptionKey": "blueprint.sounder_obsidian.desc",
+    "category": "Suit", "prerequisites": [], "knowledgeCost": 40,
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "obsidian", "count": 6 }, { "item": "crystal", "count": 2 }, { "item": "rune_stone", "count": 2 } ],
+    "hiddenUntil": "milestone:snd:disc:song_disc_hearing"
+  },
+  {
+    "key": "sounder_voice", "nameKey": "blueprint.sounder_voice.name", "descriptionKey": "blueprint.sounder_voice.desc",
+    "category": "Crystal", "prerequisites": [ "crystal_sound" ], "knowledgeCost": 30,
+    "unlockCost": [ { "item": "obsidian", "count": 1 }, { "item": "crystal", "count": 3 }, { "item": "rune_stone", "count": 2 } ],
+    "features": [ "blueprint.feature.sounder_voice" ],
+    "hiddenUntil": "milestone:snd:disc:song_disc_voices"
+  },
   // #1202: three research nodes that gate the station packs of #1203 (campfire meals, bio-refining, archaeology).
   {
     "key": "field_kitchen", "nameKey": "blueprint.field_kitchen.name", "descriptionKey": "blueprint.field_kitchen.desc",

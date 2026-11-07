@@ -234,7 +234,8 @@ public static class CreatureGenerator
             AngeredByMining = a.AngeredByMining,
             GiftsWhenCalm = a.GiftsWhenCalm,
             BegsForFood = a.BegsForFood,  // #2018: a worksheet species may beg (the rule honours it on passive Land species only)
-            Arms = a.BodyPlan == CreatureBodyPlan.Biped ? System.Math.Clamp(a.Arms, 0, 2) : 0, // #2081: arms on the biped body only
+            Arms = a.BodyPlan == CreatureBodyPlan.Biped ? System.Math.Clamp(a.Arms, 0, 2) // #2081: arms on the biped body only …
+                : a.BodyPlan == CreatureBodyPlan.Sounder ? BlocksBeyondTheStars.Shared.Sounders.SounderRules.Arms : 0, // … and the Sounder's four (#3355)
             HeadRatio = a.HeadRatio > 0f ? System.Math.Clamp(a.HeadRatio, 0.5f, BipedRules.MaxHeadRatio) : 1f,
             FavouriteFood = a.FavouriteFood,                  // #2082: empty = the generation-16 roll for a beggar
             FeedsToTame = System.Math.Max(0, a.FeedsToTame),
@@ -253,6 +254,8 @@ public static class CreatureGenerator
             WormGirth = a.WormGirth,
             Hearing = a.Hearing,
             SwallowsCreatures = a.SwallowsCreatures, // #2076: an authored worm says whether it hunts the animals
+            DuelTame = a.DuelTame,         // #3365: the Soundi is tamed in a duel …
+            PackDefender = a.PackDefender, // … and its pack defends it outside one
         };
 
         if (species.GiantHeight > 0f)
@@ -466,6 +469,17 @@ public static class CreatureGenerator
         }
 
         return null;
+    }
+
+    /// <summary>#3359: an authored record built as a species of this world on its own — for a story's own animal (the Qualis of
+    /// the Bridge Song, the Sounders pack's Soundi) that must exist even where the type's roster does not hold it. The same
+    /// sub-seed rule as <see cref="GenerateAuthoredGiant"/> (salted with the key), so no other species moves.</summary>
+    public static CreatureSpecies MakeAuthored(AuthoredCreature record, PlanetType planet, long worldSeed)
+    {
+        long planetSeed = worldSeed ^ WorldGenerator.StableHash(planet.Key);
+        long s = unchecked(planetSeed ^ WorldGenerator.StableHash("authored:" + record.Key));
+        var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
+        return MakeAuthoredSpecies(record, planet, rng, s);
     }
 
     /// <summary>A body plan that lives in the giant slots, never in the roster (#2075, #2111, #2112).</summary>

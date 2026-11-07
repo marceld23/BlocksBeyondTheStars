@@ -30,6 +30,9 @@ public sealed partial class GameServer
         var map = new Dictionary<string, Action<PlayerSession, Vector3i>>(StringComparer.Ordinal);
 
         // #3345 rune stones play their word; puzzle pillars and the Song Spindle register below as they land.
+        map["rune_stone"] = UseRuneStone; // #3345 its word in the note alphabet; a melody-site pillar strikes its tone (#3346)
+        map[Shared.Sounders.SoundersIds.SongSpindle] = UseSongSpindle; // #3352 put a Song Disc in, hear it, take it out
+        map["resonance_crystal"] = UseResonanceCrystal; // #3358 a Choir Tower pipe strikes its tone; any other crystal sings one note
         return map;
     }
 
@@ -60,7 +63,7 @@ public sealed partial class GameServer
         _blockUseHandlers ??= BuildBlockUseHandlers();
         if (_blockUseHandlers.TryGetValue(def.Key, out var handler))
         {
-            handler(session, cell);
+            handler(session, Shared.World.WorldConstants.CanonicalBlock(cell, _world.Circumference)); // one cell, both sides of the seam
         }
     }
 

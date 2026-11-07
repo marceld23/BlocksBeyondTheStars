@@ -158,7 +158,7 @@ public sealed partial class GameServer
         int count = 0;
         foreach (var s in galaxy.Systems)
         {
-            if (s.Id == GuardianFinaleSystemId)
+            if (s.Id == GuardianFinaleSystemId || !WorldGeneration.WormholePlacer.MayHoldWormhole(s.Id)) // #3357: a pack system never moves it
             {
                 continue;
             }

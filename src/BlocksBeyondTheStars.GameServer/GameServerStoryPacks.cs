@@ -1686,6 +1686,7 @@ public sealed partial class GameServer
     /// packs, offers optional chapters and escalates help on the chip steps.</summary>
     private void TickStoryPacksFor(PlayerSession s)
     {
+        TickPackExtrasFor(s); // #3347/#3350/#3357: pack texts, hidden blueprints, pack systems
         if (PlayerPacks.Count == 0)
         {
             return;
@@ -1863,6 +1864,11 @@ public sealed partial class GameServer
             return true;
         }
 
+        if (StoryRevealProviders.ArgumentOf(reveal, StoryRevealProviders.StorySystem) is { } storySystem)
+        {
+            return MarkStorySystem(s, step, storySystem); // #3357: the system on the player's star map, named
+        }
+
         if (RevealTarget(s, reveal) is not { } target || !RaiseStoryMarker(s, step, target))
         {
             return false;
@@ -1927,6 +1933,12 @@ public sealed partial class GameServer
         }
 
         var pos = s.State.Position;
+        var packSpot = PackRevealTarget(s, reveal, out bool packProvider); // #3349: nearest_monument, pack_site:<id>
+        if (packProvider)
+        {
+            return packSpot;
+        }
+
         if (reveal.StartsWith(StoryRevealProviders.UniqueSite + ":", StringComparison.Ordinal))
         {
             // #2476: the site's own spot while the player is on its world ("read the observatory's last log").

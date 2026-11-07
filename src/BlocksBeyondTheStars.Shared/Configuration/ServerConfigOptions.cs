@@ -291,6 +291,7 @@ public static class ServerConfigOptions
         Switch("story", Text((c, v) => c.Rules.StoryId = v), "Story pack id, \"none\" for sandbox, or \"default\"/empty."),
         Switch("story-density", Choice<StoryDensity>((c, v) => c.Rules.StoryDensity = v), "Story pace (Sparse, Normal, Dense)."),
         Switch("tutorial", ApplyTutorial, "Tutorial policy of a fresh world (#2466): auto, courses, optin or off."),
+        Switch("disable-stories", ApplyDisabledStories, "Side stories switched off in a fresh world (#3347): pack ids \"a,b\"; empty = every side story on."),
         Switch("flora", Choice<Frequency>((c, v) => c.World.FloraDensity = v), "Flora density (world option)."),
         Switch("ore", Choice<Frequency>((c, v) => c.World.RareResources = v), "Rare-resource frequency (world option)."),
         Switch("settlements", Choice<Frequency>((c, v) => c.World.Settlements = v), "Settlement frequency (world option)."),
@@ -538,6 +539,34 @@ public static class ServerConfigOptions
         }
 
         config.Rules.TutorialPolicy = policy;
+        return true;
+    }
+
+    /// <summary><c>--disable-stories</c> (#3347): the side stories switched off in a fresh world ("a,b", pack ids — letters,
+    /// digits, '_' and '-'); an empty value switches every side story on. A fresh world only, like every world option.</summary>
+    private static bool ApplyDisabledStories(ServerConfig config, string value)
+    {
+        var packs = new List<string>();
+        foreach (var pack in value.Split(',', StringSplitOptions.RemoveEmptyEntries))
+        {
+            string id = pack.Trim();
+            if (id.Length == 0)
+            {
+                continue;
+            }
+
+            if (!id.All(c => char.IsLetterOrDigit(c) || c == '_' || c == '-'))
+            {
+                return false;
+            }
+
+            if (!packs.Contains(id, StringComparer.OrdinalIgnoreCase))
+            {
+                packs.Add(id);
+            }
+        }
+
+        config.Rules.DisabledStoryPacks = packs;
         return true;
     }
 

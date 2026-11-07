@@ -126,6 +126,9 @@ public sealed class WorldGenerationGoldenTests
         // Generation 33 (2026-11-07, #3307): KuBa-W — Jafar's breathable asteroid at an asteroid's circumference (hills, flat
         // meadows, no trees, no craters).
         new("asteroid_kuba_w-gen33", 20261107, "asteroid_kuba_w", 1024, false, "kubaw", 33),
+        // #3358 (2026-11-07, the Sounders pack): Soaniri — the singing meadows (plants, outcrops, harp arches) on the type that
+        // asks for them; no generation of its own (every older group above stays as it was).
+        new("sounder_world-gen34", 20261107, "sounder_world", 6400, false, "ornemis-world", 34),
         new("bone_desert-gen21", 20261005, "bone_desert", 0, false, null, 21),
         new("desert-gen21", 20261005, "desert", 0, false, null, 21),
         new("karst-gen21", 20261005, "karst", 0, false, null, 21),
@@ -253,6 +256,8 @@ public sealed class WorldGenerationGoldenTests
             ["desert-gen29"] = 0xeaf24c386be59d88UL,
             // Pinned 2026-11-07 (KuBa-W, generation 33, #3307; Windows 11, .NET 10).
             ["asteroid_kuba_w-gen33"] = 0xdac3b1d5e4773a8eUL,
+            // Pinned 2026-11-07 (Soaniri's singing meadows, #3358; Windows 11, .NET 10).
+            ["sounder_world-gen34"] = 0xd2de9688bff3467cUL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.

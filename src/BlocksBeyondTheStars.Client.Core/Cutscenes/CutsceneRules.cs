@@ -25,8 +25,10 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
 
         /// <summary>Whether a shot's anchor names the object the shot is about — without it the shot means nothing (the heal
         /// tank; #2478: the other players on the star chart — alone, VEGA's "Many minds" is the beat card it always was). The
-        /// other anchors fall back to the player.</summary>
-        public static bool NeedsObject(string? anchor) => anchor == CutsceneAnchors.HealTank || anchor == CutsceneAnchors.Players;
+        /// other anchors fall back to the player. #3357: a pack system on the chart — a client whose star map does not show it yet
+        /// plays the scene as a card.</summary>
+        public static bool NeedsObject(string? anchor)
+            => anchor == CutsceneAnchors.HealTank || anchor == CutsceneAnchors.Players || CutsceneAnchors.SystemIdOf(anchor) is not null;
 
         /// <summary>#2478: whether the Guardian core's duel dialogue holds a singleplayer world while it is on screen — like a
         /// scene that takes the camera (the core waits for an answer as long as it takes to read), never in multiplayer.</summary>

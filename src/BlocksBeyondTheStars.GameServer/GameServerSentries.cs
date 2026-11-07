@@ -360,7 +360,8 @@ public sealed partial class GameServer
     /// This is the same rule the client paints red on the health bar, so the turret shoots exactly what the
     /// player already reads as dangerous.</summary>
     private static bool SentryMayShootCreature(CombatEntity c)
-        => !c.IsCompanion && !c.IsGiant && (c.Hostile || c.ProvokeTimer > 0); // #1998: a turret does not duel a giant
+        => !c.IsCompanion && !c.IsGiant && (c.Hostile || c.ProvokeTimer > 0) // #1998: a turret does not duel a giant
+           && c.FightTargetId.Length == 0; // #3365: nor an animal in a duel or a defending pack (the hunter robot uses this rule too)
 
     /// <summary>A bandit the sentry is allowed to shoot: one that is actually fighting. Approach and
     /// Demanding are the talk phases, Leaving is someone walking away.</summary>

@@ -239,7 +239,7 @@ drives its own network (#2092).
 | `alarm_siren` | AlarmSiren | level listener | level | — | — | mode 0–2: which siren loop |
 | `chime` | Chime | edge listener | rising edge | — | — | mode 0–3 |
 | `horn` | Horn | edge listener | rising edge | — | — | mode 0–2 |
-| `melody_block` | MelodyBlock | edge listener | rising edge | — | — | mode 0–7 note; config `inst=0..3` |
+| `melody_block` | MelodyBlock | edge listener | rising edge | — | — | mode 0–7 note; config `inst=0..5` (4/5 the Sounder voice/choir, blueprint `sounder_voice`, §16) |
 | `announcer` | Announcer | edge listener | rising edge | — | — | mode 0–5 preset line; label = own line |
 | `fabricator` | Fabricator | machine (edge) | rising edge / held | — | ON = blocked | config `recipe=<key>` |
 | `caller` | Caller | machine (edge, planet-only) | rising edge | — | — | — |
@@ -650,6 +650,14 @@ price line.
   tune is a delay per note (#2095): a clock into melody block A, the same clock through a 0.5 s delay into B,
   through a 1 s delay into C, … — each melody block on a network of its own. A sequencer block is a follow-up if
   kids ask for it.
+- **The Sounder instruments (#3345).** Besides crystal, bell, bass and blip (`inst=0..3`) a melody block can sing with
+  the Sounder voice (`inst=4`) and the Sounder choir (`inst=5`) — the procedural `note_4_*` / `note_5_*` of
+  [SOUND_DESIGN.md](SOUND_DESIGN.md) §35. Only a player who researched the hidden blueprint `sounder_voice`
+  (`SoundersIds.BlueprintVoice`, from the Sounders story pack's sixth disc) — or plays in Creative — may CHOOSE 4 or 5:
+  the configure path (`GameServerMelodyInstruments.GateMelodyInstrument`, called with the cleaned config before it is
+  stored) puts a refused choice back to what the block had. A block already set to 4 or 5 keeps its voice when someone
+  without the blueprint changes only its note (the client echoes the whole config). The device menu shows the two
+  choices only to a player who may pick them (or on a block that already has one); the playback clamps `inst` to 0–5.
 - **A delay holds at most 128 edges** (`TimerState.MaxDelayEdges`); a faster-than-that input releases its oldest
   edge early. Like every timer, a delay line starts empty on world activation.
 - **One Device Eye reads one device** (the cell in front of it); a base that wants to hear three machines needs

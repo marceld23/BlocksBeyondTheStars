@@ -141,8 +141,37 @@ namespace BlocksBeyondTheStars.Client
                 y = Mathf.Max(y, top + (actions.Count > 0 ? 38f : 0f));
             }
 
+            y = JournalPackTexts(y, pack);
             y = JournalReplaySection(y, pack.Id);
             return y + 12f;
+        }
+
+        /// <summary>#3347: the pack's readable texts the player has unlocked (the Sounders' Song Archive) — one row each with the
+        /// reader; the section's title is the pack's own (<c>textsTitleKey</c>) or "Texts found".</summary>
+        private float JournalPackTexts(float y, NetStoryPack pack)
+        {
+            if (pack.Texts == null || pack.Texts.Length == 0)
+            {
+                return y;
+            }
+
+            string section = LocOr(pack.TextsTitleKey, L("ui.journal.texts"));
+            y += 6f;
+            y = AllianceSection(section, y);
+            foreach (var text in pack.Texts)
+            {
+                string title = LocOr(text.TitleKey, text.Id);
+                string body = StoryText(text.TextKey); // never a raw "[key]" (#2462)
+                float rowTop = y;
+                y = StoryEntry(y, title, 660f); // the title only — the reader shows the text
+                UiKit.AddButton(_listContent, 688, rowTop, 92, 30, L("ui.story.read"), () =>
+                {
+                    Game?.Context.Panel<StoryReaderUi>()?.OpenOverMenu(section, title, body);
+                });
+                y = Mathf.Max(y, rowTop + 36f);
+            }
+
+            return y;
         }
 
         /// <summary>A Journal button: the "More" opens the Codex; everything else is the player's own <see cref="StoryPackIntent"/>

@@ -132,6 +132,9 @@ public sealed partial class GameServer
         ["grant_module"] = new(AdminCommandGate.Cheats, static (s, session, cmd) => s.AdminCommandGrantModule(session, cmd)),
         ["reveal_lore"] = new(AdminCommandGate.Cheats, static (s, session, _) => s.AdminCommandRevealLore(session)),
         ["goto_core"] = new(AdminCommandGate.Cheats, static (s, session, _) => s.AdminCommandGotoCore(session)),
+
+        // ---- The Sounders' Song QA (#3368): "/sounders status|start|chapter <n>|items|echo|song|soaniri|tower|soundi" ----
+        ["sounders"] = new(AdminCommandGate.Cheats, static (s, session, cmd) => s.AdminSounders(session, cmd.StringArg)),
     };
 
     /// <summary>

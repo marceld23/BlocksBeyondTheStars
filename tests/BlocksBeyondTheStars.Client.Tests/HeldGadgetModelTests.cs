@@ -27,6 +27,7 @@ public sealed class HeldGadgetModelTests
         "thermal_binoculars", "rail_linker", "rail_cab", "wagon_seats", "wagon_sleeper", "wagon_bar", "bio_sampler",
         "remote_control", "hunter_robot", // #3295: the folded hunter robot, switched on from the hand
         "star_bell", // #3322: rung from the hand, it calls Rudolpho
+        "resonance_blaster", // #3353: the Sounders' sonic cone
     };
 
     public static TheoryData<string> GadgetKeys()

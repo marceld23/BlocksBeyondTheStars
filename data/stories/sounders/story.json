@@ -1,0 +1,270 @@
+{
+  // "The Sounders' Song" (Das Lied der Sounders), epic #3368 — the second story next to VEGA, a side pack per player.
+  // The music notes on the rune stones (monuments, the Singing Shrine, lone stones, ruins) are the Sounders' script: the
+  // player plays them, answers the Singing Shrine, decodes Song Discs with the note alphabet, builds the Sounders' alien
+  // blueprints, questions the Echoes (the vanished Sounders, on "the other side"), plays the Song of Return (ORNEMIS) to
+  // find the detuned home system, lands on Soaniri and sings the Bridge Song with the Young Voices — then wins a Soundi.
+  // Lore, creature designs and names: the maintainer, Justus and the school club "Building Games with AI" (2026-11-07).
+  // VEGA narrates; the Echoes, the Eldest and Roll speak in the scenes (speakers). Docs: docs/developer/STORY_SOUNDERS.md.
+  //
+  // Start: once the player played a rune stone (milestone snd:first_rune, written by every rune use), and not before part 1
+  // of the basic training; "earlyOptIn" lets a player start it from the Journal (chapter 1 then shows the way to a monument).
+  "id": "sounders",
+  "nameKey": "story.sounders.name",
+  "shortNameKey": "story.sounders.short",
+  "descriptionKey": "story.sounders.desc",
+  "kind": "side",
+  "scope": "player",
+  "priority": 20,
+  "narrator": {
+    "id": "vega", "nameKey": "ui.vega.name", "icon": "icon_vega", "color": "#5FD8FF",
+    "voice": [ "vega_chatter_1", "vega_chatter_2", "vega_chatter_3" ], "lineStart": "ai_blip"
+  },
+  "speakers": [
+    { "id": "elora",  "nameKey": "story.sounders.spk.elora",  "color": "#6FE3C1", "lineStart": "echo_hum_1" },
+    { "id": "kamo",   "nameKey": "story.sounders.spk.kamo",   "color": "#7FD8E8", "lineStart": "echo_hum_2" },
+    { "id": "feya",   "nameKey": "story.sounders.spk.feya",   "color": "#9BE8B0", "lineStart": "echo_hum_3" },
+    { "id": "tini",   "nameKey": "story.sounders.spk.tini",   "color": "#B6C8FF", "lineStart": "echo_hum_4" },
+    { "id": "eldest", "nameKey": "story.sounders.spk.eldest", "color": "#E8C27A", "lineStart": "elder_hum_1" },
+    { "id": "roll",   "nameKey": "story.sounders.spk.roll",   "color": "#F2A65A", "lineStart": "elder_hum_2" }
+  ],
+  "start": { "after": [ "any:[chapter:tutorial:b1, not:pack:tutorial:enabled]", "milestone:snd:first_rune" ], "earlyOptIn": true },
+  "introCutscene": "snd.stones_sing",
+  // The pack's own per-player milestones (dialog consequences may set snd:… only), the Song Archive (texts below) and
+  // Ornemis: appended to the galaxy the first time a player learns the Song of Return, shown only to players who did.
+  "milestonePrefix": "snd",
+  "textsTitleKey": "story.sounders.archive",
+  "systems": [
+    { "id": "ornemis", "nameKey": "story.sounders.system.ornemis", "planetType": "sounder_world", "bodyName": "Soaniri",
+      "placement": "inside", "visibleIf": "milestone:snd:song_learned" }
+  ],
+  "chapters": [
+    {
+      // Chapter 1 — the stones sing: play runes, every word lands in the Song Archive.
+      "id": "s1", "titleKey": "story.sounders.ch.s1", "summaryKey": "story.sounders.ch.s1.sum", "openCutscene": "snd.part",
+      "steps": [
+        { "id": "s1.1", "kind": "read", "explain": { "startKey": "story.sounders.s1.notes.start" } },
+        { "id": "s1.2", "objective": { "event": "rune:played", "required": 3 },
+          "onStart": { "reveal": "nearest_monument" }, "feasibleIf": [ "world:monuments" ], "alternative": "s1.2a",
+          "explain": { "startKey": "story.sounders.s1.play.start", "chipKey": "story.sounders.s1.play.chip",
+                       "hintKey": "story.sounders.s1.play.hint", "doneKey": "story.sounders.s1.play.done" } },
+        { "id": "s1.2a", "objective": { "event": "rune:played", "required": 3 },
+          "explain": { "startKey": "story.sounders.s1.play.start", "chipKey": "story.sounders.s1.play.chip",
+                       "hintKey": "story.sounders.s1.play.hint_away", "doneKey": "story.sounders.s1.play.done" } },
+        { "id": "s1.3", "kind": "read", "explain": { "startKey": "story.sounders.s1.together.start" } }
+      ]
+    },
+    {
+      // Chapter 2 — the Singing Shrine's eight pillars are the eight tones; the repeat puzzle gives the Song Spindle and
+      // disc 1. Old saves without a shrine: a ring of eight rune stones around an ancient brick works the same way.
+      "id": "s2", "titleKey": "story.sounders.ch.s2", "summaryKey": "story.sounders.ch.s2.sum", "openCutscene": "snd.part",
+      "steps": [
+        { "id": "s2.1", "objective": { "event": "melody:solved", "arg": "shrine_echo" },
+          "onStart": { "reveal": "unique_site:shrine" }, "feasibleIf": [ "world:shrine" ], "alternative": "s2.1a",
+          "onComplete": { "cutscene": "snd.shrine_answers" },
+          "explain": { "startKey": "story.sounders.s2.shrine.start", "chipKey": "story.sounders.s2.shrine.chip",
+                       "hintKey": "story.sounders.s2.shrine.hint", "doneKey": "story.sounders.s2.shrine.done" } },
+        { "id": "s2.1a", "objective": { "event": "melody:solved", "arg": "shrine_echo" },
+          "onComplete": { "cutscene": "snd.shrine_answers" },
+          "explain": { "startKey": "story.sounders.s2.ring.start", "chipKey": "story.sounders.s2.ring.chip",
+                       "hintKey": "story.sounders.s2.ring.hint", "doneKey": "story.sounders.s2.ring.done" } }
+      ]
+    },
+    {
+      // Chapter 3 — Song Discs: place the spindle, decode disc 1 (the note-key minigame), find and decode two more.
+      "id": "s3", "titleKey": "story.sounders.ch.s3", "summaryKey": "story.sounders.ch.s3.sum", "openCutscene": "snd.part",
+      "steps": [
+        { "id": "s3.1", "objective": { "event": "build:any", "arg": "song_spindle" },
+          "explain": { "startKey": "story.sounders.s3.place.start", "chipKey": "story.sounders.s3.place.chip" } },
+        { "id": "s3.2", "objective": { "event": "disc:decoded", "arg": "song_disc_beginning" },
+          "onComplete": { "cutscene": "snd.decoded" },
+          "explain": { "startKey": "story.sounders.s3.decode.start", "chipKey": "story.sounders.s3.decode.chip",
+                       "hintKey": "story.sounders.s3.decode.hint", "doneKey": "story.sounders.s3.decode.done" } },
+        { "id": "s3.3", "kind": "read", "explain": { "startKey": "story.sounders.s3.sorry.start" } },
+        { "id": "s3.4", "objective": { "event": "disc:decoded", "arg": "song_disc_builders|song_disc_hearing", "required": 2 },
+          "onStart": { "reveal": "nearest_monument" },
+          "explain": { "startKey": "story.sounders.s3.more.start", "chipKey": "story.sounders.s3.more.chip",
+                       "hintKey": "story.sounders.s3.more.hint", "doneKey": "story.sounders.s3.more.done" } }
+      ]
+    },
+    {
+      // Chapter 4 — alien blueprints: research and build the Resonance Blaster and the obsidian armour, open a sound
+      // chamber, decode the Great Song's disc, and put the hearing disc into the chest piece's socket.
+      "id": "s4", "titleKey": "story.sounders.ch.s4", "summaryKey": "story.sounders.ch.s4.sum", "openCutscene": "snd.part",
+      "steps": [
+        { "id": "s4.1", "kind": "read", "onStart": { "cutscene": "snd.blueprint" }, "explain": { "startKey": "story.sounders.s4.plans.start" } },
+        { "id": "s4.2", "objective": { "event": "research:any", "arg": "sounder_resonance|sounder_obsidian", "required": 2 },
+          "explain": { "startKey": "story.sounders.s4.research.start", "chipKey": "story.sounders.s4.research.chip",
+                       "hintKey": "story.sounders.s4.research.hint", "doneKey": "story.sounders.s4.research.done" } },
+        { "id": "s4.3", "objective": { "event": "craft:any", "arg": "resonance_blaster" },
+          "explain": { "startKey": "story.sounders.s4.blaster.start", "chipKey": "story.sounders.s4.blaster.chip",
+                       "doneKey": "story.sounders.s4.blaster.done" } },
+        { "id": "s4.4", "objective": { "event": "chamber:opened" },
+          "onStart": { "reveal": "nearest_monument" }, "onComplete": { "cutscene": "snd.chamber" },
+          "explain": { "startKey": "story.sounders.s4.chamber.start", "chipKey": "story.sounders.s4.chamber.chip",
+                       "hintKey": "story.sounders.s4.chamber.hint", "doneKey": "story.sounders.s4.chamber.done" } },
+        { "id": "s4.5", "objective": { "event": "disc:decoded", "arg": "song_disc_great_song" },
+          "explain": { "startKey": "story.sounders.s4.great.start", "chipKey": "story.sounders.s4.great.chip",
+                       "doneKey": "story.sounders.s4.great.done" } },
+        { "id": "s4.6", "objective": { "event": "craft:any", "arg": "obsidian_chest" },
+          "explain": { "startKey": "story.sounders.s4.armour.start", "chipKey": "story.sounders.s4.armour.chip",
+                       "hintKey": "story.sounders.s4.armour.hint" } },
+        { "id": "s4.7", "objective": { "event": "disc:inserted", "arg": "song_disc_hearing" },
+          "explain": { "startKey": "story.sounders.s4.socket.start", "chipKey": "story.sounders.s4.socket.chip",
+                       "hintKey": "story.sounders.s4.socket.hint", "doneKey": "story.sounders.s4.socket.done" } }
+      ]
+    },
+    {
+      // Chapter 5 — the Echoes: Elora at the shrine (or any rune stones), then Kamo and Feya, then Tini on another world.
+      "id": "s5", "titleKey": "story.sounders.ch.s5", "summaryKey": "story.sounders.ch.s5.sum", "openCutscene": "snd.part",
+      "steps": [
+        { "id": "s5.1", "objective": { "event": "echo:questioned", "arg": "elora" },
+          "onStart": { "reveal": "unique_site:shrine" }, "feasibleIf": [ "world:shrine" ], "alternative": "s5.1a",
+          "explain": { "startKey": "story.sounders.s5.elora.start", "chipKey": "story.sounders.s5.elora.chip",
+                       "hintKey": "story.sounders.s5.elora.hint", "doneKey": "story.sounders.s5.elora.done" } },
+        { "id": "s5.1a", "objective": { "event": "echo:questioned", "arg": "elora" },
+          "explain": { "startKey": "story.sounders.s5.elora.start_away", "chipKey": "story.sounders.s5.elora.chip_away",
+                       "hintKey": "story.sounders.s5.elora.hint", "doneKey": "story.sounders.s5.elora.done" } },
+        { "id": "s5.2", "objective": { "event": "echo:questioned", "arg": "kamo|feya", "required": 2 },
+          "onComplete": { "cutscene": "snd.great_song" },
+          "explain": { "startKey": "story.sounders.s5.more.start", "chipKey": "story.sounders.s5.more.chip",
+                       "hintKey": "story.sounders.s5.more.hint" } },
+        { "id": "s5.3", "objective": { "event": "echo:questioned", "arg": "tini" },
+          "explain": { "startKey": "story.sounders.s5.tini.start", "chipKey": "story.sounders.s5.tini.chip",
+                       "hintKey": "story.sounders.s5.tini.hint", "doneKey": "story.sounders.s5.tini.done" } },
+        { "id": "s5.4", "kind": "read", "explain": { "startKey": "story.sounders.s5.truth.start" } }
+      ]
+    },
+    {
+      // Chapter 6 — the Song of Return: ORNEMIS in the note alphabet at the shrine (or the ring). Solving it writes
+      // snd:song_learned, which shows Ornemis on this player's star map (systems below).
+      "id": "s6", "titleKey": "story.sounders.ch.s6", "summaryKey": "story.sounders.ch.s6.sum", "openCutscene": "snd.part",
+      "steps": [
+        { "id": "s6.1", "kind": "read", "explain": { "startKey": "story.sounders.s6.letters.start" } },
+        { "id": "s6.2", "objective": { "event": "melody:solved", "arg": "song_of_return" },
+          "onStart": { "reveal": "unique_site:shrine" }, "feasibleIf": [ "world:shrine" ], "alternative": "s6.2a",
+          "onComplete": { "cutscene": "snd.song_of_return" },
+          "explain": { "startKey": "story.sounders.s6.play.start", "chipKey": "story.sounders.s6.play.chip",
+                       "hintKey": "story.sounders.s6.play.hint", "doneKey": "story.sounders.s6.play.done" } },
+        { "id": "s6.2a", "objective": { "event": "melody:solved", "arg": "song_of_return" },
+          "onComplete": { "cutscene": "snd.song_of_return" },
+          "explain": { "startKey": "story.sounders.s6.play.start_ring", "chipKey": "story.sounders.s6.play.chip",
+                       "hintKey": "story.sounders.s6.play.hint", "doneKey": "story.sounders.s6.play.done" } }
+      ]
+    },
+    {
+      // Chapter 7 — homecoming: jump to Ornemis, land on Soaniri, meet the Eldest in Mirun.
+      "id": "s7", "titleKey": "story.sounders.ch.s7", "summaryKey": "story.sounders.ch.s7.sum", "openCutscene": "snd.part",
+      "steps": [
+        { "id": "s7.1", "objective": { "event": "visit:system", "arg": "ornemis" },
+          "onStart": { "reveal": "story_system:ornemis" }, "onComplete": { "cutscene": "snd.arrival" },
+          "explain": { "startKey": "story.sounders.s7.jump.start", "chipKey": "story.sounders.s7.jump.chip",
+                       "hintKey": "story.sounders.s7.jump.hint" } },
+        { "id": "s7.2", "objective": { "event": "visit:body", "arg": "ornemis-world" },
+          "onComplete": { "cutscene": "snd.landing" },
+          "explain": { "startKey": "story.sounders.s7.land.start", "chipKey": "story.sounders.s7.land.chip" } },
+        { "id": "s7.3", "objective": { "event": "dialog:done", "arg": "snd_eldest" },
+          "onStart": { "reveal": "pack_site:mirun" }, "onComplete": { "cutscene": "snd.elder" },
+          "explain": { "startKey": "story.sounders.s7.eldest.start", "chipKey": "story.sounders.s7.eldest.chip",
+                       "hintKey": "story.sounders.s7.eldest.hint", "doneKey": "story.sounders.s7.eldest.done" } },
+        { "id": "s7.4", "kind": "read", "explain": { "startKey": "story.sounders.s7.myth.start" } }
+      ]
+    },
+    {
+      // Chapter 8 — the Bridge Song: persuade Roll (a dialog whose strong answers come from the Echoes), play the counter-voice
+      // at the Choir Tower's eight pipes, then the sing duel with the Soundi that followed the player through Mirun.
+      "id": "s8", "titleKey": "story.sounders.ch.s8", "summaryKey": "story.sounders.ch.s8.sum", "openCutscene": "snd.part",
+      "closeCutscene": "snd.epilogue",
+      "steps": [
+        { "id": "s8.1", "objective": { "event": "dialog:done", "arg": "snd_roll" },
+          "onStart": { "reveal": "pack_site:choir_tower" },
+          "explain": { "startKey": "story.sounders.s8.roll.start", "chipKey": "story.sounders.s8.roll.chip",
+                       "hintKey": "story.sounders.s8.roll.hint", "doneKey": "story.sounders.s8.roll.done" } },
+        { "id": "s8.2", "objective": { "event": "melody:solved", "arg": "bridge_song" },
+          "onComplete": { "cutscene": "snd.bridge_song" },
+          "explain": { "startKey": "story.sounders.s8.bridge.start", "chipKey": "story.sounders.s8.bridge.chip",
+                       "hintKey": "story.sounders.s8.bridge.hint", "doneKey": "story.sounders.s8.bridge.done" } },
+        { "id": "s8.3", "kind": "read", "explain": { "startKey": "story.sounders.s8.listen.start" } },
+        { "id": "s8.4", "objective": { "event": "melody:solved", "arg": "sing_duel" },
+          "onComplete": { "cutscene": "snd.soundi_joins" },
+          "explain": { "startKey": "story.sounders.s8.soundi.start", "chipKey": "story.sounders.s8.soundi.chip",
+                       "hintKey": "story.sounders.s8.soundi.hint", "doneKey": "story.sounders.s8.soundi.done" } }
+      ]
+    }
+  ],
+  // The Song Archive (the pack's Journal page): the note table, every rune word heard, the decoded discs and what each
+  // Echo said. A text shows once its milestone holds (snd:word:<WORD> is written by every rune use while the pack runs).
+  "texts": [
+    { "id": "table", "titleKey": "story.sounders.archive.table.title", "textKey": "story.sounders.archive.table.text", "unlockedBy": "milestone:snd:disc:song_disc_beginning" },
+    { "id": "word_soa",  "titleKey": "story.sounders.word.soa",  "textKey": "story.sounders.word.text", "unlockedBy": "milestone:snd:word:SOA" },
+    { "id": "word_niri", "titleKey": "story.sounders.word.niri", "textKey": "story.sounders.word.text", "unlockedBy": "milestone:snd:word:NIRI" },
+    { "id": "word_orn",  "titleKey": "story.sounders.word.orn",  "textKey": "story.sounders.word.text", "unlockedBy": "milestone:snd:word:ORN" },
+    { "id": "word_emis", "titleKey": "story.sounders.word.emis", "textKey": "story.sounders.word.text", "unlockedBy": "milestone:snd:word:EMIS" },
+    { "id": "word_lum",  "titleKey": "story.sounders.word.lum",  "textKey": "story.sounders.word.text", "unlockedBy": "milestone:snd:word:LUM" },
+    { "id": "word_vel",  "titleKey": "story.sounders.word.vel",  "textKey": "story.sounders.word.text", "unlockedBy": "milestone:snd:word:VEL" },
+    { "id": "word_tar",  "titleKey": "story.sounders.word.tar",  "textKey": "story.sounders.word.text", "unlockedBy": "milestone:snd:word:TAR" },
+    { "id": "word_kei",  "titleKey": "story.sounders.word.kei",  "textKey": "story.sounders.word.text", "unlockedBy": "milestone:snd:word:KEI" },
+    { "id": "word_aru",  "titleKey": "story.sounders.word.aru",  "textKey": "story.sounders.word.text", "unlockedBy": "milestone:snd:word:ARU" },
+    { "id": "word_mira", "titleKey": "story.sounders.word.mira", "textKey": "story.sounders.word.text", "unlockedBy": "milestone:snd:word:MIRA" },
+    { "id": "word_esa",  "titleKey": "story.sounders.word.esa",  "textKey": "story.sounders.word.text", "unlockedBy": "milestone:snd:word:ESA" },
+    { "id": "word_olu",  "titleKey": "story.sounders.word.olu",  "textKey": "story.sounders.word.text", "unlockedBy": "milestone:snd:word:OLU" },
+    { "id": "word_fena", "titleKey": "story.sounders.word.fena", "textKey": "story.sounders.word.text", "unlockedBy": "milestone:snd:word:FENA" },
+    { "id": "word_ruso", "titleKey": "story.sounders.word.ruso", "textKey": "story.sounders.word.text", "unlockedBy": "milestone:snd:word:RUSO" },
+    { "id": "word_ila",  "titleKey": "story.sounders.word.ila",  "textKey": "story.sounders.word.text", "unlockedBy": "milestone:snd:word:ILA" },
+    { "id": "word_duna", "titleKey": "story.sounders.word.duna", "textKey": "story.sounders.word.text", "unlockedBy": "milestone:snd:word:DUNA" },
+    { "id": "disc_beginning",  "titleKey": "story.sounders.disc.beginning.title",  "textKey": "story.sounders.disc.beginning.text",  "unlockedBy": "milestone:snd:disc:song_disc_beginning" },
+    { "id": "disc_builders",   "titleKey": "story.sounders.disc.builders.title",   "textKey": "story.sounders.disc.builders.text",   "unlockedBy": "milestone:snd:disc:song_disc_builders" },
+    { "id": "disc_hearing",    "titleKey": "story.sounders.disc.hearing.title",    "textKey": "story.sounders.disc.hearing.text",    "unlockedBy": "milestone:snd:disc:song_disc_hearing" },
+    { "id": "disc_hunger",     "titleKey": "story.sounders.disc.hunger.title",     "textKey": "story.sounders.disc.hunger.text",     "unlockedBy": "milestone:snd:disc:song_disc_hunger" },
+    { "id": "disc_great_song", "titleKey": "story.sounders.disc.great_song.title", "textKey": "story.sounders.disc.great_song.text", "unlockedBy": "milestone:snd:disc:song_disc_great_song" },
+    { "id": "disc_voices",     "titleKey": "story.sounders.disc.voices.title",     "textKey": "story.sounders.disc.voices.text",     "unlockedBy": "milestone:snd:disc:song_disc_voices" },
+    { "id": "echo_elora", "titleKey": "story.sounders.echo.elora.title", "textKey": "story.sounders.echo.elora.text", "unlockedBy": "milestone:snd:echo:elora" },
+    { "id": "echo_kamo",  "titleKey": "story.sounders.echo.kamo.title",  "textKey": "story.sounders.echo.kamo.text",  "unlockedBy": "milestone:snd:echo:kamo" },
+    { "id": "echo_feya",  "titleKey": "story.sounders.echo.feya.title",  "textKey": "story.sounders.echo.feya.text",  "unlockedBy": "milestone:snd:echo:feya" },
+    { "id": "echo_tini",  "titleKey": "story.sounders.echo.tini.title",  "textKey": "story.sounders.echo.tini.text",  "unlockedBy": "milestone:snd:echo:tini" }
+  ],
+  // The dialogs: the four Echoes (questions are sung — "melody" — and each Echo's last answer writes its milestone; the
+  // story code turns the end of an Echo dialog into echo:questioned), the Eldest in Mirun and Roll at the Choir Tower.
+  // Roll's weak answers keep the dialog open, so the player simply tries another; the good answers carry what the Echoes
+  // told. All are bound to code-spawned NPCs by "character" (GameServerSoundersStory places them).
+  "dialogs": [
+    { "key": "snd_echo_elora", "character": "elora", "minStage": "", "oncePerPlayer": true, "nodes": [
+      { "promptKey": "story.sounders.dlg.elora.n0", "choices": [ { "textKey": "story.sounders.q.who", "melody": "MIRA", "responseKey": "story.sounders.dlg.elora.n0.r", "next": 1 } ] },
+      { "promptKey": "story.sounders.dlg.elora.n1", "choices": [ { "textKey": "story.sounders.q.what", "melody": "KEI", "responseKey": "story.sounders.dlg.elora.n1.r", "next": 2 } ] },
+      { "promptKey": "story.sounders.dlg.elora.n2", "choices": [ { "textKey": "story.sounders.q.letters", "melody": "NIRI", "responseKey": "story.sounders.dlg.elora.n2.r", "consequence": "milestone:snd:echo:elora" } ] }
+    ] },
+    { "key": "snd_echo_kamo", "character": "kamo", "minStage": "", "oncePerPlayer": true, "nodes": [
+      { "promptKey": "story.sounders.dlg.kamo.n0", "choices": [ { "textKey": "story.sounders.q.who", "melody": "MIRA", "responseKey": "story.sounders.dlg.kamo.n0.r", "next": 1 } ] },
+      { "promptKey": "story.sounders.dlg.kamo.n1", "choices": [ { "textKey": "story.sounders.q.what", "melody": "KEI", "responseKey": "story.sounders.dlg.kamo.n1.r", "next": 2 } ] },
+      { "promptKey": "story.sounders.dlg.kamo.n2", "choices": [ { "textKey": "story.sounders.q.letters", "melody": "NIRI", "responseKey": "story.sounders.dlg.kamo.n2.r", "consequence": "milestone:snd:echo:kamo" } ] }
+    ] },
+    { "key": "snd_echo_feya", "character": "feya", "minStage": "", "oncePerPlayer": true, "nodes": [
+      { "promptKey": "story.sounders.dlg.feya.n0", "choices": [ { "textKey": "story.sounders.q.who", "melody": "MIRA", "responseKey": "story.sounders.dlg.feya.n0.r", "next": 1 } ] },
+      { "promptKey": "story.sounders.dlg.feya.n1", "choices": [ { "textKey": "story.sounders.q.what", "melody": "KEI", "responseKey": "story.sounders.dlg.feya.n1.r", "next": 2 } ] },
+      { "promptKey": "story.sounders.dlg.feya.n2", "choices": [ { "textKey": "story.sounders.q.letters", "melody": "NIRI", "responseKey": "story.sounders.dlg.feya.n2.r", "consequence": "milestone:snd:echo:feya" } ] }
+    ] },
+    { "key": "snd_echo_tini", "character": "tini", "minStage": "", "oncePerPlayer": true, "nodes": [
+      { "promptKey": "story.sounders.dlg.tini.n0", "choices": [ { "textKey": "story.sounders.q.who", "melody": "MIRA", "responseKey": "story.sounders.dlg.tini.n0.r", "next": 1 } ] },
+      { "promptKey": "story.sounders.dlg.tini.n1", "choices": [ { "textKey": "story.sounders.q.letters", "melody": "ORN", "responseKey": "story.sounders.dlg.tini.n1.r", "next": 2 } ] },
+      { "promptKey": "story.sounders.dlg.tini.n2", "choices": [ { "textKey": "story.sounders.q.promise", "responseKey": "story.sounders.dlg.tini.n2.r", "consequence": "milestone:snd:echo:tini" } ] }
+    ] },
+    { "key": "snd_eldest", "character": "eldest", "minStage": "", "oncePerPlayer": true, "nodes": [
+      { "promptKey": "story.sounders.dlg.eldest.n0", "choices": [ { "textKey": "story.sounders.dlg.eldest.c0", "responseKey": "story.sounders.dlg.eldest.r0", "next": 1 } ] },
+      { "promptKey": "story.sounders.dlg.eldest.n1", "choices": [ { "textKey": "story.sounders.dlg.eldest.c1", "responseKey": "story.sounders.dlg.eldest.r1" } ] }
+    ] },
+    { "key": "snd_roll", "character": "roll", "minStage": "", "oncePerPlayer": true, "nodes": [
+      { "promptKey": "story.sounders.dlg.roll.n0", "choices": [
+        { "textKey": "story.sounders.dlg.roll.c0_good", "responseKey": "story.sounders.dlg.roll.r0_good", "next": 1 },
+        { "textKey": "story.sounders.dlg.roll.c0_weak", "responseKey": "story.sounders.dlg.roll.r0_weak", "keepOpen": true } ] },
+      { "promptKey": "story.sounders.dlg.roll.n1", "choices": [
+        { "textKey": "story.sounders.dlg.roll.c1_good", "responseKey": "story.sounders.dlg.roll.r1_good", "visibleIf": "any:[milestone:snd:echo:kamo, chapter:sounders:s5]", "next": 2 },
+        { "textKey": "story.sounders.dlg.roll.c1_weak", "responseKey": "story.sounders.dlg.roll.r1_weak", "keepOpen": true } ] },
+      { "promptKey": "story.sounders.dlg.roll.n2", "choices": [
+        { "textKey": "story.sounders.dlg.roll.c2_good", "responseKey": "story.sounders.dlg.roll.r2_good", "visibleIf": "any:[milestone:snd:echo:feya, chapter:sounders:s5]", "next": 3 },
+        { "textKey": "story.sounders.dlg.roll.c2_weak", "responseKey": "story.sounders.dlg.roll.r2_weak", "keepOpen": true } ] },
+      { "promptKey": "story.sounders.dlg.roll.n3", "choices": [
+        { "textKey": "story.sounders.dlg.roll.c3_good", "responseKey": "story.sounders.dlg.roll.r3_good", "melody": "ESA", "consequence": "milestone:snd:roll_convinced" },
+        { "textKey": "story.sounders.dlg.roll.c3_weak", "responseKey": "story.sounders.dlg.roll.r3_weak", "keepOpen": true } ] }
+    ] }
+  ]
+}

@@ -535,6 +535,18 @@ public static class StoryRevealProviders
     /// world (#2476: "read the observatory's last log" once they landed there). Nothing elsewhere.</summary>
     public const string UniqueSite = "unique_site";
 
+    /// <summary><c>nearest_monument</c> — the nearest rune monument on the player's world, read or not (#3349: "play the
+    /// stones").</summary>
+    public const string NearestMonument = "nearest_monument";
+
+    /// <summary><c>pack_site:&lt;id&gt;</c> — a site the gameplay code registered for a pack (#3349,
+    /// <c>GameServer.RegisterPackSite</c>: the Sounders' Choir Tower), while the player is on its world. Nothing elsewhere.</summary>
+    public const string PackSite = "pack_site";
+
+    /// <summary><c>story_system:&lt;id&gt;</c> — a pack's star system (#3357, the manifest's <c>systems[]</c>): the system is put on
+    /// the player's star map when they may see it, and the help line names it. Nothing while it is hidden for them.</summary>
+    public const string StorySystem = "story_system";
+
     /// <summary>Whether <paramref name="reveal"/> names a known provider (with its argument where one is needed).</summary>
     public static bool IsKnown(string? reveal)
     {
@@ -544,7 +556,12 @@ public static class StoryRevealProviders
         }
 
         if (string.Equals(reveal, NearestSettlement, StringComparison.Ordinal) || string.Equals(reveal, NearestFoodPlant, StringComparison.Ordinal)
-            || string.Equals(reveal, NearestStation, StringComparison.Ordinal))
+            || string.Equals(reveal, NearestStation, StringComparison.Ordinal) || string.Equals(reveal, NearestMonument, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (ArgumentOf(reveal, PackSite) is { Length: > 0 } || ArgumentOf(reveal, StorySystem) is { Length: > 0 })
         {
             return true;
         }
@@ -565,6 +582,13 @@ public static class StoryRevealProviders
 
         return reveal.StartsWith(NearestOre + ":", StringComparison.Ordinal) && reveal.Length > NearestOre.Length + 1;
     }
+
+    /// <summary>The argument of <c>&lt;provider&gt;:&lt;arg&gt;</c> when <paramref name="reveal"/> uses <paramref name="provider"/>
+    /// (empty when the argument is missing), else null.</summary>
+    public static string? ArgumentOf(string? reveal, string provider)
+        => reveal is not null && provider is not null && reveal.StartsWith(provider + ":", StringComparison.Ordinal)
+            ? reveal.Substring(provider.Length + 1)
+            : null;
 }
 
 /// <summary>Narrator line keys the story runtime sends and the client treats specially (#2471).</summary>

@@ -18,7 +18,7 @@ namespace BlocksBeyondTheStars.Client
     /// layer of reactions (a trade confirmation, an alarm, a rare idle murmur). An AI upgrade of a bubble only swaps its
     /// text (<see cref="NpcGreetingTracker"/>).
     /// </summary>
-    public sealed class NpcView : MonoBehaviour
+    public sealed partial class NpcView : MonoBehaviour
     {
         public GameBootstrap Game;
 
@@ -26,6 +26,11 @@ namespace BlocksBeyondTheStars.Client
         {
             public GameObject Go;
             public PlayerAvatar Avatar;
+
+            // #3355: a Sounder or an Echo — its rig (the human avatar is built but hidden), its hums and its head height.
+            public CreatureAnimator SounderRig;
+            public IReadOnlyList<string> Hums;
+            public float SounderHead;
             public Vector3 Target;        // canonical world space (the newest snapshot)
             public Vector3 SettledWorld;   // interpolated world position (mapped to scene for display)
             public float Yaw;              // the drawn yaw, degrees
@@ -241,6 +246,7 @@ namespace BlocksBeyondTheStars.Client
 
                 UpdateZzz(n);
                 UpdateLook(n);
+                TickSounder(n); // #3355: a Sounder's rig looks at a player nearby
 
                 // Ambient work gestures: a periodic tool/arm swing so settlement NPCs look busy (miners chip
                 // away often, settlers/builders place now and then, vendors gesture occasionally). Nobody swings a
@@ -304,7 +310,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The head's height over the avatar root at scale 1 — a sitter's root is lowered with the pelvis, so the head
         /// keeps its height over it; a sleeper lies flat on the mattress.</summary>
-        private static float HeadHeight(Npc n) => n.Pose == 2 ? 0.6f : 1.6f;
+        private static float HeadHeight(Npc n) => n.SounderHead > 0f ? n.SounderHead : n.Pose == 2 ? 0.6f : 1.6f;
 
         /// <summary>Where an NPC's voice comes from: its head.</summary>
         private static Vector3 VoiceAnchor(Npc n)
@@ -404,7 +410,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             string raw = string.IsNullOrWhiteSpace(m.Text) ? FallbackGreeting(m.Role, n.NameKey, m.Kind) : m.Text;
-            string text = NpcBubbleText.Clamp(raw); // #2605: at most 200 characters, cut at a sentence or a word
+            string text = HumBubbleFor(n, NpcBubbleText.Clamp(raw)); // #2605: at most 200 characters; #3355: a Sounder only hums
             if (text.Length == 0)
             {
                 return;
@@ -541,7 +547,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            string id = NpcVoice.ReactionClip(n.IsRobot, kind);
+            string id = n.Hums != null ? n.Hums[_voiceRng.Next(n.Hums.Count)] : NpcVoice.ReactionClip(n.IsRobot, kind); // #3355: a hum
             var clip = audio.Clip(id);
             if (clip == null)
             {
@@ -626,8 +632,8 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var clips = NpcVoice.Clips(n.Voice);
-            var plan = NpcVoice.BabblePlan(p.Length, _voiceRng, n.LastClip);
+            var clips = ClipsOf(n); // #3355: a Sounder hums
+            var plan = n.Hums != null ? SounderVoice.HumPlan(p.Length, _voiceRng, n.LastClip, n.Hums.Count) : NpcVoice.BabblePlan(p.Length, _voiceRng, n.LastClip);
             bool sleepy = n.Pose == 2;
             float pitchScale = sleepy ? NpcVoice.SleepyPitch : 1f;
             float seconds = 0f;
@@ -719,7 +725,8 @@ namespace BlocksBeyondTheStars.Client
             n.LastClip = clip;
             float pitch = NpcVoice.ClipPitch(n.Pitch, (float)_voiceRng.NextDouble()) * _babblePitchScale;
             _babbleClipVolume = NpcVoice.SpeechVolume * _babbleBase;
-            float length = audio.PlayVoiceOn(channel.Src, NpcVoice.Clips(n.Voice)[clip], VoiceAnchor(n), pitch, _babbleClipVolume * duck);
+            float length = audio.PlayVoiceOn(channel.Src, ClipsOf(n)[clip], VoiceAnchor(n), pitch, _babbleClipVolume * duck);
+            n.SounderRig?.Pulse(0.8f); // #3355: a Sounder's mouth opens as it hums
             _babbleNextAt = now + (length > 0f ? length / Mathf.Max(0.5f, pitch) : NpcVoice.ClipSeconds);
         }
 
@@ -944,6 +951,7 @@ namespace BlocksBeyondTheStars.Client
                         Pitch = NpcVoice.Pitch(seed, nd.IsRobot, nd.Size > 0f ? nd.Size : 1f),
                         NextIdleAt = Time.unscaledTime + NpcVoice.IdleGapSeconds(seed, 0) * Random.Range(0.3f, 1f),
                     };
+                    AttachSounder(n, nd); // #3355: a Sounder or an Echo wears the Sounder rig and hums
                     _npcs[nd.Id] = n;
                     PreloadVoice(n.Voice);
                 }
@@ -1152,7 +1160,7 @@ namespace BlocksBeyondTheStars.Client
                 // plate sits low over the bed instead of two metres over an empty mattress.
                 var plateAnchor = n.Pose == 2 ? n.Go.transform.position + Vector3.up * 0.9f
                     : n.Pose == 1 ? n.Go.transform.position + Vector3.up * 1.7f
-                    : n.Go.transform.position + Vector3.up * 2.1f;
+                    : n.Go.transform.position + Vector3.up * (n.SounderHead > 0f ? n.SounderHead + 0.9f : 2.1f); // #3355: over the ears
                 labels.World(cam, plateAnchor, label, UiKit.Cyan, false, 18f, 28f, occludeIn: Game); // #2531: not through walls
 
                 // A live greeting bubble sits just above the nameplate (item 15). #2605: wrapped, growing upward from just

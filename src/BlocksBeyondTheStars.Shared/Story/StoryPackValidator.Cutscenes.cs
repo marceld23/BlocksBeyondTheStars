@@ -107,9 +107,13 @@ public static partial class StoryPackValidator
             run.Error($"{sp}.camera.type", $"a T{cut.Tier} {(cut.Tier == CutsceneTiers.Banner ? "banner" : "card")} never takes the camera (player_view or overlay)");
         }
 
-        if (anchor.Length > 0 && !CutsceneAnchors.All.Contains(anchor))
+        if (anchor.Length > 0 && !CutsceneAnchors.IsKnown(anchor))
         {
-            run.Error($"{sp}.camera.anchor", $"unknown anchor '{anchor}' ({string.Join(", ", CutsceneAnchors.All)})");
+            run.Error($"{sp}.camera.anchor", $"unknown anchor '{anchor}' ({string.Join(", ", CutsceneAnchors.All)}:<id>)");
+        }
+        else if (CutsceneAnchors.SystemIdOf(anchor) is { } systemId)
+        {
+            ValidateSystemAnchor(run, sp, camera, systemId); // #3357
         }
         else if (camera == CutsceneCameras.Diorama && !CutsceneCameras.DioramaAnchors.Contains(anchor))
         {

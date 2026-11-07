@@ -213,6 +213,10 @@ public sealed class CraftingConsistencyTests
             // computes its results from the samples and has no recipes.
             "bio_sample", "mineral_sample", "seedling",
             "prep_injector", "prep_gel", "prep_bar", "prep_capsule", "prep_coating",
+            // #3352: the Sounders' Song Discs come from the story (the Singing Shrine, the relic caches' story loot, the sound
+            // chambers, the alien flight recorder) and the relic caches' rare finds — handed out in code, not by a recipe.
+            "song_disc", "song_disc_beginning", "song_disc_builders", "song_disc_hearing", "song_disc_hunger",
+            "song_disc_great_song", "song_disc_voices",
         };
 
         var obtainable = Obtainable();

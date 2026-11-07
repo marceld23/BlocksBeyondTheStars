@@ -70,6 +70,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             UpdateTaming(show); // per frame: the cursor ownership + the [1]–[4] / Esc keys must not wait for the throttled Refresh
+            UpdateMelodyBar(show); // #3346 per frame: the tone keys, the prompt's lights
 
             if (!show && _gearCanvas != null && _gearCanvas.enabled)
             {
@@ -215,6 +216,7 @@ namespace BlocksBeyondTheStars.Client
             BuildWreck(root);
             BuildShipRepair(root);
             BuildTaming(root);
+            BuildMelodyBar(root); // #3346
 
             // Typography: headline labels glow like the hologram, the rest keep the readable underlay.
             foreach (var glow in new TMP_Text[] { _locTitle, _inSpace, _prompt, _scanSubject, _tameName, _speederTitle, _shipRepairTitle, _observer })
@@ -574,7 +576,8 @@ namespace BlocksBeyondTheStars.Client
 
             if (_playerRig != null && _playerRig.CanFeedCreature)
             {
-                return ExpandKeyTokens(loc, loc.Get("ui.hud.feed")); // "{key:FeedCreature}: feed the herd" (#2502)
+                // "{key:FeedCreature}: feed the herd" (#2502) — or, with a lamp in the hand, give it to the Soundeling (#3366)
+                return ExpandKeyTokens(loc, loc.Get(_playerRig.FeedGivesLight ? "ui.hud.give_light" : "ui.hud.feed"));
             }
 
             return LootText(loc);

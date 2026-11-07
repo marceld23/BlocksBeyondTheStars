@@ -38,7 +38,9 @@ proportions are exactly what they were. The only per-animal variation is the col
 
 Eleven body plans branch in `Build`: **Standard**, **Titan** (#638), **Medusa** (#637), **Ray** (#1778),
 **Colossus** (#1999), **Sandworm** (#2001), **Arachnid** (#2009), **Biped** (#2081), **Worm** (#2109),
-**Leviathan** (#2111) and **SkyGiant** (#2112); the flowerling (#1760) is the standard body with a petal head.
+**Leviathan** (#2111) and **SkyGiant** (#2112); the flowerling (#1760) is the standard body with a petal head. The
+companions' **Robot** (#3295) and **Reindeer** (#3322) and the bodies of Soaniri — **Sounder**, **Soundi**, **Soundrak**,
+**Soundeling** and **Quali** (#3355, #3359, see "The bodies of Soaniri" below) — branch off after them in their own partials.
 
 **Worm (#2109, generation 18).** `BuildWorm`: a legless slitherer, knee- to hip-high (`WormRules`) — Marcel's finding
 on a sand sea was that every "worm" walked, because the generator never gave a Land species 0 legs and a long body
@@ -405,6 +407,55 @@ layers its body language on the standard poses (which set every rotation fresh e
 a tamed hound wags, and the ears prick while it watches you and pin back while it charges. The gait needs nothing new:
 four legs walk, trot and — at a charge — bound (`CreatureGait.Select`). `CreatureView` lunges and snaps a hound's jaw
 exactly when the server's bite lands (the fresh hit report from it), never on the random attack cadence.
+
+## The bodies of Soaniri (#3355, #3359, #3366)
+
+The Sounders story pack (epic #3368) brings five body plans, appended after `Reindeer` (`Sounder` 15, `Soundi` 16, `Soundrak`
+17, `Soundeling` 18, `Quali` 19 — the numbers are persisted, `SoundersCreaturesTests` pins them). `Build` hands them to
+`BuildSoundersBody` (`CreatureBuilder.Sounder.cs`), each in a partial of its own; their numbers live in Shared
+(`Shared/Sounders/SounderRules.cs`, `SoundersFauna.cs`, `SoundelingRules.cs`), so the server's heights, footprints and caps
+measure the drawn bodies. Four are authored records in `data/creatures.json` (`soundi`, `soundrak`, `quali`, `soundeling`;
+`fixedName`) that join a roster only where a planet type lists them in `authoredCreatures` — the Sounders' world
+`sounder_world` (Soaniri); the Sounder itself is an NPC look.
+
+| Plan | File | Body |
+| --- | --- | --- |
+| **Sounder** | `CreatureBuilder.Sounder.cs` | 3–4 blocks (`SounderRules.HeightFor`: 3.3 × a scale of 0.9–1.2): very long legs on toeless pads (48 % of the height, the knee folds back), a thin torso with the **disc slot** in a raised rim on the chest, **four** thin arms in two pairs (`ArmRig.Row` 0/1; the hand bent a little off the forearm — the sketches' wavy arms), a thin neck, a small **eyeless** head with a mouth that is always a little open on a hinged chin (the jaw), two long hare ears (base, inner panel, a tip bending back) on pivots `PoseEars` sways. Living: skin (`ColorRgb`) and a woven sash round the waist (`BellyRgb`). **Echo**: the same body in a translucent teal (`Ghost`: the always-included Cloud shader, alpha-blended — no new shader), glowing (a soft point light) and floating (`RigDescription.Drift`/`Hover`). |
+| **Soundi** | `CreatureBuilder.Soundi.cs` | The animated series' Soundi, knee-high (`SoundiRules`, standard unit): a round fluffy body with tufts on four short chubby legs with mint paws, a mint chest, a big round head with fluffy cheeks and **no eyes**, a mint muzzle with a little nose and a **wide smile** (a flat middle, two upturned corners), a mint chin on the jaw that opens as it sings, **huge pointed ears** (three tapering tiers with mint insides, taller than the head), a bushy tail of three links growing fluffier to a mint tip. |
+| **Soundrak** | `CreatureBuilder.Soundrak.cs` | About ten metres (`SoundrakRules.HeightFor`: `Size × 1.8`, the general render-height rule, so the large-body checks fit): two very short toeless legs on round pads, a stack of eight leathery blue-green segments narrow at the bottom, thin at the waist and clearly wider at the crown (`SoundrakWidths`), a lighter front panel below, the oval **bud mouth** on top (five lips round a dark throat, `RigDescription.Petals`; a part-less jaw pivot carries the voice pulse) and five **tentacles** hanging from the upper back (`PoseTentacles` sways them). The body keeps its colliders on the giants' layer (`MakeGiantBody`), and `CreatureView` registers them like the arachnid's. |
+| **Soundeling** | `CreatureBuilder.Soundeling.cs` | A pastel fluff ball (one of six pastels per animal, by its id) on two tiny feet: a puff, eight tufts, a curl, two button eyes with lids and a tiny cooing mouth on the ball — the ball is the rig's head, so it looks at you and blinks — a soft light, and a hidden lamp it holds up while it carries a light (`RigDescription.CarriedLight`, shown by `SetCarrying` from `NetCreature.CarriesLight`). |
+| **Quali** | `CreatureBuilder.Soundeling.cs` | The medusa at giant scale (`QualiRules`, size up to 12, a bell ≈ 9 blocks across): a see-through dome over a glowing veil and core, glowing beads round the rim, twelve long see-through tentacles and four frilly arms (chains the medusa poses wave with the bell's pulse), a light of its own. |
+
+`CreatureAnimator.Sounders.cs` layers their body language on the shared poses: the Sounder's lower arm pair waves a beat behind
+and every elbow sways; an Echo floats a hand above the ground with a slow bob and lets all four arms drift; the Soundi carries
+its tail up; the Soundrak's lips open with every call (the jaw pulse) and close over half a second, a little open while it is
+provoked; a Soundeling asleep — or hiding in the dark — squashes into a ball with its feet tucked in.
+
+**Voices.** Each speaks with its own recordings (`CreatureVoices.SungPool`): `soundi_call_01..14`, `soundrak_scream_1..3`,
+`quali_song_1..2`, `soundeling_coo_1..3` — never processed, layered or chained (one recording per call, a quali's with a long
+tail), at their own pitch (`KeepsNaturalPitch`: `CreatureView` skips the size rule), and every call picks a fresh recording
+of the repertoire (`CreatureVoices.Repertoire`, `CreatureView.Audio.TakeOf`) — a Soundi sings all fourteen. The scan words
+them "Sings", "A short, loud scream", "A slow, glassy song", "Coos softly".
+
+**The server's rules** (`GameServerSoundersFauna.cs`, `GameServerSoundelings.cs`): the spawner keeps one Soundrak and three
+Qualis about (`SoundersFauna.MaxWildAtOnce`; a herd member too), the giants vary only a third as much in size; a Quali can
+never be hit or pushed (`srv.attack.quali`); the Soundrak screams (a `SoundFx` from its crown, every 9–15 s) at the nearest
+player in its territory (18 blocks) and charges one who comes within 7 (only with planet enemies on), unless that player
+soothes it (the items pack's `partial void SoothesSoundraks` — the calm disc) or it is calm (`CalmCreature`/`CalmCreaturesNear`:
+the Resonance Blaster, a story beat — no grudge, no hunt, no bite while it lasts). A **Soundeling** sleeps curled up at night
+and nothing wakes it; by day under a roof with no light within 6 blocks it walks to a light within 8 or curls up and hides
+(drawn asleep); handed a lamp with the Feed key ([CREATURE_TAMING.md](CREATURE_TAMING.md)) it coos, thinks for 1.5 s, carries
+it to the nearest dark free cell 2.5–12 blocks away (under a roof, unlit, on solid ground, never where the giver could not
+build) and places it as the giver's block, cooing; at a timeout or nightfall it takes the nearest good cell, or sets the lamp
+down as a drop. **Sounder NPCs** are ordinary NPCs whose `Look` (`sounder`, `sounder_echo`) rides on `NetNpc.Look`
+(`SpawnSounderNpc`, `GameServerSounderNpcs.cs`); `NpcView.Sounders.cs` builds the rig under the NPC's root (the human avatar
+stays, hidden), feeds its gaze, hums (`SounderVoice`: `elder_hum_1..2`, `echo_hum_1..4`) and shows the hum, never words, in
+the bubble.
+
+Tests: `SoundersCreaturesTests` (plans, records, rosters, sizes, footprints, voices, light items, locales),
+`SoundersFaunaServerTests` (caps, the Quali, the Soundrak's territory and calm, the scan, the NPC look),
+`SoundelingServerTests` (by day to a dark free cell, night, no dark spot, hiding in the dark, somebody else's base),
+`SounderVoiceTests` (client). The rig itself needs the Unity build.
 
 ## Foot planting
 

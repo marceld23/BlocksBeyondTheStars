@@ -25,7 +25,7 @@ StampSettlement → StampIntercityRail → StampRuins → StampRailRuins → Sta
 | Feature | Stamper | Flag | Rarity (per body) |
 |---|---|---|---|
 | Ruins | `StampRuins` (`GameServerRuins.cs`) | `PlaceRuins` | ~0–2, mostly none; skipped on airless worlds |
-| Monuments | `StampMonuments` (`GameServerMonuments.cs`) | `PlaceMonuments` | 0–3, one per archetype; airless worlds **included** |
+| Monuments | `StampMonuments` (`GameServerMonuments.cs`) | `PlaceMonuments` | 0–3, one per archetype; airless worlds **included**; a type's `monumentCount` [min, max] replaces the roll (Soaniri: 4–6, and a restricted type keeps them when it lists `monuments` — #3358) |
 | Factories | `StampFactories` (`GameServerFactories.cs`) | `PlaceFactories` | ~0–2, mostly none; skipped on airless worlds |
 | Chests | `StampChests` (`GameServerChests.cs`) | `PlaceChests` | ~0–2, mostly none |
 | Intercity line (#2125) | `StampIntercityRail` (`GameServerIntercityRail.cs`) | `PlaceIntercityRail` + `IntercityRailChance` | 0–1, generation 19+, needs two towns — see [MONORAIL.md](MONORAIL.md) |

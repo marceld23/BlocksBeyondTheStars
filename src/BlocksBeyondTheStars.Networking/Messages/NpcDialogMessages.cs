@@ -28,6 +28,10 @@ public sealed class NpcDialogState
     /// <summary>The player's reply options, resolved. Empty when the dialogue is over.</summary>
     public string[] Choices { get; set; } = System.Array.Empty<string>();
 
+    /// <summary>#3347: per reply in <see cref="Choices"/>, the melody it is sung as (letters A–Z of the Sounders' note
+    /// alphabet), or empty for a spoken reply. Empty array = no reply is sung (and from an older server). Additive.</summary>
+    public string[] ChoiceMelodies { get; set; } = System.Array.Empty<string>();
+
     /// <summary>True when this is the dialogue's last line — the panel closes after showing it.</summary>
     public bool End { get; set; }
 

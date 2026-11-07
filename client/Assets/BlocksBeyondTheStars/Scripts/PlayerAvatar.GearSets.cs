@@ -49,6 +49,9 @@ namespace BlocksBeyondTheStars.Client
                 case GearLook.StyleRessaw:
                     BuildRessawHelmet();
                     return true;
+                case GearLook.StyleObsidian: // #3354 (PlayerAvatar.Obsidian.cs)
+                    BuildObsidianHelmet();
+                    return true;
                 default:
                     return false;
             }
@@ -71,6 +74,10 @@ namespace BlocksBeyondTheStars.Client
                 case GearLook.StyleRessaw:
                     BuildRessawChest();
                     return true;
+                case GearLook.StyleObsidian:
+                case GearLook.StyleObsidianGlow: // #3354: the light disc glows in the socket
+                    BuildObsidianChest(style == GearLook.StyleObsidianGlow);
+                    return true;
                 default:
                     return false;
             }
@@ -87,6 +94,12 @@ namespace BlocksBeyondTheStars.Client
             if (style == GearLook.StyleRessaw)
             {
                 BuildRessawLegs();
+                return true;
+            }
+
+            if (style == GearLook.StyleObsidian)
+            {
+                BuildObsidianLegs(); // #3354
                 return true;
             }
 

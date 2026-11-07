@@ -84,6 +84,13 @@ public sealed partial class GameServer
             count = System.Math.Min(MonumentHardCap, count + 1);
         }
 
+        // #3358: a type that names its own count (Soaniri, "many rune ruins") replaces the roll — after it, so the rng stream
+        // is the one every other type draws.
+        if (planet.MonumentCount.Count == 2)
+        {
+            count = TypeMonumentCount(planet.MonumentCount[0], planet.MonumentCount[1], mSeed);
+        }
+
         if (count <= 0)
         {
             // The "none here" roll is a decision too — record it (the guard above documents exactly this
@@ -115,6 +122,7 @@ public sealed partial class GameServer
         AppendIntercityReservations(reserved); // #2125: the intercity line's stations and route
         AppendRailRuinReservations(reserved); // #2166: the abandoned monorail station
         AppendLodgeReservations(reserved); // #2640: the wilderness huts
+        AppendSounderWorldReservations(reserved); // #3358: Soaniri's village, ruin city and Choir Tower
 
         foreach (var camp in _banditCamps)
         {

@@ -87,6 +87,10 @@ namespace BlocksBeyondTheStars.Client.Minigames
         /// to grant knowledge / record the highscore (mirrors the old EmbeddedBrowser <c>OnReportResult</c>).</summary>
         public event Action<MinigameResult>? OnResult;
 
+        /// <summary>#3352: where a game's notes go — the Unity host plays <c>note_&lt;instrument&gt;_&lt;tone&gt;</c> through its
+        /// audio; null (headless, tests that do not listen) drops them. Called with (instrument, tone 0–7).</summary>
+        public Action<int, int>? NoteSink { get; set; }
+
         /// <summary>Live HUD fields for the host bar, in registration order. "score" and "time" are appended by the
         /// host UI; this is just the game's own extra fields (e.g. integrity, depth).</summary>
         public IReadOnlyList<(string key, string value)> HudFields => Hud;
@@ -454,6 +458,38 @@ namespace BlocksBeyondTheStars.Client.Minigames
         public int Rand(int n) => _host.Rand(n);
 
         public void Shuffle<T>(IList<T> list) => _host.Shuffle(list);
+
+        /// <summary>#3352: plays one note of the procedural instruments (0–3 the melody block's, 4 the Sounder voice, 5 the
+        /// choir), tone 0–7 (C4 … C5). A host without audio ignores it.</summary>
+        public void PlayNote(int instrument, int tone)
+        {
+            if (tone >= 0 && tone <= 7)
+            {
+                _host.NoteSink?.Invoke(instrument, tone);
+            }
+        }
+
+        /// <summary>#3352: plays a phrase on the game clock — one note every <paramref name="noteSeconds"/>, a rest (-1) is a
+        /// silent beat — and returns how long it takes. Pause-aware like every timer; a restart drops what is still due.</summary>
+        public float PlayPhrase(int instrument, IReadOnlyList<int> notes, float noteSeconds)
+        {
+            if (notes == null || notes.Count == 0)
+            {
+                return 0f;
+            }
+
+            float step = Math.Max(0.05f, noteSeconds);
+            for (int i = 0; i < notes.Count; i++)
+            {
+                int tone = notes[i];
+                if (tone >= 0)
+                {
+                    After(() => PlayNote(instrument, tone), i * step);
+                }
+            }
+
+            return notes.Count * step;
+        }
 
         public void Complete(int score, int rating = 1) => _host.Finish(score, rating, completed: true);
 

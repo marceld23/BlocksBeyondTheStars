@@ -1,6 +1,6 @@
 # Writing a story pack — the authoring guide
 
-Status: implemented (story packs step 22, #2483). Last updated 2026-10-12. Live Done/Open status: [../../TODO.md](../../TODO.md).
+Status: implemented (story packs step 22, #2483). Last updated 2026-11-07 (#3347, #3357: what a side pack brings, §16). Live Done/Open status: [../../TODO.md](../../TODO.md).
 
 A **story pack** is a folder of JSON under `data/stories/<id>/`: a story (a side story, a tutorial chapter, the world's
 narrative arc), its cutscenes and its texts. The engine that runs it is generic, so **a new story is data only** — no C#,
@@ -126,7 +126,8 @@ data/stories/<id>/
   locales/de.json     the same keys, German                            — mandatory
   locales/<code>.json the community languages (fr, es, it, pt, pl, tr, nl, ru, uk, ja, ko, zh)  — optional
   cutscenes.json      the pack's scenes                                — optional (format: CUTSCENES.md)
-  lore_sites.json     environmental lore texts (world stories)         — optional (LORE_STRUCTURE.md)
+  lore_sites.json     environmental lore texts (world stories; a side   — optional (LORE_STRUCTURE.md, §16)
+                      pack's since #3347, gated by `minChapter`)
 ```
 
 - **The id** is letters, digits, `_` and `-` — it becomes part of milestone keys (`story:<id>:…`) and locale keys. Not
@@ -147,6 +148,7 @@ data/stories/<id>/
 | content | `chapters[]` with `steps[]` | [Chapter fields](TUTORIAL_PACK.md#chapter-fields), [Step fields](TUTORIAL_PACK.md#step-fields) |
 | tutorial only | `gates`, `graduation`, step `legacyKey`, step `hintRefs` | [TUTORIAL_PACK.md](TUTORIAL_PACK.md) |
 | world story only | `beats[]`, chapter `fromBeat` / `fromEvent` / `leads` / `missions`, `insights`, `finale`, `leadBonusMilestones`, `normaliseUnavailableDrivers`, `memoryTriggers`, `epilogueTitleKey` … | [STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md#vega-as-its-own-pack-prologue-story-track-held-content-chapters-migration-2470) |
+| a side pack's world | `lore_sites.json` (`minChapter`), `characters[]` (`planetTypes`), `dialogs[]` (replies with `visibleIf`, `melody`, `milestone:` consequence), `texts[]` + `textsTitleKey`, `systems[]`, `milestonePrefix` | [§16](#16-what-a-side-pack-brings-besides-chapters-3347-3357) |
 
 Every field is optional and defaults to the behaviour without it. A misspelt field silently keeps its default — both
 validators report unknown fields (the C# tests read every pack strictly).
@@ -184,6 +186,10 @@ validators report unknown fields (the C# tests read every pack strictly).
 | `introCutscene` | plays when the pack starts (not when it would complete silently for a veteran) |
 | `priority` | the order among the other player packs on the chip and in the Journal (higher first) |
 
+A **world** can switch a side story off at its creation (#3347: the Stories page lists every installed side story — not
+the festival stories, which follow the Festivals option — with a switch, default on; `--disable-stories a,b`,
+`GameRules.DisabledStoryPacks`): such a pack never starts there, is not in the Journal and brings nothing (§16).
+
 Recommendations:
 
 - **Let the basic training go first.** `"after": [ "any:[chapter:tutorial:b1, not:pack:tutorial:enabled]" ]` waits for
@@ -202,11 +208,12 @@ One grammar everywhere — `requires`, `feasibleIf`, `alreadyDoneIf`, `visibleIf
 ```
 condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 atom      := step:<pack>:<step> | chapter:<pack>:<chapter> | pack:<pack>:started|done|enabled|optedout
-           | blueprint:<key> | world:<predicate> | lore:<key>
+           | blueprint:<key> | world:<predicate> | lore:<key> | milestone:<key>
 ```
 
 Examples: `world:free_flight`, `not:world:hunger`, `any:[blueprint:glider, world:climbing]`,
-`all:[step:tutorial:c6.3, not:blueprint:ship_builder]`. The atoms, the pack states and all world predicates with their
+`all:[step:tutorial:c6.3, not:blueprint:ship_builder]`, `milestone:snd:disc:song_disc_builders` (#3347: any per-player
+milestone — the key may hold colons). The atoms, the pack states and all world predicates with their
 meanings: [STORY_VOCABULARY.md → Conditions](STORY_VOCABULARY.md#conditions). `ui:` is never a condition. A condition
 naming a pack, chapter, step, blueprint or lore text that does not exist is a validator error.
 
@@ -323,6 +330,7 @@ pack, join a player, drive real handlers (`SetLampIntent`, `MineBlockOnce`, `Sel
 | a verb nobody raises yet | one `RaiseGameEvent(session, key, arg, amount)` line at the gameplay handler, the key as a documented constant in `GameEventKeys` (+ `All`), a row in STORY_IMPLEMENTATION's event table, the vocabulary regenerated (below); the Python validator reads the constants by itself |
 | a new `world:` predicate | the name as a documented constant in `StoryWorldPredicates` (+ `All`), one line in the server's `WorldPredicates` registry (`StoryConditionTests` holds both equal), the name in the Python tool's `FALLBACK_PREDICATES` |
 | a new marker provider (`onStart.reveal`) | a constant in `StoryRevealProviders` (+ `IsKnown`), the target in `GameServer.RevealTarget`, the Python validator |
+| a marker on a place your pack's code builds | no new provider: the code calls `GameServer.RegisterPackSite(packId, siteId, locationId, pos)` when it places the site (and again when its world loads); the step names `pack_site:<siteId>` (#3349) |
 | a new camera type, anchor or caption style | the constant (+ `All`) in `CutsceneDefinition.cs`, the staging in Client.Core `CutsceneStaging` and the Unity director/rig (or the caption in `CutsceneScreen`), the Python validator's list, a budget for a new caption style (the `…MaxEn`/`…MaxDe` constants in `StoryPackValidator.cs` and the style switch in `ValidateCaption`, `StoryPackValidator.Cutscenes.cs`; the vocabulary's `CaptionBudget`) |
 | a new `ui:` teaching flag | the id in `GameEventKeys.UiEvents`, the client sending it (`NetworkClient.SendUiTutorialEvent`) |
 | a new `{key:Action}` token | an `InputAction` or a pseudo-action the resolver knows (`HudUi.KeyTokenGlyph` / `VegaText`), its bracket word `ui.vega.act.<Action>` |
@@ -341,7 +349,8 @@ BBTS_UPDATE_STORY_VOCABULARY=1 dotnet test tests/BlocksBeyondTheStars.Tests -c R
 
 - **One world story per save**, many player packs. Several narrative arcs sharing one world (each with its own finale,
   world flags and knowledge levels) are phase 10 of the plan and not built; the finale code knows VEGA's Guardian core
-  only.
+  only. Since #3347/#3357 a side pack brings its own lore, people, dialogs, readable texts and star systems (§16) — but no
+  finale, no world flags and no knowledge level.
 - **Install on both sides.** The server runs the pack; texts and cutscenes resolve on the client from its own copy. A
   client without the pack cannot show its texts: since #2500 it says once "This world plays a story your game doesn't know
   yet — update the game to follow it" (`ui.story.pack_missing`) and shows that pack's lines, chip goals and Journal tasks as
@@ -353,6 +362,44 @@ BBTS_UPDATE_STORY_VOCABULARY=1 dotnet test tests/BlocksBeyondTheStars.Tests -c R
 - **No rewards** in a pack's own fields (a mission it bridges onto keeps its rewards); a tutorial's only reward is the
   graduation's achievement.
 - **No device filter yet** (a step only for touch or pad), no per-pack "hide from the chip" switch besides the pin.
+
+## 16. What a side pack brings besides chapters (#3347, #3357)
+
+Before #3347 only the save's world story supplied lore texts, NPC dialogs, characters and readable texts. Now a **player pack
+that is active for a player** — started for them, not switched off in their Journal, not switched off for the world
+(the world-creation Stories page, `GameRules.DisabledStoryPacks`) — brings its own, **for that player only**:
+
+| What | Where | For the player |
+|---|---|---|
+| lore texts | `lore_sites.json` (same site kinds as a world story) | found at those sites like VEGA's (a weighted pick among every eligible text), gated by `minChapter` — the 1-based number of the pack's chapter the player must have reached (a chapter is reached once it ran, was done or skipped; 0 = at once). `minKnowledge` is the world story's gate. A text is read once per player (`lore:<key>` — keys unique across packs) |
+| people | `characters[]` (+ `planetTypes[]`) | a character takes an NPC slot in every world that did not switch the pack off (the same person for everyone) — limit it with `planetTypes` (the Sounders: `sounder_world`). A code-spawned NPC becomes a character with `GameServer.ApplyStoryCharacter(npc, characterId)` (name, look, the character id `PickDialog` matches) |
+| dialogs | `dialogs[]` | offered (by `character`, `role` or `job`, like VEGA's) to the players for whom the pack is active. A reply may carry `visibleIf` (a condition — one string or a list: left out while it fails), `melody` (letters A–Z: the client shows notes and sings it with the Sounder voice) and the consequence `milestone:<key>` (sets a milestone under `<pack id>:` or the pack's `milestonePrefix`). A dialog that reaches an end raises `dialog:done` with its key |
+| readable texts | `texts[]` (`id`, `titleKey`, `textKey`, `unlockedBy`) + `textsTitleKey` | listed on the pack's Journal page under `textsTitleKey` (the Sounders' "Song Archive") once `unlockedBy` holds; the reader opens the text |
+| star systems | `systems[]` (`id`, `nameKey` or `name`, `planetType`, `bodyName`, `placement`, `visibleIf`) | appended to the galaxy the first time any player may see it (old saves too) and remembered by the save; on a player's star map and a jump target only while the pack is active for them and `visibleIf` holds (or they are, or were, in it). Normal jump rules (a jump generator or a lane). Marker `story_system:<id>`, cutscene anchor `system:<id>` (a `chart` shot) |
+
+```jsonc
+{
+  "milestonePrefix": "snd",
+  "textsTitleKey": "story.sounders.archive",
+  "texts": [
+    { "id": "word_soaniri", "titleKey": "story.sounders.word.soaniri", "textKey": "story.sounders.word.soaniri.text",
+      "unlockedBy": "milestone:snd:word:SOANIRI" }
+  ],
+  "systems": [
+    { "id": "ornemis", "name": "Ornemis", "planetType": "sounder_world", "bodyName": "Soaniri", "placement": "inside",
+      "visibleIf": "milestone:snd:song_learned" }
+  ],
+  "dialogs": [
+    { "key": "snd_roll", "character": "roll", "nodes": [ { "promptKey": "…", "choices": [
+      { "textKey": "…", "responseKey": "…", "visibleIf": "milestone:snd:echo:kamo", "consequence": "milestone:snd:roll:kamo" },
+      { "textKey": "…", "responseKey": "…", "melody": "ORNEMIS" } ] } ] }
+  ]
+}
+```
+
+Blueprints a pack's story hands out are ordinary `data/blueprints.json` entries with `hiddenUntil` (a condition, #3350):
+until it holds for the player the research tree does not list the blueprint and research is refused
+([CRAFTING_TECH_SHIP_UI.md](CRAFTING_TECH_SHIP_UI.md)). How the server does it all: [STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md#side-packs-lore-dialogs-texts-systems-and-hidden-blueprints-33473357).
 
 ## Checklist for a new pack
 

@@ -114,6 +114,12 @@ players' progress, and on a restart the save's last choice wins over `--story`. 
 glitch) pass no story flag, so they run VEGA with the tutorial on `Auto`; an uploaded singleplayer save keeps the rules it
 was created with.
 
+**Side stories (#3347).** `--disable-stories <id>,<id>` switches installed side stories off for a fresh world — the
+world-creation **Stories** page lists every side story (kind `side`, not the festival stories, which follow `--festivals`)
+with a switch, default on, and emits only the ones switched off. A switched-off story never starts in that world and brings
+nothing (no lore, dialogs, texts or star systems); the save keeps the list in its rules (`GameRules.DisabledStoryPacks`).
+Each player can still switch a running side story off for themselves in the Journal.
+
 ### Environment-variable overrides (containers)
 
 Every key above can also be set with a `BBS_*` environment variable, which is the natural way to

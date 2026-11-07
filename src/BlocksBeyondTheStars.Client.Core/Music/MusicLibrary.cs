@@ -52,6 +52,8 @@ namespace BlocksBeyondTheStars.Client.Music
         public const string PlanetVerdant = "planet_verdant";
         public const string PlanetCrystal = "planet_crystal";
         public const string PlanetCave = "planet_cave";
+        /// <summary>The Sounder home world Soaniri (#3363, the Sounders story pack): its own wondrous theme.</summary>
+        public const string PlanetSounder = "planet_sounder";
         /// <summary>Head under water for a while on any planet (#1174): the deep-water angle.</summary>
         public const string PlanetDeep = "planet_deep";
         /// <summary>The flight system chart is open (#1174).</summary>
@@ -89,6 +91,7 @@ namespace BlocksBeyondTheStars.Client.Music
             [PlanetVerdant] = new[] { "music_planet_verdant", "music_planet_verdant_2" },
             [PlanetCrystal] = new[] { "music_moon_crystal", "music_explore_planet", "music_explore_planet_2" },
             [PlanetCave] = new[] { "music_planet_cave", "music_planet_cave_2", "music_planet_cave_3" },
+            [PlanetSounder] = new[] { "sounders_soaniri" },
             [PlanetDeep] = new[] { "music_planet_ocean_2" },
             [StarChart] = new[] { "music_cockpit_starmap" },
             [Workshop] = new[] { "music_crafting_workshop" },
@@ -155,11 +158,12 @@ namespace BlocksBeyondTheStars.Client.Music
             return IsSurfaceBiome(context) ? 0.35 : 0.0;
         }
 
-        /// <summary>True for the planet-surface biome pools (ice … crystal, and verdant); the generic pool and
-        /// the cave are handled separately, everything else (menu, ship, space, UI contexts) never blends.</summary>
+        /// <summary>True for the planet-surface biome pools (ice … crystal, verdant and the Sounder world); the generic pool
+        /// and the cave are handled separately, everything else (menu, ship, space, UI contexts) never blends.</summary>
         public static bool IsSurfaceBiome(string context) => context switch
         {
-            PlanetIce or PlanetDesert or PlanetLava or PlanetToxic or PlanetOcean or PlanetVerdant or PlanetCrystal => true,
+            PlanetIce or PlanetDesert or PlanetLava or PlanetToxic or PlanetOcean or PlanetVerdant or PlanetCrystal
+                or PlanetSounder => true,
             _ => false,
         };
 
@@ -221,6 +225,7 @@ namespace BlocksBeyondTheStars.Client.Music
                 case "jungle":
                 case "forest":
                 case "savanna": return PlanetVerdant;
+                case BlocksBeyondTheStars.Shared.Sounders.SoundersIds.PlanetType: return PlanetSounder; // #3363: Soaniri
                 case "orbital_station": return Station;     // standing on a station hub
                 case "ship_interior": return ShipInterior;  // safety net; Aboard usually catches this
                 default:

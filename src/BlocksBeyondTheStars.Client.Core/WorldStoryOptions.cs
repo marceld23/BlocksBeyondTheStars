@@ -66,6 +66,57 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Index into <see cref="TutorialSteps"/>.</summary>
         public int Tutorial { get; set; } = AutoTutorial;
 
+        /// <summary>#3347: the most side stories the page lists with a switch (the right column under the tutorial rule;
+        /// WorldOptionsLayoutTests holds the sums).</summary>
+        public const int MaxSideStories = 5;
+
+        /// <summary>#3347: the side stories switched off for the new world (pack ids, case-insensitive) — every listed side story
+        /// is on by default (<c>--disable-stories</c>, <c>GameRules.DisabledStoryPacks</c>).</summary>
+        public HashSet<string> DisabledSideStories { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>#3347: whether a side story runs in the new world (its switch is on).</summary>
+        public bool SideStoryOn(string id) => !DisabledSideStories.Contains(id ?? string.Empty);
+
+        /// <summary>#3347: switches a side story on or off for the new world.</summary>
+        public void SetSideStory(string id, bool on)
+        {
+            if (string.IsNullOrEmpty(id))
+            {
+                return;
+            }
+
+            if (on)
+            {
+                DisabledSideStories.Remove(id);
+            }
+            else
+            {
+                DisabledSideStories.Add(id);
+            }
+        }
+
+        /// <summary>
+        /// #3347: the side stories the page lists with a switch — every installed player-scoped pack of kind <c>side</c> (no
+        /// tutorial, no world story), except the festival stories (their start waits for a <c>world:festival_…</c> predicate:
+        /// the world's Festivals switch governs them), by priority (high first) and id, at most <see cref="MaxSideStories"/>.
+        /// </summary>
+        public static IReadOnlyList<string> SideStoryChoices(IEnumerable<StoryDefinition>? stories)
+            => (stories ?? Enumerable.Empty<StoryDefinition>())
+                .Where(d => d is not null && string.Equals(d.Kind, StoryRegistry.KindSide, StringComparison.OrdinalIgnoreCase)
+                            && string.Equals(StoryRegistry.EffectiveScope(d), StoryRegistry.ScopePlayer, StringComparison.Ordinal)
+                            && !StoryRegistry.IsReservedPackId(d.Id) && IsArgSafe(d.Id) && !IsFestivalStory(d))
+                .GroupBy(d => d.Id, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First())
+                .OrderByDescending(d => d.Priority)
+                .ThenBy(d => d.Id, StringComparer.Ordinal)
+                .Take(MaxSideStories)
+                .Select(d => d.Id)
+                .ToList();
+
+        /// <summary>#3347: a festival story — its start waits for a festival of the calendar (the Festivals world option).</summary>
+        public static bool IsFestivalStory(StoryDefinition def)
+            => def?.Start?.After?.Any(c => (c ?? string.Empty).IndexOf("world:festival_", StringComparison.Ordinal) >= 0) ?? false;
+
         /// <summary>No story (sandbox).</summary>
         public bool IsNone => string.Equals(StoryId, StoryRegistry.NoneStoryId, StringComparison.OrdinalIgnoreCase);
 
@@ -83,6 +134,8 @@ namespace BlocksBeyondTheStars.Client
             StoryId = other.StoryId;
             Density = other.Density;
             Tutorial = other.Tutorial;
+            DisabledSideStories.Clear();
+            DisabledSideStories.UnionWith(other.DisabledSideStories); // #3347
         }
 
         /// <summary>Server CLI overrides for the choices — only the non-default ones, each with a leading space (the
@@ -110,6 +163,13 @@ namespace BlocksBeyondTheStars.Client
             if (tutorial != AutoTutorial)
             {
                 sb.Append(" --tutorial ").Append(TutorialCliWords[tutorial]);
+            }
+
+            // #3347: the side stories switched off — every one on is the default, so nothing is sent for it.
+            var off = DisabledSideStories.Where(IsArgSafe).OrderBy(id => id, StringComparer.Ordinal).ToList();
+            if (off.Count > 0)
+            {
+                sb.Append(" --disable-stories ").Append(string.Join(",", off));
             }
 
             return sb.ToString();

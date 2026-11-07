@@ -76,4 +76,27 @@ public sealed class TamedCreature
     /// owner-locked crate (placed as soon as the owner stands on open ground; never lost). The record goes once the crate
     /// is out.</summary>
     public bool KnockedOut { get; set; }
+
+    /// <summary>The <see cref="Kind"/> of the story Soundi (#3361), the Sounders pack's reward after the sing duel: a
+    /// travelling companion like Rudolpho, named by the player.</summary>
+    public const string SoundiKind = "soundi";
+
+    /// <summary>#3344: the player chose to take this companion along. True by default, so every record saved before the
+    /// choice existed behaves exactly as before. A planet pet that does not follow stays home (<see cref="HasHomeSpot"/>);
+    /// a travelling companion (robot, Rudolpho, the Soundi) that does not follow waits on board and appears nowhere.</summary>
+    public bool Following { get; set; } = true;
+
+    /// <summary>#3344: whether <see cref="HomeX"/>/<see cref="HomeY"/>/<see cref="HomeZ"/> hold the spot a planet pet lives at
+    /// while it stays home — where it was tamed, or where "set home here" put it. False on records from before (the first
+    /// time such a pet stays home, the spot it is at becomes its home).</summary>
+    public bool HasHomeSpot { get; set; }
+
+    /// <summary>#3344: the home spot on <see cref="HomeBodyId"/> (world coordinates, X).</summary>
+    public float HomeX { get; set; }
+
+    /// <summary>#3344: the home spot on <see cref="HomeBodyId"/> (world coordinates, Y).</summary>
+    public float HomeY { get; set; }
+
+    /// <summary>#3344: the home spot on <see cref="HomeBodyId"/> (world coordinates, Z).</summary>
+    public float HomeZ { get; set; }
 }

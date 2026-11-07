@@ -1075,6 +1075,12 @@ public sealed partial class WorldGenerator
                 dryWorld ? logId : BlockId.Air, fluidLevel);
         }
 
+        // #3358: Soaniri's singing meadows — only a type that asks for them (the sounder_world), so no other chunk moves.
+        if (planet.SingingMeadows)
+        {
+            StampSingingMeadows(chunk, k, groundTops, waterTops);
+        }
+
         // Landing pads (ship-as-object): level + clear the planned pad areas so the placed ship structure
         // always sits on flat, solid, vegetation-free ground.
         FlattenLandingPads(planet, chunk, coord, biomes, seed);

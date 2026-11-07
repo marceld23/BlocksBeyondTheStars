@@ -344,6 +344,11 @@ public sealed partial class GameServer
         }
 
         string item = stack.Item;
+        if (TryGiveLightToSoundeling(session, item))
+        {
+            return; // #3366: a lamp handed to a Soundeling, which carries it to a dark spot (or a reason why not)
+        }
+
         if (!HerdRules.IsFoodForCreatures(_content.GetItem(item)))
         {
             Reject(session, "feed", "@srv.feed.not_food");

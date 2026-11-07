@@ -51,6 +51,12 @@ internal interface IJournalHost : IServerHost
 
     bool StoryPackEnabledFor(PlayerSession who, string packId);
 
+    /// <summary>#3347: the world switched this side story off (it is left out of the Journal).</summary>
+    bool StoryPackDisabledInWorld(string? packId);
+
+    /// <summary>#3347: the pack's readable texts this player has unlocked (its Journal page).</summary>
+    NetStoryText[] UnlockedPackTexts(PlayerSession s, GameServer.CompiledPack pack);
+
     bool CanStartPackOnRequest(PlayerSession s, GameServer.CompiledPack pack);
 
     bool ChapterVisible(PlayerSession s, GameServer.CompiledChapter ch);
@@ -207,7 +213,7 @@ internal sealed class JournalSystem
             packs.Add(world);
         }
 
-        foreach (var pack in _host.PlayerPacks.Where(p => !p.IsTutorial))
+        foreach (var pack in _host.PlayerPacks.Where(p => !p.IsTutorial && !_host.StoryPackDisabledInWorld(p.Id))) // #3347
         {
             packs.Add(NetPackOf(s, pack));
         }
@@ -282,6 +288,8 @@ internal sealed class JournalSystem
             Badge = badge,
             Chapters = pack.Chapters.Where(c => JournalListsChapter(s, c)).Select(c => NetChapterOf(s, c, runs)).ToArray(),
             Steps = runs ? ActiveStepsOf(s, pack).ToArray() : Array.Empty<NetStoryStep>(),
+            Texts = _host.UnlockedPackTexts(s, pack), // #3347: the Song Archive and its kind
+            TextsTitleKey = def.TextsTitleKey ?? string.Empty,
         };
     }
 

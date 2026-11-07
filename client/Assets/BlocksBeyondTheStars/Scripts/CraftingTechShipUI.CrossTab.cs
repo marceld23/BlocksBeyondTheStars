@@ -114,7 +114,7 @@ namespace BlocksBeyondTheStars.Client
 
                     break;
                 case Mode.Tech:
-                    foreach (var bp in Game.Content.Blueprints.Values)
+                    foreach (var bp in Game.Content.Blueprints.Values.Where(BlueprintShown)) // #3350: never a hidden one
                     {
                         Consider(L($"blueprint.{bp.Key}.name"), Cats.OfBlueprint(bp.Key), "all", bp.Key);
                     }

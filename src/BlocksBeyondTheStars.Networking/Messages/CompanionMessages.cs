@@ -41,6 +41,24 @@ public sealed class TameResult
     public string MessageKey { get; set; } = string.Empty;   // creature.tame.msg.*
     public int KnowledgeGained { get; set; }
     public int KnowledgeTotal { get; set; }
+
+    /// <summary>#3361: a name the story suggests for the new companion ("Muffin" for the Soundi) — the client's name prompt
+    /// shows it as a hint and prefills it. Empty = no suggestion (every ordinary tame). Additive: an older client ignores it
+    /// and prefills <see cref="CompanionName"/>, which then carries the same name.</summary>
+    public string SuggestedName { get; set; } = string.Empty;
+}
+
+/// <summary>Client → server (#3344): who of the player's companions follows. One companion (<see cref="CompanionId"/>) or,
+/// with <see cref="All"/>, every one of them ("Take all" / "Leave all"). A planet pet that does not follow stays home on its
+/// world; a travelling companion (robot, Rudolpho, the Soundi) waits on board. <see cref="SetHomeHere"/> instead makes the
+/// spot where the player stands the home of a present planet pet (<see cref="Following"/> is then ignored). An older
+/// server drops the tag (every companion keeps following).</summary>
+public sealed class SetCompanionFollowIntent
+{
+    public string CompanionId { get; set; } = string.Empty;
+    public bool Following { get; set; } = true;
+    public bool All { get; set; }
+    public bool SetHomeHere { get; set; }
 }
 
 /// <summary>Client → server: open the Companions menu tab (asks for the player's full companion roster).</summary>
@@ -88,6 +106,18 @@ public sealed class NetCompanion
     /// not already full and the animal is not still chewing the last one. Additive field — the button is
     /// dimmed rather than failing silently, and an older server simply leaves it false.</summary>
     public bool CanFeed { get; set; }
+
+    /// <summary>#3344: the player takes it along. True by default, so an older server (which knows no choice) reads as
+    /// "everyone follows", which is what it does.</summary>
+    public bool Following { get; set; } = true;
+
+    /// <summary>#3344: a travelling companion (robot, Rudolpho, the Soundi) — it follows to every world, and when it does
+    /// not follow it waits on board instead of staying home. The client no longer guesses this from the body plan.</summary>
+    public bool Roams { get; set; }
+
+    /// <summary>#3344: the companion's kind (<c>TamedCreature.Kind</c>): empty for a tamed animal, "robot", "reindeer",
+    /// "soundi" — picks the wording of the tab's buttons (switch off, send home, on board).</summary>
+    public string Kind { get; set; } = string.Empty;
     public string Temperament { get; set; } = "Passive";
     public string Habitat { get; set; } = "Land";
 

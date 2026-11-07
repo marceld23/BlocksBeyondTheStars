@@ -57,6 +57,9 @@ public sealed class StoryPackValidationContext
     /// <summary>Whether a ship module key exists (a <c>module:</c> lead, #2475); null = skip.</summary>
     public Func<string, bool>? ModuleExists { get; set; }
 
+    /// <summary>#3347/#3357: whether a planet type exists (a pack system's world, a character's planet types); null = skip.</summary>
+    public Func<string, bool>? PlanetExists { get; set; }
+
     /// <summary>Whether a lore text key exists in some installed pack's <c>lore_sites.json</c> (a <c>lore:</c> condition, #2476);
     /// null = only the validated pack's own lore texts are looked at (none: skip).</summary>
     public Func<string, bool>? LoreExists { get; set; }
@@ -179,6 +182,8 @@ public static partial class StoryPackValidator
         ValidateGraduation(run);
         // ---- Cutscene definitions (cutscenes.json, #2467) ----
         ValidateCutscenes(run);
+        // ---- Lore gates, readable texts, star systems, the milestone namespace, dialog replies (#3347, #3357) ----
+        ValidatePackExtras(run);
         // ---- Every key in English and German, within its budget ----
         ValidateKeyTexts(run);
         // ---- A tutorial pays no rewards (the raw document: fields the model does not know count too). Only the pack's own

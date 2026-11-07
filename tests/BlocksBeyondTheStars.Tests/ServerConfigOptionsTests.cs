@@ -55,7 +55,7 @@ public sealed class ServerConfigOptionsTests
         "creative-flight", "admin-cheats", "voice", "voice-chat", "chat-filter", "festivals", "chat-mode", "unlock-all-blueprints",
         "start-all-ships", "creative-kit", "guarantee-start-cube", "creatures", "planet-enemies", "ufos", "bandits", "oxygen",
         "hunger", "hazards", "death-penalty", "keep-inventory", "keep-ship", "auto-aim", "world-textures",
-        "starter-teleporter", "return-to-ship", "friendly-visitors", "machine-catchup", "bases-per-world", "base-yield", "story", "story-density", "tutorial",
+        "starter-teleporter", "return-to-ship", "friendly-visitors", "machine-catchup", "bases-per-world", "base-yield", "story", "story-density", "tutorial", "disable-stories",
         "flora", "ore", "settlements", "planet-wrecks", "vaults", "stations", "wormholes", "debris-fields", "derelicts",
         "exotic", "station-templates", "settlement-templates", "structure-packs", "systems", "planets-min", "planets-max",
         "moons-max", "variance", "belts", "continents", "terrain-generation", "galaxy-growth", "danger", "planet-types",
@@ -140,6 +140,7 @@ public sealed class ServerConfigOptionsTests
         { "story", "none", "story" },
         { "story-density", "Dense", "story-density" },
         { "tutorial", "optin", "tutorial" },
+        { "disable-stories", "sounders,side_pilot", "disable-stories" }, // #3347
         { "flora", "Rare", "flora" },
         { "ore", "Rare", "ore" },
         { "settlements", "Rare", "settlements" },
@@ -180,7 +181,7 @@ public sealed class ServerConfigOptionsTests
     {
         var covered = HistoricalSwitches().Select(row => (string)row[0]).ToList();
 
-        Assert.Equal(99, covered.Count);
+        Assert.Equal(100, covered.Count); // #3347: --disable-stories
         Assert.Equal(HistoricalSwitchSpellings.Except(new[] { "no-config", "stdin-stop" }).OrderBy(s => s, StringComparer.Ordinal),
             covered.OrderBy(s => s, StringComparer.Ordinal));
     }
@@ -388,6 +389,12 @@ public sealed class ServerConfigOptionsTests
         var packs = new ServerConfig();
         Assert.Equal(new[] { "structure-packs" }, packs.ApplyCommandLine(new[] { "--structure-packs", " a , ,b " }));
         Assert.Equal(new[] { "a", "b" }, packs.World.EnabledStructurePacks);
+
+        // #3347: the side stories a fresh world switches off — pack ids, deduplicated; anything else is not a pack id.
+        var stories = new ServerConfig();
+        Assert.Equal(new[] { "disable-stories" }, stories.ApplyCommandLine(new[] { "--disable-stories", " sounders , side_pilot,Sounders " }));
+        Assert.Equal(new[] { "sounders", "side_pilot" }, stories.Rules.DisabledStoryPacks);
+        Assert.Empty(new ServerConfig().ApplyCommandLine(new[] { "--disable-stories", "a b" }));
 
         var story = new ServerConfig();
         Assert.Equal(new[] { "story" }, story.ApplyCommandLine(new[] { "--story", string.Empty }));
@@ -630,9 +637,9 @@ public sealed class ServerConfigOptionsTests
     // --- The option table itself (ServerConfigOptions.All) ---
 
     [Fact]
-    public void Table_HasExactly111Rows_EachWithANameAndHelp()
+    public void Table_HasExactly112Rows_EachWithANameAndHelp()
     {
-        Assert.Equal(111, ServerConfigOptions.All.Count);
+        Assert.Equal(112, ServerConfigOptions.All.Count); // #3347: --disable-stories
         foreach (var option in ServerConfigOptions.All)
         {
             Assert.True(option.CommandLineName is not null || option.EnvironmentName is not null, "a row needs a switch or a variable");
@@ -660,12 +667,12 @@ public sealed class ServerConfigOptionsTests
             .SelectMany(option => option.CommandLineAliases.Prepend(option.CommandLineName!))
             .ToList();
 
-        Assert.Equal(101, HistoricalSwitchSpellings.Length);
-        Assert.Equal(101, spellings.Count);
+        Assert.Equal(102, HistoricalSwitchSpellings.Length); // #3347: --disable-stories
+        Assert.Equal(102, spellings.Count);
         Assert.Equal(spellings.Count, spellings.Distinct(StringComparer.Ordinal).Count());
         Assert.All(spellings, name => Assert.Equal(name.ToLowerInvariant(), name));
         Assert.Equal(HistoricalSwitchSpellings.OrderBy(s => s, StringComparer.Ordinal), spellings.OrderBy(s => s, StringComparer.Ordinal));
-        Assert.Equal(88, ServerConfigOptions.All.Count(option => option.CommandLineName is not null));
+        Assert.Equal(89, ServerConfigOptions.All.Count(option => option.CommandLineName is not null)); // #3347
     }
 
     [Fact]

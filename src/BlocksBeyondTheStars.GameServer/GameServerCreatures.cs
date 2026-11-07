@@ -369,6 +369,11 @@ public sealed partial class GameServer
                 continue;
             }
 
+            if (IsCalmed(creature))
+            {
+                continue; // #3359: a calmed animal (the calm disc, the Resonance Blaster) bites nobody
+            }
+
             // A creature that has given up the chase backs off and won't bite until its cooldown lapses.
             if (creature.GiveUpTimer > 0)
             {
@@ -386,8 +391,10 @@ public sealed partial class GameServer
             {
                 var p = session.State;
                 // Cloaked, god-mode, creative-override (#1121) and Sandbox (#2712) players aren't detected — nor is a body awaiting
-                // its respawn choice (#3188): another bite would only replay the death.
-                if (HostilesIgnore(p) || session.Respawn.ChoicePending)
+                // its respawn choice (#3188): another bite would only replay the death. #3365: an animal in a duel or a pack
+                // defence bites its one player only.
+                if (HostilesIgnore(p) || session.Respawn.ChoicePending || !MayFight(creature, p.PlayerId)
+                    || BiteOverlooked(creature, session)) // #3354: a Soundrak leaves the calm disc's wearer alone
                 {
                     continue;
                 }
@@ -567,6 +574,11 @@ public sealed partial class GameServer
                 if (HoundAlreadyAbout(sp))
                 {
                     continue; // #3326: the Schuppenhund lives alone — one about at a time
+                }
+
+                if (SoundersCapReached(sp))
+                {
+                    continue; // #3359: one Soundrak guards its patch alone, a few Qualis drift in the sky
                 }
 
                 float y;
@@ -906,7 +918,7 @@ public sealed partial class GameServer
         // Herd members run the leader's full reject list (#638/#750/#855/#1314): the herd stays smaller
         // rather than planting a member inside a wall, a ship, or a sealed base room.
         var pos = new Vector3f(mx + 0.5f, y, mz + 0.5f);
-        if (!SpawnSpotClear(sp, pos, mx, mz, surface))
+        if (!SpawnSpotClear(sp, pos, mx, mz, surface) || SoundersCapReached(sp)) // #3359: a herd never overfills the Qualis' sky
         {
             return false;
         }
@@ -929,7 +941,7 @@ public sealed partial class GameServer
             HullMax = sp.MaxHealth,
             Position = pos,
             DamagePerSecond = sp.AttackDamage,
-            SizeScale = FaunaSizeScale(id), // this individual's own size within its species (cosmetic)
+            SizeScale = Shared.Sounders.SoundersFauna.SizeScaleFor(sp, FaunaSizeScale(id)), // this individual's own size (cosmetic; #3359: the giants of Soaniri vary less)
             Loot = { new ItemAmount(sp.DropItem, sp.DropCount) },
         });
     }
@@ -1073,12 +1085,14 @@ public sealed partial class GameServer
                 creature.AwakeOverrideTimer = System.Math.Max(0, creature.AwakeOverrideTimer - dt);
             }
 
+            TickCalm(creature); // #3359: a calmed animal (the calm disc, the Resonance Blaster) holds no grudge while the calm lasts
+
             // A provoked territorial creature hunts like an aggressor until it calms down.
             var temperament = CreatureBehaviour.EffectiveTemperament(sp.Temperament, creature.ProvokeTimer > 0);
             Vector3f? nearest = NearestPlayerPosition(targets, creature.Position);
             // #2712: what an aggressor hunts — the nearest player hostiles do NOT ignore. A cloaked, god-mode or Sandbox
             // player still wakes a sleeper and sends a skittish one running, but is nobody's prey.
-            Vector3f? prey = NearestPlayerPosition(targets, creature.Position, preyOnly: true);
+            Vector3f? prey = NearestPlayerPosition(targets, creature.Position, preyOnly: true, hunter: creature); // #3354: quiet steps, the calm disc
             if (sp.BodyPlan == CreatureBodyPlan.Arachnid && !creature.IsCompanion)
             {
                 AnnounceArachnid(creature, targets); // #2009: VEGA points out the first one a player gets near
@@ -1087,12 +1101,17 @@ public sealed partial class GameServer
             {
                 AnnounceHound(creature, targets); // #3326: VEGA warns about the Schuppenhund
             }
+            else if (sp.BodyPlan == CreatureBodyPlan.Soundrak && !creature.IsCompanion)
+            {
+                GuardSoundrakTerritory(creature, targets); // #3359: the territorial scream, and a charge at whoever comes right up
+            }
 
             // Give-up leash: an aggressor that has been chasing within aggro range too long backs off for a
             // while — it wanders away and won't chase/attack — so creatures never hound the player forever.
             // Big species notice you from further away (#638): the range grows with size past 2.
             bool hunting = SreekmakraHunting(creature); // 2026-09: the shapeshifter hunts in any shape
             bool aggressor = hunting || temperament is CreatureTemperament.Aggressive or CreatureTemperament.PackHunter;
+            aggressor &= !IsCalmed(creature); // #3359: calm means calm — it hunts nobody while it lasts
             float aggro = HoundAggro(sp, CreatureAggroRange + System.Math.Max(0f, sp.Size - 2f)); // #3326: a hound sees further
             // #1997: a mining grudge reaches as far as the anger does — it was set out to 16 blocks but only hunted
             // within 8, so a flowerling angered from 12 blocks flipped to "hostile" and wandered off.
@@ -1101,6 +1120,7 @@ public sealed partial class GameServer
             {
                 aggro = System.Math.Max(aggro, MiningAngerRange);
             }
+            ApplyFightLock(creature, targets, ref temperament, ref aggressor, ref prey, ref aggro); // #3365: a duel, a defending pack
             if (creature.GiveUpTimer > 0)
             {
                 creature.GiveUpTimer = System.Math.Max(0, creature.GiveUpTimer - dt);
@@ -1142,7 +1162,8 @@ public sealed partial class GameServer
             // A creature in its off-phase is asleep — but a player coming within wake distance stirs it (being
             // hit does too, via ProvokeCreature). Once roused it stays alert for a while, then settles back.
             if (!SpeciesActive(sp, creature.Position) && creature.AwakeOverrideTimer <= 0 && nearest is { } wakePos
-                && WrapDistSq(creature.Position, wakePos) <= CreatureWakeDistance * CreatureWakeDistance)
+                && WrapDistSq(creature.Position, wakePos) <= CreatureWakeDistance * CreatureWakeDistance
+                && !Shared.Sounders.SoundelingRules.IsSoundeling(sp)) // #3366: a Soundeling stays curled up all night
             {
                 creature.AwakeOverrideTimer = CreatureWakeSeconds;
             }
@@ -1192,6 +1213,12 @@ public sealed partial class GameServer
                 continue;
             }
 
+            // #3366: a Soundeling thinks over a light it was handed, or hides curled up in the dark by day — it holds still.
+            if (Shared.Sounders.SoundelingRules.IsSoundeling(sp) && SoundelingHolds(creature, sp, motion, profile, moveDt, asleep))
+            {
+                continue;
+            }
+
             // Sleepers rest in place during their off-phase — only their vertical state runs (#1331/#1332). #2753: a sleeper
             // lying inside an earlier sleeper's body shuffles aside slowly, without waking.
             if (asleep)
@@ -1237,7 +1264,8 @@ public sealed partial class GameServer
             // temperament intents below are skipped while it does. Only passive species beg, so nothing they would otherwise
             // do is lost; frozen, sleeping and panicked animals never reach this line with a live phase (TryBegIntent drops it).
             bool begging = !hunting && (TryBegIntent(creature, sp, nearest, ref profile, ref intent, ref target)
-                || TryCallerIntent(creature, sp, nearest, ref profile, ref intent, ref target)); // #2057: a caller block calls the peaceful ones
+                || TryCallerIntent(creature, sp, nearest, ref profile, ref intent, ref target) // #2057: a caller block calls the peaceful ones
+                || TrySoundelingIntent(creature, sp, ref intent, ref target)); // #3366: a Soundeling carries a light, or walks to one in the dark
             Vector3f? stepTarget = begging || (aggressor && creature.GiveUpTimer > 0) ? null : aggressor ? prey : nearest;
             if (stepTarget is { } tp)
             {
@@ -2463,6 +2491,7 @@ public sealed partial class GameServer
         CreatureBodyPlan.Arachnid => ArachnidRules.BodyHeightCells(sp.Size, CreatureBodyMinHeight, CreatureBodyMaxHeight), // #2009: low and wide
         CreatureBodyPlan.Biped or CreatureBodyPlan.Robot // #3295: the robot stands on the biped's proportions
             => BipedRules.BodyHeightCells(sp.Size, sp.HeadRatio, CreatureBodyMinHeight, CreatureBodyMaxHeight), // #2081: its real height
+        CreatureBodyPlan.Sounder => Shared.Sounders.SounderRules.BodyHeightCells(sp.Size, CreatureBodyMinHeight, CreatureBodyMaxHeight), // #3355
         _ => System.Math.Clamp((int)System.Math.Ceiling(sp.Size * 1.8f), CreatureBodyMinHeight, CreatureBodyMaxHeight),
     };
 
@@ -3459,8 +3488,9 @@ public sealed partial class GameServer
     }
 
     /// <summary>The nearest on-foot player's position, or null. <paramref name="preyOnly"/> skips players hostiles ignore
-    /// (<see cref="HostilesIgnore"/>, #2712) — what an aggressor may hunt.</summary>
-    private Vector3f? NearestPlayerPosition(List<PlayerSession> targets, Vector3f from, bool preyOnly = false)
+    /// (<see cref="HostilesIgnore"/>, #2712) — what an aggressor may hunt; with a <paramref name="hunter"/> also the players it
+    /// overlooks (#3354: the obsidian set's quiet steps, a Soundrak soothed by the calm disc — <see cref="PreyOverlooked"/>).</summary>
+    private Vector3f? NearestPlayerPosition(List<PlayerSession> targets, Vector3f from, bool preyOnly = false, CombatEntity? hunter = null)
     {
         Vector3f? best = null;
         float bestSq = float.MaxValue;
@@ -3472,6 +3502,11 @@ public sealed partial class GameServer
             }
 
             float d = (float)WrapDistSq(s.State.Position, from);
+            if (preyOnly && PreyOverlooked(hunter, s, d))
+            {
+                continue;
+            }
+
             if (d < bestSq)
             {
                 bestSq = d;
@@ -3525,7 +3560,8 @@ public sealed partial class GameServer
             NameKey = sp?.NameKey ?? "creature.generic.name",
             Name = sp?.Name ?? string.Empty,
             Hostile = !e.IsCompanion && (e.Hostile || e.ProvokeTimer > 0), // provoked creatures read as hostile (red tint); companions never
-            Asleep = asleep,
+            Asleep = asleep || SoundelingCurled(e), // #3366: a Soundeling hiding in the dark by day is curled up like a sleeper
+            CarriesLight = e.Soundeling is { Item.Length: > 0 }, // #3366: the light a Soundeling carries to a dark spot
             Frozen = e.FrozenTimer > 0, // held in stasis (item 36) — client tints it icy blue
             Staggered = IsStaggered(e), // #2278: dazed by a shock-glove push — client draws circling stars
             OwnerId = e.OwnerId,        // tamed companion → client draws friendly tint + nameplate

@@ -6,10 +6,11 @@ Two in-game features, both rendered **natively in Unity** (no embedded browser):
    chapters are generated live from the content JSON; the **Systems & Worlds** chapters are discovery-gated
    (only places the player has actually visited appear). Reached from a **Codex** button in the in-game menu
    header.
-2. **DataQubes** — the player's collection of "data fragments": 20 bundled minigames (Blockfall,
+2. **DataQubes** — the player's collection of "data fragments": 21 bundled minigames (Blockfall,
    Asteroid Breaker, Circuit Weaver, Signal Tuner, Drone Rescue, Cargo Sorter, Blueprint Scramble, Orbit
    Slingshot, Laser Mirror Grid, Micro Miner, Star Map Memory, Alien Glyph Decoder, Reactor Balance, Oxygen
-   Loop, Comet Courier, Docking Simulator, Data Fishing, Nanobot Repair, Planet Scanner, Void Solitaire). They
+   Loop, Comet Courier, Docking Simulator, Data Fishing, Nanobot Repair, Planet Scanner, Void Solitaire, and since
+   #3352 the Note Key — which is also a **story minigame**, see below). They
    are **recovered from "data cubes"** scattered on planets, then run from a **DataQubes** button in the menu
    header. All games share one C# **host** (`MinigameHost` + `Canvas2D`): a uniform shell
    (start/help/pause/result), an abstract input model and the blue-line theme. Finishing a run grants
@@ -136,6 +137,35 @@ Menu "Codex"/"DataQubes" button
 - `Resources/props/data_cube.png` (OpenAI) — cube texture.
 - `Resources/audio/data_cube_download.mp3`, `Resources/audio/data_cube_hum.mp3` (ElevenLabs) — SFX
   (ClientAudio loads clips by filename).
+
+---
+
+## Story minigames: the note key (#3352)
+
+A minigame can also be opened **by the server, with a context** — today the Sounders pack's note-key minigame
+(`note_key`, `NoteKeyGame`), the decoding of a Song Disc. The same game is the 21st catalogue entry (appended, so the
+cube → game order of the other twenty is kept) and runs in the DataQubes arcade with three random rune words.
+
+- **The game.** The Sounders' note alphabet (`Shared/Sounders/SounderAlphabet`): a letter is two tones, the first picks
+  the row of a 7 × 4 table, the second the column. `NoteKeyPuzzle` (Client.Core, the rules) plays one word per round (a
+  disc's phrase is three words, `SongDiscs`); a right pick writes the letter into the word and the table (it is learned), a
+  wrong one costs a mistake and sings the letter again, three wrong picks on one letter show it (no dead end), and only
+  eight mistakes fail the run. `NoteKeyRun` draws the word's slots, two "again" buttons and the table (headers named by
+  `ui.note.names`); a sung tone lights its row (first tone) or column (second tone). Pointer: cells and headers; keys:
+  arrows + Confirm, Primary = the word again, Secondary = the letter again.
+- **Sound for minigames.** `MinigameApi.PlayNote(instrument, tone)` and `PlayPhrase(instrument, notes, noteSeconds)` (on
+  the pause-aware game clock) go to `MinigameHost.NoteSink`; the Unity host (`MinigameHostUI`) plays them as the
+  procedural cue `note_<instrument>_<tone>` through `ClientAudio`, a headless host has no sink and drops them.
+- **The flow.** A Song Spindle singing a story disc the player has not decoded (`snd:disc:<disc>` missing) for a player
+  whose Sounders pack runs → `StoryMinigameStart` (tag 330: game, context = the disc, its words, the letters the player
+  already knows, the server's failure count). The client opens `StoryMinigameUI` (its own canvas, order 62, a modal with a
+  `MinigameHostUI` in **story mode** — no "beat your best" lines, its Close closes the window) and reports every finished
+  or failed run with `StoryMinigameResultIntent` (tag 331: the spelled words, `Completed`, or `Skip`). The server
+  (`GameServerNoteKey.cs`) accepts only the disc it offered; right words decode the disc (milestone `snd:disc:<disc>`,
+  `disc:decoded`, the hidden blueprint the disc carries becomes visible), anything else counts a failed try and re-sends
+  the start with the new count. From two failed tries the window shows **Skip** (VEGA's offer) and the server accepts it.
+  The intent passes the singleplayer pause (the window holds the world). Offers and counts are RAM-only: a player who left
+  opens it again at the spindle.
 
 ---
 

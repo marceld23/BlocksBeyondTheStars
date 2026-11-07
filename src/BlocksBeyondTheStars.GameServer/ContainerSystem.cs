@@ -42,6 +42,9 @@ internal interface IContainerHost : IServerHost
 
     // The ground drop packets travel with the container list (GameServerDropPackets.cs)
     void SendDropPackets(PlayerSession session);
+
+    // #3352: a relic cache also holds the next Song Disc of the Sounders story for the player looting it (GameServerSoundersLoot.cs)
+    void AddStoryLoot(PlayerSession session, StoredContainer container);
 }
 
 /// <summary>
@@ -86,7 +89,7 @@ internal sealed class ContainerSystem
     /// <summary>Lootable containers on the current planet (salvage capsules / corpses / crates). Ground drop
     /// packets share the same store but are not containers to the player — see <see cref="GameServer.DropPackets"/>.</summary>
     internal IReadOnlyList<StoredContainer> Containers
-        => _host.ContainerStore.Where(c => c.Kind != GameServer.DropPacketKind).ToList();
+        => _host.ContainerStore.Where(c => c.Kind != GameServer.DropPacketKind && !GameServer.IsHiddenContainer(c)).ToList(); // #3352: not a Song Spindle's disc
 
     internal void LoadContainers()
     {
@@ -111,7 +114,7 @@ internal sealed class ContainerSystem
             return;
         }
 
-        var container = _host.ContainerStore.FirstOrDefault(c => c.Id == containerId);
+        var container = _host.ContainerStore.FirstOrDefault(c => c.Id == containerId && !GameServer.IsHiddenContainer(c)); // #3352: a Song Spindle is used, not looted
         if (container is null)
         {
             _host.Reject(session, "loot", "@srv.loot.no_container");
@@ -130,6 +133,8 @@ internal sealed class ContainerSystem
             _host.Reject(session, "loot", "@out_of_reach"); // localized client-side (#751)
             return;
         }
+
+        _host.AddStoryLoot(session, container); // #3352: the next Song Disc for this player, in a relic cache
 
         // #2621: G on an empty storage crate said nothing at all, so a child could not tell "empty" from "broken" (Lyxette:
         // "neither E nor G or H does anything"). Answered like the other loot refusals; nothing changes, nothing is saved.
@@ -429,7 +434,7 @@ internal sealed class ContainerSystem
     /// the crate/capsule loot prompt, so they are filtered out here and travel on their own list (#853).</summary>
     private ContainerList ContainerMessage() => new()
     {
-        Containers = _host.ContainerStore.Where(c => c.Kind != GameServer.DropPacketKind).Select(ToNetContainer).ToArray(),
+        Containers = _host.ContainerStore.Where(c => c.Kind != GameServer.DropPacketKind && !GameServer.IsHiddenContainer(c)).Select(ToNetContainer).ToArray(),
     };
 
     internal void BroadcastContainers()

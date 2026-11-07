@@ -89,7 +89,7 @@ public static class TextureTiles
             return TextureAlphaMode.Free;
         }
 
-        if (key.StartsWith("flora_", StringComparison.Ordinal)
+        if (Definitions.FloraCatalog.IsPlantKey(key)                                    // flora_* and Soaniri's singing plants (#3358)
             || Definitions.TreeFoliage.IsKey(World.FloraLooks.BaseKeyOf(key))           // cutout crowns (and their looks, #2832), the Fifi plant's leaves too (#2085)
             || key is "fire"                                                            // the flame silhouette
             || key is "torch" or "lantern"                                              // billboards (#1957)

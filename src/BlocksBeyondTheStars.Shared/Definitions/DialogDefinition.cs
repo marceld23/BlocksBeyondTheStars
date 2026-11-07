@@ -96,10 +96,22 @@ public sealed class DialogChoice
 
     /// <summary>Optional consequence, colon-separated: "standing:&lt;n&gt;" (relationship bump),
     /// "fragment:&lt;key&gt;" (hand over a story fragment), "gift:&lt;item&gt;:&lt;n&gt;" (a small present),
-    /// "radio:&lt;lineKey&gt;" (the NPC calls the player over the radio a little later). "" = none.</summary>
+    /// "radio:&lt;lineKey&gt;" (the NPC calls the player over the radio a little later), "milestone:&lt;key&gt;" (#3347, a story
+    /// pack's dialog only: sets a per-player milestone in the pack's own namespace — <c>Story.StoryPackMilestones</c>). "" = none.</summary>
     public string Consequence { get; set; } = string.Empty;
 
     /// <summary>On a once-per-player dialogue: true keeps the dialogue OPEN when this choice ends it — a
     /// polite "another time" must never burn the player's only chance at the real conversation.</summary>
     public bool KeepOpen { get; set; }
+
+    /// <summary>#3347: conditions (the story grammar; a string or a list = all of them) under which the talking player is
+    /// offered this reply at all — a reply whose condition fails is left out (the Sounders: the strong answers to Roll appear
+    /// once the player questioned the matching Echo, <c>milestone:snd:echo:kamo</c>). Empty = always offered.</summary>
+    [System.Text.Json.Serialization.JsonConverter(typeof(Story.StoryConditionListConverter))]
+    public List<string> VisibleIf { get; set; } = new();
+
+    /// <summary>#3347: a melody the reply is sung as — letters A–Z (and spaces) of the Sounders' note alphabet
+    /// (<c>Sounders.SounderAlphabet.Encode</c>). The client shows the reply as note symbols and plays it in the Sounder voice
+    /// (instrument 4). Empty = a spoken reply.</summary>
+    public string Melody { get; set; } = string.Empty;
 }

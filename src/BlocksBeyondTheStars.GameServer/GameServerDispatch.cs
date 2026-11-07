@@ -57,6 +57,8 @@ public sealed partial class GameServer
         On<UnlockGameIntent>(map, (gs, s, m) => gs.HandleUnlockGame(s, m));
         On<MinigameResultIntent>(map, (gs, s, m) => gs.HandleMinigameResult(s, m));
         On<UseBlockIntent>(map, (gs, s, m) => gs.HandleUseBlock(s, m)); // #3345 rune stones, puzzle pillars, the Song Spindle
+        On<MelodyNoteIntent>(map, (gs, s, m) => gs.HandleMelodyNote(s, m)); // #3346 a tone of the melody bar
+        On<StoryMinigameResultIntent>(map, (gs, s, m) => gs.HandleStoryMinigameResult(s, m)); // #3352 the note-key minigame of a Song Disc
         On<FallDamageIntent>(map, (gs, s, m) => gs.HandleFallDamage(s, m));
         On<AdminCommandIntent>(map, (gs, s, m) => gs.HandleAdminCommand(s, m));
         On<RequestMissions>(map, (gs, s, _) => gs.HandleRequestMissions(s)); // #3087: the list, and why an idle base board is idle
@@ -104,6 +106,7 @@ public sealed partial class GameServer
         On<SetCompanionNameIntent>(map, (gs, s, m) => gs.HandleSetCompanionName(s, m));
         On<ReleaseCompanionIntent>(map, (gs, s, m) => gs.HandleReleaseCompanion(s, m));
         On<FeedCompanionIntent>(map, (gs, s, m) => gs.HandleFeedCompanion(s, m));
+        On<SetCompanionFollowIntent>(map, (gs, s, m) => gs.HandleSetCompanionFollow(s, m)); // #3344
         On<EnterSpeederIntent>(map, (gs, s, m) => gs.HandleEnterSpeeder(s, m));
         On<ExitSpeederIntent>(map, (gs, s, _) => gs.HandleExitSpeeder(s));
         On<StowSpeederIntent>(map, (gs, s, m) => gs.HandleStowSpeeder(s, m));

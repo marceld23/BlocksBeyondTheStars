@@ -23,16 +23,19 @@ public enum EquipSlot
     Module2 = 8,
     Module3 = 9,  // #2293: two more module slots — the lamp, the gloves, a radio and the radar all fit at once
     Module4 = 10,
+    Disc = 11,    // #3354: the obsidian chest's disc socket — a Song Disc, working only while the obsidian chest is worn
 }
 
 public static class EquipSlots
 {
-    /// <summary>How many slots the suit has (#2293: eleven — four of them module slots). A save written with fewer
-    /// slots widens on load: the snapshot keeps each worn piece by its slot index.</summary>
-    public const int Count = 11;
+    /// <summary>How many slots the suit has (#2293: eleven — four of them module slots; #3354: twelve with the obsidian
+    /// chest's disc socket). A save written with fewer slots widens on load: the snapshot keeps each worn piece by its slot
+    /// index.</summary>
+    public const int Count = 12;
 
     /// <summary>The <c>equipSlot</c> names an item definition may carry.</summary>
-    public const string Head = "head", Chest = "chest", Legs = "legs", Feet = "feet", Back = "back", Tank = "tank", Liner = "liner", Module = "module";
+    public const string Head = "head", Chest = "chest", Legs = "legs", Feet = "feet", Back = "back", Tank = "tank", Liner = "liner", Module = "module",
+        Disc = "disc";
 
     /// <summary>The module slots in order (#2293) — a module without a named slot takes the first free one.</summary>
     public static readonly IReadOnlyList<EquipSlot> ModuleSlots = new[] { EquipSlot.Module1, EquipSlot.Module2, EquipSlot.Module3, EquipSlot.Module4 };
@@ -65,6 +68,7 @@ public static class EquipSlots
         Tank => EquipSlot.Tank,
         Liner => EquipSlot.Liner,
         Module => EquipSlot.Module1,
+        Disc => EquipSlot.Disc,
         _ => null,
     };
 
@@ -90,6 +94,7 @@ public static class EquipSlots
         EquipSlot.Back => Back,
         EquipSlot.Tank => Tank,
         EquipSlot.Liner => Liner,
+        EquipSlot.Disc => Disc,
         _ => Module,
     };
 }

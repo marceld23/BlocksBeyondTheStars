@@ -370,6 +370,12 @@ public sealed class NetCodecTests
         [322] = typeof(CosmeticUnlocks),         // #3315
         [323] = typeof(UseBlockIntent),          // #3345
         [324] = typeof(NoteSequence),            // #3345
+        [325] = typeof(MelodyNoteIntent),        // #3346
+        [326] = typeof(MelodyPuzzleState),       // #3346
+        [327] = typeof(SetCompanionFollowIntent), // #3344
+        [328] = typeof(BlueprintVisibility),     // #3350
+        [330] = typeof(StoryMinigameStart),      // #3352
+        [331] = typeof(StoryMinigameResultIntent), // #3352
 
     };
 

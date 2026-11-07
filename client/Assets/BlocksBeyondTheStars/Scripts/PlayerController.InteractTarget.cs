@@ -101,7 +101,10 @@ namespace BlocksBeyondTheStars.Client
                 _facts.SpawnBed = key is "heal_tank" or "bed" or "crew_bunk";
                 _facts.Seat = _seatCell is null
                     && FurnitureShapes.IsSeat(ShapeCode.ShapeOf(Game.World.GetShape(aimHit.x, aimHit.y, aimHit.z)));
+                _facts.UsableBlock = key != null && Game.Content?.GetBlock(key)?.Usable == true; // #3345: a rune stone sings
             }
+
+            Game.AimedUseBlockKey = _facts.UsableBlock ? _aim.BlockKey : null; // the HUD names the use ("E: play the rune")
 
             _facts.OwnBase = Game.AimedOwnBase != null;
             _facts.BasePad = Game.AimedBasePadCell != null;
@@ -124,7 +127,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (_aim.BlockAimed && LiftRiding.HidesCell(_aim.Lift, _aim.Cell.x, _aim.Cell.y, _aim.Cell.z, Game.Circumference))
             {
-                _facts.OwnBeacon = _facts.StationCore = _facts.Crate = _facts.BioLab = _facts.SpawnBed = _facts.Seat = false;
+                _facts.OwnBeacon = _facts.StationCore = _facts.Crate = _facts.BioLab = _facts.SpawnBed = _facts.Seat = _facts.UsableBlock = false;
             }
 
             if (_targetAimed && LiftRiding.HidesCell(_aim.Lift, _targetHit.x, _targetHit.y, _targetHit.z, Game.Circumference))
@@ -289,11 +292,15 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>E on a lift platform, at a door, a beam pad, a data cube, a factory terminal or a net fragment.</summary>
+        /// <summary>E on a lift platform, at a door, a beam pad, a data cube, a factory terminal or a net fragment — and on a
+        /// usable block (#3345: the server decides what it does; a rune stone sings its word).</summary>
         private void RunNearbyInteraction(InteractKind kind)
         {
             switch (kind)
             {
+                case InteractKind.UseBlock:
+                    Game.Network?.SendUseBlock(_aim.Cell.x, _aim.Cell.y, _aim.Cell.z);
+                    break;
                 case InteractKind.LiftRide:
                     OpenLiftFloors(_aim.Lift); // #3171
                     break;

@@ -1,0 +1,60 @@
+{
+  // A test pack (never shipped) for what a SIDE pack may bring besides chapters (#3347, #3357; the Sounders story pack's
+  // engine work): its own lore_sites.json (gated by the player's chapter), a character with a dialog (a reply shown only
+  // under a condition, a sung reply, a milestone consequence, dialog:done), readable texts for its Journal page and a star
+  // system revealed per player. SidePackContentTests drives it with the real handlers.
+  "id": "side_extras",
+  "nameKey": "story.side_extras.name",
+  "shortNameKey": "story.side_extras.short",
+  "descriptionKey": "story.side_extras.desc",
+  "kind": "side",
+  "scope": "player",
+  "priority": 9,
+  "milestonePrefix": "sx",
+  "textsTitleKey": "story.side_extras.texts",
+  "chapters": [
+    {
+      "id": "c1", "titleKey": "story.side_extras.ch.c1",
+      "steps": [
+        { "id": "c1.1", "objective": { "event": "dialog:done", "arg": "sx_echo_talk" },
+          "explain": { "startKey": "story.side_extras.c1.talk.start", "chipKey": "story.side_extras.c1.talk.chip" } }
+      ]
+    },
+    {
+      "id": "c2", "titleKey": "story.side_extras.ch.c2",
+      "steps": [
+        { "id": "c2.1", "objective": { "event": "rune:played" }, "onStart": { "reveal": "story_system:sx_home" },
+          "explain": { "startKey": "story.side_extras.c2.home.start", "chipKey": "story.side_extras.c2.home.chip" } }
+      ]
+    }
+  ],
+  "characters": [
+    { "id": "sx_echo", "name": "Elori", "roles": [ "settler" ], "planetTypes": [ "rocky" ], "oneIn": 1 }
+  ],
+  "dialogs": [
+    {
+      "key": "sx_echo_talk", "character": "sx_echo",
+      "nodes": [
+        { "promptKey": "story.side_extras.d.hello",
+          "choices": [
+            { "textKey": "story.side_extras.d.sing", "responseKey": "story.side_extras.d.sing.r", "melody": "ORNE",
+              "consequence": "milestone:sx:asked", "next": 1 },
+            { "textKey": "story.side_extras.d.secret", "responseKey": "story.side_extras.d.secret.r",
+              "visibleIf": "milestone:sx:secret" },
+            { "textKey": "story.side_extras.d.bye", "responseKey": "story.side_extras.d.bye.r" }
+          ] },
+        { "promptKey": "story.side_extras.d.more",
+          "choices": [
+            { "textKey": "story.side_extras.d.bye", "responseKey": "story.side_extras.d.bye.r" }
+          ] }
+      ]
+    }
+  ],
+  "texts": [
+    { "id": "t1", "titleKey": "story.side_extras.t1.title", "textKey": "story.side_extras.t1.text", "unlockedBy": "milestone:sx:asked" },
+    { "id": "t2", "titleKey": "story.side_extras.t2.title", "textKey": "story.side_extras.t2.text", "unlockedBy": "milestone:sx:never" }
+  ],
+  "systems": [
+    { "id": "sx_home", "name": "Sxhome", "planetType": "rocky", "bodyName": "Sxworld", "visibleIf": [ "milestone:sx:song" ] }
+  ]
+}

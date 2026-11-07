@@ -298,6 +298,11 @@ internal sealed class EquipmentSystem
             return;
         }
 
+        if (DiscSocketRefused(session, slot))
+        {
+            return; // #3354: the disc socket is the obsidian chest's
+        }
+
         var worn = eq.Slots[slot];
         eq.SetSlot(slot, stack);
         source.SetSlot(from, null);
@@ -327,6 +332,23 @@ internal sealed class EquipmentSystem
 
         AfterEquipmentChanged(session);
         _host.RaiseGameEvent(session, GameEventKeys.GearEquipped, def.Key); // #2469: the tutorial's "gear only works when worn"
+        if (slot == (int)EquipSlot.Disc)
+        {
+            _host.RaiseGameEvent(session, GameEventKeys.DiscInserted, def.Key); // #3354: a Song Disc in the obsidian chest's socket
+        }
+    }
+
+    /// <summary>#3354: a Song Disc goes into the disc socket only while the obsidian chest is worn — refused with a word
+    /// otherwise. True when refused.</summary>
+    private bool DiscSocketRefused(PlayerSession session, int slot)
+    {
+        if (slot != (int)EquipSlot.Disc || Wears(session.State, Shared.Sounders.SoundersIds.ObsidianChest))
+        {
+            return false;
+        }
+
+        _host.Reject(session, "equip", "@srv.equip.disc_needs_obsidian");
+        return true;
     }
 
     /// <summary>Takes gear off into a backpack slot (−1 = the first free slot past the quick-bar, then any); a target slot

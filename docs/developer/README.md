@@ -158,6 +158,8 @@ refreshed 2026-10-23.
   condition forms, world predicates, camera types, anchors, caption styles, budgets …), rendered from the code constants
   and their doc comments; `StoryVocabularyDocTests` fails when it drifts.
 - [STORY_VEGA_PROTOCOL_CONCEPT.md](STORY_VEGA_PROTOCOL_CONCEPT.md) — the story's design rationale.
+- [STORY_SOUNDERS.md](STORY_SOUNDERS.md) — **The Sounders' Song**, the second story (a side pack next to VEGA): canon,
+  the eight chapters, the note alphabet, the per-player milestones and where each mechanic lives.
 - [LORE_STRUCTURE.md](LORE_STRUCTURE.md) — the lore bible + content schema.
 - [MUSIC_TRACKS.md](MUSIC_TRACKS.md) — music track library reference.
 - [SOUND_DESIGN.md](SOUND_DESIGN.md) — sound architecture + catalogue.

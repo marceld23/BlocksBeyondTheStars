@@ -3021,7 +3021,7 @@ public sealed partial class GameServer
         Serve(session); // _ship = this player's ship
 
         var system = _galaxy?.Systems.FirstOrDefault(s => s.Id == systemId);
-        if (system is null || system.Bodies.Count == 0 || GuardianSystemHidden(system.Id)) // #2506: not while the story is off
+        if (system is null || system.Bodies.Count == 0 || SystemHiddenFor(session, system.Id)) // #2506: not while the story is off; #3357: a pack system they may not see
         {
             RejectSpace(session, "@srv.space.unknown_system");
             return;

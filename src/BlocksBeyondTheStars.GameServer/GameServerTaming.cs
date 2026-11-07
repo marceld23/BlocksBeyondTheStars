@@ -75,6 +75,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (CreatureBehaviour.TamesByDuel(sp))
+        {
+            StartCreatureDuel(session, creature, sp); // #3365: a wild Soundi is won in a duel, not by the ritual
+            return;
+        }
+
         if (!_tameAttempts.TryGetValue(p.PlayerId, out var attempt) || attempt.CreatureId != creature.Id)
         {
             attempt = new TameAttempt
@@ -272,6 +278,7 @@ public sealed partial class GameServer
             Bond = System.Math.Clamp(40 + attempt.Trust * 8, 0, 100),
             TamedAtUtc = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
         };
+        SetHomeSpot(tc, creature.Position); // #3344: left at home, it lives where it was tamed
         p.TamedCreatures.Add(tc);
 
         // First tame of this species (per world) pays research knowledge; repeats pay nothing — the old
@@ -658,9 +665,9 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                if (!IsAuthoredCompanion(tc) && CompanionCountFor(s.State.PlayerId) >= MaxCompanionsPerWorld)
+                if (!tc.Roams && CompanionCountFor(s.State.PlayerId) >= MaxCompanionsPerWorld)
                 {
-                    continue; // #3295/#3322: the robot and Rudolpho never wait behind a full set of pets
+                    continue; // #3295/#3322/#3361: the robot, Rudolpho and the Soundi never wait behind a full set of pets
                 }
 
                 SpawnCompanionEntity(s.State.PlayerId, tc, s.State.Position);
@@ -689,9 +696,9 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (!IsAuthoredCompanion(tc) && CompanionCountFor(session.State.PlayerId) >= MaxCompanionsPerWorld)
+            if (!tc.Roams && CompanionCountFor(session.State.PlayerId) >= MaxCompanionsPerWorld)
             {
-                continue; // #3295/#3322: the robot and Rudolpho never wait behind a full set of pets
+                continue; // #3295/#3322/#3361: the robot, Rudolpho and the Soundi never wait behind a full set of pets
             }
 
             SpawnCompanionEntity(session.State.PlayerId, tc, session.State.Position);
@@ -716,9 +723,9 @@ public sealed partial class GameServer
             _locoProfiles[tc.SpeciesId] = LocomotionController.ForSpecies(sp);
         }
 
-        var pos = CompanionSpotNear(sp, tc.Id, near);
+        var pos = CompanionSpotNear(sp, tc.Id, CompanionSpawnAnchor(tc, near)); // #3344: a pet at home appears at home
 
-        _creatures.Add(new CombatEntity
+        var entity = new CombatEntity
         {
             Id = NextEntityId(),
             Kind = CombatEntityKind.Creature,
@@ -733,7 +740,9 @@ public sealed partial class GameServer
             CompanionId = tc.Id,
             CustomName = tc.Name,
             NameTag = tc.NameTag, // #3035
-        });
+        };
+        StampCompanionSelection(entity, tc); // #3344: follows, stays home, travels
+        _creatures.Add(entity);
     }
 
     private const float CompanionLeashRange = 24f; // beyond this a companion is re-placed beside its owner (#855)
@@ -770,19 +779,7 @@ public sealed partial class GameServer
 
         if (NpcPetOwner(c) is { } tamer)
         {
-            // The tamer's pet (2026-09) trots after its NPC like a player's companion after its owner.
-            if (WrapDistSq(c.Position, tamer.Pos) > CompanionLeashRange * CompanionLeashRange)
-            {
-                c.Position = CompanionSpotNear(sp, c.Id, tamer.Pos);
-                return;
-            }
-
-            var petProfile = ProfileFor(c.SpeciesId);
-            var petStep = LocomotionController.FollowStep(
-                c.Loco, petProfile, c.Position, tamer.Pos, CompanionFollowDistance, moveDt, unchecked((uint)StableHashing.Seed32(Hash(c.Id, "wander"))));
-            c.Loco = petStep.State;
-            ApplyCreatureStep(c, sp, EffectiveMotion(c, sp), petStep.Position, petStep.VertWave, petProfile, moveDt,
-                petStep.State.Mode == MoveMode.Seek ? MoveMode.Seek : MoveMode.Roam, petStep.Moving, terrainGates: false);
+            MoveTamerPet(c, sp, tamer.Pos, moveDt); // the tamer's pet (2026-09) trots after its NPC
             return;
         }
 
@@ -790,6 +787,12 @@ public sealed partial class GameServer
         if (owner is null || InSpace(c.OwnerId))
         {
             return; // owner not on this world — hold (reconciliation will despawn it)
+        }
+
+        if (c.StaysHome)
+        {
+            MoveHomeCompanion(c, sp, owner.State.Position, moveDt); // #3344: left at home, it potters about there
+            return;
         }
 
         // Leash (#855): now that walls actually stop a companion it can fall behind for good — an owner who
@@ -817,6 +820,23 @@ public sealed partial class GameServer
         // base instead of hopping in place or levitating up the wall; the leash above catches up later.
         ApplyCreatureStep(c, sp, EffectiveMotion(c, sp), res.Position, res.VertWave, profile, moveDt,
             res.State.Mode == MoveMode.Seek ? MoveMode.Seek : MoveMode.Roam, res.Moving, terrainGates: false);
+    }
+
+    /// <summary>The tamer's pet (2026-09) trots after its NPC like a player's companion after its owner.</summary>
+    private void MoveTamerPet(CombatEntity c, CreatureSpecies sp, Vector3f tamerPos, double moveDt)
+    {
+        if (WrapDistSq(c.Position, tamerPos) > CompanionLeashRange * CompanionLeashRange)
+        {
+            c.Position = CompanionSpotNear(sp, c.Id, tamerPos);
+            return;
+        }
+
+        var petProfile = ProfileFor(c.SpeciesId);
+        var petStep = LocomotionController.FollowStep(
+            c.Loco, petProfile, c.Position, tamerPos, CompanionFollowDistance, moveDt, unchecked((uint)StableHashing.Seed32(Hash(c.Id, "wander"))));
+        c.Loco = petStep.State;
+        ApplyCreatureStep(c, sp, EffectiveMotion(c, sp), petStep.Position, petStep.VertWave, petProfile, moveDt,
+            petStep.State.Mode == MoveMode.Seek ? MoveMode.Seek : MoveMode.Roam, petStep.Moving, terrainGates: false);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -901,6 +921,13 @@ public sealed partial class GameServer
             return;
         }
 
+        if (IsStoryCompanion(tc))
+        {
+            // #3361: a story companion is never released — it waits on board instead (#3344), one click brings it back.
+            HandleSetCompanionFollow(session, new SetCompanionFollowIntent { CompanionId = tc.Id, Following = false });
+            return;
+        }
+
         session.State.TamedCreatures.Remove(tc);
         _creatures.RemoveAll(c => c.CompanionId == tc.Id);
         _repo.SavePlayer(session.State);
@@ -925,6 +952,9 @@ public sealed partial class GameServer
                 Present = _creatures.Any(c => c.CompanionId == tc.Id),
                 Bond = tc.Bond,
                 CanFeed = CanFeedCompanion(session, tc),
+                Following = tc.Following, // #3344: follows / stays home / on board
+                Roams = tc.Roams,
+                Kind = tc.Kind ?? string.Empty,
                 Temperament = sp.Temperament.ToString(),
                 Habitat = sp.Habitat.ToString(),
                 Size = sp.Size * tc.SizeScale,
@@ -1107,6 +1137,8 @@ public sealed partial class GameServer
         WormGirth = s.WormGirth,
         Hearing = s.Hearing,
         SwallowsCreatures = s.SwallowsCreatures, // #2076: inert on a companion, but the snapshot keeps every trait
+        DuelTame = s.DuelTame,         // #3365: inert on a companion (it is never duelled again), kept like every trait
+        PackDefender = s.PackDefender,
     };
 
     // ---------------------------------------------------------------------------------------------

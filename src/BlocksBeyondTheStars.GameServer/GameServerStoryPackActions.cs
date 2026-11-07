@@ -181,7 +181,7 @@ public sealed partial class GameServer
     /// itself later only when it allows an early start.</summary>
     private bool CanStartPackOnRequest(PlayerSession s, CompiledPack pack)
     {
-        if (pack.IsTutorial && Rules.TutorialPolicy == TutorialPolicy.Off)
+        if ((pack.IsTutorial && Rules.TutorialPolicy == TutorialPolicy.Off) || StoryPackDisabledInWorld(pack.Id)) // #3347: nor a side story the world switched off
         {
             return false;
         }

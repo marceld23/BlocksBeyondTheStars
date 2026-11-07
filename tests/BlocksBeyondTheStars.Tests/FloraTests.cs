@@ -148,7 +148,9 @@ public sealed class FloraTests : IDisposable
         // world surface at all, so there is nothing for world gen to cover there. So are the cave-only species of
         // generation 11: their hosts are the rock of a cave floor or ceiling, not a surface. And so are the hanging
         // species: a fruit (#2038) hangs from a leaf, which is no surface either — EnsureCoverage skips them too.)
-        var landHosts = FloraCatalog.All.Where(s => !s.Aquatic && !s.Cultivated && !s.Hanging && s.OnSurface).SelectMany(s => s.Hosts).Distinct();
+        // (#3358: nor an authored species — in no roster; Soaniri's singing plants on chime moss come from their own pass.)
+        var landHosts = FloraCatalog.All.Where(s => !s.Aquatic && !s.Cultivated && !s.Authored && !s.Hanging && s.OnSurface)
+            .SelectMany(s => s.Hosts).Distinct();
         foreach (var host in landHosts)
         {
             Assert.Contains(roster, s => s.Active && !s.Aquatic
