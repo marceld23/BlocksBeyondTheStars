@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🎵 The Sounders' Song — the second story next to VEGA (lore + names: Marcel, Justus and the school club; Marcel's decisions 2026-11-07) — epic #3368, #3344–#3367, ✅ 2026-11-07, PR #3383 `73076176` (⚠ playtest open)
+### 🎵 The Sounders' Song — the second story next to VEGA (lore + names: Marcel, Justus and the school club; Marcel's decisions 2026-11-07) — epic #3368, #3344–#3367, ✅ 2026-11-07, PR #3383 `73076176`, released in v2026.11.9 (⚠ playtest open)
 
 A side pack per player (`data/stories/sounders/`, VEGA narrates): the music notes on the rune stones are the script of
 the Sounders, a music civilisation whose Great Song carried its singers into the Qualis' reality. Eight chapters: play
@@ -57,7 +57,7 @@ duel ("Muffin" suggested). Concept doc: `docs/developer/STORY_SOUNDERS.md`.
 - **Open:** playtest the whole arc (and the `/sounders` shortcuts); the arcade bitmap font draws no non-Latin text
   (pre-existing, #3382).
 
-### 🏃 Running and stamina — sprint on foot, one stamina for running and climbing, a small bar under the crosshair (Justus' F1 idea 2026-11-07, Marcel's decisions 2026-11-07) — #3373–#3377, ✅ 2026-11-07, PR #3380 (`83df4ecf`) (⚠ playtest open; client-only — no save-version, protocol or terrain-generation change)
+### 🏃 Running and stamina — sprint on foot, one stamina for running and climbing, a small bar under the crosshair (Justus' F1 idea 2026-11-07, Marcel's decisions 2026-11-07) — #3373–#3377, ✅ 2026-11-07, PR #3380 (`83df4ecf`), released in v2026.11.9 (⚠ playtest open; client-only — no save-version, protocol or terrain-generation change)
 
 Justus (player name Layex) asked in an F1 report for sprinting, with one stamina bar that running and climbing share and
 that only comes back slowly at rest. Marcel's decisions: a small bar under the crosshair, shown only while not full (the
@@ -84,7 +84,7 @@ and touch from the start.
   *Running and stamina*), CLIMBING / INPUT_AND_CONTROLLER / SOUND_DESIGN / ARCHITECTURE.
 - **Open:** playtest the feel (speed, 8 s, the slow refill with climbing) with keyboard, pad and tablet.
 
-### 🏚️ Buried G.D.S. ruins flooded with Ressaw — Justus' "Alte Städte" (player report 2026-11-01, terrain generation 35) — #3333–#3343, branch feat/ancient-gds-cities — ✅ done 2026-11-07 in PR #3378 (`a2a6dba7`) (⚠ playtest open; **save version 11 → 12** — eight new blocks shift the block ids; terrain generation 35 — only new worlds get ruins; no protocol change; 89 new locale keys in all 14 languages)
+### 🏚️ Buried G.D.S. ruins flooded with Ressaw — Justus' "Alte Städte" (player report 2026-11-01, terrain generation 35) — #3333–#3343, branch feat/ancient-gds-cities — ✅ done 2026-11-07 in PR #3378 (`a2a6dba7`), released in v2026.11.9 (⚠ playtest open; **save version 11 → 12** — eight new blocks shift the block ids; terrain generation 35 — only new worlds get ruins; no protocol change; 89 new locale keys in all 14 languages)
 
 Justus (as Screelit): old underground cities of purple and red metal, flooded with a glowing corrosive liquid, logs of
 the G.D.S., diving-suit pieces in crates, skulls, Ressaw crystals stronger than titanium, a lamp that turns night into day,
@@ -129,7 +129,7 @@ grow to 512; the lamp needs Ressaw only as an ingredient; everything in one pack
 
 Open: playtest (finding a vent tower, the hatch under the G.D.S. city, the suit in the basins, cracks, the lamp); no
 planet-map POI / `/tp` target for a ruin yet; plants standing in Ressaw show a dry gap (the wet-cell fill is water-only).
-### 📬 Player report 2026-11-07 (Milan as Screelit, world "J&M", v2026.11.8) — the respawn-choice screen froze nothing: the mouse turned the camera and clicks mined the block below; a dead body could still mine and build; Milan into the credits — #3369–#3371, branch fix/respawn-choice-freeze — ✅ done 2026-11-07 (⚠ playtest open; no save-version, protocol or terrain-generation change; one changed locale key `ui.credits.body` in all 14 languages)
+### 📬 Player report 2026-11-07 (Milan as Screelit, world "J&M", v2026.11.8) — the respawn-choice screen froze nothing: the mouse turned the camera and clicks mined the block below; a dead body could still mine and build; Milan into the credits — #3369–#3371, branch fix/respawn-choice-freeze — ✅ done 2026-11-07 in PR #3372 (`6db5b891`), released in v2026.11.9 (⚠ playtest open; no save-version, protocol or terrain-generation change; one changed locale key `ui.credits.body` in all 14 languages)
 
 Milan's F1 report "Nicht bewegen wenn tot": with a home spawn set, the death goes the deferred respawn-choice path (#462)
 — the server leaves the body lying at the death spot until the pick, so no respawn snap reaches the client.
@@ -152,7 +152,7 @@ Milan's F1 report "Nicht bewegen wenn tot": with a home spawn set, the death goe
 
 ---
 
-### 🎄 Festival day calendars — the Advent calendar, Christmas HUD lights, a Christmas skin, Rudolpho and the HUD frame editor (school club idea, Marcel's decisions 2026-11-07) — #3314–#3322, epic #3323, ✅ 2026-11-07, PR #3332 (`fed3f474`)
+### 🎄 Festival day calendars — the Advent calendar, Christmas HUD lights, a Christmas skin, Rudolpho and the HUD frame editor (school club idea, Marcel's decisions 2026-11-07) — #3314–#3322, epic #3323, ✅ 2026-11-07, PR #3332 (`fed3f474`), released in v2026.11.9
 
 Ben from the school club asked for an Advent calendar on the festival system: a door a day with materials and a few
 specials — a Christmas skin, an alien reindeer with a red nose that follows you, and a decoration for the edge of the
@@ -177,7 +177,7 @@ the player's local time, missed doors open until 6 January, no streak (ADR 0020 
 
 ---
 
-### 🪨 KuBa-W — Jafar's school-club asteroid with three huge stone tablets ("KuBa West Trier", "JuMaVe-Games", the club's initials), exactly once per galaxy — #3306: #3307–#3313, #3330, branch feat/kuba-w — ✅ done 2026-11-07 (terrain generation **33**; ⚠ playtest open; no save-version or block-id change; protocol unchanged; 10 new locale keys in all 14 languages)
+### 🪨 KuBa-W — Jafar's school-club asteroid with three huge stone tablets ("KuBa West Trier", "JuMaVe-Games", the club's initials), exactly once per galaxy — #3306: #3307–#3313, #3330, branch feat/kuba-w — ✅ done 2026-11-07 in PR #3324 (`e8d8f622`), released in v2026.11.9 (terrain generation **33**; ⚠ playtest open; no save-version or block-id change; protocol unchanged; 10 new locale keys in all 14 languages)
 
 Marcel's analysis + decisions 2026-11-07 (asteroid; guaranteed once per galaxy, no slider; one initial per child plus the
 leads M and V; three-line school text; indestructible; nothing else built there; scan + Codex texts). See
@@ -201,7 +201,7 @@ leads M and V; three-line school text; indestructible; nothing else built there;
   browser build too, scan them, try to mine one. A quick start: `--start-planet asteroid_kuba_w` makes the start planet a
   KuBa-W (test worlds only — the galaxy then also has its real one in the belt).
 
-### 🐕 The Schuppenhund — Jafar's scale hound, a creature class of the dry worlds (terrain generation 34) — ✅ 2026-11-07, epic #3329 (#3325–#3328), branch feat/scale-hound
+### 🐕 The Schuppenhund — Jafar's scale hound, a creature class of the dry worlds (terrain generation 34) — ✅ 2026-11-07, epic #3329 (#3325–#3328), branch feat/scale-hound, PR #3331 (`2b67a164`), released in v2026.11.9
 
 A school club idea by Jafar ("Neues Tier — Schuppenhund (gefährlich) — 10 hp pro … — bellt"): a scaly four-legged dog
 with upright ears, teeth and three claws on every foot. Marcel's decisions: very dangerous, ears, teeth, random colours,
