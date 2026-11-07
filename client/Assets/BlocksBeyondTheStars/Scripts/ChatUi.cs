@@ -750,6 +750,7 @@ namespace BlocksBeyondTheStars.Client
         private void AdminHelp()
         {
             LocalLine(L("ui.admin.help_cheats"));
+            LocalLine(L("ui.admin.help_world")); // #3390: time and weather (one chat line stays under 160 characters)
             LocalLine(L("ui.admin.help_mode"));
             LocalLine(L("ui.admin.help_gamemode"));
             LocalLine(L("ui.admin.help_teleport"));

@@ -29,6 +29,13 @@ public sealed class ChatHelpTextTests
         "ui.admin.help_sounders", // #3368
         "ui.admin.help_tutorial", // #2471
         "ui.admin.help_maintenance",
+        "ui.admin.help_world", // #3390: the cheats line split in two
+        "ui.admin.help_creatures", // #3390
+        "ui.admin.help_cutscene",
+        "ui.admin.help_festival", // #3389/#3390
+        "ui.admin.help_content", // #3390
+        "ui.admin.help_moderation",
+        "ui.chat.help_player_more", // #3390
         "ui.cmd.usage_give",
         "ui.cmd.usage_tpp",
         "ui.cmd.usage_settime",
