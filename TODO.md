@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 📬 Justus' reports 2026-11-07 evening (Screelit, world "Raumstation", v2026.11.8) — the finale's missing scene, admin commands that could not be typed, a talking robot with gear, companions in the ship floor, forearms bending backwards — #3386–#3401, ✅ 2026-11-08 (⚠ playtest open)
+### 📬 Justus' reports 2026-11-07 evening (Screelit, world "Raumstation", v2026.11.8) — the finale's missing scene, admin commands that could not be typed, a talking robot with gear, companions in the ship floor, forearms bending backwards — #3386–#3401, ✅ 2026-11-08, PR #3402 (`ba6c6a97`), released in v2026.11.10 (⚠ playtest open)
 
 Six F1 reports in one evening: "the cutscene did not come after I shut down the Guardian core, and the robots were still
 there", a lore theory, "talking robo!", "when landing my robot is always stuck in the ship's floor", "robot upgrade"
