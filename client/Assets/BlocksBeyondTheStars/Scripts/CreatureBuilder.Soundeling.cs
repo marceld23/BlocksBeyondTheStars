@@ -11,8 +11,9 @@ namespace BlocksBeyondTheStars.Client
     /// The two small-and-giant floaters of Soaniri (#3359, #3366):
     /// <list type="bullet">
     /// <item><b>The Soundeling</b> — a small pastel fluff ball with a soft glow on two tiny feet: a round puff ringed with tufts,
-    /// a curl on top, two button eyes and a tiny mouth that coos. Every animal wears one of a few pastels (by its id), so a group
-    /// reads like a bag of sweets. The ball is the rig's head, so it looks at you and blinks; asleep — or hiding in the dark by
+    /// a curl on top and a tiny mouth that coos — no eyes (none of Soaniri's creatures has any). Every animal wears one
+    /// of a few pastels (by its id), so a group
+    /// reads like a bag of sweets. The ball is the rig's head, so it turns to you; asleep — or hiding in the dark by
     /// day — the animator squashes it into a curled-up ball. While it carries a light a player gave it
     /// (<c>NetCreature.CarriesLight</c>) it holds a little lamp up over its head (<see cref="RigDescription.CarriedLight"/>).</item>
     /// <item><b>A Quali</b> — a giant translucent glowing jellyfish from the other reality: the medusa plan at the giant scale of
@@ -33,7 +34,7 @@ namespace BlocksBeyondTheStars.Client
             new Vector3(0.6f, -0.3f, -0.8f), new Vector3(-0.7f, -0.2f, -0.6f), new Vector3(0.2f, 0.4f, -1f), new Vector3(0.5f, 0.6f, 0.6f),
         };
 
-        /// <summary>Builds a Soundeling: the tiny feet, the fluff ball (its head) with eyes, mouth and curl, the soft glow and the
+        /// <summary>Builds a Soundeling: the tiny feet, the fluff ball (its head) with its mouth and curl, the soft glow and the
         /// hidden lamp it holds up while carrying a light.</summary>
         private void BuildSoundeling(GameObject root, NetCreature c)
         {
@@ -61,7 +62,7 @@ namespace BlocksBeyondTheStars.Client
             var neck = NewPivot(body.transform, "Head", new Vector3(0f, ballY, 0f));
             _headPivot = NewPivot(neck, "Ball", Vector3.zero);
             AddSoundelingFluff(d, fluff, fluffLight);
-            AddSoundelingFace(c, d);
+            AddSoundelingFace(d);
             _heads.Add(neck);
             _jaws.Add(_jawPivot);
             AddSoftLight(body.transform, new Vector3(0f, ballY, 0f), 2.6f, 0.55f, pastel);
@@ -88,18 +89,10 @@ namespace BlocksBeyondTheStars.Client
             AddPartTo(_headPivot, "CurlTip", new Vector3(0f, d * 0.72f, d * 0.02f), Vector3.one * (d * 0.13f), fluffLight, PrimitiveType.Sphere);
         }
 
-        /// <summary>Two button eyes with lids (it blinks) and a tiny mouth on the jaw pivot (it coos).</summary>
-        private void AddSoundelingFace(NetCreature c, float d)
+        /// <summary>A tiny mouth on the jaw pivot (it coos) — and no eyes: like every creature of Soaniri a Soundeling has none
+        /// (canon from the school club's creature notes); it finds the light by feeling its warmth.</summary>
+        private void AddSoundelingFace(float d)
         {
-            var eyeMat = EyeFaceMaterial(c);
-            var lidMat = Lit(Color.Lerp(Color.white, Color.black, 0.1f), null);
-            for (int side = 0; side < 2; side++)
-            {
-                var pos = new Vector3((side == 0 ? -1f : 1f) * d * 0.17f, d * 0.08f, d * 0.44f);
-                AddEye(_headPivot, "Eye" + side, pos, d * 0.16f, Vector3.forward, eyeMat);
-                AddEyelid(pos, d * 0.16f, lidMat);
-            }
-
             _jawPivot = NewPivot(_headPivot, "Jaw", new Vector3(0f, -d * 0.12f, d * 0.42f));
             AddPartTo(_jawPivot, "Mouth", new Vector3(0f, -d * 0.02f, d * 0.04f), new Vector3(d * 0.1f, d * 0.04f, d * 0.04f),
                 Unlit(new Color(0.55f, 0.25f, 0.4f)));

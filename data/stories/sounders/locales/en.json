@@ -125,7 +125,7 @@
   "story.sounders.s8.listen.start": "Listen. They can hear each other again. And the Qualis are calm.",
   "story.sounders.s8.soundi.start": "Someone has been following you all along… The little Soundi wants to sing with you!",
   "story.sounders.s8.soundi.chip": "Answer the Soundi's song",
-  "story.sounders.s8.soundi.hint": "Use {key:Interact} on the Soundi. It sings first — answer with the same notes.",
+  "story.sounders.s8.soundi.hint": "Walk up to the Soundi. It sings first — answer with the same notes.",
   "story.sounders.s8.soundi.done": "It chose you! Give your Soundi a name.",
 
   "story.sounders.cut.part.kicker": "The Sounders' Song · Part {1} of {2}",

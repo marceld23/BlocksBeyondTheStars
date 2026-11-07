@@ -49,9 +49,16 @@ public sealed partial class GameServer
     internal bool SoundersStoryLootDue(PlayerSession session)
         => session.State.Milestones.Contains(SoundersIds.DiscMilestone(SoundersIds.DiscBeginning)) && SoundersActive(session);
 
-    /// <summary>The first disc of <paramref name="order"/> the player was never handed and has not decoded, or null.</summary>
+    /// <summary>The first disc of <paramref name="order"/> the player has not decoded and does not have — never handed, or
+    /// handed but no longer carried or worn (lost, dropped, left in a crate): a story disc is never lost for good, so the
+    /// next cache hands it out again (a spare in a crate is harmless). Null when every disc is decoded or at hand.</summary>
     internal static string? NextMissingDisc(PlayerState p, IEnumerable<string> order)
-        => order.FirstOrDefault(d => !p.Milestones.Contains(SongDiscs.GotMilestone(d)) && !p.Milestones.Contains(SoundersIds.DiscMilestone(d)));
+        => order.FirstOrDefault(d => !p.Milestones.Contains(SoundersIds.DiscMilestone(d))
+                                     && (!p.Milestones.Contains(SongDiscs.GotMilestone(d)) || !CarriesSounderItem(p, d)));
+
+    /// <summary>Whether <paramref name="p"/> carries <paramref name="item"/> in the backpack or wears it (a disc in the socket).</summary>
+    private static bool CarriesSounderItem(PlayerState p, string item)
+        => p.Inventory.CountOf(item) > 0 || p.Equipment.Slots.Any(s => s is not null && string.Equals(s.Item, item, System.StringComparison.Ordinal));
 
     /// <summary>Called by the loot flow before the transfer: a relic cache gets the player's next story disc.</summary>
     private void AddStoryLoot(PlayerSession session, StoredContainer container)

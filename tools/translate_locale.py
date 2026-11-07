@@ -107,6 +107,11 @@ entities like &amp; as they are.
 Spanish "tú", Portuguese "você", Polish "ty", Turkish "sen", Dutch "je/jij", Russian "ты", \nUkrainian "ти"). Japanese: friendly polite です/ます; Korean: friendly 해요체; Chinese: plain friendly register.
 - Keep proper names untranslated: VEGA, Blocks Beyond the Stars, the Scout and Pioneer Service and its \
 short form SPS (the old exploration service of the story — always the English name), and the wreck The Long Quiet. \
+The names of the Sounders' story are names, never words to translate or re-invent: Sounder(s), Soundi(s), \
+Soundeling(s), Soundrak(s), Quali/Qualis, Soaniri, Ornemis, Mirun, Ornasa, Elora, Kamo, Feya, Tini and Roll. Keep them \
+in Latin letters — a language in another script (Russian, Ukrainian, Japanese, Korean, Chinese) may write them in its \
+own script, but always the same way and always as a sound-alike, never as a meaning. Give Roll no gender: no \
+pronoun, and no gendered verb, adjective or participle agreeing with Roll (rephrase the sentence instead). \
 Game terms translate naturally and CONSISTENTLY across keys (e.g. blueprint, knowledge, suit energy, airlock).
 - UI strings must stay short: if the English is one or two words, the translation should be too.
 """

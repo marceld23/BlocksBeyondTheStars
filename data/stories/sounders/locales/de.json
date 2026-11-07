@@ -125,7 +125,7 @@
   "story.sounders.s8.listen.start": "Hör mal. Sie können einander wieder hören. Und die Qualis sind ruhig.",
   "story.sounders.s8.soundi.start": "Da ist dir die ganze Zeit jemand gefolgt … Das kleine Soundi will mit dir singen!",
   "story.sounders.s8.soundi.chip": "Antworte auf das Lied des Soundis",
-  "story.sounders.s8.soundi.hint": "Benutze das Soundi mit {key:Interact}. Es singt zuerst – antworte mit denselben Tönen.",
+  "story.sounders.s8.soundi.hint": "Geh zum Soundi hin. Es singt zuerst – antworte mit denselben Tönen.",
   "story.sounders.s8.soundi.done": "Es hat dich ausgewählt! Gib deinem Soundi einen Namen.",
 
   "story.sounders.cut.part.kicker": "Das Lied der Sounders · Teil {1} von {2}",

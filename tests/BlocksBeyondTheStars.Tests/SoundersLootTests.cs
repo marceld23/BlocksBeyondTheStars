@@ -104,6 +104,21 @@ public sealed class SoundersLootTests
     }
 
     [Fact]
+    public void ALostDisc_NotYetDecoded_IsHandedOutAgain()
+    {
+        using var w = World("loot_lost");
+        ReadyForDiscs(w.Player);
+        LootNewCache(w, w.Player, 1);
+        Assert.True(Has(w.Player, SoundersIds.DiscBuilders));
+
+        w.Player.State.Inventory.Remove(SoundersIds.DiscBuilders, 1); // dropped somewhere, never decoded
+        LootNewCache(w, w.Player, 2);
+
+        Assert.True(Has(w.Player, SoundersIds.DiscBuilders)); // a story disc is never lost for good
+        Assert.False(Has(w.Player, SoundersIds.DiscHearing)); // the lost one comes first
+    }
+
+    [Fact]
     public void TheAlienFlightRecorder_HumsTheHungerDisc_Once()
     {
         using var w = World("loot_recorder");

@@ -56,7 +56,9 @@ public sealed class SideStoryPilotClientTests
         // The side story waits for part 1 of the training — the Journal lists it already (it may be started early).
         h.Client.SendStoryPack(Pilot, StoryPackActions.StartPack);
         Assert.True(h.PumpUntil(() => states.Last().Packs.Any(p => p.Id == Pilot && p.Started)));
-        var categories = JournalCategories.Build(states.Last(), "vega_protocol", "story.vega_protocol.name", worldStoryActive: true, L, Has);
+        // The shipped Sounders' Song (#3368) is listed too — it may be started early — and is not what this pilot is about.
+        var categories = JournalCategories.Build(states.Last(), "vega_protocol", "story.vega_protocol.name", worldStoryActive: true, L, Has)
+            .Where(c => c.Id != "pack:sounders").ToList();
         Assert.Equal(
             new[] { "pack:tutorial", "pack:vega_protocol", "pack:" + Pilot, JournalCategories.TipsId, JournalCategories.NotesId },
             categories.Select(c => c.Id));
@@ -75,7 +77,7 @@ public sealed class SideStoryPilotClientTests
         Assert.Equal("story.side_pilot.p1.lamp.chip", chip.Key);
         string shortName = ObjectiveTracker.ShortNameKey(chip.PackId, states.Last(), content.Stories.Values);
         Assert.Equal("Beacon: Switch on your lamp", ObjectiveTracker.ChipBody(ObjectiveTracker.Prefix(shortName, L, Has), L(chip.Key)));
-        categories = JournalCategories.Build(states.Last(), "vega_protocol", "story.vega_protocol.name", worldStoryActive: true, L, Has);
+        categories = JournalCategories.Build(states.Last(), "vega_protocol", "story.vega_protocol.name", worldStoryActive: true, L, Has).ToList();
         Assert.Equal("pack:" + Pilot, JournalCategories.Default(categories, states.Last(), objectives.Last()));
     }
 }

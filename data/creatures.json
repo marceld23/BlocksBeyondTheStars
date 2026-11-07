@@ -60,7 +60,7 @@
   { "key": "soundeling", "namePrefix": "Soundeling", "fixedName": true,
     "habitat": "Land", "activity": "Diurnal", "temperament": "Passive", "locoStyle": "Hopper", "bodyPlan": "Soundeling",
     "size": 0.4, "speed": 2.2, "maxHealth": 10,
-    "legs": 2, "hasWings": false, "hasTail": false, "bodySegments": 1, "colorRgb": 16041700, "bellyRgb": 16774358, "eyes": 2, "horns": 0, "hasCrest": false, "glows": true,
+    "legs": 2, "hasWings": false, "hasTail": false, "bodySegments": 1, "colorRgb": 16041700, "bellyRgb": 16774358, "eyes": 0, "horns": 0, "hasCrest": false, "glows": true,
     "socialGroupSize": 3,
     "dropItem": "plant_fiber", "dropCount": 1, "dropKind": "Material",
     "biomeSurfaces": [], "biomeExclusive": false, "hide": "down" }
