@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🎵 The Sounders' Song — the second story next to VEGA (lore + names: Marcel, Justus and the school club; Marcel's decisions 2026-11-07) — epic #3368, #3344–#3367, ✅ 2026-11-07, PR (this branch, `feat/sounders-story-pack`) (⚠ playtest open)
+### 🎵 The Sounders' Song — the second story next to VEGA (lore + names: Marcel, Justus and the school club; Marcel's decisions 2026-11-07) — epic #3368, #3344–#3367, ✅ 2026-11-07, PR #3383 `73076176` (⚠ playtest open)
 
 A side pack per player (`data/stories/sounders/`, VEGA narrates): the music notes on the rune stones are the script of
 the Sounders, a music civilisation whose Great Song carried its singers into the Qualis' reality. Eight chapters: play
