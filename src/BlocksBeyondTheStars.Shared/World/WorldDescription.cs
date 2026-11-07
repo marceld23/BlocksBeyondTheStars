@@ -239,8 +239,13 @@ public sealed class WorldDescription
     /// quartermasters and vendor themes, #2833 twelve more wild plant species and mixed meadows, #2848–#2859 the tree
     /// variety and glow package, #2976 several fruits per world, picked per tree, #2988 the start system carries lead and
     /// uranium, #3005 the pumpkin as a wild species of the green worlds, #3306 KuBa-W, Jafar's school-club asteroid, #3325 the
-    /// Schuppenhund on the dry worlds).</summary>
-    public const int CurrentTerrainGeneration = 34;
+    /// Schuppenhund on the dry worlds, #3334 the buried G.D.S. ruins flooded with Ressaw).</summary>
+    public const int CurrentTerrainGeneration = 35;
+
+    /// <summary>The generation of the buried G.D.S. ruins (#3334, Justus' "Alte Städte" 2026-11-01): a world created at this
+    /// generation or later may carry ONE underground ruin per planet, composed from an underground kit (#3333) — always under
+    /// the city of a <c>gds_desert</c> world, rarely on any other non-void planet. Older worlds never get one.</summary>
+    public const int AncientRuinsGeneration = 35;
 
     /// <summary>The generation of the Schuppenhund (#3325, epic #3329 — Jafar's scale hound): a dry world whose type carries a
     /// <see cref="Definitions.PlanetType.ScaleHoundChance"/> may append ONE hound species to its roster, after every rolled and

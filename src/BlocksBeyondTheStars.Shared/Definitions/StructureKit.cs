@@ -40,6 +40,11 @@ public sealed class StructureKit
     /// <summary>Settlement / city kits: planet-type keys the kit may appear on; empty = every world.</summary>
     public List<string> PlanetTypes { get; set; } = new();
 
+    /// <summary>#3333: an UNDERGROUND kit (the editor's "Underground" toggle) — never offered to the surface pools; only
+    /// the underground stamper (#3334, the buried G.D.S. ruins) composes it, into a cavity carved at depth. Meaningful
+    /// for settlement and city kits; a station kit with the flag is warned about and treated as a surface kit.</summary>
+    public bool Underground { get; set; }
+
     /// <summary>How many modules a composed structure has (inclusive bounds; 0 = "as the entries allow": the
     /// sum of the minimums / maximums).</summary>
     public int ModulesMin { get; set; }

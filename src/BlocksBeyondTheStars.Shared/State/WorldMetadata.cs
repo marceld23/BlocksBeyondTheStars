@@ -47,9 +47,11 @@ public sealed class WorldMetadata
     /// and the storage bag's ride in the container table under the pseudo-location <c>carried</c>, which an older build
     /// never loads — so a packed crate or a filled bag opened there would read as empty). 11 = the wooden planks (#3181:
     /// <c>wood_planks</c>, <c>wood_planks_light</c>, <c>wood_planks_mahogany</c>) and the lift gate (#3174: <c>lift_gate</c>,
-    /// <c>lift_gate_open</c>).</para>
+    /// <c>lift_gate_open</c>). 12 = the buried G.D.S. ruins' blocks (#3334–#3342: <c>ressaw</c>, <c>ressaw_block</c>,
+    /// <c>ressaw_block_cracked</c>, <c>ressaw_crystal_ore</c>, <c>ressaw_conduit</c>, <c>gds_skull</c>,
+    /// <c>gds_diving_helmet</c>, <c>gds_guardian_head</c>).</para>
     /// </summary>
-    public const int CurrentSaveVersion = 11;
+    public const int CurrentSaveVersion = 12;
 
     /// <summary>The save version of the build that last opened this world — see <see cref="CurrentSaveVersion"/>.
     /// Absent in the JSON ⇒ 1, the version every save carried before the check existed.</summary>

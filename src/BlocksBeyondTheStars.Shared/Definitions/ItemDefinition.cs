@@ -199,6 +199,15 @@ public sealed class ItemDefinition
     /// flagged head piece AND a flagged chest piece worn together (<see cref="State.SuitEquipment.BanditDisguised"/>).</summary>
     public bool BanditDisguise { get; set; }
 
+    /// <summary>#3337, the Ressaw diving suit: a piece of the four-part suit (head, chest, legs, feet). Only the full suit
+    /// counts — all four flagged pieces worn together keep Ressaw from hurting the wearer and let them breathe with the
+    /// head in Ressaw (<see cref="State.SuitEquipment.RessawSuitComplete"/>).</summary>
+    public bool RessawSuit { get; set; }
+
+    /// <summary>#3339, the Ressaw lamp: while a worn piece with this flag is switched on (the suit lamp toggle), the server
+    /// keeps the wearer's night sight running (<c>BioEffect.NightSight</c>) — the world around looks like day.</summary>
+    public bool NightSight { get; set; }
+
     /// <summary>What this material <i>is</i>, wherever it was mined (#2205): trait name → level 1..3, e.g.
     /// <c>{ "conductive": 3, "heavy": 1 }</c> (<see cref="Bio.MatTrait"/>). The bio lab reads it for stabilisers and for
     /// changing tools and gear; a deposit's origin only moves these levels by one. Null = no lab traits.</summary>
