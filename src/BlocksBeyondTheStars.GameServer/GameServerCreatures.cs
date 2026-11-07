@@ -353,6 +353,8 @@ public sealed partial class GameServer
                 continue;
             }
 
+            TickBiteCooldown(creature, dt); // #3326: a chunk-biter's clock runs whatever keeps it from biting right now
+
             if (creature.FrozenTimer > 0 || IsStaggered(creature))
             {
                 continue; // held in stasis (item 36) — can't bite while frozen, so you can scan it safely; dazed by a push (#2278) neither
@@ -393,7 +395,11 @@ public sealed partial class GameServer
                 if (WrapDistSq(p.Position, creature.Position) <= prox * prox
                     && HasLineOfSight(creature.Position, p.Position)) // no bite through a wall — break sight (cover/cave) to stop it
                 {
-                    float bite = (float)(creature.DamagePerSecond * dt);
+                    float bite = BiteThisTick(creature, sp, dt); // #3326: the Schuppenhund bites in chunks, the rest drain
+                    if (bite <= 0f && CreatureReach.BitesInChunks(sp))
+                    {
+                        continue; // between two bites
+                    }
 
                     // While driving a speeder its hull soaks most of the bite (the player is shielded by the chassis).
                     if (TryGetDrivenSpeeder(p, out var speeder))
@@ -556,6 +562,11 @@ public sealed partial class GameServer
                 if (HerdRules.IsBigHerd(sp) && WildCountOf(sp.Id) > 0)
                 {
                     continue; // #2018: one herd at a time — a second one only once the first has been pruned away
+                }
+
+                if (HoundAlreadyAbout(sp))
+                {
+                    continue; // #3326: the Schuppenhund lives alone — one about at a time
                 }
 
                 float y;
@@ -1072,13 +1083,17 @@ public sealed partial class GameServer
             {
                 AnnounceArachnid(creature, targets); // #2009: VEGA points out the first one a player gets near
             }
+            else if (sp.BodyPlan == CreatureBodyPlan.Hound && !creature.IsCompanion)
+            {
+                AnnounceHound(creature, targets); // #3326: VEGA warns about the Schuppenhund
+            }
 
             // Give-up leash: an aggressor that has been chasing within aggro range too long backs off for a
             // while — it wanders away and won't chase/attack — so creatures never hound the player forever.
             // Big species notice you from further away (#638): the range grows with size past 2.
             bool hunting = SreekmakraHunting(creature); // 2026-09: the shapeshifter hunts in any shape
             bool aggressor = hunting || temperament is CreatureTemperament.Aggressive or CreatureTemperament.PackHunter;
-            float aggro = CreatureAggroRange + System.Math.Max(0f, sp.Size - 2f);
+            float aggro = HoundAggro(sp, CreatureAggroRange + System.Math.Max(0f, sp.Size - 2f)); // #3326: a hound sees further
             // #1997: a mining grudge reaches as far as the anger does — it was set out to 16 blocks but only hunted
             // within 8, so a flowerling angered from 12 blocks flipped to "hostile" and wandered off.
             bool miningGrudge = sp.AngeredByMining && creature.ProvokeTimer > 0;
@@ -1121,6 +1136,8 @@ public sealed partial class GameServer
                 profile.BurstSpeed *= SreekmakraSpeedFactor;
                 profile.Accel *= SreekmakraSpeedFactor;
             }
+
+            ApplyHoundCharge(creature, sp, aggressor, prey, ref profile); // #3326: the Schuppenhund charges the last metres
 
             // A creature in its off-phase is asleep — but a player coming within wake distance stirs it (being
             // hit does too, via ProvokeCreature). Once roused it stays alert for a while, then settles back.
@@ -3554,6 +3571,10 @@ public sealed partial class GameServer
             Begging = e.BegPhase is BegPhase.Beg or BegPhase.Rush or BegPhase.Squabble, // #2018: the pose + the fast calls
             Arms = sp?.Arms ?? 0,                                // #2081: a biped's two arms
             HeadRatio = sp is { HeadRatio: > 0f } ? sp.HeadRatio : 1f, // #2081: its big head (a pre-wave snapshot carries 0)
+            EarStyle = (sp?.EarStyle ?? CreatureEarStyle.None).ToString(), // #3325: the Schuppenhund's ears, muzzle, claws and teeth
+            SnoutLength = sp?.SnoutLength ?? 0f,
+            HasClaws = sp?.HasClaws ?? false,
+            HasTeeth = sp?.HasTeeth ?? false,
             Heads = System.Math.Max(1, sp?.Heads ?? 1),         // #1780-#1782 (generation 6); a pre-wave snapshot carries 0
             WingPairs = System.Math.Max(1, sp?.WingPairs ?? 1),
             FinPairs = System.Math.Max(1, sp?.FinPairs ?? 1),

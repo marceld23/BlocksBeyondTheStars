@@ -104,6 +104,14 @@ public sealed class NetCreature
     public int Arms { get; set; }
     public float HeadRatio { get; set; } = 1f;
 
+    /// <summary>#3325: the Schuppenhund's head and feet — the ear style ("None" | "Pointed" | "Tall" | "Swept"), the muzzle
+    /// length (a share of the head's depth), claws and teeth. Additive: an older client ignores them and draws a plain
+    /// quadruped; an older server sends the defaults (no ears, a flat face), so the wire tag is unchanged.</summary>
+    public string EarStyle { get; set; } = "None";
+    public float SnoutLength { get; set; }
+    public bool HasClaws { get; set; }
+    public bool HasTeeth { get; set; }
+
     /// <summary>Heads / wing pairs / fin pairs (#1780-#1782, generation 6). Additive: an older client ignores them and
     /// draws the classic single head / pair / pair; an older server leaves them at 0, which the client reads as 1.</summary>
     public int Heads { get; set; } = 1;

@@ -137,6 +137,9 @@ public sealed class CreatureCoatTests
         var noTail = CreatureCoat.PatternsFor(Species(1, tail: false));
         Assert.DoesNotContain(CoatPattern.TailRings, noTail);
 
+        // #3327: the Schuppenhund is a standard quadruped underneath — the same placed patterns as the standard body.
+        Assert.Equal(CreatureCoat.PatternsFor(Species(1)), CreatureCoat.PatternsFor(Species(1, plan: "Hound")));
+
         var blind = CreatureCoat.PatternsFor(Species(1, eyes: 0));
         Assert.DoesNotContain(CoatPattern.EyeMask, blind);
 

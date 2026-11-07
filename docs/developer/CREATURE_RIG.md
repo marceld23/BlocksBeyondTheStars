@@ -384,6 +384,28 @@ A legless, wingless, finned Air body: the standard build with fins, the swimmer'
 (`RigDescription.Aquatic`), and `PoseFins` sculling in the air — slower and smaller than in water, and never
 folded, because a hovering fish rows all the time. Also a sky glider.
 
+## The hound (#3327)
+
+The Schuppenhund (Jafar's scale hound, generation 33) is a standard quadruped underneath — `Build` lets `"Hound"` fall
+through to the standard body, so an older client draws it as a plain four-legger. `CreatureBuilder.Hound.cs` adds, from
+traits any species may carry (all zero on every other species, so nothing is built for them):
+
+- **Muzzle** (`SnoutLength`): the upper half on the skull, narrower than the face so the eyes at its sides stay clear,
+  with a dark nose; the lower half on the jaw pivot, in front of the jaw box, so it opens with every call and every bite.
+  Its depth is `CreatureFootprint.HoundMuzzleDepth` (`SnoutLength × 0.8u`) — the server's head reach uses the same number.
+- **Teeth** (`HasTeeth`): two rows of three a side, the front pair longer (the fangs).
+- **Ears** (`EarStyle`): two blocks with a tip on pivots at the crown — pointed, tall, or swept back — added to the rig's
+  ears, so `PoseEars` sways and flicks them like the titan's.
+- **Claws** (`HasClaws`): three horn-coloured cubes at the front of every sole.
+- **Tail:** set higher on the rump, longer and thinner (four links).
+
+`CreatureHides` gives a hound the one scale hide its world rolled on every part, head included. `CreatureAnimator.Hound.cs`
+layers its body language on the standard poses (which set every rotation fresh each frame): the head drops while it stalks
+(hostile, moving slowly), the tail is carried a little up at rest, low while it stalks and straight back while it charges,
+a tamed hound wags, and the ears prick while it watches you and pin back while it charges. The gait needs nothing new:
+four legs walk, trot and — at a charge — bound (`CreatureGait.Select`). `CreatureView` lunges and snaps a hound's jaw
+exactly when the server's bite lands (the fresh hit report from it), never on the random attack cadence.
+
 ## Foot planting
 
 The gait alone stops the skate, but it does it in the *body's* frame: all feet sit on one flat plane

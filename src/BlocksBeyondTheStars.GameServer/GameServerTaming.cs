@@ -949,6 +949,10 @@ public sealed partial class GameServer
                 HeadShape = sp.HeadShape.ToString(), // #2009
                 Arms = sp.Arms,                      // #2081: a biped companion keeps its arms and its big head
                 HeadRatio = sp.HeadRatio > 0f ? sp.HeadRatio : 1f,
+                EarStyle = sp.EarStyle.ToString(),   // #3325: a tamed Schuppenhund keeps its ears, muzzle, claws and teeth
+                SnoutLength = sp.SnoutLength,
+                HasClaws = sp.HasClaws,
+                HasTeeth = sp.HasTeeth,
                 Heads = System.Math.Max(1, sp.Heads),
                 WingPairs = System.Math.Max(1, sp.WingPairs),
                 FinPairs = System.Math.Max(1, sp.FinPairs),
@@ -1088,6 +1092,12 @@ public sealed partial class GameServer
         HeadRatio = s.HeadRatio > 0f ? s.HeadRatio : 1f,
         FavouriteFood = s.FavouriteFood, // #2082: the scan of a pet still names what it loves
         FeedsToTame = s.FeedsToTame,
+        EarStyle = s.EarStyle,           // #3325: a tamed Schuppenhund keeps its looks; the bite is inert on a companion
+        SnoutLength = s.SnoutLength,
+        HasClaws = s.HasClaws,
+        HasTeeth = s.HasTeeth,
+        BiteDamage = s.BiteDamage,
+        BiteInterval = s.BiteInterval,
         // Giants (#1998) are never tamed, but the snapshot copies every trait so no future path loses one.
         GiantHeight = s.GiantHeight,
         BackFeature = s.BackFeature,

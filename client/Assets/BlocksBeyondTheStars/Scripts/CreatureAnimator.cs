@@ -17,7 +17,7 @@ namespace BlocksBeyondTheStars.Client
     /// (<see cref="SetMotion"/>). The rig comes from <see cref="CreatureBuilder"/> as a
     /// <see cref="RigDescription"/>.
     /// </summary>
-    public sealed class CreatureAnimator : MonoBehaviour
+    public sealed partial class CreatureAnimator : MonoBehaviour
     {
         private enum Idle { Breathe, Graze, Alert, Lunge }
 
@@ -197,6 +197,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _skyGlider = _rig.SkyGlider;
+            _hound = string.Equals(_rig.BodyPlan, "Hound", System.StringComparison.OrdinalIgnoreCase); // #3327
             _ray = string.Equals(_rig.BodyPlan, "Ray", System.StringComparison.OrdinalIgnoreCase);
             _snarls = _rig.Hostile && string.Equals(_rig.BodyPlan, "Floral", System.StringComparison.OrdinalIgnoreCase);
             _eyelids = _rig.Eyelids ?? System.Array.Empty<Transform>();
@@ -435,6 +436,8 @@ namespace BlocksBeyondTheStars.Client
                 PoseEars(dt, t);
                 PoseTrunk(t, neckShare);
             }
+
+            PoseHound(dt, t, moving); // #3327: the Schuppenhund's head, tail and ears while it prowls and charges
         }
 
         /// <summary>Advances the gait phase. The rate is <c>speed ÷ stride length</c> — that division is the

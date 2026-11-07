@@ -63,7 +63,7 @@ public sealed partial class GameServer
     /// <summary>The land shapes a Sreekmakra may take: rolled land species, no titans, no arachnids (#2009), never its own kind.</summary>
     private List<CreatureSpecies> SreekmakraShapes()
         => _speciesRoster.Where(sp => sp.Habitat == CreatureHabitat.Land
-            && sp.BodyPlan is not (CreatureBodyPlan.Titan or CreatureBodyPlan.Arachnid)
+            && sp.BodyPlan is not (CreatureBodyPlan.Titan or CreatureBodyPlan.Arachnid or CreatureBodyPlan.Hound)
             && !sp.Id.StartsWith("au_", System.StringComparison.Ordinal)).ToList();
 
     /// <summary>Once a second per world: keep the one shapeshifter alive, let it change shape, keep its hunt going; and
