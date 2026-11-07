@@ -115,6 +115,7 @@ public sealed partial class GameServer
             TickStep.Dt("TickFluids", TickFluids),
             TickStep.Dt("TickGranular", TickGranular), // #1319: woken sand/ash/snow settles, sinks through fluid
             TickStep.Dt("TickFire", TickFire),
+            TickStep.Dt("TickRessawBlocks", TickRessawBlocks), // #3336: Ressaw blocks a player lingers beside crack and leak (2 Hz, cells around players only)
             TickStep.Dt("TickWeather", TickWeather),
             TickStep.Dt("TickFlora", TickFlora),
             TickStep.Dt("TickFestivalSpawns", TickFestivalSpawns), // #3006: the festivals' deposit layer (pumpkins …), every 3 s, budgeted like the snow

@@ -186,6 +186,15 @@
   { "key": "robber_jacket",    "station": "hand",     "inputs": [ { "item": "robber_cloth", "count": 3 }, { "item": "plant_fiber", "count": 4 } ], "outputs": [ { "item": "robber_jacket", "count": 1 } ] },
   { "key": "flower_wreath",    "station": "hand",     "inputs": [ { "item": "blue_blossom", "count": 6 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "flower_wreath", "count": 1 } ] },
   { "key": "flower_bracelets", "station": "hand",     "inputs": [ { "item": "blue_blossom", "count": 8 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "flower_bracelets", "count": 1 } ] },
+  // #3337-#3340 the Ressaw technology of the buried G.D.S. cities: the diving suit, the drill, the lamp (the pumped liquid is
+  // only an ingredient — the lamp never needs a refill) and the conduit that lets a crystal net grow to 512 blocks.
+  { "key": "ressaw_helmet",    "station": "workshop", "requiredBlueprint": "ressaw_tech",      "inputs": [ { "item": "ressaw_crystal", "count": 2 }, { "item": "titanium_plate", "count": 3 }, { "item": "cable", "count": 2 }, { "item": "glass", "count": 2 }, { "item": "polymer", "count": 1 } ], "outputs": [ { "item": "ressaw_helmet", "count": 1 } ] },
+  { "key": "ressaw_suit",      "station": "workshop", "requiredBlueprint": "ressaw_tech",      "inputs": [ { "item": "ressaw_crystal", "count": 4 }, { "item": "titanium_plate", "count": 5 }, { "item": "cable", "count": 3 }, { "item": "polymer", "count": 2 } ], "outputs": [ { "item": "ressaw_suit", "count": 1 } ] },
+  { "key": "ressaw_leggings",  "station": "workshop", "requiredBlueprint": "ressaw_tech",      "inputs": [ { "item": "ressaw_crystal", "count": 3 }, { "item": "titanium_plate", "count": 4 }, { "item": "cable", "count": 2 }, { "item": "polymer", "count": 1 } ], "outputs": [ { "item": "ressaw_leggings", "count": 1 } ] },
+  { "key": "ressaw_boots",     "station": "workshop", "requiredBlueprint": "ressaw_tech",      "inputs": [ { "item": "ressaw_crystal", "count": 2 }, { "item": "titanium_plate", "count": 2 }, { "item": "cable", "count": 1 }, { "item": "polymer", "count": 1 } ], "outputs": [ { "item": "ressaw_boots", "count": 1 } ] },
+  { "key": "ressaw_drill",     "station": "workshop", "requiredBlueprint": "ressaw_tech",      "inputs": [ { "item": "ressaw_crystal", "count": 4 }, { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 6 }, { "item": "carbide", "count": 1 }, { "item": "lubricant", "count": 1 } ], "outputs": [ { "item": "ressaw_drill", "count": 1 } ] },
+  { "key": "ressaw_lamp",      "station": "workshop", "requiredBlueprint": "ressaw_tech",      "inputs": [ { "item": "ressaw", "count": 2 }, { "item": "ressaw_crystal", "count": 1 }, { "item": "glass", "count": 1 }, { "item": "cable", "count": 2 } ], "outputs": [ { "item": "ressaw_lamp", "count": 1 } ] },
+  { "key": "ressaw_conduit",   "station": "workshop", "requiredBlueprint": "ressaw_tech",      "inputs": [ { "item": "ressaw_crystal", "count": 1 }, { "item": "crystal", "count": 1 }, { "item": "glass", "count": 1 } ], "outputs": [ { "item": "ressaw_conduit", "count": 4 } ] },
 
   { "key": "market_iron_to_titanium",  "station": "market", "inputs": [ { "item": "iron_ore", "count": 5 } ],      "outputs": [ { "item": "titanium_ore", "count": 1 } ] },
   { "key": "market_titanium_to_iron",  "station": "market", "inputs": [ { "item": "titanium_ore", "count": 1 } ],  "outputs": [ { "item": "iron_ore", "count": 4 } ] },
@@ -216,6 +225,8 @@
   { "key": "market_sell_uranium", "station": "market", "marketTheme": "researchers", "inputs": [ { "item": "uranium", "count": 1 } ], "outputs": [ { "item": "data_fragment", "count": 1 } ] },
   // #1203: researchers buy rune stones — for data fragments, never for knowledge.
   { "key": "market_sell_rune", "station": "market", "marketTheme": "researchers", "inputs": [ { "item": "rune_stone", "count": 2 } ], "outputs": [ { "item": "data_fragment", "count": 1 } ] },
+  // #3338: researchers study the G.D.S. crystal — a second buyer for the ruins' tier-3 ore (no row makes it, so no loop).
+  { "key": "market_sell_ressaw_crystal", "station": "market", "marketTheme": "researchers", "inputs": [ { "item": "ressaw_crystal", "count": 1 } ], "outputs": [ { "item": "data_fragment", "count": 1 } ] },
 
   // #3293: selling meat back is 4 → 1 — at 4 → 3 next to "3 iron → 5 meat" the settlers paid out 3.75 iron for every 3.
   { "key": "market_sell_meat",         "station": "market", "marketTheme": "settlers", "inputs": [ { "item": "creature_meat", "count": 4 } ], "outputs": [ { "item": "iron_ore", "count": 1 } ] },

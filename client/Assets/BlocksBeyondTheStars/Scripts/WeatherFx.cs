@@ -27,7 +27,8 @@ namespace BlocksBeyondTheStars.Client
         private float _underwater; // smoothed 0..1 blue submerged wash
         private float _gasWash;    // #2134: smoothed 0..1 — the eye in a gas giant's gas sea (its own amber haze, not the water blue)
         private float _denseWash;  // #2134: smoothed 0..1 — the eye in the dense gas under it (a dark, churning body)
-        private Texture2D _churnTex; // #2134: a soft tileable noise, drifted in two layers over the dense wash
+        private float _milkyWash;  // #3335: smoothed 0..1 — the eye in Ressaw (a milky white, softly glowing veil)
+        private Texture2D _churnTex; // #2134: a soft tileable noise, drifted in two layers over the dense wash (and the Ressaw veil)
 
         // Frost overlay (cold worlds): ice fogs the screen edges as the air drops below freezing. The texture
         // is a soft edge-vignette of crystalline detail; alpha is driven by how far below 0 °C the air is.
@@ -72,7 +73,7 @@ namespace BlocksBeyondTheStars.Client
         {
             // Mirrors the early-outs of DrawOverlay: anything fading, falling or flashing keeps the overlay
             // alive; a quiet clear-sky frame leaves it off.
-            bool anyWash = _underwater > 0.01f || _gasWash > 0.01f || _denseWash > 0.01f || _frost > 0.01f
+            bool anyWash = _underwater > 0.01f || _gasWash > 0.01f || _denseWash > 0.01f || _milkyWash > 0.01f || _frost > 0.01f
                            || (_wet > 0.01f && _dropInit) || _flash > 0.01f || _boltTimer > 0.01f;
             var env = Game?.Environment;
             bool precipitation = env != null && !Game.SpaceViewActive && Game.ExposedToSky
@@ -107,11 +108,12 @@ namespace BlocksBeyondTheStars.Client
         private void Update()
         {
             // Underwater blue wash — independent of weather (works in caves / at night too). #2134: a gas giant's gas and the
-            // dense gas under it are liquids to the water probe too, but they take washes of their own.
+            // dense gas under it are liquids to the water probe too, but they take washes of their own — and so does Ressaw (#3335).
             var eye = EyeFluid();
             _underwater = Mathf.MoveTowards(_underwater, eye == EyeIn.Water ? 1f : 0f, Time.deltaTime * 3.5f);
             _gasWash = Mathf.MoveTowards(_gasWash, eye == EyeIn.Gas ? 1f : 0f, Time.deltaTime * 3.5f);
             _denseWash = Mathf.MoveTowards(_denseWash, eye == EyeIn.DenseGas ? 1f : 0f, Time.deltaTime * 2.5f);
+            _milkyWash = Mathf.MoveTowards(_milkyWash, eye == EyeIn.Ressaw ? 1f : 0f, Time.deltaTime * 3.5f);
 
             if (Game?.Environment == null)
             {
@@ -383,11 +385,12 @@ namespace BlocksBeyondTheStars.Client
             return _dropTex;
         }
 
-        private enum EyeIn { Air, Water, Gas, DenseGas }
+        private enum EyeIn { Air, Water, Gas, DenseGas, Ressaw }
 
         /// <summary>What the first-person eye (≈ the head, ~1.5 above the player root) is in: water — including inside a
         /// submerged plant, ladder or form, like the server's oxygen drain (#1902) — or, on a gas giant, the gas sea or the
-        /// dense gas under it (#2134), which the water probe counts as liquid too.</summary>
+        /// dense gas under it (#2134), or Ressaw in the buried G.D.S. ruins (#3335), which the water probe counts as liquid
+        /// too. Which liquid looks like what is <see cref="LiquidLook"/>'s (Client.Core).</summary>
         private EyeIn EyeFluid()
         {
             if (Game == null)
@@ -404,7 +407,13 @@ namespace BlocksBeyondTheStars.Client
             string key = Game.World != null && Game.Content != null
                 ? Game.Content.BlockById(Game.World.GetBlock(Mathf.FloorToInt(eye.x), Mathf.FloorToInt(eye.y), Mathf.FloorToInt(eye.z)))?.Key
                 : null;
-            return key == "gas_dense" ? EyeIn.DenseGas : key == "gas" ? EyeIn.Gas : EyeIn.Water;
+            return LiquidLook.Of(key) switch
+            {
+                LiquidLookKind.DenseGas => EyeIn.DenseGas,
+                LiquidLookKind.Gas => EyeIn.Gas,
+                LiquidLookKind.Ressaw => EyeIn.Ressaw,
+                _ => EyeIn.Water,
+            };
         }
 
         /// <summary>#2134: a soft, tileable noise for the dense-gas wash — built once, procedurally (three wrapped lattices of
@@ -465,6 +474,29 @@ namespace BlocksBeyondTheStars.Client
             return _churnTex;
         }
 
+        /// <summary>#3335: the head in Ressaw — a milky white veil instead of the water's blue. The liquid glows, so the veil is
+        /// pale and bright (a faint lilac white, never a blinding one), and one layer of the soft churn noise drifts slowly
+        /// over it, so it reads as a thick liquid rather than fog. While the shader-side underwater fog carries the look (it
+        /// takes Ressaw's milky colour too, Sky.Mist), the veil thins like the water wash does (#2416).</summary>
+        private void DrawRessawWash()
+        {
+            if (_milkyWash <= 0.01f || Game == null || Game.SpaceViewActive || Game.MenuOpen)
+            {
+                return;
+            }
+
+            GUI.depth = 10;
+            var prev = GUI.color;
+            float w = Screen.width, h = Screen.height, t = Time.time;
+            var full = new Rect(0, 0, w, h);
+            float veil = _milkyWash * Mathf.Lerp(1f, 0.6f, Sky.UnderwaterFog);
+            GUI.color = new Color(0.90f, 0.91f, 0.97f, 0.46f * veil);
+            GUI.DrawTexture(full, Texture2D.whiteTexture);
+            GUI.color = new Color(1f, 1f, 1f, 0.22f * veil);
+            GUI.DrawTextureWithTexCoords(full, ChurnTexture(), new Rect(t * 0.012f, -t * 0.009f, 1.3f, 1.3f * h / Mathf.Max(1f, w)));
+            GUI.color = prev;
+        }
+
         /// <summary>The screen overlay, drawn by <see cref="ImguiOverlay"/> on Repaint only: everything below is
         /// GUI.DrawTexture (up to ~300 streaks + drops in rain), which has no effect in any other event (#1516).</summary>
         private void DrawOverlay()
@@ -512,6 +544,8 @@ namespace BlocksBeyondTheStars.Client
 
                 GUI.color = prevGas;
             }
+
+            DrawRessawWash(); // #3335
 
             // Frost creeps in from the screen edges on cold worlds. Drawn after the water wash (so a frozen lake
             // still reads as water) but before weather; tinted a pale icy cyan-white. Hidden in space / in menus.

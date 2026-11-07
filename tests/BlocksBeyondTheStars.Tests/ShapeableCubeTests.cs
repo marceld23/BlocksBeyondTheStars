@@ -33,6 +33,11 @@ public sealed class ShapeableCubeTests
         ["paul_leaf"] = "foliage",
         ["paul_petals"] = "foliage",
         ["crystal_conduit"] = "a power conduit",
+        ["ressaw_conduit"] = "a power conduit (#3340)",
+        ["ressaw_block"] = "cracks and leaks as a whole cell (#3336)",
+        ["gds_skull"] = "a prop with its own front picture (#3342)",
+        ["gds_diving_helmet"] = "a prop with its own front picture (#3342)",
+        ["gds_guardian_head"] = "a prop with its own front picture (#3342)",
         ["engine_nozzle"] = "a ship engine part",
         ["phase_block"] = "switches between solid and open",
     };

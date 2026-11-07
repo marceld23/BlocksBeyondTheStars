@@ -109,7 +109,9 @@ def merged_entry(meta, layout, existing):
         else:
             entry.pop("role", None)  # saved as a whole structure again
     # #1877: a kit module names its kit and its function; a whole structure carries neither.
-    for field in ("kit", "function", "style"):
+    # #3333: `underground` (a whole settlement only the underground stamper seats) is kept when true, stripped when false;
+    # a bundle from an editor that predates the flag leaves the pool's value alone.
+    for field in ("kit", "function", "style", "underground"):
         if field in meta:
             if meta[field]:
                 entry[field] = meta[field]
@@ -160,12 +162,23 @@ def kit_entry(kit):
     return entry
 
 
+def merged_kit_entry(kit, existing):
+    """The kit entry for a re-merge: the bundle's fields (defaults stripped, so `underground: false` removes the flag,
+    #3333), plus every field of the existing entry the bundle does not carry at all — a field the editor does not write
+    (`pinOnly`, or `underground` from an editor that predates it) survives, like `merged_entry` does for templates."""
+    entry = kit_entry(kit)
+    for field, value in (existing or {}).items():
+        if field not in kit and field not in entry:
+            entry[field] = value
+    return entry
+
+
 def merge_kit(kit):
     if not kit.get("key"):
         sys.exit("kit.json has no key")
     kits = _load(KIT_PATH) if KIT_PATH.exists() else []
-    entry = kit_entry(kit)
-    index = next((i for i, k in enumerate(kits) if k.get("key") == entry["key"]), None)
+    index = next((i for i, k in enumerate(kits) if k.get("key") == kit["key"]), None)
+    entry = merged_kit_entry(kit, kits[index] if index is not None else None)
     if index is None:
         kits.append(entry)
     else:

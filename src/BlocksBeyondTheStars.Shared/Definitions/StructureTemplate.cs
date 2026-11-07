@@ -48,6 +48,10 @@ public sealed class StructureTemplate
     /// never rolled for a new structure, but a world that pinned it keeps it. Never remove such a template.</summary>
     public bool PinOnly { get; set; }
 
+    /// <summary>#3333: an UNDERGROUND whole template (the editor's "Underground" toggle) — never rolled by the surface
+    /// pools; only the underground stamper (#3334) seats it, into a cavity carved at depth.</summary>
+    public bool Underground { get; set; }
+
     /// <summary>True when this template is a building module (<see cref="Role"/> or <see cref="Kit"/> set), false
     /// for a whole structure.</summary>
     public bool IsModule => !string.IsNullOrWhiteSpace(Role) || !string.IsNullOrWhiteSpace(Kit);

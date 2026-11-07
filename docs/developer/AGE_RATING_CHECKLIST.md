@@ -28,7 +28,10 @@ Quest, Epic; Steam runs its own content survey) — can be filed in an afternoon
 - Player death: respawn in the med-bay; no loot stealing by other players.
 
 **Fear / horror** — dark caves, one spooky ruin archetype, hostile robot "Guardian" boss. Tone stays
-family-adventure; no jump-scare design, no horror imagery.
+family-adventure; no jump-scare design, no horror imagery. The buried G.D.S. ruins (#3334, #3342) carry rare
+blocky decoration — an empty diving helmet, a broken robot guardian head and, rarest, a cartoon *creature* skull (never a
+human one) — with no corpses, no blood and no story of anyone hurt (the G.D.S. logs: everyone got out).
+Their glowing liquid, Ressaw, hurts slowly like the toxic water and is shrugged off with the diving suit.
 
 **Language** — no profanity in shipped content (EN/DE + machine locales); chat is user content, see below.
 

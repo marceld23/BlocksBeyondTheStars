@@ -208,6 +208,7 @@ public sealed class CraftingConsistencyTests
             "ai_memory_fragment",          // VEGA data-terminal structure loot
             "toxic_berries",               // runtime poison variant of a toxic flora's berries
             "spoiled_food", "derelict_log", // #2633: a derelict station's old supply crates (GameServerDerelictCrates)
+            "gds_log",                     // #3341: a buried G.D.S. ruin's crates (GameServerGdsCaches)
             // The bio lab (#2201–#2209): samples come with a harvest, everything else is made in the lab, which
             // computes its results from the samples and has no recipes.
             "bio_sample", "mineral_sample", "seedling",

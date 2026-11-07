@@ -227,18 +227,18 @@ namespace BlocksBeyondTheStars.Client
             return y + h + 8f;
         }
 
-        /// <summary>#2633: an old log from a derelict's supply crate reads right here — the text is written from the seed
-        /// its key carries (WorldGeneration.DerelictLogs, the same code the server uses), in the player's language — and
-        /// "Read" opens it in the story reader. Any other item: nothing. Returns the next y.</summary>
+        /// <summary>#2633/#3341: an old log — a derelict's supply-crate log or a buried G.D.S. ruin's — reads right here: the
+        /// text is written from the seed its key carries (WorldGeneration.LogSets, the same code the server uses), in the
+        /// player's language — and "Read" opens it in the story reader. Any other item: nothing. Returns the next y.</summary>
         private float AddDerelictLogText(string item, float y)
         {
-            if (!BlocksBeyondTheStars.WorldGeneration.DerelictLogs.IsLogItem(item))
+            var set = BlocksBeyondTheStars.WorldGeneration.LogSets.OfItem(item);
+            if (set == null)
             {
                 return y;
             }
 
-            var log = BlocksBeyondTheStars.WorldGeneration.DerelictLogs.Compose(
-                BlocksBeyondTheStars.WorldGeneration.DerelictLogs.SeedOfItem(item), Game.Content?.DerelictLogs);
+            var log = set.Compose(set.SeedOfItem(item), Game.Content);
             if (log == null)
             {
                 return AddDetailPara(y, L("ui.derelict_log.faded"), UiKit.CyanDim);

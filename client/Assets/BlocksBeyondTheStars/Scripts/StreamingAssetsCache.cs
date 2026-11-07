@@ -49,6 +49,7 @@ namespace BlocksBeyondTheStars.Client
             "enemies.json", // #2971
             "festival_calendars.json", // #3315
             "festivals.json", // #3001
+            "gds_logs.json", // #3341
             "hud_frames.json", // #3317
             "items.json",
             "locale_coverage.json",

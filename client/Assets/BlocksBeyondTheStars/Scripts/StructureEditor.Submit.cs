@@ -19,6 +19,40 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public sealed partial class StructureEditor
     {
+        [Serializable] private sealed class CellJson { public int x, y, z; public string kind, id; public int tint, glow, shape; public string port = string.Empty; public int mode; public string config = string.Empty, label = string.Empty; }
+        [Serializable] private sealed class LayoutJson { public int width, height, length; public List<CellJson> cells = new(); }
+        [Serializable] private sealed class MetaJson
+        {
+            public string key, name, kind, tier, pack, layout;
+            public int weight = 1;
+            public List<string> planetTypes = new(); // carried through so a re-merge keeps the restriction (#1399)
+            public string role = string.Empty;       // #1826: "" = whole structure, else a building-module role
+            public string kit = string.Empty;        // #1877: the kit this module belongs to
+            public string function = string.Empty;   // #1877: the module's function within its kit
+            public string style = string.Empty;      // #1890: "" = human, "alien" = the alien variant
+            public bool underground;                 // #3333: a whole settlement template only the underground stamper seats
+        }
+
+        // Data-shaped StructureTemplate (matches the server's StructureTemplate JSON) written straight to
+        // the user-content folder so a structure built in-game appears in the next new world WITHOUT a merge.
+        [Serializable] private sealed class TemplateJson
+        {
+            public string key, name, tier, kind, pack;
+            public int weight = 1;
+            public List<string> planetTypes = new();
+            public string role = string.Empty;
+            public string kit = string.Empty;
+            public string function = string.Empty;
+            public string style = string.Empty;
+            public bool underground;
+            public int width, height, length;
+            public List<CellJson> cells = new();
+        }
+
+        /// <summary>#3333: the whole-template "Underground" toggle (settlement editor only — a station hangs in space, and a
+        /// module takes the flag from its kit). An underground template is never rolled for the surface.</summary>
+        private bool _underground;
+
         /// <summary>The key of the shipped template last loaded as a starting point (LOAD → built-in), else empty.</summary>
         private string _basedOn = string.Empty;
 
@@ -35,7 +69,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The structure as its export files: every authored cell with its device settings (#2260), the
-        /// bounding size, and the template facts (kind, tier, pack, role, kit, function, style).</summary>
+        /// bounding size, and the template facts (kind, tier, pack, role, kit, function, style, underground).</summary>
         private (MetaJson Meta, LayoutJson Layout) BuildExport(string key)
         {
             int maxX = 0, maxY = 0, maxZ = 0;
@@ -82,6 +116,7 @@ namespace BlocksBeyondTheStars.Client
                 kit = _moduleMode ? Slug(_kit) : string.Empty,
                 function = _moduleMode ? _function ?? string.Empty : string.Empty,
                 style = _moduleMode && EditorMode == Mode.Settlement ? _style ?? string.Empty : string.Empty,
+                underground = !_moduleMode && EditorMode == Mode.Settlement && _underground,
             };
         }
 

@@ -235,7 +235,8 @@ namespace BlocksBeyondTheStars.Client
             return y + 40f;
         }
 
-        /// <summary>Template pack, selection weight and (settlements) the planet types.</summary>
+        /// <summary>Template pack, selection weight and (settlements) the planet types and — whole settlements — the
+        /// underground toggle (#3333).</summary>
         private float BuildPackRows(Transform p, float y)
         {
             FieldLabel(p, y, L("ui.struct.pack"));
@@ -253,6 +254,14 @@ namespace BlocksBeyondTheStars.Client
                 FieldLabel(p, y, L("ui.struct.planet_types"));
                 UiKit.AddInput(p, 16f, y + 26f, 348f, 30f, _planetTypes, v => _planetTypes = v ?? string.Empty);
                 y += 66f;
+
+                // #3333: a whole settlement may be UNDERGROUND — never rolled for the surface, only the underground stamper
+                // seats it. A module takes the flag from its kit (the kit panel's toggle).
+                if (!_moduleMode)
+                {
+                    UiKit.AddFitButton(p, 16f, y, 348f, 34f, (_underground ? "☑ " : "☐ ") + L("ui.struct.underground"), () => { _underground = !_underground; RebuildUi(); });
+                    y += 40f;
+                }
             }
 
             return y;

@@ -66,10 +66,12 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         // atlas slots. Vertex and triangle counts did not change (15838 / 12876 verts, 6148 + 140 tris); sky unchanged.
         // Re-pinned 2026-11-06 (#3265): the skylight rule (thin cover × nearest opening, wells) changes the baked sky values
         // of covered cells. Geometry did not change (15838 / 12876 verts, 7580 + 306 / 6148 + 140 tris); sky unchanged.
+        // Re-pinned 2026-11-07 (#3334–#3342): the eight Ressaw / G.D.S. ruin blocks shift the block ids and so the atlas slots.
+        // Geometry did not change (15838 / 12876 verts, 7580 + 306 / 6148 + 140 tris); sky unchanged.
         private static readonly Dictionary<string, ulong> Pinned = new Dictionary<string, ulong>
         {
-            ["deep (5,1,7)"] = 0x6fd62ed3de158a3dUL,
-            ["surface (5,2,7)"] = 0xdf248467c2307031UL,
+            ["deep (5,1,7)"] = 0xd5f3dcdd73b2af4dUL,
+            ["surface (5,2,7)"] = 0xdcdee007ca8721c9UL,
             ["sky (5,3,7)"] = 0xd6a8cf1a27eab505UL,
         };
 

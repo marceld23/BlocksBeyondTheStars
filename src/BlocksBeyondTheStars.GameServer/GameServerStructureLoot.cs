@@ -27,7 +27,12 @@ public sealed partial class GameServer
         // while the loot container spawns exactly once ever.
         TryPlaceStructureFragment(markerType, pos);
 
-        int bx = (int)pos.X, by = (int)pos.Y, bz = (int)pos.Z;
+        // #3341: a buried G.D.S. ruin's crate ("gds_cache:<n>") stands exactly in its marker's cell, below zero too, and rolls
+        // from its own seed, never the stamp's rng. The older kinds keep their truncated cell: their spawn keys are in saved
+        // worlds, and another rounding would fill those caches a second time.
+        bool gds = TryParseGdsCache(markerType, out int gdsCache);
+        var cell = gds ? pos.ToBlock() : new Vector3i((int)pos.X, (int)pos.Y, (int)pos.Z);
+        int bx = cell.X, by = cell.Y, bz = cell.Z;
         string key = $"{structureKind}:{markerType}:{bx}:{by}:{bz}";
         if (_meta.GeneratedLoot.Contains(key))
         {
@@ -36,7 +41,7 @@ public sealed partial class GameServer
 
         _meta.GeneratedLoot.Add(key);
 
-        var items = BuildStructureLoot(markerType, rng);
+        var items = gds ? BuildGdsCacheLoot(gdsCache, cell) : BuildStructureLoot(markerType, rng);
         if (items.Count == 0)
         {
             return;

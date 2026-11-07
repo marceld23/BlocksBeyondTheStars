@@ -300,6 +300,8 @@ public sealed partial class GameServer
                 DissolvePortCluster(other); // an orphaned lamp lights up again, an orphaned sentry fires again
             }
         }
+
+        TrimAfterRessawConduitLeft(pos, cell); // #3340: without its last Ressaw conduit a net goes back to 256 cells
     }
 
     /// <summary>#2261: takes a port out of the net together with every port it reaches through other ports — when none of
@@ -311,7 +313,7 @@ public sealed partial class GameServer
         var seen = new HashSet<Vector3i> { start.Cell };
         var queue = new Queue<ServerCrystalCell>();
         queue.Enqueue(start);
-        while (queue.Count > 0 && cluster.Count <= CrystalNetRules.MaxCellsPerNet)
+        while (queue.Count > 0 && cluster.Count <= CrystalNetRules.MaxCellsPerRessawNet) // #3340: the largest a net can be
         {
             var c = queue.Dequeue();
             cluster.Add(c);
@@ -383,7 +385,7 @@ public sealed partial class GameServer
 
     /// <summary>Registers the lamps and ports beside a fresh net cell (6 block reads, loaded chunks only). #2261: a force
     /// field or an energy fence carries the join on through its own kind, so a wired wall switches as one (bounded by the
-    /// net cap).</summary>
+    /// net cap). #3340: a fresh Ressaw conduit also re-tries the inert cells beside its network.</summary>
     private void DiscoverCrystalNeighbours(Vector3i pos, string owner)
     {
         var queue = new Queue<Vector3i>();
@@ -415,12 +417,14 @@ public sealed partial class GameServer
                 }
 
                 var cell = RegisterCrystalCell(n, kind, def.Key, owner, 0, string.Empty, string.Empty, 0, persist: true);
-                if (!cell.Inert && CrystalNetRules.SpreadsToOwnKind(kind) && ++spread < CrystalNetRules.MaxCellsPerNet)
+                if (!cell.Inert && CrystalNetRules.SpreadsToOwnKind(kind) && ++spread < CrystalNetRules.MaxCellsPerRessawNet) // the join enforces the net's own cap
                 {
                     queue.Enqueue(n);
                 }
             }
         }
+
+        ReviveBesideRessawConduit(pos); // #3340: a fresh Ressaw conduit lets the cells placed over the 256 cap join now
     }
 
     private ServerCrystalCell RegisterCrystalCell(Vector3i pos, CrystalDeviceKind kind, string blockKey, string owner, int mode, string config, string label, int yaw, bool persist)
@@ -443,9 +447,11 @@ public sealed partial class GameServer
             cell.Timer = new TimerState();
         }
 
-        if (kind is CrystalDeviceKind.AutoDrill or CrystalDeviceKind.Seat or CrystalDeviceKind.Bed && CrystalConfigValue(cell.Config, "key") is null)
+        if ((kind is CrystalDeviceKind.AutoDrill or CrystalDeviceKind.Seat or CrystalDeviceKind.Bed || CrystalNetRules.IsRessawConduitKey(blockKey))
+            && CrystalConfigValue(cell.Config, "key") is null)
         {
-            // A multi-key kind remembers WHICH block it is: a Mk3 drill must not come back from its row as a Mk1.
+            // A multi-key kind remembers WHICH block it is: a Mk3 drill must not come back from its row as a Mk1 (#3340: nor a
+            // Ressaw conduit as a crystal one — its network's cap depends on it).
             cell.Config = CrystalConfigWith(cell.Config, "key", blockKey);
         }
 
@@ -665,8 +671,8 @@ public sealed partial class GameServer
     }
 
     /// <summary>Adds a non-gate cell to the net: the networks of its neighbours merge into one (the smallest id
-    /// survives), or a new network is opened. A merge over the cell cap leaves the cell inert instead. #3092: never
-    /// through a watcher's eye — what a watcher looks at stays a network of its own.</summary>
+    /// survives), or a new network is opened. A merge over the cell cap (#3340: <see cref="CrystalCellCapFor"/>) leaves the
+    /// cell inert instead. #3092: never through a watcher's eye — what a watcher looks at stays a network of its own.</summary>
     private void JoinCrystalNet(ServerCrystalCell cell)
     {
         var state = CrystalNet;
@@ -681,7 +687,7 @@ public sealed partial class GameServer
         }
 
         int total = 1 + neighbours.Sum(n => n.Cells.Count);
-        if (total > (_crystalFrame is null ? CrystalNetRules.MaxCellsPerNet : CrystalNetRules.MaxShipCellsPerNet))
+        if (total > CrystalCellCapFor(cell, neighbours, total)) // #3340: 512 when the merged network holds a Ressaw conduit
         {
             cell.Inert = true;
             return;
@@ -840,18 +846,26 @@ public sealed partial class GameServer
         // back in the store's order (by coordinate), not in the order they were placed. A clone tank with a job
         // running or with clones in its list goes first, so a reload never gives its place inside the cap to an idle
         // tank and leaves the job hanging. The sort is stable: every other row keeps its place.
-        var rows = _repo.ListCrystalCells(_world.LocationId).OrderByDescending(CloneTankRowInUse);
-        foreach (var row in rows)
+        var rows = _repo.ListCrystalCells(_world.LocationId).OrderByDescending(CloneTankRowInUse).ToList();
+        _crystalRessawLoadReach = RessawReachOfRows(rows); // #3340: a net's cap follows its whole stored shape, not the row order
+        try
         {
-            if (!Enum.TryParse<CrystalDeviceKind>(row.Kind, out var kind) || kind == CrystalDeviceKind.None)
+            foreach (var row in rows)
             {
-                continue;
-            }
+                if (!Enum.TryParse<CrystalDeviceKind>(row.Kind, out var kind) || kind == CrystalDeviceKind.None)
+                {
+                    continue;
+                }
 
-            var pos = new Vector3i(row.X, row.Y, row.Z);
-            string blockKey = CrystalConfigValue(row.Config, "key") ?? KeyForKind(kind);
-            int yaw = CrystalConfigInt(row.Config, "yaw", 0);
-            RegisterCrystalCell(pos, kind, blockKey, row.OwnerId, row.Mode, row.Config, row.Label, yaw, persist: false);
+                var pos = new Vector3i(row.X, row.Y, row.Z);
+                string blockKey = CrystalConfigValue(row.Config, "key") ?? KeyForKind(kind);
+                int yaw = CrystalConfigInt(row.Config, "yaw", 0);
+                RegisterCrystalCell(pos, kind, blockKey, row.OwnerId, row.Mode, row.Config, row.Label, yaw, persist: false);
+            }
+        }
+        finally
+        {
+            _crystalRessawLoadReach = null;
         }
 
         MigrateCrystalPairs(); // #2252: an old numeric pair= becomes the partner's cell

@@ -91,7 +91,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The key an item's icon is filed under. The bio lab's keys (#2201–#2206) carry a species seed, a
         /// compound or a tool's changes after the <c>#</c>: the same item with the same art, so those look up their
         /// base key. A dyed or shaped block keeps its full key — its look comes from the modifiers, as before. An old
-        /// derelict log (#2633) carries the seed its text is written from: one icon for all of them.</summary>
+        /// log (#2633 derelict, #3341 G.D.S.) carries the seed its text is written from: one icon per log set.</summary>
         private static string IconKey(string key)
         {
             if (key.IndexOf(BlocksBeyondTheStars.Shared.State.ItemKey.Separator) < 0)
@@ -103,7 +103,7 @@ namespace BlocksBeyondTheStars.Client
             bool lab = BlocksBeyondTheStars.Shared.Bio.BioItems.CarriesSpecies(baseKey)
                        || BlocksBeyondTheStars.Shared.Bio.BioItems.FormOf(baseKey) != null
                        || !BlocksBeyondTheStars.Shared.Bio.ItemMods.Of(key).IsEmpty
-                       || baseKey == BlocksBeyondTheStars.WorldGeneration.DerelictLogs.ItemKeyBase
+                       || BlocksBeyondTheStars.WorldGeneration.LogSets.IsLogItem(baseKey)
                        || BlocksBeyondTheStars.Shared.State.CarriedContents.HasRecord(key); // #3098/#3099: a filled bag is a bag
             return lab ? baseKey : key;
         }

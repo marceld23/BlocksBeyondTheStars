@@ -200,6 +200,7 @@ namespace BlocksBeyondTheStars.Client
         private string ActiveGearHowTo(string key) => key switch
         {
             "suit_lamp" => L("ui.suit.active_lamp").Replace("{key}", ActionKeyText(InputAction.ToggleLamp)),
+            "ressaw_lamp" => L("ui.suit.active_ressaw_lamp").Replace("{key}", ActionKeyText(InputAction.ToggleLamp)), // #3339
             "jetpack" => L("ui.suit.active_jetpack").Replace("{key}", HudUi.JumpGlyph(Game.Localizer)),
             "glider" => L("ui.suit.active_glider").Replace("{key}", HudUi.JumpGlyph(Game.Localizer)),
             _ => L("ui.suit.active_stealth").Replace("{key}", ActionKeyText(InputAction.ToggleStealth)),
@@ -219,6 +220,7 @@ namespace BlocksBeyondTheStars.Client
         private static readonly Dictionary<string, string> KeyEffects = new Dictionary<string, string>
         {
             ["suit_lamp"] = "ui.equip.effect.lamp",
+            ["ressaw_lamp"] = "ui.equip.effect.lamp", // #3339: its night sight follows from the item data
             ["jetpack"] = "ui.equip.effect.jetpack",
             ["glider"] = "ui.equip.effect.glider",
             ["stealth_suit"] = "ui.equip.effect.stealth",
@@ -462,6 +464,11 @@ namespace BlocksBeyondTheStars.Client
             if (KeyEffects.TryGetValue(def.Key, out var effectKey))
             {
                 parts.Add(L(effectKey));
+            }
+
+            if (def.NightSight)
+            {
+                parts.Add(L("ui.equip.effect.night_sight")); // #3339: the Ressaw lamp
             }
 
             return string.Join("  ·  ", parts);

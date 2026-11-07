@@ -557,6 +557,8 @@ public sealed partial class GameServer
                 ShipAiHintOnce(session, "poi");
             }
 
+            TickAncientRuinHint(session); // #3334: a G.D.S. vent tower or the sealed hatch under the city
+
             TickVegaMemory(session);
             TickVegaContextTips(session); // throttled situational tips (#1077): lamp, ore, places, space …
             TickVegaBanterFor(session); // LLM smalltalk once onboarding is done (silent without AI)

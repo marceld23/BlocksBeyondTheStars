@@ -71,7 +71,7 @@ public sealed partial class GameContent
     public IReadOnlyList<StructureKit> StructureKits => _structures.StructureKits;
 
     /// <inheritdoc cref="StructureCatalog.SetStructureTemplates"/>
-    public void SetStructureTemplates(IReadOnlyList<StructureTemplate> stations, IReadOnlyList<StructureTemplate> settlements) => _structures.SetStructureTemplates(stations, settlements);
+    public void SetStructureTemplates(IReadOnlyList<StructureTemplate> stations, IReadOnlyList<StructureTemplate> settlements, Action<string>? warn = null) => _structures.SetStructureTemplates(stations, settlements, warn);
 
     /// <inheritdoc cref="StructureCatalog.SetStructureKits"/>
     public void SetStructureKits(IReadOnlyList<StructureKit>? kits, Action<string>? warn = null) => _structures.SetStructureKits(kits, warn);
@@ -85,8 +85,14 @@ public sealed partial class GameContent
     /// <inheritdoc cref="StructureCatalog.KitsFor"/>
     public IReadOnlyList<StructureKit> KitsFor(string kind, string? tier, IReadOnlyCollection<string>? enabledPacks, string? planetType) => _structures.KitsFor(kind, tier, enabledPacks, planetType);
 
+    /// <inheritdoc cref="StructureCatalog.UndergroundKitsFor"/>
+    public IReadOnlyList<StructureKit> UndergroundKitsFor(IReadOnlyCollection<string>? enabledPacks, string? planetType) => _structures.UndergroundKitsFor(enabledPacks, planetType);
+
     /// <inheritdoc cref="StructureCatalog.CompleteTemplatesFor"/>
     public IReadOnlyList<StructureTemplate> CompleteTemplatesFor(string kind, string tier, IReadOnlyCollection<string>? enabledPacks, string? planetType) => _structures.CompleteTemplatesFor(kind, tier, enabledPacks, planetType);
+
+    /// <inheritdoc cref="StructureCatalog.UndergroundTemplatesFor"/>
+    public IReadOnlyList<StructureTemplate> UndergroundTemplatesFor(IReadOnlyCollection<string>? enabledPacks, string? planetType) => _structures.UndergroundTemplatesFor(enabledPacks, planetType);
 
     /// <inheritdoc cref="StructureCatalog.SettlementModulesFor"/>
     public IReadOnlyList<StructureTemplate> SettlementModulesFor(IReadOnlyCollection<string>? enabledPacks, string? planetType) => _structures.SettlementModulesFor(enabledPacks, planetType);
@@ -346,9 +352,22 @@ public sealed partial class GameContent
 
     /// <summary>Installs the derelict log fragments (called by the content loader); null keeps the empty default. Null lists
     /// of a hand-edited file become empty ones, blank entries are dropped.</summary>
-    public void SetDerelictLogs(DerelictLogDefinition? logs)
+    public void SetDerelictLogs(DerelictLogDefinition? logs) => DerelictLogs = NormalizedLogs(logs, DerelictLogDefinition.DefaultTextPrefix);
+
+    /// <summary>The key family of the G.D.S. logs (#3341): <c>gds.log.header</c>, <c>gds.log.job.&lt;job&gt;</c>, ….</summary>
+    public const string GdsLogTextPrefix = "gds.log";
+
+    /// <summary>The fragments of the G.D.S. logs in the crates of a buried G.D.S. ruin (#3341) from <c>data/gds_logs.json</c>
+    /// — empty when the file is absent (the crates then hold no logs). Same shape and composer as <see cref="DerelictLogs"/>.</summary>
+    public DerelictLogDefinition GdsLogs { get; private set; } = new() { TextPrefix = GdsLogTextPrefix };
+
+    /// <summary>Installs the G.D.S. log fragments (called by the content loader), cleaned like <see cref="SetDerelictLogs"/>.</summary>
+    public void SetGdsLogs(DerelictLogDefinition? logs) => GdsLogs = NormalizedLogs(logs, GdsLogTextPrefix);
+
+    private static DerelictLogDefinition NormalizedLogs(DerelictLogDefinition? logs, string textPrefix)
     {
         var d = logs ?? new DerelictLogDefinition();
+        d.TextPrefix = textPrefix;
         d.Jobs = (d.Jobs ?? new List<string>()).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
         d.Escapes = (d.Escapes ?? new List<string>()).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
         d.Closings = (d.Closings ?? new List<string>()).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
@@ -358,7 +377,7 @@ public sealed partial class GameContent
             d.DayMax = d.DayMin;
         }
 
-        DerelictLogs = d;
+        return d;
     }
 
     private IReadOnlyList<AchievementDefinition> _achievements = new List<AchievementDefinition>();

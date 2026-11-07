@@ -54,6 +54,17 @@ renders in **linear colour space**, and the hand-written shaders are all dual-pi
   a roofed floor gets no snow cap and no wet gloss (#3164 — it got 55 % of both); the far-terrain
   sea takes the world's water tint and the rainbow bands from the same globals as the near water — vertex alpha 0.5
   marks it (#2415); the IMGUI underwater wash thins to ~15 % while the shader-side underwater haze is active (#2416).
+- **Ressaw, the milky liquid** (2026-11, #3335): the still liquid of the buried G.D.S. ruins is a see-through block that
+  meshes like water (`TraitWater`: inset surface, per-corner light on top, faces only toward air — the basin walls behind
+  it keep their faces), but every face carries shader mode **7** in `TEXCOORD2.x` (`ChunkMesher.Ressaw.cs`; water uses
+  1–4, the gas sea 5, the dense gas 6). `BlockAtlasTransparent` draws mode 7 in the tile's own milky white with its glow
+  (the vertex emission lifts it past 1 for the bloom; the surface a little brighter than the sides) under a slow shimmer —
+  never in the world's water tint, no waves, foam, refraction or reflection — and milky: about half see-through where the
+  view crosses a thin layer, nearly opaque where it runs deep through the liquid (one depth sample, Medium+; a fixed
+  alpha on Potato/Low and in the Built-in pass). The light it casts is the block data's (`lightColor`, surface cells
+  only). With the head in it, `WeatherFx` draws a milky lilac-white veil with one layer of drifting churn noise instead
+  of the blue wash, and `Sky.Mist` closes the underwater fog in to 7 m in a milky murk that ignores the world's water
+  colour and the night (it glows). Which liquid looks like what is `LiquidLook` (Client.Core, `RessawLookTests`).
 - **Mist, wisps and the cloud band** (2026-11, #3270–#3272; the haze code moved to `Sky.Mist.cs`, the rules to
   `MistLook` in Client.Core, tested headless in `MistLookTests`):
   - *Mist amount:* the height fog's strength is the world's `WorldEnvironment.MistAmount` (the server's per-world mist

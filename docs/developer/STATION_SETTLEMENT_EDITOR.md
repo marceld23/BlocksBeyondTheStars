@@ -314,6 +314,7 @@ A template is either **complete** (rolled as one piece, as before) or a **module
 | `kit` | template | the kit key every segment that fits together shares (`station_small_1`); a kit may also borrow a module of another kit by key |
 | `function` | template | what the module is for — stations: `hub corridor cabins canteen bar market mission medbay hydro storage hangar room` (`StructureRoles.StationFunctions`); settlements: the plot roles; cities: `city_*`. Empty falls back to `role` |
 | `pinOnly` | template | never rolled for a new structure; stays for the worlds that pinned it (the four original station templates) |
+| `underground` | whole settlement template, settlement / city kit | #3333 (default `false`): never offered to the surface pools — only the underground stamper (#3334, the buried G.D.S. ruins) seats it, in a cavity carved at depth. See *Underground* below |
 | `port` | block cell | `tag[:door]` — `door` (2 × 3 standard), `wide`, `ladder` (floor / ceiling) or any word; door option `slide` (default), `energy`, `hinge`, `open`. The wall block stays: it is the seal while nothing docks, and it is cut when a module docks |
 
 **Kits** live in `data/structure_kits.json` and `usercontent/structure_kits/<key>.json` (`StructureKit`): `key`, `name`,
@@ -321,9 +322,27 @@ A template is either **complete** (rolled as one piece, as before) or a **module
 (stations), `maxExtent`, `solarWings` / `antennas` / `domes` (stations, #1918; 0 = none),
 `entries[] = { module, min, max, required, weight, rotate }`, and the grid: settlements
 `colsMin/Max`, `rowsMin/Max`, `plotStride`, `building`, `storeys`, `modulesOnly`; cities `grid`, `districtSize`,
-`street`, `height`, `roleMap` (one string per row, letters `P O M H G T R`). `GameContent.SetStructureKits` validates
-(unknown module keys are dropped with a warning; a station kit needs an entry) and `KitsFor(kind, tier, packs, planet)`
-returns them in pool order.
+`street`, `height`, `roleMap` (one string per row, letters `P O M H G T R`), and `underground` (settlement / city kits,
+#3333). `GameContent.SetStructureKits` validates (unknown module keys are dropped with a warning; a station kit needs an
+entry) and `KitsFor(kind, tier, packs, planet)` returns them in pool order.
+
+**Underground (#3333).** A settlement or city kit, or a WHOLE settlement template, may carry `underground: true`. Such a
+kit or template is never drawn for the surface; only the underground stamper (#3334) composes / seats it, through
+`GameContent.UndergroundKitsFor(packs, planet)` and `UndergroundTemplatesFor(packs, planet)` (not pin-only, pack- and
+planet-filtered — an empty `planetTypes` = every world — in pool order; templates of every tier). What the flag keeps out:
+
+| surface pool | rule |
+|---|---|
+| `KitsFor` (settlement and city kits, the city world's kit draw) | skips `StructureCatalog.IsUndergroundKit` |
+| `CompleteTemplatesFor`, `PickSettlementTemplate` / `PickStationTemplate` (fresh structures) | skip a flagged template. A **legacy replay** (`legacyOnly`) still sees it — it reproduces what already stands, like `pinOnly` |
+| `SettlementModulesFor` (the per-plot / per-district module pool) | skips an underground module (`IsUndergroundModule`): one flagged itself, or one whose home `kit` is an underground kit. A surface module an underground kit merely *borrows* by key stays a surface module |
+
+Key lookups are untouched: `SettlementTemplateByKey` (pinned replays), `TemplateByKey` and the kit entries still resolve an
+underground template or module. A **station** cannot be underground (it hangs in space): `SetStructureKits` and
+`SetStructureTemplates` (both take the loader's warn callback) report a flagged station kit / station template and clear
+the flag, so it stays a surface kit / template. Modules carry no editor toggle — a module is underground through its kit;
+an author who wants one module kept out of the surface pool on its own may still write `"underground": true` into its
+JSON.
 
 **Ports** (`StructurePorts`): the tagged cells of one outer face, grouped into filled rectangles; the cell behind every
 port cell must be air; a port on a corner or on a marker is an error. Two ports dock when tag and rectangle are equal
@@ -408,6 +427,16 @@ kit with the current seed (`StationKitComposer.Compose`, `SettlementGenerator.Ge
 `CityGenerator.Generate` with `CityLayoutSpec.FromKit`) over the shipped pool plus the user's template files and loads
 the result as a whole structure. `tools/merge_structure.py` merges `kit.json` into `data/structure_kits.json` (defaults
 stripped) and keeps `kit`, `function` and non-empty `port` fields.
+
+*Underground toggles (#3333):* the kit panel shows **☐ Underground** (`ui.kit.underground`) beside the planet types of a
+settlement or city kit (a station kit has none; Save clears the flag on a station kit), stored as `underground` in
+`KitJson` → the user kit file and `kit.json`. The town editor's whole-structure form shows **☐ Underground (never on the
+surface)** (`ui.struct.underground`) under the planet types — not in module mode (a module follows its kit) and not in
+the station editor (stations hang in space); `MetaJson` / `TemplateJson` carry it into `structure.json`, the user
+template file and the submission, and LOAD reads it back from all three sources (built-in, user file, export bundle).
+`tools/merge_structure.py` writes `underground` when true and strips it when false — on a template re-merge a bundle
+without the field keeps the pool's value, and a kit re-merge keeps every field of the existing entry the bundle does not
+carry at all (`underground` from an older editor, `pinOnly`).
 
 **Pre-built circuits (#2260, 2026-10-04).** A template cell may carry Crystal Net settings: `mode`, `config`
 (`key=value;…`, e.g. `period=2;count=4`, `on=3;off=12`, `len=6`, `yaw=5`) and `label` (`TemplateCell.Mode` /

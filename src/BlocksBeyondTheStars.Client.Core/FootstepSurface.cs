@@ -101,7 +101,7 @@ namespace BlocksBeyondTheStars.Client
                 return GrateCue;
             }
 
-            if (Has(k, "crystal") || Has(k, "glass") || Has(k, "quartz") || Has(k, "gem") || Has(k, "prism") || k == "obsidian")
+            if (Has(k, "crystal") || Has(k, "conduit") || Has(k, "glass") || Has(k, "quartz") || Has(k, "gem") || Has(k, "prism") || k == "obsidian") // #3340: the Ressaw conduit too
             {
                 return CrystalCue;
             }

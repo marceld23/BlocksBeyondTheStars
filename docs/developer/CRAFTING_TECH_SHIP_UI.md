@@ -216,6 +216,11 @@ components, a category sidebar and blueprint state.
   `PlayerAvatar.GearSets.cs` instead of the classic plates of that slot: guardian = dark plates with small self-lit red
   accents (keep them small — red is the enemy machines' colour), robber = cloth mask with filter canisters and grille
   (the mouth hides under it and comes back) and a black jacket with a collar, flower = a blossom wreath and bracelets.
+  #3337: style 4 = the Ressaw diving suit — milky white plates with the G.D.S. purple (#4B2A78) and red (#8A1C24) trim: a
+  round, stepped dome helmet with an octagonal porthole that keeps the face visible (the avatar shader is opaque-only), a
+  chest plate with a glowing air gauge and a red belt, thigh and shin plates, and the first set boots — their style took
+  a fourth slot (`GearLook.BootsStyle`, bits 25–27; the generic Boots bit stays set, so older clients draw plain boots).
+  The presence gained no field: a full-suit presence is still one uncompressed message (`RessawGearLookTests`).
   The own stealth cloak (`Game.Stealthed`) turns the third-person figure into shimmering glass (`SetStealthShimmer`) —
   other players never see a cloaked player at all. Movement: the spring boots scale the ground jump's impulse by
   √(1 + `SuitEquipment.JumpBoost`); holding Jump while falling with the glider where there is air (an atmosphere, below

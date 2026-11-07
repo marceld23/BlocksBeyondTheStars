@@ -81,7 +81,8 @@ Per world: `CrystalNetState` with `Cells` (cell → `ServerCrystalCell`) and `Ne
   port on the side it used to look through joins.
 - **Join / merge.** `JoinCrystalNet`: a placed non-gate cell looks at its six neighbours; no net beside it opens a
   new network, one joins it, several **merge** into the one with the smallest id. A merge that would exceed
-  `MaxCellsPerNet` (256) leaves the new cell **inert** instead.
+  `MaxCellsPerNet` (256) leaves the new cell **inert** instead — 512 (`MaxCellsPerRessawNet`) when the merged network
+  holds a Ressaw conduit (#3340, §8).
 - **Split.** `UnregisterCrystalCell` removes the cell and its row and re-floods the remaining cells
   (`SplitCrystalNet`): the first component keeps the id, every further component becomes a network of its own —
   a cut conduit splits a line in two.
@@ -224,6 +225,7 @@ drives its own network (#2092).
 | Block key | Kind | Role | Input | Output (sources, gates) | Status (read by a Device Eye) | Mode / config |
 |---|---|---|---|---|---|---|
 | `crystal_conduit` | Conduit | wire | — | — | — | — |
+| `ressaw_conduit` (#3340) | Conduit | wire; its network may hold 512 cells (§8) | — | — | — | — (its row stores `key=ressaw_conduit`) |
 | `crystal_switch` | Switch | source | Interact toggles | its lever (persisted as mode 1 = ON) | — | — |
 | `crystal_button` | Button | source | Interact presses | 0.5 s pulse | — | — |
 | `step_plate` | StepPlate | source (sensor) | who stands on it | level | — | mode 0–3: anyone / players / owner / creatures |
@@ -383,6 +385,7 @@ network (before #2092 a blocked machine latched its own control line ON).
 | Cap | Value | Enforced where |
 |---|---|---|
 | cells per network | 256 | `JoinCrystalNet` — a merge over the cap leaves the new cell inert |
+| cells per network with a Ressaw conduit (#3340) | 512 | `JoinCrystalNet` → `CrystalCellCapFor` (`GameServerRessawConduits.cs`) |
 | networks per world | 64 | `OverCrystalCap` — only a brand-new network counts (`OpensCountedNet`) |
 | networks per player | 32 (half the world's) | `OverCrystalCap` / `CountNets` (#2267) |
 | lifts per owner | 4 | `OverCrystalCap` — a lift's only budget: its motor and stops count as no network (#3205) |
@@ -409,6 +412,33 @@ no way around the cap. See [MOVING_BLOCKS.md](MOVING_BLOCKS.md) §5.
 A cell over a cap registers **inert**: it exists, it is listed, it does nothing, and the player is told
 (`vega.sys.crystal_cap`); mining something frees the slot. The first conduit a player ever places triggers
 `vega.hint.crystal_first` (a once-per-player system line).
+
+**The Ressaw conduit (#3340).** `ressaw_conduit` is a crystal conduit in every respect: `KindByBlockKey` maps it to
+`CrystalDeviceKind.Conduit`, so it joins, carries the network's ON/OFF and glows while ON (the client's glow is drawn
+from the network list, not from the block key). `CrystalNetRules.IsConduitKey` is the one by-key test for "a wire"
+(the client's footstep and mining sounds treat it like the crystal conduit). Its row stores `key=ressaw_conduit`, like
+a multi-key kind, so a reload knows which conduit it is. A network that holds at least one may grow to
+`MaxCellsPerRessawNet` = **512** cells; the net stays one bit (ADR 0013 amendment). A ship's own net keeps its 128.
+The cap is checked where a cell joins, against the network the join would make (`CrystalCellCapFor`: no walk while
+the merged network stays within 256; past that one walk over the merged cells, ≤ 512 lookups). A join only sees the
+cells already in, so three paths keep the cap a function of the network's whole shape rather than of arrival order:
+
+- **Load.** Rows come back in the store's order (by coordinate) — a 400-cell net whose Ressaw conduit sits at its far
+  end would be cut at 256 before the conduit is read. `RessawReachOfRows` floods the stored rows once (gates are no
+  members, a watcher's eye is no wire) and every cell of a stored component holding a Ressaw conduit joins under 512.
+- **Placing a Ressaw conduit** into a full network re-tries the inert cells beside it, wave by wave
+  (`ReviveBesideRessawConduit`, from `DiscoverCrystalNeighbours`): each re-runs every cap, so the conduits placed over
+  256 join now instead of after the next reload. A Ressaw conduit that is not yet connected to a network does not help
+  it grow: cells placed over the cap of a network without one stay inert until it joins.
+- **Mining the last Ressaw conduit** out of a network over 256 cells trims it (`TrimAfterRessawConduitLeft`): the 256
+  cells a flood from its oldest cell reaches stay, the rest go inert as if placed over the cap (their actuators let go)
+  and come back when a Ressaw conduit is laid into the network again.
+
+The flood bounds that walk a network's cells (`DissolvePortCluster`, the spread in `DiscoverCrystalNeighbours`) use
+512, the largest a network can be; the join still enforces each network's own cap. Cost: nothing on the beats. The
+100 ms logic beat walks the world's cell table, not the networks, so a larger network costs what its cells cost
+anyway; the world's worst case grows from 64 × 256 to 64 × 512 registered cells, and the `CrystalNetList` a level change
+broadcasts carries three ints per net cell (a full Ressaw net ≈ 1.5 k ints).
 
 ## 9. Intents and permissions
 
@@ -605,7 +635,11 @@ price line.
 - **One bit, one beat.** No signal strength, no colours, no wireless except the matter pair (deliberate). A
   gate adds 100 ms; a long chain of gates is visibly slow — that is the model, not a bug.
 - **Deltas for devices, lists for networks (#2267).** Devices go out as `CrystalDeviceDelta` (only what changed);
-  the network list is still sent whole when a level changes — at the 64 × 256 cap a small message.
+  the network list is still sent whole when a level changes — at the 64 × 256 cap a small message (64 × 512 with
+  Ressaw conduits, #3340).
+- **Inert stays inert until something re-tries it.** A cell over a cap is decided when it joins and the flag is not
+  stored: only a reload, re-placing it or a Ressaw conduit joining beside it (#3340) re-tries the join. Which cells of
+  a network over the cap end up inert after a reload follows the row order, as before.
 - **Every machine reads all six faces (#2262)** — takes from and fills any crate beside it; the storage sensor still
   reads the first crate it finds.
 - **Storage "full"** is a line drawn for the sensor: eight full stacks in a wood crate, 32 stacks in a

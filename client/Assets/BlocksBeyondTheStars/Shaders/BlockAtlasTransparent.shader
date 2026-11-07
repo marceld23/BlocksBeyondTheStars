@@ -1,5 +1,5 @@
 // Alpha-blended sibling of BlocksBeyondTheStars/BlockAtlas for see-through blocks (glass viewports + station
-// force-field/energy barriers + water + the gas giant's gas sea, #2128). Same atlas + sun globals, but drawn in the
+// force-field/energy barriers + water + the gas giant's gas sea, #2128, + milky Ressaw, #3335). Same atlas + sun globals, but drawn in the
 // Transparent queue so the world behind shows through. Vertex colour: r=gloss, g=metal, b=face shade, a=emission (glow).
 //   _Sc_Light  = system sun colour x day brightness x weather dim (a>0.5 = set)
 //   _Sc_SunDir = world-space direction TO the sun
@@ -219,7 +219,30 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 float alpha;
                 float hazeHeightScale = 1.0; // #2412: 0.5 on a water surface (the mist floor is the water)
                 float hazeDone = 0.0;        // #2411: 1 once the screen-space water has hazed itself
-                if (i.water.x > 5.5)
+                if (i.water.x > 6.5)
+                {
+                    // #3335: Ressaw (mode 7, ChunkMesher.Ressaw.cs) — the milky, glowing still liquid of the buried G.D.S.
+                    // ruins. Its own white (the tile), never the world's water colour, and no waves, foam, refraction or
+                    // reflection: it stands still. It glows by itself (the emission term above already lifts it past 1, the
+                    // bloom catches it; the surface a little more than the sides) under a slow, faint shimmer, and it is MILKY:
+                    // half see-through where the view crosses a thin layer, nearly opaque where it runs deep through the liquid
+                    // (the depth texture, Medium+) — you make out shapes through it, not detail.
+                    float t = _Time.y;
+                    float shimmer = 0.5 + 0.5 * sin(i.wp.x * 0.83 + t * 0.47) * sin(i.wp.z * 0.71 - t * 0.39);
+                    col += albedo * (0.10 + 0.22 * saturate(N.y)) * (0.6 + 0.4 * shimmer) * shade;
+                    alpha = 0.58 + 0.10 * shimmer;
+                    if (_Sc_ScreenFx > 0.5)
+                    {
+                        float2 milkUV = GetNormalizedScreenSpaceUV(i.positionCS);
+                        float milkScene = LinearEyeDepth(SampleSceneDepth(milkUV), _ZBufferParams);
+                        float milkFrag = -TransformWorldToView(i.wp).z;
+                        alpha = lerp(alpha * 0.75, 0.92, saturate(max(0.0, milkScene - milkFrag) / 6.0));
+                    }
+
+                    alpha = saturate(alpha);
+                    hazeHeightScale = 0.5; // like water: the mist floor lies on the surface (#2412)
+                }
+                else if (i.water.x > 5.5)
                 {
                     // #2134: the dense gas under the gas sea — the floor you see from the islands and sink into, where the bare
                     // heightfield rock used to show. The gas tile's own tones, darkened and pulled towards violet; the warp
@@ -700,7 +723,15 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 float isField = saturate(emission * 4.0); // ~1 for fire + energy fields, 0 for water and glass
 
                 float alpha;
-                if (i.water.x > 5.5)
+                if (i.water.x > 6.5)
+                {
+                    // #3335: Ressaw (mode 7) — mirrors the URP pass without the depth term: milky, glowing, still.
+                    float t = _Time.y;
+                    float shimmer = 0.5 + 0.5 * sin(i.wp.x * 0.83 + t * 0.47) * sin(i.wp.z * 0.71 - t * 0.39);
+                    col += albedo * (0.10 + 0.22 * saturate(N.y)) * (0.6 + 0.4 * shimmer) * shade;
+                    alpha = saturate(0.58 + 0.10 * shimmer);
+                }
+                else if (i.water.x > 5.5)
                 {
                     // #2134: the dense gas under the gas sea — its darkened, near-opaque tile, calm in this fallback pass
                     // (none of the open-water glint and foam below).

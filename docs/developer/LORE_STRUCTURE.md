@@ -34,7 +34,9 @@ data-driven pipeline.
 > [STORY_VEGA_PROTOCOL_CONCEPT.md](STORY_VEGA_PROTOCOL_CONCEPT.md) §13 in sync. Every generated
 > `data/stories/vega_protocol/lore.json` row must trace back to a canon fact here.
 >
-> Last updated: 2026-10-11 (rev. 5 — canon pass #2463: B1 location-neutral, `mem_the_order` without a chosen
+> Last updated: 2026-11-07 (rev. 6 — the G.D.S. and Ressaw in the §C catalogue, #3341: a world-flavour faction outside
+> the `vega_protocol` arc, no change to §A/§B).
+> Rev. 5 (2026-10-11) — canon pass #2463: B1 location-neutral, `mem_the_order` without a chosen
 > one, VEGA's older memory arc `vega.mem.*` and `vega.relay.first` reconciled, see §D note; runtime notes in §E/§I).
 > Rev. 4 (2026-06-19) — corpus integration: first `story.json` slice shipped; runtime-format
 > note added to §E. Rev. 3 — authoritative SPS grundstory, clone twist, three machine types,
@@ -166,6 +168,8 @@ cleanly restored; the machines are alive; one player is the unique chosen one.
 | **Settlers / vendors / quartermasters** | survivor NPCs [exists] | isolated descendants; legends, fear of the machines, rumours/coordinates |
 | **Net fragments** | story find [proposed] | text-only shards of the old network / SPS data / VEGA memory (§E2) |
 | **Dataqubes** | knowledge find [exists] | mini-games → knowledge; **separate** from net fragments |
+| **The G.D.S.** | a vanished city people of the hot desert worlds [exists — Justus' faction, #1793; the buried city #3333–#3343] | the letters are **never explained**, by anyone. Up top their friendly purple-and-red guardian machines still keep the cool desert city (`gds_desert`) and say only "Go. Don't dig." Below it lies their **old city, flooded with Ressaw**: they pumped more and more of it up from the deep because it lit and powered everything, did not listen to their own engineers, the Ressaw blocks cracked and the city flooded; they made diving suits, got **everyone** out, sealed the city and moved up into the desert city. They were **reckless, never evil** — no experiments, no war, nobody hurt. Outside the SPS / Guardian canon: their guardians are their own peaceful machines, not the Guardian core's units (C6), and they never fight. Told through the G.D.S. logs (`gds_log`, `data/gds_logs.json`; [DERELICT_STATIONS.md](DERELICT_STATIONS.md) "The G.D.S. logs"), the ruins and the guardians' few words |
+| **Ressaw** | the G.D.S.'s glowing liquid [exists, #3335] | "Wasser" backwards: milky, see-through, softly glowing, corrosive, standing still. It lit the old city; it leaks only from cracked Ressaw blocks. Wonder, not threat — it stings, it never kills on the page |
 
 ## D. The reveal agenda (ordered VEGA beats)
 

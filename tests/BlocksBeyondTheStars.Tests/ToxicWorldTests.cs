@@ -280,9 +280,13 @@ public sealed class ToxicWorldTests
         Assert.Equal(0.25f, SuitEquipment.CorrosionResistance(items, k => k == "suit_liner_1"));
         Assert.Equal(0.65f, SuitEquipment.CorrosionResistance(items, k => k is "suit_liner_1" or "suit_liner_3"));
         Assert.True(SuitEquipment.IsSuitGear(_content.GetItem("suit_liner_2")!));
-        // The liners carry it — and, a little, the guardian chest plate (#3290), below the first liner so a liner always wins.
-        Assert.All(items.Where(i => i.CorrosionResistance > 0 && i.Key != "guardian_chest"), i => Assert.StartsWith("suit_liner_", i.Key));
-        Assert.True(_content.GetItem("guardian_chest")!.CorrosionResistance < _content.GetItem("suit_liner_1")!.CorrosionResistance);
+        // The liners carry it — and, a little, the guardian chest plate (#3290) and the Ressaw diving suit pieces (#3337),
+        // all below the first liner so a liner always wins.
+        float firstLiner = _content.GetItem("suit_liner_1")!.CorrosionResistance;
+        var others = items.Where(i => i.CorrosionResistance > 0 && !i.Key.StartsWith("suit_liner_", StringComparison.Ordinal)).ToList();
+        Assert.All(others, i => Assert.True(i.Key == "guardian_chest" || i.RessawSuit, $"{i.Key} resists corrosion"));
+        Assert.All(others, i => Assert.True(i.CorrosionResistance < firstLiner, $"{i.Key} must stay below the first liner"));
+        Assert.Contains(others, i => i.Key == "guardian_chest");
     }
 
     // --- helpers ---

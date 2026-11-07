@@ -284,6 +284,21 @@ ITEMS = [
     ("hunter_robot", "a small friendly sci-fi robot folded up into a compact cube for carrying, dark gunmetal and grey plates, one wide glowing light-blue visor slit and a small light-blue reactor light, kid-friendly, cute, not scary"),
     # #3322 (2026-11-07): door 24 of the Advent calendar — ringing it calls Rudolpho, the alien reindeer.
     ("star_bell", "a small shiny golden bell with a little glowing golden star as its clapper peeking out below the rim, a red satin ribbon bow tied at the top, warm soft glow, cosy and festive, kid-friendly"),
+    # #3343 (2026-11-07) the buried G.D.S. ruins: Ressaw (a milky glowing white liquid), its crystal, the diving suit, the
+    # drill, the lamp and the conduit — milky white with the G.D.S. trim of gds_desert (deep purple, dark red) — and the
+    # G.D.S. log found in the ruin crates (one icon for every seed, like derelict_log). The conduit keeps its own icon like
+    # crystal_conduit; the other block items (ressaw_block and the three ruin props) show their block tile.
+    ("ressaw", "a small sealed sci-fi glass canister filled with glowing milky white liquid with soft swirls, deep purple metal caps on top and bottom, a soft white glow"),
+    # The first crystal and conduit came back as clear empty glass; asking for a solid milky core keeps the Ressaw look.
+    ("ressaw_crystal", "a cluster of three chunky solid opaque milky white opalescent crystal shards glowing softly from inside, a faint pale violet sheen on the facets and a soft white glow around them"),
+    ("ressaw_helmet", "a rounded sci-fi diving helmet with one large round glass visor, a milky white shell with a deep purple visor ring, small bolts and a thin dark red trim stripe"),
+    ("ressaw_suit", "a sci-fi diving suit chest piece on its own, a milky white armoured torso with deep purple shoulder plates, thin dark red trim lines and a small round glowing white crystal light in the centre, front view, no person"),
+    ("ressaw_leggings", "a pair of sci-fi diving suit leg pieces on their own, milky white armoured legs with deep purple knee guards and thin dark red trim lines, no person"),
+    ("ressaw_boots", "a pair of sturdy sci-fi diving boots, milky white with deep purple soles and toe caps, thin dark red trim and small glowing white ankle lights"),
+    ("ressaw_drill", "a heavy-duty sci-fi mining drill with a deep purple metal body, dark red side rails and a glowing milky white crystal drill bit at its tip"),
+    ("ressaw_lamp", "a helmet-mounted sci-fi headlamp module, a small deep purple metal housing with a round lens of glowing milky white crystal casting soft white light, thin dark red trim"),
+    ("ressaw_conduit", "a sci-fi crystal conduit segment, a solid opaque milky white crystal rod glowing bright white from inside, held in a dark metal frame with silver clamps and thin deep purple trim"),
+    ("gds_log", "a small old worn sci-fi data log tablet with a deep purple metal casing and dark red trim, a dim pale screen showing faint lines of strange glyphs, scuffed edges and a hairline crack in one corner"),
 ]
 
 # Ship MODULES (builder UI). Space-view laser/tractor reuse ship_laser_basic / tractor_beam.

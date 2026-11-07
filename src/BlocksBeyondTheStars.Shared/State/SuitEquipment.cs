@@ -146,6 +146,35 @@ public static class SuitEquipment
         return head && chest;
     }
 
+    /// <summary>#3337: whether the worn gear is the full Ressaw diving suit — a flagged piece in each of the head, chest,
+    /// legs and feet slots. Three pieces are not enough: only the whole suit keeps Ressaw out.</summary>
+    public static bool RessawSuitComplete(IEnumerable<ItemDefinition> items, Func<string, bool> worn)
+    {
+        bool head = false, chest = false, legs = false, feet = false;
+        foreach (var item in items)
+        {
+            if (!item.RessawSuit || !worn(item.Key))
+            {
+                continue;
+            }
+
+            head |= item.EquipSlot == EquipSlots.Head;
+            chest |= item.EquipSlot == EquipSlots.Chest;
+            legs |= item.EquipSlot == EquipSlots.Legs;
+            feet |= item.EquipSlot == EquipSlots.Feet;
+        }
+
+        return head && chest && legs && feet;
+    }
+
+    /// <summary>#3339: the plain suit lamp — the lamp VEGA names when it is dark and the player has none.</summary>
+    public const string SuitLampKey = "suit_lamp";
+
+    /// <summary>#3339: whether a piece is a lamp the lamp key switches — the plain suit lamp, or a lamp that keeps the night
+    /// sight running while it shines (<see cref="ItemDefinition.NightSight"/>, the Ressaw lamp). Server and client ask this
+    /// one question, so the key, the beam and the night sight never disagree about which pieces are lamps.</summary>
+    public static bool IsLamp(ItemDefinition? def) => def != null && (def.Key == SuitLampKey || def.NightSight);
+
     /// <summary>A rank for "the best piece for a slot" — what the one-time migration and a full backpack pick by.</summary>
     public static float Rank(ItemDefinition def)
         => def.OxygenBonus * 10f + def.SuitEnergyBonus * 10f + def.ThermalInsulation * 100f + def.CorrosionResistance * 100f

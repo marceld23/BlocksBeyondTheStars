@@ -98,7 +98,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             ["light_white"] = 0x8ad9ac33d897e9d5UL,
             ["light_red"] = 0x532e9caef6687ac5UL,
             ["light_green"] = 0x6725b9a585b93bd5UL,
-            [AllBlocks] = 0xc0cf5ece87c78715UL, // #3174, #3181: 323 blocks with the lift gate pair and the three plank sorts
+            [AllBlocks] = 0xc1fe4b4c71c43c5eUL, // #3334–#3342: 331 blocks with the eight Ressaw / G.D.S. ruin blocks
         };
 
         private static GameContent LoadContentOrIgnore()

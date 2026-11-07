@@ -209,6 +209,27 @@ namespace BlocksBeyondTheStars.Client
             return false;
         }
 
+        /// <summary>#3339: true while a lamp the lamp key switches is worn — the suit lamp, or a night-sight lamp (the Ressaw
+        /// lamp, whose night sight the server keeps running while it shines). The server's rule:
+        /// <see cref="BlocksBeyondTheStars.Shared.State.SuitEquipment.IsLamp"/>.</summary>
+        public bool WearsLamp()
+        {
+            if (Content == null)
+            {
+                return Wears(BlocksBeyondTheStars.Shared.State.SuitEquipment.SuitLampKey);
+            }
+
+            foreach (var s in Equipment)
+            {
+                if (s != null && s.Count > 0 && BlocksBeyondTheStars.Shared.State.SuitEquipment.IsLamp(Content.GetItem(s.Item)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         /// <summary>Maximum suit oxygen with the tank currently worn — the HUD bar's full mark (#1270). The
         /// bar used to divide by a flat 100, so a Tank III's 300 sat pinned at "full" until two thirds were gone.</summary>
         public float SuitOxygenMax { get; private set; } = BlocksBeyondTheStars.Shared.State.SuitEquipment.BaseOxygen;

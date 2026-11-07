@@ -68,8 +68,10 @@ public static class GearLook
     // #3290–#3292: which SET the piece in a slot belongs to — three bits per slot on top of the generic Helmet / Chest /
     // Legs bit (which stays set, so an older client still draws a plain piece there). 0 = the classic look (the plain
     // plates and the titanium ones, told apart by their own bits above), 1 = the guardian set, 2 = the robber disguise,
-    // 3 = the flower set, 4–7 reserved. A mask that uses them is above 0xFFFF and costs a wearer two bytes more on the
-    // wire; the presence gains no field (a minimal presence must stay under the compression threshold).
+    // 3 = the flower set, 4 = the Ressaw diving suit (#3337, the first set with boots of its own — the boots got the
+    // fourth slot, bits 25–27, on top of the generic Boots bit), 5–7 reserved. A mask that uses them is above 0xFFFF and
+    // costs a wearer two bytes more on the wire; the presence gains no field (a minimal presence must stay under the
+    // compression threshold).
 
     /// <summary>The first bit of the head piece's style (bits 16–18).</summary>
     public const int HeadStyleShift = 16;
@@ -79,6 +81,9 @@ public static class GearLook
 
     /// <summary>The first bit of the leg piece's style (bits 22–24).</summary>
     public const int LegsStyleShift = 22;
+
+    /// <summary>#3337: the first bit of the boots' style (bits 25–27).</summary>
+    public const int BootsStyleShift = 25;
 
     /// <summary>The three bits of one slot's style, before the shift.</summary>
     public const int StyleBits = 7;
@@ -95,6 +100,9 @@ public static class GearLook
     /// <summary>#3292: the flower set — the blossom wreath, the flower bracelets.</summary>
     public const int StyleFlower = 3;
 
+    /// <summary>#3337: the Ressaw diving suit — milky white with the purple and red G.D.S. trim, the round visor helmet.</summary>
+    public const int StyleRessaw = 4;
+
     /// <summary>The style of the head piece in <paramref name="mask"/> (0 = classic).</summary>
     public static int HeadStyle(int mask) => (mask >> HeadStyleShift) & StyleBits;
 
@@ -103,6 +111,9 @@ public static class GearLook
 
     /// <summary>The style of the leg pieces in <paramref name="mask"/> (0 = classic).</summary>
     public static int LegsStyle(int mask) => (mask >> LegsStyleShift) & StyleBits;
+
+    /// <summary>#3337: the style of the boots in <paramref name="mask"/> (0 = classic: the plain or the spring boots).</summary>
+    public static int BootsStyle(int mask) => (mask >> BootsStyleShift) & StyleBits;
 
     /// <summary>The bits of <paramref name="style"/> in the slot that starts at <paramref name="shift"/>.</summary>
     public static int Style(int shift, int style) => (style & StyleBits) << shift;
@@ -121,7 +132,7 @@ public static class GearLook
         g |= SetPieces(worn);
         g |= Bit(worn("jetpack"), Jetpack);
         g |= Bit(worn("glider"), Glider);
-        g |= Bit(worn("suit_lamp"), Lamp);
+        g |= Bit(worn("suit_lamp") || worn("ressaw_lamp"), Lamp); // #3339: every lamp the lamp key switches (SuitEquipment.IsLamp)
         g |= Bit(worn("boots"), Boots);
         g |= Bit(worn("spring_boots"), Boots | SpringBoots);
         g |= Bit(worn("oxygen_tank_1") || worn("oxygen_tank_2") || worn("oxygen_tank_3"), Tank);
@@ -131,17 +142,22 @@ public static class GearLook
         return g;
     }
 
-    /// <summary>#3290–#3292: the pieces of the guardian, robber and flower sets — the slot's generic bit plus its style.</summary>
+    /// <summary>#3290–#3292, #3337: the pieces of the guardian, robber and flower sets and of the Ressaw diving suit — the
+    /// slot's generic bit plus its style.</summary>
     private static int SetPieces(Func<string, bool> worn)
     {
         int g = 0;
         g |= Bit(worn("guardian_helmet"), Helmet | Style(HeadStyleShift, StyleGuardian));
         g |= Bit(worn("robber_mask"), Helmet | Style(HeadStyleShift, StyleRobber));
         g |= Bit(worn("flower_wreath"), Helmet | Style(HeadStyleShift, StyleFlower));
+        g |= Bit(worn("ressaw_helmet"), Helmet | Style(HeadStyleShift, StyleRessaw));
         g |= Bit(worn("guardian_chest"), Chest | Style(ChestStyleShift, StyleGuardian));
         g |= Bit(worn("robber_jacket"), Chest | Style(ChestStyleShift, StyleRobber));
         g |= Bit(worn("flower_bracelets"), Chest | Style(ChestStyleShift, StyleFlower));
+        g |= Bit(worn("ressaw_suit"), Chest | Style(ChestStyleShift, StyleRessaw));
         g |= Bit(worn("guardian_legs"), Legs | Style(LegsStyleShift, StyleGuardian));
+        g |= Bit(worn("ressaw_leggings"), Legs | Style(LegsStyleShift, StyleRessaw));
+        g |= Bit(worn("ressaw_boots"), Boots | Style(BootsStyleShift, StyleRessaw));
         return g;
     }
 

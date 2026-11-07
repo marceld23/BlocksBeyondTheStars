@@ -786,6 +786,20 @@ fire (the large range).
 - When your shield starts recharging after hits, `shield_recharge` plays once (at most every 5 s).
 - Hull and shield hit cues are as loud as the blow, like the camera shake (0.45 for a scratch up to 1).
 
+## 33. Ressaw blocks crack and leak (#3336, #3343) — *ElevenLabs clips*
+
+In the buried G.D.S. ruins a glowing `ressaw_block` cracks when a player lingers next to it, and a cracked block that
+breaks lets its Ressaw seep out into a small still puddle (#3336). The two cues are keyed by their file names like every
+recorded clip (`ClientAudio` loads `Resources/audio` by name). Both are plain one-shots (class `oneshot`, levelled into
+`tools/audio/audio_levels.json` by `level_clips.py`'s import path; both sit just under their target, limiter-bound).
+Generated with `tools/ai-assets/gen_sound.py`, 2026-11-07, the second take of each (the first crack was a hissing noise
+burst with a whistling 10 kHz ring, the first leak ~30 dB too quiet); ~41 KB together.
+
+| Sound | Trigger | File | Prompt (duration, `--influence`) |
+|---|---|---|---|
+| crystal crack | a Ressaw block cracks (`ressaw_block` → `ressaw_block_cracked`) | `ressaw_crack` | "a single sharp crisp crack of a thick crystal glass block, like ice cracking under pressure: one clear snap followed by two quick smaller crackles and a faint glassy ring fading out, close-up, video game sound effect" (1 s, 0.5) |
+| Ressaw leaks | a cracked block breaks and Ressaw seeps out | `ressaw_leak` | "close-up liquid leaking from a crack: thick milky liquid gushing out in a short glugging gurgle with a few wet drips splashing onto stone, clear and present, video game sound effect" (1.5 s, 0.5) |
+
 ---
 
 ## 33. The Advent calendar and Rudolpho (#3316, #3322) — *ElevenLabs clips*

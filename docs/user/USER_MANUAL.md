@@ -181,7 +181,7 @@ Last updated: 2026-10-04.
 | **Middle mouse** | **Hotbar slot actions** on the selected slot: swap it against any backpack item, and for a building material also colour it (dye / glow / own pattern) or re-form it — see §5 → Hotbar slot actions (rebindable) |
 | **F** | Attack with the held tool/weapon — hits what's **under your crosshair** (the reticle turns red over a target; with **auto-aim** on, the nearest enemy in front of you is acquired automatically) |
 | **R** | At your own **cockpit / ship console** — inside the parked ship, or at the helm after **F** stepped you into the floating ship — while the repair panel is up: repair the ship (see §5 → Repairing your own ship; pressed elsewhere while the panel is up, a hint says where to go); otherwise repair the targeted wreck breach with the selected hotbar block (see §5 → Wrecks); with a **shaped block, furniture, ladder, stairs or a block with a front** (machines, counters, devices) selected: rotate its placement orientation (**Shift+R** cycles backwards — see §5 → Craftable block shapes) |
-| **L** | Toggle the suit headlamp (requires a **worn** `suit_lamp` — a module slot on the Suit tab; without one a hint says so). It is a calm white LED on the right of your helmet: a bright spot where you look with a soft halo around it — near rock is bright, rock far away stays dim, and wet stone, ore, ice, metal and water glint in it. While it is on, your eyes get used to the lit spot, so a dark cave around the beam looks a little darker (never black), and specks of dust in front of your visor sparkle in the light. Other players see your beam and the glowing lamp on your helmet, and you see theirs |
+| **L** | Toggle the suit headlamp (requires a **worn** `suit_lamp` or **Ressaw lamp** — a module slot on the Suit tab; without one a hint says so; the Ressaw lamp also gives night sight while it is on). It is a calm white LED on the right of your helmet: a bright spot where you look with a soft halo around it — near rock is bright, rock far away stays dim, and wet stone, ore, ice, metal and water glint in it. While it is on, your eyes get used to the lit spot, so a dark cave around the beam looks a little darker (never black), and specks of dust in front of your visor sparkle in the light. Other players see your beam and the glowing lamp on your helmet, and you see theirs |
 | **B** | Switch the **stealth suit's** cloak on / off (requires the stealth suit **worn** in the chest slot; drains suit energy) — rebindable |
 | **G** | Loot the nearest container — take everything out of the nearest storage crate; at an **empty** crate a short message says *The crate is empty.* |
 | **Q** | **Feed** — with food in your hand and a **begging herd** nearby, throw the animals one piece (see §5 → Creatures); does nothing otherwise, so it never wastes food — rebindable (Settings → Controls → *Feed a begging animal*) |
@@ -2697,6 +2697,50 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   two ways, both uncommon: as loot from a **treasure chest**, or by **buying** one from a trader's **Market**
   (a steep barter recipe, in stock only every third day). Keep one if you find it — it's your key to turning a factory into a home.
 
+### Buried G.D.S. ruins & Ressaw (worlds created since generation 35)
+*Justus' idea (player report, 2026-11-01).* The guardians of the G.D.S. desert city say *"Go. Don't dig."* — and now
+you know why: deep under the sand lies the **old G.D.S. city**, built of purple and red metal and **flooded with
+Ressaw**. Every G.D.S. desert world has one under its city; on other worlds such a ruin is **rare**. Only worlds created
+with a game version that has generation 35 get them — an older world never changes.
+- **Finding one:** on a G.D.S. desert world, look for a **glass hatch ringed in red** in a street next to the landing
+  plaza — dig through the glass and climb down the ladder. On other worlds look for a purple-and-red **G.D.S. vent
+  tower** with a red light on top and a ladder inside, a few hundred blocks from your landing spot. VEGA tells you when
+  you are near an entrance. Down below lies a buried city of about 88 × 88 blocks, lit by glowing Ressaw.
+- If your world's **Vaults** option is **Off** (or a server switches ruins off), worlds other than the G.D.S. desert
+  have none.
+- **Ressaw** (yes — "Wasser" backwards) is a milky, glowing, see-through liquid. You can swim in it, but it **stings**:
+  after about three seconds in it (feet or head) it slowly hurts you (3 health per second on normal hazards, less on
+  Light, more on Hard; off in Creative), your health does not regrow meanwhile, and with your head under it you use up
+  air like under water and the view turns milky. Get out and you are fine. Armour does not help against it — **suit
+  liners** and other corrosion protection soften it. With a **fluid pump** you can pump it into your backpack.
+- **Ressaw blocks** glow in the ruin walls. Don't stand next to one for too long — it **cracks**, and if you keep
+  standing there it **breaks and Ressaw runs out** into a small puddle. Walking past is fine.
+- **G.D.S. crates** hold **pieces of the Ressaw diving suit** (every ruin has the whole set spread over its crates),
+  **Ressaw crystals**, and **G.D.S. logs** — old notes telling how the G.D.S. pumped too much Ressaw, how their city
+  flooded, and how everyone got out and sealed it. Select a log in your inventory and press **Read** to open it; the
+  Codex keeps a copy under **Discoveries → G.D.S. logs**, readable even after the log is gone. Crates 1–4 of a ruin
+  hold the helmet, the suit, the leggings and the boots.
+- **Ressaw diving suit** (helmet, suit, leggings, boots): wear **all four** pieces and Ressaw no longer hurts you, and
+  your tank holds with your head in it — you can **breathe** down there. Three pieces only soften the sting. Water still
+  uses up your air as before. Other players see the milky white suit with its round helmet window.
+- **Ressaw crystal ore** sits at the bottom of the Ressaw pools — put on the diving suit to reach it. It is harder than
+  titanium: you need a **tier-3 drill** (the diamond drill, the guardian drill or the mining beam). The crates hold a few
+  crystals too, enough for the research.
+- **Crafting with Ressaw:** research the **Ressaw tech** blueprint (Suit; needs the titanium drill, 170 knowledge plus
+  data fragments, titanium plates and two Ressaw crystals). Then the **workbench** makes the four diving suit pieces
+  (Ressaw crystal, titanium plate, cable, polymer — the helmet also glass), the **Ressaw drill** (tier 3, faster than the
+  diamond drill), the **Ressaw lamp** (two pumped Ressaw, a crystal, glass, cable) and **Ressaw conduits** (four at a
+  time). Researcher traders buy spare Ressaw crystals for data fragments. Ressaw blocks cannot be crafted — they would
+  crack in your base.
+- **Ressaw lamp:** wear it in a suit module slot and switch your lamp on (**L**) — it shines like the suit lamp, and
+  the world around you looks like day (night sight; it uses one of your three effect places while it is on). It needs
+  pumped Ressaw to build, but never any refills.
+- **Ressaw conduit:** works exactly like a crystal conduit, but a crystal net with at least one Ressaw conduit in it
+  may grow to **512** blocks instead of 256 (see *Crystal Net*).
+- What you find down there: old crates, an empty diving helmet here and there, the head of a broken guardian — and,
+  very rarely, the skull of some creature that lived down there long ago. Like every ruin, everything is freely
+  mineable.
+
 ### Monuments & runes
 - Somebody was here long before you. **Monuments** are the relics they left: a half-collapsed
   **arcade** of arches, a free-standing **gate** that leads nowhere, a ring of standing stones
@@ -4453,6 +4497,15 @@ world option *Settlement templates* (*Off* disables whole templates and modules 
 layout it was created with. The option is the **share of hand-built settlements** in a new world: *Very rare* 5 %,
 *Rare* 15 %, *Normal* 40 %, *Frequent* 75 % — every other settlement is put together from a kit (*Station templates*
 works the same way for stations).
+
+**Town editor — Underground.** A whole settlement has the toggle **☐ Underground (never on the surface)** under the
+planet types, and the **Kits…** panel has **☐ Underground** for settlement and city kits. An underground structure is
+never placed on the surface: on worlds created since generation 35 it may turn up **buried** instead — rarely, on the
+planet types you chose (the world option *Vaults* scales how often; *Off* = never). The game carves a sealed cave around
+it, with a walkway on every side, and builds a stone shaft with a ladder and a small iron vent tower on the surface, so a
+player can find the way down. It is built exactly as you made it — doors, crates and loot, Crystal Net devices — but
+nobody lives there: an underground structure is a find, like a ruin, and every block is free to mine. The buried G.D.S.
+ruins (see *Buried G.D.S. ruins & Ressaw*) are the game's own underground kit. Stations cannot be underground.
 
 **Station / Town editor — kit modules, ports and the seal.** Set **Use as** to *Kit module* to build a piece of a
 modular structure. Type the **Kit** it belongs to (or pick one with **Kits…**) and step the **Function**: a

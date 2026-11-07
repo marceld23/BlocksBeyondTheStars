@@ -142,7 +142,7 @@ internal sealed class ContainerSystem
 
         var inv = session.State.Inventory;
         var leftover = new List<ItemStack>();
-        var takenLogs = new List<string>(); // #2633: old derelict logs land in the Discoveries ledger
+        var takenLogs = new List<string>(); // #2633/#3341: old logs (derelict, G.D.S.) land in the Discoveries ledger
         bool took = false;
         foreach (var stack in container.Items)
         {
@@ -156,7 +156,7 @@ internal sealed class ContainerSystem
             if (notPlaced < stack.Count)
             {
                 took = true;
-                if (WorldGeneration.DerelictLogs.IsLogItem(stack.Item))
+                if (WorldGeneration.LogSets.IsLogItem(stack.Item))
                 {
                     takenLogs.Add(stack.Item);
                 }
