@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🛗 The lift's build rule, told — where the motor goes, a stop too low, only the bottom floor, the Codex text and picture (Marcel's analysis 2026-11-07) — #3297–#3302, branch fix/lift-build-rule — ✅ done 2026-11-07 (⚠ playtest open; no save-version, protocol or terrain-generation change; server texts only — four new and six changed locale keys plus two Codex articles in all 14 languages)
+### 🛗 The lift's build rule, told — where the motor goes, a stop too low, only the bottom floor, the Codex text and picture (Marcel's analysis 2026-11-07) — #3297–#3302, branch fix/lift-build-rule — ✅ done 2026-11-07 in PR #3303 (`f205346f`), released in v2026.11.8 (⚠ playtest open; no save-version, protocol or terrain-generation change; server texts only — four new and six changed locale keys plus two Codex articles in all 14 languages)
 
 Marcel asked whether the lift works and whether it is documented right. The server logic is sound (tests green), but
 one rule was explained nowhere: the platform rests **on top of** the motor, so a level entry needs the motor one block
@@ -51,7 +51,7 @@ lift". The rule stays (moving the resting height would shift every saved lift); 
 - Playtest: place a motor on the ground (warning), in a 1-deep 3×3 pit (silent, platform flush), a stop on the ground
   beside a motor set on the ground (too low), a bottom stop only + press on the motor (asks for a stop higher up).
 
-### 📬 Player reports 2026-11-06 evening (Justus as Screelit + Ben from the school club, v2026.11.7) — a ship that no longer floats after a re-join, every cube material shapeable, Guardian UFOs, rune stones in their biome's colours, guardian / robber / flower gear with a trader discount, a reward crate after the finale, a friendly hunter robot — #3286–#3295, branch feat/reports-2026-11-06b — ✅ done 2026-11-07 (⚠ playtest open; **no save-version or block-id change** (only new items); **new SQL columns** `container.owner` / `owner_name` (added by `ALTER TABLE` on old saves); protocol: one new server→client message `TraderDiscountInfo` (tag 319) + additive `NetContainer.OwnerId/OwnerName`; no terrain-generation change — monuments stamp their rune glow per biome only where they are first stamped; ~68 new/changed locale keys in all 14 languages)
+### 📬 Player reports 2026-11-06 evening (Justus as Screelit + Ben from the school club, v2026.11.7) — a ship that no longer floats after a re-join, every cube material shapeable, Guardian UFOs, rune stones in their biome's colours, guardian / robber / flower gear with a trader discount, a reward crate after the finale, a friendly hunter robot — #3286–#3295, branch feat/reports-2026-11-06b — ✅ done 2026-11-07 in PR #3296 (`43c2147d`), released in v2026.11.8 (⚠ playtest open; **no save-version or block-id change** (only new items); **new SQL columns** `container.owner` / `owner_name` (added by `ALTER TABLE` on old saves); protocol: one new server→client message `TraderDiscountInfo` (tag 319) + additive `NetContainer.OwnerId/OwnerName`; no terrain-generation change — monuments stamp their rune glow per biome only where they are first stamped; ~68 new/changed locale keys in all 14 languages)
 
 - **#3286** (Ben) The parked ship hung five cells in the air after a re-join: the parking height read the pad centre and
   its corners at ±4 — outside the 5×7 starter box — so a staircase built beside the hull lifted it. The hull now reads
@@ -78,7 +78,7 @@ lift". The rule stays (moving the resting height would shift every saved lift); 
 - **Open:** playtest everything in a real build (robot proportions + chirps, gear looks on the avatar, rune palettes on
   monuments, glass stairs, the discount badge at a vendor).
 
-### 🎚️ Automatic graphics preset — desktop calibration, GPU time, High only after a world measurement, a slow-world hint (Marcel's analysis 2026-11-06) — #3279–#3284, branch feat/auto-quality-calibration — ✅ done 2026-11-06 in PR #3285 (⚠ playtest open; client only — no save-version, protocol or terrain-generation change; one new locale key in all 14 languages)
+### 🎚️ Automatic graphics preset — desktop calibration, GPU time, High only after a world measurement, a slow-world hint (Marcel's analysis 2026-11-06) — #3279–#3284, branch feat/auto-quality-calibration — ✅ done 2026-11-06 in PR #3285 (`49521bad`), released in v2026.11.8 (⚠ playtest open; client only — no save-version, protocol or terrain-generation change; one new locale key in all 14 languages)
 
 Marcel asked when High can be chosen and how the client could tell at runtime whether High is feasible. Answers: the
 desktop calibrates new installs, a slow world only hints, measuring is fine, no warning on a hand-picked High. Details
@@ -102,7 +102,7 @@ in docs/developer/ADVANCED_GRAPHICS.md § "Automatic preset calibration".
 - Playtest: fresh desktop install → `[AutoQuality]` log lines (session start, shell sample, world sample); a slow scene
   shows the hint once; picking a preset by hand stops all of it.
 
-### 🌫️ Fog wisps, cloud fog at altitude, fog banks, a mist of each world's own, real smoke at vents and volcanoes (Marcel's analysis 2026-11-06) — #3269–#3277, branch feat/fog-wisps-cloud-fog-vent-smoke — ✅ done 2026-11-06 in PR #3278 (⚠ playtest open; no save-version or terrain-generation change; protocol additive — five new contractless `WorldEnvironment` fields, an older client ignores them, an older server sends defaults = the look before)
+### 🌫️ Fog wisps, cloud fog at altitude, fog banks, a mist of each world's own, real smoke at vents and volcanoes (Marcel's analysis 2026-11-06) — #3269–#3277, branch feat/fog-wisps-cloud-fog-vent-smoke — ✅ done 2026-11-06 in PR #3278 (`29e5618a`), released in v2026.11.8 (⚠ playtest open; no save-version or terrain-generation change; protocol additive — five new contractless `WorldEnvironment` fields, an older client ignores them, an older server sends defaults = the look before)
 
 - **#3269** Per-world mist profile `Shared.World.MistProfiles` (pure function of seed × location × type, mixed hash): amount from
   the new `mist` value on all 55 planet types (replaces the hardcoded client switch `Sky.MistFor`) ± a per-world jitter × air

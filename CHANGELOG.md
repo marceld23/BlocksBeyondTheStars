@@ -11,6 +11,86 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.8] — 2026-11-07
+
+The fog-and-robot release. **Every world now has a mist of its own** — fog drifts in wisps, you can climb a peak into the
+clouds and look down on a sea of clouds, and geysers, vents and volcanoes give off **real smoke and steam**. Justus' ideas
+came true: **guardian armour, a robber disguise and flower jewellery** that gets you a discount at traders, a **reward crate
+after the finale** and a **friendly hunter robot** that follows you to every world. Ben's reports fixed the **ship that floated
+after a re-join** and made **every cube material shapeable** — wooden stairs included. New desktop installs **pick their
+graphics preset on their own**, and the **lift explains how it is built**. Thank you, Justus and Ben, for the ideas and reports!
+
+ℹ️ **Compatibility:** no new blocks — the **save version stays at 11**, the terrain generation at **32** and the network
+protocol at **version 11** (the new fog values and the trader discount are additive). Saves gain two columns for
+owner-locked crates on the first load, automatically. As always, keep game and server on the same version: the desktop
+game updates itself at start, and the browser is always current.
+
+### 🌫️ Fog, clouds and smoke (#3269–#3277)
+
+- **A mist of each world's own:** how much mist there is, its colour, how wispy it is and how often fog comes are decided
+  by the world itself. About four in ten worlds have white or grey mist, the others a tint of their planet family — always
+  bright. Gas giants are always hazy, in amber, rose, lilac or teal.
+- **Fog wisps:** the ground fog drifts with the wind in banks and gaps instead of hanging like an even veil.
+- **Cloud fog on high peaks:** climb a mountain into the cloud layer and you stand in the clouds, seeing 15 to 40 metres.
+  On a clear day there is none, with clouds it is patchy, in rain, storm or fog it is closed. From above you look down on
+  a **sea of clouds** (Medium and up, desktop).
+- **Fog banks in the air:** large soft banks float over the valley floors and drift with the wind (not in the browser
+  and not on Potato).
+- **The weather's own colours:** fog, dust storms, sand storms and ion storms now really tint the haze — before, their
+  colours never arrived. Festival fog tints the mist, and cloud shadows now drift with the wind instead of against it.
+- **Real smoke:** soft puffs lit by the sun, warm at first and cooling as they rise — campfires too.
+- **Geysers and vents** steam all the time and erupt at random every 8 to 40 seconds: water vents throw droplets,
+  volcanic vents ash and embers, with a hiss you can hear. A geyser no longer leaks memory with every eruption.
+- **Volcanoes smoke:** a tall column, bent by the wind, rises from every crater and can be seen from far away.
+- Three new switches under **Settings → Graphics → Atmosphere effects**: "Fog wisps drifting in the wind", "Cloud fog on
+  high peaks" and "Fog banks in the air".
+- Gameplay: how often fog comes now differs from world to world, and "summits are wetter" starts at the cloud layer.
+
+### 🤖 Justus' ideas: guardian gear, a robot friend and more (#3288–#3295)
+
+- **Guardian gear:** scan drones, guardian robots, hunters and tank spiders drop **Guardian Plates**. From them you build
+  the **Guardian Armour** (helmet, chest plate and leg plates — as strong as titanium, with red lights), the **Guardian
+  Sword** with a red hologram blade, and the **Guardian Laser Drill**, a thin red laser that takes blocks apart one by one.
+- **Robber disguise:** robbers drop **Robber Cloth** — sew a **Robber Mask** and a **Robber Jacket**. Wear both, and a lone
+  robber looks you over and walks on.
+- **Flower jewellery:** bellflowers give a **Blue Blossom**. Weave a **Flower Wreath** (10 % off at traders) and **Flower
+  Bracelets** (15 %, 25 % together with the wreath). The discount works for your allies and crew within 32 metres too;
+  the trader shows it. Two trade loops that made money out of nothing are closed (copper ↔ silicate, meat ↔ iron).
+- **A reward for the finale:** shut down the Guardian core and a crate with a **Robot Core** appears next to every player
+  of the world — only you can open it. Players who are offline get theirs on their next visit.
+- **Your own hunter robot:** the Robot Core and some titanium ore become a **Hunter Robot** at the workshop — a friendly
+  companion with light-blue lights. It follows you to every world, helps against machines and wild beasts, never needs
+  food and never attacks players or settlers. If it is knocked out, its parts wait in a crate only you can open.
+- **Guardian UFOs:** Justus asked whether the UFOs are aliens. They are machines of the old exploration network that the
+  Guardian core turned into hunters — the world option and the Codex now call them **Guardian UFOs**.
+- **Rune stones in the colours of their biome:** rune stones (with Justus' own music-note design) and ancient bricks take
+  one of eight palettes from the biome they stand in, and a monument's rune glow follows them.
+
+### 🧱 Ben's reports: the floating ship and wooden stairs (#3286, #3287)
+
+- **The ship no longer floats:** a staircase built right beside the parked ship lifted it five blocks into the air on the
+  next join. The ship now only looks at the ground under its own hull. Ships that already float sink back on the next load.
+- **Every cube material takes a form:** wooden planks, logs and plant stems, the metal blocks, wall and scrap blocks, ice,
+  obsidian and the rest of the terrain — and glass, which stays see-through as stairs, ramps or any other form.
+
+### 🎚️ The graphics preset sets itself (#3279–#3284)
+
+- A **new desktop install** starts on Medium and measures how fast your computer is, like the browser already did. It
+  reads the graphics card's own frame time. **High** comes only after the game has measured a real world on Medium on
+  the same graphics card, and it switches at the next start, never during play. Existing installs keep their preset, and
+  picking a preset by hand ends the measuring for good. On battery or without a real graphics card it never steps up.
+- If a world runs below 25 frames per second for half a minute, a hint says once per session that a lower preset or a
+  shorter view distance helps — it never changes a setting by itself.
+- A settings file lost in a crash is now restored from its backup instead of starting from scratch.
+
+### 🛗 The lift explains how it is built (#3297–#3302)
+
+- The rule was explained nowhere: the platform rests **on top of** the lift motor. For a level entry, dig a 3×3 pit one
+  block deep and set the motor into the middle of its floor; every lift stop stands at least two blocks higher than the
+  motor. The manual, the item texts, VEGA's hints and the Codex (with a new picture) now say so.
+- The game tells you when something is off: a motor set on the ground (the platform would be a step or two too high),
+  a lift stop that stands too low, or a lift that has only its bottom floor so far.
+
 ## [2026.11.7] — 2026-11-06
 
 The dark-caves release. **Caves, dug tunnels and nights are dark again** — take the suit lamp or a torch; tree shade and
@@ -10180,7 +10260,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.7...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.8...HEAD
+[2026.11.8]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.7...v2026.11.8
 [2026.11.7]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.6...v2026.11.7
 [2026.11.6]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.5...v2026.11.6
 [2026.11.5]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.4...v2026.11.5
