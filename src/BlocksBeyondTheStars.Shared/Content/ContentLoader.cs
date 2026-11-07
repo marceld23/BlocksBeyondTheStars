@@ -178,6 +178,11 @@ public static class ContentLoader
             ? JsonSerializer.Deserialize<Festivals.FestivalCatalog>(File.ReadAllText(festivalsFile), JsonOptions)
             : null);
 
+        // The festival day calendars (#3315) and the cosmetic templates their doors unlock (#3320, #3321) — optional too.
+        content.SetFestivalCalendars(LoadOptional<Festivals.FestivalCalendarCatalog>(Path.Combine(dataDir, "festival_calendars.json")));
+        content.SetHudFrames(LoadOptional<Festivals.HudFrameCatalog>(Path.Combine(dataDir, "hud_frames.json")));
+        content.SetSkins(LoadOptional<Festivals.SkinCatalog>(Path.Combine(dataDir, "skins.json")));
+
         // The build categories (#3102) are optional the same way: no categories.json → every list shows only "All".
         string categoriesFile = Path.Combine(dataDir, "categories.json");
         content.SetCategories(File.Exists(categoriesFile)
@@ -286,6 +291,11 @@ public static class ContentLoader
 
         return result;
     }
+
+    /// <summary>An optional object file: null when it is absent.</summary>
+    private static T? LoadOptional<T>(string path)
+        where T : class
+        => File.Exists(path) ? JsonSerializer.Deserialize<T>(File.ReadAllText(path), JsonOptions) : null;
 
     private static List<T> LoadArray<T>(string path)
     {

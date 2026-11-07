@@ -1,0 +1,8 @@
+// Character skin templates (#3321): the four appearance colours and the body paint of torso, arms, legs and helmet (the
+// character editor's payloads). "unlock": "" = free, "calendar" = once a festival calendar door unlocked it in this world
+// (skin:<key>). STUB - filled by tools/gen_festive_skins.py.
+{
+  "skins": [
+    { "key": "christmas", "unlock": "calendar", "colors": [], "paint": [] }
+  ]
+}

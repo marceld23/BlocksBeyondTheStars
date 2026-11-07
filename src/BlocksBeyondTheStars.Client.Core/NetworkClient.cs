@@ -508,7 +508,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         public void Join(string playerName, string? password = null, string locale = "en", string? token = null, int viewDistanceChunks = 0, string? hostedToken = null, string? installId = null)
-            => Send(new JoinRequest { PlayerName = playerName, Password = password, Locale = locale, Token = token, ViewDistanceChunks = viewDistanceChunks, HostedToken = hostedToken, InstallId = installId, ContentFingerprint = EffectiveContentFingerprint, Features = Features ?? System.Array.Empty<string>(), FestivalPreset = FestivalPreset, FestivalCustom = FestivalCustom ?? System.Array.Empty<string>() });
+            => Send(new JoinRequest { PlayerName = playerName, Password = password, Locale = locale, Token = token, ViewDistanceChunks = viewDistanceChunks, HostedToken = hostedToken, InstallId = installId, ContentFingerprint = EffectiveContentFingerprint, Features = Features ?? System.Array.Empty<string>(), FestivalPreset = FestivalPreset, FestivalCustom = FestivalCustom ?? System.Array.Empty<string>(), UtcOffsetMinutes = UtcOffsetMinutes });
 
         /// <summary>#2222: set once this client refused the server it is connected to. Until the next
         /// <see cref="Connect"/>, <see cref="Poll"/> hands nothing on — a transport may still deliver what was on

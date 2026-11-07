@@ -1,0 +1,9 @@
+// HUD frame templates (#3317, #3320): four 32 x 32 tiles of pixel-editor palette indices (base32, one char per pixel,
+// row 0 = top, 0 = transparent) - the top-left corner (mirrored to the other corners), the top edge, the left side edge
+// (mirrored to the right) and the bottom edge. "unlock": "" = free, "calendar" = once a festival calendar door unlocked it
+// in this world (hudframe:<key>). STUB - filled by tools/gen_hud_frames.py.
+{
+  "frames": [
+    { "key": "christmas_lights", "unlock": "calendar", "corner": "", "top": "", "side": "", "bottom": "", "twinkle": [], "twinkleColors": [] }
+  ]
+}

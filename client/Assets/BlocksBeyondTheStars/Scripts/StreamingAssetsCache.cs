@@ -47,7 +47,9 @@ namespace BlocksBeyondTheStars.Client
             "derelict_logs.json",
             "dialogs.json",
             "enemies.json", // #2971
+            "festival_calendars.json", // #3315
             "festivals.json", // #3001
+            "hud_frames.json", // #3317
             "items.json",
             "locale_coverage.json",
             "locales/de.json",
@@ -81,6 +83,7 @@ namespace BlocksBeyondTheStars.Client
             "ship_layouts/ship_thunderbolt.json",
             "ship_modules.json",
             "ships.json",
+            "skins.json", // #3321
             "space_salvage.json",
             "station_templates.json",
             "stories/festival_blossoms/locales/de.json",
