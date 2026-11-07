@@ -144,6 +144,20 @@ public sealed partial class GameServer
                 value = KnowledgeCreatureHostile;
             }
         }
+        else if (subjectType == "block" && TextMonumentForScan(session, cell) is { } tablet)
+        {
+            // #3312: a stone text tablet of KuBa-W reads as the monument it is — a readout, the knowledge of a relic and a
+            // Codex discovery per body and tablet. Any of its blocks (slab, letter, step) points the scanner at it.
+            readout.Kind = "monument";
+            readout.SubjectKey = "monument_" + tablet.Key;
+            readout.Display = readout.SubjectKey; // the client localizes it via ui.scan.subject.*
+            readout.InfoKey = "ui.scan.monument." + tablet.Key;
+            readout.ThreatKey = "ui.scan.threat.inert";
+            readout.LegacyInfo = "A stone tablet of the school club.";
+            readout.LegacyThreat = "Inert";
+            value = KnowledgeMonument;
+            ledgerKey = $"monument:{_world.LocationId}:{tablet.Key}";
+        }
         else if (subjectType == "block" && (System.Array.IndexOf(RuneBlocks, subjectKey) >= 0 || subjectKey == FossilBlock)
                  && MonumentForScan(session) is { } monument
                  && (subjectKey != FossilBlock || WorldGeneration.MonumentGenerator.IsFossil(monument.Archetype)))

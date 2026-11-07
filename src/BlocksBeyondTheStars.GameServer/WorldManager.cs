@@ -193,6 +193,7 @@ internal sealed class LoadedWorld
     public GiantWorldState Giants { get; } = new();                   // the colossus, the sandworms and the thumpers (#1998)
     public SreekmakraState Sreekmakra { get; } = new();                // the one shapeshifter of a Valuma world (2026-09)             // 0..N abandoned SPS research stations (2026-09, Titas)
     public List<MonumentInstance> Monuments { get; } = new();         // 0..N stamped rune monuments
+    public List<GameServer.TextMonumentInstance> TextMonuments { get; } = new(); // #3310: the stone text tablets (KuBa-W)
     public List<GameServer.ServerNpc> Npcs { get; } = new();
     public List<GameServer.BaseGuest> BaseGuests { get; } = new(); // #2602: friendly visitors at the bases of this world (RAM only)
     public List<GameServer.ServerDoor> Doors { get; } = new();

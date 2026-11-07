@@ -515,4 +515,32 @@ public sealed class PlanetType
     /// <summary>How many sandworms a world of this type carries (#2075, Arena Nigra: 3); 0 = the classic rule of
     /// <c>GiantRules.SandwormCount</c> (one, two on a big world). Read on generation-17 worlds only.</summary>
     public int SandwormCount { get; set; }
+
+    // --- Generation 33 (#3306): KuBa-W, Jafar's school-club asteroid. No-op defaults. ---
+
+    /// <summary>A fixed landing-pad count for every body of this type (#3309, KuBa-W: 2 — one per text monument); 0 = the
+    /// classic seeded roll of the body's size class.</summary>
+    public int LandingPadCount { get; set; }
+
+    /// <summary>Stone text tablets the server stamps on every body of this type, each in full view of one landing pad
+    /// (#3310). Indestructible (#3311) and scannable (#3312). Meant for a <see cref="RestrictStructures"/> type: the tablets
+    /// are stamped first and the classic structures do not reserve around them.</summary>
+    public List<TextMonumentSpec> TextMonuments { get; set; } = new();
+}
+
+/// <summary>One stone text tablet of a planet type (#3310, KuBa-W): the lines it spells and the landing pad it faces.</summary>
+public sealed class TextMonumentSpec
+{
+    /// <summary>The tablet's id — the scan subject (<c>monument_&lt;key&gt;</c>), its locale keys and its placement record.</summary>
+    public string Key { get; set; } = string.Empty;
+
+    /// <summary>The index of the landing pad the tablet stands in front of (0 = the home touchdown).</summary>
+    public int Pad { get; set; }
+
+    /// <summary>The text, top line first. A space is a glyph-wide gap; every line is centred.</summary>
+    public List<string> Lines { get; set; } = new();
+
+    /// <summary>Where the accent colour starts, as [line, character]: every glyph from there to the end of that line is
+    /// built of the accent block (KuBa-W: the club leads' initials). Empty = no accent.</summary>
+    public List<int> AccentFrom { get; set; } = new();
 }

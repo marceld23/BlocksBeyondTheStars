@@ -3080,7 +3080,85 @@ vendor and at the ship's console (#2987).
 **Tests:** `StartSystemJumpOresTests` (80 seeds: both ores in every start system, the start stays put, idempotent; an
 older generation unchanged; the metallic asteroids' gated lead vein; a fresh server pins the retyped system).
 
-## 49. Generation 34 — the Schuppenhund on the dry worlds (#3325–#3328, epic #3329, 2026-11-07)
+## 49. Generation 33 — KuBa-W, the school club's asteroid (#3306: #3307–#3313, #3330, 2026-11-07, Jafar's idea)
+
+Jafar from the school club designed a world like the earlier landmarks: a small asteroid with breathable air, a greenish
+sky, hills and flat land, animals, and two giant stone monuments — one spelling **"KuBa West Trier"** (the school), one the
+**initials of everyone in the club** (every child, then the two leads). Marcel added a third, **"JuMaVe-Games"** (#3330),
+and asked for them to be **huge**. `WorldDescription.KubaWGeneration` is **33**;
+every rule below is gated on it, so every older galaxy, body and chunk is bit for bit what it was (no golden moved).
+
+**The type (#3307).** `asteroid_kuba_w` — the key starts with `asteroid`, so `WorldConstants.IsAsteroidType` gives it the
+asteroid size class (circumference 800–1600, gravity 0.35–0.55 g, the asteroid wrap). It is the first asteroid type with
+`atmosphere: breathable`, no `spaceSky`, no `cratered`, flora (`temperate` with a `floral` biome) and fauna
+(`creatureAbundance: many` — on a body this small that is ~7–13 live animals), a fixed pale-green `skyColor`, hills /
+downs / flats at amplitude 10, **no trees** (nothing tall between a pad and its tablet), little water (0.2, no sea) and no
+meteor showers. `restrictStructures` keeps only the story's net fragments: no settlement, ruin, camp, wreck, factory,
+vault, random monument or worldgen relic prop. `spawnWeight 0` and `selectable: false`, so neither the asteroid family
+draw nor the planet roll ever picks it. Glue: VEGA's arrival line (`vega.hint.world.kuba_w` — every other asteroid family
+shares the "rock in the void" line), a green flight-view look (`SpaceView.Models.PlanetLook`), name "KuBa-W" in all 14
+locales. `LandableAsteroidTests` treats a guaranteed asteroid as no family (families stay airless, cratered, lifeless).
+
+**Exactly once per galaxy (#3308).** `UniverseGenerator.ApplyGuaranteedAsteroids` runs after the planet passes: every
+asteroid type with `guaranteedOnce` open at the description's generation takes the asteroid field of the ORIGINAL systems
+outside `sys0` with the smallest hash of its own salt (`sys0`'s asteroids only when no other system has one). It ignores
+the "Exotic worlds" slider and has no per-type slider (Marcel: guaranteed, no slider). Appended systems of a growing
+galaxy are never candidates, so growth does not move it; the server pins the type (#468) like every body, and the gen-31
+start-system jump-ore pass skips spawn-weight-0 types, so it never overwrites it. `ApplyFixedNames` now renames asteroid
+fields as well as planets — KuBa-W is the only asteroid type with a `fixedName`.
+
+**Two pads (#3309).** `PlanetType.LandingPadCount` replaces `PadCountFor`'s seeded size-class roll (and the per-player
+floor) when set: KuBa-W has pad 0 at the home touchdown and pad 1 half a world away.
+
+**The text tablets (#3310).** `PlanetType.TextMonuments` lists `{ key, pad, lines, accentFrom }`;
+`TextMonumentGenerator` spells the lines in `MonumentFont` — a 5×7 pixel font **with lowercase** ("KuBa"; the arcade's
+`BitmapFont` is uppercase-only and lives in `Client.Core`, out of the generator's reach) — at **3×3 blocks per font
+pixel** (a letter 15 wide, 21 tall): a basalt slab 3 thick with a 3-block border, concrete letters one block proud, the
+accent run (the leads' M V) in `gold_block`, a front step under the text with a lamp every 8 blocks. The letters themselves
+do not glow: every glowing cell is a light source on the client, and thousands of them would cost small hardware dearly.
+The three tablets, all 93 wide: `KuBa` / `West` / `Trier` (81 tall) and `Ju` / `Ma` / `Ve` / `Games` (108 tall) at pad 0,
+`BDJJL` / `MNNPS` / `T MV` (81 tall) at pad 1. **Why so near and at most five letters a line:** the browser's fog closes
+at four chunks (64 blocks) around the player and the far view draws builds only as 4×4-block height blobs
+(`FarTerrainOverlay`), so a text is readable only while the whole tablet is inside that radius — one line "KuBa West
+Trier" at this size would be ~270 blocks wide. **Streaming the height (#3310):** a far column streams only its surface band
+(the terrain's top ±1 chunk) and a near one 2–3 chunks above the player, so an 80–110-block tablet would be cut off;
+`StreamColumnSpan` lifts every chunk column a tablet stands in to the tablet's top (`TextMonumentTopChunk`).
+`GameServerTextMonuments.StampTextMonuments` (first in the structures pass, whatever the structure options say) seats each
+tablet in front of its pad: four cardinal bearings (starting at a per-body hash) × distances 40 / 44 / 48 / 52, a seat
+whose far corner would leave a 64-block radius of the pad dropped (the nearest distance is always allowed — at 93 wide it
+is the only one); a second tablet at the same pad (#3330) never takes a bearing an earlier one uses, prefers the opposite
+side and keeps a 6-block gap to every tablet; the score adds the ground spread, a wet share and the
+**view lift** — sight lines from eye height at the pad's rim to the foot of the text (left end, middle, right end) sampled
+over the heightfield, and the plinth rises by what would block them. The stamp then clears the meadow between the pad's
+rim and the face of everything taller than one block (`ClearTextMonumentView` — KuBa-W's giant flowers hid the bottom lines
+from a player on the pad in the first capture; small flowers stay). The tablet's frame: `x` to the right of a reader
+looking from the pad (`(Fz, −Fx)`), `z` away from the reader, so the face looks at the pad. Stamped once (plinth from each
+column's ground, air written only where the world holds something), recorded as
+`textmonument@<key>:<fx>:<fz>:<x>:<y>:<z>` in `StampedFeatures`, re-derived from the record on every later load.
+
+**Indestructible (#3311).** `IsTextMonumentProtected` (the footprint from 24 below the foot to the top) joins mining,
+`IsBreakProtected` (area burst, crystal drill and laser), fire, the bridge and piston cells, blueprint stamping, the NPC
+miners and gatherers, the guardian reward crate's seat, construction sites and hand placement (rule `monument`, token
+`@srv.protect.monument`) — for admins too, like the Guardian core.
+
+**Scan + Codex (#3312).** A block scan whose aimed cell (or, from an older client, the player's spot) is at a tablet reads
+`monument_<key>` with `ui.scan.monument.<key>`, pays a relic's knowledge and lands in the Codex like every first scan
+(ledger `monument:<body>:<key>`).
+
+**The exotic slider (#3313, found on the way).** `FrequencyExtensions.ExoticWeight` is now the one place the slider scales
+an exotic weight (`UniverseGenerator` and the world-options page's `PlanetTypeMix` share it). Up to generation 32 it is
+`Math.Round(w × factor)`, which made "Very rare" remove the weight-1 landmarks and "Frequent" lift them only to 2; from 33 it
+rounds away from zero and keeps at least 1 unless the slider is Off. At Normal both give the spawn weight, so a default
+galaxy rolls the same.
+
+**Tests:** `KubaWTests` (the type and its locales, the initials, exactly one per galaxy at sizes 6 / 12 / 32 and with
+exotic Off, growth, none below 33, never a planet; the exotic weights; the tablet sizes and a read-back of the face
+through the font; on a real server two pads, all three tablets read back from the world blocks (pad 1 sits on the X
+seam), the face toward the pad, the home pad's two tablets on opposite sides, every corner inside the view radius, no solid
+block on the sight lines, the top chunk streamed, protection, scan, reload from the record), golden
+`asteroid_kuba_w-gen33`, `PlanetTypeMixTests` (weight-1 landmark per slider step), `PlacementRuleOrderTests`.
+
+## 50. Generation 34 — the Schuppenhund on the dry worlds (#3325–#3328, epic #3329, 2026-11-07)
 
 **Why.** A school club idea by Jafar: "Neues Tier — Schuppenhund (gefährlich) — 10 hp pro … — bellt", drawn as a
 four-legged dog covered in scales (the head too), with two upright ears, a mouth full of teeth, three claws on every

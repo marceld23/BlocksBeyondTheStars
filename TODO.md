@@ -48,6 +48,30 @@ the player's local time, missed doors open until 6 January, no streak (ADR 0020 
 
 ---
 
+### 🪨 KuBa-W — Jafar's school-club asteroid with three huge stone tablets ("KuBa West Trier", "JuMaVe-Games", the club's initials), exactly once per galaxy — #3306: #3307–#3313, #3330, branch feat/kuba-w — ✅ done 2026-11-07 (terrain generation **33**; ⚠ playtest open; no save-version or block-id change; protocol unchanged; 10 new locale keys in all 14 languages)
+
+Marcel's analysis + decisions 2026-11-07 (asteroid; guaranteed once per galaxy, no slider; one initial per child plus the
+leads M and V; three-line school text; indestructible; nothing else built there; scan + Codex texts). See
+[WORLD_GENERATION.md §49](docs/developer/WORLD_GENERATION.md) and the manual's planet list.
+
+- ✅ #3307 the type `asteroid_kuba_w` — breathable, pale-green sky, hills/downs/flats, meadow flora, many animals, no trees,
+  no meteor showers, structure whitelist (net fragments only); VEGA arrival line; flight-view look; golden `asteroid_kuba_w-gen33`.
+- ✅ #3308 `UniverseGenerator.ApplyGuaranteedAsteroids` — exactly one per galaxy, an asteroid field of the original systems
+  outside `sys0`, independent of the exotic slider; `ApplyFixedNames` names asteroid fields.
+- ✅ #3309 `PlanetType.LandingPadCount` (KuBa-W: 2).
+- ✅ #3310 `MonumentFont` (5×7 with lowercase) + `TextMonumentGenerator` + `GameServerTextMonuments` — HUGE tablets (letters
+  15 × 21 blocks, 93 wide, 81–108 tall, ≤ 5 letters a line), 40 blocks in front of their pad, far corner ≤ 64 blocks
+  (browser fog), sight-line lift, stamped once + recorded; the streaming lifts a tablet's chunk columns to its top.
+- ✅ #3330 (Marcel's addition) a third tablet `Ju` / `Ma` / `Ve` / `Games` at the home pad, opposite the school's name.
+- ✅ #3311 indestructible — mining, area burst, crystal tools, fire, bridge/piston, blueprints, NPC miners, construction
+  sites, hand placement (`@srv.protect.monument`), admins included.
+- ✅ #3312 scan readout + Codex discovery per tablet (`ui.scan.monument.kuba_*`).
+- ✅ #3313 side finding: "Exotic worlds" on Very rare no longer rounds the weight-1 landmarks to 0, Frequent lifts them to 3
+  (from generation 33; `FrequencyExtensions.ExoticWeight`, shared with `PlanetTypeMix`).
+- ⚠ Playtest: a fresh world (generation 33) — find KuBa-W on the star map, land on both pads, read all three tablets in the
+  browser build too, scan them, try to mine one. A quick start: `--start-planet asteroid_kuba_w` makes the start planet a
+  KuBa-W (test worlds only — the galaxy then also has its real one in the belt).
+
 ### 🐕 The Schuppenhund — Jafar's scale hound, a creature class of the dry worlds (terrain generation 34) — ✅ 2026-11-07, epic #3329 (#3325–#3328), branch feat/scale-hound
 
 A school club idea by Jafar ("Neues Tier — Schuppenhund (gefährlich) — 10 hp pro … — bellt"): a scaly four-legged dog
@@ -56,7 +80,7 @@ with upright ears, teeth and three claws on every foot. Marcel's decisions: very
 
 - **#3325** Body plan `Hound` + `HoundRules`; traits `EarStyle`, `SnoutLength`, `HasClaws`, `HasTeeth`, `BiteDamage`,
   `BiteInterval` (also on `AuthoredCreature`); `PlanetType.ScaleHoundChance` on ten dry types; generation 34 appends ONE
-  hound (own sub-seed, no other species moves) with per-world looks. WORLD_GENERATION § 49.
+  hound (own sub-seed, no other species moves) with per-world looks. WORLD_GENERATION § 50.
 - **#3326** Server: bites in chunks (10 per 1.3–1.7 s, nothing between, off with planet enemies off), aggro 12, the charge
   (×1.15, still below the player's walk), one wild hound at a time, scan line, VEGA warning, `/hound`, companion snapshot.
 - **#3327** Client: muzzle (opens with the jaw), nose, teeth, ears (rig ears), claws, a dog's tail; scale hide everywhere;

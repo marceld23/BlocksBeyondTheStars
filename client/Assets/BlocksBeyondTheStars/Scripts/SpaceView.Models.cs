@@ -306,6 +306,7 @@ namespace BlocksBeyondTheStars.Client
                 case "asteroid_crystal": return (new Color(0.55f, 0.65f, 0.92f), "crystal");
                 case "asteroid_metallic": return (new Color(0.44f, 0.43f, 0.46f), "stone");
                 case "asteroid_carbon": return (new Color(0.26f, 0.25f, 0.24f), "stone");
+                case "asteroid_kuba_w": return (new Color(0.40f, 0.62f, 0.36f), "grass"); // #3307: Jafar's green asteroid
                 case "barren":
                 case "asteroid":
                 case "rock": return (new Color(0.52f, 0.50f, 0.47f), "stone");

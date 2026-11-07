@@ -57,6 +57,17 @@ public sealed class PlanetTypeMixTests
     }
 
     [Fact]
+    public void AWeightOneLandmark_NeverRoundsAway_AndFrequentRaisesIt() // #3313
+    {
+        var none = new Dictionary<string, int>();
+        var titas = new PlanetTypeMix.Row("titas", 1, true);
+        Assert.Equal(1, PlanetTypeMix.Weight(none, titas, (int)Frequency.VeryRare)); // was 0: the landmark vanished
+        Assert.Equal(1, PlanetTypeMix.Weight(none, titas, (int)Frequency.Normal));
+        Assert.Equal(3, PlanetTypeMix.Weight(none, titas, (int)Frequency.Frequent)); // was 2 (banker's rounding of 2.5)
+        Assert.Equal(0, PlanetTypeMix.Weight(none, titas, (int)Frequency.Off));
+    }
+
+    [Fact]
     public void ATouchedRow_UsesItsFrequencyWeight()
     {
         var overrides = new Dictionary<string, int> { ["ocean"] = (int)Frequency.Off };

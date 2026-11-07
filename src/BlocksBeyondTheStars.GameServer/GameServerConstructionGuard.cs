@@ -142,6 +142,11 @@ public sealed partial class GameServer
             return "@srv.protect.station";
         }
 
+        if (IsTextMonumentProtected(cell))
+        {
+            return "@srv.protect.monument"; // #3311: KuBa-W's stone tablets
+        }
+
         if (IsFactoryProtected(cell, p.PlayerId, p.IsAdmin))
         {
             return "@srv.protect.factory";

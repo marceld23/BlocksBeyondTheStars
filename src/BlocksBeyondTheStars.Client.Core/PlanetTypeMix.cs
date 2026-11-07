@@ -63,7 +63,10 @@ namespace BlocksBeyondTheStars.Client
             }
 
             int weight = Math.Max(0, row.SpawnWeight);
-            return row.Exotic ? (int)Math.Round(weight * ExoticFactor(exoticIndex)) : weight;
+            // #3313: the generator's arithmetic for a world created today (a weight-1 landmark never rounds to 0).
+            return row.Exotic
+                ? FrequencyExtensions.ExoticWeight(weight, (Frequency)exoticIndex, WorldDescription.CurrentTerrainGeneration)
+                : weight;
         }
 
         /// <summary>Each row's share of the mix in whole percent (0 for a type that never rolls). The shares come from the
@@ -86,15 +89,5 @@ namespace BlocksBeyondTheStars.Client
 
             return shares;
         }
-
-        /// <summary>The exotic slider's factor (mirrors <c>UniverseGenerator.BuildGenerationWeights</c>).</summary>
-        private static double ExoticFactor(int exoticIndex) => (Frequency)exoticIndex switch
-        {
-            Frequency.Off => 0.0,
-            Frequency.VeryRare => 0.34,
-            Frequency.Rare => 0.6,
-            Frequency.Frequent => 2.5,
-            _ => 1.0,
-        };
     }
 }

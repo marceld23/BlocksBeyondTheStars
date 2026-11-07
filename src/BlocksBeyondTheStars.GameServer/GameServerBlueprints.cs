@@ -154,6 +154,7 @@ public sealed partial class GameServer
                     if (!WithinBuildHeight(pos.Y) || !_world.GetBlock(pos).IsAir
                         || (!session.State.IsAdmin && IsOnLandingPad(pos))
                         || IsStationBlock(pos)
+                        || IsTextMonumentProtected(pos) // #3311
                         || IsFactoryProtected(pos, session.State.PlayerId, session.State.IsAdmin)
                         || IsBaseProtected(pos, session.State.PlayerId, session.State.IsAdmin)
                         || ShipInteriorContains(new Vector3f(pos.X, pos.Y, pos.Z))

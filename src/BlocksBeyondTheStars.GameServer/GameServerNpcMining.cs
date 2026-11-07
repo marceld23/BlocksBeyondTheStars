@@ -380,7 +380,8 @@ public sealed partial class GameServer
     /// against everyone, like fire).</summary>
     private bool NpcMinerProtected(Vector3i cell)
         => IsShipBlock(cell) || IsSettlementBoxBlock(cell) || IsIntercityRailBlock(cell) || IsStationBlock(cell)
-           || IsGuardianCoreProtected(cell) || IsFactoryProtected(cell, string.Empty, false)
+           || IsGuardianCoreProtected(cell) || IsTextMonumentProtected(cell) // #3311
+           || IsFactoryProtected(cell, string.Empty, false)
            || IsBaseProtected(cell, string.Empty, false);
 
     /// <summary>The prospector's protection: everything a player may not mine there — the full settlement rule, lodges
