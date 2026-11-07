@@ -91,7 +91,7 @@ refreshed 2026-10-23.
   form, design, #2776), the first-person suit hand and its grips (#2777), carrying in third person, and the holster /
   draw of a quick-bar switch (#2778).
 - [CLIMBING.md](CLIMBING.md) — wall climbing (#2195): where the client-side climb sits in the movement chain, the
-  pure `ClimbProbe` / `ClimbGrip` rules, block `climb` data and climbing gear, the pull-up, and the pose on the wire.
+  pure `ClimbProbe` / `ClimbGrip` rules, the body stamina shared with running (`BodyStamina`, #3373), block `climb` data and climbing gear, the pull-up, and the pose on the wire.
 - [CREATURE_RIG.md](CREATURE_RIG.md) — how a blocky animal is built and animated: the gait, jointed
   limbs, fins, foot planting on real blocks, and the distance LOD tiers.
 - [ENTITY_MOTION.md](ENTITY_MOTION.md) — how animals, NPCs, machines and bandits move smoothly on screen (#2664–#2670):

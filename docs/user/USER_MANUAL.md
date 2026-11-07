@@ -172,6 +172,7 @@ Last updated: 2026-10-04.
 | **W / A / S / D** | Move |
 | **Mouse** | Look |
 | **Space** | Jump — **hold in the air to fire the jetpack** (if you **wear** one — the back slot on the Inventory's **Suit** tab); with a **glider** on your back instead, **hold it while falling to glide** (needs air — not on airless worlds or in space); **in water: swim up / surface**; **jump at a wall while pushing towards it and hold Space to hold on and climb** — on the wall you hold on as long as you hold Space; let go and you slide down (see §5 → Climbing walls) |
+| **Left Shift** (hold) | **Run** — about half again as fast while you walk forward on foot, for roughly 8 s from a full **stamina** (the small bar under the crosshair, shown only while it is not full); you walk on when it is empty. Not while crouched, swimming, climbing, flying, gliding or riding — rebindable (see §5 → Running and stamina) |
 | **Space ×2** | **Creative/Sandbox worlds only:** toggle free flight — then Space rises, Ctrl/C sinks, and you keep colliding with the world (so you can still land and build). Touching down turns it off |
 | **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included — on a parked ship's decks and roof and in a monorail wagon too); climb **down** ladders; **drop off a wall you are climbing**; descend in zero-g. Other players see you **squat** (and their heads follow where they look) — your own avatar squats in the third-person view too |
 | **Left-click** | Mine the targeted block (or **scan** it when a scanner is selected; **shoot** the energy rope with the rope gun selected, see §5) |
@@ -224,7 +225,7 @@ buttons — retuning is tracked in issue #195):
 | **(X)** | Use / board / interact |
 | **(Y)** | Toggle first / third-person camera (only that — it no longer jumps as well) |
 | **R3** (click the right stick) | **Hotbar slot actions** on the selected slot (see §5) — stick navigates the menu, **(A)** picks, **(B)** closes |
-| **L3** (click the left stick) | **Actions** — a list of everything you can do right now (rotate the held block, trade / dock with the player beside you, undock, back to my ship from a friend's ship, dock / undock / go over to the docked ship at the helm and on a spacewalk, loot / stash, repair, lamp and stealth (only while worn), thermal vision, feed a begging herd, deploy a station in EVA, leave / refuel the speeder, …); stick navigates, **(A)** picks, **(B)** closes |
+| **L3** (click the left stick) | **While moving: run** — switches running on until you stop, the stamina runs out or you click again (see §5 → Running and stamina). **Standing still: Actions** — a list of everything you can do right now (rotate the held block, trade / dock with the player beside you, undock, back to my ship from a friend's ship, dock / undock / go over to the docked ship at the helm and on a spacewalk, loot / stash, repair, lamp and stealth (only while worn), thermal vision, feed a begging herd, deploy a station in EVA, leave / refuel the speeder, …); stick navigates, **(A)** picks, **(B)** closes |
 | **View** (the two-rectangles button left of the Xbox logo; "Back" on a 360 pad, Share on PlayStation, − on Nintendo) | **VEGA: continue** — advance or dismiss the ship AI's line (the same as **N** on the keyboard); also opens the folded VEGA tab |
 | **Menu** (☰ — the three-lines button right of the Xbox logo; Unity and 360-era pads call it Start. The Xbox-logo button itself belongs to Windows' Game Bar and never reaches the game) | Open / close the gameplay menu — its top strip has the **Pause menu** button (Resume / Settings / Quit, the same dialog **Esc** opens on the keyboard); **(B)** resumes |
 
@@ -317,6 +318,7 @@ cutscene they step aside — tap its **Skip** button to leave it, or the **Conti
 | **NEXT ▶** (top-centre) | **VEGA: continue** — advance or dismiss the ship AI's line; also opens the folded VEGA tab; shown only while a line is up |
 | **≡** (top-right) | Open / close the gameplay menu |
 | *On foot:* **JUMP · MINE (hold) · PLACE · USE · DOWN · CHAT · VIEW · MAP** | Jump (at a wall, with the stick pushed towards it: hold JUMP to hold on and climb, let go of it to slide down) · mine · place · use/board · descend (on a wall: drop off) · open chat · camera · planet map |
+| *On foot:* **RUN** (above the stick) | Tap it while you move to **run**; it stays on (lit) until you stop, the stamina runs out or you tap it again (see §5 → Running and stamina) |
 | *On foot, when it applies:* **ROTATE · ATTACK · FEED** | Rotate the held block's placement (appears while a rotatable block is selected) · swing / fire the held weapon (hold on the Guardian core to breach it) · throw one piece of the held food to a begging herd (appears while you hold food and an animal begs nearby) |
 | *Flying:* **FIRE (hold) · LAND · SHIP · AUTO · TARGET · MAP · VIEW · USE · UP · DOWN** | Fire · landing pads · walk the ship · autopilot · target lock (tap = next target, long press = let go; "nearest enemy" and "target ahead" are in **ACT**) · system chart · camera · dock/board · float up/down |
 | *EVA (spacewalk):* **FIRE (hold) · PLACE · DEPLOY · VIEW · USE · UP · DOWN** | Mine · place the selected block · deploy a station core · camera · board · float up/down |
@@ -1190,10 +1192,12 @@ effort.
   slide back down.
 - **A two-block wall needs no climbing:** run at it, jump and keep pushing, and you pull yourself over it on the way
   up. A one-block step you just jump onto, as always.
-- **Your grip tires** — there is no bar for it, you feel it: after a while you climb slower, then your view
-  trembles and you breathe hard, and when it is gone you **slide down slowly** (never fast enough to hurt).
-  Standing on the ground — or on a ladder rung — refills it in a moment. How far you get depends on the world's
-  gravity: about 20 blocks up on a normal planet, roughly twice that on an asteroid, less on a heavy world.
+- **Climbing uses your stamina** — the same stamina running does (see *Running and stamina* below), shown as the
+  small bar under the crosshair while it is not full. As it runs low you climb slower, then your view trembles and
+  you breathe hard, and when it is gone you **slide down slowly** (never fast enough to hurt). It comes back only
+  while you rest — on the ground or on a ladder rung, not running — after a short pause and slowly, so a long run up
+  to a cliff leaves less for the climb. How far a full stamina gets you depends on the world's gravity: about 20
+  blocks up on a normal planet, roughly twice that on an asteroid, less on a heavy world.
 - **Surfaces:** rock, earth, wood and building blocks hold you. **Glass** is too smooth. **Ice** holds only with
   climbing claws. **Sand, snow and ash** crumble under your hands — your grip tires twice as fast.
 - **Gear:** the **climbing gloves** (Suit research, crafted at the workshop) make your hands tire much more
@@ -1206,6 +1210,24 @@ effort.
   feet, your tool comes back up.
 - Other players see you climb — on walls and on ladders — facing the wall. The first time you stand in front of
   a tall wall, VEGA tells you how it works.
+
+### Running and stamina
+On foot you can **run**: hold **Left Shift** (rebindable in Settings → Controls) while you walk forward, and you move
+about **half again as fast** as walking. On a gamepad, **click the left stick while you move**; on a tablet, tap
+**RUN** (above the stick) while you move. Both switch running on until you stop, your stamina runs out or you press
+again — standing still, the left-stick click still opens the Actions list. A jump out of a run keeps the speed. You
+run only on your feet on the ground: not crouched, swimming, on a ladder or a wall, on the rope, flying, gliding,
+in zero-g, seated or riding.
+
+- **Stamina** is the small bar **under the crosshair**. It appears only while it is not full and fades away again
+  a moment after it has filled up. Running and wall climbing use the same stamina.
+- A full bar lasts about **8 seconds** of running. When it is empty you simply **walk on** — nothing hurts — and you
+  can run again once a **quarter** is back; until then the bar is **orange**.
+- It comes back only while you **rest**: walking normally or standing still, on the ground or on a ladder rung. After
+  a short pause (about a second) it fills up **slowly** — about **6 seconds** from empty to full. Never in the air.
+- Running sounds and feels faster: quicker footsteps, a slightly wider view (the **Camera motion** comfort option
+  turns that off), a hard breath when the stamina gets low and an exhale after a long run.
+- The first time your stamina runs low, VEGA explains the bar once.
 
 ### Energy rope gun
 A pistol that shoots a glowing **energy rope** which sticks to any solid block up to **24 blocks** away — and then

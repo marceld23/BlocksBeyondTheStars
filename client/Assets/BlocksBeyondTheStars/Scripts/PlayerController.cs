@@ -284,6 +284,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 _spawnPos = Game.ServerSpawn.Value;
                 SnapTo(_spawnPos);
+                ResetStamina(); // #3373: a fresh body in a new world
                 _spawned = true;
                 _settling = true; // hold at spawn until the ground/ship chunk streams in
                 _settleTimer = 0f;
@@ -297,6 +298,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 _spawnPos = Game.RespawnTarget.Value;
                 SnapTo(_spawnPos);
+                ResetStamina(); // #3373: a fresh body after a respawn
                 Game.RespawnTarget = null;
                 _spawned = true; // a server snap is an authoritative position — never wait for ServerSpawn past it
                 _settling = true; // hold at the heal-tank until its chunk is streamed
@@ -406,6 +408,9 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // #3373: seated, in bed, at the helm, driving or behind a menu the movement step below never runs — rest here.
+            RestStaminaOutsideMove();
+
             // The space view owns the camera and freezes on-foot control entirely.
             if (Game != null && Game.SpaceViewActive)
             {
@@ -426,6 +431,7 @@ namespace BlocksBeyondTheStars.Client
             // the buttons, and every click on them mined or built at the crosshair. The body holds still until the pick.
             if (Game != null && Game.AwaitingRespawnConfirm)
             {
+                _sprint.Stop(); // #3374: no run (nor its wider view) held through the death screen
                 HoldForDeathScreen();
                 return;
             }
@@ -478,6 +484,7 @@ namespace BlocksBeyondTheStars.Client
                 UpdateJetpack(false);
                 UpdateGlide(false);
                 EndClimb();
+                _sprint.Stop(); // #3374: the speeder's own boost reads Shift while driving
                 _vehicles.DriveSpeeder();
                 SendMovement();
                 UpdateLamp(); // #3229: a cinematic or a dropped lamp still darkens it while driving

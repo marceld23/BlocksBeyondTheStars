@@ -7,24 +7,12 @@ using Xunit;
 namespace BlocksBeyondTheStars.Client.Tests;
 
 /// <summary>
-/// The wall climber's grip (#2189): never shown, only felt. It lasts ~10 s of climbing up at 1 g, much longer on an
-/// asteroid and shorter on a heavy planet; slippery walls tire it twice as fast and climbing gear takes a share of the
-/// drain away; it slows the climb, then strains the body, then lets the climber slide; it refills only standing.
+/// The wall climber's tuning (#2189): a full stamina lasts ~10 s of climbing up at 1 g, much longer on an asteroid and
+/// shorter on a heavy planet; slippery walls tire it twice as fast and climbing gear takes a share of the drain away. The
+/// stamina itself (slowing, straining, the slow refill) is the shared <see cref="BodyStamina"/> (#3373, BodyStaminaTests).
 /// </summary>
 public sealed class ClimbGripTests
 {
-    [Fact]
-    public void AFreshGrip_IsFull_AndFeelsFine()
-    {
-        var grip = new ClimbGrip();
-
-        Assert.Equal(1f, grip.Value);
-        Assert.True(grip.CanGrab);
-        Assert.False(grip.Exhausted);
-        Assert.Equal(1f, grip.SpeedFactor);
-        Assert.Equal(0f, grip.Strain);
-    }
-
     [Fact]
     public void ClimbingUpAtOneG_LastsTenSeconds_AboutTwentyBlocks()
     {
@@ -69,37 +57,6 @@ public sealed class ClimbGripTests
     }
 
     [Fact]
-    public void ATiringGrip_SlowsTheClimb_ThenStrains_ThenSlides()
-    {
-        var grip = new ClimbGrip();
-
-        grip.Drain(8f, ClimbMotion.Up, 1f, ClimbSurface.Normal, 0f); // 0.2 left
-        Assert.Equal(0.2f, grip.Value, 3);
-        Assert.Equal(0.75f, grip.SpeedFactor, 3);
-        Assert.Equal(0.2f, grip.Strain, 3);
-        Assert.False(grip.CanGrab); // a new grab needs more than 0.2
-
-        grip.Drain(60f, ClimbMotion.Up, 1f, ClimbSurface.Normal, 0f);
-        Assert.Equal(0f, grip.Value);
-        Assert.True(grip.Exhausted);
-        Assert.Equal(0.5f, grip.SpeedFactor, 3);
-        Assert.Equal(1f, grip.Strain, 3);
-    }
-
-    [Fact]
-    public void Standing_RefillsTheGrip_InASecondAndAHalf()
-    {
-        var grip = new ClimbGrip();
-        grip.Drain(60f, ClimbMotion.Up, 1f, ClimbSurface.Normal, 0f);
-
-        grip.Refill(0.75f);
-        Assert.Equal(0.5f, grip.Value, 3);
-
-        grip.Refill(10f);
-        Assert.Equal(1f, grip.Value);
-    }
-
-    [Fact]
     public void TheSlide_StaysFarBelowTheSafeLandingSpeed()
         => Assert.True(ClimbGrip.SlideSpeed < 14f / 2f); // the client's safe fall speed is 14 m/s at 1 g
 
@@ -120,5 +77,15 @@ public sealed class ClimbGripTests
         // The safe-landing speed scales with √gravity (14 m/s at 1 g); the lightest world the client allows is 0.2 g.
         float lightestSafeSpeed = 14f * (float)System.Math.Sqrt(0.2);
         Assert.True(ClimbGrip.ReleaseSlideSpeed < lightestSafeSpeed);
+    }
+
+    [Fact]
+    public void AClimb_DrainsTheSharedStamina()
+    {
+        var stamina = new BodyStamina();
+
+        ClimbGrip.Drain(stamina, 5f, ClimbMotion.Up, 1f, ClimbSurface.Normal, 0f);
+
+        Assert.Equal(0.5f, stamina.Value, 3);
     }
 }

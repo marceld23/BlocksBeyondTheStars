@@ -100,6 +100,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 UpdateCrosshairState(Time.deltaTime); // per frame: aim tint must not lag the reticle
+                UpdateStaminaBar(Time.deltaTime); // #3375: per frame: the fill follows the run and the climb
                 RefreshCompass(); // per frame: blips counter-rotate with the camera, throttling would judder
                 AnimateVitals(Time.deltaTime); // per frame: eased fills, ghost trail, rolling numbers
                 UpdateLowVitalWarnings(Time.deltaTime); // per frame: the below-10 % blink (#753) must not step

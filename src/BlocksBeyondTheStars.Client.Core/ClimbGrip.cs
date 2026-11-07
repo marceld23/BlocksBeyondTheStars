@@ -17,28 +17,19 @@ namespace BlocksBeyondTheStars.Client
     }
 
     /// <summary>
-    /// The wall climber's grip (#2189): a hidden 0..1 value that is never drawn on the HUD (Marcel's decision) — the
-    /// player feels it instead. Below <see cref="SlowBelow"/> the climb slows (<see cref="SpeedFactor"/>), below
-    /// <see cref="StrainBelow"/> the body strains (<see cref="Strain"/> drives a tremble and a breath), and at 0 the
-    /// climber slides down slowly instead of falling. Holding on is a held button (#2384): letting go of Jump slides the
-    /// climber down too (<see cref="SlideSpeedFor"/>). Client-only like all on-foot movement: nothing is saved or sent.
+    /// The wall climber's tuning (#2189): how fast the hands move and how fast a climb tires the body. The grip itself is the
+    /// shared <see cref="BodyStamina"/> (#3373) that sprinting spends too: below <see cref="BodyStamina.SlowBelow"/> the climb
+    /// slows, below <see cref="BodyStamina.StrainBelow"/> the body strains (a tremble and a breath), and at 0 the climber
+    /// slides down slowly instead of falling. Holding on is a held button (#2384): letting go of Jump slides the climber down
+    /// too (<see cref="SlideSpeedFor"/>). Client-only like all on-foot movement: nothing is saved or sent.
     /// <para>Tiring scales with the world's gravity, so an asteroid lets you climb several times further than a heavy
-    /// planet; slippery walls tire twice as fast, and worn climbing gear takes a share of the drain away. The grip
-    /// refills on the ground and on a ladder — never in the air, so letting go and grabbing again is no trick.</para>
+    /// planet; slippery walls tire twice as fast, and worn climbing gear takes a share of the drain away. The stamina comes
+    /// back only at rest (<see cref="BodyStamina.Rest"/>) — never in the air, so letting go and grabbing again is no trick.</para>
     /// </summary>
-    public sealed class ClimbGrip
+    public static class ClimbGrip
     {
-        /// <summary>A fresh grab needs more grip left than this.</summary>
+        /// <summary>A fresh grab needs more stamina left than this.</summary>
         public const float GrabMinimum = 0.2f;
-
-        /// <summary>Below this the climb gets slower.</summary>
-        public const float SlowBelow = 0.4f;
-
-        /// <summary>Below this the body strains (tremble, breath).</summary>
-        public const float StrainBelow = 0.25f;
-
-        /// <summary>Seconds on the ground (or a ladder) from empty to full.</summary>
-        public const float RefillSeconds = 1.5f;
 
         /// <summary>A slippery wall tires the grip this many times as fast.</summary>
         public const float SlipperyFactor = 2f;
@@ -61,21 +52,6 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>How long a pull-up over a ledge takes.</summary>
         public const float PullUpSeconds = 0.35f;
 
-        /// <summary>The grip, 0 (spent) … 1 (fresh).</summary>
-        public float Value { get; private set; } = 1f;
-
-        /// <summary>Spent — the climber slides.</summary>
-        public bool Exhausted => Value <= 0f;
-
-        /// <summary>Enough left for a fresh grab.</summary>
-        public bool CanGrab => Value > GrabMinimum;
-
-        /// <summary>The climb-speed multiplier: 1 down to <see cref="SlowBelow"/>, then easing to 0.5 at empty.</summary>
-        public float SpeedFactor => Value >= SlowBelow ? 1f : 0.5f + (0.5f * (Value / SlowBelow));
-
-        /// <summary>How hard the body strains, 0 (fine) … 1 (spent) — below <see cref="StrainBelow"/> only.</summary>
-        public float Strain => Value >= StrainBelow ? 0f : 1f - (Value / StrainBelow);
-
         /// <summary>
         /// How fast a climber on the wall slides down this frame (#2384), m/s, 0 = no slide. Holding on is a held button
         /// (Jump): letting go of it slides at <see cref="ReleaseSlideSpeed"/>, a spent grip that is still held slides at
@@ -91,7 +67,7 @@ namespace BlocksBeyondTheStars.Client
             return exhausted ? SlideSpeed : 0f;
         }
 
-        /// <summary>Grip spent per second at 1 g on a normal wall without gear.</summary>
+        /// <summary>Stamina spent per second at 1 g on a normal wall without gear.</summary>
         public static float BaseDrain(ClimbMotion motion) => motion switch
         {
             ClimbMotion.Up => 0.10f,
@@ -100,7 +76,7 @@ namespace BlocksBeyondTheStars.Client
             _ => 0.04f,
         };
 
-        /// <summary>Grip spent per second: <see cref="BaseDrain"/> × the world's gravity factor × slippery × (1 − gear).</summary>
+        /// <summary>Stamina spent per second: <see cref="BaseDrain"/> × the world's gravity factor × slippery × (1 − gear).</summary>
         public static float DrainPerSecond(ClimbMotion motion, float gravityFactor, ClimbSurface surface, float gearGrip)
         {
             float g = Math.Max(0.2f, Math.Min(2.5f, gravityFactor));
@@ -109,18 +85,12 @@ namespace BlocksBeyondTheStars.Client
             return BaseDrain(motion) * g * slip * gear;
         }
 
-        /// <summary>Seconds of <paramref name="motion"/> a fresh grip lasts (what the tuning and the manual quote).</summary>
+        /// <summary>Seconds of <paramref name="motion"/> a full stamina lasts (what the tuning and the manual quote).</summary>
         public static float SecondsFromFull(ClimbMotion motion, float gravityFactor, ClimbSurface surface, float gearGrip)
             => 1f / DrainPerSecond(motion, gravityFactor, surface, gearGrip);
 
-        /// <summary>Tires the grip for <paramref name="dt"/> seconds of hanging on.</summary>
-        public void Drain(float dt, ClimbMotion motion, float gravityFactor, ClimbSurface surface, float gearGrip)
-            => Value = Math.Max(0f, Value - (dt * DrainPerSecond(motion, gravityFactor, surface, gearGrip)));
-
-        /// <summary>Recovers the grip for <paramref name="dt"/> seconds of standing (ground or ladder).</summary>
-        public void Refill(float dt) => Value = Math.Min(1f, Value + (dt / RefillSeconds));
-
-        /// <summary>A fresh grip (a new world, a respawn).</summary>
-        public void Reset() => Value = 1f;
+        /// <summary>Tires <paramref name="stamina"/> for <paramref name="dt"/> seconds of hanging on.</summary>
+        public static void Drain(BodyStamina stamina, float dt, ClimbMotion motion, float gravityFactor, ClimbSurface surface, float gearGrip)
+            => stamina.Spend(dt * DrainPerSecond(motion, gravityFactor, surface, gearGrip));
     }
 }

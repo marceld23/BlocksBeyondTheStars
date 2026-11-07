@@ -358,6 +358,9 @@ namespace BlocksBeyondTheStars.Client
             // EVA) — the same split as above: one button, two contexts that never overlap.
             InputAction.FlightTargetNext => BtnLb,
             InputAction.FlightTargetHostile => BtnR3,
+            // #3376: "click the stick you walk with" — L3 runs while moving and opens the context list while standing
+            // (InputMap.ContextPressIsSprint), the same one-button-two-contexts split as R3 above.
+            InputAction.Sprint => BtnL3,
             _ => KeyCode.None,
         };
 

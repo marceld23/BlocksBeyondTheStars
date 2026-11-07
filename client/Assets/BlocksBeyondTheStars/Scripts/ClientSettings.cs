@@ -705,6 +705,10 @@ namespace BlocksBeyondTheStars.Client
         /// the first time they stand in front of a tall wall. A client-side one-shot lesson like the chart hint.</summary>
         public bool ClimbHintShown;
 
+        /// <summary>#3377: whether VEGA has explained the stamina bar (running and climbing use it, rest brings it back) —
+        /// said once, the first time the bar has run low. A client-side one-shot lesson like the climbing hint.</summary>
+        public bool StaminaHintShown;
+
         /// <summary>#2237: whether VEGA has said that every ship has a scanner in its flight hotbar — once, on an early flight.</summary>
         public bool ShipScannerHintShown;
 

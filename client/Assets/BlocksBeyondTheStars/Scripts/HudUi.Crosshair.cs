@@ -37,6 +37,7 @@ namespace BlocksBeyondTheStars.Client
             ch.anchorMin = ch.anchorMax = new Vector2(0.5f, 0.5f);
             ch.sizeDelta = Vector2.zero;
             MakeCrosshair(ch);
+            BuildStaminaBar(ch); // #3375: hides and moves with the reticle
         }
 
         private void MakeCrosshair(RectTransform parent)

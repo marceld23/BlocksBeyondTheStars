@@ -181,7 +181,8 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (InputMap.Down(InputAction.ContextActions) && CanOpen)
+            // #3376: the pad's left-stick click runs while moving and opens the list only while standing.
+            if (InputMap.Down(InputAction.ContextActions) && CanOpen && !InputMap.ContextPressIsSprint(Player != null && Player.SprintPossible))
             {
                 Open();
             }

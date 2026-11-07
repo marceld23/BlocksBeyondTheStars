@@ -303,8 +303,10 @@ Campfires and forges switching on and off are silent, like the lamp swap (a lit 
 
 ## 13. Wall climbing (#2193) — *ElevenLabs clips + the step set*
 
-Local, non-positional cues from `PlayerController` (see [CLIMBING.md](CLIMBING.md)). The grip has no HUD bar, so
-the breath is one of the ways the player feels it tiring.
+Local, non-positional cues from `PlayerController` (see [CLIMBING.md](CLIMBING.md)). The grip is the body's stamina
+(#3373), drawn as a small bar under the crosshair; the breath is one more way the player feels it tiring. A run
+that wears the stamina down below 25 % plays the same `climb_strain` breath (`PlayerController.Sprint.cs`, #3374);
+the exhale after a long run is the body layer's own (§ body layer, #3240 — it hears the run gait).
 
 | Sound | Trigger | Files | Source |
 |---|---|---|---|

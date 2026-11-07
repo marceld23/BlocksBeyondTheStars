@@ -240,6 +240,7 @@ namespace BlocksBeyondTheStars.Client
             if (Game != null && Game.Spectating)
             {
                 UpdateGlide(false);
+                _sprint.Stop(); // #3374: the observer's flight has its own boost
                 SpectatorMove(h, v);
                 return;
             }
@@ -247,6 +248,7 @@ namespace BlocksBeyondTheStars.Client
             // #2190: a pull-up over a ledge owns the body until it stands on top (the controller is off meanwhile).
             if (StepPullUp())
             {
+                _sprint.Stop(); // #3374: no run (nor its wider view) carried through a pull-up
                 return;
             }
 
@@ -280,6 +282,9 @@ namespace BlocksBeyondTheStars.Client
             {
                 move *= FlyHorizontalMul;
             }
+
+            // #3374: running — before the rope and the wall climb, so the climb's rest check sees this frame's run.
+            move *= UpdateSprint(grounded, inWater, onLadder, h, v);
 
             // #2321: the energy rope — pulling or hanging replaces the walk, the gravity and the wall climb below; a ledge
             // arrival starts the pull-up, which then owns the next frames like a climb's does.

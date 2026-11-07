@@ -24,6 +24,33 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🏃 Running and stamina — sprint on foot, one stamina for running and climbing, a small bar under the crosshair (Justus' F1 idea 2026-11-07, Marcel's decisions 2026-11-07) — #3373–#3377, ✅ 2026-11-07, PR (pending)
+
+Justus (player name Layex) asked in an F1 report for sprinting, with one stamina bar that running and climbing share and
+that only comes back slowly at rest. Marcel's decisions: a small bar under the crosshair, shown only while not full (the
+climbing grip had been "felt, never shown" since #2189); one shared stamina; ×1.5 for about 8 s; no hunger cost; gamepad
+and touch from the start.
+
+- **#3373** `BodyStamina` (Client.Core): one 0..1 value spent by running and by the wall climb; rests only on the ground
+  or a ladder rung while not running or hanging, after a 1 s pause, 6 s from empty to full; after running dry a new run
+  needs 25 % back. `ClimbGrip` became a static class of climbing tuning (speeds, drain per motion, slide).
+- **#3374** `SprintState` (Client.Core) + `PlayerController.Sprint.cs`: hold Left Shift (`InputAction.Sprint`, on-foot
+  rebind group) to run 1.5× while pushing forward; starts on the ground, a jump keeps it; not crouched, swimming, on a
+  ladder/wall/rope, flying, gliding, on a jetpack burn, in zero-g/space, seated, resting, on a train, in a vehicle or as
+  an observer. The footsteps switch to the run gait by themselves, the view widens 4° more (Camera motion comfort
+  switch), a strained breath below 25 %, the body layer's exhale after a long run (#3240). Client-only, no server or
+  protocol change (the server trusts on-foot positions).
+- **#3375** `HudUi.Stamina.cs`: a 64×4 px bar 26 px below the crosshair, child of the crosshair (hides with it),
+  `StaminaBarFade` fades it in while not full and out 1 s after full (instant under reduced motion); orange while spent.
+- **#3376** Pad: L3 while moving switches the run on (shared with `ContextActions`, which still opens while standing —
+  `SprintState.PadPressIsSprint` / `InputMap.ContextPressIsSprint`); touch: a RUN button above the stick, lit while on.
+  The run switch goes off on stop, empty stamina, a place without running, or a second press.
+- **#3377** Texts in 14 languages (`ui.key.sprint`, `ui.key.shift`, `ui.touch.run`, `vega.hint.stamina` — VEGA explains
+  the bar once the first time it runs low — and the on-foot keyboard/pad controls lines), the Codex climbing article
+  updated and a new Codex article "Running and Stamina"; USER_MANUAL (Shift row, L3, touch RUN, climbing, new section
+  *Running and stamina*), CLIMBING / INPUT_AND_CONTROLLER / SOUND_DESIGN / ARCHITECTURE.
+- **Open:** playtest the feel (speed, 8 s, the slow refill with climbing) with keyboard, pad and tablet.
+
 ### 🏚️ Buried G.D.S. ruins flooded with Ressaw — Justus' "Alte Städte" (player report 2026-11-01, terrain generation 35) — #3333–#3343, branch feat/ancient-gds-cities — ✅ done 2026-11-07 in PR #3378 (`a2a6dba7`) (⚠ playtest open; **save version 11 → 12** — eight new blocks shift the block ids; terrain generation 35 — only new worlds get ruins; no protocol change; 89 new locale keys in all 14 languages)
 
 Justus (as Screelit): old underground cities of purple and red metal, flooded with a glowing corrosive liquid, logs of
