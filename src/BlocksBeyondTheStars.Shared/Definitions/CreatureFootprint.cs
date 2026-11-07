@@ -137,10 +137,18 @@ public static class CreatureFootprint
             case CreatureBodyPlan.SkyGiant:
                 return 0f;
 
+            case CreatureBodyPlan.Hound:
+                // #3325: the standard front plus the muzzle — the builder draws it SnoutLength × 0.8u in front of the face.
+                return Radius(sp, sizeScale) + HoundMuzzleDepth(sp.SnoutLength, Unit(size, 3f));
+
             default: // Standard, Floral, Titan
                 return Radius(sp, sizeScale);
         }
     }
+
+    /// <summary>#3325: how far a hound's muzzle reaches in front of its face, for a body unit <paramref name="unit"/> — the
+    /// client builds it with exactly this depth, so the head's reach follows the drawing.</summary>
+    public static float HoundMuzzleDepth(float snoutLength, float unit) => Math.Max(0f, snoutLength) * 0.8f * unit;
 
     private static float ScaledSize(CreatureSpecies sp, float sizeScale) => sp.Size * (sizeScale > 0f ? sizeScale : 1f);
 

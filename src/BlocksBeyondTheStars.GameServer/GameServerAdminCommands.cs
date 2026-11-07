@@ -118,6 +118,7 @@ public sealed partial class GameServer
 
         // #2081: /biped — a begging herd of bipeds, for testing
         ["summon_biped"] = new(AdminCommandGate.Cheats, static (s, session, _) => s.AdminSummonBiped(session)),
+        ["summon_hound"] = new(AdminCommandGate.Cheats, static (s, session, _) => s.AdminSummonHound(session)), // #3326
 
         // #2646: /wanderer — a wanderer comes by right now, for testing
         ["summon_wanderer"] = new(AdminCommandGate.Cheats, static (s, session, _) => s.AdminSummonWanderer(session)),

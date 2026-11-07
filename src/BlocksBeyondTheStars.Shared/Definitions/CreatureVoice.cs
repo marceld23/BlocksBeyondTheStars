@@ -191,6 +191,13 @@ public static class CreatureVoices
         "creature_call_robot_chirp", "creature_call_robot_beep", "creature_call_robot_trill",
     };
 
+    /// <summary>#3328: what a hound says — it barks ("bellt", Jafar's sketch). Barks only, so every Schuppenhund barks; like the
+    /// biped, the hound draws from this pool INSTEAD of its habitat pool (a client without the new takes keeps the shipped bark).</summary>
+    private static readonly string[] CanineCalls =
+    {
+        "creature_call_bark", "creature_call_bark_deep", "creature_call_bark_rough",
+    };
+
     // Habitat-flavoured pools: cave dwellers sound deep + echoey, amphibians wet + croaky, water
     // creatures burble, lava critters hiss/rumble, fliers shriek/trill. Land uses the full pool.
     private static readonly string[] LandCalls =
@@ -263,7 +270,7 @@ public static class CreatureVoices
         get
         {
             var set = new List<string>();
-            foreach (var pool in new[] { LandCalls, CaveCalls, AmphibianCalls, WaterCalls, LavaCalls, AirCalls, BipedCalls, Ethereal, Insect, Arachnid, RobotCalls })
+            foreach (var pool in new[] { LandCalls, CaveCalls, AmphibianCalls, WaterCalls, LavaCalls, AirCalls, BipedCalls, Ethereal, Insect, Arachnid, RobotCalls, CanineCalls })
             {
                 foreach (var name in pool)
                 {
@@ -330,6 +337,11 @@ public static class CreatureVoices
             return "ui.scan.voice.gibber"; // #2083: "meins, meins!"
         }
 
+        if (Contains(CanineCalls, v.Call))
+        {
+            return "ui.scan.voice.bark"; // #3328: the Schuppenhund barks
+        }
+
         if (v.Pulses >= 4 && v.PulseGapMs <= 130)
         {
             return "ui.scan.voice.clicks";
@@ -372,7 +384,7 @@ public static class CreatureVoices
     /// its samples — a client without them keeps the habitat pool rather than going silent — and the habitat pool otherwise.</summary>
     public static IReadOnlyList<string> PoolFor(string habitat, string bodyPlan, System.Func<string, bool>? available = null)
     {
-        var own = bodyPlan == "Biped" ? BipedCalls : bodyPlan == "Robot" ? RobotCalls : null; // #3295: the robot's beeps
+        var own = OwnPool(bodyPlan); // #2083 the biped's gibberish, #3295 the robot's beeps, #3328 the hound's barks
         if (own != null)
         {
             foreach (var name in own)
@@ -386,6 +398,15 @@ public static class CreatureVoices
 
         return PoolFor(habitat);
     }
+
+    /// <summary>The body plans that speak from a pool of their own instead of their habitat's, or null.</summary>
+    private static string[]? OwnPool(string bodyPlan) => bodyPlan switch
+    {
+        "Biped" => BipedCalls,
+        "Robot" => RobotCalls,
+        "Hound" => CanineCalls,
+        _ => null,
+    };
 
     /// <summary>The habitat's full call pool.</summary>
     public static IReadOnlyList<string> PoolFor(string habitat) => (habitat ?? "Land").ToLowerInvariant() switch
@@ -425,10 +446,11 @@ public static class CreatureVoices
     private static List<string> NarrowByBody(IReadOnlyList<string> pool, VoiceTraits t)
     {
         string[]? want = null;
-        if (t.BodyPlan is "Biped" or "Robot")
+        if (OwnPool(t.BodyPlan) is { } own)
         {
-            // #2083: its own pool — small bodies would otherwise narrow to the shrill calls; #3295: the robot keeps to its beeps
-            want = t.BodyPlan == "Robot" ? RobotCalls : BipedCalls;
+            // #2083: its own pool — small bodies would otherwise narrow to the shrill calls; #3295: the robot keeps to its beeps;
+            // #3328: the hound to its barks
+            want = own;
         }
         else if (t.BodyPlan == "Arachnid")
         {
@@ -610,6 +632,11 @@ public static class CreatureVoices
         if (t.BodyPlan == "Biped")
         {
             return 1; // #2083: every biped sample already IS the double "meins, meins!" — one per phrase
+        }
+
+        if (t.BodyPlan == "Hound")
+        {
+            return 1 + Roll(seed, "pulses.hound", 3); // #3328: one, two or three barks
         }
 
         if (t.BodyPlan == "Titan" || t.Size >= 2.6f)

@@ -3790,6 +3790,17 @@ called **stories**:
   about six blocks, then rushes. The **scanner** tells you which kind you are looking at ("Eight-legged", "Lies
   in wait"), and VEGA points out the first one you get near. You bump into its body, your shots land where you
   aim on it, and it can be tamed like any other animal.
+- **The Schuppenhund** — invented by **Jafar** of the school club: a **scaly four-legged dog** with upright ears, a
+  muzzle full of teeth and three claws on every foot. It lives **alone** and only on the **dry worlds** (desert, savanna,
+  salt flats, tablelands, badlands, red desert, dust bowl, sand sea, Arch Lands, Ossuary World — worlds created from
+  terrain generation 34 on, and not every one of them). Every world has its own: its colours, its kind of scales and its
+  ears differ. It is **very dangerous**: it notices you from about twelve blocks, stalks with its head low and **charges**
+  the last few metres, and **every bite takes 10 health** — one bite, one snap of the jaws, then a pause before the next.
+  It **barks**. You can still get away: even charging it is a little slower than you walk, and if you **break its line
+  of sight** (behind a wall, into a cave or a house) it soon gives up. The **scanner** warns you ("Very dangerous —
+  every bite takes 10 health"), and VEGA warns you the first time one comes near. It drops **meat**. Like any animal
+  it can be tamed — a tamed Schuppenhund never bites and wags its tail. With **planet enemies off** (the family
+  settings) it does not bite at all.
 
 ### Giants (the colossus, the sandworm, the leviathan and the sky giant)
 - **A colossus** is a 40–60 block tall four-legged giant. It only lives on **very flat, very light worlds** (the lighter
@@ -4626,6 +4637,7 @@ confirmation is the brief HUD toast.
 | `/giant colossus\|sandworm\|leviathan\|sky` | Summon this world's colossus, sandworm, leviathan or sky giant near you (a sandworm needs a sand sea, a leviathan a deep sea) — for testing |
 | `/arachnid` | Summon this world's arachnid near you (rolls one into the world's fauna first if it has none) — for testing |
 | `/biped` | Summon a begging herd of this world's bipeds near you (Mini-Michi-Paul on a tropical world; rolls a begging biped into the world's fauna first if it has none) — for testing |
+| `/hound` | Summon this world's Schuppenhund near you (rolls this world's one into the fauna first if it has none) — for testing |
 | `/wanderer` | Call one of this world's wanderers to you right now — at any hour, without waiting (new worlds only; you must be on foot in the open, 60 m from a village, base, hut or camp, with no hostile near) — for testing |
 | `/fly` | Toggle free flight for yourself (no gravity). In **Creative/Sandbox** worlds everybody can already fly — double-tap **Space**; this is the per-player admin cheat for the other modes |
 | `/god` | Toggle invulnerability |

@@ -500,6 +500,7 @@ namespace BlocksBeyondTheStars.Client
                     bool gliding = c.Glides && airborne && entry.Vel.y <= 0.05f;
                     entry.Animator.SetMotion(c.Motion, airborne, flagPerched && !airborne, c.Asleep, gliding);
                     entry.Animator.SetLurking(c.Lurking); // #2009: an ambusher holds its crouch
+                    entry.Animator.SetOwned(!string.IsNullOrEmpty(c.OwnerId)); // #3327: a tamed Schuppenhund wags
                     entry.Animator.SetBegging(c.Begging); // #2018: a beggar holds its head up and bounces
 
                     // Where to look. Only bother while the player is close enough for a head turn to read;
@@ -554,11 +555,17 @@ namespace BlocksBeyondTheStars.Client
                     // species size) — a fixed 3 blocks left a flier biting from 3–5 blocks silent and still. An animal the
                     // server just named as the attacker (#2564) lunges too, wherever smoothing has it drawn.
                     float biteReach = CreatureReach.BiteRange(c.SpeciesSize > 0f ? c.SpeciesSize : c.Size); // 0: an older server
+                    // #3327: the Schuppenhund bites in chunks — it lunges and snaps exactly when the server's bite lands (the
+                    // fresh hit report from it), never on the random cadence, so every lunge is a bite and every bite a lunge.
+                    bool chunkBiter = c.BodyPlan == "Hound";
+                    bool freshHit = Game.LastHit.IsFreshFrom(c.Id, Time.time, AttackerBlinkFreshSeconds);
+                    bool attackNow = chunkBiter
+                        ? freshHit
+                        : (entry.Root.transform.position - Game.PlayerPosition).sqrMagnitude < biteReach * biteReach || freshHit;
                     if (c.Hostile && !Game.Aboard && !c.Staggered && now >= entry.NextAttack && c.GiantHeight <= 0f // a giant stomps/strikes instead; a dazed one (#2278) does not bite
-                        && ((entry.Root.transform.position - Game.PlayerPosition).sqrMagnitude < biteReach * biteReach
-                            || Game.LastHit.IsFreshFrom(c.Id, Time.time, AttackerBlinkFreshSeconds)))
+                        && attackNow)
                     {
-                        entry.NextAttack = now + Random.Range(1.5f, 3.5f);
+                        entry.NextAttack = now + (chunkBiter ? 0.6f : Random.Range(1.5f, 3.5f));
                         PlayCue(entry, "_attack", 1f);
                         entry.Animator?.Bite();                     // a hard snap, not just a call
                         entry.AttackUntil = now + 0.22f;            // lunge
