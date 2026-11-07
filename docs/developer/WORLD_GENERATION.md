@@ -3157,3 +3157,44 @@ through the font; on a real server two pads, all three tablets read back from th
 seam), the face toward the pad, the home pad's two tablets on opposite sides, every corner inside the view radius, no solid
 block on the sight lines, the top chunk streamed, protection, scan, reload from the record), golden
 `asteroid_kuba_w-gen33`, `PlanetTypeMixTests` (weight-1 landmark per slider step), `PlacementRuleOrderTests`.
+
+## 50. Generation 34 — the Schuppenhund on the dry worlds (#3325–#3328, epic #3329, 2026-11-07)
+
+**Why.** A school club idea by Jafar: "Neues Tier — Schuppenhund (gefährlich) — 10 hp pro … — bellt", drawn as a
+four-legged dog covered in scales (the head too), with two upright ears, a mouth full of teeth, three claws on every
+foot and a dark tail sticking straight back. Marcel's decisions: very dangerous, ears, teeth, random colours, the name
+"Schuppenhund" in every language, it lives alone, drops meat, only on the dry worlds — and a **class**, not one animal.
+
+**The class: `CreatureBodyPlan.Hound`** (appended to the enum; every number in `HoundRules`). New species traits with
+classic defaults, so no older species, companion snapshot or wire message changes: `EarStyle` (None / Pointed / Tall /
+Swept), `SnoutLength` (the muzzle's depth as a share of the head depth), `HasClaws`, `HasTeeth`, and the chunk bite
+`BiteDamage` + `BiteInterval` (`CreatureReach.BitesInChunks`). `AuthoredCreature` carries them too, so a worksheet hound
+is a data entry. `ApplyHoundPlan` sets the fixed class traits (4 legs, chest + hindquarters, tail, ears, teeth, claws, two
+eyes, Aggressive, group 1, Prowler, 10 HP a bite, 60–80 HP, meat ×3) and rolls what the class varies (size 1.0–1.6, speed
+3.0–3.6, bite interval 1.3–1.7 s, ear style, muzzle 0.45–0.8, the scale hide from `HoundRules.Hides`).
+
+**Where it lives.** `PlanetType.ScaleHoundChance` (data) on the dry types that carry fauna: desert 0.6, savanna 0.5,
+salt_flats 0.5, tablelands 0.6, badlands 0.7, red_desert 0.6, dust_bowl 0.6, sand_sea 0.4, arch_lands 0.6, bone_desert
+0.8. Not the landmark worlds (arena_nigra, titas), not the ashen/toxic classes, and not the default start type `varied`.
+
+**The roll (`WorldDescription.ScaleHoundGeneration` = 34; 33 is the KuBa-W asteroid of the same day, #3306).** `GenerateRoster` appends, after every rolled and authored
+slot and before the favourite-food pass, ONE hound (`HoundRules.SpeciesId` = `hd_schuppenhund`) when
+`CreatureGenerator.HostsScaleHound` — the roster seed salted `"scale-hound"`, its own `System.Random` — falls below the
+type's chance. `GenerateScaleHound` rolls the looks from its own sub-seed (`"scale-hound:species"`): body and belly colour
+(`PickColor`), activity (the normal 40/30/20/10), the plan, the eye colour (the gen-15 roll — a hunter leans red), and the
+voice seed. No RNG of any other species is touched, so every older species of a generation-34 world is the one generation 33
+rolled (pinned by `HoundGenerationTests.TheHound_IsAppendedLast_SoNoOtherSpeciesMoves`).
+
+**Its voice** is the `CanineCalls` pool (`creature_call_bark`, `_bark_deep`, `_bark_rough`) instead of its habitat pool —
+every hound barks, in one to three barks; the scan reads `ui.scan.voice.bark`.
+
+**On the server** (`GameServerHounds.cs`): bites in chunks (10 once per interval, within reach and in sight, nothing in
+between; `PlanetEnemies` Off switches it off like every bite); notices prey from 12 blocks; within 7 blocks it charges
+(×1.15 — still below the player's walk of 6: 3.6 × 1.4 Prowler burst × 1.15 ≈ 5.8); the spawner keeps one wild hound
+about at a time; the scan adds `ui.scan.body.hound`; VEGA warns once per session within 24 blocks; `/hound` (admin,
+`summon_hound`) places the roster's hound — or this world's rolled one — 14–22 blocks from the admin.
+
+**Tests:** `HoundGenerationTests` (no hound before 33 or on a type without the chance, at most one, the chance holds,
+appended last, the class traits, per-world looks and determinism, top speed below the walk, it barks, the muzzle's head
+reach, a worksheet hound, no older species bites in chunks) and `HoundServerTests` (10 per interval and nothing between,
+planet enemies off, one at a time, scan + wire, `/hound` + VEGA).

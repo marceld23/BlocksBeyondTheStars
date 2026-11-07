@@ -27,6 +27,9 @@ public sealed class PlayerSessionVega
     /// <summary>#2009: VEGA has pointed out an arachnid to this player (once per session — a sighting, not a nag).</summary>
     public bool ArachnidSighted { get; set; }
 
+    /// <summary>#3326: VEGA has warned this player about a Schuppenhund (once per session).</summary>
+    public bool HoundSighted { get; set; }
+
     public double VegaThreatReadyAt { get; set; }
     public double VegaEvadeReadyAt { get; set; }
 

@@ -48,6 +48,22 @@ leads M and V; three-line school text; indestructible; nothing else built there;
   browser build too, scan them, try to mine one. A quick start: `--start-planet asteroid_kuba_w` makes the start planet a
   KuBa-W (test worlds only — the galaxy then also has its real one in the belt).
 
+### 🐕 The Schuppenhund — Jafar's scale hound, a creature class of the dry worlds (terrain generation 34) — ✅ 2026-11-07, epic #3329 (#3325–#3328), branch feat/scale-hound
+
+A school club idea by Jafar ("Neues Tier — Schuppenhund (gefährlich) — 10 hp pro … — bellt"): a scaly four-legged dog
+with upright ears, teeth and three claws on every foot. Marcel's decisions: very dangerous, ears, teeth, random colours,
+"Schuppenhund" in every language, alone, meat, dry worlds, a class.
+
+- **#3325** Body plan `Hound` + `HoundRules`; traits `EarStyle`, `SnoutLength`, `HasClaws`, `HasTeeth`, `BiteDamage`,
+  `BiteInterval` (also on `AuthoredCreature`); `PlanetType.ScaleHoundChance` on ten dry types; generation 34 appends ONE
+  hound (own sub-seed, no other species moves) with per-world looks. WORLD_GENERATION § 50.
+- **#3326** Server: bites in chunks (10 per 1.3–1.7 s, nothing between, off with planet enemies off), aggro 12, the charge
+  (×1.15, still below the player's walk), one wild hound at a time, scan line, VEGA warning, `/hound`, companion snapshot.
+- **#3327** Client: muzzle (opens with the jaw), nose, teeth, ears (rig ears), claws, a dog's tail; scale hide everywhere;
+  stalk/charge/wag body language; the lunge lands exactly on the server's bite. CREATURE_RIG § The hound.
+- **#3328** `CanineCalls` (bark + two new barks, `gen_sound.py`, levelled); 5 keys in all 14 languages; manual.
+- Open: playtest on a dry world of a new save (`/hound` on any world) — feel of the 10-HP bite and the charge.
+
 ### 🛗 The lift's build rule, told — where the motor goes, a stop too low, only the bottom floor, the Codex text and picture (Marcel's analysis 2026-11-07) — #3297–#3302, branch fix/lift-build-rule — ✅ done 2026-11-07 in PR #3303 (`f205346f`), released in v2026.11.8 (⚠ playtest open; no save-version, protocol or terrain-generation change; server texts only — four new and six changed locale keys plus two Codex articles in all 14 languages)
 
 Marcel asked whether the lift works and whether it is documented right. The server logic is sound (tests green), but

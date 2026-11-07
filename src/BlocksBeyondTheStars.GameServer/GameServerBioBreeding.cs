@@ -519,6 +519,8 @@ public sealed partial class GameServer
         // Never hostile: the calmer temperament of the two, and no bite.
         child.Temperament = Calmer(a.Temperament, b.Temperament);
         child.AttackDamage = 0f;
+        child.BiteDamage = 0f; // #3326: a hound's pup never bites either
+        child.BiteInterval = 0f;
         child.Activity = Bit(3) ? a.Activity : b.Activity;
 
         // Colours: body from one parent, belly from the other. Ornaments: one bit each.

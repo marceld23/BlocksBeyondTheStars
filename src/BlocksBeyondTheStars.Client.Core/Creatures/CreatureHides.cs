@@ -231,11 +231,13 @@ namespace BlocksBeyondTheStars.Client
         {
             uint seed = CreatureCoat.SpeciesSeed(c.SpeciesId, c.VoiceSeed);
             bool authored = CreatureCoat.IsAuthored(c.SpeciesId);
+            // #3327: the Schuppenhund's scales cover it head to tail, as drawn — its world rolled the scale variant already.
+            bool wearsOne = authored || c.BodyPlan == "Hound";
             var pool = PoolFor(c);
             IReadOnlyList<string> source = pool;
             string? named = !string.IsNullOrEmpty(c.Hide) && IsKnown(c.Hide) ? c.Hide : null;
             string? torso;
-            if (named != null && authored)
+            if (named != null && wearsOne)
             {
                 torso = available(named) ? named : null;
             }
@@ -250,7 +252,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             torso ??= PickFrom(pool, CoatMix.Mix(seed, CoatMix.SaltHideTorso), available) ?? Fallback(available);
-            if (authored || CoatMix.Mix(seed, CoatMix.SaltHideUniform) % 100u < UniformPercent)
+            if (wearsOne || CoatMix.Mix(seed, CoatMix.SaltHideUniform) % 100u < UniformPercent)
             {
                 return new HideSet(torso, torso, torso, torso);
             }

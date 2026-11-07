@@ -28,7 +28,7 @@ public sealed class PumpkinContentTests
         Assert.False(pumpkin.Cultivated); // wild — rolled into rosters like every species, toxic on a few
         Assert.Equal(WorldDescription.PumpkinGeneration, pumpkin.MinGeneration);
         Assert.Equal(32, WorldDescription.PumpkinGeneration);
-        Assert.True(WorldDescription.CurrentTerrainGeneration >= WorldDescription.PumpkinGeneration); // new worlds grow it (#3306 moved on to 33)
+        Assert.True(WorldDescription.PumpkinGeneration <= WorldDescription.CurrentTerrainGeneration); // later generations (KuBa-W, the Schuppenhund) came after
         Assert.NotNull(FloraCatalog.PaletteOf(FloraCatalog.PumpkinKey));
         Assert.Null(FloraCatalog.PaletteOf("flora_berrybush"));
         Assert.Contains("hydro_tray", pumpkin.LateHosts); // sowable in a tray like the crops — a late host, so the roster coverage ignores it

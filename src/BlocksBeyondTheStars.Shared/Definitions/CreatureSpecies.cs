@@ -58,6 +58,19 @@ public enum CreatureBodyPlan
     Leviathan, // the deep sea's giant (#2111, generation 18): the sandworm's mover in water — cruises under the surface, breaches, hunts fish and boats
     SkyGiant,  // the gas giant's giant (#2112, generation 18): a 40–80 block sky-sailer drifting between the islands, passive — a spectacle
     Robot,     // the friendly hunter robot (#3295): a companion only, never rolled — the hunter's armour on the biped's rig, light-blue lights
+    Hound,     // the Schuppenhund (#3325, generation 34, Jafar's idea): a scaly four-legged dog with ears, a toothed muzzle and claws — very dangerous, alone, on the dry worlds
+}
+
+/// <summary>
+/// The ears a head carries (#3325, the Schuppenhund). Every species before the hound has none — the titan's elephant ears
+/// are part of the titan's own build, not this trait. Appended values only: the name travels on the wire and in saves.
+/// </summary>
+public enum CreatureEarStyle
+{
+    None,
+    Pointed, // short upright ears — Jafar's drawing
+    Tall,    // long upright ears
+    Swept,   // ears laid back along the skull
 }
 
 /// <summary>
@@ -273,6 +286,30 @@ public sealed class CreatureSpecies
     /// <summary>How many favourite meals from one player tame an animal of this species (#2082); 0 = the rule's default
     /// (<see cref="HerdRules.FeedsToTame"/>). An authored species may name its own count.</summary>
     public int FeedsToTame { get; set; }
+
+    // --- Hounds (2026-11, generation 34, #3325/#3326). None/zero on every other species, so no older world, companion snapshot
+    // or wire message changes. ---
+
+    /// <summary>The ears on the head (#3325): <see cref="CreatureEarStyle.None"/> on every species but the hound.</summary>
+    public CreatureEarStyle EarStyle { get; set; }
+
+    /// <summary>How far a muzzle reaches in front of the head, as a share of the head's depth (#3325): 0 = the classic flat face,
+    /// a hound <see cref="HoundRules.MinSnout"/>–<see cref="HoundRules.MaxSnout"/>. The jaw's half of it opens with the voice.</summary>
+    public float SnoutLength { get; set; }
+
+    /// <summary>Three claws on every foot (#3325, the "3" on each foot of Jafar's drawing).</summary>
+    public bool HasClaws { get; set; }
+
+    /// <summary>A row of teeth on the muzzle and on the jaw (#3325).</summary>
+    public bool HasTeeth { get; set; }
+
+    /// <summary>The damage of ONE bite (#3326). With <see cref="BiteInterval"/> above 0 the species bites in chunks — once per
+    /// interval, within reach and in sight — instead of draining <see cref="AttackDamage"/> per second; see
+    /// <see cref="CreatureReach.BitesInChunks"/>. 0 on every species before the hound.</summary>
+    public float BiteDamage { get; set; }
+
+    /// <summary>Seconds between two bites (#3326); 0 = the classic per-second drain.</summary>
+    public float BiteInterval { get; set; }
 
     // --- Giants (#1998, generation 9): the colossus and the sandworm. Zero/empty on every other species. ---
 
