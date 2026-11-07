@@ -421,6 +421,15 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // #3369: the deferred respawn choice (#462). The server has not moved the body yet, so no snap started the settle
+            // freeze above — and the on-foot frame below ran under the death screen: the mouse turned the camera on its way to
+            // the buttons, and every click on them mined or built at the crosshair. The body holds still until the pick.
+            if (Game != null && Game.AwaitingRespawnConfirm)
+            {
+                HoldForDeathScreen();
+                return;
+            }
+
             // #2129: aboard a train the body is a child of the moving wagon. Physics.autoSyncTransforms is off in this
             // project, so CharacterController.Move starts from the last SIMULATED position and would throw away the
             // wagon's motion since the last physics step — the rider drifted to the rear and fell out. Sync the moved

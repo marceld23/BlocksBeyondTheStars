@@ -176,20 +176,50 @@ namespace BlocksBeyondTheStars.Client
             _optic?.Lower();
 
             // The aim readouts are not refreshed while lying (HandleStations does not run): drop the bed's prompt and any
-            // network outline now instead of leaving them on screen until we get up.
-            Game.AimedStationBlock = null;
-            Game.AimedCrystalDevice = null;
-            Game.AimedCell = null;
-            Game.AimedBasePadCell = null; // #3070
-            Game.Interaction = InteractKind.None; // #3088: lying down, E gets up — it works on nothing around the bed
-            Game.InteractNpcId = 0;
-            Game.AimedBoardOutOfReach = false;
+            // network outline now instead of leaving them on screen until we get up. #3088: lying down, E gets up — it works
+            // on nothing around the bed.
+            ClearAimReadouts();
 
             // The pillow view is a first-person one in either camera mode: no body left standing beside the bed in the
             // chase view, no tool held in front of the face. GetUp hands both back to the camera mode.
             Avatar?.SetVisible(false);
             _viewmodel?.SetVisible(false);
             SayGoodNight();
+        }
+
+        /// <summary>Drops every aim readout <see cref="HandleStations"/> keeps up to date — the "E: …" prompt, the aimed cell and
+        /// device outlines — for a frame in which it will not run (lying in a bed, the death screen).</summary>
+        private void ClearAimReadouts()
+        {
+            Game.AimedStationBlock = null;
+            Game.AimedCrystalDevice = null;
+            Game.AimedCell = null;
+            Game.AimedBasePadCell = null; // #3070
+            Game.Interaction = InteractKind.None;
+            Game.InteractNpcId = 0;
+            Game.AimedBoardOutOfReach = false;
+        }
+
+        /// <summary>#3369: the body under the death screen while the deferred respawn choice (#462) is open — the server keeps
+        /// it lying at the death spot until the pick. Nothing moves it: no look, no walking, no gravity (the server's corpse
+        /// does not fall either), no tool. The jetpack and the wing fold, a chair lets go (the respawn places the body), the
+        /// last living frame's aim prompt leaves the HUD, and the keep-alive keeps flowing (#964).</summary>
+        private void HoldForDeathScreen()
+        {
+            UpdateJetpack(false);
+            UpdateGlide(false);
+            EndClimb();
+            if (_seatCell.HasValue)
+            {
+                StandUp();
+            }
+
+            _verticalVelocity = 0f;
+            _knock = Vector3.zero;
+            ClearAimReadouts();
+            SendMovement(); // the pose of the body where it lies — the server ignores it until the pick
+            Game.PlayerPosition = transform.position;
+            Game.PlayerVerticalVelocity = 0f;
         }
 
         /// <summary>#2823: a move stick/key or crouch is held — the "get up" inputs that are held rather than pressed.</summary>
