@@ -51,10 +51,18 @@ public sealed partial class GameServer
 
     /// <summary>The first disc of <paramref name="order"/> the player has not decoded and does not have — never handed, or
     /// handed but no longer carried or worn (lost, dropped, left in a crate): a story disc is never lost for good, so the
-    /// next cache hands it out again (a spare in a crate is harmless). Null when every disc is decoded or at hand.</summary>
-    internal static string? NextMissingDisc(PlayerState p, IEnumerable<string> order)
+    /// next cache hands it out again (a spare in a crate is harmless). A disc still waiting in a relic cache locked to the
+    /// player (a sound chamber they opened but have not emptied yet) is at hand too — the next chamber brings the NEXT disc.
+    /// Null when every disc is decoded or at hand.</summary>
+    internal string? NextMissingDisc(PlayerState p, IEnumerable<string> order)
         => order.FirstOrDefault(d => !p.Milestones.Contains(SoundersIds.DiscMilestone(d))
-                                     && (!p.Milestones.Contains(SongDiscs.GotMilestone(d)) || !CarriesSounderItem(p, d)));
+                                     && (!p.Milestones.Contains(SongDiscs.GotMilestone(d))
+                                         || (!CarriesSounderItem(p, d) && !WaitsInOwnRelicCache(p, d))));
+
+    /// <summary>Whether <paramref name="disc"/> lies in a relic cache of this world that is locked to <paramref name="p"/>.</summary>
+    private bool WaitsInOwnRelicCache(PlayerState p, string disc)
+        => _containers.Any(c => IsRelicCache(c) && c.Owner.Length > 0 && string.Equals(c.Owner, p.PlayerId, System.StringComparison.Ordinal)
+                                && c.Items.Any(s => string.Equals(s.Item, disc, System.StringComparison.Ordinal)));
 
     /// <summary>Whether <paramref name="p"/> carries <paramref name="item"/> in the backpack or wears it (a disc in the socket).</summary>
     private static bool CarriesSounderItem(PlayerState p, string item)

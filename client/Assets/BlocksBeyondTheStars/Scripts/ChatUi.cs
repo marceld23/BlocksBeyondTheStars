@@ -737,6 +737,7 @@ namespace BlocksBeyondTheStars.Client
             LocalLine(L("ui.admin.help_inspect"));
             LocalLine(L("ui.admin.help_fleet"));
             LocalLine(L("ui.admin.help_story"));
+            LocalLine(L("ui.admin.help_sounders")); // #3368: the Sounders story's QA verb
             LocalLine(L("ui.admin.help_tutorial"));
             LocalLine(L("ui.admin.help_cutscene"));
             LocalLine(L("ui.admin.help_maintenance"));

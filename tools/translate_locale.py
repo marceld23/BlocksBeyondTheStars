@@ -112,6 +112,11 @@ Soundeling(s), Soundrak(s), Quali/Qualis, Soaniri, Ornemis, Mirun, Ornasa, Elora
 in Latin letters — a language in another script (Russian, Ukrainian, Japanese, Korean, Chinese) may write them in its \
 own script, but always the same way and always as a sound-alike, never as a meaning. Give Roll no gender: no \
 pronoun, and no gendered verb, adjective or participle agreeing with Roll (rephrase the sentence instead). \
+The Eldest of the Sounders (German "die Älteste") is a woman: use feminine forms for her title and for every word \
+agreeing with it (French "l'Aînée", Spanish "la Anciana", Italian "l'Anziana", Polish "Najstarsza", Russian \
+"Старейшая"). The Sounders' THINGS and PLACES are ordinary words and always translate: Song Spindle, Song Disc(s), \
+the disc titles (The Beginning, The Builders, Hearing, Hunger, Calm, Light, The Voices, The Great Song), Song Archive, \
+Choir Tower, Echo(es), Young Voices, Resonance Blaster, obsidian armour, Song of Return, Bridge Song, the Eldest. \
 Game terms translate naturally and CONSISTENTLY across keys (e.g. blueprint, knowledge, suit energy, airlock).
 - UI strings must stay short: if the English is one or two words, the translation should be too.
 """

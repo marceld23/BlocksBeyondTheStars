@@ -108,8 +108,9 @@ public sealed class ToxicaMaximaWorldTests
 
         // Every classic type keeps the generation-15 no-op defaults. Arena Nigra (#2073, generation 16) is the one other type
         // that names its sky and its precipitation — and has its own tests.
-        // #2112: the gas giant names its sky and its storm too; #3307: KuBa-W names its pale-green sky (and has its own tests).
-        foreach (var other in Content.Planets.Values.Where(t => t.Key is not (Key or "arena_nigra" or "gas_giant" or "asteroid_kuba_w")))
+        // #2112: the gas giant names its sky and its storm too; #3307: KuBa-W names its pale-green sky (and has its own tests);
+        // #3358: Soaniri, the Sounders' home world, names its soft violet sky.
+        foreach (var other in Content.Planets.Values.Where(t => t.Key is not (Key or "arena_nigra" or "gas_giant" or "asteroid_kuba_w" or "sounder_world")))
         {
             Assert.Equal(0, other.SkyColor);
             Assert.Equal(string.Empty, other.Precipitation);
