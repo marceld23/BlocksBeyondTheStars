@@ -257,6 +257,23 @@ public sealed class KubaWTests : IDisposable
 
                 AssertClearView(server, pad, t);
 
+                // Nothing taller than a small flower grows between the pad and the face (the giant flowers would hide the text).
+                foreach (int x in new[] { t.Width / 4, t.Width / 2, (3 * t.Width) / 4 })
+                {
+                    for (int lz = -3; lz >= -20; lz--)
+                    {
+                        var col = server.TextMonumentCellForTest(t.Key, x, 0, lz);
+                        int y = t.Anchor.Y + 20;
+                        while (y > 0 && Content.BlockById(server.World.GetBlock(new Vector3i(col.X, y, col.Z))) is not { Solid: true })
+                        {
+                            y--;
+                        }
+
+                        Assert.True(server.World.GetBlock(new Vector3i(col.X, y + 2, col.Z)).IsAir,
+                            $"{t.Key}: something taller than a flower stands at ({col.X}, {y + 2}, {col.Z}) in front of the text");
+                    }
+                }
+
                 // The streaming lifts the tablet's columns to its top (80–110 blocks over the ground): nothing is cut off.
                 var topCell = server.TextMonumentCellForTest(t.Key, t.Width / 2, t.Height - 1, 0);
                 Assert.True(server.TextMonumentTopChunkForTest(WorldConstants.WorldToChunk(topCell.X), WorldConstants.WorldToChunk(topCell.Z))

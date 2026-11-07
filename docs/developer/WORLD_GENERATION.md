@@ -3129,7 +3129,9 @@ whose far corner would leave a 64-block radius of the pad dropped (the nearest d
 is the only one); a second tablet at the same pad (#3330) never takes a bearing an earlier one uses, prefers the opposite
 side and keeps a 6-block gap to every tablet; the score adds the ground spread, a wet share and the
 **view lift** — sight lines from eye height at the pad's rim to the foot of the text (left end, middle, right end) sampled
-over the heightfield, and the plinth rises by what would block them. The tablet's frame: `x` to the right of a reader
+over the heightfield, and the plinth rises by what would block them. The stamp then clears the meadow between the pad's
+rim and the face of everything taller than one block (`ClearTextMonumentView` — KuBa-W's giant flowers hid the bottom lines
+from a player on the pad in the first capture; small flowers stay). The tablet's frame: `x` to the right of a reader
 looking from the pad (`(Fz, −Fx)`), `z` away from the reader, so the face looks at the pad. Stamped once (plinth from each
 column's ground, air written only where the world holds something), recorded as
 `textmonument@<key>:<fx>:<fz>:<x>:<y>:<z>` in `StampedFeatures`, re-derived from the record on every later load.

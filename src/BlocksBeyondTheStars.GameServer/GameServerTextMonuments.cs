@@ -104,7 +104,12 @@ public sealed partial class GameServer
 
             var seat = ChooseTextMonumentSeat(planet, _landingPads[spec.Pad], tablet);
             var instance = new TextMonumentInstance { Key = spec.Key, Pad = spec.Pad, Fx = seat.Fx, Fz = seat.Fz, Anchor = seat.Anchor, Tablet = tablet };
-            _repo.RunInTransaction(() => StampTextTablet(planet, instance));
+            var standPad = _landingPads[spec.Pad];
+            _repo.RunInTransaction(() =>
+            {
+                StampTextTablet(planet, instance);
+                ClearTextMonumentView(planet, instance, standPad);
+            });
             MarkFeatureStamped($"{TextMonumentRecordPrefix}{spec.Key}:{seat.Fx}:{seat.Fz}:{seat.Anchor.X}:{seat.Anchor.Y}:{seat.Anchor.Z}");
             _textMonuments.Add(instance);
             _log.Info($"Stamped text monument '{spec.Key}' on '{_world.LocationId}' at {seat.Anchor} facing ({seat.Fx},{seat.Fz}).");
@@ -360,6 +365,46 @@ public sealed partial class GameServer
                         _world.SetBlock(pos, new BlockId(b), 0, tablet.IsLamp(x, y, z) ? TextMonumentLampGlow : 0, 0);
                     }
                     else if (!_world.GetBlock(pos).IsAir)
+                    {
+                        _world.SetBlock(pos, BlockId.Air);
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>How high above the ground a plant may stand in front of a tablet: anything taller (giant flowers, bushes, a
+    /// boulder) hides the lower lines from a player on the pad, so the whole growth of such a column is cleared.</summary>
+    private const int TextMonumentViewClearHeight = 1;
+
+    /// <summary>How far above the ground the view clearing looks for growth.</summary>
+    private const int TextMonumentViewClearReach = 14;
+
+    /// <summary>Clears the meadow between the pad's rim and a tablet's face of everything taller than
+    /// <see cref="TextMonumentViewClearHeight"/> — the giant flowers of KuBa-W would otherwise cover the bottom lines from a
+    /// player standing on the pad. Small flowers stay; the pad's own volume is left alone. Inside the stamp's transaction.</summary>
+    private void ClearTextMonumentView(PlanetType planet, TextMonumentInstance m, LandingPad pad)
+    {
+        int circ = _world.Circumference;
+        var face = m.World(m.Tablet.Width / 2, 0, 0);
+        int toFace = (WorldConstants.WrapDeltaX(face.X - pad.CenterX, circ) * m.Fx) + ((face.Z - pad.CenterZ) * m.Fz);
+        int depth = toFace - pad.Radius - 1;
+        for (int lz = -1; lz >= -depth; lz--)
+        {
+            for (int lx = 0; lx < m.Tablet.Width; lx++)
+            {
+                var c = m.World(lx, 0, lz);
+                int wx = WorldConstants.WrapX(c.X, circ);
+                int ground = _generator.SurfaceHeight(planet, wx, c.Z);
+                if (_world.GetBlock(new Vector3i(wx, ground + TextMonumentViewClearHeight + 1, c.Z)).IsAir)
+                {
+                    continue; // nothing taller than a small flower here
+                }
+
+                for (int y = ground + 1; y <= ground + TextMonumentViewClearReach; y++)
+                {
+                    var pos = new Vector3i(wx, y, c.Z);
+                    if (!_world.GetBlock(pos).IsAir && !IsOnLandingPad(pos))
                     {
                         _world.SetBlock(pos, BlockId.Air);
                     }
