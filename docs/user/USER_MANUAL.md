@@ -71,7 +71,9 @@ Last updated: 2026-10-04.
   with a frequency slider per planet type (Off · Very rare · Rare · Normal · Frequent). Each row shows its **share of
   the planets in %**; **Only this** on a row leaves just that type (all others Off — 100 % of the planets), **All
   normal** gives an even mix, and **Reset overrides** goes back to the game's own mix plus the *Exotic worlds* slider.
-  Your home planet stays a varied world. The world *owns* its rules from then on; the world admin can live-edit the
+  In worlds created since generation 33 *Exotic worlds* on **Very rare** keeps the once-per-galaxy landmarks (Titas,
+  Toxica-Maxima, Arena Nigra) possible instead of switching them off, and **Frequent** really raises them; only **Off**
+  removes them. KuBa-W is in every galaxy whatever the sliders say. Your home planet stays a varied world. The world *owns* its rules from then on; the world admin can live-edit the
   creature/enemy activity and PvP later in-game (Character tab → "World rules" / "Weltregeln").
 - **Stories** ("Geschichten") at world creation: the row **"Stories: VEGA · Tutorial Auto ›"** at the bottom of the
   world options opens its own page with three choices:
@@ -957,6 +959,15 @@ round.
   dunes shakes the sand like you do, the worm comes, and whatever stands where it strikes is swallowed — a piece or two of
   **meat** stays on the sand (pets and companions are never eaten). Ores are rare: obsidian veins, iron, copper, sulfur,
   carbon under the rock. VEGA warns you on landing; a few ruins stand on the rock, no settlements.
+- **KuBa-W** (Jafar's world from our school club — **exactly one in every galaxy** created since generation 33, never in
+  the first star system): a small **asteroid** in a system's belt that has no business holding air — and does. You can
+  **breathe** there under a **pale-green sky**; the ground is gentle **hills and flat meadows** with flowers and **many
+  animals**, but no trees, and the gravity is an asteroid's (big jumps). It has exactly **two landing pads**, and in front
+  of each stands a **giant stone tablet** you see whole as soon as you step off the pad: one spells **"KuBa West Trier"**,
+  the school the club meets at, the other carries **one letter for everyone in the club** — the children in alphabetical
+  order, then the **M and V** of the two club leads in **gold**. The tablets are **indestructible**: nobody can mine,
+  burn, blast or build on them. **Scan** a tablet to read what it is (it goes into the Codex like every find). VEGA
+  greets you on landing; nothing else is built on KuBa-W. Find it on the star map by its name.
 - **Field medkit** (workshop, blueprint-gated; the doctor sells it, derelict crates sometimes hold one): a reusable
   first-aid pulse. Select it and press **right-click** (pad: **LB**) — you don't aim it at anyone: it heals **you and
   every player on foot within 6 blocks** by 45 health, costs 18 suit energy and is ready again after 4 seconds. When

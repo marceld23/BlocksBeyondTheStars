@@ -430,8 +430,9 @@ public sealed partial class GameServer
     {
         string type = _world.Planet?.Key ?? string.Empty;
         // Every asteroid FAMILY (stony, metallic, icy, carbonaceous, crystalline — #515) shares the one
-        // "you're standing on a rock in the void" line, and the once-flag with it.
-        string id = WorldConstants.IsAsteroidType(type) ? "asteroid" : type switch
+        // "you're standing on a rock in the void" line, and the once-flag with it. #3307: KuBa-W is an asteroid with air,
+        // grass and animals — it gets its own line.
+        string id = type == "asteroid_kuba_w" ? "kuba_w" : WorldConstants.IsAsteroidType(type) ? "asteroid" : type switch
         {
             "ocean" => "ocean",
             "corrupted" => "corrupted",

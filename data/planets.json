@@ -1260,6 +1260,39 @@
       { "block": "silicate", "rarity": 0.06, "minDepth": 2, "maxDepth": 2048 }
     ]
   },
+  // Terrain generation 33 (#3306, KuBa-W): Jafar's world from the school club — a small asteroid with breathable air under a
+  // pale-green sky, hills and flat meadows, animals and no trees, exactly once in every galaxy (placed by
+  // UniverseGenerator.ApplyGuaranteedAsteroids, never by the family roll: spawn weight 0). Two landing pads; in front of each
+  // stands a giant stone tablet — the school's name, and the initials of everyone in the club (the leads' M V in gold).
+  {
+    "key": "asteroid_kuba_w", "minTerrainGeneration": 33, "exotic": true, "guaranteedOnce": true, "fixedName": "KuBa-W", "floraTheme": "temperate", "baseTemperature": 17, "nameKey": "planet.asteroid_kuba_w.name", "atmosphereHeight": 190, "cloudColor": 15593458, "cloudDensity": 0.35, "mist": 0.3, "skyColor": 11065504,
+    "terrainTags": [],
+    "baseHeight": 48, "amplitude": 10, "terrainScale": 44.0, "terrainStyle": "downs", "terrainStyles": ["downs", "hills", "flats"],
+    "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
+    "caveThreshold": 0.72, "dataCacheRarity": 0.0016,
+    "weather": "dynamic", "stormChance": 0.25, "dayLengthSeconds": 700, "worldRadius": 220, "floraDensity": 0.2, "treeDensity": 0.0, "creatureAbundance": "many",
+    "atmosphere": "breathable", "selectable": false, "spawnWeight": 0, "waterAbundance": 0.2,
+    "weatherVolatility": 0.8, "seasonAmplitude": 0.2,
+    "weatherEvents": { "drizzle": 1.2, "fog": 0.8, "meteor_shower": 0.0, "ion_storm": 0.0 },
+    "restrictStructures": true, "allowedStructures": ["net_fragments"],
+    "landingPadCount": 2,
+    "textMonuments": [
+      { "key": "kuba_school", "pad": 0, "lines": ["KuBa", "West", "Trier"] },
+      { "key": "kuba_initials", "pad": 1, "lines": ["BDJJLMN", "NPST MV"], "accentFrom": [1, 5] }
+    ],
+    "biomes": [
+      { "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "floraDensityMul": 1.2 },
+      { "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "floraTheme": "floral", "floraDensityMul": 1.0, "reliefMul": 0.6 },
+      { "surfaceBlock": "dirt",  "subSurfaceBlock": "stone", "floraDensityMul": 0.6, "reliefMul": 1.3 }
+    ],
+    "ores": [
+      { "block": "iron_ore",   "rarity": 0.06, "minDepth": 3, "maxDepth": 2048 },
+      { "block": "copper_ore", "rarity": 0.05, "minDepth": 3, "maxDepth": 2048 },
+      { "block": "silicate",   "rarity": 0.05, "minDepth": 2, "maxDepth": 2048 },
+      { "block": "carbon",     "rarity": 0.04, "minDepth": 3, "maxDepth": 2048 },
+      { "block": "titanium_ore", "rarity": 0.03, "minDepth": 8, "maxDepth": 2048 }
+    ]
+  },
   {
     "key": "orbital_station", "baseTemperature": 20, "nameKey": "planet.orbital_station.name", "cloudColor": 0, "cloudDensity": 0.0, "mist": 0.0,
     "baseHeight": 64, "amplitude": 0, "terrainScale": 48.0,

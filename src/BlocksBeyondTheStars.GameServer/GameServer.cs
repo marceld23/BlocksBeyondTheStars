@@ -833,6 +833,10 @@ public sealed partial class GameServer
                     bool restricted = planet.RestrictStructures && _generator.TerrainGeneration >= WorldDescription.ExtremePlanetsGeneration;
                     bool Allowed(string kind) => !restricted || planet.AllowedStructures.Contains(kind);
 
+                    // #3310 (generation 33): a type's stone text tablets (KuBa-W) — first, in front of their pads, on every
+                    // world of the type whatever the structure options say (self-skips on every other type).
+                    BootDetail("text monuments", StampTextMonuments);
+
                     if (_config.PlaceSettlements && !restricted)
                     {
                         BootDetail("settlements", StampSettlement);
@@ -5101,6 +5105,13 @@ public sealed partial class GameServer
             return;
         }
 
+        // #3311: KuBa-W's stone tablets carry the school club's names — nobody digs them out (admins neither).
+        if (IsTextMonumentProtected(pos))
+        {
+            Reject(session, "mine", "@srv.protect.monument");
+            return;
+        }
+
         if (IsFactoryProtected(pos, session.State.PlayerId, session.State.IsAdmin))
         {
             Reject(session, "mine", "@srv.protect.factory");
@@ -5430,6 +5441,7 @@ public sealed partial class GameServer
     private bool IsBreakProtected(Vector3i p, BlockId id, string actorId, bool actorIsAdmin)
         => IsShipBlock(p) || IsSettlementProtected(p, id) || IsStationBlock(p)
            || IsGuardianCoreProtected(p) // #1830
+           || IsTextMonumentProtected(p) // #3311: KuBa-W's stone tablets
            || (IsIntercityRailBlock(p) && !IsSettlementBoxBlock(p))
            || IsFactoryProtected(p, actorId, actorIsAdmin)
            || IsBaseProtected(p, actorId, actorIsAdmin)

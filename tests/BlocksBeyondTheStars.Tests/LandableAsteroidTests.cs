@@ -25,9 +25,10 @@ public sealed class LandableAsteroidTests : IDisposable
     private readonly string _root;
     private readonly GameContent _content;
 
-    /// <summary>Every asteroid family in the shipped content (the generator draws from exactly these).</summary>
+    /// <summary>Every asteroid family in the shipped content (the generator draws from exactly these). A guaranteed special
+    /// asteroid (#3308, KuBa-W) is no family: the family roll never draws it, it has air, flora and animals — see KubaWTests.</summary>
     private string[] Families => _content.Planets.Keys
-        .Where(k => WorldConstants.IsAsteroidType(k))
+        .Where(k => WorldConstants.IsAsteroidType(k) && _content.GetPlanet(k) is { GuaranteedOnce: false })
         .OrderBy(k => k, StringComparer.Ordinal)
         .ToArray();
 

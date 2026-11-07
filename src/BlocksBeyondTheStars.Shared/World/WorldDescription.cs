@@ -35,6 +35,36 @@ public static class FrequencyExtensions
         _ => 0,
     };
 
+    /// <summary>The "Exotic worlds" slider's factor on an exotic planet type's spawn weight (Normal = 1.0 = unchanged).</summary>
+    public static double ExoticFactor(this Frequency f) => f switch
+    {
+        Frequency.Off => 0.0,
+        Frequency.VeryRare => 0.34,
+        Frequency.Rare => 0.6,
+        Frequency.Frequent => 2.5,
+        _ => 1.0,
+    };
+
+    /// <summary>An exotic type's weight in the planet-type roll under the "Exotic worlds" slider. Up to generation 32 it is
+    /// <c>Math.Round(spawnWeight × factor)</c> — which rounds a weight-1 landmark (Titas, Toxica-Maxima, Arena Nigra) to 0
+    /// on "Very rare" and lifts it only to 2 on "Frequent" (banker's rounding of 2.5). From
+    /// <see cref="WorldDescription.KubaWGeneration"/> (#3313) the rounding is away from zero and a type keeps at least
+    /// weight 1 unless the slider is Off or its own spawn weight is 0; at Normal both rules give the spawn weight itself, so
+    /// a default galaxy rolls the same.</summary>
+    public static int ExoticWeight(int spawnWeight, Frequency exoticWorlds, int terrainGeneration)
+    {
+        int weight = System.Math.Max(0, spawnWeight);
+        double factor = exoticWorlds.ExoticFactor();
+        if (terrainGeneration < WorldDescription.KubaWGeneration)
+        {
+            return (int)System.Math.Round(weight * factor);
+        }
+
+        return weight == 0 || factor <= 0.0
+            ? 0
+            : System.Math.Max(1, (int)System.Math.Round(weight * factor, System.MidpointRounding.AwayFromZero));
+    }
+
     /// <summary>Probability in [0,1] for independent chance rolls — e.g. the universe
     /// generator's space-station and wreck gates (<see cref="WorldDescription.SpaceStations"/>,
     /// <see cref="WorldDescription.Wrecks"/>) and the settlement/station template-use rolls.</summary>
@@ -208,8 +238,15 @@ public sealed class WorldDescription
     /// trades and quest-giver names, #2738 sea ice counts as wet for structure placement, #2739 world-seeded station
     /// quartermasters and vendor themes, #2833 twelve more wild plant species and mixed meadows, #2848–#2859 the tree
     /// variety and glow package, #2976 several fruits per world, picked per tree, #2988 the start system carries lead and
-    /// uranium, #3005 the pumpkin as a wild species of the green worlds).</summary>
-    public const int CurrentTerrainGeneration = 32;
+    /// uranium, #3005 the pumpkin as a wild species of the green worlds, #3306 KuBa-W, Jafar's school-club asteroid).</summary>
+    public const int CurrentTerrainGeneration = 33;
+
+    /// <summary>The generation of KuBa-W (#3306, Jafar's idea from the school club): a guaranteed special ASTEROID — one per
+    /// galaxy, breathable, with two landing pads and a stone text monument in view of each (<c>PlanetType.TextMonuments</c>,
+    /// <c>PlanetType.LandingPadCount</c>). From this generation <c>UniverseGenerator</c> also places guaranteed asteroid
+    /// types and names asteroid fields after a fixed-name type, and the "Exotic worlds" slider no longer rounds a
+    /// weight-1 landmark away (#3313). Older generations keep every galaxy bit for bit.</summary>
+    public const int KubaWGeneration = 33;
 
     /// <summary>The generation of the pumpkin (#3005, epic #3000): a solid wild plant of the green worlds, rolled into the
     /// roster like every species (<c>FloraCatalog</c> MinGeneration 32 — inactive on every older world; the festivals' spawner

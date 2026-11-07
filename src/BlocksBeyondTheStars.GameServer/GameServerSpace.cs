@@ -135,6 +135,12 @@ public sealed partial class GameServer
     /// so the map always shows exactly the spots that exist in the world.</summary>
     private int PadCountFor(string locationId, string planetKey, CelestialKind kind)
     {
+        // #3309: a type may fix its pad count (KuBa-W: two, one per text monument) — no roll, no per-player floor.
+        if (_content.GetPlanet(planetKey) is { LandingPadCount: > 0 } fixedPads)
+        {
+            return fixedPads.LandingPadCount;
+        }
+
         var cls = WorldConstants.SizeClassFor(kind, planetKey);
         (int lo, int hi) = cls switch
         {

@@ -123,6 +123,9 @@ public sealed class WorldGenerationGoldenTests
         new("arch_lands-gen21", 20261005, "arch_lands", 0, false, null, 21),
         new("pillar_world-gen21", 20261005, "pillar_world", 0, false, null, 21),
         new("hollow_world-gen21", 20261005, "hollow_world", 0, false, null, 21),
+        // Generation 33 (2026-11-07, #3307): KuBa-W — Jafar's breathable asteroid at an asteroid's circumference (hills, flat
+        // meadows, no trees, no craters).
+        new("asteroid_kuba_w-gen33", 20261107, "asteroid_kuba_w", 1024, false, "kubaw", 33),
         new("bone_desert-gen21", 20261005, "bone_desert", 0, false, null, 21),
         new("desert-gen21", 20261005, "desert", 0, false, null, 21),
         new("karst-gen21", 20261005, "karst", 0, false, null, 21),
@@ -248,6 +251,8 @@ public sealed class WorldGenerationGoldenTests
             ["meadowlands-gen29"] = 0x960e9223fd48b5feUL,
             ["jungle-gen29"] = 0xcdecc0e8253d7efcUL,
             ["desert-gen29"] = 0xeaf24c386be59d88UL,
+            // Pinned 2026-11-07 (KuBa-W, generation 33, #3307; Windows 11, .NET 10).
+            ["asteroid_kuba_w-gen33"] = 0xdac3b1d5e4773a8eUL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.

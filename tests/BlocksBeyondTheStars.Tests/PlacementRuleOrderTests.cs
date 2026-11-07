@@ -24,7 +24,7 @@ public sealed class PlacementRuleOrderTests
             new[]
             {
                 "height_limit", "reach", "torch_air", "cell_free", "door_here", "fluid_cell", "above_head",
-                "landing_pad", "station", "factory", "base", "ship_interior", "ship_core", "flora", "base_core",
+                "landing_pad", "station", "monument", "factory", "base", "ship_interior", "ship_core", "flora", "base_core",
                 "base_pad", "light_mount", "bed_room", "form_room",
             },
             SvGameServer.PlacementRuleNamesForTest);

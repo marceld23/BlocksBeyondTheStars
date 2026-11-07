@@ -69,15 +69,6 @@ public sealed class UniverseGenerator
     /// description may roll, weighted like the classic table (player override, else spawn weight × exotic).</summary>
     private static List<(string, int)> BuildGenerationWeights(WorldDescription desc, GameContent content)
     {
-        double exotic = desc.ExoticWorlds switch
-        {
-            Frequency.Off => 0.0,
-            Frequency.VeryRare => 0.34,
-            Frequency.Rare => 0.6,
-            Frequency.Frequent => 2.5,
-            _ => 1.0,
-        };
-
         var list = new List<(string, int)>();
         foreach (var key in content.Planets.Keys)
         {
@@ -88,7 +79,8 @@ public sealed class UniverseGenerator
 
             int weight = desc.PlanetTypeFrequencies.TryGetValue(key, out var freq)
                 ? freq.Weight()
-                : p.Exotic ? (int)System.Math.Round(System.Math.Max(0, p.SpawnWeight) * exotic) : System.Math.Max(0, p.SpawnWeight);
+                : p.Exotic ? FrequencyExtensions.ExoticWeight(p.SpawnWeight, desc.ExoticWorlds, desc.TerrainGeneration) // #3313
+                : System.Math.Max(0, p.SpawnWeight);
             if (weight > 0)
             {
                 list.Add((key, weight));
@@ -440,15 +432,6 @@ public sealed class UniverseGenerator
         // the override path now enforces Selectable too (it used to accept orbital_station & co. and
         // generated landless void "planets"), and an explicit spawnWeight of 0 in the data now really
         // retires a type (the old Math.Max(1, …) clamp silently promoted it back to ~0.7 %).
-        double exotic = desc.ExoticWorlds switch
-        {
-            Frequency.Off => 0.0,
-            Frequency.VeryRare => 0.34,
-            Frequency.Rare => 0.6,
-            Frequency.Frequent => 2.5,
-            _ => 1.0,
-        };
-
         var list = new List<(string, int)>();
         foreach (var key in content.Planets.Keys)
         {
@@ -470,7 +453,7 @@ public sealed class UniverseGenerator
             else
             {
                 weight = p.Exotic
-                    ? (int)System.Math.Round(System.Math.Max(0, p.SpawnWeight) * exotic)
+                    ? FrequencyExtensions.ExoticWeight(p.SpawnWeight, desc.ExoticWorlds, desc.TerrainGeneration) // #3313
                     : System.Math.Max(0, p.SpawnWeight);
             }
 
@@ -843,7 +826,70 @@ public sealed class UniverseGenerator
         }
 
         ApplyGenerationTypes(galaxy); // #1649: generation-1 planet types, layout untouched
+        ApplyGuaranteedAsteroids(galaxy); // #3308 (generation 33): KuBa-W, once in every galaxy
         return galaxy;
+    }
+
+    /// <summary>#3308 (generation 33, KuBa-W): every guaranteed ASTEROID type (<see cref="PlanetType.GuaranteedOnce"/> on an
+    /// "asteroid…" key the description's generation opens) becomes exactly one asteroid field of the ORIGINAL systems — the one
+    /// outside the first system with the smallest hash of the type's own salt (the first system's asteroids only when no other
+    /// system has one, e.g. a one-system galaxy). It ignores the "Exotic worlds" slider (Marcel: guaranteed, no slider). The
+    /// classic family draw never sees such a type (its spawn weight is 0) and the planet retype pass never looks at asteroid
+    /// fields, so one guaranteed asteroid is never placed twice; appended systems of a growing galaxy are never candidates.
+    /// Below generation 33 a no-op, so every older galaxy regenerates byte for byte.</summary>
+    private void ApplyGuaranteedAsteroids(Galaxy galaxy)
+    {
+        if (_desc.TerrainGeneration < WorldDescription.KubaWGeneration)
+        {
+            return;
+        }
+
+        int original = System.Math.Min(galaxy.Systems.Count, System.Math.Max(0, _desc.StarSystemCount));
+        var keys = _content.Planets.Values
+            .Where(p => p.GuaranteedOnce && WorldConstants.IsAsteroidType(p.Key) && p.MinTerrainGeneration <= _desc.TerrainGeneration)
+            .Select(p => p.Key)
+            .OrderBy(k => k, System.StringComparer.Ordinal)
+            .ToList();
+        foreach (string key in keys)
+        {
+            var body = GuaranteedAsteroidSlot(galaxy, original, key, firstSystem: 1)
+                       ?? GuaranteedAsteroidSlot(galaxy, original, key, firstSystem: 0);
+            if (body is not null)
+            {
+                body.PlanetType = key;
+            }
+        }
+    }
+
+    /// <summary>The asteroid field of systems <paramref name="firstSystem"/>..<paramref name="original"/>−1 with the smallest
+    /// hash for <paramref name="key"/> that does not already carry a guaranteed type, or null when there is none.</summary>
+    private CelestialBody? GuaranteedAsteroidSlot(Galaxy galaxy, int original, string key, int firstSystem)
+    {
+        CelestialBody? best = null;
+        ulong bestHash = ulong.MaxValue;
+        int salt = (int)(WorldGenerator.StableHash("guaranteed-asteroid:" + key) & 0x7FFFFFFF);
+        for (int si = firstSystem; si < original; si++)
+        {
+            var bodies = galaxy.Systems[si].Bodies;
+            for (int bi = 0; bi < bodies.Count; bi++)
+            {
+                var body = bodies[bi];
+                if (body.Kind != CelestialKind.AsteroidField
+                    || (body.PlanetType is { } t && _content.GetPlanet(t) is { GuaranteedOnce: true }))
+                {
+                    continue;
+                }
+
+                ulong h = Noise.Hash(_seed ^ 0x3306A5, si, bi, salt);
+                if (h < bestHash)
+                {
+                    bestHash = h;
+                    best = body;
+                }
+            }
+        }
+
+        return best;
     }
 
     /// <summary>A 0..1 deterministic value from a separate hash (does not disturb the body-generation rng).</summary>
@@ -1204,7 +1250,9 @@ public sealed class UniverseGenerator
         {
             foreach (var body in system.Bodies)
             {
-                if (body.Kind == CelestialKind.Planet && content.GetPlanet(body.PlanetType ?? string.Empty) is { FixedName.Length: > 0 } p
+                // #3308: an asteroid field of a fixed-name type (KuBa-W) is named too; no older type is an asteroid with a fixed name.
+                if (body.Kind is CelestialKind.Planet or CelestialKind.AsteroidField
+                    && content.GetPlanet(body.PlanetType ?? string.Empty) is { FixedName.Length: > 0 } p
                     && body.Name != p.FixedName)
                 {
                     RenameWithMoons(system, body, p.FixedName);

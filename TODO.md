@@ -24,6 +24,28 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🪨 KuBa-W — Jafar's school-club asteroid with two stone tablets ("KuBa West Trier" + the club's initials), exactly once per galaxy — #3306: #3307–#3313, branch feat/kuba-w — ✅ done 2026-11-07 (terrain generation **33**; ⚠ playtest open; no save-version or block-id change; protocol unchanged; 8 new locale keys in all 14 languages)
+
+Marcel's analysis + decisions 2026-11-07 (asteroid; guaranteed once per galaxy, no slider; one initial per child plus the
+leads M and V; three-line school text; indestructible; nothing else built there; scan + Codex texts). See
+[WORLD_GENERATION.md §49](docs/developer/WORLD_GENERATION.md) and the manual's planet list.
+
+- ✅ #3307 the type `asteroid_kuba_w` — breathable, pale-green sky, hills/downs/flats, meadow flora, many animals, no trees,
+  no meteor showers, structure whitelist (net fragments only); VEGA arrival line; flight-view look; golden `asteroid_kuba_w-gen33`.
+- ✅ #3308 `UniverseGenerator.ApplyGuaranteedAsteroids` — exactly one per galaxy, an asteroid field of the original systems
+  outside `sys0`, independent of the exotic slider; `ApplyFixedNames` names asteroid fields.
+- ✅ #3309 `PlanetType.LandingPadCount` (KuBa-W: 2).
+- ✅ #3310 `MonumentFont` (5×7 with lowercase) + `TextMonumentGenerator` + `GameServerTextMonuments` — tablets 62×54 and
+  86×36, ~44 blocks in front of their pad, far corner ≤ 62 blocks (browser view), sight-line lift, stamped once + recorded.
+- ✅ #3311 indestructible — mining, area burst, crystal tools, fire, bridge/piston, blueprints, NPC miners, construction
+  sites, hand placement (`@srv.protect.monument`), admins included.
+- ✅ #3312 scan readout + Codex discovery per tablet (`ui.scan.monument.kuba_*`).
+- ✅ #3313 side finding: "Exotic worlds" on Very rare no longer rounds the weight-1 landmarks to 0, Frequent lifts them to 3
+  (from generation 33; `FrequencyExtensions.ExoticWeight`, shared with `PlanetTypeMix`).
+- ⚠ Playtest: a fresh world (generation 33) — find KuBa-W on the star map, land on both pads, read both tablets in the
+  browser build too, scan them, try to mine one. A quick start: `--start-planet asteroid_kuba_w` makes the start planet a
+  KuBa-W (test worlds only — the galaxy then also has its real one in the belt).
+
 ### 🛗 The lift's build rule, told — where the motor goes, a stop too low, only the bottom floor, the Codex text and picture (Marcel's analysis 2026-11-07) — #3297–#3302, branch fix/lift-build-rule — ✅ done 2026-11-07 in PR #3303 (`f205346f`), released in v2026.11.8 (⚠ playtest open; no save-version, protocol or terrain-generation change; server texts only — four new and six changed locale keys plus two Codex articles in all 14 languages)
 
 Marcel asked whether the lift works and whether it is documented right. The server logic is sound (tests green), but
