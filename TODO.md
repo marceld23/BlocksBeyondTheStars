@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🏚️ Buried G.D.S. ruins flooded with Ressaw — Justus' "Alte Städte" (player report 2026-11-01, terrain generation 35) — #3333–#3343, branch feat/ancient-gds-cities — ✅ 2026-11-07 (⚠ playtest open; **save version 11 → 12** — eight new blocks shift the block ids; terrain generation 35 — only new worlds get ruins; no protocol change; 89 new locale keys in all 14 languages)
+### 🏚️ Buried G.D.S. ruins flooded with Ressaw — Justus' "Alte Städte" (player report 2026-11-01, terrain generation 35) — #3333–#3343, branch feat/ancient-gds-cities — ✅ done 2026-11-07 in PR #3378 (`a2a6dba7`) (⚠ playtest open; **save version 11 → 12** — eight new blocks shift the block ids; terrain generation 35 — only new worlds get ruins; no protocol change; 89 new locale keys in all 14 languages)
 
 Justus (as Screelit): old underground cities of purple and red metal, flooded with a glowing corrosive liquid, logs of
 the G.D.S., diving-suit pieces in crates, skulls, Ressaw crystals stronger than titanium, a lamp that turns night into day,
