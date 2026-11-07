@@ -29,7 +29,7 @@ public static class ReportHostPages
 
         // Operators keep confusing the two inboxes — say explicitly what lands here vs. in the fleet admin (#379).
         sb.Append("<p class='hint'>This inbox receives in-game feedback (the F1/F2 dialog), crash reports, " +
-                  "/bump snapshots and the players' submissions from the editors (texture, ship, structure, avatar). " +
+                  "/bump snapshots and the players' submissions from the editors (texture, ship, structure, avatar, HUD frame). " +
                   "Player reports and the portal website's feedback form live in the fleet " +
                   "admin — <code>play.&lt;your domain&gt;/admin</code>.</p>");
 

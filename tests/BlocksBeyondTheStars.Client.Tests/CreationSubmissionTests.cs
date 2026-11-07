@@ -214,4 +214,41 @@ public sealed class CreationSubmissionTests
         Assert.Null(report.Screenshot);
         Assert.Single(report.Attachments!);
     }
+
+    /// <summary>#3319: a HUD frame from the character editor — its own category, the four tiles + twinkle + size in
+    /// <c>hud.json</c> (the dialog promises: the four frame tiles, a picture of the frame, the nickname), the skin's cap.</summary>
+    [Fact]
+    public void AHudFrame_TravelsAsHudJson_InItsOwnCategory_WithNothingButTheFrame()
+    {
+        var design = HudFrameDesignTests.Sample();
+        string file = HudFrames.HudFrameSubmissionFile.Json(design, 2, "snow_frame", "Snow frame");
+        var payload = new CreationPayload { BasedOn = "christmas_lights" }.Add(HudFrames.HudFrameSubmissionFile.FileName, file);
+        var form = Form(CreationSubmission.KindHud);
+        form.Key = "snow_frame";
+        form.Name = "Snow frame";
+
+        var result = Build(form, payload);
+
+        Assert.Equal(CreationRefusal.None, result.Refusal);
+        var root = Body(result.Report!);
+        var inner = root.GetProperty("reportJson");
+        Assert.Equal("hud-submission", inner.GetProperty("reportType").GetString());
+        Assert.Equal("christmas_lights", inner.GetProperty("hud").GetProperty("basedOn").GetString());
+        Assert.Equal("HUD frame: Snow frame (snow_frame)", root.GetProperty("title").GetString());
+        Assert.Equal(string.Empty, root.GetProperty("email").GetString());
+        var attachment = Assert.Single(root.GetProperty("attachments").EnumerateArray().ToArray());
+        Assert.Equal("hud.json", attachment.GetProperty("fileName").GetString());
+        using var doc = JsonDocument.Parse(Convert.FromBase64String(attachment.GetProperty("base64").GetString()!));
+        var hud = doc.RootElement.GetProperty("files").GetProperty("hud.json");
+        Assert.Equal(new[] { "formatVersion", "key", "name", "size", "corner", "top", "side", "bottom", "twinkle", "twinkleColors" },
+            hud.EnumerateObject().Select(p => p.Name).ToArray());
+        Assert.Equal(design.Tile(HudFrames.HudFrameTile.Top), hud.GetProperty("top").GetString());
+        Assert.Equal(2, hud.GetProperty("size").GetInt32());
+        Assert.Equal(new[] { 25, 27 }, hud.GetProperty("twinkle").EnumerateArray().Select(e => e.GetInt32()).ToArray());
+
+        Assert.True(CreationSubmission.IsCreationKind(CreationSubmission.KindHud));
+        Assert.Equal(100_000, CreationSubmission.MaxPayloadBytes(CreationSubmission.KindHud));
+        Assert.True(result.PayloadBytes < CreationSubmission.MaxPayloadBytes(CreationSubmission.KindHud));
+        Assert.Contains("\"size\": 2", HudFrames.HudFrameSubmissionFile.Json(design, 9, "k", "n"), StringComparison.Ordinal); // clamped
+    }
 }

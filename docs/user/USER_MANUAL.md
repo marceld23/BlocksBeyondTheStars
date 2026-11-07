@@ -3381,6 +3381,18 @@ called **stories**:
   on grass, soil, a hydroponic tray or in a flower pot. Craft them by hand (gift box: plant fibre + wood; paper lantern:
   plant fibre + torch; diya: dirt + torch); marigold seeds come from the gatherers' market and from every marigold you
   harvest — and they are the challenges' presents.
+- **Advent calendar** (an idea of the school club): if you celebrate **Christmas** (My festivals), the **Character** tab
+  has an **Advent calendar** row right under the Appearance card from **1 December**, and the festival chip in the HUD says
+  "· 2 doors waiting". A new door opens every day at **your own midnight** — door 1 on 1 December, door 24 on Christmas
+  Eve. **Missed doors simply wait for you until 6 January** — no streak, nothing gets lost when you skip days. Click a
+  glowing door: it pops open with a little sound and shows what it held; open doors keep showing their contents, later
+  doors tell you their date. Most doors hold a few **materials** — different ones for every player, so you can swap with
+  friends if you like (you never have to) — and three hold something special: **door 6** the **Christmas outfit** for your
+  character, **door 12** the **Christmas lights** for your HUD frame (see *Appearance*), **door 24** the **star bell**,
+  which calls **Rudolpho** (see *Taming creatures*). If your backpack is too full, the door just stays shut until you
+  have made room. The calendar belongs to the world you play: every world has its own doors and unlocks. **Esc** /
+  **B** / **Close** closes it; in singleplayer the world waits while it is open. A world admin who switches Christmas on by
+  hand (`/festival christmas`) opens every door at once.
 
 ### Scanning & knowledge
 - **Which scanner does what:** the **hand scanner** (starter kit, quick-bar **2**) identifies the one thing you aim
@@ -3912,6 +3924,13 @@ called **stories**:
     one craft at the workshop builds it again.
   - **Switch off** in the Creatures tab (where animals have *Release*) folds it back into the item — make sure there is a
     free slot in your backpack.
+- **Rudolpho, the alien reindeer** (#3322, an idea of the school club): door 24 of the **Advent calendar** holds the
+  **star bell**. Use it with the **right mouse button** on open ground and Rudolpho trots up with a soft jingle — a reindeer
+  from far away, with **two pairs of eyes**, branching antlers with softly glowing tips and a **red lantern nose** that
+  lights the way around him in **dark caves and at night**. Like the robot he **follows you to every world** (never into
+  space, a station or a ship's inside), his **bond is always full** (he lives on starlight and never needs feeding) and he
+  cannot be bio-sampled; unlike the robot he **never fights**. You can have one Rudolpho; he does not count towards your
+  six pets. **Send home** in the Creatures tab turns him back into the star bell (keep a backpack slot free).
 
 ### The bio lab (samples, preparations, changed gear, breeding)
 Every plant, every animal and every ore vein carries something of its own — and it depends on **where and how it
@@ -4266,6 +4285,34 @@ look up: what a mix does follows from what goes in, and the same things always g
   server-persistent, so your look follows you to any world. When you put a whole outfit on in the game your own
   figure changes at once; the other players' screens catch up over the next few seconds, one part at a time.
   When you join a world, the others see your whole look straight away — colours, face and every painted part.
+- **Skin templates** — ready-made looks under the outfits (**SKIN TEMPLATES**): the **Christmas outfit** (green,
+  white and gold with red buttons) appears there once door 6 of the **Advent calendar** is open in this world. A click
+  puts it on — the four colours and all four paintings; your **face stays your own** — and you can paint on from there
+  like on any outfit. A template cannot be deleted; save your changes as your own outfit.
+- **Submit** — the button beside the tools sends your skin (in **Character** mode) or your HUD frame (in **HUD frame**
+  mode) to the developers, in the menu and inside a world alike — the same dialog as the other editors (nickname, an
+  optional note, three confirmations; no e-mail, no real name, no location). Good ones may become templates for
+  everybody.
+
+### HUD frame (a decorated edge around your view)
+- An idea of the school club: you can put a **frame around the edge of your screen** — the inside of your helmet's
+  visor, decorated as you like. It shows in **every view** (first person, third person, flying in space), sits
+  **behind** the hotbar, the vitals, the chat and the messages so it never hides them, and is left out of photos; it
+  disappears in menus, cutscenes and while you look through the binoculars. It works on every graphics setting and in
+  the browser.
+- **Designing it:** in **Appearance** (in a world) or the main menu's **Avatar Designer**, switch **Character | HUD
+  frame** at the top. A frame is painted as **four 32×32 tiles**: the **corner** (mirrored into all four corners), the
+  **top edge**, the **side edge** (mirrored to the right) and the **bottom edge** — the edges repeat along the screen,
+  so the frame fits any screen shape. Same tools as for the figure (fill, undo/redo, colours); keep the bottom light,
+  your hotbar lives there. A small screen beside the canvas shows the frame live.
+- **Settings** (in the HUD frame mode): **Frame: on/off**, **Size** (small, medium, large) and **Opacity** (60 / 80 /
+  100 %). They apply at once and hold for every world.
+- **My frames:** the column on the right keeps up to **eight** of your own frames, separate from your outfits (save,
+  rename, delete, click to wear). **Templates**: **Visor rim** and **Starlight** for everybody, and the **Christmas
+  lights** — a fir garland with a twinkling string of lights — once door 12 of the **Advent calendar** is open in this
+  world. A template is loaded as a copy you can paint on. When you unlock the Christmas lights and wear no frame yet, you
+  get them straight away (a message says where to change or switch them off). The lights twinkle; with **Reduced
+  effects** they stay still.
 
 ### Death & respawn
 - At 0 health you respawn at the ship's **Medbay heal-tank** (vitals restored); a salvage capsule may drop

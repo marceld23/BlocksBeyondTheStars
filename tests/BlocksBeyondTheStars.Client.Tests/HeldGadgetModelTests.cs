@@ -26,6 +26,7 @@ public sealed class HeldGadgetModelTests
         "creature_translator", "weather_scanner", "camera", "paint_tool", "shape_tool", "shape_stencil", "binoculars",
         "thermal_binoculars", "rail_linker", "rail_cab", "wagon_seats", "wagon_sleeper", "wagon_bar", "bio_sampler",
         "remote_control", "hunter_robot", // #3295: the folded hunter robot, switched on from the hand
+        "star_bell", // #3322: rung from the hand, it calls Rudolpho
     };
 
     public static TheoryData<string> GadgetKeys()

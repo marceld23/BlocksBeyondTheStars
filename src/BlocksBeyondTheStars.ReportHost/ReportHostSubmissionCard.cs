@@ -10,8 +10,8 @@ using BlocksBeyondTheStars.Shared.Content;
 namespace BlocksBeyondTheStars.ReportHost;
 
 /// <summary>
-/// The admin detail page's card for a player's submission: a texture (#1966) or a ship, station/town module or
-/// avatar skin (#3262). For the creations it is a review sheet — the players are often children, and what they type
+/// The admin detail page's card for a player's submission: a texture (#1966), a ship, station/town module or
+/// avatar skin (#3262), or a HUD frame (#3319). For the creations it is a review sheet — the players are often children, and what they type
 /// ends up in the game for everyone once adopted, so every free-text field inside the submitted files is listed (ship
 /// names and descriptions, device labels and configs, …), next to the preview, the facts and a warning when the
 /// design was built with a different block set than this inbox's build. Everything player-made is HTML-encoded.
@@ -37,6 +37,7 @@ public static partial class SubmissionCard
         "id", "kind", "key", "layout", "tier", "pack", "role", "kit", "function", "style", "port", "requiredBlueprint",
         "item", "module", "start", "planetTypes", "startModules", "roleMap", "structureKind",
         "facePixels", "torsoPixels", "armPixels", "legPixels", "helmetPixels", "skin", "torso", "arms", "legs",
+        "corner", "top", "side", "bottom", "twinkleColors", // a HUD frame's four tiles and its light colours (#3319)
     };
 
     /// <summary>A key, a palette string or a colour: ASCII letters, digits and <c>_ # . : -</c> only.</summary>
@@ -111,6 +112,7 @@ public static partial class SubmissionCard
         ReportIngest.ShipCategory => "ship",
         ReportIngest.StructureCategory => "station / town module",
         ReportIngest.AvatarCategory => "avatar skin",
+        ReportIngest.HudCategory => "HUD frame",
         _ => category,
     };
 

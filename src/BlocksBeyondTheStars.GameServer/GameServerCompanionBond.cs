@@ -113,9 +113,9 @@ public sealed partial class GameServer
             return;
         }
 
-        if (IsRobotCompanion(tc))
+        if (IsAuthoredCompanion(tc))
         {
-            Reject(session, "companion", "@srv.robot.no_food:" + tc.Name); // #3295: a robot does not eat — its bond is fixed
+            Reject(session, "companion", AuthoredNoFoodLine(tc)); // #3295/#3322: the robot and Rudolpho do not eat — their bond is fixed
             return;
         }
 
@@ -184,7 +184,7 @@ public sealed partial class GameServer
     private static void ApplyBondDecay(TamedCreature tc)
     {
         long since = tc.LastFedUtc > 0 ? tc.LastFedUtc : tc.TamedAtUtc;
-        if (since <= 0 || tc.Bond <= TamedCreature.BondFloor || IsRobotCompanion(tc)) // #3295: a robot's bond never fades
+        if (since <= 0 || tc.Bond <= TamedCreature.BondFloor || IsAuthoredCompanion(tc)) // #3295/#3322: an authored companion's bond never fades
         {
             return;
         }

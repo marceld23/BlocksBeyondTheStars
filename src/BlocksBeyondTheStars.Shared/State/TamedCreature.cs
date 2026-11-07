@@ -58,13 +58,18 @@ public sealed class TamedCreature
     /// <summary>The <see cref="Kind"/> of the friendly hunter robot (#3295), built from the finale's robot core.</summary>
     public const string RobotKind = "robot";
 
+    /// <summary>The <see cref="Kind"/> of Rudolpho, the alien reindeer (#3322), called with the star bell.</summary>
+    public const string ReindeerKind = "reindeer";
+
     /// <summary>#3295: what kind of companion this is — empty for a tamed animal (every record saved before this shipped),
     /// <see cref="RobotKind"/> for the hunter robot: its bond is fixed, it does not eat, it cannot be scanned or sampled, it
-    /// guards its owner, and releasing it powers it down back into its item.</summary>
+    /// guards its owner, and releasing it powers it down back into its item. <see cref="ReindeerKind"/> (#3322) for Rudolpho:
+    /// the same fixed bond, no food, no scan or sample — but he never fights, and "send home" turns him back into the star
+    /// bell.</summary>
     public string Kind { get; set; } = string.Empty;
 
     /// <summary>#3295: the companion follows its owner to every world instead of living on <see cref="HomeBodyId"/> (the
-    /// robot). False for every animal.</summary>
+    /// robot, Rudolpho). False for every animal.</summary>
     public bool Roams { get; set; }
 
     /// <summary>#3295: the robot was knocked out in a fight — it is gone from the world and its parts wait for their

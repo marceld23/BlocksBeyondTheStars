@@ -41,8 +41,8 @@ public sealed class ParsedReport
 
     public byte[]? ScreenshotBytes;
 
-    /// <summary>The files of a submission — a texture (#1966), a ship, a station/town module or an avatar skin
-    /// (#3262) — already decoded and capped. Empty for every other kind.</summary>
+    /// <summary>The files of a submission — a texture (#1966), a ship, a station/town module, an avatar skin (#3262) or
+    /// a HUD frame (#3319) — already decoded and capped. Empty for every other kind.</summary>
     public List<ParsedAttachment> Attachments = new();
 
     /// <summary>File extension for the stored screenshot ("jpg" or "png"), derived from mimeType.</summary>
@@ -77,10 +77,13 @@ public static class ReportIngest
     /// <summary>A skin from the Avatar Designer (#3262), <c>avatar-submission</c>.</summary>
     public const string AvatarCategory = "avatar";
 
+    /// <summary>A HUD frame from the character editor's HUD mode (#3319), <c>hud-submission</c>.</summary>
+    public const string HudCategory = "hud";
+
     /// <summary>Every submission category: its <c>reportType</c> is <c>&lt;category&gt;-submission</c>, its files are kept
     /// (<see cref="ParsedReport.Attachments"/>) and a submission that was not adopted is deleted after the
     /// submission retention period.</summary>
-    public static readonly IReadOnlyList<string> SubmissionCategories = new[] { TextureCategory, ShipCategory, StructureCategory, AvatarCategory };
+    public static readonly IReadOnlyList<string> SubmissionCategories = new[] { TextureCategory, ShipCategory, StructureCategory, AvatarCategory, HudCategory };
 
     /// <summary>The submission categories as an SQL list (<c>'texture','ship',…</c>) — built from the constants above
     /// only, never from input.</summary>

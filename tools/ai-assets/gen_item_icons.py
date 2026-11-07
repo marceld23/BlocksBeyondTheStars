@@ -282,6 +282,8 @@ ITEMS = [
     # #3294/#3295 (2026-11-06): the finale's reward and the friendly hunter robot built from it (light-blue lights, never red).
     ("robot_core", "a round sci-fi robot power core the size of a fist, a dark gunmetal casing with bolted segments and a bright glowing light-blue energy heart in the middle, soft light-blue glow"),
     ("hunter_robot", "a small friendly sci-fi robot folded up into a compact cube for carrying, dark gunmetal and grey plates, one wide glowing light-blue visor slit and a small light-blue reactor light, kid-friendly, cute, not scary"),
+    # #3322 (2026-11-07): door 24 of the Advent calendar — ringing it calls Rudolpho, the alien reindeer.
+    ("star_bell", "a small shiny golden bell with a little glowing golden star as its clapper peeking out below the rim, a red satin ribbon bow tied at the top, warm soft glow, cosy and festive, kid-friendly"),
 ]
 
 # Ship MODULES (builder UI). Space-view laser/tractor reuse ship_laser_basic / tractor_beam.

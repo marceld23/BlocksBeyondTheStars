@@ -46,8 +46,8 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddText(_listContent, 8, y + 4, 700, 26, dot + title, 22, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
 
                 string state = c.Present ? L("ui.companions.present") : L("ui.companions.away");
-                bool robot = c.BodyPlan == "Robot"; // #3295: the hunter robot roams with its owner and never eats
-                string where = robot ? L("ui.companions.robot_follows") : $"{L("ui.companions.home")}: {c.HomeBodyName}";
+                bool robot = c.BodyPlan == "Robot", reindeer = c.BodyPlan == "Reindeer"; // #3295/#3322: both roam with their owner, never eat
+                string where = robot || reindeer ? L("ui.companions.robot_follows") : $"{L("ui.companions.home")}: {c.HomeBodyName}";
                 string sub = $"{c.SpeciesName}  ·  {where}  ·  {L("ui.companions.bond")} {c.Bond}  ·  {state}";
                 UiKit.AddText(_listContent, 28, y + 30, 700, 22, sub, 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
 
@@ -85,12 +85,14 @@ namespace BlocksBeyondTheStars.Client
                 {
                     feed.interactable = false;
                     UiKit.AddText(_listContent, 28, y + 114, 700, 18,
-                        robot ? L("ui.companions.robot_bond") : c.Bond >= 100 ? L("ui.companions.feed_full") : L("ui.companions.feed_hint"),
+                        robot ? L("ui.companions.robot_bond") : reindeer ? L("ui.companions.reindeer_bond")
+                            : c.Bond >= 100 ? L("ui.companions.feed_full") : L("ui.companions.feed_hint"),
                         12, UiKit.CyanDim, TextAnchor.MiddleLeft);
                 }
 
-                // #3295: "release" on the robot switches it off — it folds back into its item.
-                var rel = UiKit.AddButton(_listContent, 592, y + 68, 130, 44, L(robot ? "ui.companions.power_down" : "ui.companions.release"),
+                // #3295: "release" on the robot switches it off — it folds back into its item; #3322: Rudolpho goes home (his bell).
+                var rel = UiKit.AddButton(_listContent, 592, y + 68, 130, 44,
+                    L(robot ? "ui.companions.power_down" : reindeer ? "ui.companions.send_home" : "ui.companions.release"),
                     () => Game.Network?.SendReleaseCompanion(id));
                 rel.GetComponent<Image>().color = new Color(0.5f, 0.22f, 0.22f);
 

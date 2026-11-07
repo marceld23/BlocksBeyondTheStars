@@ -112,6 +112,7 @@ public sealed class ReportHostCreationSubmissionTests : IDisposable
     [InlineData("ship", ReportIngest.ShipCategory)]
     [InlineData("structure", ReportIngest.StructureCategory)]
     [InlineData("avatar", ReportIngest.AvatarCategory)]
+    [InlineData("hud", ReportIngest.HudCategory)]
     public void EveryCreationKind_GetsItsOwnCategory_AndItsFileUnderAServerChosenName(string kind, string category)
     {
         var parsed = ReportIngest.Parse(Payload(kind, Gzip(ShipDocument), "application/gzip"), new ReportHostConfig(), out string error);
@@ -144,6 +145,7 @@ public sealed class ReportHostCreationSubmissionTests : IDisposable
         Assert.Single(ReportIngest.Parse(Payload("ship", big), config, out _)!.Attachments);
         Assert.Single(ReportIngest.Parse(Payload("structure", big), config, out _)!.Attachments);
         Assert.Empty(ReportIngest.Parse(Payload("avatar", big), config, out _)!.Attachments);
+        Assert.Empty(ReportIngest.Parse(Payload("hud", big), config, out _)!.Attachments);
         Assert.Empty(ReportIngest.Parse(Payload("ship", new byte[config.MaxCreationAttachmentBytes + 1]), config, out _)!.Attachments);
         Assert.Equal(2_000_000, config.MaxCreationAttachmentBytes);
     }
@@ -154,7 +156,7 @@ public sealed class ReportHostCreationSubmissionTests : IDisposable
         var store = NewStore();
         const long day = 86400;
         var config = new ReportHostConfig();
-        var old = new[] { "ship", "structure", "avatar" }
+        var old = new[] { "ship", "structure", "avatar", "hud" }
             .Select(kind => store.Add(ReportIngest.Parse(Payload(kind, Encoding.UTF8.GetBytes(ShipDocument)), config, out _)!, nowUnix: 0))
             .ToList();
         string adopted = store.Add(ReportIngest.Parse(Payload("ship", Encoding.UTF8.GetBytes(ShipDocument)), config, out _)!, nowUnix: 0);
@@ -162,7 +164,7 @@ public sealed class ReportHostCreationSubmissionTests : IDisposable
 
         int removed = store.PruneSubmissions(config.SubmissionRetentionDays, nowUnix: 366 * day);
 
-        Assert.Equal(3, removed);
+        Assert.Equal(4, removed);
         Assert.All(old, id => Assert.Null(store.Get(id)));
         Assert.NotNull(store.Get(adopted));
     }
@@ -223,11 +225,33 @@ public sealed class ReportHostCreationSubmissionTests : IDisposable
     {
         string list = ReportHostPages.List(Array.Empty<BugReportRecord>(), new Dictionary<string, int>(), null, "avatar");
 
-        foreach (string category in new[] { "feedback", "crash", "texture", "ship", "structure", "avatar" })
+        foreach (string category in new[] { "feedback", "crash", "texture", "ship", "structure", "avatar", "hud" })
         {
             Assert.Contains($"<option value='{category}'", list);
         }
 
         Assert.Contains("<option value='avatar' selected>", list);
+    }
+
+    /// <summary>#3319: a HUD frame's card names the kind, and its four tiles and light colours are no free text — only the
+    /// name the player typed is.</summary>
+    [Fact]
+    public void AHudFrameCard_ListsTheName_NotTheTiles()
+    {
+        string tile = new string('a', 1024);
+        string hud = "{\"formatVersion\":1,\"kind\":\"hud\",\"key\":\"snow\",\"files\":{\"hud.json\":{\"formatVersion\":1," +
+            "\"key\":\"snow\",\"name\":\"Snowy <i>frame</i>\",\"size\":1,\"corner\":\"" + tile + "\",\"top\":\"\",\"side\":\"" + tile +
+            "\",\"bottom\":\"0\",\"twinkle\":[25],\"twinkleColors\":[\"#fff4d6\"]}}}";
+        var store = NewStore();
+        string id = store.Add(ReportIngest.Parse(Payload("hud", Encoding.UTF8.GetBytes(hud)), new ReportHostConfig(), out _)!, nowUnix: 1_000);
+
+        string page = ReportHostPages.Detail(store.Get(id)!, store.ListReplies(id), attachments: store.Attachments(id),
+            readAttachment: a => System.IO.File.ReadAllBytes(store.AttachmentPath(a)!));
+
+        Assert.Contains("Submitted HUD frame", page);
+        Assert.Contains("--kind hud", page);
+        var texts = SubmissionCard.FreeTexts(hud);
+        Assert.Equal("Snowy <i>frame</i>", Assert.Single(texts).Text);
+        Assert.Contains("Snowy &lt;i&gt;frame&lt;/i&gt;", page);
     }
 }

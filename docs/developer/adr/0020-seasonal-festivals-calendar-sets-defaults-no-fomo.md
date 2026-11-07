@@ -66,3 +66,19 @@ the normal one. So:
    cover the rest.
 
 With the default selection and the core days a player sees a festive mood on about 37–43 days a year.
+
+## Addendum 2026-11-07: festival day calendars wait (#3315)
+
+A school-club idea asked for an Advent calendar: one door per day with materials and a few specials. A daily door is the
+classic daily-login mechanic the parents' guide rules out, so:
+
+10. **A calendar waits.** Door N is there from the N-th day of the calendar, in the player's *local* time (the client sends
+    its UTC offset; the server clamps it to ±14 h — at worst a door a few hours early), and missed doors stay openable
+    until the catch-up end (Advent: 6 January). No streak, no bonus for consecutive days. A festival switched on by hand
+    opens every door at once — decision 1 holds.
+11. **Materials are a seeded surprise, specials are fixed.** Ordinary doors draw a few everyday materials, different for
+    every player so players *can* trade, seeded by world, player, season and door so reconnecting never re-rolls; nothing
+    is bought or staked. The cosmetic and companion rewards sit behind fixed doors.
+12. **Per world, like all progress.** Doors and unlocks are player milestones of the world; the editors offer an unlocked
+    template, what the player then wears is their own setting. Calendars are data (`data/festival_calendars.json`) attached
+    to a festival, so other festivals can get one later without code.

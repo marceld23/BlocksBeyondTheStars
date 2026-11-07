@@ -10,12 +10,12 @@ using System.Text.Json;
 
 namespace BlocksBeyondTheStars.Client.Feedback
 {
-    /// <summary>What the player filled in and ticked in the submit dialog of a ship, a station/town module or an
-    /// avatar skin (#3262) — the same form the texture editor uses (<see cref="TextureSubmissionForm"/>).</summary>
+    /// <summary>What the player filled in and ticked in the submit dialog of a ship, a station/town module, an avatar
+    /// skin (#3262) or a HUD frame (#3319) — the same form the texture editor uses (<see cref="TextureSubmissionForm"/>).</summary>
     public sealed class CreationSubmissionForm
     {
-        /// <summary><see cref="CreationSubmission.KindShip"/>, <see cref="CreationSubmission.KindStructure"/> or
-        /// <see cref="CreationSubmission.KindAvatar"/>.</summary>
+        /// <summary><see cref="CreationSubmission.KindShip"/>, <see cref="CreationSubmission.KindStructure"/>,
+        /// <see cref="CreationSubmission.KindAvatar"/> or <see cref="CreationSubmission.KindHud"/>.</summary>
         public string Kind { get; set; } = CreationSubmission.KindShip;
 
         /// <summary>The creation's key (<c>my_ship</c>) — the export folder's name.</summary>
@@ -101,8 +101,8 @@ namespace BlocksBeyondTheStars.Client.Feedback
     }
 
     /// <summary>
-    /// Builds the report a ship, a station/town module or an avatar skin travels in (#3262) — the generalised texture
-    /// submission (#1965): an ordinary <see cref="FeedbackReport"/> (same endpoint, spam key, offline spool and reply
+    /// Builds the report a ship, a station/town module, an avatar skin (#3262) or a HUD frame (#3319) travels in — the
+    /// generalised texture submission (#1965): an ordinary <see cref="FeedbackReport"/> (same endpoint, spam key, offline spool and reply
     /// thread) whose <c>reportJson.reportType</c> is <c>&lt;kind&gt;-submission</c>, so the inbox files it under its
     /// own category. The creation rides as ONE attachment — a compact JSON document holding the export files
     /// (<c>{"formatVersion":1,"kind":…,"key":…,"files":{"ship.json":{…},"layout.json":{…}}}</c>), gzipped above
@@ -119,6 +119,9 @@ namespace BlocksBeyondTheStars.Client.Feedback
         public const string KindShip = "ship";
         public const string KindStructure = "structure";
         public const string KindAvatar = "avatar";
+
+        /// <summary>A HUD frame from the character editor's HUD mode (#3319): <c>hud.json</c> + a picture of the frame.</summary>
+        public const string KindHud = "hud";
 
         /// <summary>Version of the payload document (<c>formatVersion</c>) — what <c>tools/pull_submissions.py</c> reads.</summary>
         public const int FormatVersion = 1;
@@ -138,14 +141,15 @@ namespace BlocksBeyondTheStars.Client.Feedback
         public const int MaxNoteLength = TextureSubmission.MaxNoteLength;
 
         /// <summary>The kinds this builder sends (the texture has its own, <see cref="TextureSubmission"/>).</summary>
-        public static bool IsCreationKind(string? kind) => kind == KindShip || kind == KindStructure || kind == KindAvatar;
+        public static bool IsCreationKind(string? kind) => kind == KindShip || kind == KindStructure || kind == KindAvatar || kind == KindHud;
 
         /// <summary><c>reportJson.reportType</c> of a kind — the inbox's category is the part before <c>-submission</c>.</summary>
         public static string ReportTypeOf(string kind) => kind + "-submission";
 
         /// <summary>The largest payload a kind may send, as it travels (after compression). The inbox keeps 2 MB per
-        /// ship/structure file and 400 KB otherwise; the request body is capped at 4 MB.</summary>
-        public static int MaxPayloadBytes(string kind) => kind == KindAvatar ? 100_000 : 1_500_000;
+        /// ship/structure file and 400 KB otherwise; the request body is capped at 4 MB. A skin or a HUD frame is a few KB
+        /// of pixels.</summary>
+        public static int MaxPayloadBytes(string kind) => kind == KindAvatar || kind == KindHud ? 100_000 : 1_500_000;
 
         /// <summary>The most cells a kind may send; 0 = no cell limit. A ship cannot outgrow its 48×32×48 room; a
         /// station or town module larger than this would make every world that rolls it heavy.</summary>
@@ -333,6 +337,7 @@ namespace BlocksBeyondTheStars.Client.Feedback
             KindShip => "Ship",
             KindStructure => "Structure",
             KindAvatar => "Avatar skin",
+            KindHud => "HUD frame",
             _ => "Creation",
         };
 

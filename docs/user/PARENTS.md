@@ -87,8 +87,9 @@ exactly the players you invited, and you hold every switch (robots, bandits and 
   submission by hand before anything goes into the game; one we do not adopt is deleted after twelve months at
   the latest. If you do not want a submission to be used, write to us — we delete it, and a texture that has
   already shipped is removed with the next version.
-- **Sending in a ship, a station or town, or a character skin.** The Ship, Station and Town editors and the Avatar
-  Designer have the same *Submit* button with the same dialog: nickname instead of a real name (or none), an optional
+- **Sending in a ship, a station or town, a character skin or a HUD frame.** The Ship, Station and Town editors and the
+  character editor (Avatar Designer in the menu, *Appearance* in a world — skins and painted HUD frames) have the same
+  *Submit* button with the same dialog: nickname instead of a real name (or none), an optional
   note, and the same three confirmations. What is sent: the design itself, a picture of it, its name and **every text
   inside it** (for example a ship's description or the labels on signs and devices), the nickname, the note, the game
   version and an anonymous id through which we can answer in the game — no e-mail, no real name, no location. A person
@@ -105,6 +106,9 @@ exactly the players you invited, and you hold every switch (robots, bandits and 
 
 - No energy timers, no daily-login mechanics, no pay-to-progress — the game does not use retention
   tricks. Progress is saved locally (or on the world's server) and waits for you.
+- The Advent calendar (December) is built the same way: a new door each day, but missed doors simply
+  wait until 6 January — there is no streak, no bonus for coming back every day and nothing to lose by
+  skipping days. Its materials are a free surprise (nothing is bought, nothing is staked).
 - Multiplayer is cooperative by default. Allies cannot harm each other, even on servers where combat
   between players is enabled by the host.
 

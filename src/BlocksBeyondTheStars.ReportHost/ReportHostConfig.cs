@@ -64,8 +64,8 @@ public sealed class ReportHostConfig
     /// carry none — their one image stays the screenshot.</summary>
     public int MaxAttachments { get; set; } = 4;
 
-    /// <summary>Size cap per attachment of a texture or avatar submission. Eight raw 64×64 frames are 131 KB; a PNG
-    /// strip is far smaller; a whole painted skin is under 30 KB.</summary>
+    /// <summary>Size cap per attachment of a texture, avatar or HUD frame submission. Eight raw 64×64 frames are 131 KB;
+    /// a PNG strip is far smaller; a whole painted skin is under 30 KB, a HUD frame's four tiles about 5 KB.</summary>
     public int MaxAttachmentBytes { get; set; } = 400_000;
 
     /// <summary>Size cap per attachment of a ship or structure submission (#3262): the client sends at most 1.5 MB

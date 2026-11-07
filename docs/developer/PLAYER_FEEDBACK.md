@@ -248,6 +248,17 @@ the texture keeps its approved `ui.tex.submit.*` wording unchanged.
   reads; the old export dropped everything but the four colours.
 - Saving no longer tells players to run tools: `ui.ed.saved_ship` / `ui.ed.saved_structure` point at Submit.
 
+### HUD frames, and skins from inside a world (#3319)
+
+The shared character editor (`FaceEditor`) has its own **Submit** button (`FaceEditor.Submit.cs`) in both hosts — the
+main menu's Avatar Designer and the in-game *Appearance* editor, which had no submit button before. In *Character* mode
+it sends the skin (`skin.json`, kind `avatar`, as above; the logic moved from `AvatarEditor.Submit.cs` to
+`AppearanceSubmit`); in *HUD frame* mode the new kind **`hud`** (`CreationSubmission.KindHud`, cap 100 KB):
+`hud.json` from `HudFrameSubmissionFile` (`formatVersion`, `key`, `name`, `size`, the four 32 × 32 tiles
+`corner`/`top`/`side`/`bottom` in the pixel editor's base32 palette, `twinkle`, `twinkleColors`) and a 960 × 540 PNG of
+the frame (`HudFrameComposer`) as the preview. Texts `ui.submit.hud.*`. The canvas is committed before the dialog
+opens. The inbox side is in [REPORT_HOST.md](REPORT_HOST.md) (category `hud`; deploy the reports image first).
+
 ## Code map
 
 | Concern | File |

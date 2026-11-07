@@ -80,6 +80,7 @@ public sealed partial class GameServer
     {
         var before = ActiveFestivalsFor(session);
         ApplyFestivalPrefs(session, intent.Preset, intent.Custom, intent.Locale);
+        RefreshFestivalCalendars(session); // #3315: a calendar follows its festival into or out of the selection
         var now = ActiveFestivalsFor(session);
         if (before.SequenceEqual(now, StringComparer.Ordinal))
         {

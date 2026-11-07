@@ -226,9 +226,46 @@ grass, soil, a tray or a flower pot). The marigold is an *authored* catalog spec
 (`CultivatedKeys` unchanged), so no world generation changes. All craft by hand from early things; marigold seeds also come
 from the gatherers' market and from every marigold harvested. They are the presents of the challenges where they fit.
 
+## Festival day calendars (#3315, the Advent calendar)
+
+A festival may carry a **calendar of daily doors** — the Advent calendar (an idea of the school club) is the first. The
+parents' guide promises "no daily-login mechanics", so a calendar **waits** (ADR 0020 addendum 10–12):
+
+- **Data:** `data/festival_calendars.json` — per calendar the `festival` it belongs to (`advent` → `christmas`), the date of
+  door 1 (`startMonth`/`startDay`), `doors`, the catch-up end (`catchUpMonth`/`catchUpDay`, inclusive, in the following
+  year when it lies before the start), `picksPerDoor`, a weighted material `pool` (`item`, `min`, `max`, `weight`), fixed
+  `specials` per door (a `cosmetic` key and/or `items`) and the grid `layout` (a permutation of the doors). Validated in
+  `GameContent.CalendarValidation.cs` (festival, items, ranges, specials, cosmetics resolve, layout) together with the
+  cosmetic templates `data/hud_frames.json` and `data/skins.json`.
+- **Rules** (`Shared/Festivals/FestivalCalendarRules.cs`, pure): door N is there from day N in the player's **local** time
+  (the client sends its UTC offset in `JoinRequest.UtcOffsetMinutes` and in every door request; the server clamps it to
+  ±14 h) until the catch-up end; missed doors stay openable, there is no streak. The season is the year of door 1.
+  Ordinary doors draw `picksPerDoor` distinct pool entries, counts uniform in [min, max], seeded with
+  `StableHashing.Mixed("calendar|key|season|door|playerId", worldSeed)` — different for every player (so players *can*
+  trade), the same on every reconnect. A special door gives exactly its special and draws nothing.
+- **Who sees it** (`GameServerFestivalCalendars.cs`): nothing while festivals are off (operator `off`/`none`, or the world
+  rule); a player whose "My festivals" includes the calendar's festival, by date; everybody with **every door available**
+  when that festival is switched on by hand (`/festival christmas` — decision 1 of the ADR holds).
+- **Opening a door** (`OpenCalendarDoorIntent`, served while the singleplayer pause holds the world): an unavailable or
+  opened door answers the current state; contents that don't fit the backpack (`MaterialPool.CanFit`) keep the door shut
+  with the notice `ui.calendar.bag_full`; otherwise one transaction grants the items, adds the milestone
+  `calendar:<key>:<season>:<door>` (older seasons are pruned) and for a cosmetic `cosmetic:<key>`.
+- **Wire:** `FestivalCalendarState` at join (after the rules and the festival prefs), whenever Active/Season/Available
+  change (the 30 s festival tick, `/festival`, rule edits, a new selection) and after a door, with `Reveal` naming the door
+  just opened; one `Active=false` when a calendar stops showing. `CosmeticUnlocks` (the keys of the player's `cosmetic:`
+  milestones) at join and after an unlock. VEGA greets once per season (`calendar.<key>.vega`, milestone
+  `calendar:<key>:<season>:greeted`).
+- **Specials of the Advent calendar:** door 6 `skin:christmas` (the character skin template), door 12
+  `hudframe:christmas_lights` (the HUD frame template), door 24 the `star_bell` item, which calls Rudolpho
+  (see [CREATURE_TAMING.md](CREATURE_TAMING.md)). Templates are offered by the editors; what a player wears is their own.
+- **Adding a calendar** to another festival is data only: an entry in `festival_calendars.json`, its `calendar.<key>.name`
+  and `.vega` texts.
+
 ## Tests
 
-`FestivalCalendarTests` (windows, overlap, upcoming, parsers), `FestivalContentTests` (file shape, en/de texts, secular
+`FestivalCalendarRulesTests`, `FestivalCalendarContentTests`, `FestivalCalendarServerTests` (#3315: local-day edges, the
+catch-up end, once per season, seeded contents, bag full, forced festival, not celebrated, rule off, paused dispatch,
+persistence), `FestivalCalendarTests` (windows, overlap, upcoming, parsers), `FestivalContentTests` (file shape, en/de texts, secular
 wording, the yearly reminder), `FestivalServerTests` (old-save default, order of authority, live edit, `/festival`,
 persistence, the greeting), `FestivalCardTests` (client card and chip, the celebrated-only card, the "My festivals" list),
 `FestivalFollowUpTests` (#3019: presets, core days, the per-player list, forced festivals, the greeting of a newly celebrated

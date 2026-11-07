@@ -47,7 +47,7 @@ public sealed partial class EditorTextFitTests
     /// <summary>Every kind's own wording of the Submit dialog — the texture keeps its approved <c>ui.tex.submit.*</c> keys.</summary>
     private static string[] SubmitKeys(string part) => new[]
     {
-        "ui.tex.submit." + part, "ui.submit.ship." + part, "ui.submit.structure." + part, "ui.submit.avatar." + part,
+        "ui.tex.submit." + part, "ui.submit.ship." + part, "ui.submit.structure." + part, "ui.submit.avatar." + part, "ui.submit.hud." + part,
     };
 
     private static IEnumerable<FitSite> SubmitSites() => new[]
@@ -60,14 +60,14 @@ public sealed partial class EditorTextFitTests
         Button("Submit dialog no name", 220f, 38f, "ui.tex.submit.no_name") with { Prefix = "☐  " },
         Wrap("Submit dialog note label (828×40)", 828f, 2, 15, "ui.tex.submit.note_label"),
         Wrap("Submit dialog consent 1 (804×40)", 804f, 2, 13, "ui.tex.submit.check_1", "ui.submit.ship.check_1", "ui.submit.structure.check_1",
-            "ui.submit.avatar.check_1") with { Prefix = "☐  " },
+            "ui.submit.avatar.check_1", "ui.submit.hud.check_1") with { Prefix = "☐  " },
         Wrap("Submit dialog consent 2 (804×62)", 804f, 3, 13, "ui.tex.submit.check_2", "ui.submit.ship.check_2", "ui.submit.structure.check_2",
-            "ui.submit.avatar.check_2") with { Prefix = "☐  " },
+            "ui.submit.avatar.check_2", "ui.submit.hud.check_2") with { Prefix = "☐  " },
         Wrap("Submit dialog consent 3 (804×40)", 804f, 2, 13, "ui.tex.submit.check_3") with { Prefix = "☐  " },
         Wrap("Submit dialog what is sent (828×84)", 828f, 4, 14, SubmitKeys("what_is_sent")),
         Wrap("Submit dialog status (828×40)", 828f, 2, 15, "ui.tex.submit.need_consent", "ui.tex.submit.sent", "ui.submit.ship.sent",
-            "ui.submit.structure.sent", "ui.submit.avatar.sent", "ui.tex.submit.queued", "ui.tex.submit.failed", "ui.tex.submit.not_configured",
-            "ui.submit.not_configured", "ui.submit.empty", "ui.submit.too_many_cells", "ui.submit.too_large", "ui.feedback.sending")
+            "ui.submit.structure.sent", "ui.submit.avatar.sent", "ui.submit.hud.sent", "ui.tex.submit.queued", "ui.tex.submit.failed",
+            "ui.tex.submit.not_configured", "ui.submit.not_configured", "ui.submit.empty", "ui.submit.too_many_cells", "ui.submit.too_large", "ui.feedback.sending")
             with { Sample = "88888" },
         IconButton("Submit dialog send / cancel", 400f, 52f, "ui.tex.submit.send", "ui.tex.submit.cancel"),
     };

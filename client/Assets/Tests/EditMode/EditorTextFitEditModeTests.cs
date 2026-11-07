@@ -34,7 +34,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         private static readonly string[] Screens =
         {
             "hub", "station", "station-module", "settlement", "settlement-module", "kit-panel", "form-picker", "ship", "avatar",
-            "texture", "form", "toollook", "material", "content", "shape", "paint",
+            "texture", "form", "toollook", "material", "content", "shape", "paint", "appearance", "appearance-hud",
         };
 
         private readonly List<GameObject> _spawned = new();
@@ -200,6 +200,8 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
                     case "content": Start<ContentEditor>(shell, null); break;
                     case "shape": Start<ShapeEditor>(shell, e => e.Localizer = shell.L); break;
                     case "paint": Start<FaceEditor>(shell, e => e.Localizer = shell.L); break;
+                    case "appearance": Start<FaceEditor>(shell, e => Appearance(e, shell)); break;
+                    case "appearance-hud": Call(Start<FaceEditor>(shell, e => Appearance(e, shell)), "EnterHudMode"); break;
                 }
 
                 return null;
@@ -219,6 +221,26 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             prepare?.Invoke(editor);
             Call(editor, "Start");
             return editor;
+        }
+
+        /// <summary>The character editor as both avatar hosts build it (#3318): the five part tabs, the outfit column with a
+        /// skin template, the HUD mode. No live figure — its preview rig needs a running player.</summary>
+        private static void Appearance(FaceEditor editor, AppShell shell)
+        {
+            var colors = new[] { Color.white, Color.gray, Color.gray, Color.gray };
+            var paints = new string[4];
+            string face = string.Empty;
+            editor.Localizer = shell.L;
+            editor.Subjects = AppearanceSubjects.Build(() => face, f => face = f, part => paints[part] ?? string.Empty,
+                (part, p) => paints[part] = p, which => colors[which], (which, c) => colors[which] = c);
+            editor.OutfitNames = () => new List<string> { "Mein Skin" };
+            editor.SkinTemplateNames = () => new List<string> { shell.L("ui.ed.default.skin") };
+            editor.HudHost = new HudFrameEditorHost
+            {
+                Settings = shell.Settings,
+                Localize = shell.L,
+                Templates = () => new List<BlocksBeyondTheStars.Shared.Festivals.HudFrameDefinition>(),
+            };
         }
 
         private static void Call(object target, string method)

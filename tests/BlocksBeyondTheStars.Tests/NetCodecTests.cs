@@ -365,6 +365,9 @@ public sealed class NetCodecTests
         [317] = typeof(BagContents),             // #3099
         [318] = typeof(FaunaRoster),             // #3245
         [319] = typeof(TraderDiscountInfo),      // #3292
+        [320] = typeof(OpenCalendarDoorIntent),  // #3315
+        [321] = typeof(FestivalCalendarState),   // #3315
+        [322] = typeof(CosmeticUnlocks),         // #3315
 
     };
 

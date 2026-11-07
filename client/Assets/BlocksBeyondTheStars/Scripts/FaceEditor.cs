@@ -149,14 +149,6 @@ namespace BlocksBeyondTheStars.Client
         private readonly Image[] _swatches = new Image[FacePalette.Colors.Length]; // index 0 reused as eraser
         private RectTransform _libList; // library column entries (rebuilt after a save)
 
-        // Outfit column.
-        private RectTransform _outfitList;
-        private Text _outfitStatus, _outfitEmpty;
-        private InputField _outfitName;
-        private string _outfitTyped = string.Empty;
-        private int _selectedOutfit = -1;
-        private readonly List<Text> _outfitLabels = new List<Text>();
-
         // Tools. Painting is the default; fill and the eyedropper are armed modes with a highlighted button,
         // and both can also be reached by modifier so they feel like a paint program (#899).
         private bool _picking;          // eyedropper armed: the next canvas click takes a colour, not paints one
@@ -170,7 +162,7 @@ namespace BlocksBeyondTheStars.Client
         // Undo/redo. It used to be ONE snapshot that Undo swapped in and out — a fine trick for the last
         // brush stroke and useless for the five before it. The stack itself lives in PixelEditHistory,
         // which also knows that a colour-wheel drag is one step and that the history spans the part tabs.
-        private readonly PixelEditHistory _history = new PixelEditHistory();
+        private PixelEditHistory _history = new PixelEditHistory(); // swapped per mode (FaceEditor.HudMode.cs, #3318)
         private byte[] _pendingBefore;  // grid before the edit in progress (BeginGridEdit → CommitGridEdit)
         private int _pendingSubject = -1;
         private Button _undoButton, _redoButton;
@@ -268,7 +260,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void Update()
         {
-            if (_canvasRt == null) return;
+            if (_canvasRt == null || CreationSubmitDialog.IsAnyOpen) return; // #3319: never paint through the submit dialog
 
             if (!Input.GetMouseButton(0))
             {
@@ -774,7 +766,7 @@ namespace BlocksBeyondTheStars.Client
             // that each tore the editor down and built it again.
             if (multi)
             {
-                BuildTabs(panel);
+                BuildTabs(CharacterLayer(panel));
             }
 
             float canvasX = wide ? 24f : 94f;
@@ -833,8 +825,8 @@ namespace BlocksBeyondTheStars.Client
             BuildColorWheel(panel, wide ? 900f : 470f, wide ? 300f : paletteLabelY + 8f);
             if (wide)
             {
-                BuildBaseColorPicker(panel, 900f, 100f);
-                BuildPreview(panel, 900f, 500f);
+                BuildBaseColorPicker(CharacterLayer(panel), 900f, 100f);
+                BuildPreview(CharacterLayer(panel), 900f, 500f);
             }
 
             // Buttons.
@@ -842,6 +834,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddFitButton(panel, 24f, buttonsY, 220f, 56f, L("ui.face.apply"), Apply);
             UiKit.AddFitButton(panel, 260f, buttonsY, 180f, 56f, L("ui.face.clear"), ClearCanvas);
             UiKit.AddFitButton(panel, 456f, buttonsY, 220f, 56f, L("ui.menu.back"), Close);
+            BuildModeExtras(panel, panelW, buttonsY); // #3318/#3319: Character | HUD frame, the HUD mode, Submit
 
             // An instruction: normal colour; 14 px down to 13 on one line, else up to three lines at 13 — the narrow host's
             // panel is 700 px and the hints are up to 1100 (#3263).
@@ -890,7 +883,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (hasOutfits)
             {
-                BuildOutfitColumn(panel, panelW - 250f);
+                BuildOutfitColumn(CharacterLayer(panel), panelW - 250f);
             }
 
             SetBrush(_brush, _swatches[_brush]);
@@ -1005,161 +998,6 @@ namespace BlocksBeyondTheStars.Client
                 });
                 y += 50f;
             }
-        }
-
-        // ── outfits ──────────────────────────────────────────────────────────────────────────────
-
-        /// <summary>
-        /// The outfit shelf beside the canvas: name field, Save, Rename, and one row per saved look with a
-        /// ✕ to drop it. Clicking a row PUTS THAT LOOK ON — every tab at once, colours included — which is
-        /// why it lives in the editor rather than on a menu card: this is where a player finds out whether
-        /// they like it. It used to exist only in the main menu's Avatar Designer, so the look you wore in
-        /// the game could not be swapped without quitting to the menu (#1047 was menu-only).
-        /// </summary>
-        private void BuildOutfitColumn(Transform panel, float x)
-        {
-            const float w = 226f;
-            UiKit.AddText(panel, x, 64f, w, 24f, L("ui.avatar.outfits"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _outfitName = UiKit.AddInput(panel, x, 92f, w, 42f, _outfitTyped, v => _outfitTyped = v, L("ui.avatar.outfit_name"), 24, 16);
-            UiKit.AddFitButton(panel, x, 142f, w, 44f, L("ui.avatar.outfit_save"), SaveOutfitPressed);
-            UiKit.AddFitButton(panel, x, 194f, w, 40f, L("ui.avatar.outfit_rename"), RenameOutfitPressed);
-
-            var listGo = new GameObject("OutfitList", typeof(RectTransform));
-            listGo.transform.SetParent(panel, false);
-            _outfitList = UiKit.Place(listGo, x, 246f, w, 380f);
-
-            _outfitEmpty = UiKit.AddText(panel, x, 252f, w, 90f, L("ui.avatar.outfit_none"), 13, UiKit.TextCol, TextAnchor.UpperLeft); // an instruction (#3263)
-            _outfitEmpty.horizontalOverflow = HorizontalWrapMode.Wrap;
-
-            _outfitStatus = UiKit.AddText(panel, x, 636f, w, 90f, string.Empty, 13, UiKit.Ok, TextAnchor.UpperLeft);
-            _outfitStatus.horizontalOverflow = HorizontalWrapMode.Wrap;
-
-            RebuildOutfitList();
-        }
-
-        /// <summary>(Re)fills the outfit rows from the host. Cheap — the list is capped at a handful of rows
-        /// and only rebuilt when one of them changes.</summary>
-        private void RebuildOutfitList()
-        {
-            if (_outfitList == null)
-            {
-                return;
-            }
-
-            for (int i = _outfitList.childCount - 1; i >= 0; i--)
-            {
-                Destroy(_outfitList.GetChild(i).gameObject);
-            }
-
-            _outfitLabels.Clear();
-            var names = OutfitNames?.Invoke() ?? new List<string>();
-            if (_selectedOutfit >= names.Count)
-            {
-                _selectedOutfit = -1;
-            }
-
-            if (_outfitEmpty != null)
-            {
-                _outfitEmpty.gameObject.SetActive(names.Count == 0);
-            }
-
-            float y = 0f;
-            for (int i = 0; i < names.Count; i++)
-            {
-                int idx = i;
-                string name = string.IsNullOrEmpty(names[i]) ? "?" : names[i];
-                var wear = UiKit.AddFitButton(_outfitList, 0f, y, 170f, 40f, name, () => WearOutfitPressed(idx));
-                var label = wear.GetComponentInChildren<Text>();
-                label.color = idx == _selectedOutfit ? UiKit.Cyan : UiKit.TextCol;
-                _outfitLabels.Add(label);
-                UiKit.AddFitButton(_outfitList, 178f, y, 48f, 40f, "✕", () => DeleteOutfitPressed(idx));
-                y += 46f;
-            }
-        }
-
-        private void SelectOutfit(int index)
-        {
-            _selectedOutfit = index;
-            for (int i = 0; i < _outfitLabels.Count; i++)
-            {
-                if (_outfitLabels[i] != null)
-                {
-                    _outfitLabels[i].color = i == index ? UiKit.Cyan : UiKit.TextCol;
-                }
-            }
-        }
-
-        private void SetOutfitStatus(string text)
-        {
-            if (_outfitStatus != null)
-            {
-                _outfitStatus.text = text ?? string.Empty;
-            }
-        }
-
-        /// <summary>Wears a saved look. The host swaps everything under the editor, so every tab is re-read
-        /// from it afterwards — otherwise the canvas would still hold the old paint and write it straight
-        /// back on the next tab switch.</summary>
-        private void WearOutfitPressed(int index)
-        {
-            if (OnWearOutfit == null)
-            {
-                return;
-            }
-
-            string status = OnWearOutfit(index);
-            ReloadSubjects();
-            SelectOutfit(index);
-            var names = OutfitNames?.Invoke();
-            if (names != null && index >= 0 && index < names.Count && _outfitName != null)
-            {
-                _outfitTyped = names[index];
-                _outfitName.text = _outfitTyped; // so Rename acts on a name the player can see and edit
-            }
-
-            SetOutfitStatus(status);
-        }
-
-        private void SaveOutfitPressed()
-        {
-            if (OnSaveOutfit == null)
-            {
-                return;
-            }
-
-            SetOutfitStatus(OnSaveOutfit(_outfitTyped ?? string.Empty));
-            RebuildOutfitList();
-        }
-
-        private void RenameOutfitPressed()
-        {
-            if (OnRenameOutfit == null)
-            {
-                return;
-            }
-
-            SetOutfitStatus(OnRenameOutfit(_selectedOutfit, _outfitTyped ?? string.Empty));
-            RebuildOutfitList();
-        }
-
-        private void DeleteOutfitPressed(int index)
-        {
-            if (OnDeleteOutfit == null)
-            {
-                return;
-            }
-
-            SetOutfitStatus(OnDeleteOutfit(index));
-            if (_selectedOutfit == index)
-            {
-                _selectedOutfit = -1;
-            }
-            else if (_selectedOutfit > index)
-            {
-                _selectedOutfit--;
-            }
-
-            RebuildOutfitList();
         }
 
         /// <summary>Re-reads every tab's payload and colour from the host after it swapped the whole look
@@ -1460,6 +1298,12 @@ namespace BlocksBeyondTheStars.Client
         /// part's atlas and meshes.</summary>
         private void RefreshPreview()
         {
+            if (_hudMode)
+            {
+                RefreshHudPreview(); // #3318: the HUD mode previews the frame on a little screen, not the figure
+                return;
+            }
+
             if (_preview == null || PreviewState == null)
             {
                 return;

@@ -97,7 +97,7 @@ public sealed partial class EditorTextFitTests
     public static IEnumerable<FitSite> AllSites()
         => HubSites().Concat(TextureSites()).Concat(StructureSites()).Concat(KitPanelSites()).Concat(ShipSites())
             .Concat(AvatarSites()).Concat(PaintSites()).Concat(FormSites()).Concat(DeveloperToolSites())
-            .Concat(SubmitSites()).Concat(OtherScreenSites());
+            .Concat(SubmitSites()).Concat(OtherScreenSites()).Concat(HudFrameSites());
 
     [Fact]
     public void EveryEditorText_FitsItsBox_InEveryLanguage()

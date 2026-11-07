@@ -399,6 +399,11 @@ public sealed partial class GameContent
                 problems.Add($"Authored creature '{creature.Key}' has a size, speed or group size outside the sane band.");
             }
 
+            if (IsCompanionOnlyBodyPlan(creature.BodyPlan)) // #3295/#3322: the robot's and Rudolpho's bodies are never wild
+            {
+                problems.Add($"Authored creature '{creature.Key}' uses the companion-only body plan {creature.BodyPlan}.");
+            }
+
             foreach (var surface in creature.BiomeSurfaces)
             {
                 RequireBlock($"Authored creature '{creature.Key}' biome surface", surface);
@@ -871,6 +876,7 @@ public sealed partial class GameContent
         ValidateWishes(problems, RequireItem);
         ValidateLodges(problems);
         ValidateFestivals(problems);
+        ValidateFestivalCalendars(problems); // #3315, with the HUD frames and skins their doors unlock
         ValidateBoardStories(problems, RequireItem); // #3180
 
         // #427: authored voxel ship layouts. The server used to turn an unknown cell id silently into hull
