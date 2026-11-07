@@ -56,6 +56,7 @@ public sealed partial class GameServer
         On<RespawnChoiceIntent>(map, (gs, s, m) => gs.HandleRespawnChoice(s, m));
         On<UnlockGameIntent>(map, (gs, s, m) => gs.HandleUnlockGame(s, m));
         On<MinigameResultIntent>(map, (gs, s, m) => gs.HandleMinigameResult(s, m));
+        On<UseBlockIntent>(map, (gs, s, m) => gs.HandleUseBlock(s, m)); // #3345 rune stones, puzzle pillars, the Song Spindle
         On<FallDamageIntent>(map, (gs, s, m) => gs.HandleFallDamage(s, m));
         On<AdminCommandIntent>(map, (gs, s, m) => gs.HandleAdminCommand(s, m));
         On<RequestMissions>(map, (gs, s, _) => gs.HandleRequestMissions(s)); // #3087: the list, and why an idle base board is idle

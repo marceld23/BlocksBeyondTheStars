@@ -44,5 +44,9 @@ public static partial class NetCodec
         Register(320, typeof(OpenCalendarDoorIntent));       // Client -> Server
         Register(321, typeof(FestivalCalendarState));        // Server -> Client
         Register(322, typeof(CosmeticUnlocks));              // Server -> Client
+
+        // The Sounders story pack (#3368). No protocol bump — an older server drops the intents, an older client the rest.
+        Register(323, typeof(UseBlockIntent));               // Client -> Server (#3345 rune stones, puzzle pillars, the Song Spindle)
+        Register(324, typeof(NoteSequence));                 // Server -> Client (#3345 a melody at a place)
     }
 }
