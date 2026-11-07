@@ -978,7 +978,9 @@ round.
 - **Heal tank** (workshop, blueprint-gated): the life-support unit for your own base or station. Everyone
   within a few blocks of a placed tank is slowly healed and fed and the suit recharges — the only off-ship
   suit recharge. Press **E** on the tank to make it your **home spawn**: on death you then choose between
-  waking at your ship's medbay or at that home (ship is always the fallback if the home is gone).
+  waking at your ship's medbay or at that home (ship is always the fallback if the home is gone, and after 30 seconds
+  without a pick the ship is chosen for you). While that choice is on screen your body lies still: the mouse only moves
+  the pointer, and clicks reach the two buttons, never the world behind them.
 - **Bed** (hand-crafted from logs + plant fibre, no research needed): the low-tech forerunner of the heal
   tank. Press **E** on a placed bed to make it your **home spawn** (same death choice as the tank), and
   resting near it slowly mends your health — but a bed never feeds you and never recharges the suit;

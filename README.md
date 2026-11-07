@@ -263,6 +263,7 @@ Community contributions we're grateful for:
 - **Aasim (Screelit)** — F1 reports from the same two-player playtest, and the screenshots that showed the F1 pictures themselves had been upside down since 2026.10.10 ([#2430](https://github.com/marceld23/BlocksBeyondTheStars/issues/2430))
 - **Lorenzo** — the F1 report from a cave that put torches and lanterns on the walls ([#2683](https://github.com/marceld23/BlocksBeyondTheStars/issues/2683))
 - **Jonah** — F1 reports from a two-player LAN afternoon: jellyfish that jumped back and forth over a frozen sea, and a field medkit that did nothing without saying why ([#2955](https://github.com/marceld23/BlocksBeyondTheStars/issues/2955), [#2957](https://github.com/marceld23/BlocksBeyondTheStars/issues/2957))
+- **Milan** — the game's backstory, written together with Justus; and the F1 report from the respawn-choice screen, where the mouse still turned the camera and every click on the buttons also reached the world ([#3369](https://github.com/marceld23/BlocksBeyondTheStars/issues/3369), [#3370](https://github.com/marceld23/BlocksBeyondTheStars/issues/3370))
 
 Want to see your name here? Pick something from **[Contribute](#-contribute)** — we add every merged
 contributor to this list and to the in-game Credits screen ourselves

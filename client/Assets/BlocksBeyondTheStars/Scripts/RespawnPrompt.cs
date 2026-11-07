@@ -14,8 +14,9 @@ namespace BlocksBeyondTheStars.Client
     /// and the player / ship only re-appears once it is clicked.
     ///
     /// While <see cref="GameBootstrap.AwaitingRespawnConfirm"/> is set, <see cref="PlayerController"/> holds
-    /// the on-foot world reveal and <see cref="SpaceView"/> holds the landing teardown, so nothing happens
-    /// until the player confirms. Driven by the server's respawn / space-closed events; no server change.
+    /// the on-foot world reveal — and during the deferred respawn choice, which has no snap yet, the whole body:
+    /// no look, no movement, no clicks into the world (#3369) — and <see cref="SpaceView"/> holds the landing
+    /// teardown, so nothing happens until the player confirms. Driven by the server's respawn / space-closed events.
     /// </summary>
     public sealed class RespawnPrompt : MonoBehaviour
     {

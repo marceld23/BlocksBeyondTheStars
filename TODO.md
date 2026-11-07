@@ -24,6 +24,29 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player report 2026-11-07 (Milan as Screelit, world "J&M", v2026.11.8) — the respawn-choice screen froze nothing: the mouse turned the camera and clicks mined the block below; a dead body could still mine and build; Milan into the credits — #3369–#3371, branch fix/respawn-choice-freeze — ✅ done 2026-11-07 (⚠ playtest open; no save-version, protocol or terrain-generation change; one changed locale key `ui.credits.body` in all 14 languages)
+
+Milan's F1 report "Nicht bewegen wenn tot": with a home spawn set, the death goes the deferred respawn-choice path (#462)
+— the server leaves the body lying at the death spot until the pick, so no respawn snap reaches the client.
+
+- **#3369 (client)** `PlayerController` honoured `AwaitingRespawnConfirm` only inside the settle freeze, which starts with that
+  snap — in the choice path the full on-foot frame ran under the modal: `LookAround()` turned the camera on the mouse's way to
+  the buttons (they sit below the centre, so the view tipped onto the block underneath), and every click on them also mined or
+  built at the crosshair. Now the frame holds the body completely still while the death screen is up (`HoldForDeathScreen`:
+  no look, movement, gravity or tool; jetpack and wing fold, a chair lets go, the stale "E: …" prompt leaves the HUD,
+  keep-alive moves keep flowing). The aim-readout reset is shared with lying in a bed (`ClearAimReadouts`).
+- **#3370 (server)** the waiting body's intents were served — only `MoveIntent` and `FxIntent` were ignored, so a dead player
+  could mine, build, open doors, eat, loot and craft for 30 s. `Dispatch` now gates a pending choice through
+  `ChoicePendingMayHandle` (new `GameServerIntentGates.cs`, which also takes over `PausedMayHandle` from `GameServer.cs`):
+  the answer, the moves, the gear off-switches (jetpack/wing/seat), leaving a trade and the pause's control plane pass;
+  every act in the world is dropped. Tests: `RespawnChoiceTests` (mining/placing through the dispatcher refused while alive
+  control succeeds, the choice still answers through the dispatcher, the whitelist pinned).
+- **#3371 (credits)** **Milan** — the backstory, written together with Justus, and this F1 report — in the README playtester
+  list and the in-game credits (`ui.credits.body`, all 14 languages); the manual's heal-tank paragraph says what the choice
+  screen does now.
+
+---
+
 ### 🎄 Festival day calendars — the Advent calendar, Christmas HUD lights, a Christmas skin, Rudolpho and the HUD frame editor (school club idea, Marcel's decisions 2026-11-07) — #3314–#3322, epic #3323, ✅ 2026-11-07, PR #3332 (`fed3f474`)
 
 Ben from the school club asked for an Advent calendar on the festival system: a door a day with materials and a few

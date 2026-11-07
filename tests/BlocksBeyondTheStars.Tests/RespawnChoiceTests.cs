@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
@@ -273,6 +274,106 @@ public sealed class RespawnChoiceTests : IDisposable
 
             Assert.Equal(2, transport.To<RespawnOptions>(p).Count);
             Assert.True(p.Respawn.ChoicePending);
+        }
+    }
+
+    // ---------------- #3370: the body awaiting the choice does nothing in the world ----------------
+
+    [Fact]
+    public void ABodyAwaitingTheChoice_CannotMineOrBuild()
+    {
+        // Milan's report (2026-11-07): under the respawn-choice screen every click on its buttons also reached the world, and
+        // the server served it — a dead body mined and built for the whole 30 s.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Milan");
+            SetHome(server, p);
+            var sand = _content.GetBlock("sand")!.NumericId;
+            var alive = new Vector3i(29, 64, 30);
+            var under = new Vector3i(30, 64, 30);
+            var beside = new Vector3i(31, 65, 30);
+            server.World.SetBlock(alive, sand);
+            server.World.SetBlock(under, sand);
+            server.World.SetBlock(beside, BlockId.Air);
+            p.State.Position = new Vector3f(30.5f, 65f, 30.5f);
+            p.State.Inventory.Add("iron_wall", 5, 1024);
+
+            // Control: alive, the same hands at the same spot take the block beside the feet.
+            MineUntilGone(server, p, alive);
+            Assert.True(server.World.GetBlock(alive).IsAir);
+
+            server.KillPlayerForTest(p, "@srv.death.fall");
+            Assert.True(p.Respawn.ChoicePending);
+
+            MineUntilGone(server, p, under);
+            server.HandlePayloadForTest(p.ConnectionId, NetCodec.Encode(
+                new PlaceBlockIntent { X = beside.X, Y = beside.Y, Z = beside.Z, ItemKey = "iron_wall" }));
+
+            Assert.Equal(sand, server.World.GetBlock(under));
+            Assert.True(server.World.GetBlock(beside).IsAir);
+            Assert.Equal(5, p.State.Inventory.CountOf("iron_wall"));
+            Assert.True(p.Respawn.ChoicePending);
+        }
+    }
+
+    [Fact]
+    public void ABodyAwaitingTheChoice_StillAnswersTheChoiceThroughTheDispatcher()
+    {
+        // The gate must not swallow the one intent the death screen exists for.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Chooser");
+            SetHome(server, p);
+            p.State.Position = new Vector3f(30, 64, 30);
+            server.KillPlayerForTest(p, "@srv.death.fall");
+            Assert.True(p.Respawn.ChoicePending);
+
+            server.HandlePayloadForTest(p.ConnectionId, NetCodec.Encode(new RespawnChoiceIntent { UseCustomSpawn = false }));
+
+            Assert.False(p.Respawn.ChoicePending);
+            Assert.Equal(100f, p.State.Health);
+            Assert.Equal(p.State.RespawnPoint, p.State.Position);
+        }
+    }
+
+    [Fact]
+    public void TheChoiceGate_KeepsTheControlPlane_AndDropsEveryAct()
+    {
+        // The answer, the keep-alive and the folding of the gear pass …
+        Assert.True(SvGameServer.ChoicePendingMayHandleForTest(new RespawnChoiceIntent()));
+        Assert.True(SvGameServer.ChoicePendingMayHandleForTest(new MoveIntent()));
+        Assert.True(SvGameServer.ChoicePendingMayHandleForTest(new SetJetpackIntent { Active = false }));
+        Assert.True(SvGameServer.ChoicePendingMayHandleForTest(new SetGlidingIntent { Active = false }));
+        Assert.True(SvGameServer.ChoicePendingMayHandleForTest(new SetSeatedIntent { Active = false }));
+        Assert.True(SvGameServer.ChoicePendingMayHandleForTest(new TradeCancelIntent()));
+        // … as does the control plane the held pause keeps (chat, the F1 report, saves).
+        Assert.True(SvGameServer.ChoicePendingMayHandleForTest(new ChatIntent()));
+        Assert.True(SvGameServer.ChoicePendingMayHandleForTest(new BumpReport()));
+        Assert.True(SvGameServer.ChoicePendingMayHandleForTest(new SaveGameIntent()));
+
+        // Switching gear ON, and every act in the world, is dropped.
+        Assert.False(SvGameServer.ChoicePendingMayHandleForTest(new SetJetpackIntent { Active = true }));
+        Assert.False(SvGameServer.ChoicePendingMayHandleForTest(new SetGlidingIntent { Active = true }));
+        Assert.False(SvGameServer.ChoicePendingMayHandleForTest(new SetSeatedIntent { Active = true }));
+        Assert.False(SvGameServer.ChoicePendingMayHandleForTest(new MineBlockIntent()));
+        Assert.False(SvGameServer.ChoicePendingMayHandleForTest(new PlaceBlockIntent()));
+        Assert.False(SvGameServer.ChoicePendingMayHandleForTest(new DoorInteractIntent()));
+        Assert.False(SvGameServer.ChoicePendingMayHandleForTest(new ConsumeItemIntent()));
+        Assert.False(SvGameServer.ChoicePendingMayHandleForTest(new CraftIntent()));
+        Assert.False(SvGameServer.ChoicePendingMayHandleForTest(new LootContainerIntent()));
+        Assert.False(SvGameServer.ChoicePendingMayHandleForTest(new AttackEntityIntent()));
+        Assert.False(SvGameServer.ChoicePendingMayHandleForTest(new UseStationIntent()));
+    }
+
+    private static void MineUntilGone(SvGameServer server, BlocksBeyondTheStars.GameServer.PlayerSession p, Vector3i cell)
+    {
+        // Bare hands may need a few hits on sand — keep hitting like a held mine button.
+        for (int hit = 0; hit < 12 && !server.World.GetBlock(cell).IsAir; hit++)
+        {
+            server.HandlePayloadForTest(p.ConnectionId, NetCodec.Encode(new MineBlockIntent { X = cell.X, Y = cell.Y, Z = cell.Z }));
+            server.AdvanceUptimeForTest(0.3);
         }
     }
 
