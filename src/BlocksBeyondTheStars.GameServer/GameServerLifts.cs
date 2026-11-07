@@ -34,8 +34,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <item><b>Snow.</b> Weather snow never settles in a shaft, and a drift that lay there before is cleared for the ride
 /// (#3162) — the platform is no block, so the snow pass would land its drift under the platform and block the lift.</item>
 /// <item><b>Telling why.</b> A press that cannot be answered says so (#3163): a stop beside no shaft, a motor without stops,
-/// a block in the shaft, a platform that already waits there (#3171). A circuit's signal stays silent — there is no one to
-/// tell.</item>
+/// a block in the shaft, a platform that already waits there (#3171), a stop set too low (#3300), a lift with only its
+/// bottom floor (#3301). A circuit's signal stays silent — there is no one to tell. A motor or a stop placed where the
+/// lift cannot work says so at once (#3300, #3302: <c>GameServerLiftAdvice.cs</c>).</item>
 /// <item><b>Choosing the floor</b> (#3171, <c>GameServerLiftFloors.cs</c>): a rider, or a player beside one of the lift's
 /// stops, sends the platform to any floor; the floors and their names ride along on the lift list.</item>
 /// <item><b>Gates</b> (#3174, <c>GameServerLiftGates.cs</c>): the lift gates at a floor's landing open while the platform
@@ -153,7 +154,7 @@ public sealed partial class GameServer
             }
             else if (by is not null)
             {
-                Send(by, new ServerMessage { Text = LiftStopNoShaftText }); // #3163: how to place it, not silence
+                Send(by, new ServerMessage { Text = LiftStopWithoutLiftText(c.Cell) }); // #3163: how to place it; #3300: or too low
             }
 
             return;
@@ -169,7 +170,7 @@ public sealed partial class GameServer
         int here = (int)Math.Round(lift.Moving ? lift.TargetY : lift.PlatformY);
         if (levels.Count == 1 && by is not null && !lift.Moving && Math.Abs(lift.PlatformY - levels[0]) < 0.01f)
         {
-            Send(by, new ServerMessage { Text = "@srv.lift.no_stops" }); // #3163: a motor alone has nowhere to send it
+            Send(by, new ServerMessage { Text = LiftOnlyFloorText(c.Cell) }); // #3163: nowhere to send it; #3301: a stop below already
             return; // (and "it is already here" on top of that would say nothing new)
         }
 

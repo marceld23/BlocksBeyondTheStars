@@ -141,10 +141,25 @@ class Diagram:
         else:
             self.draw.rectangle([l + 14, t + 4, r - 15, b - 4], fill=DOOR, outline=(170, 240, 250, 255), width=2)
 
-    def platform(self, x0: int, x1: int, y: int) -> None:
+    def platform(self, x0: int, x1: int, y: int, ghost: bool = False) -> None:
+        """The lift platform: full blocks, as in the game (#3299 — the old thin bar sat below the landing's top). A ghost
+        is a dashed outline: where the platform stops at another floor."""
+        edge = (200, 205, 215, 255)
         for x in range(x0, x1 + 1):
-            l, t, r, _ = self.box(x, y)
-            self.draw.rectangle([l + 1, t + 40, r - 2, t + 60], fill=PLATFORM, outline=(200, 205, 215, 255), width=2)
+            l, t, r, b = self.box(x, y)
+            if not ghost:
+                self.draw.rectangle([l + 1, t + 1, r - 2, b - 2], fill=PLATFORM, outline=edge, width=2)
+                self.draw.rectangle([l + 1, t + 1, r - 2, t + 7], fill=edge)
+                continue
+            for a, z in ((l + 2, r - 3), (t + 2, b - 3)):
+                for s in range(a, z, 12):
+                    e = min(s + 6, z)
+                    if a == l + 2:
+                        self.draw.line([(s, t + 2), (e, t + 2)], fill=edge, width=2)
+                        self.draw.line([(s, b - 3), (e, b - 3)], fill=edge, width=2)
+                    else:
+                        self.draw.line([(l + 2, s), (l + 2, e)], fill=edge, width=2)
+                        self.draw.line([(r - 3, s), (r - 3, e)], fill=edge, width=2)
 
     def moon(self, x: int, y: int) -> None:
         cx, cy = self.centre(x, y)
@@ -229,20 +244,27 @@ def airlock() -> None:
 
 
 def lift() -> None:
-    """A lift motor at the bottom, the platform rides the shaft, a lift stop beside each floor."""
+    """The lift built the way that works (#3299): the platform rests right on top of the motor, so the motor sits in the
+    middle of the floor of a 3×3 pit one block deep and the resting platform fills the pit, level with the ground. A lift
+    stop on the ground at the pit's edge; an upper floor with its landing, its stop and a lift gate at the shaft's edge
+    (closed — the platform waits below), and a dashed outline where the platform stops up there: level with the landing.
+    Above it two free blocks, the rider's headroom."""
     d = Diagram(7, 8)
-    d.ground(0)
-    d.icon("lift_motor", 3, 0)
-    for y in range(1, 8):
+    d.ground(0)                     # the pit's floor and the ground under it
+    d.icon("lift_motor", 3, 0)      # the motor in the middle of the pit's floor
+    d.ground(1, 0, 1)               # the ground beside the pit …
+    d.ground(1, 5, 6)
+    d.platform(2, 4, 1)             # … and the platform resting in the pit, level with it
+    d.icon("lift_stop", 1, 2)       # the bottom stop, on the ground at the pit's edge
+    for y in (2, 3, 4, 6, 7):
         d.wall(0, y)
         d.wall(6, y)
-    d.ground(3, 0, 1)
-    d.ground(6, 0, 1)
-    d.ground(3, 5, 6)
-    d.icon("lift_stop", 1, 4)
-    d.icon("lift_stop", 1, 7)
-    d.platform(2, 4, 3)
-    for y in (2, 4, 5, 6):
+    d.ground(5, 0, 1)               # the upper floor's landings
+    d.ground(5, 5, 6)
+    d.icon("lift_stop", 1, 6)       # its stop
+    d.icon("lift_gate", 5, 6)       # a lift gate at the shaft's edge, closed while the platform is away
+    d.platform(2, 4, 5, ghost=True)  # where the platform stops up there
+    for y in (2, 3, 4):
         cx, cy = d.centre(3, y)
         d.draw.line([(cx, cy - 18), (cx, cy + 18)], fill=ARROW, width=3)
     d.save("lift")

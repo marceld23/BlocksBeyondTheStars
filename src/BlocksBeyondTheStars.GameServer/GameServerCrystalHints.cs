@@ -91,6 +91,8 @@ public sealed partial class GameServer
         {
             ShipAiHintOnce(session, "crystal_door");
         }
+
+        OnLiftPartPlaced(session, cell); // #3300, #3302: a motor above the ground, a stop set too low — said at once
     }
 
     /// <summary>Whether a door's gap touches this cell (its floor cell or the one above, six faces each).</summary>

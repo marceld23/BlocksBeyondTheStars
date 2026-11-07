@@ -96,7 +96,7 @@ public sealed partial class GameServer
 
         if (LiftMotorOf(cell) is not { } motor)
         {
-            Send(session, new ServerMessage { Text = LiftStopNoShaftText });
+            Send(session, new ServerMessage { Text = cell.Kind == CrystalDeviceKind.LiftStop ? LiftStopWithoutLiftText(cell.Cell) : LiftStopNoShaftText });
             return;
         }
 
