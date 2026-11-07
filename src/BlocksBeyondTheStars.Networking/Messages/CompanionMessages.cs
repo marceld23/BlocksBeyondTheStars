@@ -90,6 +90,40 @@ public sealed class FeedCompanionIntent
     public string CompanionId { get; set; } = string.Empty;
 }
 
+/// <summary>#3394: E at the player's own robot companion — the server answers with a <see cref="ShipAiLine"/> spoken by the
+/// robot (<see cref="ShipAiLine.Speaker"/> "robot", <see cref="ShipAiLine.SpeakerName"/> its name), or with VEGA's question
+/// and the robot's answer. Only the sender's own robot within reach talks; anything else is ignored silently, and a short
+/// cooldown keeps a held key from flooding the panel. An older server drops the unknown id (the robot stays silent).</summary>
+public sealed class TalkToCompanionIntent
+{
+    /// <summary>The companion's id (<c>NetCompanion.Id</c>); empty = the sender's robot.</summary>
+    public string CompanionId { get; set; } = string.Empty;
+}
+
+/// <summary>#3398/#3399: E at the own robot while holding a weapon or a jetpack — ONE of the item in hotbar
+/// <see cref="Slot"/> goes to the robot (<c>RobotGear</c>); a weapon or jetpack it already had comes back into the backpack
+/// (refused while there is no room). Only the sender's own robot within reach takes it; anything else is ignored. An older
+/// server drops the unknown id (the item stays in the hand).</summary>
+public sealed class GiveCompanionGearIntent
+{
+    /// <summary>The companion's id (<c>NetCompanion.Id</c>); empty = the sender's robot.</summary>
+    public string CompanionId { get; set; } = string.Empty;
+
+    /// <summary>The hotbar slot holding the item.</summary>
+    public int Slot { get; set; }
+}
+
+/// <summary>#3398/#3399: "Take back" in the Companions tab — the robot's <see cref="Piece"/> (<c>RobotGear.WeaponPiece</c> or
+/// <c>RobotGear.JetpackPiece</c>) comes back into the backpack; refused while the backpack is full.</summary>
+public sealed class TakeCompanionGearIntent
+{
+    /// <summary>The companion's id (<c>NetCompanion.Id</c>).</summary>
+    public string CompanionId { get; set; } = string.Empty;
+
+    /// <summary>Which piece: "weapon" or "jetpack".</summary>
+    public string Piece { get; set; } = string.Empty;
+}
+
 /// <summary>A tamed companion as shown in the Companions menu — enough of its descriptor to draw a small
 /// procedural portrait, plus its name, home world and bond.</summary>
 public sealed class NetCompanion
@@ -118,6 +152,12 @@ public sealed class NetCompanion
     /// <summary>#3344: the companion's kind (<c>TamedCreature.Kind</c>): empty for a tamed animal, "robot", "reindeer",
     /// "soundi" — picks the wording of the tab's buttons (switch off, send home, on board).</summary>
     public string Kind { get; set; } = string.Empty;
+
+    /// <summary>#3398: the weapon the robot carries (an item key; empty = none) — the tab shows it with "Take back". Additive.</summary>
+    public string GearWeapon { get; set; } = string.Empty;
+
+    /// <summary>#3399: the jetpack the robot wears (an item key; empty = none). Additive.</summary>
+    public string GearJetpack { get; set; } = string.Empty;
     public string Temperament { get; set; } = "Passive";
     public string Habitat { get; set; } = "Land";
 

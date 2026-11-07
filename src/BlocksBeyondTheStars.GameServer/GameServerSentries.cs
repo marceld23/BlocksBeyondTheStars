@@ -295,11 +295,12 @@ public sealed partial class GameServer
     /// <para>Wildlife was missing here, while the game's own advice (<c>vega.hint.base_walls</c>) told the
     /// player that walls keep the ground animals out and that "for fliers and cave dwellers you still need
     /// the sentry post". They were never targets: the search walked the machines and the bandits and nothing
-    /// else, so a player who fortified against attacking animals got a turret that watched them come.</para></summary>
-    private CombatEntity? NearestSentryTarget(Vector3f muzzle)
+    /// else, so a player who fortified against attacking animals got a turret that watched them come.</para>
+    /// <para>#3398: <paramref name="range"/> is the sentry's own unless a hunter robot fights with a weapon of another reach.</para></summary>
+    private CombatEntity? NearestSentryTarget(Vector3f muzzle, float range = SentryRange)
     {
         CombatEntity? best = null;
-        double bestDistSq = SentryRange * SentryRange;
+        double bestDistSq = range * (double)range;
 
         foreach (var e in _planetEnemies)
         {

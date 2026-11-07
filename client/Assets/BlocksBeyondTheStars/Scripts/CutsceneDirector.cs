@@ -78,6 +78,7 @@ namespace BlocksBeyondTheStars.Client
             public CutscenePlan ReadyPlan; // a client-made banner brings its plan along
             public readonly List<ShipAiLine> Lines = new List<ShipAiLine>();
             public bool Downgraded;
+            public bool WaitHinted; // #3387: the "a scene is waiting" line was shown for this scene
             public bool TakesCamera => !Downgraded && Definition != null && Definition.TakesCamera;
         }
 
@@ -414,9 +415,11 @@ namespace BlocksBeyondTheStars.Client
                     TakesCamera = owed.TakesCamera,
                     NowOrNever = item.CooldownExempt,
                     Requested = item.Requested,
+                    PlayInPlace = owed.Definition?.Options?.PlayInPlace ?? false, // #3387
                     WaitedSeconds = now - item.ReceivedAt,
                 };
                 var decision = SafeMomentGate.Evaluate(request, _inputs);
+                HintWaitingScene(owed, request, decision); // #3387
                 if (decision.Verdict == SafeMomentVerdict.Play)
                 {
                     var plan = BuildPlan(item, owed);

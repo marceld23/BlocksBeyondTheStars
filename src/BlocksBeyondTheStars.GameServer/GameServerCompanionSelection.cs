@@ -85,6 +85,7 @@ public sealed partial class GameServer
     {
         entity.CompanionRoams = tc.Roams;
         entity.CompanionKind = tc.Kind ?? string.Empty;
+        StampRobotGear(entity, tc); // #3398/#3399: the robot's weapon and jetpack
         entity.StaysHome = CompanionStaysHome(tc);
         if (!entity.StaysHome)
         {

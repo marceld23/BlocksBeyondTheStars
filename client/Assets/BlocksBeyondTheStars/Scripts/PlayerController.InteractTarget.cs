@@ -35,15 +35,18 @@ namespace BlocksBeyondTheStars.Client
             public int Fragment;
             public int Npc;           // the person under the crosshair
             public NetLift Lift;      // #3171: the lift platform the player stands on
+            public NetCreature Companion; // #3394: the own robot companion under the crosshair
+            public string GiftItem = string.Empty; // #3398/#3399: the held weapon or jetpack the robot would take
 
             public void Reset()
             {
                 BlockAimed = false;
                 BlockKey = null;
                 BeaconId = Door = Beam = Cube = Factory = Fragment = Npc = 0;
-                BeaconLabel = CubeGame = string.Empty;
+                BeaconLabel = CubeGame = GiftItem = string.Empty;
                 Crate = null;
                 Lift = null;
+                Companion = null;
                 CubeOwned = false;
             }
         }
@@ -65,6 +68,7 @@ namespace BlocksBeyondTheStars.Client
             GatherAimedBlockFacts();
             GatherLiftFacts(); // #3171: after the aimed blocks — the platform hides the motor under it
             GatherAimedNpcFact();
+            GatherAimedCompanionFact(); // #3394: the own robot — E talks to it
             _facts.LookedStation = _lookedStation;
             _aim.Door = handDoor;
             _facts.AimedDoor = handDoor != 0 && doorAimed;
@@ -80,6 +84,9 @@ namespace BlocksBeyondTheStars.Client
                 InteractKind.Talk => Game.NearestTalkableNpc()?.Id ?? 0,
                 _ => 0,
             };
+            bool robot = Game.Interaction is InteractKind.AimedCompanion or InteractKind.GiveCompanion;
+            Game.InteractCompanionName = robot ? CompanionAim.DisplayName(_aim.Companion) : string.Empty;
+            Game.InteractGiftItem = Game.Interaction == InteractKind.GiveCompanion ? _aim.GiftItem : string.Empty; // #3398/#3399
         }
 
         /// <summary>The blocks under the crosshair: the own beacon, the boarded station's core, a crate, a bio lab in reach, a
@@ -217,6 +224,57 @@ namespace BlocksBeyondTheStars.Client
                    <= MarketStock.TradeReach * (double)MarketStock.TradeReach;
         }
 
+        /// <summary>#3394: the player's own robot companion under the crosshair — within talk reach, the aim ray entering its body
+        /// before any solid block (like a person, <see cref="GatherAimedNpcFact"/>). Another player's robot is no target.</summary>
+        private void GatherAimedCompanionFact()
+        {
+            if (Camera == null || !string.IsNullOrEmpty(Game.InSpeeder))
+            {
+                return;
+            }
+
+            Vector3 o = Camera.transform.position, d = Camera.transform.forward, p = transform.position;
+            var robot = CompanionAim.AimedOwnRobot(Game.Creatures, Game.LocalPlayerId, o.x, o.y, o.z, d.x, d.y, d.z, Reach,
+                p.x, p.y, p.z, Game.Circumference, out float robotDistance);
+            if (robot == null)
+            {
+                return;
+            }
+
+            if (_targetAimed && RayBox.Entry(o.x, o.y, o.z, d.x, d.y, d.z, _targetHit.x, _targetHit.y, _targetHit.z,
+                    _targetHit.x + 1f, _targetHit.y + 1f, _targetHit.z + 1f) < robotDistance)
+            {
+                return; // a wall, a hull or the ground in front of it
+            }
+
+            _aim.Companion = robot;
+            _facts.AimedCompanion = true;
+
+            // #3398/#3399: a weapon or a jetpack in hand — E gives it to the robot instead of talking.
+            string held = Game.ItemInSlot(Game.SelectedHotbarSlot);
+            _facts.HoldsRobotGear = RobotGearView.GiftPiece(Game.Content, held).Length > 0;
+            _aim.GiftItem = _facts.HoldsRobotGear ? held : string.Empty;
+        }
+
+        /// <summary>#3394: E at the own robot — it answers in VEGA's panel (the server picks the line).</summary>
+        private void TalkToAimedCompanion()
+        {
+            if (_aim.Companion != null)
+            {
+                Game.Network?.SendTalkToCompanion(CompanionAim.RobotCompanionId(Game.Companions));
+            }
+        }
+
+        /// <summary>#3398/#3399: E at the own robot with a weapon or a jetpack in hand — one of it goes to the robot (the server
+        /// checks the slot, the robot and the reach).</summary>
+        private void GiveToAimedCompanion()
+        {
+            if (_aim.Companion != null)
+            {
+                Game.Network?.SendGiveCompanionGear(CompanionAim.RobotCompanionId(Game.Companions), Game.SelectedHotbarSlot);
+            }
+        }
+
         /// <summary>What stands close by: a usable beam pad, a data cube, a claimable factory terminal, a net fragment, a ship
         /// station within 3 m, a trader, a person to talk to — each with the reach its E always had.</summary>
         private void GatherNearbyFacts()
@@ -293,11 +351,17 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>E on a lift platform, at a door, a beam pad, a data cube, a factory terminal or a net fragment — and on a
-        /// usable block (#3345: the server decides what it does; a rune stone sings its word).</summary>
+        /// usable block (#3345: the server decides what it does; a rune stone sings its word) and at the own robot (#3394).</summary>
         private void RunNearbyInteraction(InteractKind kind)
         {
             switch (kind)
             {
+                case InteractKind.AimedCompanion:
+                    TalkToAimedCompanion();
+                    break;
+                case InteractKind.GiveCompanion:
+                    GiveToAimedCompanion(); // #3398/#3399
+                    break;
                 case InteractKind.UseBlock:
                     Game.Network?.SendUseBlock(_aim.Cell.x, _aim.Cell.y, _aim.Cell.z);
                     break;

@@ -52,7 +52,7 @@ namespace BlocksBeyondTheStars.Client
             foreach (var c in shown)
             {
                 BuildCompanionRow(c, y);
-                y += CompanionRowHeight;
+                y += CompanionRowHeight + CompanionGearRowHeight(c); // #3398/#3399: the robot's gear row
             }
 
             return y;
@@ -82,6 +82,7 @@ namespace BlocksBeyondTheStars.Client
             BuildCompanionBond(c, y);
             BuildCompanionActions(c, y);
             BuildCompanionFollowRow(c, y);
+            BuildCompanionGearRow(c, y + CompanionRowHeight - 6f); // #3398/#3399: the robot's weapon and jetpack, "Take back"
         }
 
         /// <summary>Bond bar (#1225): the number finally buys something, so show where it stands and where the next step is —

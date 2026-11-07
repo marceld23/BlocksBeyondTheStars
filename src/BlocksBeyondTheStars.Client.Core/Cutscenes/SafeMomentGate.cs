@@ -122,6 +122,9 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
         /// <summary>A replay or a preview the player asked for: no "prefer at home", no giving up.</summary>
         public bool Requested;
 
+        /// <summary>#3387 (<c>playInPlace</c>): the scene plays where the moment happened — no "prefer at home" wait.</summary>
+        public bool PlayInPlace;
+
         /// <summary>Seconds the scene has been waiting for its moment.</summary>
         public float WaitedSeconds;
     }
@@ -317,12 +320,28 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
                 return ReasonMoving;
             }
 
-            if (!s.AtHome && !r.Requested && !r.NowOrNever && r.WaitedSeconds < PreferAtHomeSeconds)
+            if (!s.AtHome && !r.Requested && !r.NowOrNever && !r.PlayInPlace && r.WaitedSeconds < PreferAtHomeSeconds)
             {
                 return ReasonPreferHome;
             }
 
             return null;
         }
+
+        /// <summary>How long a scene with <c>waitHint</c> waits for danger or movement before the player is told (#3387).</summary>
+        public const float WaitHintAfterSeconds = 4f;
+
+        /// <summary>#3387: whether a scene that asks for it (<c>waitHint</c>) should now tell the player that it is waiting — it
+        /// has waited <see cref="WaitHintAfterSeconds"/> for a reason the player can end (danger or movement: a hostile near,
+        /// damage, space combat, low vitals, moving), it is the game's own scene (not a replay) and it has not told them yet.
+        /// A menu, the chat, the duel, the loading veil or another scene end by themselves and say nothing.</summary>
+        public static bool ShouldHintWaiting(SafeMomentDecision decision, SafeMomentRequest request, bool alreadyHinted)
+            => !alreadyHinted && request is not null && !request.Requested
+               && decision.Verdict == SafeMomentVerdict.Defer && request.WaitedSeconds >= WaitHintAfterSeconds
+               && IsPlayerEndable(decision.Reason);
+
+        private static bool IsPlayerEndable(string reason)
+            => reason == ReasonHostile || reason == ReasonDamage || reason == ReasonSpaceCombat || reason == ReasonVitals
+               || reason == ReasonMoving;
     }
 }

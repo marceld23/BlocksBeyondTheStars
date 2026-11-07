@@ -98,6 +98,10 @@ namespace BlocksBeyondTheStars.Client
                     return string.Format(loc.Get("ui.lift.prompt.choose"), InteractGlyph(loc)); // #3171: riding — choose the floor
                 case InteractKind.UseBlock:
                     return $"{ExpandKeyTokens(loc, loc.Get("ui.hud.use"))}: {loc.Get(UseBlockLabelKey(loc, Game.AimedUseBlockKey))}"; // #3345
+                case InteractKind.AimedCompanion:
+                    return CompanionTalkPrompt(loc); // #3394: "Talk to Robo (E)"
+                case InteractKind.GiveCompanion:
+                    return CompanionGivePrompt(loc); // #3398/#3399: "Give Laser pistol to Robo (E)"
                 default:
                     return string.Empty;
             }
@@ -156,6 +160,34 @@ namespace BlocksBeyondTheStars.Client
             string name = string.IsNullOrEmpty(npc.Name) ? loc.Get(npc.NameKey) : npc.Name;
             string talkGlyph = PromptGlyph(loc, InputAction.Interact); // #2502: USE on a tablet, not "E"
             return LineText.CollapseGlyphParentheses(string.Format(loc.Get("ui.hud.talk"), name, talkGlyph), talkGlyph);
+        }
+
+        /// <summary>#3394: "Talk to Robo (E)" for the own robot companion under the crosshair — the same words as for a person.</summary>
+        private string CompanionTalkPrompt(Localizer loc)
+        {
+            string name = Game.InteractCompanionName;
+            if (string.IsNullOrEmpty(name))
+            {
+                return string.Empty;
+            }
+
+            string talkGlyph = PromptGlyph(loc, InputAction.Interact);
+            return LineText.CollapseGlyphParentheses(string.Format(loc.Get("ui.hud.talk"), name, talkGlyph), talkGlyph);
+        }
+
+        /// <summary>#3398/#3399: "Give Laser pistol to Robo (E)" — a weapon or a jetpack in hand, the own robot under the crosshair.</summary>
+        private string CompanionGivePrompt(Localizer loc)
+        {
+            string name = Game.InteractCompanionName, item = Game.InteractGiftItem;
+            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(item))
+            {
+                return string.Empty;
+            }
+
+            var def = Game.Content?.GetItem(item);
+            string itemName = def != null ? loc.Get(def.NameKey) : item;
+            string glyph = PromptGlyph(loc, InputAction.Interact);
+            return LineText.CollapseGlyphParentheses(string.Format(loc.Get("ui.interact.give_companion"), itemName, name, glyph), glyph);
         }
 
         /// <summary>The ship station E uses ("Press E: Workshop") and what else is done there: stowing at the cargo hold,

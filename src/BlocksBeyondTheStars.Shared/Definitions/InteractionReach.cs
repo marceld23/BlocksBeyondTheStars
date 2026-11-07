@@ -14,6 +14,10 @@ public static class InteractionReach
     /// <summary>How far a player talks to a person (E, the "Talk to …" prompt and the server's talk check).</summary>
     public const float Talk = 5f;
 
+    /// <summary>How far a player talks to their own robot companion (#3394, E and the "Talk to …" prompt); the server accepts
+    /// a little more for the position it last heard of.</summary>
+    public const float CompanionTalk = 5f;
+
     /// <summary>How close a player stands to a mission board — of a settlement, a station, a base or the own ship — to take
     /// and hand in its jobs; the "Jobs" prompt at a board in the crosshair uses the same reach.</summary>
     public const float MissionBoard = 4f;

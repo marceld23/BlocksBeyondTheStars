@@ -107,6 +107,9 @@ public sealed partial class GameServer
         On<ReleaseCompanionIntent>(map, (gs, s, m) => gs.HandleReleaseCompanion(s, m));
         On<FeedCompanionIntent>(map, (gs, s, m) => gs.HandleFeedCompanion(s, m));
         On<SetCompanionFollowIntent>(map, (gs, s, m) => gs.HandleSetCompanionFollow(s, m)); // #3344
+        On<TalkToCompanionIntent>(map, (gs, s, m) => gs.HandleTalkToCompanion(s, m)); // #3394 the talking robot
+        On<GiveCompanionGearIntent>(map, (gs, s, m) => gs.HandleGiveCompanionGear(s, m)); // #3398/#3399 the robot's gear
+        On<TakeCompanionGearIntent>(map, (gs, s, m) => gs.HandleTakeCompanionGear(s, m));
         On<EnterSpeederIntent>(map, (gs, s, m) => gs.HandleEnterSpeeder(s, m));
         On<ExitSpeederIntent>(map, (gs, s, _) => gs.HandleExitSpeeder(s));
         On<StowSpeederIntent>(map, (gs, s, m) => gs.HandleStowSpeeder(s, m));

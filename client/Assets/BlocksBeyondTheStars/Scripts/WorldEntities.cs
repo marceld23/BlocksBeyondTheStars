@@ -328,8 +328,11 @@ namespace BlocksBeyondTheStars.Client
 
             var muzzle = new Vector3(m.X, m.Y, m.Z);
             _weapons ??= FindAnyObjectByType<WeaponFx>();
-            _weapons?.Shoot(muzzle, hit,
-                new Color(0.45f, 0.92f, 1f)); // the cyan the base machinery uses, not the enemies' red
+            // The cyan the base machinery uses, not the enemies' red — or (#3398) the colour of the weapon a hunter robot fights with.
+            var tracer = m.ColorRgb != 0
+                ? new Color(((m.ColorRgb >> 16) & 0xFF) / 255f, ((m.ColorRgb >> 8) & 0xFF) / 255f, (m.ColorRgb & 0xFF) / 255f)
+                : new Color(0.45f, 0.92f, 1f);
+            _weapons?.Shoot(muzzle, hit, tracer);
             ClientAudio.Instance?.At("sentry_shot", muzzle, 1f);
         }
 

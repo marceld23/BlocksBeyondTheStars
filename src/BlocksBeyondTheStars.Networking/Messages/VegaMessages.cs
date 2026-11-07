@@ -62,6 +62,11 @@ public sealed class ShipAiLine
     /// VEGA's panel style. Additive.</summary>
     public string Speaker { get; set; } = string.Empty;
 
+    /// <summary>The name VEGA's panel shows for this line's speaker instead of "VEGA" (#3394) — a display string, e.g. the
+    /// player's robot companion by the name it was given ("Robo"). Empty = the speaker's own label (VEGA for an empty
+    /// <see cref="Speaker"/>). Additive (contractless): an older client ignores it and shows "VEGA".</summary>
+    public string SpeakerName { get; set; } = string.Empty;
+
     /// <summary>The story pack whose objective is on the CHIP (#2466) — the client shows that pack's short name instead of
     /// "Objective:" (#2471). Since #2471 also the world story's id for VEGA's lead and the finale ("VEGA: …"); empty = no
     /// objective, or a legacy stage of an older client. Additive.</summary>

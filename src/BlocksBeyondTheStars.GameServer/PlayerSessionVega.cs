@@ -114,4 +114,16 @@ public sealed class PlayerSessionVega
     /// <summary>Whether VEGA already explained base scouts (#1224) to this player this session — the toast
     /// repeats per visit, the explanation does not.</summary>
     public bool ScoutsVegaSaid { get; set; }
+
+    // --- #3394/#3396: the talking robot in VEGA's panel. RAM only — its heard-lines progress is persisted in the
+    // player's counters (RobotChatter.LinesHeardCounter / ExchangesHeardCounter). ---
+
+    /// <summary>#3394: uptime before which the robot answers no further talk (E) — a held key never floods the panel.</summary>
+    public double RobotTalkReadyAt { get; set; }
+
+    /// <summary>#3396: uptime the robot's next ambient line is due; NaN until the first 1 Hz pass after the join arms it.</summary>
+    public double RobotAmbientDueAt { get; set; } = double.NaN;
+
+    /// <summary>#3396: ambient lines the robot spoke this session — seeds the roll of the next gap.</summary>
+    public int RobotAmbientSpoken { get; set; }
 }

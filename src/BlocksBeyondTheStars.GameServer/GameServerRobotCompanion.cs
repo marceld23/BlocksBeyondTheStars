@@ -121,13 +121,16 @@ public sealed partial class GameServer
     private static string CompanionDisplayName(TamedCreature tc) => string.IsNullOrEmpty(tc.Name) ? tc.Species.Name : tc.Name;
 
     /// <summary>What a knocked-out robot leaves in its crate: the inputs of the recipe that builds it (data-driven — the
-    /// robot core plus the rest), so one craft rebuilds it; just the core when no recipe makes it.</summary>
-    private List<ItemStack> RobotPartItems()
+    /// robot core plus the rest), so one craft rebuilds it; just the core when no recipe makes it. #3398/#3399: and the gear it
+    /// carried (its weapon, its jetpack) — nothing given to it is ever lost.</summary>
+    private List<ItemStack> RobotPartItems(TamedCreature tc)
     {
         var recipe = _content.Recipes.Values.FirstOrDefault(r => r.Outputs.Any(o => o.Item == HunterRobotItem));
-        return recipe is null
+        var parts = recipe is null
             ? new List<ItemStack> { new ItemStack(RobotCoreItem, 1) }
             : recipe.Inputs.Select(i => new ItemStack(i.Item, i.Count)).ToList();
+        parts.AddRange(RobotGearItems(tc));
+        return parts;
     }
 
     /// <summary>Whether the player stands inside their own parked ship.</summary>
@@ -235,18 +238,27 @@ public sealed partial class GameServer
            ?? _bandits.FirstOrDefault(b => b.Id == id)
            ?? _creatures.FirstOrDefault(c => c.Id == id);
 
-    /// <summary>One shot at the nearest hostile a sentry would shoot (the same gentle rules), credited to the owner.</summary>
+    /// <summary>One shot at the nearest hostile a sentry would shoot (the same gentle rules), credited to the owner. #3398: with a
+    /// weapon its damage, reach and tracer colour follow the weapon (<see cref="RobotGear"/>).</summary>
     private (bool Creatures, bool Enemies) RobotFires(CombatEntity robot, PlayerSession owner)
     {
         var muzzle = new Vector3f(robot.Position.X, robot.Position.Y + RobotMuzzleHeight, robot.Position.Z);
-        if (NearestSentryTarget(muzzle) is not { } target)
+        var weapon = RobotWeaponOf(robot);
+        if (NearestSentryTarget(muzzle, RobotGear.Reach(weapon, SentryRange)) is not { } target)
         {
             return (false, false);
         }
 
         bool isCreature = _creatures.Contains(target);
-        BroadcastToWorld(new SentryShot { X = muzzle.X, Y = muzzle.Y, Z = muzzle.Z, TargetId = target.Id }); // the cyan tracer
-        target.Hull -= RobotShotDamage;
+        BroadcastToWorld(new SentryShot // the cyan tracer — or the weapon's colour
+        {
+            X = muzzle.X,
+            Y = muzzle.Y,
+            Z = muzzle.Z,
+            TargetId = target.Id,
+            ColorRgb = RobotGear.TracerRgb(weapon),
+        });
+        target.Hull -= RobotGear.ShotDamage(weapon, RobotShotDamage);
         robot.RobotTargetId = target.Id;
         robot.RobotLastShotAt = _uptime;
         robot.RobotLastFightAt = _uptime;
@@ -283,7 +295,7 @@ public sealed partial class GameServer
         string name = CompanionDisplayName(tc);
         Send(owner, new ServerMessage { Text = "@srv.robot.knocked_out:" + name });
         if (TryFindOwnerCrateSpot(robot.Position, 0f, p.PlayerId, out var cell)
-            && PlaceOwnerCrate(owner, cell, RobotPartItems(), () => p.TamedCreatures.Remove(tc)))
+            && PlaceOwnerCrate(owner, cell, RobotPartItems(tc), () => p.TamedCreatures.Remove(tc)))
         {
             SendVegaLine(owner, "vega.robot.parts_crate", 3, name);
         }

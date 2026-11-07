@@ -413,6 +413,8 @@ public static class StateMapper
         HomeX = t.HomeX,
         HomeY = t.HomeY,
         HomeZ = t.HomeZ,
+        GearWeapon = t.GearWeapon ?? string.Empty, // #3398: the robot's weapon — nothing given to it is ever lost
+        GearJetpack = t.GearJetpack ?? string.Empty, // #3399: its jetpack
     };
 
     private static MissionProgress CloneProgress(MissionProgress m) => new()

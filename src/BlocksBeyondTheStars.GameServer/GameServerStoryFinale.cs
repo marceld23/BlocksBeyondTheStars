@@ -429,15 +429,15 @@ public sealed partial class GameServer
         HandleTravel(session, new TravelIntent { DestinationBodyId = GuardianCoreBodyId }, quickTravel: false, adminBypass: true);
 
         // Drop the player from the surface pad down into the chamber, a couple of blocks off the core terminal
-        // (on open floor, within the breach reach) so the hack can channel immediately.
+        // (on open floor, within the breach reach) so the hack can channel immediately. #3393: through the snap channel —
+        // a bare state update is dropped by the client, which then stood on the landing pad's touchdown spot.
         var aw = _worlds.Active;
         if (aw.HasCoreChamber && session.CurrentLocationId == GuardianCoreBodyId)
         {
             var c = aw.CoreChamberCenter;
-            session.State.Position = new Vector3f(c.X + 2.5f, c.Y + 0.5f, c.Z + 2.5f);
-            session.State.RespawnPoint = session.State.Position;
+            session.State.RespawnPoint = new Vector3f(c.X + 2.5f, c.Y + 0.5f, c.Z + 2.5f);
             session.Streaming.SentChunks.Clear();
-            SendPlayerState(session);
+            SnapPlayerTo(session, session.State.RespawnPoint, "@srv.admin.core_dropped");
         }
     }
 

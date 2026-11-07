@@ -747,22 +747,35 @@ public sealed partial class GameServer
 
     private const float CompanionLeashRange = 24f; // beyond this a companion is re-placed beside its owner (#855)
 
+    /// <summary>#3397: the rings a companion's spot is searched on — three blocks out, and, for an owner inside a parked
+    /// hull, wider until the spot lies beside the ship.</summary>
+    private static readonly float[] CompanionSpotRings = { 3f, 6f, 9f, 12f, 16f };
+
     /// <summary>A free spot beside a player for a companion to (re-)appear on: bearings fanned out from a
     /// per-pet stable angle, first one whose body isn't inside a wall wins. Falls back to the owner's own
     /// position (they are standing in open space by definition) when the pet is boxed in on every side.
     /// #2583: never a spot in a gas giant's gas sea — three blocks off a landing deck a walker's ground probe finds only
-    /// the heightfield buried under the gas, and a land clone released there (wild, so the gas burns it) would die at once.</summary>
+    /// the heightfield buried under the gas, and a land clone released there (wild, so the gas burns it) would die at once.
+    /// #3397 ("when landing my robot is always stuck in the ship's floor"): an owner aboard a landed ship stands inside its
+    /// hull, so every three-block spot is hull too, and the fallback put the companion on the ground UNDER the ship — the hull
+    /// is a placed object the ground probe cannot see — inside its floor. Then the ring widens until a spot beside the ship
+    /// is free; the old fallback stays for an owner who really is boxed in.</summary>
     private Vector3f CompanionSpotNear(CreatureSpecies sp, string companionId, Vector3f near)
     {
         float baseAngle = StableHashing.Index(Hash(companionId, "spawn"), 360) * (float)(System.Math.PI / 180.0);
-        for (int i = 0; i < 8; i++)
+        int rings = EntityBlockedByShip(near) ? CompanionSpotRings.Length : 1;
+        for (int r = 0; r < rings; r++)
         {
-            float ang = baseAngle + i * 0.7853982f; // 45° apart
-            var spot = AdjustHabitatHeight(sp, new Vector3f(
-                near.X + (float)System.Math.Cos(ang) * 3f, near.Y, near.Z + (float)System.Math.Sin(ang) * 3f));
-            if (!CreatureBodyBlocked(sp, spot) && !EntityBlockedByShip(spot) && !InGasSea(spot))
+            for (int i = 0; i < 8; i++)
             {
-                return spot;
+                float ang = baseAngle + i * 0.7853982f; // 45° apart
+                float radius = CompanionSpotRings[r];
+                var spot = AdjustHabitatHeight(sp, new Vector3f(
+                    near.X + (float)System.Math.Cos(ang) * radius, near.Y, near.Z + (float)System.Math.Sin(ang) * radius));
+                if (!CreatureBodyBlocked(sp, spot) && !EntityBlockedByShip(spot) && !InGasSea(spot))
+                {
+                    return spot;
+                }
             }
         }
 
@@ -803,6 +816,11 @@ public sealed partial class GameServer
         {
             LeashCompanion(c, sp, owner.State.Position, moveDt);
             return;
+        }
+
+        if (RobotJetpackStep(c, sp, owner.State.Position, moveDt))
+        {
+            return; // #3399: a robot with a jetpack flies up to an owner above it (GameServerRobotGear.cs)
         }
 
         var profile = ProfileFor(c.SpeciesId);
@@ -955,6 +973,8 @@ public sealed partial class GameServer
                 Following = tc.Following, // #3344: follows / stays home / on board
                 Roams = tc.Roams,
                 Kind = tc.Kind ?? string.Empty,
+                GearWeapon = tc.GearWeapon ?? string.Empty, // #3398: the robot's weapon and (#3399) jetpack — "Take back"
+                GearJetpack = tc.GearJetpack ?? string.Empty,
                 Temperament = sp.Temperament.ToString(),
                 Habitat = sp.Habitat.ToString(),
                 Size = sp.Size * tc.SizeScale,
@@ -1225,4 +1245,7 @@ public sealed partial class GameServer
             HandleReleaseCompanion(s, new ReleaseCompanionIntent { CompanionId = companionId });
         }
     }
+
+    /// <summary>Test seam (#3397): whether a point lies inside (or against) a parked ship's hull.</summary>
+    internal bool EntityBlockedByShipForTest(Vector3f p) => EntityBlockedByShip(p);
 }

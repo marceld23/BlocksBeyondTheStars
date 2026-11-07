@@ -176,7 +176,7 @@ public sealed partial class GameServer
 
         foreach (var tc in p.TamedCreatures.Where(t => t.KnockedOut).ToList())
         {
-            TryDeliverOwnerCrate(s, "robot:" + tc.Id, RobotPartItems(), "vega.robot.parts_crate", CompanionDisplayName(tc),
+            TryDeliverOwnerCrate(s, "robot:" + tc.Id, RobotPartItems(tc), "vega.robot.parts_crate", CompanionDisplayName(tc),
                 () => p.TamedCreatures.Remove(tc));
         }
     }

@@ -41,9 +41,10 @@ public sealed partial class GameServer
         SetFestivalPrefsIntent or OpenCalendarDoorIntent => true, // #3021 "My festivals"; #3315 a calendar door (the in-game menu) only fills the opener's own bag
         SetBasePadIntent => true, // #3069: a pad's name and access — its dialog may hold a singleplayer world; it moves nothing
         StoryMinigameResultIntent => true, // #3352: the note-key window holds a singleplayer world; it only writes the player's own ledger
-        // #3344: the Companions tab's follow choice — the Tab menu may hold a singleplayer world. It changes only the sender's
-        // own companions (one sent on board leaves the world, one taken along again steps out beside its owner).
-        SetCompanionFollowIntent => true,
+        // #3344: the Companions tab's follow choice (one sent on board leaves the world, one taken along steps out beside its
+        // owner) and #3398's "take back" of the robot's gear — the Tab menu may hold a singleplayer world; both change only the
+        // sender's own companions and backpack.
+        SetCompanionFollowIntent or TakeCompanionGearIntent => true,
         // #3346: the melody bar can be open while a scene holds a singleplayer world (the sing duel, an Echo's question).
         // A note only advances the sender's own puzzle; its prompts and time-outs wait for the world to run again.
         MelodyNoteIntent => true,

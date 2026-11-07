@@ -7,6 +7,7 @@ using System.Globalization;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -41,8 +42,8 @@ public sealed partial class GameServer
     /// <summary>Target words in the order they are offered to the admin, worldgen first, player-built last.</summary>
     private static readonly string[] TeleportKinds =
     {
-        "ship", "pad", "city", "village", "ruin", "railruin", "vault", "wreck", "factory", "camp", "lodge", "outpost", "monument",
-        "treasure", "base", "beacon", "beam", "station",
+        "ship", "pad", "city", "village", "ruin", "railruin", "vault", "ancient", "wreck", "factory", "camp", "lodge", "outpost",
+        "monument", "treasure", "base", "beacon", "beam", "station",
     };
 
     /// <summary>Accepted spellings of a target word. Plurals and the map's own vocabulary are folded in so
@@ -58,6 +59,8 @@ public sealed partial class GameServer
         "ruins" or "settlement_ruin" => "ruin",
         "railruins" or "rail_ruin" or "bahnhofsruine" => "railruin", // #2166: the abandoned monorail station
         "vaults" or "vault_ruin" => "vault",
+        // #3392: the buried G.D.S. ruins and enclosed structures of #3333/#3334 ("Alte Städte")
+        "ancients" or "ancientruin" or "ancient_ruin" or "altstadt" or "altstädte" or "altstaedte" => "ancient",
         "wrecks" => "wreck",
         "factories" => "factory",
         "camps" or "bandit" or "bandits" or "banditcamp" => "camp",
@@ -119,6 +122,15 @@ public sealed partial class GameServer
         {
             var e = _vaultEntrances[i];
             list.Add(new TeleportTarget("vault", i + 1, $"vault{i + 1}", SurfaceSpot(e.X, e.Z)));
+        }
+
+        // #3392: a buried ancient ruin — beside the top of its shaft (the hatch in the city street, or the vent tower),
+        // never on top of the tower itself.
+        var ancients = _worlds.Active.AncientRuins;
+        for (int i = 0; i < ancients.Count; i++)
+        {
+            var e = ancients[i].Entrance;
+            list.Add(new TeleportTarget("ancient", i + 1, $"ancient{i + 1}", SurfaceSpot(WorldConstants.WrapX(e.X + 2, _world.Circumference), e.Z)));
         }
 
         if (_wreckStamped && !_wreckClaimed)

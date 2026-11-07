@@ -251,7 +251,8 @@ copy of the file.
   ("Part 1 of 2"); `"arg": "body"` / `"system"` names where the player is.
 - **Options:** `chainNext` (a follower that may come at once), `cooldownExempt` ("now or never"), `replayable` (the
   Journal's *Watch again*), `replaceLineKeys` / `returnOnSkip` (lines the scene shows itself), `skippable`,
-  `minDisplay` — [CUTSCENES.md](CUTSCENES.md#cutscenesjson).
+  `minDisplay`, `playInPlace` (no wait for "at home") and `waitHint` (VEGA says once that a held-back scene is waiting)
+  — [CUTSCENES.md](CUTSCENES.md#cutscenesjson).
 - **Pacing:** at most one unrequested T2+ scene per 90 s per player; a client in a menu or a fight gets it at the next
   safe moment. Budget the cards: the basic training shows eight in six parts, a short course at most two.
 - Music (`client/Music/<track>.mp3`) and sound cues (`client/Assets/Resources/audio/<cue>.*`) must exist; new sounds are

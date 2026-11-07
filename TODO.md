@@ -24,6 +24,46 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Justus' reports 2026-11-07 evening (Screelit, world "Raumstation", v2026.11.8) — the finale's missing scene, admin commands that could not be typed, a talking robot with gear, companions in the ship floor, forearms bending backwards — #3386–#3401, ✅ 2026-11-08 (⚠ playtest open)
+
+Six F1 reports in one evening: "the cutscene did not come after I shut down the Guardian core, and the robots were still
+there", a lore theory, "talking robo!", "when landing my robot is always stuck in the ship's floor", "robot upgrade"
+(weapon + jetpack, no armour). Marcel's question alongside: does `/help admin` list every command — how do I test the
+festivals, the Advent calendar, the Sounders' finale?
+
+- **#3386** the bump snapshot carries a `story` block (world story, chapter, finale state, hack/duel, the reporter's
+  track and their story + cutscene-ledger + reward milestones) — the finale report was only answerable from the
+  screenshot's objective chip (`story.vega.obj.relay` = chapter `resolution`: the core WAS defeated).
+- **#3387** the stand-down waited unseen: a camera scene "prefers at home" for 300 s, and the duel is won 24 blocks under
+  the ship. New cutscene options `playInPlace` (no home wait) and `waitHint` (VEGA says once "I have something important
+  to show you — as soon as you are safe" while danger or movement holds a scene); `fin.standdown` sets both.
+- **#3388** `ui.finale.resolved` / `story.vega.finale_resolved` no longer promise that every machine stands down — the
+  Remnant Protocol (#1206) keeps a few stray drones.
+- **#3389** `/festival` and `/shapewipe` existed on the server but had no chat case — typed, they went out as chat.
+- **#3390** `/help admin`: creatures, festivals (christmas = Advent calendar), published-content wipes, `/basewalls`,
+  `/ai`, the full `/settime`/`/setweather`/`/cutscene` forms; `/help` names `/mute` and the report helpers.
+- **#3391** `AdminChatCoverageTests`: every server admin verb has a chat case, every chat command a help line.
+- **#3392** `/tp ancient` (buried G.D.S. ruins); USER_MANUAL §7 in sync (festival / Advent / finale test routes).
+- **#3393** `/gotocore` and `/sounders tower` moved the player only on the server — now through `SnapPlayerTo`.
+- **#3394–#3396** the hunter robot talks: E on your own robot → a line in VEGA's panel under its own name (light blue),
+  one talk in three a VEGA ↔ robot exchange, now and then a line by itself (kind 1, muted with VEGA's hints).
+- **#3397** companions appeared inside the ship floor after a landing (owner aboard → every spawn spot was hull → the
+  ground under the ship); the spawn ring now widens until it lies beside the hull.
+- **#3398 / #3399** robot upgrade: give it a weapon it uses or a jetpack (it flies after you), with E while holding the
+  item (`GiveCompanionGearIntent` 333, `TakeCompanionGearIntent` 334, `TamedCreature.GearWeapon/GearJetpack`); damage
+  `max(6, 0.6 × weapon)`, reach = weapon range 4–20, tracer in the weapon's colour; take back in the Creatures tab,
+  power-down and the knock-out crate return the gear; no armour (Justus' wish). A jetpack robot perches beside its owner
+  after a flight (`RobotPerched`) so the idle wander does not walk it off the ledge.
+- **#3401** (Marcel) the avatar's forearms bent backwards: the older poses used positive elbow angles, but positive X
+  swings the forearm to −z (back). Flipped exactly those (rest/walk, asleep, crouch, seated, glide, jump, chop, ladder /
+  wall / pull-up, guard, push); the newer carry/holster/aim/flourish constants were already negative.
+
+Open: playtest (finale win in the chamber → stand-down; `/festival christmas`; talk to the robot, give it a blaster
+and a jetpack, climb a cliff; land with a companion; the editor figure's arms at rest, walking, seated, on a ladder).
+Balance to watch: the robot still fires twice a second whatever the weapon's cooldown (a plasma blaster = 33 per shot);
+melee weapons only hit within 4 blocks (it does not chase). Visual tuning of the weapon in its hand, the glove
+orientation and the jetpack box may follow.
+
 ### 🎵 The Sounders' Song — the second story next to VEGA (lore + names: Marcel, Justus and the school club; Marcel's decisions 2026-11-07) — epic #3368, #3344–#3367, ✅ 2026-11-07, PR #3383 `73076176`, released in v2026.11.9 (⚠ playtest open)
 
 A side pack per player (`data/stories/sounders/`, VEGA narrates): the music notes on the rune stones are the script of

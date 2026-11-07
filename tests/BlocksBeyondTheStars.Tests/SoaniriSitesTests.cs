@@ -292,4 +292,22 @@ public sealed class SoaniriSitesTests : IClassFixture<SoaniriWorldFixture>, IDis
         Assert.Empty(server.OrnasaChambers);
         Assert.Empty(server.MirunVillagersForTest());
     }
+
+    /// <summary>#3393: "/sounders tower" moves the admin through the snap channel — a bare state update is dropped by the
+    /// client, so the command did nothing in the game.</summary>
+    [Fact]
+    public void TheTowerAdminCommand_SnapsTheAdminToTheChoirTower()
+    {
+        var server = Started("snd_tower_snap", 3358, out var transport);
+        var tower = Site(server, "choir_tower");
+        var admin = OnFoot(server, "Ada", new Vector3i(tower.X + 30, tower.FloorY, tower.Z));
+        transport.Sent.Clear();
+
+        Assert.Equal("On the Choir Tower.", server.SoundersAdminForTest(admin, "tower"));
+
+        var snap = transport.To<RespawnNotice>(admin).Last();
+        Assert.Equal((admin.State.Position.X, admin.State.Position.Y, admin.State.Position.Z), (snap.X, snap.Y, snap.Z));
+        float dx = snap.X - tower.X, dz = snap.Z - tower.Z;
+        Assert.True(dx * dx + dz * dz <= 6f * 6f, $"at the tower ({tower.X}, {tower.Z}), not at ({snap.X}, {snap.Z})");
+    }
 }

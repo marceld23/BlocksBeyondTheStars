@@ -392,6 +392,7 @@ public sealed partial class GameServer
                     equipment, // #2110: the worn gear by slot
                 },
                 tutorial, // #2555: active training steps + tutorial / VEGA hint milestones
+                story = BumpStorySnapshot(session), // #3386: the world story, the finale, the player's track + cutscene ledger
                 environment = worldResident ? BuildEnvironment(p.Position) : null, // the player's local biome weather; null while the body is not loaded (#1567)
                 ship = new { _ship.ShipType, _ship.Hull, hullMax = _shipHullMax, _ship.Shield, shieldMax = _shipShieldMax, modules = _ship.Modules },
                 surroundings = blocks,

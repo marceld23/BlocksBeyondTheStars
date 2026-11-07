@@ -30,7 +30,7 @@ public sealed class IntentDispatchRegistryTests : IDisposable
     {
         var types = SvGameServer.HandledIntentTypesForTest.ToHashSet();
 
-        Assert.Equal(168, types.Count); // #2972 added DuelIntent; #2994 TeleportToPointIntent, #2999 YieldIntent; #3021 SetFestivalPrefsIntent; #3069 SetBasePadIntent; #3099 OpenBagIntent + MoveBagItemIntent; #3315 OpenCalendarDoorIntent; the Sounders pack: #3345 UseBlockIntent, #3346 MelodyNoteIntent, #3352 StoryMinigameResultIntent, #3344 SetCompanionFollowIntent
+        Assert.Equal(171, types.Count); // #2972 added DuelIntent; #2994 TeleportToPointIntent, #2999 YieldIntent; #3021 SetFestivalPrefsIntent; #3069 SetBasePadIntent; #3099 OpenBagIntent + MoveBagItemIntent; #3315 OpenCalendarDoorIntent; the Sounders pack: #3345 UseBlockIntent, #3346 MelodyNoteIntent, #3352 StoryMinigameResultIntent, #3344 SetCompanionFollowIntent; #3394 TalkToCompanionIntent; #3398/#3399 GiveCompanionGearIntent + TakeCompanionGearIntent
         Assert.Contains(typeof(MoveIntent), types);                    // the switch's first arm
         Assert.Contains(typeof(RequestStoryResolutionIntent), types);  // and its last
         Assert.Contains(typeof(SelectHotbarIntent), types);            // the two arms that had an inline body

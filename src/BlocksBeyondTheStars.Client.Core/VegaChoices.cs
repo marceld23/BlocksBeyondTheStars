@@ -224,17 +224,29 @@ namespace BlocksBeyondTheStars.Client
     }
 
     /// <summary>A line waiting in VEGA's speech queue (<see cref="VegaLineQueue"/>; #2499: it now keeps its pack and its buttons —
-    /// a skip drops the skipped pack's waiting lines, and the buttons show when the line comes up).</summary>
+    /// a skip drops the skipped pack's waiting lines, and the buttons show when the line comes up; #3394: and who speaks it).</summary>
     public readonly struct VegaQueuedLine
     {
-        public VegaQueuedLine(string text, bool prologue, string key, string packId = "", VegaChoiceSet? choices = null)
+        public VegaQueuedLine(string text, bool prologue, string key, string packId = "", VegaChoiceSet? choices = null,
+            string speaker = "", string speakerName = "")
         {
             Text = text ?? string.Empty;
             Prologue = prologue;
             Key = key ?? string.Empty;
             PackId = packId ?? string.Empty;
             Choices = choices ?? VegaChoiceSet.None;
+            Speaker = speaker ?? string.Empty;
+            SpeakerName = speakerName ?? string.Empty;
         }
+
+        /// <summary>#3394: the line's <see cref="ShipAiLine.Speaker"/> (empty = VEGA).</summary>
+        public string Speaker { get; }
+
+        /// <summary>#3394: the line's <see cref="ShipAiLine.SpeakerName"/> (empty = the speaker's own label).</summary>
+        public string SpeakerName { get; }
+
+        /// <summary>#3394: who the panel names over this line (<see cref="VegaSpeakerLabel.For"/>).</summary>
+        public VegaSpeaker Who => VegaSpeakerLabel.For(Speaker, SpeakerName);
 
         /// <summary>The composed text (keys resolved, slots filled).</summary>
         public string Text { get; }

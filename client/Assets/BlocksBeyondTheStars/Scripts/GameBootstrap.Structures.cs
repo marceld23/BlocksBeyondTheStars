@@ -236,6 +236,15 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#3088: the person E talks to or trades with when <see cref="Interaction"/> is one (0 otherwise).</summary>
         public int InteractNpcId;
 
+        /// <summary>#3394: the name of the own robot companion E talks to (or gives to) when <see cref="Interaction"/> is
+        /// <see cref="InteractKind.AimedCompanion"/> or <see cref="InteractKind.GiveCompanion"/> (empty otherwise) — the HUD's
+        /// "Talk to Robo".</summary>
+        public string InteractCompanionName = string.Empty;
+
+        /// <summary>#3398/#3399: the held weapon or jetpack E gives the robot when <see cref="Interaction"/> is
+        /// <see cref="InteractKind.GiveCompanion"/> (empty otherwise) — the HUD's "Give Laser pistol to Robo".</summary>
+        public string InteractGiftItem = string.Empty;
+
         /// <summary>#3088: the frame <see cref="Interaction"/> was last picked — the on-foot pick does not run while seated,
         /// lying, driving or riding, so the HUD names it only while it is fresh.</summary>
         public int InteractionFrame = -1;

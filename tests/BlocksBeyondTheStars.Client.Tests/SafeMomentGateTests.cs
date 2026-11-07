@@ -136,6 +136,47 @@ public sealed class SafeMomentGateTests
         Assert.Equal(SafeMomentVerdict.Play, SafeMomentGate.Evaluate(Ask(CutsceneTiers.Card), away).Verdict); // a card plays anywhere
     }
 
+    /// <summary>#3387: the finale's stand-down (<c>playInPlace</c>) plays where the duel was won — 24 blocks under the ship —
+    /// instead of waiting five minutes for home; danger still holds it.</summary>
+    [Fact]
+    public void APlayInPlaceScene_SkipsThePreferHomeWait_ButNotDanger()
+    {
+        var away = new SafeMomentInputs { AtHome = false };
+        var request = Ask(CutsceneTiers.SetPiece, camera: true, waited: 1f);
+        request.PlayInPlace = true;
+        Assert.Equal(SafeMomentVerdict.Play, SafeMomentGate.Evaluate(request, away).Verdict);
+
+        away.HostileDistance = 8f;
+        var held = SafeMomentGate.Evaluate(request, away);
+        Assert.Equal(SafeMomentVerdict.Defer, held.Verdict);
+        Assert.Equal(SafeMomentGate.ReasonHostile, held.Reason);
+    }
+
+    /// <summary>#3387: "a scene is waiting" is told once, after a few seconds, for a reason the player can end (danger or
+    /// movement) — never for a menu, the chat or the duel, never for a replay, never twice.</summary>
+    [Theory]
+    [InlineData("hostile", true)]
+    [InlineData("damage", true)]
+    [InlineData("climbing", true)]
+    [InlineData("menu", false)]
+    [InlineData("chat", false)]
+    [InlineData("duel", false)]
+    public void TheWaitHint_IsToldOnce_OnlyForDangerOrMovement(string situation, bool hints)
+    {
+        var s = With(situation);
+        var request = Ask(CutsceneTiers.SetPiece, camera: true, waited: SafeMomentGate.WaitHintAfterSeconds);
+        request.PlayInPlace = true;
+        var decision = SafeMomentGate.Evaluate(request, s);
+
+        Assert.Equal(hints, SafeMomentGate.ShouldHintWaiting(decision, request, alreadyHinted: false));
+        Assert.False(SafeMomentGate.ShouldHintWaiting(decision, request, alreadyHinted: true));
+
+        var early = Ask(CutsceneTiers.SetPiece, camera: true, waited: 1f);
+        Assert.False(SafeMomentGate.ShouldHintWaiting(SafeMomentGate.Evaluate(early, s), early, alreadyHinted: false));
+        var replay = Ask(CutsceneTiers.SetPiece, camera: true, requested: true, waited: 60f);
+        Assert.False(SafeMomentGate.ShouldHintWaiting(SafeMomentGate.Evaluate(replay, s), replay, alreadyHinted: false));
+    }
+
     [Fact]
     public void NowOrNever_AbortsInsteadOfWaiting_ButABannerOrARequestWaits()
     {

@@ -79,6 +79,7 @@ namespace BlocksBeyondTheStars.Client
             public GameObject Zzz;       // floating "z z z" shown above a sleeping (off-phase) creature
             public TextMesh ZzzText;     // the sleep label's text component
             public CreatureAnimator Animator; // the rig's animator, looked up once at build (#1368) — not per frame
+            public RobotGearLook Gear;        // #3398/#3399: the hunter robot's weapon, jetpack and flame (CreatureView.RobotGear.cs)
 
             // #3242/#3243: the sound side (CreatureView.Audio.cs) — the phrase in progress, the repertoire, the foley state.
             public string SpeciesId, PrevOwner, PhraseClip;
@@ -526,6 +527,7 @@ namespace BlocksBeyondTheStars.Client
                 UpdateDaze(entry, c);               // #2278: stars circling a creature the shock gloves dazed
                 UpdateNameplate(entry, c);          // floating name label above a tamed companion
                 UpdateSleep(entry, c);              // breathing bob + "z z z" while the creature is asleep (off-phase)
+                UpdateRobotGear(entry, c);          // #3398/#3399: the robot's weapon in hand, its jetpack and the flame
 
                 // The voice (#902, #3243 — CreatureView.Audio.cs): the species' phrase at its rate × the hour and the weather,
                 // the repertoire (beg, content, alarm echo), an answer from a real herd member; then the foley (#3242).

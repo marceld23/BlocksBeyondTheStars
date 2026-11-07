@@ -108,6 +108,14 @@ public sealed class NetCreature
     public int Arms { get; set; }
     public float HeadRatio { get; set; } = 1f;
 
+    /// <summary>#3398: the weapon a hunter robot holds (an item key; empty = none) — the client draws its held model in the
+    /// robot's hand. Additive: an older client ignores it.</summary>
+    public string GearWeapon { get; set; } = string.Empty;
+
+    /// <summary>#3399: the robot's jetpack flags (<c>RobotGear.FlagJetpack</c> = it wears one, <c>RobotGear.FlagFlying</c> =
+    /// it flies on it right now — the client shows the flame); 0 for everything else. Additive.</summary>
+    public int GearFlags { get; set; }
+
     /// <summary>#3325: the Schuppenhund's head and feet — the ear style ("None" | "Pointed" | "Tall" | "Swept"), the muzzle
     /// length (a share of the head's depth), claws and teeth. Additive: an older client ignores them and draws a plain
     /// quadruped; an older server sends the defaults (no ears, a flat face), so the wire tag is unchanged.</summary>
