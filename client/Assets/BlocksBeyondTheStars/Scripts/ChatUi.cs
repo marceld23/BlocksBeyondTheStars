@@ -511,6 +511,10 @@ namespace BlocksBeyondTheStars.Client
                     net.SendAdminCommand("summon_biped");
                     return true;
 
+                case "/hound": // #3326: summon this world's Schuppenhund near you (testing)
+                    net.SendAdminCommand("summon_hound");
+                    return true;
+
                 case "/wanderer": // #2646: one of this world's wanderers comes by right now (testing)
                     net.SendAdminCommand("summon_wanderer");
                     return true;

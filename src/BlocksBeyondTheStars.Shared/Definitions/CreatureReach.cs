@@ -27,4 +27,9 @@ public static class CreatureReach
     /// <summary>How far a creature of species size <paramref name="speciesSize"/> bites, in blocks.</summary>
     public static float BiteRange(float speciesSize)
         => BaseBiteRange + System.Math.Max(0f, (speciesSize - GrowthStartSize) * GrowthPerSize);
+
+    /// <summary>#3326: whether a species bites in chunks — <see cref="CreatureSpecies.BiteDamage"/> once per
+    /// <see cref="CreatureSpecies.BiteInterval"/> — instead of draining <see cref="CreatureSpecies.AttackDamage"/> per second.
+    /// Only the Schuppenhund does today; every older species keeps the drain.</summary>
+    public static bool BitesInChunks(CreatureSpecies sp) => sp.BiteInterval > 0f && sp.BiteDamage > 0f;
 }

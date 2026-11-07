@@ -208,8 +208,13 @@ public sealed class WorldDescription
     /// trades and quest-giver names, #2738 sea ice counts as wet for structure placement, #2739 world-seeded station
     /// quartermasters and vendor themes, #2833 twelve more wild plant species and mixed meadows, #2848–#2859 the tree
     /// variety and glow package, #2976 several fruits per world, picked per tree, #2988 the start system carries lead and
-    /// uranium, #3005 the pumpkin as a wild species of the green worlds).</summary>
-    public const int CurrentTerrainGeneration = 32;
+    /// uranium, #3005 the pumpkin as a wild species of the green worlds, #3325 the Schuppenhund on the dry worlds).</summary>
+    public const int CurrentTerrainGeneration = 34;
+
+    /// <summary>The generation of the Schuppenhund (#3325, epic #3329 — Jafar's scale hound): a dry world whose type carries a
+    /// <see cref="Definitions.PlanetType.ScaleHoundChance"/> may append ONE hound species to its roster, after every rolled and
+    /// authored slot and from its own sub-seed, so no other species moves. Older generations never roll it.</summary>
+    public const int ScaleHoundGeneration = 34;
 
     /// <summary>The generation of the pumpkin (#3005, epic #3000): a solid wild plant of the green worlds, rolled into the
     /// roster like every species (<c>FloraCatalog</c> MinGeneration 32 — inactive on every older world; the festivals' spawner

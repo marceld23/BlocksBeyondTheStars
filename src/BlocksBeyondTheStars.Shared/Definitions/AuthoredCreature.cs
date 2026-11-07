@@ -102,6 +102,16 @@ public sealed class AuthoredCreature
     /// <summary>#2082: favourite meals from one player that tame it; 0 = <see cref="HerdRules.FeedsToTame"/>.</summary>
     public int FeedsToTame { get; set; }
 
+    // --- Hounds (#3325/#3326, generation 34) — the traits the Schuppenhund class rolls, so a worksheet hound is a data entry. ---
+    public CreatureEarStyle EarStyle { get; set; }
+    public float SnoutLength { get; set; }
+    public bool HasClaws { get; set; }
+    public bool HasTeeth { get; set; }
+
+    /// <summary>#3326: the damage of one bite; with <see cref="BiteInterval"/> above 0 the species bites in chunks.</summary>
+    public float BiteDamage { get; set; }
+    public float BiteInterval { get; set; }
+
     // --- Giants (#1998, generation 9) — the traits the procedural colossus / sandworm roll, so the school club's
     // concrete giants (#2003) become data entries. Zero/empty on every other species. ---
     public float GiantHeight { get; set; }

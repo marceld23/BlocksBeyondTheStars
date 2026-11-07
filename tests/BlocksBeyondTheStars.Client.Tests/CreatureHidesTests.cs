@@ -157,6 +157,25 @@ public sealed class CreatureHidesTests
     }
 
     [Fact]
+    public void TheSchuppenhund_WearsItsWorldsScalesEverywhere_TheHeadToo()
+    {
+        // #3327: the server rolls the scale variant per world; the hound wears exactly that one on every part, never themed.
+        foreach (string scales in new[] { "coarsescales", "lizard", "snake" })
+        {
+            for (int seed = 1; seed <= 40; seed++)
+            {
+                var hound = Rolled(seed, "hd_schuppenhund", temperament: "Aggressive", hostile: true);
+                hound.BodyPlan = "Hound";
+                hound.Hide = scales;
+                var set = CreatureHides.Pick(hound, AllAvailable, new FaunaThemes.Look("arid", "fur", "spots"));
+                Assert.True(set.Uniform);
+                Assert.Equal(scales, set.Torso);
+                Assert.Equal(scales, set.Head);
+            }
+        }
+    }
+
+    [Fact]
     public void AnAuthoredSpecies_WearsItsHideEverywhere_ARolledServerHideNamesAFamily()
     {
         var authored = new NetCreature { SpeciesId = "au_leni", Hide = "shaggy", VoiceSeed = 77 };

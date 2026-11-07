@@ -401,6 +401,18 @@
    "peak": -1.4,
    "sha256": "ca7c2412c24fc26a0ff40b4777fb15843b9406a0d9c249bd25d158ad96b354c9"
   },
+  "creature_call_bark_deep": {
+   "class": "creature",
+   "level": -9.8,
+   "peak": 0.3,
+   "sha256": "1f8d578d3aafc69fa06adeea0f290f8ee7402412ac4d852a3b14e1eb0f5cbb5e"
+  },
+  "creature_call_bark_rough": {
+   "class": "creature",
+   "level": -10.4,
+   "peak": -1.5,
+   "sha256": "aabf92cf6c6480dd9f1450f556a6b779483e9e24f07cad4edf69637aaf6b3c0f"
+  },
   "creature_call_bellow": {
    "class": "creature",
    "level": -10.5,

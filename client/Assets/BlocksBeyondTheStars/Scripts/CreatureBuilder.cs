@@ -198,6 +198,9 @@ namespace BlocksBeyondTheStars.Client
                 // with a dark pupil so they clearly read as eyes — spread in a row across the head front.
                 AddEyes(c, unit, headScale);
 
+                // #3327: the Schuppenhund's muzzle, nose, teeth and ears (all zero on every other species — nothing is built).
+                AddHoundHead(c, unit, headW, unit * 0.85f * headScale, unit * 0.8f * headScale, unit * 0.45f);
+
                 // #1760: the flowerling — a ring of petals around the head, and a face that is a wide grin while it is
                 // calm and a toothed maw while it is hostile (the server flips Hostile with the mining grudge; the view
                 // rebuilds the body on that flip, so the face follows).
@@ -241,6 +244,8 @@ namespace BlocksBeyondTheStars.Client
                 _legs.Add(AddLeg(body.transform, row, 1, rows, new Vector3(hipX, legH, z), legH, legThick));
             }
 
+            AddHoundClaws(c, legThick); // #3327: three claws on every foot (a species without claws builds none)
+
             if (c.HasWings)
             {
                 AddWings(body.transform, unit * 0.9f, unit * 1.2f, unit * 0.08f,
@@ -251,7 +256,9 @@ namespace BlocksBeyondTheStars.Client
             if (c.HasTail)
             {
                 float tailBaseZ = -(segments - 1) * 0.5f * segLen - segLen * 0.2f;
-                AddTail(body.transform, new Vector3(0f, bodyY, tailBaseZ), segLen * 1.1f, unit * 0.35f, 3, _coat.Mat(CoatPart.Tail));
+                bool houndTail = c.BodyPlan == "Hound"; // #3327: a dog's tail — set high on the rump, long and thin
+                AddTail(body.transform, new Vector3(0f, bodyY + (houndTail ? unit * 0.22f : 0f), tailBaseZ),
+                    segLen * (houndTail ? 1.5f : 1.1f), unit * (houndTail ? 0.2f : 0.35f), houndTail ? 4 : 3, _coat.Mat(CoatPart.Tail));
             }
 
             // Fins: a legless swimmer used to be a weaving box with no limbs at all. Pectorals on the flanks,

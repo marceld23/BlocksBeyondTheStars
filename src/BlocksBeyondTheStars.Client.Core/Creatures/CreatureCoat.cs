@@ -208,10 +208,11 @@ namespace BlocksBeyondTheStars.Client
                 list.AddRange(TilePatterns);
             }
 
-            bool boxTorso = plan is "Standard" or "Titan" or "Colossus";
-            bool boxHead = plan is "Standard" or "Titan" or "Colossus" or "Biped" or "Worm";
-            bool legs = c.Legs > 0 && plan is "Standard" or "Titan" or "Colossus" or "Biped" or "Arachnid";
-            bool tail = plan == "Worm" || (c.HasTail && plan is "Standard" or "Titan" or "Colossus" or "Biped");
+            // #3327: the hound is a standard quadruped underneath — the same box torso, box head, legs and tail.
+            bool boxTorso = plan is "Standard" or "Titan" or "Colossus" or "Hound";
+            bool boxHead = plan is "Standard" or "Titan" or "Colossus" or "Biped" or "Worm" or "Hound";
+            bool legs = c.Legs > 0 && plan is "Standard" or "Titan" or "Colossus" or "Biped" or "Arachnid" or "Hound";
+            bool tail = plan == "Worm" || (c.HasTail && plan is "Standard" or "Titan" or "Colossus" or "Biped" or "Hound");
             bool accents = c.HasCrest || c.HasFins || plan is "Leviathan" or "SkyGiant";
             if (boxTorso)
             {
@@ -222,7 +223,7 @@ namespace BlocksBeyondTheStars.Client
 
             // The countershading maps v once over a flank (a pinned mesh), so the hide stretches by the flank's repeats: kept
             // to the bodies whose flanks need at most two (a standard or biped body up to size 2).
-            if (plan is "Standard" or "Biped" && c.Size <= 2f)
+            if (plan is "Standard" or "Biped" or "Hound" && c.Size <= 2f)
             {
                 list.Add(CoatPattern.Countershade);
             }

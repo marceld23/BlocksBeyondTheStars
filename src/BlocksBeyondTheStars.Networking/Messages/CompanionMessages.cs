@@ -114,6 +114,10 @@ public sealed class NetCompanion
     public string HeadShape { get; set; } = "Box"; // #2009 — the portrait shows the pyramid an arachnid companion wears
     public int Arms { get; set; }                   // #2081 — a biped companion keeps its arms and its big head
     public float HeadRatio { get; set; } = 1f;
+    public string EarStyle { get; set; } = "None";  // #3325 — a Schuppenhund companion keeps its ears, muzzle, claws and teeth
+    public float SnoutLength { get; set; }
+    public bool HasClaws { get; set; }
+    public bool HasTeeth { get; set; }
     public int Heads { get; set; } = 1;     // #1780-#1782 (generation 6) — the portrait shows every head, wing pair and fin pair
     public int WingPairs { get; set; } = 1;
     public int FinPairs { get; set; } = 1;

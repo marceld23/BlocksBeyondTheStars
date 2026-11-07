@@ -80,6 +80,7 @@ public static class BioContexts
             case CreatureBodyPlan.Ray:
             case CreatureBodyPlan.Worm:
             case CreatureBodyPlan.Biped: points += 1; break;
+            case CreatureBodyPlan.Hound: points += 2; break; // #3325: the dry worlds' rare, very dangerous hunter
         }
 
         if (sp.IsGiant)
