@@ -85,6 +85,9 @@ public sealed partial class GameContent
     /// <inheritdoc cref="StructureCatalog.KitsFor"/>
     public IReadOnlyList<StructureKit> KitsFor(string kind, string? tier, IReadOnlyCollection<string>? enabledPacks, string? planetType) => _structures.KitsFor(kind, tier, enabledPacks, planetType);
 
+    /// <inheritdoc cref="StructureCatalog.UndergroundKitsFor"/>
+    public IReadOnlyList<StructureKit> UndergroundKitsFor(IReadOnlyCollection<string>? enabledPacks, string? planetType) => _structures.UndergroundKitsFor(enabledPacks, planetType);
+
     /// <inheritdoc cref="StructureCatalog.CompleteTemplatesFor"/>
     public IReadOnlyList<StructureTemplate> CompleteTemplatesFor(string kind, string tier, IReadOnlyCollection<string>? enabledPacks, string? planetType) => _structures.CompleteTemplatesFor(kind, tier, enabledPacks, planetType);
 

@@ -171,21 +171,52 @@ public sealed class StructureCatalog
                 continue; // #1885: a pin-only kit is never drawn for a new structure (KitByKey still finds it)
             }
 
+            if (IsUndergroundKit(k))
+            {
+                continue; // #3333: an underground kit is composed only by the underground stamper (UndergroundKitsFor)
+            }
+
             if (tier != null && !string.Equals(string.IsNullOrWhiteSpace(k.Tier) ? "medium" : k.Tier, tier, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            bool packOk = enabledPacks is null || enabledPacks.Count == 0 || enabledPacks.Contains(k.PackOrDefault);
-            bool planetOk = k.PlanetTypes.Count == 0 || string.IsNullOrEmpty(planetType)
-                || k.PlanetTypes.Contains(planetType!, StringComparer.OrdinalIgnoreCase);
-            if (packOk && planetOk)
+            if (KitFits(k, enabledPacks, planetType))
             {
                 list.Add(k);
             }
         }
 
         return list;
+    }
+
+    /// <summary>#3333: the UNDERGROUND settlement / city kits a planet may carry — not pin-only, in the enabled packs and on
+    /// the planet (an empty <see cref="StructureKit.PlanetTypes"/> = every world), in pool order. A station kit with the flag
+    /// is a surface kit (stations hang in space) and never shows up here.</summary>
+    public IReadOnlyList<StructureKit> UndergroundKitsFor(IReadOnlyCollection<string>? enabledPacks, string? planetType)
+    {
+        var list = new List<StructureKit>();
+        foreach (var k in StructureKits)
+        {
+            if (!k.PinOnly && IsUndergroundKit(k) && KitFits(k, enabledPacks, planetType))
+            {
+                list.Add(k);
+            }
+        }
+
+        return list;
+    }
+
+    /// <summary>#3333: true for a settlement or city kit flagged <see cref="StructureKit.Underground"/>.</summary>
+    public static bool IsUndergroundKit(StructureKit k)
+        => k.Underground && (k.KindOrDefault == StructureKit.KindSettlement || k.KindOrDefault == StructureKit.KindCity);
+
+    private static bool KitFits(StructureKit k, IReadOnlyCollection<string>? enabledPacks, string? planetType)
+    {
+        bool packOk = enabledPacks is null || enabledPacks.Count == 0 || enabledPacks.Contains(k.PackOrDefault);
+        bool planetOk = k.PlanetTypes.Count == 0 || string.IsNullOrEmpty(planetType)
+            || k.PlanetTypes.Contains(planetType!, StringComparer.OrdinalIgnoreCase);
+        return packOk && planetOk;
     }
 
     /// <summary>The COMPLETE templates of a tier a slot may draw from — non-module, not pin-only, in the enabled
