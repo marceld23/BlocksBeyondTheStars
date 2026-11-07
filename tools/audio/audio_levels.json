@@ -287,6 +287,12 @@
    "peak": 0.2,
    "sha256": "278f3c6aa2020ee7716b6bd08e7993bd6a6cdc222c1676f8cfa9355814c6eeb8"
   },
+  "calendar_door_open": {
+   "class": "oneshot",
+   "level": -14.2,
+   "peak": -0.7,
+   "sha256": "1acd300b6ce0e59c5520ff3a7dd0ba8f47c33612c3b0912026c448faac6ad601"
+  },
   "caller_whistle": {
    "class": "oneshot",
    "level": -12.5,
@@ -1930,6 +1936,12 @@
    "level": -11.6,
    "peak": -0.6,
    "sha256": "32df6210f330a37c57ca2513bf87204245b881a9cec3eb5ce2bbea3c32bb803d"
+  },
+  "reindeer_bells": {
+   "class": "oneshot",
+   "level": -12.9,
+   "peak": -0.3,
+   "sha256": "b6008336811a5820d3d0ca99c27674c83ec0734811f12a27a77a44c313af0809"
   },
   "remote_click": {
    "class": "oneshot",

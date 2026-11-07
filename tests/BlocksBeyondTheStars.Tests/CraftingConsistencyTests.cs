@@ -54,6 +54,16 @@ public sealed class CraftingConsistencyTests
         // one ingredient that no recipe or drop makes.
         set.Add("robot_core");
 
+        // #3315/#3322: data-granted — door 24 of the Advent calendar (data/festival_calendars.json) holds the star bell
+        // that calls Rudolpho; nothing crafts or drops it.
+        foreach (var calendar in _c.FestivalCalendars)
+        {
+            foreach (var special in calendar.Specials)
+            {
+                foreach (var item in special.Items) set.Add(item.Item);
+            }
+        }
+
         return set;
     }
 

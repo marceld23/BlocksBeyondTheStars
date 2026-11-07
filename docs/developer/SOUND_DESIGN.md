@@ -790,8 +790,8 @@ fire (the large range).
 
 ## 33. The Advent calendar and Rudolpho (#3316, #3322) — *ElevenLabs clips*
 
-`calendar_door_open` (~1 s, a small paper door and a sparkle; generated quiet, raised +15 dB with ffmpeg to the UI sounds'
-−2 dB peak) plays when a calendar door pops open (`UiFestivalCalendar.Reveal`). `reindeer_bells` (~1.5 s, a soft sleigh-bell
+`calendar_door_open` (~1 s, a small paper door and a sparkle; generated quiet, raised with ffmpeg, then levelled with the
+other one-shots by `tools/audio/level_clips.py` and recorded in `audio_levels.json`) plays when a calendar door pops open (`UiFestivalCalendar.Reveal`). `reindeer_bells` (~1.5 s, a soft sleigh-bell
 jingle) plays once when Rudolpho appears within 20 blocks of the camera (`CreatureBuilder.Reindeer`'s `ReindeerBells`).
 Both in `Resources/audio`, loaded by `ClientAudio` like their neighbours.
 
