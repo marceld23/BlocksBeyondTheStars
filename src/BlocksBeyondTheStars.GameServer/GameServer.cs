@@ -3306,7 +3306,7 @@ public sealed partial class GameServer
     {
         if (IsNearFullColumn(dx, dz, nearRadius))
         {
-            return (-NearColumnChunksDown, NearColumnChunksUp);
+            return WithTextMonumentTop(center, dx, dz, (-NearColumnChunksDown, NearColumnChunksUp));
         }
 
         var bands = _worlds.Active.FarColumnBands;
@@ -3329,7 +3329,16 @@ public sealed partial class GameServer
             bands[columnKey] = band;
         }
 
-        return (band.LoCy - center.Y, band.HiCy - center.Y);
+        return WithTextMonumentTop(center, dx, dz, (band.LoCy - center.Y, band.HiCy - center.Y));
+    }
+
+    /// <summary>#3310: a column that carries a stone text tablet streams up to the tablet's top — the tablets of KuBa-W stand
+    /// 80–110 blocks tall, far above both the near column's reach and a far column's surface band, and a tablet cut off
+    /// at the top could not be read.</summary>
+    private (int LoDy, int HiDy) WithTextMonumentTop(ChunkCoord center, int dx, int dz, (int LoDy, int HiDy) span)
+    {
+        int top = TextMonumentTopChunk(center.X + dx, center.Z + dz);
+        return top == int.MinValue ? span : (span.LoDy, System.Math.Max(span.HiDy, top - center.Y));
     }
 
     /// <summary>Sends one chunk to a session right now and records it as sent. The regular streaming pass

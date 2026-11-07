@@ -962,12 +962,14 @@ round.
 - **KuBa-W** (Jafar's world from our school club — **exactly one in every galaxy** created since generation 33, never in
   the first star system): a small **asteroid** in a system's belt that has no business holding air — and does. You can
   **breathe** there under a **pale-green sky**; the ground is gentle **hills and flat meadows** with flowers and **many
-  animals**, but no trees, and the gravity is an asteroid's (big jumps). It has exactly **two landing pads**, and in front
-  of each stands a **giant stone tablet** you see whole as soon as you step off the pad: one spells **"KuBa West Trier"**,
-  the school the club meets at, the other carries **one letter for everyone in the club** — the children in alphabetical
-  order, then the **M and V** of the two club leads in **gold**. The tablets are **indestructible**: nobody can mine,
-  burn, blast or build on them. **Scan** a tablet to read what it is (it goes into the Codex like every find). VEGA
-  greets you on landing; nothing else is built on KuBa-W. Find it on the star map by its name.
+  animals**, but no trees, and the gravity is an asteroid's (big jumps). It has exactly **two landing pads**, and **huge
+  stone tablets** tower over them — 80 to 110 blocks tall, every letter 15 blocks wide, close enough that you see the
+  whole text when you step off the pad (look up!). At the first pad stand **"KuBa West Trier"** (the school the club meets
+  at) and, on the opposite side, **"Ju Ma Ve Games"** (JuMaVe Games, the family studio behind the game); at the second pad
+  stands **one letter for everyone in the club** — the children in alphabetical order, then the **M and V** of the two
+  club leads in **gold**. The tablets are **indestructible**: nobody can mine, burn, blast or build on them. **Scan** a
+  tablet to read what it is (it goes into the Codex like every find). VEGA greets you on landing; nothing else is built
+  on KuBa-W. Find it on the star map by its name.
 - **Field medkit** (workshop, blueprint-gated; the doctor sells it, derelict crates sometimes hold one): a reusable
   first-aid pulse. Select it and press **right-click** (pad: **LB**) — you don't aim it at anyone: it heals **you and
   every player on foot within 6 blocks** by 45 health, costs 18 suit energy and is ready again after 4 seconds. When

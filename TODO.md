@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🪨 KuBa-W — Jafar's school-club asteroid with two stone tablets ("KuBa West Trier" + the club's initials), exactly once per galaxy — #3306: #3307–#3313, branch feat/kuba-w — ✅ done 2026-11-07 (terrain generation **33**; ⚠ playtest open; no save-version or block-id change; protocol unchanged; 8 new locale keys in all 14 languages)
+### 🪨 KuBa-W — Jafar's school-club asteroid with three huge stone tablets ("KuBa West Trier", "JuMaVe-Games", the club's initials), exactly once per galaxy — #3306: #3307–#3313, #3330, branch feat/kuba-w — ✅ done 2026-11-07 (terrain generation **33**; ⚠ playtest open; no save-version or block-id change; protocol unchanged; 10 new locale keys in all 14 languages)
 
 Marcel's analysis + decisions 2026-11-07 (asteroid; guaranteed once per galaxy, no slider; one initial per child plus the
 leads M and V; three-line school text; indestructible; nothing else built there; scan + Codex texts). See
@@ -35,14 +35,16 @@ leads M and V; three-line school text; indestructible; nothing else built there;
 - ✅ #3308 `UniverseGenerator.ApplyGuaranteedAsteroids` — exactly one per galaxy, an asteroid field of the original systems
   outside `sys0`, independent of the exotic slider; `ApplyFixedNames` names asteroid fields.
 - ✅ #3309 `PlanetType.LandingPadCount` (KuBa-W: 2).
-- ✅ #3310 `MonumentFont` (5×7 with lowercase) + `TextMonumentGenerator` + `GameServerTextMonuments` — tablets 62×54 and
-  86×36, ~44 blocks in front of their pad, far corner ≤ 62 blocks (browser view), sight-line lift, stamped once + recorded.
+- ✅ #3310 `MonumentFont` (5×7 with lowercase) + `TextMonumentGenerator` + `GameServerTextMonuments` — HUGE tablets (letters
+  15 × 21 blocks, 93 wide, 81–108 tall, ≤ 5 letters a line), 40 blocks in front of their pad, far corner ≤ 64 blocks
+  (browser fog), sight-line lift, stamped once + recorded; the streaming lifts a tablet's chunk columns to its top.
+- ✅ #3330 (Marcel's addition) a third tablet `Ju` / `Ma` / `Ve` / `Games` at the home pad, opposite the school's name.
 - ✅ #3311 indestructible — mining, area burst, crystal tools, fire, bridge/piston, blueprints, NPC miners, construction
   sites, hand placement (`@srv.protect.monument`), admins included.
 - ✅ #3312 scan readout + Codex discovery per tablet (`ui.scan.monument.kuba_*`).
 - ✅ #3313 side finding: "Exotic worlds" on Very rare no longer rounds the weight-1 landmarks to 0, Frequent lifts them to 3
   (from generation 33; `FrequencyExtensions.ExoticWeight`, shared with `PlanetTypeMix`).
-- ⚠ Playtest: a fresh world (generation 33) — find KuBa-W on the star map, land on both pads, read both tablets in the
+- ⚠ Playtest: a fresh world (generation 33) — find KuBa-W on the star map, land on both pads, read all three tablets in the
   browser build too, scan them, try to mine one. A quick start: `--start-planet asteroid_kuba_w` makes the start planet a
   KuBa-W (test worlds only — the galaxy then also has its real one in the belt).
 

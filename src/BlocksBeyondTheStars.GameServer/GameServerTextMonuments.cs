@@ -13,10 +13,11 @@ namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
 /// The stone text tablets of a planet type (#3310, KuBa-W — Jafar's school-club asteroid): one giant tablet per
-/// <see cref="PlanetType.TextMonuments"/> entry, spelled by <see cref="TextMonumentGenerator"/> and stood ~45 blocks in
-/// front of its landing pad, the face turned to the pad, so a player who lands sees the whole text at once. The browser
-/// loads ~64 blocks around the player and the far view shows builds only as 4×4 height blobs, which is why the distance
-/// is short and the text is broken into lines.
+/// <see cref="PlanetType.TextMonuments"/> entry, spelled by <see cref="TextMonumentGenerator"/> (huge: 15 × 21 blocks a
+/// letter) and stood ~40 blocks in front of its landing pad, the face turned to the pad, so a player who lands sees the
+/// whole text at once. The browser's fog closes ~64 blocks around the player and the far view shows builds only as 4×4
+/// height blobs, which is why the distance is short and the text is broken into lines of at most five letters; the
+/// streaming lifts a tablet's chunk columns to its top (<see cref="TextMonumentTopChunk"/>).
 ///
 /// The seat is a search over the four bearings and a few distances: a dry footprint, little ground spread, and a clear line
 /// of sight from eye height at the pad's edge to the foot of the text — what would block the view raises the tablet's
@@ -30,11 +31,11 @@ public sealed partial class GameServer
     private const string TextMonumentRecordPrefix = "textmonument@";
 
     /// <summary>The distances (pad centre → tablet face) the seat search tries, best first.</summary>
-    private static readonly int[] TextMonumentDistances = { 44, 48, 40, 52 };
+    private static readonly int[] TextMonumentDistances = { 40, 44, 48, 52 };
 
     /// <summary>The farthest a tablet's far corner may stand from its pad's centre: the browser streams four chunks (64
     /// blocks) around the player, and the far view shows builds only as blobs — the whole text must be inside.</summary>
-    public const int TextMonumentViewRadius = 62;
+    public const int TextMonumentViewRadius = 64;
 
     /// <summary>How far the plinth may lift a tablet over the ground to clear the view; beyond it a seat is ranked last.</summary>
     private const int TextMonumentMaxLift = 18;
@@ -53,6 +54,7 @@ public sealed partial class GameServer
     internal sealed class TextMonumentInstance
     {
         public string Key { get; init; } = string.Empty;
+        public int Pad { get; init; }
         public int Fx { get; init; }
         public int Fz { get; init; }
         public Vector3i Anchor { get; init; }
@@ -82,7 +84,15 @@ public sealed partial class GameServer
             var tablet = BuildTextTablet(spec);
             if (records.TryGetValue(spec.Key, out var record))
             {
-                _textMonuments.Add(record(tablet));
+                _textMonuments.Add(new TextMonumentInstance
+                {
+                    Key = spec.Key,
+                    Pad = spec.Pad,
+                    Fx = record.Fx,
+                    Fz = record.Fz,
+                    Anchor = record.Anchor,
+                    Tablet = tablet,
+                });
                 continue;
             }
 
@@ -93,7 +103,7 @@ public sealed partial class GameServer
             }
 
             var seat = ChooseTextMonumentSeat(planet, _landingPads[spec.Pad], tablet);
-            var instance = new TextMonumentInstance { Key = spec.Key, Fx = seat.Fx, Fz = seat.Fz, Anchor = seat.Anchor, Tablet = tablet };
+            var instance = new TextMonumentInstance { Key = spec.Key, Pad = spec.Pad, Fx = seat.Fx, Fz = seat.Fz, Anchor = seat.Anchor, Tablet = tablet };
             _repo.RunInTransaction(() => StampTextTablet(planet, instance));
             MarkFeatureStamped($"{TextMonumentRecordPrefix}{spec.Key}:{seat.Fx}:{seat.Fz}:{seat.Anchor.X}:{seat.Anchor.Y}:{seat.Anchor.Z}");
             _textMonuments.Add(instance);
@@ -111,11 +121,11 @@ public sealed partial class GameServer
             accentLine, accentFrom);
     }
 
-    /// <summary>This body's recorded tablets: key → a factory that rebuilds the instance around its tablet.</summary>
-    private Dictionary<string, System.Func<TextTablet, TextMonumentInstance>> RecordedTextMonuments()
+    /// <summary>This body's recorded tablets: key → the facing and the foot anchor they were stamped with.</summary>
+    private Dictionary<string, (int Fx, int Fz, Vector3i Anchor)> RecordedTextMonuments()
     {
         string prefix = _world.LocationId + "|" + TextMonumentRecordPrefix;
-        var found = new Dictionary<string, System.Func<TextTablet, TextMonumentInstance>>(System.StringComparer.Ordinal);
+        var found = new Dictionary<string, (int Fx, int Fz, Vector3i Anchor)>(System.StringComparer.Ordinal);
         foreach (var f in _meta.StampedFeatures)
         {
             if (!f.StartsWith(prefix, System.StringComparison.Ordinal))
@@ -131,31 +141,41 @@ public sealed partial class GameServer
                 continue;
             }
 
-            string key = p[0];
-            found[key] = tablet => new TextMonumentInstance { Key = key, Fx = fx, Fz = fz, Anchor = new Vector3i(x, y, z), Tablet = tablet };
+            found[p[0]] = (fx, fz, new Vector3i(x, y, z));
         }
 
         return found;
     }
 
-    /// <summary>The seat of a tablet in front of <paramref name="pad"/>: the best of four bearings × a few distances.</summary>
+    /// <summary>The seat of a tablet in front of <paramref name="pad"/>: the best of four bearings × a few distances. A second
+    /// tablet at the same pad (#3330, "JuMaVe-Games" beside "KuBa West Trier") never takes a bearing an earlier one uses,
+    /// prefers the opposite side and keeps <see cref="TextMonumentGap"/> to every tablet already standing.</summary>
     private (int Fx, int Fz, Vector3i Anchor) ChooseTextMonumentSeat(PlanetType planet, LandingPad pad, TextTablet tablet)
     {
         var bearings = new (int Fx, int Fz)[] { (0, 1), (1, 0), (0, -1), (-1, 0) };
+        var taken = _textMonuments.Where(m => m.Pad == pad.Index).Select(m => (m.Fx, m.Fz)).ToList();
         int start = (int)(WorldGenerator.StableHash("textmonument-bearing:" + _world.LocationId + ":" + pad.Index) & 3);
         (int Fx, int Fz, Vector3i Anchor) best = default;
         double bestScore = double.MaxValue;
         for (int b = 0; b < bearings.Length; b++)
         {
             var (fx, fz) = bearings[(start + b) & 3];
+            if (taken.Contains((fx, fz)))
+            {
+                continue;
+            }
+
+            // Beside a taken bearing (not opposite it) the two tablets stand at right angles — allowed, but the opposite reads better.
+            double side = taken.Any(t => (t.Fx * fx) + (t.Fz * fz) == 0) ? 6.0 : 0.0;
             for (int d = 0; d < TextMonumentDistances.Length; d++)
             {
-                if (TextMonumentSeatScore(planet, pad, tablet, fx, fz, TextMonumentDistances[d], out var anchor) is not { } score)
+                if (TextMonumentSeatScore(planet, pad, tablet, fx, fz, TextMonumentDistances[d], out var anchor) is not { } score
+                    || CrowdsATablet(anchor, fx, fz, tablet))
                 {
                     continue;
                 }
 
-                score += d * 0.5; // the nearer distances read best
+                score += (d * 0.5) + side; // the nearer distances read best
                 if (score < bestScore)
                 {
                     bestScore = score;
@@ -171,6 +191,65 @@ public sealed partial class GameServer
         }
 
         return best;
+    }
+
+    /// <summary>The gap a tablet keeps to every other tablet, in blocks.</summary>
+    private const int TextMonumentGap = 6;
+
+    /// <summary>Whether a tablet seated at <paramref name="anchor"/> facing (<paramref name="fx"/>, <paramref name="fz"/>) would
+    /// come within <see cref="TextMonumentGap"/> of a tablet already standing (footprints compared seam-aware).</summary>
+    private bool CrowdsATablet(Vector3i anchor, int fx, int fz, TextTablet tablet)
+    {
+        int circ = _world.Circumference;
+        var mine = TabletFootprint(anchor, fz, -fx, fx, fz, tablet.Width, tablet.Depth);
+        foreach (var m in _textMonuments)
+        {
+            var other = TabletFootprint(m.Anchor, m.Rx, m.Rz, m.Fx, m.Fz, m.Tablet.Width, m.Tablet.Depth);
+            int shift = WorldConstants.WrapDeltaX(other.MinX - mine.MinX, circ) - (other.MinX - mine.MinX);
+            if (other.MinX + shift - TextMonumentGap <= mine.MaxX && mine.MinX <= other.MaxX + shift + TextMonumentGap
+                && other.MinZ - TextMonumentGap <= mine.MaxZ && mine.MinZ <= other.MaxZ + TextMonumentGap)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>The highest chunk Y a text tablet reaches in chunk column (<paramref name="chunkX"/>, <paramref name="chunkZ"/>),
+    /// or <see cref="int.MinValue"/> when no tablet stands in it — the streaming pass lifts the column to it.</summary>
+    private int TextMonumentTopChunk(int chunkX, int chunkZ)
+    {
+        if (_textMonuments.Count == 0)
+        {
+            return int.MinValue;
+        }
+
+        int circ = _world.Circumference;
+        int x0 = chunkX * WorldConstants.ChunkSize, z0 = chunkZ * WorldConstants.ChunkSize, last = WorldConstants.ChunkSize - 1;
+        int top = int.MinValue;
+        foreach (var m in _textMonuments)
+        {
+            var fp = TabletFootprint(m.Anchor, m.Rx, m.Rz, m.Fx, m.Fz, m.Tablet.Width, m.Tablet.Depth);
+            int rel = WorldConstants.WrapDeltaX(x0 - fp.MinX, circ);
+            if (rel + last >= 0 && rel <= fp.MaxX - fp.MinX && z0 + last >= fp.MinZ && z0 <= fp.MaxZ)
+            {
+                top = System.Math.Max(top, WorldConstants.WorldToChunk(m.Anchor.Y + m.Tablet.Height - 1));
+            }
+        }
+
+        return top;
+    }
+
+    /// <summary>Test/util: the top chunk a tablet lifts a column's streaming to (<see cref="int.MinValue"/> = none).</summary>
+    internal int TextMonumentTopChunkForTest(int chunkX, int chunkZ) => TextMonumentTopChunk(chunkX, chunkZ);
+
+    /// <summary>A tablet's ground rectangle (X unwrapped) from its anchor and frame.</summary>
+    private static (int MinX, int MaxX, int MinZ, int MaxZ) TabletFootprint(Vector3i anchor, int rx, int rz, int fx, int fz, int width, int depth)
+    {
+        int x2 = anchor.X + ((width - 1) * rx) + ((depth - 1) * fx);
+        int z2 = anchor.Z + ((width - 1) * rz) + ((depth - 1) * fz);
+        return (System.Math.Min(anchor.X, x2), System.Math.Max(anchor.X, x2), System.Math.Min(anchor.Z, z2), System.Math.Max(anchor.Z, z2));
     }
 
     /// <summary>A seat's score (lower is better) and its anchor, or null when the footprint would cross the latitude wrap.

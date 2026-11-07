@@ -66,17 +66,18 @@ public sealed class TextTablet
 /// </summary>
 public static class TextMonumentGenerator
 {
-    /// <summary>Blocks per font pixel along each axis of the face.</summary>
-    public const int PixelScale = 2;
+    /// <summary>Blocks per font pixel along each axis of the face — 3: a letter is 15 blocks wide and 21 tall (Marcel: the
+    /// monuments must be HUGE).</summary>
+    public const int PixelScale = 3;
 
     /// <summary>The slab's border around the text, in blocks.</summary>
-    public const int Border = 2;
+    public const int Border = 3;
 
     /// <summary>Space between two lines, in font pixels.</summary>
     public const int LineGapPixels = 2;
 
     /// <summary>The slab's thickness behind the letters, in blocks.</summary>
-    public const int SlabDepth = 2;
+    public const int SlabDepth = 3;
 
     /// <summary>One lamp cell in the front step every this many blocks (<see cref="TextTablet.IsLamp"/>).</summary>
     public const int LampSpacing = 8;

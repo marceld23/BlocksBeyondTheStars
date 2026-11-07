@@ -74,9 +74,11 @@ public sealed class KubaWTests : IDisposable
         Assert.Equal(new[] { "net_fragments" }, p.AllowedStructures);
         Assert.NotNull(p.WeatherEvents);
         Assert.Equal(0.0, p.WeatherEvents!.TryGetValue("meteor_shower", out double meteors) ? meteors : -1.0);
-        Assert.Equal(new[] { "kuba_school", "kuba_initials" }, p.TextMonuments.Select(t => t.Key));
+        Assert.Equal(new[] { "kuba_school", "kuba_initials", "jumave_games" }, p.TextMonuments.Select(t => t.Key));
         Assert.Equal(new[] { "KuBa", "West", "Trier" }, p.TextMonuments[0].Lines);
-        Assert.Equal(new[] { 0, 1 }, p.TextMonuments.Select(t => t.Pad));
+        Assert.Equal("JuMaVeGames", string.Concat(p.TextMonuments[2].Lines)); // #3330
+        Assert.Equal(new[] { 0, 1, 0 }, p.TextMonuments.Select(t => t.Pad));
+        Assert.All(p.TextMonuments, t => Assert.All(t.Lines, l => Assert.True(l.Length <= 5, $"{t.Key}: '{l}' — a line wider than five letters leaves the browser's view")));
     }
 
     [Fact]
@@ -86,7 +88,8 @@ public sealed class KubaWTests : IDisposable
         string children = string.Concat("Ben Daimien Jafar Justus Lena Marie Nikita Noah Paul Sophie Theo".Split(' ').OrderBy(n => n, StringComparer.Ordinal).Select(n => n[0]));
         string all = string.Concat(initials.Lines).Replace(" ", string.Empty, StringComparison.Ordinal);
         Assert.Equal(children + "MV", all);
-        Assert.Equal(new[] { 1, initials.Lines[1].IndexOf("MV", StringComparison.Ordinal) }, initials.AccentFrom);
+        int last = initials.Lines.Count - 1;
+        Assert.Equal(new[] { last, initials.Lines[last].IndexOf("MV", StringComparison.Ordinal) }, initials.AccentFrom);
     }
 
     [Fact]
@@ -194,19 +197,26 @@ public sealed class KubaWTests : IDisposable
     [Fact]
     public void TheTablet_SpellsItsLines_InTheFont_AndHasTheAgreedSize()
     {
+        // Marcel: HUGE — a letter is 15 blocks wide and 21 tall; five letters a line keep a tablet inside the browser's view.
         var school = TextMonumentGenerator.Build(new[] { "KuBa", "West", "Trier" }, 1, 2, 3);
-        Assert.Equal(62, school.Width);
-        Assert.Equal(54, school.Height);
+        Assert.Equal(93, school.Width);
+        Assert.Equal(81, school.Height);
         Assert.Equal(new[] { "KuBa", "West", "Trier" }, ReadTablet(school.Lines, (x, y) => school.Get(x, y, 0), 2, 3));
 
-        var initials = TextMonumentGenerator.Build(new[] { "BDJJLMN", "NPST MV" }, 1, 2, 3, accentLine: 1, accentFrom: 5);
-        Assert.Equal(86, initials.Width);
-        Assert.Equal(36, initials.Height);
-        Assert.Equal(new[] { "BDJJLMN", "NPST MV" }, ReadTablet(initials.Lines, (x, y) => initials.Get(x, y, 0), 2, 3));
-        int left = TextMonumentGenerator.GlyphLeft("NPST MV", 5, MonumentFont.LineWidth("BDJJLMN"));
-        int top = TextMonumentGenerator.GlyphTop(initials.Height, 1);
+        var initials = TextMonumentGenerator.Build(new[] { "BDJJL", "MNNPS", "T MV" }, 1, 2, 3, accentLine: 2, accentFrom: 2);
+        Assert.Equal(93, initials.Width);
+        Assert.Equal(81, initials.Height);
+        Assert.Equal(new[] { "BDJJL", "MNNPS", "T MV" }, ReadTablet(initials.Lines, (x, y) => initials.Get(x, y, 0), 2, 3));
+        int left = TextMonumentGenerator.GlyphLeft("T MV", 2, MonumentFont.LineWidth("BDJJL"));
+        int top = TextMonumentGenerator.GlyphTop(initials.Height, 2);
         Assert.Equal(3, initials.Get(left, top, 0)); // the M's top-left pixel is the accent block
+        Assert.Equal(2, initials.Get(TextMonumentGenerator.GlyphLeft("T MV", 0, MonumentFont.LineWidth("BDJJL")), top, 0)); // the T is not
         Assert.True(Enumerable.Range(0, initials.Width).Count(x => initials.IsLamp(x, TextMonumentGenerator.Border - 1, 0)) is > 0 and < 20);
+
+        var jumave = TextMonumentGenerator.Build(new[] { "Ju", "Ma", "Ve", "Games" }, 1, 2, 3);
+        Assert.Equal(93, jumave.Width);
+        Assert.Equal(108, jumave.Height);
+        Assert.Equal(new[] { "Ju", "Ma", "Ve", "Games" }, ReadTablet(jumave.Lines, (x, y) => jumave.Get(x, y, 0), 2, 3));
     }
 
     // ---------------- the server: pads, tablets, protection, scan (#3309–#3312) ----------------
@@ -219,7 +229,10 @@ public sealed class KubaWTests : IDisposable
         {
             Assert.Equal(2, server.LandingPadCount);
             var tablets = server.TextMonumentsForTest();
-            Assert.Equal(new[] { "kuba_school", "kuba_initials" }, tablets.Select(t => t.Key));
+            Assert.Equal(new[] { "kuba_school", "kuba_initials", "jumave_games" }, tablets.Select(t => t.Key));
+
+            // #3330: the two tablets of the home pad stand on opposite sides — neither hides the other.
+            Assert.Equal((-tablets[0].Fx, -tablets[0].Fz), (tablets[2].Fx, tablets[2].Fz));
             var specs = Content.GetPlanet(Key)!.TextMonuments;
             ushort letter = Content.GetBlock("concrete")!.NumericId.Value, accent = Content.GetBlock("gold_block")!.NumericId.Value;
             for (int i = 0; i < tablets.Count; i++)
@@ -232,17 +245,24 @@ public sealed class KubaWTests : IDisposable
                 // The reader's frame: the face (z = 0) is the side toward the pad, x runs to the right of someone looking from the pad.
                 var a = server.TextMonumentCellForTest(t.Key, 0, 0, 0);
                 var back = server.TextMonumentCellForTest(t.Key, 0, 0, t.Depth - 1);
-                Assert.True(Dist(pad, a) < Dist(pad, back), $"{t.Key}: the face must look at its pad");
+                Assert.True(Dist(server, pad, a) < Dist(server, pad, back), $"{t.Key}: the face must look at its pad");
                 var next = server.TextMonumentCellForTest(t.Key, 1, 0, 0);
                 Assert.Equal((t.Fz, -t.Fx), (WorldConstants.WrapDeltaX(next.X - a.X, server.World.Circumference), next.Z - a.Z));
 
                 // The whole tablet lies inside the browser's view radius around the pad.
                 foreach (var (x, z) in new[] { (0, 0), (t.Width - 1, 0), (0, t.Depth - 1), (t.Width - 1, t.Depth - 1) })
                 {
-                    Assert.True(Dist(pad, server.TextMonumentCellForTest(t.Key, x, 0, z)) <= SvGameServer.TextMonumentViewRadius + 1, $"{t.Key} corner too far");
+                    Assert.True(Dist(server, pad, server.TextMonumentCellForTest(t.Key, x, 0, z)) <= SvGameServer.TextMonumentViewRadius + 1, $"{t.Key} corner too far");
                 }
 
                 AssertClearView(server, pad, t);
+
+                // The streaming lifts the tablet's columns to its top (80–110 blocks over the ground): nothing is cut off.
+                var topCell = server.TextMonumentCellForTest(t.Key, t.Width / 2, t.Height - 1, 0);
+                Assert.True(server.TextMonumentTopChunkForTest(WorldConstants.WorldToChunk(topCell.X), WorldConstants.WorldToChunk(topCell.Z))
+                            >= WorldConstants.WorldToChunk(topCell.Y), $"{t.Key}: its top chunk does not stream");
+                Assert.False(server.World.GetBlock(server.TextMonumentCellForTest(t.Key, t.Width / 2, t.Height - 1, 1)).IsAir,
+                    $"{t.Key}: the top row of the slab is missing");
             }
         }
     }
@@ -310,7 +330,7 @@ public sealed class KubaWTests : IDisposable
         using (repo2)
         {
             Assert.Equal(before, second.TextMonumentsForTest());
-            Assert.Equal(2, second.Metadata.StampedFeatures.Count(f => f.Contains("|textmonument@", StringComparison.Ordinal)));
+            Assert.Equal(3, second.Metadata.StampedFeatures.Count(f => f.Contains("|textmonument@", StringComparison.Ordinal)));
         }
     }
 
@@ -335,8 +355,9 @@ public sealed class KubaWTests : IDisposable
         return server;
     }
 
-    private static double Dist((int X, int Y, int Z) pad, Vector3i cell)
-        => Math.Sqrt(Math.Pow(pad.X - cell.X, 2) + Math.Pow(pad.Z - cell.Z, 2));
+    /// <summary>Horizontal distance, X across the world's seam (pad 1 sits half a world from pad 0, right at it).</summary>
+    private static double Dist(SvGameServer server, (int X, int Y, int Z) pad, Vector3i cell)
+        => Math.Sqrt(Math.Pow(WorldConstants.WrapDeltaX(cell.X - pad.X, server.World.Circumference), 2) + Math.Pow(pad.Z - cell.Z, 2));
 
     /// <summary>Reads a tablet face back into text: every glyph cell is matched against the font, pixel by pixel.</summary>
     private static string[] ReadTablet(IReadOnlyList<string> lines, Func<int, int, ushort> face, ushort letter, ushort accent)

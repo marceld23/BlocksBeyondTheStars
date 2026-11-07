@@ -3080,11 +3080,12 @@ vendor and at the ship's console (#2987).
 **Tests:** `StartSystemJumpOresTests` (80 seeds: both ores in every start system, the start stays put, idempotent; an
 older generation unchanged; the metallic asteroids' gated lead vein; a fresh server pins the retyped system).
 
-## 49. Generation 33 — KuBa-W, the school club's asteroid (#3306: #3307–#3313, 2026-11-07, Jafar's idea)
+## 49. Generation 33 — KuBa-W, the school club's asteroid (#3306: #3307–#3313, #3330, 2026-11-07, Jafar's idea)
 
 Jafar from the school club designed a world like the earlier landmarks: a small asteroid with breathable air, a greenish
 sky, hills and flat land, animals, and two giant stone monuments — one spelling **"KuBa West Trier"** (the school), one the
-**initials of everyone in the club** (every child, then the two leads). `WorldDescription.KubaWGeneration` is **33**;
+**initials of everyone in the club** (every child, then the two leads). Marcel added a third, **"JuMaVe-Games"** (#3330),
+and asked for them to be **huge**. `WorldDescription.KubaWGeneration` is **33**;
 every rule below is gated on it, so every older galaxy, body and chunk is bit for bit what it was (no golden moved).
 
 **The type (#3307).** `asteroid_kuba_w` — the key starts with `asteroid`, so `WorldConstants.IsAsteroidType` gives it the
@@ -3111,16 +3112,22 @@ floor) when set: KuBa-W has pad 0 at the home touchdown and pad 1 half a world a
 
 **The text tablets (#3310).** `PlanetType.TextMonuments` lists `{ key, pad, lines, accentFrom }`;
 `TextMonumentGenerator` spells the lines in `MonumentFont` — a 5×7 pixel font **with lowercase** ("KuBa"; the arcade's
-`BitmapFont` is uppercase-only and lives in `Client.Core`, out of the generator's reach) — at 2×2 blocks per font pixel:
-a basalt slab with a 2-block border, concrete letters one block proud, the accent run (the leads' M V) in `gold_block`, a
-front step under the text with a lamp every 8 blocks. The letters themselves do not glow: every glowing cell is a light
-source on the client, and a thousand of them would cost small hardware dearly. Sizes: the school tablet 62 × 54, the
-initials tablet (`BDJJLMN` / `NPST MV`) 86 × 36. **Why so near and in lines:** the browser streams four chunks
-(64 blocks) around the player and the far view draws builds only as 4×4-block height blobs (`FarTerrainOverlay`), so a
-text is readable only while the whole tablet is inside that radius — one line "KuBa West Trier" would be ~180 blocks wide.
+`BitmapFont` is uppercase-only and lives in `Client.Core`, out of the generator's reach) — at **3×3 blocks per font
+pixel** (a letter 15 wide, 21 tall): a basalt slab 3 thick with a 3-block border, concrete letters one block proud, the
+accent run (the leads' M V) in `gold_block`, a front step under the text with a lamp every 8 blocks. The letters themselves
+do not glow: every glowing cell is a light source on the client, and thousands of them would cost small hardware dearly.
+The three tablets, all 93 wide: `KuBa` / `West` / `Trier` (81 tall) and `Ju` / `Ma` / `Ve` / `Games` (108 tall) at pad 0,
+`BDJJL` / `MNNPS` / `T MV` (81 tall) at pad 1. **Why so near and at most five letters a line:** the browser's fog closes
+at four chunks (64 blocks) around the player and the far view draws builds only as 4×4-block height blobs
+(`FarTerrainOverlay`), so a text is readable only while the whole tablet is inside that radius — one line "KuBa West
+Trier" at this size would be ~270 blocks wide. **Streaming the height (#3310):** a far column streams only its surface band
+(the terrain's top ±1 chunk) and a near one 2–3 chunks above the player, so an 80–110-block tablet would be cut off;
+`StreamColumnSpan` lifts every chunk column a tablet stands in to the tablet's top (`TextMonumentTopChunk`).
 `GameServerTextMonuments.StampTextMonuments` (first in the structures pass, whatever the structure options say) seats each
-tablet in front of its pad: four cardinal bearings (starting at a per-body hash) × distances 44 / 48 / 40 / 52, a seat
-whose far corner would leave a 62-block radius of the pad dropped; the score adds the ground spread, a wet share and the
+tablet in front of its pad: four cardinal bearings (starting at a per-body hash) × distances 40 / 44 / 48 / 52, a seat
+whose far corner would leave a 64-block radius of the pad dropped (the nearest distance is always allowed — at 93 wide it
+is the only one); a second tablet at the same pad (#3330) never takes a bearing an earlier one uses, prefers the opposite
+side and keeps a 6-block gap to every tablet; the score adds the ground spread, a wet share and the
 **view lift** — sight lines from eye height at the pad's rim to the foot of the text (left end, middle, right end) sampled
 over the heightfield, and the plinth rises by what would block them. The tablet's frame: `x` to the right of a reader
 looking from the pad (`(Fz, −Fx)`), `z` away from the reader, so the face looks at the pad. Stamped once (plinth from each
@@ -3144,6 +3151,7 @@ galaxy rolls the same.
 
 **Tests:** `KubaWTests` (the type and its locales, the initials, exactly one per galaxy at sizes 6 / 12 / 32 and with
 exotic Off, growth, none below 33, never a planet; the exotic weights; the tablet sizes and a read-back of the face
-through the font; on a real server two pads, both tablets read back from the world blocks, the face toward the pad, every
-corner inside the view radius, no solid block on the sight lines, protection, scan, reload from the record), golden
+through the font; on a real server two pads, all three tablets read back from the world blocks (pad 1 sits on the X
+seam), the face toward the pad, the home pad's two tablets on opposite sides, every corner inside the view radius, no solid
+block on the sight lines, the top chunk streamed, protection, scan, reload from the record), golden
 `asteroid_kuba_w-gen33`, `PlanetTypeMixTests` (weight-1 landmark per slider step), `PlacementRuleOrderTests`.

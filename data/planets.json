@@ -1263,7 +1263,8 @@
   // Terrain generation 33 (#3306, KuBa-W): Jafar's world from the school club — a small asteroid with breathable air under a
   // pale-green sky, hills and flat meadows, animals and no trees, exactly once in every galaxy (placed by
   // UniverseGenerator.ApplyGuaranteedAsteroids, never by the family roll: spawn weight 0). Two landing pads; in front of each
-  // stands a giant stone tablet — the school's name, and the initials of everyone in the club (the leads' M V in gold).
+  // stands a giant stone tablet (#3310, letters 15 × 21 blocks): the school's name and "JuMaVe-Games" at the home pad (on
+  // opposite sides, #3330), the initials of everyone in the club at the other (the leads' M V in gold).
   {
     "key": "asteroid_kuba_w", "minTerrainGeneration": 33, "exotic": true, "guaranteedOnce": true, "fixedName": "KuBa-W", "floraTheme": "temperate", "baseTemperature": 17, "nameKey": "planet.asteroid_kuba_w.name", "atmosphereHeight": 190, "cloudColor": 15593458, "cloudDensity": 0.35, "mist": 0.3, "skyColor": 11065504,
     "terrainTags": [],
@@ -1278,7 +1279,8 @@
     "landingPadCount": 2,
     "textMonuments": [
       { "key": "kuba_school", "pad": 0, "lines": ["KuBa", "West", "Trier"] },
-      { "key": "kuba_initials", "pad": 1, "lines": ["BDJJLMN", "NPST MV"], "accentFrom": [1, 5] }
+      { "key": "kuba_initials", "pad": 1, "lines": ["BDJJL", "MNNPS", "T MV"], "accentFrom": [2, 2] },
+      { "key": "jumave_games", "pad": 0, "lines": ["Ju", "Ma", "Ve", "Games"] }
     ],
     "biomes": [
       { "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "floraDensityMul": 1.2 },
