@@ -24,6 +24,33 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛗 The lift's build rule, told — where the motor goes, a stop too low, only the bottom floor, the Codex text and picture (Marcel's analysis 2026-11-07) — #3297–#3302, branch fix/lift-build-rule — ✅ done 2026-11-07 (⚠ playtest open; no save-version, protocol or terrain-generation change; server texts only — four new and six changed locale keys plus two Codex articles in all 14 languages)
+
+Marcel asked whether the lift works and whether it is documented right. The server logic is sound (tests green), but
+one rule was explained nowhere: the platform rests **on top of** the motor, so a level entry needs the motor one block
+below the ground, and a stop belongs only from two blocks above the motor up. The natural build — the motor set on the
+ground — leaves the platform two blocks up (out of jump reach) and every stop on the ground beside it "belonging to no
+lift". The rule stays (moving the resting height would shift every saved lift); the game now says it.
+
+- **#3297** Manual § Lift (*Building it*), `item.lift_motor.desc` / `item.lift_stop.desc`, `blueprint.crystal_lift.desc`
+  (now names the lift gate), both VEGA lift hints and `srv.lift.stop_no_shaft` say: dig a 3×3 pit one deep, the motor
+  into the middle of its floor; every stop at least two blocks higher than the motor. MOVING_BLOCKS.md § 5.
+- **#3298** Codex: the lift bullet in *Crystal Net: machines* (build rule, bottom stop, 256 blocks, no conduits,
+  headroom, floor picker, lift gates) and the build paragraph in *circuits to build*; `CodexBlockNameTests` now
+  requires the lift gate's name.
+- **#3299** `circuit_lift.png` redrawn (`tools/wiki/gen_circuit_diagrams.py`): motor in the pit floor, platform flush
+  with the ground (full blocks, not a thin bar), bottom stop, upper landing with stop and lift gate, dashed outline
+  where the platform stops up there.
+- **#3300** `srv.lift.stop_too_low`: a stop in a motor's ring up to three cells below the lowest stop height says so
+  when placed and when pressed (it used to say "two blocks from the middle", which it already was).
+- **#3301** `srv.lift.only_bottom_floor`: a press on the motor of a lift whose only floor already has its stop asks for
+  a stop higher up instead of "no stops yet".
+- **#3302** Placing a motor reads the stop ring: a floor one or two cells below the platform's top answers
+  `srv.lift.motor_step` / `srv.lift.motor_high` (sink the motor); a level landing or no ground near says nothing.
+  Code in `GameServerLiftAdvice.cs`; three new `LiftShaftTests`.
+- Playtest: place a motor on the ground (warning), in a 1-deep 3×3 pit (silent, platform flush), a stop on the ground
+  beside a motor set on the ground (too low), a bottom stop only + press on the motor (asks for a stop higher up).
+
 ### 📬 Player reports 2026-11-06 evening (Justus as Screelit + Ben from the school club, v2026.11.7) — a ship that no longer floats after a re-join, every cube material shapeable, Guardian UFOs, rune stones in their biome's colours, guardian / robber / flower gear with a trader discount, a reward crate after the finale, a friendly hunter robot — #3286–#3295, branch feat/reports-2026-11-06b — ✅ done 2026-11-07 (⚠ playtest open; **no save-version or block-id change** (only new items); **new SQL columns** `container.owner` / `owner_name` (added by `ALTER TABLE` on old saves); protocol: one new server→client message `TraderDiscountInfo` (tag 319) + additive `NetContainer.OwnerId/OwnerName`; no terrain-generation change — monuments stamp their rune glow per biome only where they are first stamped; ~68 new/changed locale keys in all 14 languages)
 
 - **#3286** (Ben) The parked ship hung five cells in the air after a re-join: the parking height read the pad centre and

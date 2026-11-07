@@ -2470,7 +2470,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
     pulls the first one back. It never moves crates, devices, doors or someone else's base.
   - **Lift** — a **lift motor** at the bottom of a 3×3 shaft, a **lift stop** beside the shaft on each floor —
     the bottom floor too: put each stop right next to the shaft, two blocks from the middle of the motor, at most
-    **256 blocks** above it. Press a stop (or send it a signal) and the platform comes to that floor; a signal on the
+    **256 blocks** above it (and at least two blocks above it — see *Building it* below). Press a stop (or send it a
+    signal) and the platform comes to that floor; a signal on the
     motor sends it to the next stop. A lift needs **no crystal conduits** — pressing is enough, and its stops and
     motor never use up your Crystal Net networks, however many floors it has. Stand on the platform and it carries
     you; it waits while anything stands under it. Short rides go at an easy walking pace; **long rides speed up**
@@ -2480,6 +2481,16 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
     it early enough that you keep your head clear of the block. The shaft also needs room for you at each floor:
     two free blocks above the platform, where you stand — a floor without them can't be ridden to. A stop that belongs to no lift, or a motor without stops, says so when pressed. Snow never settles in
     a lift shaft.
+    - **Building it.** The 3×3 platform rests **right on top of the motor**, and it always stops level with the
+      block a lift stop stands on. So **sink the motor**: dig a **3×3 pit one block deep** and set the motor into the
+      middle of the pit's floor — the resting platform then fills the pit, level with the ground, and you just walk
+      on. Put the bottom stop on the ground at the edge of the pit, and on every floor above a landing right beside the
+      shaft with a stop on it. Every stop stands on the floor where you step onto the platform — **at least two blocks
+      higher than the motor**. A motor set *on* the ground leaves the platform two blocks up, too high to climb on, and
+      a stop on the ground beside it belongs to no lift; a motor set *into* the ground leaves a one-block step. The game
+      tells you right away when you place a motor like that or a stop too low beside the shaft, and a press on the
+      motor of a lift that has only its bottom floor asks for a stop higher up. The Codex (*Crystal Net: circuits to
+      build*) shows the build as a picture.
     - **Space elevator.** A tall lift can reach above the planet's air (the atmosphere line, where you start to float).
       Stops up there work like any other floor. When a ride carries you out of the air, the game tells you once that
       your **suit now supplies the oxygen** — keep an eye on it. Step off the platform up there and you float as on any

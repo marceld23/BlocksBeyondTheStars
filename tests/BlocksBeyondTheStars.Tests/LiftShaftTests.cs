@@ -443,4 +443,88 @@ public sealed class LiftShaftTests : IDisposable
         RideAlong(server, null, Motor, 30.0);
         Assert.Equal(201f, server.LiftPlatformYForTest(Motor));
     }
+
+    // ---- #3300–#3302: the build advice — the platform rests on top of the motor -------------------------------------
+
+    /// <summary>Places a block with the builder standing close by (the cell within reach, not in the builder's own body).</summary>
+    private static void PlaceNear(SvGameServer server, BlocksBeyondTheStars.GameServer.PlayerSession p, Vector3i cell, string key)
+    {
+        p.State.Position = new Vector3f(cell.X + 4, cell.Y + 3, cell.Z);
+        server.PlaceBlock("Builder", cell.X, cell.Y, cell.Z, key);
+    }
+
+    private static int Count(string[] said, string text) => said.Count(t => t == text);
+
+    [Fact]
+    public void AStopSetTooLowBesideTheShaft_SaysSo_WhenPlacedAndWhenPressed()
+    {
+        var (server, p) = Lift();
+        var low = new Vector3i(4, Motor.Y + 1, 2); // in the ring, one below the bottom floor's stop (on the ground beside a motor set into it)
+        server.PlaceBlock("Builder", low.X, low.Y, low.Z, "lift_stop");
+        Assert.Equal(1, Count(Said(p), "@srv.lift.stop_too_low")); // said at once, when placed
+
+        Press(server, p, low);
+        Assert.Equal(2, Count(Said(p), "@srv.lift.stop_too_low")); // and again on the press — not "two blocks from the middle"
+        Assert.DoesNotContain(Said(p), t => t.StartsWith("@srv.lift.stop_no_shaft", StringComparison.Ordinal));
+        Assert.Equal(201f, server.LiftPlatformYForTest(Motor));
+
+        var level = new Vector3i(4, Motor.Y, 4); // a corner of the ring, level with the motor (beside a motor set on the ground)
+        server.PlaceBlock("Builder", level.X, level.Y, level.Z, "lift_stop");
+        Assert.Equal(3, Count(Said(p), "@srv.lift.stop_too_low"));
+
+        server.PlaceBlock("Builder", BottomStop.X, BottomStop.Y, BottomStop.Z, "lift_stop"); // where it belongs: nothing to say
+        Assert.Equal(3, Count(Said(p), "@srv.lift.stop_too_low"));
+
+        var deep = new Vector3i(0, Motor.Y - 2, 2); // in the ring but far below: no lift's stop at all
+        PlaceNear(server, p, deep, "lift_stop");
+        Press(server, p, deep);
+        Assert.Equal(3, Count(Said(p), "@srv.lift.stop_too_low"));
+        Assert.Contains("@srv.lift.stop_no_shaft:" + CrystalNetRules.LiftMaxHeight, Said(p));
+    }
+
+    [Fact]
+    public void APressOnTheMotor_WithOnlyTheBottomStop_AsksForAStopHigherUp()
+    {
+        var (server, p) = Lift();
+        server.PlaceBlock("Builder", BottomStop.X, BottomStop.Y, BottomStop.Z, "lift_stop");
+
+        Press(server, p, Motor);
+        Assert.Contains("@srv.lift.only_bottom_floor", Said(p)); // the lift has a stop — it has no other floor yet
+        Assert.DoesNotContain("@srv.lift.no_stops", Said(p));
+        Assert.Equal(201f, server.LiftPlatformYForTest(Motor));
+    }
+
+    [Fact]
+    public void AMotorPlacedAboveTheGround_SaysHowHighThePlatformWillRest_AMotorInAPitSaysNothing()
+    {
+        var (server, p) = Lift(); // the harness's motor hangs in the air: no ground near, nothing to say
+        Assert.DoesNotContain(Said(p), t => t.StartsWith("@srv.lift.motor_", StringComparison.Ordinal));
+
+        // On the ground: the floor beside the shaft lies one below the motor — the platform's top two above it, out of
+        // reach. A wall beside the shaft is no floor.
+        var onGround = new Vector3i(20, 200, 2);
+        Set(server, new Vector3i(onGround.X + 2, onGround.Y - 1, onGround.Z), "stone");
+        for (int dy = 1; dy <= 3; dy++)
+        {
+            Set(server, new Vector3i(onGround.X - 2, onGround.Y + dy, onGround.Z), "stone");
+        }
+
+        PlaceNear(server, p, onGround, "lift_motor");
+        Assert.Equal(1, Count(Said(p), "@srv.lift.motor_high"));
+
+        // Set into the ground: the floor level with the motor — a one-block step.
+        var inGround = new Vector3i(30, 200, 2);
+        Set(server, new Vector3i(inGround.X - 2, inGround.Y, inGround.Z + 1), "stone");
+        PlaceNear(server, p, inGround, "lift_motor");
+        Assert.Equal(1, Count(Said(p), "@srv.lift.motor_step"));
+
+        // In the floor of a 3×3 pit: the ground beside the shaft is level with the platform's top — the right build.
+        var inPit = new Vector3i(40, 200, 2);
+        Set(server, new Vector3i(inPit.X + 2, inPit.Y + 1, inPit.Z - 2), "stone");
+        Set(server, new Vector3i(inPit.X - 2, inPit.Y - 1, inPit.Z), "stone"); // lower ground elsewhere does not matter
+        PlaceNear(server, p, inPit, "lift_motor");
+        Assert.Equal(1, Count(Said(p), "@srv.lift.motor_high"));
+        Assert.Equal(1, Count(Said(p), "@srv.lift.motor_step"));
+        Assert.Equal(201f, server.LiftPlatformYForTest(Motor));
+    }
 }

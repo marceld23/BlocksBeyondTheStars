@@ -28,7 +28,7 @@ public sealed class CodexBlockNameTests
         "force_field", "energy_fence", "energy_gate", "campfire", "forge", "heal_tank", "flower_pot", "hydro_tray",
         "beam_block", "radio_beacon", "sentry_post", "thumper", "water_spout", "matter_sender", "matter_receiver",
         "drill_laser", "fabricator", "caller", "clone_tank", "phase_block", "trapdoor", "bridge_motor", "piston",
-        "lift_motor", "lift_stop", "ship_sensor",
+        "lift_motor", "lift_stop", "lift_gate", "ship_sensor", // #3298: the lift gate was named nowhere in the Codex
     };
 
     private static Dictionary<string, string> Table(params string[] path)

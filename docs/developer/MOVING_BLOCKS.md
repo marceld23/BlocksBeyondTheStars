@@ -76,11 +76,23 @@ head's cell. `out=` persists the head.
 
 **Building.** A `lift_motor` at the bottom; the shaft is the 3×3 column above it (`LiftPlatformRadius` 1, at most
 `LiftMaxHeight` 256 cells — 48 until #3204; nothing recorded a reason for 48, and the platform is one server float, so
-riding cost does not grow with height). The platform rests on the motor. A `lift_stop` beside the shaft (within
-`LiftStopReach` of the platform's edge) is a floor: the platform's top comes level with the stop's own cell.
-`LiftLevels` lists the floors, bottom first. A stop on the bottom floor belongs to the lift too (`StopBelongsTo`, #3161
-— it used to be excluded, so a press on it did nothing and the platform could not be called back down). The client
-mirrors the rule (`LiftRiding.LiftOfStop`, Client.Core).
+riding cost does not grow with height). The platform rests on the motor: its cells fill `motor.Y + 1`, its top is
+`motor.Y + 2`. A `lift_stop` beside the shaft (within `LiftStopReach` of the platform's edge) is a floor: the platform's
+top comes level with the stop's own cell, so a stop belongs only from `motor.Y + 2` up. `LiftLevels` lists the floors,
+bottom first. A stop on the bottom floor belongs to the lift too (`StopBelongsTo`, #3161 — it used to be excluded, so a
+press on it did nothing and the platform could not be called back down). The client mirrors the rule
+(`LiftRiding.LiftOfStop`, Client.Core).
+
+**The build rule, told (#3297–#3302).** A level entry needs the motor one cell *below* the ground: a 3×3 pit one deep,
+the motor in the middle of its floor, the resting platform filling the pit. The natural build — the motor set on the
+ground — leaves the platform's top two cells above the ground (the jump clears ~1.2) and every stop on the ground beside
+it belonging to no lift. The rule itself stays (moving where the platform rests would shift every saved lift); the game
+says it instead: the manual, the Codex (`wiki.crystal-machines` / `wiki.crystal-recipes`, the picture drawn by
+`tools/wiki/gen_circuit_diagrams.py`), the item and blueprint texts, the VEGA hints, and `GameServerLiftAdvice.cs` — a
+placed motor reads the stop ring for the floor a builder stands on (a solid cell with two free above it, so a wall is no
+floor) one or two cells below the platform's top and answers `srv.lift.motor_step` / `srv.lift.motor_high` (a level
+landing or no ground near says nothing); a stop in a motor's ring up to three cells below the lowest stop height answers
+`srv.lift.stop_too_low` when placed and when pressed.
 
 **Network caps (#3205).** A lift's motor and stops are `CrystalNetRules.IsLiftPart`: they never open a network that
 counts against `MaxNetsPerWorld` / `MaxNetsPerPlayer` (`OpensCountedNet`, `CountNets` via `CountsForNetCap`). Before,
@@ -93,7 +105,9 @@ part beside a new cell does not hold it in a counted network).
 platform to the next stop up, from the top back down to the bottom. A stop's status light is ON while the platform
 waits at it. A **press** that cannot be answered says why (#3163, `ServerMessage`): `srv.lift.stop_no_shaft` (the stop
 belongs to no motor; `srv.lift.stop_no_shaft:<LiftMaxHeight>` since #3204 — the height fills the text's `{name}`),
-`srv.lift.no_stops` (a motor alone at the bottom), `srv.lift.blocked:<height>` / `srv.lift.blocked_bottom` (the first
+`srv.lift.stop_too_low` (#3300: the stop stands in a motor's ring, but below the bottom floor), `srv.lift.no_stops` (a
+motor alone at the bottom; #3301: `srv.lift.only_bottom_floor` when a stop already stands on the bottom floor — the lift
+has no *other* floor yet), `srv.lift.blocked:<height>` / `srv.lift.blocked_bottom` (the first
 blocked layer in the ride's direction, counted from the bottom floor — at the press, or later to the player who called
 when the ride stops short, see *Moving*). A circuit's signal stays silent.
 
