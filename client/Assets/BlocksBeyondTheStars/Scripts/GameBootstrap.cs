@@ -579,6 +579,7 @@ namespace BlocksBeyondTheStars.Client
                         // #3021 "My festivals": the selection rides on the join, so the join's own greeting already follows it.
                         Network.FestivalPreset = (int)FestivalMood.Preset(Settings);
                         Network.FestivalCustom = FestivalMood.Custom(Settings);
+                        Network.UtcOffsetMinutes = LocalClock.UtcOffsetMinutes(); // #3315: calendar doors open at the local midnight
                         Network.Join(PlayerName, string.IsNullOrEmpty(Password) ? null : Password, Locale.Code(),
                             string.IsNullOrEmpty(Token) ? null : Token, ViewDistanceChunks,
                             string.IsNullOrEmpty(HostedToken) ? null : HostedToken,

@@ -1,0 +1,62 @@
+// Festival day calendars (#3315): a festival may carry a calendar of daily doors - the Advent calendar is the first. The
+// calendar shows to every player whose festival selection ("My festivals") includes "festival", and to everybody with every
+// door when that festival is switched on by hand (/festival christmas). Nothing shows while the festivals are off.
+//
+// A calendar WAITS (the parents' promise - no daily-login mechanics): door N is there from the N-th day after
+// startMonth/startDay in the player's LOCAL time, and missed doors stay openable through catchUpMonth/catchUpDay (inclusive,
+// in the following year when it lies before the start). No streaks, nothing expires earlier. "doors" is 1...31.
+//
+// Ordinary doors draw "picksPerDoor" different "pool" entries (relative "weight", a count uniform in min...max). The draw is
+// random so players have something to trade, but seeded by world seed, player, calendar, season and door - reconnecting or
+// restarting never re-rolls a door. "specials" are fixed doors: a "cosmetic" (hudframe:<key> from hud_frames.json or
+// skin:<key> from skins.json, unlocked for this world) and/or fixed "items"; a special door draws nothing from the pool.
+// "layout" is the order the doors sit in the grid, row by row (a real calendar's doors are shuffled) - empty = 1...N, else
+// every door exactly once. Texts: calendar.<key>.name and calendar.<key>.vega (VEGA's once-per-season greeting).
+{
+  "calendars": [
+    {
+      "key": "advent",
+      "festival": "christmas",
+      "startMonth": 12, "startDay": 1,
+      "doors": 24,
+      "catchUpMonth": 1, "catchUpDay": 6,
+      "picksPerDoor": 2,
+      "pool": [
+        { "item": "iron_ingot",       "min": 4, "max": 8,  "weight": 6 },
+        { "item": "copper_wire",      "min": 3, "max": 6,  "weight": 6 },
+        { "item": "glass_clear",      "min": 4, "max": 8,  "weight": 5 },
+        { "item": "aluminium_ingot",  "min": 2, "max": 5,  "weight": 5 },
+        { "item": "tin_ingot",        "min": 2, "max": 5,  "weight": 5 },
+        { "item": "nickel_ingot",     "min": 2, "max": 4,  "weight": 4 },
+        { "item": "silver_ingot",     "min": 1, "max": 3,  "weight": 4 },
+        { "item": "gold_ingot",       "min": 1, "max": 2,  "weight": 3 },
+        { "item": "titanium_plate",   "min": 1, "max": 3,  "weight": 3 },
+        { "item": "light_alloy",      "min": 1, "max": 3,  "weight": 3 },
+        { "item": "crystal",          "min": 1, "max": 3,  "weight": 3 },
+        { "item": "circuit_board",    "min": 1, "max": 2,  "weight": 3 },
+        { "item": "power_cell",       "min": 1, "max": 2,  "weight": 2 },
+        { "item": "light_red",        "min": 2, "max": 4,  "weight": 4 },
+        { "item": "light_green",      "min": 2, "max": 4,  "weight": 4 },
+        { "item": "light_white",      "min": 2, "max": 4,  "weight": 4 },
+        { "item": "strip_light_warm", "min": 2, "max": 4,  "weight": 4 },
+        { "item": "paper_lantern",    "min": 1, "max": 3,  "weight": 4 },
+        { "item": "lantern",          "min": 1, "max": 2,  "weight": 3 },
+        { "item": "gift_box",         "min": 1, "max": 2,  "weight": 3 },
+        { "item": "snow",             "min": 8, "max": 16, "weight": 4 },
+        { "item": "ice",              "min": 4, "max": 8,  "weight": 3 },
+        { "item": "emergency_ration", "min": 1, "max": 2,  "weight": 3 }
+      ],
+      "specials": [
+        { "door": 6,  "cosmetic": "skin:christmas" },
+        { "door": 12, "cosmetic": "hudframe:christmas_lights" },
+        { "door": 24, "items": [ { "item": "star_bell", "count": 1 } ] }
+      ],
+      "layout": [
+        13, 5, 21, 9, 17, 2,
+        24, 11, 7, 19, 3, 15,
+        8, 22, 1, 14, 20, 6,
+        16, 4, 23, 10, 18, 12
+      ]
+    }
+  ]
+}

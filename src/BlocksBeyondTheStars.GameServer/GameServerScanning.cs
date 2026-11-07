@@ -50,6 +50,11 @@ public sealed partial class GameServer
             return Rejected(session, subjectKey, "ui.scan.robot", "A friendly robot, not an animal."); // #3295: nothing to learn
         }
 
+        if (subjectType == "creature" && subjectKey == ReindeerSpeciesId)
+        {
+            return Rejected(session, subjectKey, "ui.scan.reindeer", "Rudolpho, your alien reindeer friend."); // #3322: one of a kind
+        }
+
         _scanCell = cell; // #3007: the aimed block's cell, read by Award for the once-per-cell scan event
 
         var readout = new ScanReadout { Kind = subjectType, SubjectKey = subjectKey, Display = subjectKey };

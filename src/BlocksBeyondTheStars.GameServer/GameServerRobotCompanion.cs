@@ -84,8 +84,6 @@ public sealed partial class GameServer
     /// <summary>Per world: the uptime of its next guard pass.</summary>
     private readonly Dictionary<string, double> _robotGuardNextAt = new(StringComparer.Ordinal);
 
-    internal static bool IsRobotCompanion(TamedCreature tc) => tc.Kind == TamedCreature.RobotKind;
-
     private static bool IsRobotEntity(CombatEntity c) => c.IsCompanion && c.SpeciesId == RobotSpeciesId;
 
     /// <summary>The robot's fixed species — built in code, so every robot looks and moves the same on every world.</summary>
@@ -115,7 +113,7 @@ public sealed partial class GameServer
     };
 
     /// <summary>Whether a companion appears on <paramref name="body"/> while its owner is there: an animal on its home world,
-    /// the robot everywhere but a void world — and never one that is knocked out.</summary>
+    /// a roaming one (the robot, Rudolpho) everywhere but a void world — and never one that is knocked out.</summary>
     private bool CompanionLivesOn(TamedCreature tc, string body)
         => !tc.KnockedOut && (tc.Roams ? !_world.Planet.Void : tc.HomeBodyId == body);
 
@@ -137,80 +135,9 @@ public sealed partial class GameServer
 
     // ---------------- Switch on / power down ----------------
 
-    /// <summary>The <c>hunter_robot</c> gadget: switches the robot on beside the player. Refused (the item kept) in space, on a
-    /// station, aboard or in a ship interior, and while the player already has a robot. Returns true when it came to life.</summary>
-    private bool DeployRobot(PlayerSession session)
-    {
-        var p = session.State;
-        string? refusal = InSpace(p.PlayerId) || InStation(p.PlayerId) || _world.Planet.Void ? "@srv.robot.surface_only"
-            : AboardParkedShip(p) || InShipInterior(p.PlayerId) ? "@srv.robot.step_outside"
-            : p.TamedCreatures.Any(IsRobotCompanion) ? "@srv.robot.already_active"
-            : !p.Inventory.Has(HunterRobotItem, 1) ? "@srv.gadget.missing"
-            : null;
-        if (refusal is not null)
-        {
-            Reject(session, "gadget", refusal);
-            return false;
-        }
-
-        long now = NowUnixMs();
-        var tc = new TamedCreature
-        {
-            Id = "robot_" + Guid.NewGuid().ToString("N").Substring(0, 12),
-            HomeBodyId = _world.LocationId,
-            Name = RobotDefaultName,
-            SpeciesId = RobotSpeciesId,
-            Species = RobotSpecies(),
-            SizeScale = 1f,
-            Bond = 100,
-            TamedAtUtc = now,
-            LastFedUtc = now,
-            Kind = TamedCreature.RobotKind,
-            Roams = true,
-        };
-        _repo.RunInTransaction(() =>
-        {
-            p.Inventory.Remove(HunterRobotItem, 1);
-            p.TamedCreatures.Add(tc);
-            _repo.SavePlayer(p);
-        });
-        SpawnCompanionEntity(p.PlayerId, tc, p.Position);
-        SendInventory(session);
-        SendCompanions(session);
-        BroadcastCreatures();
-        Send(session, new ServerMessage { Text = "@srv.robot.deployed:" + tc.Name });
-        return true;
-    }
-
-    /// <summary>"Release" on the robot powers it down: the robot leaves the world and the <c>hunter_robot</c> item comes back
-    /// into the backpack — refused while the backpack is full, and while a knocked-out robot's crate is still on its way.</summary>
-    private void PowerDownRobot(PlayerSession session, TamedCreature tc)
-    {
-        var p = session.State;
-        if (tc.KnockedOut)
-        {
-            Reject(session, "companion", "@srv.robot.knocked_out:" + CompanionDisplayName(tc));
-            return;
-        }
-
-        if (p.Inventory.Clone().Add(HunterRobotItem, 1, MaxStackOf(HunterRobotItem)) > 0)
-        {
-            Reject(session, "companion", "@inventory_full");
-            return;
-        }
-
-        _repo.RunInTransaction(() =>
-        {
-            p.Inventory.Add(HunterRobotItem, 1, MaxStackOf(HunterRobotItem));
-            p.TamedCreatures.Remove(tc);
-            _repo.SavePlayer(p);
-        });
-        _creatures.RemoveAll(c => c.CompanionId == tc.Id);
-        SendInventory(session);
-        BroadcastCreatures();
-        SendCompanions(session);
-        Send(session, new ServerMessage { Text = "@srv.robot.powered_down:" + CompanionDisplayName(tc) });
-    }
+    /// <summary>The <c>hunter_robot</c> gadget: switches the robot on beside the player (the authored-companion deploy,
+    /// <see cref="DeployAuthoredCompanion"/>). "Release" powers it down back into its item (<see cref="PackAwayAuthoredCompanion"/>).</summary>
+    private bool DeployRobot(PlayerSession session) => DeployAuthoredCompanion(session, RobotCompanion);
 
     // ---------------- The guard pass ----------------
 

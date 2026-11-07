@@ -3940,7 +3940,7 @@ public sealed partial class GameServer
         // pause menu only took effect at the next join.
         SetNpcCallsIntent or SkipOnboardingIntent or RequestStoryResolutionIntent or StorySelectIntent
             or SetPlaceNameIntent => true, // #2952: a private place name only changes the player's own ledger
-        SetFestivalPrefsIntent => true, // #3021: "My festivals" is a settings row the pause menu opens; it moves nothing
+        SetFestivalPrefsIntent or OpenCalendarDoorIntent => true, // #3021 "My festivals"; #3315 a calendar door (the in-game menu) only fills the opener's own bag
         SetBasePadIntent => true, // #3069: a pad's name and access — its dialog may hold a singleplayer world; it moves nothing
         // #2466 (synthesis §5.7): the pack controls change only the player's own ledger — "skipPack" is the first tutorial
         // card's "I know the game", shown during a singleplayer hold; #2467 watching a scene again changes nothing; #2470
@@ -4233,7 +4233,7 @@ public sealed partial class GameServer
             }
         }
 
-        ApplyFestivalPrefs(session, join.FestivalPreset, join.FestivalCustom, join.Locale); // #3021: before the join greets
+        ApplyJoinFestivalPrefs(session, join); // #3021 the festival selection, #3315 the local UTC offset: before the join greets
 
         // #2460 (B01): newcomer or veteran is decided HERE, once, before anything below can pay knowledge or
         // blueprints into the state (the spawn-system mapping, the Creative grants, the story beat catch-up).

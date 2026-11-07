@@ -138,6 +138,14 @@ def build_catalogue() -> list[tuple[str, str, float, bool]]:
         ("hunter_shuttle_warp", "short sci-fi warp of a small robotic shuttle, a quick electronic whoosh with two rising robotic scanner chirps and a light hover hum, alert but friendly, not scary, game sound", 1.4, False),
     ]
 
+    # --- The Advent calendar (#3316) and Rudolpho (#3322): a calendar door opening (raised +15 dB with ffmpeg to sit with
+    # the other UI cues) and the sleigh-bell jingle Rudolpho arrives with. Generated with gen_sound.py --influence 0.5 on
+    # 2026-11-07. ---
+    s += [
+        ("calendar_door_open", "short cosy sound of a small paper advent calendar door being opened, a soft cardboard creak and a gentle pop, followed by a tiny bright magical sparkle chime, gentle and friendly game sound, no music, no voice", 1.0, False),
+        ("reindeer_bells", "short soft cheerful sleigh bell jingle, a small cluster of bright little jingle bells shaken gently twice, warm and cosy, festive and friendly, no music, no voice, clean game sound", 1.5, False),
+    ]
+
     # --- Creatures: 6 voice banks (size x disposition) x 5 states; pitch-shifted per creature in game ---
     sizes = [("small", "small"), ("medium", "medium-sized"), ("large", "huge hulking")]
     disps = [("calm", "docile gentle"), ("hostile", "vicious aggressive")]

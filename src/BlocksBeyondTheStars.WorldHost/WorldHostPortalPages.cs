@@ -857,7 +857,7 @@ loadNotices();
    deiner Meldung gespeichert. Diese Meldungen hängen an deiner Spielinstallation, nicht an einem
    Portal-Konto.</li>
   <li><b>Einreichungen aus den Editoren:</b> Reichst du im Spiel etwas selbst Gemachtes ein (eine Textur, ein Schiff,
-   eine Station oder Stadt, einen Charakter-Skin), speichern wir im selben Meldungs-Postfach das Werk mit Vorschaubild,
+   eine Station oder Stadt, einen Charakter-Skin, einen HUD-Rahmen), speichern wir im selben Meldungs-Postfach das Werk mit Vorschaubild,
    seinen Namen und alle Texte darin (z.&nbsp;B. Beschriftungen), deinen Spitznamen (oder keinen), deine Notiz, die
    Spielversion und den anonymen Antwort-Schlüssel — keine E-Mail, kein echter Name, kein Standort. Mitgespeichert
    wird, dass du die drei Bestätigungen gegeben hast (selbst gemacht, Nutzung erlaubt, mindestens 16 oder Eltern
@@ -896,7 +896,7 @@ loadNotices();
    Button <b>„Konto löschen“</b> auf der Welten-Seite; damit werden Konto, Sitzungen, Rettungscodes, deine
    Meldungen und alle deine Welten samt Spielständen endgültig entfernt.</li>
   <li>Lange inaktive Welten werden nach etwa {config.ArchiveAfterMonths} Monaten archiviert (nicht gelöscht).</li>
-  <li><b>Einreichungen</b> (Texturen, Schiffe, Stationen, Städte, Skins), die wir nicht ins Spiel übernehmen, löschen
+  <li><b>Einreichungen</b> (Texturen, Schiffe, Stationen, Städte, Skins, HUD-Rahmen), die wir nicht ins Spiel übernehmen, löschen
    wir spätestens nach 12 Monaten automatisch (samt Bild, Dateien und Gesprächsverlauf). Übernommenes ist Teil des
    Spiels; auf Wunsch entfernen wir es mit der nächsten Version.</li>
   <li>Fehlermeldungen aus dem Spiel bleiben samt Gesprächsverlauf im Meldungs-Postfach, bis wir sie löschen —

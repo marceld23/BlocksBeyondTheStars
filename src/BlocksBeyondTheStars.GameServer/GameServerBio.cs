@@ -641,9 +641,9 @@ public sealed partial class GameServer
         double bestSq = double.MaxValue;
         foreach (var c in _creatures)
         {
-            if (IsRobotEntity(c))
+            if (IsAuthoredEntity(c))
             {
-                continue; // #3295: the hunter robot is not alive — there is nothing to sample
+                continue; // #3295: the hunter robot is not alive; #3322: Rudolpho is one of a kind — nothing to sample
             }
 
             float range = c.IsGiant ? SamplerGiantRange : SamplerRange;

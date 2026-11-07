@@ -166,6 +166,10 @@ public sealed partial class GameServer
                 happened = DeployRobot(session);
                 cooldown = SpeederDeployCooldown;
                 break;
+            case StarBellItem: // #3322: ringing the star bell calls Rudolpho, the alien reindeer (consumes the item)
+                happened = DeployReindeer(session);
+                cooldown = SpeederDeployCooldown;
+                break;
             case RailRules.LinkerItemKey: // #2113: the linker couples two pylons (first pick, second pick)
                 if (!UseRailLinker(session, target))
                 {

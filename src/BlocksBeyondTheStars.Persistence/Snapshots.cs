@@ -405,6 +405,9 @@ public static class StateMapper
         LastFedUtc = t.LastFedUtc,
         TamedAtUtc = t.TamedAtUtc,
         NameTag = t.NameTag, // #3035
+        Kind = t.Kind ?? string.Empty, // #3314: the robot (and Rudolpho) must stay what they are across save + load
+        Roams = t.Roams,
+        KnockedOut = t.KnockedOut,
     };
 
     private static MissionProgress CloneProgress(MissionProgress m) => new()

@@ -55,6 +55,10 @@ public sealed class JoinRequest
 
     /// <summary>#3021: the player's own festival list (preset custom only).</summary>
     public string[] FestivalCustom { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>#3315: the player's local UTC offset in minutes — a festival day calendar's doors open at the player's local
+    /// midnight. 0 from an older client (UTC); the server clamps it to ±14 h.</summary>
+    public int UtcOffsetMinutes { get; set; }
 }
 
 /// <summary>The words of <see cref="JoinRequest.Features"/> (#2466).</summary>

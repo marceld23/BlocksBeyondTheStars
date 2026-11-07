@@ -1,10 +1,11 @@
 # Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
-"""Pull what players submitted from the game's editors out of the report inbox (#1966, #3262).
+"""Pull what players submitted from the game's editors out of the report inbox (#1966, #3262, #3319).
 
-A player presses "Submit" in the texture editor, the Ship Designer, the Station/Town editor or the Avatar Designer.
-The inbox stores it as a report of category texture / ship / structure / avatar with the creation attached. This tool
+A player presses "Submit" in the texture editor, the Ship Designer, the Station/Town editor, the Avatar Designer or the
+character editor (a skin, or a HUD frame from its HUD mode). The inbox stores it as a report of category texture / ship /
+structure / avatar / hud with the creation attached. This tool
 lists those reports and unpacks each one into the SAME bundle the editor's own Save/Export writes — so adopting a
 submission is the one step every export takes:
 
@@ -18,6 +19,8 @@ submission is the one step every export takes:
                          {structure.json, layout.json[, kit.json]}                         then tools/merge_structure.py <dir>
     --kind avatar     -> <out>/avatar_exports/<key>/skin.json
                          then tools/gen_pioneer_skins.py --from-skin <dir>/skin.json --key <key> --author <nickname>
+    --kind hud        -> <out>/hud_exports/<key>/hud.json  (the four frame tiles, the twinkle, the size)
+                         then tools/gen_hud_frames.py --from-hud <dir>/hud.json --key <key>
 
 A submission is only unpacked when all three consents are recorded (made it myself / the developers may use, change and
 distribute it / 16 or older, or the parents agreed). One without them is listed as "NO CONSENT" and left alone —
@@ -54,7 +57,7 @@ from pathlib import Path
 from content_edit import load_entries
 
 REPO = Path(__file__).resolve().parents[1]
-KINDS = ("texture", "ship", "structure", "avatar")
+KINDS = ("texture", "ship", "structure", "avatar", "hud")
 # gitignored: submissions are personal data until adopted
 DEFAULT_OUT = {"texture": REPO / "analysis" / "texture-submissions"}
 DEFAULT_CREATION_OUT = REPO / "analysis" / "submissions"
@@ -66,6 +69,7 @@ FILE_NAMES = {
     "ship": ("ship.json", "layout.json"),
     "structure": ("structure.json", "layout.json", "kit.json"),
     "avatar": ("skin.json",),
+    "hud": ("hud.json",),
 }
 
 
@@ -204,7 +208,7 @@ def target_dir(out_root, kind, files, block_key, item_id):
 
 
 def fetch_creation(base, key, item, block, kind, out_root, block_keys):
-    """Unpacks one ship/structure/avatar. Returns (problem or None, notes)."""
+    """Unpacks one ship/structure/avatar/HUD frame. Returns (problem or None, notes)."""
     creation_key = block.get("key", "")
     if not KEY_RE.match(creation_key):
         return "bad key", []
@@ -243,6 +247,8 @@ def fetch_creation(base, key, item, block, kind, out_root, block_keys):
             f'adopt: python tools/gen_pioneer_skins.py --from-skin "{target / "skin.json"}" '
             f"--key {creation_key} --author \"{info['author'] or 'player'}\""
         )
+    if kind == "hud":
+        notes.append(f'adopt: python tools/gen_hud_frames.py --from-hud "{target / "hud.json"}" --key {creation_key}')
     return None, notes
 
 
@@ -279,7 +285,7 @@ def run(base, key, args):
 def main(argv=None, default_kind=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--kind", choices=KINDS, default=default_kind, required=default_kind is None,
-                        help="what to pull: texture, ship, structure or avatar")
+                        help="what to pull: texture, ship, structure, avatar or hud")
     parser.add_argument("--fetch", action="store_true", help="unpack the submissions into bundles")
     parser.add_argument("--status", default="", help="only this inbox status (new, triaged, ...); default: all")
     parser.add_argument("--out", type=Path, default=None,

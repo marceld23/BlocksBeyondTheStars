@@ -86,8 +86,9 @@ haben, und Sie halten jeden Schalter (Roboter, Banditen und andere Gegner, Sprac
   kommt; was wir nicht übernehmen, löschen wir spätestens nach zwölf Monaten. Wenn Sie nicht möchten, dass
   eine Einreichung verwendet wird, schreiben Sie uns – wir löschen sie, und eine bereits veröffentlichte
   Textur entfernen wir mit der nächsten Version.
-- **Schiffe, Stationen, Städte und Skins einreichen.** Schiffs-, Stations- und Stadt-Editor sowie der
-  Avatar-Designer haben denselben *Einreichen*-Knopf mit demselben Dialog: Spitzname statt echtem Namen (oder
+- **Schiffe, Stationen, Städte, Skins und HUD-Rahmen einreichen.** Schiffs-, Stations- und Stadt-Editor sowie der
+  Charakter-Editor (Avatar-Designer im Menü, *Aussehen* in einer Welt – Skins und selbst gemalte HUD-Rahmen) haben
+  denselben *Einreichen*-Knopf mit demselben Dialog: Spitzname statt echtem Namen (oder
   keiner), eine freiwillige Notiz und dieselben drei Bestätigungen. Gesendet werden: das Werk selbst, ein Bild
   davon, sein Name und **alle Texte darin** (z. B. die Beschreibung eines Schiffs oder Beschriftungen von Schildern
   und Geräten), der Spitzname, die Notiz, die Spielversion und eine anonyme Kennung, über die wir im Spiel antworten
@@ -105,6 +106,10 @@ haben, und Sie halten jeden Schalter (Roboter, Banditen und andere Gegner, Sprac
 - Keine Energie-Timer, keine Täglich-einloggen-Mechaniken, kein Bezahlen für Fortschritt — das Spiel
   nutzt keine Bindungstricks. Der Fortschritt wird lokal (oder auf dem Server der Welt) gespeichert und
   wartet.
+- Der Adventskalender (Dezember) folgt derselben Regel: Jeden Tag geht ein neues Türchen auf, aber
+  verpasste Türchen warten einfach bis zum 6. Januar — keine Serie, kein Bonus fürs tägliche
+  Wiederkommen, nichts geht verloren, wenn man Tage auslässt. Die Materialien darin sind eine kostenlose
+  Überraschung (nichts wird gekauft, nichts wird eingesetzt).
 - Mehrspieler ist standardmäßig kooperativ. Verbündete können einander nicht schaden — selbst auf
   Servern, deren Host Kampf zwischen Spielern erlaubt hat.
 

@@ -172,6 +172,11 @@ namespace BlocksBeyondTheStars.Client
             hud.Game = boot;
             hud.Settings = shell.Settings; // live read for the optional playtime readout
 
+            // The player's own HUD frame around the view (#3317), on its own canvas below the HUD widgets.
+            var hudFrame = root.AddComponent<HudFrame>();
+            hudFrame.Game = boot;
+            hudFrame.Settings = shell.Settings;
+
             // Toggleable full-screen planet map (key M), distinct from the star map.
             var worldMap = root.AddComponent<WorldMap>();
             worldMap.Game = boot;

@@ -24,6 +24,30 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🎄 Festival day calendars — the Advent calendar, Christmas HUD lights, a Christmas skin, Rudolpho and the HUD frame editor (school club idea, Marcel's decisions 2026-11-07) — #3314–#3322, epic #3323, branch feat/advent-calendar — 🚧 in progress
+
+Ben from the school club asked for an Advent calendar on the festival system: a door a day with materials and a few
+specials — a Christmas skin, an alien reindeer with a red nose that follows you, and a decoration for the edge of the
+HUD, which becomes designable in the character editor (separate from the skin, same editor) and can be submitted like
+other creations. The parents' guide promises "no daily-login mechanics", so the calendar **waits**: door N from day N in
+the player's local time, missed doors open until 6 January, no streak (ADR 0020 addendum 10–12).
+
+- **#3314** (bug, released in v2026.11.8) `CloneTamed` dropped `Kind`/`Roams`/`KnockedOut` on save and load — the robot
+  companion turned into an ordinary home-world pet after a reload.
+- **#3315** Festival day calendars: `data/festival_calendars.json` (generic, attached to a festival), seeded random
+  materials per world/player/season/door, fixed specials (door 6 skin, door 12 HUD lights, door 24 star bell), bag full
+  keeps a door closed, a hand-switched festival opens every door; wire `OpenCalendarDoorIntent` / `FestivalCalendarState`
+  / `CosmeticUnlocks` (320–322), `JoinRequest.UtcOffsetMinutes`.
+- **#3316** The calendar window (Character tab, festival chip, VEGA once per season).
+- **#3317** The HUD frame: a 9-slice screen edge in every view, below the HUD widgets, on Low and in the browser too.
+- **#3318** The editor's *Character | HUD* switch, own HUD design library, templates.
+- **#3319** Submit HUD frames (kind `hud`) and avatar skins from the in-game editor too — ⚠ deploy the reports image
+  before the next client release.
+- **#3320** The Christmas lights HUD template (twinkling), **#3321** the Christmas skin (green, white, gold, red accents),
+  **#3322** Rudolpho, the alien reindeer with the lantern nose (star bell item).
+
+---
+
 ### 🪨 KuBa-W — Jafar's school-club asteroid with three huge stone tablets ("KuBa West Trier", "JuMaVe-Games", the club's initials), exactly once per galaxy — #3306: #3307–#3313, #3330, branch feat/kuba-w — ✅ done 2026-11-07 (terrain generation **33**; ⚠ playtest open; no save-version or block-id change; protocol unchanged; 10 new locale keys in all 14 languages)
 
 Marcel's analysis + decisions 2026-11-07 (asteroid; guaranteed once per galaxy, no slider; one initial per child plus the

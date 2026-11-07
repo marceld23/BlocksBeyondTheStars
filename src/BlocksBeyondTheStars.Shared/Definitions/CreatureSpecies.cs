@@ -59,6 +59,7 @@ public enum CreatureBodyPlan
     SkyGiant,  // the gas giant's giant (#2112, generation 18): a 40–80 block sky-sailer drifting between the islands, passive — a spectacle
     Robot,     // the friendly hunter robot (#3295): a companion only, never rolled — the hunter's armour on the biped's rig, light-blue lights
     Hound,     // the Schuppenhund (#3325, generation 34, Jafar's idea): a scaly four-legged dog with ears, a toothed muzzle and claws — very dangerous, alone, on the dry worlds
+    Reindeer,  // Rudolpho, the alien reindeer (#3322): a companion only, never rolled — branching antlers, a red lantern nose
 }
 
 /// <summary>

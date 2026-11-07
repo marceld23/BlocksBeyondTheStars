@@ -38,5 +38,11 @@ public static partial class NetCodec
         // #3292 the flower set's trader discount, pushed when it changes. No protocol bump — an older client drops the tag
         // and shows the full price.
         Register(319, typeof(TraderDiscountInfo));           // Server -> Client
+
+        // #3315 festival day calendars (the Advent calendar) and the cosmetics their doors unlock. No protocol bump — an
+        // older server drops the intent, an older client the state (it simply shows no calendar).
+        Register(320, typeof(OpenCalendarDoorIntent));       // Client -> Server
+        Register(321, typeof(FestivalCalendarState));        // Server -> Client
+        Register(322, typeof(CosmeticUnlocks));              // Server -> Client
     }
 }

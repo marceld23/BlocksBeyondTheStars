@@ -133,10 +133,9 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (c.BodyPlan == "Robot")
+            if (BuildCompanionBody(root, c))
             {
-                BuildRobot(root, c); // #3295: the friendly hunter robot (CreatureBuilder.Robot.cs)
-                return;
+                return; // #3295 the hunter robot (CreatureBuilder.Robot.cs), #3322 Rudolpho (CreatureBuilder.Reindeer.cs)
             }
 
             float unit = 0.5f * Mathf.Clamp(c.Size, 0.4f, 3f);

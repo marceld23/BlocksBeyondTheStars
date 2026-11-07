@@ -215,6 +215,14 @@ public sealed class PlayerSession
     /// selection is the client's setting, sent at join and on every change.</summary>
     public HashSet<string>? CelebratedFestivals { get; set; }
 
+    /// <summary>#3315: the player's local UTC offset in minutes, clamped to ±14 h — a festival day calendar's doors open at the
+    /// player's local midnight. From the join and every door request; session-scoped (0 = UTC for an older client).</summary>
+    public int UtcOffsetMinutes { get; set; }
+
+    /// <summary>#3315: what this client was last told of each festival day calendar that showed (by calendar key) — a change
+    /// sends the state again; a calendar that ends sends one last inactive state and leaves this map.</summary>
+    public Dictionary<string, Shared.Festivals.CalendarDay> CalendarsShown { get; } = new(System.StringComparer.Ordinal);
+
     /// <summary>#2466: the client understands story packs (<c>packs1</c>); without it the legacy tutorial mode applies
     /// (old keys, server-composed text, no pack chips).</summary>
     public bool SupportsPacks => ClientFeatures.Contains(Networking.Messages.ClientFeatures.Packs1);

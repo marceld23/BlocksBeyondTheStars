@@ -155,6 +155,13 @@ is the export bundle as a JSON document `{ formatVersion, kind, key, files: { "<
   `NOTICES.md` under the nickname and set *fixed in version*.
 - **Deploy order:** the reports image must be deployed **before** a client release that sends these kinds — an older
   inbox files them as plain `feedback` and keeps no attachment.
+- **HUD frames (#3319, category `hud`, `hud-submission`):** the character editor's HUD mode sends `hud.json`
+  (`formatVersion`, `key`, `name`, `size`, the four 32 × 32 tiles `corner`/`top`/`side`/`bottom`, `twinkle`,
+  `twinkleColors`) with a 960 × 540 picture of the frame; capped like an avatar (client 100 KB, inbox
+  `BBS_REPORTS_MAX_ATTACHMENT_BYTES`). The tile strings are structural fields, so the card does not list them as free
+  text. Adopt with `python tools/pull_submissions.py --kind hud --fetch`, then `tools/gen_hud_frames.py --from-hud
+  <dir>/hud.json --key … --author <nickname>` (the generator keeps adopted frames in `data/hud_frames.json`; add the
+  `hudframe.<key>.name` texts). The in-game appearance editor has the Submit button too (skins and frames).
 
 ## Reply threads — answering players in-game (#1327)
 

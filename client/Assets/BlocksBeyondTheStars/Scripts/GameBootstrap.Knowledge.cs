@@ -310,6 +310,7 @@ namespace BlocksBeyondTheStars.Client
             Network.MissionsReceived += m => Missions = m;
             Network.AllianceListReceived += m => Alliances = m ?? new AllianceList();
             WirePvp(); // #2972: whom this player may hit, and duels
+            WireCalendar(); // #3315: the festival day calendars and the cosmetics their doors unlock
             Network.CrewListReceived += m => Crew = m ?? new CrewList();
             Network.CrewInviteReceived += m =>
             {

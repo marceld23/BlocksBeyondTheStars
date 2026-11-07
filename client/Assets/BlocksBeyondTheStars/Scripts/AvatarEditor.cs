@@ -322,34 +322,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var o = outfits[index];
-            _col[0] = o.SkinColor;
-            _col[1] = o.TorsoColor;
-            _col[2] = o.ArmColor;
-            _col[3] = o.LegColor;
-            for (int i = 0; i < _swatch.Length; i++)
-            {
-                if (_swatch[i] != null)
-                {
-                    _swatch[i].color = _col[i];
-                }
-            }
-
-            _face = o.FacePixels ?? string.Empty;
-            for (int part = 0; part < _bodyPaint.Length; part++)
-            {
-                _bodyPaint[part] = o.GetBodyPaint(part);
-            }
-
-            if (_avatar != null)
-            {
-                _avatar.ApplyColors(_col[0], _col[1], _col[2], _col[3]);
-                _avatar.SetFace(_face);
-                for (int part = 0; part < _bodyPaint.Length; part++)
-                {
-                    _avatar.SetBodyPaint(part, _bodyPaint[part]);
-                }
-            }
-
+            PutOnScratch(o);
             _name = o.Name ?? string.Empty;
             if (_nameInput != null)
             {
@@ -570,6 +543,7 @@ namespace BlocksBeyondTheStars.Client
             _faceEditor.OnSaveOutfit = SaveOutfitNamed;
             _faceEditor.OnRenameOutfit = RenameOutfitAt;
             _faceEditor.OnDeleteOutfit = DeleteOutfit;
+            ConfigureTemplatesAndHud(_faceEditor); // #3318/#3319/#3321: free skins, the HUD mode, the Submit button
             _faceEditor.OnClosed = () =>
             {
                 _faceEditor = null;
@@ -613,7 +587,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 string dir = Path.Combine(AppPaths.Root, "avatar_exports", key);
                 Directory.CreateDirectory(dir);
-                File.WriteAllText(Path.Combine(dir, "skin.json"), JsonUtility.ToJson(BuildSkin(key), true));
+                File.WriteAllText(Path.Combine(dir, "skin.json"), SkinFile(key, pretty: true));
                 SetStatus($"{L("ui.avatar.exported")}\n{dir}");
             }
             catch (Exception e)
@@ -640,9 +614,6 @@ namespace BlocksBeyondTheStars.Client
         }
 
         // --- helpers ---
-
-        private static string Hex(Color c)
-            => $"#{Mathf.RoundToInt(c.r * 255f):X2}{Mathf.RoundToInt(c.g * 255f):X2}{Mathf.RoundToInt(c.b * 255f):X2}";
 
         private string L(string key) => Shell?.L(key) ?? key;
     }

@@ -115,10 +115,21 @@ public sealed partial class GameServer
         RefreshFestivals(announce: true);
     }
 
+    /// <summary>Re-evaluates the list (<see cref="RefreshFestivalList"/>) and, when announcing, every joined player's festival
+    /// day calendars (#3315) — a new door at local midnight, the end of the catch-up, a rule or pick change.</summary>
+    private void RefreshFestivals(bool announce)
+    {
+        RefreshFestivalList(announce);
+        if (announce)
+        {
+            RefreshFestivalCalendars();
+        }
+    }
+
     /// <summary>Re-evaluates the list; on a change every joined player gets the rules again and VEGA greets the festivals
     /// that just began. The very first evaluation announces nothing — nobody has joined a server that has not ticked, and a
     /// join greets on its own (<see cref="FestivalsOnJoin"/>).</summary>
-    private void RefreshFestivals(bool announce)
+    private void RefreshFestivalList(bool announce)
     {
         bool first = !_festivalsEvaluated;
         _festivalsEvaluated = true;
@@ -154,13 +165,16 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Join tail: VEGA greets every festival that is on and the player celebrates, once per festival-year.</summary>
+    /// <summary>Join tail: VEGA greets every festival that is on and the player celebrates, once per festival-year; then the
+    /// player's festival day calendars and unlocked cosmetics (#3315).</summary>
     private void FestivalsOnJoin(PlayerSession session)
     {
         foreach (var key in ActiveFestivalsFor(session))
         {
             FestivalGreet(session, key);
         }
+
+        CalendarsOnJoin(session);
     }
 
     private void FestivalGreet(PlayerSession session, string key)

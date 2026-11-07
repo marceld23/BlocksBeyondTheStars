@@ -33,7 +33,11 @@ family-adventure; no jump-scare design, no horror imagery.
 **Language** — no profanity in shipped content (EN/DE + machine locales); chat is user content, see below.
 
 **Sex / nudity / drugs / alcohol / tobacco / gambling** — none. Arcade minigames award in-game knowledge
-only (no wagering, no chance-based rewards; VoidSolitaire is a card layout, not gambling).
+only (no wagering, no chance-based rewards; VoidSolitaire is a card layout, not gambling). The festival
+day calendars (#3315, the Advent calendar) put a few random everyday materials behind each door — free, a
+fixed number per door, seeded per player so they never re-roll, never bought and never staked; the
+special rewards (a HUD decoration, a skin, a companion) are fixed doors. This is a surprise gift, not a
+loot box: answer "no" to "random items" questions, which ask about purchases.
 
 **Digital purchases** — none. No in-game purchases, no DLC, no ads, no loot boxes. (Answer "no purchases"
 everywhere; the game itself is free.)

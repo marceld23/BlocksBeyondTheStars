@@ -242,9 +242,9 @@ namespace BlocksBeyondTheStars.Client
             // the world, but an open screen freezes player control, so they are free here (the same way B
             // is both crouch and cancel). Not while the on-screen keyboard has the pad, and not while the
             // appearance editor sits on top of the Character tab — LB is its fill modifier. Nor while the suit's slot
-            // picker (#2289) is up: a tab change under the modal would leave it pointing at a page that is gone.
+            // picker (#2289) or the calendar (#3316) is up: a tab change under the modal would leave it over a page that is gone.
             if (!UiKit.TextFieldFocused() && Menu?.AppearanceEditorOpen != true && Menu?.TextureEditorOpen != true
-                && _pickerCanvas == null)
+                && _pickerCanvas == null && !UiFestivalCalendar.IsOpen)
             {
                 if (InputMap.PadDown(PadButton.Rb))
                 {
@@ -317,7 +317,7 @@ namespace BlocksBeyondTheStars.Client
                         ? Game.JournalVersion * 1709 + Game.VegaLogKeys.Count * 1721 + (Game.Story?.GetHashCode() ?? 0)
                         : 0)
                     // …and the Settings' "Tutorial: on / off" follows a new story list (sent on a state change, never per tick).
-                    + (_mode == Mode.Character ? (Game.StoryPackStates?.GetHashCode() ?? 0) : 0)
+                    + (_mode == Mode.Character ? (Game.StoryPackStates?.GetHashCode() ?? 0) + CalendarHash() : 0) // #3316: calendar
                     // #2140: a planet-scanner report arrived, or a module was built / removed (the scan button's gate).
                     + Game.PlanetScanVersion * 1601 + (Game.ShipCombat?.Modules?.Length ?? 0) * 1607
                     // The local custom pixel face + body paintings: applying one in the editor must rebuild the

@@ -87,6 +87,7 @@ namespace BlocksBeyondTheStars.Client
 
             UiKit.AddText(card.transform, 600, 0, 170, 78, L("ui.face.open"), 18, UiKit.Cyan, TextAnchor.MiddleLeft);
             y += 96f;
+            y = AddCalendarRow(y); // #3316: the festival calendar (the Advent calendar), while one is on for this player
 
             // Master volume — − / + adjust the audio bus live (and persist).
             int pct = Mathf.RoundToInt((Menu?.Settings?.MasterVolume ?? 0.8f) * 100f);

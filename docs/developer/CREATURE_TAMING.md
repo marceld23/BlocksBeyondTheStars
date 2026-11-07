@@ -203,6 +203,29 @@ world, aboard / in a ship interior and while the player already has a robot (the
 
 Tests: `RobotCompanionTests`, `GuardianRewardTests`, `OwnerLockedCrateTests`.
 
+⚠ Fixed with #3314: the persistence clone (`CloneTamed`, `Snapshots.cs`) did not copy `Kind`, `Roams` and `KnockedOut`, so
+after a save and reload the robot was an ordinary home-world pet. `TamedCreatureSnapshotTests` round-trips a robot and
+guards every public property of `TamedCreature` against the clone.
+
+## Authored companions: the robot and Rudolpho (#3322, 2026-11-07)
+
+`GameServerAuthoredCompanions.cs` holds the one path both authored companions share (`DeployAuthoredCompanion`,
+`PackAwayAuthoredCompanion`, `IsAuthoredCompanion`): an item deploys a `TamedCreature` with a fixed, code-built species,
+`Roams = true` and a fixed bond — one per player and kind, outside the six-pet cap, no bond decay, no food, no scan sample,
+no bio sample; packing away gives the item back (refused with a full backpack). Only the robot fights — its guard tick is
+keyed on the robot's species. `GameContent.IsCompanionOnlyBodyPlan` (Robot, Reindeer) rejects those plans for authored
+wild creatures, and the roster generator never rolls them.
+
+**Rudolpho** is door 24 of the Advent calendar ([FESTIVALS.md](FESTIVALS.md)): the `star_bell` gadget calls him
+(`Kind = "reindeer"`, species id `reindeer_rudolpho`, `CreatureBodyPlan.Reindeer` appended after the robot because the
+enum is saved as a number). The species is a warm brown coat with a pale belly, two pairs of eyes, glowing antler tips;
+he is passive and never attacks. The client's `CreatureBuilder.Reindeer.cs` draws the deer body, the branching antlers and
+the **red lantern nose** — an unlit red cube with a small warm-red point light that lights caves and nights around him.
+"Send home" in the Creatures tab turns him back into the bell (`srv.reindeer.sent_home`).
+
+Tests: `ReindeerCompanionTests` (one per player, persistence incl. `Kind`/`Roams`, roaming, send home, no food or bond
+loss, never attacks, never rolled).
+
 ## Known remaining gaps / deferred (P4)
 
 - Needs a Unity client build.

@@ -90,7 +90,7 @@ public static class CreatureFootprint
             case CreatureBodyPlan.SkyGiant:
                 return 0.5f * Math.Max(Math.Max(sp.GiantHeight, sp.WormLength), size);
 
-            default: // Standard, Floral
+            default: // Standard, Floral, Reindeer (#3322: Rudolpho walks on the standard four-legged proportions)
                 {
                     float u = Unit(size, 3f);
                     int segments = Math.Clamp(sp.BodySegments, 1, 4);
@@ -141,7 +141,7 @@ public static class CreatureFootprint
                 // #3325: the standard front plus the muzzle — the builder draws it SnoutLength × 0.8u in front of the face.
                 return Radius(sp, sizeScale) + HoundMuzzleDepth(sp.SnoutLength, Unit(size, 3f));
 
-            default: // Standard, Floral, Titan
+            default: // Standard, Floral, Titan, Reindeer (#3322)
                 return Radius(sp, sizeScale);
         }
     }

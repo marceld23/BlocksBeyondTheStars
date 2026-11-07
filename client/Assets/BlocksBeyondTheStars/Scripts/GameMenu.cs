@@ -14,7 +14,7 @@ namespace BlocksBeyondTheStars.Client
     /// colour cycling; every action sends an authoritative intent the server validates. While
     /// open, the cursor is freed and the player controller pauses (via <c>GameBootstrap.MenuOpen</c>).
     /// </summary>
-    public sealed class GameMenu : MonoBehaviour
+    public sealed partial class GameMenu : MonoBehaviour
     {
         public GameBootstrap Game;
         public ClientSettings Settings;   // for in-game character customization
@@ -461,6 +461,7 @@ namespace BlocksBeyondTheStars.Client
             _faceEditor.OnSaveOutfit = SaveOutfit;
             _faceEditor.OnRenameOutfit = RenameOutfit;
             _faceEditor.OnDeleteOutfit = DeleteOutfit;
+            ConfigureTemplatesAndHud(_faceEditor); // #3318/#3319/#3321: unlocked skins, the HUD mode, the Submit button
         }
 
         // ── outfits ──────────────────────────────────────────────────────────────────────────────

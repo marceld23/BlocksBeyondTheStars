@@ -114,7 +114,7 @@ namespace BlocksBeyondTheStars.Client
             _todLoc = loc;
             string tempStr = env.Temperature <= -900f ? "—" : ColoredTemp(env.Temperature);
             _todText.text = $"{(day ? loc.Get("ui.hud.day") : loc.Get("ui.hud.night")).ToUpperInvariant()}  {mm}:{ss:00}  {tempStr}{GravityReading(loc, env)}";
-            SetClockChips((WeatherChip(loc, env) + FestivalChip(loc)).TrimStart()); // #3218: their own row
+            SetClockChips((WeatherChip(loc, env) + WithCalendar(FestivalChip(loc), loc)).TrimStart()); // #3218 own row, #3316 doors
             _todMarker.anchoredPosition = new Vector2(10 + (TodBarW * t), _todMarker.anchoredPosition.y);
         }
 

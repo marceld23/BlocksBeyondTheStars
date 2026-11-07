@@ -573,7 +573,7 @@ public sealed partial class GameServer
         int n = 0;
         foreach (var c in _creatures)
         {
-            if (c.OwnerId == ownerId && !IsRobotEntity(c)) // #3295: the robot takes no pet's place
+            if (c.OwnerId == ownerId && !IsAuthoredEntity(c)) // #3295/#3322: the robot and Rudolpho take no pet's place
             {
                 n++;
             }
@@ -658,9 +658,9 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                if (!IsRobotCompanion(tc) && CompanionCountFor(s.State.PlayerId) >= MaxCompanionsPerWorld)
+                if (!IsAuthoredCompanion(tc) && CompanionCountFor(s.State.PlayerId) >= MaxCompanionsPerWorld)
                 {
-                    continue; // #3295: the robot never waits behind a full set of pets
+                    continue; // #3295/#3322: the robot and Rudolpho never wait behind a full set of pets
                 }
 
                 SpawnCompanionEntity(s.State.PlayerId, tc, s.State.Position);
@@ -689,9 +689,9 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (!IsRobotCompanion(tc) && CompanionCountFor(session.State.PlayerId) >= MaxCompanionsPerWorld)
+            if (!IsAuthoredCompanion(tc) && CompanionCountFor(session.State.PlayerId) >= MaxCompanionsPerWorld)
             {
-                continue; // #3295: the robot never waits behind a full set of pets
+                continue; // #3295/#3322: the robot and Rudolpho never wait behind a full set of pets
             }
 
             SpawnCompanionEntity(session.State.PlayerId, tc, session.State.Position);
@@ -895,9 +895,9 @@ public sealed partial class GameServer
             return;
         }
 
-        if (IsRobotCompanion(tc))
+        if (IsAuthoredCompanion(tc))
         {
-            PowerDownRobot(session, tc); // #3295: a robot is not set free — it powers down back into its item
+            PackAwayAuthoredCompanion(session, tc); // #3295/#3322: the robot powers down, Rudolpho goes home — back into the item
             return;
         }
 

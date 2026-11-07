@@ -156,6 +156,8 @@ namespace BlocksBeyondTheStars.Client
             On<WorldEnvironment>(map, (c, m) => c.WorldEnvironmentReceived?.Invoke(m));
             On<FaunaRoster>(map, (c, m) => c.FaunaRosterReceived?.Invoke(m)); // #3245
             On<TraderDiscountInfo>(map, (c, m) => c.HandleTraderDiscount(m)); // #3292
+            On<FestivalCalendarState>(map, (c, m) => c.HandleCalendarState(m)); // #3315
+            On<CosmeticUnlocks>(map, (c, m) => c.HandleCosmeticUnlocks(m)); // #3315
             On<WorldReset>(map, (c, m) => c.HandleWorldReset(m));
             On<NpcList>(map, (c, m) => c.NpcsReceived?.Invoke(m));
             On<DoorList>(map, (c, m) => c.DoorsReceived?.Invoke(m));
@@ -233,6 +235,7 @@ namespace BlocksBeyondTheStars.Client
             _joined = true;
             TraderDiscountPercent = 0; // #3292: a fresh session starts without one — the server pushes it when there is one
             TraderDiscountFrom = string.Empty;
+            ResetCalendarState(); // #3315: the server sends the calendars and unlocks of this world after the join
             AdoptWorld(m.WorldId);
             ResyncHotbarSlot(); // #2525: the server restored the slot saved at the quit; the hand on screen wins
             JoinAccepted?.Invoke(m);
