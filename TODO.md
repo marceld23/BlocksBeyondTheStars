@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🎄 Festival day calendars — the Advent calendar, Christmas HUD lights, a Christmas skin, Rudolpho and the HUD frame editor (school club idea, Marcel's decisions 2026-11-07) — #3314–#3322, epic #3323, branch feat/advent-calendar — 🚧 in progress
+### 🎄 Festival day calendars — the Advent calendar, Christmas HUD lights, a Christmas skin, Rudolpho and the HUD frame editor (school club idea, Marcel's decisions 2026-11-07) — #3314–#3322, epic #3323, ✅ 2026-11-07, PR #3332 (`fed3f474`)
 
 Ben from the school club asked for an Advent calendar on the festival system: a door a day with materials and a few
 specials — a Christmas skin, an alien reindeer with a red nose that follows you, and a decoration for the edge of the
@@ -45,6 +45,7 @@ the player's local time, missed doors open until 6 January, no streak (ADR 0020 
   before the next client release.
 - **#3320** The Christmas lights HUD template (twinkling), **#3321** the Christmas skin (green, white, gold, red accents),
   **#3322** Rudolpho, the alien reindeer with the lantern nose (star bell item).
+- Open: playtest — open the calendar with `/festival christmas` (every door), the reveal and sound, the Christmas skin and the HUD lights templates, the frame in first/third person and space flight, Rudolpho's nose in a cave, a HUD submission; deploy the reports image before the next client release.
 
 ---
 
