@@ -408,6 +408,11 @@ public static class StateMapper
         Kind = t.Kind ?? string.Empty, // #3314: the robot (and Rudolpho) must stay what they are across save + load
         Roams = t.Roams,
         KnockedOut = t.KnockedOut,
+        Following = t.Following, // #3344: who follows, who stays home or waits on board
+        HasHomeSpot = t.HasHomeSpot,
+        HomeX = t.HomeX,
+        HomeY = t.HomeY,
+        HomeZ = t.HomeZ,
     };
 
     private static MissionProgress CloneProgress(MissionProgress m) => new()

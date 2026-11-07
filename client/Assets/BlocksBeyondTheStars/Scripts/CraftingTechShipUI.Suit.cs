@@ -51,6 +51,13 @@ namespace BlocksBeyondTheStars.Client
                 AddDollLine(DollRightX, top + i * DollRow + GridCell / 2f, DollCx + ax, top + ay);
             }
 
+            bool socket = ShowDiscSocket(); // #3354: the obsidian chest's disc socket, under the liner
+            if (socket)
+            {
+                var (sx, sy) = DollAnchor(EquipSlot.Disc);
+                AddDollLine(DollRightX, top + DollRight.Length * DollRow + GridCell / 2f, DollCx + sx, top + sy);
+            }
+
             AddDollFigure(top);
             for (int i = 0; i < DollLeft.Length; i++)
             {
@@ -62,7 +69,24 @@ namespace BlocksBeyondTheStars.Client
                 AddSuitSlot(DollRightX, top + i * DollRow, DollRight[i]);
             }
 
-            // The modules (#2293): four slots in a row under the figure.
+            if (socket)
+            {
+                AddSuitSlot(DollRightX, top + DollRight.Length * DollRow, EquipSlot.Disc);
+            }
+
+            float y = AddSuitModuleRow(top);
+
+            // Nothing worn at all (an old save, everything taken off): the getting-started line instead of the rules.
+            var hint = UiKit.AddText(_listContent, 8, y, 752, 40, L(Game.WornKeys().Any() ? "ui.suit.passive_hint" : "ui.suit.none"),
+                16, UiKit.CyanDim, TextAnchor.UpperLeft);
+            hint.horizontalOverflow = HorizontalWrapMode.Wrap;
+            y += Mathf.Max(40f, hint.preferredHeight) + 16f;
+            return AddActiveGearSection(y);
+        }
+
+        /// <summary>The modules (#2293): four slots in a row under the figure, with their heading. Returns the y under them.</summary>
+        private float AddSuitModuleRow(float top)
+        {
             float y = top + DollLeft.Length * DollRow + 4f;
             UiKit.AddText(_listContent, 8, y, 752, 26, L("ui.equip.modules"), 18, UiKit.Cyan, TextAnchor.UpperCenter, FontStyle.Bold);
             y += 30f;
@@ -74,14 +98,7 @@ namespace BlocksBeyondTheStars.Client
                 AddSuitSlot(mx + i * modulePitch, y, EquipSlots.ModuleSlots[i]);
             }
 
-            y += GridCell + 30f;
-
-            // Nothing worn at all (an old save, everything taken off): the getting-started line instead of the rules.
-            var hint = UiKit.AddText(_listContent, 8, y, 752, 40, L(Game.WornKeys().Any() ? "ui.suit.passive_hint" : "ui.suit.none"),
-                16, UiKit.CyanDim, TextAnchor.UpperLeft);
-            hint.horizontalOverflow = HorizontalWrapMode.Wrap;
-            y += Mathf.Max(40f, hint.preferredHeight) + 16f;
-            return AddActiveGearSection(y);
+            return y + GridCell + 30f;
         }
 
         /// <summary>Where a slot's line meets the figure, relative to its centre line and its top.</summary>
@@ -93,8 +110,15 @@ namespace BlocksBeyondTheStars.Client
             EquipSlot.Feet => (-30f, 348f),
             EquipSlot.Back => (40f, 100f),
             EquipSlot.Tank => (40f, 155f),
+            EquipSlot.Disc => (6f, 150f), // #3354: the socket in the middle of the chest
             _ => (40f, 210f), // the liner
         };
+
+        /// <summary>#3354: the disc socket shows while the obsidian chest is worn — or while a disc still sits in it (the chest
+        /// taken off), so it can be taken out.</summary>
+        private bool ShowDiscSocket()
+            => Game.Wears(BlocksBeyondTheStars.Shared.Sounders.SoundersIds.ObsidianChest)
+               || !string.IsNullOrEmpty(Game.ItemInEquipSlot((int)EquipSlot.Disc));
 
         /// <summary>The figure: a round helmet with its visor, the body, two arms, two legs and boots — soft holo shapes in
         /// the HUD's dim cyan. Not a mannequin; it only shows where each piece goes. Purely decorative (no raycasts).</summary>

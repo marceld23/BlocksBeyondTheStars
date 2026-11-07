@@ -109,4 +109,6 @@ public sealed partial class GameServer : IContainerHost
     void IContainerHost.RecordStoryMilestone(string onceKey) => RecordStoryMilestone(onceKey);
 
     void IContainerHost.SendDropPackets(PlayerSession session) => SendDropPackets(session);
+
+    void IContainerHost.AddStoryLoot(PlayerSession session, StoredContainer container) => AddStoryLoot(session, container);
 }

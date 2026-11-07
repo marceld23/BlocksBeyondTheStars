@@ -184,7 +184,7 @@ public sealed partial class GameServer
     private static void ApplyBondDecay(TamedCreature tc)
     {
         long since = tc.LastFedUtc > 0 ? tc.LastFedUtc : tc.TamedAtUtc;
-        if (since <= 0 || tc.Bond <= TamedCreature.BondFloor || IsAuthoredCompanion(tc)) // #3295/#3322: an authored companion's bond never fades
+        if (since <= 0 || tc.Bond <= TamedCreature.BondFloor || HasFixedBond(tc)) // #3295/#3322/#3361: an authored or story companion's bond never fades
         {
             return;
         }
@@ -236,9 +236,9 @@ public sealed partial class GameServer
         _nextCompanionScoutAt = _uptime + CompanionScoutInterval;
         foreach (var creature in _creatures)
         {
-            if (!creature.IsCompanion || CompanionOwnerHere(creature) is not { } owner)
+            if (!CompanionFollowsOwner(creature) || CompanionOwnerHere(creature) is not { } owner)
             {
-                continue;
+                continue; // #3344: a pet left at home scouts nothing
             }
 
             var tc = owner.State.TamedCreatures.FirstOrDefault(t => t.Id == creature.CompanionId);

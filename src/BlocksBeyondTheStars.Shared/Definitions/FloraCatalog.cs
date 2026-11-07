@@ -269,6 +269,18 @@ public static class FloraCatalog
         // pumpkin's 32) only marks the wave — nothing reads it for an authored species, and planting works on every world. ---
         new Species(MarigoldKey, new[] { "grass", "dirt", "mud" }, Tags: FloraTag.Lush, LateHosts: new[] { "hydro_tray", "flower_pot" }, MinGeneration: 32, Authored: true),
 
+        // --- The singing plants of Soaniri (#3358, #3367, the Sounders story pack): the Sounder home world's chime reed, bell
+        // bloom (and its open state), harp vine and echo flower. Authored like the marigold — in no world roster, no greenhouse,
+        // their own violet-teal colours on every world — so no world generation changes: only the sounder_world type's own
+        // pass (WorldGenerator.SingingMeadows) plants them. Their keys carry no flora_ prefix (the contract of the pack's
+        // textures); IsPlantKey makes them plants for the mesher, the texture alpha and the walk-through rules anyway.
+        // The harp vine hangs from the obsidian above it (the lintel of a harp arch). Appended before the crops. ---
+        new Species(ChimeReedKey, new[] { "chime_moss", "mud" }, Tags: FloraTag.Alien | FloraTag.Wetland, Height: FloraHeight.Tall, MinGeneration: 34, Authored: true),
+        new Species(BellBloomKey, new[] { "chime_moss" }, Tags: FloraTag.Alien | FloraTag.Floral, MinGeneration: 34, Authored: true),
+        new Species(BellBloomOpenKey, new[] { "chime_moss" }, Tags: FloraTag.Alien | FloraTag.Floral, MinGeneration: 34, Authored: true),
+        new Species(HarpVineKey, new[] { "obsidian", "carved_obsidian" }, Tags: FloraTag.Alien, Height: FloraHeight.Tall, Hanging: true, MinGeneration: 34, Authored: true),
+        new Species(EchoFlowerKey, new[] { "chime_moss" }, Tags: FloraTag.Alien | FloraTag.Floral, MinGeneration: 34, Authored: true),
+
         // --- Cultivated crops (#627): farmed, not wild. Grown in settlement/station greenhouses and by the
         // player from seeds. Excluded from every world roster (see FloraGenerator), so the berries are edible
         // on every world; the host list is what the greenhouse beds and hydroponic trays are made of.
@@ -335,6 +347,33 @@ public static class FloraCatalog
 
     /// <summary>#3024: the festivals' marigold — a planted flower only, never wild.</summary>
     public const string MarigoldKey = "flora_marigold";
+
+    /// <summary>#3358: Soaniri's chime reed (the reed marsh and the meadows).</summary>
+    public const string ChimeReedKey = "chime_reed";
+
+    /// <summary>#3358: Soaniri's bell bloom, closed — a phrase of the Song of Return opens it (#3367).</summary>
+    public const string BellBloomKey = "bell_bloom";
+
+    /// <summary>#3367: the bell bloom, open (glowing).</summary>
+    public const string BellBloomOpenKey = "bell_bloom_open";
+
+    /// <summary>#3358: Soaniri's harp vine, hanging under the obsidian of a harp arch.</summary>
+    public const string HarpVineKey = "harp_vine";
+
+    /// <summary>#3358: Soaniri's echo flower — it repeats the notes a player plays near it (#3367).</summary>
+    public const string EchoFlowerKey = "echo_flower";
+
+    /// <summary>The singing plants of Soaniri (#3358), in catalog order.</summary>
+    public static readonly IReadOnlyList<string> SingingPlantKeys = new[] { ChimeReedKey, BellBloomKey, BellBloomOpenKey, HarpVineKey, EchoFlowerKey };
+
+    /// <summary>
+    /// True for a plant block — what the client draws as a cross billboard or plant cube, what never fills its cell and gives
+    /// no hold: every <c>flora_*</c> key (the classic rule) and every other species of this catalog (#3358: Soaniri's singing
+    /// plants, whose keys carry no prefix). Every species before them has the prefix, so the answer for every older key is
+    /// what the prefix test said.
+    /// </summary>
+    public static bool IsPlantKey(string? key)
+        => key is not null && (key.StartsWith("flora_", StringComparison.Ordinal) || ByKey.ContainsKey(key));
 
     /// <summary>The palette of a species whose every plant picks its colour from a short authored list by its cell (#3005,
     /// the pumpkin; <see cref="BlocksBeyondTheStars.Shared.World.FloraTints.PaletteAt"/>), or null for every other species.</summary>

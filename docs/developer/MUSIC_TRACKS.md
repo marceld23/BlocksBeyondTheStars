@@ -6,7 +6,8 @@ The granular background-music library used by the **Tracks** music mode (see
 in `MusicLibrary` and **all present** — see *Variance pack* below), the 5 dramatic **finale/boss**
 tracks (also present + wired — see the last section) and **11 tracks composed with the ElevenLabs Music
 API** (nine `_3` third variants + `music_planet_night_2` / `music_planet_sunrise_2`, #1175 — see *ElevenLabs
-additions*): **51 tracks** in total. All live as raw MP3s in **`client/Music/*.mp3`**
+additions*) and the **3 tracks of the Sounders story pack** (#3363, ElevenLabs Music — see *Sounders story pack*): **54
+tracks** in total. All live as raw MP3s in **`client/Music/*.mp3`**
 (tracked, deliberately *outside* `client/Assets/`); `scripts/sync-client-libs.{ps1,sh}` copies them to
 `client/Assets/StreamingAssets/music/` (git-ignored) on every build, and `ClientMusic` **streams each
 track on demand** with `UnityWebRequestMultimedia` — over HTTP in the browser, from disk on desktop —
@@ -57,6 +58,7 @@ idle pair; underground only the idle pair (no sky).
 | Planet — ocean | biome `ocean` | `music_planet_ocean`, `music_planet_ocean_2`, `music_planet_ocean_3` | neutral set |
 | Planet — verdant | biome `jungle`/`forest`/`savanna`/`swamp` | `music_planet_verdant`, `music_planet_verdant_2` | neutral set |
 | Planet — crystal | biome contains `crystal` | `music_moon_crystal`, `music_explore_planet`, `music_explore_planet_2` | neutral set |
+| Planet — Sounder world | biome `sounder_world` (Soaniri, the Sounders story pack, #3363) | `sounders_soaniri` | neutral set |
 | Planet — cave | on a planet, not sky-exposed | `music_planet_cave`, `music_planet_cave_2`, `music_planet_cave_3` | `music_idle_default`(`_2`) |
 | Planet — deep water | head submerged ≥ 8 s (back to the surface pool 5 s after surfacing) | `music_planet_ocean_2` (loops) | — |
 | Planet — generic | any other surface (rocky / varied / highland / skylands / asteroid) | `music_explore_planet`(`_2`), `music_idle_default`(`_2`) | `music_planet_sunrise`(`_2`) at dawn, `music_planet_night`(`_2`) at night |
@@ -423,3 +425,29 @@ first sighting of `GuardianDefeated`, which played it at every session start of 
 
 The Suno style prompts that produced these are in
 [STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md) Appendix A.
+
+## Sounders story pack (#3363, 2026-11-07)
+
+Three tracks composed with the **ElevenLabs Music API** via `tools/ai-assets/gen_music.py` (prompt mode, instrumental
+forced, `mp3_44100_192`, the default `music_v1` model) for the Sounders story pack (epic #3368). The choir is choir-like
+synth pads — the generator forces instrumental. `sounders_soaniri` is the pool of the Sounder home world (context
+`planet_sounder`, see the mapping table) and the track of the pack's Soaniri cutscenes; `sounders_great_song` and
+`sounders_bridge_song` play only as cutscene tracks (`"music"` in `data/stories/sounders/cutscenes.json`, looped while the
+scene plays — #2468), so their swell comes within the first 15–20 s (the scenes run 22–25 s). Integrated loudness −12 to
+−14 LUFS, like the rest of the library. Regenerate (a new take, never the same one) with `uv run gen_music.py --prompt
+"<prompt>" --length <s> --format mp3_44100_192 --out out/music/<name>.mp3`.
+
+### `sounders_soaniri` — Soaniri, the Sounder home world *(135 s, asked for 150; calm, wondrous, hummed voices and chimes)*
+```text
+Instrumental calm and wondrous exploration theme for an alien world of singing plants and glowing crystals, the home of a gentle music-loving people. Soft choir-like synth pads that sound like distant hummed voices, gentle glassy chimes and bell tones, a warm slow flute-like melody, light harp plucks, a sense of wonder, warmth and peace. Background exploration music for a kid-friendly block-based space game. Seamless loop, no vocals, no lyrics, no drums, not dramatic, no combat.
+```
+
+### `sounders_great_song` — the flashback of the Great Song *(75 s; melancholic, swelling choir)*
+```text
+Instrumental melancholic, swelling choir-like piece for a flashback memory: long ago a whole people sang one great song together, then they were gone. Starts quiet with a lonely bell melody and soft wordless choir-like synth pads, swells within the first twenty seconds into a big warm wave of choir-like voices and strings, bittersweet and beautiful, then gently fades. For a kid-friendly space game: sad but tender, not scary, no horror, no vocals, no lyrics, no drums.
+```
+
+### `sounders_bridge_song` — the Bridge Song, the pack's finale *(90 s; warm, hopeful, choir and strings)*
+```text
+Instrumental warm and hopeful finale for a kid-friendly space adventure: two peoples sing a bridge song together and giant gentle sky creatures appear. Warm strings and choir-like synth pads that sound like many hummed voices, glassy chimes, a rising heartfelt melody that blooms within the first fifteen seconds and keeps growing, joyful, moving and uplifting. No vocals, no lyrics, no heavy drums, no battle music.
+```

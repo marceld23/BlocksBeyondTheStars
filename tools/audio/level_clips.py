@@ -56,13 +56,15 @@ RULES: list[tuple[str, str]] = [
     ("step", r"^step_"),
     ("foley", r"^(climb_|land$|land_|jump$|swim_|breath_|heartbeat|surface_gasp|water_splash|wing_flap|suit_thruster|"
               r"spring_jump$|glider_open$|rcs_puff|ship_cooling_tick|cargo_creak)"),
-    ("creature", r"^creature_"),
-    ("voice", r"^(npc_voice_|npc_human_|npc_alien_|vega_chatter_)"),
+    # #3363: the Sounders pack's own animals (the series' Soundi, the Soundrak, the Qualis, the Soundelings) are creatures.
+    ("creature", r"^(creature_|soundi_call_|soundrak_scream_|quali_song_|soundeling_coo_)"),
+    ("voice", r"^(npc_voice_|npc_human_|npc_alien_|vega_chatter_|echo_hum_|elder_hum_)"),  # #3363: the Sounders' hums
     ("sting", r"^(festival_|chapter_sting|jumave_sting$|splash_intro$)"),
     ("weather", r"^(rain_loop|storm_loop|drizzle_loop|gale_loop|blizzard_loop|sandstorm_loop|ash_loop|acid_hiss|"
                 r"ion_crackle|spore_amb|meteor_streak|toxic_storm_loop|wind_light|wind_strong|rain_on_hull)$"),
     ("bed", r"^(amb_|night_|water_(brook|fall|shore|surf)$|lava_fall$|lava_bubble$|fire_crackle$|energy_fence_hum$|glider_wind$|"
-            r"underwater_bubbles$|suit_room_tone$|cockpit_ambience$|life_support_cycle$|slither_loop$|vent_hiss$)"),
+            r"underwater_bubbles$|suit_room_tone$|cockpit_ambience$|life_support_cycle$|slither_loop$|vent_hiss$|"
+            r"plant_[a-z_]+_loop$)"),  # #3363: the singing plants' loops
     ("machine", r"^(engine_idle|engine_boost|drill_loop|auto_drill_loop|vehicle_engine_loop|"
                 r"boat_engine_loop|rope_reel|lift_motor|factory_hum|data_cube_hum|anomaly_hum|wormhole_hum|"
                 r"pod_beacon|beam_idle|clone_tank_bubble|reactor_hum|ship_exterior_idle|alarm_siren_\d)$"),

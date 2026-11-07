@@ -50,6 +50,13 @@ namespace BlocksBeyondTheStars.Client
         private const float StoriesTutorialH = 66f;
         private const float StoriesTutorialPitch = 74f;
 
+        /// <summary>#3347: the side stories' switches under the tutorial rule — the gap above their header, the header's height,
+        /// a switch row and its pitch (at most <see cref="WorldStoryOptions.MaxSideStories"/> rows).</summary>
+        private const float StoriesSideOffset = 14f;
+        private const float StoriesSideHeaderH = 30f;
+        private const float StoriesSideH = 40f;
+        private const float StoriesSidePitch = 46f;
+
         /// <summary>Builds the (initially hidden) overlay; returns its root for the caller to toggle.</summary>
         public static GameObject Build(AppShell shell, Transform root, WorldCreationOptions opt)
         {
@@ -340,8 +347,49 @@ namespace BlocksBeyondTheStars.Client
                 ty += StoriesTutorialPitch;
             }
 
+            BuildSideStories(shell, parent, opt, ty, refreshers, Refresh); // #3347: under the tutorial rule
             Refresh();
             return Refresh;
+        }
+
+        /// <summary>#3347: the side stories on the Stories page, under the tutorial rule — one switch each, on by default
+        /// (<see cref="WorldStoryOptions.SideStoryChoices"/>: the festival stories follow the Festivals option instead); a story
+        /// switched off never starts in the new world (<c>--disable-stories</c>).</summary>
+        private static void BuildSideStories(AppShell shell, Transform parent, WorldCreationOptions opt, float ty,
+            List<System.Action> refreshers, System.Action refresh)
+        {
+            var stories = shell.Content?.Stories;
+            var sideStories = WorldStoryOptions.SideStoryChoices(stories?.Values);
+            if (sideStories.Count == 0)
+            {
+                return;
+            }
+
+            ty += StoriesSideOffset;
+            UiKit.AddText(parent, 820f, ty, 700f, 24f, shell.L("ui.worldopt.side_stories"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            ty += StoriesSideHeaderH;
+            foreach (string id in sideStories)
+            {
+                string pack = id;
+                var btn = UiKit.AddButton(parent, 820f, ty, 740f, StoriesSideH, string.Empty, () =>
+                {
+                    opt.Stories.SetSideStory(pack, !opt.Stories.SideStoryOn(pack));
+                    refresh();
+                });
+                var mark = UiKit.AddText(btn.transform, 14f, 0f, 30f, StoriesSideH, string.Empty, 18, UiKit.Ok, TextAnchor.MiddleCenter, FontStyle.Bold);
+                var name = UiKit.AddText(btn.transform, 52f, 0f, 560f, StoriesSideH,
+                    WorldStoryOptions.StoryName(pack, stories, shell.L, key => HasText(shell, key)), 17, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UiKit.FitLabel(name, 11, 17);
+                var state = UiKit.AddText(btn.transform, 620f, 0f, 100f, StoriesSideH, string.Empty, 16, UiKit.CyanDim, TextAnchor.MiddleRight);
+                refreshers.Add(() =>
+                {
+                    bool on = opt.Stories.SideStoryOn(pack);
+                    mark.text = on ? "●" : "○";
+                    name.color = on ? UiKit.Ok : UiKit.TextCol;
+                    state.text = shell.L(on ? "ui.worldopt.side_story_on" : "ui.worldopt.side_story_off");
+                });
+                ty += StoriesSidePitch;
+            }
         }
 
         /// <summary>The advanced page: every selectable planet type with its own frequency slider.

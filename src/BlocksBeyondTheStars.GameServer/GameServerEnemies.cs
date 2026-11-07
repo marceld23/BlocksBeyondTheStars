@@ -436,7 +436,7 @@ public sealed partial class GameServer
         float r2 = CompanionWardRange * CompanionWardRange;
         foreach (var c in _creatures)
         {
-            if (c.IsCompanion && c.OwnerId == p.PlayerId && WrapDistSq(p.Position, c.Position) <= r2)
+            if (CompanionFollowsOwner(c) && c.OwnerId == p.PlayerId && WrapDistSq(p.Position, c.Position) <= r2) // #3344: followers only
             {
                 return true;
             }
@@ -1259,11 +1259,17 @@ public sealed partial class GameServer
     /// <summary>True for a creature nobody may attack (#2281): a tamed companion — the player's own, another player's —
     /// or a tamer NPC's pet. The parents' guide promises that friends cannot harm each other, and a pet is part of a
     /// friend. The one rule for every player-driven hit and push on a creature.</summary>
-    private static bool ProtectedFromPlayers(CombatEntity creature) => creature.IsCompanion;
+    private bool ProtectedFromPlayers(CombatEntity creature) => creature.IsCompanion || UntouchableCreature(creature); // #3359: a Quali too
 
     private void AttackCombatEntity(PlayerSession session, CombatEntity target, List<CombatEntity> list, bool isCreature, Vector3f aimDir = default)
     {
         var p = session.State;
+        if (isCreature && UntouchableCreature(target))
+        {
+            Reject(session, "attack", "@srv.attack.quali"); // #3359: the Qualis are a spectacle — nothing a player does touches them
+            return;
+        }
+
         if (isCreature && ProtectedFromPlayers(target))
         {
             Reject(session, "attack", "@srv.attack.companion"); // #2281: before any cooldown is spent
@@ -1318,6 +1324,12 @@ public sealed partial class GameServer
 
         // 2026-09 (Valuma): a hit turns the shapeshifter on its attacker; at zero its disguise breaks instead of it dying.
         if (isCreature && IsSreekmakra(target) && OnSreekmakraHit(session, target))
+        {
+            return;
+        }
+
+        // #3365: a hit inside a duel (a wild Soundi gives up instead of dying), or one that makes a pack defend its member.
+        if (isCreature && OnCreatureDuelHit(session, target))
         {
             return;
         }

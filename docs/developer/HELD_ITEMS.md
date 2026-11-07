@@ -233,6 +233,25 @@ Once a draw has brought a drill, a gun or a blade into the hand, it plays a shor
 - **The cue** plays at volume 0.45 — 2D for the viewmodel, 3D at the hand of a visible avatar; the own avatar in first
   person is hidden and plays nothing, so the sound is never doubled. See [SOUND_DESIGN.md](SOUND_DESIGN.md) §26.
 
+## 6. The Sounders' items (#3352–#3354)
+
+The Sounders story pack adds one held gadget and a handful of items the hand shows by the ordinary rules:
+
+- **The Resonance Blaster** (`resonance_blaster`, *Musik-Dröhner* — never "Sound Blaster") is a `Gadget` with its own
+  11-part `heldModel`: a dark obsidian body (`stone`) on a rubber pistol grip, a barrel with two metal resonance rings, a
+  wide bell with a glowing violet mouth (`energy`), a crystal spine on top and a crystal strip on each side (`crystal`), a
+  darkmetal back cap. It keeps every gadget convention (fist on the grip, no shared face planes, the bell well in front of
+  the fist — `HeldGadgetModelTests` lists it). Its fx style is the shock gloves' `shock_push` ring in violet.
+  **While it is held the melody bar is open for free play** (Sounder voice): `PlayerController.RefreshHeldItem` tells
+  `GameBootstrap.OnHeldItemChangedForSounders`, which opens `MelodyBar.OpenFreePlay(4)` and closes only the bar it opened.
+  What the pulse does is the server's (`GameServerResonanceBlaster.cs`): a cone that pushes and dazes hostile creatures and
+  machines for 3 s without harm, calms a Soundrak, and on a monument's rune stone opens its sound chamber
+  (`GameServerSoundChambers.cs`).
+- **Song Discs** (`song_disc_*`, the collectible `song_disc`) are flat item icons — held as the extruded icon card
+  (`Icon` miniature). **The Song Spindle** (`song_spindle`) is a block item, held as its cube.
+- **The obsidian armour** is worn, not held: its look is the avatar's (see
+  [CRAFTING_TECH_SHIP_UI.md](CRAFTING_TECH_SHIP_UI.md), "Worn gear on the body").
+
 ## Tests
 
 - `HeldBlockLookTests` — which look a key gets (dye, glow, forms, designs, player forms, props, the cache key).

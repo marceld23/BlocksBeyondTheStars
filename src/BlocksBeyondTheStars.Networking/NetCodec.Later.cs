@@ -44,5 +44,15 @@ public static partial class NetCodec
         Register(320, typeof(OpenCalendarDoorIntent));       // Client -> Server
         Register(321, typeof(FestivalCalendarState));        // Server -> Client
         Register(322, typeof(CosmeticUnlocks));              // Server -> Client
+
+        // The Sounders story pack (#3368). No protocol bump — an older server drops the intents, an older client the rest.
+        Register(323, typeof(UseBlockIntent));               // Client -> Server (#3345 rune stones, puzzle pillars, the Song Spindle)
+        Register(324, typeof(NoteSequence));                 // Server -> Client (#3345 a melody at a place)
+        Register(325, typeof(MelodyNoteIntent));             // Client -> Server (#3346 a tone of the melody bar, or -1: leave)
+        Register(326, typeof(MelodyPuzzleState));            // Server -> Client (#3346 the melody bar: open, progress, prompt, result)
+        Register(327, typeof(SetCompanionFollowIntent));     // Client -> Server (#3344 who follows, who stays home or on board)
+        Register(328, typeof(BlueprintVisibility));          // Server -> Client (#3350 the hidden blueprints this player may see)
+        Register(330, typeof(StoryMinigameStart));           // Server -> Client (#3352 the note-key minigame for a Song Disc)
+        Register(331, typeof(StoryMinigameResultIntent));    // Client -> Server (#3352 its answers, or a skip)
     }
 }

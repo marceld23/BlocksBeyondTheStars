@@ -603,6 +603,10 @@ namespace BlocksBeyondTheStars.Client
                 case "/jumpdrive": net.SendAdminCommand("grant_module", stringArg: "jump_generator"); return true;
                 case "/gotocore": net.SendAdminCommand("goto_core"); return true;
 
+                // #3368: the Sounders' Song QA — "/sounders status|start|chapter <n>|items|echo|song|soaniri|tower|soundi"
+                // (the server answers with its usage line for anything else).
+                case "/sounders": net.SendAdminCommand("sounders", stringArg: t.Substring(p[0].Length).Trim()); return true;
+
                 // Cutscene preview (#2468): "/cutscene <pack> <id>" plays a story scene for this admin only (the server
                 // checks the role and answers with the usage line when the words are missing).
                 case "/cutscene":
@@ -733,6 +737,7 @@ namespace BlocksBeyondTheStars.Client
             LocalLine(L("ui.admin.help_inspect"));
             LocalLine(L("ui.admin.help_fleet"));
             LocalLine(L("ui.admin.help_story"));
+            LocalLine(L("ui.admin.help_sounders")); // #3368: the Sounders story's QA verb
             LocalLine(L("ui.admin.help_tutorial"));
             LocalLine(L("ui.admin.help_cutscene"));
             LocalLine(L("ui.admin.help_maintenance"));

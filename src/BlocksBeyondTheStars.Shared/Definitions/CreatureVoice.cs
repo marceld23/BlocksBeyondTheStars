@@ -198,6 +198,27 @@ public static class CreatureVoices
         "creature_call_bark", "creature_call_bark_deep", "creature_call_bark_rough",
     };
 
+    /// <summary>#3359: the Soundi of the animated series sings instead of meowing — its fourteen calls, levelled. Like every
+    /// creature of Soaniri it speaks from its own recorded voice (<see cref="SungPool"/>), never processed.</summary>
+    private static readonly string[] SoundiCalls =
+    {
+        "soundi_call_01", "soundi_call_02", "soundi_call_03", "soundi_call_04", "soundi_call_05", "soundi_call_06",
+        "soundi_call_07", "soundi_call_08", "soundi_call_09", "soundi_call_10", "soundi_call_11", "soundi_call_12",
+        "soundi_call_13", "soundi_call_14",
+    };
+
+    /// <summary>#3359: the Soundrak's short, loud scream — loud, never shrill.</summary>
+    private static readonly string[] SoundrakCalls = { "soundrak_scream_1", "soundrak_scream_2", "soundrak_scream_3" };
+
+    /// <summary>#3359: the Qualis' slow song from the other reality.</summary>
+    private static readonly string[] QualiCalls = { "quali_song_1", "quali_song_2" };
+
+    /// <summary>#3359/#3366: the Soundelings' soft coo.</summary>
+    private static readonly string[] SoundelingCalls = { "soundeling_coo_1", "soundeling_coo_2", "soundeling_coo_3" };
+
+    /// <summary>The four recorded repertoires (declared after them: static initialisers run in text order).</summary>
+    private static readonly string[][] SungPools = { SoundiCalls, SoundrakCalls, QualiCalls, SoundelingCalls };
+
     // Habitat-flavoured pools: cave dwellers sound deep + echoey, amphibians wet + croaky, water
     // creatures burble, lava critters hiss/rumble, fliers shriek/trill. Land uses the full pool.
     private static readonly string[] LandCalls =
@@ -270,7 +291,8 @@ public static class CreatureVoices
         get
         {
             var set = new List<string>();
-            foreach (var pool in new[] { LandCalls, CaveCalls, AmphibianCalls, WaterCalls, LavaCalls, AirCalls, BipedCalls, Ethereal, Insect, Arachnid, RobotCalls, CanineCalls })
+            foreach (var pool in new[] { LandCalls, CaveCalls, AmphibianCalls, WaterCalls, LavaCalls, AirCalls, BipedCalls, Ethereal, Insect, Arachnid, RobotCalls, CanineCalls,
+                SoundiCalls, SoundrakCalls, QualiCalls, SoundelingCalls })
             {
                 foreach (var name in pool)
                 {
@@ -300,7 +322,7 @@ public static class CreatureVoices
         // it turns N voices into N². Small species stay unlayered so little animals read crisp.
         string layer = string.Empty;
         int layerOffset = 0, layerDetune = 0;
-        if (t.Size >= 0.9f && Roll01(seed, "layer") < 0.38f)
+        if (t.Size >= 0.9f && !IsSung(t.BodyPlan) && Roll01(seed, "layer") < 0.38f) // #3359: a recorded voice stays alone
         {
             var others = Without(candidates.Count > 2 ? candidates : pool, call);
 
@@ -340,6 +362,11 @@ public static class CreatureVoices
         if (Contains(CanineCalls, v.Call))
         {
             return "ui.scan.voice.bark"; // #3328: the Schuppenhund barks
+        }
+
+        if (SungDescriptorKey(v.Call) is { } sung)
+        {
+            return sung; // #3359: the creatures of Soaniri sing, scream and coo
         }
 
         if (v.Pulses >= 4 && v.PulseGapMs <= 130)
@@ -405,8 +432,63 @@ public static class CreatureVoices
         "Biped" => BipedCalls,
         "Robot" => RobotCalls,
         "Hound" => CanineCalls,
+        _ => SungPool(bodyPlan), // #3359: the creatures of Soaniri
+    };
+
+    /// <summary>#3359: the recorded voices of Soaniri's creatures — the body plans whose calls are real recordings (the animated
+    /// series' Soundi, the Soundrak's scream, the Qualis' song, the Soundelings' coo), or null. A sung voice is never processed,
+    /// layered or chained into a phrase: one recording per call, at its own pitch (<see cref="KeepsNaturalPitch"/>).</summary>
+    public static string[]? SungPool(string bodyPlan) => bodyPlan switch
+    {
+        "Soundi" => SoundiCalls,
+        "Soundrak" => SoundrakCalls,
+        "Quali" => QualiCalls,
+        "Soundeling" => SoundelingCalls,
         _ => null,
     };
+
+    /// <summary>#3359: whether the body plan speaks with a recorded voice (see <see cref="SungPool"/>).</summary>
+    public static bool IsSung(string bodyPlan) => SungPool(bodyPlan) != null;
+
+    /// <summary>#3359: a recorded voice keeps its own pitch on the client — the size rule would turn the Soundi's song into a
+    /// squeak and the Soundrak's scream into a rumble; only a small per-species offset stays.</summary>
+    public static bool KeepsNaturalPitch(string bodyPlan) => IsSung(bodyPlan);
+
+    /// <summary>#3359: every call of a recorded voice's repertoire, when <paramref name="call"/> is one of them — the client picks
+    /// a fresh recording per call from it, so a Soundi sings all fourteen of its calls instead of one. Null for every other call.</summary>
+    public static IReadOnlyList<string>? Repertoire(string call)
+    {
+        foreach (var pool in SungPools)
+        {
+            if (Contains(pool, call))
+            {
+                return pool;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>#3359: the scan's words for a recorded voice, or null for any other call.</summary>
+    private static string? SungDescriptorKey(string call)
+    {
+        if (Contains(SoundiCalls, call))
+        {
+            return "ui.scan.voice.sings";
+        }
+
+        if (Contains(SoundrakCalls, call))
+        {
+            return "ui.scan.voice.scream";
+        }
+
+        if (Contains(QualiCalls, call))
+        {
+            return "ui.scan.voice.song";
+        }
+
+        return Contains(SoundelingCalls, call) ? "ui.scan.voice.coo" : null;
+    }
 
     /// <summary>The habitat's full call pool.</summary>
     public static IReadOnlyList<string> PoolFor(string habitat) => (habitat ?? "Land").ToLowerInvariant() switch
@@ -546,6 +628,11 @@ public static class CreatureVoices
     /// world does not sound uniformly processed.</summary>
     private static VoiceOp PickOp(int seed, VoiceTraits t)
     {
+        if (IsSung(t.BodyPlan))
+        {
+            return VoiceOp.None; // #3359: the series' Soundi must sound like the series' Soundi
+        }
+
         if (t.BodyPlan == "Biped")
         {
             // #2083: the gibberish must stay readable as "meins" — a little thinner, duller or wobblier per species, never
@@ -601,6 +688,11 @@ public static class CreatureVoices
 
     private static int PickTail(int seed, VoiceTraits t)
     {
+        if (IsSung(t.BodyPlan))
+        {
+            return t.BodyPlan == "Quali" ? 2 : 0; // #3359: a Quali's song hangs in the sky; the others stay dry
+        }
+
         if (t.Habitat == "Cave" || t.BodyPlan == "Medusa")
         {
             return 2;
@@ -619,9 +711,9 @@ public static class CreatureVoices
             return 4 + Roll(seed, "pulses.echo", 4); // 4..7 rapid clicks
         }
 
-        if (t.BodyPlan == "Medusa")
+        if (t.BodyPlan == "Medusa" || IsSung(t.BodyPlan))
         {
-            return 1;
+            return 1; // #3359: every recording is a whole call already
         }
 
         if (t.BodyPlan == "Arachnid")
@@ -679,6 +771,11 @@ public static class CreatureVoices
 
     private static VoiceContour PickContour(int seed, VoiceTraits t)
     {
+        if (IsSung(t.BodyPlan))
+        {
+            return VoiceContour.Flat; // #3359: a recording keeps its own melody
+        }
+
         if (t.Eyes == 0 && (t.Habitat == "Cave" || t.Habitat == "Water"))
         {
             return VoiceContour.Rising;
@@ -701,6 +798,18 @@ public static class CreatureVoices
     /// today: before #902 every creature everywhere called every 5–12 s.</summary>
     private static (float Min, float Max) PickCadence(int seed, VoiceTraits t, int pulses)
     {
+        switch (t.BodyPlan)
+        {
+            case "Soundi":
+                return (6f, 14f);   // #3359: a pack of singers — often enough to hear the song, never a din
+            case "Soundeling":
+                return (7f, 16f);   // #3366: a soft coo now and then
+            case "Soundrak":
+                return (22f, 40f);  // #3359: the scream is rare on its own; the territory warning comes on top (server)
+            case "Quali":
+                return (28f, 55f);  // #3359: a Quali sings seldom — and is heard for it
+        }
+
         if (t.BodyPlan == "Medusa" || t.Tentacles >= 4)
         {
             return (26f, 55f); // a drifting lantern should barely make a sound

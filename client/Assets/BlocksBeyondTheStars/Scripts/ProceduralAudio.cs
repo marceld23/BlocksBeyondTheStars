@@ -145,11 +145,12 @@ namespace BlocksBeyondTheStars.Client
         private static readonly float[] NoteHz = { 261.63f, 293.66f, 329.63f, 349.23f, 392.00f, 440.00f, 493.88f, 523.25f };
 
         /// <summary>A melody-block note from its id <c>note_&lt;instrument&gt;_&lt;index&gt;</c>: 0 crystal (sine),
-        /// 1 bell (clang), 2 bass (an octave down), 3 blip (short square-ish).</summary>
+        /// 1 bell (clang), 2 bass (an octave down), 3 blip (short square-ish), 4 the Sounder voice, 5 the Sounder choir
+        /// (#3345, <see cref="SounderVoice"/> / <see cref="SounderChoir"/>).</summary>
         private static AudioClip Note(string id)
         {
             var parts = id.Split('_');
-            int inst = parts.Length > 1 && int.TryParse(parts[1], out int i0) ? Mathf.Clamp(i0, 0, 3) : 0;
+            int inst = parts.Length > 1 && int.TryParse(parts[1], out int i0) ? Mathf.Clamp(i0, 0, 5) : 0;
             int idx = parts.Length > 2 && int.TryParse(parts[2], out int i1) ? Mathf.Clamp(i1, 0, NoteHz.Length - 1) : 0;
             float hz = NoteHz[idx];
             switch (inst)
@@ -164,7 +165,77 @@ namespace BlocksBeyondTheStars.Client
                         d[i] = Mathf.Sign(Mathf.Sin(2f * Mathf.PI * hz * t)) * Mathf.Exp(-t * 18f) * 0.22f;
                     }
                 });
+                case 4: return SounderVoice(id, hz);
+                case 5: return SounderChoir(id, hz);
                 default: return Beep(id, hz, 0.5f, 0.35f);
+            }
+        }
+
+        /// <summary>The length of a Sounder voice / choir note (seconds): long enough to hum, short enough for a rune's word.</summary>
+        private const float SounderNoteSeconds = 0.62f;
+
+        /// <summary>
+        /// #3345 instrument 4, the Sounder voice: a hummed sine (a little second and third harmonic, a closed mouth), a gentle
+        /// vibrato that fades in after the attack, a breath of low-passed noise and a soft attack — then a calm release and a
+        /// short fade so the tail never clicks.
+        /// </summary>
+        private static AudioClip SounderVoice(string name, float hz) => Buf(name, SounderNoteSeconds, d =>
+        {
+            var rng = new System.Random(StableHash(name));
+            float phase = 0f, breath = 0f;
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float vibrato = 1f + 0.006f * Mathf.Sin(2f * Mathf.PI * 5.2f * t) * Mathf.Clamp01((t - 0.08f) * 5f);
+                phase += 2f * Mathf.PI * hz * vibrato / Rate;
+                breath += ((float)(rng.NextDouble() * 2 - 1) - breath) * 0.06f;
+                d[i] = (Hum(phase) * 0.3f + breath * 0.06f) * SoftEnvelope(t, 0.07f, SounderNoteSeconds);
+            }
+
+            FadeTail(d, Rate / 50);
+        });
+
+        /// <summary>
+        /// #3345 instrument 5, the Sounder choir: two voices a few cents apart (each with its own vibrato, so they beat slowly
+        /// against each other) and a third, quieter voice a fifth above — a small choir on one key.
+        /// </summary>
+        private static AudioClip SounderChoir(string name, float hz) => Buf(name, SounderNoteSeconds + 0.1f, d =>
+        {
+            var rng = new System.Random(StableHash(name));
+            float a = 0f, b = 0f, fifth = 0f, breath = 0f;
+            float dur = SounderNoteSeconds + 0.1f;
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float fade = Mathf.Clamp01((t - 0.1f) * 4f);
+                float va = 1f + 0.005f * Mathf.Sin(2f * Mathf.PI * 4.8f * t) * fade;
+                float vb = 1f + 0.005f * Mathf.Sin((2f * Mathf.PI * 5.7f * t) + 1.3f) * fade;
+                a += 2f * Mathf.PI * hz * 1.0035f * va / Rate;     // +6 cents
+                b += 2f * Mathf.PI * hz * 0.9965f * vb / Rate;     // −6 cents
+                fifth += 2f * Mathf.PI * hz * 1.5f * va / Rate;    // the fifth above
+                breath += ((float)(rng.NextDouble() * 2 - 1) - breath) * 0.05f;
+                float voices = ((Hum(a) + Hum(b)) * 0.5f) + (Hum(fifth) * 0.4f);
+                d[i] = (voices * 0.24f + breath * 0.05f) * SoftEnvelope(t, 0.11f, dur);
+            }
+
+            FadeTail(d, Rate / 50);
+        });
+
+        /// <summary>A hummed tone at <paramref name="phase"/>: the sine with a little of its second and third harmonic.</summary>
+        private static float Hum(float phase) => Mathf.Sin(phase) + (0.18f * Mathf.Sin(2f * phase)) + (0.06f * Mathf.Sin(3f * phase));
+
+        /// <summary>A sung note's envelope: a soft linear attack of <paramref name="attack"/> seconds, held, then released over
+        /// the last 40 % of <paramref name="dur"/>.</summary>
+        private static float SoftEnvelope(float t, float attack, float dur)
+            => Mathf.Min(1f, t / attack) * Mathf.Exp(-Mathf.Max(0f, t - (dur * 0.6f)) * 7f);
+
+        /// <summary>Fades the last <paramref name="samples"/> samples to silence (no click at the clip's end).</summary>
+        private static void FadeTail(float[] d, int samples)
+        {
+            samples = Mathf.Min(samples, d.Length);
+            for (int i = 0; i < samples; i++)
+            {
+                d[d.Length - 1 - i] *= i / (float)samples;
             }
         }
 
@@ -198,7 +269,8 @@ namespace BlocksBeyondTheStars.Client
             LoopFade(d, Rate / 20);
         });
 
-        /// <summary>Every melody-block note id (four instruments × eight notes), pre-filled into the cue table.</summary>
+        /// <summary>Every melody-block note id (six instruments × eight notes — 4 the Sounder voice and 5 the Sounder choir of
+        /// #3345), pre-filled into the cue table.</summary>
         public static readonly string[] NoteIds =
         {
             "note_0_0",
@@ -233,6 +305,22 @@ namespace BlocksBeyondTheStars.Client
             "note_3_5",
             "note_3_6",
             "note_3_7",
+            "note_4_0",
+            "note_4_1",
+            "note_4_2",
+            "note_4_3",
+            "note_4_4",
+            "note_4_5",
+            "note_4_6",
+            "note_4_7",
+            "note_5_0",
+            "note_5_1",
+            "note_5_2",
+            "note_5_3",
+            "note_5_4",
+            "note_5_5",
+            "note_5_6",
+            "note_5_7",
         };
 
         // --- Bio lab helpers (#2210) ---

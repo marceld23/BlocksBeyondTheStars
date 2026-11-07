@@ -343,6 +343,21 @@ namespace BlocksBeyondTheStars.Client
         public static bool ModalCaptures(InputAction action)
             => ModalCapture && (action == InputAction.UiCancel || action == InputAction.UiMenu);
 
+        /// <summary>#3346: the frame the open melody bar last claimed its keys (the HUD writes it every frame it takes them).
+        /// Frame-stamped, so a bar that stops updating can never keep the keys.</summary>
+        public static int MelodyBarFrame = -10;
+
+        /// <summary>#3346: the melody bar is open and takes the number keys 1–8, the pad's d-pad and its shoulders — the hotbar
+        /// keys, the d-pad's hotbar cycle and its chat/rotate verbs, and the shoulders' mine/place stay quiet meanwhile (a
+        /// shoulder is the bar's "tones 5–8" modifier, it must not mine the pillar in front of the player).</summary>
+        public static bool MelodyBarCapture => MelodyBarFrame >= Time.frameCount - 1;
+
+        /// <summary>The two verbs that live on the pad's d-pad (up: chat, down: rotate shape) — the bar's tones while it is open.</summary>
+        private static bool PadDpadVerb(InputAction action) => action == InputAction.OpenChat || action == InputAction.RotateShape;
+
+        /// <summary>The pad's part of <see cref="Down"/>: its d-pad verbs go quiet while the melody bar has the d-pad.</summary>
+        private static bool PadActionDown(InputAction action) => !(MelodyBarCapture && PadDpadVerb(action)) && _pad.ActionDown(action);
+
         // The text-entry gate (#1858), cached once per frame: TextFieldFocused walks the EventSystem selection
         // and GetComponent<InputField>, and Down/Held/Up are polled dozens of times a frame. Frame-stable like
         // Injected(): a field that loses focus mid-frame (Enter closing the chat box) keeps the rest of that
@@ -384,7 +399,7 @@ namespace BlocksBeyondTheStars.Client
         // Discrete rebindable actions — combined across all backends so a pad button, the touch USE button, or
         // the bound key all fire the action. The keyboard resolution is unchanged (DesktopInputSource calls Key).
         // Typing into any text field (#1858) swallows them all except UiCancel / UiMenu — see Passes.
-        public static bool Down(InputAction action) => Passes(action) && (_desktop.ActionDown(action) || _pad.ActionDown(action) || _touch.ActionDown(action) || Injected(action));
+        public static bool Down(InputAction action) => Passes(action) && (_desktop.ActionDown(action) || PadActionDown(action) || _touch.ActionDown(action) || Injected(action));
         public static bool Held(InputAction action) => Passes(action) && (_desktop.ActionHeld(action) || _pad.ActionHeld(action) || _touch.ActionHeld(action));
         public static bool Up(InputAction action) => Passes(action) && (_desktop.ActionUp(action) || _pad.ActionUp(action) || _touch.ActionUp(action));
 
@@ -440,7 +455,7 @@ namespace BlocksBeyondTheStars.Client
                 return d;
             }
 
-            float p = _pad.HotbarScroll();
+            float p = MelodyBarCapture ? 0f : _pad.HotbarScroll(); // #3346: the open melody bar plays tones on the d-pad
             return Mathf.Abs(p) > 0.0001f ? p : _touch.HotbarScroll();
         }
 
@@ -489,15 +504,22 @@ namespace BlocksBeyondTheStars.Client
         public static bool JumpHeld() => _desktop.JumpHeld() || _pad.JumpHeld() || _touch.JumpHeld();
         public static bool JumpDown() => _desktop.JumpDown() || _pad.JumpDown() || _touch.JumpDown();
         public static bool CrouchHeld() => _desktop.CrouchHeld() || _pad.CrouchHeld() || _touch.CrouchHeld();
-        public static bool PrimaryDown() => _desktop.PrimaryDown() || _pad.PrimaryDown() || _touch.PrimaryDown();
-        public static bool PrimaryHeld() => _desktop.PrimaryHeld() || _pad.PrimaryHeld() || _touch.PrimaryHeld();
-        public static bool SecondaryDown() => _desktop.SecondaryDown() || _pad.SecondaryDown() || _touch.SecondaryDown();
-        public static bool SecondaryHeld() => _desktop.SecondaryHeld() || _pad.SecondaryHeld() || _touch.SecondaryHeld();
+        // #3346: while the melody bar is open the pad's shoulders are its "tones 5–8" modifier — they neither mine nor place.
+        public static bool PrimaryDown() => _desktop.PrimaryDown() || (!MelodyBarCapture && _pad.PrimaryDown()) || _touch.PrimaryDown();
+        public static bool PrimaryHeld() => _desktop.PrimaryHeld() || (!MelodyBarCapture && _pad.PrimaryHeld()) || _touch.PrimaryHeld();
+        public static bool SecondaryDown() => _desktop.SecondaryDown() || (!MelodyBarCapture && _pad.SecondaryDown()) || _touch.SecondaryDown();
+        public static bool SecondaryHeld() => _desktop.SecondaryHeld() || (!MelodyBarCapture && _pad.SecondaryHeld()) || _touch.SecondaryHeld();
 
         /// <summary>Hotbar slot 0..8 picked directly this frame (number keys), or −1. Pad + touch have no
-        /// direct pick (they cycle via <see cref="HotbarScroll"/>), so this is the keyboard's answer.</summary>
+        /// direct pick (they cycle via <see cref="HotbarScroll"/>), so this is the keyboard's answer. #3346: none while the
+        /// melody bar is open — the number keys play its tones then.</summary>
         public static int HotbarSlotDown()
         {
+            if (MelodyBarCapture)
+            {
+                return -1;
+            }
+
             int s = _desktop.HotbarSlotDown();
             return s >= 0 ? s : _pad.HotbarSlotDown();
         }

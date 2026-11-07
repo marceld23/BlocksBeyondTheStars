@@ -71,6 +71,7 @@ namespace BlocksBeyondTheStars.Client
         public Transform Shoulder;
         public Transform Elbow;
         public int Side;           // 0 = left, 1 = right
+        public int Row;            // #3355: 0 = the upper (or only) pair, 1 = a Sounder's lower pair — it waves a beat behind
         public Quaternion ShoulderRest = Quaternion.identity;
         public Quaternion ElbowRest = Quaternion.identity;
     }
@@ -141,6 +142,20 @@ namespace BlocksBeyondTheStars.Client
 
         // Medusa plan: the bell pulses and the rim arms trail it.
         public Transform Bell;
+
+        // --- the bodies of Soaniri (#3355, #3359, #3366) ---
+
+        /// <summary>The Soundrak's bud lips: they open with every call (the jaw pulse) and close again.</summary>
+        public Transform[] Petals = System.Array.Empty<Transform>();
+
+        /// <summary>The lamp a Soundeling holds up while it carries a light (hidden otherwise; <c>SetCarrying</c>).</summary>
+        public GameObject CarriedLight;
+
+        /// <summary>An Echo: the body floats a hand above the ground and the arms drift slowly.</summary>
+        public bool Drift;
+
+        /// <summary>How high the body floats (blocks) while <see cref="Drift"/> is set.</summary>
+        public float Hover;
 
         // --- species facts the animator poses from ---
         public bool Hostile;

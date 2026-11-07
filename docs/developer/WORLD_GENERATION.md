@@ -291,7 +291,8 @@ worlds of the same planet type grow different species) by
 [`TreeGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/TreeGenerator.cs):
 
 - **Catalogue:** the fixed flora archetypes (`FloraCatalog.All`, 68 entries since generation 29: the wild species of
-  every wave, the four tree fruit shapes, the Fifi berries, the lantern fruit and the three crops at the tail). A later
+  every wave, the four tree fruit shapes, the Fifi berries, the lantern fruit and the three crops at the tail; since then
+  the pumpkin, the marigold and Soaniri's five authored singing plants, §51 — 75). A later
   wave is appended before the crops with a `MinGeneration`, so every older species keeps its roster id and an older
   world never gains the newcomers (§45, §46). From generation 29 the world's glow level decides how many glowing
   species the surface grows (§46). The order is persisted identity — a species' index is its roster id (`"fl" + i`),
@@ -3328,3 +3329,94 @@ like on the surface (its pinned composition and grid, every composed block in pl
 **Watch items.** Underground structures have no planet-map POI and no `/tp` target; the G.D.S. pools assume Ressaw is still
 (#3335); an enclosed structure's living markers are ignored on purpose (above) — if authors want an inhabited underground
 place one day, that is a decision, not a fix.
+## 51. Soaniri, the Sounder home world (#3358, #3367 — the Sounders story pack, 2026-11-07)
+
+**Why.** The Sounders' song ends at home: Soaniri, the one world of the detuned Ornemis system that the pack reveals per
+player once they learn the Song of Return (#3357; story and chapters in [STORY_SOUNDERS.md](STORY_SOUNDERS.md)). The world
+had to sing — its plants, its crystals and its tower — and to carry the three places of chapters 7 and 8: the village of the
+last Sounders, the ruins of the old ones and the Choir Tower.
+
+**The type (`sounder_world`, no terrain-generation gate).** Nothing in it moves another world, so no generation was bumped:
+every new behaviour sits behind a field only this type sets (`SingingMeadows`, `MonumentCount`, the `monuments` kind of
+`AllowedStructures`), and the new flora are authored species that join no roster. `selectable: false` + `spawnWeight: 0`
+keep it out of the planet roll, the generation retype pass and the asteroid families; it reaches a galaxy only as the body
+`ornemis-world` of the pack system (`GameServerStoryPacks.Systems`, the system's `planetType`). `fixedName` "Soaniri"
+(`planet.sounder_world.name`). Rolling `downs`/`hills` (amplitude 12, calm terrain: no volcanoes, massifs or rifts), mild
+(18 °C), breathable, gentle weather (drizzle, fog, little wind, no meteors), a lavender sky, small lakes (waterAbundance 0.15 —
+at 0.3 a seed could drown the pad's whole neighbourhood, and too little for a tinted sea), no machines (`enemyDensity` 0), peaceful rolled fauna plus the four
+authored Sounder creatures (`soundi`, `soundrak`, `quali`, `soundeling`, #3359). Three biomes, all chime moss but one:
+**chime meadows** (chime moss over soil), **crystal slopes** (chime moss over stone, relief ×1.4) and the **reed marsh**
+(mud). Shallow `obsidian` and `resonance_crystal` veins. `restrictStructures` with only `monuments` (on a save of any generation — the pack reaches old galaxies too): no towns, bandits,
+lodges, factories, wrecks, vaults, chests or unique sites — but 4–6 rune monuments (`monumentCount`, drawn after the classic
+roll from its own hash, so the rng stream is the classic one).
+
+**The blocks.** `chime_moss` (terrain, palette `crystal` — the rune stones glow violet on it), `carved_obsidian` (building,
+also a workshop recipe from obsidian), `resonance_crystal` (ore, casts a soft teal light, `usable`: the use key sings one
+tone — a hash of its cell — or, on the Choir Tower, its pipe's tone). The singing plants `chime_reed`, `bell_bloom`,
+`bell_bloom_open`, `harp_vine`, `echo_flower` are **authored `FloraCatalog` species without the `flora_` prefix** (the pack's
+texture names): `FloraCatalog.IsPlantKey` (every `flora_*` key or any catalog species) replaces the prefix test in the mesher's
+plant traits, the texture alpha rule (`TextureTiles.AlphaModeOf` → cutout), `WetCell` and the texture catalog, so they draw as
+cross billboards (the chime reed tall, the harp vine hanging), never take the world's flora hue and have no collider
+(`solid: false`). They are inserted before the crops in the catalog (authored: no roster id moves); `FloraCatalogOrderTests`
+and the leaf-alpha bake list carry them.
+
+**The singing meadows (`WorldGenerator.SingingMeadows*.cs`, `PlanetType.SingingMeadows`).** One chunk pass before the pads
+are flattened. The zone of a column comes from its resolved biome (mud → marsh, moss over stone → slope, other moss →
+meadow). Per surface column, on its own host and in patches (an FBM field, scale 14): meadows grow bell blooms 5 : chime reeds
+4 : echo flowers 1 (16 %), slopes reeds 3 : blooms 2 : echo 1 (6 %), the marsh dense chime reeds (32 %); a slope column without
+a plant now and then pushes up a lone resonance-crystal shard. Anchor props, written like the set dressing (anchors within 3
+columns of the chunk, air cells — and a singing plant — only, so a vine never hangs from another vine): **obsidian outcrops**
+(radius 1–2, 3–6 high, every column on its own ground, two in three with a crystal cap; slopes 1 %, meadows 0.25 % of the
+columns) and **harp arches** (two obsidian pillars two cells either side of the anchor, a lintel 4–5 above it, harp vines
+hanging under the lintel, half with a crystal on top; slopes 0.4 %, meadows 0.12 %; a steep anchor builds nothing). Every
+salt is `0x3358_0A0x`. `WorldGenerator.SingingZoneAt` exposes the zone (the server's site search prefers one per site).
+
+**The three sites (`GameServerSounderWorld*.cs`, `SounderSiteLayout`).** Stamped first in the structures stage, on the
+`sounder_world` type only, like the unique sites: placement record `sounder:<key>` (index 0), the blocks written once inside a
+repo transaction, every later load re-derives only the transient part from the record. The search weighs 90 seeded spots in
+the site's distance band from the home pad (a second round three times as far out only when the first found no dry spot):
+dry under the centre and eight rim samples, clear of every pad and earlier site, scored by the spread of 13 ground samples
+plus 25 off the preferred zone; the floor is the median sample and `LevelSounderDisc` fills up to it and clears the hills and
+meadow props above. The monuments reserve the three footprints (`AppendSounderWorldReservations`); the world map lists them
+(`poi.mirun`, `poi.ornasa`, `poi.choir_tower`); each is a pack site (`RegisterPackSite("sounders", <key>, …)`, the markers
+`pack_site:mirun` / `pack_site:ornasa` / `pack_site:choir_tower`).
+
+- **Mirun** (48–110 blocks out, prefers the marsh, radius 15): a moss plaza with a ring path of ancient brick, the bell post
+  (carved obsidian, four `chime` blocks under its arms, a crystal on top) with bell blooms and an echo flower beside it, six
+  5×5 huts of brick and reed planks on a ring (doors toward the plaza, a chime on every roof), three paper lanterns and a
+  fringe of chime reeds. Every load spawns six Sounder villagers (`ServerNpc.Look = "sounder"`, settlement `mirun`, soft
+  Sounder names) outside their doors and **the Eldest** (`CharacterId = "eldest"`) by the bell post.
+- **Ornasa** (140–240 out, prefers the meadows, radius 22): broken obsidian paving, a broken outer wall, an amphitheatre with
+  eight broken rune pillars (they sing their words) and a crystal on a plinth, and six slots on a ring 16 out: three ruined
+  halls (two with a relic cache) and three **sealed sound chambers** (5×5×4 carved obsidian, a two-high sealed doorway toward
+  the amphitheatre with a crystal above it, a relic cache inside). `OrnasaChambers`, `OrnasaChamberAtSeal(cell)`,
+  `IsOrnasaChamberOpen(i)` and `OpenOrnasaChamber(session, i, byBlaster)` (seal → air; `chamber:opened` when the blaster did
+  it) are the items pack's hooks; chamber 2 belongs to the **bell-bloom trail** — five bell blooms on an arc from the
+  amphitheatre's edge to its door.
+- **The Choir Tower** (220–330 out, prefers the slopes): a **barren ring** of radius 24 (the moss turned to scree, its plants
+  gone — the old hunger), a carved-obsidian base, a round tower 24 high (walls 3.2–4.5 from the axis, crystal bands at 8 and
+  16, a doorway in the south, a spiral of one step per level around a central column), and on top a platform of radius 7 with
+  a rim and the **eight pipes** 5 out, pipe *i* = tone *i* clockwise from north (`SounderSiteLayout.ChoirPipeBase`), the low
+  tones the tall pipes (3, 3, 2, 2, 1, 1, 0, 0 obsidian cells under a crystal, so every crystal is within a pillar's reach). The
+  pipe bases are the melody site `choir_tower` (`RegisterMelodySite`, every load) and the pack site sits on the platform.
+
+**The singing plants as puzzle helpers (#3367, `GameServerSingingPlants.cs`).** `HearSingingPlants(session, tone,
+instrument)` takes every tone a player plays on a Sounder world (the melody bar's free play and every struck resonance
+crystal): an **echo flower** within 8 blocks sings the last ≤ 8 tones back in the Sounder voice once the player was quiet for
+1.2 s (`NoteSequence`, source `echo_flower`); a **phrase of the Song of Return** (`SoundersIds.SongOfReturnParts` in the note
+alphabet) opens the bell blooms in hearing — the wild ones close again after 45 s, the trail opens one bloom per phrase, in
+order, when the player stands near the next one, and stays open; its last bloom opens chamber 2, raises `melody:solved` with
+`bloom_trail` and VEGA says `vega.sys.bloom_trail`. The trail's state is its blocks (a picked bloom counts as open). Wrong notes
+do nothing. **Client:** `SingingPlantChorus` (Client.Core) + `SingingPlantsView` hum the nearest three plants (different kinds
+first) within 10 blocks on three pooled loops (`plant_chime_reed_loop`, `plant_bell_bloom_loop`, `plant_harp_vine_loop`) and
+silence every plant within 24 blocks of a Soundrak; `AnomalyView` draws a faint drifting Quali bell over every space anomaly
+once the player's pack reached chapter 5 (`SoundersPackProgress.QualiShimmer`, from the Journal's `StoryPackStates`).
+
+**Tests:** `SoaniriWorldTests` (the type and its locales, never rolled in 60 huge galaxies, the blocks and plants as
+billboard flora, every plant on its host and outcrops + arches present, the pass identical in any chunk order, no other type
+grows a singing plant, the zones), `SoaniriSitesTests` (the three sites apart and clear of the pads, the eight pipes as the
+melody site in compass order + the pack sites, the villagers and the Eldest, three sealed chambers and the closed trail, 4–6
+monuments clear of the sites, stamped once — a reload keeps an edit and re-registers everything — and the same places for
+the same seed, nothing on another world), `SingingPlantsTests` (the phrases, the echo, wild blooms open and close, the trail in
+order to its chamber, the blaster's chamber once, crystals and pipes as instruments), `SingingPlantChorusTests` (Client.Core:
+the budget, the fade, the Soundrak's silence, the shimmer's chapter gate), golden `sounder_world-gen34`.

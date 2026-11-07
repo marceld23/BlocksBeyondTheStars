@@ -299,6 +299,14 @@ ITEMS = [
     ("ressaw_lamp", "a helmet-mounted sci-fi headlamp module, a small deep purple metal housing with a round lens of glowing milky white crystal casting soft white light, thin dark red trim"),
     ("ressaw_conduit", "a sci-fi crystal conduit segment, a solid opaque milky white crystal rod glowing bright white from inside, held in a dark metal frame with silver clamps and thin deep purple trim"),
     ("gds_log", "a small old worn sci-fi data log tablet with a deep purple metal casing and dark red trim, a dim pale screen showing faint lines of strange glyphs, scuffed edges and a hairline crack in one corner"),
+    # #3363 the Sounders story pack (2026-11-07). ONE song disc is generated; the story and socket discs
+    # (item_song_disc_<name>) are colour variants of it made by recolour_song_discs.py (no model).
+    ("song_disc", "a round flat disc of glossy black obsidian seen at a slight angle, fine spiral grooves winding from the rim to the centre and glowing faintly teal, a softly glowing round teal crystal set in the very centre, kid-friendly"),
+    ("resonance_blaster", "a friendly hand-held alien music device like a small toy horn, a glossy black obsidian and pale teal body with a wide flared horn bell mouth at the front, a row of small glowing pastel crystal keys on top like a tiny xylophone and a rounded grip, side view, kid-friendly, not a gun"),
+    ("obsidian_helmet", "an alien armour helmet of glossy black obsidian plates, open face, two long elegant ear-shaped fins sweeping up and backwards on its sides like big listening ears, thin glowing teal lines along the fins, kid-friendly"),
+    ("obsidian_chest", "an alien armour chest plate of glossy black obsidian plates with rounded shoulder pads and one round empty disc socket ring glowing soft teal in the middle of the chest, thin teal lines, front view, no person"),
+    ("obsidian_legs", "a pair of alien armour leg plates of glossy black obsidian with rounded knee guards and thin glowing teal lines down the sides, front view, no person"),
+    ("song_spindle", "a small alien music artifact: a round black obsidian pedestal with thin glowing teal spiral grooves and a tall slender glowing pale teal and violet crystal spindle standing upright in its middle, soft glow"),
 ]
 
 # Ship MODULES (builder UI). Space-view laser/tractor reuse ship_laser_basic / tractor_beam.

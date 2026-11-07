@@ -83,6 +83,10 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>#3171: the player stands on a lift platform — choose the floor (first of the proximity tier).</summary>
         LiftRide,
+
+        /// <summary>#3345: a usable block under the crosshair (a rune stone, a Song Spindle) — the server's use of it. The last
+        /// of the AIMED tier (appended so no stored value moves): anything else E works on the same cell comes first.</summary>
+        UseBlock,
     }
 
     /// <summary>
@@ -130,12 +134,15 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#3171: the player stands on a lift platform (<see cref="LiftRiding.StandingOn"/>).</summary>
         public bool OnLift { get; set; }
 
+        /// <summary>#3345: the block under the crosshair is <c>usable</c> (its definition's flag) and in reach.</summary>
+        public bool UsableBlock { get; set; }
+
         /// <summary>Forgets every fact (the next frame gathers them anew).</summary>
         public void Clear()
         {
             AimedNpc = AimedNpcTrades = OwnBeacon = OwnBase = BasePad = StationCore = Crate = CrystalDevice = false;
             BioLab = SpawnBed = Seat = MissionBoard = AimedDoor = BeamPad = NearDoor = DataCube = false;
-            Factory = NetFragment = Vendor = TalkNear = OnLift = false;
+            Factory = NetFragment = Vendor = TalkNear = OnLift = UsableBlock = false;
             LookedStation = NearStation = string.Empty;
         }
     }
@@ -162,7 +169,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Whether the pick is a thing under the crosshair (the aimed tier).</summary>
-        public static bool IsAimed(InteractKind kind) => kind >= InteractKind.AimedTalk && kind <= InteractKind.AimedDoor;
+        public static bool IsAimed(InteractKind kind)
+            => (kind >= InteractKind.AimedTalk && kind <= InteractKind.AimedDoor) || kind == InteractKind.UseBlock;
 
         /// <summary>Whether the target names itself with a label in the world (a door, a data cube, a net fragment, a
         /// factory terminal) — the HUD's prompt line leaves it to that label.</summary>
@@ -190,6 +198,7 @@ namespace BlocksBeyondTheStars.Client
                 : f.MissionBoard ? InteractKind.MissionBoard
                 : !string.IsNullOrEmpty(f.LookedStation) ? InteractKind.LookedStation
                 : f.AimedDoor ? InteractKind.AimedDoor
+                : f.UsableBlock ? InteractKind.UseBlock // #3345: after every older use of the aimed cell
                 : InteractKind.None;
 
         /// <summary>The proximity tier, in E's old order: a door before the stations (a door beside a market stall still

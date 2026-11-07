@@ -270,7 +270,7 @@ All cues are 3D at the device cell. See [CRYSTAL_NET.md](CRYSTAL_NET.md).
 | alarm siren (3 to pick from) | network ON → loop, OFF → stop | `alarm_siren_0..2` (seamless loops) | EL |
 | chime (4) | rising edge | `chime_0..3` | EL |
 | horn (3) | rising edge | `horn_0..2` | EL |
-| melody block: 8 notes (C4…C5) × 4 instruments (crystal sine / bell / bass / blip) | rising edge | `note_<inst>_<n>` — no files | **procedural** (`ProceduralAudio.Note`, pre-filled into the cue table) |
+| melody block: 8 notes (C4…C5) × 6 instruments (crystal sine / bell / bass / blip, and since #3345 the Sounder voice and the Sounder choir — §35) | rising edge | `note_<inst>_<n>` — no files | **procedural** (`ProceduralAudio.Note`, pre-filled into the cue table) |
 | announcer | rising edge (a toast to the owner + allies) | `ai_blip` (existing VEGA chirp) | EL (existing) |
 | switch flip / button press | the player's Interact | `crystal_switch`, `crystal_button` | EL |
 | auto-drill | working (loop while its network holds it ON and it is not blocked — wired by #3238, `GameServerCrystalDrillSound`) | `auto_drill_loop` | EL |
@@ -810,6 +810,76 @@ burst with a whistling 10 kHz ring, the first leak ~30 dB too quiet); ~41 KB tog
 other one-shots by `tools/audio/level_clips.py` and recorded in `audio_levels.json`) plays when a calendar door pops open (`UiFestivalCalendar.Reveal`). `reindeer_bells` (~1.5 s, a soft sleigh-bell
 jingle) plays once when Rudolpho appears within 20 blocks of the camera (`CreatureBuilder.Reindeer`'s `ReindeerBells`).
 Both in `Resources/audio`, loaded by `ClientAudio` like their neighbours.
+
+## 34. The Sounders story pack (#3363) — *the series' Soundi calls + ElevenLabs clips*
+
+The files of the Sounders story pack (epic #3368, [STORY_SOUNDERS.md](STORY_SOUNDERS.md)); its notes, rune phrases,
+puzzles, spindle songs and the Sounder voice/choir instruments are procedural (`note_<instrument>_<tone>`), never files.
+Every clip is levelled to its class (§27): `tools/audio/level_clips.py` files `soundi_call_`, `soundrak_scream_`,
+`quali_song_` and `soundeling_coo_` under **creature**, `echo_hum_` and `elder_hum_` under **voice**, the
+`plant_*_loop` loops and `amb_sounder` under **bed**; the rest are one-shots.
+
+**The Soundi (`soundi_call_01` … `soundi_call_14`).** Not new generations: the fourteen approved calls of the Soundi from
+the game's animated series (seasons 2–3, the maintainer's own ElevenLabs takes, one voice description — half kitten,
+half songbird, flute-like), copied in the series' order and only re-levelled (mono, creature target). In order: quiet
+questioning, bright short, content low, startled high, wave-like, pleading, purring, three-part questioning, happy
+rising, long innocent falling, short high innocent, short middle, rhythmic warning, hummed warning.
+
+**Generated with `tools/ai-assets/gen_sound.py`, 2026-11-07** (default model `eleven_text_to_sound_v2`, 23 clips,
+~85 s of audio):
+
+| File | Class | Length | Prompt (`--influence`) |
+|---|---|---|---|
+| `echo_hum_1` | voice | 2 s | "a warm soft wordless humming voice of a friendly gentle alien, a short curious rising hum 'mm-hmm?' like asking a question, light airy shimmer and a faint echo, kind and calm, not ghostly, not scary, no words" (0.5) |
+| `echo_hum_2` | voice | 2 s | "a warm wordless humming voice of a friendly gentle alien, a cheerful two-note melodic hum 'mm-mmm!' with a light airy shimmer and a faint echo, happy and kind, not ghostly, not scary, no words" (0.5) |
+| `echo_hum_3` | voice | 2.5 s | "a warm wordless humming voice of a friendly gentle alien, a thoughtful slowly falling melodic hum with a light airy shimmer and a faint echo, calm and kind, not ghostly, not scary, no words" (0.5) |
+| `echo_hum_4` | voice | 1.5 s | "a warm wordless humming voice of a friendly gentle alien, a short bright greeting hum 'hmm-mm' with a light airy shimmer and a faint echo, welcoming, not ghostly, not scary, no words" (0.5) |
+| `elder_hum_1` | voice | 3 s | "an old calm wise alien voice humming a slow warm wordless greeting, a deep gentle hum with a soft rising then falling melody, kind and peaceful, no words, no instruments" (0.5) |
+| `elder_hum_2` | voice | 3 s | "an old calm wise alien voice humming slowly, a deep warm wordless hum that rises gently and settles with a soft contented sigh, kind and peaceful, no words, no instruments" (0.5) |
+| `soundrak_scream_1` | creature | 1.6 s | "a loud but short trumpet-like call of a giant friendly plant creature, one deep brassy horn blast like a big elephant trumpet with a hollow woody resonance, not shrill, not horror, no human voice" (0.5) |
+| `soundrak_scream_2` | creature | 2 s | "a loud two-tone trumpet call of a giant friendly plant creature, a deep brassy horn blast rising then falling, like a big elephant trumpet with a hollow woody resonance, not shrill, not horror, no human voice" (0.5) |
+| `soundrak_scream_3` | creature | 2.5 s | "a loud deep bellowing horn call of a giant gentle plant creature, a long brassy trumpeting tone with a hollow woody resonance and a soft rustle of leaves, not shrill, not horror, no human voice" (0.5) |
+| `quali_song_1` | creature | 5 s | "a deep slow whale-like song of a giant translucent jellyfish floating in the sky, long glassy resonant moaning tones with a shimmering crystal overtone, calm and wondrous, gentle, no instruments" (0.5) |
+| `quali_song_2` | creature | 5 s | "a deep slow whale song echoing across the sky, two long glassy rising and falling tones from a huge gentle floating creature with soft crystal shimmer, calm and wondrous, no instruments" (0.5) |
+| `soundeling_coo_1` | creature | 1 s | "a tiny soft coo of a small fluffy cute creature, a sweet high gentle 'coo' like a baby dove with a tiny bell-like tone, very short" (0.5) |
+| `soundeling_coo_2` | creature | 1 s | "a tiny cute happy trill of a small fluffy creature, a sweet high gentle rising 'coo-oo' with a tiny bell-like tone, very short" (0.5) |
+| `soundeling_coo_3` | creature | 0.8 s | "a tiny curious chirp-coo of a small fluffy creature, a sweet high gentle questioning 'coo?' with a tiny bell-like tone, very short" (0.5) |
+| `plant_chime_reed_loop` | bed | 8 s, seamless loop | "seamless loop of thin glassy reeds swaying in a light breeze, scattered tiny glassy chime tones tinkling and clinking, magical, no melody, no music, no voices" (0.5) |
+| `plant_bell_bloom_loop` | bed | 8 s, seamless loop | "seamless loop of big alien flowers ringing like bells, slow warm low bell tones blooming and fading one after another, mellow singing bells, no melody, no music, no voices" (0.5) |
+| `plant_harp_vine_loop` | bed | 8 s, seamless loop | "seamless loop of hanging vines plucked by the wind like harp strings, sparse harp-like string plucks with a long airy resonance, dreamy, no melody, no music, no voices" (0.5) |
+| `amb_sounder` | bed | 20 s, seamless loop | "seamless loop of a calm musical alien landscape ambience, a light breeze over a meadow, distant chiming crystals, far-away soft hummed voices and wind tones over a warm low drone, peaceful and wondrous, no melody, no drums, no words" (0.4) |
+| `blaster_pulse_1` | oneshot | 1 s | "a resonant musical whomp push, one deep round bass thump of sound with a short bright chord shimmer and an air whoosh, a friendly sci-fi sound horn, not violent, no explosion" (0.5) |
+| `blaster_pulse_2` | oneshot | 1 s | "a resonant musical whoomp, a deep booming horn-like sound pulse with a quick rising harmonic shimmer and a gust of air, a friendly sci-fi sound horn, not violent, no explosion" (0.5) |
+| `chamber_open` | oneshot | 3 s | "a heavy stone door sliding open with a grinding rumble while a warm harmonious chord of hummed voices and chimes swells up, magical reveal, no words" (0.5) |
+| `spindle_spin` | oneshot | 2.5 s | "a small crystal music spindle starting to spin, a rising whirr like a spinning top with a warm humming tone growing underneath, magical" (0.5) |
+| `disc_insert` | oneshot | 0.7 s | "a gentle click of a smooth stone disc sliding into a round socket, a soft solid click with a tiny crystal ring" (0.6) |
+
+## 35. The Sounder instruments, rune words and the melody bar (#3345, #3346) — *procedural*
+
+Two more procedural instruments on the melody block's scale (C4 … C5, `note_<instrument>_<tone>`, tones 0–7), pre-filled
+into the cue table with the other notes (`ProceduralAudio.NoteIds`), so a recording of the same id would still win:
+
+| Instrument | Id | How it is made (`ProceduralAudio.SounderVoice` / `SounderChoir`) |
+|---|---|---|
+| 4 — Sounder voice | `note_4_0` … `note_4_7` | a hummed sine (the sine plus a little 2nd and 3rd harmonic — a closed mouth), a gentle 5.2 Hz vibrato (±0.6 %) that fades in after the attack, a breath of low-passed noise, a soft 70 ms attack, a calm release; 0.62 s |
+| 5 — Sounder choir | `note_5_0` … `note_5_7` | two such voices ±6 cents apart (each with its own vibrato, so they beat slowly) and a third, quieter voice a fifth above; 110 ms attack; 0.72 s |
+
+**Melodies on the wire.** The server never sends one `SoundFx` per note: a whole melody is ONE `NoteSequence` (tag 324 —
+tones, rests `-1`, instrument, seconds per note, "with fifth", position, source), and the client keeps the beat itself
+(`NoteSequenceScheduler` in Client.Core: note *i* sounds *i* × `NoteSeconds` after arrival, a rest is silence; several
+sequences may overlap; at most 256 notes wait). `ClientAudio.Notes` plays each due note as a 3D one-shot of its clip;
+"with fifth" adds the same clip at pitch 1.5 (a perfect fifth). Uses: a rune stone's word (Sounder voice, 0.32 s per
+note, source `rune_stone`), a melody puzzle's prompt (source = the puzzle id), a struck pillar (`melody_pillar`),
+another player's melody-bar tone (`melody_bar`), the choir that answers a solved puzzle (instrument 5 with its fifth).
+Melodies carry 32 blocks (`GameServer.NoteSequenceRange`).
+
+**Rune words.** The use key on a `rune_stone` sings the stone's word — `SounderLexicon.WordAt(seed, x, y, z)`, spelled in
+the note alphabet (`SounderAlphabet.Encode`: two tones per letter, a rest between letters) — so the same stone always
+sings the same tune, for everyone. One word per player per 1.5 s.
+
+**The melody bar.** The player's own tones play at once and unpositioned (`ClientAudio.PlayMelodyTone`, the instant
+feedback); the server lets everyone else nearby hear them. See [STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md)
+§ "Melody puzzles" for the puzzles and the bar.
 
 ## Totals & rollout
 

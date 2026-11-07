@@ -98,6 +98,11 @@ public sealed partial class GameServer
                 readout.TraitKeys = readout.TraitKeys.Concat(new[] { "ui.scan.body.hound" }).ToArray(); // #3326: how hard it bites
             }
 
+            if (SoundersScanTrait(sp) is { } soundersTrait)
+            {
+                readout.TraitKeys = readout.TraitKeys.Concat(new[] { soundersTrait }).ToArray(); // #3359/#3366: what a player can do with it
+            }
+
             if (Shared.Definitions.HerdRules.BegsForFood(sp))
             {
                 // #2018: the one habit a player can act on — hold food and the herd comes; the scan says so.

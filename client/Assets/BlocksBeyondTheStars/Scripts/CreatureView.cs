@@ -334,6 +334,12 @@ namespace BlocksBeyondTheStars.Client
                     CreatureVoiceBank.Prewarm(voice, bank, echo, c.Hostile);
                     float sizePitch = Mathf.Clamp(1.5f - 0.35f * c.Size, 0.7f, 1.6f);
                     float speciesOffset = 0.82f + voice.PitchStep / 37f * 0.45f; // 0.82..1.27 per species
+                    if (CreatureVoices.KeepsNaturalPitch(c.BodyPlan))
+                    {
+                        sizePitch = 1f; // #3359: a recorded voice of Soaniri keeps its own pitch (±4 % per species)
+                        speciesOffset = 0.96f + voice.PitchStep / 37f * 0.08f;
+                    }
+
                     entry = new Entry
                     {
                         Root = root,
@@ -363,9 +369,9 @@ namespace BlocksBeyondTheStars.Client
                     {
                         SetUpGiant(entry, c); // #1998: colliders into the aim lookup, footfalls into dust + shake
                     }
-                    else if (c.BodyPlan == "Arachnid")
+                    else if (c.BodyPlan == "Arachnid" || c.BodyPlan == "Soundrak")
                     {
-                        RegisterGiant(c.Id, root); // #2009: solid to bump into and hit on its body, but no footfall shake
+                        RegisterGiant(c.Id, root); // #2009: solid to bump into and hit on its body, but no footfall shake (#3359: the Soundrak too)
                     }
                 }
 
@@ -502,6 +508,7 @@ namespace BlocksBeyondTheStars.Client
                     entry.Animator.SetLurking(c.Lurking); // #2009: an ambusher holds its crouch
                     entry.Animator.SetOwned(!string.IsNullOrEmpty(c.OwnerId)); // #3327: a tamed Schuppenhund wags
                     entry.Animator.SetBegging(c.Begging); // #2018: a beggar holds its head up and bounces
+                    entry.Animator.SetCarrying(c.CarriesLight); // #3366: a Soundeling holds up the lamp it carries
 
                     // Where to look. Only bother while the player is close enough for a head turn to read;
                     // beyond that the gaze is released and the head goes back to its own idle business.

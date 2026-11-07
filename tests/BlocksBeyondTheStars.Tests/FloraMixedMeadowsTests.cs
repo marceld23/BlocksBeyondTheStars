@@ -132,8 +132,9 @@ public sealed class FloraMixedMeadowsTests
     {
         // The coverage rule (FloraGenerator.EnsureCoverage) on a generation-28 world: every land host keeps an active land
         // species, the seas an aquatic one. A strict theme (the flower fields) covers only its own surfaces — left out here.
+        // An authored species (#3358: Soaniri's singing plants on chime moss) is in no roster: its own pass plants its host.
         var landHosts = FloraCatalog.All
-            .Where(s => !s.Aquatic && !s.Cultivated && !s.Hanging && s.OnSurface && !s.Rainbow)
+            .Where(s => !s.Aquatic && !s.Cultivated && !s.Authored && !s.Hanging && s.OnSurface && !s.Rainbow)
             .SelectMany(s => s.Hosts).Distinct().ToList();
         foreach (var planet in FloraPlanets().Where(p => !FloraThemes.Resolve(p.FloraTheme).Strict))
         {

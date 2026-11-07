@@ -55,6 +55,8 @@ public sealed class StoryConditionTests : IDisposable
         public bool IsWorldPredicateTrue(string predicate) => Ask($"world:{predicate}");
 
         public bool HasReadLore(string loreKey) => Ask($"lore:{loreKey}");
+
+        public bool HasMilestone(string key) => Ask($"milestone:{key}");
     }
 
     // ---------------- Grammar ----------------
@@ -65,6 +67,7 @@ public sealed class StoryConditionTests : IDisposable
     [InlineData("blueprint:comm_radio", StoryConditionKind.Blueprint, "", "comm_radio")]
     [InlineData("world:station_in_system", StoryConditionKind.World, "", "station_in_system")]
     [InlineData("lore:observatory_log", StoryConditionKind.Lore, "", "observatory_log")] // #2476
+    [InlineData("milestone:snd:disc:song_disc_builders", StoryConditionKind.Milestone, "", "snd:disc:song_disc_builders")] // #3347
     public void Atoms_ParseIntoTheirParts(string text, StoryConditionKind kind, string pack, string id)
     {
         var c = StoryConditionParser.Parse(text);
@@ -285,5 +288,25 @@ public sealed class StoryConditionTests : IDisposable
         var p = without.AddLocalPlayer("Ada");
         Assert.False(without.EvaluateStoryConditionForTest("world:station_in_system", p));
         Assert.False(without.EvaluateStoryConditionForTest("world:space_stations", p));
+    }
+
+    /// <summary>#3347: <c>milestone:&lt;key&gt;</c> reads any per-player milestone — the key may hold colons, and it ends at a comma,
+    /// a bracket or a space, so it nests like every other atom.</summary>
+    [Fact]
+    public void MilestoneAtoms_KeepTheirColons_AndNest()
+    {
+        var c = StoryConditionParser.Parse("all:[milestone:snd:disc:song_disc_builders, not:milestone:snd:echo:kamo]");
+        Assert.Equal("all:[milestone:snd:disc:song_disc_builders,not:milestone:snd:echo:kamo]", c.ToString());
+        Assert.Equal(new[] { "snd:disc:song_disc_builders", "snd:echo:kamo" }, c.Atoms().Select(a => a.Id));
+
+        var ctx = new FakeContext();
+        ctx.True.Add("milestone:snd:disc:song_disc_builders");
+        Assert.True(c.Evaluate(ctx));
+        ctx.True.Add("milestone:snd:echo:kamo");
+        Assert.False(c.Evaluate(ctx));
+
+        Assert.False(StoryConditionParser.TryParse("milestone:", out _, out _));
+        Assert.False(StoryConditionParser.TryParse("milestone:snd:", out _, out _));
+        Assert.False(StoryConditionParser.TryParse("milestone::x", out _, out _));
     }
 }

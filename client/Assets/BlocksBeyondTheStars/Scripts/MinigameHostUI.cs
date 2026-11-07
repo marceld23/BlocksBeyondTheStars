@@ -30,6 +30,14 @@ namespace BlocksBeyondTheStars.Client
         /// grants knowledge, mirroring the old EmbeddedBrowser result handler.</summary>
         public System.Action<string, int, int, bool> OnReport;
 
+        /// <summary>#3352: when set, the result screen's Close button calls this instead of going back to the game's start
+        /// screen — the story window (<see cref="StoryMinigameUI"/>) closes itself there.</summary>
+        public System.Action OnClose;
+
+        /// <summary>#3352: a story run (the note-key minigame of a Song Disc) — it earns no arcade knowledge, so the start and
+        /// result screens leave out the "beat your best" lines.</summary>
+        public bool StoryMode;
+
         private RectTransform _region;     // play-region rect in 1920×1080 space
         private float _rx, _ry, _rw, _rh;
 
@@ -139,6 +147,7 @@ namespace BlocksBeyondTheStars.Client
             _key = game.Key;
             _host = new MinigameHost(game, best, localize);
             _host.OnResult += HandleResult;
+            _host.NoteSink = PlayNote; // #3352: a game's notes (the note-key minigame) through the procedural instruments
 
             int cw = 640, ch = 440; // a default until the game creates its canvas on StartGame
             EnsureTexture(cw, ch);
@@ -167,6 +176,9 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private void HandleResult(MinigameResult r) => OnReport?.Invoke(_key, r.Score, r.Rating, r.Completed);
+
+        /// <summary>#3352: one note of a game — <c>note_&lt;instrument&gt;_&lt;tone&gt;</c>, the melody block's procedural voices.</summary>
+        private static void PlayNote(int instrument, int tone) => ClientAudio.Instance?.Cue("note_" + instrument + "_" + tone, 0.8f);
 
         private void Update()
         {
@@ -479,7 +491,11 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(panel, 0, 40, pw, 44, g.Title.Get(_host.Localize), 30, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.AddText(panel, 0, 92, pw, 26, L("ui.minigame.difficulty", "Difficulty") + ": " + g.Difficulty + "/5", 16, UiKit.CyanDim, TextAnchor.MiddleCenter);
             UiKit.AddText(panel, 40, 140, pw - 80, 140, g.Desc.Get(_host.Localize), 18, UiKit.TextCol, TextAnchor.UpperCenter);
-            UiKit.AddText(panel, 40, 300, pw - 80, 40, L("ui.minigame.beat_best", "Beat your best for knowledge (+5/+10/+15)"), 14, UiKit.Ok, TextAnchor.MiddleCenter);
+            if (!StoryMode)
+            {
+                UiKit.AddText(panel, 40, 300, pw - 80, 40, L("ui.minigame.beat_best", "Beat your best for knowledge (+5/+10/+15)"), 14, UiKit.Ok, TextAnchor.MiddleCenter);
+            }
+
             float bw = 200f, by = ((RectTransform)panel).rect.height - 90f;
             UiKit.AddButton(panel, pw / 2 - bw - 12, by, bw, 56, L("ui.minigame.start", "Start"), () => _host.StartGame());
             UiKit.AddButton(panel, pw / 2 + 12, by, bw, 56, L("ui.minigame.help", "Help"), () => _host.ShowHelp());
@@ -524,13 +540,23 @@ namespace BlocksBeyondTheStars.Client
                 30, r.Completed ? UiKit.Ok : UiKit.Warn, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.AddText(panel, 0, 110, pw, 30, L("ui.minigame.rating", "Rating") + ": " + r.Rating + "/3", 20, UiKit.Cyan, TextAnchor.MiddleCenter);
             UiKit.AddText(panel, 0, 156, pw, 30, L("ui.minigame.score", "Score") + ": " + r.Score, 22, UiKit.TextCol, TextAnchor.MiddleCenter, FontStyle.Bold);
-            string reward = r.IsNewBest
+            string reward = StoryMode ? string.Empty : r.IsNewBest
                 ? "★ " + L("ui.minigame.new_best", "New best!") + "   +" + r.Knowledge + " " + L("ui.minigame.knowledge", "knowledge")
                 : (r.Completed ? L("ui.minigame.no_new_best", "No new best — beat it for knowledge") : string.Empty);
             UiKit.AddText(panel, 40, 200, pw - 80, 30, reward, 16, r.IsNewBest ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleCenter);
             float bw = 200f, by = ph - 90f;
             UiKit.AddButton(panel, pw / 2 - bw - 12, by, bw, 56, L("ui.minigame.play_again", "Play again"), () => _host.StartGame());
-            UiKit.AddButton(panel, pw / 2 + 12, by, bw, 56, L("ui.minigame.close", "Close"), () => _host.Quit()); // back to this game's start screen
+            UiKit.AddButton(panel, pw / 2 + 12, by, bw, 56, L("ui.minigame.close", "Close"), () =>
+            {
+                if (OnClose != null)
+                {
+                    OnClose(); // #3352: the story window closes as a whole
+                }
+                else
+                {
+                    _host.Quit(); // back to this game's start screen
+                }
+            });
         }
 
         private void OnDestroy()

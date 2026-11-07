@@ -76,9 +76,9 @@ public sealed partial class GameServer
         float leash2 = CompanionLeashRange * CompanionLeashRange;
         foreach (var c in _creatures)
         {
-            if (!c.IsCompanion || c.OwnerId != session.State.PlayerId)
+            if (!CompanionFollowsOwner(c) || c.OwnerId != session.State.PlayerId)
             {
-                continue;
+                continue; // #3344: a pet left at home fetches nothing
             }
 
             // The reach grows with the bond (#1225) — a well-fed pet hoovers a wider circle.
@@ -113,8 +113,12 @@ public sealed partial class GameServer
                 continue;
             }
 
-            broadcast |= CompanionAlertScan(c, owner);
-            CompanionStallScan(c, owner);
+            if (!c.StaysHome) // #3344: the growl and the robber stall come from followers; a pet at home still produces
+            {
+                broadcast |= CompanionAlertScan(c, owner);
+                CompanionStallScan(c, owner);
+            }
+
             CompanionProduceScan(c, owner);
         }
 
@@ -205,9 +209,9 @@ public sealed partial class GameServer
         float r2 = CompanionWardRange * CompanionWardRange;
         foreach (var c in _creatures)
         {
-            if (!c.IsCompanion || c.OwnerId != p.PlayerId || WrapDistSq(p.Position, c.Position) > r2)
+            if (!CompanionFollowsOwner(c) || c.OwnerId != p.PlayerId || WrapDistSq(p.Position, c.Position) > r2)
             {
-                continue;
+                continue; // #3344: only a companion that follows wards its owner
             }
 
             var tc = p.TamedCreatures.FirstOrDefault(t => t.Id == c.CompanionId);

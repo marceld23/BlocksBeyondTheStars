@@ -23,6 +23,7 @@ internal static class StoryPackFixtures
     public const string Tutorial = "tutorial_test";
     public const string Cutscenes = "cutscene_test";
     public const string SidePilot = "side_pilot";
+    public const string SideExtras = "side_extras"; // #3347/#3357: a side pack's lore, dialogs, texts and systems
 
     /// <summary>The fixture pack's folder.</summary>
     public static string Dir(string id)
@@ -36,6 +37,12 @@ internal static class StoryPackFixtures
     {
         var def = JsonSerializer.Deserialize<StoryDefinition>(RawJson(id), ContentLoader.JsonOptions)!;
         def.Cutscenes.AddRange(ContentLoader.LoadPackCutscenes(Dir(id)));
+        string lore = Path.Combine(Dir(id), "lore_sites.json"); // #3347: a side pack's own lore texts, like the content loader
+        if (File.Exists(lore))
+        {
+            def.LoreSites.AddRange(JsonSerializer.Deserialize<List<LoreSite>>(File.ReadAllText(lore), ContentLoader.JsonOptions)!);
+        }
+
         return def;
     }
 

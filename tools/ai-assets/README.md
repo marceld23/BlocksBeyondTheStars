@@ -150,6 +150,13 @@ track's prompt and its pool).
   python bake_fence_alpha.py` (cuts the dark glow between the beams per row; `--preview <dir>` writes a PNG).
   `BlockTileAlphaTests` checks rails, beams and the seam. The old pylon picture is the block's own inventory icon
   (`client/Assets/Resources/icons/block_energy_fence.png`).
+- **Song Disc icons** (#3363, the Sounders story pack): only `item_song_disc` is generated (`uv run gen_item_icons.py --only
+  song_disc`, then copy that ONE file into `client/Assets/Resources/icons/`). The eight named discs are colour variants of
+  it — `uv run --no-project --with "pillow>=13" python recolour_song_discs.py [--preview sheet.png]` turns the disc's teal
+  glow into each disc's colour (deterministic, no model) and writes `item_song_disc_<name>.png` next to it.
+- **The Sounder world's singing plants** (#3358/#3363: `chime_reed`, `bell_bloom`, `bell_bloom_open`, `harp_vine`,
+  `echo_flower`) follow the flora billboard pipeline above although their keys carry no `flora_` prefix: they are listed
+  in `FOLIAGE`, `DARK_GROUND` and (all but the hanging harp vine) `ROOTED` of `bake_leaf_alpha.py`.
 - **Creature coat tiles** (#2863/#2867): `gen_coat_tiles.py --set patterns|horns [--only k1,k2] [--dry-run]` generates the
   coat pattern masks (`pattern_<name>`: two-tone images turned into seamless binary masks, white = mark) and the horn
   tiles (`horn_<name>`: grey, image y along the horn). The full-size generations stay in `out/creatures/raw/`, so

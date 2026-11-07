@@ -1,0 +1,187 @@
+{
+  // The Sounders story pack's scenes (#3362; format: docs/developer/CUTSCENES.md) — see story.json for the bindings.
+  //
+  // snd.part           T2 template: every chapter's opener ("The Sounders' Song · Part n of 8" + the chapter title).
+  // snd.stones_sing    T3 intro (introCutscene): the first rune stone sang — circling the player, notes in the air.
+  // snd.shrine_answers T3: the Singing Shrine (or the ring) answered the repeat puzzle (s2.1 / s2.1a).
+  // snd.decoded        T1: the first Song Disc decoded (s3.2).
+  // snd.blueprint      T1: the alien blueprints appear (s4.1).
+  // snd.chamber        T1: the first sound chamber (s4.4).
+  // snd.first_echo     T3: the first Echo shows itself (played by the server when Elora first appears).
+  // snd.great_song     T3, flashback: after Kamo and Feya — what the Great Song was (s5.2).
+  // snd.song_of_return T3: the chart rings Ornemis once the Song of Return is played (s6.2 / s6.2a).
+  // snd.arrival        T3: the ship enters Ornemis (s7.1). snd.landing T3: first landing on Soaniri (s7.2).
+  // snd.elder          T3: the Eldest's request (s7.3). snd.choir_tower T3: the Young Voices begin (server, on approach).
+  // snd.bridge_song    T4: the Bridge Song — the Qualis grow calm, the Echoes thank, the Eldest hears her people (s8.2).
+  // snd.soundi_joins   T3: the Soundi chooses the player (s8.4). snd.epilogue T2 + credits, closes chapter 8.
+  "cutscenes": [
+    {
+      "id": "snd.part", "tier": 2, "template": true,
+      "shots": [
+        { "camera": { "type": "player_view" }, "duration": 4,
+          "captions": [ { "style": "title_card", "kickerKey": "story.sounders.cut.part.kicker", "key": "story.sounders.cut.title", "at": 0.3 } ] }
+      ]
+    },
+    {
+      "id": "snd.stones_sing", "tier": 3, "chapter": "s1", "music": "sounders_soaniri",
+      "shots": [
+        { "camera": { "type": "orbit", "anchor": "player" }, "duration": 9,
+          "captions": [
+            { "style": "title_card", "kickerKey": "story.sounders.cut.stones.kicker", "key": "story.sounders.name", "at": 0.5, "hold": 4 },
+            { "style": "speaker", "key": "story.sounders.cut.stones.vega", "at": 4.5 }
+          ],
+          "sfx": [ { "cue": "plant_chime_reed_loop", "at": 0 } ] }
+      ],
+      "options": { "minDisplay": 2 }
+    },
+    {
+      "id": "snd.shrine_answers", "tier": 3, "chapter": "s2",
+      "shots": [
+        { "camera": { "type": "crane", "anchor": "player" }, "duration": 8,
+          "captions": [
+            { "style": "subtitle", "key": "story.sounders.cut.shrine.line1", "at": 0.5 },
+            { "style": "speaker", "speaker": "elora", "key": "story.sounders.cut.shrine.elora", "at": 4.5 }
+          ],
+          "sfx": [ { "cue": "chamber_open", "at": 3.0 } ] }
+      ]
+    },
+    {
+      "id": "snd.decoded", "tier": 1, "chapter": "s3",
+      "shots": [
+        { "camera": { "type": "player_view" }, "duration": 4,
+          "captions": [ { "style": "title_card", "kickerKey": "story.sounders.cut.decoded.kicker", "key": "story.sounders.cut.decoded.title" } ],
+          "sfx": [ { "cue": "spindle_spin", "at": 0.2 } ] }
+      ]
+    },
+    {
+      "id": "snd.blueprint", "tier": 1, "chapter": "s4",
+      "shots": [
+        { "camera": { "type": "player_view" }, "duration": 4,
+          "captions": [ { "style": "title_card", "kickerKey": "story.sounders.cut.blueprint.kicker", "key": "story.sounders.cut.blueprint.title" } ] }
+      ]
+    },
+    {
+      "id": "snd.chamber", "tier": 1, "chapter": "s4",
+      "shots": [
+        { "camera": { "type": "player_view" }, "duration": 4,
+          "captions": [ { "style": "title_card", "kickerKey": "story.sounders.cut.chamber.kicker", "key": "story.sounders.cut.chamber.title" } ],
+          "sfx": [ { "cue": "chamber_open", "at": 0.2 } ] }
+      ]
+    },
+    {
+      "id": "snd.first_echo", "tier": 3, "chapter": "s5",
+      "shots": [
+        { "camera": { "type": "orbit", "anchor": "custom" }, "duration": 9,
+          "captions": [
+            { "style": "speaker", "speaker": "elora", "key": "story.sounders.cut.echo.elora", "at": 0.8 },
+            { "style": "speaker", "key": "story.sounders.cut.echo.vega", "at": 5.0 }
+          ],
+          "sfx": [ { "cue": "echo_hum_1", "at": 0.3 } ] }
+      ]
+    },
+    {
+      "id": "snd.great_song", "tier": 3, "chapter": "s5", "music": "sounders_great_song",
+      "shots": [
+        { "camera": { "type": "sky" }, "duration": 22, "grade": "flashback",
+          "captions": [
+            { "style": "reading_frame", "kickerKey": "story.sounders.cut.great.kicker", "key": "story.sounders.cut.great.1", "at": 0.5, "hold": 6.5 },
+            { "style": "reading_frame", "kickerKey": "story.sounders.cut.great.kicker", "key": "story.sounders.cut.great.2", "at": 7.2, "hold": 6.5 },
+            { "style": "reading_frame", "kickerKey": "story.sounders.cut.great.kicker", "key": "story.sounders.cut.great.3", "at": 14.0 }
+          ] }
+      ],
+      "options": { "minDisplay": 3 }
+    },
+    {
+      "id": "snd.song_of_return", "tier": 3, "chapter": "s6",
+      "shots": [
+        { "camera": { "type": "chart", "anchor": "system:ornemis" }, "duration": 9,
+          "captions": [
+            { "style": "title_card", "kickerKey": "story.sounders.cut.return.kicker", "key": "story.sounders.cut.return.title", "at": 0.5, "hold": 4 },
+            { "style": "speaker", "key": "story.sounders.cut.return.vega", "at": 4.8 }
+          ] }
+      ]
+    },
+    {
+      "id": "snd.arrival", "tier": 3, "chapter": "s7", "music": "sounders_soaniri",
+      "shots": [
+        { "camera": { "type": "space_vista", "anchor": "planet" }, "duration": 8,
+          "captions": [
+            { "style": "title_card", "kickerKey": "story.sounders.cut.arrival.kicker", "key": "story.sounders.cut.arrival.title", "at": 0.5, "hold": 4 },
+            { "style": "speaker", "key": "story.sounders.cut.arrival.vega", "at": 4.5 }
+          ],
+          "sfx": [ { "cue": "quali_song_1", "at": 1.0 } ] }
+      ],
+      "options": { "cooldownExempt": true, "chainNext": [ "snd.landing" ] }
+    },
+    {
+      "id": "snd.landing", "tier": 3, "chapter": "s7", "music": "sounders_soaniri",
+      "shots": [
+        { "camera": { "type": "flyover", "anchor": "player" }, "duration": 9,
+          "captions": [
+            { "style": "title_card", "kickerKey": "story.sounders.cut.landing.kicker", "key": "story.sounders.cut.landing.title", "at": 0.5, "hold": 4 },
+            { "style": "speaker", "key": "story.sounders.cut.landing.vega", "at": 5.0 }
+          ],
+          "sfx": [ { "cue": "soundi_call_02", "at": 3.0 } ] }
+      ],
+      "options": { "chainNext": [ "snd.elder" ] }
+    },
+    {
+      "id": "snd.elder", "tier": 3, "chapter": "s7",
+      "shots": [
+        { "camera": { "type": "orbit", "anchor": "player" }, "duration": 9,
+          "captions": [
+            { "style": "speaker", "speaker": "eldest", "key": "story.sounders.cut.elder.1", "at": 0.5 },
+            { "style": "speaker", "speaker": "eldest", "key": "story.sounders.cut.elder.2", "at": 4.8 }
+          ] }
+      ]
+    },
+    {
+      "id": "snd.choir_tower", "tier": 3, "chapter": "s8",
+      "shots": [
+        { "camera": { "type": "crane", "anchor": "custom" }, "duration": 9,
+          "captions": [
+            { "style": "speaker", "speaker": "roll", "key": "story.sounders.cut.tower.roll", "at": 0.5 },
+            { "style": "speaker", "key": "story.sounders.cut.tower.vega", "at": 5.0 }
+          ],
+          "sfx": [ { "cue": "quali_song_2", "at": 2.0 } ] }
+      ]
+    },
+    {
+      "id": "snd.bridge_song", "tier": 4, "chapter": "s8", "music": "sounders_bridge_song",
+      "shots": [
+        { "camera": { "type": "sky" }, "duration": 8,
+          "captions": [ { "style": "subtitle", "key": "story.sounders.cut.bridge.1", "at": 0.5 } ],
+          "sfx": [ { "cue": "quali_song_1", "at": 0.5 } ] },
+        { "camera": { "type": "crane", "anchor": "player" }, "duration": 9,
+          "captions": [
+            { "style": "speaker", "speaker": "elora", "key": "story.sounders.cut.bridge.elora", "at": 0.5 },
+            { "style": "speaker", "speaker": "eldest", "key": "story.sounders.cut.bridge.eldest", "at": 4.8 }
+          ] },
+        { "camera": { "type": "orbit", "anchor": "player" }, "duration": 8,
+          "captions": [
+            { "style": "speaker", "speaker": "roll", "key": "story.sounders.cut.bridge.roll", "at": 0.5 },
+            { "style": "speaker", "key": "story.sounders.cut.bridge.vega", "at": 4.2 }
+          ] }
+      ],
+      "options": { "minDisplay": 3 }
+    },
+    {
+      "id": "snd.soundi_joins", "tier": 3, "chapter": "s8",
+      "shots": [
+        { "camera": { "type": "orbit", "anchor": "player" }, "duration": 7,
+          "captions": [ { "style": "title_card", "kickerKey": "story.sounders.cut.soundi.kicker", "key": "story.sounders.cut.soundi.title", "at": 0.8 } ],
+          "sfx": [ { "cue": "soundi_call_09", "at": 0.3 } ] }
+      ]
+    },
+    {
+      "id": "snd.epilogue", "tier": 2, "chapter": "s8", "music": "sounders_bridge_song",
+      "shots": [
+        { "camera": { "type": "player_view" }, "duration": 14,
+          "captions": [
+            { "style": "reading_frame", "kickerKey": "story.sounders.cut.epilogue.kicker", "key": "story.sounders.cut.epilogue.text", "at": 0.5, "hold": 8 },
+            { "style": "credits", "key": "story.sounders.cut.epilogue.credits", "at": 8.8 }
+          ] }
+      ]
+    }
+  ]
+}

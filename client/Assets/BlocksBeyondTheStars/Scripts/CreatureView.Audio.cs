@@ -277,6 +277,13 @@ namespace BlocksBeyondTheStars.Client
         private static string TakeOf(Entry e)
         {
             var audio = ClientAudio.Instance;
+            var repertoire = CreatureVoices.Repertoire(e.Voice.Call); // #3359: a singer of Soaniri sings a fresh recording each call
+            if (repertoire != null && audio != null)
+            {
+                string pick = repertoire[Random.Range(0, repertoire.Count)];
+                return audio.Has(pick) ? pick : e.Voice.Call;
+            }
+
             string alt = e.Voice.Call + "_2";
             return audio != null && audio.Has(alt) && Random.value < 0.5f ? alt : e.Voice.Call;
         }

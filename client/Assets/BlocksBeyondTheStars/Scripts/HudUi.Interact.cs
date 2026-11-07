@@ -96,6 +96,8 @@ namespace BlocksBeyondTheStars.Client
                     return ExpandKeyTokens(loc, loc.Get("ui.beam.use_hint")); // "Press {key:Interact}: Transporter" (#2463)
                 case InteractKind.LiftRide:
                     return string.Format(loc.Get("ui.lift.prompt.choose"), InteractGlyph(loc)); // #3171: riding — choose the floor
+                case InteractKind.UseBlock:
+                    return $"{ExpandKeyTokens(loc, loc.Get("ui.hud.use"))}: {loc.Get(UseBlockLabelKey(loc, Game.AimedUseBlockKey))}"; // #3345
                 default:
                     return string.Empty;
             }

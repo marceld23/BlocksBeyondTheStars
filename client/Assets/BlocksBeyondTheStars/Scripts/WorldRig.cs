@@ -681,6 +681,11 @@ namespace BlocksBeyondTheStars.Client
             shipSound.Game = boot;
             shipSound.Camera = cam;
 
+            // #3358/#3367: Soaniri's singing plants hum — the nearest three, silent while a Soundrak is near.
+            var singingPlants = root.AddComponent<SingingPlantsView>();
+            singingPlants.Game = boot;
+            singingPlants.Camera = cam;
+
             // Ship-restamp materialize sweep (holo ring + shimmer when the hull is swapped at a pad).
             var shipBuild = root.AddComponent<ShipBuildFx>();
             shipBuild.Game = boot;

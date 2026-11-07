@@ -143,6 +143,10 @@ public sealed partial class GameServer
         [StoryWorldPredicates.FestivalChildren] = s => FestivalThemeActiveFor(s, Shared.Festivals.FestivalThemes.Children),
         [StoryWorldPredicates.FestivalHalloween] = s => ActiveFestivalsFor(s).Contains("halloween", StringComparer.Ordinal),
         [StoryWorldPredicates.FestivalChristmas] = s => ActiveFestivalsFor(s).Contains("christmas", StringComparer.Ordinal),
+
+        // #3349: the Sounders story pack — rune stones to play on the player's world, the Singing Shrine in the galaxy.
+        [StoryWorldPredicates.Monuments] = s => _worlds.Find(s.CurrentLocationId)?.Monuments.Count > 0,
+        [StoryWorldPredicates.Shrine] = _ => UniqueSiteTarget("shrine") is { } shrine && UniqueSiteExists("shrine", shrine),
     };
 
     /// <summary><c>world:forge_ready</c> (#2479): the player can refine — they crafted a forge before (the achievement
@@ -183,7 +187,8 @@ public sealed partial class GameServer
 
         if (!_content.Stories.TryGetValue(packId, out var pack)
             || !string.Equals(StoryRegistry.EffectiveScope(pack), StoryRegistry.ScopePlayer, StringComparison.Ordinal)
-            || who.State.Milestones.Contains(StoryPackKeys.OptOut(pack.Id)))
+            || who.State.Milestones.Contains(StoryPackKeys.OptOut(pack.Id))
+            || StoryPackDisabledInWorld(pack.Id)) // #3347: the world switched this side story off
         {
             return false;
         }
@@ -268,6 +273,9 @@ public sealed partial class GameServer
 
         // #2476: the reader writes "lore:<key>" when a lore text opens for this player (GameServerLore).
         public bool HasReadLore(string loreKey) => Milestones.Contains(LoreMilestonePrefix + loreKey);
+
+        // #3347: any per-player milestone (a pack's own, e.g. snd:disc:song_disc_builders).
+        public bool HasMilestone(string key) => Milestones.Contains(key);
 
         public bool IsWorldPredicateTrue(string predicate)
             => _server.WorldPredicates.TryGetValue(predicate, out var test) && test(_who);

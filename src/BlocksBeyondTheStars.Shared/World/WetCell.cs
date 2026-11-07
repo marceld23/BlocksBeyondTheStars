@@ -18,11 +18,11 @@ namespace BlocksBeyondTheStars.Shared.World;
 /// </summary>
 public static class WetCell
 {
-    /// <summary>Blocks that fill only part of their cell by nature: every plant (<c>flora_*</c>) and the slim props
-    /// (torch, lantern, ladder). Building forms are non-full through their shape descriptor instead — callers that
-    /// hold shape data add <c>!ShapeCode.IsCube(descriptor)</c>.</summary>
+    /// <summary>Blocks that fill only part of their cell by nature: every plant (<c>flora_*</c> and the other catalog
+    /// species, <see cref="Definitions.FloraCatalog.IsPlantKey"/>) and the slim props (torch, lantern, ladder). Building forms
+    /// are non-full through their shape descriptor instead — callers that hold shape data add <c>!ShapeCode.IsCube(descriptor)</c>.</summary>
     public static bool IsNonFullKey(string? key)
-        => key != null && (key.StartsWith("flora_", StringComparison.Ordinal) || key is "torch" or "lantern" or "ladder");
+        => key != null && (Definitions.FloraCatalog.IsPlantKey(key) || key is "torch" or "lantern" or "ladder");
 
     /// <summary>True when water surrounds the cell closely enough to flood it: directly above, or on at least two of
     /// its four horizontal sides.</summary>

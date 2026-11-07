@@ -145,7 +145,8 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>A creature was tamed: the Companions tab gets its badge, and — #3034, the "tamed → name prompt" of
         /// CREATURE_TAMING.md that never was — the name popup opens right away, filled with the name the server gave it. Enter
-        /// keeps a typed name (the server screens it like a rename), Esc keeps the given one.</summary>
+        /// keeps a typed name (the server screens it like a rename), Esc keeps the given one. #3361: a story companion comes with
+        /// a suggested name ("Muffin" for the Soundi) — the prompt says so and has it filled in.</summary>
         private void OnCompanionTamed(TameResult m)
         {
             NewCompanionUnseen = true;
@@ -155,7 +156,11 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            Context.Panel<BeaconLabelUi>()?.Open(Localizer?.Get("ui.companion.name_prompt") ?? "Name your companion", given, name =>
+            string suggested = m.SuggestedName ?? string.Empty;
+            string title = suggested.Length > 0
+                ? string.Format(Localizer?.Get("ui.companion.name_prompt_suggested") ?? "Name your new friend — how about \"{0}\"?", suggested)
+                : Localizer?.Get("ui.companion.name_prompt") ?? "Name your companion";
+            Context.Panel<BeaconLabelUi>()?.Open(title, suggested.Length > 0 ? suggested : given, name =>
             {
                 if (!string.IsNullOrWhiteSpace(name) && name != given)
                 {

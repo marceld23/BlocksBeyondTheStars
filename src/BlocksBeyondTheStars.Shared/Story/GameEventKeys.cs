@@ -467,6 +467,31 @@ public static class GameEventKeys
     /// <summary>The <c>crystal:&lt;event&gt;</c> key of one circuit event (the same string as the achievement counter).</summary>
     public static string Crystal(string circuitEvent) => CrystalPrefix + circuitEvent;
 
+    /// <summary>#3345: a rune stone was played with the use key (its phrase in the note alphabet sounded). Arg: the site kind —
+    /// <c>monument</c>, <c>shrine</c>, <c>ruin</c>, <c>lone</c> (a world-placed stone) or <c>placed</c> (a player-placed one).</summary>
+    public const string RunePlayed = "rune:played";
+
+    /// <summary>#3346: a melody puzzle was solved (the server's checker accepted the whole sequence). Arg: the puzzle id
+    /// (<c>shrine_echo</c>, <c>song_of_return</c>, <c>bridge_song</c>, <c>sing_duel</c>, <c>bloom_trail</c> …).</summary>
+    public const string MelodySolved = "melody:solved";
+
+    /// <summary>#3352: a Song Disc was decoded at a Song Spindle (the note-key minigame accepted, or skipped after help).
+    /// Arg: the disc's item key.</summary>
+    public const string DiscDecoded = "disc:decoded";
+
+    /// <summary>#3354: a Song Disc was put into the disc socket of the obsidian armour. Arg: the disc's item key.</summary>
+    public const string DiscInserted = "disc:inserted";
+
+    /// <summary>#3353: a sound chamber under a monument was opened with the Resonance Blaster (once per monument). No arg.</summary>
+    public const string ChamberOpened = "chamber:opened";
+
+    /// <summary>#3356: an Echo (a vanished Sounder) was questioned to the end of its dialog, once per Echo and player.
+    /// Arg: the Echo id (<c>elora</c>, <c>kamo</c>, <c>feya</c>, <c>tini</c>).</summary>
+    public const string EchoQuestioned = "echo:questioned";
+
+    /// <summary>#3349: an NPC dialog was talked through to its end node. Arg: the dialog key.</summary>
+    public const string DialogDone = "dialog:done";
+
     /// <summary>Prefix of a client teaching flag (<c>ui:menu_open</c>, synthesis §3.6). Allowed only in a player pack's
     /// step objective — never in a condition — and never persisted. Raised by the server when the client reports a UI
     /// moment (<c>UiTutorialEvent</c>, #2469; the ids are <see cref="UiEvents"/>).</summary>
@@ -567,6 +592,7 @@ public static class GameEventKeys
             CraftStation, FactoryClaimed,
             CreatureFed, CompanionCared, PlantAny, SampleTaken, BioLabUsed, NpcTalked, NpcAnswered, NpcPeople, MoveClimbed,
             MoveAirborne, VehicleBoarded, ChatSent, AllyJoined, PaintBlock, PoiReached,
+            RunePlayed, MelodySolved, DiscDecoded, DiscInserted, ChamberOpened, EchoQuestioned, DialogDone,
         };
         foreach (string circuitEvent in new[]
                  {

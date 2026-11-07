@@ -107,6 +107,16 @@ entities like &amp; as they are.
 Spanish "tú", Portuguese "você", Polish "ty", Turkish "sen", Dutch "je/jij", Russian "ты", \nUkrainian "ти"). Japanese: friendly polite です/ます; Korean: friendly 해요체; Chinese: plain friendly register.
 - Keep proper names untranslated: VEGA, Blocks Beyond the Stars, the Scout and Pioneer Service and its \
 short form SPS (the old exploration service of the story — always the English name), and the wreck The Long Quiet. \
+The names of the Sounders' story are names, never words to translate or re-invent: Sounder(s), Soundi(s), \
+Soundeling(s), Soundrak(s), Quali/Qualis, Soaniri, Ornemis, Mirun, Ornasa, Elora, Kamo, Feya, Tini and Roll. Keep them \
+in Latin letters — a language in another script (Russian, Ukrainian, Japanese, Korean, Chinese) may write them in its \
+own script, but always the same way and always as a sound-alike, never as a meaning. Give Roll no gender: no \
+pronoun, and no gendered verb, adjective or participle agreeing with Roll (rephrase the sentence instead). \
+The Eldest of the Sounders (German "die Älteste") is a woman: use feminine forms for her title and for every word \
+agreeing with it (French "l'Aînée", Spanish "la Anciana", Italian "l'Anziana", Polish "Najstarsza", Russian \
+"Старейшая"). The Sounders' THINGS and PLACES are ordinary words and always translate: Song Spindle, Song Disc(s), \
+the disc titles (The Beginning, The Builders, Hearing, Hunger, Calm, Light, The Voices, The Great Song), Song Archive, \
+Choir Tower, Echo(es), Young Voices, Resonance Blaster, obsidian armour, Song of Return, Bridge Song, the Eldest. \
 Game terms translate naturally and CONSISTENTLY across keys (e.g. blueprint, knowledge, suit energy, airlock).
 - UI strings must stay short: if the English is one or two words, the translation should be too.
 """

@@ -85,9 +85,10 @@ public sealed partial class GameServer
     /// <summary>Whether a companion is authored (the robot, Rudolpho) rather than a tamed animal.</summary>
     internal static bool IsAuthoredCompanion(TamedCreature tc) => AuthoredCompanionOf(tc.Kind) is not null;
 
-    /// <summary>Whether a live entity is an authored companion — no pet slot, nothing to sample.</summary>
+    /// <summary>Whether a live entity is an authored or travelling companion (the robot, Rudolpho, the story Soundi, #3361) —
+    /// no pet slot, nothing to sample.</summary>
     private static bool IsAuthoredEntity(CombatEntity c)
-        => c.IsCompanion && (c.SpeciesId == RobotSpeciesId || c.SpeciesId == ReindeerSpeciesId);
+        => c.IsCompanion && (c.CompanionRoams || c.SpeciesId == RobotSpeciesId || c.SpeciesId == ReindeerSpeciesId);
 
     /// <summary>Rudolpho's fixed species — built in code, so he looks and moves the same on every world: a soft warm-brown
     /// coat with a pale belly, branching antlers with glowing tips and a red lantern nose (the client draws antlers and nose

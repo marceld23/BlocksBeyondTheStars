@@ -1,0 +1,10 @@
+[
+  { "key": "snd_shrine_listen",  "site": "alien_shrine", "textKey": "story.sounders.lore.shrine_listen",  "minChapter": 1, "weight": 3 },
+  { "key": "snd_ruin_lullaby",   "site": "ruin",         "textKey": "story.sounders.lore.ruin_lullaby",   "minChapter": 2, "weight": 2 },
+  { "key": "snd_ruin_market",    "site": "ruin",         "textKey": "story.sounders.lore.ruin_market",    "minChapter": 3, "weight": 2 },
+  { "key": "snd_mon_builders",   "site": "monument",     "textKey": "story.sounders.lore.mon_builders",   "minChapter": 3, "weight": 3 },
+  { "key": "snd_mon_tuning",     "site": "monument",     "textKey": "story.sounders.lore.mon_tuning",     "minChapter": 3, "weight": 3 },
+  { "key": "snd_mon_hunger",     "site": "monument",     "textKey": "story.sounders.lore.mon_hunger",     "minChapter": 4, "weight": 2 },
+  { "key": "snd_mon_gathering",  "site": "monument",     "textKey": "story.sounders.lore.mon_gathering",  "minChapter": 5, "weight": 2 },
+  { "key": "snd_mon_after",      "site": "monument",     "textKey": "story.sounders.lore.mon_after",      "minChapter": 6, "weight": 1 }
+]

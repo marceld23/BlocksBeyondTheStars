@@ -123,6 +123,8 @@ public sealed partial class GameServer
             TickStep.Dt("TickNpcRestores", TickNpcRestores), // #2643: mined quarry cells fill up again (1 Hz)
             TickStep.Dt("TickCreatures", TickCreatures),
             TickStep.Dt("TickSreekmakra", TickSreekmakra), // 2026-09: Valuma's shapeshifter and mood (1 Hz)
+            TickStep.Dt("TickSingingPlants", TickSingingPlants), // #3367: Soaniri's echo flowers answer, wild bell blooms close again
+            TickStep.Plain("TickSoundersStory", TickSoundersStory), // #3368: the Echoes, the Choir Tower's Young Voices, the story Soundi (1 Hz)
             TickStep.Dt("TickGiants", TickGiants), // #1998: the colossus, the sandworms and the thumpers
             TickStep.Dt("TickTrains", TickTrains), // #2113: the monorail trains and their riders
             TickStep.Dt("TickBaseVisits", TickBaseVisits), // #2602 friendly visitors walk up to a base (1 Hz); #2997 walking near a base finds it
@@ -149,6 +151,7 @@ public sealed partial class GameServer
             TickStep.Plain("TickCompanionScouting", TickCompanionScouting), // #1225: a deeply bonded companion shares a landmark now and then
             TickStep.Plain("TickSentries", TickSentries), // #1214: base sentry posts fire at hostiles near a home base (2 Hz)
             TickStep.Plain("TickRobotCompanions", TickRobotCompanions), // #3295: the friendly hunter robot guards its owner (2 Hz)
+            TickStep.Plain("TickStoryCompanions", TickStoryCompanions), // #3361/#3365: duels and pack defence; the Soundi sings (1 Hz)
             TickStep.Plain("TickOwnerCrates", TickOwnerCrates), // #3294: owner-locked crates (finale reward, robot parts) for players on foot (1 Hz)
             TickStep.Plain("TickBurning", TickBurning), // #1700: lava and fire hurt animals, robbers and machines too (2 Hz)
             TickStep.Dt("TickHealTanks", TickHealTanks), // base/station regen field: heal + feed + suit recharge
@@ -175,6 +178,7 @@ public sealed partial class GameServer
             TickStep.Plain("DerelictSpacewalks", TickDerelictSpacewalks), // #2636: boarders the void check found outside a derelict's hull step out (a world change, so after the loop)
             TickStep.Dt("TickPvp", TickPvp), // #2972: whom each player may hit, duel timeouts, spawn protection (1 Hz)
             TickStep.Dt("ShipVisits", TickShipVisits), // #2723: guests who walked out go home; the 1 Hz check of every docking visit
+            TickStep.Dt("TickMelodyPuzzles", TickMelodyPuzzles), // #3346: the melody puzzles' prompts, reminders, time limits, leaving
             TickStep.Dt("TickStoryOutsideWorlds", TickStoryOutsideWorlds), // #2477: the 1 Hz story pass for players no loaded world reaches
             TickStep.Plain("TickCutscenes", TickCutscenes), // #2468: queued cutscenes for every joined player, wherever they are (space too)
             TickStep.Plain("TickJournal", TickJournal), // #2471: the Journal's coalesced pushes (only players whose stories changed)

@@ -225,6 +225,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void Update()
         {
+            TickNoteSequences(); // #3345: the beat of the server's melodies (rune words, puzzle prompts)
             if (!_subscribed && Game?.Network != null)
             {
                 var n = Game.Network;

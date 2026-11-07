@@ -126,6 +126,16 @@ them**; between systems you hyperjump. This combines two originally separate ide
   ship) reads the colour of the star map's current system (`FlightStar`, Client.Core, #3075). Walking inside the
   floating ship loads `shipint:<id>`, which is no galaxy body (it resolves to no system) and stays resident across jumps,
   so `TakeShipInteriorStar` sets its sun from the body under the flight each time someone steps in (#3076).
+- **Pack star systems (#3357).** A story pack may add star systems of its own (`systems[]` in its `story.json`, the
+  Sounders' detuned Ornemis): one landable body (`<id>-world`, the pack's planet type) appended to the galaxy the first
+  time any player may see it, its map spot pinned in `WorldMetadata.StampedFeatures` (`packsystem|<id>|<x>|<y>`) and
+  re-appended at the end of `BuildGalaxy` on every start, so old saves get it too and it never moves. It is **per player**:
+  `SystemHiddenFor(session, systemId)` keeps it off the star map and refuses a hyperjump (`@srv.space.unknown_system`)
+  or a travel to its body unless the pack is active for that player and its `visibleIf` holds — or they are in it or
+  were (a crewmate who flew along with the pilot is never stranded). Otherwise normal jump rules apply (a jump
+  generator or a lane). `edge` placement sits past the frontier on a bearing of its own, `inside` at the emptiest spot
+  among the stars; only procedural `sys*` systems count for both, and the Guardian's spot ignores pack systems.
+  Code: `GameServerStoryPacks.Systems.cs`; authors: [STORY_PACK_AUTHORING.md §16](STORY_PACK_AUTHORING.md#16-what-a-side-pack-brings-besides-chapters-3347-3357).
 - **Wormholes (#2242)** are the second way between systems: a `WormholeTransitIntent` (NetCodec 285) moves just
   that player's flight space to the twin system, next to the other rift, like a hyperjump without the module —
   see [WORMHOLES.md](WORMHOLES.md).

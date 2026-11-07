@@ -1066,7 +1066,7 @@ public sealed partial class GameServer
 
         foreach (var bp in _content.Blueprints.Values)
         {
-            if (p.UnlockedBlueprints.Contains(bp.Key) || bp.Prerequisites.Any(pr => !p.UnlockedBlueprints.Contains(pr)))
+            if (p.UnlockedBlueprints.Contains(bp.Key) || bp.Prerequisites.Any(pr => !p.UnlockedBlueprints.Contains(pr)) || BlueprintHiddenFor(p, bp)) // #3350
             {
                 continue;
             }
@@ -1151,7 +1151,7 @@ public sealed partial class GameServer
         var p = session.State;
         foreach (var bp in _content.Blueprints.Values)
         {
-            if (p.UnlockedBlueprints.Contains(bp.Key) || session.Vega.VegaTipMentioned.Contains("bp:" + bp.Key)
+            if (p.UnlockedBlueprints.Contains(bp.Key) || session.Vega.VegaTipMentioned.Contains("bp:" + bp.Key) || BlueprintHiddenFor(session, bp) // #3350
                 || bp.KnowledgeCost > p.KnowledgePoints
                 || bp.Prerequisites.Any(pr => !p.UnlockedBlueprints.Contains(pr)))
             {

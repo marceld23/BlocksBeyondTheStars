@@ -60,6 +60,11 @@ public enum CreatureBodyPlan
     Robot,     // the friendly hunter robot (#3295): a companion only, never rolled — the hunter's armour on the biped's rig, light-blue lights
     Hound,     // the Schuppenhund (#3325, generation 34, Jafar's idea): a scaly four-legged dog with ears, a toothed muzzle and claws — very dangerous, alone, on the dry worlds
     Reindeer,  // Rudolpho, the alien reindeer (#3322): a companion only, never rolled — branching antlers, a red lantern nose
+    Sounder,   // the Sounders (#3355): tall and thin, four arms, an eyeless head with long hare ears, a chest slot — NPC look, never rolled
+    Soundi,    // Soaniri's cat-like singer (#3359): fluffy, huge ears, no eyes, a wide smile, a bushy tail — authored only
+    Soundrak,  // Soaniri's ten-metre territorial giant (#3359): a bud mouth on top, tentacles on the back — authored only, one about at a time
+    Soundeling, // Soaniri's light-loving fluff ball (#3359, #3366): a soft-glowing pastel puff on tiny feet — authored only
+    Quali,     // a giant translucent jellyfish of the other reality (#3359): a sky drifter, never hostile, never attackable — authored only
 }
 
 /// <summary>
@@ -340,6 +345,19 @@ public sealed class CreatureSpecies
     /// leaves a little meat on the sand. Rolled true on generation-17 worlds (<see cref="GiantRules.RolledWormsHunt"/>); an
     /// authored worm names it. Companions and pets are never eaten.</summary>
     public bool SwallowsCreatures { get; set; }
+
+    // --- Duel taming + pack defence (2026-11, the Sounders pack, #3365). False on every other species, so no older world,
+    // companion snapshot or wire message changes. ---
+
+    /// <summary>#3365: tamed in a one-on-one duel instead of the translator ritual (the wild Soundi): the translator starts
+    /// the duel, only this animal fights the player, it never drops below <see cref="CreatureBehaviour.DuelSurrenderShare"/>
+    /// of its health and gives up there — then it is tamed. See <see cref="CreatureBehaviour.TamesByDuel"/>.</summary>
+    public bool DuelTame { get; set; }
+
+    /// <summary>#3365: kin defend each other — a player who attacks one outside a duel is fought by every animal of the
+    /// species within <see cref="CreatureBehaviour.PackDefenceRange"/> for <see cref="CreatureBehaviour.PackDefenceSeconds"/>,
+    /// then they calm down. See <see cref="CreatureBehaviour.DefendsKin"/>.</summary>
+    public bool PackDefender { get; set; }
 
     /// <summary>True for the one-per-world giants (#1998, #2111): they never come from the spawner and move by their own rules.</summary>
     public bool IsGiant => BodyPlan is CreatureBodyPlan.Colossus or CreatureBodyPlan.Sandworm or CreatureBodyPlan.Leviathan or CreatureBodyPlan.SkyGiant;

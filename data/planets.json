@@ -1295,6 +1295,40 @@
       { "block": "titanium_ore", "rarity": 0.03, "minDepth": 8, "maxDepth": 2048 }
     ]
   },
+  // #3358 (the Sounders story pack, 2026-11-07): Soaniri, the Sounder home world in the detuned Ornemis system. Never rolled
+  // by the galaxy (selectable false, spawn weight 0, no generation gate of its own): the pack appends it when a player learns
+  // the Song of Return (#3357). Rolling hills of violet-teal chime moss, a reed marsh, mild breathable air and gentle weather;
+  // the singing meadows (the singing plants, obsidian outcrops with resonance-crystal caps, harp arches with harp vines) come
+  // from WorldGenerator.StampSingingMeadows, the rune monuments from the classic stamper (4–6 of them), and the village Mirun,
+  // the ruin city Ornasa and the Choir Tower from GameServerSounderWorld. No machines, no bandits, no settlers' towns.
+  {
+    "key": "sounder_world", "exotic": true, "oncePerGalaxy": true, "fixedName": "Soaniri", "floraTheme": "crystal", "baseTemperature": 18, "nameKey": "planet.sounder_world.name", "atmosphereHeight": 230, "cloudColor": 15788287, "cloudDensity": 0.35, "mist": 0.45, "mistColor": 13483506, "skyColor": 11839720,
+    "terrainTags": [],
+    "baseHeight": 64, "amplitude": 12, "terrainScale": 64.0, "terrainStyle": "downs", "terrainStyles": ["downs", "hills"],
+    "surfaceBlock": "chime_moss", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
+    "caveThreshold": 0.78, "dataCacheRarity": 0.0,
+    "weather": "dynamic", "stormChance": 0.1, "dayLengthSeconds": 660, "worldRadius": 900, "floraDensity": 0.12, "treeDensity": 0.0, "creatureAbundance": "few",
+    "atmosphere": "breathable", "selectable": false, "spawnWeight": 0, "waterAbundance": 0.15,
+    "weatherVolatility": 0.5, "seasonAmplitude": 0.15,
+    "weatherEvents": { "drizzle": 1.0, "fog": 0.8, "ground_fog": 0.8, "gale": 0.2, "meteor_shower": 0.0, "ion_storm": 0.0, "acid_rain": 0.0, "heatwave": 0.0 },
+    "calmTerrain": true, "peacefulFauna": true, "enemyDensity": 0.0,
+    "restrictStructures": true, "allowedStructures": ["monuments"], "monumentCount": [4, 6],
+    "singingMeadows": true,
+    "authoredCreatures": ["soundi", "soundrak", "quali", "soundeling"],
+    "biomes": [
+      { "surfaceBlock": "chime_moss", "subSurfaceBlock": "dirt", "floraDensityMul": 1.0 },
+      { "surfaceBlock": "chime_moss", "subSurfaceBlock": "stone", "floraDensityMul": 0.6, "reliefMul": 1.4 },
+      { "surfaceBlock": "mud", "subSurfaceBlock": "mud", "floraTheme": "swamp", "floraDensityMul": 1.1, "reliefMul": 0.4 }
+    ],
+    "ores": [
+      { "block": "obsidian",          "rarity": 0.03,  "minDepth": 2,  "maxDepth": 2048 },
+      { "block": "resonance_crystal", "rarity": 0.02,  "minDepth": 3,  "maxDepth": 2048 },
+      { "block": "iron_ore",          "rarity": 0.05,  "minDepth": 4,  "maxDepth": 2048 },
+      { "block": "copper_ore",        "rarity": 0.04,  "minDepth": 4,  "maxDepth": 2048 },
+      { "block": "silicate",          "rarity": 0.05,  "minDepth": 2,  "maxDepth": 2048 },
+      { "block": "crystal",           "rarity": 0.02,  "minDepth": 6,  "maxDepth": 2048 }
+    ]
+  },
   {
     "key": "orbital_station", "baseTemperature": 20, "nameKey": "planet.orbital_station.name", "cloudColor": 0, "cloudDensity": 0.0, "mist": 0.0,
     "baseHeight": 64, "amplitude": 0, "terrainScale": 48.0,

@@ -747,10 +747,11 @@ namespace BlocksBeyondTheStars.Client
             // #2478: the players anchor names where the other players are (VEGA's "Many minds" — the live chart).
             bool players = anchor == CutsceneAnchors.Players;
             var others = players ? CutsceneChart.PlayersBySystem(map, Game.PlayerName) : null;
+            string target = PackSystemChart.TargetOf(anchor, map); // #3357: system:<id> rings and routes to a pack system
             foreach (var sys in map?.Systems ?? System.Array.Empty<NetStarSystem>())
             {
                 bool current = sys.Id == here;
-                bool isFinale = sys.Id != null && sys.Id.StartsWith("guardian_finale", System.StringComparison.Ordinal);
+                bool isFinale = (sys.Id != null && sys.Id.StartsWith("guardian_finale", System.StringComparison.Ordinal)) || (target != null && sys.Id == target);
                 bool known = current || Game.KnowsSystem(sys.Id);
                 if (isFinale)
                 {
@@ -789,7 +790,8 @@ namespace BlocksBeyondTheStars.Client
             bool reveal = anchor == CutsceneAnchors.Core && finale != null;
             // The other players' chart is live — it stays in colour under a memory grade (the grade still tints the world).
             bool memory = (grade == CutsceneGrades.Memory || grade == CutsceneGrades.Flashback) && !players;
-            _screen.ShowChart(stars, lanes, reveal ? finale : null, reveal ? here : null, reveal ? finale : null, memory);
+            string ringed = target ?? (reveal ? finale : null);
+            _screen.ShowChart(stars, lanes, ringed, ringed != null ? here : null, ringed, memory);
             _chartShown = true;
         }
 
@@ -1272,6 +1274,11 @@ namespace BlocksBeyondTheStars.Client
             if (anchor == CutsceneAnchors.Players)
             {
                 return CutsceneChart.AnyOtherPlayer(Game.StarMap, Game.PlayerName); // #2478: alone, "Many minds" stays a card
+            }
+
+            if (CutsceneAnchors.SystemIdOf(anchor) is { } systemId)
+            {
+                return PackSystemChart.HasSystem(Game.StarMap, systemId); // #3357: not on this player's map yet — a card
             }
 
             if (anchor != CutsceneAnchors.HealTank)

@@ -311,6 +311,8 @@ namespace BlocksBeyondTheStars.Client
             Network.AllianceListReceived += m => Alliances = m ?? new AllianceList();
             WirePvp(); // #2972: whom this player may hit, and duels
             WireCalendar(); // #3315: the festival day calendars and the cosmetics their doors unlock
+            WireMelody(); // #3345/#3346: the server's melodies and the melody bar
+            WireSoundersItems(); // #3352: the note-key minigame of a Song Disc
             Network.CrewListReceived += m => Crew = m ?? new CrewList();
             Network.CrewInviteReceived += m =>
             {

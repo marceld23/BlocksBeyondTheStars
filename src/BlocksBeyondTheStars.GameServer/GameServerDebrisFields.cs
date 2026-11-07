@@ -473,6 +473,7 @@ public sealed partial class GameServer
 
         var result = Award(session, DebrisFieldScanKey(marker.Id), readout, KnowledgeDebrisField);
         TryRevealLoreText(session, theme?.Lore ?? "debris");
+        TryGiveFlightRecorderDisc(session, themeKey); // #3352: the alien hum is the Sounders' hunger disc
         MarkSpaceWreckVisited(session, marker.Id); // a field is charted like a wreck: a Places entry, "visited" for everyone
         return result;
     }

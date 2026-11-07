@@ -658,6 +658,7 @@ public sealed partial class GameContent
         "cobalt_block", "platinum_block", "lead_block", "zinc_block", "tungsten_block", "titanium_block",
         "insulated_wall", "rusted_panel", "scrap_metal", "scrap_pile",
         "ice", "peat", "coral_rock", "obsidian", "black_sand", "tainted_soil", "tainted_subsoil", "tainted_stone",
+        "chime_moss", "carved_obsidian", // #3358: Soaniri's ground and the old Sounder builders' stone
     };
 
     /// <summary>

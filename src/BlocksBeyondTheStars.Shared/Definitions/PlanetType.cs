@@ -526,6 +526,18 @@ public sealed class PlanetType
     /// (#3310). Indestructible (#3311) and scannable (#3312). Meant for a <see cref="RestrictStructures"/> type: the tablets
     /// are stamped first and the classic structures do not reserve around them.</summary>
     public List<TextMonumentSpec> TextMonuments { get; set; } = new();
+
+    // --- #3358 (the Sounders story pack): Soaniri, the Sounder home world. No-op defaults, read only where a type sets them,
+    // so no other type's generation moves (no terrain-generation gate needed). ---
+
+    /// <summary>How many rune monuments a world of this type stamps, as [min, max] (#3358, Soaniri: 4–6 — "many rune ruins");
+    /// empty = the classic 0–3 roll. The classic roll is still drawn first, so the rng stream stays as it was.</summary>
+    public List<int> MonumentCount { get; set; } = new();
+
+    /// <summary>The singing meadows (#3358): the world generator plants Soaniri's singing plants on chime moss and in the reed
+    /// marsh, raises obsidian outcrops with resonance-crystal caps and harp arches with harp vines under their lintels
+    /// (<c>WorldGenerator.StampSingingMeadows</c>). Off for every other type.</summary>
+    public bool SingingMeadows { get; set; }
 }
 
 /// <summary>One stone text tablet of a planet type (#3310, KuBa-W): the lines it spells and the landing pad it faces.</summary>

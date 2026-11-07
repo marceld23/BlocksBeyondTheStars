@@ -78,7 +78,11 @@ public static partial class StoryPackValidator
         {
             if (!StoryRevealProviders.IsKnown(reveal))
             {
-                run.Error($"{sp}.onStart.reveal", $"unknown marker provider '{reveal}' ({StoryRevealProviders.NearestOre}:<block>, {StoryRevealProviders.NearestSettlement}, {StoryRevealProviders.NearestFoodPlant}, {StoryRevealProviders.NearestStation}, {StoryRevealProviders.UniqueSite}:<site>)");
+                run.Error($"{sp}.onStart.reveal", $"unknown marker provider '{reveal}' ({StoryRevealProviders.NearestOre}:<block>, {StoryRevealProviders.NearestSettlement}, {StoryRevealProviders.NearestFoodPlant}, {StoryRevealProviders.NearestStation}, {StoryRevealProviders.UniqueSite}:<site>, {StoryRevealProviders.NearestMonument}, {StoryRevealProviders.PackSite}:<id>, {StoryRevealProviders.StorySystem}:<id>)");
+            }
+            else if (reveal.StartsWith(StoryRevealProviders.StorySystem + ":", StringComparison.Ordinal))
+            {
+                CheckStorySystemReveal(run, $"{sp}.onStart.reveal", reveal); // #3357
             }
             else if (reveal.StartsWith(StoryRevealProviders.NearestOre + ":", StringComparison.Ordinal)
                      && run.Context.BlockExists is { } blockExists

@@ -3411,6 +3411,52 @@ called **stories**:
   have emptied it, it is a normal storage crate that stays where it is. Build the core into a **hunter robot** — see
   *The friendly hunter robot* under **Taming creatures**.
 
+### The Sounders' Song (the second story)
+A second story runs **next to VEGA's**, for every player on their own: **The Sounders' Song**. It starts quietly — the
+first time you play a **rune stone** (the stones with painted notes in monuments, ruins and the Singing Shrine). You can
+also start it early in the **Journal**, switch it off there, and a world can leave it out at creation (**Stories** page →
+**Side stories**).
+VEGA tells it; the Echoes, the Eldest and Roll speak in the scenes. It has eight chapters:
+
+1. **The stones sing.** Aim at a rune stone and press **[Use]** — it sings one word. Rune stones always sing, story or
+   not; with the story running every new word goes into the **Song Archive** (your Journal's page of this story).
+2. **The shrine of eight voices.** The **Singing Shrine** has eight pillars — eight tones. Strike one: the shrine sings a
+   short tune, you play it back on the pillars (or on the **melody bar**, see below). Three rounds, each a little longer.
+   Wrong notes never hurt — the round just starts again. As a reward the shrine gives you a **Song Spindle** and the first
+   **Song Disc**. No shrine in your skies? Build a ring: **eight rune stones in a circle around an ancient brick** works
+   the same way.
+3. **Song Discs.** Place the spindle, hold a disc and **[Use]** the spindle: it plays the disc (**[Use]** with an empty
+   hand plays it again, crouch + **[Use]** takes it back). The first time, you decode it in a short game — every letter
+   is **two notes** (the **note alphabet**: the first note picks the row, the second the column; a letter shows itself
+   after three wrong picks, and after two failed tries VEGA offers to skip; the table fills in as you learn and stays in
+   the Song Archive). More discs hide in **relic caches** at monuments and in the humming recorder of the alien debris
+   field; a disc you lose before decoding it turns up again in the next cache.
+4. **Alien blueprints.** Two discs carry building plans that appear in your **research** list only after you decoded
+   them: the **Resonance Blaster** (right mouse button; it pushes and stuns hostile creatures and machines for a moment
+   without hurting them, calms Soundraks, and — used on a monument's rune stone — opens a hidden **sound chamber** once;
+   on Soaniri it also opens two sealed chambers of the ruin city Ornasa) and the **obsidian
+   armour** (quiet steps; its chest piece has a **disc slot**: the *hearing disc* lets you hear the Echoes, the *calm
+   disc* keeps Soundraks calm, the *light disc* glows softly).
+5. **The Echoes.** Wearing the hearing disc, you meet the **Echoes** at rune stones — the Sounders who sang the Great
+   Song long ago. They are not ghosts; they live "on the other side". You ask them with **melodies** (a question is a short
+   tune you choose). Elora, Kamo, Feya and Tini each give you letters of the way home. Any group of three or more rune
+   stones can call an Echo — even stones you placed yourself.
+6. **The Song of Return.** Play the letters **ORNEMIS** in the note alphabet at the shrine (or your ring). The shrine
+   answers a fifth higher, and the **Ornemis** system appears on **your** star chart (only for players who learned the
+   song; others can fly along aboard your ship).
+7. **Homecoming.** Jump to Ornemis (you need a jump drive) and land on **Soaniri**: singing plants, **Soundis**,
+   **Soundelings**, a **Soundrak** or two, and at night **Qualis** drifting in the sky. Visit **the Eldest** in the village
+   **Mirun**.
+8. **The Bridge Song.** At the **Choir Tower** the Young Voices want to sing the Final Song again. Talk to **Roll** — the
+   things the Echoes told you are your best answers — then play the **second voice** on the tower's eight pipes while
+   they sing. Afterwards a little **Soundi** that followed you through Mirun asks for a **sing duel**: it sings, you
+   answer. Win, give it a name (it suggests "Muffin") — and it travels with you to every world.
+
+**The melody bar.** Whenever you play a tune (a shrine, a spindle, an Echo, the tower, a Soundi) the melody bar opens at
+the bottom of the screen: eight tones, each with its own colour and sign. Play them with the number keys **1–8** (the
+quick bar does not switch while it is open), the gamepad's d-pad and shoulder buttons, or by touch. Holding the
+Resonance Blaster opens it too, so you can play freely.
+
 ### Festivals (the real-world calendar)
 - **What happens:** at certain times of the year the game plays with a slightly different mood — a cosy-spooky
   **Halloween** week, lantern-lit **December** nights (St. Martin, Advent, Hanukkah, Christmas, Kwanzaa …), petals at
@@ -4023,6 +4069,25 @@ called **stories**:
   space, a station or a ship's inside), his **bond is always full** (he lives on starlight and never needs feeding) and he
   cannot be bio-sampled; unlike the robot he **never fights**. You can have one Rudolpho; he does not count towards your
   six pets. **Send home** in the Creatures tab turns him back into the star bell (keep a backpack slot free).
+- **Who follows you** (#3344): in the Creatures tab every companion has a switch — **Follows me**, **Stays home** or
+  **On board** — and **Take all** / **Leave all** change everyone at once. A pet that stays home lives at its **home
+  spot** (where you tamed it, or wherever you press **Set home here** while it is with you on its own world, on foot) and
+  potters about within a few blocks; you still find it there whenever you are on its world. Companions that travel from
+  world to world — the robot, Rudolpho, the Soundi — wait **on board** instead and come back with one click. Only
+  companions that **follow** fetch things, growl at danger, keep robbers and the machines off you and scout; a pet at home
+  still drops its little gifts. Nothing changes for your old pets until you switch them: they all keep following.
+- **The Soundi** (#3361, from *The Sounders' Song*): the little singer you win in the story's sing duel travels with you
+  to every world, outside your six pets, with a full bond. You give it its name (the game suggests **Muffin**). It sings
+  now and then. *Release* sends it on board — you never lose it.
+- **Duel taming** (#3365): a few proud creatures — the **wild Soundis** of Soaniri — cannot be talked round. Use the
+  **creature translator** on one and it challenges you to a **duel**: only that one fights you, and it **gives up** long
+  before it is hurt — it never dies — and becomes a pet that stays on its world. Walking away (about 24 blocks), leaving
+  the world or fainting ends the duel; try again any time. Hit such a creature **inside its pack** outside a duel and the
+  whole pack defends it for about 20 seconds, then calms down.
+- **Soundelings and light** (#3366): the small fluff balls of Soaniri love light and fear the dark. By day, hold a torch,
+  lantern or other light block and press **Feed** (Q) next to one — it coos, carries the light off and places it in a dark
+  spot nearby (never inside someone else's base). At night they curl up into a ball; by day in the dark they hide until a
+  light is near.
 
 ### The bio lab (samples, preparations, changed gear, breeding)
 Every plant, every animal and every ore vein carries something of its own — and it depends on **where and how it
@@ -4930,6 +4995,15 @@ boss) without grinding the whole playthrough. Same admin + `CheatsAllowed` gatin
 | `/lore` | Reveal **every** story fragment and personal memory to you (fills the Journal); also completes the readable beats |
 | `/jumpdrive` | Fit a **jump generator** (`jump_generator`) to your active ship so you can hyperjump between star systems |
 | `/gotocore` | Reveal the finale (if needed) and drop you straight into the Guardian core chamber — **skips the flight and the orbital gauntlet** |
+| `/sounders [status]` | *The Sounders' Song*: whether it runs for you, the running chapter, words / discs / Echoes collected, Song of Return, Roll, Bridge Song, Soundi |
+| `/sounders start` | Start *The Sounders' Song* for you now (as if you had played a rune stone) |
+| `/sounders chapter <1-8>` | Make that chapter run now — the chapters before it are skipped |
+| `/sounders items` | Hand over the Song Spindle, the socket discs, a collectible disc, the Resonance Blaster and the obsidian armour, mark every story disc decoded and unlock the four Sounder blueprints |
+| `/sounders echo` | Call the next Echo right next to you (no rune stones needed; it stays while chapter 5 runs and the hearing disc is in the socket) |
+| `/sounders song` | Learn the Song of Return — **Ornemis** appears on your star chart |
+| `/sounders soaniri` | Learn the song and land straight on **Soaniri** (no jump drive needed) |
+| `/sounders tower` | On Soaniri: stand on the Choir Tower's platform among its eight pipes |
+| `/sounders soundi` | Get the story Soundi as your travelling companion now |
 
 Two ways to test the finale:
 - **Full run:** `/revealfinale` → `/jumpdrive` → (optionally `/god`) → open the star map and hyperjump to
@@ -4939,6 +5013,12 @@ Two ways to test the finale:
 
 The duel cannot be lost — wrong rebuttals are dismissed and you stay on the node — so just keep trying each
 option (the answer buttons; only a player on the Guardian Core can answer) until the core concedes and shuts down.
+
+Testing *The Sounders' Song* (cheats on): `/sounders chapter 2` and a ring of eight rune stones around an ancient brick
+for the shrine puzzle · `/sounders chapter 3` + `/sounders items` for the spindle, discs, blaster and armour ·
+`/sounders chapter 5`, wear the obsidian chest with the hearing disc, then `/sounders echo` · `/sounders chapter 6` and the
+ring again for the Song of Return · `/sounders soaniri` → `/sounders chapter 8` → `/sounders tower` for the finale (talk to
+Roll, then strike the pipes); walk up to the Soundi that follows you for the sing duel.
 
 **Tutorial controls** (admin role only — works with cheats off): `/tutorial skip [Player]` skips the basic training of you
 or the named player, `/tutorial restart [Player]` runs it again from part 1, `/tutorial chapter <id> [Player]` jumps to a

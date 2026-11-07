@@ -125,4 +125,10 @@ public sealed class AuthoredCreature
 
     /// <summary>Sandworm: it swallows the animals a breach hits (#2076) — see <see cref="CreatureSpecies.SwallowsCreatures"/>.</summary>
     public bool SwallowsCreatures { get; set; }
+
+    /// <summary>#3365: tamed in a duel, not by the ritual (the Soundi) — see <see cref="CreatureSpecies.DuelTame"/>.</summary>
+    public bool DuelTame { get; set; }
+
+    /// <summary>#3365: the pack defends an attacked member — see <see cref="CreatureSpecies.PackDefender"/>.</summary>
+    public bool PackDefender { get; set; }
 }

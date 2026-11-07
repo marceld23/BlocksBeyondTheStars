@@ -59,6 +59,12 @@ namespace BlocksBeyondTheStars.Client
             }
 
             string held = Game.ItemInSlot(Game.SelectedHotbarSlot);
+            _feedGivesLight = ComputeCanGiveLight(held); // #3366: a lamp in the hand and a Soundeling near — Feed hands it over
+            if (_feedGivesLight)
+            {
+                return true;
+            }
+
             if (string.IsNullOrEmpty(held) || !BlocksBeyondTheStars.Shared.Definitions.HerdRules.IsFoodForCreatures(Game.Content.GetItem(held)))
             {
                 return false;

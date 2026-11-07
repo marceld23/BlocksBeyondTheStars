@@ -222,4 +222,40 @@ public static class CreatureBehaviour
         => provoked && baseTemperament == CreatureTemperament.Territorial
             ? CreatureTemperament.Aggressive
             : baseTemperament;
+
+    // ---------------- Duel taming + pack defence (#3365, the wild Soundis) ----------------
+
+    /// <summary>The share of its health a duelling animal never drops below — it gives up there instead (kid-friendly: no
+    /// animal ever dies in a duel).</summary>
+    public const float DuelSurrenderShare = 0.2f;
+
+    /// <summary>A duel ends when the player walks this far (blocks) from the animal.</summary>
+    public const float DuelWalkAwayRange = 24f;
+
+    /// <summary>Kin within this range (blocks) of an attacked pack defender come to defend it.</summary>
+    public const float PackDefenceRange = 14f;
+
+    /// <summary>How long (seconds) a defending pack stays angry with the attacker before it calms down.</summary>
+    public const double PackDefenceSeconds = 20.0;
+
+    /// <summary>The gentlest bite (health per second) of a duelling or defending animal: a species that never bites still
+    /// fights back a little.</summary>
+    public const float DuelMinBite = 2f;
+
+    /// <summary>The hardest bite (health per second) of a duelling or defending animal: none fights too hard.</summary>
+    public const float DuelMaxBite = 5f;
+
+    /// <summary>Whether this species is tamed in a duel instead of the translator ritual.</summary>
+    public static bool TamesByDuel(CreatureSpecies sp) => sp.DuelTame;
+
+    /// <summary>Whether this species' kin defend an attacked member — a behaviour next to the temperaments: the pack defender
+    /// fights back whatever its temperament, but only the attacker and only for a while.</summary>
+    public static bool DefendsKin(CreatureSpecies sp) => sp.PackDefender;
+
+    /// <summary>The lowest health a duelling animal can be brought to: <see cref="DuelSurrenderShare"/> of its maximum.</summary>
+    public static float DuelSurrenderHull(float hullMax) => System.Math.Max(1f, hullMax * DuelSurrenderShare);
+
+    /// <summary>The bite of a duelling or defending animal: its own, held between <see cref="DuelMinBite"/> and
+    /// <see cref="DuelMaxBite"/>.</summary>
+    public static float DuelBite(float attackDamage) => System.Math.Clamp(attackDamage, DuelMinBite, DuelMaxBite);
 }

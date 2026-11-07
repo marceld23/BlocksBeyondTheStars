@@ -112,10 +112,11 @@ public sealed partial class GameServer
         VoiceSeed = 0x7FE8FF,
     };
 
-    /// <summary>Whether a companion appears on <paramref name="body"/> while its owner is there: an animal on its home world,
-    /// a roaming one (the robot, Rudolpho) everywhere but a void world — and never one that is knocked out.</summary>
+    /// <summary>Whether a companion appears on <paramref name="body"/> while its owner is there: an animal on its home world
+    /// (following or at home, #3344), a roaming one (the robot, Rudolpho, the Soundi) everywhere but a void world while it
+    /// follows — one that waits on board appears nowhere — and never one that is knocked out.</summary>
     private bool CompanionLivesOn(TamedCreature tc, string body)
-        => !tc.KnockedOut && (tc.Roams ? !_world.Planet.Void : tc.HomeBodyId == body);
+        => !tc.KnockedOut && (tc.Roams ? tc.Following && !_world.Planet.Void : tc.HomeBodyId == body);
 
     private static string CompanionDisplayName(TamedCreature tc) => string.IsNullOrEmpty(tc.Name) ? tc.Species.Name : tc.Name;
 

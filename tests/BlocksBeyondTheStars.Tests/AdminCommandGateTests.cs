@@ -343,11 +343,12 @@ public sealed class AdminCommandGateTests : IDisposable
             ["grant_module"] = SvGameServer.AdminCommandGate.Cheats,
             ["reveal_lore"] = SvGameServer.AdminCommandGate.Cheats,
             ["goto_core"] = SvGameServer.AdminCommandGate.Cheats,
+            ["sounders"] = SvGameServer.AdminCommandGate.Cheats, // #3368
         };
         var actual = SvGameServer.AdminCommandTableForTest().ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
 
-        Assert.Equal(42, expected.Count);
-        Assert.Equal(42, actual.Count);
+        Assert.Equal(43, expected.Count);
+        Assert.Equal(43, actual.Count);
         Assert.Equal(expected.Keys.OrderBy(k => k, StringComparer.Ordinal), actual.Keys.OrderBy(k => k, StringComparer.Ordinal));
         foreach (var (verb, gate) in expected)
         {

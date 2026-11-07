@@ -1208,7 +1208,7 @@ public sealed partial class GameServer
                     }
                 }
 
-                cell.Config = fresh;
+                cell.Config = GateMelodyInstrument(session, cell, fresh); // #3345: the Sounder voices need their blueprint
                 if (!ApplyCrystalLabel(session, cell, intent.Label, clear: false)) // an empty one keeps the name (#3172: action 7 clears)
                 {
                     return; // refused by the content screen (#1221) — the player has been told
@@ -2175,7 +2175,7 @@ public sealed partial class GameServer
             case CrystalDeviceKind.MelodyBlock:
                 if (on)
                 {
-                    int instrument = Math.Max(0, Math.Min(3, CrystalConfigInt(c.Config, "inst", 0)));
+                    int instrument = Math.Max(0, Math.Min(MelodyBlockMaxInstrument, CrystalConfigInt(c.Config, "inst", 0))); // 4/5: #3345
                     PlayCrystalSound(c, "note_" + instrument + "_" + Math.Max(0, Math.Min(7, c.Mode)), 1f);
                 }
 

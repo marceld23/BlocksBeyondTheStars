@@ -249,6 +249,12 @@ public sealed class GameRules
     /// <see cref="TutorialPolicy.Auto"/> — the safe default; an older build that re-saves drops it back to Auto.</summary>
     public TutorialPolicy TutorialPolicy { get; set; } = TutorialPolicy.Auto;
 
+    /// <summary>#3347: the side stories switched off for this world (pack ids) — the world-creation Stories page lists every
+    /// installed side story with a switch, default on (<c>--disable-stories a,b</c>). A switched-off pack never starts in
+    /// this world, and its lore, dialogs, texts and systems stay away; a player's own Journal opt-out stays on top. The festival
+    /// stories follow the <see cref="Festivals"/> switch instead. Old saves deserialize without the field: every side story on.</summary>
+    public System.Collections.Generic.List<string> DisabledStoryPacks { get; set; } = new();
+
     /// <summary>Multiplier applied to the story-progress score from <see cref="StoryDensity"/> (Dense reveals
     /// the arc sooner, Sparse later). Normal is 1.0 — the pack's authored pacing.</summary>
     public float StoryProgressScale => StoryDensity switch
@@ -428,5 +434,10 @@ public sealed class GameRules
     public bool CheatsAllowed => AdminCheats &&
         (GameMode == GameMode.Creative ? AllowCheatsInCreative : AllowCheatsInSurvival);
 
-    public GameRules Clone() => (GameRules)MemberwiseClone();
+    public GameRules Clone()
+    {
+        var copy = (GameRules)MemberwiseClone();
+        copy.DisabledStoryPacks = new System.Collections.Generic.List<string>(DisabledStoryPacks ?? new System.Collections.Generic.List<string>()); // #3347: never shared
+        return copy;
+    }
 }

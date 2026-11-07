@@ -67,6 +67,8 @@ FOLIAGE = [
     # the sapling kinds (#2977–#2980): a young tree on black, rooted on the bottom edge
     "flora_sapling_conifer", "flora_sapling_fruit_round", "flora_sapling_fruit_long", "flora_sapling_fruit_grape", "flora_sapling_fruit_banana", "flora_sapling_fifi", "flora_sapling_mahogany",
     "flora_marigold",  # the festival marigold (#3024), a flower clump on black like the daisy
+    # the singing plants of Soaniri (#3358/#3363): FloraCatalog species without the flora_ prefix, one plant on black each
+    "chime_reed", "bell_bloom", "bell_bloom_open", "harp_vine", "echo_flower",
     # flora_sapling (#1774) is NOT here: its tile ships with a chroma-keyed alpha (the plant on a plain tan ground),
     # so the darkness cut would remove the stem, not the background.
 ]
@@ -87,6 +89,9 @@ DARK_GROUND = {
     # the sapling kinds (#2977–#2980): a young tree on black, rooted on the bottom edge
     "flora_sapling_conifer", "flora_sapling_fruit_round", "flora_sapling_fruit_long", "flora_sapling_fruit_grape", "flora_sapling_fruit_banana", "flora_sapling_fifi", "flora_sapling_mahogany",
     "flora_marigold",  # #3024
+    # #3363 the Sounder world's singing plants: authored colours (no flora_ prefix), one plant on black each; the harp
+    # vine hangs from the top edge like the glow threads, the others stand on the bottom edge (ROOTED)
+    "chime_reed", "bell_bloom", "bell_bloom_open", "harp_vine", "echo_flower",
 }
 DARK_GROUND_CUTOFF = 0.12  # brightness at or below this = the black ground (a dark stem sits well above it)
 
@@ -123,6 +128,8 @@ ROOTED = {
     "flora_clover", "flora_daisy", "flora_thistle", "flora_herb", "flora_foxtail", "flora_lupine",
     # the sapling kinds (#2977–#2980): a young tree on black, rooted on the bottom edge
     "flora_sapling_conifer", "flora_sapling_fruit_round", "flora_sapling_fruit_long", "flora_sapling_fruit_grape", "flora_sapling_fruit_banana", "flora_sapling_fifi", "flora_sapling_mahogany",
+    # #3363 the Sounder world's standing singing plants (the harp vine hangs, so it is not here)
+    "chime_reed", "bell_bloom", "bell_bloom_open", "echo_flower",
 }
 
 

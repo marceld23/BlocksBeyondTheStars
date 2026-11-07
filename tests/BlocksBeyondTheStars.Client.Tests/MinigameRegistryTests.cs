@@ -17,7 +17,7 @@ public sealed class MinigameRegistryTests
     [Fact]
     public void EveryKeyCreatesItsGame_AndLookupsAreConsistent()
     {
-        Assert.Equal(20, MinigameRegistry.Count);
+        Assert.Equal(21, MinigameRegistry.Count); // #3352: the note key, appended
         var seen = new HashSet<string>();
         for (int i = 0; i < MinigameRegistry.Keys.Count; i++)
         {

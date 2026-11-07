@@ -238,6 +238,7 @@ public sealed partial class GameServer
                 ServerVersionString),
             LazyThreadSafetyMode.ExecutionAndPublication);
         ConstructSystems();
+        WireSoundersStory(); // #3368: the Sounders' Song — puzzle starters, solved handlers, the dialog listener
 
         // The tick order, built once — see GameServerTickSchedule.cs. These four lines must stay the LAST statements of
         // the constructor: a schedule entry may capture a subsystem field (e.g. after a subsystem extraction), which must
@@ -699,6 +700,10 @@ public sealed partial class GameServer
         // system's station) and after the names (one drifts beside a body); old saves gain theirs like the debris fields.
         PlaceDerelicts();
 
+        // #3357: the pack star systems this save revealed before (the Sounders' Ornemis), back at their pinned map spot —
+        // after the start body is chosen, so they never become the spawn world.
+        EnsurePackSystemsInGalaxy();
+
         // Finale (P6): the galaxy is regenerated from seed each start, so an already-revealed save needs its Guardian
         // system re-appended — but the story state is not loaded yet at this point (the "registries" boot stage
         // runs after this one), so LoadStoryState does it (#2460, B06). It still lands after start-body selection,
@@ -830,12 +835,18 @@ public sealed partial class GameServer
                 else
                 {
                     // 2026-09 (generation 8): a type with a structure whitelist (Titas, Valuma) stamps only what it names.
-                    bool restricted = planet.RestrictStructures && _generator.TerrainGeneration >= WorldDescription.ExtremePlanetsGeneration;
+                    // #3358: Soaniri on any save — the pack appends it to old galaxies too, and no town may stamp over Mirun.
+                    bool restricted = planet.RestrictStructures
+                                      && (_generator.TerrainGeneration >= WorldDescription.ExtremePlanetsGeneration || IsSounderWorld);
                     bool Allowed(string kind) => !restricted || planet.AllowedStructures.Contains(kind);
 
                     // #3310 (generation 33): a type's stone text tablets (KuBa-W) — first, in front of their pads, on every
                     // world of the type whatever the structure options say (self-skips on every other type).
                     BootDetail("text monuments", StampTextMonuments);
+
+                    // #3358 (the Sounders pack): Soaniri's village Mirun, the ruin city Ornasa and the Choir Tower — on the
+                    // sounder_world type only, right after the tablets and before the monuments (they reserve around them).
+                    BootDetail("sounder world", StampSounderWorld);
 
                     if (_config.PlaceSettlements && !restricted)
                     {
@@ -862,7 +873,7 @@ public sealed partial class GameServer
 
                     BootDetail("sps labs", StampSpsLabs); // 2026-09: abandoned SPS research stations — only on a type that allows them (Titas)
 
-                    if (_config.PlaceMonuments && !restricted)
+                    if (_config.PlaceMonuments && Allowed("monuments")) // #3358: a restricted type may keep its rune relics (Soaniri)
                     {
                         BootDetail("monuments", StampMonuments); // eroded rune relics (unprotected) — the only surface feature airless bodies get
                     }
@@ -1000,7 +1011,7 @@ public sealed partial class GameServer
         // the body they are at (the leave-space path), so nobody is stranded.
         bool landingWhereTheyAre = allowCurrentBody
             && string.Equals(intent.DestinationBodyId, session.CurrentLocationId, StringComparison.Ordinal);
-        if (body is null || (GuardianSystemHidden(body.SystemId) && !landingWhereTheyAre))
+        if (body is null || (SystemHiddenFor(session, body.SystemId) && !landingWhereTheyAre))
         {
             Reject(session, "travel", "@srv.travel.no_destination");
             return false;
@@ -2604,6 +2615,7 @@ public sealed partial class GameServer
         // #2723: a death ends a docking visit on both sides — a dying guest's visit is forgotten (the respawn moves them),
         // a dying host's guest goes home before the respawn takes the ship away.
         EndShipVisitsOf(session);
+        EndCreatureDuelOf(session.State.PlayerId, DuelEnd.Lost); // #3365: a duel with a Soundi ends — try again any time
 
         var p = session.State;
         bool dropSalvage = !Rules.KeepInventoryOnDeath && !session.Respawn.SparedByPvp && // #2972: a PvP defeat costs nothing
@@ -6036,7 +6048,7 @@ public sealed partial class GameServer
     private void HandleUnlock(PlayerSession session, UnlockBlueprintIntent unlock)
     {
         var bp = _content.GetBlueprint(unlock.BlueprintKey);
-        if (bp is null)
+        if (bp is null || BlueprintHiddenFor(session, bp)) // #3350: a hidden blueprint is not there yet for this player
         {
             Reject(session, "unlock", "@srv.unlock.unknown");
             return;
@@ -6728,10 +6740,10 @@ public sealed partial class GameServer
 
     private void SendStarMap(PlayerSession session)
     {
-        var systems = _galaxy.Systems.Where(sys => !GuardianSystemHidden(sys.Id)).Select(sys => new NetStarSystem // #2506
+        var systems = _galaxy.Systems.Where(sys => !SystemHiddenFor(session, sys.Id)).Select(sys => new NetStarSystem // #2506, #3357: per player
         {
             Id = sys.Id,
-            Name = sys.Name,
+            Name = StarMapSystemName(session, sys), // #3357: a pack system in the player's language
             MapX = sys.MapX,
             MapY = sys.MapY,
             Bodies = sys.Bodies.Select(b => ToNetBody(b, session)).ToArray(),

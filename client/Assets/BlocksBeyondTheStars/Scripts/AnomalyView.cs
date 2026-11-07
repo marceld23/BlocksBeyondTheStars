@@ -31,8 +31,12 @@ namespace BlocksBeyondTheStars.Client
         private bool _calm;
         private float _calmHue;
         private float _reactTimer;
+        private Renderer _quali;                  // #3367: the faint Quali shimmer (null without it)
+        private MaterialPropertyBlock _qualiBlock;
 
-        public void Init(string id, bool calm, ClientSettings settings)
+        /// <param name="qualiShimmer">#3367: the player's Sounders pack has reached chapter 5 — a giant translucent Quali bell
+        /// drifts over the bubble, now and then almost visible (<see cref="SoundersPackProgress.QualiShimmer"/>).</param>
+        public void Init(string id, bool calm, ClientSettings settings, bool qualiShimmer = false)
         {
             _settings = settings;
             int h = (id ?? string.Empty).GetHashCode();
@@ -101,6 +105,53 @@ namespace BlocksBeyondTheStars.Client
                 _hum.volume = 0.3f * (_settings?.SfxVolume ?? 0.8f);
                 _hum.Play();
             }
+
+            if (qualiShimmer)
+            {
+                BuildQualiShimmer(shell);
+            }
+        }
+
+        /// <summary>#3367: the Quali — a wide, flat bell of the same shell shader, above and around the bubble.</summary>
+        private void BuildQualiShimmer(Material shell)
+        {
+            if (shell == null)
+            {
+                return;
+            }
+
+            var bell = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            bell.name = "QualiShimmer";
+            Strip(bell);
+            bell.transform.SetParent(transform, false);
+            _quali = bell.GetComponent<Renderer>();
+            _quali.sharedMaterial = shell;
+            _qualiBlock = new MaterialPropertyBlock();
+        }
+
+        /// <summary>#3367: the bell drifts slowly, breathes, and fades in and out over about fourteen seconds — a shimmer, never
+        /// more than a faint rim of violet and teal.</summary>
+        private void UpdateQualiShimmer(float t)
+        {
+            if (_quali == null)
+            {
+                return;
+            }
+
+            float wave = Mathf.Max(0f, Mathf.Sin(t * 0.45f));
+            float pulse = 1f + (Mathf.Sin(t * 1.4f) * 0.06f);
+            var bell = _quali.transform;
+            bell.localPosition = new Vector3(Mathf.Sin(t * 0.13f) * 1.2f, (BubbleRadius * 1.6f) + (Mathf.Sin(t * 0.7f) * 0.25f),
+                Mathf.Cos(t * 0.11f) * 1.2f);
+            bell.localScale = new Vector3(BubbleRadius * 3.2f * pulse, BubbleRadius * 1.8f / pulse, BubbleRadius * 3.2f * pulse);
+            var col = Color.Lerp(new Color(0.62f, 0.5f, 1f), new Color(0.45f, 0.95f, 0.9f), 0.5f + (0.5f * Mathf.Sin(t * 0.21f)));
+            _qualiBlock.Clear();
+            _qualiBlock.SetColor("_Color", FxKit.Lin(col));
+            _qualiBlock.SetFloat("_Intensity", 0.12f + (wave * wave * 0.5f));
+            _qualiBlock.SetFloat("_RimPower", 3.2f);
+            _qualiBlock.SetFloat("_Fill", 0.02f);
+            _qualiBlock.SetFloat("_Hex", 0f);
+            _quali.SetPropertyBlock(_qualiBlock);
         }
 
         /// <summary>The ship scanner read it: a ripple, a chime, and from then on it is calm.</summary>
@@ -124,6 +175,7 @@ namespace BlocksBeyondTheStars.Client
             float t = Time.time + _seed;
             float dt = Time.deltaTime;
             _reactTimer -= dt;
+            UpdateQualiShimmer(t);
 
             // The bubble: flowing rainbow (or frozen, once explored); a ripple after the scan.
             float hue = _calm ? _calmHue : Mathf.Repeat(t * 0.08f, 1f);

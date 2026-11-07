@@ -20,8 +20,10 @@ public sealed class VendorTradeWiringTests
     private static readonly string[] GameBootstrapParts =
     {
         "GameBootstrap.BiomeLooks.cs", "GameBootstrap.Calendar.cs", "GameBootstrap.ChunkPipeline.cs", "GameBootstrap.ChunkStreaming.cs", "GameBootstrap.cs", "GameBootstrap.Entities.cs",
-        "GameBootstrap.Environment.cs", "GameBootstrap.Knowledge.cs", "GameBootstrap.Meadow.cs", "GameBootstrap.Menus.cs", "GameBootstrap.Messages.cs",
-        "GameBootstrap.PlayerState.cs", "GameBootstrap.Pvp.cs", "GameBootstrap.Space.cs", "GameBootstrap.Stations.cs", "GameBootstrap.Story.cs",
+        "GameBootstrap.Environment.cs", "GameBootstrap.Knowledge.cs", "GameBootstrap.Meadow.cs", "GameBootstrap.Melody.cs", "GameBootstrap.Menus.cs",
+        "GameBootstrap.Messages.cs",
+        "GameBootstrap.PlayerState.cs", "GameBootstrap.Pvp.cs", "GameBootstrap.SoundersItems.cs", "GameBootstrap.Space.cs", "GameBootstrap.Stations.cs",
+        "GameBootstrap.Story.cs",
         "GameBootstrap.Structures.cs",
     };
 

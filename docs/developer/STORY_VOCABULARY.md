@@ -74,9 +74,12 @@ Without a `type` the objective is a game event (`objective.event`, below).
 | Provider | Where the help marker points |
 |---|---|
 | `nearest_food_plant` | `nearest_food_plant` — the nearest plant whose harvest is food (berries …) around the player (#2469). |
+| `nearest_monument` | `nearest_monument` — the nearest rune monument on the player's world, read or not (#3349: "play the stones"). |
 | `nearest_ore` | `nearest_ore:<block key>` — the nearest block of that kind around the player (a bounded probe). |
 | `nearest_settlement` | `nearest_settlement` — the nearest settlement on the player's body. |
 | `nearest_station` | `nearest_station` — the nearest space station of the player's system (#2471, the dock lesson): in flight the station of the player's orbit nearest to their ship, landed the first station of the system. Not a ping on the ground but the client's space waypoint (`ShipAiLine.SpaceWaypointId`), so the radar and the edge arrow lead to it. |
+| `pack_site` | `pack_site:<id>` — a site the gameplay code registered for a pack (#3349, `GameServer.RegisterPackSite`: the Sounders' Choir Tower), while the player is on its world. Nothing elsewhere. |
+| `story_system` | `story_system:<id>` — a pack's star system (#3357, the manifest's `systems[]`): the system is put on the player's star map when they may see it, and the help line names it. Nothing while it is hidden for them. |
 | `unique_site` | `unique_site:<observatory\|shrine\|derelict>` — the spot of that one-of-a-kind site while the player is on its world (#2476: "read the observatory's last log" once they landed there). Nothing elsewhere. |
 
 ### Gates (`gates`, tutorial packs only)
@@ -89,7 +92,7 @@ Without a `type` the objective is a game event (`objective.event`, below).
 
 ## Game events (`objective.event`)
 
-107 event keys (`GameEventKeys.All`). The key names the verb, the argument the thing: a step
+114 event keys (`GameEventKeys.All`). The key names the verb, the argument the thing: a step
 names a key (or a `prefix*` pattern) and, optionally, the arguments it accepts (`"arg": "a|b"`); the amount
 adds up towards `required`. Nothing is raised for an observer, before the join is complete, or for a non-positive
 amount.
@@ -106,6 +109,7 @@ amount.
 | `build:any` | A block was placed. Arg: the block key (a blueprint paste: `blueprint_paste`, amount = blocks). |
 | `build:rotated` | A form or prop block was placed with an explicit turn of the rotate key. Arg: the block key. |
 | `cargo:stowed` | The player stowed items into the ship's cargo hold. Arg: the item key, or `all` for "stow all". |
+| `chamber:opened` | A sound chamber under a monument was opened with the Resonance Blaster (once per monument). No arg. |
 | `chat:sent` | A chat line of the player's went out on the radio (not a command, not a line the filter dropped). |
 | `companion:cared` | The player looked after a companion: named it (`named`) or fed it (`fed`). |
 | `craft:any` | A recipe was crafted (stations, markets, the ship console). Arg: the recipe key; amount: the batch count. |
@@ -129,8 +133,12 @@ amount.
 | `crystal:vault` | Crystal Net (raised for the circuit's owner): A vault's phase door opened with the player in the chamber. |
 | `data:found` | Data for bigger blueprints turned up. Arg: `cache` (a data cache is in reach) or `fragment` (the player carries a data fragment). |
 | `defeat:any` | A hostile was defeated by the player. Arg: `creature`, `giant`, `machine`, `bandit` (planet) or `space_machine`, `raider` (space). |
+| `dialog:done` | An NPC dialog was talked through to its end node. Arg: the dialog key. |
+| `disc:decoded` | A Song Disc was decoded at a Song Spindle (the note-key minigame accepted, or skipped after help). Arg: the disc's item key. |
+| `disc:inserted` | A Song Disc was put into the disc socket of the obsidian armour. Arg: the disc's item key. |
 | `door:opened` | A hand-operated door (wood, hinge) was opened by the player. Arg: the door kind. |
 | `eat:any` | Real food was eaten (an item with hunger value). Arg: the item key. |
+| `echo:questioned` | An Echo (a vanished Sounder) was questioned to the end of its dialog, once per Echo and player. Arg: the Echo id (`elora`, `kamo`, `feya`, `tini`). |
 | `eva:started` | A spacewalk began. Arg: `hatch` (out through the hatch of the floating ship) or `flight` (from the flight view). |
 | `factory:claimed` | A spawned factory claimed with an access (SPS) code — it became the player's base. Arg: the factory's name. |
 | `flight:flown` | The player's ship flew in space. Amount: whole flight units (a hyperjump or a warp never counts). |
@@ -150,6 +158,7 @@ amount.
 | `loot:any` | A world container (not a player crate) was looted empty. Arg: the container kind. |
 | `lore:read` | The player read a lore text new to them (a rune inscription, a wreck log, a vault plaque, the observatory's last log — whatever opened in the reader). Arg: the site kind (`monument`, `vault`, `observatory`, `derelict`, `data_terminal` …). |
 | `marker:set` | A map marker was set (or moved) on a world, or a spot pinged. Arg: `marker` or `ping`. |
+| `melody:solved` | A melody puzzle was solved (the server's checker accepted the whole sequence). Arg: the puzzle id (`shrine_echo`, `song_of_return`, `bridge_song`, `sing_duel`, `bloom_trail` …). |
 | `mine:any` | A block was mined by hand. Arg: the block key. |
 | `mine:refused` | A block refused the swing because the tool tier is too low (and a better tool exists). Arg: the block key. |
 | `minigame:played` | A finished run of a DataQube game from the shipped catalogue (every completed run, a replay too — the knowledge it pays is the handler's business). Arg: the game key. |
@@ -172,6 +181,7 @@ amount.
 | `poi:reached` | The player stands near a buried vault's entrance or a crashed wreck on a world (the 1 Hz check behind VEGA's `poi` hint, raised right before it). |
 | `relay:commissioned` | An SPS relay the player contributed to was completed. Arg: the station id. |
 | `research:any` | A blueprint was researched. Arg: the blueprint key. |
+| `rune:played` | A rune stone was played with the use key (its phrase in the note alphabet sounded). Arg: the site kind — `monument`, `shrine`, `ruin`, `lone` (a world-placed stone) or `placed` (a player-placed one). |
 | `salvage:found` | Salvage in space: a derelict or a debris field reached for the first time, or a salvage capsule emptied into the hold. Arg: `wreck`, `debris` or `capsule`. |
 | `sample:taken` | A sample went into the player's sample case — from a harvested plant or tree, an ore deposit, an animal (the sampler, a defeat, a companion's gift). Arg: `plant`, `animal` or `mineral`. |
 | `scan:any` | A first-time scan (a discovery — the achievement counter's moment). Arg: the readout kind. |
@@ -238,6 +248,7 @@ condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 | `blueprint:<key>` | The player owns that blueprint. |
 | `world:<predicate>` | A live fact about the world or the player's place in it (`StoryWorldPredicates`). |
 | `lore:<key>` | The player has read that lore text (a `lore_sites.json` entry, #2476). |
+| `milestone:<key>` | The player has that per-player milestone (#3347; any key, colons included: `milestone:snd:disc:song_disc_builders`). A pack sets its own with a dialog consequence or the gameplay code does. |
 | `all:[a,b,…]` | Every child holds. |
 | `any:[a,b,…]` | At least one child holds. |
 | `not:<condition>` | The child does not hold. |
@@ -253,7 +264,7 @@ condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 
 ### World predicates (`world:<predicate>`)
 
-86 predicates (`StoryWorldPredicates.All`, held equal to the server's registry by
+88 predicates (`StoryWorldPredicates.All`, held equal to the server's registry by
 `StoryConditionTests`). A predicate reads the player's own body and system, never another player's.
 
 | Predicate | Holds when |
@@ -310,6 +321,7 @@ condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 | `world:machine_circuit` | A machine of the player's has finished a job a signal started (the Crystal workshop's fifth job, or any such circuit since) — the "machine circuit" the automation lesson builds on. |
 | `world:module_affordable` | The player could build a ship module now — one their active ship lacks, its blueprint owned, its materials in the backpack or the hold (a free Creative build counts). |
 | `world:monument_unread` | A rune monument stands on the player's world whose runes they have not read yet. |
+| `world:monuments` | The player's body has at least one rune monument (read or not) — a rune stone to play is there. |
 | `world:multiplayer` | The world is hosted for more than one player (not a singleplayer world). |
 | `world:new_world_in_system` | The player's system has a planet, moon or asteroid they have never landed on — the landing lesson. |
 | `world:night_outside` | The player is out on foot on a world's surface while the local sun is down. |
@@ -328,6 +340,7 @@ condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 | `world:settlements` | The world generates settlements (the world option is not off). |
 | `world:shape_block_carried` | The player carries a shaped block (stairs, slopes …) the rotate key can turn. |
 | `world:ship_built` | The player has commissioned a self-built ship. |
+| `world:shrine` | The Singing Shrine (the one-of-a-kind alien shrine) exists in this galaxy — a world stamped before the unique sites has none. |
 | `world:space_enemies` | Hostile machines in space are switched on (space combat PvE with drones or UFOs). |
 | `world:space_stations` | The world generates space stations. |
 | `world:space_wrecks` | The world generates wrecks drifting in space (the world option is not off). |
@@ -390,6 +403,7 @@ A `diorama` shows one of these anchors: `core`, `star_map`.
 | `core` | The Guardian core chamber. |
 | `custom` | The coordinates carried by the `CutscenePlay` message. |
 | `players` | The other players — on a `chart` their star systems are labelled with their names (VEGA's "Many minds" in multiplayer). It needs another player on the star map; without one (singleplayer) the scene plays as a card, like a heal tank that is not there. |
+| `system` | `system:<id>` — a pack's star system on a `chart`: named, ringed and reached by a route from the player's system (the Sounders' Ornemis). Only on the chart; a client that does not have the system on its star map yet plays the scene as a card. |
 
 ### Caption styles (`shots[].captions[].style`)
 

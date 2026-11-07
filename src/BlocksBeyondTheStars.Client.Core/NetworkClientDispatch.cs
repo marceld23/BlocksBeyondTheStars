@@ -124,6 +124,8 @@ namespace BlocksBeyondTheStars.Client
             On<CrystalDeviceDelta>(map, (c, m) => c.CrystalDeviceDeltaReceived?.Invoke(m));
             On<LiftList>(map, (c, m) => c.LiftsReceived?.Invoke(m));
             On<SoundFx>(map, (c, m) => c.SoundFxReceived?.Invoke(m));
+            On<NoteSequence>(map, (c, m) => c.NoteSequenceReceived?.Invoke(m)); // #3345
+            On<MelodyPuzzleState>(map, (c, m) => c.MelodyPuzzleStateReceived?.Invoke(m)); // #3346
             On<BioBook>(map, (c, m) => c.BioBookReceived?.Invoke(m));
             On<BioLabResult>(map, (c, m) => c.BioLabResultReceived?.Invoke(m));
             On<BeamTeleported>(map, (c, m) => c.BeamTeleportedReceived?.Invoke(m));
@@ -158,6 +160,8 @@ namespace BlocksBeyondTheStars.Client
             On<TraderDiscountInfo>(map, (c, m) => c.HandleTraderDiscount(m)); // #3292
             On<FestivalCalendarState>(map, (c, m) => c.HandleCalendarState(m)); // #3315
             On<CosmeticUnlocks>(map, (c, m) => c.HandleCosmeticUnlocks(m)); // #3315
+            On<StoryMinigameStart>(map, (c, m) => c.StoryMinigameStartReceived?.Invoke(m)); // #3352 the note-key minigame of a Song Disc
+            On<BlueprintVisibility>(map, (c, m) => c.HandleBlueprintVisibility(m)); // #3350
             On<WorldReset>(map, (c, m) => c.HandleWorldReset(m));
             On<NpcList>(map, (c, m) => c.NpcsReceived?.Invoke(m));
             On<DoorList>(map, (c, m) => c.DoorsReceived?.Invoke(m));
@@ -236,6 +240,7 @@ namespace BlocksBeyondTheStars.Client
             TraderDiscountPercent = 0; // #3292: a fresh session starts without one — the server pushes it when there is one
             TraderDiscountFrom = string.Empty;
             ResetCalendarState(); // #3315: the server sends the calendars and unlocks of this world after the join
+            ResetStoryPackState(); // #3350: the hidden blueprints this player may see come after the join
             AdoptWorld(m.WorldId);
             ResyncHotbarSlot(); // #2525: the server restored the slot saved at the quit; the hand on screen wins
             JoinAccepted?.Invoke(m);

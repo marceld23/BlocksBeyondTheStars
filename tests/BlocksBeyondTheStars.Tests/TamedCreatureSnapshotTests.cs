@@ -60,6 +60,31 @@ public sealed class TamedCreatureSnapshotTests
         Assert.Equal(string.Empty, pet.Kind);
         Assert.False(pet.Roams);
         Assert.False(pet.KnockedOut);
+        Assert.True(pet.Following); // #3344: an old save keeps every companion following, exactly as before
+        Assert.False(pet.HasHomeSpot);
+    }
+
+    /// <summary>#3344: the follow choice and the home spot survive save and load — a pet left at home stays home.</summary>
+    [Fact]
+    public void ThePetsFollowChoiceAndHomeSpot_SurviveSaveAndLoad()
+    {
+        var pet = new TamedCreature
+        {
+            Id = "pet",
+            HomeBodyId = "sys0-p1",
+            Name = "Flocke",
+            Following = false,
+            HasHomeSpot = true,
+            HomeX = 12.5f,
+            HomeY = 70f,
+            HomeZ = -3.5f,
+        };
+
+        var back = Assert.Single(SaveAndLoad(With(pet)).TamedCreatures);
+
+        Assert.False(back.Following);
+        Assert.True(back.HasHomeSpot);
+        Assert.Equal((12.5f, 70f, -3.5f), (back.HomeX, back.HomeY, back.HomeZ));
     }
 
     /// <summary>Every public settable property of <see cref="TamedCreature"/> gets a non-default value and must come back
@@ -96,7 +121,9 @@ public sealed class TamedCreatureSnapshotTests
 
         if (type == typeof(bool))
         {
-            return true;
+            // #3344: the opposite of the default — a flag that defaults to true (Following) must be copied too, and a
+            // fixed "true" would read as copied even when CloneTamed forgot it.
+            return !(bool)property.GetValue(new TamedCreature())!;
         }
 
         if (type == typeof(int))

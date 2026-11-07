@@ -96,7 +96,8 @@ namespace BlocksBeyondTheStars.Client
             root.transform.SetParent(parent, false);
             var ids = Game?.Space?.ScannedIds;
             bool calm = ids != null && System.Array.IndexOf(ids, e.Id) >= 0;
-            root.AddComponent<AnomalyView>().Init(e.Id, calm, Game?.Settings);
+            // #3367: from chapter 5 of the player's Sounders pack a faint Quali drifts over every anomaly.
+            root.AddComponent<AnomalyView>().Init(e.Id, calm, Game?.Settings, SoundersPackProgress.QualiShimmer(Game?.StoryPackStates));
             return root;
         }
 

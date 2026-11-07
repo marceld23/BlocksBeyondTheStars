@@ -438,6 +438,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             PoseHound(dt, t, moving); // #3327: the Schuppenhund's head, tail and ears while it prowls and charges
+            PoseSounders(dt, t, moving); // #3355/#3359/#3366: four wavy arms, a floating Echo, a raised tail, the bud, the curl
         }
 
         /// <summary>Advances the gait phase. The rate is <c>speed ÷ stride length</c> — that division is the

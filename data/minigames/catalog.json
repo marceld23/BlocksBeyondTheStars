@@ -60,6 +60,9 @@
       "descKey": "minigame.planet_scanner.card_desc" },
     { "key": "void_solitaire", "entry": "void_solitaire/index.html", "icon": "🃏",
       "titleKey": "minigame.void_solitaire.title",
-      "descKey": "minigame.void_solitaire.card_desc" }
+      "descKey": "minigame.void_solitaire.card_desc" },
+    { "key": "note_key", "icon": "🎵",
+      "titleKey": "minigame.note_key.title",
+      "descKey": "minigame.note_key.card_desc" }
   ]
 }

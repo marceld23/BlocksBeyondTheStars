@@ -212,6 +212,14 @@ public sealed partial class GameServer
 
                 cooldown = RopeCooldown;
                 break;
+            case Shared.Sounders.SoundersIds.ResonanceBlaster: // #3353: a sonic cone that fends off, or a rune stone made to resonate
+                if (!UseResonanceBlaster(session, target))
+                {
+                    return; // a chamber that would not open costs neither energy nor cooldown
+                }
+
+                cooldown = ResonanceBlasterCooldown;
+                break;
             default:
                 Reject(session, "gadget", "@srv.gadget.unknown");
                 return;
@@ -411,6 +419,10 @@ public sealed partial class GameServer
         else if (def.Key == ThumperBlockKey)
         {
             StopThumper(pos); // #2002: a removed thumper stops thumping
+        }
+        else if (def.Key == Shared.Sounders.SoundersIds.SongSpindle)
+        {
+            OnSongSpindleRemoved(pos); // #3352: the disc in it lands on the ground
         }
         else if (def.Key is "station_vendor" or "mission_board" || NpcProfessions.ByPostBlock(def.Key) != null)
         {

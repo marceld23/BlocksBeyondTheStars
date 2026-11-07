@@ -210,6 +210,13 @@ public sealed class NetStoryPack
     /// or done — with their steps. Empty for player packs, before the player's story track starts, for an older client's story
     /// and from an older server. Additive.</summary>
     public NetStoryMission[] Missions { get; set; } = System.Array.Empty<NetStoryMission>();
+
+    /// <summary>#3347: the pack's readable texts this player has unlocked (the Sounders' Song Archive), in manifest order — only
+    /// while the pack is active for them. Empty from an older server. Additive.</summary>
+    public NetStoryText[] Texts { get; set; } = System.Array.Empty<NetStoryText>();
+
+    /// <summary>#3347: locale key of the section that lists <see cref="Texts"/> (empty = the client's "Texts found"). Additive.</summary>
+    public string TextsTitleKey { get; set; } = string.Empty;
 }
 
 /// <summary>One story mission of the world story's <see cref="NetStoryPack"/> (#2476).</summary>

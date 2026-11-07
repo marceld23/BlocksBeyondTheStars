@@ -551,7 +551,8 @@ namespace BlocksBeyondTheStars.Client
                     foreach (var bp in Content.Blueprints.Values)
                     {
                         if (bp.KnowledgeCost > Knowledge && bp.KnowledgeCost <= m.KnowledgePoints
-                            && !UnlockedBlueprints.Contains(bp.Key))
+                            && !UnlockedBlueprints.Contains(bp.Key)
+                            && Network.IsBlueprintShown(bp, UnlockedBlueprints)) // #3350: never a hidden one
                         {
                             crossed.Add(bp);
                         }

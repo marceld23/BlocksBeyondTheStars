@@ -29,6 +29,11 @@ title card 60 / 72, reading frame 600 / 720), the short name fits (<= 10 charact
 a {0} slot 10). Packs without beats are fine. Unknown fields are reported as warnings (typos). Every problem is
 reported at once. The tool NEVER rewrites a file.
 
+#3347/#3349/#3350/#3357 (what a side pack brings): the milestone: condition atom, the new marker providers
+(nearest_monument, pack_site:<id>, story_system:<id> naming a declared system), lore gates (minChapter), readable texts,
+star systems, milestonePrefix, characters' planetTypes, dialog replies (visibleIf, melody, a milestone: consequence in
+the pack's namespace), the system:<id> chart anchor, and every hiddenUntil of data/blueprints.json.
+
 Usage:
     uv run --no-project python tools/validate_story_pack.py                          # every pack in data/stories
     uv run --no-project python tools/validate_story_pack.py data/stories/vega_protocol
@@ -67,7 +72,8 @@ CAMERAS = [
     "dolly", "pan", "flyover", "space_vista", "diorama",  # #2477: moves and synthetic stages
 ]
 NON_TAKEOVER_CAMERAS = {"player_view", "overlay"}
-ANCHORS = ["player", "ship", "planet", "station", "star_map", "heal_tank", "core", "custom", "players"]
+ANCHORS = ["player", "ship", "planet", "station", "star_map", "heal_tank", "core", "custom", "players", "system"]
+SYSTEM_ANCHOR = "system:"  # #3357: system:<id> - a pack system on the chart
 DIORAMA_ANCHORS = ["core", "star_map"]  # #2477: what a diorama can show
 # #2478: the finale stages a world pack binds a scene to (StoryFinaleStages).
 FINALE_STAGES = ["arrival", "descent", "breach", "duel", "standdown", "resolution"]
@@ -108,7 +114,19 @@ FALLBACK_PREDICATES = [
     "creatures", "tameable_near", "herd_begging", "companion_owned", "seed_carried", "settlement_near", "hostile_near",
     "bandit_hail", "climbing", "train_here", "multiplayer", "radio_worn", "ruin_near", "treasure_near", "wreck_signal",
     "planet_wrecks",
+    "festival_any", "festival_harvest", "festival_lights", "festival_newyear", "festival_blossoms", "festival_colours",
+    "festival_stars", "festival_midsummer", "festival_children", "festival_halloween", "festival_christmas",
+    "monuments", "shrine",
 ]
+# #3349: the marker providers (StoryRevealProviders) without an argument.
+REVEAL_PROVIDERS = ["nearest_settlement", "nearest_food_plant", "nearest_station", "nearest_monument"]
+# #3357: where a pack system goes on the star map (StoryPackSystemPlacements).
+SYSTEM_PLACEMENTS = ["edge", "inside"]
+# #3347: milestone families the game writes - a pack's milestonePrefix may not be one (StoryPackMilestones).
+RESERVED_MILESTONE_PREFIXES = {
+    "story", "lore", "dialog", "dialogflag", "vega", "char", "npcthread", "festival_gift", "festival_gift_due", "tutorial",
+    "insight", "mem", "obj", "track", "cut", "none",
+}
 
 KNOWN_FIELDS = {
     "pack": {
@@ -117,8 +135,11 @@ KNOWN_FIELDS = {
         "killWeight", "milestoneWeight", "killContributionCap", "beats", "fragments", "memories", "coreArguments",
         "flavourLines", "missionThreads", "loreSites", "npcThreads", "characters", "dialogs", "epilogueTitle",
         "epilogueTitleKey", "epilogueTextKey", "graduation", "leadBonusMilestones", "normaliseUnavailableDrivers",
-        "memoryTriggers", "speakers",
+        "memoryTriggers", "speakers", "texts", "textsTitleKey", "systems", "milestonePrefix",
     },
+    "text": {"id", "titleKey", "textKey", "unlockedBy"},  # #3347
+    "system": {"id", "nameKey", "name", "planetType", "bodyName", "placement", "visibleIf"},  # #3357
+    "dialog_choice": {"textKey", "responseKey", "next", "consequence", "keepOpen", "visibleIf", "melody"},  # #3347
     "graduation": {"lineKey", "counter", "suggest", "cutscene"},
     "narrator": {"id", "nameKey", "icon", "color", "voice", "lineStart"},
     "escalate": {"hintAfter", "markerAfter", "offerSkipAfter"},
@@ -279,6 +300,7 @@ class ConditionParser:
     """The story-condition grammar of StoryConditionParser (Shared/Story/StoryCondition.cs)."""
 
     ID = re.compile(r"[A-Za-z0-9_.\-]*")
+    MILESTONE = re.compile(r"[A-Za-z0-9_.:\-]*")
 
     def __init__(self, text: str, predicates: set[str]) -> None:
         self.text = text
@@ -373,6 +395,15 @@ class ConditionParser:
                 self.fail("the lore key is missing")
             atoms.append(("lore", "", key))
             return
+        if word == "milestone":
+            # #3347: any per-player milestone; the key may hold ':' (milestone:snd:disc:song_disc_builders)
+            m = self.MILESTONE.match(self.text, self.pos)
+            self.pos = m.end()
+            key = m.group(0)
+            if not key or key.startswith(":") or key.endswith(":"):
+                self.fail("the milestone key is missing or ends in ':'")
+            atoms.append(("milestone", "", key))
+            return
         if word == "world":
             name = self.read_id()
             if name not in self.predicates:
@@ -382,7 +413,7 @@ class ConditionParser:
         self.pos = start
         if word == "ui":
             self.fail("'ui:' events are client claims and never a condition")
-        self.fail(f"unknown condition '{word}:' (step, chapter, pack, blueprint, world, lore, all, any, not)")
+        self.fail(f"unknown condition '{word}:' (step, chapter, pack, blueprint, world, lore, milestone, all, any, not)")
 
 
 class Validator:
@@ -409,6 +440,7 @@ class Validator:
         self.packs: dict[str, dict] = {}
         self.folders_by_id: dict[str, list[pathlib.Path]] = {}
         self.lore_keys: set[str] = set()  # #2476: every pack's lore_sites.json keys (lore: conditions)
+        self.planets = {pl.get("key") for pl in self.load_list(data_dir / "planets.json")}  # #3357
         stories = data_dir / "stories"
         if stories.exists():
             for folder in sorted(p for p in stories.iterdir() if p.is_dir()):
@@ -427,6 +459,146 @@ class Validator:
                         self.lore_keys |= {e.get("key") for e in self.load_list(lore) if isinstance(e, dict) and e.get("key")}
                     except (json.JSONDecodeError, OSError):
                         pass
+
+    @property
+    def all_system_ids(self) -> set[str]:
+        """#3357: every system id an installed pack declares."""
+        return {s.get("id") for p in self.packs.values() for s in (p.get("systems") or []) if isinstance(s, dict) and s.get("id")}
+
+    def pack_system_ids(self, pack: dict) -> set[str]:
+        """#3357: the system ids of this pack and of every installed one."""
+        own = {s.get("id") for s in (pack.get("systems") or []) if isinstance(s, dict) and s.get("id")}
+        return own | self.all_system_ids
+
+    @staticmethod
+    def may_set_milestone(pack: dict, key: str) -> bool:
+        """#3347: a pack dialog's milestone: consequence stays in the pack's own namespace (StoryPackMilestones.MaySet)."""
+        if not key or key.endswith(":"):
+            return False
+        for prefix in (pack.get("id") or "", pack.get("milestonePrefix") or ""):
+            if prefix and is_key_safe(prefix) and prefix.lower() not in RESERVED_MILESTONE_PREFIXES \
+                    and key.startswith(prefix + ":") and len(key) > len(prefix) + 1:
+                return True
+        return False
+
+    def check_dialog_choice(self, pid: str, pack: dict, path: str, choice, condition) -> None:
+        """#3347: a reply's fields, its visibleIf conditions, its melody and a milestone: consequence."""
+        r = self.report
+        self.unknown_fields(pid, path, choice, "dialog_choice")
+        if not isinstance(choice, dict):
+            return
+        visible = choice.get("visibleIf")
+        for vi, text in enumerate([visible] if isinstance(visible, str) else (visible or [])):
+            condition(f"{path}.visibleIf[{vi}]", text)
+        melody = choice.get("melody") or ""
+        if not isinstance(melody, str) or re.fullmatch(r"[A-Za-z ]*", melody) is None:
+            r.error(pid, f"{path}.melody", f"'{melody}' - a melody is letters A-Z (and spaces) of the note alphabet")
+        consequence = choice.get("consequence") or ""
+        if isinstance(consequence, str) and consequence.startswith("milestone:"):
+            target = consequence[len("milestone:"):]
+            if not self.may_set_milestone(pack, target):
+                r.error(pid, f"{path}.consequence", f"'{target}' is not in the pack's own milestone namespace")
+
+    def check_lore_gates(self, pid: str, pack: dict, pack_dir: pathlib.Path, player_pack: bool) -> None:
+        """#3347: a world story's lore follows the world's knowledge, a player pack's the player's chapter."""
+        r = self.report
+        chapters = len(pack.get("chapters") or [])
+        lore_file = pack_dir / "lore_sites.json"
+        lore = list(pack.get("loreSites") or []) + (self.load_list(lore_file) if lore_file.exists() else [])
+        seen_lore: set[str] = set()
+        for i, entry in enumerate(lore):
+            if not isinstance(entry, dict):
+                continue
+            if entry.get("key") in seen_lore:
+                r.error(pid, f"loreSites[{i}]", f"lore key '{entry.get('key')}' is used twice")
+            seen_lore.add(entry.get("key"))
+            min_chapter = entry.get("minChapter", 0)
+            if not isinstance(min_chapter, int) or min_chapter < 0 or min_chapter > chapters:
+                r.error(pid, f"loreSites[{i}].minChapter", f"{min_chapter} is out of range (0 - {chapters})")
+            if player_pack and entry.get("minKnowledge", 0):
+                r.warn(pid, f"loreSites[{i}].minKnowledge", "a player pack's lore follows the player's chapter (minChapter)")
+            elif not player_pack and entry.get("minChapter", 0):
+                r.warn(pid, f"loreSites[{i}].minChapter", "a world story's lore follows the world's knowledge (minKnowledge)")
+
+    def check_texts(self, pid: str, pack: dict, key, condition) -> None:
+        """#3347: the pack's readable texts (the Journal page's archive)."""
+        r = self.report
+        key("textsTitleKey", pack.get("textsTitleKey"))
+        text_ids: set[str] = set()
+        for i, text in enumerate(pack.get("texts") or []):
+            tp = f"texts[{i}]"
+            self.unknown_fields(pid, tp, text, "text")
+            if not isinstance(text, dict):
+                continue
+            tid = text.get("id") or ""
+            if not is_key_safe(tid, allow_dot=True) or tid in text_ids:
+                r.error(pid, tp, f"text id '{tid}' is empty, not key-safe or used twice")
+            text_ids.add(tid)
+            if not text.get("titleKey") or not text.get("textKey"):
+                r.error(pid, tp, "a text needs a titleKey and a textKey")
+            key(f"{tp}.titleKey", text.get("titleKey"))
+            key(f"{tp}.textKey", text.get("textKey"))
+            if text.get("unlockedBy"):
+                condition(f"{tp}.unlockedBy", text.get("unlockedBy"))
+
+    def check_systems(self, pid: str, pack: dict, player_pack: bool, key, condition) -> None:
+        """#3357: the pack's star systems."""
+        r = self.report
+        system_ids: set[str] = set()
+        for i, system in enumerate(pack.get("systems") or []):
+            sp = f"systems[{i}]"
+            self.unknown_fields(pid, sp, system, "system")
+            if not isinstance(system, dict):
+                continue
+            sid = system.get("id") or ""
+            if not is_key_safe(sid) or sid.startswith("sys") or sid == "guardian_finale" or sid in system_ids:
+                r.error(pid, sp, f"system id '{sid}' is empty, not key-safe, used twice, procedural ('sys...') or the Guardian's")
+            system_ids.add(sid)
+            others = [p for p, m in self.packs.items()
+                      if p != pid and any(isinstance(s, dict) and s.get("id") == sid for s in (m.get("systems") or []))]
+            if others:
+                r.error(pid, f"{sp}.id", f"pack '{others[0]}' declares a system '{sid}' too")
+            if not system.get("nameKey") and not system.get("name"):
+                r.error(pid, sp, "a system needs a nameKey or a name")
+            key(f"{sp}.nameKey", system.get("nameKey"))
+            planet = system.get("planetType") or ""
+            if not planet:
+                r.error(pid, f"{sp}.planetType", "a system needs the planet type of its world")
+            elif self.planets and planet not in self.planets:
+                r.warn(pid, f"{sp}.planetType", f"planet type '{planet}' does not exist (the world falls back to a rocky one)")
+            if system.get("placement", "edge") not in SYSTEM_PLACEMENTS:
+                r.error(pid, f"{sp}.placement", f"unknown placement '{system.get('placement')}' ({', '.join(SYSTEM_PLACEMENTS)})")
+            visible = system.get("visibleIf")
+            for vi, text in enumerate([visible] if isinstance(visible, str) else (visible or [])):
+                condition(f"{sp}.visibleIf[{vi}]", text)
+        if (pack.get("systems") or []) and not player_pack:
+            r.error(pid, "systems", "only a player pack's systems are revealed (per player)")
+
+    def check_hidden_blueprints(self) -> None:
+        """#3350: a hidden blueprint's hiddenUntil (data/blueprints.json) is a story condition - it must parse."""
+        for bp in self.load_list(self.data / "blueprints.json"):
+            text = bp.get("hiddenUntil") if isinstance(bp, dict) else None
+            if not text:
+                continue
+            try:
+                ConditionParser(text, self.predicates).parse()
+            except ConditionError as ex:
+                self.report.error("blueprints.json", f"{bp.get('key')}.hiddenUntil", str(ex))
+
+    def check_pack_extras(self, pid: str, pack: dict, pack_dir: pathlib.Path, player_pack: bool, key, condition) -> None:
+        """#3347/#3357: lore gates, readable texts, star systems, the milestone namespace, characters' planet types."""
+        r = self.report
+        prefix = pack.get("milestonePrefix") or ""
+        if prefix and (not is_key_safe(prefix) or prefix.lower() in RESERVED_MILESTONE_PREFIXES):
+            r.error(pid, "milestonePrefix", f"'{prefix}' is not a pack's own milestone namespace")
+        self.check_lore_gates(pid, pack, pack_dir, player_pack)
+        self.check_texts(pid, pack, key, condition)
+        self.check_systems(pid, pack, player_pack, key, condition)
+        for i, character in enumerate(pack.get("characters") or []):
+            for j, planet in enumerate((character or {}).get("planetTypes") or []):
+                if self.planets and planet not in self.planets:
+                    r.error(pid, f"characters[{i}].planetTypes[{j}]", f"planet type '{planet}' does not exist")
+
 
     @staticmethod
     def load_table(path: pathlib.Path) -> dict:
@@ -686,11 +858,13 @@ class Validator:
                 for k, choice in enumerate(node.get("choices") or []):
                     key(f"dialogs[{i}].nodes[{j}].choices[{k}].textKey", choice.get("textKey"))
                     key(f"dialogs[{i}].nodes[{j}].choices[{k}].responseKey", choice.get("responseKey"))
+                    self.check_dialog_choice(pid, pack, f"dialogs[{i}].nodes[{j}].choices[{k}]", choice, condition)
         for i, insight in enumerate(pack.get("insights") or []):
             self.unknown_fields(pid, f"insights[{i}]", insight, "insight")
             if not insight.get("event"):
                 r.error(pid, f"insights[{i}]", "an insight needs an event")
             key(f"insights[{i}].textKey", insight.get("textKey"))
+        self.check_pack_extras(pid, pack, pack_dir, player_pack, key, condition)
 
         cutscene("introCutscene", pack.get("introCutscene"))
         for i, beat in enumerate(beats):
@@ -781,16 +955,20 @@ class Validator:
                     self.unknown_fields(pid, f"{sp}.escalate", step["escalate"], "escalate")
                 reveal = (step.get("onStart") or {}).get("reveal", "")
                 if reveal:
-                    if reveal in ("nearest_settlement", "nearest_food_plant", "nearest_station") or (
+                    if reveal in REVEAL_PROVIDERS or (
                         reveal.startswith("unique_site:") and reveal[len("unique_site:"):] in LEAD_UNIQUE_SITES
-                    ):
+                    ) or (reveal.startswith("pack_site:") and len(reveal) > len("pack_site:")):
                         pass
+                    elif reveal.startswith("story_system:") and len(reveal) > len("story_system:"):
+                        system_id = reveal[len("story_system:"):]
+                        if system_id not in self.pack_system_ids(pack):
+                            r.error(pid, f"{sp}.onStart.reveal", f"no installed pack declares the system '{system_id}' (systems[])")
                     elif reveal.startswith("nearest_ore:") and len(reveal) > len("nearest_ore:"):
                         block = reveal[len("nearest_ore:"):]
                         if self.blocks and block not in self.blocks:
                             r.error(pid, f"{sp}.onStart.reveal", f"block '{block}' does not exist")
                     else:
-                        r.error(pid, f"{sp}.onStart.reveal", f"unknown marker provider '{reveal}' (nearest_ore:<block>, nearest_settlement, nearest_food_plant, nearest_station, unique_site:<site>)")
+                        r.error(pid, f"{sp}.onStart.reveal", f"unknown marker provider '{reveal}' ({', '.join(REVEAL_PROVIDERS)}, nearest_ore:<block>, unique_site:<site>, pack_site:<id>, story_system:<id>)")
                 for hi, ref in enumerate(self.list_of_strings(pid, f"{sp}.hintRefs", step.get("hintRefs"))):
                     if not ref.strip():
                         r.error(pid, f"{sp}.hintRefs[{hi}]", "an empty hint id")
@@ -1089,8 +1267,15 @@ class Validator:
                     if tier < 3:
                         kind = "banner" if tier == 1 else "card"
                         r.error(pid, f"{sp}.camera.type", f"a T{tier} {kind} never takes the camera (player_view or overlay)")
-                if anchor and anchor not in ANCHORS:
-                    r.error(pid, f"{sp}.camera.anchor", f"unknown anchor '{anchor}' ({', '.join(ANCHORS)})")
+                system_anchor = anchor[len(SYSTEM_ANCHOR):] if anchor.startswith(SYSTEM_ANCHOR) else None
+                if anchor and (anchor not in ANCHORS or anchor == "system") and not system_anchor:
+                    r.error(pid, f"{sp}.camera.anchor", f"unknown anchor '{anchor}' ({', '.join(ANCHORS)}:<id>)")
+                elif system_anchor is not None:
+                    # #3357: a pack system's star on the chart
+                    if ctype != "chart":
+                        r.error(pid, f"{sp}.camera.anchor", "a system anchor is a star on the chart - it needs a chart camera")
+                    if system_anchor not in self.all_system_ids:
+                        r.error(pid, f"{sp}.camera.anchor", f"no installed pack declares the system '{system_anchor}' (systems[])")
                 elif ctype == "diorama" and anchor not in DIORAMA_ANCHORS:
                     r.error(pid, f"{sp}.camera.anchor", f"a diorama shows {' or '.join(DIORAMA_ANCHORS)} (found '{anchor}')")
                 elif anchor == "players" and ctype != "chart":
@@ -1206,8 +1391,10 @@ def main(argv: list[str]) -> int:
     validators: dict[pathlib.Path, Validator] = {}
     for pack_dir in pack_dirs:
         data_dir = find_data_dir(pack_dir)
-        validator = validators.setdefault(data_dir, Validator(data_dir, report))
-        validator.validate(pack_dir)
+        if data_dir not in validators:
+            validators[data_dir] = Validator(data_dir, report)
+            validators[data_dir].check_hidden_blueprints()  # #3350: once per data folder
+        validators[data_dir].validate(pack_dir)
 
     for line in report.errors + report.warnings:
         print(line)

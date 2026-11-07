@@ -138,6 +138,11 @@ namespace BlocksBeyondTheStars.Client
                 return; // #3295 the hunter robot (CreatureBuilder.Robot.cs), #3322 Rudolpho (CreatureBuilder.Reindeer.cs)
             }
 
+            if (BuildSoundersBody(root, c))
+            {
+                return; // #3355/#3359 the Sounder and the creatures of Soaniri (CreatureBuilder.Sounder.cs and its siblings)
+            }
+
             float unit = 0.5f * Mathf.Clamp(c.Size, 0.4f, 3f);
             Color bellyColor = Rgb(c.BellyRgb);
 

@@ -78,6 +78,12 @@ Every field is optional and defaults to today's behaviour.
 | `chapters` | Chapter[] | [] | below |
 | `insights` | `[{ event, minBeat, textKey, onceKey }]` | [] | world packs (read from step 16) |
 | `finale` | `{ type, cutscenes{…} }` | — | world packs (presentation bindings) |
+| `milestonePrefix` | string | — | #3347: the pack's own milestone namespace besides `<id>:` (the Sounders: `snd`); a dialog reply's `milestone:<key>` consequence may only set keys under one of the two — never a family the game writes (`story`, `lore`, `dialog`, `vega` …) |
+| `texts` | `[{ id, titleKey, textKey, unlockedBy }]` | [] | #3347, player packs: readable texts on the pack's Journal page (the Sounders' Song Archive), each shown once its `unlockedBy` condition holds for the player (empty = at once) and while the pack is active for them |
+| `textsTitleKey` | key | "Texts found" | #3347: the Journal section's title over `texts` |
+| `systems` | `[{ id, nameKey \| name, planetType, bodyName, placement, visibleIf }]` | [] | #3357, player packs: star systems added to the galaxy the first time any player satisfies `visibleIf` (a string or a list; empty = everyone with the pack active) — per player on the star map and a jump target only while it holds; `placement` `edge` (default, beyond the frontier) or `inside` (the emptiest spot among the stars); the id is never `sys…` or the Guardian's ([MULTIWORLD_AND_SYSTEM_FLIGHT.md](MULTIWORLD_AND_SYSTEM_FLIGHT.md)) |
+| `characters` | `[{ id, name, roles[], places, oneIn, robot, dialogKey, planetTypes[] }]` | [] | authored people (#1128); since #3347 a player pack's too (cast in every world that did not switch the pack off), `planetTypes` limits them to those worlds; a code-spawned NPC becomes one with `GameServer.ApplyStoryCharacter` |
+| `dialogs` | Dialog[] | [] | the characters' dialogs; since #3347 a player pack's are offered to the players for whom it is active. A reply may carry `visibleIf` (a condition, string or list: shown only when it holds), `melody` (letters A–Z: shown as notes and sung in the Sounder voice) and the consequence `milestone:<key>` |
 
 ## Chapter fields
 
@@ -129,10 +135,12 @@ One grammar everywhere (`StoryConditionParser`, synthesis §5.3):
 ```
 condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 atom      := step:<pack>:<step> | chapter:<pack>:<chapter> | pack:<pack>:started|done|enabled|optedout
-           | blueprint:<key> | world:<predicate> | lore:<key>
+           | blueprint:<key> | world:<predicate> | lore:<key> | milestone:<key>
 ```
 
-`lore:<key>` (#2476): the player has read that lore text (a `lore_sites.json` key).
+`lore:<key>` (#2476): the player has read that lore text (a `lore_sites.json` key). `milestone:<key>` (#3347): the player
+has that per-player milestone — any key, colons included (`milestone:snd:disc:song_disc_builders`); a pack sets its own
+with a dialog reply's `milestone:` consequence or the gameplay code writes it.
 
 The complete list of predicates with their meanings, generated from the code, is
 [STORY_VOCABULARY.md → World predicates](STORY_VOCABULARY.md#world-predicates-worldpredicate) (#2483); the history below says
@@ -237,6 +245,15 @@ budget — basic-training lines (start, hint, done and half-way lines of a tutor
 145 DE, other step lines ≤ 200 / 240, chip
 ≤ 45 / 53 (a `{key:…}` token counts 3, a `{0}` slot 10). The C# test also reads every pack strictly, so a misspelt field
 fails; the Python tool reports it as a warning. Neither tool ever changes a file.
+
+#3347/#3357 added: lore keys unique and `minChapter` within the pack's chapters (a warning when a world story's lore uses
+it, or a player pack's `minKnowledge`); `texts` (key-safe unique ids, a title and a text in both languages, an
+`unlockedBy` that parses); `systems` (an id that is no `sys…`, not the Guardian's and no other pack's, a name, a planet
+type — a warning when it does not exist — a known placement, `visibleIf` conditions; a world story may declare none);
+`milestonePrefix` (key-safe, not a family the game writes); a character's `planetTypes` exist; a dialog reply's
+`visibleIf` parses, its `melody` is letters A–Z, a `milestone:` consequence stays in the pack's namespace; a
+`story_system:<id>` marker and a `system:<id>` anchor (on a `chart` only) name a declared system. The Python tool also
+parses every `hiddenUntil` of `data/blueprints.json` (#3350; `GameContent.Validate` does it in C#).
 
 ## The tutorial pack (`data/stories/tutorial/`, #2469)
 

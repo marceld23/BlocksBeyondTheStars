@@ -13,6 +13,7 @@ using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Localization;
+using BlocksBeyondTheStars.Shared.Sounders;
 using BlocksBeyondTheStars.Shared.Story;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
@@ -114,12 +115,15 @@ public sealed class SideStoryPilotTests : IDisposable, IClassFixture<SidePilotDa
     private static bool Has(PlayerSession p, string milestone) => p.State.Milestones.Contains(milestone);
 
     /// <summary>The Journal's pack list without the shipped festival challenges (#3007): they ride along in every list, and on a day
-    /// without a festival (<see cref="TestFestivalClock"/>) none is started or startable, so the Journal lists none of them.</summary>
+    /// without a festival (<see cref="TestFestivalClock"/>) none is started or startable, so the Journal lists none of them.
+    /// The shipped Sounders' Song (#3368) is left out too: it waits for the first rune stone the player plays, so it never
+    /// starts here — but it is offered in the Journal (earlyOptIn), which is not what this pilot is about.</summary>
     private static NetStoryPack[] PacksWithoutFestivals(SvGameServer server, PlayerSession p)
     {
         var all = server.StoryPackStatesForTest(p).Packs;
         Assert.All(all.Where(x => x.Id.StartsWith("festival_", StringComparison.Ordinal)), x => Assert.False(x.Started || x.Startable));
-        return all.Where(x => !x.Id.StartsWith("festival_", StringComparison.Ordinal)).ToArray();
+        Assert.All(all.Where(x => x.Id == SoundersIds.PackId), x => Assert.False(x.Started));
+        return all.Where(x => !x.Id.StartsWith("festival_", StringComparison.Ordinal) && x.Id != SoundersIds.PackId).ToArray();
     }
 
     /// <summary>The argument of the chapter card <c>pilot.part</c> bound to <paramref name="chapter"/>: the chapter's title key,

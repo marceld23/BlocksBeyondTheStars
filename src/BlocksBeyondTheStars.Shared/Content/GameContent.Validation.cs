@@ -497,6 +497,13 @@ public sealed partial class GameContent
                 RequireItem($"Blueprint '{bp.Key}' unlock cost", cost.Item);
                 ValidateItemGroup(problems, $"Blueprint '{bp.Key}' unlock cost", cost);
             }
+
+            // #3350: a hidden blueprint's condition is the story grammar — a typo would hide it for good.
+            if (!string.IsNullOrWhiteSpace(bp.HiddenUntil)
+                && !Story.StoryConditionParser.TryParse(bp.HiddenUntil, out _, out string hiddenError))
+            {
+                problems.Add($"Blueprint '{bp.Key}' hiddenUntil: {hiddenError}");
+            }
         }
 
         foreach (var module in _shipModules.Values)
@@ -564,10 +571,17 @@ public sealed partial class GameContent
 
             foreach (var kind in planet.AllowedStructures)
             {
-                if (kind is not ("sps_labs" or "net_fragments"))
+                if (kind is not ("sps_labs" or "net_fragments" or "monuments")) // #3358: Soaniri keeps its rune monuments
                 {
                     problems.Add($"Planet '{planet.Key}' allows unknown structure kind '{kind}'.");
                 }
+            }
+
+            if (planet.MonumentCount.Count != 0
+                && (planet.MonumentCount.Count != 2 || planet.MonumentCount[0] < 0 || planet.MonumentCount[1] < planet.MonumentCount[0]
+                    || planet.MonumentCount[1] > 8))
+            {
+                problems.Add($"Planet '{planet.Key}' monumentCount must be [min, max] with 0 <= min <= max <= 8.");
             }
 
             // Generation 15 (#2062, Toxica-Maxima): the new type fields name real content, and only the forms the client draws.

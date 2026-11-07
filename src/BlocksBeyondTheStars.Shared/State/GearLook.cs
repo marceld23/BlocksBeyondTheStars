@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using BlocksBeyondTheStars.Shared.Sounders;
 
 namespace BlocksBeyondTheStars.Shared.State;
 
@@ -69,9 +70,10 @@ public static class GearLook
     // Legs bit (which stays set, so an older client still draws a plain piece there). 0 = the classic look (the plain
     // plates and the titanium ones, told apart by their own bits above), 1 = the guardian set, 2 = the robber disguise,
     // 3 = the flower set, 4 = the Ressaw diving suit (#3337, the first set with boots of its own — the boots got the
-    // fourth slot, bits 25–27, on top of the generic Boots bit), 5–7 reserved. A mask that uses them is above 0xFFFF and
-    // costs a wearer two bytes more on the wire; the presence gains no field (a minimal presence must stay under the
-    // compression threshold).
+    // fourth slot, bits 25–27, on top of the generic Boots bit), 5 = the Sounders' obsidian set (#3354), 6 = its chest
+    // with the light disc glowing, 7 reserved. A mask that uses them is above 0xFFFF and costs a wearer two bytes more on
+    // the wire; the presence gains no field (a minimal presence must stay under the compression threshold). Bit 28 is the
+    // obsidian chest's disc socket (<see cref="SocketDisc"/>).
 
     /// <summary>The first bit of the head piece's style (bits 16–18).</summary>
     public const int HeadStyleShift = 16;
@@ -102,6 +104,18 @@ public static class GearLook
 
     /// <summary>#3337: the Ressaw diving suit — milky white with the purple and red G.D.S. trim, the round visor helmet.</summary>
     public const int StyleRessaw = 4;
+
+    /// <summary>#3354: the Sounders' obsidian armour — dark glassy plates with violet seams, in all three slots.</summary>
+    public const int StyleObsidian = 5;
+
+    /// <summary>#3354: the obsidian chest with the light disc in its socket — the disc glows and the wearer gives off a soft
+    /// light (chest slot only; the head and legs stay <see cref="StyleObsidian"/>).</summary>
+    public const int StyleObsidianGlow = 6;
+
+    /// <summary>#3354: a Song Disc sits in the obsidian chest's socket (set only together with the obsidian chest) — the one
+    /// bit the Sounders pack adds to the mask (bit 28, above the boots' style); which disc it is only matters for the light
+    /// disc, which picks <see cref="StyleObsidianGlow"/>.</summary>
+    public const int SocketDisc = 1 << 28;
 
     /// <summary>The style of the head piece in <paramref name="mask"/> (0 = classic).</summary>
     public static int HeadStyle(int mask) => (mask >> HeadStyleShift) & StyleBits;
@@ -158,6 +172,33 @@ public static class GearLook
         g |= Bit(worn("guardian_legs"), Legs | Style(LegsStyleShift, StyleGuardian));
         g |= Bit(worn("ressaw_leggings"), Legs | Style(LegsStyleShift, StyleRessaw));
         g |= Bit(worn("ressaw_boots"), Boots | Style(BootsStyleShift, StyleRessaw));
+        g |= ObsidianPieces(worn);
+        return g;
+    }
+
+    /// <summary>#3354: the obsidian set — style 4 in its slots, the chest style 5 while the light disc sits in the socket, and
+    /// <see cref="SocketDisc"/> while any disc does (a disc in the socket without the chest shows nothing: the socket is the
+    /// chest's).</summary>
+    private static int ObsidianPieces(Func<string, bool> worn)
+    {
+        int g = Bit(worn(SoundersIds.ObsidianHelmet), Helmet | Style(HeadStyleShift, StyleObsidian));
+        g |= Bit(worn(SoundersIds.ObsidianLegs), Legs | Style(LegsStyleShift, StyleObsidian));
+        if (!worn(SoundersIds.ObsidianChest))
+        {
+            return g;
+        }
+
+        bool glow = worn(SoundersIds.DiscLight);
+        g |= Chest | Style(ChestStyleShift, glow ? StyleObsidianGlow : StyleObsidian);
+        foreach (string disc in SongDiscs.All)
+        {
+            if (worn(disc))
+            {
+                g |= SocketDisc;
+                break;
+            }
+        }
+
         return g;
     }
 
