@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🏃 Running and stamina — sprint on foot, one stamina for running and climbing, a small bar under the crosshair (Justus' F1 idea 2026-11-07, Marcel's decisions 2026-11-07) — #3373–#3377, ✅ 2026-11-07, PR (pending)
+### 🏃 Running and stamina — sprint on foot, one stamina for running and climbing, a small bar under the crosshair (Justus' F1 idea 2026-11-07, Marcel's decisions 2026-11-07) — #3373–#3377, ✅ 2026-11-07, PR #3380 (`83df4ecf`) (⚠ playtest open; client-only — no save-version, protocol or terrain-generation change)
 
 Justus (player name Layex) asked in an F1 report for sprinting, with one stamina bar that running and climbing share and
 that only comes back slowly at rest. Marcel's decisions: a small bar under the crosshair, shown only while not full (the
