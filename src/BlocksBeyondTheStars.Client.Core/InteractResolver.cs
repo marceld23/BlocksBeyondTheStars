@@ -87,6 +87,14 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#3345: a usable block under the crosshair (a rune stone, a Song Spindle) — the server's use of it. The last
         /// of the AIMED tier (appended so no stored value moves): anything else E works on the same cell comes first.</summary>
         UseBlock,
+
+        /// <summary>#3394: the player's own robot companion under the crosshair (nothing solid in front) — talk to it. Of the
+        /// AIMED tier, right after a person (appended so no stored value moves).</summary>
+        AimedCompanion,
+
+        /// <summary>#3398/#3399: the own robot under the crosshair while a weapon or a jetpack is held — give it to the robot
+        /// (instead of talking). Of the AIMED tier, in the robot's place.</summary>
+        GiveCompanion,
     }
 
     /// <summary>
@@ -137,12 +145,18 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#3345: the block under the crosshair is <c>usable</c> (its definition's flag) and in reach.</summary>
         public bool UsableBlock { get; set; }
 
+        /// <summary>#3394: the player's own robot companion under the crosshair, in talk reach and with nothing solid in front.</summary>
+        public bool AimedCompanion { get; set; }
+
+        /// <summary>#3398/#3399: the held item is a piece of gear the robot takes (a weapon or a jetpack).</summary>
+        public bool HoldsRobotGear { get; set; }
+
         /// <summary>Forgets every fact (the next frame gathers them anew).</summary>
         public void Clear()
         {
             AimedNpc = AimedNpcTrades = OwnBeacon = OwnBase = BasePad = StationCore = Crate = CrystalDevice = false;
             BioLab = SpawnBed = Seat = MissionBoard = AimedDoor = BeamPad = NearDoor = DataCube = false;
-            Factory = NetFragment = Vendor = TalkNear = OnLift = UsableBlock = false;
+            Factory = NetFragment = Vendor = TalkNear = OnLift = UsableBlock = AimedCompanion = HoldsRobotGear = false;
             LookedStation = NearStation = string.Empty;
         }
     }
@@ -170,7 +184,8 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Whether the pick is a thing under the crosshair (the aimed tier).</summary>
         public static bool IsAimed(InteractKind kind)
-            => (kind >= InteractKind.AimedTalk && kind <= InteractKind.AimedDoor) || kind == InteractKind.UseBlock;
+            => (kind >= InteractKind.AimedTalk && kind <= InteractKind.AimedDoor) || kind == InteractKind.UseBlock
+                || kind == InteractKind.AimedCompanion || kind == InteractKind.GiveCompanion;
 
         /// <summary>Whether the target names itself with a label in the world (a door, a data cube, a net fragment, a
         /// factory terminal) — the HUD's prompt line leaves it to that label.</summary>
@@ -183,9 +198,10 @@ namespace BlocksBeyondTheStars.Client
             => kind is InteractKind.AimedTalk or InteractKind.AimedTrade or InteractKind.Trade or InteractKind.Talk;
 
         /// <summary>The aimed tier, in the order E always tried these — after the person under the crosshair, who has nothing
-        /// solid in front of them and so stands before every block behind them.</summary>
+        /// solid in front of them and so stands before every block behind them, and the own robot companion (#3394), likewise.</summary>
         private static InteractKind ResolveAimed(InteractFacts f)
             => f.AimedNpc ? (f.AimedNpcTrades ? InteractKind.AimedTrade : InteractKind.AimedTalk)
+                : f.AimedCompanion ? (f.HoldsRobotGear ? InteractKind.GiveCompanion : InteractKind.AimedCompanion) // #3398/#3399
                 : f.OwnBeacon ? InteractKind.OwnBeacon
                 : f.OwnBase ? InteractKind.OwnBase
                 : f.BasePad ? InteractKind.BasePad

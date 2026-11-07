@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
@@ -167,7 +168,8 @@ public sealed partial class GameServer
     }
 
     /// <summary>"Release" on an authored companion: it leaves the world and its item comes back into the backpack — refused
-    /// while the backpack is full, and while a knocked-out robot's crate is still on its way.</summary>
+    /// while the backpack is full, and while a knocked-out robot's crate is still on its way. #3398/#3399: the robot's gear (its
+    /// weapon, its jetpack) comes back with it — all of it fits, or nothing moves.</summary>
     private void PackAwayAuthoredCompanion(PlayerSession session, TamedCreature tc)
     {
         var p = session.State;
@@ -178,7 +180,10 @@ public sealed partial class GameServer
             return;
         }
 
-        if (p.Inventory.Clone().Add(kind.Item, 1, MaxStackOf(kind.Item)) > 0)
+        var back = new List<ItemStack> { new ItemStack(kind.Item, 1) };
+        back.AddRange(RobotGearItems(tc));
+        var trial = p.Inventory.Clone();
+        if (back.Any(s => trial.Add(s.Item, s.Count, MaxStackOf(s.Item)) > 0))
         {
             Reject(session, "companion", "@inventory_full");
             return;
@@ -186,7 +191,11 @@ public sealed partial class GameServer
 
         _repo.RunInTransaction(() =>
         {
-            p.Inventory.Add(kind.Item, 1, MaxStackOf(kind.Item));
+            foreach (var s in back)
+            {
+                p.Inventory.Add(s.Item, s.Count, MaxStackOf(s.Item));
+            }
+
             p.TamedCreatures.Remove(tc);
             _repo.SavePlayer(p);
         });

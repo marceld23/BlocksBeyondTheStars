@@ -376,6 +376,9 @@ public sealed class NetCodecTests
         [328] = typeof(BlueprintVisibility),     // #3350
         [330] = typeof(StoryMinigameStart),      // #3352
         [331] = typeof(StoryMinigameResultIntent), // #3352
+        [332] = typeof(TalkToCompanionIntent),   // #3394
+        [333] = typeof(GiveCompanionGearIntent), // #3398/#3399
+        [334] = typeof(TakeCompanionGearIntent), // #3398/#3399
 
     };
 

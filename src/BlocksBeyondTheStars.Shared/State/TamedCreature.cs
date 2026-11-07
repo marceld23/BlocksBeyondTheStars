@@ -99,4 +99,12 @@ public sealed class TamedCreature
 
     /// <summary>#3344: the home spot on <see cref="HomeBodyId"/> (world coordinates, Z).</summary>
     public float HomeZ { get; set; }
+
+    /// <summary>#3398: the weapon the robot carries — the full item key it was given (empty = none). It fights with it, and
+    /// it comes back with "take back", the power-down and the knock-out crate. Only the robot takes gear (and never armour).</summary>
+    public string GearWeapon { get; set; } = string.Empty;
+
+    /// <summary>#3399: the jetpack the robot wears — the full item key it was given (empty = none): it flies up to its owner.
+    /// Returned like <see cref="GearWeapon"/>.</summary>
+    public string GearJetpack { get; set; } = string.Empty;
 }

@@ -295,9 +295,10 @@ public sealed class AdminCommandGateTests : IDisposable
         }
     }
 
-    /// <summary>The command table: the forty-two verbs and the gate each one sits behind. A new verb is a line here too.</summary>
+    /// <summary>The command table: every verb and the gate each one sits behind. A new verb is a line here too — and a chat
+    /// case plus a help line (<see cref="AdminChatCoverageTests"/>, #3391).</summary>
     [Fact]
-    public void Table_ListsExactlyTheFortyTwoVerbsWithTheirGates()
+    public void Table_ListsExactlyItsVerbsWithTheirGates()
     {
         var expected = new Dictionary<string, SvGameServer.AdminCommandGate>(StringComparer.Ordinal)
         {

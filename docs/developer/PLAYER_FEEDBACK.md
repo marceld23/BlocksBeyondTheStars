@@ -107,7 +107,11 @@ within 64 blocks the planet `machines` — the Guardian robots, scan-drones and 
 feet (`dry`, `wading`, `deep`) and `banditPhase` for a bandit. `tutorial` (#2555) holds `activeSteps` (the
 player's running story-pack steps, `PlayerState.StepProgress`: key `<pack>:<step>` → events counted) and
 `milestones` — only the `story:tutorial:*` and `vega:hint:*` names from `PlayerState.Milestones`, so a report
-shows which training step the player was on and which tips VEGA had already given. Nothing of this keeps a
+shows which training step the player was on and which tips VEGA had already given. `story` (#3386) holds the world
+story — `id`, `worldChapter` / `worldChapterId`, `beatsRevealed`, `guardianSystemRevealed`, `guardianDefeated`,
+`coreHacked`, `duelNode` (−1 outside the duel) — whether the reporter's `trackStarted`, and their `milestones` of every
+non-tutorial pack (beats, the cutscene ledger `story:<pack>:cut:<id>` with its `:sent` keys, starts, opt-outs) plus the
+`reward:*` keys, so "the cutscene did not come" can be answered from the report. Nothing of this keeps a
 per-tick history.
 
 ### Server-side snapshot forwarding (singleplayer + fleet)

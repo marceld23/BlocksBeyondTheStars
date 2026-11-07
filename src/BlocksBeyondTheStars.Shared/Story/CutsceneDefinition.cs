@@ -172,6 +172,16 @@ public sealed class CutsceneOptions
     /// <summary>A "now or never" moment (first launch, after-warp card, finale arrival): never waits for the cooldown.</summary>
     public bool CooldownExempt { get; set; }
 
+    /// <summary>#3387: the scene never waits for the player to be "at home" (aboard, at a station, beside the ship) — it plays
+    /// where the moment happened as soon as that is safe. The finale's stand-down: the duel is won 24 blocks under the ship,
+    /// and a five-minute wait for home read as "the cutscene never came".</summary>
+    public bool PlayInPlace { get; set; }
+
+    /// <summary>#3387: while the scene waits for danger or movement to end (a hostile near, damage, space combat, low vitals,
+    /// climbing, falling, piloting, a warp), the client tells the player once that a scene is waiting
+    /// (<c>ui.cutscene.waiting_safe</c>), so a held-back scene does not read as a missing one.</summary>
+    public bool WaitHint { get; set; }
+
     /// <summary>Whether the Story tab may replay the scene once seen (default true).</summary>
     public bool Replayable { get; set; } = true;
 

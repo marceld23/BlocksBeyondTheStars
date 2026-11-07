@@ -54,5 +54,14 @@ public static partial class NetCodec
         Register(328, typeof(BlueprintVisibility));          // Server -> Client (#3350 the hidden blueprints this player may see)
         Register(330, typeof(StoryMinigameStart));           // Server -> Client (#3352 the note-key minigame for a Song Disc)
         Register(331, typeof(StoryMinigameResultIntent));    // Client -> Server (#3352 its answers, or a skip)
+
+        // #3394 the talking robot: E at the own robot companion. No protocol bump — an older server drops it (the robot stays
+        // silent); the answer is an ordinary ShipAiLine with the additive SpeakerName.
+        Register(332, typeof(TalkToCompanionIntent));        // Client -> Server
+
+        // #3398/#3399 the robot's gear: a weapon and a jetpack given with E, taken back in the Companions tab. No protocol bump —
+        // an older server drops the intents (the item stays with the player); the state rides on additive fields.
+        Register(333, typeof(GiveCompanionGearIntent));      // Client -> Server
+        Register(334, typeof(TakeCompanionGearIntent));      // Client -> Server
     }
 }

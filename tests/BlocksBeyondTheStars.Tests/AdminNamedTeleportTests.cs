@@ -246,6 +246,9 @@ public sealed class AdminNamedTeleportTests : IDisposable
     [InlineData("dorf2", "village", 2)]
     [InlineData("siedlung", "village", 1)]
     [InlineData("settlements", "village", 1)]
+    [InlineData("ancient", "ancient", 1)] // #3392: the buried ancient ruins
+    [InlineData("ancient2", "ancient", 2)]
+    [InlineData("altstadt", "ancient", 1)]
     public void CityAndGermanWords_ResolveToTheirKind(string typed, string kind, int number)
     {
         Assert.Equal((kind, number), SvGameServer.ParseTeleportTargetForTest(typed));

@@ -221,6 +221,54 @@ Tests: `RobotCompanionTests`, `GuardianRewardTests`, `OwnerLockedCrateTests`.
 after a save and reload the robot was an ordinary home-world pet. `TamedCreatureSnapshotTests` round-trips a robot and
 guards every public property of `TamedCreature` against the clone.
 
+### The talking robot (#3394–#3396, 2026-11-07)
+
+E at the own robot (`InteractKind.AimedCompanion`, picked right after a person in the aimed tier; `CompanionAim` in
+Client.Core) sends `TalkToCompanionIntent` (id 332). `GameServerRobotChatter.cs` answers only for the sender's own robot —
+switched on, on the sender's world, within `InteractionReach.CompanionTalk` + 1 block, not in space — with a 4 s cooldown.
+The line is an ordinary `ShipAiLine` with `Speaker = "robot"` and the additive `SpeakerName` (its current name); VEGA's panel
+names the speaker through `VegaSpeakerLabel` (Client.Core: the robot's name in #7FE8FF, "VEGA" in cyan otherwise).
+
+- **Pools** — `RobotChatter` (Shared): `robot.talk.1..14` and the exchanges `robot.vega.<n>.q` (VEGA asks, no speaker) /
+  `.a` (the robot answers). Each pool plays a per-player shuffle without repeats until all were heard (a round never opens
+  with the line the last one closed on); about one talk in three is an exchange (`RobotChatter.IsExchange`, seeded by the
+  player id and the talk count). The progress is two persisted counters in `PlayerState.AchievementCounters`
+  (`robot_talk_lines`, `robot_talk_exchanges`) — the Journey grid lists only its fixed counters, so they stay invisible.
+- **Kinds** — a talk is Kind 2 (never muted); the ambient line (`TickRobotChatterFor`, in `TickShipAi`'s 1 Hz pass) is Kind 1,
+  muted with VEGA's hints: first 5–10 min after a join, then every 10–20 min, only while the robot follows its owner on foot
+  within 16 blocks and neither had a fight for 30 s. The client keeps the chatter out of the Journal badge, VEGA's tips log
+  and the story flashback (`VegaSpeakerLabel.IsCompanionChatter`).
+
+Tests: `RobotChatterTests`, `RobotChatterLocaleTests`, client `RobotTalkClientTests`.
+
+### Robot gear: a weapon and a jetpack (#3398/#3399, 2026-11-07)
+
+Justus asked for "a jetpack or weapons that it uses — just NO armour". Holding a weapon (tool kind `weapon`) or the
+`jetpack` item and aiming at the own robot turns E into `InteractKind.GiveCompanion` ("Give … to Robo",
+`RobotGearView.GiftPiece`); it sends `GiveCompanionGearIntent { CompanionId, Slot }` (id 333). `GameServerRobotGear.cs`
+moves one of the item from that hotbar slot onto `TamedCreature.GearWeapon` / `GearJetpack` (item keys, persisted through
+`CloneTamed`); a piece the robot had comes back into the backpack. "Take back" in the Companions tab sends
+`TakeCompanionGearIntent { CompanionId, Piece }` (id 334, served while the Tab menu holds a singleplayer world), refused with
+`@inventory_full`. The power-down (`PackAwayAuthoredCompanion`) returns the gear with the robot item (all of it fits or
+nothing moves), and `RobotPartItems(tc)` puts it into the knock-out crate. The shared rules are `RobotGear` (Shared): no
+armour piece exists.
+
+- **Weapon** — `RobotFires`: damage `max(sentry shot, 0.6 × weapon damage)`, reach = weapon range clamped 4–20
+  (`NearestSentryTarget(muzzle, range)`; a melee weapon hits only what stands close — the robot does not chase), and the
+  tracer's colour from the weapon's `fx.color` (`SentryShot.ColorRgb`, additive, 0 = the sentry cyan). The client draws the
+  weapon's held model in the robot's right tool hand (`CreatureView.RobotGear.cs`, `HeldItem.Build`; fight gloves on both
+  hands) from `NetCreature.GearWeapon`.
+- **Jetpack** — `RobotJetpackStep`, called from `MoveCompanion` after the leash: when the owner is more than 2.5 blocks above
+  it, the robot flies at 6 blocks/s to a free spot beside them (`RobotFlyTarget`: two rings of eight bearings, a spot with
+  footing first while the owner stands, one block higher at a roof's edge), climbing first and then going straight or level —
+  every step swept through `CreaturePathBlocked` and `EntityBlockedByShip`. It lands (gravity takes the last bit) when its
+  owner stands again and it is on the spot (or within a block of it with footing of its own), or when it is boxed in. After
+  such a landing it holds still beside its owner (`RobotPerched`) until they walk more than five blocks away — the
+  companion's idle wander walked it straight off the ledge it had flown up to. No fuel. `NetCreature.GearFlags` tells
+  the client it wears a jetpack (a small pack behind the reactor) and when it flies (the thrust flame, legs tucked).
+
+Tests: `RobotGearTests`, client `RobotGearClientTests`.
+
 ## Authored companions: the robot and Rudolpho (#3322, 2026-11-07)
 
 `GameServerAuthoredCompanions.cs` holds the one path both authored companions share (`DeployAuthoredCompanion`,

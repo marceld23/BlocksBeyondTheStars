@@ -147,6 +147,37 @@ public sealed class BumpTests : IDisposable
         Assert.Equal(3, step.GetProperty("count").GetInt32());
     }
 
+    /// <summary>#3386: "the cutscene did not come after I shut down the Guardian core" could not be answered from the
+    /// snapshot. It now carries the world story's state and the reporter's story milestones — the cutscene ledger with its
+    /// <c>:sent</c> keys and the finale reward — but not the basic training's keys (those stay in <c>tutorial</c>).</summary>
+    [Fact]
+    public void BumpSnapshot_CarriesTheWorldStory_AndThePlayersCutsceneLedger()
+    {
+        var (server, _, paths) = StartWorld();
+        var (connectionId, session) = server.Sessions.First(kv => kv.Value.Joined);
+        var p = session.State;
+        const string Vega = "vega_protocol";
+        p.Milestones.Add(BlocksBeyondTheStars.Shared.Story.StoryPackKeys.CutsceneSent(Vega, "fin.standdown"));
+        p.Milestones.Add("reward:guardian_core");
+        p.Milestones.Add("story:tutorial:step:b1.1");
+
+        server.HandlePayloadForTest(connectionId, NetCodec.Encode(new ChatIntent { Text = "/bump no cutscene" }));
+
+        using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Assert.Single(MyBumpFiles(paths, "*.json"))));
+        var story = doc.RootElement.GetProperty("story");
+        Assert.False(string.IsNullOrEmpty(story.GetProperty("id").GetString()));
+        Assert.True(story.TryGetProperty("worldChapter", out _));
+        Assert.True(story.TryGetProperty("guardianSystemRevealed", out _));
+        Assert.False(story.GetProperty("guardianDefeated").GetBoolean()); // a fresh world
+        Assert.False(story.GetProperty("coreHacked").GetBoolean());
+        Assert.Equal(-1, story.GetProperty("duelNode").GetInt32());
+        Assert.True(story.TryGetProperty("trackStarted", out _));
+        var milestones = story.GetProperty("milestones").EnumerateArray().Select(m => m.GetString()).ToList();
+        Assert.Contains("story:vega_protocol:cut:fin.standdown:sent", milestones);
+        Assert.Contains("reward:guardian_core", milestones);
+        Assert.DoesNotContain("story:tutorial:step:b1.1", milestones); // the training stays in the tutorial block
+    }
+
     [Fact]
     public void BumpSnapshot_InSpace_ListsThePartnerPilot_WithTheFloatingShip()
     {

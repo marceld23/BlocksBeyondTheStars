@@ -174,9 +174,15 @@ namespace BlocksBeyondTheStars.Client
         public void OnNetFragments(NetFragmentList m) => NetFragments = m.Fragments;
 
         /// <summary>A VEGA line arrived: a story beat goes to the beat list, the lines worth re-reading to the VEGA log, and
-        /// new story content or the Journal's news badges the Story entry.</summary>
+        /// new story content or the Journal's news badges the Story entry. #3394: the robot companion's small talk (and VEGA's
+        /// questions to it) is neither — it badges nothing and stays out of the VEGA log.</summary>
         public void OnShipAiLine(ShipAiLine m, GameContent? content)
         {
+            if (VegaSpeakerLabel.IsCompanionChatter(m))
+            {
+                return;
+            }
+
             bool storyLine = m.Kind == 2 && !string.IsNullOrEmpty(m.LineKey);
             if (storyLine)
             {

@@ -208,6 +208,8 @@ public sealed class VegaFinaleSetPiecesTests : IDisposable
         Assert.Equal(new[] { "story.vega.finale_resolved" }, standdown.ReplaceLineKeys);
         Assert.Equal(new[] { StoryCutsceneIds.Resolution }, standdown.Options.ChainNext);
         Assert.Equal("music_boss_resolution", standdown.Music);
+        Assert.True(standdown.Options.PlayInPlace); // #3387: where the duel was won, not after a wait for home
+        Assert.True(standdown.Options.WaitHint);    // #3387: VEGA says a scene is waiting while danger holds it
 
         var ending = Scene(StoryCutsceneIds.Resolution); // card → credits → epilogue, replayable
         Assert.Equal(CutsceneTiers.SetPiece, ending.Tier);
@@ -347,6 +349,24 @@ public sealed class VegaFinaleSetPiecesTests : IDisposable
     }
 
     // ---------------- The breach and the duel ----------------
+
+    /// <summary>#3393: "/gotocore" drops the admin into the chamber through the snap channel — a bare state update is dropped
+    /// by the client, which then stood on the landing pad's touchdown spot instead.</summary>
+    [Fact]
+    public void GotoCore_SnapsTheAdminIntoTheChamber()
+    {
+        var (server, transport) = World("fin_gotocore_snap");
+        var p = Started(server, 1, "Lander");
+        transport.Sent.Clear();
+
+        server.AdminGotoCore(p);
+
+        var column = server.CoreColumnAnchorForTest!.Value;
+        var snap = transport.To<RespawnNotice>(p).Last();
+        Assert.Equal((p.State.Position.X, p.State.Position.Y, p.State.Position.Z), (snap.X, snap.Y, snap.Z));
+        float dx = snap.X - column.X, dz = snap.Z - column.Z;
+        Assert.True(dx * dx + dz * dz <= 4f * 4f, $"the last snap is beside the core column ({column}), not at ({snap.X}, {snap.Y}, {snap.Z})");
+    }
 
     [Fact]
     public void TheHack_BreachesOnTheCoreWorld_TheOthersGetTheBanner_AndOnlyTheCoreWorldAnswers()

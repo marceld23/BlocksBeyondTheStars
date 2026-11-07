@@ -447,7 +447,9 @@
     {
       // The stand-down: the duel is won. The sleeping core (the diorama) while VEGA says the machines are standing down —
       // her line, kept out of the panel — then the own ship before a living world. Every started player gets it (at the win
-      // or, when away, at their next join), followed at once by the ending.
+      // or, when away, at their next join), followed at once by the ending. #3387: it plays where the duel was won (no
+      // "prefer at home" wait — the ship stands 24 blocks above the chamber), and while danger or movement still holds it
+      // back, VEGA says once that she has something to show ("the cutscene never came").
       "id": "fin.standdown",
       "tier": 4,
       "chapter": "resolution",
@@ -466,7 +468,7 @@
           "captions": [ { "style": "subtitle", "key": "ui.finale.resolved", "at": 0.5 } ]
         }
       ],
-      "options": { "skippable": true, "chainNext": [ "resolution" ] }
+      "options": { "skippable": true, "chainNext": [ "resolution" ], "playInPlace": true, "waitHint": true }
     },
     {
       // The ending on the director (#1124's card, credits and epilogue): the open sky under "Resolution — The VEGA Protocol",

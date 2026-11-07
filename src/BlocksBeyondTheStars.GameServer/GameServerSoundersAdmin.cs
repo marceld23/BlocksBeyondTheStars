@@ -181,10 +181,15 @@ public sealed partial class GameServer
             return "No Choir Tower on this world — /sounders soaniri first.";
         }
 
+        if (InSpace(s.State.PlayerId))
+        {
+            return "Land on Soaniri first — /sounders tower works on foot.";
+        }
+
+        // #3393: through the snap channel — a bare state update is dropped by the client, so the admin never moved.
         var c = tower.CentreF;
-        s.State.Position = new Vector3f(c.X + 1.5f, c.Y + 0.5f, c.Z + 1.5f);
         s.Streaming.SentChunks.Clear();
-        SendPlayerState(s);
+        SnapPlayerTo(s, new Vector3f(c.X + 1.5f, c.Y + 0.5f, c.Z + 1.5f), "@srv.tp.done");
         return "On the Choir Tower.";
     }
 

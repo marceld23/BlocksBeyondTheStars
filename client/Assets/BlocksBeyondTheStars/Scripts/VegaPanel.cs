@@ -22,7 +22,7 @@ namespace BlocksBeyondTheStars.Client
     /// moment goes unseen once it waited 30 s, a story pack's step line goes ahead of waiting hints, story lines keep
     /// their order.
     /// </summary>
-    public sealed class VegaPanel : MonoBehaviour
+    public sealed partial class VegaPanel : MonoBehaviour
     {
         public GameBootstrap Game;
         public ClientSettings Settings;
@@ -178,11 +178,11 @@ namespace BlocksBeyondTheStars.Client
             float nameX = 14f;
             if (avatar != null)
             {
-                UiKit.AddImage(_speech.transform, 12, 6, 34, 34, avatar, UiKit.Cyan);
+                _speakerAvatar = UiKit.AddImage(_speech.transform, 12, 6, 34, 34, avatar, UiKit.Cyan);
                 nameX = 54f;
             }
 
-            UiText.Add(_speech.transform, nameX, 6, 320, 30, L("ui.vega.name"), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold, UiText.Look.Glow);
+            _speakerName = UiText.Add(_speech.transform, nameX, 6, 320, 30, L("ui.vega.name"), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold, UiText.Look.Glow);
             _speechText = UiText.Add(_speech.transform, 14, 44, SpeechTextW, SpeechTextH, string.Empty, 22, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Normal, UiText.Look.Outline);
             // Truncate, NOT Overflow: an LLM-authored line has no length bound on the wire, and an
             // over-long one used to run over the continue hint and out of the panel background (#482).
@@ -475,7 +475,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void EnqueueLine(ShipAiLine m, bool flashback)
         {
-            if (m.Kind == 2 && flashback)
+            if (m.Kind == 2 && flashback && !VegaSpeakerLabel.IsCompanionChatter(m)) // #3394: the robot's small talk is no memory
             {
                 Flashback?.Trigger(); // a recovered memory gets the brief flashback treatment (#762)
             }
@@ -502,7 +502,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 // LLM-authored line (already in the player's language). The prologue flag keys on Kind,
                 // NOT on the text source — an authored Kind-4 page must not lose its staging (#760).
-                _queue.Enqueue(new VegaQueuedLine(m.Text, m.Kind == 4, m.LineKey ?? string.Empty, m.PackId, choices), lineClass, Now);
+                _queue.Enqueue(new VegaQueuedLine(m.Text, m.Kind == 4, m.LineKey ?? string.Empty, m.PackId, choices, m.Speaker, m.SpeakerName), lineClass, Now);
             }
             else if (!string.IsNullOrEmpty(m.LineKey) && !muted)
             {
@@ -515,7 +515,7 @@ namespace BlocksBeyondTheStars.Client
 
                 // Prologue pages (Kind 4, #754) ride the normal queue with a flag — same panel, same
                 // paging, plus the dim + the skip (Esc, pad cancel, the skip pill) while one is showing.
-                _queue.Enqueue(new VegaQueuedLine(text, m.Kind == 4, m.LineKey, m.PackId, choices), lineClass, Now);
+                _queue.Enqueue(new VegaQueuedLine(text, m.Kind == 4, m.LineKey, m.PackId, choices, m.Speaker, m.SpeakerName), lineClass, Now); // #3394: who speaks
             }
 
             Refresh();
@@ -776,6 +776,7 @@ namespace BlocksBeyondTheStars.Client
                 _currentIsPrologue = prologue;
                 _currentKey = queued.Key ?? string.Empty;
                 _choices = prologue ? VegaChoiceSet.None : queued.Choices ?? VegaChoiceSet.None; // #2499
+                ShowSpeaker(queued.Who); // #3394: VEGA, or the robot under its own name
                 _choiceInput.Reset();
                 Debug.Log($"[Cinematic] Dequeued line (prologue={prologue}, started={_prologueStarted}, staged={_prologueStaged}, queued={_queue.Count})");
                 if (prologue)

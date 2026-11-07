@@ -685,4 +685,27 @@ public sealed class AncientRuinsTests : IDisposable
 
         throw new InvalidOperationException("no wall in the ruin");
     }
+
+    /// <summary>#3392: testing a buried ruin no longer means searching the world — "/tp ancient" lists and reaches it, beside
+    /// the top of its shaft (the city's hatch here), standing in the open.</summary>
+    [Fact]
+    public void TheAdminTeleport_ListsTheRuin_BesideItsEntrance()
+    {
+        var server = Start("gds_desert", out var repo, name: "gds_tp");
+        using (repo)
+        {
+            var site = server.AncientRuinForTest!;
+            server.AddLocalPlayer("Ada");
+
+            var ruins = server.TeleportTargetsForTest("Ada").Where(t => t.Kind == "ancient").ToList();
+            Assert.NotEmpty(ruins);
+            Assert.Equal(Enumerable.Range(1, ruins.Count), ruins.Select(t => t.Number)); // ancient1, ancient2 …
+            static float Dist2(Vector3f p, Vector3i e)
+                => ((p.X - (e.X + 0.5f)) * (p.X - (e.X + 0.5f))) + ((p.Z - (e.Z + 0.5f)) * (p.Z - (e.Z + 0.5f)));
+            var target = ruins.OrderBy(t => Dist2(t.Position, site.Entrance)).First();
+            Assert.True(Dist2(target.Position, site.Entrance) <= 9f, $"beside the entrance {site.Entrance}, not at {target.Position}");
+            var feet = new Vector3i((int)Math.Floor(target.Position.X), (int)Math.Floor(target.Position.Y), (int)Math.Floor(target.Position.Z));
+            Assert.True(server.World.GetBlock(feet).IsAir && server.World.GetBlock(new Vector3i(feet.X, feet.Y + 1, feet.Z)).IsAir);
+        }
+    }
 }

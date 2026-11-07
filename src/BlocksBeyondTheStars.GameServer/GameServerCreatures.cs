@@ -3525,7 +3525,7 @@ public sealed partial class GameServer
     private void SendCreatures(PlayerSession session)
         => Send(session, new CreatureList { Creatures = _creatures.Select(ToNetCreature).ToArray(), ServerTime = SnapshotTime });
 
-    private NetCreature ToNetCreature(CombatEntity e) => WithGiantWire(ToNetCreatureCore(e), e); // #1998
+    private NetCreature ToNetCreature(CombatEntity e) => WithRobotGear(WithGiantWire(ToNetCreatureCore(e), e), e); // #1998; #3398/#3399
 
     private NetCreature ToNetCreatureCore(CombatEntity e)
     {

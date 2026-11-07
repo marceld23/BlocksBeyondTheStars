@@ -98,4 +98,8 @@ public sealed class SentryShot
 
     /// <summary>The combat entity that was hit (planet enemy or bandit).</summary>
     public string TargetId { get; set; } = string.Empty;
+
+    /// <summary>#3398: the tracer's colour (0xRRGGBB) — the FX colour of the weapon a hunter robot fights with; 0 = the base
+    /// machinery's cyan. Additive (contractless): an older client draws cyan.</summary>
+    public int ColorRgb { get; set; }
 }

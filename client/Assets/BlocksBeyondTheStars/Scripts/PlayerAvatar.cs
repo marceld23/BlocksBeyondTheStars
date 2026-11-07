@@ -596,7 +596,7 @@ namespace BlocksBeyondTheStars.Client
             float strideDeg = Mathf.Asin(Mathf.Clamp01(strideHalf / legLength)) * Mathf.Rad2Deg;
             float swing = Mathf.Sin(_walkPhase) * Mathf.Min(40f, Mathf.Max(Mathf.Lerp(2f, 40f, moving), strideDeg));
             float armL = -swing, armR = swing, legL = swing, legR = -swing;
-            float kneeL = 0f, kneeR = 0f, elbowL = 12f + run * 25f, elbowR = 12f + run * 25f;
+            float kneeL = 0f, kneeR = 0f, elbowL = -(12f + run * 25f), elbowR = -(12f + run * 25f); // #3401: negative = the forearm bends forward
             float headYaw = 0f;
             // #2593: the gestures also turn the arms sideways (roll, Z) and a little forward (yaw, Y) — 0 for every other pose,
             // so the joint writes below stay what they always were.
@@ -611,7 +611,7 @@ namespace BlocksBeyondTheStars.Client
                 // root is laid on its back by the caller, so no walk, jump or swing may move a limb.
                 float breath = Mathf.Sin(Time.time * 0.9f + _phase) * 1.5f;
                 armL = armR = 6f + breath;
-                elbowL = elbowR = 8f;
+                elbowL = elbowR = -8f;
                 legL = legR = 0f;
                 kneeL = kneeR = 0f;
                 headYaw = 0f;
@@ -635,7 +635,7 @@ namespace BlocksBeyondTheStars.Client
                 kneeL = kneeR = 95f;
                 armL = -18f - walk * 0.5f;
                 armR = -18f + walk * 0.5f;
-                elbowL = elbowR = 30f;
+                elbowL = elbowR = -30f;
                 headYaw = idle ? Mathf.Sin(t * 0.5f) * 9f : 0f;
             }
             else if (_seated)
@@ -645,7 +645,7 @@ namespace BlocksBeyondTheStars.Client
                 legL = legR = -85f;
                 kneeL = kneeR = 80f;
                 armL = armR = -25f;
-                elbowL = elbowR = 40f;
+                elbowL = elbowR = -40f;
                 headYaw = Mathf.Sin(t * 0.5f) * 9f;
             }
             else if (_gliding)
@@ -657,7 +657,7 @@ namespace BlocksBeyondTheStars.Client
                 legR = 14f - sway;
                 kneeL = kneeR = 18f;
                 armL = armR = -35f;
-                elbowL = elbowR = 40f;
+                elbowL = elbowR = -40f;
             }
             else if (airborne)
             {
@@ -665,7 +665,7 @@ namespace BlocksBeyondTheStars.Client
                 legL = legR = -38f;
                 kneeL = kneeR = 55f;
                 armL = -48f; armR = -48f;
-                elbowL = elbowR = 35f;
+                elbowL = elbowR = -35f;
             }
             else if (idle)
             {
@@ -678,8 +678,8 @@ namespace BlocksBeyondTheStars.Client
                 // Walk/run: the recovering leg bends at the knee, arms counter-swing with elbow bend.
                 kneeL = Mathf.Max(0f, Mathf.Sin(_walkPhase)) * Mathf.Lerp(10f, 45f, moving);
                 kneeR = Mathf.Max(0f, -Mathf.Sin(_walkPhase)) * Mathf.Lerp(10f, 45f, moving);
-                elbowL += Mathf.Max(0f, -Mathf.Sin(_walkPhase)) * 22f * moving;
-                elbowR += Mathf.Max(0f, Mathf.Sin(_walkPhase)) * 22f * moving;
+                elbowL -= Mathf.Max(0f, -Mathf.Sin(_walkPhase)) * 22f * moving;
+                elbowR -= Mathf.Max(0f, Mathf.Sin(_walkPhase)) * 22f * moving;
             }
 
             // #2778: the holster / draw of a hotbar switch — the waiting item is swapped in at the bottom. A pose that owns
@@ -736,7 +736,7 @@ namespace BlocksBeyondTheStars.Client
                 _swingTimer -= dt;
                 float c = 1f - Mathf.Clamp01(_swingTimer / SwingDuration);
                 armR = Mathf.Lerp(-115f, 30f, Mathf.SmoothStep(0f, 1f, c));
-                elbowR = 20f + 45f * Mathf.Sin(Mathf.Clamp01(c) * Mathf.PI);
+                elbowR = -(20f + 45f * Mathf.Sin(Mathf.Clamp01(c) * Mathf.PI));
             }
 
             // #2278: a glove blow overrides the arms — one straight jab (alternating) or both arms pushing forward.
@@ -839,6 +839,8 @@ namespace BlocksBeyondTheStars.Client
             _armR.localRotation = Quaternion.Euler(armR, yawR, rollR);
             _legL.localRotation = Quaternion.Euler(legL, 0f, 0f);
             _legR.localRotation = Quaternion.Euler(legR, 0f, 0f);
+            // #3401: like the shoulder, NEGATIVE bends the forearm forward (the arm hangs along −y, its front +z) — the older
+            // poses had it positive and hyperextended every elbow backwards (seen in the character editors' big figure).
             if (_elbowL != null) _elbowL.localRotation = Quaternion.Euler(elbowL, 0f, elbowRollL);
             if (_elbowR != null) _elbowR.localRotation = Quaternion.Euler(elbowR, 0f, elbowRollR);
             if (_kneeL != null) _kneeL.localRotation = Quaternion.Euler(-kneeL, 0f, 0f); // bends the lower leg back
@@ -977,7 +979,7 @@ namespace BlocksBeyondTheStars.Client
             if (_climbPullUp)
             {
                 armL = armR = -55f;
-                elbowL = elbowR = 75f;
+                elbowL = elbowR = -75f;
                 legL = -95f;
                 kneeL = 100f;
                 legR = -15f;
@@ -990,7 +992,7 @@ namespace BlocksBeyondTheStars.Client
                 float jitter = Mathf.Sin(Time.time * 41f) * 3f;
                 armL = -168f + jitter;
                 armR = -168f - jitter;
-                elbowL = elbowR = 6f;
+                elbowL = elbowR = -6f;
                 legL = legR = -6f;
                 kneeL = kneeR = 12f;
                 return;
@@ -1006,8 +1008,8 @@ namespace BlocksBeyondTheStars.Client
             // Hands high on the wall; in motion they take turns reaching up while the other pulls down.
             armL = -140f - (s * reach * active) + breath;
             armR = -140f + (s * reach * active) - breath;
-            elbowL = 30f + (Mathf.Max(0f, s) * 35f * active);
-            elbowR = 30f + (Mathf.Max(0f, -s) * 35f * active);
+            elbowL = -(30f + (Mathf.Max(0f, s) * 35f * active));
+            elbowR = -(30f + (Mathf.Max(0f, -s) * 35f * active));
 
             // The knee opposite the reaching hand comes up and pushes.
             legL = -22f + (s * 30f * active);
@@ -1082,14 +1084,14 @@ namespace BlocksBeyondTheStars.Client
                     armL = Mathf.Lerp(armL, -90f, jab);
                     elbowL = Mathf.Lerp(elbowL, 0f, jab);
                     armR = Mathf.Lerp(armR, -40f, jab * 0.7f);
-                    elbowR = Mathf.Lerp(elbowR, 75f, jab * 0.7f);
+                    elbowR = Mathf.Lerp(elbowR, -75f, jab * 0.7f);
                 }
                 else
                 {
                     armR = Mathf.Lerp(armR, -90f, jab);
                     elbowR = Mathf.Lerp(elbowR, 0f, jab);
                     armL = Mathf.Lerp(armL, -40f, jab * 0.7f);
-                    elbowL = Mathf.Lerp(elbowL, 75f, jab * 0.7f);
+                    elbowL = Mathf.Lerp(elbowL, -75f, jab * 0.7f);
                 }
 
                 return;
@@ -1101,20 +1103,20 @@ namespace BlocksBeyondTheStars.Client
             {
                 k = Mathf.SmoothStep(0f, 1f, c / wind);
                 a = -45f;
-                e = 80f;
+                e = -80f;
             }
             else if (c < peak)
             {
                 float p = Mathf.SmoothStep(0f, 1f, (c - wind) / (peak - wind));
                 k = 1f;
                 a = Mathf.Lerp(-45f, -85f, p);
-                e = Mathf.Lerp(80f, 10f, p);
+                e = Mathf.Lerp(-80f, -10f, p);
             }
             else
             {
                 k = 1f - Mathf.SmoothStep(0f, 1f, (c - peak) / (1f - peak));
                 a = -85f;
-                e = 10f;
+                e = -10f;
             }
 
             armL = Mathf.Lerp(armL, a, k);

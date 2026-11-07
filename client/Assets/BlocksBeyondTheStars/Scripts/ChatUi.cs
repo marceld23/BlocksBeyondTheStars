@@ -444,6 +444,7 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     LocalLine(L("ui.chat.help_player"));
+                    LocalLine(L("ui.chat.help_player_more")); // #3390: mute and the report helpers
                     LocalLine(L("ui.chat.help_admin_hint"));
                     return true;
 
@@ -718,6 +719,25 @@ namespace BlocksBeyondTheStars.Client
                         return true;
                     }
 
+                // ---- Custom shapes: take a player's published shapes back (or one by "#id"). #3389: the server verb had no
+                // chat case, so the line went out as plain chat. ----
+                case "/shapewipe":
+                    {
+                        if (p.Length < 2)
+                        {
+                            LocalLine(L("ui.cmd.usage_shapewipe"));
+                            return true;
+                        }
+
+                        net.SendAdminCommand("shapewipe", stringArg: AdminChatCommand.PlayerArgument(t));
+                        return true;
+                    }
+
+                // ---- Festivals (#3012; reachable from chat since #3389): "/festival" reports what is on, "/festival <key>"
+                // switches one on for the world (christmas brings the Advent calendar), "/festival calendar|on|off". The
+                // server answers with its own report or refusal. ----
+                case "/festival": net.SendAdminCommand("festival", stringArg: t.Substring(p[0].Length).Trim()); return true;
+
                 default:
                     return false; // not an admin command (e.g. /bump) → send as normal chat
             }
@@ -730,17 +750,21 @@ namespace BlocksBeyondTheStars.Client
         private void AdminHelp()
         {
             LocalLine(L("ui.admin.help_cheats"));
+            LocalLine(L("ui.admin.help_world")); // #3390: time and weather (one chat line stays under 160 characters)
             LocalLine(L("ui.admin.help_mode"));
             LocalLine(L("ui.admin.help_gamemode"));
             LocalLine(L("ui.admin.help_teleport"));
             LocalLine(L("ui.admin.help_wilderness")); // #2646: /wanderer and /tp lodge
+            LocalLine(L("ui.admin.help_creatures")); // #3390: /arachnid, /biped, /hound, /creatures
             LocalLine(L("ui.admin.help_inspect"));
             LocalLine(L("ui.admin.help_fleet"));
             LocalLine(L("ui.admin.help_story"));
             LocalLine(L("ui.admin.help_sounders")); // #3368: the Sounders story's QA verb
             LocalLine(L("ui.admin.help_tutorial"));
             LocalLine(L("ui.admin.help_cutscene"));
+            LocalLine(L("ui.admin.help_festival")); // #3389/#3390: festivals and the Advent calendar
             LocalLine(L("ui.admin.help_maintenance"));
+            LocalLine(L("ui.admin.help_content")); // #3390: the wipe commands for published paint, textures and shapes
             LocalLine(L("ui.admin.help_moderation"));
         }
 

@@ -4062,6 +4062,26 @@ Resonance Blaster opens it too, so you can play freely.
     one craft at the workshop builds it again.
   - **Switch off** in the Creatures tab (where animals have *Release*) folds it back into the item — make sure there is a
     free slot in your backpack.
+  - **It talks** (#3394–#3396, an idea of Justus): look at your robot and press **E** ("Talk to Robo") and it answers in
+    VEGA's panel — its **name** (the one you gave it) stands over the line in its light blue instead of "VEGA". It is sorry
+    for what the old machine network did to the SPS, misses its brothers (the scan drones, guardian robots, tank spiders
+    and hunters), asks you things and says thank you; sometimes VEGA asks it a question and it answers. You hear every
+    line once before any comes again. Now and then it also says something **by itself** — while it follows you on foot
+    nearby and nobody is fighting, at most every 10–20 minutes. Those lines are muted together with VEGA's hints
+    (Settings); what it says when you press E always comes through. Another player's robot only talks to its owner.
+  - **Gear for your robot** (#3398/#3399, an idea of Justus): hold a **weapon** (a pistol, blaster, sword, knife, club,
+    spear or fight gloves) or a **jetpack** in your hand, look at your robot and press **E** ("Give Laser pistol to Robo").
+    It carries **one weapon and one jetpack**; giving a second weapon swaps it, and the old one comes back into your
+    backpack. **No armour** — the robot doesn't wear any.
+    - With a **weapon** it fights with it: each shot does 60 % of the weapon's damage (never less than before), it reaches
+      as far as the weapon (4 to 20 blocks — with a sword, a knife or gloves it only hits what stands close) and its shots
+      glow in the weapon's colour. You see the weapon in its hand.
+    - With a **jetpack** it follows you **up**: when you stand on a cliff, a roof or a tower, or fly with your own jetpack,
+      it flies up beside you (with a flame under the pack) and lands when you stand again. It never flies through walls or
+      into a parked ship. No fuel needed.
+    - **Take it back** in the Creatures tab: under the robot you see its gear with a **Take back** button (keep a backpack
+      slot free). Switching the robot off returns its gear together with the robot, and the crate of a knocked-out robot
+      holds it too — nothing you give it is ever lost.
 - **Rudolpho, the alien reindeer** (#3322, an idea of the school club): door 24 of the **Advent calendar** holds the
   **star bell**. Use it with the **right mouse button** on open ground and Rudolpho trots up with a soft jingle — a reindeer
   from far away, with **two pairs of eyes**, branching antlers with softly glowing tips and a **red lantern nose** that
@@ -4818,7 +4838,9 @@ Type these **in the chat box** (Enter to open). They are **server-authoritative*
 player must be an **admin** (`IsAdmin` — the world creator, or a name in the server's admin list) **and**
 the server's `CheatsAllowed` rule must be on; otherwise the command is rejected with a message. Every use
 is logged (`[CHEAT] …`). Type **`/help admin`** in chat to see the list in-game — plain `/help` is the
-short player help (`/report`, `/bump`) so a normal player is not buried under commands they cannot run.
+short player help (`/pos`, `/report`, `/bump`, `/mute`, `/unmute`, `/reportpaint`, `/reportshape`, `/reporttexture`) so a
+normal player is not buried under commands they cannot run. Since #3391 a test keeps the two in step: every admin command
+the server knows can be typed in chat and appears in `/help admin`.
 
 **Singleplayer & hosting from the game:** cheats are enabled out of the box (`--admin-cheats true` is
 passed by the bundled host) — as the world creator you can use all of these immediately. Friends who
@@ -4867,6 +4889,7 @@ and easy to mistype. The numbering is stable for a world: `village2` is the same
 | `village` / `ruin` | An inhabited village or hamlet / a ruined settlement (`settlement`, `dorf`, `siedlung` also work) |
 | `railruin` | An abandoned monorail station (`bahnhofsruine` also works) |
 | `vault` | A buried vault's surface pillar ring |
+| `ancient` | A buried ancient ruin ("Alte Städte") — beside the top of its shaft: the hatch in a G.D.S. city street, or the vent tower in the open land (`ancients`, `altstadt` also work) |
 | `wreck` | The crashed ship — even before an NPC has pointed you at it |
 | `factory` | A factory's production terminal |
 | `camp` | A bandit camp (`bandit` also works) |
@@ -4900,6 +4923,10 @@ and that option is off by default on hosted worlds.
 | `/unsilence Player` | Ends the pause right away |
 | `/kick Player` | Ends that player's session right now. **Momentary** — they can come back; to keep someone out for good, block them in *Manage world → Manage players* (below) |
 | `/paintwipe Player` (or `#designId`) | Removes that player's painted block designs **everywhere at once** (or a single design by id, taken from the report log). Wiped designs stay wiped across restarts |
+| `/shapewipe Player` (or `#formId`) | The same for player-designed block shapes (reachable from chat since #3389) |
+| `/texturewipe Key\|Player\|all` | Takes published world textures back — one texture, everything a player published, or all |
+| `/festival` · `/festival Key` · `/festival calendar` · `/festival on\|off` | What festival is on · switch one on for the whole world (e.g. `christmas` — it brings the Advent calendar —, `halloween`, `hanami`) · back to the date · festivals on or off. Saved with the world and announced to everyone; see *Festivals* in §5 (reachable from chat since #3389) |
+| `/announce Message` · `/restart Minutes [Message]` · `/cancelrestart` | A notice to everyone online · a restart countdown with warnings · call the countdown off |
 | `/mode Player survival\|creative\|world` | Per-player game mode — see *Per-player mode* below |
 | `/gamemode explorer\|creative\|sandbox` | The whole world's mode — see *World mode* below. Alone it names the current mode |
 
@@ -5013,6 +5040,17 @@ Two ways to test the finale:
 
 The duel cannot be lost — wrong rebuttals are dismissed and you stay on the node — so just keep trying each
 option (the answer buttons; only a player on the Guardian Core can answer) until the core concedes and shuts down.
+The stand-down scene then plays right there in the chamber as soon as no machine is close and you are not climbing
+or flying; while something still holds it back, VEGA says once that she has something to show you (#3387). To watch it
+again without winning: `/cutscene vega_protocol fin.standdown` (and `resolution` for the ending).
+
+**Testing a festival or the Advent calendar** (admin role only — works with cheats off): `/festival christmas` switches
+Christmas on for the world, and with it the Advent calendar on the menu button — every door is open while a festival is
+switched on by hand. `/festival halloween`, `/festival hanami` … work the same way, `/festival` alone says what is on, and
+`/festival calendar` hands back to the real date. Testing before 1 December spoils nothing: the doors you open count for
+the previous season, so this year's doors are still shut for the real Advent (what a test door unlocked stays unlocked).
+
+**Testing an ancient ruin:** `/tp ancient` (then `ancient2` …) stands you beside the shaft of a buried G.D.S. ruin.
 
 Testing *The Sounders' Song* (cheats on): `/sounders chapter 2` and a ring of eight rune stones around an ancient brick
 for the shrine puzzle · `/sounders chapter 3` + `/sounders items` for the spindle, discs, blaster and armour ·
