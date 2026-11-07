@@ -102,7 +102,7 @@ public sealed class AuthoredCreature
     /// <summary>#2082: favourite meals from one player that tame it; 0 = <see cref="HerdRules.FeedsToTame"/>.</summary>
     public int FeedsToTame { get; set; }
 
-    // --- Hounds (#3325/#3326, generation 33) — the traits the Schuppenhund class rolls, so a worksheet hound is a data entry. ---
+    // --- Hounds (#3325/#3326, generation 34) — the traits the Schuppenhund class rolls, so a worksheet hound is a data entry. ---
     public CreatureEarStyle EarStyle { get; set; }
     public float SnoutLength { get; set; }
     public bool HasClaws { get; set; }

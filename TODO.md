@@ -24,14 +24,14 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🐕 The Schuppenhund — Jafar's scale hound, a creature class of the dry worlds (terrain generation 33) — ✅ 2026-11-07, epic #3329 (#3325–#3328), branch feat/scale-hound
+### 🐕 The Schuppenhund — Jafar's scale hound, a creature class of the dry worlds (terrain generation 34) — ✅ 2026-11-07, epic #3329 (#3325–#3328), branch feat/scale-hound
 
 A school club idea by Jafar ("Neues Tier — Schuppenhund (gefährlich) — 10 hp pro … — bellt"): a scaly four-legged dog
 with upright ears, teeth and three claws on every foot. Marcel's decisions: very dangerous, ears, teeth, random colours,
 "Schuppenhund" in every language, alone, meat, dry worlds, a class.
 
 - **#3325** Body plan `Hound` + `HoundRules`; traits `EarStyle`, `SnoutLength`, `HasClaws`, `HasTeeth`, `BiteDamage`,
-  `BiteInterval` (also on `AuthoredCreature`); `PlanetType.ScaleHoundChance` on ten dry types; generation 33 appends ONE
+  `BiteInterval` (also on `AuthoredCreature`); `PlanetType.ScaleHoundChance` on ten dry types; generation 34 appends ONE
   hound (own sub-seed, no other species moves) with per-world looks. WORLD_GENERATION § 49.
 - **#3326** Server: bites in chunks (10 per 1.3–1.7 s, nothing between, off with planet enemies off), aggro 12, the charge
   (×1.15, still below the player's walk), one wild hound at a time, scan line, VEGA warning, `/hound`, companion snapshot.

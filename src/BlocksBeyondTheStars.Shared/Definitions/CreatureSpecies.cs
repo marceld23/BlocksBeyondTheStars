@@ -58,7 +58,7 @@ public enum CreatureBodyPlan
     Leviathan, // the deep sea's giant (#2111, generation 18): the sandworm's mover in water — cruises under the surface, breaches, hunts fish and boats
     SkyGiant,  // the gas giant's giant (#2112, generation 18): a 40–80 block sky-sailer drifting between the islands, passive — a spectacle
     Robot,     // the friendly hunter robot (#3295): a companion only, never rolled — the hunter's armour on the biped's rig, light-blue lights
-    Hound,     // the Schuppenhund (#3325, generation 33, Jafar's idea): a scaly four-legged dog with ears, a toothed muzzle and claws — very dangerous, alone, on the dry worlds
+    Hound,     // the Schuppenhund (#3325, generation 34, Jafar's idea): a scaly four-legged dog with ears, a toothed muzzle and claws — very dangerous, alone, on the dry worlds
 }
 
 /// <summary>
@@ -287,7 +287,7 @@ public sealed class CreatureSpecies
     /// (<see cref="HerdRules.FeedsToTame"/>). An authored species may name its own count.</summary>
     public int FeedsToTame { get; set; }
 
-    // --- Hounds (2026-11, generation 33, #3325/#3326). None/zero on every other species, so no older world, companion snapshot
+    // --- Hounds (2026-11, generation 34, #3325/#3326). None/zero on every other species, so no older world, companion snapshot
     // or wire message changes. ---
 
     /// <summary>The ears on the head (#3325): <see cref="CreatureEarStyle.None"/> on every species but the hound.</summary>

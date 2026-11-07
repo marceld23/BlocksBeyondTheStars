@@ -386,7 +386,7 @@ folded, because a hovering fish rows all the time. Also a sky glider.
 
 ## The hound (#3327)
 
-The Schuppenhund (Jafar's scale hound, generation 33) is a standard quadruped underneath — `Build` lets `"Hound"` fall
+The Schuppenhund (Jafar's scale hound, generation 34) is a standard quadruped underneath — `Build` lets `"Hound"` fall
 through to the standard body, so an older client draws it as a plain four-legger. `CreatureBuilder.Hound.cs` adds, from
 traits any species may carry (all zero on every other species, so nothing is built for them):
 

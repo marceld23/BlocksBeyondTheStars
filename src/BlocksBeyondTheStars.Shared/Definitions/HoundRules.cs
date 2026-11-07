@@ -4,7 +4,7 @@
 namespace BlocksBeyondTheStars.Shared.Definitions;
 
 /// <summary>
-/// The hound body plan — the <b>Schuppenhund</b> (#3325–#3328, generation 33), a school club idea by Jafar: "Neues Tier —
+/// The hound body plan — the <b>Schuppenhund</b> (#3325–#3328, generation 34), a school club idea by Jafar: "Neues Tier —
 /// Schuppenhund (gefährlich) — 10 hp pro Biss — bellt". A scaly four-legged dog with ears, a toothed muzzle and three claws on
 /// every foot; very dangerous, it lives alone and only on the dry worlds (a type's <see cref="PlanetType.ScaleHoundChance"/>).
 /// It is a class, not one animal: every dry world rolls its own (colours, size, scale hide, ears, muzzle, eyes, rhythm), and

@@ -254,7 +254,7 @@ public sealed class PlanetType
     /// tree kinds keep their roll. Mini-Michi-Paul's bananas on the tropical worlds. Empty = the classic roll.</summary>
     public string GuaranteedFruit { get; set; } = string.Empty;
 
-    /// <summary>The chance (0..1) that a generation-33 world of this type hosts the Schuppenhund (#3325, Jafar's scale hound) —
+    /// <summary>The chance (0..1) that a generation-34 world of this type hosts the Schuppenhund (#3325, Jafar's scale hound) —
     /// one per world at most, rolled from the world's own seed. Set on the dry types that carry fauna; 0 = never.</summary>
     public double ScaleHoundChance { get; set; }
 

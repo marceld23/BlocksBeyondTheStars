@@ -3080,7 +3080,7 @@ vendor and at the ship's console (#2987).
 **Tests:** `StartSystemJumpOresTests` (80 seeds: both ores in every start system, the start stays put, idempotent; an
 older generation unchanged; the metallic asteroids' gated lead vein; a fresh server pins the retyped system).
 
-## 49. Generation 33 — the Schuppenhund on the dry worlds (#3325–#3328, epic #3329, 2026-11-07)
+## 49. Generation 34 — the Schuppenhund on the dry worlds (#3325–#3328, epic #3329, 2026-11-07)
 
 **Why.** A school club idea by Jafar: "Neues Tier — Schuppenhund (gefährlich) — 10 hp pro … — bellt", drawn as a
 four-legged dog covered in scales (the head too), with two upright ears, a mouth full of teeth, three claws on every
@@ -3099,12 +3099,12 @@ eyes, Aggressive, group 1, Prowler, 10 HP a bite, 60–80 HP, meat ×3) and roll
 salt_flats 0.5, tablelands 0.6, badlands 0.7, red_desert 0.6, dust_bowl 0.6, sand_sea 0.4, arch_lands 0.6, bone_desert
 0.8. Not the landmark worlds (arena_nigra, titas), not the ashen/toxic classes, and not the default start type `varied`.
 
-**The roll (`WorldDescription.ScaleHoundGeneration` = 33).** `GenerateRoster` appends, after every rolled and authored
+**The roll (`WorldDescription.ScaleHoundGeneration` = 34; 33 is the KuBa-W asteroid of the same day, #3306).** `GenerateRoster` appends, after every rolled and authored
 slot and before the favourite-food pass, ONE hound (`HoundRules.SpeciesId` = `hd_schuppenhund`) when
 `CreatureGenerator.HostsScaleHound` — the roster seed salted `"scale-hound"`, its own `System.Random` — falls below the
 type's chance. `GenerateScaleHound` rolls the looks from its own sub-seed (`"scale-hound:species"`): body and belly colour
 (`PickColor`), activity (the normal 40/30/20/10), the plan, the eye colour (the gen-15 roll — a hunter leans red), and the
-voice seed. No RNG of any other species is touched, so every older species of a generation-33 world is the one generation 32
+voice seed. No RNG of any other species is touched, so every older species of a generation-34 world is the one generation 33
 rolled (pinned by `HoundGenerationTests.TheHound_IsAppendedLast_SoNoOtherSpeciesMoves`).
 
 **Its voice** is the `CanineCalls` pool (`creature_call_bark`, `_bark_deep`, `_bark_rough`) instead of its habitat pool —

@@ -121,7 +121,7 @@ public static class CreatureGenerator
             }
         }
 
-        // Generation 33 (#3325, Jafar's Schuppenhund): a dry world may host ONE hound — appended after every rolled and authored
+        // Generation 34 (#3325, Jafar's Schuppenhund): a dry world may host ONE hound — appended after every rolled and authored
         // slot from its own salted sub-seed, so no other species moves; older generations never roll it.
         if (!planet.IsAirless && terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.ScaleHoundGeneration
             && HostsScaleHound(planet, worldSeed))
@@ -270,7 +270,7 @@ public static class CreatureGenerator
         return species;
     }
 
-    // ---------------- The Schuppenhund (#3325, generation 33) ----------------
+    // ---------------- The Schuppenhund (#3325, generation 34) ----------------
 
     /// <summary>Whether a world of <paramref name="planet"/>'s type hosts the Schuppenhund (#3325): the world's own roll — the
     /// roster seed salted, no RNG of any other species touched — below the type's <see cref="PlanetType.ScaleHoundChance"/>.

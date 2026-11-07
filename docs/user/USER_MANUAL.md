@@ -3793,7 +3793,7 @@ called **stories**:
 - **The Schuppenhund** — invented by **Jafar** of the school club: a **scaly four-legged dog** with upright ears, a
   muzzle full of teeth and three claws on every foot. It lives **alone** and only on the **dry worlds** (desert, savanna,
   salt flats, tablelands, badlands, red desert, dust bowl, sand sea, Arch Lands, Ossuary World — worlds created from
-  terrain generation 33 on, and not every one of them). Every world has its own: its colours, its kind of scales and its
+  terrain generation 34 on, and not every one of them). Every world has its own: its colours, its kind of scales and its
   ears differ. It is **very dangerous**: it notices you from about twelve blocks, stalks with its head low and **charges**
   the last few metres, and **every bite takes 10 health** — one bite, one snap of the jaws, then a pause before the next.
   It **barks**. You can still get away: even charging it is a little slower than you walk, and if you **break its line

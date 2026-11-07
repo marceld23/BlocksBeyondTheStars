@@ -12,7 +12,7 @@ using Xunit;
 namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
-/// The Schuppenhund class (#3325, epic #3329 — Jafar's scale hound): a dry world of generation 33 may append ONE hound to its
+/// The Schuppenhund class (#3325, epic #3329 — Jafar's scale hound): a dry world of generation 34 may append ONE hound to its
 /// roster, at its type's chance, from its own sub-seed (so no other species moves); every world rolls its own looks, the class
 /// traits are fixed (very dangerous, alone, ears, teeth, claws, 10 HP a bite, meat), it barks, and its top speed stays below
 /// the player's walk.
@@ -50,7 +50,7 @@ public sealed class HoundGenerationTests
     }
 
     [Fact]
-    public void NoWorldBeforeGeneration33_EverHostsAHound()
+    public void NoWorldBeforeTheHoundsGeneration_EverHostsOne()
     {
         foreach (string key in DryTypes)
         {
