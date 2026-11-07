@@ -24,6 +24,39 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🎵 The Sounders' Song — the second story next to VEGA (lore + names: Marcel, Justus and the school club; Marcel's decisions 2026-11-07) — epic #3368, #3344–#3367, ✅ 2026-11-07, PR (this branch, `feat/sounders-story-pack`) (⚠ playtest open)
+
+A side pack per player (`data/stories/sounders/`, VEGA narrates): the music notes on the rune stones are the script of
+the Sounders, a music civilisation whose Great Song carried its singers into the Qualis' reality. Eight chapters: play
+runes → answer the Singing Shrine (or a ring of runes) → decode Song Discs in the real note alphabet (two tones a letter)
+→ build the hidden blueprints (Resonance Blaster, obsidian armour with a disc socket) → question the four Echoes with
+melodies → play ORNEMIS, the Song of Return, which shows the detuned Ornemis system on the player's star chart → land on
+Soaniri, meet the Eldest in Mirun → persuade Roll and play the Bridge Song at the Choir Tower → win a Soundi in a sing
+duel ("Muffin" suggested). Concept doc: `docs/developer/STORY_SOUNDERS.md`.
+
+- **#3345/#3346** Sounder voice + choir instruments (procedural), playable rune stones (always; progress only with the
+  pack), `UseBlockIntent` (323), `NoteSequence` (324), melody puzzles (repeat / compose / harmony / call-and-response),
+  melody sites (the Singing Shrine, player-built rings), the melody bar (keys 1–8, pad, touch), melody-block instruments 4/5.
+- **#3347/#3349/#3350/#3357** Side packs bring lore sites (`minChapter`), dialogs (melody and conditional replies,
+  `milestone:` consequences), readable texts (the Song Archive) and star systems (per-player visibility); a world switch
+  for side stories; `milestone:` condition atom, `world:monuments`/`world:shrine`, `nearest_monument`, `pack_site:`,
+  `story_system:`; hidden blueprints (`hiddenUntil`, tag 328 `BlueprintVisibility`).
+- **#3352/#3353/#3354** Song Spindle + discs (story loot without dead ends; a lost undecoded disc comes again), the
+  note-key minigame (tags 330/331), the Resonance Blaster (push/stun, calms Soundraks, sound chambers under monuments and
+  in Ornasa), obsidian armour (quiet steps; disc socket: hearing, calm, light; `GearLook` styles 5/6, bit 28).
+- **#3355/#3359/#3366** Sounder body (four arms, eyeless, long ears) for NPCs and Echoes; Soundi, Soundrak, Quali
+  (nocturnal sky drifter), Soundeling (no eyes; carries a given light into the dark).
+- **#3344/#3361/#3365** Companion selection (follows me / stays home / on board, tag 327), the story Soundi
+  (`GrantStoryCompanion`), duel taming and pack defence for wild Soundis.
+- **#3358/#3367** Soaniri (`sounder_world`, appended on reveal): singing meadows, Mirun, Ornasa, the Choir Tower, singing
+  plants (echo flower, bell-bloom trail), Quali shimmer at anomalies.
+- **#3351/#3356/#3360/#3362** The pack, its 17 scenes, lore, Song Archive, dialogs, the story glue
+  (`GameServerSoundersStory*.cs`: shrine/ring puzzles, Echoes, the Young Voices, the sing duel) and `/sounders` QA.
+- **#3363/#3364** Assets (9 tiles, 14 icons, 37 sounds incl. the series' Soundi calls, 3 tracks), 14 languages, two
+  spoiler-free Codex articles + the taming article, USER_MANUAL, docs; save version 13.
+- **Open:** playtest the whole arc (and the `/sounders` shortcuts); the arcade bitmap font draws no non-Latin text
+  (pre-existing, its own issue).
+
 ### 🏃 Running and stamina — sprint on foot, one stamina for running and climbing, a small bar under the crosshair (Justus' F1 idea 2026-11-07, Marcel's decisions 2026-11-07) — #3373–#3377, ✅ 2026-11-07, PR #3380 (`83df4ecf`) (⚠ playtest open; client-only — no save-version, protocol or terrain-generation change)
 
 Justus (player name Layex) asked in an F1 report for sprinting, with one stamina bar that running and climbing share and
