@@ -11,6 +11,68 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.10] — 2026-11-08
+
+The talking-robot release. **The hunter robot you build from the Guardian core's heart now talks** — press **[Use]** at
+it and it tells you what it remembers, misses its brothers, asks you funny questions, chats with VEGA and sometimes speaks
+up on its own. You can **give it a weapon it fights with** and **a jetpack, so it follows you up any cliff** (just no
+armour — that was the wish). The finale's last scene now plays right where you win the argument duel, the machines that
+are left behave the way the ending says, and admins can finally type every test command — `/festival` included, the way
+to try the Advent calendar early. Companions no longer get stuck in the ship's floor after a landing, and the figure's
+forearms bend the right way. Thank you, Justus, for six reports in one evening!
+
+ℹ️ **Compatibility:** no new blocks — the **save version stays at 13**, and the terrain generation stays at **35**. Your
+worlds open as they are. The network protocol stays at **version 11**, but game and server must be on the same version:
+the desktop game updates itself at start, and the browser is always current.
+
+### 🤖 Your robot talks — and gets upgrades (#3394–#3396, #3398, #3399)
+
+- **Talk to it:** aim at your own robot and press **[Use]**. It answers in VEGA's window under **its own name** (in its
+  light blue): it is sorry for what the old network did to the SPS, it misses the scan drones, guardians, tank spiders
+  and hunters, and it asks you things — what a song is, why people build houses, what dreams are.
+- **VEGA and the robot talk to each other:** every now and then VEGA asks it a question and it answers.
+- **It speaks up by itself:** now and then, while it follows you and nothing attacks, it says something on its own. These
+  lines are quiet together with VEGA's hints.
+- **Give it a weapon:** hold a weapon (a pistol, a blaster, a sword, gloves …) and press **[Use]** at your robot. It
+  carries the weapon in its hand and fights with it — stronger and with the weapon's reach. A second weapon swaps the
+  first one back into your backpack.
+- **Give it a jetpack:** hold a jetpack and press **[Use]** at it. From now on it flies after you when you climb a cliff,
+  jump up a roof or fly with your own jetpack, and walks again when it lands.
+- **Take it back** any time in the robot's entry of the **Creatures** tab; switching the robot off or a knock-out gives the
+  gear back too. Nothing gets lost.
+
+### 🎬 The Guardian finale's last scene (#3386–#3388)
+
+- **The stand-down plays where you win.** After the argument duel the closing scene waited for you to be back at your
+  ship — 24 blocks above the core chamber — and looked like it never came. Now it plays right there in the chamber as
+  soon as no machine is close. If something still holds it back, VEGA says once: "I have something important to show
+  you — as soon as you are safe."
+- **The words match what happens:** after the win only a few stray machines still roam (that is the plan, the galaxy gets
+  calmer, not empty) — the closing lines now say so instead of promising that every machine stands down.
+- Bug reports (**F1**) now carry the state of the world's story and which story scenes you have seen, so a report like
+  "the cutscene did not come" can be answered right away.
+
+### 🛠 Admin commands (#3389–#3393)
+
+- **`/festival` works in the chat now** (it went out as a plain chat line before): `/festival christmas` switches
+  Christmas on for the world — with the **Advent calendar**, every door open — `/festival halloween`, `/festival hanami` …
+  work the same way, `/festival` alone says what is on and `/festival calendar` goes back to the real date. `/shapewipe`
+  works too.
+- **`/help admin` lists every command** now: the creature summons (`/arachnid`, `/biped`, `/hound`), `/creatures`,
+  `/basewalls`, `/ai`, the wipe commands for published paintings, textures and shapes, and the full forms of `/settime`,
+  `/setweather` and `/cutscene`. Plain `/help` names `/mute`, `/unmute` and the report helpers. A new test makes sure no
+  command can go missing from the chat or the help again.
+- **`/gotocore`** now really drops you next to the Guardian core, and **`/sounders tower`** really stands you on the
+  Choir Tower — both only moved you on the server before.
+- **`/tp ancient`** takes you to a buried G.D.S. ruin.
+
+### 🐛 Fixes
+
+- **Companions no longer stand in the ship's floor after a landing** (#3397): your robot (and every pet that follows you)
+  now waits beside the ship.
+- **The forearms bend forward** (#3401): standing, walking, sitting, on a ladder and in a punch the forearms bent
+  backwards — most visible on the big figure of the character editors.
+
 ## [2026.11.9] — 2026-11-07
 
 The singing-stones release. **A second story runs next to VEGA's: The Sounders' Song** — the notes on the old rune stones
@@ -10349,7 +10411,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.9...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.10...HEAD
+[2026.11.10]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.9...v2026.11.10
 [2026.11.9]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.8...v2026.11.9
 [2026.11.8]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.7...v2026.11.8
 [2026.11.7]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.6...v2026.11.7
