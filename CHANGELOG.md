@@ -11,6 +11,95 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.9] — 2026-11-07
+
+The singing-stones release. **A second story runs next to VEGA's: The Sounders' Song** — the notes on the old rune stones
+are the script of a vanished music people, and a trail of melodies, Song Discs and Echoes leads to their hidden home world,
+where a little **Soundi** joins you. Our school club brought a whole wave of ideas: an **Advent calendar** with a Christmas
+skin, HUD lights and **Rudolpho**, an alien reindeer with a glowing nose; a **HUD frame** you design yourself; Jafar's
+asteroid **KuBa-W** with three huge stone tablets and the **Schuppenhund**, a scaly hound of the dry worlds. Justus' ideas
+dug up **buried G.D.S. ruins flooded with glowing Ressaw** and let you **run** — with one stamina for running and climbing.
+And Milan's report made the respawn screen hold you still. Thank you, Justus, Jafar, Ben, Milan, Theo and the whole school
+club!
+
+ℹ️ **Compatibility:** new blocks — the **save version goes from 11 to 13**. Your worlds are converted on the first load,
+automatically; after that, don't open them with an older version again. The terrain generation goes from **32 to 35**:
+only **new worlds** get KuBa-W, the Schuppenhund and the buried ruins — your existing worlds never change. The Sounders'
+Song plays in existing worlds too. The network protocol stays at **version 11**, but game and server must be on the same
+version: the desktop game updates itself at start, and the browser is always current.
+
+### 🎵 The Sounders' Song — a second story (#3344–#3368)
+
+- **It starts at a rune stone:** aim at one of the stones with painted notes (monuments, ruins, the Singing Shrine) and
+  press **[Use]** — it sings a word. Rune stones always sing; with the story running, every word goes into the new
+  **Song Archive** in your Journal. You can start the story early in the Journal or switch it off there, and a new world
+  can leave it out (**Stories → Side stories**). VEGA tells it, for every player on their own.
+- **Eight chapters:** answer the **Singing Shrine** by playing its tunes back, decode **Song Discs** on a **Song Spindle**
+  in a real note alphabet (two tones make a letter), build the Sounders' hidden blueprints, question the four **Echoes**
+  with melodies, play the **Song of Return** — and a hidden star system appears on your star chart. Land on **Soaniri**,
+  meet the Eldest in the village of Mirun, help Roll and the Young Voices at the Choir Tower and sing the **Bridge Song**.
+  No fight anywhere, and a wrong note never punishes you.
+- **The reward:** win a **Soundi** in a sing duel — you name it ("Muffin" is the suggestion) and it travels with you.
+- **New things:** the **Resonance Blaster** pushes and stuns with sound and opens sound chambers under the old
+  monuments; **obsidian armour** walks quietly and takes a Song Disc in the chest socket (hear the Echoes, calm wild
+  Soundraks, or glow softly); the **melody bar** (keys 1–8, gamepad and touch) and two new voices for the melody block —
+  a Sounder voice and a Sounder choir.
+- **A new world, Soaniri:** chime moss meadows, singing plants that answer your melodies, the ruin city Ornasa, and new
+  creatures: Soundis, Soundraks, the nocturnal Qualis and the Soundelings, who carry light into the dark.
+- **Several companions:** pick who follows you. The others stay home or wait on board, and the **Creatures** tab shows them.
+- 16 new scenes, new sounds and music, and two Codex articles without spoilers. Admins test it with `/sounders`.
+- The lore, the creatures and the names come from Marcel, Justus and the school club (the Sounder sketches by Theo and a
+  classmate).
+
+### 🎄 The Advent calendar and your own HUD frame (#3314–#3323)
+
+- **An Advent calendar** for everyone who celebrates Christmas: from 1 December, one door a day at your own midnight. It
+  **waits** — missed doors stay open until 6 January, with no streak. The doors hold materials (different for every
+  player, so you can trade) and three specials: **door 6** a Christmas skin, **door 12** Christmas lights for your HUD,
+  **door 24** the star bell that brings **Rudolpho** — an alien reindeer with branching antlers and a red nose that
+  lights up caves. Open it from the Character tab.
+- **Design a HUD frame:** the character editor now switches between "Character" and "HUD frame". The frame sits around
+  your view in first person, third person and space flight. You can submit skins and frames right from the editor.
+- An idea from Ben of the school club.
+
+### 🏚️ Buried G.D.S. ruins flooded with Ressaw (#3333–#3343)
+
+- Justus' "Old Cities": **underground ruins of purple and red metal** under the G.D.S. city and, rarely, under a vent
+  tower on other worlds — flooded with **Ressaw**, a glowing liquid that burns after a few seconds. Ressaw blocks crack
+  and leak when you come close.
+- Crates hold the four pieces of the **Ressaw diving suit** (the full set protects you in Ressaw) and **G.D.S. logs**
+  that tell what happened. There is **Ressaw crystal ore**, a **Ressaw drill** stronger than the diamond drill, a
+  **Ressaw lamp** that turns night into day, and **Ressaw conduits** that let a crystal net grow to 512 cells.
+- New worlds only (terrain generation 35).
+
+### 🏃 Running and stamina (#3373–#3377)
+
+- Hold **Left Shift** to **run** at one and a half times your walking speed for about 8 seconds. Running and wall
+  climbing share **one stamina**, shown as a small bar under the crosshair while it is not full. It comes back slowly
+  at rest; when it runs out you simply walk on — nothing hurts, and running costs no food.
+- On a gamepad, click the left stick while moving; on touch screens there is a **RUN** button. Justus' idea.
+
+### 🪨 KuBa-W — Jafar's asteroid (#3306–#3313, #3330)
+
+- Jafar from our school club designed a **small asteroid with air to breathe**, a pale-green sky, meadows and many
+  animals. It exists **exactly once in every new galaxy** and has two landing pads and **three huge stone tablets**:
+  "KuBa West Trier", "JuMaVe Games" and the initials of everyone in the club. The tablets cannot be destroyed, and you
+  can scan them.
+- The "Exotic worlds" option no longer rounds the rarest landmarks away on "Very rare".
+
+### 🐕 The Schuppenhund (#3325–#3329)
+
+- Jafar's second idea: a **scaly hound** with upright ears, a mouth full of teeth and three claws on every foot. It
+  lives alone on dry worlds (deserts, savannas, salt flats and more), barks, charges from close by and bites hard —
+  but it is a little slower than you, so walking away and hiding still work. VEGA warns you once. New worlds only.
+
+### 🛟 The respawn screen holds you still (#3369–#3371)
+
+- Milan found it: with a home spawn set, the screen that asks where to come back let the mouse turn the camera, and a
+  click on its buttons also mined the block under the crosshair. Now your body stays completely still until you choose,
+  and the server ignores anything a waiting body tries to do.
+- Milan joins the credits — for this report and for the backstory written together with Justus.
+
 ## [2026.11.8] — 2026-11-07
 
 The fog-and-robot release. **Every world now has a mist of its own** — fog drifts in wisps, you can climb a peak into the
@@ -10260,7 +10349,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.8...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.9...HEAD
+[2026.11.9]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.8...v2026.11.9
 [2026.11.8]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.7...v2026.11.8
 [2026.11.7]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.6...v2026.11.7
 [2026.11.6]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.5...v2026.11.6
