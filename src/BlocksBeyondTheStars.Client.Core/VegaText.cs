@@ -101,6 +101,7 @@ namespace BlocksBeyondTheStars.Client
                 "FlightTargetNext" => "ui.touch.target",
                 "EvaDeployStation" => "ui.touch.deploy",
                 "SpeederBoost" => "ui.touch.boost",
+                "Sprint" => "ui.touch.run", // #3376: the on-foot RUN switch
                 "SpeederExit" => "ui.touch.exit",
                 "SpeederRefuel" => "ui.touch.fuel",
                 "VegaContinue" => "ui.touch.next",

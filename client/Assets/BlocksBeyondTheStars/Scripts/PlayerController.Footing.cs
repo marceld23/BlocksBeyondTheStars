@@ -40,7 +40,6 @@ namespace BlocksBeyondTheStars.Client
         {
             EndClimb(); // #2188: a teleport, respawn or rescue never leaves us hanging on a wall that is no longer there
             UpdateGlide(false); // #2296: nor gliding on
-            _grip.Reset();
             _controller.enabled = false;
             transform.position = pos;
             _controller.enabled = true;

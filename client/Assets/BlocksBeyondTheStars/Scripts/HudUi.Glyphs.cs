@@ -35,6 +35,12 @@ namespace BlocksBeyondTheStars.Client
                 return loc.Get(mouseKey);
             }
 
+            // #3374: Unity names the run key "LeftShift" — the controls line reads the key's own word ("Shift"/"Umschalt").
+            if ((key == KeyCode.LeftShift || key == KeyCode.RightShift) && glyph == key.ToString())
+            {
+                return loc.Get("ui.key.shift");
+            }
+
             // #2502: Unity names the Enter key "Return" — the chat key read "Return chat" once the controls line named the
             // bound key instead of a hard-coded "Enter".
             return key == KeyCode.Return && glyph == "Return" ? "Enter" : glyph;
@@ -230,6 +236,7 @@ namespace BlocksBeyondTheStars.Client
                 .Replace("{use}", PadGlyphOf(InputAction.Interact))
                 .Replace("{view}", PadGlyphOf(InputAction.ToggleThirdPerson))
                 .Replace("{actions}", PadGlyphOf(InputAction.ContextActions))
+                .Replace("{sprint}", PadGlyphOf(InputAction.Sprint)) // #3376: the stick click while moving
                 .Replace("{vega}", PadGlyphOf(InputAction.VegaContinue))
                 .Replace("{menu}", PadGlyphOf(InputAction.UiMenu));
             _padHintKey = key;

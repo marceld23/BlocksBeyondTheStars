@@ -1165,7 +1165,7 @@
         {
           "id": "c13.1", "kind": "do", "tier": "core",
           "objective": { "event": "move:climbed", "required": 3 },
-          "hintRefs": [ "climb" ],
+          "hintRefs": [ "climb", "stamina" ],
           "explain": { "startKey": "story.tutorial.c13.climb.start", "chipKey": "story.tutorial.c13.climb.chip", "hintKey": "story.tutorial.c13.climb.hint", "moreGuide": "climbing" }
         },
         {

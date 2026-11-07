@@ -50,6 +50,8 @@ namespace BlocksBeyondTheStars.Client
         private TouchButton _jump, _mine, _place, _descend, _chat;      // on foot
         private TouchButton _rotate, _attack;                           // on foot, contextual (#1042)
         private TouchButton _feed;                                      // on foot, contextual (#2018: food in hand + a begging animal near)
+        private TouchButton _run;                                       // on foot: the run switch (#3376)
+        private Image _runImage;                                        // lit while the run switch is on
         private TouchButton _fire, _flightUp, _flightDown;              // flight + EVA
         private TouchButton _land, _shipIn, _auto, _flightMap;          // helm only — swapped out in EVA
         private TouchButton _target;                                    // helm only: tap = next target, long press = clear (#2277)
@@ -270,6 +272,7 @@ namespace BlocksBeyondTheStars.Client
                 var finale = Game?.Views.Finale;
                 SetActive(_attack?.gameObject, (Player != null && Player.HoldsWeapon) || (finale != null && finale.BreachAvailable));
                 SetActive(_feed?.gameObject, Player != null && Player.CanFeedCreature); // #2018
+                LightRunButton(Player != null && Player.SprintLatched); // #3376
             }
 
             if (flight)
@@ -407,6 +410,12 @@ namespace BlocksBeyondTheStars.Client
             _actions.Add((InputAction.FeedCreature, _feed));
             _heldActions.Add((InputAction.PrimaryFire, _attack));
 
+            // #3376: RUN above-right of the stick, in reach of the moving thumb — tap it while moving to run; it switches off
+            // when you stop, the stamina runs out, or you tap it again. Lit while on.
+            _run = MakeButton(foot, new Vector2(0f, 0f), new Vector2(450f, 430f), 96f, L("ui.touch.run", "RUN"));
+            _runImage = _run.GetComponent<Image>();
+            _actions.Add((InputAction.Sprint, _run));
+
             // ---- Flight + EVA cluster ------------------------------------------------------------------
             _flightCluster = MakeCluster(canvas.transform, "Flight");
             var fly = _flightCluster.transform;
@@ -514,6 +523,19 @@ namespace BlocksBeyondTheStars.Client
             var stick = baseGo.GetComponent<TouchStick>();
             stick.Init(rt, trt);
             return stick;
+        }
+
+        private static readonly Color RunIdle = new Color(0.30f, 0.55f, 0.80f, 0.40f); // MakeButton's own colour
+        private static readonly Color RunLit = new Color(0.40f, 0.82f, 1.00f, 0.80f);
+
+        /// <summary>#3376: the RUN button glows while the run switch is on.</summary>
+        private void LightRunButton(bool on)
+        {
+            var col = on ? RunLit : RunIdle;
+            if (_runImage != null && _runImage.color != col)
+            {
+                _runImage.color = col;
+            }
         }
 
         private TouchButton MakeButton(Transform parent, Vector2 anchor, Vector2 anchoredPos, float size, string label)

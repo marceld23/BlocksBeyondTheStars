@@ -73,6 +73,11 @@ namespace BlocksBeyondTheStars.Client
         FlightTargetNext,     // cycle to the next target; hold ~0.6 s to clear the lock — default T, pad LB, touch TARGET
         FlightTargetHostile,  // lock the nearest enemy, again = the next nearest — default R, pad R3
         FlightTargetAhead,    // lock what is under the crosshair; nothing there = clear — default right mouse button
+
+        // #3374/#3376: running on foot, appended so no existing value moves. The keyboard HOLDS it (default Left Shift — free
+        // on foot, the speeder's boost reads it only while driving); the pad's left-stick click (shared with ContextActions:
+        // moving = run, standing = the list) and the touch RUN button switch it on while moving.
+        Sprint,
     }
 
     /// <summary>
@@ -163,6 +168,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.ToggleThermal, InputAction.ToggleChat, InputAction.OpenChat, InputAction.HotbarAction,
             InputAction.PlanetMap, InputAction.VegaContinue, InputAction.ContextActions,
             InputAction.PingMarker, InputAction.FeedCreature, // #2282: Feed was in no group, so Q could not be rebound
+            InputAction.Sprint, // #3374
         };
 
         /// <summary>Flight / EVA actions exposed as a second rebinding group.</summary>
@@ -243,6 +249,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.FlightTargetNext => KeyCode.T,
             InputAction.FlightTargetHostile => KeyCode.R,
             InputAction.FlightTargetAhead => KeyCode.Mouse1,
+            InputAction.Sprint => KeyCode.LeftShift, // #3374: free on foot; SpeederBoost reads the same key only while driving
             _ => KeyCode.None,
         };
 
@@ -381,6 +388,26 @@ namespace BlocksBeyondTheStars.Client
         public static bool Held(InputAction action) => Passes(action) && (_desktop.ActionHeld(action) || _pad.ActionHeld(action) || _touch.ActionHeld(action));
         public static bool Up(InputAction action) => Passes(action) && (_desktop.ActionUp(action) || _pad.ActionUp(action) || _touch.ActionUp(action));
 
+        /// <summary>#3374: the run as the keyboard does it — the bound key held.</summary>
+        public static bool SprintKeyHeld() => Passes(InputAction.Sprint) && _desktop.ActionHeld(InputAction.Sprint);
+
+        /// <summary>#3376: the run as the pad and the tablet do it — a press of the left-stick click / the RUN button switches
+        /// it on while moving (<see cref="SprintState"/>).</summary>
+        public static bool SprintToggleDown()
+            => Passes(InputAction.Sprint) && (_pad.ActionDown(InputAction.Sprint) || _touch.ActionDown(InputAction.Sprint));
+
+        /// <summary>#3376: this frame's press of the context-actions control belongs to the run — the stock pad layout puts
+        /// both on the left-stick click, which runs while moving and opens the list while standing
+        /// (<see cref="SprintState.PadPressIsSprint"/>). <paramref name="runPossible"/>: the body could run here at all
+        /// (<see cref="PlayerController.SprintPossible"/>) — in a speeder, an EVA or the water the stick steers but nothing
+        /// runs, so the click keeps opening the list there.</summary>
+        public static bool ContextPressIsSprint(bool runPossible)
+            => SprintState.PadPressIsSprint(
+                GamepadInputSource.ButtonFor(InputAction.ContextActions) == GamepadInputSource.ButtonFor(InputAction.Sprint),
+                _pad.ActionDown(InputAction.ContextActions),
+                _desktop.ActionDown(InputAction.ContextActions) || _touch.ActionDown(InputAction.ContextActions),
+                runPossible, MoveX(), MoveY());
+
         // ---- Continuous locomotion / camera / interaction core -------------------------------------------
         // Each merges the backends. Movement + look are additive (mouse delta + stick delta + touch); the
         // button verbs OR together. This is what the migrated PlayerController/SpaceView call sites read
@@ -516,6 +543,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.FlightTargetNext => "ui.key.flight_target_next",
             InputAction.FlightTargetHostile => "ui.key.flight_target_hostile",
             InputAction.FlightTargetAhead => "ui.key.flight_target_ahead",
+            InputAction.Sprint => "ui.key.sprint",
             _ => string.Empty,
         };
 

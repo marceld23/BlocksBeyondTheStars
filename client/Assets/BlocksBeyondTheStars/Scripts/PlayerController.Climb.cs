@@ -23,8 +23,9 @@ namespace BlocksBeyondTheStars.Client
         // Jump at a wall, push towards it and hold Jump: you hold on (#2384 — holding on is a held button). On the wall
         // you climb up (push in), down (pull away), sideways (along it) or hang still (Jump alone); letting go of Jump
         // slides you down, crouch drops you off; at the top you pull yourself over the edge. A jump that falls short of a
-        // low wall pulls you over it on the way up (#2385). The grip tires (ClimbGrip) but is never drawn on the HUD —
-        // you feel it: slower, then a tremble and a breath, then a slow slide. Ladders keep their own rules and win;
+        // low wall pulls you over it on the way up (#2385). The grip is the body's stamina (#3373), shared with running and
+        // drawn as the small bar under the crosshair (#3375); you feel it too: slower, then a tremble and a breath, then a
+        // slow slide. Ladders keep their own rules and win;
         // water, flight, space, stations and the ship interior have no climbing. All of it is on-foot movement, which
         // the client owns; other players only learn the pose (MoveIntent.Climbing).
 
@@ -41,7 +42,6 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#2386: the least time between two "no room to pull up" messages, s.</summary>
         private const float ClimbNoRoomPause = 8f;
 
-        private readonly ClimbGrip _grip = new ClimbGrip();
         private ClimbProbe _climbProbe;
         private ClientWorld _climbProbeWorld;
         private BlocksBeyondTheStars.Shared.Content.GameContent _climbProbeContent;
@@ -129,15 +129,15 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>
         /// The wall-climbing step (#2188–#2190, #2384–#2386): grabs a wall, climbs it, slides down it, lets go, or starts a
         /// pull-up. Returns true while the player is on a wall this frame — <paramref name="move"/> then carries the
-        /// sideways move and the lean into the wall, and <see cref="_climbVy"/> the vertical speed. Also refills the grip on
-        /// the ground and on a ladder.
+        /// sideways move and the lean into the wall, and <see cref="_climbVy"/> the vertical speed. Also rests the body's
+        /// stamina on the ground and on a ladder while it is not running (#3373).
         /// </summary>
         private bool UpdateWallClimb(bool grounded, bool inWater, bool onLadder, float h, float v, ref Vector3 move)
         {
             float dt = Time.deltaTime;
-            if (!_climbing && (grounded || onLadder))
+            if (!_climbing && (grounded || onLadder) && !_sprint.Active)
             {
-                _grip.Refill(dt); // standing — on the ground or a ladder rung — the hands recover
+                _stamina.Rest(dt); // #3373: at rest — on the ground or a ladder rung, not running — the body slowly recovers
             }
 
             var probe = ClimbProbeNow();
@@ -186,7 +186,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 // #2384: a grab needs Jump held; #2385: a jump still rising fast carries you to its top before you grab.
-                if (!holding || !ClimbProbe.MayGrab(_verticalVelocity) || Time.time < _regrabAt || !_grip.CanGrab
+                if (!holding || !ClimbProbe.MayGrab(_verticalVelocity) || Time.time < _regrabAt || !_stamina.CanGrab
                     || !probe.TryFindWall(pos.x, pos.y, pos.z, wish.x, wish.z, out var hold))
                 {
                     return false;
@@ -230,7 +230,7 @@ namespace BlocksBeyondTheStars.Client
             float vy = 0f;
             float lateral;
             var motion = ClimbMotion.Hang;
-            float slide = ClimbGrip.SlideSpeedFor(holding, _grip.Exhausted);
+            float slide = ClimbGrip.SlideSpeedFor(holding, _stamina.Exhausted);
             _climbSliding = slide > 0f;
             if (_climbSliding)
             {
@@ -242,7 +242,7 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
-                float pace = _grip.SpeedFactor; // a tiring grip climbs slower
+                float pace = _stamina.SpeedFactor; // a tiring body climbs slower
                 bool refused = false;
                 if (up)
                 {
@@ -295,7 +295,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (!_climbSliding)
             {
-                _grip.Drain(dt, motion, _gFactor, surface, _climbGearGrip);
+                ClimbGrip.Drain(_stamina, dt, motion, _gFactor, surface, _climbGearGrip); // #3373: the shared stamina
             }
 
             // Back on the ground while not climbing up: walk from here.
@@ -308,7 +308,7 @@ namespace BlocksBeyondTheStars.Client
 
             _climbVy = vy;
             move = (along * lateral) + (into * WallPress);
-            _climbStrain = Mathf.MoveTowards(_climbStrain, _grip.Strain, dt * 2f);
+            _climbStrain = Mathf.MoveTowards(_climbStrain, _stamina.Strain, dt * 2f);
             ClimbFeedback(dt, moving: lateral != 0f || vy != 0f, pos);
             return true;
         }
@@ -352,19 +352,19 @@ namespace BlocksBeyondTheStars.Client
                 _climbTapTimer -= dt;
                 if (_climbTapTimer <= 0f)
                 {
-                    _climbTapTimer = 0.55f / Mathf.Max(0.5f, _grip.SpeedFactor);
+                    _climbTapTimer = 0.55f / Mathf.Max(0.5f, _stamina.SpeedFactor);
                     var wallCell = pos + (new Vector3(_wall.DirX, 0f, _wall.DirZ) * ClimbProbe.WallReach) + (Vector3.up * ClimbProbe.HandHeight);
                     PlayClimbTap(StepCueFor(BlockKeyAt(wallCell))); // #3239: the wall's step takes, alternating hands
                 }
             }
 
-            if (_grip.Strain > 0f)
+            if (_stamina.Strain > 0f)
             {
                 _climbBreathTimer -= dt;
                 if (_climbBreathTimer <= 0f)
                 {
-                    _climbBreathTimer = Mathf.Lerp(2.2f, 1.3f, _grip.Strain);
-                    audio.Cue("climb_strain", 0.15f + (0.15f * _grip.Strain)); // #3239: ~19 dB louder since #3237
+                    _climbBreathTimer = Mathf.Lerp(2.2f, 1.3f, _stamina.Strain);
+                    audio.Cue("climb_strain", 0.15f + (0.15f * _stamina.Strain)); // #3239: ~19 dB louder since #3237
                 }
             }
             else

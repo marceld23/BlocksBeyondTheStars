@@ -13,7 +13,7 @@ in and go straight up.
 |---|---|---|
 | Surfaces | `Shared/Definitions/ClimbSurface.cs` | `ClimbSurfaces.Of(block)`: how a block holds a climber, from block data |
 | Probe | `Client.Core/ClimbProbe.cs` | Pure cell reads: grab a wall, wall/ledge/lost ahead, side edge, overhang, pull-up target |
-| Grip | `Client.Core/ClimbGrip.cs` | The hidden 0..1 grip, drain and refill, speeds and the slide |
+| Grip | `Client.Core/ClimbGrip.cs`, `Client.Core/BodyStamina.cs` | Climb speeds, drain per motion and the slide; the grip itself is the body's stamina, shared with running (#3373) |
 | Movement | `client/.../PlayerController.Climb.cs` | The state machine (`UpdateWallClimb`, called inside `Move()` in `PlayerController.Movement.cs`), the pull-up, sounds, the hint |
 | Pose | `client/.../PlayerAvatar.cs` `SetClimbing` / `PoseClimb` | Climb, hang, strain, slide and pull-up poses |
 | First person | `client/.../Viewmodel.cs` `SetClimbing` / `PoseClimbHand` (#2287) | The held item sinks away and both suit hands climb on the same signals and rhythm as `PoseClimb` (the mirrored left holder of the #2278 gloves); the climbing gear's pads from `HeldItemShapes.ClimbGear` |
@@ -78,15 +78,19 @@ them win, and before the vertical branches, which a climb replaces.
 Climbing exists only on foot under gravity on a world surface: not `OnFootInSpace`, `StationZeroG`, `InEva`,
 `Aboard` (the ship) or `CurrentStationId` (a station), and never in water, flight, sneaking, a seat or a train.
 
-## Grip: felt, never shown
+## Grip: the body's stamina (#3373)
 
-Marcel's decision: no HUD bar. The value lives in `ClimbGrip`, client-only, unsaved.
+The grip used to be a hidden value of its own, felt but never shown (#2189). Since sprinting arrived (#3374, an idea
+of Justus') the climb spends the body's **stamina** — one `BodyStamina` value that running spends too — and the HUD
+draws it as a small bar under the crosshair while it is not full (#3375, `HudUi.Stamina.cs`). `ClimbGrip` is now a
+static class of climbing tuning; the value lives in `BodyStamina`, client-only, unsaved.
 
 - Drain per second at 1 g on a normal wall: up 0.10 (≈ 10 s ≈ 20 blocks), sideways 0.07, hanging 0.04, down 0.03.
 - It is multiplied by the world's gravity factor (asteroid 0.35–0.55, moon 0.55–0.85, planet 0.8–1.6), ×2 on a
   slippery wall, and × (1 − gear grip), with the gear capped at 0.8.
-- Refill: 1.5 s from empty, but only standing on the ground or a ladder. In the air there is no refill, so letting
-  go and grabbing again gains nothing.
+- Refill (`BodyStamina.Rest`): only at rest — on the ground or a ladder, not running, not on the wall — after a
+  1 s pause, then slowly: 6 s from empty to full. In the air there is no refill, so letting go and grabbing again
+  gains nothing, and a long run up to a cliff leaves less for the climb.
 - How the player feels it: below 40 % the climb slows, down to half speed at empty (`SpeedFactor`). Below 25 %,
   `Strain` drives a camera tremble (off with the camera-motion comfort switch), the `climb_strain` breath and a
   shaking pose. At 0 the climber slides down at 2.5 m/s and can still steer sideways (4 m/s once Jump is let go).
@@ -126,8 +130,9 @@ anchor → hand), the first-person gun turns toward the anchor (`Viewmodel.SetRo
   2-block jump pull-up; a jump flown frame by frame (#2385): a two-block wall is pulled over on the way up, a one-block
   step and a jump that clears the wall are landed on, a three-block edge is reached only at the top of the jump, a
   four-block wall is no pull-up and the grab waits for the top of the jump.
-- `tests/BlocksBeyondTheStars.Client.Tests/ClimbGripTests.cs`: drain per motion, gravity, slippery walls and gear,
-  slow, strain and slide, refill; the slide of a let-go Jump vs. a spent held grip, and that it never hurts (#2384).
+- `tests/BlocksBeyondTheStars.Client.Tests/ClimbGripTests.cs`: drain per motion, gravity, slippery walls and gear;
+  the slide of a let-go Jump vs. a spent held grip, and that it never hurts (#2384). `BodyStaminaTests.cs`: slow,
+  strain, the rest pause and the slow refill, the sprint restart threshold and the stamina shared with running (#3373).
 - `tests/BlocksBeyondTheStars.Tests/WallClimbingTests.cs`: surfaces from the real block data, the gear, its research
   and recipes, icons, the codec, `HandleMove` → state, and presence including the gear bits.
 

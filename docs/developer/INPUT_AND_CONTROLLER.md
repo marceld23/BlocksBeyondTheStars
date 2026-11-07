@@ -139,7 +139,7 @@ cluster.
   `ToggleThirdPerson` (Y) is also polled during flight, so sharing Y would fire both on one press.
 - **Stock pad layout (Xbox):** A jump · B crouch / close · X Interact · Y ToggleThirdPerson · LB place ·
   RB mine · d-pad ◄► hotbar / ship system · **d-pad ▲ = OpenChat** · **d-pad ▼ = RotateShape** ·
-  **LS = ContextActions** (the list above) · **RS = HotbarAction** (slot pie) · **View = VegaContinue** (`PadButton.Back`, JoystickButton6 — shown as "View", the Xbox One/Series name; Unity's "Back" is the 360 name nobody finds on a modern pad) ·
+  **LS = ContextActions** (the list above) while standing, **`Sprint` while moving** (#3376, see below) · **RS = HotbarAction** (slot pie) · **View = VegaContinue** (`PadButton.Back`, JoystickButton6 — shown as "View", the Xbox One/Series name; Unity's "Back" is the 360 name nobody finds on a modern pad) ·
   **Menu = UiMenu** (`PadButton.Start`, JoystickButton7 — shown as "Menu", the One/Series name; the Xbox-logo button belongs to the Windows Game Bar and never reaches the game). Every other action reaches the pad through the context-actions list or a rebind.
 - **VEGA's buttons: tap or hold `VegaContinue` (#2499).** A VEGA line with two buttons (the first-start question
   "Let's go / I know the game — skip", a course offer "Later / Start now") puts the primary on the continue pill and
@@ -159,6 +159,14 @@ cluster.
   `FlightTargetHostile` (#2326): the only route to a rock without a mouse, since the cycle skips asteroids outside
   a mining context (#2328). Keyboard T / R are on-foot verbs too (trade, repair/rotate) — `PlayerController`
   is frozen while the flight view is up, so they never fire together. All three sit in `FlightRemappable`.
+- **Running shares LS (#3376).** `InputAction.Sprint` is held on the keyboard (Left Shift; `InputMap.SprintKeyHeld`)
+  but *switched* on the pad and the tablet (`InputMap.SprintToggleDown`): its stock pad button is LS, the same as
+  `ContextActions`. `SprintState.PadPressIsSprint` splits the two by context — a pad press of the shared button while
+  the movement input is deflected belongs to the run, a press while standing opens the list
+  (`InputMap.ContextPressIsSprint`, read by `ContextActionsUi`). A key or the touch ACT button always opens the list,
+  and a player who gives `Sprint` its own pad button ends the sharing. The run switch (`SprintState.Latched`) goes off
+  when the player stops, the stamina runs out, the place forbids running, or the control is pressed again. Touch has
+  its own RUN button above the stick (lit while on).
 - **The two d-pad verbs are fixed (#1220).** An axis cannot be written as a `KeyCode`, so `OpenChat` and
   `RotateShape` fire from inside `GamepadInputSource.DpadActionDown` rather than through the binding table —
   both are still bindable to a *button* as well. Up went to chat because that is what makes text entry

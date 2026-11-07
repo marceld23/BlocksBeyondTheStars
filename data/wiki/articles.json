@@ -11,6 +11,7 @@
   { "id": "relays" },
   { "id": "fast-travel" },
   { "id": "climbing" },
+  { "id": "running" },
   { "id": "wormholes" },
   { "id": "scanner" },
   { "id": "trading" },

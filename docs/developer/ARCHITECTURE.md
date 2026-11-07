@@ -211,7 +211,7 @@ the `Client.Core` assembly, see [CLIENT_TESTING.md](CLIENT_TESTING.md)):
   components the controller adds in `Awake` and calls at the old call sites; the screenshot/clip pose
   search (`PlayerCapture`) is added on first use through `PlayerController.Capture`, so normal play
   never creates it. The movement gear stays in partials, not components, by decision (#2929): its
-  testable rules already live in Client.Core (`RopeRig`, `ClimbGrip`, `ClimbProbe`) and Shared
+  testable rules already live in Client.Core (`RopeRig`, `ClimbGrip`, `ClimbProbe`, `BodyStamina`, `SprintState`) and Shared
   (`SuitEquipment`) with tests, and the step order inside `Move()` (pull-up, rope before wall climb,
   the glide-refusal latch, the fall-start reset, then jetpack and glider) is behaviour.
 - **Voxels** — `ChunkMesher.cs` builds per-chunk meshes with face culling, opaque/transparent

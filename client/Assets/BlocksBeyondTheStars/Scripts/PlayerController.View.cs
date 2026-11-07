@@ -244,7 +244,9 @@ namespace BlocksBeyondTheStars.Client
 
             // A big jump (raising, stepping or dropping the optic) travels fast so it feels like a click; the
             // small walking kick keeps its original gentle 40°/s drift.
-            float targetFov = zoomed ? _optic.TargetFov(_baseFov) : _baseFov + (_moving ? 4f * motion : 0f);
+            // #3374: a run widens the view a little further.
+            float targetFov = zoomed ? _optic.TargetFov(_baseFov)
+                : _baseFov + (_moving ? 4f * motion : 0f) + (_sprint.Active ? SprintFovKick * motion : 0f);
             float fovRate = Mathf.Abs(_fovEased - targetFov) > 6f ? 160f : 40f;
             _fovEased = Mathf.MoveTowards(_fovEased, targetFov, dt * fovRate);
             Camera.fieldOfView = _fovEased + (zoomed ? 0f : fovPunch * 0.25f);
