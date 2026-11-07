@@ -324,6 +324,10 @@ public sealed partial class GameServer
         return PlacementVerdict.Continue;
     }
 
+    /// <summary>Rule "monument" (#3311): nothing is placed into a stone text tablet of KuBa-W or onto its plinth.</summary>
+    private PlacementVerdict TextMonumentProtectionRule(PlacementRequest r)
+        => IsTextMonumentProtected(r.Pos) ? PlacementVerdict.Refuse("@srv.protect.monument") : PlacementVerdict.Continue;
+
     /// <summary>Rule "factory": a protected factory's cells are refused.</summary>
     private PlacementVerdict FactoryProtectionRule(PlayerSession session, PlacementRequest r)
     {
@@ -513,6 +517,7 @@ public sealed partial class GameServer
         new("above_head", static (g, s, r) => g.NotAboveOwnHeadRule(s, r)),
         new("landing_pad", static (g, s, r) => g.LandingPadRule(s, r)),
         new("station", static (g, _, r) => g.StationProtectionRule(r)),
+        new("monument", static (g, _, r) => g.TextMonumentProtectionRule(r)), // #3311
         new("factory", static (g, s, r) => g.FactoryProtectionRule(s, r)),
         new("base", static (g, s, r) => g.BaseProtectionRule(s, r)),
         new("ship_interior", static (g, _, r) => g.ShipInteriorRule(r)),

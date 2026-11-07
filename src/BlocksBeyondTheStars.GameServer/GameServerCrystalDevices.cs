@@ -572,6 +572,7 @@ public sealed partial class GameServer
     /// <summary>Cells a bridge deck may never fill: someone else's base, a settlement, a station hull, a ship, the Guardian.</summary>
     private bool BridgeCellProtected(Vector3i p, string ownerId)
         => IsShipBlock(p) || IsSettlementProtected(p, BlockId.Air) || IsStationBlock(p) || IsGuardianCoreProtected(p)
+           || IsTextMonumentProtected(p) // #3311
            || IsBaseProtected(p, ownerId, false);
 
     // ------------------------------------------------------------------------------------------------------
@@ -717,6 +718,7 @@ public sealed partial class GameServer
     {
         var id = _world.GetBlock(p);
         return IsShipBlock(p) || IsSettlementProtected(p, id) || IsStationBlock(p) || IsGuardianCoreProtected(p)
+               || IsTextMonumentProtected(p) // #3311
                || IsFactoryProtected(p, ownerId, false) || IsBaseProtected(p, ownerId, false);
     }
 }

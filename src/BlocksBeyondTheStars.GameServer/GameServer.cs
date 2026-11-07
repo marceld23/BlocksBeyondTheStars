@@ -833,6 +833,10 @@ public sealed partial class GameServer
                     bool restricted = planet.RestrictStructures && _generator.TerrainGeneration >= WorldDescription.ExtremePlanetsGeneration;
                     bool Allowed(string kind) => !restricted || planet.AllowedStructures.Contains(kind);
 
+                    // #3310 (generation 33): a type's stone text tablets (KuBa-W) — first, in front of their pads, on every
+                    // world of the type whatever the structure options say (self-skips on every other type).
+                    BootDetail("text monuments", StampTextMonuments);
+
                     if (_config.PlaceSettlements && !restricted)
                     {
                         BootDetail("settlements", StampSettlement);
@@ -3302,7 +3306,7 @@ public sealed partial class GameServer
     {
         if (IsNearFullColumn(dx, dz, nearRadius))
         {
-            return (-NearColumnChunksDown, NearColumnChunksUp);
+            return WithTextMonumentTop(center, dx, dz, (-NearColumnChunksDown, NearColumnChunksUp));
         }
 
         var bands = _worlds.Active.FarColumnBands;
@@ -3325,7 +3329,16 @@ public sealed partial class GameServer
             bands[columnKey] = band;
         }
 
-        return (band.LoCy - center.Y, band.HiCy - center.Y);
+        return WithTextMonumentTop(center, dx, dz, (band.LoCy - center.Y, band.HiCy - center.Y));
+    }
+
+    /// <summary>#3310: a column that carries a stone text tablet streams up to the tablet's top — the tablets of KuBa-W stand
+    /// 80–110 blocks tall, far above both the near column's reach and a far column's surface band, and a tablet cut off
+    /// at the top could not be read.</summary>
+    private (int LoDy, int HiDy) WithTextMonumentTop(ChunkCoord center, int dx, int dz, (int LoDy, int HiDy) span)
+    {
+        int top = TextMonumentTopChunk(center.X + dx, center.Z + dz);
+        return top == int.MinValue ? span : (span.LoDy, System.Math.Max(span.HiDy, top - center.Y));
     }
 
     /// <summary>Sends one chunk to a session right now and records it as sent. The regular streaming pass
@@ -5101,6 +5114,13 @@ public sealed partial class GameServer
             return;
         }
 
+        // #3311: KuBa-W's stone tablets carry the school club's names — nobody digs them out (admins neither).
+        if (IsTextMonumentProtected(pos))
+        {
+            Reject(session, "mine", "@srv.protect.monument");
+            return;
+        }
+
         if (IsFactoryProtected(pos, session.State.PlayerId, session.State.IsAdmin))
         {
             Reject(session, "mine", "@srv.protect.factory");
@@ -5430,6 +5450,7 @@ public sealed partial class GameServer
     private bool IsBreakProtected(Vector3i p, BlockId id, string actorId, bool actorIsAdmin)
         => IsShipBlock(p) || IsSettlementProtected(p, id) || IsStationBlock(p)
            || IsGuardianCoreProtected(p) // #1830
+           || IsTextMonumentProtected(p) // #3311: KuBa-W's stone tablets
            || (IsIntercityRailBlock(p) && !IsSettlementBoxBlock(p))
            || IsFactoryProtected(p, actorId, actorIsAdmin)
            || IsBaseProtected(p, actorId, actorIsAdmin)

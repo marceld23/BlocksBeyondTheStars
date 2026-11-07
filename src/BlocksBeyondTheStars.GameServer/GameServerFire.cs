@@ -104,6 +104,7 @@ public sealed partial class GameServer
         => IsShipBlock(pos)
            || IsSettlementBlock(pos)
            || IsStationBlock(pos)
+           || IsTextMonumentProtected(pos) // #3311
            || IsFactoryProtected(pos, string.Empty, false)
            || IsBaseProtected(pos, string.Empty, false);
 

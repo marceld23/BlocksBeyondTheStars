@@ -53,6 +53,7 @@ namespace BlocksBeyondTheStars.Client
             ["bandit_camps"] = "ruins",
             ["sps_labs"] = "ruins",
             ["monuments"] = "ruins",
+            ["text_monuments"] = "ruins", // #3310: KuBa-W's stone tablets
             ["factories"] = "ruins",
             ["wreck"] = "ruins",
             ["vaults"] = "ruins",
