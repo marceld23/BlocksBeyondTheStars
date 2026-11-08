@@ -48,6 +48,14 @@ public sealed class StepEscalationState
 
     /// <summary>#2550: the step's half-way line (<c>explain.midKey</c>) went out — once per activation.</summary>
     public bool MidSent { get; set; }
+
+    /// <summary>#3415: a <c>unique_site</c> marker's way line went out while the player was in the site's system (the site's
+    /// world as the space waypoint) — once per activation; the ground marker still comes on arrival.</summary>
+    public bool SiteNearLineSent { get; set; }
+
+    /// <summary>#3415: a <c>unique_site</c> marker's way line went out from another system (the site's world and its system
+    /// named) — once per activation.</summary>
+    public bool SiteFarLineSent { get; set; }
 }
 
 /// <summary>
@@ -1850,9 +1858,15 @@ public sealed partial class GameServer
     /// (<see cref="StoryRevealProviders.NearestStation"/>, #2471 — in flight or still landed, so the dock lesson finally
     /// points somewhere); every other provider marks a spot on the ground for this session only — on the compass and the
     /// planet map until the step is done or skipped (#2570, <see cref="RaiseStoryMarker"/>). Nothing found ⇒ no marker and
-    /// no line. Returns whether a marker went up.</summary>
+    /// no line — except a unique site, whose way is named from afar (#3415, <see cref="MarkUniqueSiteReveal"/>). Returns
+    /// whether a marker went up.</summary>
     private bool MarkRevealTarget(PlayerSession s, CompiledStep step, string reveal)
     {
+        if (StoryRevealProviders.ArgumentOf(reveal, StoryRevealProviders.UniqueSite) is { } siteKind)
+        {
+            return MarkUniqueSiteReveal(s, step, siteKind); // #3415: the site's world named off-site, its spot marked on arrival
+        }
+
         if (reveal == StoryRevealProviders.NearestStation)
         {
             if (NearestStationFor(s) is not { } station)
@@ -1937,13 +1951,6 @@ public sealed partial class GameServer
         if (packProvider)
         {
             return packSpot;
-        }
-
-        if (reveal.StartsWith(StoryRevealProviders.UniqueSite + ":", StringComparison.Ordinal))
-        {
-            // #2476: the site's own spot while the player is on its world ("read the observatory's last log").
-            string kind = reveal.Substring(StoryRevealProviders.UniqueSite.Length + 1);
-            return UniqueSiteTarget(kind) is { } site && site == s.CurrentLocationId ? UniqueSiteGroundSpot(kind, site) : null;
         }
 
         if (reveal == StoryRevealProviders.NearestFoodPlant)

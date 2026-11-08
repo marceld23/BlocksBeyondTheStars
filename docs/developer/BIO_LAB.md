@@ -429,9 +429,20 @@ locale keys — and the place in the server where it acts.
   smaller and replaces the pot's own flower. The colour is applied in the shader's dye mode (not the flora-tint
   mode, which is switched off on stations and in space). `ClientWorld.SetFormBlocks` tells the light scan that this
   block's glow channel is a form (`ClientWorld.FormLight` gives the light of a glowing one).
-- **Senses** (`BioSenses`, created on first use by `BioSenses.Ensure`) — night sight raises the shader globals
-  `_Sc_Light` and `_Sc_Indoor` to a floor (two global writes per frame, no extra pass); perception marks living
-  things through terrain with the thermal-vision overlay (drones are left out, micro-fauna is included).
+- **Senses** (`BioSenses`, created on first use by `BioSenses.Ensure`) — night sight (the preparation, or a lit
+  Ressaw lamp worn) makes the world look like day for its wearer (#3414). `BioSenses` only eases the strength in and
+  out (~0.25 s, 0 in the flight view) and publishes it as `BioSenses.NightSight`; `Sky` reads it every frame like the
+  lightning flash and draws the look from `NightSightRules` (Client.Core, tested headless): the world light takes a
+  raised level (`LightDay`, 0.74 brightness at full strength — so `_Sc_Light`, the models' `_Sc_ModelLight` and the
+  ambient follow), the sky, the camera background, the distance haze, Unity's legacy fog and the mist and cloud-band
+  colours take a raised day (`SeenDay`) before the weather tints them (a sandstorm stays sandy), sky-less faces get
+  a cave fill (`_Sc_Indoor`, `CaveFill`), and the dome clouds and the cloud sea are lit with the raised day too. The
+  time of day and the sun (height, direction, intensity) are never touched, so the stars still come out by the sun's
+  height — with a small boost (`StarBoost`) against the brighter sky — and the moons keep their own clock. The eye
+  adaptation counts night sight as light (`AdaptedLight`), so it adds no dark boost on top. Shader values only, no
+  extra pass. Only the wearer sees it: effects travel in the owner's own player state; other players see the lamp's
+  beam. Perception marks living things through terrain with the thermal-vision overlay (drones are left out,
+  micro-fauna is included).
 - **Sounds** — six bundled clips (see [SOUND_DESIGN.md](SOUND_DESIGN.md) §14), each with a synthesised stand-in in
   `ProceduralAudio`.
 

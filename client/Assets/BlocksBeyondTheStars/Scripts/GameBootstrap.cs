@@ -576,6 +576,8 @@ namespace BlocksBeyondTheStars.Client
                         Network.ShowsChoices = true;
                         // #2616 (dialog agent): NpcDialogUi closes on the server's "close" and sends the leave — dialogclose1.
                         Network.ClosesDialogs = true;
+                        // #3405: E at the own robot opens a conversation in NpcDialogUi (four replies) — robottalk1.
+                        Network.TalksWithRobot = true;
                         // #3021 "My festivals": the selection rides on the join, so the join's own greeting already follows it.
                         Network.FestivalPreset = (int)FestivalMood.Preset(Settings);
                         Network.FestivalCustom = FestivalMood.Custom(Settings);
@@ -743,7 +745,9 @@ namespace BlocksBeyondTheStars.Client
             ServerSpawn = null; // re-snap at the new spawn once the next PlayerState arrives
             WorldEpoch++;
             string arriving = PlaceNameDisplay.ShownBodyName(StarMap, m.SystemName, m.PlanetName); // #2952: the player's own name
-            LastMessage = m.Hyperjump ? $"Hyperjump → {arriving}…" : $"Arriving at {arriving}…";
+            LastMessage = BlocksBeyondTheStars.Client.Core.HudStatusText.Format( // #3411: localized (was English in every language)
+                Localizer?.Get(m.Hyperjump ? BlocksBeyondTheStars.Client.Core.HudStatusText.HyperjumpToKey : BlocksBeyondTheStars.Client.Core.HudStatusText.ArrivingAtKey) ?? (m.Hyperjump ? "Hyperjump → {0}…" : "Arriving at {0}…"),
+                arriving);
 
             LoadingPlanetType = m.PlanetType;
             WorldReady = false; // hold the loading overlay until the player settles onto the new world

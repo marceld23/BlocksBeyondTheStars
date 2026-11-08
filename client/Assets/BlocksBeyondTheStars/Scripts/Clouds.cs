@@ -192,7 +192,8 @@ namespace BlocksBeyondTheStars.Client
             // time only moves on the server's 5 s heartbeat (#3202).
             float tod = SkyDayFraction();
             float sunHeight = Mathf.Sin((tod - 0.25f) * Mathf.PI * 2f);
-            float day = Mathf.Clamp01(sunHeight * 0.5f + 0.5f);
+            // #3414: under night sight the clouds are lit like the sky around them (the raised day of NightSightRules).
+            float day = NightSightRules.SeenDay(Mathf.Clamp01(sunHeight * 0.5f + 0.5f), BioSenses.NightSight);
             Color tint = CloudTint(env, day, look.Darken);
             float opacity = Mathf.Lerp(0.45f, 0.95f, look.Cover);
 

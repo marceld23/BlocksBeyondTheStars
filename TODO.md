@@ -24,6 +24,48 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Justus' reports 2026-11-08 (Screelit, world "Raumstation", v2026.11.9) — talk WITH your robot, old station models and ghost asteroids after a jump, a Ressaw lamp that turns night into day, the way to the Singing Shrine, rune stones in little shrine ruins — #3405–#3416, branch feat/robot-conversation-jump-fixes (PR pending)
+
+Fourteen F1 reports in one morning (three fetches); four were already fixed in v2026.11.10 (the finale scene, `/help admin`,
+the robot's basic talk and gear, the forearms). Marcel's emphasis: the endgame robot should hold small dialogues.
+
+- **#3405–#3408 robot conversation:** E at the own robot opens the NPC dialogue panel (`NpcDialogState.RobotNpcId` −7,
+  client feature `robottalk1`, up to four replies): *How are you?* (an answer to the moment — fight, hurt, weapon, jetpack,
+  night, storm, the world, pets), *Tell me something!* (its story lines, now and then a remembered answer), *Ask me
+  something!* (six questions × three answers; the answer is remembered as `robot:ans:q:a` and recalled later), *Wait
+  here! / Follow me!* (`CombatEntity.WaitHere`). It holds still while you talk. 87 `robotdialog.*` keys. An older client
+  keeps the single line in VEGA's panel.
+- **#3409** an in-flight jump (or a wormhole) wiped the arrived system's voxel designs in the flight view's rebuild
+  (#1677, since 2026-09-07): stations showed the old placeholder model, asteroids were invisible but still there, the
+  wreck was a brown box. `FlightDesignCarry` keeps the new instance's designs; `JumpFlightDesignOrderTests` pins the order.
+- **#3410** the wreck's scan card says "Wreck · Lavoo" and what to do with it (the info line was hidden behind the contents).
+- **#3411** "Boarded {0}.", "Mode: … · PvP: …", "Hyperjump → …" / "Arriving at …" were hardcoded English — localized.
+- **#3412** the avatar's knees folded forward (the mirror of #3401's elbows): positive bend now swings the shin back;
+  `CrouchDrop` 0.55 → 0.32. Proven by `AvatarKneeBendEditModeTests` (seated, crouched, walking).
+- **#3413** the bump snapshot's `spaceHostility` block: system archetype, frontier tier, remnant era and whether ambient
+  space hostiles may fly there, with the reason (Justus still met drones in his home system after the finale).
+- **#3414** the Ressaw lamp makes the world look like day for the wearer, as #3339 promised: `NightSightRules`
+  (Client.Core) + a night-sight input on `Sky` — light, ambient, model light, sky/fog/mist colours and clouds lift toward
+  day; time of day, sun, moon and stars stay (stars get a small boost). Also for the night-sight potion.
+- **#3415** the Sounders' shrine steps: the Singing Shrine (once per galaxy) is named with world + system from anywhere
+  (`vega.step.marked_world`), a waypoint in its system, a marker on its world; every Sounders "where" step marks after
+  5 s instead of 360 s; `world:shrine_reachable` hands an unreachable shrine to the ring alternatives; texts speak of
+  "a singing shrine" (the Shrine of the Eight Voices is the oldest).
+- **#3416** rune stones come in small shrine ruins (terrain generation **36**): an ancient-brick floor, an altar, a ring
+  of rune stones (complete rings of eight count as a singing shrine), broken pillars, sometimes an arch and a data cache;
+  about one every ~150 blocks. The shrine steps point to the nearest complete rune shrine first (`NearestRuneShrine`; the
+  ring stand-ins s2.1a/s5.1a/s6.2a via the new reveal provider `nearest_rune_shrine`). Planets whose structure list
+  excludes monuments (Titas, Valuma, KuBa-W) keep their lone stones. Old worlds unchanged; no new blocks, no save-version
+  change.
+
+Not done (analysis only, see the report notes): the landing nose fire on airless bodies (#3140 by design), whether the
+Remnant Protocol's machines should turn peaceful after the ending, a soft push-out from asteroids, a cross-world admin
+`/ressaw` (the buried G.D.S. ruins are on ~4 % of planets, none on worlds older than generation 35).
+
+Open: playtest (talk to the robot, all four replies, answer a question and hear it later; jump to a neighbour system and
+back → stations/asteroids/wreck; the Ressaw lamp at night in a sandstorm; the Sounders shrine steps on a new world;
+sit, crouch, walk in third person).
+
 ### 📬 Justus' reports 2026-11-07 evening (Screelit, world "Raumstation", v2026.11.8) — the finale's missing scene, admin commands that could not be typed, a talking robot with gear, companions in the ship floor, forearms bending backwards — #3386–#3401, ✅ 2026-11-08, PR #3402 (`ba6c6a97`), released in v2026.11.10 (⚠ playtest open)
 
 Six F1 reports in one evening: "the cutscene did not come after I shut down the Guardian core, and the robots were still

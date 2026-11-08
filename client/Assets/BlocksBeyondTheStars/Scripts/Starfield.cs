@@ -142,7 +142,10 @@ namespace BlocksBeyondTheStars.Client
             float rate = Mathf.Clamp(240f / dayLen, 0.25f, 1.0f);
             _brightness = hardSky ? target : Mathf.MoveTowards(_brightness, target, Time.deltaTime * rate);
             float fade = Game.SpaceViewActive ? Mathf.Clamp01(SkyFade) : 1f;
-            ApplyBrightness(_brightness * MaxBrightness * fade);
+            // #3414: night sight lights the sky like day, but the stars stay out by the sun's height — a boost keeps their
+            // contrast against the brighter sky (never in the flight view, which night sight leaves alone).
+            float boost = Game.SpaceViewActive ? 1f : NightSightRules.StarBoost(BioSenses.NightSight);
+            ApplyBrightness(_brightness * MaxBrightness * fade * boost);
         }
 
         /// <summary>How visible the stars should be: full in space / on airless worlds / inside a station,

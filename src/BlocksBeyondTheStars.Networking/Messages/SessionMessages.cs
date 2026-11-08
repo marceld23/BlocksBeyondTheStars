@@ -79,6 +79,10 @@ public static class ClientFeatures
     /// and sends the leave when the player closes it — the Unity client announces it. An older build gets no close: its
     /// panel would pop open again to show a line the player already closed.</summary>
     public const string DialogClose1 = "dialogclose1";
+
+    /// <summary>#3405: E at the own robot opens a conversation in the NPC dialogue panel (<see cref="NpcDialogState.RobotNpcId"/>,
+    /// up to four replies) — the Unity client announces it. An older build keeps the single line in VEGA's panel.</summary>
+    public const string RobotTalk1 = "robottalk1";
 }
 
 /// <summary>

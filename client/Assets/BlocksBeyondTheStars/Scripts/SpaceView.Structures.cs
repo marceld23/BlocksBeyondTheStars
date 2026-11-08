@@ -191,6 +191,7 @@ namespace BlocksBeyondTheStars.Client
                 OwnerId = m.OwnerId ?? string.Empty,
                 Id = m.Id ?? string.Empty,
                 Derelict = m.Kind == "station" && BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsGeneratedDerelictId(m.Id), // #2676 (not The Long Quiet)
+                Instance = Game.Space?.InstanceId ?? string.Empty, // #3409: which flight it belongs to
             };
             vs.DoorCells = SpaceDoors.DoorwayCells(vs.Doors);
 
@@ -380,6 +381,43 @@ namespace BlocksBeyondTheStars.Client
 
                 vs.MeshDirty = false;
                 stationBuilt |= vs.IsStation;
+            }
+        }
+
+        /// <summary>#3409: takes the designs that arrived for flight instance <paramref name="instance"/> out of the store
+        /// (meshless — they are rebuilt in the new scene), so <see cref="ClearStructs"/> drops only the old system's. A design
+        /// whose entity was destroyed in the same pump stays behind and goes with the rest.</summary>
+        private List<VoxStruct> TakeArrivedStructs(string instance)
+        {
+            var arrived = new List<VoxStruct>();
+            foreach (string id in BlocksBeyondTheStars.Client.Core.FlightDesignCarry.ArrivedFor(_structs, vs => vs.Instance, instance))
+            {
+                if (_structRemove.Contains(id))
+                {
+                    continue;
+                }
+
+                var vs = _structs[id];
+                if (vs.Root != null)
+                {
+                    Destroy(vs.Root);
+                    vs.Root = null;
+                }
+
+                vs.MeshDirty = true;
+                _structs.Remove(id);
+                arrived.Add(vs);
+            }
+
+            return arrived;
+        }
+
+        /// <summary>#3409: puts the carried designs back after the rebuild — <see cref="ReconcileStructs"/> meshes them.</summary>
+        private void RestoreArrivedStructs(List<VoxStruct> arrived)
+        {
+            foreach (var vs in arrived)
+            {
+                _structs[vs.Id] = vs;
             }
         }
 

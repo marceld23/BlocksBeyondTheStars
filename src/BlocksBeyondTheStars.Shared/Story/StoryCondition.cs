@@ -890,6 +890,11 @@ public static class StoryWorldPredicates
     /// unique sites has none.</summary>
     public const string Shrine = "shrine";
 
+    /// <summary>#3415: the Singing Shrine exists in this save and the player can get there (same system, a jump generator, a
+    /// landing there before, instant travel) — the lead's rule, as <c>observatory_reachable</c>. The Sounders' shrine steps
+    /// hand over to the ring of rune stones without it.</summary>
+    public const string ShrineReachable = "shrine_reachable";
+
     /// <summary>Every known predicate, in documentation order.</summary>
     public static readonly IReadOnlyList<string> All = new[]
     {
@@ -907,6 +912,6 @@ public static class StoryWorldPredicates
         TrainHere, Multiplayer, RadioWorn, RuinNear, TreasureNear, WreckSignal, PlanetWrecks,
         FestivalAny, FestivalHarvest, FestivalLights, FestivalNewYear, FestivalBlossoms, FestivalColours, FestivalStars,
         FestivalMidsummer, FestivalChildren, FestivalHalloween, FestivalChristmas,
-        Monuments, Shrine,
+        Monuments, Shrine, ShrineReachable,
     };
 }

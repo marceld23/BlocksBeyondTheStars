@@ -522,6 +522,38 @@ public sealed class VegaChapterLeadsTests : IDisposable
         Assert.Equal(milestones + 3, server.StorySnapshot.Milestones); // once per save and chapter
     }
 
+    /// <summary>#3415: the lead and the packs' <c>unique_site</c> marker share one route now — the lead's own marker stays as it
+    /// was: in the site's system the site's world is the space waypoint, on its world the site's spot is the marker.</summary>
+    [Fact]
+    public void AUniqueSiteLead_InItsSystem_IsTheSpaceWaypoint_AndOnItsWorld_TheSitesSpot()
+    {
+        var (server, _) = World("lead_site_route", TutorialOff);
+        var a = Join(server, 1, "Ann");
+        a.Ships[a.ActiveShipId].Modules.Add("jump_generator"); // the site may lie in another system
+        AdvanceTo(server, 2); // chapter 2, "The Service"
+        string site = server.UniqueSiteBodyForTest("observatory")!;
+        var system = server.Galaxy.Systems.Single(s => s.Id == server.Galaxy.FindBody(site)!.SystemId);
+        var neighbour = system.Bodies.First(b => b.Id != site && !string.IsNullOrEmpty(b.PlanetType)
+                                                 && b.Kind is BlocksBeyondTheStars.Shared.World.CelestialKind.Planet
+                                                     or BlocksBeyondTheStars.Shared.World.CelestialKind.Moon);
+        if (a.CurrentLocationId != neighbour.Id)
+        {
+            server.Travel(a.State.PlayerId, neighbour.Id);
+        }
+
+        Assert.Equal(neighbour.Id, a.CurrentLocationId);
+        var lead = server.CurrentLeadForTest(a)!;
+        Assert.Equal(StoryLeadTypes.UniqueSite, lead.Kind);
+        Assert.Equal(site, lead.WaypointId);
+        Assert.Null(lead.GroundTarget);
+
+        server.Travel(a.State.PlayerId, site); // the landing follows the lead; resolved again here, it points at the site's spot
+        Assert.Equal(site, a.CurrentLocationId);
+        var there = server.LeadsForTest(a).First(l => l.Kind == StoryLeadTypes.UniqueSite);
+        Assert.NotNull(there.GroundTarget);
+        Assert.Equal(string.Empty, there.WaypointId);
+    }
+
     [Fact]
     public void AMonumentLead_PingsTheUnreadMonument_ForThisPlayerOnly_AndAReadingFollowsIt()
     {

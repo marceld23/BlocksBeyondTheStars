@@ -554,7 +554,7 @@ public sealed class StoryPackValidationTests
             "Error: chapters[0].steps[0].legacyKey: only a tutorial pack may name legacy keys",
             "Error: chapters[0].steps[0].requires[0]: blueprint 'no_such_blueprint' does not exist",
             "Error: chapters[0].steps[0].alternative: 'c9.9' is not another step of chapter 'c1'",
-            "Error: chapters[0].steps[0].onStart.reveal: unknown marker provider 'nearest_whatever' (nearest_ore:<block>, nearest_settlement, nearest_food_plant, nearest_station, unique_site:<site>, nearest_monument, pack_site:<id>, story_system:<id>)",
+            "Error: chapters[0].steps[0].onStart.reveal: unknown marker provider 'nearest_whatever' (nearest_ore:<block>, nearest_settlement, nearest_food_plant, nearest_station, unique_site:<site>, nearest_monument, nearest_rune_shrine, pack_site:<id>, story_system:<id>)",
             "Error: chapters[0].steps[0].hintRefs[0]: an empty hint id",
             "Error: graduation.counter: 'graduated' is not an achievement counter ('<verb>:<thing>')",
             "Error: graduation.suggest[0]: 'c1' is not an optional chapter of this pack",

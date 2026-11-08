@@ -10,43 +10,33 @@ namespace BlocksBeyondTheStars.Client
     /// running effects (<see cref="BioClientState"/>) — the server decides when an effect starts and ends, this only
     /// shows it.
     /// <list type="bullet">
-    ///   <item><b>Night sight</b> lifts the dark. The block shaders darken a night through the global light tint
-    ///   (<c>_Sc_Light</c>: sun colour × day brightness × weather) and leave a cave to its small ambient floor; the
-    ///   only fill for faces without skylight is <c>_Sc_Indoor</c>, the cabin light. Night sight raises both to a
-    ///   floor that grows with the effect's strength: the light tint is topped up with neutral grey to a minimum
-    ///   brightness (so a day is left alone and a night keeps its hue), and the fill for sky-less faces is raised
-    ///   like a faint cabin light. Two shader globals per frame — no pass, no texture, nothing the "Lite" browser
-    ///   profile would feel.</item>
+    ///   <item><b>Night sight</b> (the preparation, or a lit Ressaw lamp worn, #3339) makes the world around the player look
+    ///   like day. This component only eases the effect's strength in and out and hands it over as <see cref="NightSight"/>;
+    ///   since #3414 <see cref="Sky"/> draws the whole look from it — the light, the models' light and the ambient, the sky,
+    ///   haze and mist colours, the fill of sky-less faces (<see cref="NightSightRules"/>) — and the starfield, the clouds
+    ///   and the eye adaptation follow. Before, this component lifted only the light and the cabin fill globals, so the
+    ///   player saw a lit bubble in a night-black world. Shader values only — nothing the "Lite" browser profile would
+    ///   feel.</item>
     ///   <item><b>Perception</b> marks the living things within its range through terrain: the range is handed to
     ///   <see cref="ThermalVision"/>, which draws them with the optic's contact blobs — without the optic's
     ///   full-screen grade, so it also behaves the same under the reduced-effects setting.</item>
     /// </list>
-    ///
-    /// <see cref="Sky"/> owns the two globals and writes them in its <c>Update</c>; the lift is applied on top in
-    /// <c>LateUpdate</c>, so the order of the two scripts does not matter and nothing has to be handed back while
-    /// the sky keeps running. Should a global NOT have been rewritten when the effect ends (the sky is off), the
-    /// value kept from before the lift is put back — the effect never leaves a brighter world behind.
+    /// Only the wearer sees night sight: the effect travels in the player's own state only, so other players keep seeing
+    /// just the lamp's beam.
     /// </summary>
     public sealed class BioSenses : MonoBehaviour
     {
         public GameBootstrap Game;
 
-        /// <summary>The sRGB brightness the light tint is lifted to at full night sight — a late afternoon. A night
-        /// sits at 0.35, noon at about 0.95 (see <c>Sky.ApplyLighting</c>).</summary>
-        private const float LightFloor = 0.74f;
-
-        /// <summary>The fill sky-less faces (caves, deep shade) get at full night sight; 1 is a lit ship cabin.</summary>
-        private const float CaveFill = 0.8f;
-
-        private static readonly int LightId = Shader.PropertyToID("_Sc_Light");
-        private static readonly int IndoorId = Shader.PropertyToID("_Sc_Indoor");
-
         private static BioSenses _instance;
 
-        private float _sight;          // eased 0..1, so the dark lifts and returns instead of snapping
-        private bool _holding;         // the globals carry our lift from the last frame
-        private Color _lightWritten, _lightBase;
-        private float _indoorWritten, _indoorBase;
+        private float _sight; // eased 0..1, so the dark lifts and returns instead of snapping
+
+        /// <summary>#3414: the eased night-sight strength (0..1): 0 without the effect, in the flight view (which lights
+        /// itself) and once the component is gone. <see cref="Sky"/> reads it every frame, like the lightning flash; the
+        /// starfield, the clouds and the eye adaptation read it too. Written in <c>LateUpdate</c>: a reader may get the value
+        /// of the frame before, which the quarter-second ease makes invisible.</summary>
+        public static float NightSight { get; private set; }
 
         /// <summary>Adds the component to the world rig the first time one of the two effects runs (it lives on the
         /// server link's object and goes with the rig). Called every frame by <see cref="GameBootstrap"/>; a world
@@ -71,75 +61,13 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _sight = Mathf.MoveTowards(_sight, onFoot ? Mathf.Clamp01(Game.Bio.NightSight) : 0f, Time.deltaTime * 4f);
-            ApplyNightSight(_sight);
-        }
-
-        private void ApplyNightSight(float strength)
-        {
-            if (strength <= 0f)
-            {
-                Release();
-                return;
-            }
-
-            // What the globals hold now is their owner's value of this frame — unless nobody rewrote them since our
-            // last frame, in which case it is still our own lift and the true value is the one we kept.
-            var light = Shader.GetGlobalColor(LightId);
-            if (!_holding || light != _lightWritten)
-            {
-                _lightBase = light;
-            }
-
-            float indoor = Shader.GetGlobalFloat(IndoorId);
-            if (!_holding || indoor != _indoorWritten)
-            {
-                _indoorBase = indoor;
-            }
-
-            // Top the light tint up to the floor with neutral grey: brightness rises to the floor exactly, the hue
-            // of the night stays, and a tint already brighter (any day) is left as it is. Alpha is the "set" flag.
-            _lightWritten = _lightBase;
-            if (_lightBase.a > 0.5f)
-            {
-                float floor = ShaderColor.Srgb(new Color(LightFloor, LightFloor, LightFloor)).r * strength;
-                float lift = floor - ((0.299f * _lightBase.r) + (0.587f * _lightBase.g) + (0.114f * _lightBase.b));
-                if (lift > 0f)
-                {
-                    _lightWritten = new Color(_lightBase.r + lift, _lightBase.g + lift, _lightBase.b + lift, _lightBase.a);
-                }
-            }
-
-            _indoorWritten = Mathf.Max(_indoorBase, CaveFill * strength);
-            Shader.SetGlobalColor(LightId, _lightWritten);
-            Shader.SetGlobalFloat(IndoorId, _indoorWritten);
-            _holding = true;
-        }
-
-        /// <summary>Hands the globals back: a value its owner has rewritten since is already the true one, a value
-        /// that is still our lift gets the value from before the lift.</summary>
-        private void Release()
-        {
-            if (!_holding)
-            {
-                return;
-            }
-
-            _holding = false;
-            if (Shader.GetGlobalColor(LightId) == _lightWritten)
-            {
-                Shader.SetGlobalColor(LightId, _lightBase);
-            }
-
-            if (Shader.GetGlobalFloat(IndoorId) == _indoorWritten)
-            {
-                Shader.SetGlobalFloat(IndoorId, _indoorBase);
-            }
+            NightSight = _sight;
         }
 
         private void OnDisable()
         {
             _sight = 0f;
-            Release();
+            NightSight = 0f; // the Sky draws a plain night again from the next frame — nothing to hand back
             if (Game?.Views.Thermal != null)
             {
                 Game.Views.Thermal.SenseRange = 0f;

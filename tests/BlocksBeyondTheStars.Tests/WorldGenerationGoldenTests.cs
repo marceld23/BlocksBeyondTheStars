@@ -148,6 +148,10 @@ public sealed class WorldGenerationGoldenTests
         new("meadowlands-gen29", 7, "meadowlands", 0, false, null, 29),
         new("jungle-gen29", 20260903, "jungle", 0, false, null, 29),
         new("desert-gen29", 1, "desert", 0, false, null, 29),
+        // Generation 36 (2026-11-08, #3416): the rune shrines — a meadow body whose (-200, 150) sample chunk holds a complete
+        // shrine (centre -194, 153, floor 65; at the default 6000 circumference every sample chunk lies in the margin band
+        // between shrine cells, so this group uses a 5472 body). Every older group above stays as it was.
+        new("meadowlands-shrine-gen36", 32, "meadowlands", 5472, false, "golden:shrine-body", 36),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -258,6 +262,8 @@ public sealed class WorldGenerationGoldenTests
             ["asteroid_kuba_w-gen33"] = 0xdac3b1d5e4773a8eUL,
             // Pinned 2026-11-07 (Soaniri's singing meadows, #3358; Windows 11, .NET 10).
             ["sounder_world-gen34"] = 0xd2de9688bff3467cUL,
+            // Pinned 2026-11-08 (the rune shrines, generation 36, #3416; Windows 11, .NET 10). The shrine is in (-13,4,9).
+            ["meadowlands-shrine-gen36"] = 0xb280a9da4c47a92cUL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.

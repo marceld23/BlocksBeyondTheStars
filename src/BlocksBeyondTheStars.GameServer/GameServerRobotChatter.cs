@@ -36,12 +36,20 @@ public sealed partial class GameServer
     /// <summary>The robot speaks by itself only when neither it nor its owner was in a fight for this long.</summary>
     internal const double RobotAmbientQuietSeconds = 30.0;
 
-    /// <summary>E at the own robot: it answers with its next line (or VEGA asks and it answers). Anything that is not the
-    /// sender's own robot beside them is ignored silently — another player's robot just shows its nameplate.</summary>
+    /// <summary>E at the own robot: a client with the dialogue panel (#3405, <c>robottalk1</c>) opens a conversation; an older
+    /// one hears its next line (or VEGA asks and it answers). Anything that is not the sender's own robot beside them is
+    /// ignored silently — another player's robot just shows its nameplate.</summary>
     private void HandleTalkToCompanion(PlayerSession session, TalkToCompanionIntent intent)
     {
         if (_uptime < session.Vega.RobotTalkReadyAt || TalkableRobot(session, intent.CompanionId ?? string.Empty) is not { } tc)
         {
+            return;
+        }
+
+        if (session.SupportsRobotTalk)
+        {
+            session.Vega.RobotTalkReadyAt = _uptime + RobotDialogCooldownSeconds;
+            OpenRobotConversation(session, tc);
             return;
         }
 
@@ -115,6 +123,7 @@ public sealed partial class GameServer
     /// hints: a muted player hears nothing, and the line waits.</summary>
     private void TickRobotChatterFor(PlayerSession session)
     {
+        TickRobotConversation(session); // #3405: an open talk ends when the player walks away, or keeps the robot still
         var vega = session.Vega;
         string playerId = session.State.PlayerId;
         if (double.IsNaN(vega.RobotAmbientDueAt))
@@ -123,7 +132,8 @@ public sealed partial class GameServer
             return;
         }
 
-        if (_uptime < vega.RobotAmbientDueAt || vega.VegaHintsMuted || AmbientRobot(session) is not { } tc)
+        // #3405: never by itself while the two are talking — the panel is open
+        if (_uptime < vega.RobotAmbientDueAt || vega.VegaHintsMuted || vega.RobotTalk is not null || AmbientRobot(session) is not { } tc)
         {
             return;
         }

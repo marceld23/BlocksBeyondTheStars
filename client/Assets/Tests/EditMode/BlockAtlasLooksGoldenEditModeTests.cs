@@ -98,7 +98,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             ["light_white"] = 0x8ad9ac33d897e9d5UL,
             ["light_red"] = 0x532e9caef6687ac5UL,
             ["light_green"] = 0x6725b9a585b93bd5UL,
-            [AllBlocks] = 0xc1fe4b4c71c43c5eUL, // #3334–#3342: 331 blocks with the eight Ressaw / G.D.S. ruin blocks
+            [AllBlocks] = 0x011e2e6b41d03d11UL, // stale since #3383: the Sounders' new blocks joined (every single tile unchanged)
         };
 
         private static GameContent LoadContentOrIgnore()

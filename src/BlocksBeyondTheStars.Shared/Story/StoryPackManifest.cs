@@ -532,12 +532,19 @@ public static class StoryRevealProviders
     public const string NearestStation = "nearest_station";
 
     /// <summary><c>unique_site:&lt;observatory|shrine|derelict&gt;</c> — the spot of that one-of-a-kind site while the player is on its
-    /// world (#2476: "read the observatory's last log" once they landed there). Nothing elsewhere.</summary>
+    /// world (#2476: "read the observatory's last log" once they landed there). Elsewhere the narrator names the way, once per
+    /// step (#3415): in the site's system its world becomes the space waypoint, from another system the line names the world
+    /// and its system — the spot is marked on arrival.</summary>
     public const string UniqueSite = "unique_site";
 
     /// <summary><c>nearest_monument</c> — the nearest rune monument on the player's world, read or not (#3349: "play the
     /// stones").</summary>
     public const string NearestMonument = "nearest_monument";
+
+    /// <summary><c>nearest_rune_shrine</c> — the altar of the nearest complete rune shrine on the player's world (#3416: a ring of
+    /// rune stones around an ancient brick, which answers the Sounders like a singing shrine). Nothing on a world without
+    /// one in reach (an older world, a planet type without shrines) — and no line from afar.</summary>
+    public const string NearestRuneShrine = "nearest_rune_shrine";
 
     /// <summary><c>pack_site:&lt;id&gt;</c> — a site the gameplay code registered for a pack (#3349,
     /// <c>GameServer.RegisterPackSite</c>: the Sounders' Choir Tower), while the player is on its world. Nothing elsewhere.</summary>
@@ -556,7 +563,8 @@ public static class StoryRevealProviders
         }
 
         if (string.Equals(reveal, NearestSettlement, StringComparison.Ordinal) || string.Equals(reveal, NearestFoodPlant, StringComparison.Ordinal)
-            || string.Equals(reveal, NearestStation, StringComparison.Ordinal) || string.Equals(reveal, NearestMonument, StringComparison.Ordinal))
+            || string.Equals(reveal, NearestStation, StringComparison.Ordinal) || string.Equals(reveal, NearestMonument, StringComparison.Ordinal)
+            || string.Equals(reveal, NearestRuneShrine, StringComparison.Ordinal))
         {
             return true;
         }
@@ -595,7 +603,8 @@ public static class StoryRevealProviders
 public static class StoryNarratorLines
 {
     /// <summary>The help line of a <see cref="StoryRevealProviders.NearestStation"/> step ({0} = the station's name), sent
-    /// with the station as the space waypoint.</summary>
+    /// with the station as the space waypoint — and of a <see cref="StoryRevealProviders.UniqueSite"/> step in the site's
+    /// system ({0} = the site's world, the waypoint, #3415).</summary>
     public const string StepMarkedStation = "vega.step.marked_station";
 
     /// <summary>#2570: the help line of every other "where" step — its target is marked on the compass and the planet map until

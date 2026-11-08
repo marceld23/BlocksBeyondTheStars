@@ -493,6 +493,15 @@ namespace BlocksBeyondTheStars.Client
             set => SetFeature(ClientFeatures.DialogClose1, value);
         }
 
+        /// <summary>Whether this client announces <c>robottalk1</c> (#3405): set by the Unity client, whose dialogue panel holds
+        /// the conversation with the own robot (up to four replies, <see cref="NpcDialogState.RobotNpcId"/>). Without it E at
+        /// the robot makes it say one line in VEGA's panel. Toggles the word in <see cref="Features"/>.</summary>
+        public bool TalksWithRobot
+        {
+            get => HasFeature(ClientFeatures.RobotTalk1);
+            set => SetFeature(ClientFeatures.RobotTalk1, value);
+        }
+
         private bool HasFeature(string word) => Array.IndexOf(Features ?? Array.Empty<string>(), word) >= 0;
 
         private void SetFeature(string word, bool on)

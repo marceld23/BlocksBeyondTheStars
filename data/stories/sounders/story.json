@@ -34,6 +34,9 @@
   // Ornemis: appended to the galaxy the first time a player learns the Song of Return, shown only to players who did.
   "milestonePrefix": "snd",
   "textsTitleKey": "story.sounders.archive",
+  // #3415: every "where" step (onStart.reveal) marks its place a few seconds after its start line — the hints say "I marked
+  // it", so the marker must not wait for the built-in 360 s. A unique site on another world is named with its system.
+  "escalate": { "markerAfter": 5 },
   "systems": [
     { "id": "ornemis", "nameKey": "story.sounders.system.ornemis", "planetType": "sounder_world", "bodyName": "Soaniri",
       "placement": "inside", "visibleIf": "milestone:snd:song_learned" }
@@ -55,17 +58,19 @@
       ]
     },
     {
-      // Chapter 2 — the Singing Shrine's eight pillars are the eight tones; the repeat puzzle gives the Song Spindle and
-      // disc 1. Old saves without a shrine: a ring of eight rune stones around an ancient brick works the same way.
+      // Chapter 2 — a singing shrine's eight pillars are the eight tones; the repeat puzzle gives the Song Spindle and
+      // disc 1. Any ring of eight rune stones around an ancient brick (or a Song Spindle) works the same way as the one-of-a-
+      // kind Singing Shrine; s2.1 shows the way to that shrine while the player can reach it (#3415), else s2.1a stands in.
+      // Both mark the nearest complete rune shrine of the player's world first (#3416); the stand-ins never point elsewhere.
       "id": "s2", "titleKey": "story.sounders.ch.s2", "summaryKey": "story.sounders.ch.s2.sum", "openCutscene": "snd.part",
       "steps": [
         { "id": "s2.1", "objective": { "event": "melody:solved", "arg": "shrine_echo" },
-          "onStart": { "reveal": "unique_site:shrine" }, "feasibleIf": [ "world:shrine" ], "alternative": "s2.1a",
+          "onStart": { "reveal": "unique_site:shrine" }, "feasibleIf": [ "world:shrine_reachable" ], "alternative": "s2.1a",
           "onComplete": { "cutscene": "snd.shrine_answers" },
           "explain": { "startKey": "story.sounders.s2.shrine.start", "chipKey": "story.sounders.s2.shrine.chip",
                        "hintKey": "story.sounders.s2.shrine.hint", "doneKey": "story.sounders.s2.shrine.done" } },
         { "id": "s2.1a", "objective": { "event": "melody:solved", "arg": "shrine_echo" },
-          "onComplete": { "cutscene": "snd.shrine_answers" },
+          "onStart": { "reveal": "nearest_rune_shrine" }, "onComplete": { "cutscene": "snd.shrine_answers" },
           "explain": { "startKey": "story.sounders.s2.ring.start", "chipKey": "story.sounders.s2.ring.chip",
                        "hintKey": "story.sounders.s2.ring.hint", "doneKey": "story.sounders.s2.ring.done" } }
       ]
@@ -119,10 +124,10 @@
       "id": "s5", "titleKey": "story.sounders.ch.s5", "summaryKey": "story.sounders.ch.s5.sum", "openCutscene": "snd.part",
       "steps": [
         { "id": "s5.1", "objective": { "event": "echo:questioned", "arg": "elora" },
-          "onStart": { "reveal": "unique_site:shrine" }, "feasibleIf": [ "world:shrine" ], "alternative": "s5.1a",
+          "onStart": { "reveal": "unique_site:shrine" }, "feasibleIf": [ "world:shrine_reachable" ], "alternative": "s5.1a",
           "explain": { "startKey": "story.sounders.s5.elora.start", "chipKey": "story.sounders.s5.elora.chip",
                        "hintKey": "story.sounders.s5.elora.hint", "doneKey": "story.sounders.s5.elora.done" } },
-        { "id": "s5.1a", "objective": { "event": "echo:questioned", "arg": "elora" },
+        { "id": "s5.1a", "objective": { "event": "echo:questioned", "arg": "elora" }, "onStart": { "reveal": "nearest_rune_shrine" },
           "explain": { "startKey": "story.sounders.s5.elora.start_away", "chipKey": "story.sounders.s5.elora.chip_away",
                        "hintKey": "story.sounders.s5.elora.hint", "doneKey": "story.sounders.s5.elora.done" } },
         { "id": "s5.2", "objective": { "event": "echo:questioned", "arg": "kamo|feya", "required": 2 },
@@ -142,12 +147,12 @@
       "steps": [
         { "id": "s6.1", "kind": "read", "explain": { "startKey": "story.sounders.s6.letters.start" } },
         { "id": "s6.2", "objective": { "event": "melody:solved", "arg": "song_of_return" },
-          "onStart": { "reveal": "unique_site:shrine" }, "feasibleIf": [ "world:shrine" ], "alternative": "s6.2a",
+          "onStart": { "reveal": "unique_site:shrine" }, "feasibleIf": [ "world:shrine_reachable" ], "alternative": "s6.2a",
           "onComplete": { "cutscene": "snd.song_of_return" },
           "explain": { "startKey": "story.sounders.s6.play.start", "chipKey": "story.sounders.s6.play.chip",
                        "hintKey": "story.sounders.s6.play.hint", "doneKey": "story.sounders.s6.play.done" } },
         { "id": "s6.2a", "objective": { "event": "melody:solved", "arg": "song_of_return" },
-          "onComplete": { "cutscene": "snd.song_of_return" },
+          "onStart": { "reveal": "nearest_rune_shrine" }, "onComplete": { "cutscene": "snd.song_of_return" },
           "explain": { "startKey": "story.sounders.s6.play.start_ring", "chipKey": "story.sounders.s6.play.chip",
                        "hintKey": "story.sounders.s6.play.hint", "doneKey": "story.sounders.s6.play.done" } }
       ]

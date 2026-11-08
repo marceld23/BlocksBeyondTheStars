@@ -139,9 +139,11 @@ public sealed partial class WorldGenerator
 
                 if (SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0
                     || SurfaceGen1WaterDepth(planet, wx, wz) > 0
-                    || DryBeachAt(planet, calib, seed, riverField, waterId, wx, wz, sy) || OilSeepNear(planet, wx, wz))
+                    || DryBeachAt(planet, calib, seed, riverField, waterId, wx, wz, sy) || OilSeepNear(planet, wx, wz)
+                    || RuneShrineClaims(planet, wx, wz, GiantTreeMargin))
                 {
-                    continue; // a pond, a river, a beach or a seep's tar (#2371) — no giant stands in the water or in the sand
+                    continue; // a pond, a river, a beach or a seep's tar (#2371) — no giant stands in the water or in the sand;
+                              // #3416: nor over a rune shrine
                 }
 
                 var surf = biome.Surface;

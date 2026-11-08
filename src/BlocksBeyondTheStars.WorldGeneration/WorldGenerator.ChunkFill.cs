@@ -1081,6 +1081,10 @@ public sealed partial class WorldGenerator
             StampSingingMeadows(chunk, k, groundTops, waterTops);
         }
 
+        // #3416 (generation 36): the rune shrines — after every vegetation and prop pass (they keep their anchors out of a
+        // shrine), before the pads (a shrine keeps clear of them).
+        StampRuneShrines(chunk, k);
+
         // Landing pads (ship-as-object): level + clear the planned pad areas so the placed ship structure
         // always sits on flat, solid, vegetation-free ground.
         FlattenLandingPads(planet, chunk, coord, biomes, seed);
