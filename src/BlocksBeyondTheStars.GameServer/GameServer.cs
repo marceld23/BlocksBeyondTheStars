@@ -710,11 +710,11 @@ public sealed partial class GameServer
         // so it never affects the spawn world. A fresh reveal adds it live via RevealGuardianSystemIfReady.
     }
 
-    /// <summary>The archetype a system rolled (#546) — Standard for every system of a pre-variance save.
-    /// Recomputed from the seed on demand (the trader-traffic pattern), so nothing is persisted; all
-    /// inhabitant systems (stations, traders, bandits, camps, drones) consult THIS one resolver.</summary>
+    /// <summary>The archetype a system's INHABITANTS live by (#546) — traders, bandit ships, ambient drones and UFOs, the bump.
+    /// Recomputed from the seed on demand (nothing persisted); the start system is never lawless or empty (#3436,
+    /// <see cref="StartSystemArchetype"/>). Layout passes (debris fields, stamped camps) use <see cref="RolledSystemArchetypeOf"/>.</summary>
     private SystemArchetype SystemArchetypeOf(string? systemId)
-        => SystemArchetypes.For(_meta.Seed, systemId, _meta.Description);
+        => IsStartSystem(systemId) ? StartSystemArchetype(systemId) : RolledSystemArchetypeOf(systemId);
 
     /// <summary>Sets the world-wide default/active body (used by new joins + the star map) and ensures its
     /// world is resident. Called once at startup.</summary>

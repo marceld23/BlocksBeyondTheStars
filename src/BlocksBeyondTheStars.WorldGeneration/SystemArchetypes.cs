@@ -69,11 +69,32 @@ public static class SystemArchetypes
         return ForIndex(seed, index);
     }
 
+    /// <summary>
+    /// #3436: the archetype a world's START system lives by at runtime. The start body is the first planet of the start type,
+    /// so a world can start outside <c>sys0</c> — in a system that rolled Desolate or a Pirate Haven, which the home rule of
+    /// <see cref="ForIndex"/> keeps away from <c>sys0</c> only. A start system that rolled one of those draws again from the
+    /// home table (the same hash, without Desolate and Pirate Haven); any other roll stays as it is. Its generated layout
+    /// (bodies, the injected start station) is untouched — only its inhabitants follow this.
+    /// </summary>
+    public static SystemArchetype ForStartSystem(long seed, string? systemId, WorldDescription desc)
+    {
+        var rolled = For(seed, systemId, desc);
+        if (!ExcludedForHome(rolled))
+        {
+            return rolled;
+        }
+
+        // A non-Standard result means For parsed a valid "sys<index>".
+        int index = int.Parse(systemId!.Substring(3), System.Globalization.CultureInfo.InvariantCulture);
+        return Draw(seed, index, home: true);
+    }
+
     /// <summary>Archetype for a system INDEX (the generator's loop variable). The home system (index 0)
     /// never rolls Desolate or Pirate Haven, so a fresh start always has a friendly, non-empty sky.</summary>
-    public static SystemArchetype ForIndex(long seed, int systemIndex)
+    public static SystemArchetype ForIndex(long seed, int systemIndex) => Draw(seed, systemIndex, home: systemIndex == 0);
+
+    private static SystemArchetype Draw(long seed, int systemIndex, bool home)
     {
-        bool home = systemIndex == 0;
         int total = 0;
         foreach (var (archetype, weight) in Table)
         {

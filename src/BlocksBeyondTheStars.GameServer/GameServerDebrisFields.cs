@@ -53,7 +53,7 @@ public sealed partial class GameServer
     private static string DebrisLedgerKey(string bodyId) => "debris:" + bodyId;
 
     /// <summary>The archetype name the salvage data keys its multipliers by.</summary>
-    private string ArchetypeNameOf(string? systemId) => SystemArchetypeOf(systemId).ToString();
+    private string ArchetypeNameOf(string? systemId) => RolledSystemArchetypeOf(systemId).ToString(); // layout: the rolled archetype (#3436)
 
     /// <summary>The theme of a debris field body (seed-pure), or null when the content has no themes.</summary>
     private DebrisThemeDefinition? ThemeOfField(string bodyId, out string themeKey)

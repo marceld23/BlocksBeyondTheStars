@@ -47,7 +47,7 @@ public sealed partial class GameServer
         // (Normal = ×1.0 keeps them exactly as before; Off yields no camps at all).
         var activity = Rules.Bandits;
         if (activity != AlienActivity.Off
-            && SystemArchetypeOf(_galaxy.FindBody(_world.LocationId)?.SystemId) == SystemArchetype.PirateHaven)
+            && RolledSystemArchetypeOf(_galaxy.FindBody(_world.LocationId)?.SystemId) == SystemArchetype.PirateHaven) // stamped once: rolled (#3436)
         {
             activity = activity switch
             {

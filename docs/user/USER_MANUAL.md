@@ -3418,7 +3418,9 @@ called **stories**:
   hunter robots are gone and only a thinned-out remnant of scan-drones keeps roaming (half as many, spawning
   half as often), space stays hostile only where it is dangerous by nature — **pirate havens** and the
   opt-in *Frontier danger* tier — and raiders keep their havens, so the station **raider bounty** can still
-  be earned. Worlds with planet enemies *Off* (the family presets) stay peaceful as before.
+  be earned. Drones that are flying around you at the moment of the win disappear at once. Your **home system** (the
+  one your world started in) never counts as a pirate haven: no extra drones and no raider ships at home, and after the
+  ending it is calm. Worlds with planet enemies *Off* (the family presets) stay peaceful as before.
 - **A reward for the end** (#3294, an idea of Justus): when the Guardian core is shut down, **every player of the
   world** — also those who were offline — gets **one crate with a robot core** in it. It appears on the ground two or
   three blocks in front of you as soon as you stand **on foot on a planet** (aboard your ship it waits until you step
