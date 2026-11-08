@@ -13,6 +13,8 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
     /// headers named by the locale's note names (<c>ui.note.names</c>). A sung tone lights its row header (first tone of a
     /// letter) or its column header (second tone), so the table teaches itself. Pick a cell with the pointer or the arrows +
     /// confirm; a click on a header plays that tone. Keys: Primary = the word again, Secondary = the letter again.
+    /// The letters of the word and the table are bitmap glyphs (A–Z); every localized word — the round line, the message,
+    /// the button captions, the known counter and the note names — is a canvas label in the UI font (#3382).
     /// </summary>
     public sealed class NoteKeyRun
     {
@@ -294,17 +296,17 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
 
             _canvas.Clear(Bg);
             DrawWord();
-            _canvas.DrawTextCentered(W / 2, 92, _message, Soft, 2);
+            _canvas.LabelCentered(W / 2, 92, _message, Soft, 2);
             DrawButton(BtnWordY, "minigame.note_key.word_again");
             DrawButton(BtnLetterY, "minigame.note_key.letter_again");
-            _canvas.DrawText(BtnX, 262, _api.Localize("minigame.note_key.known").ToUpperInvariant() + " " + Puzzle.KnownCount + "/26", Dim, 1);
+            _canvas.Label(BtnX, 262, _api.Localize("minigame.note_key.known").ToUpperInvariant() + " " + Puzzle.KnownCount + "/26", Dim, 1, LabelAlign.Left, GridX - BtnX - 8);
             DrawTable();
         }
 
         private void DrawWord()
         {
             string round = (_api.Localize("minigame.note_key.round") + " " + System.Math.Min(Puzzle.Round + 1, Puzzle.RoundCount) + "/" + Puzzle.RoundCount).ToUpperInvariant();
-            _canvas.DrawText(16, 12, round, Violet, 2);
+            _canvas.Label(16, 12, round, Violet, 2);
             string word = Puzzle.Done ? (Puzzle.Answers.Count > 0 ? Puzzle.Answers[Puzzle.Answers.Count - 1] : string.Empty) : Puzzle.Word;
             const int box = 34, gap = 8;
             int x0 = (W - ((word.Length * (box + gap)) - gap)) / 2;
@@ -323,7 +325,7 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
         {
             _canvas.FillRect(BtnX, y, BtnW, BtnH, CellBg);
             _canvas.DrawRect(BtnX, y, BtnW, BtnH, Violet);
-            _canvas.DrawTextCentered(BtnX + (BtnW / 2), y + 13, _api.Localize(key).ToUpperInvariant(), Ink, 2);
+            _canvas.LabelCentered(BtnX + (BtnW / 2), y + 13, _api.Localize(key).ToUpperInvariant(), Ink, 2, BtnW - 12);
         }
 
         private void DrawTable()
@@ -332,14 +334,14 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
             {
                 var (x, y, w, h) = NoteKeyLayout.ColumnHeader(col);
                 _canvas.FillRect(x, y, w, h, col == _hlCol ? Violet : CellBg);
-                _canvas.DrawTextCentered(x + (w / 2), y + 5, _toneNames[col], col == _hlCol ? Bg : Ink, 2);
+                _canvas.LabelCentered(x + (w / 2), y + 5, _toneNames[col], col == _hlCol ? Bg : Ink, 2, w - 4);
             }
 
             for (int row = 0; row < Rows; row++)
             {
                 var (x, y, w, h) = NoteKeyLayout.RowHeader(row);
                 _canvas.FillRect(x, y, w, h, row == _hlRow ? Violet : CellBg);
-                _canvas.DrawTextCentered(x + (w / 2), y + 11, _toneNames[row], row == _hlRow ? Bg : Ink, 2);
+                _canvas.LabelCentered(x + (w / 2), y + 11, _toneNames[row], row == _hlRow ? Bg : Ink, 2, w - 4);
                 for (int col = 0; col < SounderAlphabet.Columns; col++)
                 {
                     DrawCell(row, col);

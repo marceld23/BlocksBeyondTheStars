@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 
+using System.Collections.Generic;
+
 namespace BlocksBeyondTheStars.Client.Minigames
 {
     /// <summary>A 32-bit RGBA colour (Unity-free, so it lives in Client.Core). Maps byte-for-byte onto a Unity
@@ -56,14 +58,33 @@ namespace BlocksBeyondTheStars.Client.Minigames
     ///
     /// Row 0 is the TOP of the image (y grows downward), matching the canvas convention; the Unity host flips V
     /// when it shows the texture. All primitives are bounds-safe (out-of-range pixels are clipped, never throw).
+    ///
+    /// #3382: beside the pixels a canvas carries a LABEL layer (<see cref="Label"/>, <see cref="Labels"/>) — lines of text
+    /// the host draws over the texture with the real UI font. Every localized word goes there; <see cref="DrawText"/>
+    /// (the 5×7 <see cref="BitmapFont"/>) stays for digits, scores and fixed ASCII. The labels are retained like the
+    /// pixels: they stay until <see cref="Clear"/> (or <see cref="ClearLabels"/>), so a game that redraws only on events
+    /// keeps its words, and one that redraws every frame rebuilds them with its pixels.
     /// </summary>
     public sealed class Canvas2D
     {
+        private readonly List<CanvasLabel> _labels = new List<CanvasLabel>();
+
         public int Width { get; }
         public int Height { get; }
 
         /// <summary>The raw RGBA pixels, row-major, 4 bytes per pixel (R,G,B,A). Length = Width*Height*4.</summary>
         public byte[] Rgba { get; }
+
+        /// <summary>The label layer (#3382), in drawing order — the host renders these over the texture with the UI font.</summary>
+        public IReadOnlyList<CanvasLabel> Labels => _labels;
+
+        /// <summary>Bumped on every change of <see cref="Labels"/> — the host re-lays its text objects only when it moved.</summary>
+        public int LabelVersion { get; private set; }
+
+        /// <summary>The latest text <see cref="DrawText"/> was asked to draw that holds a character the 5×7 font lacks (it
+        /// comes out blank) — null while every text drawn on this canvas was drawable. A localized word belongs on
+        /// <see cref="Label"/> instead (#3382); the arcade guard test reads this.</summary>
+        public string? UndrawableText { get; private set; }
 
         public Canvas2D(int width, int height)
         {
@@ -86,8 +107,10 @@ namespace BlocksBeyondTheStars.Client.Minigames
             Rgba[i + 3] = c.A;
         }
 
+        /// <summary>Fills the whole canvas with <paramref name="c"/> and drops its labels — a full redraw starts empty.</summary>
         public void Clear(Rgba c)
         {
+            ClearLabels();
             for (int y = 0; y < Height; y++)
             {
                 for (int x = 0; x < Width; x++)
@@ -161,7 +184,8 @@ namespace BlocksBeyondTheStars.Client.Minigames
             => string.IsNullOrEmpty(text) ? 0 : text.Length * BitmapFont.Advance * (scale < 1 ? 1 : scale);
 
         /// <summary>Draw <paramref name="text"/> with the built-in 5×7 <see cref="BitmapFont"/>, top-left at
-        /// (<paramref name="x"/>,<paramref name="y"/>). The C# stand-in for the web games' <c>ctx.fillText</c>.</summary>
+        /// (<paramref name="x"/>,<paramref name="y"/>). The C# stand-in for the web games' <c>ctx.fillText</c> — for digits,
+        /// scores and fixed ASCII only: a localized word goes on <see cref="Label"/> (#3382), the font cannot spell it.</summary>
         public void DrawText(int x, int y, string text, Rgba c, int scale = 1)
         {
             if (string.IsNullOrEmpty(text))
@@ -191,6 +215,10 @@ namespace BlocksBeyondTheStars.Client.Minigames
                         }
                     }
                 }
+                else
+                {
+                    UndrawableText = text;
+                }
 
                 penX += BitmapFont.Advance * scale;
             }
@@ -200,6 +228,41 @@ namespace BlocksBeyondTheStars.Client.Minigames
         /// <paramref name="y"/>).</summary>
         public void DrawTextCentered(int cx, int y, string text, Rgba c, int scale = 1)
             => DrawText(cx - TextWidth(text, scale) / 2, y, text, c, scale);
+
+        /// <summary>
+        /// Puts a line of text on the label layer (#3382) — NOT into the pixels: the host draws it over the texture with
+        /// the real UI font, so any language reads. Same arguments as <see cref="DrawText"/> (top of the capitals at
+        /// <paramref name="y"/>, <paramref name="scale"/> as there) plus the alignment around <paramref name="x"/> and the
+        /// widest the line may get (<paramref name="maxWidth"/>, 0 = up to the canvas edge) — a longer text is shrunk to fit.
+        /// </summary>
+        public void Label(int x, int y, string text, Rgba c, int scale = 1, LabelAlign align = LabelAlign.Left, int maxWidth = 0)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+
+            int room = CanvasLabel.Room(Width, x, align);
+            _labels.Add(new CanvasLabel(x, y, text, c, scale, align, maxWidth > 0 && maxWidth < room ? maxWidth : room));
+            LabelVersion++;
+        }
+
+        /// <summary><see cref="Label"/> horizontally centred on <paramref name="cx"/> — the label twin of
+        /// <see cref="DrawTextCentered"/>.</summary>
+        public void LabelCentered(int cx, int y, string text, Rgba c, int scale = 1, int maxWidth = 0)
+            => Label(cx, y, text, c, scale, LabelAlign.Center, maxWidth);
+
+        /// <summary>Drops every label (the pixels stay). <see cref="Clear"/> does this too.</summary>
+        public void ClearLabels()
+        {
+            if (_labels.Count == 0)
+            {
+                return;
+            }
+
+            _labels.Clear();
+            LabelVersion++;
+        }
 
         /// <summary>A 1px circle outline (midpoint algorithm).</summary>
         public void DrawCircle(int cx, int cy, int r, Rgba c)

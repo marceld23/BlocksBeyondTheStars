@@ -24,6 +24,20 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🕹️ Arcade words in every language — #3382, branch fix/arcade-localized-labels (PR pending)
+
+- **#3382** the arcade games drew localized words with the 5×7 bitmap font (A–Z, digits, a few signs), so in ru, uk, ja,
+  ko and zh they came out blank. `Canvas2D` now carries a label layer (`Label`/`LabelCentered`, `Labels`, `LabelVersion`;
+  retained like pixels, dropped by `Clear`) that `MinigameLabelLayer` (Unity, pooled uGUI texts) draws over the surface
+  with the UI font (Rajdhani + Noto fallbacks), shrunk into the label's width. Moved to labels: Glyph Decoder (countdown,
+  question, meanings, option captions), Note Key (round line, message, both button captions, known counter, the
+  `ui.note.names` headers), Reactor Balance and Signal Tuner (row labels), Cargo Sorter (bay names), Asteroid Breaker
+  (serve hint). `DrawText` stays for digits, scores and fixed ASCII; `Canvas2D.UndrawableText` + `MinigameLabelTests`
+  guard every registered game with a Cyrillic fake localizer. German values now spell their umlauts
+  (ENTSCHLÜSSELUNG, KÜHLUNG, STABILITÄT, QUALITÄT).
+
+Open: a look in the build in ru/ja (sizes of the labels against the old pixel text).
+
 ### 🏠 The start system is home — no pirate-haven drones at home after the win — #3436, ✅ 2026-11-08, PR #3438 (`da3df8c8`), released in v2026.11.13 (⚠ playtest open)
 
 From Justus' report "Weltraum und Boden immernoch!!!!!" (2026-11-08): three ambient drones in his home system MG-6600 after the

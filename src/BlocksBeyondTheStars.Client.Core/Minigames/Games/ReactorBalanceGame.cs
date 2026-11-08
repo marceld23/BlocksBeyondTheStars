@@ -14,6 +14,7 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
     {
         private const int W = 560, H = 320;
         private const int BarX = 150, BarW = W - BarX - 20, BarH = 22, RowH = 56, Top = 24;
+        private const int LabelW = BarX - 10 - 6; // a row label ends a little before its bar
 
         private static readonly Rgba Bg = Rgba.Rgb(7, 13, 22);
         private static readonly Rgba BarBg = Rgba.Rgb(16, 32, 46);
@@ -62,7 +63,7 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
                 for (int i = 0; i < 3; i++)
                 {
                     int y = Top + i * RowH;
-                    canvas.DrawText(10, y + 4, labels[i], i == sel ? LabelSel : LabelDim, 2);
+                    canvas.Label(10, y + 4, labels[i], i == sel ? LabelSel : LabelDim, 2, LabelAlign.Left, LabelW); // #3382: UI font
                     canvas.FillRect(BarX, y, BarW, BarH, BarBg);
                     canvas.FillRect(BarX + (int)(lo[i] * BarW), y, (int)((hi[i] - lo[i]) * BarW), BarH, Zone);
                     bool ok = val[i] >= lo[i] && val[i] <= hi[i];
@@ -70,7 +71,7 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
                 }
 
                 int sy = Top + 3 * RowH;
-                canvas.DrawText(10, sy + 4, labels[3], LabelDim, 2);
+                canvas.Label(10, sy + 4, labels[3], LabelDim, 2, LabelAlign.Left, LabelW);
                 canvas.FillRect(BarX, sy, BarW, 14, BarBg);
                 canvas.FillRect(BarX, sy, (int)(Math.Min(1f, inzone / 60f) * BarW), 14, Stab);
             }
