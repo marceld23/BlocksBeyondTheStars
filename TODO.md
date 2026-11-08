@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 📬 Justus' reports 2026-11-08 afternoon + Marcel's decisions — rocks you cannot fly through, `/ressaw`, no more set-backs on Soaniri, a light blue and green Soaniri, hostile Soundraks, Sounders skips that never strand you, ORNEMIS spelled on the melody bar — #3420–#3426, branch feat/asteroid-pushout-ressaw-command (PR pending)
+### 📬 Justus' reports 2026-11-08 afternoon + Marcel's decisions — rocks you cannot fly through, `/ressaw`, no more set-backs on Soaniri, a light blue and green Soaniri, hostile Soundraks, Sounders skips that never strand you, ORNEMIS spelled on the melody bar — #3420–#3426, ✅ 2026-11-08, PR #3427 (`3dcd94ed`), released in v2026.11.12 (⚠ playtest open)
 
 Marcel's decisions on the open points of the morning package (landing nose fire and the remnant machines stay as they are;
 #3420 and #3421 built) and Justus' two F1 reports from Soaniri on v2026.11.11.

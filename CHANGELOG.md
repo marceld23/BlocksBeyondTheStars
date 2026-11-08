@@ -11,6 +11,65 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.12] — 2026-11-08
+
+The light-blue release. **Soaniri, the Sounders' home world, is now light blue and light green** — the Soundraks, the
+Soundelings, the Sounders, the chime moss and every singing plant — and its plants stay green through autumn. **The
+Soundraks are dangerous from the start:** they scream a warning, then they attack. **Your ship no longer flies through
+asteroids** — it stops at the rock and slides along. On Soaniri you **no longer get set back** when you walk into a singing
+plant, **skipping parts of the Sounders' story no longer leaves you stuck**, and **the melody bar spells ORNEMIS for you**,
+two notes per letter. Thank you, Justus, for your reports from Soaniri!
+
+ℹ️ **Compatibility:** no new blocks — the **save version stays at 13** and the **terrain generation stays at 36**, so your
+worlds stay exactly as they are (the new colours show everywhere at once). The network protocol stays at **version 11**,
+but game and server must be on the same version: the desktop game updates itself at start, and the browser is always
+current.
+
+### 🎨 A light-blue and light-green Soaniri (#3423)
+
+- **The creatures:** the Soundraks are light blue with a mint belly, the Soundelings come in six light-blue and
+  light-green pastels, the Sounders wear light blues and greens with deeper sashes, and the Qualis glow aqua-mint.
+- **The plants:** the chime moss is light green with aqua clumps; the chime reeds, bell blooms, harp vines and echo
+  flowers have light-green stalks and leaves with light-blue bells, tips and strands.
+- **The wild plants** on Soaniri pick light greens and **stay green in autumn and winter** — the red reeds in the report
+  were autumn colouring random plants.
+
+### 😱 The Soundraks are dangerous (#3424)
+
+- **From the start, on every world:** a Soundrak that notices you within about 11 blocks screams a warning. Still that
+  close 2.5 seconds later, it charges and bites.
+- **Back away and it lets you go.** In Peaceful and Creative it only screams.
+- The calm disc, the quiet steps of the obsidian set and the Resonance Blaster calm it as before. The scan and VEGA warn
+  you, and the planet overview rates Soaniri's animals as dangerous.
+- The Soundis, Soundelings and Sounders stay friendly.
+
+### 🎵 The Sounders' story without dead ends (#3425, #3426)
+
+- **Skipping a part hands you what you would have found:** the Song Spindle and the first Song Disc, the later discs,
+  the blueprints, a Resonance Blaster and the obsidian chest piece, and the note letters of the discs you skipped — each
+  once, and only while the story is still ahead of you. A save that is already stuck heals the next time you join.
+- **A wrong disc on the spindle:** VEGA tells you which disc the story needs, and where to look when you don't have it.
+- **The melody bar spells the song:** for the Song of Return and the Bridge Song it shows every letter with its two notes
+  (`O = F E · R = G D · …`) and lights up the letter you are at. The story texts now say clearly that every letter is
+  **two** notes.
+
+### 🚀 Rocks you cannot fly through (#3420)
+
+- **Your ship stops at the surface** of asteroids, debris fragments and the wreck and slides along it instead of flying
+  into the rock.
+- **Ram damage counts how fast you hit the real surface** of the rock; there is no ram while you are out on a spacewalk.
+
+### 🐛 Fixes
+
+- **No more set-backs on Soaniri** (#3422): walking into a chime reed, bell bloom, harp vine or echo flower snapped you
+  back to your last safe spot — the game thought you were stuck in a wall. Open phase doors and switched-off force fields
+  did the same; both are fixed too.
+
+### 🛠️ For admins
+
+- **`/ressaw`** (#3421) takes you inside the nearest buried G.D.S. ruin on any planet; `/ressaw 2` goes to the second
+  nearest, `/ressaw list` lists them. It needs cheats on; worlds created before terrain generation 35 have none.
+
 ## [2026.11.11] — 2026-11-08
 
 The conversation release. **Now you can really talk WITH your hunter robot**: ask it how it is, let it tell you something,
@@ -10474,7 +10533,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.11...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.12...HEAD
+[2026.11.12]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.11...v2026.11.12
 [2026.11.11]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.10...v2026.11.11
 [2026.11.10]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.9...v2026.11.10
 [2026.11.9]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.8...v2026.11.9
