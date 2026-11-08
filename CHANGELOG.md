@@ -11,6 +11,69 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.11] — 2026-11-08
+
+The conversation release. **Now you can really talk WITH your hunter robot**: ask it how it is, let it tell you something,
+or let it ask *you* — it remembers your answers and comes back to them later. You can also tell it to wait or to follow
+you. **Rune stones now stand in small shrine ruins** with an altar in the middle, a full ring of eight is a singing shrine
+of its own, and VEGA shows you the way to the next one. **The Ressaw lamp finally turns night into day** for whoever wears
+it, with the moon and the stars still in the sky. After a hyperspace jump, **stations, asteroids and wrecks look right
+again**. Thank you, Justus, for fourteen reports in one morning!
+
+ℹ️ **Compatibility:** no new blocks — the **save version stays at 13**. The **terrain generation rises to 36**: only worlds
+you create from now on get the rune shrines, your existing worlds stay exactly as they are. The network protocol stays at
+**version 11**, but game and server must be on the same version: the desktop game updates itself at start, and the
+browser is always current.
+
+### 🤖 Talk with your robot (#3405–#3408)
+
+- **Press [Use] at your own robot** and a small conversation opens, like with the people in villages and stations: its
+  name in its light blue, a greeting, and four answers to pick (click, or the keys **1**–**4**).
+- **How are you?** — it tells you how it feels right now: after a fight, when you are hurt, with the weapon or jetpack you
+  gave it, at night, in a storm, on a cold, hot, poisonous or windy world, out on an airless asteroid, or with your pets
+  around.
+- **Tell me something!** — its own stories: about the old network, its brothers, the humans … every one once before any
+  comes again.
+- **Ask me something!** — now the robot asks *you*: "What is a song?", "May I stay with you?" and four more. You pick one of
+  three answers, it reacts to exactly that answer — and **it remembers it**. Later it tells you what it made of your answer.
+- **Wait here! / Follow me!** — it stays on its spot (until you travel to another world) or follows you again.
+- While you talk it stands still; walk away and the conversation closes.
+
+### 🗿 Rune shrines and the way to the singing shrines (#3415, #3416)
+
+- **Rune stones come in small shrine ruins** (new worlds): a worn floor of ancient bricks, an altar in the middle, a ring
+  of rune stones around it, broken pillars, sometimes an arch and a data cache. You find one about every 150 blocks.
+- **A full ring of eight stones is a singing shrine** — the Sounders' story accepts it wherever the Shrine of the Eight
+  Voices is asked for. The story now speaks of *singing shrines*; the Shrine of the Eight Voices is the oldest and biggest.
+- **VEGA shows the way:** the shrine steps mark the nearest complete rune shrine on your world. Without one, VEGA names the
+  world and the system of the Shrine of the Eight Voices, sets your flight target once you are in its system and marks it
+  on its world. If you cannot reach it, the story lets you use a ring of rune stones instead.
+- **Every Sounders marker comes at once** instead of after six minutes — "I marked it" is now true when VEGA says it.
+- Titas, Valuma and KuBa-W keep their lone rune stones.
+
+### 🔦 The Ressaw lamp turns night into day (#3414)
+
+- With the Ressaw lamp on, **the world around you looks like day**: the ground, the sky, the fog, the clouds and every
+  creature are lit — as promised when the lamp came.
+- **The moon and the stars stay** in the sky (they even shine a little brighter), and only you see the daylight; other
+  players see your lamp's beam as before. The night-sight potion from the bio lab works the same way.
+
+### 🚀 After a jump: stations, asteroids and wrecks (#3409, #3410)
+
+- **After a hyperspace jump (or a wormhole) everything looks right again:** stations showed an old placeholder model,
+  asteroids were invisible (you could scan them, but not hit them), and the system's wreck was a brown box — until you
+  landed and launched again. Since September every jump in flight did that.
+- **The wreck's scan card says what it is:** "Wreck · Lavoo — break it down with the mining laser to salvage it" plus its
+  contents.
+
+### 🐛 Fixes
+
+- **The knees bend the right way** (#3412): sitting, crouching and walking, the shins folded forward. Now they bend back
+  like real knees, and a crouching figure stands on the floor.
+- **No more English in a German game** (#3411): "Boarded …", the rules line after joining and the "Hyperjump → …" /
+  "Arriving at …" lines are translated.
+- **Bug reports (F1)** say whether machines may fly around in space at your place, and why (#3413).
+
 ## [2026.11.10] — 2026-11-08
 
 The talking-robot release. **The hunter robot you build from the Guardian core's heart now talks** — press **[Use]** at
@@ -10411,7 +10474,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.10...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.11...HEAD
+[2026.11.11]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.10...v2026.11.11
 [2026.11.10]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.9...v2026.11.10
 [2026.11.9]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.8...v2026.11.9
 [2026.11.8]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.7...v2026.11.8
