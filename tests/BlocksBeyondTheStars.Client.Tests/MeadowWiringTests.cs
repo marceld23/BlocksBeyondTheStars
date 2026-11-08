@@ -101,7 +101,7 @@ public sealed class MeadowWiringTests
         string meadow = Script("GameBootstrap.Meadow.cs");
         Assert.Contains("shells.Setup(data.GrassTops,", meadow);
         Assert.Contains("HighDetails.DesktopClass", meadow); // the browser never gets a meadow component
-        Assert.Contains("FloraTints.For(_worldSeed, LocationName, keys[i])", meadow);
+        Assert.Contains("FloraTints.For(_worldSeed, LocationName, keys[i], _floraPlanet)", meadow); // #3423: the type's palette
         Assert.Contains("ApplyMeadowPalette();", Script("GameBootstrap.Environment.cs"));
         Assert.Contains("HighDetails.Changed += OnHighDetailsChanged;", Script("GrassShells.cs"));
     }

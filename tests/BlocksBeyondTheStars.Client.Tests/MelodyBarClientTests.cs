@@ -129,6 +129,40 @@ public sealed class MelodyBarClientTests
         Assert.Equal("ui.melody.mode.call", bar.TitleKey);
     }
 
+    /// <summary>#3426: a melody that spells a word shows every letter's two notes, in the player's note names, the letter the
+    /// player is at marked as the right notes come in; a closed bar, free play and a reset spell nothing.</summary>
+    [Fact]
+    public void AWordOnTheBar_IsSpelledLetterByLetter_TheCurrentLetterMarked()
+    {
+        var bar = new MelodyBarModel();
+        string[] german = "C D E F G A H C'".Split(' ');
+        int[] tones = MelodySpelling.PlayedTones(SoundersIds.SongOfReturnWord, MelodyPuzzleMode.Compose, 4);
+        var state = new MelodyPuzzleState
+        {
+            PuzzleId = SoundersIds.PuzzleSongOfReturn,
+            Open = true,
+            Mode = (int)MelodyPuzzleMode.Compose,
+            Expected = tones.Length,
+            Word = SoundersIds.SongOfReturnWord,
+            WordTones = tones,
+        };
+        bar.Apply(state, 1.0);
+        Assert.Equal("[O = F E] · R = G D · N = F D · E = D C · M = F C · I = E C · S = G E", bar.SpellingLine(german, "[", "]"));
+
+        state.Entered = 3; // the O and the first note of the R
+        bar.Apply(state, 2.0);
+        Assert.Equal(1, bar.CurrentLetter);
+        Assert.Contains("[R = G D]", bar.SpellingLine(german, "[", "]"), System.StringComparison.Ordinal);
+
+        bar.Apply(new MelodyPuzzleState { PuzzleId = SoundersIds.PuzzleSongOfReturn, Open = false, Result = (int)MelodyPuzzleResult.Solved }, 3.0);
+        Assert.Equal(string.Empty, bar.SpellingLine(german));
+        bar.Apply(state, 4.0);
+        bar.Reset();
+        Assert.Equal(string.Empty, bar.SpellingLine(german));
+        bar.OpenFreePlay(0);
+        Assert.Equal(string.Empty, bar.SpellingLine(german));
+    }
+
     // ---------------- Note sequences ----------------
 
     [Fact]

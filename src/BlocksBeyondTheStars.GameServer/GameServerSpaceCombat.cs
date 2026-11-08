@@ -1624,8 +1624,8 @@ public sealed partial class GameServer
 
     // ---------------- Ship flight (position in the instance) ----------------
 
-    private const float ShipCollisionRadius = 3f;
-    private const float ShipCollisionMinSpeed = 3f;
+    private const float ShipCollisionRadius = 3f;           // #3420: only a rock without a voxel body still uses this centre distance
+    private const float ShipCollisionMinSpeed = 3f;         // #3420: the speed INTO the rock below which a touch is harmless
     private const float ShipCollisionDamageFactor = 0.8f;
     private const float ShipCollisionMaxDamage = 18f;       // a ram dents the shield/hull, never one-shots (B56)
     private const double ShipCollisionCooldown = 0.8;       // …and can't re-damage for this long, so it isn't per-tick
@@ -2014,15 +2014,19 @@ public sealed partial class GameServer
                 // #1530: one pass over the entities answers both the asteroid contact and the incoming fire below
                 // (two closures + an enumerator chain per pilot per tick before). The fire sum accumulates in
                 // double like Enumerable.Sum(float) did.
-                bool hitAsteroid = false;
+                float ramSpeed = -1f; // #3420: the fastest closing speed on a touched asteroid (-1: touching none)
                 bool inDebrisField = false;
                 double incomingSum = 0.0;
                 foreach (var e in instance.Entities)
                 {
                     float dsq = e.Position.DistanceSquared(pose.Pos);
-                    if (e.Kind == CombatEntityKind.Asteroid && dsq <= ShipCollisionRadius * ShipCollisionRadius)
+                    if (e.Kind == CombatEntityKind.Asteroid)
                     {
-                        hitAsteroid = true;
+                        // A suit at a rock is mining it — only the flown ship rams (the suit's pose is no ship pose).
+                        if (!pose.Eva)
+                        {
+                            ramSpeed = System.Math.Max(ramSpeed, RamSpeed(instance, e, pose.Pos, sim.LastPosition, dt));
+                        }
                     }
                     else if (e.Kind == CombatEntityKind.DebrisField && !inDebrisField && InsideDebrisField(e, pose.Pos))
                     {
@@ -2039,13 +2043,13 @@ public sealed partial class GameServer
                 // #2712: a Sandbox (or god-mode) pilot's ship takes no rams and no fire — nothing out here may
                 // disable or wreck it and send its pilot home.
                 bool shipHurtable = PlayerTakesDamage(pilot.State);
-                if (hitAsteroid && speed > ShipCollisionMinSpeed && shipHurtable)
+                if (ramSpeed > ShipCollisionMinSpeed && shipHurtable)
                 {
                     if (sim.CollisionCooldown <= 0.0)
                     {
                         // A ram dents the shield first, then the hull — never an instant kill (B56). Brief
                         // grace afterwards so holding thrust into the rock doesn't stack damage every tick.
-                        ApplyShipDamage(System.Math.Min(ShipCollisionMaxDamage, speed * ShipCollisionDamageFactor));
+                        ApplyShipDamage(System.Math.Min(ShipCollisionMaxDamage, ramSpeed * ShipCollisionDamageFactor));
                         sim.CollisionCooldown = ShipCollisionCooldown;
                         SendShipCombatStatus(pilot);
                         if (_ship.Hull <= 0f)
@@ -2056,10 +2060,11 @@ public sealed partial class GameServer
                         }
                     }
                 }
-                else
-                {
-                    sim.LastPosition = pose.Pos; // keep the pre-impact baseline while touching the rock
-                }
+
+                // #3420: the baseline follows every tick. It used to stay at the pre-impact spot while the ship touched
+                // the rock — but the flight view now holds a rammed ship AT the rock's surface, and a frozen baseline
+                // read as the same fast hit again after every cooldown while it merely rested there.
+                sim.LastPosition = pose.Pos;
 
                 // Hostile fire on THIS pilot: only hostiles within engagement range of their own pose.
                 float incoming = shipHurtable ? (float)incomingSum : 0f;

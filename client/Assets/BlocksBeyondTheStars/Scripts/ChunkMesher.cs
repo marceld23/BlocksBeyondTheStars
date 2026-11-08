@@ -2882,12 +2882,11 @@ namespace BlocksBeyondTheStars.Client
                     if (IsClearGlassSlow(content, id)) f |= TraitClearGlass;
                     if (IsWoodBlockSlow(content, id)) f |= TraitWood;
                     bool liquid = content.BlockById(id)?.Liquid ?? false; // #2106: oil — you sink into it like water
-                    // #2184: a tree crown is walked through like a plant — drawn as before, but no collider (the trunk
-                    // beside it keeps its own: foliage never seals a neighbour's face, so that face is still emitted).
-                    bool crown = BlocksBeyondTheStars.Shared.Definitions.TreeFoliage.IsKey(key);
-                    // #2264: the Crystal Net's open twins are walked (or fallen) through — the mesher reads keys, not the Solid flag.
-                    bool openTwin = key is "phase_block_open" or "force_field_off" or "trapdoor_open" or "lift_gate_open"; // #3174: an open lift gate
-                    if (key != "water" && key != "fire" && key != "energy_gate" && !liquid && !crown && !openTwin) f |= TraitCollidable;
+                    // No collider for water, fire, the energy gate, a liquid, a tree crown (#2184: walked through like a plant —
+                    // the trunk beside it keeps its own, foliage never seals a neighbour's face) or an open twin (#2264/#3174: the
+                    // mesher reads keys, not the Solid flag). #3422: the Shared rule the player's out-of-world guard reads too, so
+                    // a cell drawn without a collider is never one the guard calls "stuck in a block".
+                    if (BlocksBeyondTheStars.Shared.Definitions.WalkThroughBlocks.CubeHasCollider(key, liquid)) f |= TraitCollidable;
                     if (BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsPlantKey(key)) f |= TraitFloraPrefix; // #3358: + the singing plants
                     if (key != null && TallFlora.Contains(key)) f |= TraitTallFlora;
                     if (key != null && SolidFlora.Contains(key)) f |= TraitSolidFlora;

@@ -402,6 +402,10 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // #3420: rocks are solid as well — asteroids, wreckage fragments and the wreck. The ship stops at a rock's surface
+            // and slides along it instead of drifting through; ramming one fast still costs shield/hull (the server decides).
+            pos = ResolveRockMove(_ship.transform.localPosition, pos);
+
             _ship.transform.localPosition = pos;
 
             // System-scale flight: the nearest other body within approach range is the land target; press E

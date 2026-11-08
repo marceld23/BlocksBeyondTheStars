@@ -1137,6 +1137,122 @@ public sealed class SpaceCombatTests : IDisposable
         }
     }
 
+    // ---------------- #3420: rams by the rock's real size ----------------
+
+    /// <summary>Where the flight view holds a ship that flies at a rock of radius <paramref name="r"/> along +X: the rock's
+    /// blocks reach r + 0.5 from its centre, the ship's centre stays <see cref="SpaceCombatRules.ShipRockRadius"/> further
+    /// out (<c>RockKeepOut</c>), plus <paramref name="extra"/>.</summary>
+    private static Vector3f SurfacePose(Vector3f rock, int r, float extra = 0f)
+        => new(rock.X - (r + 0.5f + SpaceCombatRules.ShipRockRadius + extra), rock.Y, rock.Z);
+
+    private static float Hp(SvGameServer server) => server.Ship.Hull + server.Ship.Shield; // a ram dents the shield first
+
+    private static void FlyTo(SvGameServer server, Vector3f at, double seconds = 0.1)
+    {
+        server.ShipMove("Pilot", at.X, at.Y, at.Z);
+        server.Tick(seconds);
+    }
+
+    [Fact]
+    public void AFastHitOnABigRock_AtItsSurface_DamagesTheShip()
+    {
+        var server = NewServer("ram_fast", r => r.FreeSpaceFlight = true, out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            var rock = new Vector3f(0f, 300f, 0f); // far above the launch field
+            server.SpawnAsteroidForTest("Pilot", rock, radius: 3);
+            var surface = SurfacePose(rock, 3);
+            Assert.True(rock.DistanceSquared(surface) > 3f * 3f, "the old fixed 3-unit centre check never reached this spot");
+
+            FlyTo(server, SurfacePose(rock, 3, extra: 2f)); // closing in, not yet touching…
+            float before = Hp(server);
+            FlyTo(server, surface);                          // …stopped at the surface: 20 u/s into the rock
+
+            Assert.True(Hp(server) < before, "A fast hit on a big rock's surface should dent the ship.");
+        }
+    }
+
+    [Fact]
+    public void ASlowTouch_AndRestingAtTheRock_DoNotHurt()
+    {
+        var server = NewServer("ram_slow", r => r.FreeSpaceFlight = true, out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            var rock = new Vector3f(0f, 300f, 0f);
+            server.SpawnAsteroidForTest("Pilot", rock, radius: 3);
+
+            FlyTo(server, SurfacePose(rock, 3, extra: 1f));
+            float before = Hp(server);
+            for (int i = 4; i >= 0; i--)
+            {
+                FlyTo(server, SurfacePose(rock, 3, extra: i * 0.2f)); // 0.2 units per 0.1 s: 2 u/s, under the 3 u/s threshold
+            }
+
+            for (int i = 0; i < 20; i++)
+            {
+                FlyTo(server, SurfacePose(rock, 3)); // thrust held into the rock: the flight view keeps reporting the surface
+            }
+
+            Assert.True(Hp(server) >= before, "A slow touch and resting at the rock should not hurt the ship.");
+        }
+    }
+
+    [Fact]
+    public void AfterAFastHit_RestingAtTheRock_IsNotRammedAgain()
+    {
+        var server = NewServer("ram_rest", r => r.FreeSpaceFlight = true, out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            var rock = new Vector3f(0f, 300f, 0f);
+            server.SpawnAsteroidForTest("Pilot", rock, radius: 3);
+
+            FlyTo(server, SurfacePose(rock, 3, extra: 2f));
+            float before = Hp(server);
+            FlyTo(server, SurfacePose(rock, 3));
+            float afterHit = Hp(server);
+            Assert.True(afterHit < before, "the fast hit itself dents the ship");
+
+            for (int i = 0; i < 30; i++)
+            {
+                FlyTo(server, SurfacePose(rock, 3)); // three seconds at the surface — far past the 0.8 s ram cooldown
+            }
+
+            // The baseline used to stay at the pre-impact spot while touching, so every cooldown re-read the same hit.
+            Assert.True(Hp(server) >= afterHit, "Resting at the rock after a ram should not ram the ship again.");
+        }
+    }
+
+    [Fact]
+    public void APebble_IsTouchedCloserInThanABoulder()
+    {
+        var server = NewServer("ram_pebble", r => r.FreeSpaceFlight = true, out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            var pebble = new Vector3f(0f, 300f, 0f);
+            server.SpawnAsteroidForTest("Pilot", pebble, radius: 1);
+
+            // A boulder's surface distance is a clear miss for a pebble, however fast…
+            FlyTo(server, SurfacePose(pebble, 3, extra: 2f));
+            float before = Hp(server);
+            FlyTo(server, SurfacePose(pebble, 3));
+            Assert.True(Hp(server) >= before, "A boulder's surface distance should be a miss for a pebble.");
+
+            // …while its own surface is a hit.
+            FlyTo(server, SurfacePose(pebble, 1, extra: 2f));
+            before = Hp(server);
+            FlyTo(server, SurfacePose(pebble, 1));
+            Assert.True(Hp(server) < before, "A fast hit on a pebble's surface should dent the ship.");
+        }
+    }
+
     [Fact]
     public void DistantHostile_DoesNotDamageShip_UntilWithinRange()
     {

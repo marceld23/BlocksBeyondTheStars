@@ -66,7 +66,7 @@ namespace BlocksBeyondTheStars.Client
             var colours = new Color[keys.Length];
             for (int i = 0; i < keys.Length; i++)
             {
-                var (r, g, b) = FloraTints.For(_worldSeed, LocationName, keys[i]);
+                var (r, g, b) = FloraTints.For(_worldSeed, LocationName, keys[i], _floraPlanet); // #3423: the type's palette
                 colours[i] = ShaderColor.Srgb(new Color(r, g, b));
             }
 

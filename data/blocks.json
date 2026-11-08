@@ -190,18 +190,20 @@
   { "key": "obsidian",        "nameKey": "block.obsidian.name", "category": "terrain",        "hardness": 9.0, "requiredTool": "drill", "minToolTier": 2, "drops": [ { "item": "obsidian", "count": 1 } ] },
   { "key": "ancient_brick",   "nameKey": "block.ancient_brick.name", "biomeLooks": true, "category": "building",  "hardness": 6.8, "requiredTool": "drill", "minToolTier": 1, "color": 10129016, "drops": [ { "item": "ancient_brick", "count": 1 } ] },
   { "key": "rune_stone",      "nameKey": "block.rune_stone.name", "biomeLooks": true, "category": "building",     "usable": true, "hardness": 7.2, "requiredTool": "drill", "minToolTier": 1, "color": 8028044, "drops": [ { "item": "rune_stone", "count": 1 } ] },
-  // #3358 (the Sounders story pack): Soaniri, the Sounder home world — its violet-teal chime moss, the carved obsidian of the
+  // #3358 (the Sounders story pack): Soaniri, the Sounder home world — its chime moss, the carved obsidian of the
   // old Sounder builders and the softly glowing resonance crystal (usable: a tap plays one tone; on the Choir Tower the eight
   // pipes are the tones of the melody site). The singing plants are authored FloraCatalog species without the flora_ prefix
-  // (FloraCatalog.IsPlantKey): cross billboards, no collider, their own colours.
-  { "key": "chime_moss",        "nameKey": "block.chime_moss.name", "biomePalette": "crystal", "category": "terrain", "hardness": 0.7, "requiredTool": "none", "minToolTier": 0, "color": 10190824, "drops": [ { "item": "chime_moss", "count": 1 } ] },
+  // (FloraCatalog.IsPlantKey): cross billboards, no collider, their own colours. #3423 (Justus: everything on Soaniri light
+  // blue and light green): the moss is light green with aqua clumps, the plants' stalks and leaves light green, their bells,
+  // tips, strands and throats light blue (tools/ai-assets/recolour_soaniri.py); these colours follow the tiles.
+  { "key": "chime_moss",        "nameKey": "block.chime_moss.name", "biomePalette": "crystal", "category": "terrain", "hardness": 0.7, "requiredTool": "none", "minToolTier": 0, "color": 8834976, "drops": [ { "item": "chime_moss", "count": 1 } ] },
   { "key": "carved_obsidian",   "nameKey": "block.carved_obsidian.name", "category": "building", "hardness": 9.0, "requiredTool": "drill", "minToolTier": 2, "color": 2761272, "gloss": 0.7, "drops": [ { "item": "carved_obsidian", "count": 1 } ] },
   { "key": "resonance_crystal", "nameKey": "block.resonance_crystal.name", "category": "ore", "lightColor": 8382694, "lightRadius": 4, "lightSurfaceOnly": true, "emission": 0.6, "usable": true, "hardness": 3.5, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "resonance_crystal", "count": 1 } ] },
-  { "key": "chime_reed",        "nameKey": "block.chime_reed.name", "category": "flora", "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "solid": false, "color": 8382694, "flammable": true, "drops": [ { "item": "plant_fiber", "count": 1 } ] },
-  { "key": "bell_bloom",        "nameKey": "block.bell_bloom.name", "category": "flora", "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "solid": false, "color": 12098815, "flammable": true, "drops": [ { "item": "plant_fiber", "count": 1 } ] },
-  { "key": "bell_bloom_open",   "nameKey": "block.bell_bloom_open.name", "category": "flora", "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "solid": false, "color": 12098815, "emission": 0.6, "flammable": true, "drops": [ { "item": "plant_fiber", "count": 1 } ] },
+  { "key": "chime_reed",        "nameKey": "block.chime_reed.name", "category": "flora", "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "solid": false, "color": 9430692, "flammable": true, "drops": [ { "item": "plant_fiber", "count": 1 } ] },
+  { "key": "bell_bloom",        "nameKey": "block.bell_bloom.name", "category": "flora", "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "solid": false, "color": 10276085, "flammable": true, "drops": [ { "item": "plant_fiber", "count": 1 } ] },
+  { "key": "bell_bloom_open",   "nameKey": "block.bell_bloom_open.name", "category": "flora", "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "solid": false, "color": 10276085, "emission": 0.6, "flammable": true, "drops": [ { "item": "plant_fiber", "count": 1 } ] },
   { "key": "harp_vine",         "nameKey": "block.harp_vine.name", "category": "flora", "hardness": 0.2, "requiredTool": "none", "minToolTier": 0, "solid": false, "color": 8382694, "flammable": true, "drops": [ { "item": "plant_fiber", "count": 1 } ] },
-  { "key": "echo_flower",       "nameKey": "block.echo_flower.name", "category": "flora", "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "solid": false, "color": 10190824, "emission": 0.3, "flammable": true, "drops": [ { "item": "plant_fiber", "count": 1 } ] },
+  { "key": "echo_flower",       "nameKey": "block.echo_flower.name", "category": "flora", "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "solid": false, "color": 9429200, "emission": 0.3, "flammable": true, "drops": [ { "item": "plant_fiber", "count": 1 } ] },
 
   // Greenhouse farming (#627). The crop is a CULTIVATED flora species (FloraCatalog): it never grows wild,
   // never joins a world's flora roster and so never turns toxic — its berries are edible on every world.

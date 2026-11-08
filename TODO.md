@@ -24,6 +24,65 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Justus' reports 2026-11-08 afternoon + Marcel's decisions — rocks you cannot fly through, `/ressaw`, no more set-backs on Soaniri, a light blue and green Soaniri, hostile Soundraks, Sounders skips that never strand you, ORNEMIS spelled on the melody bar — #3420–#3426, branch feat/asteroid-pushout-ressaw-command (PR pending)
+
+Marcel's decisions on the open points of the morning package (landing nose fire and the remnant machines stay as they are;
+#3420 and #3421 built) and Justus' two F1 reports from Soaniri on v2026.11.11.
+
+- **#3420** the flown ship stops at the surface of asteroids, debris fragments and the wreck and slides along
+  (`RockKeepOut`, Client.Core; `VoxelSurface`, Shared — the same surface on both sides). Ram damage measures the speed
+  INTO the rock's real surface (`GameServerShipRams.RamSpeed`) instead of a fixed 3-unit centre distance; threshold, cap
+  and cooldown unchanged; no ram while on a spacewalk.
+- **#3421** `/ressaw` (admin, cheats gate, verb `goto_ancient`): inside the nearest buried G.D.S. ruin on any planet —
+  predicted from the seed with the stamp's own helpers, travel with the admin bypass, then a dry floor cell beside the
+  diving-suit crate; `/ressaw 2`, `/ressaw list`; worlds older than terrain generation 35 answer "none".
+- **#3422** Soaniri set the player back: the client's out-of-world guard counted the singing plants (chime reed, bell
+  bloom, harp vine, echo flower — no `flora_` prefix) as solid, so walking into a reed snapped him to the last safe spot.
+  `WalkThroughBlocks.IsProp` now uses `FloraCatalog.IsPlantKey`, the mesher's own plant rule. The same guard also snapped
+  back a player standing in an open phase-block door or a switched-off force field (no collider, but "solid" to the
+  guard): `WalkThroughBlocks.IsOpenTwin` / `CubeHasCollider` are now the ONE rule the mesher's collider and the guard
+  share (`WalkThroughColliderTests` checks every block of the content).
+- **#3423** Soaniri in light blue and light green ("everything on the planet"): the Soundraks (light blue, mint belly),
+  the Soundelings (six light-blue/green pastels, `SoundelingRules.Pastels`), the living Sounders (light-blue/green skins,
+  deeper blue/green sashes), the Quali's glow (aqua-mint; the Soundi was light blue and mint already); the chime moss
+  (light green with aqua clumps) and the five singing plants (light-green stalks and leaves, light-blue bells, tips,
+  strands and throats) recoloured by the deterministic `tools/ai-assets/recolour_soaniri.py`; the wild plants pick from the
+  planet's new `floraPalette` of light greens (`FloraTints.For(…, planet)`, every caller passes the world's type) and keep
+  their colours through autumn and winter (`evergreenFlora`, `SeasonLook.TargetFor` — the red reeds of the report were
+  autumn turning random-hued plants). No block id, generation or save change; the sky is untouched.
+  `SoaniriPaletteTests`, `SoaniriPaletteWiringTests`.
+- **#3424** the Soundraks are hostile from the start, on every world and without any story progress: a player it
+  notices within 11 blocks hears its scream as the warning; still there 2.5 s later, it charges and bites (3 health a
+  second, the usual 7 s chase and give-up, respawn on death). A player who backs away is let go; Peaceful and Creative
+  only hear the scream; the calm disc, the obsidian set's quiet steps and the Resonance Blaster work as before. Scan and
+  VEGA texts say it is dangerous. Soundis, Soundelings and Sounders stay friendly. `SoundersFaunaServerTests`.
+  ⚠ Unity: the EditMode golden `BlockAtlasLooksGoldenEditModeTests` "all blocks" pin moves (the Soaniri block colours
+  changed; the per-key pins hold) — re-pinned to `0x7d120b7eb880c068` after the local Unity build.
+- **#3425** "How can I decipher the melody of the Song Spindle?" — chapters 1–2 skipped, so no disc 1 (the shrine's reward
+  comes only from its echo game) and an empty note table. A skipped Sounders step or chapter now hands over, once, what
+  playing it would have left (`GameServerSoundersStory.CatchUp.cs`, run by the 1 Hz story-pack pass, so stuck saves heal
+  on join): chapter 2 → the spindle (unless carried) and disc 1 (`snd:shrine_reward`); s3.2/s3.4/s4.5 → the discs count
+  as decoded (`snd:disc:*`: note-table letters, archive pages, hidden blueprints, the loot chain moves on) and s3.4/s4.4
+  hand over the builders, hearing and Great Song discs when not at hand (once); s4.2 → the two blueprints; s4.3/s4.6 → a
+  Resonance Blaster / obsidian chest piece unless carried (`snd:catchup:<item>`); chapter 6 → the song learned; s8.1/s8.2
+  → Roll convinced / the Bridge Song sung. Only while a chapter is still ahead ("Skip all" hands out nothing; the sing
+  duel's Soundi stays the prize of playing it); a player who played a step gets nothing twice. VEGA says what came
+  (`srv.sounders.catch_up_items` / `catch_up`). A non-story disc on the spindle during a decode step names the disc the
+  story waits for (`srv.sounders.wrong_disc` / `wrong_disc_find`). `SoundersSkipCatchUpTests`.
+- **#3426** "You cannot play the name Ornemis, only the E is among the notes!" — the kid read ORNEMIS as note names. A
+  melody that spells a word carries it (`MelodyPuzzleSpec.Word`, the Song of Return and the Bridge Song), the bar's state
+  sends it with each letter's two played tones (`MelodyPuzzleState.Word`/`WordTones`, new map keys — wire-compatible both
+  ways), and the melody bar's hint row spells `O = F E · R = G D · …` in the player's note names, the current letter in
+  the chip yellow (a result line then flashes in the title's place); the Bridge Song shows its counter-voice. One helper
+  for both sides (`Shared/Sounders/MelodySpelling.cs`); the s6 texts (EN+DE) say every letter is TWO notes and the bar
+  shows them. `MelodySpellingTests`, `SoundersStoryTests`, `MelodyBarClientTests`.
+- All new and changed texts (the `/ressaw` lines, the Soaniri description, the Soundrak scan/VEGA lines, the skip and
+  wrong-disc lines, the s6 song texts) are in all 14 languages (machine translation + hand QA); local Unity build and
+  the EditMode goldens green.
+
+Open: playtest (fly into an asteroid slowly and fast; `/ressaw`; walk through the reeds on Soaniri; the new colours and
+the Soundraks; skip Sounders chapters 1–2 and decode disc 1; play ORNEMIS with the spelled bar).
+
 ### 📬 Justus' reports 2026-11-08 (Screelit, world "Raumstation", v2026.11.9) — talk WITH your robot, old station models and ghost asteroids after a jump, a Ressaw lamp that turns night into day, the way to the Singing Shrine, rune stones in little shrine ruins — #3405–#3416, ✅ 2026-11-08, PR #3417 (`fec96d03`), released in v2026.11.11 (⚠ playtest open)
 
 Fourteen F1 reports in one morning (three fetches); four were already fixed in v2026.11.10 (the finale scene, `/help admin`,

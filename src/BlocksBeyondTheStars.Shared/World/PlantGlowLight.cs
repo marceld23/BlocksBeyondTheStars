@@ -30,6 +30,11 @@ public static class PlantGlowLight
     /// declared light's brightest channel (the flood fill's reach follows the channel levels), with the declared reach and
     /// surface-only flag. A block without a declared light casts its plain packed light (0 when none).</summary>
     public static int PackedFor(long worldSeed, string locationKey, BlockDefinition block)
+        => PackedFor(worldSeed, locationKey, block, null);
+
+    /// <summary>#3423: <see cref="PackedFor(long, string, BlockDefinition)"/> on a world of <paramref name="planet"/>'s type —
+    /// the species' colour from the type's flora palette when it has one (<see cref="FloraTints.For(long, string, string, PlanetType)"/>).</summary>
+    public static int PackedFor(long worldSeed, string locationKey, BlockDefinition block, PlanetType? planet)
     {
         if (block.LightColor is not int declared || (declared & 0xFFFFFF) == 0)
         {
@@ -37,7 +42,7 @@ public static class PlantGlowLight
         }
 
         int peak = System.Math.Max((declared >> 16) & 0xFF, System.Math.Max((declared >> 8) & 0xFF, declared & 0xFF));
-        var tint = FloraTints.For(worldSeed, locationKey, block.Key);
+        var tint = FloraTints.For(worldSeed, locationKey, block.Key, planet);
         float tintPeak = System.Math.Max(tint.R, System.Math.Max(tint.G, tint.B));
         if (tintPeak <= 0.001f)
         {

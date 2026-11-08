@@ -206,7 +206,7 @@ namespace BlocksBeyondTheStars.Client
             _ground = Rgb(_data.GroundRgb);
 
             var (fr, fg, fb) = FloraTints.For(_req.WorldSeed, _req.FloraKey ?? string.Empty,
-                planet.SurfaceBlock == "mycelium" ? "mushroom_cap" : "tree_leaves");
+                planet.SurfaceBlock == "mycelium" ? "mushroom_cap" : "tree_leaves", planet); // #3423: the type's flora palette
             _flora = (fr, fg, fb);
             _data.FloraRgb = ToRgb(fr, fg, fb);
 

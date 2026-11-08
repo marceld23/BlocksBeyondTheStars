@@ -107,14 +107,22 @@ public static class SoundiRules
 }
 
 /// <summary>
-/// The Soundrak (#3359): about ten metres tall, smooth leathery blue-green skin (no fur, nothing leafy or crumbly), two very
-/// short toeless legs, narrow at the bottom with a thin middle and clearly wider at the top, an oval bud-like mouth pointing up
-/// at the top and tentacles on its back. Territorial: a player who comes into its patch hears a short, loud scream (loud, never
-/// shrill); one who comes right up to it makes it charge. The calm disc and the Resonance Blaster calm it
-/// (<c>GameServer.CalmCreature</c>). One about at a time.
+/// The Soundrak (#3359): about ten metres tall, smooth leathery light-blue skin with a mint belly (#3423; no fur, nothing leafy
+/// or crumbly), two very short toeless legs, narrow at the bottom with a thin middle and clearly wider at the top, an oval
+/// bud-like mouth pointing up at the top and tentacles on its back. <b>Hostile from the start</b> (#3424, Justus: "evil from the
+/// start"): a player who comes into its patch hears a short, loud scream (loud, never shrill); one it notices within
+/// <see cref="NoticeRange"/> hears the scream as a warning and, still there <see cref="WarningSeconds"/> later, is attacked
+/// (<see cref="AlertFor"/>). The calm disc and the Resonance Blaster calm it (<c>GameServer.CalmCreature</c>). One about at a
+/// time.
 /// </summary>
 public static class SoundrakRules
 {
+    /// <summary>#3423: the light-blue skin (#7EC6EE) — a lighter blue body that stands out against the light-green moss.</summary>
+    public const int Skin = 0x7EC6EE;
+
+    /// <summary>#3423: the light-mint belly (#B2ECCF).</summary>
+    public const int Belly = 0xB2ECCF;
+
     /// <summary>The height in blocks per unit of size — the general render-height rule (<c>Size × 1.8</c>), so the server's
     /// large-body checks measure the body that is drawn.</summary>
     public const float HeightPerSize = 1.8f;
@@ -131,8 +139,17 @@ public static class SoundrakRules
     /// <summary>A player this close hears its territorial scream.</summary>
     public const float TerritoryRange = 18f;
 
-    /// <summary>A player who comes this close, while it is not calm, makes it charge (the classic territorial retaliation).</summary>
-    public const float ProvokeRange = 7f;
+    /// <summary>#3424: a player this close is noticed — it screams a warning and attacks whoever is still this close
+    /// <see cref="WarningSeconds"/> later. Inside the range a Soundrak hunts from (8 + size − 2 ≈ 11.6 blocks at its size
+    /// 5.6), so the charge reaches the player it noticed.</summary>
+    public const float NoticeRange = 11f;
+
+    /// <summary>#3424: the warning — seconds from the scream to the attack, time enough to back away.</summary>
+    public const double WarningSeconds = 2.5;
+
+    /// <summary>#3424: how long a scream counts as the warning. An attack needs a scream at most this long ago; after a longer
+    /// quiet it screams again first — shorter than the territory screams' gap, so every new attack has a fresh warning.</summary>
+    public const double WarningMemorySeconds = 8.0;
 
     /// <summary>The scream's shortest gap, in seconds.</summary>
     public const double ScreamCooldownMin = 9.0;
@@ -164,6 +181,33 @@ public static class SoundrakRules
     /// <summary>The gap before the next scream for a roll in 0..1.</summary>
     public static double ScreamGap(double roll01)
         => ScreamCooldownMin + (Math.Min(1.0, Math.Max(0.0, roll01)) * (ScreamCooldownMax - ScreamCooldownMin));
+
+    /// <summary>#3424: what a Soundrak does about a player it noticed (within <see cref="NoticeRange"/>),
+    /// <paramref name="sinceScream"/> seconds after its last scream (infinity when it never screamed): scream the warning now
+    /// (none yet, or longer ago than <see cref="WarningMemorySeconds"/>), wait (the warning is younger than
+    /// <see cref="WarningSeconds"/>) or attack.</summary>
+    public static SoundrakAlert AlertFor(double sinceScream)
+    {
+        if (double.IsNaN(sinceScream) || sinceScream < 0.0 || sinceScream > WarningMemorySeconds)
+        {
+            return SoundrakAlert.Warn;
+        }
+
+        return sinceScream < WarningSeconds ? SoundrakAlert.Wait : SoundrakAlert.Attack;
+    }
+}
+
+/// <summary>#3424: a Soundrak's answer to a player it noticed (<see cref="SoundrakRules.AlertFor"/>).</summary>
+public enum SoundrakAlert
+{
+    /// <summary>Scream the warning now.</summary>
+    Warn,
+
+    /// <summary>The warning is fresh: give the player time to back away.</summary>
+    Wait,
+
+    /// <summary>Warned and still close: attack.</summary>
+    Attack,
 }
 
 /// <summary>

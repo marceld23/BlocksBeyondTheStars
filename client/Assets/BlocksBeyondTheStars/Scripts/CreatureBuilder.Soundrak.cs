@@ -10,7 +10,8 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// The Soundrak (#3359): about ten metres tall (<see cref="SoundrakRules.HeightFor"/>, the height the server's large-body
-    /// checks measure), smooth leathery blue-green skin — no fur, nothing leafy or crumbly — on two very short, toeless legs; a
+    /// checks measure), smooth leathery light-blue skin with a mint belly (#3423, <see cref="SoundrakRules.Skin"/>) — no fur,
+    /// nothing leafy or crumbly — on two very short, toeless legs; a
     /// body that is narrow at the bottom, thin in the middle and clearly wider at the top; an oval, bud-like mouth pointing up at
     /// the top (five lips round a dark throat that open with every call and the scream, <see cref="RigDescription.Petals"/>);
     /// tentacles hanging from its back, swaying. The body keeps its colliders (like the arachnid's), so a player bumps into it.
@@ -25,8 +26,8 @@ namespace BlocksBeyondTheStars.Client
         {
             float h = SoundrakRules.HeightFor(c.Size);
             var mood = MoodOf(c, 0.2f, true, true);
-            Color skinCol = mood.Tint(Rgb(c.ColorRgb != 0 ? c.ColorRgb : 0x2F8F8A)) * mood.Dim;
-            Color bellyCol = mood.Tint(Rgb(c.BellyRgb != 0 ? c.BellyRgb : 0x6CC4B4)) * mood.Dim;
+            Color skinCol = mood.Tint(Rgb(c.ColorRgb != 0 ? c.ColorRgb : SoundrakRules.Skin)) * mood.Dim;
+            Color bellyCol = mood.Tint(Rgb(c.BellyRgb != 0 ? c.BellyRgb : SoundrakRules.Belly)) * mood.Dim;
             skinCol.a = bellyCol.a = 1f;
             var skin = Lit(skinCol, HideOr(string.IsNullOrEmpty(c.Hide) ? "leather" : c.Hide));
             var belly = Lit(bellyCol, HideOr("leather"));

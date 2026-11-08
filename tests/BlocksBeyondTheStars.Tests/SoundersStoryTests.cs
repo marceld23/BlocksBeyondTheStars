@@ -104,6 +104,26 @@ public sealed class SoundersStoryTests
         Assert.Contains(SoundersIds.MilestoneSongLearned, w.Player.State.Milestones);
     }
 
+    /// <summary>#3426: the Song of Return's bar carries ORNEMIS and the two notes of every letter, so the bar can spell it;
+    /// the letter the player is at follows the right notes played.</summary>
+    [Fact]
+    public void TheSongOfReturn_SendsOrnemisAndEveryLettersTwoNotes_ToTheMelodyBar()
+    {
+        using var w = World("snd_ch6_spell");
+        w.Server.SoundersAdminForTest(w.Player, "chapter 6");
+        Use(w, BuildRing(w));
+
+        var open = w.Transport.To<MelodyPuzzleState>(w.Player).Last();
+        Assert.Equal(SoundersIds.PuzzleSongOfReturn, open.PuzzleId);
+        Assert.Equal(SoundersIds.SongOfReturnWord, open.Word);
+        Assert.Equal(SounderAlphabet.TonesOnly(SounderAlphabet.Encode("ORNEMIS")), open.WordTones);
+        Assert.Equal(open.Expected, open.WordTones.Length);
+
+        PlayTones(w, open.WordTones.Take(2)); // the O
+        var after = w.Transport.To<MelodyPuzzleState>(w.Player).Last();
+        Assert.Equal(1, MelodySpelling.CurrentLetter(after.Entered, SoundersIds.SongOfReturnWord.Length)); // now at the R
+    }
+
     [Fact]
     public void OutsideTheChapters_TheRingJustSingsItsRuneWord()
     {

@@ -1103,7 +1103,7 @@ public sealed partial class GameServer
             }
             else if (sp.BodyPlan == CreatureBodyPlan.Soundrak && !creature.IsCompanion)
             {
-                GuardSoundrakTerritory(creature, targets); // #3359: the territorial scream, and a charge at whoever comes right up
+                GuardSoundrakTerritory(creature, targets); // #3359/#3424: its scream, and after the warning the attack
             }
 
             // Give-up leash: an aggressor that has been chasing within aggro range too long backs off for a

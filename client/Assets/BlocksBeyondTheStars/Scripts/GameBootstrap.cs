@@ -444,7 +444,7 @@ namespace BlocksBeyondTheStars.Client
                     _sessionStartRealtime = Time.realtimeSinceStartup; // start the session clock on first join
                 }
 
-                RebuildFloraTints(); // per-species flora colours for this world (seed + location)
+                RebuildFloraTints(m.PlanetType); // per-species flora colours for this world (seed + location + type, #3423)
                 WorldReady = false;          // hold the loading overlay until we settle onto the first world
                 _lastChunkArrivalTime = Time.time; // reset the view-settle gate so it can't pass before this world streams (#390)
                 WorldLoadStarted?.Invoke();
@@ -661,7 +661,7 @@ namespace BlocksBeyondTheStars.Client
             // #2725: a docked friend's ship interior names its owner — we walk in it as a guest; every other world clears it.
             VisitingHost = m.ShipOwnerId ?? string.Empty;
             EntityClock.Reset(); // #2665: a world change may mean another server clock (a hosted world, a reconnect)
-            RebuildFloraTints(); // a new world ⇒ its own per-species flora colours
+            RebuildFloraTints(m.PlanetType); // a new world ⇒ its own per-species flora colours (#3423: its type's palette)
             SessionExploredCells.Clear(); // #1113: live-explored cells are per body
 
             // Parked ship objects belong to the world we just left; the new world re-sends its own.

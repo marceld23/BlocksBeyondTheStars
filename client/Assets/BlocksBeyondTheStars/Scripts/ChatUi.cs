@@ -604,6 +604,10 @@ namespace BlocksBeyondTheStars.Client
                 case "/jumpdrive": net.SendAdminCommand("grant_module", stringArg: "jump_generator"); return true;
                 case "/gotocore": net.SendAdminCommand("goto_core"); return true;
 
+                // #3421: "/ressaw" — into the nearest buried G.D.S. ruin on any planet, "/ressaw 2" the second, "/ressaw list"
+                // all of them. The server predicts, travels and answers (with its usage line for anything else).
+                case "/ressaw": net.SendAdminCommand("goto_ancient", stringArg: t.Substring(p[0].Length).Trim()); return true;
+
                 // #3368: the Sounders' Song QA — "/sounders status|start|chapter <n>|items|echo|song|soaniri|tower|soundi"
                 // (the server answers with its usage line for anything else).
                 case "/sounders": net.SendAdminCommand("sounders", stringArg: t.Substring(p[0].Length).Trim()); return true;
@@ -754,6 +758,7 @@ namespace BlocksBeyondTheStars.Client
             LocalLine(L("ui.admin.help_mode"));
             LocalLine(L("ui.admin.help_gamemode"));
             LocalLine(L("ui.admin.help_teleport"));
+            LocalLine(L("ui.admin.help_ressaw")); // #3421: /ressaw into a buried G.D.S. ruin on any planet
             LocalLine(L("ui.admin.help_wilderness")); // #2646: /wanderer and /tp lodge
             LocalLine(L("ui.admin.help_creatures")); // #3390: /arachnid, /biped, /hound, /creatures
             LocalLine(L("ui.admin.help_inspect"));

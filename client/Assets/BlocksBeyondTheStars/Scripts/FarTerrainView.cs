@@ -218,7 +218,7 @@ namespace BlocksBeyondTheStars.Client
 
             _floraWeight = Mathf.Min(0.45f, Mathf.Clamp01((float)planet.FloraDensity) * 0.8f);
             var (r, g, b) = FloraTints.For(Game.WorldSeed, Game.LocationName ?? string.Empty,
-                planet.SurfaceBlock == "mycelium" ? "mushroom_cap" : "tree_leaves");
+                planet.SurfaceBlock == "mycelium" ? "mushroom_cap" : "tree_leaves", planet); // #3423: the type's flora palette
             _floraWash = new Color(r, g, b);
         }
 

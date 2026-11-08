@@ -269,6 +269,48 @@ namespace BlocksBeyondTheStars.Client
             return vs.Dock + vs.DockOut * (Mathf.Max(0f, recess) + extra);
         }
 
+        /// <summary>#3420: moves the flown ship from <paramref name="from"/> towards <paramref name="to"/> (root-local) but not
+        /// into a rock — an asteroid, a wreckage fragment or the wreck, every voxel body that is not a station (a station hull
+        /// has <see cref="ResolveStationHullMove"/>). The ship stops at the rock's surface and slides along it
+        /// (<see cref="BlocksBeyondTheStars.Client.Core.RockKeepOut"/>); flying away is free. Only rocks whose mesh is built —
+        /// the near ones — and whose box the move comes close to are checked. A spacewalk has its own voxel collision.</summary>
+        private Vector3 ResolveRockMove(Vector3 from, Vector3 to)
+        {
+            if (_structs.Count == 0 || _root == null)
+            {
+                return to;
+            }
+
+            Vector3 pos = to;
+            float easeOut = BlocksBeyondTheStars.Client.Core.RockKeepOut.EaseOutSpeed * Time.deltaTime;
+            foreach (var vs in _structs.Values)
+            {
+                if (vs.IsStation || vs.Root == null || vs.Cells == null || vs.Cells.Count == 0)
+                {
+                    continue;
+                }
+
+                float reach = vs.Half.magnitude + BlocksBeyondTheStars.Client.Core.RockKeepOut.ShipRadius + (pos - from).magnitude + 1f;
+                if ((pos - vs.Pos).sqrMagnitude > reach * reach)
+                {
+                    continue;
+                }
+
+                var t = vs.Root.transform;
+                var want = ToNumerics(ToDesign(t, vs.Centre, pos));
+                var end = BlocksBeyondTheStars.Client.Core.RockKeepOut.Resolve(vs.Cells, ToNumerics(vs.Centre),
+                    ToNumerics(ToDesign(t, vs.Centre, from)), want, easeOut);
+                if (end != want)
+                {
+                    pos = FromDesign(t, vs.Centre, new Vector3(end.X, end.Y, end.Z)); // the rock held the ship back
+                }
+            }
+
+            return pos;
+        }
+
+        private static System.Numerics.Vector3 ToNumerics(Vector3 v) => new System.Numerics.Vector3(v.x, v.y, v.z);
+
         /// <summary>A space entity was destroyed — if it was a voxel asteroid body, drop its mesh (item 20 S3).</summary>
         private void OnStructEntityDestroyed(BlocksBeyondTheStars.Networking.Messages.SpaceEntityDestroyed m)
         {

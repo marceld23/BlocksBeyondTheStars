@@ -9,8 +9,9 @@ namespace BlocksBeyondTheStars.Shared.Sounders;
 /// The body of a Sounder (#3355, after the school club's sketches by Theo and a classmate): organic, tall and thin, three to four
 /// blocks high, upright on two very long legs with toeless feet, <b>four</b> thin, slightly wavy arms in two pairs, a small
 /// head with <b>no eyes</b>, long hare-like ears, a mouth that is often open (singing) and a rectangular slot on the chest where
-/// the obsidian armour holds a Song Disc. A living Sounder wears earthy or indigo skin and a woven sash; an <b>Echo</b> (#3356)
-/// is the same body, translucent teal and softly glowing, floating a hand above the ground.
+/// the obsidian armour holds a Song Disc. A living Sounder wears light-blue or light-green skin (#3423, Justus: everything on
+/// Soaniri light blue and light green) and a woven sash in a deeper blue or green; an <b>Echo</b> (#3356) is the same body,
+/// translucent teal and softly glowing, floating a hand above the ground.
 /// <para>Pure and Unity-free: the server measures an NPC's or a creature's height from the same shares the client builds the rig
 /// from, so the drawn body and the body the server walks through doorways always agree. A Sounder's "size" is a scale factor
 /// (1 = <see cref="BaseHeight"/> blocks to the crown) — the <c>NetNpc.Size</c> and the <c>CreatureSpecies.Size</c> alike.</para>
@@ -59,11 +60,13 @@ public static class SounderRules
     /// <summary>How high an Echo floats over the ground, in blocks (a hand's breadth).</summary>
     public const float EchoHover = 0.2f;
 
-    /// <summary>The living Sounders' skin: earthy browns and the indigo of the sketches.</summary>
-    public static readonly uint[] SkinTones = { 0x4B4E8C, 0x5A4A7A, 0x6B5844, 0x7A6A52, 0x3F5A6E, 0x5E6B4A };
+    /// <summary>The living Sounders' skin (#3423): light blues and light greens — sky, ice blue, sea blue, mint, pale green
+    /// and aqua.</summary>
+    public static readonly uint[] SkinTones = { 0x8FC6EA, 0x9CD3F0, 0x86C5DC, 0x9FDDB8, 0xACE3C6, 0x93D4C0 };
 
-    /// <summary>The woven sash's colours: ochre, terracotta, teal, linen, plum, moss.</summary>
-    public static readonly uint[] SashTones = { 0xC9A14A, 0xB5533C, 0x4F8C7A, 0xD9C7A0, 0x8C5A8C, 0x6E8F3A };
+    /// <summary>The woven sash's colours (#3423), deeper than the skin so the sash still reads on it: deep blue, sea green,
+    /// teal, frost white, cobalt, leaf green.</summary>
+    public static readonly uint[] SashTones = { 0x2F6FA8, 0x2E8A6A, 0x1F7F8C, 0xE6F4FF, 0x3F78B8, 0x5E9F4A };
 
     /// <summary>An Echo's translucent teal (the client draws it see-through and glowing).</summary>
     public const uint EchoTeal = 0x7FE0D0;

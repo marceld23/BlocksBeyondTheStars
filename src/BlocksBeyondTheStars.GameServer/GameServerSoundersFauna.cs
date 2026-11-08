@@ -19,6 +19,10 @@ public sealed partial class CombatEntity
 
     /// <summary>#3359: server uptime of a Soundrak's next territorial scream (unused by every other animal).</summary>
     public double ScreamReadyAt { get; set; }
+
+    /// <summary>#3424: server uptime of a Soundrak's last scream — its warning before an attack (negative infinity: it never
+    /// screamed). Runtime state only.</summary>
+    public double ScreamedAt { get; set; } = double.NegativeInfinity;
 }
 
 /// <summary>
@@ -28,10 +32,12 @@ public sealed partial class CombatEntity
 /// <list type="bullet">
 /// <item><b>Caps</b> — the spawner keeps one Soundrak and a few Qualis about at a time (<see cref="SoundersFauna.MaxWildAtOnce"/>).</item>
 /// <item><b>The Qualis</b> are untouchable: no hit, no push (<see cref="UntouchableCreature"/>); passive, high in the sky.</item>
-/// <item><b>The Soundrak</b> guards its patch: a player within <see cref="SoundrakRules.TerritoryRange"/> hears its short, loud
-/// scream; one who comes within <see cref="SoundrakRules.ProvokeRange"/> makes it charge (the classic territorial retaliation,
-/// only where planet enemies are on). A player who soothes Soundraks (the calm disc in the obsidian chest's socket — the items
-/// pack's hook <see cref="SoothesSoundraks"/>) is ignored.</item>
+/// <item><b>The Soundrak</b> is hostile from the start (#3424): a player within <see cref="SoundrakRules.TerritoryRange"/> hears
+/// its short, loud scream; one it notices within <see cref="SoundrakRules.NoticeRange"/> hears the scream as a warning and,
+/// still there <see cref="SoundrakRules.WarningSeconds"/> later, is attacked (provoked into the classic charge and bite; only
+/// where planet enemies are on — never in Peaceful or Creative). No story progress is needed. A player who soothes Soundraks
+/// (the calm disc in the obsidian chest's socket — the items pack's hook <see cref="SoothesSoundraks"/>) is ignored; the whole
+/// obsidian set's quiet steps let a player come closer before it notices.</item>
 /// <item><b>The calm</b> — <see cref="CalmCreature"/> / <see cref="CalmCreaturesNear"/> (the Resonance Blaster, a story beat):
 /// for a while the animal is provoked by nothing, hunts and bites nobody.</item>
 /// </list>
@@ -121,11 +127,15 @@ public sealed partial class GameServer
     }
 
     /// <summary>
-    /// The Soundrak's territory (#3359), once per tick: the nearest player it notices within
-    /// <see cref="SoundrakRules.TerritoryRange"/> (not cloaked, not soothing) hears its scream — a short, loud
-    /// <c>soundrak_scream_1..3</c> from its crown, every 9–15 s while they stay, and VEGA explains it once — and a player who
-    /// comes within <see cref="SoundrakRules.ProvokeRange"/> provokes it into the classic territorial charge (only where planet
-    /// enemies are on; a calm Soundrak does neither).
+    /// The Soundrak's patch (#3359) and its hostility from the start (#3424), once per tick. The nearest player in
+    /// <see cref="SoundrakRules.TerritoryRange"/> it may bother (not cloaked, not soothing, no death choice pending) hears its
+    /// scream — a short, loud <c>soundrak_scream_1..3</c> from its crown, every 9–15 s while they stay, and VEGA warns once.
+    /// The nearest player it <b>notices</b> (within <see cref="SoundrakRules.NoticeRange"/>, not overlooked — the calm disc, the
+    /// obsidian set's quiet steps) gets <see cref="SoundrakRules.AlertFor"/>: the scream as a warning first, then — still that
+    /// close <see cref="SoundrakRules.WarningSeconds"/> later — the attack, i.e. the classic provoked charge and bite. Any fresh
+    /// scream is the warning, so a player who heard it from the edge of the patch and walks in is not warned twice. The attack
+    /// needs planet enemies on (never in Peaceful or Creative); a calm, frozen or dazed Soundrak does none of it. No story
+    /// progress is involved: a fresh world's Soundrak is as hostile as a late one.
     /// </summary>
     private void GuardSoundrakTerritory(CombatEntity creature, List<PlayerSession> targets)
     {
@@ -134,8 +144,43 @@ public sealed partial class GameServer
             return;
         }
 
+        var intruder = SoundrakIntruder(creature, targets, out var noticed);
+        if (intruder is null)
+        {
+            return;
+        }
+
+        if (noticed is not null && PlanetEnemiesActive && creature.ProvokeTimer <= 0)
+        {
+            switch (SoundrakRules.AlertFor(_uptime - creature.ScreamedAt))
+            {
+                case SoundrakAlert.Warn:
+                    ScreamSoundrak(creature, noticed); // the warning: the attack comes only after it
+                    return;
+                case SoundrakAlert.Wait:
+                    break; // the warning is fresh: time to back away
+                case SoundrakAlert.Attack:
+                    creature.ProvokeTimer = CreatureProvokeSeconds; // the charge: it hunts and bites like an aggressor
+                    creature.AwakeOverrideTimer = System.Math.Max(creature.AwakeOverrideTimer, CreatureWakeSeconds);
+                    BroadcastCreatures(); // the angry red shows at once
+                    break;
+            }
+        }
+
+        if (_uptime >= creature.ScreamReadyAt)
+        {
+            ScreamSoundrak(creature, intruder);
+        }
+    }
+
+    /// <summary>The nearest player in a Soundrak's patch it may bother, or null; in <paramref name="noticed"/> the nearest one it
+    /// notices (within <see cref="SoundrakRules.NoticeRange"/> and not overlooked, <see cref="PreyOverlooked"/>), or null.</summary>
+    private PlayerSession? SoundrakIntruder(CombatEntity creature, List<PlayerSession> targets, out PlayerSession? noticed)
+    {
         PlayerSession? intruder = null;
+        noticed = null;
         double bestSq = SoundrakRules.TerritoryRange * SoundrakRules.TerritoryRange;
+        double noticeSq = SoundrakRules.NoticeRange * SoundrakRules.NoticeRange;
         foreach (var s in targets)
         {
             if (HostilesIgnore(s.State) || s.Respawn.ChoicePending || Soothes(s))
@@ -149,30 +194,20 @@ public sealed partial class GameServer
                 bestSq = d;
                 intruder = s;
             }
+
+            if (d <= noticeSq && !PreyOverlooked(creature, s, d))
+            {
+                noticeSq = d;
+                noticed = s;
+            }
         }
 
-        if (intruder is null)
-        {
-            return;
-        }
-
-        if (_uptime >= creature.ScreamReadyAt)
-        {
-            ScreamSoundrak(creature);
-            ShipAiHintOnce(intruder, "soundrak"); // VEGA: it guards its patch — keep your distance, or calm it with a song
-        }
-
-        if (PlanetEnemiesActive && creature.ProvokeTimer <= 0
-            && bestSq <= SoundrakRules.ProvokeRange * SoundrakRules.ProvokeRange)
-        {
-            creature.ProvokeTimer = CreatureProvokeSeconds;
-            creature.AwakeOverrideTimer = System.Math.Max(creature.AwakeOverrideTimer, CreatureWakeSeconds);
-            BroadcastCreatures();
-        }
+        return intruder;
     }
 
-    /// <summary>The scream itself: one of the three takes, from the Soundrak's bud mouth at the top of its body.</summary>
-    private void ScreamSoundrak(CombatEntity creature)
+    /// <summary>The scream itself — one of the three takes, from the Soundrak's bud mouth at the top of its body — heard by
+    /// <paramref name="hearer"/>, to whom VEGA explains it once. Every scream is also the warning before an attack (#3424).</summary>
+    private void ScreamSoundrak(CombatEntity creature, PlayerSession hearer)
     {
         int roll = StableStringHash(creature.Id) ^ (int)(_uptime * 7.0);
         float height = _speciesById.TryGetValue(creature.SpeciesId, out var sp)
@@ -181,6 +216,8 @@ public sealed partial class GameServer
         var at = creature.Position;
         BroadcastToWorld(new SoundFx { SoundId = SoundrakRules.ScreamSound(roll), X = at.X, Y = at.Y + (height * 0.9f), Z = at.Z });
         creature.ScreamReadyAt = _uptime + SoundrakRules.ScreamGap(((uint)roll % 1000u) / 1000.0);
+        creature.ScreamedAt = _uptime;
+        ShipAiHintOnce(hearer, "soundrak"); // VEGA: it is dangerous — when it screams, back away (or calm it with a song)
     }
 
     /// <summary>The scan's line about what a player can do with a creature of Soaniri, or null.</summary>

@@ -324,7 +324,7 @@ public sealed partial class GameServer
         // LocationId ^ Seed like sky/cloud/gravity (#478) — it was the last per-TYPE hue, contradicting
         // WORLD_GENERATION.md §3. Airless/floraless worlds still carry a value; it just goes unused. The
         // formula lives with the per-species colours (#1716) — one file for every flora colour.
-        _floraTint = Shared.World.FloraTints.ForWorld(_meta.Seed, _world.LocationId, _meta.Description.TerrainGeneration); // #2692: mixed from gen 26
+        _floraTint = Shared.World.FloraTints.ForWorld(_meta.Seed, _world.LocationId, _meta.Description.TerrainGeneration, _world.Planet); // #2692: mixed from gen 26; #3423: the type's palette
         // #1758: the water colour, the same way — classic blue unless the type opts in (the rainbow planet, the
         // "auto" palette of the water types) AND the save is generation 5: older saves keep their blue.
         // #2027: a toxic world whose water rolled toxic shows it — its "auto" water picks from the poison palette.

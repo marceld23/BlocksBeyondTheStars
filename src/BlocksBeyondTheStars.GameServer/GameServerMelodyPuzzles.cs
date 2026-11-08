@@ -393,6 +393,8 @@ public sealed partial class GameServer
             Instrument = p.Spec.Instrument,
             Result = (int)result,
             LastTone = lastTone,
+            Word = open ? p.Spec.Word : string.Empty, // #3426: the bar spells it letter by letter
+            WordTones = open ? MelodySpelling.PlayedTones(p.Spec) : Array.Empty<int>(),
         });
     }
 

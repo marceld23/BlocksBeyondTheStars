@@ -19,7 +19,8 @@ namespace BlocksBeyondTheStars.Tests;
 /// <summary>A live jungle world, a stone pad over its highest block and a player on foot — the stage of the Soaniri tests.</summary>
 internal static class SoundersStage
 {
-    public static SvGameServer Started(string root, string name, GameContent content, out SqliteWorldRepository repo)
+    public static SvGameServer Started(string root, string name, GameContent content, out SqliteWorldRepository repo,
+        Action<ServerConfig>? tune = null)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(root, name));
         var config = new ServerConfig
@@ -30,6 +31,7 @@ internal static class SoundersStage
             AutoSaveIntervalMinutes = 9999,
             PlaceStarterShip = false,
         };
+        tune?.Invoke(config);
         var server = new SvGameServer(config, content, new LoopbackServerTransport(new LoopbackLink()), repo);
         server.Start();
         return server;
@@ -117,8 +119,9 @@ internal static class SoundersStage
 
 /// <summary>
 /// The creatures of Soaniri on a live server (#3359) and the Sounders as NPCs (#3355): the spawner's caps (one Soundrak, a few
-/// Qualis), the Quali nobody can touch, the Soundrak's territory (a scream, a charge only up close) and its calm, an authored
-/// species joining a roster for a story beat, the scan's words, and a Sounder NPC whose look rides on the NPC wire.
+/// Qualis), the Quali nobody can touch, the Soundrak's hostility from the start (#3424: a warning scream, then the attack on a
+/// nearby player on a fresh world; a player who backs away is let go; Peaceful only hears it) and its calm, an authored species
+/// joining a roster for a story beat, the scan's words, and a Sounder NPC whose look rides on the NPC wire.
 /// </summary>
 public sealed class SoundersFaunaServerTests : IDisposable
 {
@@ -205,36 +208,96 @@ public sealed class SoundersFaunaServerTests : IDisposable
         }
     }
 
-    [Fact]
-    public void TheSoundrak_ScreamsAtAVisitor_ChargesOnlyUpClose_AndACalmHoldsIt()
+    /// <summary>A Soundrak on a fresh jungle pad (no story progress anywhere) and a player on foot <paramref name="away"/> blocks
+    /// east of it; every rolled species is pacified so only the Soundrak can bite.</summary>
+    private (SvGameServer Server, SqliteWorldRepository Repo, PlayerSession Player, CombatEntity Rak, int PadY) RakStage(
+        string name, float away, Action<ServerConfig>? tune = null)
     {
-        var server = SoundersStage.Started(_root, "rak", _content, out var repo);
+        var server = SoundersStage.Started(_root, name, _content, out var repo, tune);
+        SoundersStage.Pacify(server);
+        var sp = server.EnsureAuthoredSpeciesForTest(SoundersIds.Soundrak)!;
+        int padY = SoundersStage.Pad(server, _content, Cx, Cz, 22);
+        var p = SoundersStage.OnFoot(server, "Kid", new Vector3f(Cx + 0.5f + away, padY + 1, Cz + 0.5f));
+        string id = server.SpawnCreatureAtForTest(new Vector3f(Cx + 0.5f, padY + 1, Cz + 0.5f), sp.Id);
+        return (server, repo, p, server.Creatures.First(c => c.Id == id), padY);
+    }
+
+    /// <summary>Ticks <paramref name="seconds"/> in 0.1 s steps, the player held <paramref name="away"/> blocks east of the
+    /// Soundrak.</summary>
+    private static void Hold(SvGameServer server, PlayerSession p, CombatEntity rak, int padY, float away, double seconds)
+    {
+        for (int i = 0; i < (int)Math.Round(seconds * 10.0); i++)
+        {
+            p.State.Position = new Vector3f(rak.Position.X + away, padY + 1, rak.Position.Z);
+            server.TickForTest(0.1);
+        }
+    }
+
+    [Fact]
+    public void ASoundrak_OnAFreshWorld_WarnsWithAScream_ThenAttacksANearbyPlayer()
+    {
+        var (server, repo, p, rak, padY) = RakStage("rak_fresh", 5f); // within its reach, no story step taken
         using (repo)
         {
-            SoundersStage.Pacify(server);
-            var sp = server.EnsureAuthoredSpeciesForTest(SoundersIds.Soundrak)!;
-            int padY = SoundersStage.Pad(server, _content, Cx, Cz, 22);
-            var at = new Vector3f(Cx + 0.5f, padY + 1, Cz + 0.5f);
-            var p = SoundersStage.OnFoot(server, "Kid", new Vector3f(Cx + 13.5f, padY + 1, Cz + 0.5f));
-            string id = server.SpawnCreatureAtForTest(at, sp.Id);
-            var rak = server.Creatures.First(c => c.Id == id);
+            float health = p.State.Health;
+            Hold(server, p, rak, padY, 5f, 0.5);
+            Assert.True(rak.ScreamedAt > double.NegativeInfinity, "it noticed the player and screamed its warning");
+            Assert.False(server.NetCreatureForTest(rak.Id).Hostile, "the scream comes before the first attack");
 
-            for (int i = 0; i < 5; i++)
-            {
-                p.State.Position = new Vector3f(Cx + 13.5f, padY + 1, Cz + 0.5f); // in its territory, not up close
-                server.TickForTest(0.1);
-            }
+            Hold(server, p, rak, padY, 5f, SoundrakRules.WarningSeconds - 1.0);
+            Assert.False(server.NetCreatureForTest(rak.Id).Hostile, "the warning gives time to back away");
+            Assert.Equal(health, p.State.Health);
 
+            Hold(server, p, rak, padY, 5f, 1.5);
+            Assert.True(server.NetCreatureForTest(rak.Id).Hostile, "warned and still there: it attacks");
+            Hold(server, p, rak, padY, 4f, 3.0);
+            Assert.True(p.State.Health < health, "the Soundrak bites");
+            Assert.True(p.State.Health > health - 20f, "a fair bite, no instant kill");
+        }
+    }
+
+    [Fact]
+    public void ASoundrak_LetsAPlayerWhoBacksAway_Go()
+    {
+        var (server, repo, p, rak, padY) = RakStage("rak_back", 8f);
+        using (repo)
+        {
+            float health = p.State.Health;
+            Hold(server, p, rak, padY, 8f, 0.5);
+            Assert.True(rak.ScreamedAt > double.NegativeInfinity, "the warning");
+            Hold(server, p, rak, padY, SoundrakRules.NoticeRange + 3f, 6.0); // heeded: out of its notice, still in its patch
+            Assert.False(server.NetCreatureForTest(rak.Id).Hostile, "a player who backs away is not attacked");
+            Assert.Equal(health, p.State.Health);
+        }
+    }
+
+    [Fact]
+    public void ASoundrak_InPeaceful_OnlyScreams()
+    {
+        var (server, repo, p, rak, padY) = RakStage("rak_peace", 5f, c => c.Rules.PlanetEnemies = AlienActivity.Off);
+        using (repo)
+        {
+            float health = p.State.Health;
+            Hold(server, p, rak, padY, 5f, 6.0);
+            Assert.True(rak.ScreamedAt > double.NegativeInfinity, "it still screams");
+            Assert.False(server.NetCreatureForTest(rak.Id).Hostile, "but never attacks while planet enemies are off");
+            Assert.Equal(health, p.State.Health);
+        }
+    }
+
+    [Fact]
+    public void TheSoundrak_ScreamsAtTheEdgeOfItsPatch_AttacksWhoComesClose_AndACalmHoldsIt()
+    {
+        var (server, repo, p, rak, padY) = RakStage("rak", 13.5f);
+        using (repo)
+        {
+            string id = rak.Id;
+            Hold(server, p, rak, padY, 13.5f, SoundrakRules.WarningSeconds + 1.0); // in its patch, beyond its notice
             Assert.True(rak.ScreamReadyAt > 0, "a visitor in its territory hears the scream");
-            Assert.False(server.NetCreatureForTest(id).Hostile, "the scream is a warning, not a charge");
+            Assert.False(server.NetCreatureForTest(id).Hostile, "out at the edge of its patch the scream is all");
 
-            for (int i = 0; i < 5; i++)
-            {
-                p.State.Position = new Vector3f(rak.Position.X + 4f, padY + 1, rak.Position.Z); // right up to it
-                server.TickForTest(0.1);
-            }
-
-            Assert.True(server.NetCreatureForTest(id).Hostile, "whoever comes right up to it makes it charge");
+            Hold(server, p, rak, padY, 4f, 0.5); // that scream was the warning: whoever comes close now is attacked
+            Assert.True(server.NetCreatureForTest(id).Hostile, "whoever comes close after the warning makes it charge");
 
             Assert.True(server.CalmCreaturesNearForTest(rak.Position, 12f, 60.0) >= 1);
             Assert.True(server.IsCalmedForTest(id));

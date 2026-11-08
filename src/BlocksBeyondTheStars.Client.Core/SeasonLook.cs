@@ -43,6 +43,15 @@ namespace BlocksBeyondTheStars.Client
             };
         }
 
+        /// <summary>#3423: <see cref="Target"/> on a world whose type keeps its plants' colours all year
+        /// (<c>PlanetType.EvergreenFlora</c> — Soaniri, light blue and light green): no autumn turn to amber and red, no winter
+        /// paling; spring's bloom stays. The season itself (its warmth, the HUD, the frost) is untouched.</summary>
+        public static (float Autumn, float Winter, float Bloom) TargetFor(string? season, float progress, bool evergreenFlora)
+        {
+            var look = Target(season, progress);
+            return evergreenFlora ? (0f, 0f, look.Bloom) : look;
+        }
+
         /// <summary>Whether a winter frost lies on the tops: winter, and the air below <see cref="FrostBelowC"/> °C.</summary>
         public static bool Frost(string? season, float temperatureC)
             => season == PlanetSeasons.Winter && temperatureC < FrostBelowC;

@@ -22,6 +22,9 @@ namespace BlocksBeyondTheStars.Client
     {
         private const float MelodyToneSize = 66f, MelodyTonePitch = 74f, MelodyBarW = 620f, MelodyBarH = 132f;
 
+        /// <summary>#3426: how the spelling line marks the letter the player is at (TMP rich text — the warm chip yellow).</summary>
+        private const string MelodySpellMarkOpen = "<color=#ffd27a><b>", MelodySpellMarkClose = "</b></color>";
+
         private GameObject _melodyPanel;
         private TMP_Text _melodyTitle, _melodyProgress, _melodyLine;
         private Image[] _melodyTones;
@@ -155,19 +158,28 @@ namespace BlocksBeyondTheStars.Client
 
             var device = InputMap.ActiveDevice;
             string resultKey = bar.ResultKey(now);
-            string line = resultKey != null ? loc.Get(resultKey) : loc.Get(MelodyHintKey(device));
-            if (bar.Version == _melodyShownVersion && device == _melodyShownDevice && line == _melodyShownLine)
+            string result = resultKey != null ? loc.Get(resultKey) : null;
+
+            // #3426: a melody that spells a word (ORNEMIS) shows every letter's two notes in the hint row, the letter the
+            // player is at marked; a result line then flashes in the title's place, so the spelling never goes away.
+            string spelling = bar.SpellingLine(MelodyNoteNames(loc), MelodySpellMarkOpen, MelodySpellMarkClose);
+            bool spells = spelling.Length > 0;
+            string title = spells && result != null ? result : loc.Get(bar.TitleKey);
+            string line = spells ? spelling : result ?? loc.Get(MelodyHintKey(device));
+            string shown = title + "\n" + line;
+            if (bar.Version == _melodyShownVersion && device == _melodyShownDevice && shown == _melodyShownLine)
             {
                 return;
             }
 
             _melodyShownVersion = bar.Version;
             _melodyShownDevice = device;
-            _melodyShownLine = line;
-            _melodyTitle.text = loc.Get(bar.TitleKey);
+            _melodyShownLine = shown;
+            _melodyTitle.text = title;
             _melodyProgress.text = bar.FreePlay || bar.Expected <= 0
                 ? string.Empty
                 : string.Format(CultureInfo.InvariantCulture, loc.Get("ui.melody.progress"), bar.Round + 1, bar.RoundCount, bar.Entered, bar.Expected);
+            _melodyLine.fontSize = spells ? 13f : 14f; // seven letters with two note names each fit the bar's width
             _melodyLine.text = line;
             SetButtonText(_melodyStop, loc.Get("ui.melody.stop"));
             for (int i = 0; i < _melodyCaptions.Length; i++)
@@ -176,12 +188,19 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>The eight note names C … C' in the player's language (<c>ui.note.names</c>: German says H where English says
+        /// B) — the tones' captions and the spelling line (#3426) read the same names.</summary>
+        private static string[] MelodyNoteNames(Localizer loc)
+        {
+            string[] names = loc.Get("ui.note.names").Split(' ');
+            return names.Length == MelodyBarInput.Tones ? names : BlocksBeyondTheStars.Shared.Sounders.SounderAlphabet.ToneNames;
+        }
+
         /// <summary>A tone's caption: its key ("1") or pad chord ("↑", "RB↑") and its note name in the player's language
         /// (<c>ui.note.names</c>: German says H where English says B).</summary>
         private static string MelodyCaption(Localizer loc, int tone, InputDeviceKind device)
         {
-            string[] names = loc.Get("ui.note.names").Split(' ');
-            string note = names.Length == MelodyBarInput.Tones ? names[tone] : BlocksBeyondTheStars.Shared.Sounders.SounderAlphabet.ToneNames[tone];
+            string note = MelodyNoteNames(loc)[tone];
             if (device == InputDeviceKind.Touch)
             {
                 return note;

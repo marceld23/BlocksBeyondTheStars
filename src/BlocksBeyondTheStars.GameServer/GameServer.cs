@@ -836,8 +836,7 @@ public sealed partial class GameServer
                 {
                     // 2026-09 (generation 8): a type with a structure whitelist (Titas, Valuma) stamps only what it names.
                     // #3358: Soaniri on any save — the pack appends it to old galaxies too, and no town may stamp over Mirun.
-                    bool restricted = planet.RestrictStructures
-                                      && (_generator.TerrainGeneration >= WorldDescription.ExtremePlanetsGeneration || IsSounderWorld);
+                    bool restricted = StructuresRestricted(planet); // #3421: shared with the /ressaw prediction
                     bool Allowed(string kind) => !restricted || planet.AllowedStructures.Contains(kind);
 
                     // #3310 (generation 33): a type's stone text tablets (KuBa-W) — first, in front of their pads, on every

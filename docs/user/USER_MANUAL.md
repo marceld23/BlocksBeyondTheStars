@@ -1892,6 +1892,11 @@ players.
 ### Space flight & combat
 - Fly within local space instances; asteroids + NPC drones can damage hull/shield. Whether you can lose your
   ship is set by the world's **"Keep ship on death"** rule (see *Repairing your own ship* above).
+- **Rocks are solid.** You cannot fly into or through an asteroid, a piece of wreckage or the wreck: the ship stops
+  softly at the rock and slides along it, like at a station hull. A gentle touch, resting against a rock or sliding
+  along it does no harm — only **flying into an asteroid fast** dents the shield (then the hull), more the faster
+  you hit it, and never more than a small part per hit. On a spacewalk your suit bumps into rocks as before and
+  never hurts the ship.
 - **Aiming**: the ship laser acquires the best target roughly **ahead of the nose** (the centre dot lights up
   cyan on lock). Weapon **range and fire rate come from the fitted module** — bigger cannons genuinely reach
   further.
@@ -3447,7 +3452,8 @@ VEGA tells it; the Echoes, the Eldest and Roll speak in the scenes. It has eight
    is **two notes** (the **note alphabet**: the first note picks the row, the second the column; a letter shows itself
    after three wrong picks, and after two failed tries VEGA offers to skip; the table fills in as you learn and stays in
    the Song Archive). More discs hide in **relic caches** at monuments and in the humming recorder of the alien debris
-   field; a disc you lose before decoding it turns up again in the next cache.
+   field; a disc you lose before decoding it turns up again in the next cache. A disc that is not part of the story (the
+   light or calm disc, a little song disc) only sings a tune — while the story waits for a disc, VEGA tells you which one.
 4. **Alien blueprints.** Two discs carry building plans that appear in your **research** list only after you decoded
    them: the **Resonance Blaster** (right mouse button; it pushes and stuns hostile creatures and machines for a moment
    without hurting them, calms Soundraks, and — used on a monument's rune stone — opens a hidden **sound chamber** once;
@@ -3458,21 +3464,34 @@ VEGA tells it; the Echoes, the Eldest and Roll speak in the scenes. It has eight
    Song long ago. They are not ghosts; they live "on the other side". You ask them with **melodies** (a question is a short
    tune you choose). Elora, Kamo, Feya and Tini each give you letters of the way home. Any group of three or more rune
    stones can call an Echo — even stones you placed yourself.
-6. **The Song of Return.** Play the letters **ORNEMIS** in the note alphabet at a singing shrine (or a ring). The shrine
-   answers a fifth higher, and the **Ornemis** system appears on **your** star chart (only for players who learned the
-   song; others can fly along aboard your ship).
-7. **Homecoming.** Jump to Ornemis (you need a jump drive) and land on **Soaniri**: singing plants, **Soundis**,
-   **Soundelings**, a **Soundrak** or two, and at night **Qualis** drifting in the sky. Visit **the Eldest** in the village
-   **Mirun**.
+6. **The Song of Return.** Play the letters **ORNEMIS** in the note alphabet at a singing shrine (or a ring). The letters
+   are not note names: **every letter is two notes**, so the name is 14 notes. The melody bar spells it for you —
+   `O = F E · R = G D · N = F D · …` — and lights up the letter you are at. The shrine answers a fifth higher, and the
+   **Ornemis** system appears on **your** star chart (only for players who learned the song; others can fly along aboard
+   your ship).
+7. **Homecoming.** Jump to Ornemis (you need a jump drive) and land on **Soaniri**, a world in light blue and light green
+   (its plants keep their colours all year): singing plants, **Soundis**, **Soundelings**, a **Soundrak** or two, and at
+   night **Qualis** drifting in the sky. Visit **the Eldest** in the village **Mirun**.
+   **Watch out for the Soundraks** — the ten-metre giants are dangerous from the very start. When one notices you (about
+   11 blocks away) it **screams: that is the warning**. Back away and it lets you go; stay close and a few seconds later it
+   charges and bites. It is slow, so you can always walk away, and it gives up after a short chase. The *calm disc* in the
+   obsidian chest or a pulse of the Resonance Blaster calms it. In **Peaceful** it only screams.
 8. **The Bridge Song.** At the **Choir Tower** the Young Voices want to sing the Final Song again. Talk to **Roll** — the
    things the Echoes told you are your best answers — then play the **second voice** on the tower's eight pipes while
    they sing. Afterwards a little **Soundi** that followed you through Mirun asks for a **sing duel**: it sings, you
    answer. Win, give it a name (it suggests "Muffin") — and it travels with you to every world.
 
+**Skipping a part.** You can skip a step or a whole chapter in the **Journal** — you never get stuck for it. VEGA hands
+over what the skipped part would have given you (the Song Spindle and the first disc, the later discs, the two blueprints,
+the Resonance Blaster and the obsidian chest piece) and says so; skipped discs count as decoded, so their letters are in
+your note table, and a skipped Song of Return still puts Ornemis on your star chart. Nothing comes twice if you played the
+part yourself, and the Soundi only joins you if you win the sing duel.
+
 **The melody bar.** Whenever you play a tune (a shrine, a spindle, an Echo, the tower, a Soundi) the melody bar opens at
 the bottom of the screen: eight tones, each with its own colour and sign. Play them with the number keys **1–8** (the
 quick bar does not switch while it is open), the gamepad's d-pad and shoulder buttons, or by touch. Holding the
-Resonance Blaster opens it too, so you can play freely.
+Resonance Blaster opens it too, so you can play freely. When the tune spells a word (the Song of Return, the Bridge
+Song), the bar shows each letter with its two notes and lights up the letter you are at.
 
 ### Festivals (the real-world calendar)
 - **What happens:** at certain times of the year the game plays with a slightly different mood — a cosy-spooky
@@ -3957,6 +3976,11 @@ Resonance Blaster opens it too, so you can play freely.
   every bite takes 10 health"), and VEGA warns you the first time one comes near. It drops **meat**. Like any animal
   it can be tamed — a tamed Schuppenhund never bites and wags its tail. With **planet enemies off** (the family
   settings) it does not bite at all.
+- **The Soundrak** — Justus' ten-metre, light-blue giant of **Soaniri** (*The Sounders' Song*), and **dangerous from the
+  start**: when it notices you (about 11 blocks) it **screams — the warning**. Back away and it lets you go; stay close and
+  a few seconds later it charges and bites (about 3 health a second). It is slow, so you can always walk away, and it gives
+  up after a short chase. The scanner says "Dangerous — it screams, then attacks". The *calm disc* and the Resonance
+  Blaster calm it; with **planet enemies off** it only screams.
 
 ### Giants (the colossus, the sandworm, the leviathan and the sky giant)
 - **A colossus** is a 40–60 block tall four-legged giant. It only lives on **very flat, very light worlds** (the lighter
@@ -4885,6 +4909,8 @@ confirmation is the brief HUD toast.
 | `/tp Target` | Teleport to a landmark **on the body you are standing on** — see *Named teleport targets* below |
 | `/tp` | List every named target here, with the exact word to type and its distance |
 | `/tpp Player` | Teleport to a player on the body you are on — you land **beside** them, never inside them (#1055) |
+| `/ressaw` | Straight **into** the nearest buried G.D.S. ruin, on any planet: on dry floor beside the crate with the diving suit. If the body you stand on has none, the game works out from the world seed which planets have one, flies you to the nearest (no jump drive needed) and drops you inside — see *Testing an ancient ruin* below |
+| `/ressaw 2` · `/ressaw list` | The second-nearest ruin (`3`, `4` … the next ones) · list them all: number, planet, star system, under a city or under a vent tower |
 | `/settime day\|night\|noon\|midnight\|dawn\|dusk\|18:30\|6.5\|0.5` | Set the local time of day of the world you stand in: a word, a clock time, an hour from 1 to 24 or a part of the day below 1. Not out in space |
 | `/setweather clear\|clouds\|rain\|storm\|fog\|blizzard\|heatwave\|…` | Set the weather of the world you stand in (every weather key works; `cloudy` is accepted for `clouds`) |
 | `/giant colossus\|sandworm\|leviathan\|sky` | Summon this world's colossus, sandworm, leviathan or sky giant near you (a sandworm needs a sand sea, a leviathan a deep sea) — for testing |
@@ -4933,8 +4959,8 @@ the same thing, and leaving it off means the first one. **`/tp` on its own lists
 with the exact word to type and how far away it is, so you never have to guess a number.
 
 Two limits worth knowing: this only ever resolves on the body you are **currently standing on** (the
-cross-body jump is `/goto`, fleet admin only), and it does not work while you are flying in space — land
-first.
+cross-body jump is `/goto`, fleet admin only — the one exception is `/ressaw`, which flies you into a buried G.D.S.
+ruin on another planet), and it does not work while you are flying in space — land first.
 
 #### Inspection (admins) — who is here and what have they built
 
@@ -5079,7 +5105,15 @@ switched on by hand. `/festival halloween`, `/festival hanami` … work the same
 `/festival calendar` hands back to the real date. Testing before 1 December spoils nothing: the doors you open count for
 the previous season, so this year's doors are still shut for the real Advent (what a test door unlocked stays unlocked).
 
-**Testing an ancient ruin:** `/tp ancient` (then `ancient2` …) stands you beside the shaft of a buried G.D.S. ruin.
+**Testing an ancient ruin:** `/tp ancient` (then `ancient2` …) stands you beside the shaft of a buried G.D.S. ruin on the
+planet you are on. **`/ressaw`** (cheats on) goes all the way: it drops you **inside** the nearest ruin, on dry floor beside
+the diving-suit crate — on this planet if it has one; otherwise it works out from the world seed which planets hide a ruin
+(nearest first: this star system, then the closest systems), flies you there without a jump drive and drops you in after the
+landing. `/ressaw 2` takes the second-nearest, `/ressaw list` names them all. Now and then a ruin finds no room on its
+planet when you land (no dry ground for its tower, or the planet was built on before) — the answer says so, that planet
+leaves the list, and `/ressaw` again takes you to the next one. A world created before the ruins existed (generation 35)
+answers that it has none. Like a fleet admin's `/goto`, the trip counts as a teleport: no "first hyperjump", no story step,
+no explorer achievement.
 
 Testing *The Sounders' Song* (cheats on): `/sounders chapter 2` and a ring of eight rune stones around an ancient brick
 for the shrine puzzle · `/sounders chapter 3` + `/sounders items` for the spindle, discs, blaster and armour ·

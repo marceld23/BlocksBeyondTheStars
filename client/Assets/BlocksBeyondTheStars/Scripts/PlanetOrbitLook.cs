@@ -50,7 +50,7 @@ namespace BlocksBeyondTheStars.Client
             if (flora > 0.01f)
             {
                 var (r, g, b) = BlocksBeyondTheStars.Shared.World.FloraTints.For(
-                    worldSeed, locationKey ?? string.Empty, FloraKeyFor(planet.SurfaceBlock));
+                    worldSeed, locationKey ?? string.Empty, FloraKeyFor(planet.SurfaceBlock), planet); // #3423: the type's palette
                 col = Color.Lerp(col, new Color(r, g, b), Mathf.Min(0.6f, flora * 0.9f));
             }
 

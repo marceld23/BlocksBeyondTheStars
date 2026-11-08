@@ -26,7 +26,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <para>Singing is a <see cref="NoteSequence"/> of the disc's phrase in the note alphabet with the Sounder voice
 /// (<see cref="SongDiscs.NotesOf"/>; the collectible disc sings a seeded song of the spindle's place) and the
 /// <c>spindle_spin</c> sound. A story disc the player has not decoded yet opens the note-key minigame for a player whose
-/// Sounders pack is active (<see cref="MaybeOfferNoteKey"/>, the result in <see cref="HandleStoryMinigameResult"/>).</para>
+/// Sounders pack is active (<see cref="MaybeOfferNoteKey"/>, the result in <see cref="HandleStoryMinigameResult"/>); a disc
+/// that is no story disc, sung while a decode step runs, names the disc the story waits for (#3425, <see cref="HintStoryDisc"/>).</para>
 /// </summary>
 public sealed partial class GameServer
 {
@@ -69,7 +70,17 @@ public sealed partial class GameServer
         }
 
         PlaySpindle(cell, disc);
-        MaybeOfferNoteKey(session, disc);
+        OfferNoteKeyOrHint(session, disc);
+    }
+
+    /// <summary>A story disc still to decode opens the note-key minigame; any other disc, sung while a decode step runs, gets
+    /// the hint which disc the story waits for (#3425).</summary>
+    private void OfferNoteKeyOrHint(PlayerSession session, string disc)
+    {
+        if (!MaybeOfferNoteKey(session, disc))
+        {
+            HintStoryDisc(session, disc);
+        }
     }
 
     /// <summary>The disc in the spindle at <paramref name="cell"/>, or "" (test seam and the story's view).</summary>
@@ -117,7 +128,7 @@ public sealed partial class GameServer
         BroadcastToWorld(new SoundFx { SoundId = "disc_insert", X = cell.X + 0.5f, Y = cell.Y + 0.8f, Z = cell.Z + 0.5f });
         _spindleBusyUntil.Remove(SpindleId(cell)); // a new disc always starts singing
         PlaySpindle(cell, disc);
-        MaybeOfferNoteKey(session, disc);
+        OfferNoteKeyOrHint(session, disc);
     }
 
     /// <summary>Crouch + use: the disc comes back to the player and the spindle record goes.</summary>

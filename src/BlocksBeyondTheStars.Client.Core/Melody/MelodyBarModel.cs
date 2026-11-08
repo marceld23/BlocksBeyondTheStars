@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Sounders;
 
@@ -55,6 +56,12 @@ namespace BlocksBeyondTheStars.Client
         public float NoteSeconds { get; private set; } = 0.45f;
         public MelodyPuzzleResult Result { get; private set; }
 
+        /// <summary>#3426: the word the puzzle's melody spells (the Song of Return's ORNEMIS), or empty.</summary>
+        public string Word { get; private set; } = string.Empty;
+
+        /// <summary>#3426: the two tones the player plays for each letter of <see cref="Word"/>.</summary>
+        public int[] WordTones { get; private set; } = Array.Empty<int>();
+
         /// <summary>Bumped on every change, so the HUD can rebuild its texts only when needed.</summary>
         public int Version { get; private set; }
 
@@ -77,6 +84,8 @@ namespace BlocksBeyondTheStars.Client
             Instrument = m.Instrument;
             NoteSeconds = m.NoteSeconds > 0 ? m.NoteSeconds : 0.45f;
             Result = (MelodyPuzzleResult)m.Result;
+            Word = m.Open ? m.Word ?? string.Empty : string.Empty;
+            WordTones = m.Open && m.WordTones is { } tones ? tones : Array.Empty<int>();
             _resultAt = now;
             if (m.Highlight is { Length: > 0 })
             {
@@ -111,6 +120,8 @@ namespace BlocksBeyondTheStars.Client
             Instrument = Math.Max(0, Math.Min(NoteSequenceScheduler.MaxInstrument, instrument));
             Result = MelodyPuzzleResult.Playing;
             Round = RoundCount = Entered = Expected = 0;
+            Word = string.Empty;
+            WordTones = Array.Empty<int>();
             Version++;
         }
 
@@ -133,6 +144,8 @@ namespace BlocksBeyondTheStars.Client
             _closedAt = _resultAt = _flashAt = double.NegativeInfinity;
             _flashTone = -1;
             Result = MelodyPuzzleResult.Playing;
+            Word = string.Empty;
+            WordTones = Array.Empty<int>();
             Version++;
         }
 
@@ -167,6 +180,17 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The locale key of the bar's title for the mode (free play: just "Melody").</summary>
         public string TitleKey => FreePlay ? "ui.melody.title" : "ui.melody.mode." + ModeKey(Mode);
+
+        /// <summary>#3426: the letter of <see cref="Word"/> the player is at (two right tones per letter), or -1 without a word.</summary>
+        public int CurrentLetter => MelodySpelling.CurrentLetter(Entered, MelodySpelling.Letters(Word).Length);
+
+        /// <summary>
+        /// #3426: the spelling line of a puzzle whose melody spells a word — every letter with its two notes,
+        /// <c>O = F E · R = G D · …</c>, named from <paramref name="noteNames"/> (the locale's <c>ui.note.names</c>), the letter the
+        /// player is at wrapped in <paramref name="markOpen"/> / <paramref name="markClose"/>. Empty when the bar spells no word.
+        /// </summary>
+        public string SpellingLine(IReadOnlyList<string>? noteNames, string markOpen = "", string markClose = "")
+            => Open && Word.Length > 0 ? MelodySpelling.Line(Word, WordTones, noteNames, CurrentLetter, markOpen, markClose) : string.Empty;
 
         /// <summary>The locale key of the result line shown at <paramref name="now"/>, or null (nothing to say).</summary>
         public string? ResultKey(double now)

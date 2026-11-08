@@ -6,6 +6,7 @@ using System.Globalization;
 using System.Linq;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Sounders;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
@@ -162,27 +163,43 @@ public sealed partial class GameServer
         }
 
         loaded.AncientRuinStamped = true;
-        var planet = _world.Planet;
-        if (!AncientRuinsAllowed(planet, restricted))
-        {
-            return;
-        }
-
-        if (!string.IsNullOrEmpty(planet.CityWorld))
+        var (city, roll) = AncientRuinSlotsFor(_world.Planet, _world.LocationId, restricted);
+        if (city)
         {
             StampUndergroundSlot(UndergroundCitySlot);
         }
 
-        if (AncientRuinRolls(_meta.Seed, _world.LocationId, _meta.Description.Vaults.StructureFactor()))
+        if (roll)
         {
             StampUndergroundSlot(UndergroundRollSlot);
         }
+    }
+
+    /// <summary>The slots the boot stamp fills on body <paramref name="locationId"/> of type <paramref name="planet"/>: the city
+    /// slot on a city world, the roll slot when the body rolls it — none where underground structures are off. The one rule
+    /// the stamp and the admin's <c>/ressaw</c> prediction (#3421, GameServerAncientRuinsAdmin.cs) share, so they never drift.</summary>
+    private (bool City, bool Roll) AncientRuinSlotsFor(PlanetType planet, string locationId, bool restricted)
+    {
+        if (!AncientRuinsAllowed(planet, restricted))
+        {
+            return (false, false);
+        }
+
+        return (!string.IsNullOrEmpty(planet.CityWorld),
+            AncientRuinRolls(_meta.Seed, locationId, _meta.Description.Vaults.StructureFactor()));
     }
 
     private bool AncientRuinsAllowed(PlanetType planet, bool restricted)
         => !planet.Void && !planet.IsGasWorld && _config.PlaceRuins
            && _generator.TerrainGeneration >= WorldDescription.AncientRuinsGeneration
            && (!restricted || planet.AllowedStructures.Contains(AncientRuinStructureKey));
+
+    /// <summary>Whether the boot's structure stage stamps only what <paramref name="planet"/>'s whitelist names (generation 8,
+    /// Titas and Valuma; #3358: Soaniri on any save). The boot and the <c>/ressaw</c> prediction both read it here.</summary>
+    private bool StructuresRestricted(PlanetType planet)
+        => planet.RestrictStructures
+           && (_generator.TerrainGeneration >= WorldDescription.ExtremePlanetsGeneration
+               || string.Equals(planet.Key, SoundersIds.PlanetType, System.StringComparison.Ordinal));
 
     /// <summary>One slot: replay its record, or — on a world untouched at load — plan, seat and stamp it fresh. A world that
     /// already holds edits without a record gets a pinned skip: nothing is ever carved under a base after the fact.</summary>

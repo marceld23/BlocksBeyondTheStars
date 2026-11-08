@@ -17,17 +17,25 @@ namespace BlocksBeyondTheStars.Client
     {
         private static readonly int SeasonId = Shader.PropertyToID("_Sc_Season");
 
-        /// <summary>The look shown now: x autumn, y winter, z bloom (eased toward <see cref="SeasonLook.Target"/>).</summary>
+        /// <summary>The look shown now: x autumn, y winter, z bloom (eased toward <see cref="SeasonLook.TargetFor"/>).</summary>
         private Vector4 _seasonLook;
 
         private void TickSeasonLook(float dt)
         {
             var env = Game?.Environment;
             bool on = env != null && !env.SpaceSky && !Game.SpaceViewActive && !string.IsNullOrEmpty(env.Season);
-            var (autumn, winter, bloom) = on ? SeasonLook.Target(env.Season, env.SeasonProgress) : (0f, 0f, 0f);
+            var (autumn, winter, bloom) = on ? SeasonLook.TargetFor(env.Season, env.SeasonProgress, EvergreenFlora()) : (0f, 0f, 0f);
             var target = new Vector4(autumn, winter, bloom, 0f);
             _seasonLook = Game != null && Game.CaptureEnvActive ? target : Vector4.MoveTowards(_seasonLook, target, dt / 30f);
             Shader.SetGlobalVector(SeasonId, _seasonLook);
+        }
+
+        /// <summary>#3423: whether this world's type keeps its plants' colours all year (Soaniri's light blue and light green):
+        /// no autumn turn, no winter paling.</summary>
+        private bool EvergreenFlora()
+        {
+            var planet = Game != null && Game.Content != null ? Game.Content.GetPlanet(Game.LoadingPlanetType ?? string.Empty) : null;
+            return planet != null && planet.EvergreenFlora;
         }
 
         /// <summary>The grade with the season folded in: a share of the warm or cool tint and a saturation factor.</summary>
