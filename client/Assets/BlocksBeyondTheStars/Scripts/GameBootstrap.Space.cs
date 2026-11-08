@@ -349,7 +349,12 @@ namespace BlocksBeyondTheStars.Client
                 }
             };
             Network.SpaceClosed += m => { InSpace = false; Space = null; LastMessage = ServerMessageText(m.Reason); };
-            Network.StationBoardedReceived += m => { LastMessage = $"Boarded {m.Name}."; CurrentStationId = m.StationId ?? string.Empty; };
+            Network.StationBoardedReceived += m =>
+            {
+                // #3411: localized — "Boarded Blumenhall." stood in English in a German game.
+                LastMessage = BlocksBeyondTheStars.Client.Core.HudStatusText.Format(Localizer?.Get(BlocksBeyondTheStars.Client.Core.HudStatusText.BoardedKey) ?? "Boarded {0}.", m.Name);
+                CurrentStationId = m.StationId ?? string.Empty;
+            };
             Network.OwnedShipsReceived += m => OwnedShips = m.Ships;
             Network.WreckRepairStatusChanged += m => Wreck = m.Claimed ? null : m;
             Network.ShipRepairStatusChanged += m => ShipRepair = m.NeedsRepair ? m : null;

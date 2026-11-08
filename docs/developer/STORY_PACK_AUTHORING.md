@@ -166,7 +166,10 @@ validators report unknown fields (the C# tests read every pack strictly).
   from the moment the step activates; `alreadyDoneIf` completes it silently for a player who did it before; `feasibleIf`
   skips a step a world cannot offer, with `alternative` standing in (no dead ends); `variants` swap whole lines by world
   rule; `onStart.reveal` makes it a "where" step (a help marker for this player only); the help escalates by itself
-  after minutes of play without progress (the hint line, the marker of a "where" step, the offer to skip).
+  after minutes of play without progress (the hint line, the marker of a "where" step, the offer to skip). A line that
+  says "I marked it" needs the marker first: set `escalate.markerAfter` to a few seconds (the Sounders pack does it for all
+  its "where" steps). A `unique_site:<kind>` marker also names the site's world (and its system) when the player is
+  elsewhere (#3415).
 - **Missions, not steps, pay.** A step pays nothing. A job someone gives the player with a reward is a mission in
   `data/missions.json`; a step may bridge onto it (`"objective": { "type": "Mission", "target": "<mission id>" }` — the
   step completes when the mission is turned in, and the mission keeps its own rewards).

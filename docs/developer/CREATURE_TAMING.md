@@ -241,6 +241,40 @@ names the speaker through `VegaSpeakerLabel` (Client.Core: the robot's name in #
 
 Tests: `RobotChatterTests`, `RobotChatterLocaleTests`, client `RobotTalkClientTests`.
 
+### The robot conversation (#3405–#3408, 2026-11-08)
+
+Justus, a day later: "…and that you can communicate with it! That does not work!" — the talk above only went one way, and
+five of the robot's fourteen lines were questions the player could not answer. A client announcing `robottalk1`
+(`ClientFeatures.RobotTalk1`, `NetworkClient.TalksWithRobot`, set by the Unity client) now gets a **conversation** for E at
+the own robot instead of the single line (an older client keeps the single line). `GameServerRobotDialogs.cs`:
+
+- **Wire** — nothing new: the NPC dialogue panel's `NpcDialogState` with the reserved `NpcId = NpcDialogState.RobotNpcId`
+  (−7; no NPC has a negative id), and `NpcDialogChoiceIntent` comes back with it — `HandleNpcDialogChoice` routes it to
+  `HandleRobotDialogChoice`. `NpcDialogUi` shows up to four replies (was three), names the robot in its light blue
+  (`RobotTalkPanel`, Client.Core) and shows no speech bubble over a person for it.
+- **Hub** — a greeting (`robotdialog.hello.1..4`, `{0}` = the player's name) and four replies: *How are you?*, *Tell me
+  something!*, *Ask me something!* and *Follow me!* / *Wait here!*. Each answer is the conversation's closing line (Leave /
+  E closes the panel); E again opens the next one (0.5 s cooldown).
+- **How are you?** — `RobotDialogs.MoodCandidates(RobotMoodFacts)`: a fight within 30 s or the owner below 35 health is the
+  only answer; otherwise every fitting mood (weapon — names it —, jetpack, night, violent weather, the world: cold / hot /
+  toxic / gas giant / airless asteroid, the owner's pets within 12 blocks) plus the happy default, rotated by the persisted
+  counter `robot_dialog_moods`.
+- **Tell me something!** — the robot's own story lines of `RobotChatter` without its five questions
+  (`RobotDialogs.TellLines`), a per-player shuffle (`robot_dialog_tells`); every third time a remembered answer instead.
+- **Ask me something!** — six questions (`robotdialog.ask.<q>.q`), each with three answers (`.a1..a3`), a reaction per answer
+  (`.r1..r3`) and a recall line (`.m1..m3`). The next unanswered question in a per-player shuffled order is asked; the
+  answer is stored as the milestone `robot:ans:<q>:<a>` (persisted); a question left unanswered (panel closed) comes again.
+  Once all six were answered the robot recalls one of them (`robotdialog.ask.done` + the recall line, `robot_dialog_recalls`).
+- **Follow me! / Wait here!** — `CombatEntity.WaitHere` (RAM only): `MoveCompanion` leaves a waiting robot where it stands
+  (no leash catch-up) until *Follow me!*; a new arrival (another world, a rejoin) has it follow again. This is not the
+  Companions tab's follow choice (for a roamer that means "along" vs "waits on board").
+- **While talking** — the robot holds still (`CombatEntity.TalkHoldUntil`, renewed by the 1 Hz pass in
+  `TickRobotChatterFor`), says nothing by itself, and the talk ends (the panel closes, `dialogclose1`) when the player walks
+  more than talk reach + 3 blocks away, changes world, dies, goes to space, the robot fights (within 2 s) or is knocked
+  out, or the player talks to a person.
+
+Tests: `RobotDialogTests` (server), client `RobotTalkPanelTests`.
+
 ### Robot gear: a weapon and a jetpack (#3398/#3399, 2026-11-07)
 
 Justus asked for "a jetpack or weapons that it uses — just NO armour". Holding a weapon (tool kind `weapon`) or the

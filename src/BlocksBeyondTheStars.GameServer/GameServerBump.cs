@@ -393,6 +393,7 @@ public sealed partial class GameServer
                 },
                 tutorial, // #2555: active training steps + tutorial / VEGA hint milestones
                 story = BumpStorySnapshot(session), // #3386: the world story, the finale, the player's track + cutscene ledger
+                spaceHostility = BumpSpaceHostilitySnapshot(p.CurrentLocationId), // #3413: may ambient hostiles fly here, and why
                 environment = worldResident ? BuildEnvironment(p.Position) : null, // the player's local biome weather; null while the body is not loaded (#1567)
                 ship = new { _ship.ShipType, _ship.Hull, hullMax = _shipHullMax, _ship.Shield, shieldMax = _shipShieldMax, modules = _ship.Modules },
                 surroundings = blocks,

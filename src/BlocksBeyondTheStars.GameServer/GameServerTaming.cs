@@ -797,9 +797,11 @@ public sealed partial class GameServer
         }
 
         var owner = FindSessionByPlayerId(c.OwnerId);
-        if (owner is null || InSpace(c.OwnerId))
+        // Owner not on this world — hold (reconciliation will despawn it); #3405/#3408: the robot listens to its owner, or
+        // waits where it was told to.
+        if (owner is null || InSpace(c.OwnerId) || c.WaitHere || c.TalkHoldUntil > _uptime)
         {
-            return; // owner not on this world — hold (reconciliation will despawn it)
+            return;
         }
 
         if (c.StaysHome)

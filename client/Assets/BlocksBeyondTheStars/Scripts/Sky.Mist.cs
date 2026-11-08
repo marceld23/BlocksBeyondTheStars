@@ -91,9 +91,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>
         /// Distance fog in the sky colour, so the world fades into the horizon. Storms pull it in, night thickens it a little;
         /// airless bodies (space sky) and the space view stay clear. Then the underwater murk, the height fog with its wisps and
-        /// colour, the cloud band and the cloud shadows — every value a global the shared haze applies.
+        /// colour, the cloud band and the cloud shadows — every value a global the shared haze applies. #3414: what is LOOKED at
+        /// (the night's haze distance, the water murk's and the mist's colours) takes <paramref name="seenDay"/>, the day night
+        /// sight raises; what the sun DOES (the height fog's time of day, the cloud shadows) keeps the real <paramref name="day"/>.
         /// </summary>
-        private void ApplyFog(Color sky, Color sun, float weatherIntensity, float day, bool spaceSky)
+        private void ApplyFog(Color sky, Color sun, float weatherIntensity, float day, float seenDay, bool spaceSky)
         {
             bool fog = !spaceSky && (Game == null || !Game.SpaceViewActive);
             if (Game != null)
@@ -115,7 +117,7 @@ namespace BlocksBeyondTheStars.Client
             // Scale the fog to the actual render distance (view-distance chunks × 16-block chunk), so the haze engages WITHIN
             // the streamed terrain instead of beyond it and softly hides the chunk pop-in at the boundary.
             float renderDist = Mathf.Max(32f, ViewChunks * 16f);
-            float far = DistanceFogEnd(env, renderDist, airDensity, weatherIntensity, day, tod);
+            float far = DistanceFogEnd(env, renderDist, airDensity, weatherIntensity, seenDay, tod);
 
             // Where the haze begins, as a fraction of the far edge: thin/clear-air worlds stay CRISP across the near + mid
             // distance and only veil the far edge (high start), while soupy worlds haze from much closer in (low start).
@@ -127,12 +129,12 @@ namespace BlocksBeyondTheStars.Client
             // the last ring dissolves completely into the sky colour before it appears; per-world character lives in WHERE the
             // haze sits, not how opaque it gets. Faded out indoors via _indoor so the cabin never hazes.
             float maxHaze = (FogEnabled ? 1f : 0f) * (1f - _indoor); // 0 indoors or when the player disabled fog
-            ApplyUnderwater(sky, day, airDensity, ref fogStart, ref far, ref maxHaze);
+            ApplyUnderwater(sky, seenDay, airDensity, ref fogStart, ref far, ref maxHaze);
             SetFog(new Vector4(fogStart, far, maxHaze, (FogEnabled || _submerged > 0.001f) ? 1f : 0f));
 
             float exposure = Probe != null ? Probe.CameraExposure : 1f;
             float mist = ApplyHeightFog(env, tod, day, exposure);
-            ApplyMistColours(env, sky, sun, day, weatherIntensity);
+            ApplyMistColours(env, sky, sun, seenDay, weatherIntensity);
             ApplyCloudBand(env, weatherIntensity);
             Shader.SetGlobalVector(MistCamId, _mistCam);
             float cover = ApplyCloudShadows(env, weatherIntensity, day, exposure);

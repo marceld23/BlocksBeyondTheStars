@@ -318,6 +318,13 @@ moonless night ≈ 18 % (was 28 %).
 - **VEGA** (server): the lamp and torch hints count a player as underground from 3 light-stopping blocks overhead
   (was 6 blocks of anything; leaves, plants, water and glass no longer count — `GameServer.CoversFromSky`).
 - Night itself is untouched (`Sky` night floor 0.35): measure the open night with the clip recorder before lowering it.
+- **Night sight** (#3414: the bio lab's preparation, a lit Ressaw lamp worn) lifts the dark again for its wearer only:
+  `BioSenses.NightSight` (eased 0..1) is a `Sky` input like the lightning flash, and `NightSightRules` (Client.Core,
+  `NightSightRulesTests`) give the raised light level (`LightDay` → 0.74 brightness, so the world light, the models'
+  light and the ambient follow), the raised day of the sky, camera background, haze, legacy fog, mist, cloud band and
+  clouds (`SeenDay` 0.65, applied before the weather tint), a cave fill on sky-less faces (`CaveFill` 0.8) and a star
+  boost (×1.35). The time of day and the sun stay, so stars and moons stay; the eye adaptation counts it as light
+  (`AdaptedLight`). `NightSightWiringTests` pin the wiring. Details: [BIO_LAB.md](BIO_LAB.md) §16.
 
 ### Automatic preset calibration (#1423, #3279–#3283)
 
@@ -480,6 +487,8 @@ Ordered by impact ÷ effort. These are the next polish milestones; each is prese
 - The dark (#3265): `ChunkMesher.Skylight.cs`, `Sky.Dark.cs`, `AtmosphereProbe.cs`, `AtmosphereCommon.hlsl`
   (`BbtsSkyAmbient`, `BbtsDarkFloor`, `BbtsSkyLightScale`); Client.Core `SkylightRules`, `SkylightField`,
   `EyeAdaptationRules`, `DarkLightRules`.
+- Night sight (#3414): `BioSenses.cs` (the eased input), `Sky.cs`, `Sky.Dark.cs`, `Sky.Mist.cs`, `Starfield.cs`,
+  `Clouds.cs`, `CloudSea.cs`, `AtmosphereProbe.cs`; Client.Core `NightSightRules`.
 - Preset calibration (#3279–#3283): `AutoQualityCalibrator.cs`, `WorldPerfWatch.cs`, `GpuFrameTime.cs`,
   `ClientSettings.AutoQuality.cs`, `PerfProbe.cs`; Client.Core `QualityCalibration`.
 

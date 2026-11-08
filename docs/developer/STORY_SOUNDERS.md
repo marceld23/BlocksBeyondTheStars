@@ -36,16 +36,27 @@ sketches by Theo and a classmate; the names by Marcel and Justus, 2026-11-07).
 | Chapter | What the player does | Ends with |
 |---|---|---|
 | s1 The stones sing | plays rune stones (use key) — every word goes into the **Song Archive** | three runes played |
-| s2 The shrine of eight voices | answers the **Singing Shrine** (8 pillars = 8 tones, the repeat puzzle); old saves: a ring of eight rune stones around an ancient brick | the Song Spindle + disc 1 |
+| s2 The shrine of eight voices | answers a **singing shrine** (8 pillars = 8 tones, the repeat puzzle) — the oldest and biggest is the one-of-a-kind Singing Shrine ("the Shrine of the Eight Voices"); any ring of eight rune stones around an ancient brick works too | the Song Spindle + disc 1 |
 | s3 Song Discs | places the **Song Spindle**, decodes discs with the **note-key** minigame | three discs decoded |
 | s4 Alien blueprints | researches the hidden blueprints, builds the **Resonance Blaster** and the **obsidian armour**, opens a **sound chamber** under a monument, inserts the hearing disc | the first voice is heard |
 | s5 The Echoes | questions **Elora**, **Kamo**, **Feya** and **Tini** with melodies | the truth about the Great Song |
-| s6 The Song of Return | plays **ORNEMIS** in the note alphabet at the shrine (or the ring) | Ornemis on the player's star map |
+| s6 The Song of Return | plays **ORNEMIS** in the note alphabet at a singing shrine (the Singing Shrine or a ring) | Ornemis on the player's star map |
 | s7 Homecoming | jumps to Ornemis, lands on Soaniri, meets **the Eldest** in Mirun | the Young Voices are at the Choir Tower |
 | s8 The Bridge Song | persuades **Roll**, plays the counter-voice at the **Choir Tower**'s eight pipes, then wins the **sing duel** with a Soundi | the Soundi travels with the player |
 
 Nobody dies, nobody is a villain, wrong notes never punish, every place-bound step has a fallback (no shrine → the ring;
 no monuments here → another world; the Echoes come to any group of three or more rune stones, even placed ones).
+
+**Finding the places (#3415).** Every "where" step (`onStart.reveal`) marks its place 5 s after its start line (the pack's
+`escalate.markerAfter`), because the hints say "I marked it". The shrine steps (s2.1, s5.1, s6.2, reveal
+`unique_site:shrine`) first mark the nearest complete **rune shrine** of the player's world (#3416, `NearestRuneShrine`;
+on the unique shrine's own world the nearer of the two). Without one — an older world, a planet type without them — they
+show the way to the Singing Shrine, which exists once per galaxy, on one world: they name its world and system from another
+system, make its world the flight target inside its system and mark the shrine on its world. They run only while the player can reach the shrine
+(`world:shrine_reachable` — same system, a jump generator, a landing there before or instant travel); otherwise s2.1a, s5.1a
+and s6.2a stand in (the ring, any rune stones); they mark the nearest complete rune shrine of the player's world
+(`nearest_rune_shrine`) and say nothing when there is none — no far place. The texts speak of "a singing shrine": the Shrine of the Eight Voices is the
+oldest and biggest, a ring of eight rune stones works the same.
 
 ## 3. Mechanics and where they live
 
@@ -56,6 +67,7 @@ no monuments here → another world; the Echoes come to any group of three or mo
 | Melodies at a place | `NoteSequence` (324), `GameServer.PlayNoteSequence` | [SOUND_DESIGN.md](SOUND_DESIGN.md) |
 | Sounder instruments 4/5, rune stones | `ProceduralAudio`, `GameServerRunes.cs` | [SOUND_DESIGN.md](SOUND_DESIGN.md), [CRYSTAL_NET.md](CRYSTAL_NET.md) |
 | Melody puzzles, melody sites, the melody bar | `MelodyPuzzle*`, `GameServerMelodyPuzzles*.cs`, `HudUi.MelodyBar*` | [STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md) |
+| Rune shrines (#3416, worlds from terrain generation 36): the generated ruins the rune stones stand in — a complete one is a ring of eight around an ancient-brick altar, i.e. a melody ring the s2/s6 steps accept; `NearestRuneShrine(from)` gives the nearest complete one's altar | `WorldGenerator.RuneShrinesGen36.cs`, `GameServerRuneShrines.cs` | [WORLD_GENERATION.md](WORLD_GENERATION.md) §52 |
 | Side packs with lore, dialogs, texts, systems | story engine | [STORY_PACK_AUTHORING.md](STORY_PACK_AUTHORING.md) |
 | Hidden blueprints (`hiddenUntil`) | `BlueprintDefinition`, `HandleUnlock` | [CRAFTING_TECH_SHIP_UI.md](CRAFTING_TECH_SHIP_UI.md) |
 | Song Spindle, discs, note-key minigame, story loot | `GameServerSongSpindle.cs`, `GameServerStructureLoot.cs` | [MINIGAMES_AND_WIKI.md](MINIGAMES_AND_WIKI.md) |

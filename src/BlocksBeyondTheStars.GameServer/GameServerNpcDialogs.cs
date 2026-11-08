@@ -239,6 +239,7 @@ public sealed partial class GameServer
         }
 
         EndNpcConversation(session, tellClient: true);
+        EndRobotConversation(session, tellClient: false); // #3405: talking to a person ends the talk with the robot
         if (npc.Pose == 2)
         {
             // #1867: someone asleep in bed mumbles and stays there — no dialogue, no job talk at midnight.
@@ -538,6 +539,12 @@ public sealed partial class GameServer
     /// conversation ends and the client's panel closes.</para></summary>
     private void HandleNpcDialogChoice(PlayerSession session, NpcDialogChoiceIntent intent)
     {
+        if (intent.NpcId == NpcDialogState.RobotNpcId)
+        {
+            HandleRobotDialogChoice(session, intent); // #3405: a reply in the robot's panel
+            return;
+        }
+
         if (session.Npc.Conversation is not { } active || (intent.NpcId != 0 && intent.NpcId != active.Npc.Id))
         {
             return;

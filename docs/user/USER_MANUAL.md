@@ -1625,8 +1625,9 @@ players.
     Under it the **settlers** (#2998): every player who built there, with their bases (⌂) and stations (◆), **most bases
     first** (*"Nobody has built here yet."* otherwise) — a count, not a location. A **Quantum scanner** scan also marks
     every base of that world on your planet map;
-  - **asteroids, stations, wrecks, life pods, bandits and machines** — a short readout of what it is (a wreck lists
-    its contents, a machine says how dangerous it is), its threat and the knowledge it paid;
+  - **asteroids, stations, wrecks, life pods, bandits and machines** — a short readout of what it is (a wreck reads
+    "Wreck · its name", says that you break it down with the mining laser to salvage it, and lists its contents; a
+    machine says how dangerous it is), its threat and the knowledge it paid;
   - **anomalies** (only the scanner reads them — knowledge and a field record) and **wormholes** (where they lead).
   Every first scan pays a little **knowledge**. Out of range or while the scanner recharges, the card says so briefly.
   The hand scanner's panel at the bottom left belongs to walking around: it is hidden in flight and never shows an
@@ -2755,8 +2756,10 @@ with a game version that has generation 35 get them — an older world never cha
   time). Researcher traders buy spare Ressaw crystals for data fragments. Ressaw blocks cannot be crafted — they would
   crack in your base.
 - **Ressaw lamp:** wear it in a suit module slot and switch your lamp on (**L**) — it shines like the suit lamp, and
-  the world around you looks like day (night sight; it uses one of your three effect places while it is on). It needs
-  pumped Ressaw to build, but never any refills.
+  the world around you looks like day (night sight; it uses one of your three effect places while it is on): the
+  ground, the creatures, the sky, the haze and the clouds take a daylight look, and caves get a soft light. It is
+  still night, though — the moon and the stars stay in the sky (the stars even shine a little brighter). Only you
+  see it this way; other players just see your lamp's beam. It needs pumped Ressaw to build, but never any refills.
 - **Ressaw conduit:** works exactly like a crystal conduit, but a crystal net with at least one Ressaw conduit in it
   may grow to **512** blocks instead of 256 (see *Crystal Net*).
 - What you find down there: old crates, an empty diving helmet here and there, the head of a broken guardian — and,
@@ -2791,6 +2794,15 @@ with a game version that has generation 35 get them — an older world never cha
   winding over the ground. They are made of **bone** and carry no runes: **scan the bones where they
   lie** and the find pays like reading a monument's runes (Codex → Discoveries → Monuments); a bone
   pile elsewhere is only a material.
+- **Rune shrines** (worlds created from terrain generation 36 on): rune stones no longer stand alone
+  on the hills; they stand in small **shrine ruins** — a round, worn floor of ancient brick, broken pillars (sometimes an
+  arch over the way in) and the rune stones in a **ring around an altar stone** in the middle. About half of them still
+  have **all eight stones**: such a shrine is a **singing shrine** — it answers the Sounders' shrine steps exactly like a
+  ring of eight you build yourself. The others have lost some stones (three to six are left, a stump where one fell):
+  their stones still sing, and you can put the missing ones back. On most worlds you find a shrine every hundred and
+  fifty blocks or so, and a complete one is usually only a short walk from your landing pad. Like every ruin they are
+  free to mine. Older worlds keep their lone rune stones, and so do the few special worlds that never hold ruins of
+  their own (Titas and Valuma).
 
 ### Mysteries: one-of-a-kind places & space surprises
 - Three places exist **exactly once per galaxy**: the **Singing Shrine** (a ring of rune pillars with
@@ -3423,8 +3435,13 @@ VEGA tells it; the Echoes, the Eldest and Roll speak in the scenes. It has eight
 2. **The shrine of eight voices.** The **Singing Shrine** has eight pillars — eight tones. Strike one: the shrine sings a
    short tune, you play it back on the pillars (or on the **melody bar**, see below). Three rounds, each a little longer.
    Wrong notes never hurt — the round just starts again. As a reward the shrine gives you a **Song Spindle** and the first
-   **Song Disc**. No shrine in your skies? Build a ring: **eight rune stones in a circle around an ancient brick** works
-   the same way.
+   **Song Disc**. Any complete **rune shrine** works — when one stands near you on your world, VEGA marks its altar. The
+   Singing Shrine — the Shrine of the Eight Voices, the oldest and biggest singing shrine — stands on just **one world of
+   the galaxy**: without a rune shrine near you, VEGA names that world and its star system (open the star map), sets it as
+   your flight target once you are in its system, and marks the shrine when you land there. Can't get there yet (another
+   system and no jump drive)? Then any ring does it: **eight rune stones in a circle around an ancient brick** works the
+   same way.
+   Every place the story wants you to find is marked a few seconds after VEGA mentions it.
 3. **Song Discs.** Place the spindle, hold a disc and **[Use]** the spindle: it plays the disc (**[Use]** with an empty
    hand plays it again, crouch + **[Use]** takes it back). The first time, you decode it in a short game — every letter
    is **two notes** (the **note alphabet**: the first note picks the row, the second the column; a letter shows itself
@@ -3441,7 +3458,7 @@ VEGA tells it; the Echoes, the Eldest and Roll speak in the scenes. It has eight
    Song long ago. They are not ghosts; they live "on the other side". You ask them with **melodies** (a question is a short
    tune you choose). Elora, Kamo, Feya and Tini each give you letters of the way home. Any group of three or more rune
    stones can call an Echo — even stones you placed yourself.
-6. **The Song of Return.** Play the letters **ORNEMIS** in the note alphabet at the shrine (or your ring). The shrine
+6. **The Song of Return.** Play the letters **ORNEMIS** in the note alphabet at a singing shrine (or a ring). The shrine
    answers a fifth higher, and the **Ornemis** system appears on **your** star chart (only for players who learned the
    song; others can fly along aboard your ship).
 7. **Homecoming.** Jump to Ornemis (you need a jump drive) and land on **Soaniri**: singing plants, **Soundis**,
@@ -4062,13 +4079,25 @@ Resonance Blaster opens it too, so you can play freely.
     one craft at the workshop builds it again.
   - **Switch off** in the Creatures tab (where animals have *Release*) folds it back into the item — make sure there is a
     free slot in your backpack.
-  - **It talks** (#3394–#3396, an idea of Justus): look at your robot and press **E** ("Talk to Robo") and it answers in
-    VEGA's panel — its **name** (the one you gave it) stands over the line in its light blue instead of "VEGA". It is sorry
-    for what the old machine network did to the SPS, misses its brothers (the scan drones, guardian robots, tank spiders
-    and hunters), asks you things and says thank you; sometimes VEGA asks it a question and it answers. You hear every
-    line once before any comes again. Now and then it also says something **by itself** — while it follows you on foot
-    nearby and nobody is fighting, at most every 10–20 minutes. Those lines are muted together with VEGA's hints
-    (Settings); what it says when you press E always comes through. Another player's robot only talks to its owner.
+  - **Talk with it** (#3405–#3408, an idea of Justus): look at your robot and press **E** ("Talk to Robo"). A small
+    conversation opens, like with the people in villages — the robot's **name** (the one you gave it) in its light blue,
+    a greeting and four answers to pick (click, or the keys **1**–**4**):
+    - **How are you?** — it tells you how it feels right now: after a fight, when you are hurt, with the weapon or jetpack
+      you gave it, at night, in a storm, on a cold, hot, poisonous or windy world, out on an airless asteroid, or when your
+      animals are around.
+    - **Tell me something!** — it tells you about itself: it is sorry for what the old machine network did to the SPS,
+      misses its brothers (the scan drones, guardian robots, tank spiders and hunters), and much more. You hear every story
+      once before any comes again.
+    - **Ask me something!** — the robot asks **you** a question ("What is a song?", "May I stay with you?" …) and you pick
+      one of three answers. It reacts to your answer and **remembers it**: later it talks about what you told it. After all
+      six questions it tells you which answer it keeps thinking about.
+    - **Wait here!** / **Follow me!** — it stays on its spot (until you say "Follow me!", or you travel to another world)
+      or follows you again.
+
+    Each answer ends the conversation; press **E** again for the next one. While you talk it stands still; walk away and
+    the conversation closes. Now and then it also says something **by itself** in VEGA's panel — while it follows you on
+    foot nearby and nobody is fighting, at most every 10–20 minutes, sometimes VEGA asks it a question and it answers. Those
+    lines are muted together with VEGA's hints (Settings). Another player's robot only talks to its owner.
   - **Gear for your robot** (#3398/#3399, an idea of Justus): hold a **weapon** (a pistol, blaster, sword, knife, club,
     spear or fight gloves) or a **jetpack** in your hand, look at your robot and press **E** ("Give Laser pistol to Robo").
     It carries **one weapon and one jetpack**; giving a second weapon swaps it, and the old one comes back into your
@@ -4198,7 +4227,7 @@ look up: what a mix does follows from what goes in, and the same things always g
   | Strength · Mining · Reflex | up to 30 % more melee damage · mining power · up to 25 % shorter cooldowns |
   | Breath · Satiety | up to 40 % less oxygen · hunger use |
   | Heat Ward · Cold Ward · Toxin Ward | protection that joins your suit's insulation and corrosion resistance |
-  | Night Sight · Perception | the dark gets brighter · living things are marked through walls |
+  | Night Sight · Perception | the world around you looks like day (the sky too; the moon and the stars stay, and only you see it) · living things are marked through walls |
   | Stealth | hostile creatures ignore you — a minute at most |
   | Gathering | plants you harvest give one or two extra |
 

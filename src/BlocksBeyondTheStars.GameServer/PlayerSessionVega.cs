@@ -126,4 +126,30 @@ public sealed class PlayerSessionVega
 
     /// <summary>#3396: ambient lines the robot spoke this session — seeds the roll of the next gap.</summary>
     public int RobotAmbientSpoken { get; set; }
+
+    /// <summary>#3405: the open conversation with the own robot (the dialogue panel shows its replies), or null.</summary>
+    public RobotConversation? RobotTalk { get; set; }
+
+    /// <summary>#3405: conversations opened this session — seeds which greeting the robot picks.</summary>
+    public int RobotGreetings { get; set; }
+}
+
+/// <summary>#3405: one open conversation with the own robot — which robot, where, and which step the panel shows.</summary>
+public sealed class RobotConversation
+{
+    public RobotConversation(string companionId, string locationId, int question)
+    {
+        CompanionId = companionId;
+        LocationId = locationId;
+        Question = question;
+    }
+
+    /// <summary>The robot's <c>TamedCreature.Id</c>.</summary>
+    public string CompanionId { get; }
+
+    /// <summary>The world the talk happens on.</summary>
+    public string LocationId { get; }
+
+    /// <summary>0 = the hub's four replies are shown; 1.. = the robot asked that question and waits for the answer.</summary>
+    public int Question { get; set; }
 }

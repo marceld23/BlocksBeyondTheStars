@@ -48,6 +48,10 @@ public sealed class NpcDialogState
     /// <summary>#3089: the <see cref="Action"/> after the quartermaster's "Show me the jobs" — the client closes the panel
     /// after the line and opens the Missions tab on the jobs on offer. An older client ignores it (the line still reads).</summary>
     public const string ActionMissions = "missions";
+
+    /// <summary>#3405: the <see cref="NpcId"/> of a conversation with the player's own robot companion — no NPC has a negative
+    /// id, so the panel and the server tell the robot's talk apart by it (the choice comes back with it, too).</summary>
+    public const int RobotNpcId = -7;
 }
 
 /// <summary>Client → server (2026-09): the player's answer to a reporter's interview. Only accepted right after that

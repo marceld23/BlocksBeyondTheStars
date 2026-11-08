@@ -116,10 +116,10 @@ FALLBACK_PREDICATES = [
     "planet_wrecks",
     "festival_any", "festival_harvest", "festival_lights", "festival_newyear", "festival_blossoms", "festival_colours",
     "festival_stars", "festival_midsummer", "festival_children", "festival_halloween", "festival_christmas",
-    "monuments", "shrine",
+    "monuments", "shrine", "shrine_reachable",
 ]
 # #3349: the marker providers (StoryRevealProviders) without an argument.
-REVEAL_PROVIDERS = ["nearest_settlement", "nearest_food_plant", "nearest_station", "nearest_monument"]
+REVEAL_PROVIDERS = ["nearest_settlement", "nearest_food_plant", "nearest_station", "nearest_monument", "nearest_rune_shrine"]
 # #3357: where a pack system goes on the star map (StoryPackSystemPlacements).
 SYSTEM_PLACEMENTS = ["edge", "inside"]
 # #3347: milestone families the game writes - a pack's milestonePrefix may not be one (StoryPackMilestones).

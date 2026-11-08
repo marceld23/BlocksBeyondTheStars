@@ -239,8 +239,14 @@ public sealed class WorldDescription
     /// quartermasters and vendor themes, #2833 twelve more wild plant species and mixed meadows, #2848–#2859 the tree
     /// variety and glow package, #2976 several fruits per world, picked per tree, #2988 the start system carries lead and
     /// uranium, #3005 the pumpkin as a wild species of the green worlds, #3306 KuBa-W, Jafar's school-club asteroid, #3325 the
-    /// Schuppenhund on the dry worlds, #3334 the buried G.D.S. ruins flooded with Ressaw).</summary>
-    public const int CurrentTerrainGeneration = 35;
+    /// Schuppenhund on the dry worlds, #3334 the buried G.D.S. ruins flooded with Ressaw, #3416 the rune shrines).</summary>
+    public const int CurrentTerrainGeneration = 36;
+
+    /// <summary>The generation of the rune shrines (#3416, Justus' F1 reports 2026-11-08): a world created at this generation
+    /// or later no longer scatters lone rune stones — the rune stones stand in small shrine ruins instead, a ring of stones
+    /// around an ancient-brick altar on a worn brick floor, half of them a complete ring of eight (the Sounders' singing-shrine
+    /// rule). A chunk pass, so every chunk of an older world stays bit-identical.</summary>
+    public const int RuneShrineGeneration = 36;
 
     /// <summary>The generation of the buried G.D.S. ruins (#3334, Justus' "Alte Städte" 2026-11-01): a world created at this
     /// generation or later may carry ONE underground ruin per planet, composed from an underground kit (#3333) — always under

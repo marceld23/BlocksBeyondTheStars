@@ -613,9 +613,10 @@ public sealed partial class WorldGenerator
 
                     if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0
                         || SurfaceGen1WaterDepth(planet, wx, wz) > 0
-                        || DryBeachAt(planet, calib, seed, RiverFieldFor(planet), waterId, wx, wz, sy) || OilSeepNear(planet, wx, wz))
+                        || DryBeachAt(planet, calib, seed, RiverFieldFor(planet), waterId, wx, wz, sy) || OilSeepNear(planet, wx, wz)
+                        || RuneShrineClaims(planet, wx, wz, maxR))
                     {
-                        continue;
+                        continue; // #3416: and never into a rune shrine
                     }
 
                     double sizeF = SizeFactor(seed + row.Salt + 1, wx, wz, 0.30);

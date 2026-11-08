@@ -974,6 +974,8 @@ public sealed partial class WorldGenerator
         {
             _seaCells.Clear(); // generation 3: the sea-relative families roll against the calibrated sea
         }
+
+        InvalidateRuneShrines(); // #3416: a shrine's site reads the ground, the pads and the generation
     }
 
     /// <summary>How many column profiles are memoised right now (tests).</summary>

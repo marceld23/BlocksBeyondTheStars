@@ -10,7 +10,9 @@ namespace BlocksBeyondTheStars.Client
     /// turning it pitch black — the flat dark floor every lit surface keeps (<c>_Sc_DarkFloor</c>, raised by the "Visibility
     /// in the dark" setting), the models' share of the world light (<c>_Sc_ModelLight</c>: creatures, avatars, doors and
     /// held items no longer glow in a cave), and the gentle interior fill of a room in the player's own base. The values are
-    /// <see cref="DarkLightRules"/> (Client.Core, tested headless).
+    /// <see cref="DarkLightRules"/> (Client.Core, tested headless). #3414: and the input that lifts the dark again — night
+    /// sight (<see cref="NightSightInput"/>, values in <see cref="NightSightRules"/>), which the lighting turns into a raised
+    /// light and sky-colour level and which lifts the fill of sky-less faces here.
     /// </summary>
     public sealed partial class Sky
     {
@@ -34,13 +36,19 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The interior fill the shaders get: the cabin's or the station's, or — #3265 — a gentle fill in a room of
         /// the player's own base, so a dug home without lamps is dim-cosy, not cave-dark. Caves and tunnels outside the
-        /// base get none.</summary>
-        private float InteriorFill(bool litInterior, bool home)
+        /// base get none — unless night sight (<paramref name="nightSight"/>, #3414) lifts them like a faint cabin light.</summary>
+        private float InteriorFill(bool litInterior, bool home, float nightSight)
         {
             float target = !litInterior && home ? DarkLightRules.HomeBaseFill : 0f;
             _baseFill = Mathf.MoveTowards(_baseFill, target, Time.deltaTime * 0.5f);
-            return Mathf.Max(_indoor, _baseFill);
+            return Mathf.Max(Mathf.Max(_indoor, _baseFill), NightSightRules.CaveFill(nightSight));
         }
+
+        /// <summary>#3414: the night-sight strength this frame (0..1) — the eased value <see cref="BioSenses"/> hands over (0
+        /// without the effect, in the flight view and once it is gone), read like <see cref="WeatherFx.LightningFlash"/>. Only
+        /// the wearer has it: the effect travels in the player's own state, so other players see nothing but the lamp's beam.
+        /// It never touches the clock: the time of day and the sun stay as they are.</summary>
+        private static float NightSightInput() => Mathf.Clamp01(BioSenses.NightSight);
 
         /// <summary>Publishes the dark floor and the models' light for this frame (<paramref name="linearLight"/> = the
         /// world light as the shaders get it).</summary>

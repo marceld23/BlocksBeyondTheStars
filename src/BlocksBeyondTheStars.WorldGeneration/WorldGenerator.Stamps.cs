@@ -110,7 +110,7 @@ public sealed partial class WorldGenerator
         new("buried-pillar", 0x9111, 107, 0.00012, PropMaterial.Boulder, StampBuriedPillar, PropRuins, "ancient_brick"),
         new("crashed-probe", 0xC2A5, 109, 0.00008, PropMaterial.Boulder, StampCrashedProbe, PropRuins, "iron_wall", "glass"),
         new("mining-rig", 0x3116, 113, 0.00008, PropMaterial.Boulder, StampMiningRig, PropRuins, "machine_block", "factory_pipe"),
-        new("rune-stone", 0x2E5E, 127, 0.00012, PropMaterial.Boulder, StampRuneStone, PropRuins, "rune_stone"),
+        new("rune-stone", 0x2E5E, 127, 0.00012, PropMaterial.Boulder, StampRuneStone, PropLoneRuneStone, "rune_stone"), // #3416: < gen 36
         // School club wave 3 (#1761, #1762) — generation-5 rows, appended so nothing above moves. The scrap planet's
         // own rows are dense; the "stray" rows are the same shapes on every other solid-ground world at a fortieth
         // of the density; the gaming rows need the gaming tag.
@@ -289,9 +289,10 @@ public sealed partial class WorldGenerator
                 }
 
                 if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0
-                    || SurfaceGen1WaterDepth(planet, wx, wz) > 0 || OilSeepNear(planet, wx, wz))
+                    || SurfaceGen1WaterDepth(planet, wx, wz) > 0 || OilSeepNear(planet, wx, wz)
+                    || RuneShrineClaims(planet, wx, wz, 8))
                 {
-                    continue; // dry ground only, and never on a seep's tar (#2371)
+                    continue; // dry ground only, never on a seep's tar (#2371), never into a rune shrine (#3416)
                 }
 
                 int h1 = (int)(Noise.Value01(seed + 0x5E7D, cx, 41, cz) * 997); // per-column shape hash
@@ -406,9 +407,10 @@ public sealed partial class WorldGenerator
                 }
 
                 if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0
-                    || SurfaceGen1WaterDepth(planet, wx, wz) > 0 || OilSeepNear(planet, wx, wz))
+                    || SurfaceGen1WaterDepth(planet, wx, wz) > 0 || OilSeepNear(planet, wx, wz)
+                    || RuneShrineClaims(planet, wx, wz, 0))
                 {
-                    continue; // a vent needs open ground (not a sea/pond column, not a seep's tar — #2371)
+                    continue; // a vent needs open ground (not a sea/pond column, not a seep's tar — #2371, not a rune shrine — #3416)
                 }
 
                 int ly = sy - origin.Y;
@@ -473,9 +475,10 @@ public sealed partial class WorldGenerator
                 }
 
                 if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0
-                    || SurfaceGen1WaterDepth(planet, wx, wz) > 0 || OilSeepNear(planet, wx, wz))
+                    || SurfaceGen1WaterDepth(planet, wx, wz) > 0 || OilSeepNear(planet, wx, wz)
+                    || RuneShrineClaims(planet, wx, wz, maxCapR))
                 {
-                    continue; // not in water, not on a seep's tar (#2371)
+                    continue; // not in water, not on a seep's tar (#2371), not into a rune shrine (#3416)
                 }
 
                 if (DryBeachAt(planet, calib, seed, RiverFieldFor(planet),
@@ -667,9 +670,9 @@ public sealed partial class WorldGenerator
                 }
 
                 if (SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0
-                    || SurfaceGen1WaterDepth(planet, wx, wz) > 0 || OilSeepNear(planet, wx, wz))
+                    || SurfaceGen1WaterDepth(planet, wx, wz) > 0 || OilSeepNear(planet, wx, wz) || RuneShrineClaims(planet, wx, wz, maxCrown))
                 {
-                    continue; // B35: an upland pond/lake, a river or a generation-1 body here — a tree would stand in the water; #2371: or in a seep's tar
+                    continue; // B35: an upland pond/lake, a river or a generation-1 body here — a tree would stand in the water; #2371: or in a seep's tar; #3416: or in a rune shrine
                 }
 
                 // Beaches (#679): on a beach column the painted ground is the beach block, NOT the biome

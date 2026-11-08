@@ -267,7 +267,9 @@ namespace BlocksBeyondTheStars.Client
             float daylight = skyOpen * day * Mathf.Lerp(1f, 0.7f, weather);
             float interior = Game.Aboard || !string.IsNullOrEmpty(Game.StationName) ? 0.6f : 0f;
             float lamp = _lampLight * 0.55f;
-            SceneBrightness = Mathf.Clamp01(Mathf.Max(daylight, interior, lamp, 0.03f));
+            // #3414: night sight counts as light — the Sky already lifts the world, so the eyes add no dark boost on top.
+            float sight = NightSightRules.AdaptedLight(BioSenses.NightSight);
+            SceneBrightness = Mathf.Clamp01(Mathf.Max(daylight, interior, lamp, sight, 0.03f));
 
             // Dark earns a boost; a lit room or daylight earns nothing. Night under the open sky counts as dark too, which
             // lets the eyes "get used to" a moonless night — #3265: but only +0.2 EV above ground at night and +0.35 EV

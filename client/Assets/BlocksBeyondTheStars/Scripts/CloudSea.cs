@@ -182,6 +182,7 @@ namespace BlocksBeyondTheStars.Client
         {
             float tod = Sky != null ? Sky.DayFraction : Game.LocalTimeOfDay;
             float day = Mathf.Clamp01(Mathf.Sin((tod - 0.25f) * Mathf.PI * 2f) * 0.5f + 0.5f);
+            day = NightSightRules.SeenDay(day, BioSenses.NightSight); // #3414: lit like the sky under night sight
             Color baseColor = Rgb(env.CloudColor);
             if (env.MistColor >= 0)
             {

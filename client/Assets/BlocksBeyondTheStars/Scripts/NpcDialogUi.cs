@@ -24,7 +24,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#3089: the in-game menu — the quartermaster's "Show me the jobs" opens its Missions tab.</summary>
         public GameMenu Menu;
 
-        private const int MaxChoices = 3;
+        private const int MaxChoices = 4; // #3405: the robot's talk offers four (people offer up to three)
         private const float PanelW = 560f, PanelBaseH = 130f, RowW = 520f, LineBaseH = 48f;
         private const float ChoicesY = 104f, ChoiceH = 44f, ChoiceGap = 8f;
 
@@ -101,7 +101,8 @@ namespace BlocksBeyondTheStars.Client
             _state = m;
             _missionsOnClose = m.Action == NpcDialogState.ActionMissions; // #3089: a later line or talk cancels it
             ClientAudio.Instance?.Cue("ui_open", 0.6f);
-            if (!string.IsNullOrEmpty(m.Text) && Game?.Views.Npcs != null)
+            // #3405: the robot is no NPC — it speaks in the panel only (no person to show a bubble over).
+            if (!string.IsNullOrEmpty(m.Text) && Game?.Views.Npcs != null && !RobotTalkPanel.IsRobot(m.NpcId))
             {
                 Game.Views.Npcs.DialogLine(m.NpcId, m.Text, opening);
             }
@@ -217,6 +218,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _panel.SetActive(true);
             _title.text = _state.Name;
+            _title.color = RobotTalkPanel.TitleRgb(_state.NpcId) is int rgb ? RgbColor(rgb) : UiKit.Cyan; // #3405: the robot's light blue
 
             _line.text = "“" + _state.Text + "”";
             if (_line.text != _laidOutLine)
@@ -240,6 +242,9 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private string L(string key) => Game?.Localizer?.Get(key) ?? key;
+
+        /// <summary>0xRRGGBB → an opaque colour (#3405: the robot's name in its visor's light blue).</summary>
+        private static Color RgbColor(int rgb) => new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f, 1f);
 
         /// <summary>Sizes the speech row to its wrapped height and shifts the reply buttons + panel bottom
         /// with it (the bandit panel's reflow pattern — authored lines vary a lot in length).</summary>

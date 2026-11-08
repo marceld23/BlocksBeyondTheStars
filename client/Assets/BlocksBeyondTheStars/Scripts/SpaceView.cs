@@ -119,6 +119,10 @@ namespace BlocksBeyondTheStars.Client
             public string Id = string.Empty;
             public bool Derelict;
 
+            // #3409: the flight instance this design arrived for (the server sends the SpaceState before the designs), so
+            // the in-flight rebuild of a jump (#1677) keeps the new system's designs instead of wiping them with the old.
+            public string Instance = string.Empty;
+
             public bool IsStation => Kind == "station";
         }
 
@@ -401,8 +405,13 @@ namespace BlocksBeyondTheStars.Client
             if (!string.IsNullOrEmpty(instance) && !string.IsNullOrEmpty(_sceneInstance)
                 && !string.Equals(instance, _sceneInstance, System.StringComparison.Ordinal))
             {
+                // #3409: the arrived system's designs (stations, wreck, asteroids) came in the same pump as the switch —
+                // Exit's ClearStructs would wipe them with the old ones, leaving placeholder stations, a brown box for the
+                // wreck and invisible asteroids until the next launch. Carry them over the rebuild.
+                var arrived = TakeArrivedStructs(instance);
                 Exit();  // same teardown a jump-with-a-visible-gap would have run…
                 Enter(); // …and the same rebuild, now against the arrived system's map
+                RestoreArrivedStructs(arrived);
                 return;  // the rest of this frame belongs to the old scene
             }
 

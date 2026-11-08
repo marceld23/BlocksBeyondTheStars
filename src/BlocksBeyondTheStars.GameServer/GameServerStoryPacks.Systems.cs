@@ -20,7 +20,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// the star map and a jump target only while it is visible to them (<see cref="PackSystemHiddenFor"/>): the pack active for
 /// them and its condition holding — or they are in it or were (a crewmate who flew along). Normal jump rules apply (a jump
 /// generator or a lane). Never a wormhole end (<see cref="IsStoryLockedSystem"/>). Also here: the marker providers
-/// <c>nearest_monument</c>, <c>pack_site:&lt;id&gt;</c> (<see cref="RegisterPackSite"/>) and <c>story_system:&lt;id&gt;</c> (#3349).
+/// <c>nearest_monument</c>, <c>pack_site:&lt;id&gt;</c> (<see cref="RegisterPackSite"/>) and <c>story_system:&lt;id&gt;</c> (#3349), and
+/// <c>nearest_rune_shrine</c> (#3416).
 /// </summary>
 public sealed partial class GameServer
 {
@@ -321,10 +322,16 @@ public sealed partial class GameServer
     // ---------------------------------------------------------------------------------------------
 
     /// <summary>The spot of a pack marker provider for this player on their world (<c>nearest_monument</c>,
-    /// <c>pack_site:&lt;id&gt;</c>), or null — <paramref name="handled"/> false for any other provider.</summary>
+    /// <c>nearest_rune_shrine</c>, <c>pack_site:&lt;id&gt;</c>), or null — <paramref name="handled"/> false for any other
+    /// provider.</summary>
     private Vector3f? PackRevealTarget(PlayerSession s, string reveal, out bool handled)
     {
         handled = true;
+        if (reveal == StoryRevealProviders.NearestRuneShrine)
+        {
+            return RuneShrineSpot(s); // #3416: a complete rune shrine's altar — nothing from afar
+        }
+
         if (reveal == StoryRevealProviders.NearestMonument)
         {
             if (_worlds.Find(s.CurrentLocationId) is not { } world)

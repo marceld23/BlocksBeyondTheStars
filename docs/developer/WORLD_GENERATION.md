@@ -745,7 +745,8 @@ When a chunk is generated (`WorldGenerator.Generate(planet, coord)`):
    surface/deep blocks, ore veins, rare data caches) → surface or aquatic flora (kept below any ice
    sheet; nothing grows in a frozen-through column).
 5. Feature stamps with cross-chunk margins: trees, giant mushrooms, geysers, and set-dressing
-   (boulders, crystal shards, dead logs, monoliths, stone circles).
+   (boulders, crystal shards, dead logs, monoliths, stone circles); from generation 36 the rune shrines last
+   (§52 — the passes before them keep their anchors out of a shrine).
 6. Landing-pad flattening where a pad is reserved.
 
 Every step is a pure function of `(seed, planetKey, coordinates)` — no persistent world storage, so
@@ -963,6 +964,8 @@ spatter (`volcanic`), coral outcrops (wet worlds, on the dry strip within 2 abov
 clusters (`crystal`), meteorites (airless bodies, iron ore), tar pools (dry `buttes` / `wind` flats), and the
 micro-ruins — wall fragment, buried pillar (ancient brick), crashed probe (iron wall + glass), abandoned
 mining rig (machine block + pipe), lone rune stone — each rolling a data cache 30–50 % of the time.
+(From generation 36 the lone rune stone's row is off wherever shrines can appear — its gate `PropLoneRuneStone` closes —
+and the rune stones stand in shrine ruins instead, §52; a type that can never raise a shrine keeps its lone stones.)
 Rows fill air only, never carve. `PropActiveForTest` / `PropRollForTest` expose gate + roll.
 
 **Trees.** `TreeKind` gained Baobab (2×2 trunk, flat crown), Mangrove (stilt roots; falls back to a
@@ -3420,3 +3423,85 @@ monuments clear of the sites, stamped once — a reload keeps an edit and re-reg
 the same seed, nothing on another world), `SingingPlantsTests` (the phrases, the echo, wild blooms open and close, the trail in
 order to its chamber, the blaster's chamber once, crystals and pipes as instruments), `SingingPlantChorusTests` (Client.Core:
 the budget, the fade, the Soundrak's silence, the shimmer's chapter gate), golden `sounder_world-gen34`.
+
+## 52. Generation 36 — the rune shrines (#3416, 2026-11-08, Justus' F1 reports)
+
+**Why.** Two player reports from Justus (2026-11-08): the Sounders' shrine step could not be answered "the way VEGA
+says" because the rune stones stood alone on the hills, one by one, while the story speaks of a shrine of eight. Marcel: the
+rune stones should not come as single stones but with a small ruin around them, shrine-like.
+
+**The gate.** `WorldDescription.RuneShrineGeneration` = 36 = `CurrentTerrainGeneration`. It is a chunk pass, so a world of
+generation 35 or older keeps its lone stones and every chunk bit for bit (no golden moved). From 36 the generation-1
+`rune-stone` prop row is off wherever shrines can appear (its gate `PropLoneRuneStone` closes; the row stays in the table so
+the precedence of every older generation is unchanged) and the shrines take its place. Worlds: the lone stone's own rule
+(`PropRuins`: solid ground, air, not cratered); a type with a structure whitelist only when it keeps its rune relics
+(`monuments` — `RuneShrinesAllowedOn`: Soaniri yes; Titas, Valuma and KuBa-W no — those keep their **lone** stones, the row
+stays on for them); not on a world whose cells cannot hold a shrine and its margin.
+
+**Where (`WorldGenerator.RuneShrinesGen36.cs`).** The world is cut into cells of about `RuneShrineCellSize` = 112 blocks (X
+wraps with the circumference, Z with the latitude period; 54 × 27 cells on a 6000 world). A cell rolls a shrine with
+`RuneShrineChance` = 0.8 and tries up to `RuneShrineSpotTries` = 4 seeded spots, each at least `RuneShrineMargin` = 22
+blocks from the cell's edges, until the ground holds one: 17 samples (the centre, the eight ring spots, the eight rim
+pillars) within a relief of `RuneShrineMaxRelief` = 5, every sample dry (no sea, pond, river, generation-1 lake, oil seep,
+lava sea or volcano crater), no band over and no cavern, hall or tunnel under the centre and four rim points
+(`ColumnHasBandAbove` / `ColumnHasVoidBelow`), and clear of every landing pad's levelled ground by a few blocks. The floor is
+the median sample. A cell's site is memoised per generator (dropped with the column memos on a mode change). Because the
+margin covers the shrine plus the widest guarded reach, a column only ever asks its own cell.
+
+**The ruin.** In the shrine's own frame (turned by a seeded quarter turn): a **floor** disc of ancient brick (dx² + dz² ≤ 30,
+eleven across) at the floor row — brick fill from a lower column's ground up to it, a higher column's hill cut away above
+it, 14 % of the cells worn (the ground shows through), caves right under it plugged three deep; clear air up to six over the
+floor (three over a cut column's ground). An **altar** — one ancient brick on the floor in the middle. The **ring**: eight
+spots at radius 4 (4 and 4.24 out, one per 45° sector); a rune stone is two or, 35 % of the time, three tall. Half the
+shrines are **complete** (all eight); the others keep three to six stones and a brick stump on half of the empty spots.
+Eight **rim pillars** of brick between the ring's bearings, 5.4 out, 60 % standing, one to four tall; half the shrines have
+an **arch** over the way in (the two gate pillars four tall, a lintel five up — broken half the time: one pillar two tall
+and only the left end of the lintel). **Loose bricks** on 5 % of the free floor (never in the way in) and a **data cache**
+beside the altar in 40 % of the shrines. Rune stone and brick wear their column's biome look like everywhere
+(`BiomePalettes`); there is no glow (the lone stones had none either — glow is the monuments' server stamp).
+
+**Why a complete shrine is a singing shrine.** The Sounders' ring rule (`MelodySiteGeometry.FindRing`, used by
+`GameServerMelodyPuzzles.Sites.cs`) wants an ancient brick (or a Song Spindle) in the centre and exactly one rune-stone
+column in each 45° sector 1.9–5.8 blocks out, from one row under the centre to three above, all within 1.5 of the same
+distance. The altar is the brick; the ring is 4 / 4.24 out; every other block within 5.8 is brick, never a rune stone, so no
+sector holds two. Striking a stone of a complete shrine registers a `ring` melody site and the s2 / s6 steps start there like
+at a ring the player built. A partial shrine is never a ring (a sector is empty) — the player may put the missing stones
+back. Its stones still sing, and three or more of them call an Echo.
+
+**The other passes keep out.** Each pass that anchors something with a spread asks `RuneShrineClaims(planet, x, z, reach)`
+before it builds and skips an anchor whose spread reaches a shrine's floor: trees (crown 4), giant mushrooms (cap 4), the
+generation-1 giant flora (3), the giant trees (16 — the widest, it sets the margin), the Fifi plants (3), geysers (0), the
+set dressing (8) and Soaniri's singing props (3). So no trunk is cut by the shrine's clear air and no crown floats; plants
+and props of the ground itself are cleared inside the floor. The shrine pass runs after all of them and before the pads are
+levelled (a shrine keeps clear of the pads anyway).
+
+**Numbers.** Measured over ten normal types (meadowlands, savanna, desert, jungle, varied, tundra, rocky, swamp, boreal,
+badlands) × two seeds within 600 blocks of the pad: **one shrine per ~23 000 columns** (one every ~150 blocks), **49 %
+complete**, the nearest complete one **36–226 blocks** from the pad. Steep alpine worlds (`highland`) get few (one per
+~300 000 columns). The lone stone it replaces was one per ~8 300 dry columns but a single stone; a shrine holds ~6.2 on
+average, so there are about twice as many rune stones per area as before, in a third as many places. Cost: a cell's site is
+built once per generator (17 height samples, the water probes on 17, the band / void probes on 5, up to four spots —
+about 0.6 ms); a chunk asks the cells of its four corner columns and returns at once when no floor reaches it.
+
+**The server's seam.** `WorldGenerator.RuneShrinesNear(planet, x, z, radius)` lists the shrines near a column (nearest first)
+and `TryFindNearestRuneShrine(planet, x, z, radius, accept, out shrine)` walks the cells ring by ring and stops as soon as no
+farther ring can hold a nearer one. `GameServer.NearestRuneShrine(Vector3f from, int maxDistance = 480)`
+(`GameServerRuneShrines.cs`) returns the **altar** of the nearest complete shrine of the active world that no settlement, rail
+line, lodge, buried ruin or monument was stamped over, or null. It is seed arithmetic (no chunk is loaded; a stone mined since
+is not noticed). The story can point its shrine steps at it.
+
+**Tests.** `RuneShrineGenerationTests` (generation 36 turns the lone stone off and an older world has no shrine; Titas and
+Valuma keep their lone stones at generation 36 and raise no shrine; a normal planet holds no rune stone outside its shrines
+over 13 × 13 sampled chunk columns; a complete
+shrine has its altar, floor and eight stones and `FindRing` from the altar finds exactly those; a partial one keeps three to
+six and is no ring; every shrine on a meadow, a jungle, a desert and a tundra stands on solid ground with nothing but itself
+up to twenty over its floor; the same for a seed and from either side of a chunk edge; clear of a pad; the guard; the rate
+and the nearest complete one within 400 blocks of the pad on nine worlds in ten), `RuneShrineServerTests`
+(`NearestRuneShrine` finds an altar in a ring, striking a stone there in chapter 2 starts the shrine's echo game; none on a
+generation-35 world), golden `meadowlands-shrine-gen36` (a 5472 body: at the default circumference every golden sample chunk
+lies in the margin band between shrine cells).
+
+**Watch items.** The server's structure stamps (settlements, cities, monuments, unique sites, the Sounder sites) do not avoid
+the shrines: they level their own footprint, so a shrine half under one keeps its other half (`NearestRuneShrine` skips a
+shrine under a settlement, rail, lodge, buried ruin or monument). A shrine's stone scans as material, like a lone stone, and
+`RuneSiteKind` calls it `lone`.

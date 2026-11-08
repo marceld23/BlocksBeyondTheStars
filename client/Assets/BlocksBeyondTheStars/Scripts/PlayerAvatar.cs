@@ -843,8 +843,11 @@ namespace BlocksBeyondTheStars.Client
             // poses had it positive and hyperextended every elbow backwards (seen in the character editors' big figure).
             if (_elbowL != null) _elbowL.localRotation = Quaternion.Euler(elbowL, 0f, elbowRollL);
             if (_elbowR != null) _elbowR.localRotation = Quaternion.Euler(elbowR, 0f, elbowRollR);
-            if (_kneeL != null) _kneeL.localRotation = Quaternion.Euler(-kneeL, 0f, 0f); // bends the lower leg back
-            if (_kneeR != null) _kneeR.localRotation = Quaternion.Euler(-kneeR, 0f, 0f);
+            // #3412: the mirror of #3401 — a POSITIVE X swings the hanging shin back (−z), which is how a knee bends. The
+            // older -knee folded every shin forward: seated shins pointed up, the squat knelt on its knees, the walk's back
+            // leg bent the wrong way. The poses' knee angles are all positive "bend" amounts.
+            if (_kneeL != null) _kneeL.localRotation = Quaternion.Euler(kneeL, 0f, 0f);
+            if (_kneeR != null) _kneeR.localRotation = Quaternion.Euler(kneeR, 0f, 0f);
             // #2434: the head nods to where its player looks (clamped — a head does not fold onto the chest), eased so the
             // 10 Hz presence steps read as a glance, not a twitch; the idle look-around keeps riding on the yaw.
             float wantPitch = _lying ? 0f : Mathf.Clamp(_lookPitch, -LookPitchLimit, LookPitchLimit);
@@ -870,8 +873,13 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>#2435: how far the caller lowers the avatar root while <see cref="CrouchBlend"/> is 1 — the folded legs
-        /// are this much shorter than standing ones, so the feet stay on the floor instead of hanging in the air.</summary>
-        public const float CrouchDrop = 0.55f;
+        /// are this much shorter than standing ones, so the feet stay on the floor instead of hanging in the air. #3412: with the
+        /// knees bending the right way the squat (thigh −70°, knee 95°) is 0.32 shorter, not 0.55 (the old forward-folded
+        /// shins left the knees as the lowest point).</summary>
+        public const float CrouchDrop = 0.32f;
+
+        /// <summary>#3412 test seam: one animation step outside play mode (EditMode tests pose the figure and measure it).</summary>
+        public void AnimateForTest(float dt) => Animate(dt);
 
         /// <summary>#2434: the head nods at most this far up or down.</summary>
         public const float LookPitchLimit = 60f;

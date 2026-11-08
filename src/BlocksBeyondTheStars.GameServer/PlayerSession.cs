@@ -242,6 +242,10 @@ public sealed class PlayerSession
     /// without it no close is sent (an older panel would pop open again to show it).</summary>
     public bool SupportsDialogClose => ClientFeatures.Contains(Networking.Messages.ClientFeatures.DialogClose1);
 
+    /// <summary>#3405: E at the own robot opens a conversation in the dialogue panel (<c>robottalk1</c>); without it the
+    /// robot says one line in VEGA's panel as before.</summary>
+    public bool SupportsRobotTalk => ClientFeatures.Contains(Networking.Messages.ClientFeatures.RobotTalk1);
+
     /// <summary>Tutorial step counters and the moments its courses are offered at (#2469, #2480, #2482).</summary>
     public PlayerSessionTutorial Tutorial { get; } = new();
 

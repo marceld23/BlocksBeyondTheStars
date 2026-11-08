@@ -609,32 +609,31 @@ public sealed partial class GameServer
     /// <summary>A unique-site lead: the site's body (seed-pure), whether the site exists in this save (a world stamped before
     /// the sites were added records a skip, #1129) and whether the player can get there (same system, a jump generator, a
     /// landing there before, instant travel); landing there before is evidence. Its marker: a ping on the site's world, the
-    /// space waypoint in its system.</summary>
+    /// space waypoint in its system. The route is the one the packs' <c>unique_site</c> marker reads (#3415,
+    /// <see cref="RouteToUniqueSite"/>).</summary>
     private void ResolveUniqueSite(PlayerSession s, ResolvedStoryLead lead, LoadedWorld? world)
     {
-        string? target = UniqueSiteTarget(lead.Arg);
-        if (target is null)
+        if (RouteToUniqueSite(s, lead.Arg, world) is not { } route)
         {
             return; // the galaxy has no such site
         }
 
-        lead.TargetBodyId = target;
-        lead.Evidence = s.State.LandedBodies.Contains(target);
-        lead.ChipArg = GalaxyBodyName(lead.Arg == "derelict" ? UniqueSiteTarget("derelict_host") ?? target : target);
-        lead.Feasible = UniqueSiteExists(lead.Arg, target) && CanReachBody(s, target);
+        lead.TargetBodyId = route.Target;
+        lead.Evidence = s.State.LandedBodies.Contains(route.Target);
+        lead.ChipArg = GalaxyBodyName(route.NameBodyId);
+        lead.Feasible = route.Followable;
         if (!lead.Feasible)
         {
             return;
         }
 
-        if (world is not null && world.LocationId == target && UniqueSiteGroundSpot(lead.Arg, target) is { } spot)
+        if (route.GroundSpot is { } spot)
         {
             lead.GroundTarget = spot;
         }
-        else if (string.Equals(ResolveLocationHostBody(s.CurrentLocationId)?.SystemId, _galaxy?.FindBody(target)?.SystemId, StringComparison.Ordinal)
-                 && s.CurrentLocationId != target)
+        else if (route.InSiteSystem && s.CurrentLocationId != route.Target)
         {
-            lead.WaypointId = target;
+            lead.WaypointId = route.Target;
         }
     }
 

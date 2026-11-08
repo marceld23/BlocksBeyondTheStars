@@ -178,6 +178,67 @@ public sealed class BumpTests : IDisposable
         Assert.DoesNotContain("story:tutorial:step:b1.1", milestones); // the training stays in the tutorial block
     }
 
+    /// <summary>#3413: "there are still guardians in space although I finished the game" — three ambient drones in the home
+    /// system after the win, which the Remnant Protocol allows only in a pirate haven or the frontier-danger tier. The snapshot
+    /// now names the system's archetype, its frontier tier and whether ambient hostiles may fly there, with the reason.</summary>
+    [Fact]
+    public void BumpSnapshot_SaysWhetherAmbientSpaceHostilesMayFlyHere_AndWhy()
+    {
+        var (server, _, paths) = StartWorld(c => c.Rules.SpaceNpcEnemies = BlocksBeyondTheStars.Shared.Configuration.AlienActivity.Normal);
+        var (connectionId, _) = server.Sessions.First(kv => kv.Value.Joined);
+
+        // Two bumps: the chat clock is pinned and stepped past the line interval (a /bump takes a chat slot), and the first
+        // file is read before the second is written (two bumps within one second share a file name).
+        server.SetChatClockForTest(1_000_000);
+        server.HandlePayloadForTest(connectionId, NetCodec.Encode(new ChatIntent { Text = "/bump drones before the finale" }));
+        string first = Assert.Single(MyBumpFiles(paths, "*.json"));
+        var beforeDoc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(first));
+        File.Delete(first);
+        server.MarkGuardianDefeatedForTest();
+        server.SetChatClockForTest(1_060_000);
+        server.HandlePayloadForTest(connectionId, NetCodec.Encode(new ChatIntent { Text = "/bump drones after the finale" }));
+        var afterDoc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Assert.Single(MyBumpFiles(paths, "*.json"))));
+
+        var snapshots = new[] { beforeDoc, afterDoc };
+        try
+        {
+            var before = beforeDoc.RootElement.GetProperty("spaceHostility");
+            var after = afterDoc.RootElement.GetProperty("spaceHostility");
+            Assert.False(string.IsNullOrEmpty(before.GetProperty("systemArchetype").GetString()));
+            Assert.True(before.TryGetProperty("frontierTier", out _));
+            Assert.False(before.GetProperty("remnantEra").GetBoolean());
+            Assert.True(after.GetProperty("remnantEra").GetBoolean());
+
+            // The verdict follows the Remnant rule for whatever archetype the test world's start system rolled (frontier
+            // danger is off by default, so the tier never lets them in).
+            string archetype = after.GetProperty("systemArchetype").GetString()!;
+            switch (archetype)
+            {
+                case "Desolate":
+                    Assert.Equal("desolate", before.GetProperty("reason").GetString());
+                    Assert.False(after.GetProperty("ambientHostilesAllowed").GetBoolean());
+                    break;
+                case "PirateHaven":
+                    Assert.True(after.GetProperty("ambientHostilesAllowed").GetBoolean());
+                    Assert.Equal("remnant_pirate_haven", after.GetProperty("reason").GetString());
+                    break;
+                default:
+                    Assert.True(before.GetProperty("ambientHostilesAllowed").GetBoolean());
+                    Assert.Equal("before_finale", before.GetProperty("reason").GetString());
+                    Assert.False(after.GetProperty("ambientHostilesAllowed").GetBoolean());
+                    Assert.Equal("remnant_calm", after.GetProperty("reason").GetString());
+                    break;
+            }
+        }
+        finally
+        {
+            foreach (var d in snapshots)
+            {
+                d.Dispose();
+            }
+        }
+    }
+
     [Fact]
     public void BumpSnapshot_InSpace_ListsThePartnerPilot_WithTheFloatingShip()
     {

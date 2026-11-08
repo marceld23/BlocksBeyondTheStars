@@ -76,11 +76,12 @@ Without a `type` the objective is a game event (`objective.event`, below).
 | `nearest_food_plant` | `nearest_food_plant` — the nearest plant whose harvest is food (berries …) around the player (#2469). |
 | `nearest_monument` | `nearest_monument` — the nearest rune monument on the player's world, read or not (#3349: "play the stones"). |
 | `nearest_ore` | `nearest_ore:<block key>` — the nearest block of that kind around the player (a bounded probe). |
+| `nearest_rune_shrine` | `nearest_rune_shrine` — the altar of the nearest complete rune shrine on the player's world (#3416: a ring of rune stones around an ancient brick, which answers the Sounders like a singing shrine). Nothing on a world without one in reach (an older world, a planet type without shrines) — and no line from afar. |
 | `nearest_settlement` | `nearest_settlement` — the nearest settlement on the player's body. |
 | `nearest_station` | `nearest_station` — the nearest space station of the player's system (#2471, the dock lesson): in flight the station of the player's orbit nearest to their ship, landed the first station of the system. Not a ping on the ground but the client's space waypoint (`ShipAiLine.SpaceWaypointId`), so the radar and the edge arrow lead to it. |
 | `pack_site` | `pack_site:<id>` — a site the gameplay code registered for a pack (#3349, `GameServer.RegisterPackSite`: the Sounders' Choir Tower), while the player is on its world. Nothing elsewhere. |
 | `story_system` | `story_system:<id>` — a pack's star system (#3357, the manifest's `systems[]`): the system is put on the player's star map when they may see it, and the help line names it. Nothing while it is hidden for them. |
-| `unique_site` | `unique_site:<observatory\|shrine\|derelict>` — the spot of that one-of-a-kind site while the player is on its world (#2476: "read the observatory's last log" once they landed there). Nothing elsewhere. |
+| `unique_site` | `unique_site:<observatory\|shrine\|derelict>` — the spot of that one-of-a-kind site while the player is on its world (#2476: "read the observatory's last log" once they landed there). Elsewhere the narrator names the way, once per step (#3415): in the site's system its world becomes the space waypoint, from another system the line names the world and its system — the spot is marked on arrival. |
 
 ### Gates (`gates`, tutorial packs only)
 
@@ -264,7 +265,7 @@ condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 
 ### World predicates (`world:<predicate>`)
 
-88 predicates (`StoryWorldPredicates.All`, held equal to the server's registry by
+89 predicates (`StoryWorldPredicates.All`, held equal to the server's registry by
 `StoryConditionTests`). A predicate reads the player's own body and system, never another player's.
 
 | Predicate | Holds when |
@@ -341,6 +342,7 @@ condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 | `world:shape_block_carried` | The player carries a shaped block (stairs, slopes …) the rotate key can turn. |
 | `world:ship_built` | The player has commissioned a self-built ship. |
 | `world:shrine` | The Singing Shrine (the one-of-a-kind alien shrine) exists in this galaxy — a world stamped before the unique sites has none. |
+| `world:shrine_reachable` | The Singing Shrine exists in this save and the player can get there (same system, a jump generator, a landing there before, instant travel) — the lead's rule, as `observatory_reachable`. The Sounders' shrine steps hand over to the ring of rune stones without it. |
 | `world:space_enemies` | Hostile machines in space are switched on (space combat PvE with drones or UFOs). |
 | `world:space_stations` | The world generates space stations. |
 | `world:space_wrecks` | The world generates wrecks drifting in space (the world option is not off). |

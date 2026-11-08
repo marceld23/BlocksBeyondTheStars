@@ -68,9 +68,9 @@ public sealed partial class WorldGenerator
                 int sy = SurfaceHeight(k.Planet, wx, wz);
                 // The prop's columns stand on their own ground (within a few cells of the anchor's on the flats it seeks).
                 if (sy - SingingPropMargin > origin.Y + cs - 1 || sy + SingingPropRise + SingingPropMargin < origin.Y
-                    || !SingingPropGround(k, sy, wx, wz))
+                    || !SingingPropGround(k, sy, wx, wz) || RuneShrineClaims(k.Planet, wx, wz, SingingPropMargin))
                 {
-                    continue; // nothing of it lands in this chunk, or the anchor stands in water
+                    continue; // nothing of it lands in this chunk, the anchor stands in water, or in a rune shrine (#3416)
                 }
 
                 var zone = SingingZoneOf(k, ids, wx, wz, sy);

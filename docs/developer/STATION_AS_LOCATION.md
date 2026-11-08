@@ -125,7 +125,12 @@ tier) while its interior was a different voxel build. Now a station looks the sa
   see-through or shaped cells up to `WindowDepth = 12` steps inside; the cells (with tints and shapes) become a
   `SpaceStructure` of kind `station`, owner empty (EVA edits are refused), stored in `instance.Structures` and sent with
   the other voxel bodies as `SpaceShipDesign`. The client already drew player stations this way and skips the
-  placeholder for any station with a design.
+  placeholder for any station with a design. #3409: an in-flight jump (or a wormhole) arrives as one batch — the old
+  flight's `SpaceClosed`, the new `SpaceState`, then every design of the new system — and the flight view only notices
+  the instance switch on its next frame (#1677). Its teardown used to clear every design, the new ones included, so all
+  stations showed the old placeholder, the wreck a brown box and the asteroids vanished until the next launch. Each
+  `VoxStruct` now remembers the instance it arrived for (`FlightDesignCarry`, Client.Core) and the rebuild carries the
+  new instance's designs over; `JumpFlightDesignOrderTests` pins the server's order (SpaceState before the designs).
 - **Dock point.** `StationHull.FindDock` finds the force-field cell nearest to the `hangar` marker with outside space in
   front and air behind; its patch's centre and outward direction ride on `SpaceShipDesign.HasDock/DockX..DockOutZ`.
   Fallbacks: the outer wall straight out from the marker, else the middle of the -Z face.

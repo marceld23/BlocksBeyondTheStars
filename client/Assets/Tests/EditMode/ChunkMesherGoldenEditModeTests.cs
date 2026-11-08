@@ -68,10 +68,12 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         // of covered cells. Geometry did not change (15838 / 12876 verts, 7580 + 306 / 6148 + 140 tris); sky unchanged.
         // Re-pinned 2026-11-07 (#3334–#3342): the eight Ressaw / G.D.S. ruin blocks shift the block ids and so the atlas slots.
         // Geometry did not change (15838 / 12876 verts, 7580 + 306 / 6148 + 140 tris); sky unchanged.
+        // Re-pinned 2026-11-08 (stale since #3383): the Sounders' new blocks shifted the block ids and atlas slots again.
+        // Geometry did not change (15838 / 12876 verts, 7580 + 306 / 6148 + 140 tris); sky unchanged.
         private static readonly Dictionary<string, ulong> Pinned = new Dictionary<string, ulong>
         {
-            ["deep (5,1,7)"] = 0xd5f3dcdd73b2af4dUL,
-            ["surface (5,2,7)"] = 0xdcdee007ca8721c9UL,
+            ["deep (5,1,7)"] = 0xc69dcc0c9b3e3fcdUL,
+            ["surface (5,2,7)"] = 0xab20fc70cc48dd1dUL,
             ["sky (5,3,7)"] = 0xd6a8cf1a27eab505UL,
         };
 

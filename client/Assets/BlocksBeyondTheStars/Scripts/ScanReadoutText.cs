@@ -57,20 +57,14 @@ namespace BlocksBeyondTheStars.Client
                 return string.Join("  ·  ", parts);
             }
 
-            var drops = scan.Drops;
-            if (drops != null && drops.Length > 0)
+            if (scan.Drops != null && scan.Drops.Length > 0)
             {
-                var parts = new string[drops.Length];
-                for (int i = 0; i < drops.Length; i++)
-                {
-                    // Count 0 = a resource TYPE with no quantity (asteroid scan) — no "×n" suffix then.
-                    string name = ItemOrBlockName(content, loc, drops[i].Item);
-                    parts[i] = drops[i].Count > 0 ? $"{name} ×{drops[i].Count}" : name;
-                }
+                string list = DropsLine(content, loc, scan);
 
-                // #2238: a derelict's salvage reads "Contents" — "Yield" is for what a creature or a plant gives.
-                string label = loc.Get(scan.Kind == "asteroid" ? "ui.scan.resources" : scan.Kind == "wreck" ? "ui.scan.contents" : "ui.scan.yield");
-                return $"{label}: {string.Join(", ", parts)}";
+                // #3410: a wreck also says what it is and what to do with it — the contents alone hid that line.
+                return scan.Kind == WreckReadout.Kind && !string.IsNullOrEmpty(scan.InfoKey)
+                    ? WreckReadout.Info(loc.Get(scan.InfoKey), list)
+                    : list;
             }
 
             if (!string.IsNullOrEmpty(scan.InfoKey))
@@ -81,6 +75,23 @@ namespace BlocksBeyondTheStars.Client
             return scan.Info; // pre-#484 server
         }
 
+        /// <summary>The yield / resource / contents list with localized item names ("Contents: Iron plate, Cable").</summary>
+        private static string DropsLine(GameContent content, Localizer loc, ScanResult scan)
+        {
+            var drops = scan.Drops;
+            var parts = new string[drops.Length];
+            for (int i = 0; i < drops.Length; i++)
+            {
+                // Count 0 = a resource TYPE with no quantity (asteroid scan) — no "×n" suffix then.
+                string name = ItemOrBlockName(content, loc, drops[i].Item);
+                parts[i] = drops[i].Count > 0 ? $"{name} ×{drops[i].Count}" : name;
+            }
+
+            // #2238: a derelict's salvage reads "Contents" — "Yield" is for what a creature or a plant gives.
+            string label = loc.Get(scan.Kind == "asteroid" ? "ui.scan.resources" : scan.Kind == "wreck" ? "ui.scan.contents" : "ui.scan.yield");
+            return $"{label}: {string.Join(", ", parts)}";
+        }
+
         /// <summary>The scan title: the subject's name — a wormhole reads "Wormhole → {its twin system}" (#2242), a
         /// Guardian machine and an anomaly their kind (#2238, #2588), everything else as before.</summary>
         public static string Title(GameContent content, Localizer loc, ScanResult scan)
@@ -88,6 +99,12 @@ namespace BlocksBeyondTheStars.Client
             if (scan.Kind == "wormhole")
             {
                 return loc.Get("ui.scan.subject.wormhole") + " → " + (string.IsNullOrEmpty(scan.Subject) ? "???" : scan.Subject);
+            }
+
+            // #3410: a derelict ship wreck reads "Wreck · Lavoo" — its coined name alone did not say what it is.
+            if (scan.Kind == WreckReadout.Kind)
+            {
+                return WreckReadout.Title(loc.Get("ui.map.kind_wreck"), scan.Subject);
             }
 
             // #2588: an anomaly is titled by its kind — a server before #2588 sends its entity name "???", which is what

@@ -308,7 +308,7 @@ the old behaviour and are mirrored in `StoryRegistry.BuildVegaProtocol` (no-drif
 | Word | Feasible | Followed by | Marker |
 |---|---|---|---|
 | `fragment` | an unfound net fragment on the player's current world | a NEW fragment find (`story:fragment`) | the fragment's shared map signal, as before (`RevealFragmentSignals`) |
-| `unique_site:observatory\|shrine\|derelict` | the site exists in this save (a surface site's world pinned it, or was never edited — a world stamped before #1129 recorded a skip and never gets it) and the player can reach it (same system, a jump generator, landed there before, instant travel) | landing there / boarding the derelict (`visit:body`, `station:boarded`), or evidence: landed there before | a lead marker on the site's world, else the space waypoint for a body of the player's system |
+| `unique_site:observatory\|shrine\|derelict` | the site exists in this save (a surface site's world pinned it, or was never edited — a world stamped before #1129 recorded a skip and never gets it) and the player can reach it (same system, a jump generator, landed there before, instant travel) | landing there / boarding the derelict (`visit:body`, `station:boarded`), or evidence: landed there before | a lead marker on the site's world, else the space waypoint for a body of the player's system (the route — `RouteToUniqueSite`, `GameServerUniqueSiteRoutes.cs` — is the one the packs' `unique_site` marker reads, #3415) |
 | `monument` | a monument on the player's world whose runes they have not read (scan ledger) | a first reading of a monument (`scan:any` = monument) | a lead marker at the monument |
 | `settlement_help` | a settlement on the player's world | a board or chain job turned in that counts for the story (`mission:turned_in`) | a lead marker at the nearest settlement |
 | `machines` | the world's rules field machines | a machine destroyed (`defeat:any` machine / space machine) | — |
@@ -425,7 +425,7 @@ events via `LeadFulfilledBy`, the lead's evidence — blueprint researched, modu
 tank's spot), shown with the lead's own placed text on the chip where it can be followed from here (`Visit the Sealed
 Observatory on Kepler-3 b`, `Find the net fragment on …` — the fragment's map signal comes with it), else with the step's own
 chip text, and marked like the lead (a lead marker / the space waypoint). A step's `onStart.reveal` may also name
-`unique_site:<site>` (the site's spot while the player is on its world).
+`unique_site:<site>` (the site's spot on its world; from elsewhere its way is named — see the help escalation below, #3415).
 
 **Handing out** (`AdvanceStoryMissions`, from the 1 Hz `TickStoryMissions` and after every mission event): for a `packs1`
 player whose track started, the missions of their current chapter (`TrackChapterIndex`) run one at a time in data order.
@@ -836,8 +836,21 @@ is not spent. A CORE "where" step of a non-optional chapter therefore sets its o
 and the marker is **not spent** (#2490: `StepEscalationState.MarkerSent` is set only when a marker went up; a miss records
 `MarkerMissAt` — the player's place as `ground|space|station` + body — and `MarkerMissTime`, and the probe runs again at
 once on a new place or after `MarkerRetrySeconds` = 30 s of play on the same one — at most one probe per 30 s per chip
-step). This is what lets the story mission's observatory marker (`unique_site:*` answers only on the site's own world)
-wait for the landing there instead of being wasted off-site;
+step). This is what lets the story mission's observatory marker (`unique_site:*` marks only on the site's own world)
+wait for the landing there instead of being wasted off-site. **Off-site a `unique_site:*` marker names the way** (#3415,
+`MarkUniqueSiteReveal` in `GameServerUniqueSiteRoutes.cs`, the route shared with VEGA's lead — `RouteToUniqueSite`): in the
+site's system its world becomes the space waypoint with `vega.step.marked_station` ({0} = the world, the dock lesson's line);
+from another system `vega.step.marked_world` names the world and its system ("Your goal is on {0}, in the {1} system …");
+each of the two at most once per step activation (`StepEscalationState.SiteNearLineSent` / `SiteFarLineSent`), and neither
+spends the marker, so the ground marker still goes up on arrival. Nothing for a site this save does not have. For
+`unique_site:shrine` the nearest complete **rune shrine** of the player's world comes first (#3416,
+`GameServer.NearestRuneShrine`, read once per probe): any singing shrine answers the Sounders, so its altar gets the ground
+marker and `vega.step.marked_spot`, and the one-of-a-kind shrine is not named; on that shrine's own world the nearer of the
+two is marked. Only without one (an older world, a planet type without shrines, none within 480 blocks) the unique-site
+route above runs. A step whose
+hint says "I marked it" must mark before the hint: the Sounders pack sets `escalate.markerAfter` 5 for all its "where"
+steps (VEGA's `m_observatory.2` does the same per step; pinned by
+`SoundersShrineRouteTests.EverySoundersWhereStep_MarksItsPlaceSecondsAfterItsStart_BeforeItsHintSaysSo`);
 `offerSkipAfter` (600 s) on a `must` step → `vega.step.offer_skip`. Pack defaults in `escalate`, per-step override; `0`
 switches a stage off.
 
@@ -1048,7 +1061,11 @@ out, not switched off for the world) brings its own, for that player only. The a
   now skips non-procedural systems too, so neither moves the other. The body is `<id>-world` at a calm orbit. Wormholes
   never touch a non-`sys*` system (`IsStoryLockedSystem`). The star map names a pack system in the player's language
   (`StarMapSystemName`).
-- **Vocabulary** (#3349): `world:monuments`, `world:shrine`; marker providers `nearest_monument`, `pack_site:<id>`
+- **Vocabulary** (#3349): `world:monuments`, `world:shrine` (and #3415 `world:shrine_reachable` — the lead's rule
+  `UniqueSiteFollowable`: the Sounders' shrine steps fall back to the ring of rune stones without it); marker providers
+  `nearest_monument`, `nearest_rune_shrine` (#3416: the altar of the nearest complete rune shrine on the player's world,
+  `RuneShrineSpot` → `NearestRuneShrine`; nothing — and no line — without one, the probe repeats like any miss),
+  `pack_site:<id>`
   (`RegisterPackSite(packId, siteId, locationId, pos)`, RAM — the placing code registers again at a world load) and
   `story_system:<id>` (`MarkStorySystem`: appends it when the player may see it, re-sends their star map and speaks
   `vega.step.marked_system`); the condition atom `milestone:<key>`; the cutscene anchor `system:<id>` (a chart shot rings and

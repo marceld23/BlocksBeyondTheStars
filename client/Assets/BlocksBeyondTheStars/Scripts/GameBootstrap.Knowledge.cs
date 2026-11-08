@@ -443,7 +443,9 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 Rules = m;
-                LastMessage = $"Mode: {m.GameMode} · PvP: {m.Pvp}";
+                LastMessage = Localizer != null // #3411: the rule words in this client's language
+                    ? BlocksBeyondTheStars.Client.Core.HudStatusText.RulesLine(Localizer.Get, m.GameMode, m.Pvp)
+                    : $"Mode: {m.GameMode} · PvP: {m.Pvp}";
             };
         }
     }

@@ -147,6 +147,7 @@ public sealed partial class GameServer
         // #3349: the Sounders story pack — rune stones to play on the player's world, the Singing Shrine in the galaxy.
         [StoryWorldPredicates.Monuments] = s => _worlds.Find(s.CurrentLocationId)?.Monuments.Count > 0,
         [StoryWorldPredicates.Shrine] = _ => UniqueSiteTarget("shrine") is { } shrine && UniqueSiteExists("shrine", shrine),
+        [StoryWorldPredicates.ShrineReachable] = s => UniqueSiteFollowable(s, "shrine"), // #3415: the lead's rule
     };
 
     /// <summary><c>world:forge_ready</c> (#2479): the player can refine — they crafted a forge before (the achievement
