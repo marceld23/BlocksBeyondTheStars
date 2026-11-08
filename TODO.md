@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 📬 Justus' reports 2026-11-08 (Screelit, world "Raumstation", v2026.11.9) — talk WITH your robot, old station models and ghost asteroids after a jump, a Ressaw lamp that turns night into day, the way to the Singing Shrine, rune stones in little shrine ruins — #3405–#3416, branch feat/robot-conversation-jump-fixes (PR pending)
+### 📬 Justus' reports 2026-11-08 (Screelit, world "Raumstation", v2026.11.9) — talk WITH your robot, old station models and ghost asteroids after a jump, a Ressaw lamp that turns night into day, the way to the Singing Shrine, rune stones in little shrine ruins — #3405–#3416, ✅ 2026-11-08, PR #3417 (`fec96d03`), released in v2026.11.11 (⚠ playtest open)
 
 Fourteen F1 reports in one morning (three fetches); four were already fixed in v2026.11.10 (the finale scene, `/help admin`,
 the robot's basic talk and gear, the forearms). Marcel's emphasis: the endgame robot should hold small dialogues.
