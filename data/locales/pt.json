@@ -3389,6 +3389,7 @@
   "ui.update.later": "Mais tarde",
   "ui.menu.whatsnew": "O que há de novo?",
   "ui.whatsnew.title": "O QUE HÁ DE NOVO",
+  "ui.whatsnew.ok": "OK",
   "ui.whatsnew.offline": "Não foi possível acessar o feed de novidades — mostrando as notas incluídas com esta versão.",
   "ui.whatsnew.empty": "Nenhuma nota de versão disponível ainda.",
   "ui.loading.title": "Carregando…",

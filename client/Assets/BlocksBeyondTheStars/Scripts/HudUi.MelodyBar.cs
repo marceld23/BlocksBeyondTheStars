@@ -35,6 +35,12 @@ namespace BlocksBeyondTheStars.Client
         private string _melodyShownLine;
         private InputDeviceKind _melodyShownDevice = (InputDeviceKind)(-1);
 
+        /// <summary>#3430: whether the melody bar is on screen. Its top row shares the screen band of VEGA's objective chip
+        /// and folded tab (<see cref="VegaPanel.ChipY"/>), whose canvas draws above the HUD — <see cref="VegaPanel"/> polls
+        /// this and steps that row aside while the bar is up; the slot-action badge and the controls line's hotbar segment
+        /// give way too (the number keys play tones then).</summary>
+        public bool MelodyBarShown => _melodyPanel != null && _melodyPanel.activeSelf;
+
         private void BuildMelodyBar(Transform root)
         {
             // Above the hotbar's backplate (its cells start at H − 112), centred like it.

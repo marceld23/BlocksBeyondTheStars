@@ -3389,6 +3389,7 @@
   "ui.update.later": "後で",
   "ui.menu.whatsnew": "何が新しい？",
   "ui.whatsnew.title": "新着情報",
+  "ui.whatsnew.ok": "OK",
   "ui.whatsnew.offline": "ニュースフィードに接続できませんでした — このバージョンに同梱されたノートを表示します。",
   "ui.whatsnew.empty": "リリースノートはまだありません。",
   "ui.loading.title": "読み込み中…",

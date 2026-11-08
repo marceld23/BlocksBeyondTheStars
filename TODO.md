@@ -24,6 +24,27 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🎛️ Marcel's playtest 2026-11-08 evening — the melody bar no longer under VEGA's strip, a controls line that fits, Ressaw that stings at once and flows out of broken blocks, a wider System Check box, "OK" in What's new — #3430–#3435, PR #3437 (merge pending)
+
+From Marcel's screenshots on v2026.11.12 (Phaikrae, "Spiel es nach!"; the main menu with the update notice).
+
+- **#3430** the melody bar (#3346) sat in the screen band of VEGA's objective chip and folded tab, whose canvas draws
+  above the HUD: the round counter was hidden, the Stop button half covered (a click there opened VEGA), the tones C–E
+  clipped. While `HudUi.MelodyBarShown`, `VegaPanel` fades the whole chip row out (new `VegaChipRow` container with a
+  `CanvasGroup`), and the slot-action badge over the hotbar hides. Everything comes back when the bar closes.
+- **#3431** the on-foot controls line ran past both screen edges in German ("D bewegen" … "Slot-Akti"): it spans the
+  HUD less a 16-unit margin and shrinks to fit (`UiText.Fit`); under the melody bar the keyboard line drops its
+  `{key:Hotbar}` segment (`MelodyBarInput.WithoutHotbarSegment`, Client.Core — tested over all 14 locales).
+- **#3432** Ressaw stings from the first touch, wading or diving (the 3-second grace is gone); the full diving suit, the
+  hazards-off switch and Sandbox still keep it out.
+- **#3433** a broken Ressaw block's Ressaw flows out instead of appearing as a fixed puddle: a bounded leak
+  (`RessawLeak`, one step per 0.25 s, at most 5 cells besides the broken one, 64 steps) spreads across the floor and
+  falls down over edges and through holes without leaving a hanging column; a drop above a body waits, one over an
+  unloaded chunk or still in the air at the end runs dry. The generated Ressaw pools stay still.
+- **#3434** the What's new dialog's button reads "OK" (`ui.whatsnew.ok`, all 14 languages) instead of "Back".
+- **#3435** the main menu's System Check box is as wide as the menu column below it (`UiKit.ShellColumnW` = 440); the
+  title moves right with it (x 410 → 570) on the menu, the loading screen and the save/host screen.
+
 ### 📬 Justus' reports 2026-11-08 afternoon + Marcel's decisions — rocks you cannot fly through, `/ressaw`, no more set-backs on Soaniri, a light blue and green Soaniri, hostile Soundraks, Sounders skips that never strand you, ORNEMIS spelled on the melody bar — #3420–#3426, ✅ 2026-11-08, PR #3427 (`3dcd94ed`), released in v2026.11.12 (⚠ playtest open)
 
 Marcel's decisions on the open points of the morning package (landing nose fire and the remnant machines stay as they are;

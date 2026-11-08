@@ -116,7 +116,9 @@ cluster.
   `Mine`, `Place`, `Scan`, `Hotbar`) name the fixed controls per device. Since #2502 the keyboard controls line
   (`ui.hud.hint`, `HudUi.KeyboardHint`), the flight/EVA keyboard lines (`ui.space.controls` / `eva_controls`) and the
   appended autopilot/chart/fly hints are tokenised and cached per language + `HudUi.GlyphStamp` (settings object,
-  bindings version, pad glyph set) — so the pad no longer reads "Space×2", "[P] Autopilot" or "[M] Chart". The
+  bindings version, pad glyph set) — so the pad no longer reads "Space×2", "[P] Autopilot" or "[M] Chart". The on-foot
+  line spans the HUD less a 16-unit margin and shrinks to fit (`UiText.Fit`, #3431 — in German with the fly and
+  slot-action parts it ran past both screen edges); while the melody bar is open its `{key:Hotbar}` segment drops out. The
   `{0}`-slot prompts (`ui.space.*_fmt`, `ui.hud.talk`, `hud.speeder.*`, stow cargo, recall vehicle) take
   `HudUi.PromptGlyph` / `KeyTokenGlyph(…, prompt: true)` instead of `InputMap.Glyph`, which fell back to the key
   letter on a tablet ("Press E to board" → "Press USE to board"). A pad glyph already wears parentheses: "(X)" is

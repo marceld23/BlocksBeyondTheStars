@@ -123,7 +123,7 @@ public class WhatsNewContentTests
         foreach (string lang in new[] { "en", "de" })
         {
             var table = TestLocales.Load(lang);
-            foreach (string key in new[] { "ui.menu.whatsnew", "ui.whatsnew.title", "ui.whatsnew.offline", "ui.whatsnew.empty" })
+            foreach (string key in new[] { "ui.menu.whatsnew", "ui.whatsnew.title", "ui.whatsnew.offline", "ui.whatsnew.empty", "ui.whatsnew.ok" })
             {
                 Assert.True(table.ContainsKey(key), $"locale '{lang}' is missing '{key}'");
             }

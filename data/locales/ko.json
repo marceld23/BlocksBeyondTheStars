@@ -3389,6 +3389,7 @@
   "ui.update.later": "나중에",
   "ui.menu.whatsnew": "새로운 소식",
   "ui.whatsnew.title": "새로운 소식",
+  "ui.whatsnew.ok": "확인",
   "ui.whatsnew.offline": "뉴스 피드에 연결할 수 없습니다 — 이 버전과 함께 제공된 노트를 표시합니다.",
   "ui.whatsnew.empty": "릴리스 노트가 없습니다.",
   "ui.loading.title": "불러오는 중…",

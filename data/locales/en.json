@@ -3389,6 +3389,7 @@
   "ui.update.later": "Later",
   "ui.menu.whatsnew": "What's new?",
   "ui.whatsnew.title": "WHAT'S NEW",
+  "ui.whatsnew.ok": "OK",
   "ui.whatsnew.offline": "Couldn't reach the news feed — showing the notes bundled with this version.",
   "ui.whatsnew.empty": "No release notes available yet.",
   "ui.loading.title": "Loading…",

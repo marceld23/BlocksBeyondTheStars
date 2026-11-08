@@ -226,11 +226,12 @@ namespace BlocksBeyondTheStars.Client
 
             // Slot-action badge (#935): shown while the selected slot holds anything to act on (the ring
             // also opens on an empty slot, but advertising that is noise). Bright while Colour/Form apply
-            // to the held material, dim while only Swap does. Touch has no key to press, so no badge.
+            // to the held material, dim while only Swap does. Touch has no key to press, so no badge. #3430: none while the
+            // melody bar is up either — the badge's row (just above the cells) runs under the bar's bottom edge.
             if (_slotActionBadge != null)
             {
                 bool show = selNow >= 0 && selNow < Slots && !string.IsNullOrEmpty(Game.ItemInSlot(selNow))
-                            && InputMap.ActiveDevice != InputDeviceKind.Touch;
+                            && InputMap.ActiveDevice != InputDeviceKind.Touch && !MelodyBarShown;
                 if (_slotActionBadge.gameObject.activeSelf != show)
                 {
                     _slotActionBadge.gameObject.SetActive(show);

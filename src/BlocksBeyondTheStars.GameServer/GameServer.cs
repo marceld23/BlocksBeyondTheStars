@@ -2262,7 +2262,7 @@ public sealed partial class GameServer
 
             // Toxic water (2026-09, Titas): after a short grace the water itself burns — standing on its ice is safe.
             TickToxicWater(session, dt);
-            TickRessaw(session, dt); // #3335: Ressaw stings after a short grace; the full diving suit keeps it out (GameServerRessaw.cs)
+            TickRessaw(session, dt); // #3335/#3432: Ressaw stings from the first touch; the full diving suit keeps it out (GameServerRessaw.cs)
 
             // Extreme heat / cold / vacuum stress the suit (#666): climate control drains suit energy
             // first (insulation gear slows it), an empty suit means slow exposure damage.

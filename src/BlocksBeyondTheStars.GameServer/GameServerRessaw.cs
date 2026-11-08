@@ -14,9 +14,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <item><b>Swimming and the oxygen drain</b> need nothing here: <c>ressaw</c> is a still liquid by data
 /// (<c>"liquid": true</c>, like oil, #2106), so the client swims in it (<c>WaterProbe</c>) and a head in it drains the
 /// tank (<see cref="HeadUnderwater"/>); the fluid pump pulls a cell into the item <c>ressaw</c> (its drop).</item>
-/// <item><b>Contact damage</b> (#3335): feet or head in a Ressaw cell for longer than <see cref="RessawGraceSeconds"/> costs
-/// <see cref="RessawDamagePerSecond"/> × the hazard tier × (1 − the worn corrosion resistance) health per second, with its
-/// own death line, and the natural healing pauses meanwhile. Ressaw is corrosive, not a blow: armour does not help, the
+/// <item><b>Contact damage</b> (#3335, #3432): feet or head in a Ressaw cell — wading or diving — costs
+/// <see cref="RessawDamagePerSecond"/> × the hazard tier × (1 − the worn corrosion resistance) health per second from the
+/// first touch (the three-second grace it had is gone: a quick dip went unnoticed), with its own death line, and the
+/// natural healing pauses meanwhile. Ressaw is corrosive, not a blow: armour does not help, the
 /// suit liners' corrosion resistance (and a toxin ward) does — the best piece counts, capped at 80 %, the same formula as
 /// the corrosive air. Off in Creative and at hazard tier Off, like every environmental hazard; aboard, on an EVA and in a
 /// vehicle nobody touches it.</item>
@@ -36,10 +37,7 @@ public sealed partial class GameServer
     /// <summary>The block key of the liquid.</summary>
     private const string RessawBlockKey = "ressaw";
 
-    /// <summary>Seconds in Ressaw before it starts to sting — enough to fish out a crate or climb out of a pool.</summary>
-    internal const double RessawGraceSeconds = 3.0;
-
-    /// <summary>Health per second Ressaw takes after the grace, at the normal hazard tier — slow: a child who keeps
+    /// <summary>Health per second Ressaw takes from the first touch, at the normal hazard tier — slow: a child who keeps
     /// swimming in it has half a minute to climb out.</summary>
     internal const float RessawDamagePerSecond = 3f;
 
@@ -73,10 +71,11 @@ public sealed partial class GameServer
     /// <summary>#3337: the head is in Ressaw and the full diving suit is worn — the tank holds (the oxygen hook).</summary>
     private bool BreathesInRessaw(PlayerState p) => RessawId != 0 && HeadInRessaw(p) && RessawSuitWorn(p);
 
-    /// <summary>#3335: the Ressaw clock is past its grace — the natural healing pauses (the toxic water's rule).</summary>
-    private bool RessawStinging(PlayerSession session) => session.Hazards.RessawSeconds > RessawGraceSeconds;
+    /// <summary>#3335: the player is in Ressaw (its clock runs) — the natural healing pauses (the toxic water's rule).</summary>
+    private static bool RessawStinging(PlayerSession session) => session.Hazards.RessawSeconds > 0;
 
-    /// <summary>#3335: one tick of Ressaw contact — see the class summary. Called from the hazard part of the vitals loop.</summary>
+    /// <summary>#3335/#3432: one tick of Ressaw contact — see the class summary. Called from the hazard part of the vitals
+    /// loop.</summary>
     private void TickRessaw(PlayerSession session, double dt)
     {
         var p = session.State;
@@ -90,12 +89,9 @@ public sealed partial class GameServer
 
         session.Hazards.RessawSeconds += dt;
         ShipAiHintOnce(session, "ressaw");
-        if (session.Hazards.RessawSeconds > RessawGraceSeconds)
-        {
-            float loss = (float)(dt * RessawDamagePerSecond * Rules.HazardSeverityFactor) * (1f - CorrosionResistance(p));
-            DamagePlayer(p, loss);
-            session.Hazards.HazardDeathReason = "@srv.death.ressaw";
-        }
+        float loss = (float)(dt * RessawDamagePerSecond * Rules.HazardSeverityFactor) * (1f - CorrosionResistance(p));
+        DamagePlayer(p, loss);
+        session.Hazards.HazardDeathReason = "@srv.death.ressaw";
     }
 
     // ---------------- The lamp (#3339) ----------------

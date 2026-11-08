@@ -488,9 +488,16 @@ namespace BlocksBeyondTheStars.Client
         /// Check box above it and the loading screen's panels all start here, so they read as one edge.</summary>
         public const float ShellColumnX = 90f;
 
-        /// <summary>#2953: the System Check box's width, and where the shell title starts: right of that box with a
-        /// 40-unit gap. The main menu, the loading screen and the save/host screen share it, so the title never jumps.</summary>
-        public const float SystemCheckWidth = 280f, ShellTitleX = ShellColumnX + SystemCheckWidth + 40f;
+        /// <summary>#3435: the main menu column's width — the name panel and the menu buttons.</summary>
+        public const float ShellColumnW = 440f;
+
+        /// <summary>#2953: the System Check box's width — since #3435 the menu column's, so the box above the menu closes on
+        /// the same right edge — and where the shell title starts: right of that box with a 40-unit gap. The main menu, the
+        /// loading screen and the save/host screen share it, so the title never jumps.</summary>
+        public const float SystemCheckWidth = ShellColumnW, ShellTitleX = ShellColumnX + SystemCheckWidth + 40f;
+
+        /// <summary>#3435: the System Check rows inside the box — the label from 32, the "OK" column 70 in from the right edge.</summary>
+        public const float SystemCheckOkX = SystemCheckWidth - 70f, SystemCheckLabelW = SystemCheckOkX - 42f;
 
         /// <summary>Bounds of the player's UI-scale setting (#483).</summary>
         public const float UserScaleMin = 0.8f, UserScaleMax = 1.6f;

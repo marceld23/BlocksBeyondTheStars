@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using BlocksBeyondTheStars.Client;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Sounders;
 using Xunit;
 
@@ -265,5 +267,38 @@ public sealed class MelodyBarClientTests
         f.Clear();
         Assert.False(f.UsableBlock);
         Assert.Equal(InteractKind.None, InteractResolver.Resolve(f));
+    }
+
+    // ---------------- The controls line under the bar (#3431) ----------------
+
+    [Fact]
+    public void UnderTheBar_TheControlsLine_DropsOnlyTheHotbarSegment()
+    {
+        const string line = "{key:Move} move · {key:Jump} jump · {key:Hotbar} hotbar · {key:UiMenu} menu";
+        Assert.Equal("{key:Move} move · {key:Jump} jump · {key:UiMenu} menu", MelodyBarInput.WithoutHotbarSegment(line));
+        Assert.Equal("{key:Move} move", MelodyBarInput.WithoutHotbarSegment("{key:Hotbar} hotbar · {key:Move} move"));
+        Assert.Equal("up·down · {key:Move} move", MelodyBarInput.WithoutHotbarSegment("up·down · {key:Move} move")); // no token: as is
+        Assert.Equal(string.Empty, MelodyBarInput.WithoutHotbarSegment(null));
+    }
+
+    [Fact]
+    public void InEveryLanguage_TheHotbarSegment_IsFoundByItsToken_AndEveryOtherSegmentStays()
+    {
+        string[] files = Directory.GetFiles(Path.Combine(ClientTestPaths.DataDir(), "locales"), "*.json");
+        Assert.True(files.Length >= 2);
+        foreach (string file in files.OrderBy(f => f, System.StringComparer.Ordinal))
+        {
+            var table = ContentLoader.ParseLocaleTable(File.ReadAllText(file));
+            if (!table.TryGetValue("ui.hud.hint", out string? hint))
+            {
+                continue; // a community locale without the line reads the English one
+            }
+
+            string[] before = hint.Split(PadControlNames.Separator);
+            string[] after = MelodyBarInput.WithoutHotbarSegment(hint).Split(PadControlNames.Separator);
+            bool IsHotbar(string segment) => segment.Contains(MelodyBarInput.HotbarToken, System.StringComparison.Ordinal);
+            Assert.True(before.Count(IsHotbar) == 1, $"{Path.GetFileName(file)}: the hotbar key is not one segment of its own");
+            Assert.Equal(before.Where(s => !IsHotbar(s)), after);
+        }
     }
 }

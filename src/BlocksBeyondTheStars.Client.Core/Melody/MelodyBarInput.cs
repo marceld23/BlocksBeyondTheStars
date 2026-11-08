@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using System.Collections.Generic;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -83,6 +84,34 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return x > 0 ? PadDirection.Right : PadDirection.Left;
+        }
+
+        /// <summary>The key token of the hotbar's segment in the keyboard controls line (<c>ui.hud.hint</c>).</summary>
+        public const string HotbarToken = "{key:Hotbar}";
+
+        /// <summary>
+        /// #3431: the keyboard controls line while the bar is open — the segment that names the hotbar keys ("1-9 Hotbar",
+        /// the one holding <see cref="HotbarToken"/>) drops out, because 1–8 play the tones then; every other segment stays,
+        /// in its order. Found by its token, not by its words, so it works in every language; a template without the token
+        /// comes back unchanged.
+        /// </summary>
+        public static string WithoutHotbarSegment(string? template)
+        {
+            if (string.IsNullOrEmpty(template) || template!.IndexOf(HotbarToken, StringComparison.Ordinal) < 0)
+            {
+                return template ?? string.Empty;
+            }
+
+            var kept = new List<string>();
+            foreach (string segment in template.Split(new[] { PadControlNames.Separator }, StringSplitOptions.None))
+            {
+                if (segment.IndexOf(HotbarToken, StringComparison.Ordinal) < 0)
+                {
+                    kept.Add(segment);
+                }
+            }
+
+            return string.Join(PadControlNames.Separator, kept);
         }
     }
 
