@@ -97,10 +97,10 @@
   "story.sounders.s5.truth.start": "They aren't dead. The Great Song carried them into the Qualis' world. And the Qualis were the ones getting hurt.",
 
   "story.sounders.s6.letters.start": "Each Echo gave us letters: O-R, N-E, M-I and S. Together they spell the star's name: ORNEMIS.",
-  "story.sounders.s6.play.start": "Play the whole name at a singing shrine — the Shrine of the Eight Voices or any ring of eight rune stones: ORNEMIS, two notes per letter.",
-  "story.sounders.s6.play.start_ring": "Play the whole name at a ring of eight rune stones — one you found or one you built: ORNEMIS, two notes per letter.",
+  "story.sounders.s6.play.start": "Play the whole name at a singing shrine — the Shrine of the Eight Voices or any ring of eight rune stones: ORNEMIS. Every letter is TWO notes — the melody bar shows you which.",
+  "story.sounders.s6.play.start_ring": "Play the whole name at a ring of eight rune stones — one you found or one you built: ORNEMIS. Every letter is TWO notes — the melody bar shows you which.",
   "story.sounders.s6.play.chip": "Play the Song of Return",
-  "story.sounders.s6.play.hint": "The note table is in the Song Archive. O is F then E, R is G then D.",
+  "story.sounders.s6.play.hint": "Careful: the letters are not note names — every letter is TWO notes. O is F then E, R is G then D. The melody bar shows the two notes of every letter and lights up the one you are at.",
   "story.sounders.s6.play.done": "It answered a fifth higher. Your ship is in tune now — Ornemis is on your star chart!",
 
   "story.sounders.s7.jump.start": "Set course for Ornemis. You'll need a jump drive for the hyperjump.",

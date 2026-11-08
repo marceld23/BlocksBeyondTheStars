@@ -97,10 +97,10 @@
   "story.sounders.s5.truth.start": "Sie sind nicht tot. Das Große Lied hat sie in die Welt der Qualis getragen. Und verletzt wurden dabei die Qualis.",
 
   "story.sounders.s6.letters.start": "Jedes Echo hat uns Buchstaben gegeben: O-R, N-E, M-I und S. Zusammen ergeben sie den Namen des Sterns: ORNEMIS.",
-  "story.sounders.s6.play.start": "Spiel den ganzen Namen an einem singenden Schrein – am Schrein der Acht Stimmen oder an einem Ring aus acht Runensteinen: ORNEMIS, zwei Töne pro Buchstabe.",
-  "story.sounders.s6.play.start_ring": "Spiel den ganzen Namen an einem Ring aus acht Runensteinen – gefunden oder selbst gebaut: ORNEMIS, zwei Töne pro Buchstabe.",
+  "story.sounders.s6.play.start": "Spiel den ganzen Namen an einem singenden Schrein – am Schrein der Acht Stimmen oder an einem Ring aus acht Runensteinen: ORNEMIS. Jeder Buchstabe ist ZWEI Töne – die Klangleiste zeigt dir, welche.",
+  "story.sounders.s6.play.start_ring": "Spiel den ganzen Namen an einem Ring aus acht Runensteinen – gefunden oder selbst gebaut: ORNEMIS. Jeder Buchstabe ist ZWEI Töne – die Klangleiste zeigt dir, welche.",
   "story.sounders.s6.play.chip": "Spiel das Heimkehrlied",
-  "story.sounders.s6.play.hint": "Die Notentabelle steht im Klangarchiv. O ist F, dann E – R ist G, dann D.",
+  "story.sounders.s6.play.hint": "Vorsicht: Die Buchstaben sind keine Notennamen – jeder Buchstabe ist ZWEI Töne. O ist F, dann E – R ist G, dann D. Die Klangleiste zeigt die zwei Töne jedes Buchstabens und leuchtet bei dem auf, an dem du gerade bist.",
   "story.sounders.s6.play.done": "Er hat eine Quinte höher geantwortet. Dein Schiff ist jetzt gestimmt – Ornemis steht auf deiner Sternkarte!",
 
   "story.sounders.s7.jump.start": "Kurs auf Ornemis! Für den Hypersprung brauchst du einen Sprungantrieb.",

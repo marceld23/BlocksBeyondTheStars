@@ -114,6 +114,11 @@ public sealed class MelodyPuzzleSpec
     /// <summary>When solved, the whole melody comes back once in the Sounder choir with its fifth (a small reward chord).</summary>
     public bool ChorusOnSolve { get; set; } = true;
 
+    /// <summary>#3426: the word <see cref="Target"/> spells in the note alphabet (the Song of Return and the Bridge Song:
+    /// ORNEMIS), or empty. The melody bar then shows it letter by letter with each letter's two notes
+    /// (<see cref="MelodySpelling"/>) — the target itself stays the truth of what is played.</summary>
+    public string Word { get; set; } = string.Empty;
+
     /// <summary>A copy (the server keeps its own, so a caller that reuses its spec cannot change a running puzzle).</summary>
     public MelodyPuzzleSpec Clone() => new()
     {
@@ -132,6 +137,7 @@ public sealed class MelodyPuzzleSpec
         TimeLimitSeconds = TimeLimitSeconds,
         LeaveDistance = LeaveDistance,
         ChorusOnSolve = ChorusOnSolve,
+        Word = Word,
     };
 
     private static int[][] CloneRows(int[][]? rows)

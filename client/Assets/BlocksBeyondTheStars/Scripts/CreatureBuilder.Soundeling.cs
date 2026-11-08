@@ -24,8 +24,9 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public sealed partial class CreatureBuilder
     {
-        /// <summary>The Soundelings' pastels: pink, baby blue, mint, lemon, lilac, peach (the species colour joins them).</summary>
-        private static readonly int[] SoundelingPastels = { 0xF4C6E4, 0xC9E7FF, 0xD8F5C8, 0xFFF1B8, 0xE2D1FF, 0xFFD6C2 };
+        /// <summary>The Soundelings' pastels — light blues and light greens since #3423 (<see cref="SoundelingRules.Pastels"/>; the
+        /// species colour joins them).</summary>
+        private static readonly int[] SoundelingPastels = SoundelingRules.Pastels;
 
         /// <summary>Where the tufts sit round a Soundeling's ball (directions from its centre).</summary>
         private static readonly Vector3[] SoundelingTufts =
@@ -40,14 +41,14 @@ namespace BlocksBeyondTheStars.Client
         {
             float u = 0.5f * Mathf.Clamp(c.Size, 0.4f, 3f);
             int pick = CreatureCoat.PlacementVariant(c.Id) % (SoundelingPastels.Length + 1);
-            Color pastel = Rgb(pick < SoundelingPastels.Length ? SoundelingPastels[pick] : (c.ColorRgb != 0 ? c.ColorRgb : 0xF4C6E4));
+            Color pastel = Rgb(pick < SoundelingPastels.Length ? SoundelingPastels[pick] : (c.ColorRgb != 0 ? c.ColorRgb : SoundelingPastels[0]));
             var mood = MoodOf(c, 0.1f, true, true);
             Color col = mood.Tint(pastel) * mood.Dim;
             col.a = 1f;
             string hide = string.IsNullOrEmpty(c.Hide) ? "down" : c.Hide;
             var fluff = Lit(col, HideOr(hide));
             var fluffLight = Lit(Color.Lerp(col, Color.white, 0.35f), HideOr(hide));
-            var feet = Lit(Rgb(c.BellyRgb != 0 ? c.BellyRgb : 0xFFF4D6), null);
+            var feet = Lit(Rgb(c.BellyRgb != 0 ? c.BellyRgb : 0xE2FAEA), null);
             _bodyMat = fluff;
 
             var body = new GameObject("BodyRig");
@@ -125,7 +126,7 @@ namespace BlocksBeyondTheStars.Client
         {
             float u = 0.5f * Mathf.Clamp(c.Size, 0.4f, QualiRules.MaxSize);
             Color bellCol = Rgb(c.ColorRgb != 0 ? c.ColorRgb : 0x8FE8FF);
-            Color glowCol = Rgb(c.BellyRgb != 0 ? c.BellyRgb : 0xD8B4FF);
+            Color glowCol = Rgb(c.BellyRgb != 0 ? c.BellyRgb : 0xB4FFE6); // #3423: an aqua-mint glow (was lavender)
             var bellMat = Ghost(Color.Lerp(bellCol, Color.white, 0.3f), 0.34f);
             var veilMat = Ghost(glowCol, 0.45f);
             _bodyMat = bellMat;

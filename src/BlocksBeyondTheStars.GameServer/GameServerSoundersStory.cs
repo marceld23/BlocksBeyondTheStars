@@ -118,6 +118,7 @@ public sealed partial class GameServer
                 Id = SoundersIds.PuzzleSongOfReturn,
                 Mode = MelodyPuzzleMode.Compose,
                 Target = SounderAlphabet.Encode(SoundersIds.SongOfReturnWord),
+                Word = SoundersIds.SongOfReturnWord, // #3426: the bar shows every letter's two notes
                 IdleSeconds = 30f,
             };
         }
@@ -131,6 +132,7 @@ public sealed partial class GameServer
                 Id = SoundersIds.PuzzleBridgeSong,
                 Mode = MelodyPuzzleMode.Harmony,
                 Target = SounderAlphabet.Encode(SoundersIds.SongOfReturnWord),
+                Word = SoundersIds.SongOfReturnWord, // #3426: the bar shows each letter's counter-voice notes
                 Instrument = SoundersIds.InstrumentChoir,
                 IdleSeconds = 30f,
             };

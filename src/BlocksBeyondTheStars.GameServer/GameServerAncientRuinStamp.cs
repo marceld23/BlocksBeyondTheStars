@@ -97,12 +97,12 @@ public sealed partial class GameServer
     private bool TrySeatAncientRuinInOpenLand(AncientRuinPlan plan)
     {
         int circ = _world.Circumference, w = plan.Width, l = plan.Length;
-        int latBand = WorldConstants.LatitudePeriodFor(circ) / 2 - l / 2 - 16;
-        if (latBand < 16 || circ < 4 * System.Math.Max(w, l))
+        if (!AncientRuinFitsOpenLand(circ, w, l))
         {
             return false;
         }
 
+        int latBand = AncientRuinLatitudeBand(circ, l);
         int pad0X = _landingPads.Count > 0 ? _landingPads[0].CenterX : 0, pad0Z = _landingPads.Count > 0 ? _landingPads[0].CenterZ : 0;
         var rng = RngFor(plan.Seed, "spot");
         var reserved = AncientRuinReserved();
@@ -133,6 +133,16 @@ public sealed partial class GameServer
 
         return false;
     }
+
+    /// <summary>Whether a body of <paramref name="circumference"/> blocks is big enough to hide a <paramref name="w"/> ×
+    /// <paramref name="l"/> structure in its open land: four footprints around, and a latitude band left over. The seat and the
+    /// admin's <c>/ressaw</c> prediction (#3421) both ask it.</summary>
+    private static bool AncientRuinFitsOpenLand(int circumference, int w, int l)
+        => AncientRuinLatitudeBand(circumference, l) >= 16 && circumference >= 4 * System.Math.Max(w, l);
+
+    /// <summary>How far north or south of the equator the centre of an <paramref name="l"/>-long structure may lie.</summary>
+    private static int AncientRuinLatitudeBand(int circumference, int l)
+        => WorldConstants.LatitudePeriodFor(circumference) / 2 - l / 2 - 16;
 
     /// <summary>Where the shaft may stand: a G.D.S. ruin's interior street crossings in hash order; an enclosed structure's one
     /// walkway corner, (1, 1).</summary>

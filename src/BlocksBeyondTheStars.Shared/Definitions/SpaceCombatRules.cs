@@ -17,4 +17,10 @@ public static class SpaceCombatRules
     /// <c>data/ship_modules.json</c>) reaches to within ten units of it, so a child shot at from the edge of the
     /// aura has to fly only a little closer to shoot back — not the 25 units of the old 45 (#2284).</summary>
     public const float EngageRange = 70f;
+
+    /// <summary>#3420: the flown ship's collision radius against a rock — an asteroid, a wreckage fragment or the wreck.
+    /// The flight view holds the ship's centre this far from the rock's blocks (it stops at the surface and slides along,
+    /// like at a station hull, which uses the same radius), and the server's ram check counts a pilot as touching an
+    /// asteroid from this distance on (plus a little slack), so a pose at the surface is always a touch.</summary>
+    public const float ShipRockRadius = 2.5f;
 }

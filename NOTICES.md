@@ -153,7 +153,8 @@ crystal-glass `ressaw_block` with its `ressaw_block_cracked` stage, `ressaw_crys
 of the three ruin props `gds_skull`, `gds_diving_helmet`, `gds_guardian_head`; 2026-11-07), and the Sounders story pack's
 nine tiles (#3363, 2026-11-07: the `song_spindle` picture, `carved_obsidian`, `resonance_crystal`, `chime_moss` and the
 singing plants `chime_reed`, `bell_bloom`, `bell_bloom_open`, `harp_vine`, `echo_flower` — side-view billboards on black,
-cut by `bake_leaf_alpha.py`)) are
+cut by `bake_leaf_alpha.py`; the moss and the five plants recoloured into light green and light blue on 2026-11-08 by the
+deterministic script `tools/ai-assets/recolour_soaniri.py`, #3423, no model)) are
 **AI-generated** with the same **OpenAI** image API (`gpt-image-1-mini`, 64px pixel-art tiles — see
 `tools/ai-assets/gen_textures.py`, bundled as raw bytes by `bundle_textures.py`), loaded into the
 block atlas at runtime via `Texture2D.LoadRawTextureData`; same OpenAI usage terms.

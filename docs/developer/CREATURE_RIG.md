@@ -418,12 +418,19 @@ measure the drawn bodies. Four are authored records in `data/creatures.json` (`s
 `fixedName`) that join a roster only where a planet type lists them in `authoredCreatures` — the Sounders' world
 `sounder_world` (Soaniri); the Sounder itself is an NPC look.
 
+**Colours (#3423, Justus 2026-11-08: everything on Soaniri light blue and light green).** The Soundi is light blue with mint
+(`SoundiRules.Fur`/`Mint`), the Soundrak light blue with a mint belly (`SoundrakRules.Skin`/`Belly`, the records' `colorRgb` /
+`bellyRgb`), the Soundelings wear one of six light-blue and light-green pastels (`SoundelingRules.Pastels`), a living Sounder a
+light-blue or light-green skin with a deeper blue or green sash (`SounderRules.SkinTones`/`SashTones`, pale mint inner ears),
+and a Quali's light-cyan bell glows aqua-mint. Every body is clearly lighter than the light-green moss or a different hue, so it
+reads on the ground; `SoaniriPaletteTests` holds them all in the blue/green band.
+
 | Plan | File | Body |
 | --- | --- | --- |
 | **Sounder** | `CreatureBuilder.Sounder.cs` | 3–4 blocks (`SounderRules.HeightFor`: 3.3 × a scale of 0.9–1.2): very long legs on toeless pads (48 % of the height, the knee folds back), a thin torso with the **disc slot** in a raised rim on the chest, **four** thin arms in two pairs (`ArmRig.Row` 0/1; the hand bent a little off the forearm — the sketches' wavy arms), a thin neck, a small **eyeless** head with a mouth that is always a little open on a hinged chin (the jaw), two long hare ears (base, inner panel, a tip bending back) on pivots `PoseEars` sways. Living: skin (`ColorRgb`) and a woven sash round the waist (`BellyRgb`). **Echo**: the same body in a translucent teal (`Ghost`: the always-included Cloud shader, alpha-blended — no new shader), glowing (a soft point light) and floating (`RigDescription.Drift`/`Hover`). |
 | **Soundi** | `CreatureBuilder.Soundi.cs` | The animated series' Soundi, knee-high (`SoundiRules`, standard unit): a round fluffy body with tufts on four short chubby legs with mint paws, a mint chest, a big round head with fluffy cheeks and **no eyes**, a mint muzzle with a little nose and a **wide smile** (a flat middle, two upturned corners), a mint chin on the jaw that opens as it sings, **huge pointed ears** (three tapering tiers with mint insides, taller than the head), a bushy tail of three links growing fluffier to a mint tip. |
-| **Soundrak** | `CreatureBuilder.Soundrak.cs` | About ten metres (`SoundrakRules.HeightFor`: `Size × 1.8`, the general render-height rule, so the large-body checks fit): two very short toeless legs on round pads, a stack of eight leathery blue-green segments narrow at the bottom, thin at the waist and clearly wider at the crown (`SoundrakWidths`), a lighter front panel below, the oval **bud mouth** on top (five lips round a dark throat, `RigDescription.Petals`; a part-less jaw pivot carries the voice pulse) and five **tentacles** hanging from the upper back (`PoseTentacles` sways them). The body keeps its colliders on the giants' layer (`MakeGiantBody`), and `CreatureView` registers them like the arachnid's. |
-| **Soundeling** | `CreatureBuilder.Soundeling.cs` | A pastel fluff ball (one of six pastels per animal, by its id) on two tiny feet: a puff, eight tufts, a curl and a tiny cooing mouth on the ball, **no eyes** (like every creature of Soaniri) — the ball is the rig's head, so it turns to you — a soft light, and a hidden lamp it holds up while it carries a light (`RigDescription.CarriedLight`, shown by `SetCarrying` from `NetCreature.CarriesLight`). |
+| **Soundrak** | `CreatureBuilder.Soundrak.cs` | About ten metres (`SoundrakRules.HeightFor`: `Size × 1.8`, the general render-height rule, so the large-body checks fit): two very short toeless legs on round pads, a stack of eight leathery light-blue segments narrow at the bottom, thin at the waist and clearly wider at the crown (`SoundrakWidths`), a lighter front panel below, the oval **bud mouth** on top (five lips round a dark throat, `RigDescription.Petals`; a part-less jaw pivot carries the voice pulse) and five **tentacles** hanging from the upper back (`PoseTentacles` sways them). The body keeps its colliders on the giants' layer (`MakeGiantBody`), and `CreatureView` registers them like the arachnid's. |
+| **Soundeling** | `CreatureBuilder.Soundeling.cs` | A pastel fluff ball (one of six light-blue and light-green pastels per animal, by its id) on two tiny feet: a puff, eight tufts, a curl and a tiny cooing mouth on the ball, **no eyes** (like every creature of Soaniri) — the ball is the rig's head, so it turns to you — a soft light, and a hidden lamp it holds up while it carries a light (`RigDescription.CarriedLight`, shown by `SetCarrying` from `NetCreature.CarriesLight`). |
 | **Quali** | `CreatureBuilder.Soundeling.cs` | The medusa at giant scale (`QualiRules`, size up to 12, a bell ≈ 9 blocks across): a see-through dome over a glowing veil and core, glowing beads round the rim, twelve long see-through tentacles and four frilly arms (chains the medusa poses wave with the bell's pulse), a light of its own. |
 
 `CreatureAnimator.Sounders.cs` layers their body language on the shared poses: the Sounder's lower arm pair waves a beat behind
@@ -439,10 +446,17 @@ them "Sings", "A short, loud scream", "A slow, glassy song", "Coos softly".
 
 **The server's rules** (`GameServerSoundersFauna.cs`, `GameServerSoundelings.cs`): the spawner keeps one Soundrak and three
 Qualis about (`SoundersFauna.MaxWildAtOnce`; a herd member too), the giants vary only a third as much in size; a Quali can
-never be hit or pushed (`srv.attack.quali`); the Soundrak screams (a `SoundFx` from its crown, every 9–15 s) at the nearest
-player in its territory (18 blocks) and charges one who comes within 7 (only with planet enemies on), unless that player
-soothes it (the items pack's `partial void SoothesSoundraks` — the calm disc) or it is calm (`CalmCreature`/`CalmCreaturesNear`:
-the Resonance Blaster, a story beat — no grudge, no hunt, no bite while it lasts). A **Soundeling** sleeps curled up at night
+never be hit or pushed (`srv.attack.quali`). The **Soundrak is hostile from the start** (#3424, on every world, no story
+progress needed): it screams (a `SoundFx` from its crown, every 9–15 s) at the nearest player in its territory (18 blocks); a
+player it notices within `SoundrakRules.NoticeRange` (11 — inside the 11.6 blocks it hunts from) hears the scream as a
+**warning**, and one still that close `WarningSeconds` (2.5 s) later is attacked: provoked into the classic charge and bite
+(3 health a second, the usual give-up after a 7 s chase, death sends the player to the respawn choice). Any scream from the last
+`WarningMemorySeconds` (8 s) counts as the warning, otherwise it screams again first (`SoundrakRules.AlertFor`); a player who
+backs out of the notice range is let go. It attacks only with planet enemies on (Peaceful and Creative: screams only), never a
+player who soothes it (the items pack's `partial void SoothesSoundraks` — the calm disc), notices a wearer of the whole obsidian
+set only from half the range (quiet steps, `PreyOverlooked`), and does nothing while it is calm (`CalmCreature`/
+`CalmCreaturesNear`: the Resonance Blaster, a story beat — no grudge, no hunt, no bite while it lasts). Its record stays
+`Territorial` (not `Hostile`): it is not drawn red until it attacks, and companions do not pick fights with it. A **Soundeling** sleeps curled up at night
 and nothing wakes it; by day under a roof with no light within 6 blocks it walks to a light within 8 or curls up and hides
 (drawn asleep); handed a lamp with the Feed key ([CREATURE_TAMING.md](CREATURE_TAMING.md)) it coos, thinks for 1.5 s, carries
 it to the nearest dark free cell 2.5–12 blocks away (under a roof, unlit, on solid ground, never where the giver could not
@@ -453,7 +467,8 @@ stays, hidden), feeds its gaze, hums (`SounderVoice`: `elder_hum_1..2`, `echo_hu
 the bubble.
 
 Tests: `SoundersCreaturesTests` (plans, records, rosters, sizes, footprints, voices, light items, locales),
-`SoundersFaunaServerTests` (caps, the Quali, the Soundrak's territory and calm, the scan, the NPC look),
+`SoundersFaunaServerTests` (caps, the Quali, the Soundrak's warning and attack on a fresh world, backing away, Peaceful, its
+calm, the scan, the NPC look), `SoaniriPaletteTests` (#3423: every colour in the blue/green band, readable on the moss),
 `SoundelingServerTests` (by day to a dark free cell, night, no dark spot, hiding in the dark, somebody else's base),
 `SounderVoiceTests` (client). The rig itself needs the Unity build.
 

@@ -49,7 +49,10 @@ close onto a body, grants the fall grace when a solid block opens, plays its sou
 `trapdoor_open` / `_close`, `force_field_on` / `_off`) and effect (`phase_shimmer`, `field_flicker`). A twin is **not
 assumed** in either state on load (#2096): its first beat reads the block that actually stands there. The open
 twins are see-through / walk-through on the client (`ChunkMesher`: transparent + not collidable — the mesher reads
-keys, not the `Solid` flag). A phase block opened by a world circuit (a crystal vault's door) counts as
+keys, not the `Solid` flag). The key list is the Shared `WalkThroughBlocks.IsOpenTwin`, read by the mesher's collider
+rule (`CubeHasCollider`) and, through `IsProp`, by the player's out-of-world guard (#3422: the guard used to read an open
+phase block or a switched-off field in the body's cell as "stuck in a block" and snapped the player back;
+`WalkThroughColliderTests` holds every collider-less block to the guard). A phase block opened by a world circuit (a crystal vault's door) counts as
 "Safecracker" for everyone in the chamber.
 
 ## 3. The bridge motor (#2265)

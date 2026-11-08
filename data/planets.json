@@ -1297,7 +1297,7 @@
   },
   // #3358 (the Sounders story pack, 2026-11-07): Soaniri, the Sounder home world in the detuned Ornemis system. Never rolled
   // by the galaxy (selectable false, spawn weight 0, no generation gate of its own): the pack appends it when a player learns
-  // the Song of Return (#3357). Rolling hills of violet-teal chime moss, a reed marsh, mild breathable air and gentle weather;
+  // the Song of Return (#3357). Rolling hills of light-green chime moss (#3423), a reed marsh, mild breathable air and gentle weather;
   // the singing meadows (the singing plants, obsidian outcrops with resonance-crystal caps, harp arches with harp vines) come
   // from WorldGenerator.StampSingingMeadows, the rune monuments from the classic stamper (4–6 of them), and the village Mirun,
   // the ruin city Ornasa and the Choir Tower from GameServerSounderWorld. No machines, no bandits, no settlers' towns.
@@ -1314,6 +1314,9 @@
     "calmTerrain": true, "peacefulFauna": true, "enemyDensity": 0.0,
     "restrictStructures": true, "allowedStructures": ["monuments"], "monumentCount": [4, 6],
     "singingMeadows": true,
+    // #3423 (Justus: everything on Soaniri light blue and light green): the wild plants wear light greens (their blossoms turn
+    // light blue in the shader's accent), and they keep their colours through autumn and winter.
+    "floraPalette": ["#b4f08c", "#a6eba0", "#9ce6b0", "#c2f5b0", "#8fdc96", "#a8f0c4"], "evergreenFlora": true,
     "authoredCreatures": ["soundi", "soundrak", "quali", "soundeling"],
     "biomes": [
       { "surfaceBlock": "chime_moss", "subSurfaceBlock": "dirt", "floraDensityMul": 1.0 },

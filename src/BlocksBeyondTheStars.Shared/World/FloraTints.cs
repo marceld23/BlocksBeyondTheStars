@@ -1,6 +1,8 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Shared.Definitions;
+
 namespace BlocksBeyondTheStars.Shared.World;
 
 /// <summary>
@@ -21,6 +23,71 @@ public static class FloraTints
         float sat = 0.45f + ((h >> 12) % 1000UL) / 1000f * 0.4f; // 0.45..0.85
         float val = 0.85f + ((h >> 24) % 1000UL) / 1000f * 0.3f; // 0.85..1.15
         return HsvToRgb(hue, sat, val);
+    }
+
+    /// <summary>#3423: <see cref="For(long, string, string)"/> on a world of <paramref name="planet"/>'s type. A type with a
+    /// <see cref="PlanetType.FloraPalette"/> (Soaniri's light greens) gives every wild species one of its colours — picked by
+    /// the same per-(species, world) hash, its saturation and brightness jittered a little (±12 %, ±8 %, the hue kept) so
+    /// neighbouring species still differ; any other type, or none, keeps the classic any-hue roll.</summary>
+    public static (float R, float G, float B) For(long worldSeed, string locationKey, string blockKey, PlanetType? planet)
+    {
+        var palette = PaletteOf(planet);
+        if (palette.Count == 0)
+        {
+            return For(worldSeed, locationKey, blockKey);
+        }
+
+        ulong h = Hash($"{worldSeed}|{locationKey}|flora-tint|{blockKey}");
+        return Jittered(palette[(int)(h % (ulong)palette.Count)], h);
+    }
+
+    /// <summary>#3423: <see cref="ForWorld(long, string, int)"/> on a world of <paramref name="planet"/>'s type — with a
+    /// <see cref="PlanetType.FloraPalette"/> the world's base flora hue is one of its colours too (the block shader's fallback
+    /// and the micro-fauna's colour stay in the planet's palette).</summary>
+    public static int ForWorld(long worldSeed, string? locationKey, int terrainGeneration, PlanetType? planet)
+    {
+        var palette = PaletteOf(planet);
+        if (palette.Count == 0)
+        {
+            return ForWorld(worldSeed, locationKey, terrainGeneration);
+        }
+
+        ulong h = Hash($"{worldSeed}|{locationKey}|flora-world");
+        return ToRgb24(Jittered(palette[(int)(h % (ulong)palette.Count)], h), 1f);
+    }
+
+    /// <summary>#3423: <paramref name="planet"/>'s <see cref="PlanetType.FloraPalette"/> as RGB 0..1 (an entry that is no
+    /// <c>"#rrggbb"</c> is skipped); empty for a type without one, or none.</summary>
+    public static IReadOnlyList<(float R, float G, float B)> PaletteOf(PlanetType? planet)
+    {
+        var colours = new List<(float R, float G, float B)>();
+        if (planet?.FloraPalette is not { Count: > 0 } specs)
+        {
+            return colours;
+        }
+
+        foreach (string spec in specs)
+        {
+            string s = spec?.Trim() ?? string.Empty;
+            if (s.Length == 7 && s[0] == '#'
+                && int.TryParse(s.Substring(1), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out int rgb))
+            {
+                colours.Add((((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f));
+            }
+        }
+
+        return colours;
+    }
+
+    /// <summary>A palette colour with the hash's small saturation (×0.88..1.12) and brightness (×0.92..1.08) jitter; the hue
+    /// stays (a channel's distance from the brightest one scales with the saturation).</summary>
+    private static (float R, float G, float B) Jittered((float R, float G, float B) c, ulong h)
+    {
+        float satK = 0.88f + ((h >> 12) % 1000UL) / 1000f * 0.24f;
+        float valK = 0.92f + ((h >> 24) % 1000UL) / 1000f * 0.16f;
+        float top = System.Math.Max(c.R, System.Math.Max(c.G, c.B));
+        float Channel(float v) => Clamp01((top - ((top - v) * satK)) * valK);
+        return (Channel(c.R), Channel(c.G), Channel(c.B));
     }
 
     /// <summary>The rainbow glow class (generation 11): ONE plant's own colour (RGB 0..1), taken from its cell, so

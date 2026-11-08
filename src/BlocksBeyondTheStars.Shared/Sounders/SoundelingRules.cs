@@ -17,6 +17,11 @@ namespace BlocksBeyondTheStars.Shared.Sounders;
 /// </summary>
 public static class SoundelingRules
 {
+    /// <summary>#3423 (Justus: everything on Soaniri light blue and light green): the pastels a Soundeling's fluff wears, one per
+    /// animal by its id (the client's builder; the species colour joins them) — baby blue, mint, sky, aqua mint, pale blue and
+    /// pale green, so a group still reads like a bag of sweets.</summary>
+    public static readonly int[] Pastels = { 0xC9E7FF, 0xD2F5C8, 0xB8E2FF, 0xC4F2E0, 0xDCEEFF, 0xCDF3D2 };
+
     /// <summary>A player hands a light to a Soundeling within this many blocks (the Feed key's reach for this).</summary>
     public const float GiveRange = 6f;
 

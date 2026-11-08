@@ -1702,6 +1702,7 @@ public sealed partial class GameServer
 
         s.Story.StoryPackPlaySeconds += 1.0;
         AdvancePlayer(s, offers: true);
+        CatchUpSoundersSkips(s); // #3425: a skipped Sounders step hands over what it would have given — never stranded
         foreach (var pack in PlayerPacks)
         {
             if (ChipStepOf(s, pack, optional: false) is { } mandatory)

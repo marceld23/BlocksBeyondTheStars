@@ -94,6 +94,24 @@ Everything below the line "Deferred" is intentionally **not** in the MVP.
   two sides cannot drift (the client used to keep its own copy). The starter laser (`ship_laser_basic`,
   `weapon_range` 60 — was 45) reaches to within ten units of it: shot at from the edge of the aura, a pilot flies a
   little closer and shoots back instead of 25 units. `SpaceCombatTests` pins both numbers.
+- **Rocks are solid, rams go by their real size** (#3420). In flight the client keeps the flown ship out of every voxel
+  body that is not a station — asteroids, wreckage fragments (`debris`) and the wreck: `SpaceView.ResolveRockMove` runs
+  `RockKeepOut` (Client.Core) for the rocks near the ship after the station hull check (`ResolveStationHullMove`, #1917).
+  The ship is a sphere of `SpaceCombatRules.ShipRockRadius` (2.5, the station hull's radius too) against the rock's block
+  boxes (`VoxelSurface`, Shared): a move into the rock ends at its surface with the inward part removed, so the ship stops
+  softly and slides along — no bounce-back (flight has no velocity state, it is position + input), no jitter while it
+  rests there; a long frame is checked in half-radius steps so a hitch cannot tunnel through a pebble, and a ship a rock
+  appeared around is eased out at 6 u/s. A spacewalk keeps its own voxel collision; planet-like landable asteroid
+  *bodies* keep their sphere keep-out. The server (`GameServerShipRams.RamSpeed`) never moves the ship — poses stay
+  client-reported, as at station hulls — but measures the same surface: a pilot touches an asteroid while the ship's
+  centre is within `ShipRockRadius` + 0.25 of its blocks (was: 3 units to the rock's centre, which a big rock's surface
+  never reached), and what hurts is the **closing speed** (the part of the last tick's move that pointed into the
+  surface; inside the blocks: towards the rock's middle). Over 3 u/s → `min(18, 0.8 × speed)` damage with the 0.8 s
+  cooldown, as before; a slow touch, resting at the surface or sliding along it never hurts. The speed baseline
+  (`PilotSim.LastPosition`) follows every tick — it used to freeze at the pre-impact spot while touching, which would
+  re-read one fast hit after every cooldown now that a rammed ship rests at the surface. A suit on a spacewalk never
+  rams; only asteroids ram (a wreck or a fragment stops the ship without damage). Tests: `RockKeepOutTests`
+  (Client.Tests), the `#3420` block in `SpaceCombatTests`.
 - **No permanent loss**: hull ≤ 0 ⇒ `DisableShip` ⇒ respawn player, restore hull to max,
   clear the instance, ship "recovered to base". PvP ship damage is **not implemented**: another
   player's ship is no combat target (a ship weapon only aims at the instance's combat entities), so

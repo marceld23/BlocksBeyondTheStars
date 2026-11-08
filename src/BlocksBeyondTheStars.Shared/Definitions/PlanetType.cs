@@ -209,6 +209,17 @@ public sealed class PlanetType
     /// Empty = the temperate default. Biomes may override it per region via <see cref="Biome.FloraTheme"/>.</summary>
     public string FloraTheme { get; set; } = string.Empty;
 
+    /// <summary>#3423: the colours this type's wild plants wear, as <c>"#rrggbb"</c> (JSON <c>floraPalette</c>). Empty = the
+    /// classic per-world roll of any hue (<c>FloraTints.For</c>); otherwise every wild species picks one of these per world, with
+    /// a little brightness jitter, and so does the world's base flora hue — Soaniri's light greens. Purely visual, nothing is
+    /// saved: a change recolours every world of the type on its next load.</summary>
+    public List<string> FloraPalette { get; set; } = new();
+
+    /// <summary>#3423: the plants keep their colours all year (JSON <c>evergreenFlora</c>): the seasons still come and go
+    /// (warmth, growth), but autumn does not turn the leaves amber and red and winter does not pale them — the client's season
+    /// look (<c>SeasonLook.Target</c>). Soaniri, whose singing plants stay light blue and light green.</summary>
+    public bool EvergreenFlora { get; set; }
+
     /// <summary>Optional override of the creature hide theme (#2868, JSON <c>faunaTheme</c>). The client derives a world's
     /// fauna theme from <see cref="FloraTheme"/>, <see cref="BaseTemperature"/> and <see cref="WaterAbundance"/>; a type
     /// that should dress its animals differently names the theme here. Empty = derived. Purely visual: only the client

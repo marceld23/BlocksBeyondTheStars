@@ -64,4 +64,14 @@ public sealed class MelodyPuzzleState
 
     /// <summary>The tone the server just judged (-1: none) — the bar flashes it.</summary>
     public int LastTone { get; set; } = -1;
+
+    /// <summary>#3426: the word the melody spells in the note alphabet (the Song of Return's ORNEMIS), or empty — the bar
+    /// shows it letter by letter with <see cref="WordTones"/> (<c>MelodySpelling</c>), the letter the player is at marked
+    /// (<see cref="Entered"/> / 2). Sent while the bar is open. A new field of a map-keyed message: an older client skips
+    /// it, an older server simply sends none (no spelling line).</summary>
+    public string Word { get; set; } = string.Empty;
+
+    /// <summary>#3426: the two tones the player plays for each letter of <see cref="Word"/>, in order — the alphabet's own for
+    /// the Song of Return, the counter-voice for the Bridge Song. Empty without a word.</summary>
+    public int[] WordTones { get; set; } = System.Array.Empty<int>();
 }

@@ -233,6 +233,31 @@ public sealed class SoundersCreaturesTests
     }
 
     [Fact]
+    public void TheSoundrak_WarnsBeforeItAttacks_AndNoticesInsideItsHuntingRange()
+    {
+        // #3424: hostile from the start, but a scream always comes first.
+        Assert.Equal(SoundrakAlert.Warn, SoundrakRules.AlertFor(double.PositiveInfinity)); // never screamed
+        Assert.Equal(SoundrakAlert.Warn, SoundrakRules.AlertFor(double.NaN));
+        Assert.Equal(SoundrakAlert.Warn, SoundrakRules.AlertFor(-1.0));
+        Assert.Equal(SoundrakAlert.Warn, SoundrakRules.AlertFor(SoundrakRules.WarningMemorySeconds + 0.1)); // too long ago
+        Assert.Equal(SoundrakAlert.Wait, SoundrakRules.AlertFor(0.0));
+        Assert.Equal(SoundrakAlert.Wait, SoundrakRules.AlertFor(SoundrakRules.WarningSeconds - 0.01));
+        Assert.Equal(SoundrakAlert.Attack, SoundrakRules.AlertFor(SoundrakRules.WarningSeconds));
+        Assert.Equal(SoundrakAlert.Attack, SoundrakRules.AlertFor(SoundrakRules.WarningMemorySeconds));
+        Assert.InRange(SoundrakRules.WarningSeconds, 1.5, 4.0); // time to back away, not an age
+        Assert.True(SoundrakRules.WarningSeconds < SoundrakRules.WarningMemorySeconds);
+        Assert.True(SoundrakRules.WarningMemorySeconds <= SoundrakRules.ScreamCooldownMin, "an old territory scream is no warning");
+
+        // It notices inside its patch and inside the range it hunts from (the creature tick's 8 + size − 2), so the charge
+        // reaches the player it noticed.
+        var soundrak = Shipped.Value.AuthoredCreatures[SoundersIds.Soundrak];
+        Assert.InRange(SoundrakRules.NoticeRange, 6f, SoundrakRules.TerritoryRange);
+        Assert.True(SoundrakRules.NoticeRange <= 8f + Math.Max(0f, soundrak.Size - 2f));
+        Assert.Equal(CreatureTemperament.Territorial, soundrak.Temperament); // not "Hostile": no permanent red, pets leave it be
+        Assert.InRange(soundrak.AttackDamage ?? 0f, 1f, 5f); // a fair, kid-friendly bite
+    }
+
+    [Fact]
     public void TheCapsAndTheUntouchable_FollowTheBodyPlan()
     {
         Assert.Equal(1, SoundersFauna.MaxWildAtOnce(new CreatureSpecies { BodyPlan = CreatureBodyPlan.Soundrak }));

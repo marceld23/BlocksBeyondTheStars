@@ -14,7 +14,7 @@ namespace BlocksBeyondTheStars.Client
     /// <see cref="ArmRig.Row"/>, so the animator swings them like a biped's and lets the lower pair wave a beat behind), a small
     /// head with <b>no eyes</b>, long hare-like ears on pivots the animator sways, a mouth that is always a little open (they
     /// sing) on a hinged chin the voice moves, and the rectangular <b>slot on the chest</b> where the obsidian armour holds a Song
-    /// Disc. A living Sounder wears its skin (the server's <c>ColorRgb</c>, earthy or indigo) and a woven sash (<c>BellyRgb</c>);
+    /// Disc. A living Sounder wears its skin (the server's <c>ColorRgb</c>, light blue or light green since #3423) and a woven sash (<c>BellyRgb</c>);
     /// an <b>Echo</b> is the same body in a translucent, glowing teal that floats a hand above the ground with slowly drifting
     /// arms (<see cref="RigDescription.Drift"/>). Every share comes from <see cref="SounderRules"/>, the numbers the server
     /// measures the body by. Also the dispatch of every body of Soaniri.
@@ -97,8 +97,9 @@ namespace BlocksBeyondTheStars.Client
             anim.Init(rig);
         }
 
-        /// <summary>A living Sounder: skin, a darker skin for feet and hands, pinkish inner ears, the woven sash, the dark mouth and
-        /// slot (the sleep dim and a soft red when it is angry apply). An Echo: one translucent teal, the inner ears and sash glow.</summary>
+        /// <summary>A living Sounder: skin, a darker skin for feet and hands, pale mint inner ears (#3423), the woven sash, the dark
+        /// mouth and slot (the sleep dim and a soft red when it is angry apply). An Echo: one translucent teal, the inner ears and
+        /// sash glow.</summary>
         private static SounderMats SounderMaterials(NetCreature c, bool echo)
         {
             if (echo)
@@ -118,8 +119,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var mood = MoodOf(c, 0.2f, true, false);
-            Color skin = c.ColorRgb != 0 ? Rgb(c.ColorRgb) : Rgb(0x4B4E8C);
-            Color sash = c.BellyRgb != 0 ? Rgb(c.BellyRgb) : Rgb(0xC9A14A);
+            Color skin = c.ColorRgb != 0 ? Rgb(c.ColorRgb) : Rgb((int)SounderRules.SkinTones[0]);
+            Color sash = c.BellyRgb != 0 ? Rgb(c.BellyRgb) : Rgb((int)SounderRules.SashTones[0]);
             Color Tint(Color col, float shade)
             {
                 var t = mood.Tint(col);
@@ -131,7 +132,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 Skin = Lit(Tint(skin, 1f), HideOr("skin")),
                 SkinDark = Lit(Tint(skin, 0.78f), HideOr("skin")),
-                Inner = Lit(Tint(Color.Lerp(skin, new Color(0.95f, 0.75f, 0.8f), 0.45f), 1f), null),
+                Inner = Lit(Tint(Color.Lerp(skin, new Color(0.88f, 0.98f, 0.93f), 0.45f), 1f), null),
                 Sash = Lit(Tint(sash, 1f), HideOr("wool")),
                 Mouth = Unlit(new Color(0.16f, 0.08f, 0.12f)),
                 Slot = Unlit(new Color(0.07f, 0.06f, 0.09f)),

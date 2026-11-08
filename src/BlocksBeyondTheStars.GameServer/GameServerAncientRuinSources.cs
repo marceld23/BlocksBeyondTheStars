@@ -34,28 +34,43 @@ public sealed partial class GameServer
         "loot", "chest", "data_terminal", "relic_cache",
     };
 
-    /// <summary>A slot's source by weight: the planet's underground kits, then its underground whole templates (pool order);
-    /// the city slot only the G.D.S. ruin kits. Null when there is none.</summary>
+    /// <summary>A slot's source by weight (<see cref="UndergroundPick"/>), planned for the active world. Null when there is none.</summary>
     private AncientRuinPlan? PickUndergroundSource(int slot, long seed)
     {
+        var (kit, template) = UndergroundPick(slot, _world.LocationId, _world.Planet.Key);
+        if (kit is not null)
+        {
+            return PlanForKit(kit, slot, seed);
+        }
+
+        return template is null
+            ? null
+            : PlanForSource(new AncientRuinPlan { Slot = slot, Seed = seed, Fresh = true, Source = "template:" + template.Key });
+    }
+
+    /// <summary>What a slot of body <paramref name="locationId"/> (type <paramref name="planetKey"/>) draws by weight: the
+    /// planet's underground kits, then its underground whole templates (pool order); the city slot only the G.D.S. ruin kits.
+    /// (null, null) when there is none. A pure function of the seed and the content — the stamp and the admin's
+    /// <c>/ressaw</c> prediction (#3421) both draw through it.</summary>
+    private (StructureKit? Kit, StructureTemplate? Template) UndergroundPick(int slot, string locationId, string planetKey)
+    {
         var packs = _meta.Description.EnabledStructurePacks;
-        string planet = _world.Planet.Key;
         bool city = slot == UndergroundCitySlot;
-        var kits = _content.UndergroundKitsFor(packs, planet).Where(k => !city || AncientRuinGenerator.IsGdsRuinKit(k)).ToList();
-        var templates = city ? new List<StructureTemplate>() : _content.UndergroundTemplatesFor(packs, planet).ToList();
+        var kits = _content.UndergroundKitsFor(packs, planetKey).Where(k => !city || AncientRuinGenerator.IsGdsRuinKit(k)).ToList();
+        var templates = city ? new List<StructureTemplate>() : _content.UndergroundTemplatesFor(packs, planetKey).ToList();
         int total = kits.Sum(k => System.Math.Max(1, k.Weight)) + templates.Sum(t => System.Math.Max(1, t.Weight));
         if (total == 0)
         {
-            return null;
+            return (null, null);
         }
 
-        int r = StableHashing.Index($"underground:{slot}:pick:{_world.LocationId}", _meta.Seed, total);
+        int r = StableHashing.Index($"underground:{slot}:pick:{locationId}", _meta.Seed, total);
         foreach (var k in kits)
         {
             r -= System.Math.Max(1, k.Weight);
             if (r < 0)
             {
-                return PlanForKit(k, slot, seed);
+                return (k, null);
             }
         }
 
@@ -64,11 +79,11 @@ public sealed partial class GameServer
             r -= System.Math.Max(1, t.Weight);
             if (r < 0)
             {
-                return PlanForSource(new AncientRuinPlan { Slot = slot, Seed = seed, Fresh = true, Source = "template:" + t.Key });
+                return (null, t);
             }
         }
 
-        return null;
+        return (null, null);
     }
 
     /// <summary>A fresh plan for a kit: a G.D.S. ruin kit keeps its grid for the ruin composer; an authored city or settlement

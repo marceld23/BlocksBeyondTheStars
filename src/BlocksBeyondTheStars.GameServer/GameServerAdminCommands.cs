@@ -133,6 +133,9 @@ public sealed partial class GameServer
         ["reveal_lore"] = new(AdminCommandGate.Cheats, static (s, session, _) => s.AdminCommandRevealLore(session)),
         ["goto_core"] = new(AdminCommandGate.Cheats, static (s, session, _) => s.AdminCommandGotoCore(session)),
 
+        // #3421: "/ressaw [n|list]" — into the nearest buried G.D.S. ruin on any planet (GameServerAncientRuinsAdmin.cs)
+        ["goto_ancient"] = new(AdminCommandGate.Cheats, static (s, session, cmd) => s.AdminGotoAncient(session, cmd.StringArg)),
+
         // ---- The Sounders' Song QA (#3368): "/sounders status|start|chapter <n>|items|echo|song|soaniri|tower|soundi" ----
         ["sounders"] = new(AdminCommandGate.Cheats, static (s, session, cmd) => s.AdminSounders(session, cmd.StringArg)),
     };

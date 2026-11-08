@@ -60,15 +60,20 @@ namespace BlocksBeyondTheStars.Client
         /// Timers scheduled against it (a creature's next idle call) do not all fire at once after a long pause.</summary>
         public float WorldTime => _worldClock.Now;
 
-        /// <summary>Recomputes the world's per-species flora colours (deterministic from seed + location,
-        /// so every client agrees). Chunks meshed afterwards pick them up via the tint resolver.</summary>
-        private void RebuildFloraTints()
+        /// <summary>#3423: the type of the world the flora colours were built for — its flora palette (Soaniri's light greens)
+        /// replaces the any-hue roll (<c>FloraTints.For</c> with a planet). Null = the classic roll.</summary>
+        private PlanetType _floraPlanet;
+
+        /// <summary>Recomputes the world's per-species flora colours (deterministic from seed + location + the world's
+        /// <paramref name="planetType"/>, so every client agrees). Chunks meshed afterwards pick them up via the tint resolver.</summary>
+        private void RebuildFloraTints(string planetType)
         {
             if (Content == null)
             {
                 return;
             }
 
+            _floraPlanet = Content.GetPlanet(planetType ?? string.Empty);
             var map = new System.Collections.Generic.Dictionary<ushort, Color>();
             foreach (var def in Content.Blocks.Values)
             {
@@ -97,7 +102,7 @@ namespace BlocksBeyondTheStars.Client
 
                 var (r, g, b) = isWood
                     ? BlocksBeyondTheStars.Shared.World.FloraTints.ForWood(_worldSeed, LocationName, def.Key)
-                    : BlocksBeyondTheStars.Shared.World.FloraTints.For(_worldSeed, LocationName, def.Key);
+                    : BlocksBeyondTheStars.Shared.World.FloraTints.For(_worldSeed, LocationName, def.Key, _floraPlanet);
                 // The mesher writes these into TEXCOORD2 and the block shader multiplies them raw —
                 // convert the sRGB-authored hue at this boundary (no-op in Gamma space).
                 map[def.NumericId.Value] = ShaderColor.Srgb(new Color(r, g, b));
@@ -184,7 +189,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (Content.GetBlock(sp.Key) is { } glower && PlantGlowLight.TakesWorldColour(sp, glower))
                 {
-                    lightById[glower.NumericId.Value] = PlantGlowLight.PackedFor(_worldSeed, LocationName, glower);
+                    lightById[glower.NumericId.Value] = PlantGlowLight.PackedFor(_worldSeed, LocationName, glower, _floraPlanet);
                     continue;
                 }
 
@@ -199,7 +204,7 @@ namespace BlocksBeyondTheStars.Client
                 }
                 else
                 {
-                    lightById[def.NumericId.Value] = FloraTints.ToRgb24(FloraTints.For(_worldSeed, LocationName, sp.Key), sp.Light);
+                    lightById[def.NumericId.Value] = FloraTints.ToRgb24(FloraTints.For(_worldSeed, LocationName, sp.Key, _floraPlanet), sp.Light);
                 }
             }
 

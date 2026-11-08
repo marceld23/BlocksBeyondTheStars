@@ -224,7 +224,7 @@ public sealed partial class GameServer
         if (FloraForm.Breedable(blockKey))
         {
             // A clone keeps the look it has at home: its own form, plain, in this world's colour for the species.
-            var colour = Shared.World.FloraTints.For(_meta.Seed, ActiveLocationDisplayName(), blockKey);
+            var colour = Shared.World.FloraTints.For(_meta.Seed, ActiveLocationDisplayName(), blockKey, planet); // #3423: the type's palette
             entry.Flora = new FloraGenome
             {
                 BodyBlock = blockKey,

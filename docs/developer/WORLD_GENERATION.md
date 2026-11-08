@@ -3310,6 +3310,21 @@ stamped after it keep clear of it.
 structure's tower, `vega.hint.gds_hatch` within 8 of the city hatch (the ship lands in the city, so the hatch is found on
 foot) — once per player, from the 1 Hz advisor pass, never aboard.
 
+**Admin: `/tp ancient` (#3392) and `/ressaw` (#3421).** `/tp ancient` stands the admin beside the top of a shaft on the body
+they are on. `/ressaw` (verb `goto_ancient`, cheat-gated like `goto_core`; `GameServerAncientRuinsAdmin.cs`) drops them
+**inside** a G.D.S. ruin, on a dry floor cell beside crate 0 (the diving suit; ring search up to three cells, the crate's row
+first) — on the current body when it has one, else on a body **predicted from the seed alone**, without loading a world. The
+prediction is the stamp's own code, factored out so the two cannot drift: `StructuresRestricted` (the boot's whitelist rule),
+`AncientRuinSlotsFor` (eligibility + the city slot + the roll — `StampAncientRuins` reads it too), `UndergroundPick` (the
+weighted source draw — `PickUndergroundSource` reads it too; only a G.D.S. ruin kit counts) and, for the roll slot,
+`AncientRuinFitsOpenLand` (the open-land seat's size check, on `WorldCircumferenceOf(body)`). Excluded besides: non-surface
+bodies, the Guardian core, systems hidden from the admin, and a slot whose placement record in the save's metadata is already
+a pinned skip (a landing found no room — so `/ressaw` never loops back to it). Candidates are sorted with the admin's body
+first, then their system, then by star-map distance (`MapX`/`MapY`), then by body id; `/ressaw n` takes the n-th and
+`/ressaw list` names them (body, system, city or vent). The trip is `HandleTravel` with `adminBypass` (no jump drive) and
+`adminTeleport` (booked silently, #2493), then a snap through `StreamFootingNow` + the `RespawnNotice` channel. What the seed
+cannot see — the seat's dry-ground search, a world built on before its first load — shows on arrival as `srv.ancient.seat_failed`.
+
 **Cost.** Measured on a `gds_desert` world (seed 20261107): the box is 88 × 13 × 88 = 100 672 cells, the basins about 2 000,
 the shell and the shaft a few thousand more (only where the natural cell does not hold). The first boot of the body takes
 **+0.4–0.7 s** (2.7 s → 3.1–3.4 s warm; 72 more chunks resident, 674 → 746) and the save grows by about **5.4 MB**
@@ -3328,8 +3343,13 @@ once (a mined wall stays mined after a restart); a jungle world's forced ruin si
 VEGA points it out; an authored underground whole template is stamped as built (its tint, every wall, its door hung, its
 loot spawned, nobody home, sealed, a plain tower, VEGA's own line) and an authored underground settlement kit is composed
 like on the surface (its pinned composition and grid, every composed block in place, sealed, its doors hung, no residents).
+`AncientRuinAdminTests` (#3421): `/ressaw` is refused without cheats; a generation-34 world answers that it has none; on the
+city world the admin lands inside the ruin's box on dry floor beside the suit crate; `/ressaw list` names the candidates
+nearest first, and bad numbers get the usage or range answer; across bodies the admin lands on the predicted body, inside its
+ruin; and (Slow, three seeds) every visited body's stamp matches the prediction — a record for every predicted slot, a G.D.S.
+ruin wherever it was placed, none where nothing was predicted.
 
-**Watch items.** Underground structures have no planet-map POI and no `/tp` target; the G.D.S. pools assume Ressaw is still
+**Watch items.** Underground structures have no planet-map POI; the G.D.S. pools assume Ressaw is still
 (#3335); an enclosed structure's living markers are ignored on purpose (above) — if authors want an inhabited underground
 place one day, that is a decision, not a fix.
 ## 51. Soaniri, the Sounder home world (#3358, #3367 — the Sounders story pack, 2026-11-07)
@@ -3347,7 +3367,8 @@ keep it out of the planet roll, the generation retype pass and the asteroid fami
 (`planet.sounder_world.name`). Rolling `downs`/`hills` (amplitude 12, calm terrain: no volcanoes, massifs or rifts), mild
 (18 °C), breathable, gentle weather (drizzle, fog, little wind, no meteors), a lavender sky, small lakes (waterAbundance 0.15 —
 at 0.3 a seed could drown the pad's whole neighbourhood, and too little for a tinted sea), no machines (`enemyDensity` 0), peaceful rolled fauna plus the four
-authored Sounder creatures (`soundi`, `soundrak`, `quali`, `soundeling`, #3359). Three biomes, all chime moss but one:
+authored Sounder creatures (`soundi`, `soundrak`, `quali`, `soundeling`, #3359 — the Soundrak hostile from the start, #3424,
+[CREATURE_RIG.md](CREATURE_RIG.md) § "The bodies of Soaniri"). Three biomes, all chime moss but one:
 **chime meadows** (chime moss over soil), **crystal slopes** (chime moss over stone, relief ×1.4) and the **reed marsh**
 (mud). Shallow `obsidian` and `resonance_crystal` veins. `restrictStructures` with only `monuments` (on a save of any generation — the pack reaches old galaxies too): no towns, bandits,
 lodges, factories, wrecks, vaults, chests or unique sites — but 4–6 rune monuments (`monumentCount`, drawn after the classic
@@ -3358,10 +3379,25 @@ also a workshop recipe from obsidian), `resonance_crystal` (ore, casts a soft te
 tone — a hash of its cell — or, on the Choir Tower, its pipe's tone). The singing plants `chime_reed`, `bell_bloom`,
 `bell_bloom_open`, `harp_vine`, `echo_flower` are **authored `FloraCatalog` species without the `flora_` prefix** (the pack's
 texture names): `FloraCatalog.IsPlantKey` (every `flora_*` key or any catalog species) replaces the prefix test in the mesher's
-plant traits, the texture alpha rule (`TextureTiles.AlphaModeOf` → cutout), `WetCell` and the texture catalog, so they draw as
-cross billboards (the chime reed tall, the harp vine hanging), never take the world's flora hue and have no collider
-(`solid: false`). They are inserted before the crops in the catalog (authored: no roster id moves); `FloraCatalogOrderTests`
+plant traits, the texture alpha rule (`TextureTiles.AlphaModeOf` → cutout), `WetCell`, the texture catalog and the walk-through
+props (`WalkThroughBlocks.IsProp`, #3422 — with the bare prefix test the client's out-of-world guard read a chime reed in the
+body's cell as "stuck in a block" and snapped the player back to the spot before it), so they draw as cross billboards (the
+chime reed tall, the harp vine hanging), never take the world's flora hue and have no collider (`solid: false`). They are inserted before the crops in the catalog (authored: no roster id moves); `FloraCatalogOrderTests`
 and the leaf-alpha bake list carry them.
+
+**Light blue and light green (#3423, Justus 2026-11-08).** Purely visual — no block id, no generation and no save change. The
+`chime_moss` tile is light green with aqua clumps, the singing plants have light-green stalks and leaves and light-blue bells,
+tips, strands and throats (recoloured from the generated tiles by `tools/ai-assets/recolour_soaniri.py`, deterministic; their
+`color` in `data/blocks.json` follows), the resonance crystal stays light blue. Two planet fields carry the rest:
+`floraPalette` (`PlanetType.FloraPalette`, `"#rrggbb"` entries — Soaniri's six light greens) replaces the any-hue roll of the
+wild plants' per-world colours (`FloraTints.For(seed, location, key, planet)`: a species picks one entry by the classic hash,
+saturation ±12 % and brightness ±8 % jittered, the hue kept) and the world's base flora hue (`FloraTints.ForWorld(…, planet)`);
+every caller passes the world's type — the client's mesher tints, plant lights, meadow flowers, far-terrain wash, orbit look
+and map baker, the server's world hue and bio samples. Greens only, because the block shader turns an accent species'
+blossoms by about 120° from its tint (`FloraAccent.hlsl`): from a light green that lands on light blue, from a light blue on
+pink. `evergreenFlora` (`PlanetType.EvergreenFlora`) keeps the plants' colours all year: the seasons still run (warmth,
+growth, the HUD), but `SeasonLook.TargetFor` sends no autumn turn to amber and red and no winter paling for such a type. A
+type without the fields is unchanged. The rune stones and ancient bricks keep the moss's `crystal` biome palette.
 
 **The singing meadows (`WorldGenerator.SingingMeadows*.cs`, `PlanetType.SingingMeadows`).** One chunk pass before the pads
 are flattened. The zone of a column comes from its resolved biome (mud → marsh, moss over stone → slope, other moss →
@@ -3422,7 +3458,11 @@ melody site in compass order + the pack sites, the villagers and the Eldest, thr
 monuments clear of the sites, stamped once — a reload keeps an edit and re-registers everything — and the same places for
 the same seed, nothing on another world), `SingingPlantsTests` (the phrases, the echo, wild blooms open and close, the trail in
 order to its chamber, the blaster's chamber once, crystals and pipes as instruments), `SingingPlantChorusTests` (Client.Core:
-the budget, the fade, the Soundrak's silence, the shimmer's chapter gate), golden `sounder_world-gen34`.
+the budget, the fade, the Soundrak's silence, the shimmer's chapter gate), `SoaniriWalkThroughTests` (#3422: every plant a
+walk-through prop; a walk through a band of singing plants and across the seam both ways keeps every reported position and
+never probes a cell the out-of-world guard would read as stuck), `SoaniriPaletteTests` (#3423: the creatures, moss, plant
+tiles and wild-flora colours in the blue/green band, the bodies readable on the moss, a type without a palette unchanged),
+golden `sounder_world-gen34`.
 
 ## 52. Generation 36 — the rune shrines (#3416, 2026-11-08, Justus' F1 reports)
 
