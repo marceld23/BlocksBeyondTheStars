@@ -11,6 +11,43 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.13] — 2026-11-08
+
+The calm-home release. **Your home system is home again:** a world that started in a pirate haven no longer sends extra
+drones and raiders at you there, and after the ending it is calm, as promised. **Ressaw stings the moment you touch it**,
+and **a broken Ressaw block's Ressaw now flows out** across the floor and down over edges instead of appearing as a
+fixed puddle. The melody bar is no longer hidden under VEGA's strip, the controls line fits on the screen, and the
+"What's new?" dialog closes with "OK". Thank you, Justus, for the report from your home system!
+
+ℹ️ **Compatibility:** no new blocks — the **save version stays at 13** and the **terrain generation stays at 36**, so your
+worlds stay exactly as they are. The network protocol stays at **version 11**, but game and server must be on the same
+version: the desktop game updates itself at start, and the browser is always current.
+
+### 🏠 Your home system is calm (#3436)
+
+- **The system your world started in never counts as a pirate haven or an empty system.** A world starts on the first
+  planet of its kind, and that is not always in the first star system — such a start could land in a pirate haven: three
+  drones and raider ships at home from day one, and they stayed after the ending.
+- **At home you now meet the usual two drones** before the ending, and **none after it**; no raider ships wait at home.
+  The planets, stations and camps of your home system stay exactly as they are.
+- **Drones flying around you at the moment of the win disappear at once** (outside pirate havens), like the machines on
+  the planets always did.
+
+### 🧪 Ressaw (#3432, #3433)
+
+- **Ressaw stings from the first touch**, wading or diving — the 3-second grace is gone. The full diving suit still keeps
+  it out, and the "environmental hazards off" switch and Sandbox still protect you.
+- **A broken Ressaw block's Ressaw flows out:** it spreads across the floor and falls down over edges and through holes,
+  a few cells at most, and then stays. The Ressaw pools of the ruins stay still.
+
+### 🎵 HUD and menus (#3430, #3431, #3434, #3435)
+
+- **The melody bar is no longer hidden under VEGA's strip:** while it is open, VEGA's objective chip and the slot-action
+  badge step aside, so the round counter, the tones and the Stop button are fully visible again.
+- **The controls line fits on the screen** in every language; under the melody bar it leaves out the hotbar part.
+- **"What's new?" closes with "OK"** instead of "Back".
+- **The System Check box in the main menu** is as wide as the menu below it.
+
 ## [2026.11.12] — 2026-11-08
 
 The light-blue release. **Soaniri, the Sounders' home world, is now light blue and light green** — the Soundraks, the
@@ -10533,7 +10570,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.12...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.13...HEAD
+[2026.11.13]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.12...v2026.11.13
 [2026.11.12]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.11...v2026.11.12
 [2026.11.11]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.10...v2026.11.11
 [2026.11.10]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.9...v2026.11.10
