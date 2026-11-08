@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🎛️ Marcel's playtest 2026-11-08 evening — the melody bar no longer under VEGA's strip, a controls line that fits, Ressaw that stings at once and flows out of broken blocks, a wider System Check box, "OK" in What's new — #3430–#3435 (PR pending)
+### 🎛️ Marcel's playtest 2026-11-08 evening — the melody bar no longer under VEGA's strip, a controls line that fits, Ressaw that stings at once and flows out of broken blocks, a wider System Check box, "OK" in What's new — #3430–#3435, PR #3437 (merge pending)
 
 From Marcel's screenshots on v2026.11.12 (Phaikrae, "Spiel es nach!"; the main menu with the update notice).
 
