@@ -211,7 +211,7 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
                 canvas.FillCircle((int)bx, (int)by, (int)br, Ball);
                 if (stuck)
                 {
-                    canvas.DrawTextCentered(W / 2, H - 64, api.Localize("minigame.asteroid_breaker.serve_hint"), HintCol);
+                    canvas.LabelCentered(W / 2, H - 64, api.Localize("minigame.asteroid_breaker.serve_hint"), HintCol); // #3382: UI font
                 }
             }
 

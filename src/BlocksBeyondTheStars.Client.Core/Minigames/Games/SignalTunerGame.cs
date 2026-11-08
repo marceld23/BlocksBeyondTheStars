@@ -14,6 +14,7 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
     {
         private const int W = 560, H = 340;
         private const int BarX = 150, BarW = W - BarX - 20, BarH = 22, RowH = 56, Top = 24;
+        private const int LabelW = BarX - 10 - 6; // a row label ends a little before its bar
 
         private static readonly Rgba Bg = Rgba.Rgb(7, 13, 22);
         private static readonly Rgba BarBg = Rgba.Rgb(16, 32, 46);
@@ -58,7 +59,7 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
             void Bar(int row, float fill, Rgba fillCol, float? tick, Rgba tickCol, bool selected)
             {
                 int y = Top + row * RowH;
-                canvas.DrawText(10, y + 4, labels[row], selected ? LabelSel : LabelDim, 2);
+                canvas.Label(10, y + 4, labels[row], selected ? LabelSel : LabelDim, 2, LabelAlign.Left, LabelW); // #3382: UI font
                 canvas.FillRect(BarX, y, BarW, BarH, BarBg);
                 canvas.FillRect(BarX, y, (int)(fill * BarW), BarH, fillCol);
                 if (tick.HasValue)

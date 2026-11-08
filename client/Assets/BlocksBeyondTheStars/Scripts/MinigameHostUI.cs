@@ -11,8 +11,9 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// The native Arcade host (Stream D Phase 2): runs a pure <see cref="MinigameHost"/> and gives it a uGUI body
-    /// — a point-filtered <see cref="RawImage"/> fed from the game's <see cref="Canvas2D"/> each frame, a HUD bar,
-    /// and the start / help / pause / result overlays — plus the keyboard + pointer bridge. This is the C#
+    /// — a point-filtered <see cref="RawImage"/> fed from the game's <see cref="Canvas2D"/> each frame, the canvas' label
+    /// layer in the UI font over it (<see cref="MinigameLabelLayer"/>, #3382), a HUD bar, and the start / help / pause /
+    /// result overlays — plus the keyboard + pointer bridge. This is the C#
     /// replacement for the embedded-browser minigames: it needs no UWB/CEF, so it builds on every platform.
     ///
     /// Mounted into the Arcade play region by <see cref="ArcadeUI"/>; on a finished run it reports
@@ -46,6 +47,7 @@ namespace BlocksBeyondTheStars.Client
         private Texture2D _tex;
         private RawImage _surface;
         private RectTransform _surfaceRt;
+        private MinigameLabelLayer _labels; // #3382: the canvas' localized words, in the UI font over the surface
         private Text _hud;
         private RectTransform _overlayRoot;
         private MinigameState _shownState = (MinigameState)(-1);
@@ -130,6 +132,9 @@ namespace BlocksBeyondTheStars.Client
             _surface.uvRect = new Rect(0f, 1f, 1f, -1f);
             _surface.raycastTarget = false;
 
+            // #3382: the label layer sits right above the surface — under the overlays, which must cover it like the canvas.
+            _labels = new MinigameLabelLayer(_region);
+
             _overlayRoot = (RectTransform)new GameObject("MgOverlay", typeof(RectTransform)).transform;
             _overlayRoot.SetParent(_region, false);
             UiKit.Place(_overlayRoot.gameObject, _rx, _ry, _rw, _rh);
@@ -150,6 +155,7 @@ namespace BlocksBeyondTheStars.Client
             _host.NoteSink = PlayNote; // #3352: a game's notes (the note-key minigame) through the procedural instruments
 
             int cw = 640, ch = 440; // a default until the game creates its canvas on StartGame
+            _labels.Hide(); // the last game's words go with it
             EnsureTexture(cw, ch);
             _shownState = (MinigameState)(-1);
             ResetKeyState();
@@ -172,6 +178,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 gameObject.SetActive(false);
                 ClearOverlay();
+                _labels.Hide();
             }
         }
 
@@ -197,6 +204,7 @@ namespace BlocksBeyondTheStars.Client
                 EnsureTexture(surf.Width, surf.Height);
                 _tex.LoadRawTextureData(surf.Rgba);
                 _tex.Apply(false);
+                _labels.Sync(surf);
             }
 
             UpdateHud();
@@ -391,6 +399,7 @@ namespace BlocksBeyondTheStars.Client
             float x = _rx + (availW - dw) * 0.5f;
             float y = _ry + HudH + (availH - dh) * 0.5f;
             UiKit.Place(_surfaceRt.gameObject, x, y, dw, dh);
+            _labels.Layout(x, y, dw, dh, cw);
 
             // Remember the rect: the pad reticle maps the mapper's canvas position onto it (#1287 — these
             // were never assigned before, so the cursor sat at the region's top-left for every position).

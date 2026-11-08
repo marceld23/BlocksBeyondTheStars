@@ -65,7 +65,7 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
                     canvas.FillRect(x, BinY, BinW, BinH, BinBg);
                     canvas.DrawRect(x, BinY, BinW, BinH, i == sel ? BinSel : BinEdge);
                     canvas.DrawTextCentered(x + BinW / 2, BinY + 22, Letters[i].ToString(), i == sel ? BinSel : Ink, 5);
-                    canvas.DrawTextCentered(x + BinW / 2, BinY + BinH - 22, names[i].Get(api.Localize).ToUpperInvariant(), Dim, 2);
+                    canvas.LabelCentered(x + BinW / 2, BinY + BinH - 22, names[i].Get(api.Localize).ToUpperInvariant(), Dim, 2, BinW - 8); // #3382
                 }
             }
 

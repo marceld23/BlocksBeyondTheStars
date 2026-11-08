@@ -65,6 +65,16 @@ Menu "Codex"/"DataQubes" button
   drawing into a `Canvas2D`.
 - `MinigameHostUI.cs` (Unity) — gives the host a uGUI body: a point-filtered `RawImage` fed from the game's
   `Canvas2D` each frame. Needs no UWB/CEF, so it builds on every platform.
+- **Words on the canvas: `Canvas2D.Label` (#3382).** `Canvas2D.DrawText` rasterises with the built-in 5×7
+  `BitmapFont`, which knows only A–Z, digits and a few signs — Cyrillic, CJK, even ä/ö/ü come out blank. So a canvas
+  also carries a **label layer**: `canvas.Label(x, y, text, colour, scale, align, maxWidth)` / `LabelCentered(...)` take
+  the same position and scale as `DrawText` but are not rasterised; `MinigameLabelLayer` (Unity) draws them over the
+  surface with the real UI font (`UiKit.Font`, Rajdhani + the Noto fallbacks), scaled with the surface, a too-long text
+  shrunk into `maxWidth` (default: the room to the canvas edge). Labels are retained like pixels — `Clear` drops them —
+  and the uGUI texts are pooled, so per-frame redraws cost no GameObjects. Rule: **every localized word goes on a
+  label; `DrawText` is for digits, scores and fixed ASCII only.** `Canvas2D.UndrawableText` remembers the last text
+  `DrawText` could not spell; `MinigameLabelTests` runs every registered game with a Cyrillic fake localizer and fails
+  when one draws a localized word with the bitmap font.
 - `MinigameCatalog.cs` (Unity) — loads `StreamingAssets/data/minigames/catalog.json` for UI metadata
   (icon/title/desc + cube seed → game). On WebGL this comes from the cached StreamingAssets data folder.
 - `WikiUI.cs` + `WikiArticleText` + `WikiMarkup` (`Client.Core`) — load the article list
@@ -176,7 +186,8 @@ A native minigame is a C# class plus one entry in the catalogue. Two files chang
 ### 1. Implement `IMinigame`
 Add `<Name>Game.cs` under `src/BlocksBeyondTheStars.Client.Core/Minigames/Games/`. Implement the
 `IMinigame` interface — the mechanic, update/draw against the `Canvas2D` the host hands you, and call the
-host's completion API (`{score, rating 1..3}`) on finish. The host owns the shell (start/help/pause/result),
+host's completion API (`{score, rating 1..3}`) on finish. Words the player reads on the canvas are locale keys put
+on the label layer (`canvas.Label`/`LabelCentered`), never `DrawText` — see **Words on the canvas** above. The host owns the shell (start/help/pause/result),
 the input model and the result→knowledge bridge, so you don't wire rewards per game. Reusable engines live
 alongside (e.g. `FlowPuzzleGame` powers Circuit Weaver + Oxygen Loop). Keep it engine-free (no `UnityEngine`)
 so it stays headless-testable.

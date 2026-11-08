@@ -8,7 +8,8 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
 {
     /// <summary>Port of <c>web/minigames/glyph_decoder</c> (was DOM/CSS): a study phase shows four glyph→meaning
     /// pairs, then a quiz asks the meaning of each glyph from memory. The alien glyphs (⟁⏃⍟…) map to distinct
-    /// letters. Redrawn on <see cref="Canvas2D"/> with self hit-tested option buttons.</summary>
+    /// letters. Redrawn on <see cref="Canvas2D"/> with self hit-tested option buttons; the glyphs are bitmap letters, every
+    /// localized word (the countdown, the question, the meanings) a canvas label in the UI font (#3382).</summary>
     public sealed class GlyphDecoderGame : IMinigame
     {
         private const int W = 560, H = 380;
@@ -61,19 +62,19 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
             void DrawStudy()
             {
                 canvas.Clear(Bg);
-                canvas.DrawText(20, 20, (api.Localize("minigame.glyph_decoder.decoding_in") + studyCount).ToUpperInvariant(), Info, 2);
+                canvas.Label(20, 20, (api.Localize("minigame.glyph_decoder.decoding_in") + studyCount).ToUpperInvariant(), Info, 2);
                 for (int k = 0; k < 4; k++)
                 {
                     int y = 80 + k * 60;
                     canvas.DrawText(120, y, pairGlyph[k].ToString(), GlyphCol, 4);
-                    canvas.DrawText(210, y + 7, Meanings[pairMeaning[k]].Get(api.Localize).ToUpperInvariant(), Ink, 2);
+                    canvas.Label(210, y + 7, Meanings[pairMeaning[k]].Get(api.Localize).ToUpperInvariant(), Ink, 2);
                 }
             }
 
             void DrawAsk()
             {
                 canvas.Clear(Bg);
-                canvas.DrawText(20, 20, api.Localize("minigame.glyph_decoder.question"), Info, 2);
+                canvas.Label(20, 20, api.Localize("minigame.glyph_decoder.question"), Info, 2);
                 canvas.DrawTextCentered(W / 2, 80, pairGlyph[qi].ToString(), GlyphCol, 9);
                 for (int i = 0; i < options.Count; i++)
                 {
@@ -86,7 +87,7 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
 
                     canvas.FillRect(x, y, OptW, OptH, BtnBg);
                     canvas.DrawRect(x, y, OptW, OptH, edge);
-                    canvas.DrawTextCentered(x + OptW / 2, y + OptH / 2 - 7, Meanings[options[i]].Get(api.Localize).ToUpperInvariant(), feedbackOpt == i ? edge : Ink, 2);
+                    canvas.LabelCentered(x + OptW / 2, y + OptH / 2 - 7, Meanings[options[i]].Get(api.Localize).ToUpperInvariant(), feedbackOpt == i ? edge : Ink, 2, OptW - 12);
                 }
             }
 
