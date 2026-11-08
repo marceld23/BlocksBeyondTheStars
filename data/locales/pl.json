@@ -3389,6 +3389,7 @@
   "ui.update.later": "Później",
   "ui.menu.whatsnew": "Co nowego?",
   "ui.whatsnew.title": "CO NOWEGO",
+  "ui.whatsnew.ok": "OK",
   "ui.whatsnew.offline": "Nie udało się połączyć z kanałem wiadomości — pokazuję notatki dołączone do tej wersji.",
   "ui.whatsnew.empty": "Brak notatek o wydaniu.",
   "ui.loading.title": "Ładowanie…",

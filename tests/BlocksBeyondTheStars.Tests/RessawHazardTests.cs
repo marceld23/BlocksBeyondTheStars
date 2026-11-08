@@ -17,7 +17,8 @@ using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
-/// Ressaw on the server (#3335/#3337/#3339): the liquid stings after a short grace with its own death line, the suit liners'
+/// Ressaw on the server (#3335/#3337/#3339): the liquid stings from the first touch (#3432), wading or diving, with its own
+/// death line, the suit liners'
 /// corrosion resistance softens it, only the complete diving suit keeps it out — and lets the tank hold with the head in
 /// Ressaw while water still drains it; the fluid pump pulls it into the pack; a lit Ressaw lamp keeps the night sight
 /// running and switching it off ends it. A breathable world (the air regenerates the tank outside the liquid), the player
@@ -109,19 +110,18 @@ public sealed class RessawHazardTests : IDisposable
     // ---------------- #3335: contact damage ----------------
 
     [Fact]
-    public void Ressaw_StingsAfterAShortGrace_Gently_WithItsOwnDeathLine()
+    public void Ressaw_StingsFromTheFirstTouch_Gently_WithItsOwnDeathLine()
     {
         var server = Start("sting");
         var p = OnFoot(server, "Justus");
         Fill(server, Feet, "ressaw"); // wading: feet in it, head in the air — the breathable-air regen must not cancel it
 
-        TickSeconds(server, p, 2);
-        Assert.InRange(server.RessawSecondsForTest(p.State.PlayerId), 1.5, SvGameServer.RessawGraceSeconds);
-        Assert.Equal(100f, p.State.Health); // the grace: a quick dip costs nothing
-
-        TickSeconds(server, p, 4); // 3 s past the grace at 3 HP/s
-        Assert.InRange(p.State.Health, 100f - 12f, 100f - 6f);
+        TickSeconds(server, p, 1);
+        Assert.InRange(p.State.Health, 100f - 4f, 100f - 2f); // #3432: no grace — a quick dip already stings (3 HP/s)
         Assert.Equal("@srv.death.ressaw", p.Hazards.HazardDeathReason);
+
+        TickSeconds(server, p, 2);
+        Assert.InRange(p.State.Health, 100f - 10f, 100f - 7.5f); // gently: three seconds cost about nine
 
         // Out of it: the clock resets and the healing comes back.
         Fill(server, Feet, "air");
@@ -129,6 +129,19 @@ public sealed class RessawHazardTests : IDisposable
         TickSeconds(server, p, 2);
         Assert.Equal(0, server.RessawSecondsForTest(p.State.PlayerId));
         Assert.True(p.State.Health > hurt, "out of the Ressaw the natural healing returns");
+    }
+
+    [Fact]
+    public void Ressaw_StingsADiver_TooFromTheFirstTouch()
+    {
+        var server = Start("dive");
+        var p = OnFoot(server, "Diver");
+        Fill(server, Feet, "ressaw");
+        Fill(server, Head, "ressaw"); // diving: under it, head and all
+
+        TickSeconds(server, p, 1);
+        Assert.InRange(p.State.Health, 100f - 4f, 100f - 2f); // #3432
+        Assert.True(server.RessawSecondsForTest(p.State.PlayerId) > 0);
     }
 
     [Fact]
@@ -152,9 +165,9 @@ public sealed class RessawHazardTests : IDisposable
         Fill(server, Feet, "ressaw");
         WearAll(three.State, "ressaw_helmet", "ressaw_suit", "ressaw_leggings");
         TickSeconds(server, three, 6);
-        float lost = 100f - three.State.Health;
-        Assert.True(lost > 5f, $"three pieces must not keep Ressaw out (lost {lost})");
-        Assert.True(lost < 9f, $"the pieces' corrosion resistance softens it (lost {lost})");
+        float lost = 100f - three.State.Health; // 6 s at 3 HP/s would be 18; the best piece's 15 % takes about 2.7 off
+        Assert.True(lost > 12f, $"three pieces must not keep Ressaw out (lost {lost})");
+        Assert.True(lost < 17f, $"the pieces' corrosion resistance softens it (lost {lost})");
 
         var full = OnFoot(server, "Full");
         WearAll(full.State, Suit);
@@ -212,7 +225,7 @@ public sealed class RessawHazardTests : IDisposable
 
         server.UseGadgetForTest("Pumper", "fluid_pump", new Vector3f(cell.X + 0.5f, cell.Y + 0.5f, cell.Z + 0.5f));
 
-        Assert.True(server.World.GetBlock(cell).IsAir, "a pumped Ressaw cell stays air — Ressaw never flows");
+        Assert.True(server.World.GetBlock(cell).IsAir, "a pumped cell stays air — a still Ressaw pool never flows back");
         Assert.Equal(1, p.State.Inventory.CountOf("ressaw"));
     }
 

@@ -142,6 +142,10 @@ namespace BlocksBeyondTheStars.Client
         private readonly TMPro.TMP_Text[] _extraTexts = new TMPro.TMP_Text[ObjectiveList.MaxItems - 1];
         private int _extraSig = int.MinValue;
 
+        // #3430: the chip row's container (tab, chip, extra strips) and whether it is stepped aside for the melody bar.
+        private CanvasGroup _chipRow;
+        private bool _chipRowYielded;
+
         // VEGA's non-verbal vocoder voice (#761): short ElevenLabs chatter variants chained while a
         // page types out. No words → language-independent, nothing to re-record when texts change.
         // #2495: the shared NarratorVoice (CutsceneScreen.cs) — the cutscene director's speaker box speaks with it too.
@@ -210,8 +214,12 @@ namespace BlocksBeyondTheStars.Client
             SetContinueVisible(false);
             _speech.SetActive(false);
 
+            // #3430: the chip row — folded tab, objective chip, "show all objectives" strips — under one stretched container,
+            // so the row steps aside as one while the melody bar (same screen band, on the HUD canvas below) is up.
+            var chipRow = BuildChipRow();
+
             // The collapsed tab (#2126): VEGA's icon, her name and the waiting lines, on the chip row; click/tap opens it.
-            var tab = UiHolo.AddPanel(_canvas.transform, 24, ChipY, TabMinW, TabH, new Color(0.05f, 0.10f, 0.16f, 0.86f), 10f, 1.5f, 1.3f);
+            var tab = UiHolo.AddPanel(chipRow, 24, ChipY, TabMinW, TabH, new Color(0.05f, 0.10f, 0.16f, 0.86f), 10f, 1.5f, 1.3f);
             tab.gameObject.name = "VegaTab";
             _tab = tab.gameObject;
             _tabRect = tab.rectTransform;
@@ -227,7 +235,7 @@ namespace BlocksBeyondTheStars.Client
             // Objective chip: small persistent strip below the speech spot. (Skipping/restarting the
             // tutorial lives in the Character tab — the mouse is captured for camera control out here,
             // so a button on the chip was unreachable.)
-            _chip = UiHolo.AddPanel(_canvas.transform, 24, ChipY, 640, VegaObjectiveChip.HeightNormal, new Color(0.05f, 0.10f, 0.16f, 0.66f), 10f, 1.2f, 0.9f).gameObject;
+            _chip = UiHolo.AddPanel(chipRow, 24, ChipY, 640, VegaObjectiveChip.HeightNormal, new Color(0.05f, 0.10f, 0.16f, 0.66f), 10f, 1.2f, 0.9f).gameObject;
             _chipRect = _chip.GetComponent<RectTransform>();
             _chipText = UiText.Add(_chip.transform, 14, 0, VegaObjectiveChip.TextWidth, VegaObjectiveChip.HeightNormal, string.Empty, VegaObjectiveChip.FontLarge, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Normal, UiText.Look.Outline);
             // Wrap + truncate as a safety net — the UiKit default (Overflow) would let an over-long
@@ -241,7 +249,7 @@ namespace BlocksBeyondTheStars.Client
             for (int i = 0; i < _extraRows.Length; i++)
             {
                 float rowY = ChipY + VegaObjectiveChip.HeightNormal + ExtraRowGap + (i * (ExtraRowH + ExtraRowGap));
-                var row = UiHolo.AddPanel(_canvas.transform, 24, rowY, 640, ExtraRowH, new Color(0.05f, 0.10f, 0.16f, 0.55f), 8f, 1.0f, 0.8f).gameObject;
+                var row = UiHolo.AddPanel(chipRow, 24, rowY, 640, ExtraRowH, new Color(0.05f, 0.10f, 0.16f, 0.55f), 8f, 1.0f, 0.8f).gameObject;
                 row.name = "VegaObjectiveExtra" + i;
                 _extraTexts[i] = UiText.Add(row.transform, 14, 0, VegaObjectiveChip.TextWidth, ExtraRowH, string.Empty, 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Normal, UiText.Look.Outline);
                 UiText.Wrap(_extraTexts[i], truncate: true);
@@ -552,6 +560,39 @@ namespace BlocksBeyondTheStars.Client
             _extraSig = int.MinValue; // the strips under the chip follow it
         }
 
+        /// <summary>#3430: the stretched container the chip row lives in (same coordinates as the canvas), with the
+        /// <see cref="CanvasGroup"/> <see cref="YieldChipRowToMelodyBar"/> fades.</summary>
+        private Transform BuildChipRow()
+        {
+            var go = new GameObject("VegaChipRow", typeof(RectTransform), typeof(CanvasGroup));
+            go.transform.SetParent(_canvas.transform, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = rt.offsetMax = Vector2.zero;
+            _chipRow = go.GetComponent<CanvasGroup>();
+            return go.transform;
+        }
+
+        /// <summary>#3430: the melody bar (HudUi, on the canvas below) shares the chip row's screen band — its title, progress
+        /// and Stop button sat under the chip and the folded tab, and a click on Stop hit the tab. While the bar is up the row
+        /// steps aside as one: invisible and not clickable. Nothing is lost — the objective, the extra strips and the waiting
+        /// lines stay as they are (the tab still flashes and chirps for a new line) and show again the moment the bar closes.
+        /// A fade, not SetActive, so the tab and the chip keep measuring their text while hidden.</summary>
+        private void YieldChipRowToMelodyBar()
+        {
+            bool yield = Game.Views.Hud?.MelodyBarShown ?? false;
+            if (_chipRow == null || yield == _chipRowYielded)
+            {
+                return;
+            }
+
+            _chipRowYielded = yield;
+            _chipRow.alpha = yield ? 0f : 1f;
+            _chipRow.blocksRaycasts = !yield;
+            _chipRow.interactable = !yield;
+        }
+
         /// <summary>#2471 "Show all objectives": the objective list's other rows under the chip (<see cref="ObjectiveTracker.ExtraRows"/>
         /// — none while the setting is off, the chip is hidden or the chat is open; a story row hides with the VEGA hints like
         /// the chip). Cheap per frame: redrawn only when the list, the chip, the chat or a setting changed.</summary>
@@ -713,6 +754,7 @@ namespace BlocksBeyondTheStars.Client
             CheckPlaytimeReminder();
             CheckUnknownStoryNotice();
             UpdateExtraRows(); // #2471: "Show all objectives" (cheap unless something changed)
+            YieldChipRowToMelodyBar(); // #3430
 
             // #2551: a lesson the client raised for a moment that has passed — it waited unseen behind other lines (or a folded
             // tab, or a scene) for 30 s — goes; its once-flag stays unspent, so it comes again when the situation does.

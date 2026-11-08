@@ -180,18 +180,20 @@ namespace BlocksBeyondTheStars.Client
         // #2502: the keyboard controls line names the bound keys now ({key:Action} tokens) — expanded once per language,
         // binding and feedback key, not on every 10 Hz refresh.
         private static string _keyboardHint;
-        private static (string Template, (ClientSettings, int, PadGlyphSet, bool) Stamp, string Feedback) _keyboardHintKey;
+        private static (string Template, (ClientSettings, int, PadGlyphSet, bool) Stamp, string Feedback, bool MelodyBar) _keyboardHintKey;
 
-        /// <summary>The on-foot controls line for the keyboard (#2502): <c>ui.hud.hint</c> with the player's bound keys.</summary>
-        internal static string KeyboardHint(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
+        /// <summary>The on-foot controls line for the keyboard (#2502): <c>ui.hud.hint</c> with the player's bound keys. While
+        /// the melody bar is up (<paramref name="melodyBar"/>, #3431) the hotbar's segment drops out — 1–8 play tones then.</summary>
+        internal static string KeyboardHint(BlocksBeyondTheStars.Shared.Localization.Localizer loc, bool melodyBar = false)
         {
-            var key = (loc.Get("ui.hud.hint"), GlyphStamp, FeedbackUi.HotkeyName);
+            var key = (loc.Get("ui.hud.hint"), GlyphStamp, FeedbackUi.HotkeyName, melodyBar);
             if (_keyboardHint != null && key.Equals(_keyboardHintKey))
             {
                 return _keyboardHint;
             }
 
-            _keyboardHint = ExpandKeyTokens(loc, key.Item1).Replace("{feedback_key}", key.Item3);
+            string template = melodyBar ? MelodyBarInput.WithoutHotbarSegment(key.Item1) : key.Item1;
+            _keyboardHint = ExpandKeyTokens(loc, template).Replace("{feedback_key}", key.Item3);
             _keyboardHintKey = key;
             return _keyboardHint;
         }

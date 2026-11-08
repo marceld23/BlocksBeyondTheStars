@@ -29,6 +29,7 @@ namespace BlocksBeyondTheStars.Client
         public ClientSettings Settings;
 
         private const float W = UiKit.HudRefW, H = UiKit.HudRefH; // smaller reference → a ~1.25× bigger HUD
+        private const float HintMargin = 16f; // the controls line's side margin (#3431)
 
         private Canvas _canvas;
         private GameObject _locationPanel;
@@ -209,7 +210,10 @@ namespace BlocksBeyondTheStars.Client
                 TextAnchor.MiddleCenter, FontStyle.Bold);
             _prompt = UiText.Add(root, W / 2f - 400, H / 2f + 24, 800, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             _loot = UiText.Add(root, W / 2f - 160, H / 2f + 48, 320, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            _hint = UiText.Add(root, (W - 1400) / 2f, H - 26, 1400, 20, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleCenter);
+            // #3431: the controls line spans the screen less a small margin and shrinks to fit — a long language with the fly
+            // and slot-action parts ran past BOTH edges at 14 pt ("D bewegen" … "Slot-Akti"), losing the walk keys first.
+            _hint = UiText.Add(root, HintMargin, H - 26, W - (2f * HintMargin), 20, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleCenter);
+            UiText.Fit(_hint, 10f);
 
             BuildSpeeder(root);
             BuildScan(root);
@@ -322,7 +326,7 @@ namespace BlocksBeyondTheStars.Client
                 // On touch the on-screen buttons are self-labelling, so the text hint just adds clutter.
                 InputDeviceKind.Touch => string.Empty,
                 InputDeviceKind.Gamepad => PadHint(loc), // #2461 (N9): glyph set, bindings and triggers, not a fixed string
-                _ => KeyboardHint(loc), // #2502: the bound keys ({key:Action} tokens), not a fixed letter list
+                _ => KeyboardHint(loc, MelodyBarShown), // #2502: the bound keys ({key:Action} tokens); #3431: no hotbar under the bar
             };
 
             // Creative/Sandbox worlds only: the one control the hint can't afford to omit, because flight has

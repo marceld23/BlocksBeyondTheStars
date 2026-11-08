@@ -107,7 +107,7 @@ Last updated: 2026-10-04.
   repository). The Codex's guide articles follow the language as well; an article your language does not have
   yet reads in English.
 - **What's new?** (main menu, bottom bar): the release notes of every version, newest first. The dialog
-  also opens by itself once after an update. The notes are shown in your language as soon as a release
+  also opens by itself once after an update; **OK** closes it. The notes are shown in your language as soon as a release
   has been translated; until then — and while you are offline — they are in English (in German when the
   game is set to German).
 - On the **very first start** a short (~28 s) **intro cinematic** plays between the title splash and the
@@ -2737,12 +2737,14 @@ with a game version that has generation 35 get them — an older world never cha
 - If your world's **Vaults** option is **Off** (or a server switches ruins off), worlds other than the G.D.S. desert
   have none.
 - **Ressaw** (yes — "Wasser" backwards) is a milky, glowing, see-through liquid. You can swim in it, but it **stings**:
-  after about three seconds in it (feet or head) it slowly hurts you (3 health per second on normal hazards, less on
+  as soon as you touch it — wading or diving — it slowly hurts you (3 health per second on normal hazards, less on
   Light, more on Hard; off in Creative), your health does not regrow meanwhile, and with your head under it you use up
   air like under water and the view turns milky. Get out and you are fine. Armour does not help against it — **suit
   liners** and other corrosion protection soften it. With a **fluid pump** you can pump it into your backpack.
 - **Ressaw blocks** glow in the ruin walls. Don't stand next to one for too long — it **cracks**, and if you keep
-  standing there it **breaks and Ressaw runs out** into a small puddle. Walking past is fine.
+  standing there it **breaks and the Ressaw flows out**: across the floor, over edges and down through holes, until a
+  small amount has run out. It never flows onto you — a drop above your head waits until you step away. Walking past is
+  fine.
 - **G.D.S. crates** hold **pieces of the Ressaw diving suit** (every ruin has the whole set spread over its crates),
   **Ressaw crystals**, and **G.D.S. logs** — old notes telling how the G.D.S. pumped too much Ressaw, how their city
   flooded, and how everyone got out and sealed it. Select a log in your inventory and press **Read** to open it; the
@@ -3491,7 +3493,9 @@ part yourself, and the Soundi only joins you if you win the sing duel.
 the bottom of the screen: eight tones, each with its own colour and sign. Play them with the number keys **1–8** (the
 quick bar does not switch while it is open), the gamepad's d-pad and shoulder buttons, or by touch. Holding the
 Resonance Blaster opens it too, so you can play freely. When the tune spells a word (the Song of Return, the Bridge
-Song), the bar shows each letter with its two notes and lights up the letter you are at.
+Song), the bar shows each letter with its two notes and lights up the letter you are at. While the bar is open, VEGA's
+objective strip and her message tab step aside so nothing covers it — they come back the moment the bar closes — and the
+controls line at the bottom leaves out the quick-bar keys.
 
 ### Festivals (the real-world calendar)
 - **What happens:** at certain times of the year the game plays with a slightly different mood — a cosy-spooky

@@ -3350,7 +3350,7 @@ ruin; and (Slow, three seeds) every visited body's stamp matches the prediction 
 ruin wherever it was placed, none where nothing was predicted.
 
 **Watch items.** Underground structures have no planet-map POI; the G.D.S. pools assume Ressaw is still
-(#3335); an enclosed structure's living markers are ignored on purpose (above) — if authors want an inhabited underground
+(#3335 — only what a broken Ressaw block lets out flows, a bounded leak, #3433; the generated pools never do); an enclosed structure's living markers are ignored on purpose (above) — if authors want an inhabited underground
 place one day, that is a decision, not a fix.
 ## 51. Soaniri, the Sounder home world (#3358, #3367 — the Sounders story pack, 2026-11-07)
 

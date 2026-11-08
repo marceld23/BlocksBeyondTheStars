@@ -3389,6 +3389,7 @@
   "ui.update.later": "Позже",
   "ui.menu.whatsnew": "Что нового?",
   "ui.whatsnew.title": "ЧТО НОВОГО",
+  "ui.whatsnew.ok": "ОК",
   "ui.whatsnew.offline": "Не удалось связаться с лентой новостей — показываем заметки, идущие с этой версией.",
   "ui.whatsnew.empty": "Пока нет заметок к релизу.",
   "ui.loading.title": "Загрузка…",

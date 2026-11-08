@@ -17,9 +17,10 @@ using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
-/// #3336: a Ressaw block a player lingers beside cracks, and lingering on breaks it — the cell becomes the still liquid
-/// Ressaw and a small, bounded puddle spreads into the free floor cells beside it. Walking past cracks nothing. Through the
-/// real server: the block edits are ordinary edits (saved and broadcast), the sounds go out as <see cref="SoundFx"/>.
+/// #3336: a Ressaw block a player lingers beside cracks, and lingering on breaks it — the cell becomes the liquid Ressaw and
+/// (#3433) the Ressaw flows out, bounded: across the floor, down a step or into a pit, never up, never into a solid block or
+/// a player, and a drop that finds no floor runs dry. Walking past cracks nothing. Through the real server: the block edits
+/// are ordinary edits (saved and broadcast), the sounds go out as <see cref="SoundFx"/>.
 /// </summary>
 public sealed class RessawBlockTests : IDisposable
 {
@@ -115,8 +116,32 @@ public sealed class RessawBlockTests : IDisposable
         }
     }
 
+    /// <summary>The Ressaw cells on one level of the test floor's square.</summary>
+    private int LiquidOnLevel(SvGameServer server, int y)
+    {
+        int count = 0;
+        for (int x = -6; x <= 6; x++)
+        {
+            for (int z = -6; z <= 6; z++)
+            {
+                count += KeyAt(server, x, y, z) == RessawCrackRules.LiquidKey ? 1 : 0;
+            }
+        }
+
+        return count;
+    }
+
+    /// <summary>Lingers until the block at the origin cracks and breaks.</summary>
+    private void CrackAndBreak(SvGameServer server)
+    {
+        Beats(server, RessawCrackRules.BeatSeconds + RessawCrackRules.CrackSeconds + 0.6);
+        Assert.Equal(RessawCrackRules.CrackedKey, KeyAt(server, 0, Y, 0));
+        Beats(server, RessawCrackRules.LeakSeconds + 0.6);
+        Assert.Equal(RessawCrackRules.LiquidKey, KeyAt(server, 0, Y, 0));
+    }
+
     [Fact]
-    public void LingeringOn_BreaksTheCrackedBlock_IntoABoundedPuddle_ThatNeverReplacesASolidBlock()
+    public void LingeringOn_BreaksTheCrackedBlock_AndTheRessawFlowsOut_Bounded_NeverIntoASolidBlock()
     {
         var transport = new RecordingTransport();
         var server = NewServer(out var repo, transport);
@@ -124,35 +149,125 @@ public sealed class RessawBlockTests : IDisposable
         {
             Set(server, -1, Y, 0, "stone"); // a wall beside the block on two sides …
             Set(server, 0, Y, 1, "stone");
-            Set(server, 0, Y - 1, -1, "air"); // … and a hole in the floor on the third
+            Set(server, 0, Y - 1, -1, "air"); // … and a one-cell pit in the floor on the third
+            Set(server, 0, Y - 2, -1, "stone");
             StandAt(server, 2.5f, 0.5f);
 
-            Beats(server, RessawCrackRules.BeatSeconds + RessawCrackRules.CrackSeconds + 0.6);
-            Assert.Equal(RessawCrackRules.CrackedKey, KeyAt(server, 0, Y, 0));
-            Beats(server, RessawCrackRules.LeakSeconds + 0.6);
-
-            Assert.Equal(RessawCrackRules.LiquidKey, KeyAt(server, 0, Y, 0));
+            CrackAndBreak(server);
             Assert.Contains(transport.Messages().OfType<SoundFx>(), s => s.SoundId == RessawCrackRules.LeakSound);
+            Beats(server, 4); // #3433: it flows out over the next steps
+
             Assert.Equal("stone", KeyAt(server, -1, Y, 0)); // never replaces a solid block
             Assert.Equal("stone", KeyAt(server, 0, Y, 1));
-            Assert.Equal("air", KeyAt(server, 0, Y, -1)); // no floor under it: no puddle there
-            Assert.Equal("air", KeyAt(server, 2, Y, 0)); // nor in the cell the player stands in
+            Assert.Equal(RessawCrackRules.LiquidKey, KeyAt(server, 0, Y - 1, -1)); // it ran into the pit …
+            Assert.Equal("air", KeyAt(server, 0, Y, -1)); // … and left nothing hanging over it
+            Assert.Equal("air", KeyAt(server, 2, Y, 0)); // never into the cell the player stands in
+            Assert.Equal(0, LiquidOnLevel(server, Y + 1)); // never above the source
+            Assert.Equal(1 + RessawCrackRules.MaxPuddleCells, LiquidOnLevel(server, Y) + LiquidOnLevel(server, Y - 1)); // bounded
+            Assert.Equal(0, server.RessawLeakCountForTest); // the leak has run its course
 
-            int puddle = 0;
+            Beats(server, 10);
+            Assert.Equal(0, server.RessawCrackClockCountForTest); // Ressaw itself never cracks: nothing left to time
+        }
+    }
+
+    [Fact]
+    public void TheRessaw_PoursDownAStep_OntoTheLowerFloor_AndLeavesNothingHanging()
+    {
+        var server = NewServer(out var repo);
+        using (repo)
+        {
+            // A cliff: the floor at Y - 1 for z ≥ 0 stands on solid rock; for z < 0 the floor lies two cells lower.
             for (int x = -6; x <= 6; x++)
             {
                 for (int z = -6; z <= 6; z++)
                 {
-                    Assert.NotEqual(RessawCrackRules.LiquidKey, KeyAt(server, x, Y + 1, z)); // never above the source
-                    Assert.NotEqual(RessawCrackRules.LiquidKey, KeyAt(server, x, Y - 1, z)); // nor below it
-                    puddle += KeyAt(server, x, Y, z) == RessawCrackRules.LiquidKey ? 1 : 0;
+                    bool upper = z >= 0;
+                    Set(server, x, Y - 1, z, upper ? "stone" : "air");
+                    Set(server, x, Y - 2, z, upper ? "stone" : "air");
+                    Set(server, x, Y - 3, z, "stone");
                 }
             }
 
-            Assert.Equal(1 + RessawCrackRules.MaxPuddleCells, puddle); // the source plus a bounded puddle
+            Set(server, 1, Y, 0, "stone"); // walls on three sides: the only way out is over the edge
+            Set(server, -1, Y, 0, "stone");
+            Set(server, 0, Y, 1, "stone");
+            StandAt(server, 2.5f, 1.5f);
 
-            Beats(server, 10);
-            Assert.Equal(0, server.RessawCrackClockCountForTest); // Ressaw itself never cracks: nothing left to time
+            CrackAndBreak(server);
+            Beats(server, 5);
+
+            Assert.Equal(1, LiquidOnLevel(server, Y)); // the broken block's own cell
+            Assert.Equal(0, LiquidOnLevel(server, Y - 1)); // nothing hangs over the drop
+            Assert.Equal(RessawCrackRules.MaxPuddleCells, LiquidOnLevel(server, Y - 2)); // it all ran down onto the lower floor
+            Assert.Equal(RessawCrackRules.LiquidKey, KeyAt(server, 0, Y - 2, -1)); // right under the edge it poured over
+            Assert.Equal(0, server.RessawLeakCountForTest);
+        }
+    }
+
+    /// <summary>Walls on three sides of the block at the origin: its only way out is the cell at z = −1.</summary>
+    private void WallInExceptSouth(SvGameServer server)
+    {
+        Set(server, 1, Y, 0, "stone");
+        Set(server, -1, Y, 0, "stone");
+        Set(server, 0, Y, 1, "stone");
+    }
+
+    [Fact]
+    public void ADropThroughAHoleInTheFloor_FallsUntilItLands_AndNothingHangsInTheAir()
+    {
+        var server = NewServer(out var repo);
+        using (repo)
+        {
+            WallInExceptSouth(server);
+            Set(server, 0, Y - 1, -1, "air"); // a hole in the floating test floor: below it the open air down to the ground
+            StandAt(server, 2.5f, 1.5f);
+
+            CrackAndBreak(server);
+            Beats(server, (RessawCrackRules.MaxLeakSteps * RessawCrackRules.FlowSeconds) + 2);
+
+            Assert.Equal(0, server.RessawLeakCountForTest);
+            int inShaft = 0;
+            for (int y = Y - 1; y >= Y - 120; y--)
+            {
+                if (KeyAt(server, 0, y, -1) == RessawCrackRules.LiquidKey)
+                {
+                    inShaft++;
+                    Assert.NotEqual("air", KeyAt(server, 0, y - 1, -1)); // landed on the ground (or ran dry) — never left hanging
+                }
+            }
+
+            Assert.True(inShaft <= 1, $"one drop fell, it left no column behind ({inShaft} cells)");
+        }
+    }
+
+    [Fact]
+    public void ADrop_WaitsAboveSomeoneStandingBelow_AndRunsDryIfTheyNeverMove()
+    {
+        var server = NewServer(out var repo);
+        using (repo)
+        {
+            WallInExceptSouth(server);
+            for (int y = Y - 3; y <= Y - 1; y++)
+            {
+                Set(server, 0, y, -1, "air"); // a pit three cells deep …
+            }
+
+            Set(server, 0, Y - 4, -1, "stone"); // … with a floor
+            StandAt(server, 2.5f, 1.5f); // the one who lingers by the block
+            var below = server.AddLocalPlayer("InThePit");
+            below.State.Position = new Vector3f(0.5f, Y - 3, -0.5f); // feet and head fill the pit's two lower cells
+
+            CrackAndBreak(server);
+            Beats(server, 2);
+            Assert.Equal(RessawCrackRules.LiquidKey, KeyAt(server, 0, Y - 1, -1)); // it fell to just above their head …
+            Assert.Equal("air", KeyAt(server, 0, Y - 2, -1)); // … and waits there: nobody is soaked by surprise
+            Assert.Equal(1, server.RessawLeakCountForTest);
+
+            Beats(server, RessawCrackRules.MaxLeakSteps * RessawCrackRules.FlowSeconds);
+            Assert.Equal(0, server.RessawLeakCountForTest);
+            Assert.Equal("air", KeyAt(server, 0, Y - 1, -1)); // they never moved: the drop ran dry
+            Assert.Equal("air", KeyAt(server, 0, Y, -1));
         }
     }
 
@@ -200,7 +315,8 @@ public sealed class RessawBlockTests : IDisposable
         using (repo)
         {
             Set(server, 0, Y, 0, "air");
-            Set(server, 0, Y - 1, 0, RessawCrackRules.CrackedKey); // the floor cell under the player
+            Set(server, 0, Y - 1, 0, RessawCrackRules.CrackedKey); // the floor cell under the player …
+            Set(server, 0, Y - 2, 0, "stone"); // … on rock, so its Ressaw stays where it broke (#3433: over air it would fall)
             var p = StandAt(server, 0.5f, 0.5f);
             Beats(server, RessawCrackRules.BeatSeconds + RessawCrackRules.LeakSeconds + 2);
             Assert.Equal(RessawCrackRules.CrackedKey, KeyAt(server, 0, Y - 1, 0)); // it waits …

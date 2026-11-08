@@ -791,7 +791,8 @@ fire (the large range).
 ## 33. Ressaw blocks crack and leak (#3336, #3343) — *ElevenLabs clips*
 
 In the buried G.D.S. ruins a glowing `ressaw_block` cracks when a player lingers next to it, and a cracked block that
-breaks lets its Ressaw seep out into a small still puddle (#3336). The two cues are keyed by their file names like every
+breaks lets its Ressaw out (#3336) — since #3433 it flows, across the floor and down over edges (the leak cue plays
+once, as it breaks). The two cues are keyed by their file names like every
 recorded clip (`ClientAudio` loads `Resources/audio` by name). Both are plain one-shots (class `oneshot`, levelled into
 `tools/audio/audio_levels.json` by `level_clips.py`'s import path; both sit just under their target, limiter-bound).
 Generated with `tools/ai-assets/gen_sound.py`, 2026-11-07, the second take of each (the first crack was a hissing noise

@@ -1011,8 +1011,13 @@ structure stamp — the ruined settlements), else `lone` (a stone of the natural
 **The melody bar (client).** `HudUi.MelodyBar` draws `GameBootstrap.MelodyBar` (`MelodyBarModel`, Client.Core): eight
 tones, each with its own colour AND symbol, keys 1–8 (they do not switch the hotbar while the bar is open —
 `InputMap.MelodyBarCapture`), the pad's d-pad for tones 1–4 and with a shoulder held 5–8 (the shoulders neither mine nor
-place meanwhile), touch taps; a tone sounds at once locally and goes to the server. Tests: `MelodyPuzzleTests`,
-`MelodyPuzzleServerTests`, `RuneStoneTests` (server/shared), `MelodyBarClientTests` (Client.Core).
+place meanwhile), touch taps; a tone sounds at once locally and goes to the server. The bar shares its screen band with
+VEGA's chip row, whose canvas draws above the HUD (#3430): while `HudUi.MelodyBarShown`, `VegaPanel` fades that row out
+as one — objective chip, "show all objectives" strips, folded tab, under the `VegaChipRow` container's `CanvasGroup`
+(alpha 0, no raycasts; a fade, not SetActive, so the chip and the tab keep measuring their text) — the hotbar's
+slot-action badge hides, and the keyboard controls line drops its `{key:Hotbar}` segment
+(`MelodyBarInput.WithoutHotbarSegment`, #3431). Tests: `MelodyPuzzleTests`, `MelodyPuzzleServerTests`, `RuneStoneTests`
+(server/shared), `MelodyBarClientTests` (Client.Core).
 
 ## Side packs: lore, dialogs, texts, systems and hidden blueprints (#3347–#3357)
 
