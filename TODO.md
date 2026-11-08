@@ -24,6 +24,21 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🏠 The start system is home — no pirate-haven drones at home after the win — #3436, branch fix/start-system-never-lawless (PR pending)
+
+From Justus' report "Weltraum und Boden immernoch!!!!!" (2026-11-08): three ambient drones in his home system MG-6600 after the
+win. Code analysis: the start body is the first planet of the start type, so his world started in sys6, and only sys0 was
+kept from rolling Desolate/Pirate Haven — 3 drones = Normal 2 + the haven bonus, and the Remnant Protocol keeps havens
+hostile after the win on purpose. Marcel chose option A.
+
+- **#3436** the start system's inhabitants follow the home rule (`SystemArchetypes.ForStartSystem`: a re-draw from the home
+  table, safe rolls unchanged) — ambient drones/UFOs, bandit ships, traders and the bump's `spaceHostility`; the layout
+  (bodies, the injected start station, debris fields, the once-stamped bandit camps) keeps the rolled archetype
+  (`RolledSystemArchetypeOf`). Existing worlds heal at their next start. The win also strips the ambient drones and UFOs
+  from live flights outside havens at once (`CalmLiveSpaceAfterWin`). `StartSystemArchetypeTests`.
+
+Open: playtest in Justus' world (MG-6600 calm after the win; an F1 there reads `remnant_calm`).
+
 ### 🎛️ Marcel's playtest 2026-11-08 evening — the melody bar no longer under VEGA's strip, a controls line that fits, Ressaw that stings at once and flows out of broken blocks, a wider System Check box, "OK" in What's new — #3430–#3435, PR #3437 (merge pending)
 
 From Marcel's screenshots on v2026.11.12 (Phaikrae, "Spiel es nach!"; the main menu with the update notice).

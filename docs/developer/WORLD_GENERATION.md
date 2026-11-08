@@ -62,9 +62,13 @@ The data shapes are in [`Galaxy.cs`](../../src/BlocksBeyondTheStars.Shared/World
   4–8 moons), **Swarm** (12: 6–9 small planets, ≤1 moon), **Belt** (10: 5–8 asteroids), **Hub**
   (10: stations guaranteed), **Desolate** (12: 1–2 planets, nothing else), **Pirate Haven**
   (8: no stations, wrecks doubled), **Twin Worlds** (6: two like-sized planets on close orbits).
-  System 0 (home) never rolls Desolate/Pirate Haven. Runtime consumers (trader traffic, pirate flag,
-  camp odds, drones) resolve the archetype from the seed via `SystemArchetypes.For` — nothing is
-  persisted. `SystemVariance` **defaults to false** on `WorldDescription` (old saves regenerate
+  System 0 (home) never rolls Desolate/Pirate Haven. Runtime consumers resolve the archetype from the seed — nothing
+  is persisted. **The start system is home too (#3436):** the start body is the first planet of the start type, so a
+  world can start outside sys0 in a rolled Desolate/Pirate Haven; its *inhabitants* (trader traffic, the bandit-ship
+  flag, ambient drones/UFOs, the bump's `spaceHostility`) then follow `SystemArchetypes.ForStartSystem` (a re-draw
+  from the home table, any safe roll unchanged) via `GameServer.SystemArchetypeOf`. Its *layout* keeps the rolled
+  archetype (`RolledSystemArchetypeOf`): bodies, the injected start station, debris fields and themes, and the
+  once-stamped bandit camps (a changed count would leave guardless huts). `SystemVariance` **defaults to false** on `WorldDescription` (old saves regenerate
   unchanged) and to **true** on `ServerConfig`'s creation-time description (new worlds get it).
 - **Per-body size bias (#549):** archetypes set `CelestialBody.SizeBias` ∈ [-1, 1], which
   `WorldConstants.CircumferenceFor(key, class, bias)` maps onto an extended band (planets

@@ -81,7 +81,9 @@ never the count — toggled by `GameRules.MachineWreckCoupling`.
    world cursor) and then acts as a *factor*, not a switch: the planet
    cap halves (floor one, `PlanetEnemyCap`), refills run at twice the interval (`RemnantPaceFactor`), only
    scan-drones spawn (`RemnantEra`); the finale gauntlet stays down; ambient space waves survive only in
-   pirate havens and the frontier-danger tier (`RemnantSpaceHostile`); bandit ships keep only pirate havens
+   pirate havens and the frontier-danger tier (`RemnantSpaceHostile`) — the win also strips the ambient drones and UFOs
+   from live flights elsewhere at once (`CalmLiveSpaceAfterWin`, #3436), and the start system is never a haven for its
+   inhabitants (`SystemArchetypes.ForStartSystem`); bandit ships keep only pirate havens
    (`BanditShipsAllowedIn`), so the raider bounty stays offerable. It does **not** touch the admin threat
    sliders; PlanetEnemies *Off* still means zero. A death in the boss system respawns the clone on the world
    it launched from (no death-loop).

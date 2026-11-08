@@ -854,6 +854,7 @@ public sealed partial class GameServer
         }
 
         BroadcastPlanetEnemies(); // the active world's list goes out either way (as before)
+        CalmLiveSpaceAfterWin(); // #3436: live flights outside pirate havens lose their ambient drones and UFOs at once
         PersistStoryState();
         SnapshotGuardianRewardRoster(); // #3294: every player of the world is owed a reward crate (GameServerGuardianReward)
         BroadcastStoryState();
