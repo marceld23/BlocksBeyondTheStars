@@ -338,7 +338,7 @@ Useful parameters:
 > **Important:** after changing anything under `src/` (Shared, WorldGeneration, Networking)
 > or `data/`, run the **full** build *without* `--skip-prereqs`.
 
-For Velopack packaging on Linux (AppImage + portable zip), use `vpk` directly:
+For Velopack packaging on Linux (an AppImage — vpk makes no Linux portable zip), use `vpk` directly:
 
 ```bash
 vpk pack --packId BlocksBeyondTheStars --packVersion <version> \
@@ -507,8 +507,8 @@ When working on this pipeline, three non-obvious gotchas already cost a debuggin
 An **experimental** macOS **client** build is now produced too — a `StandaloneOSX` `.app` bundle shipped as a
 portable zip. It is **unsigned and un-notarized** (a preview): no Apple code-signing/notarization, no
 Velopack, Intel x64 only (Apple Silicon via Rosetta 2), and it has had limited hands-on testing. See
-[MACOS_BUILD.md](MACOS_BUILD.md). Linux **client** installers (AppImage + portable zip) are produced
-alongside the Windows builds — see the release pipeline above.
+[MACOS_BUILD.md](MACOS_BUILD.md). The Linux **client** (an AppImage) is produced alongside the Windows
+builds — see the release pipeline above and [LINUX_PORT.md](LINUX_PORT.md) for its execute-bit guard (#3451).
 The .NET **server** also cross-builds (`publish-server.ps1` / `.sh`: win-x64/linux-x64/linux-arm64).
 
 ## Troubleshooting: works in the Editor, silently broken in the build
