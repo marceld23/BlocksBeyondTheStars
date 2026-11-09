@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🐧 Linux AppImage starts again — launcher execute bit + packed-AppImage guard — #3451, ✅ 2026-11-09 (merge pending), ships in the next release
+### 🐧 Linux AppImage starts again — launcher execute bit + packed-AppImage guard — #3451, ✅ 2026-11-09, PR #3452 (merge pending), ships in the next release
 
 - **#3451** (reported with cause, fix and workaround by Mathias, @maTzko13) every Linux AppImage up to v2026.11.14 died at
   once with `…/usr/bin/BlocksBeyondTheStars.Launcher.Console: Permission denied`: `release.yml`'s `package-linux` restored
