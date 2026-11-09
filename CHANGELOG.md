@@ -11,6 +11,27 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.14] — 2026-11-09
+
+The every-language arcade release. **The arcade games now show their words in every language:** in Russian, Ukrainian,
+Japanese, Korean and Chinese some words on the game screens were simply blank — among them the two buttons of the
+Sounders' decoding game and the Alien Glyph Decoder's question. They are now drawn with the game's real font, and the German
+words got their umlauts back.
+
+ℹ️ **Compatibility:** no new blocks — the **save version stays at 13** and the **terrain generation stays at 36**, so your
+worlds stay exactly as they are. The network protocol stays at **version 11**, but game and server must be on the same
+version: the desktop game updates itself at start, and the browser is always current.
+
+### 🕹️ Arcade words in every language (#3382)
+
+- **The words on the game screens use the real font now.** The arcade games drew some words with a tiny pixel font that
+  only knows the letters A–Z — so in ru, uk, ja, ko and zh those words came out blank.
+- **Fixed in:** the Sounders' decoding game ("word again", "letter again", the known letters, the round and the messages,
+  the note names), the Alien Glyph Decoder (the question, the meanings, the countdown), Reactor Balance, Signal Tuner,
+  Cargo Sorter and Asteroid Breaker.
+- **German words keep their umlauts:** "ENTSCHLÜSSELUNG", "KÜHLUNG", "STABILITÄT", "QUALITÄT".
+- Letters, symbols and numbers that belong to the puzzles themselves keep their pixel look.
+
 ## [2026.11.13] — 2026-11-08
 
 The calm-home release. **Your home system is home again:** a world that started in a pirate haven no longer sends extra
@@ -10570,7 +10591,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.13...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.14...HEAD
+[2026.11.14]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.13...v2026.11.14
 [2026.11.13]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.12...v2026.11.13
 [2026.11.12]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.11...v2026.11.12
 [2026.11.11]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.10...v2026.11.11

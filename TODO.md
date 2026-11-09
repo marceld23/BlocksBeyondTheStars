@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🕹️ Arcade words in every language — #3382, branch fix/arcade-localized-labels (PR pending)
+### 🕹️ Arcade words in every language — #3382, ✅ 2026-11-09, PR #3440 (`a0e8a1fd`), released in v2026.11.14 (⚠ playtest open)
 
 - **#3382** the arcade games drew localized words with the 5×7 bitmap font (A–Z, digits, a few signs), so in ru, uk, ja,
   ko and zh they came out blank. `Canvas2D` now carries a label layer (`Label`/`LabelCentered`, `Labels`, `LabelVersion`;
