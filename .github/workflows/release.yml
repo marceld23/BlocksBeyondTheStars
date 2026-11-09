@@ -635,18 +635,24 @@ jobs:
           name: player-linux
           path: client/Build/Linux
 
-      # GitHub artifacts drop the Unix execute bit. Restore it on the main player AND the bundled local
-      # server before packing, otherwise Singleplayer's Process.Start on the server fails with EACCES
-      # inside the AppImage (see LocalServerLauncher.cs — it runs StreamingAssets/server/...GameServer).
-      - name: Restore execute bits (player + bundled server)
+      # GitHub artifacts drop the Unix execute bit. Restore it on every program in the package before packing:
+      # - the console launcher: it is vpk's --mainExe, the file the AppImage's AppRun execs. Without +x the
+      #   AppImage dies at once with "Permission denied" — every AppImage up to v2026.11.14 shipped that way (#3451);
+      # - the main player, which the launcher starts;
+      # - the bundled local server, otherwise Singleplayer's Process.Start on it fails with EACCES inside the
+      #   AppImage (see LocalServerLauncher.cs — it runs StreamingAssets/server/...GameServer).
+      # "Verify AppImage executables" below fails the release if a program is ever missing from this list.
+      - name: Restore execute bits (launcher + player + bundled server)
         run: |
+          chmod +x client/Build/Linux/BlocksBeyondTheStars.Launcher.Console
           chmod +x client/Build/Linux/BlocksBeyondTheStars.x86_64
           chmod +x client/Build/Linux/BlocksBeyondTheStars_Data/StreamingAssets/server/BlocksBeyondTheStars.GameServer
 
-      # vpk can produce AppImage + portable zip for Linux. NOTE: the splash options
+      # On Linux vpk produces the AppImage (which is its own portable form) plus the update feed
+      # (releases.linux.json + the full .nupkg) — there is no Linux Portable.zip. NOTE: the splash options
       # (--splashImage / --splashProgressColor) are Windows-installer only — the Linux `vpk pack`
       # rejects them ("Unrecognized command or argument"), so they are not passed here.
-      - name: Package Linux AppImage + Portable
+      - name: Package Linux AppImage
         run: |
           OUT="artifacts/installer-linux"
           mkdir -p "$OUT"
@@ -660,6 +666,51 @@ jobs:
             --mainExe BlocksBeyondTheStars.Launcher.Console \
             --channel linux \
             --outputDir "$OUT"
+
+      # #3451: nothing checked the packed result, so a launcher without its execute bit shipped in every
+      # AppImage. Unpack the AppImage the way a player's machine sees it and fail the release if AppRun's
+      # target, the player or the server is not executable, or if any other ELF program inside lost its
+      # execute bit (a binary added later must not repeat this silently). The AppImage runtime is static,
+      # so --appimage-extract needs no FUSE on the runner. Unpacked in RUNNER_TEMP, never in the upload dir.
+      - name: Verify AppImage executables
+        shell: bash
+        run: |
+          shopt -s nullglob
+          images=(artifacts/installer-linux/*.AppImage)
+          if [ "${#images[@]}" -ne 1 ]; then
+            echo "::error::expected exactly one AppImage in artifacts/installer-linux, found ${#images[@]}"
+            exit 1
+          fi
+          appimage="$GITHUB_WORKSPACE/${images[0]}"
+          chmod +x "$appimage"
+          work="$RUNNER_TEMP/appimage-check"
+          rm -rf "$work"
+          mkdir -p "$work"
+          (cd "$work" && "$appimage" --appimage-extract > /dev/null)
+          root="$work/squashfs-root"
+          fail=0
+          for f in usr/bin/BlocksBeyondTheStars.Launcher.Console \
+                   usr/bin/BlocksBeyondTheStars.x86_64 \
+                   usr/bin/BlocksBeyondTheStars_Data/StreamingAssets/server/BlocksBeyondTheStars.GameServer; do
+            if [ ! -x "$root/$f" ]; then
+              echo "::error::not executable (or missing) inside the AppImage: $f"
+              fail=1
+            fi
+          done
+          # A [[ ]] match, not `file | grep -q`: under pipefail an early grep exit can SIGPIPE `file` and flip
+          # the result. Without file(1) the sweep would silently match nothing, so its absence is an error.
+          command -v file > /dev/null || { echo "::error::file(1) is missing on the runner"; exit 1; }
+          while IFS= read -r f; do
+            if [[ "$(file -b "$f")" == "ELF "*executable* ]]; then
+              echo "::error::ELF program without its execute bit inside the AppImage: ${f#"$root/"}"
+              fail=1
+            fi
+          done < <(find "$root" -type f ! -perm -u+x)
+          rm -rf "$work"
+          if [ "$fail" -ne 0 ]; then
+            exit 1
+          fi
+          echo "All programs inside $(basename "$appimage") are executable."
 
       - name: Upload Linux installer artifacts
         uses: actions/upload-artifact@v6
@@ -678,7 +729,6 @@ jobs:
         with:
           files: |
             artifacts/installer-linux/*AppImage
-            artifacts/installer-linux/*Portable.zip
             artifacts/installer-linux/releases.linux.json
             artifacts/installer-linux/*.nupkg
           generate_release_notes: false

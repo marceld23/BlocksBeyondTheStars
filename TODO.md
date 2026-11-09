@@ -24,6 +24,24 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🐧 Linux AppImage starts again — launcher execute bit + packed-AppImage guard — #3451, ✅ 2026-11-09, PR #3452 (merge pending), ships in the next release
+
+- **#3451** (reported with cause, fix and workaround by Mathias, @maTzko13) every Linux AppImage up to v2026.11.14 died at
+  once with `…/usr/bin/BlocksBeyondTheStars.Launcher.Console: Permission denied`: `release.yml`'s `package-linux` restored
+  the execute bit (stripped by upload/download-artifact) on the player and the bundled server, but never on the console
+  launcher — vpk's `--mainExe`, the file `AppRun` execs. Missing since the Linux packaging landed (2026-06-24). The step now
+  chmods the launcher too, and a new step *Verify AppImage executables* unpacks the finished AppImage
+  (`--appimage-extract`) and fails the release if the launcher, player or server is not executable or any other ELF
+  program inside lost `+x`. Proven against the shipped v2026.11.14 AppImage in WSL Ubuntu (fails, naming exactly the
+  launcher) and a repaired tree (passes, 1.8 s). Docs: LINUX_PORT.md (execute-bit section, guard, no `libfuse2` needed),
+  DEVELOPER.md; the dead `*Portable.zip` glob is gone (vpk never made a Linux portable zip). Mathias added to the README
+  Contributors and the in-game credits (`ui.credits.body`, all 14 locales).
+
+Open: a manual `release.yml` dispatch (or the next tag) runs the new step on CI for the first time; then a Linux playtest
+of the next release's AppImage, and a thank-you to Mathias on #3451.
+
+---
+
 ### 🕹️ Arcade words in every language — #3382, ✅ 2026-11-09, PR #3440 (`a0e8a1fd`), released in v2026.11.14 (⚠ playtest open)
 
 - **#3382** the arcade games drew localized words with the 5×7 bitmap font (A–Z, digits, a few signs), so in ru, uk, ja,
