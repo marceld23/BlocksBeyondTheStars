@@ -11,6 +11,75 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.15] — 2026-11-10
+
+The rail-travel release. **Villagers ride the train now:** they travel between towns on the intercity line or on your
+own line, sit in the wagons next to you, and friendly visitors arrive at your base's stop by train instead of appearing out
+of nowhere (Lyxette's idea). **Trains got faster and smoother** — they accelerate gently, cruise faster on long legs (up
+to 24 blocks per second), slow down for sharp bends and brake softly into every stop. Also new: **Soaniri's animals,
+bugs and Sounders are light blue and light green everywhere**, wild animals stay out of villages, **Justus' story
+lines** greet you in big letters on the loading screen, and **the Linux AppImage starts again**.
+
+ℹ️ **Compatibility:** no new blocks — the **save version stays at 13** and the **terrain generation stays at 36**, so your
+worlds stay exactly as they are. The network protocol stays at **version 11**, but game and server must be on the same
+version: the desktop game updates itself at start, and the browser is always current.
+
+### 🚆 Villagers travel by train (#3445, #3446, #3447)
+
+- **Passengers:** villagers can board a train while it waits at a stop, sit on a seat or stand in the aisle, and step off
+  at their destination. Players always come first — sit on a villager's seat and it moves over.
+- **Trips between towns:** now and then, by day, a villager without a job takes the train from its town to another town on
+  the same line, visits the town square for a few minutes and rides home again. Works on the generated intercity line and
+  on your own lines when a Rail Stop stands in or next to a town (or next to your base).
+- **Visitors by train (Lyxette's idea):** when your base has a stop on a line to a town at least 150 blocks away, your
+  visitors come from that town by train, step off at your stop, walk over to say hello and take the next train home.
+  Without a train they still walk in as before.
+- **Your settlers ride too:** your base's residents sometimes take the train to the connected town and come back.
+- **"Villagers ride along" switch** on the Monorail cab panel (on by default) — turn it off and nobody new boards your train.
+- **Safe by design:** if a train is stowed, a line is torn down or a trip takes too long, the villager simply goes home —
+  never stuck, never lost, never twice. Vendors, guards and other villagers you look for stay at home.
+- **For admins:** `/railtrip [town]` starts a trip now, `/guest` calls a visitor to your base; `/bump` reports now include the
+  rail lines, trains and passengers.
+
+### 🚄 Faster, smoother trains (#3444)
+
+- **The three settings are top speeds now: 8, 16 and 24 blocks per second** (were 4, 8 and 12). New cabs start at 16.
+- **Speed by distance:** a short hop in town stays gentle, a long leg between stops gets fast (the full 24 from about 150
+  blocks on).
+- **Smooth ride:** the train accelerates gently, slows down for sharp bends and steep hilltops and brakes softly into every
+  stop — no more jolt or jump back at the platform. Gentle curves and gentle hills keep the full speed. A stop that a fast train can no longer reach gently is passed and the train halts at the
+  next one.
+- The cab panel shows the current speed.
+- Fixed: an autopilot train told to go at a stop no longer stops again at the same stop right away.
+
+### 💙💚 Soaniri in light blue and light green (#3448, #3449)
+
+- **Every animal on Soaniri** wears light blue, aqua and mint now — the animals that are different on every world too, with
+  fur and soft skin instead of crystal plates, and markings that stay blue and green. The Soundi stays exactly as it is.
+- **The little critters** (butterflies, beetles and friends) are light blue and green on Soaniri as well.
+- **Fixed:** the villagers of Mirun and the Eldest had human skin and settler clothes — they are real Sounders now, light
+  blue and green with their woven sashes, and the Eldest is the tallest of them.
+
+### 🏘️ No wild animals in villages (#3453)
+
+- **Fixed:** wild animals could appear on the roofs of village houses and wander through the lanes. Land animals no longer
+  spawn in villages and lodges and turn away at the edge of a town — hostile ones too, so towns are safe ground; birds may
+  still fly over it. An animal that is already inside can always walk out. Your pets and companions still follow you into
+  town.
+
+### 🐧 The Linux AppImage starts again (#3451, #3452)
+
+- **Fixed:** every Linux AppImage up to v2026.11.14 stopped at once with "Permission denied" — the launcher inside the
+  AppImage had lost its execute bit during packaging. The release build now restores it and checks every program inside
+  the finished AppImage before it ships. Thanks to Mathias (maTzko13), who sent the cause and the fix along with his report.
+
+### ⏳ Story lines on the loading screen (#3450, Justus' idea)
+
+- In the browser the loading bar no longer sits at 100 % while the world is still starting.
+- While a world starts, big letters above the loading bar tell a tiny story: *The Sounders come and go… Humans travel into
+  space… Settlements are built in space… Everything begins… Everything ends… You awaken!* — and "You awaken!" is always the
+  last line before the game starts.
+
 ## [2026.11.14] — 2026-11-09
 
 The every-language arcade release. **The arcade games now show their words in every language:** in Russian, Ukrainian,
@@ -10591,7 +10660,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.14...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.15...HEAD
+[2026.11.15]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.14...v2026.11.15
 [2026.11.14]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.13...v2026.11.14
 [2026.11.13]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.12...v2026.11.13
 [2026.11.12]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.11...v2026.11.12
