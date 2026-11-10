@@ -448,7 +448,7 @@ off). Weather needs no rule of its own: fog, rain and sandstorms pull the haze r
   - `DistanceSoftView` enqueues `DistanceSoftPass` on the world cameras at `BeforeRenderingPostProcessing`, after the
     transparents and the heat shimmer and before bloom, while `Sky.DistanceBlur01 > 0`.
   - The passes:
-    1. the camera colour to half resolution, with the scene's distance in alpha;
+    1. the camera colour to quarter resolution (four depth-aware taps per 4×4 block), with the scene's distance in alpha;
     2. a depth-aware, separable 7-tap gaussian;
     3. a depth-aware upsample blended over the camera colour with
        `blend × smoothstep(band start, haze end, distance)`.
@@ -469,8 +469,10 @@ off). Weather needs no rule of its own: fog, rain and sandstorms pull the haze r
     crown and would switch it off for a player looking out of a forest).
   - It never runs in the browser: the WebGPU render-texture pitfalls and the frame budget. `DistanceSoft.shader` is
     always-included and in `ShaderPrewarm` (desktop), so it still compiles for WebGL.
-  - The budget target is about 0.5 ms at 1080p (half resolution, 4 cheap passes). Measure with PerfProbe on
-    Medium/High, and drop to quarter resolution if it is over.
+  - Cost: measured with PerfProbe (High, 1080p, `-perfFeature softdist=off` for the A/B): at half resolution about 0.9 ms
+    GPU, consistently — over the ~0.5 ms budget. Quarter resolution plus a cheap eye-depth early out in the composite (the
+    near and middle ground never reach the world-position maths) brought it inside run-to-run noise (on − off −0.35 /
+    +0.45 ms over two pairs).
   - Fallback if a graphics API ever makes the stencil route unreliable: move the surface-sky body materials to a queue
     after the opaque depth copy (2501). They then read as far plane, but they would drop out of the water reflections,
     which reflect via the opaque copy.

@@ -74,12 +74,13 @@ his distance-blur analysis (variants A and B, barely noticeable, sky always shar
   and in the browser, rides on "Distance haze & sun rays". Rules in `DistanceSoftLook` (Client.Core), global
   `_Sc_DistSoft` from `Sky.Mist.ApplyDistanceSoft` (zeroed indoors, under water, without air, by `ClearMist`).
 - **#3462 distance softness B "Soft distance"** — `DistanceSoftPass` (render graph, `DistanceSoftView` enqueues it on the
-  world cameras at `BeforeRenderingPostProcessing`): half-res downsample with distance, depth-aware 7-tap blur H/V,
+  world cameras at `BeforeRenderingPostProcessing`): quarter-res depth-aware downsample with distance, 7-tap blur H/V,
   composite `blend × smoothstep(band start ≈ 40 % of the haze range, haze end)` with blend ≈ 0.4–0.5. Far-plane pixels
   untouched; the surface-sky moons and planets (`SkyBodyPhase`) — and the particles (`Particle`, `ParticleAlpha`: rain,
   snow, sparks) and world-space labels (`WorldText`), whose depth reads the hills behind them — write stencil bit 64
   and the composite skips them; the downsample is depth-aware (no sky colour in ridgeline texels). The blur fades out
   underground only (`AtmosphereProbe.UndergroundFactor`), not under a tree crown.
+  Cost: ~0.9 ms GPU at half res (PerfProbe High 1080p) → quarter res + eye-depth early out, now within run-to-run noise.
   Medium+ desktop only (no row in the browser), off with Reduced effects / haze off / flight view; own switch
   `ui.settings.distance_softness` ("Weiche Ferne" / "Soft distance") in all 14 languages, on by default (the atmosphere
   mode does not touch it — the row sits in the general graphics list).
