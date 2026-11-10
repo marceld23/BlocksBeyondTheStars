@@ -15,7 +15,9 @@ Unity-free in `Shared`.
   motion — `TrainSpan`, `CabRange` (where the cab's arc may run so every wagon stays on an open line), `Advance` (runs
   the arc; a loop wraps, an open line bounces off the range's ends — only the direction flips, the rest of the step runs
   back, the arc never jumps), `LeadArc` / `ArcForLeadAt` (the leading wagon: the cab when the train runs the way it
-  faces, the last wagon when it runs backwards) and `PoseFacing` (an older server's facing is its direction) —
+  faces, the last wagon when it runs backwards — the halt point until #3463), `MiddleArc` / `ArcForMiddleAt` /
+  `HaltMiddleArc` (#3463: the train's middle, the arc it halts at for a stop, held half the train plus half a wagon in
+  from an open line's ends) and `PoseFacing` (an older server's facing is its direction) —
   `LocalToWorld` / `WorldToLocal` (the frame: local X across, Y up from the floor, Z toward
   the cab; heading = radians about +Y, forward (cos, 0, sin), right (sin, 0, −cos)) and `FrameId` (`train:wagon`).
 - `Shared/Definitions/RailSpline.cs` — a Catmull-Rom spline through the pylon tops with an arc-length table, the
@@ -70,8 +72,11 @@ clears it), `NetNpc.FrameId/LocalX/Y/Z/LocalYaw` (#3445: an NPC passenger, see *
   jump (#2741 — the old reversal re-seated the arc by the train's length, swapped the wagons round and turned each by
   180°, so a rider on the rear bench jumped ~11 m). On one leg the cab therefore pushes from the back (there is no
   jump-free reversal that keeps the cab in front on a line without a loop). A loop wraps. The autopilot halts at a stop
-  the **leading wagon** crossed this tick (`Crossed`, wrap-aware; a reversal splits the tick into the run to the end
-  and the run back) with that wagon at the stop, for `StopHaltSeconds`, once per stop until it is clear of it; a stop
+  the train's **middle** crossed this tick (#3463, Lyxette: "put the post at the end of the station and the train is
+  all in or all out by its direction; in the middle it only ever pulls in halfway" — until then it was the leading
+  wagon; `HaltPointArc`, `StopHaltArc`; `Crossed`, wrap-aware; a reversal splits the tick into the run to the end and
+  the run back) and centres the train on the stop (never so near an open line's end that a wagon hangs past it), for
+  `StopHaltSeconds`, once per stop until it is clear of it; a stop
   within a wagon's length of the dead end ahead turns the train round while it stands. A coupled wagon or a shortened
   line brings the arc back into the cab's range (`ClampTrainArc`). The save record appends the facing (an older record
   faces its direction) and then the passenger switch (#3446; an older record takes passengers);
@@ -172,7 +177,7 @@ walking) made them a chore. Modelled on the lift's `LiftMotion` (#3204, ADR 0014
   `ServiceBrake` (8 blocks/s²), never below 0. The limit is the lowest of
   - the **top speed**;
   - the **leg's cruise** `CruiseSpeed = clamp(leg / LegSeconds (6 s), MinCruise (4), top)`. The leg is the distance from
-    the target behind the leading wagon to the target ahead of it: on autopilot the stops, on an open line also the ends
+    the target behind the train's halt point (its middle, #3463) to the target ahead of it: on autopilot the stops, on an open line also the ends
     of the cab's range. The stop it last halted at (or passed, below) is no target while it still lies ahead; on a
     **loop** it is the target one lap ahead once the train is level with it or past it (`StopTargetDistance`) — so a loop
     with a single stop cruises by the loop's length from the first block after the halt (it used to have no target for a
@@ -217,7 +222,8 @@ walking) made them a chore. Modelled on the lift's `LiftMotion` (#3204, ADR 0014
     | up and down 10 blocks per 16-block span (a sharp crest) | 5.5 / 5.5 | 9.7 / 9.7 |
 - **Server** (`GameServerRailMotion.cs`). `ServerTrain.Velocity` is RAM only — no save change; a loaded train starts
   from rest. `RunTrain` → `TrainRunDistance` (`TrainTargets`, `TrainCurveLimit`, the new speed; the last step onto a
-  stop it halts at is cut to land the leading wagon on it, so `HaltAtCrossedStop`'s snap is ~0.001 blocks) →
+  stop it halts at is cut to land the train's middle on its halt arc — #3463; the leading wagon before — so
+  `HaltAtCrossedStop`'s snap is ~0.001 blocks) →
   `RailRules.Advance` → `HaltAtStopsReached` (the autopilot's stop check, the reversal split as before). A halt — at a
   stop or the driver's — zeroes the speed (the driver's halt is an instant stop); a reversal at an open line's end too
   (it braked into the end and sets off the other way from rest). `DepartTrain` starts from rest and keeps the stop the

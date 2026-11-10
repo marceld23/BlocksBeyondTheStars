@@ -24,10 +24,10 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🚉 Stations reach 96 + power relays, safe exits and Wild-West jump-off, loading story on the black veil, soft distance — #3457–#3462, ✅ 2026-11-10, PR pending (⚠ playtest open)
+### 🚉 Stations reach 96 + power relays, safe exits and Wild-West jump-off, trains halt centred, wagons look their part, loading story on the black veil, soft distance — #3457–#3464, ✅ 2026-11-10, PR pending (⚠ playtest open)
 
 From Lyxette's F1 reports of 2026-11-10 ("48 reicht nicht", "Hinten statt seitwärts aussteigen…", the wish to jump off
-"wie im wilden Westen"), Marcel's correction of #3450 (the story belongs on the black screen with the planet name) and
+"wie im wilden Westen", "Zug Veränderungen noch nötig?"), Marcel's correction of #3450 (the story belongs on the black screen with the planet name) and
 his distance-blur analysis (variants A and B, barely noticeable, sky always sharp, airless worlds crisp).
 
 - **#3457 a stop belongs to a base within 96 of its core or 24 of its power-relay chain** — `GameServerRailBaseReach.cs`:
@@ -50,6 +50,17 @@ his distance-blur analysis (variants A and B, barely noticeable, sky always shar
 - **#3459 Wild-West jump-off** — walking out of (or F on) a moving train keeps half the wagon's measured velocity (cap 12
   b/s) plus a hop of 4 (`TrainExitRules.JumpPush` → `ApplyKnock`); F steps out of the nearest free door first
   (`TryJumpOffMoving`). Damage only from the drop, as anywhere.
+- **#3463 the autopilot halts the whole train centred on the stop** — the halt point is the train's middle
+  (`RailRules.MiddleArc` / `ArcForMiddleAt`, server `HaltPointArc`), whichever way it runs; on an open line the middle
+  stays half the train plus half a wagon in from the ends (`RailRules.HaltMiddleArc`, `StopHaltArc`), so a stop near a
+  dead end — the intercity station's included — holds the whole train beside it. Braking targets and the last-stop
+  bookkeeping use the same arc; the "turn round while standing" rule now fires below two wagon lengths to the end (the
+  centred train stands half its length nearer the end). Tests `RailCentredHaltTests`, rules in `RailRulesTrainMotionTests`.
+- **#3464 seat, sleeper and bar wagons look their part** — the benches, bunks and counter were the wall panel set into
+  the side-wall cells of the 3-wide wagon (they vanished into the wall; the bar's counter blocked the walk-way). Now
+  `TrainView.DressWagon`: light wooden benches (`wood_planks_light`), glowing bunks two high (`crew_bunk`) with pale
+  berth panels (`lab_panel`), a bar with a mahogany floor and its counter (`shop_counter`) along both walls — existing
+  blocks only (no block-id shift); the middle column stays free.
 - **#3460 loading story on the black world-entry veil** (follow-up to #3450, which put it on the bar screen) — the story
   line replaces "Lade Welt…" in the veil footer's slot (22 pt) on the initial entry only (`WorldLoadingOverlay.StepStory`,
   unscaled time): line 1 with the veil, the next every 1.5 s up to line 5, "Du erwachst!" (cyan) the moment the world is

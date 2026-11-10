@@ -3,7 +3,7 @@
 // coarse far terrain softens. Barely noticeable on purpose: the blend tops out at 0.4–0.5 (DistanceSoftLook in
 // Client.Core holds the rules). A render-graph pass on the gameplay camera and the capture clones (DistanceSoftView +
 // DistanceSoftPass), Medium+ on a desktop client only; it compiles for every target because it is always-included.
-//   Pass 0  downsample — the camera colour to half resolution, depth-aware over the 2×2 pixels (only those at the nearest
+//   Pass 0  downsample — the camera colour to quarter resolution, depth-aware over four pixels of each 4×4 block (only those at the nearest
 //                        surface's distance count, so sky never bleeds into a ridge); alpha = the scene's
 //                        distance from the camera in metres (the haze's own measure), DS_SKY_DEPTH for the open sky.
 //   Pass 1/2 blur      — a depth-aware 7-tap gaussian, horizontal then vertical: taps across a depth edge drop out, and
@@ -19,7 +19,7 @@
 // WebGL 2 / WebGPU rules: only explicit-LOD texture reads (the pass never runs in the browser, but it must compile there).
 //
 // Globals (DistanceSoftPass; the AtmosphereCommon ones come from Sky.Mist.cs):
-//   _Sc_DistSoftTexel xy = 1 / half-res size, zw = half-res size
+//   _Sc_DistSoftTexel xy = 1 / quarter-res size, zw = quarter-res size
 //   _Sc_DistSoft      y = the largest blend, z = the band start (metres) — see AtmosphereCommon.hlsl
 //   _Sc_Fog           y = the haze end (metres): the blend is full there
 Shader "BlocksBeyondTheStars/DistanceSoft"
@@ -36,7 +36,7 @@ Shader "BlocksBeyondTheStars/DistanceSoft"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
         #include "AtmosphereCommon.hlsl" // _Sc_Fog, _Sc_DistSoft
 
-        // The open sky's "distance" in the half-res alpha (a half float holds up to 65504).
+        // The open sky's "distance" in the low-res alpha (a half float holds up to 65504).
         #define DS_SKY_DEPTH 60000.0
 
         float4 _Sc_DistSoftTexel;
@@ -75,7 +75,7 @@ Shader "BlocksBeyondTheStars/DistanceSoft"
             wsum += w;
         }
 
-        // A depth-aware 7-tap gaussian along `stepUv` (one half-res texel). Keeps the centre's distance in alpha for the
+        // A depth-aware 7-tap gaussian along `stepUv` (one quarter-res texel). Keeps the centre's distance in alpha for the
         // next pass; the open sky passes through untouched.
         float4 DsBlur(float2 uv, float2 stepUv)
         {
@@ -104,15 +104,16 @@ Shader "BlocksBeyondTheStars/DistanceSoft"
             #pragma vertex Vert
             #pragma fragment FragDownsample
 
-            // The 2×2 full-res pixels this half-res texel covers, depth-aware: the texel's distance is the nearest surface among
-            // them, and only the pixels at about that distance give their colour — so the open sky never bleeds into a
-            // ridgeline's texel (nor a ridge into the sky's). An all-sky texel keeps the plain average.
+            // Four full-res pixels spread over the 4×4 block this quarter-res texel covers (a rotated grid of pixel centres),
+            // depth-aware: the texel's distance is the nearest surface among them, and only the pixels at about that distance
+            // give their colour — so the open sky never bleeds into a ridgeline's texel (nor a ridge into the sky's). An
+            // all-sky texel keeps the plain average.
             float4 FragDownsample(Varyings input) : SV_Target
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
                 float2 uv = input.texcoord;
-                float2 h = _CameraDepthTexture_TexelSize.xy * 0.5;
-                float2 offs[4] = { float2(-h.x, -h.y), float2(h.x, -h.y), float2(-h.x, h.y), float2(h.x, h.y) };
+                float2 t = _CameraDepthTexture_TexelSize.xy;
+                float2 offs[4] = { float2(-0.5, -1.5) * t, float2(1.5, -0.5) * t, float2(0.5, 1.5) * t, float2(-1.5, 0.5) * t };
                 float3 col[4];
                 float dist[4];
                 float nearest = DS_SKY_DEPTH;
@@ -197,6 +198,14 @@ Shader "BlocksBeyondTheStars/DistanceSoft"
                     return half4(0.0, 0.0, 0.0, 0.0); // the open sky: untouched
                 }
 
+                // Cheap early out for the near and middle ground — most of the screen: the distance is never more than ~2.5×
+                // the eye depth within the game's widest field of view, so a pixel whose eye depth stays below 40 % of the
+                // band start lies before the band for sure and needs neither the world position nor the upsample.
+                if (LinearEyeDepth(raw, _ZBufferParams) * 2.5 < _Sc_DistSoft.z)
+                {
+                    return half4(0.0, 0.0, 0.0, 0.0);
+                }
+
                 float d0 = DsDistance(uv, raw);
                 float bandEnd = max(_Sc_Fog.y, _Sc_DistSoft.z + 1.0);
                 float weight = _Sc_DistSoft.y * smoothstep(_Sc_DistSoft.z, bandEnd, d0);
@@ -205,7 +214,7 @@ Shader "BlocksBeyondTheStars/DistanceSoft"
                     return half4(0.0, 0.0, 0.0, 0.0);
                 }
 
-                // Depth-aware bilinear upsample of the blurred half-res image (as the volumetric light's composite does).
+                // Depth-aware bilinear upsample of the blurred quarter-res image (as the volumetric light's composite does).
                 float2 hp = uv * _Sc_DistSoftTexel.zw - 0.5;
                 float2 f = frac(hp);
                 float2 base = (floor(hp) + 0.5) * _Sc_DistSoftTexel.xy;

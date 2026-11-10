@@ -4406,8 +4406,11 @@ look up: what a mix does follows from what goes in, and the same things always g
   **8, 16 or 24 blocks per second** (a new cab starts at 16) —, **halt / go**,
   **autopilot** (the train runs by itself, halts at every stop, and turns round at the ends of an open line — on a
   loop it just keeps going). When it turns round, the wagons stay exactly where they are and simply run the other way,
-  so nobody aboard is thrown about — on the way back the cab pushes the train from behind, and at a stop the wagon in
-  front halts at the stop. **Getting off:** walk out through the door, or press **F** — you are put down on the
+  so nobody aboard is thrown about — on the way back the cab pushes the train from behind. At a stop the train **halts
+  centred on the stop post**, whichever way it runs: put the post in the middle of your platform and the whole train
+  stands beside it (near the end of a line it stops just short of the end, so no wagon hangs past it). Each wagon looks
+  its part: the seat wagon has wooden benches along its walls, the sleeper glowing bunks two high, the bar wagon a
+  wooden floor and its counter. **Getting off:** walk out through the door, or press **F** — you are put down on the
   nearest spot outside the door where you can stand: the ground, or a **platform** up to about a block higher than the
   wagon floor (the floor hovers a little above the pylon's top, so a platform one block higher is a step too tall to
   walk up — **F** or simply **walking into the door** of a halted train gets you onto it). The best height for a

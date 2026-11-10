@@ -1270,42 +1270,51 @@ public sealed partial class GameServer
         BroadcastTrains(force: arrived);
     }
 
-    /// <summary>The arc of the train's leading wagon for a train arc and a direction of travel (#2741; a loop's wraps).</summary>
-    private static float LeadArc(ServerTrain t, RailLine line, float arc, int direction)
+    /// <summary>The point of the train a stop catches, for a train arc (#3463: its middle — the autopilot centres the train
+    /// on a stop; #2741 used the leading wagon). A loop's wraps.</summary>
+    private static float HaltPointArc(ServerTrain t, RailLine line, float arc)
     {
-        float lead = RailRules.LeadArc(arc, direction, t.Facing, TrainSpan(t));
-        return line.Closed ? line.Spline.NormalizeArc(lead) : lead;
+        float mid = RailRules.MiddleArc(arc, t.Facing, TrainSpan(t));
+        return line.Closed ? line.Spline.NormalizeArc(mid) : mid;
     }
 
-    /// <summary>The autopilot's stop check for one straight run of the leading wagon from <paramref name="leadFrom"/> to
-    /// <paramref name="leadTo"/>, travelling <paramref name="travel"/> (#2741): a stop it crossed (not the one it just
-    /// left) halts the train with that wagon at the stop. A stop within a wagon's length of the dead end ahead turns the
+    /// <summary>#3463: the arc the train's middle halts at for a stop (<see cref="RailRules.HaltMiddleArc"/> — the stop, held
+    /// in from an open line's ends so no wagon hangs past them).</summary>
+    private static float StopHaltArc(RailLine line, float stopArc, float span)
+        => RailRules.HaltMiddleArc(stopArc, span, line.Spline.TotalArc, line.Closed);
+
+    /// <summary>The autopilot's stop check for one straight run of the train's middle from <paramref name="leadFrom"/> to
+    /// <paramref name="leadTo"/>, travelling <paramref name="travel"/> (#2741, #3463): a stop it crossed (not the one it just
+    /// left) halts the train centred on the stop (<see cref="StopHaltArc"/>). A stop within a wagon's length of the dead end ahead turns the
     /// train round while it stands, rather than letting it creep to the end and back after the halt. Returns whether it
     /// halted. #3444: the speed profile brings the train in at <see cref="RailMotion.ArrivalSpeed"/> and lands its last
     /// step on the stop, so the snap onto the stop is (next to) nothing. This is THE "train halted at stop X" event (its
     /// counterpart, "the train departs", is <see cref="DepartTrain"/>).</summary>
     private bool HaltAtCrossedStop(ServerTrain t, RailLine line, float leadFrom, float leadTo, int travel)
     {
-        foreach (var (arc, cell) in line.Stops)
+        float span = TrainSpan(t);
+        foreach (var (stopArc, cell) in line.Stops)
         {
+            float arc = StopHaltArc(line, stopArc, span);
             if (t.LastStop == cell || !Crossed(leadFrom, leadTo, arc, line))
             {
                 continue;
             }
 
-            float span = TrainSpan(t);
             t.Halted = true;
             t.Velocity = 0f;
             t.HaltStop = cell;
             t.LastStop = cell;
             t.HaltUntil = _uptime + (RailRules.IsPublic(t.OwnerId) ? RailRules.PublicStopHaltSeconds : RailRules.StopHaltSeconds);
-            t.Arc = RailRules.ArcForLeadAt(arc, travel, t.Facing, span);
+            t.Arc = RailRules.ArcForMiddleAt(arc, t.Facing, span); // #3463: centred on the stop
             t.Direction = travel;
             ClampTrainArc(t, line);
             if (!line.Closed)
             {
                 var (lo, hi) = RailRules.CabRange(line.Spline.TotalArc, span, t.Facing);
-                if ((travel > 0 ? hi - t.Arc : t.Arc - lo) < RailRules.WagonLength)
+                // #3463: centred on the stop, the train stands half its length nearer the end than a lead-wagon halt did — a run
+                // of less than two wagons to the end and back would only be a creep.
+                if ((travel > 0 ? hi - t.Arc : t.Arc - lo) < RailRules.WagonLength * 2f)
                 {
                     t.Direction = -travel;
                 }

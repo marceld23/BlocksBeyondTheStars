@@ -50,12 +50,12 @@ public sealed partial class GameServer
     /// <summary>One tick of a running train: the speed profile gives the distance, the arc runs it — and on an open line
     /// bounces off the ends of the train's range, only the direction flips (#2741: the wagons keep their places and
     /// headings, so the riders, re-derived from their wagons every tick, ride through the reversal without a jump). On
-    /// autopilot a stop the leading wagon reached halts the train (<see cref="HaltAtCrossedStop"/>).</summary>
+    /// autopilot a stop the train's middle reached halts the train centred on it (<see cref="HaltAtCrossedStop"/>, #3463).</summary>
     private void RunTrain(ServerTrain t, RailLine line, double dt)
     {
         float span = TrainSpan(t);
         int dir = t.Direction;
-        float leadFrom = LeadArc(t, line, t.Arc, dir);
+        float leadFrom = HaltPointArc(t, line, t.Arc);
         float run = TrainRunDistance(t, line, span, dt);
         var (arcNow, dirNow) = RailRules.Advance(t.Arc, dir, t.Facing, run, line.Spline.TotalArc, span, line.Closed);
         t.Arc = arcNow;
@@ -79,18 +79,18 @@ public sealed partial class GameServer
         {
             var (lo, hi) = RailRules.CabRange(line.Spline.TotalArc, span, t.Facing);
             float bound = dir > 0 ? hi : lo;
-            if (!HaltAtCrossedStop(t, line, leadFrom, LeadArc(t, line, bound, dir), dir))
+            if (!HaltAtCrossedStop(t, line, leadFrom, HaltPointArc(t, line, bound), dir))
             {
-                HaltAtCrossedStop(t, line, LeadArc(t, line, bound, dirNow), LeadArc(t, line, t.Arc, dirNow), dirNow);
+                HaltAtCrossedStop(t, line, HaltPointArc(t, line, bound), HaltPointArc(t, line, t.Arc), dirNow);
             }
         }
         else
         {
-            HaltAtCrossedStop(t, line, leadFrom, LeadArc(t, line, t.Arc, dir), dir);
+            HaltAtCrossedStop(t, line, leadFrom, HaltPointArc(t, line, t.Arc), dir);
         }
 
-        float leadAt = LeadArc(t, line, t.Arc, t.Direction);
-        if (t.LastStop is { } last && !line.Stops.Any(s => s.Cell == last && Math.Abs(NormDelta(leadAt, s.Arc, line)) < RailRules.WagonLength))
+        float leadAt = HaltPointArc(t, line, t.Arc);
+        if (t.LastStop is { } last && !line.Stops.Any(s => s.Cell == last && Math.Abs(NormDelta(leadAt, StopHaltArc(line, s.Arc, span), line)) < RailRules.WagonLength))
         {
             t.LastStop = null;
         }
@@ -137,7 +137,7 @@ public sealed partial class GameServer
 
     /// <summary>How far the train is from the target behind it and the target ahead (+∞ for none), and whether the one ahead
     /// is a stop it will halt at. The targets are an open line's ends (the bounds of the cab's range) and, on autopilot,
-    /// the stops — measured from the leading wagon (<see cref="StopTargetDistance"/>).
+    /// the stops — measured from the train's middle to where it halts for each stop (<see cref="StopTargetDistance"/>, #3463).
     /// <para>#3444: a stop ahead the train could not arrive at even braking at <see cref="RailMotion.ServiceBrake"/>
     /// (<see cref="RailMotion.CanArriveAt"/> — the autopilot switched on a few blocks before it at speed, a stop placed
     /// just ahead) is no target: the nearest such stop becomes the train's <see cref="ServerTrain.LastStop"/>, so the
@@ -162,11 +162,12 @@ public sealed partial class GameServer
             return (behind, ahead, stopAhead);
         }
 
-        float lead = LeadArc(t, line, t.Arc, dir);
+        float lead = HaltPointArc(t, line, t.Arc);
         Vector3i? passing = null;
         float passingAt = float.PositiveInfinity;
-        foreach (var (arc, cell) in line.Stops)
+        foreach (var (stopArc, cell) in line.Stops)
         {
+            float arc = StopHaltArc(line, stopArc, span); // #3463: where the train's middle halts for this stop
             float d = RailMotion.Gap(lead, arc, dir, total, line.Closed);
             float back = line.Closed ? (d <= SameArc ? 0f : total - d) : -d;
             if (back >= -SameArc)
@@ -203,7 +204,7 @@ public sealed partial class GameServer
         return (behind, ahead, stopAhead);
     }
 
-    /// <summary>How far ahead of the leading wagon (at <paramref name="lead"/>) a stop is as the train's target, +∞ when it
+    /// <summary>How far ahead of the train's halt point (its middle, at <paramref name="lead"/>) a stop is as the train's target, +∞ when it
     /// is none: a stop behind it on an open line never is; the stop it last halted at (or passed) is none while it still
     /// lies ahead — but on a loop, once the train is level with it or past it, it is the target one lap ahead (#3444: a
     /// loop with a single stop used to leave the train without a target for its first wagon length after the halt, so it

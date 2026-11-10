@@ -12,7 +12,7 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// The render-graph passes of the soft distance (#3462; the maths is in <c>DistanceSoft.shader</c>): the camera colour
-    /// to half resolution with the scene's distance in alpha (pass 0), a depth-aware blur there and back (passes 1 and 2),
+    /// to quarter resolution with the scene's distance in alpha (pass 0), a depth-aware blur there and back (passes 1 and 2),
     /// and a depth-aware upsample blended over the camera colour by the band weight (pass 3). The composite binds the
     /// camera's depth-stencil read-only, so the stencil bit the sky bodies write (<c>SkyBodyPhase</c>) keeps the moons and
     /// planets of the surface sky sharp. Records nothing without the depth texture or an intermediate colour target, so
@@ -21,6 +21,10 @@ namespace BlocksBeyondTheStars.Client
     public sealed class DistanceSoftPass : ScriptableRenderPass
     {
         private static readonly int TexelId = Shader.PropertyToID("_Sc_DistSoftTexel");
+
+        /// <summary>The blur runs at 1/<see cref="Downscale"/> of the camera's resolution (the downsample takes four depth-aware
+        /// taps spread over each 4×4 block, <c>DistanceSoft.shader</c>).</summary>
+        private const int Downscale = 4;
 
         private readonly Material _mat;
 
@@ -32,7 +36,7 @@ namespace BlocksBeyondTheStars.Client
             ConfigureInput(ScriptableRenderPassInput.Depth);
         }
 
-        /// <summary>The half-res target format (rgb = colour, a = distance in metres: needs a float alpha) — the volumetric
+        /// <summary>The low-res target format (rgb = colour, a = distance in metres: needs a float alpha) — the volumetric
         /// light's, checked once there; None = the device cannot render it and the pass records nothing.</summary>
         private static GraphicsFormat Format => VolumetricLightPass.Format;
 
@@ -60,7 +64,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var target = cameraData.cameraTargetDescriptor;
-            int w = Mathf.Max(1, (target.width + 1) / 2), h = Mathf.Max(1, (target.height + 1) / 2);
+            // #3462: quarter resolution — the blur of a band far away needs no more, and half resolution cost ~0.9 ms at
+            // 1080p on a desktop GPU (the plan's budget is ~0.5 ms).
+            int w = Mathf.Max(1, (target.width + Downscale - 1) / Downscale), h = Mathf.Max(1, (target.height + Downscale - 1) / Downscale);
             var desc = new TextureDesc(w, h)
             {
                 name = "DistanceSoftA",
@@ -79,7 +85,7 @@ namespace BlocksBeyondTheStars.Client
             RecordComposite(renderGraph, resources, depth, a);
         }
 
-        /// <summary>Pass 0: the camera colour into the half-res target. Publishes the texel size first — the blur and the
+        /// <summary>Pass 0: the camera colour into the low-res target. Publishes the texel size first — the blur and the
         /// composite read it from there (Blitter does not set <c>_BlitTexture_TexelSize</c>).</summary>
         private void RecordDownsample(RenderGraph renderGraph, TextureHandle color, TextureHandle depth, TextureHandle target, Vector4 texel)
         {
@@ -101,7 +107,7 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Pass 3: the blurred half-res image, upsampled and blended over the camera colour. The camera's
+        /// <summary>Pass 3: the blurred low-res image, upsampled and blended over the camera colour. The camera's
         /// depth-stencil is bound read-only for the stencil test that skips the sky bodies (when there is one: without it
         /// the test passes everywhere, and the moons would only get the same barely visible softening as the hills).</summary>
         private void RecordComposite(RenderGraph renderGraph, UniversalResourceData resources, TextureHandle depth, TextureHandle blurred)
