@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🐋 Giants move smoothly and can be ridden — #3466–#3467, ✅ 2026-11-10, PR pending (⚠ playtest open)
+### 🐋 Giants move smoothly and can be ridden — #3466–#3467, ✅ 2026-11-10, PR #3468 (`feaf3ced`), released in v2026.11.16 (⚠ playtest open)
 
 From Marcel's play on a gas giant: the sky giant stuttered, and a player who landed on its back fell off at once.
 
@@ -43,7 +43,7 @@ From Marcel's play on a gas giant: the sky giant stuttered, and a player who lan
   Tests `GiantRideRulesTests`. Docs: USER_MANUAL (Giants). Playtest: ride the sky giant (`/giant sky`), jump off, walk
   along it; a colossus shakes you off; a sandworm dives under you.
 
-### 🚉 Stations reach 96 + power relays, safe exits and Wild-West jump-off, trains halt centred, wagons look their part, loading story on the black veil, soft distance — #3457–#3464, ✅ 2026-11-10, PR #3465 (`e5fd22ac`) (⚠ playtest open)
+### 🚉 Stations reach 96 + power relays, safe exits and Wild-West jump-off, trains halt centred, wagons look their part, loading story on the black veil, soft distance — #3457–#3464, ✅ 2026-11-10, PR #3465 (`e5fd22ac`), released in v2026.11.16 (⚠ playtest open)
 
 From Lyxette's F1 reports of 2026-11-10 ("48 reicht nicht", "Hinten statt seitwärts aussteigen…", the wish to jump off
 "wie im wilden Westen", "Zug Veränderungen noch nötig?"), Marcel's correction of #3450 (the story belongs on the black screen with the planet name) and
