@@ -11,6 +11,75 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.16] — 2026-11-10
+
+The ride-along release. **Ride on the giants:** land on a sky giant, a leviathan or a sandworm and it carries you
+along — the colossus, the arachnids and the Soundrak shake you off after a few seconds, and all giants move smoothly
+now. **Trains you can really use** (Lyxette's reports): your base's station may be 96 blocks from the foundation stone —
+or anywhere along your chain of power relays — a station beside a village counts for the village and your base, trains
+halt **centred** on the stop post, F puts you on the platform even a step higher, there is no "Stabilisiere Position"
+pause any more, and you can **jump off a moving train** like in the Wild West. Seat, sleeper and bar wagons finally look
+different. Also new: a gentle **soft distance** on worlds with air, and **Justus' story lines** moved to the black
+screen with the planet name, where they belong.
+
+ℹ️ **Compatibility:** no new blocks — the **save version stays at 13** and the **terrain generation stays at 36**, so your
+worlds stay exactly as they are. The network protocol stays at **version 11**, but game and server must be on the same
+version: the desktop game updates itself at start, and the browser is always current.
+
+### 🐋 Ride on the giants (#3466, #3467)
+
+- **Ride along:** land on a giant's back — from a jetpack, a glider or a cliff — and it carries you: you move and turn
+  with it, walk around on it and can even open the inventory up there.
+- **Who carries you:** the **sky giant**, the **leviathan** and the **sandworm** let you stay as long as you like (when a
+  sandworm or a leviathan dives, you drop off). The **colossus**, the **arachnids** and the **Soundrak** shake you off
+  with a jolt after a few seconds — their backs are no hiding place from their own attacks.
+- **Jumping off** a moving giant keeps most of its speed for a moment; a fall from high up hurts as anywhere.
+- **Smooth giants:** giants far away moved in jerks — the sky giant most of all. They now get the same fine-grained
+  movement updates as the animals near you, however far away they are.
+
+### 🚉 Stations, getting off and jumping off (#3457, #3458, #3459, Lyxette's reports)
+
+- **Bigger reach:** a station belongs to your base when it is within **96 blocks** of the foundation stone (was 48) — or
+  within **24 blocks** of a **power relay** of your base's relay chain, so a large spaceport reaches its station.
+- **Beside a village:** a station right next to a village counts for **both** — the village's people keep riding from
+  it, and it is your base's station too, so visitors come by train.
+- **Waiting on the platform:** you count as home for a visitor by train when you are near your base, near one of its
+  relays, or waiting at its station.
+- **Getting off:** **F** puts you on a real standing spot outside the door — on the ground or on a platform up to about
+  a block higher than the wagon floor. **Walking into the door** of a halted train gets you out too. And the
+  "Stabilisiere Position" pause after leaving a train is gone.
+- **Wild-West jump-off:** walk out of the door — or press F — while the train runs, and you leap off with part of its
+  speed and slide a few blocks. The jump itself never hurts.
+- `/bump` reports now show, for every stop, the village and the base it belongs to, and for the nearest base its relays
+  and the distances to the nearest station.
+
+### 🚃 Trains halt centred, wagons look their part (#3463, #3464, Lyxette's report)
+
+- **Centred halts:** a train on autopilot now halts **centred on the stop post**, whichever way it runs — put the post in
+  the middle of your platform and the whole train stands beside it. Near the end of a line it stops just short of the
+  end, so no wagon hangs past it.
+- **Wagons that look their part:** the seat wagon has wooden benches along its walls, the sleeper glowing bunks two high,
+  the bar wagon a wooden floor and its counter. (The furnishing had vanished into the wagon walls.) The aisle stays free,
+  so you still walk through the train from wagon to wagon.
+
+### 🌫️ Soft distance on worlds with air (#3461, #3462)
+
+- **Calmer far away:** on worlds with air, distant block textures soften a little toward their colour inside the haze, so
+  the far landscape stops flickering when you move — on every quality preset, in the browser too, together with
+  *Distance haze & sun rays*.
+- **Soft distance:** on Medium and up (not in the browser) the far part of the haze also gets a very slight blur — the
+  mountains read as far away. It has its own switch, **Settings → Graphics → Soft distance**, and is off with
+  *Reduced effects*.
+- **Always sharp:** the sky, the sun, the stars, the moons and planets above you, rain and snow and the labels over
+  creatures. Airless moons, asteroids and the crystal world stay crisp to the horizon.
+
+### ⏳ The story where it belongs (#3460, Justus' idea)
+
+- **Justus' story lines** now appear on the **black screen with the planet name** while a world starts — in place of
+  "Loading world…": a new line every one and a half seconds, and "You awaken!" the moment the world is ready. Nothing
+  waits for the story. Landings and stations still say "Loading world…" and "Entering station…".
+- The loading-bar screen is back to a plain "Loading…"; in the browser the bar still creeps on while the world starts.
+
 ## [2026.11.15] — 2026-11-10
 
 The rail-travel release. **Villagers ride the train now:** they travel between towns on the intercity line or on your
@@ -10660,7 +10729,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.15...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.16...HEAD
+[2026.11.16]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.15...v2026.11.16
 [2026.11.15]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.14...v2026.11.15
 [2026.11.14]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.13...v2026.11.14
 [2026.11.13]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.12...v2026.11.13
