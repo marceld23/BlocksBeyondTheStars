@@ -13,7 +13,10 @@ namespace BlocksBeyondTheStars.Client
     /// bodies via <see cref="CreatureBuilder"/>, syncing the set each frame. The server is
     /// authoritative over spawns/positions/deaths; positions are interpolated for smoothness and
     /// the player attacks the nearest one with F (PlayerController). Render-only.
+    /// <para>#3467: runs before the player's controller (like the trains, <see cref="TrainView"/>) — a rider on a giant's
+    /// back is carried by the pose the giant has THIS frame.</para>
     /// </summary>
+    [DefaultExecutionOrder(-30)]
     public sealed partial class CreatureView : MonoBehaviour
     {
         public GameBootstrap Game;
@@ -372,7 +375,7 @@ namespace BlocksBeyondTheStars.Client
                     }
                     else if (c.BodyPlan == "Arachnid" || c.BodyPlan == "Soundrak")
                     {
-                        RegisterGiant(c.Id, root); // #2009: solid to bump into and hit on its body, but no footfall shake (#3359: the Soundrak too)
+                        RegisterGiant(c.Id, root, c.BodyPlan); // #2009: solid to bump into and hit on its body, but no footfall shake (#3359: the Soundrak too)
                     }
                 }
 
@@ -1059,11 +1062,33 @@ namespace BlocksBeyondTheStars.Client
             return any;
         }
 
-        private static void RegisterGiant(string id, GameObject root)
+        /// <summary>#3467: a giant's body plan and its root, by creature id — what a rider on its back needs (who shakes them
+        /// off, which way off).</summary>
+        private static readonly Dictionary<string, (string Plan, Transform Root)> GiantInfo = new Dictionary<string, (string, Transform)>();
+
+        /// <summary>#3467: the colliders of a giant (empty when unknown).</summary>
+        public static Collider[] GiantCollidersFor(string id)
+            => id != null && GiantColliderSets.TryGetValue(id, out var set) ? set : System.Array.Empty<Collider>();
+
+        /// <summary>#3467: a giant's body plan ("SkyGiant", "Colossus", …) and its root transform; null when unknown.</summary>
+        public static string GiantPlanFor(string id, out Transform root)
+        {
+            if (id != null && GiantInfo.TryGetValue(id, out var info) && info.Root != null)
+            {
+                root = info.Root;
+                return info.Plan;
+            }
+
+            root = null;
+            return null;
+        }
+
+        private static void RegisterGiant(string id, GameObject root, string plan)
         {
             UnregisterGiant(id);
             var set = root.GetComponentsInChildren<Collider>(true);
             GiantColliderSets[id] = set;
+            GiantInfo[id] = (plan ?? string.Empty, root.transform);
             foreach (var col in set)
             {
                 GiantColliderIds[col] = id;
@@ -1086,6 +1111,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             GiantColliderSets.Remove(id);
+            GiantInfo.Remove(id);
         }
 
         private WeaponFx _fx;
@@ -1102,7 +1128,7 @@ namespace BlocksBeyondTheStars.Client
         /// a ground shake.</summary>
         private void SetUpGiant(Entry entry, NetCreature c)
         {
-            RegisterGiant(c.Id, entry.Root);
+            RegisterGiant(c.Id, entry.Root, c.BodyPlan);
             entry.Worm = entry.Root.GetComponent<SandwormView>();
             entry.Sky = entry.Root.GetComponent<SkyGiantView>();
             if (entry.Animator != null)

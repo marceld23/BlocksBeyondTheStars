@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
@@ -67,7 +68,7 @@ public sealed partial class GameServer
 {
     /// <summary>How far around a player the 7.5 Hz creature motion stream reaches (blocks). Farther animals ride the 2 Hz list.
     /// 64 since #3207 (the game's one design radius; the client's compass radar shows the same circle) — inside the 70-block
-    /// creature leash, so every animal it names exists.</summary>
+    /// creature leash, so every animal it names exists. Giants are always in the stream (#3466).</summary>
     internal const float CreatureMotionRange = 64f;
 
     /// <summary>The motion stream's beat (seconds): every second tick at the default 15 Hz.</summary>
@@ -135,7 +136,7 @@ public sealed partial class GameServer
             _motionDataScratch.Clear();
             foreach (var c in _creatures)
             {
-                if (WrapDistSq(session.State.Position, c.Position) > rangeSq)
+                if (!InCreatureMotionStream(session, c, rangeSq))
                 {
                     continue;
                 }
@@ -168,6 +169,18 @@ public sealed partial class GameServer
             CreatureMotionFramesSent++;
         }
     }
+
+    /// <summary>Whether a creature is in a player's 7.5 Hz motion stream: within <see cref="CreatureMotionRange"/> — and a giant
+    /// always (#3466: the sky giant flies 120–200 blocks off and is 60–120 blocks long, so measured to its head it kept leaving
+    /// and re-entering the radius, and every switch to the 2 Hz list ran the client's interpolation dry — a stutter along the
+    /// whole body; a world holds a handful of giants at most).</summary>
+    private bool InCreatureMotionStream(PlayerSession session, CombatEntity c, double rangeSq)
+        => c.Giant is not null || WrapDistSq(session.State.Position, c.Position) <= rangeSq;
+
+    /// <summary>Test seam (#3466): whether a creature is in a player's 7.5 Hz motion stream right now.</summary>
+    internal bool InCreatureMotionStreamForTest(string playerId, string creatureId)
+        => FindSessionByPlayerId(playerId) is { } s && _creatures.FirstOrDefault(c => c.Id == creatureId) is { } c
+           && InCreatureMotionStream(s, c, (double)CreatureMotionRange * CreatureMotionRange);
 
     /// <summary>The heading a creature is drawn with when it stands (radians, dirX = cos, dirZ = sin): a giant's own, else
     /// the locomotion heading.</summary>

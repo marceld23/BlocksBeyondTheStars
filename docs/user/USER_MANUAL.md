@@ -4057,6 +4057,13 @@ controls line at the bottom leaves out the quick-bar keys.
   over the gas, wandering to a new spot every couple of minutes, and calls now and then. It is **passive**: it never lands,
   never strikes and eats nobody — a spectacle. You can still fight it (it is always in the open; hit it anywhere along the
   body); a hit only makes it climb out of reach for a while.
+- **Riding a giant.** Land on a giant's back — from a jetpack, a glider or a cliff — and it **carries you along**: you
+  move and turn with it and can walk around on it. The **sky giant**, the **leviathan** and the **sandworm** let you
+  stay as long as you like (when a sandworm or a leviathan dives, you drop off — a leviathan into the sea, a sandworm
+  onto the sand). The **colossus**, the **arachnids** and the **Soundrak** do not put up with you: after a few
+  seconds they shake you off with a jolt. Jumping or walking off a moving giant keeps most of its speed for a moment;
+  a fall from high up hurts as anywhere. (Other players may see you slide a little on the giant — that is only how
+  they see it.) All giants move smoothly now, however far away they are.
 - A defeated giant is gone for a few in-game days, then another one comes. None of them ever changes a block.
 
 ### Taming creatures (companions)

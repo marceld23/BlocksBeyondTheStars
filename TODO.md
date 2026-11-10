@@ -24,7 +24,26 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🚉 Stations reach 96 + power relays, safe exits and Wild-West jump-off, trains halt centred, wagons look their part, loading story on the black veil, soft distance — #3457–#3464, ✅ 2026-11-10, PR pending (⚠ playtest open)
+### 🐋 Giants move smoothly and can be ridden — #3466–#3467, ✅ 2026-11-10, PR pending (⚠ playtest open)
+
+From Marcel's play on a gas giant: the sky giant stuttered, and a player who landed on its back fell off at once.
+
+- **#3466 giants always in the 7.5 Hz motion stream** — the stream only carried creatures within 64 blocks of the player,
+  measured to a giant's head; the sky giant (120–200 blocks off, 60–120 long) rode the 2 Hz list and kept switching, and
+  every switch ran `MotionInterpolator` dry (a stutter down the whole follow-the-leader body). `InCreatureMotionStream`:
+  a giant is always in (a world holds a handful). Test in `GiantServerTests`.
+- **#3467 riding a giant's back** — `PlayerController.GiantRide.cs`: the body part stood on (a sphere cast under the feet
+  against the giants' layer) carries the player by its pose change, position and yaw (`GiantRideRules.Carry`,
+  Client.Core); the view turns along; the poses of all the giant's parts are kept, so walking along the body carries on;
+  `Physics.SyncTransforms` before the carry and `CreatureView` now runs before the controller (`DefaultExecutionOrder(-30)`,
+  like `TrainView`). Leaving in mid-air keeps 80 % of the giant's speed (cap 12); the sky giant, the leviathan and the
+  sandworm carry a rider indefinitely (a dive drops them), the colossus, the arachnid and the Soundrak shake a rider off
+  after 4 s (a push out and a hop; a hop on its back does not restart the clock). Not by parenting like the train (#2113):
+  the segments are rescaled every frame. Nothing on the wire — other players may see a rider slip a little (accepted).
+  Tests `GiantRideRulesTests`. Docs: USER_MANUAL (Giants). Playtest: ride the sky giant (`/giant sky`), jump off, walk
+  along it; a colossus shakes you off; a sandworm dives under you.
+
+### 🚉 Stations reach 96 + power relays, safe exits and Wild-West jump-off, trains halt centred, wagons look their part, loading story on the black veil, soft distance — #3457–#3464, ✅ 2026-11-10, PR #3465 (`e5fd22ac`) (⚠ playtest open)
 
 From Lyxette's F1 reports of 2026-11-10 ("48 reicht nicht", "Hinten statt seitwärts aussteigen…", the wish to jump off
 "wie im wilden Westen", "Zug Veränderungen noch nötig?"), Marcel's correction of #3450 (the story belongs on the black screen with the planet name) and

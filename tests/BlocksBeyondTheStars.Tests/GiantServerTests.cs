@@ -97,6 +97,31 @@ public sealed class GiantServerTests : IDisposable
     }
 
     [Fact]
+    public void AFarGiant_IsAlwaysInTheMotionStream_AnOrdinaryAnimalOnlyNearby()
+    {
+        // #3466: the colossus stands 120–220 blocks off — far past the stream's 64 blocks — and still gets the 7.5 Hz frames,
+        // so its motion never drops to the 2 Hz list (the switches made the giants stutter).
+        var server = Started("salt_flats", out var repo);
+        using (repo)
+        {
+            var p = OnFoot(server, 0, 0);
+            server.SummonGiantForTest("Justus", "colossus");
+            var giant = Assert.Single(server.GiantsForTest(), g => g.Kind == CreatureBodyPlan.Colossus);
+            float dx = giant.Position.X - p.State.Position.X, dz = giant.Position.Z - p.State.Position.Z;
+            Assert.True((dx * dx) + (dz * dz) > 100f * 100f);
+            Assert.True(server.InCreatureMotionStreamForTest("Justus", giant.Id));
+
+            var animal = server.Creatures.FirstOrDefault(c => !c.IsGiant);
+            if (animal is not null)
+            {
+                float ax = animal.Position.X - p.State.Position.X, az = animal.Position.Z - p.State.Position.Z;
+                bool near = (ax * ax) + (az * az) <= 64f * 64f;
+                Assert.Equal(near, server.InCreatureMotionStreamForTest("Justus", animal.Id));
+            }
+        }
+    }
+
+    [Fact]
     public void Colossus_Stomp_HurtsAPlayerInReach_ButNotOneUnderARoof()
     {
         foreach (bool roof in new[] { false, true })
