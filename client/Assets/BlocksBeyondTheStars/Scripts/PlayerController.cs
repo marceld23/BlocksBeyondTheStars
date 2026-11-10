@@ -479,6 +479,7 @@ namespace BlocksBeyondTheStars.Client
                 UpdateJetpack(false);
                 if (string.IsNullOrEmpty(Game.InSpeeder) && _seatCell is null && _restCell is null)
                 {
+                    StepGiantRide(); // #3467: a giant's back keeps carrying you while the inventory is open
                     ApplyGravityOnly(); // seated: the controller is disabled and the chair holds us anyway; resting: we stand still
                 }
 
@@ -736,6 +737,7 @@ namespace BlocksBeyondTheStars.Client
 
             UpdateLamp();
             HandleHotbar();
+            StepGiantRide(); // #3467: standing on a giant's back, it carries you along
             LookAround();
             Move();
             UpdateCameraFeel();
