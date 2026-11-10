@@ -26,6 +26,15 @@ Shader "BlocksBeyondTheStars/Particle"
 
         Pass
         {
+            // #3462: stencil bit 64 = "keep sharp" — the soft distance's composite (DistanceSoft.shader) reads its depth from
+            // the opaque scene, so a particle or label in front of far hills would be blurred with them; marked, it is not.
+            Stencil
+            {
+                Ref 64
+                WriteMask 64
+                Comp Always
+                Pass Replace
+            }
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag

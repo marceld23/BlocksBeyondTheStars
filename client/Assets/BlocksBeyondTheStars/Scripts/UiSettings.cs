@@ -155,6 +155,12 @@ namespace BlocksBeyondTheStars.Client
             Toggle(ref y, L("ui.settings.lens_flare"), S.LensFlare, () => { S.LensFlare = !S.LensFlare; ApplyLiveWorld(); Rebuild(); });
             Toggle(ref y, L("ui.settings.motion_blur"), S.MotionBlur, () => { S.MotionBlur = !S.MotionBlur; ApplyLiveWorld(); Rebuild(); });
             Toggle(ref y, L("ui.settings.distance_haze"), S.DistanceHaze, () => { S.DistanceHaze = !S.DistanceHaze; ApplyLiveWorld(); Rebuild(); });
+            // #3462: the soft distance on worlds with air — Medium+ on a desktop client; the browser never runs it, so no row.
+            if (!ClientSettings.FarViewLightDevice)
+            {
+                Toggle(ref y, L("ui.settings.distance_softness"), S.DistanceSoftness, () => { S.DistanceSoftness = !S.DistanceSoftness; ApplyLiveWorld(); Rebuild(); });
+            }
+
             // #3121: the grass tufts on natural ground — a builder keeping a garden or a field tidy switches them off.
             Toggle(ref y, L("ui.settings.ground_details"), S.GroundDetails, () => { S.GroundDetails = !S.GroundDetails; S.Apply(); Rebuild(); });
 
@@ -715,6 +721,8 @@ namespace BlocksBeyondTheStars.Client
                 sky.WetSurfacesEnabled = S.AtmosphereEffect(S.WetSurfaces, cheap: true);
                 sky.UnderwaterEnabled = S.AtmosphereEffect(S.Underwater, cheap: true);
                 sky.DarkVisibility = S.DarkVisibility; // #3265
+                sky.DistanceSoftEnabled = DistanceSoftView.EnabledFor(S); // #3462
+                sky.ReducedEffects = S.ReducedEffects;
             }
 
             var probe = FindAnyObjectByType<AtmosphereProbe>();

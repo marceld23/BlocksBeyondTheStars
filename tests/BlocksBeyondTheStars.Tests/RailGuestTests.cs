@@ -256,6 +256,11 @@ public sealed class RailGuestTests
         var places = line.GetProperty("stops").EnumerateArray().Select(s => s.GetProperty("place").GetString()).ToList();
         Assert.Contains("Westdorf", places);
         Assert.Contains("Ostdorf", places);
+
+        // #3457: both towns' stops lie within 96 blocks of the core — the base's too; and the stop nearest the core is
+        // described with its distances.
+        string baseName = a.Server.BaseSnapshots.Single(b => b.Id == a.W.BaseId).Name;
+        Assert.All(line.GetProperty("stops").EnumerateArray(), s => Assert.Equal(baseName, s.GetProperty("alsoBase").GetString()));
         var train = root.GetProperty("trains").EnumerateArray().Single();
         Assert.Equal(a.TrainId, train.GetProperty("id").GetString());
         Assert.True(train.GetProperty("takesPassengers").GetBoolean());
@@ -265,5 +270,9 @@ public sealed class RailGuestTests
         var nearest = root.GetProperty("nearestBase");
         Assert.Equal(a.W.BaseId, nearest.GetProperty("id").GetInt32());
         Assert.Single(nearest.GetProperty("guests").EnumerateArray());
+        Assert.Equal(0, nearest.GetProperty("relays").GetInt32());
+        var stop = nearest.GetProperty("nearestStop");
+        Assert.InRange(stop.GetProperty("coreDistance").GetDouble(), 25.0, 35.0);
+        Assert.Equal(2, stop.GetProperty("places").GetArrayLength()); // the town's and the base's
     }
 }

@@ -47,9 +47,10 @@ public sealed partial class GameServer
     /// <summary>Test seam (#3446): the planner starts no trips on its own while paused (a test starts the one it follows).</summary>
     public void PauseRailTripPlannerForTest(bool paused = true) => _railTripPlannerPaused = paused;
 
-    /// <summary>Test seam (#3446): the place a stop belongs to — its name and "settlement" / "base" — or null.</summary>
+    /// <summary>Test seam (#3446): the first place a stop belongs to (the town's before a base's, #3457) — its name and
+    /// "settlement" / "base" — or null.</summary>
     public (string Name, string Kind)? RailPlaceForTest(Vector3i stop)
-        => RailPlaceAt(stop) is { } p ? (p.Name, p.Base is null ? "settlement" : "base") : null;
+        => RailPlacesAt(stop).FirstOrDefault() is { } p ? (p.Name, p.Base is null ? "settlement" : "base") : null;
 
     /// <summary>Test seam (#3446): whether a villager may go on a train trip right now.</summary>
     public bool MayTravelByRailForTest(int npcId) => NpcWithId(npcId) is { } n && MayTravelByRail(n);

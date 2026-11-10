@@ -24,6 +24,74 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🚉 Stations reach 96 + power relays, safe exits and Wild-West jump-off, trains halt centred, wagons look their part, loading story on the black veil, soft distance — #3457–#3464, ✅ 2026-11-10, PR pending (⚠ playtest open)
+
+From Lyxette's F1 reports of 2026-11-10 ("48 reicht nicht", "Hinten statt seitwärts aussteigen…", the wish to jump off
+"wie im wilden Westen", "Zug Veränderungen noch nötig?"), Marcel's correction of #3450 (the story belongs on the black screen with the planet name) and
+his distance-blur analysis (variants A and B, barely noticeable, sky always sharp, airless worlds crisp).
+
+- **#3457 a stop belongs to a base within 96 of its core or 24 of its power-relay chain** — `GameServerRailBaseReach.cs`:
+  `RailPlacesAt` gives a stop up to two places (the town's — intercity station / box + 12 — **and** a base's); core reach
+  48 → 96, plus the sentries' relay chain (`WalkPowerChain`, shared with `FindSentryCells`; the rail reads it with
+  no-load block reads only while the owner is on the body, cached per base, dropped by the sentries' block hook, an
+  incomplete walk retried after 30 s). `RailTripPairs` and the guest routes never pair a stop with itself; the owner
+  counts as home for a train guest within 96 + 24 of the core, 24 of a chained relay or 24 of one of the base's stops
+  (`OwnerNearBaseForTrainGuest`). Bump snapshot: `alsoBase` per stop, the nearest base's relay count / chain complete /
+  nearest stop with core and relay distance and its places. Lyxette's station 78.5 blocks from the core beside Ysel Glen
+  is now his base's stop as well (his train still needs a seat, sleeper or bar wagon for villagers and guests).
+- **#3458 leaving a train** — F (`LeaveTrain` → `RailExitSpot`, `GameServerRailExits.cs`) sets the rider down on a real
+  standing spot outside the door (halt stop's side first, else the rider's; 2.3/3.1 out; feet from one below to two above
+  the hovering floor; then the other side; a ring farther out — never behind the train; the old point last; a framed
+  move arriving after the set-down is dropped) — a platform step works. Client: the
+  set-down arrives as `TrainExitTarget` (no settle freeze, no "Stabilisiere Position"), a walk-off keeps its own spot
+  within 1.5 blocks of the server's (+ the wagon's speed × 0.5 s for a jump; `TrainExitRules.SnapToServer`, Client.Core);
+  pressing outward into the door of a halted train for 0.2 s while stuck there leaves (`PlayerTrainRider.StepDoorExit`,
+  `TrainExitRules.Stalled`).
+- **#3459 Wild-West jump-off** — walking out of (or F on) a moving train keeps half the wagon's measured velocity (cap 12
+  b/s) plus a hop of 4 (`TrainExitRules.JumpPush` → `ApplyKnock`); F steps out of the nearest free door first
+  (`TryJumpOffMoving`). Damage only from the drop, as anywhere.
+- **#3463 the autopilot halts the whole train centred on the stop** — the halt point is the train's middle
+  (`RailRules.MiddleArc` / `ArcForMiddleAt`, server `HaltPointArc`), whichever way it runs; on an open line the middle
+  stays half the train plus half a wagon in from the ends (`RailRules.HaltMiddleArc`, `StopHaltArc`), so a stop near a
+  dead end — the intercity station's included — holds the whole train beside it. Braking targets and the last-stop
+  bookkeeping use the same arc; the "turn round while standing" rule now fires below two wagon lengths to the end (the
+  centred train stands half its length nearer the end). Tests `RailCentredHaltTests`, rules in `RailRulesTrainMotionTests`.
+- **#3464 seat, sleeper and bar wagons look their part** — the benches, bunks and counter were the wall panel set into
+  the side-wall cells of the 3-wide wagon (they vanished into the wall; the bar's counter blocked the walk-way). Now
+  `TrainView.DressWagon`: light wooden benches (`wood_planks_light`), glowing bunks two high (`crew_bunk`) with pale
+  berth panels (`lab_panel`), a bar with a mahogany floor and its counter (`shop_counter`) along both walls — existing
+  blocks only (no block-id shift); the middle column stays free.
+- **#3460 loading story on the black world-entry veil** (follow-up to #3450, which put it on the bar screen) — the story
+  line replaces "Lade Welt…" in the veil footer's slot (22 pt) on the initial entry only (`WorldLoadingOverlay.StepStory`,
+  unscaled time): line 1 with the veil, the next every 1.5 s up to line 5, "Du erwachst!" (cyan) the moment the world is
+  ready — no artificial waiting; landings, station boarding and ship entry keep "Lade Welt…"/"Betrete Station…".
+  `LoadingLore.LineFor(ready, shown, seconds)` replaces the bar bands; `UiLoading` back to its pre-11.15 state ("Lädt…"),
+  `AppShell.LoadingHandingOff` removed, the browser bar creep kept.
+- **#3461 distance softness A** — on worlds with air (`AtmosphereDensity > 0`: moons, asteroids, void and the crystal world
+  stay crisp) `BlockAtlas` fades each texel toward its tile's average colour along the distance veil (one LOD read at the
+  atlas mip with one texel per tile, `_Sc_DistSoft.w`; cutout tiles divided by their alpha; alpha untouched, so distant
+  trees keep their leaves), and the normal map and relief calm by the same share. Strength ≈ 0.25–0.35, on every preset
+  and in the browser, rides on "Distance haze & sun rays". Rules in `DistanceSoftLook` (Client.Core), global
+  `_Sc_DistSoft` from `Sky.Mist.ApplyDistanceSoft` (zeroed indoors, under water, without air, by `ClearMist`).
+- **#3462 distance softness B "Soft distance"** — `DistanceSoftPass` (render graph, `DistanceSoftView` enqueues it on the
+  world cameras at `BeforeRenderingPostProcessing`): quarter-res depth-aware downsample with distance, 7-tap blur H/V,
+  composite `blend × smoothstep(band start ≈ 40 % of the haze range, haze end)` with blend ≈ 0.4–0.5. Far-plane pixels
+  untouched; the surface-sky moons and planets (`SkyBodyPhase`) — and the particles (`Particle`, `ParticleAlpha`: rain,
+  snow, sparks) and world-space labels (`WorldText`), whose depth reads the hills behind them — write stencil bit 64
+  and the composite skips them; the downsample is depth-aware (no sky colour in ridgeline texels). The blur fades out
+  underground only (`AtmosphereProbe.UndergroundFactor`), not under a tree crown.
+  Cost: ~0.9 ms GPU at half res (PerfProbe High 1080p) → quarter res + eye-depth early out, now within run-to-run noise.
+  Medium+ desktop only (no row in the browser), off with Reduced effects / haze off / flight view; own switch
+  `ui.settings.distance_softness` ("Weiche Ferne" / "Soft distance") in all 14 languages, on by default (the atmosphere
+  mode does not touch it — the row sits in the general graphics list).
+  `DistanceSoft.shader` always-included + prewarmed (desktop).
+- Tests: `RailBaseReachTests`, `RailExitTests`, `TrainExitRulesTests`, `LoadingLoreTests` (rewritten),
+  `DistanceSoftLookTests`, the bump snapshot assertions in `RailGuestTests`, text-fit lines for the veil footer and the
+  new settings label. Docs: USER_MANUAL, MONORAIL.md, VILLAGE_LIFE.md, ADVANCED_GRAPHICS.md, PROFESSIONAL_LOOK_GAP_ANALYSIS.md
+  (G3). Playtest: guest by train at a station beside a village with a seat wagon; F at a 1-block platform step; walking
+  out of a halted train's door; jumping off at 16 and 24 b/s; a new SP world's story on the black veil; swamp/desert/moon/
+  crystal before/after with the soft distance, moons at night sharp, a forest far away keeps its leaves.
+
 ### 🚆 Rail travel, faster trains, Soaniri in blue/green, no wild animals in towns, loading-screen story — #3444–#3450, #3453, ✅ 2026-11-10, PR #3454 (`94f0915a`), released in v2026.11.15 (⚠ playtest open)
 
 From Lyxette's F1 report "Zug Schnelligkeit?" (2026-11-09: the train too slow for far cities; visiting settlers should come

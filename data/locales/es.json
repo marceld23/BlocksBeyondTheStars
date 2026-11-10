@@ -3221,6 +3221,7 @@
   "ui.settings.lens_flare": "Destello de lente",
   "ui.settings.motion_blur": "Desenfoque de movimiento (vuelo)",
   "ui.settings.distance_haze": "Bruma lejana y rayos de sol",
+  "ui.settings.distance_softness": "Lejanía suave",
   "ui.settings.ground_details": "Detalles del suelo (matas de hierba)",
   "ui.settings.atmosphere": "Efectos de atmósfera",
   "ui.settings.atmosphere.off": "Apagado",

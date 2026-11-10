@@ -218,15 +218,33 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float2 dUx = ddx(i.uv);
                 float2 dUy = ddy(i.uv);
                 float2 uv = i.uv;
-                if (_Sc_Relief > 0.5 && i.skyl.z > 0.004)
+                // #3461: inside the distance haze (worlds with air only) the texture detail softens — 0 nearby and on
+                // airless worlds. The relief and the normal map calm down by the same share.
+                float soft = BbtsDistSoftTexture(i.wp);
+                float relief = i.skyl.z * (1.0 - soft);
+                if (_Sc_Relief > 0.5 && relief > 0.004)
                 {
-                    uv = BbtsReliefUv(i.uv, dUx, dUy, i.wn, i.wt, i.wp, i.skyl.z);
+                    uv = BbtsReliefUv(i.uv, dUx, dUy, i.wn, i.wt, i.wp, relief);
                 }
 
                 float4 texel = SAMPLE_TEXTURE2D_GRAD(_MainTex, sampler_MainTex, uv, dUx, dUy);
                 if (i.leaf.x > 0.5)
                 {
                     clip(texel.a - _LeafCutoff);
+                }
+
+                if (soft > 0.001)
+                {
+                    // #3461: fade toward the tile's average colour instead of a coarser mip: the point-filtered mips would
+                    // only move their hard bands closer, and the cutout leaves would lose coverage. The atlas holds 32 × 32
+                    // tiles of 64 px, so one mip (6, or 5 under Potato's halving mip limit — Sky sends it in
+                    // _Sc_DistSoft.w) has exactly one texel per tile: its average, nothing of the neighbour bled in. A
+                    // cutout tile's holes are black (the alpha bake cuts a dark ground), so its mean is divided by its
+                    // alpha to get the leaves' own colour. The alpha stays untouched — distant trees keep their leaves.
+                    float2 cellUv = (floor(uv * 32.0) + 0.5) / 32.0;
+                    float4 mean = SAMPLE_TEXTURE2D_LOD(_MainTex, sampler_MainTex, cellUv, _Sc_DistSoft.w);
+                    float3 meanRgb = i.leaf.x > 0.5 ? saturate(mean.rgb / max(mean.a, 0.25)) : mean.rgb;
+                    texel.rgb = lerp(texel.rgb, meanRgb, soft);
                 }
 
                 float3 albedo = texel.rgb;
@@ -275,6 +293,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float3 B = normalize(cross(gN, T) * i.wt.w);
                 float4 nrm = SAMPLE_TEXTURE2D_GRAD(_NormalTex, sampler_NormalTex, uv, dUx, dUy);
                 float3 tn = nrm.xyz * 2.0 - 1.0;
+                tn.xy *= 1.0 - soft; // #3461: the relief light calms with the texture detail inside the haze
                 float3 N = normalize(tn.x * T + tn.y * B + tn.z * gN);
 
                 float3 L = normalize(_Sc_SunDir.xyz);

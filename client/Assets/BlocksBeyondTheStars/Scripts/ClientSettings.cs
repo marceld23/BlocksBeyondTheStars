@@ -306,6 +306,12 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#3273: soft fog banks hanging in the air over the valleys (a few large cards). Low and up (Potato and the
         /// browser get none), budgeted by preset.</summary>
         public bool FogBanks = true;
+        /// <summary>#3462: "Soft distance" — on worlds with air a barely noticeable blur softens the far third of the
+        /// distance haze (sky, sun, moons and planets stay sharp). Medium and up on a desktop client (never in the browser),
+        /// off with Reduced effects or the distance haze off (<see cref="DistanceSoftView.EnabledFor"/>). The texture
+        /// softening inside the haze (#3461) rides on <see cref="DistanceHaze"/> instead. An older settings file lacks the
+        /// field and reads on.</summary>
+        public bool DistanceSoftness = true;
 
         /// <summary>Whether an atmosphere effect runs: its own switch, and — unless it is one of the cheap ones — a
         /// preset of Medium or better.</summary>

@@ -15,7 +15,9 @@ Unity-free in `Shared`.
   motion — `TrainSpan`, `CabRange` (where the cab's arc may run so every wagon stays on an open line), `Advance` (runs
   the arc; a loop wraps, an open line bounces off the range's ends — only the direction flips, the rest of the step runs
   back, the arc never jumps), `LeadArc` / `ArcForLeadAt` (the leading wagon: the cab when the train runs the way it
-  faces, the last wagon when it runs backwards) and `PoseFacing` (an older server's facing is its direction) —
+  faces, the last wagon when it runs backwards — the halt point until #3463), `MiddleArc` / `ArcForMiddleAt` /
+  `HaltMiddleArc` (#3463: the train's middle, the arc it halts at for a stop, held half the train plus half a wagon in
+  from an open line's ends) and `PoseFacing` (an older server's facing is its direction) —
   `LocalToWorld` / `WorldToLocal` (the frame: local X across, Y up from the floor, Z toward
   the cab; heading = radians about +Y, forward (cos, 0, sin), right (sin, 0, −cos)) and `FrameId` (`train:wagon`).
 - `Shared/Definitions/RailSpline.cs` — a Catmull-Rom spline through the pylon tops with an arc-length table, the
@@ -70,8 +72,11 @@ clears it), `NetNpc.FrameId/LocalX/Y/Z/LocalYaw` (#3445: an NPC passenger, see *
   jump (#2741 — the old reversal re-seated the arc by the train's length, swapped the wagons round and turned each by
   180°, so a rider on the rear bench jumped ~11 m). On one leg the cab therefore pushes from the back (there is no
   jump-free reversal that keeps the cab in front on a line without a loop). A loop wraps. The autopilot halts at a stop
-  the **leading wagon** crossed this tick (`Crossed`, wrap-aware; a reversal splits the tick into the run to the end
-  and the run back) with that wagon at the stop, for `StopHaltSeconds`, once per stop until it is clear of it; a stop
+  the train's **middle** crossed this tick (#3463, Lyxette: "put the post at the end of the station and the train is
+  all in or all out by its direction; in the middle it only ever pulls in halfway" — until then it was the leading
+  wagon; `HaltPointArc`, `StopHaltArc`; `Crossed`, wrap-aware; a reversal splits the tick into the run to the end and
+  the run back) and centres the train on the stop (never so near an open line's end that a wagon hangs past it), for
+  `StopHaltSeconds`, once per stop until it is clear of it; a stop
   within a wagon's length of the dead end ahead turns the train round while it stands. A coupled wagon or a shortened
   line brings the arc back into the cab's range (`ClampTrainArc`). The save record appends the facing (an older record
   faces its direction) and then the passenger switch (#3446; an older record takes passengers);
@@ -89,6 +94,27 @@ clears it), `NetNpc.FrameId/LocalX/Y/Z/LocalYaw` (#3445: an NPC passenger, see *
   position from the wagon pose it drives, so streaming, creatures, air, pickups and everything else keep their world
   coordinates. `HandleFallDamage` ignores a rider. Death and a join clear the bond (`LeaveTrainSilently`); leaving by
   the door sets the rider down beside the wagon (`LeaveTrain`). The presence carries the frame and the offset.
+- **Leaving (#3458/#3459).** The wagon floor hovers `LineRise + HoverHeight` = 1.7 over the pylon's top cell — off the
+  block grid — and the door (grid z 2..3, wagon-local z −1…+1) is two blocks high, so a platform one block above the
+  floor a player sees (1.3 up) could neither be stepped nor jumped onto. **F** (`LeaveTrain` → `RailExitSpot`,
+  `GameServerRailExits.cs`) now searches a standing cell (`StandableAt`, support + two cells of headroom, no-load reads)
+  outside the door: the halt stop's side first (read in the line's frame at the stop, so a rear wagon on a curve agrees;
+  else the rider's), 2.3 then 3.1 out, along the door, feet from one below to two above the floor (nearest the floor
+  first); then the other side; then a ring 4.1 out on either side — never behind the train, on the line's axis, where
+  the wagons would run into the rider; today's `ExitSide` point last. A framed move that reaches the server after the
+  set-down (still in flight when F was handled) is dropped in `HandleFramedMove` — its wagon-local numbers would read as a
+  world position near the origin; the client also holds its framed reports for 1.5 s after asking to leave
+  (`PlayerTrainRider.RequestExit`). The client never holds a train exit in the settle freeze: the set-down arrives as
+  `GameBootstrap.TrainExitTarget` (not `RespawnTarget`), a walk-off keeps its own spot when the server's lies within
+  1.5 blocks of where it stepped off (plus the wagon's speed × 0.5 s for a jump), an F set-down is a plain move
+  (`TrainExitRules.SnapToServer`, Client.Core). Pressing outward into the door of a **halted** train for 0.2 s — stuck
+  there, not walking out (`TrainExitRules.Stalled`: outward progress under 0.5 b/s) — sends the exit
+  (`PlayerTrainRider.StepDoorExit`, `TrainExitRules.PressingIntoDoor`). Off a **moving** train a walk-off is a jump:
+  `ApplyKnock(wagon velocity × 0.5, capped at 12, + a hop of 4)` (`TrainExitRules.JumpPush`; the wagon's velocity is
+  measured from its own motion over real time, restarted after a gap of more than 0.25 s and on boarding); **F** while
+  it moves steps the body just outside the nearest free door and walks off from there (`TryJumpOffMoving` — both doors
+  blocked → the plain exit). The server has no move-speed check, and fall damage counts the vertical landing speed only,
+  so the leap itself never hurts.
 - **Dealer.** `NpcProfessions`: `rail_dealer` (vendor, theme `rails`, post `rail_post`, building function `depot` —
   a new `StructureRoles` plot role); its building `village_depot_1` / `town_depot_1` (+ `_alien`) is a copy of the
   blockfarmer's quarry with the post marker swapped, optional in every modular settlement kit like every profession's;
@@ -151,7 +177,7 @@ walking) made them a chore. Modelled on the lift's `LiftMotion` (#3204, ADR 0014
   `ServiceBrake` (8 blocks/s²), never below 0. The limit is the lowest of
   - the **top speed**;
   - the **leg's cruise** `CruiseSpeed = clamp(leg / LegSeconds (6 s), MinCruise (4), top)`. The leg is the distance from
-    the target behind the leading wagon to the target ahead of it: on autopilot the stops, on an open line also the ends
+    the target behind the train's halt point (its middle, #3463) to the target ahead of it: on autopilot the stops, on an open line also the ends
     of the cab's range. The stop it last halted at (or passed, below) is no target while it still lies ahead; on a
     **loop** it is the target one lap ahead once the train is level with it or past it (`StopTargetDistance`) — so a loop
     with a single stop cruises by the loop's length from the first block after the halt (it used to have no target for a
@@ -196,7 +222,8 @@ walking) made them a chore. Modelled on the lift's `LiftMotion` (#3204, ADR 0014
     | up and down 10 blocks per 16-block span (a sharp crest) | 5.5 / 5.5 | 9.7 / 9.7 |
 - **Server** (`GameServerRailMotion.cs`). `ServerTrain.Velocity` is RAM only — no save change; a loaded train starts
   from rest. `RunTrain` → `TrainRunDistance` (`TrainTargets`, `TrainCurveLimit`, the new speed; the last step onto a
-  stop it halts at is cut to land the leading wagon on it, so `HaltAtCrossedStop`'s snap is ~0.001 blocks) →
+  stop it halts at is cut to land the train's middle on its halt arc — #3463; the leading wagon before — so
+  `HaltAtCrossedStop`'s snap is ~0.001 blocks) →
   `RailRules.Advance` → `HaltAtStopsReached` (the autopilot's stop check, the reversal split as before). A halt — at a
   stop or the driver's — zeroes the speed (the driver's halt is an instant stop); a reversal at an open line's end too
   (it braked into the end and sets off the other way from rest). `DepartTrain` starts from rest and keeps the stop the
@@ -280,11 +307,19 @@ the route search — the streaming radius + two chunks), while trains run on the
 **virtual out of reach** (timers) and **visible in reach** (walked); riding needs neither (a passenger goes where its
 train goes). Server: `GameServerRailTrips.cs`; test seams `GameServerRailTravelSeams.cs`.
 
-- **Places** (`RailPlaceAt`): an intercity station's stop → its town (`IntercityStation.SettlementName`); any other stop →
-  the settlement whose box holds it or lies within **12** blocks of it (the nearest centre wins), else a player base whose
-  core lies within **48** blocks horizontally (±24 up/down; `RailStopBaseReach` — the base stop's guest then walks at most
-  ~72 blocks to an owner near the core, which the guest script's re-targeting and "waiting outside" cover). A trip runs
-  between two stops of **different** places on the **same line** (no switches, no routing).
+- **Places** (`RailPlacesAt`, `GameServerRailBaseReach.cs`): a stop has **up to two** places (#3457). The town's
+  (`RailTownAt`): an intercity station's stop → its town (`IntercityStation.SettlementName`); any other stop → the
+  settlement whose box holds it or lies within **12** blocks of it (the nearest centre wins). The base's (`RailBaseAt`):
+  the nearest player base on this body whose core lies within **96** blocks horizontally (`RailStopBaseReach`) or one of
+  whose chained **power relays** lies within **24** (`RailStopRelayReach`), both ±24 up/down. The relay chain is the
+  sentries' (`WalkPowerChain`: from the core, every `power_relay` in the 17³ zone cube of the core or a chained relay, at
+  most 64), read with no-load block reads (`loadedOnly` — base builds are anchored, #3211) only while the owner is on
+  the base's body, cached per base (`BaseRelayCells`) and dropped by the sentries' block hook (`OnSentryChainCellSet` →
+  `DropRailRelayChains`: a new relay anywhere drops every chain, a cached relay's cell that changed drops its base's); a
+  walk that met an unloaded chunk is walked again after 30 s. So a station beside a village a base surrounds (Lyxette's
+  spaceport, ~78 blocks from the core) is the village's **and** the base's. A trip runs between two stops of **different**
+  places on the **same line** (no switches, no routing) and never from a stop to itself (`RailTripPairs`; the guest
+  routes exclude the base's own stop the same way).
 - **Who** (`MayTravelByRail`): a settler of the town with `Job == ""` (no vendor, quartermaster, guard, innkeeper,
   gardener, craftsman or profession), no `CharacterId`, a person key, not a guest or lodge resident, routine on, not
   `VisitingAway`, awake and standing (`Pose` 0), not talking (neither `TalkWith` nor a player's dialogue/hold), not in a
@@ -366,7 +401,8 @@ Lyxette's actual wish: "the settlers who visit me should come by train instead o
 
 - **When a guest comes by train.** A neighbour's visit is due (`TryScheduleBaseGuests`, the roll landed on the
   neighbour) and the base has a **route** (`TrainGuestRoutes`): a line that carries villagers, the base's stop on it (a stop
-  the mapping gives the base: within 48 blocks of the core, no town claiming it) and a stop of a town at least **150
+  the mapping gives the base: within 96 blocks of the core or 24 of a chained relay — a town may claim it too, #3457) and
+  a stop of a town (never the base's own stop) at least **150
   blocks** from the core (`TrainGuestMinDistance` — a nearer town keeps the walk-in). Then `TryStartTrainGuest` picks a
   plain villager of a route's town (`MayTravelByRail`) and starts a **`Guest` trip** to the base's stop; the owner reads
   `srv.guest.coming_by_train` ("{name} from {village} is coming to visit you by train!"). The neighbour's weight counts
@@ -376,8 +412,9 @@ Lyxette's actual wish: "the settlers who visit me should come by train instead o
   counted the train and the start fails after all, the walk-in neighbour comes, else a traveller (`BringBaseGuest`): a
   due window is never spent on nobody. A world without a rail route rolls and draws exactly as before.
 - **The traveller is the real villager** (the trip machinery) until the base's stop, then the **guest copy** (#2602's
-  pattern): at the halt (`ArriveAsTrainGuest`) — the owner home (`TrainGuestHost`: on foot on this body within 72 blocks of
-  the core — they may wait at the platform —, day 0.25–0.68, nothing hostile, no scouts) — the villager steps off at the
+  pattern): at the halt (`ArriveAsTrainGuest`) — the owner home (`TrainGuestHost`: on foot on this body within 96 + 24
+  blocks of the core, within 24 of a chained relay or within 24 of one of the base's stops — `OwnerNearBaseForTrainGuest`,
+  #3457: they may wait on the platform —, day 0.25–0.68, nothing hostile, no scouts) — the villager steps off at the
   door, its trip ends, it is sent home and hidden (`VisitingAway`), and `SpawnBaseGuestAt` puts the guest copy (same
   person key, name, face) on the very spot it stepped off; the guest script runs from there (*arriving* → greeting →
   *waiting*). Nobody home (or a guest already there): it stays aboard and rides back (`Returning`). `BaseGuest.ByTrain`

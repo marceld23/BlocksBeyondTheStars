@@ -19,9 +19,11 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// settlement's foundation row, so the station floor is level with the town's). The line's end pylon is a floor cell at
 /// <see cref="EndPylonU"/>, the exit pylon one at the far end; the train hovers 0.7 over the floor (the line runs
 /// <see cref="RailRules.LineRise"/> over a pylon's top cell, the wagon floor <see cref="RailRules.HoverHeight"/> higher).
-/// The stop is a floor plate beside the track at <see cref="StopU"/> — a halted train's leading wagon stands right there
-/// (the cab when it pulls in, the passenger wagon when it pushes in: the train keeps its facing when it reverses, #2741)
-/// and the other one behind it, both inside the hall; so near the line's end, the train turns round while it stands.
+/// The stop is a floor plate beside the track at <see cref="StopU"/>. A halted train centres on its stop but never hangs past
+/// the line's end (#3463), so here — four blocks from the end — the cab and its passenger wagon stand between the end
+/// pylon and the hall's middle, both inside the hall (before #3463 the leading wagon stood at the plate and the other one
+/// behind it — the cab when it pulled in, the passenger wagon when it pushed in, #2741); so near the line's end, the
+/// train turns round while it stands.
 /// Benches (seat shapes) line both sides, posts carry a roof with a
 /// skylight over the track, lamps hang over the platforms and the platform edges glow.</para>
 /// </summary>
@@ -43,7 +45,7 @@ public static class RailStationGenerator
     public const int EndPylonU = 1;
     public const int ExitPylonU = Length - 1;
 
-    /// <summary>The stop plate: four blocks in from the line's end, beside the track — the halted train's leading wagon's spot.</summary>
+    /// <summary>The stop plate: four blocks in from the line's end, beside the track — the train halts as near to centred on it as the line's end allows (#3463).</summary>
     public const int StopU = 5;
     public const int StopV = TrackV + 2;
 

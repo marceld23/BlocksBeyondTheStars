@@ -77,12 +77,13 @@ public sealed partial class EditorTextFitTests
     {
         FitLine("World list: loading (UiSaveSelect.WorldList.cs, 642 px, 17 → 13)", 642f, 13, 17, "ui.save.loading_worlds"),
         Label("Loading screen status row (UiLoading.cs, 1700 px at 17)", 1700f, 17, "ui.loading.stage.*"),
-        FitLine("Loading screen story line (UiLoading.cs, 1050 px, 42 → 28)", 1050f, 28, 42, "ui.loading.lore.*"), // #3450
-        FitLine("Loading screen data line (UiLoading.cs, 1050 px, 42 → 28)", 1050f, 28, 42, "ui.loading.data") with { Suffix = "  888/888" },
+        Label("World-entry veil story line (WorldLoadingOverlay.cs footer, 1200 px at 22)", 1200f, 22, "ui.loading.lore.*"), // #3450/#3460
+        Label("Loading screen data line (UiLoading.cs title, 760 px at 26)", 760f, 26, "ui.loading.data") with { Suffix = "  888/888" },
         FitLine("Chat window title (ChatUi.WindowView.cs, narrowest window)", 400f, 13, 20, "ui.chat.window_title"),
         FitLine("Chat window hint (480 px window − 2 × 14 padding)", 452f, 13, 14, "ui.chat.window_hint"),
         FitLine("Chat window new-messages pill (220 px)", 220f, 13, 15, "ui.chat.new_messages"),
         Label("Settings: dark visibility label (330 px at 20)", 330f, 20, "ui.settings.dark_visibility"),
         Wrap("Settings: dark visibility hint (495 wide at 14, measured height)", 495f, 4, 14, "ui.settings.dark_visibility_hint"),
+        Label("Settings: soft distance label (330 px at 20, #3462)", 330f, 20, "ui.settings.distance_softness"),
     };
 }

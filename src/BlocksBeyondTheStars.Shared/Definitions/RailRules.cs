@@ -211,9 +211,35 @@ public static class RailRules
         => Sign(direction) == Sign(facing) ? arc : arc - Sign(facing) * span;
 
     /// <summary>The train's arc a halt at a stop puts it on (#2741): the leading wagon (see <see cref="LeadArc"/>)
-    /// stands at <paramref name="stopArc"/>.</summary>
+    /// stands at <paramref name="stopArc"/>. Since #3463 the autopilot centres the train on a stop instead
+    /// (<see cref="MiddleArc"/>, <see cref="HaltMiddleArc"/>).</summary>
     public static float ArcForLeadAt(float stopArc, int direction, int facing, float span)
         => Sign(direction) == Sign(facing) ? stopArc : stopArc + Sign(facing) * span;
+
+    /// <summary>#3463: the arc of the train's middle — half its span behind the cab, whichever way it runs. A halt at a stop
+    /// centres the train on the stop (Lyxette: "with the stop at the end of the station the train is all in or all out by
+    /// its direction; in the middle it only ever pulls in halfway").</summary>
+    public static float MiddleArc(float arc, int facing, float span) => arc - Sign(facing) * Math.Max(0f, span) * 0.5f;
+
+    /// <summary>#3463: the train's (the cab's) arc that puts its middle at <paramref name="middleArc"/>.</summary>
+    public static float ArcForMiddleAt(float middleArc, int facing, float span) => middleArc + Sign(facing) * Math.Max(0f, span) * 0.5f;
+
+    /// <summary>#3463: where a halt at the stop at <paramref name="stopArc"/> puts the train's middle — the stop itself, but
+    /// on an open line never so near an end that a wagon would hang past it (the middle stays half the train and half a
+    /// wagon in from each end; the line's middle when the train is longer than that). A stop a few blocks from the line's
+    /// end — the intercity station's, a station at a dead end — therefore holds the whole train next to it. A loop takes the
+    /// stop's arc as it is.</summary>
+    public static float HaltMiddleArc(float stopArc, float span, float total, bool closed)
+    {
+        if (closed)
+        {
+            return stopArc;
+        }
+
+        float inset = (Math.Max(0f, span) * 0.5f) + (WagonLength * 0.5f);
+        float lo = inset, hi = total - inset;
+        return hi < lo ? total * 0.5f : Math.Clamp(stopArc, lo, hi);
+    }
 
     /// <summary>Runs a train's arc <paramref name="distance"/> along its <paramref name="direction"/> (#2741). A loop
     /// wraps. On an open line the arc stays inside <see cref="CabRange"/>: reaching a bound flips the direction and the

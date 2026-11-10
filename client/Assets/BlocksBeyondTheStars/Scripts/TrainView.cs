@@ -355,7 +355,6 @@ namespace BlocksBeyondTheStars.Client
             var floor = Id("steel_floor");
             var wall = Id("metal_panel");
             var glass = Id("glass");
-            var bench = Id("metal_panel");
             void Set(int x, int y, int z, BlockId id)
             {
                 if (!id.IsAir)
@@ -405,34 +404,72 @@ namespace BlocksBeyondTheStars.Client
                 Set(1, 1, L - 2, wall); // the console
             }
 
+            DressWagon(item, Set);
+            return cells;
+        }
+
+        /// <summary>#3464 (Lyxette: "a seat wagon, a bar wagon and a sleeper — but they all look the same"): the wagon's own
+        /// furnishing in blocks of its own. The benches, bunks and counter used to be the wall panel itself, set into the
+        /// side-wall cells (the 3-wide wagon's walk-way is its middle column), so they vanished into the wall. Now a seat wagon
+        /// has light wooden benches along both walls, a sleeper glowing bunks two high with pale berth panels between them, a
+        /// bar a mahogany floor, its counter along both walls and wooden stools' side — seen from inside and from the
+        /// platform alike. The middle column stays free, so you still walk through the train from wagon to wagon.</summary>
+        private void DressWagon(string item, System.Action<int, int, int, BlockId> set)
+        {
             switch (item)
             {
                 case "wagon_seats":
-                    foreach (int z in new[] { 1, 3, 4 })
+                    var benchWood = Id("wood_planks_light");
+                    foreach (int z in new[] { 0, 1, 4, 5 })
                     {
-                        Set(0, 1, z, bench);
-                        Set(W - 1, 1, z, bench);
+                        set(0, 1, z, benchWood);
+                        set(W - 1, 1, z, benchWood);
                     }
 
                     break;
                 case "wagon_sleeper":
+                    var bunk = Id("crew_bunk");
+                    var berth = Id("lab_panel");
+                    foreach (int z in new[] { 0, 5 })
+                    {
+                        set(0, 1, z, berth);
+                        set(W - 1, 1, z, berth);
+                    }
+
                     foreach (int z in new[] { 1, 4 })
                     {
-                        Set(0, 1, z, bench);
-                        Set(W - 1, 1, z, bench);
-                        Set(0, 2, z, bench);
-                        Set(W - 1, 2, z, bench);
+                        set(0, 1, z, bunk);
+                        set(W - 1, 1, z, bunk);
+                        set(0, 2, z, bunk);
+                        set(W - 1, 2, z, bunk);
                     }
 
                     break;
                 case "wagon_bar":
-                    Set(0, 1, 4, bench);
-                    Set(1, 1, 4, bench);
-                    Set(W - 1, 1, 4, bench);
+                    var mahogany = Id("wood_planks_mahogany");
+                    var counter = Id("shop_counter");
+                    for (int x = 0; x < W; x++)
+                    {
+                        for (int z = 0; z < L; z++)
+                        {
+                            set(x, 0, z, mahogany); // a warm wooden floor
+                        }
+                    }
+
+                    foreach (int z in new[] { 0, 1 })
+                    {
+                        set(0, 1, z, mahogany);
+                        set(W - 1, 1, z, mahogany);
+                    }
+
+                    foreach (int z in new[] { 4, 5 })
+                    {
+                        set(0, 1, z, counter);
+                        set(W - 1, 1, z, counter);
+                    }
+
                     break;
             }
-
-            return cells;
         }
 
         private BlockId Id(string key) => Game.Content.GetBlock(key)?.NumericId ?? BlockId.Air;

@@ -3221,6 +3221,7 @@
   "ui.settings.lens_flare": "Lensflare",
   "ui.settings.motion_blur": "Bewegingsonscherpte (vlucht)",
   "ui.settings.distance_haze": "Verre nevel & zonnestralen",
+  "ui.settings.distance_softness": "Zachte verte",
   "ui.settings.ground_details": "Bodemdetails (graspollen)",
   "ui.settings.atmosphere": "Atmosferische effecten",
   "ui.settings.atmosphere.off": "Uit",

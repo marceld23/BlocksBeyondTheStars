@@ -142,17 +142,7 @@ public sealed partial class GameServer
     /// </summary>
     private List<Vector3i> FindSentryCells(ServerBase b, HashSet<Vector3i>? chainCells = null)
     {
-        var found = new List<Vector3i>();
-        var visitedRelays = new HashSet<Vector3i>();
-        var frontier = new Queue<Vector3i>();
-        frontier.Enqueue(b.Cell);
-
-        while (frontier.Count > 0)
-        {
-            var origin = frontier.Dequeue();
-            ScanPowerZone(origin, found, visitedRelays, frontier);
-        }
-
+        var (found, visitedRelays, _) = WalkPowerChain(b, loadedOnly: false);
         if (chainCells != null)
         {
             int circ = _world.Circumference;
@@ -170,6 +160,30 @@ public sealed partial class GameServer
         return found;
     }
 
+    /// <summary>The power chain walk (#1714) the sentries and the rail (#3457) share: from the core, hop by hop through the
+    /// relays, collecting the sentry cells. <paramref name="loadedOnly"/> reads only resident chunks (the rail's read must
+    /// not load terrain) and reports in <c>Complete</c> whether every hop's cube was resident.</summary>
+    private (List<Vector3i> Sentries, HashSet<Vector3i> Relays, bool Complete) WalkPowerChain(ServerBase b, bool loadedOnly)
+    {
+        var found = new List<Vector3i>();
+        var visitedRelays = new HashSet<Vector3i>();
+        var frontier = new Queue<Vector3i>();
+        frontier.Enqueue(b.Cell);
+        bool complete = true;
+        while (frontier.Count > 0)
+        {
+            var origin = frontier.Dequeue();
+            if (loadedOnly && !_world.IsNeighbourhoodLoaded(origin, BaseProtectionRadius))
+            {
+                complete = false;
+            }
+
+            ScanPowerZone(origin, found, visitedRelays, frontier, loadedOnly);
+        }
+
+        return (found, visitedRelays, complete);
+    }
+
     /// <summary>
     /// #2879: a block changed on a resident world. A post or relay that went up anywhere, or a cell of a cached chain
     /// that changed, makes those bases walk again on their next firing pass — the only ways the powered set can change,
@@ -179,13 +193,14 @@ public sealed partial class GameServer
     /// </summary>
     private void OnSentryChainCellSet(ServerWorld world, Vector3i cell)
     {
-        if (_sentryChainCells.Count == 0)
+        if (_sentryChainCells.Count == 0 && _railRelayChains.Count == 0)
         {
             return;
         }
 
         var block = world.GetBlock(cell);
         bool chainBlock = !block.IsAir && (block == _sentryBlockId || block == _powerRelayBlockId);
+        DropRailRelayChains(!block.IsAir && block == _powerRelayBlockId, cell); // #3457: the rail's copy of the relay chain
         List<int>? stale = null;
         foreach (var (baseId, cells) in _sentryChainCells)
         {
@@ -213,7 +228,7 @@ public sealed partial class GameServer
     /// <summary>One hop of the power chain: walks the cube around <paramref name="origin"/>, collecting sentry
     /// cells and queueing any relay not seen yet. The relay budget caps the whole chain — a player who tiles a
     /// compound with relays must not turn a walk into a world sweep.</summary>
-    private void ScanPowerZone(Vector3i origin, List<Vector3i> found, HashSet<Vector3i> visitedRelays, Queue<Vector3i> frontier)
+    private void ScanPowerZone(Vector3i origin, List<Vector3i> found, HashSet<Vector3i> visitedRelays, Queue<Vector3i> frontier, bool loadedOnly = false)
     {
         // #2879: the ids the block-set hook compares against, resolved on the first walk (a cache only exists after
         // one); the walk compares them too instead of looking up each cell's definition and switching on its key.
@@ -232,7 +247,8 @@ public sealed partial class GameServer
                         continue;
                     }
 
-                    var block = _world.GetBlock(WorldConstants.CanonicalBlock(pos, _world.Circumference));
+                    var canonical = WorldConstants.CanonicalBlock(pos, _world.Circumference);
+                    var block = loadedOnly ? _world.GetBlockIfLoaded(canonical) : _world.GetBlock(canonical);
                     if (block.IsAir)
                     {
                         continue;

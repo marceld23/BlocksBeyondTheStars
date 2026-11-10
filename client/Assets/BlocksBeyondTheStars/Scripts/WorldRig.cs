@@ -536,6 +536,8 @@ namespace BlocksBeyondTheStars.Client
             sky.WetSurfacesEnabled = shell.Settings.AtmosphereEffect(shell.Settings.WetSurfaces, cheap: true);
             sky.UnderwaterEnabled = shell.Settings.AtmosphereEffect(shell.Settings.Underwater, cheap: true);
             sky.DarkVisibility = shell.Settings.DarkVisibility; // #3265
+            sky.DistanceSoftEnabled = DistanceSoftView.EnabledFor(shell.Settings); // #3462: the soft distance (Medium+ desktop)
+            sky.ReducedEffects = shell.Settings.ReducedEffects;
             probe.BubblesEnabled = sky.UnderwaterEnabled;
 
             // Light-shaft cards at cave mouths and canopy gaps (#2402): Medium 6, High 12, off below.
@@ -560,6 +562,13 @@ namespace BlocksBeyondTheStars.Client
             volumetric.Game = boot;
             volumetric.Camera = cam;
             volumetric.Sky = sky;
+
+            // Soft distance (#3462): a barely noticeable blur of the far haze on worlds with air (Medium+ desktop); the
+            // texture softening inside the haze (#3461) is the block shader's own and needs no component.
+            var softDistance = root.AddComponent<DistanceSoftView>();
+            softDistance.Game = boot;
+            softDistance.Camera = cam;
+            softDistance.Sky = sky;
 
             // Headlamp shadows (#3233): the occupancy volume around the camera on High (desktop), only while a lamp is lit.
             var lampVolume = root.AddComponent<LampVolume>();

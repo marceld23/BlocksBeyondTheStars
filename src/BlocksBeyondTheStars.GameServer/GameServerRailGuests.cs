@@ -89,7 +89,8 @@ public sealed partial class GameServer
 
             foreach (var town in places)
             {
-                if (town.Settlement is { } s && WrapDistSq(core, SettlementCenter(s)) >= TrainGuestMinDistance * TrainGuestMinDistance)
+                if (town.Settlement is { } s && town.Stop != basePlace.Stop // #3457: a dual stop is never its own route
+                    && WrapDistSq(core, SettlementCenter(s)) >= TrainGuestMinDistance * TrainGuestMinDistance)
                 {
                     routes.Add((line, basePlace, town));
                 }
@@ -178,8 +179,9 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>The owner a train guest may visit now: on foot on this body, within the stop's reach of the core (they may
-    /// wait at the platform), by day until the evening, nothing hostile near, no scouts. Null otherwise.</summary>
+    /// <summary>The owner a train guest may visit now: on foot on this body, within the stop's reach of the core, near a
+    /// chained power relay or at one of the base's stops (#3457: they may wait on the platform —
+    /// <see cref="OwnerNearBaseForTrainGuest"/>), by day until the evening, nothing hostile near, no scouts. Null otherwise.</summary>
     private PlayerSession? TrainGuestHost(ServerBase b)
     {
         if (!Rules.FriendlyVisitors || FindSessionByPlayerId(b.OwnerId) is not { } owner || !GuestOwnerOnFoot(owner))
@@ -187,10 +189,8 @@ public sealed partial class GameServer
             return null;
         }
 
-        var core = BaseCorePos(b);
-        float reach = RailStopBaseReach + BaseGuestOwnerReach;
-        double day = LocalDayFraction(core);
-        if (WrapDistSq(owner.State.Position, core) > reach * reach || day < BaseGuestDayStart || day > RoutineEveningStart)
+        double day = LocalDayFraction(BaseCorePos(b));
+        if (!OwnerNearBaseForTrainGuest(b, owner.State.Position) || day < BaseGuestDayStart || day > RoutineEveningStart)
         {
             return null;
         }

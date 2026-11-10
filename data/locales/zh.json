@@ -3221,6 +3221,7 @@
   "ui.settings.lens_flare": "镜头光晕",
   "ui.settings.motion_blur": "运动模糊（飞行）",
   "ui.settings.distance_haze": "远景薄雾与阳光光束",
+  "ui.settings.distance_softness": "远景柔化",
   "ui.settings.ground_details": "地面细节（草丛）",
   "ui.settings.atmosphere": "大气特效",
   "ui.settings.atmosphere.off": "关闭",

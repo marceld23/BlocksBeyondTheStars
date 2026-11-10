@@ -134,6 +134,39 @@ public sealed class RailRulesTrainMotionTests
     }
 
     [Fact]
+    public void AHalt_CentresTheTrainOnTheStop_ButNeverHangsAWagonPastAnOpenLinesEnd()
+    {
+        // #3463: the middle lies half the span behind the cab, by the facing — whichever way the train runs.
+        float span4 = RailRules.TrainSpan(4);
+        Assert.Equal(30f - (span4 * 0.5f), RailRules.MiddleArc(30f, 1, span4), 4);
+        Assert.Equal(30f + (span4 * 0.5f), RailRules.MiddleArc(30f, -1, span4), 4);
+        foreach (int facing in new[] { -1, 1 })
+        {
+            float cab = RailRules.ArcForMiddleAt(100f, facing, span4);
+            Assert.Equal(100f, RailRules.MiddleArc(cab, facing, span4), 4);
+        }
+
+        // In the open stretch the stop itself; near an end, held so the end wagon's far end meets the line's end.
+        float inset = (span4 * 0.5f) + (RailRules.WagonLength * 0.5f);
+        Assert.Equal(100f, RailRules.HaltMiddleArc(100f, span4, 400f, closed: false));
+        Assert.Equal(inset, RailRules.HaltMiddleArc(4f, span4, 400f, closed: false), 4);
+        Assert.Equal(400f - inset, RailRules.HaltMiddleArc(398f, span4, 400f, closed: false), 4);
+        Assert.Equal(4f, RailRules.HaltMiddleArc(4f, span4, 400f, closed: true)); // a loop has no end
+        Assert.Equal(10f, RailRules.HaltMiddleArc(3f, span4, 20f, closed: false)); // longer than the line: its middle
+
+        // The middle's halt arc is always one the cab can reach.
+        foreach (int facing in new[] { -1, 1 })
+        {
+            var (lo, hi) = RailRules.CabRange(400f, span4, facing);
+            foreach (float stop in new[] { 0f, 4f, 200f, 396f, 400f })
+            {
+                float cab = RailRules.ArcForMiddleAt(RailRules.HaltMiddleArc(stop, span4, 400f, closed: false), facing, span4);
+                Assert.InRange(cab, lo - 0.001f, hi + 0.001f);
+            }
+        }
+    }
+
+    [Fact]
     public void TheWagons_HangBehindTheCabByTheFacing_AndAnOldServersTrainFacesItsDirection()
     {
         Assert.Equal(30f - Span, RailRules.WagonArc(30f, 1, 1), 4);

@@ -66,6 +66,13 @@ namespace BlocksBeyondTheStars.Client
             ("BlocksBeyondTheStars/MeadowFlower", true),
         };
 
+        /// <summary>#3462: full-screen passes without a LightMode tag (SRPDefaultUnlit) and without keywords, run only on desktop
+        /// clients — warmed so the first frame on a world with air does not compile the soft distance mid-play.</summary>
+        private static readonly string[] DesktopPostShaders =
+        {
+            "BlocksBeyondTheStars/DistanceSoft",
+        };
+
         // Keyword axes as declared by the shaders' multi_compile lines (only the modes the game actually sets:
         // Sky uses linear fog, WeatherFx3D switches to exponential-squared; screen-space shadows are unused).
         private static readonly string[] FogKeywords = { null, "FOG_LINEAR", "FOG_EXP2" };
@@ -183,6 +190,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             added += AddInstanced(collection, keywords);
+            added += AddDesktopPost(collection);
             _variants = added;
             _collection = collection;
             return collection;
@@ -212,6 +220,22 @@ namespace BlocksBeyondTheStars.Client
                             added++;
                         }
                     }
+            }
+
+            return added;
+        }
+
+        /// <summary>Adds the one variant of each <see cref="DesktopPostShaders"/> entry — on desktop clients only.</summary>
+        private static int AddDesktopPost(ShaderVariantCollection collection)
+        {
+            int added = 0;
+            foreach (var name in DesktopPostShaders)
+            {
+                var shader = HighDetails.DesktopClass ? Shader.Find(name) : null;
+                if (shader != null && TryAdd(collection, shader, PassType.ScriptableRenderPipelineDefaultUnlit, System.Array.Empty<string>()))
+                {
+                    added++;
+                }
             }
 
             return added;

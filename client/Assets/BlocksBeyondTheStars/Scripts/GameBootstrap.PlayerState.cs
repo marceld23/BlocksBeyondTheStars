@@ -153,6 +153,11 @@ namespace BlocksBeyondTheStars.Client
         /// to this point (the ship's heal-tank) on the next frame, then clears it.</summary>
         public Vector3? RespawnTarget;
 
+        /// <summary>#3458: the spot the server set us down at when we left a train. Unlike <see cref="RespawnTarget"/> it
+        /// never holds the body in the settle freeze ("Stabilisiere Position") — the surroundings are streamed; a walk-off
+        /// keeps its own spot when the two agree (<see cref="TrainExitRules.SnapToServer"/>).</summary>
+        public Vector3? TrainExitTarget;
+
         /// <summary>True while the "Du bist gestorben" / "Das Schiff wurde zerstört" prompt is up after a
         /// death or ship destruction. The server has already respawned us; the client holds the world
         /// reveal (on-foot settle) and the space-view landing teardown until the player clicks "Weiter",
@@ -409,7 +414,7 @@ namespace BlocksBeyondTheStars.Client
             InSpeeder = m.InSpeeder ?? string.Empty;
             if (InTrain.Length > 0 && string.IsNullOrEmpty(m.InTrain))
             {
-                RespawnTarget = new Vector3(m.X, m.Y, m.Z); // #2113: set down beside the wagon — the body snaps there
+                TrainExitTarget = new Vector3(m.X, m.Y, m.Z); // #2113/#3458: set down beside the wagon — no settle freeze
             }
 
             InTrain = m.InTrain ?? string.Empty; // #2113
