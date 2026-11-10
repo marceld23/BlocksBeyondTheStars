@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🚆 Rail travel, faster trains, Soaniri in blue/green, no wild animals in towns, loading-screen story — #3444–#3450, #3453, ✅ 2026-11-10 (merge pending) (⚠ playtest open)
+### 🚆 Rail travel, faster trains, Soaniri in blue/green, no wild animals in towns, loading-screen story — #3444–#3450, #3453, ✅ 2026-11-10, PR #3454 (`94f0915a`), released in v2026.11.15 (⚠ playtest open)
 
 From Lyxette's F1 report "Zug Schnelligkeit?" (2026-11-09: the train too slow for far cities; visiting settlers should come
 by train, "more than decoration"), Justus' "Coole Anzeigen" (story lines over the loading bar), Marcel's Sounders colour
@@ -75,7 +75,7 @@ request and his playtest (animals on village roofs).
 Open: playtest — a villager riding the intercity train (`/railtrip`), a guest by train at a base stop (`/guest`), 24 b/s with
 seated and walking riders, browser chunk pop-in at 24 b/s, Soaniri's colours, the loading lines, a village without animals.
 
-### 🐧 Linux AppImage starts again — launcher execute bit + packed-AppImage guard — #3451, ✅ 2026-11-09, PR #3452 (merge pending), ships in the next release
+### 🐧 Linux AppImage starts again — launcher execute bit + packed-AppImage guard — #3451, ✅ 2026-11-09, PR #3452 (`edafa441`), released in v2026.11.15 (⚠ Linux playtest open)
 
 - **#3451** (reported with cause, fix and workaround by Mathias, @maTzko13) every Linux AppImage up to v2026.11.14 died at
   once with `…/usr/bin/BlocksBeyondTheStars.Launcher.Console: Permission denied`: `release.yml`'s `package-linux` restored
