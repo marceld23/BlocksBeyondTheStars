@@ -14,8 +14,9 @@ namespace BlocksBeyondTheStars.Client
     /// <item><b>No settle freeze</b> (<see cref="SnapToServer"/>): a rider who walked out keeps their own spot when the
     /// server's set-down point is close to where they stepped off; otherwise (an F set-down, a far disagreement) the body is
     /// moved there plainly — never with the "Stabilisiere Position" hold of a teleport, the surroundings are streamed.</item>
-    /// <item><b>Walking out of the door of a halted train</b> (<see cref="PressingIntoDoor"/>, <see cref="StepDoorPush"/>):
-    /// pressing outward against the door opening for <see cref="DoorPushSeconds"/> leaves through the server's standing-spot
+    /// <item><b>Walking out of the door of a halted train</b> (<see cref="PressingIntoDoor"/>, <see cref="Stalled"/>,
+    /// <see cref="StepDoorPush"/>): pressing outward against the door opening — stuck there, not walking out — for
+    /// <see cref="DoorPushSeconds"/> leaves through the server's standing-spot
     /// search — a platform step the body cannot climb (the floor hovers off the block grid) no longer traps anybody.</item>
     /// <item><b>Jumping off a moving train</b> (<see cref="JumpPush"/>): leaving keeps half the wagon's speed (at most
     /// <see cref="JumpCap"/>) plus a small hop, as a push that eases off — "like in the Wild West". Fall damage counts the
@@ -110,6 +111,15 @@ namespace BlocksBeyondTheStars.Client
                    && Math.Sign(moveX) == Math.Sign(local.X)
                    && Math.Abs(moveX) >= Math.Abs(moveZ);
         }
+
+        /// <summary>A body moving outward faster than this (blocks/s across the wagon) is walking out, not stuck in the door.</summary>
+        public const float DoorStallSpeed = 0.5f;
+
+        /// <summary>Whether the body is stuck in the door: its distance from the wagon's middle (<paramref name="absX"/>, last
+        /// frame <paramref name="lastAbsX"/>) grew slower than <see cref="DoorStallSpeed"/> over <paramref name="dt"/>. A body
+        /// walking freely through the door is not — it walks off on its own, wherever it was heading.</summary>
+        public static bool Stalled(float lastAbsX, float absX, float dt)
+            => !(dt > 0f) || (absX - lastAbsX) / dt < DoorStallSpeed;
 
         /// <summary>The door-push timer: grows while the rider presses into the door of a halted train, back to 0 otherwise.</summary>
         public static float StepDoorPush(float held, bool pressing, bool halted, float dt)

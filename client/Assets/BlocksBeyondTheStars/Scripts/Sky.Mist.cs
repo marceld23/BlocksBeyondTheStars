@@ -158,16 +158,18 @@ namespace BlocksBeyondTheStars.Client
         /// #3461/#3462: the distance softness (<see cref="DistanceSoftLook"/>) — the texture softening along the haze and the
         /// soft-distance blur's blend and band, both only where the world has air (the server sends density 0 for every
         /// airless world, the crystal world included, so it stays as sharp as the moons) and faded out indoors and under
-        /// water; the blur also steps back with the camera's open-sky exposure (a long tunnel underground is not "far away in
-        /// the air"). No env yet = no air. w carries the atlas mip with one texel per tile (Potato's mip limit halves the atlas).
+        /// water; the blur also steps back underground (a long tunnel is not "far away in the air") — keyed on
+        /// <see cref="AtmosphereProbe.UndergroundFactor"/>, not on the camera's open-sky exposure, which is 0 under any tree
+        /// crown and would switch the blur off for a player looking out of a forest over a valley. No env yet = no air.
+        /// w carries the atlas mip with one texel per tile (Potato's mip limit halves the atlas).
         /// </summary>
         private void ApplyDistanceSoft(WorldEnvironment env, float fogStart, float far)
         {
             float density = env?.AtmosphereDensity ?? 0f;
             float open = (1f - _indoor) * (1f - _submerged);
-            float exposure = Probe != null ? Probe.CameraExposure : 1f;
+            float aboveGround = Probe != null ? 1f - Probe.UndergroundFactor : 1f;
             float fade = DistanceSoftLook.TextureFade(density, FogEnabled) * open;
-            DistanceBlur01 = DistanceSoftLook.BlurBlend(density, DistanceSoftEnabled, FogEnabled, ReducedEffects) * open * Mathf.Clamp01(exposure);
+            DistanceBlur01 = DistanceSoftLook.BlurBlend(density, DistanceSoftEnabled, FogEnabled, ReducedEffects) * open * Mathf.Clamp01(aboveGround);
             int meanMip = DistanceSoftLook.TileMeanMip(BlockTextureAtlas.Tile, QualitySettings.globalTextureMipmapLimit);
             Shader.SetGlobalVector(DistSoftId, new Vector4(fade, DistanceBlur01, DistanceSoftLook.BandStart(fogStart, far), meanMip));
         }

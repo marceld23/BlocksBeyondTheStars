@@ -667,8 +667,8 @@ The air and the weather leave their mark on the world (atmosphere package, Octob
   Airless moons, asteroids and the crystal world stay crisp to the horizon.
 
 The row **Atmosphere effects** sets them all at once — **Off**, **Some** (the cheap ones, what the browser's Low
-preset also gets), **All** — or **Custom**, which opens one switch per effect (**All** also turns **Soft distance**
-on, **Off** and **Some** turn it off). The expensive effects (cloud shadows,
+preset also gets), **All** — or **Custom**, which opens one switch per effect (**Soft distance** has its own switch
+in the graphics list and keeps it whatever this row says). The expensive effects (cloud shadows,
 light shafts, the emitter light, soft particles, caustics, the sea of clouds) need the **Medium** preset or better
 regardless of the switch; the fog banks in the air need **Low** or better. The fog wisps and the cloud fog itself run
 on every preset, the browser included. **Reduce flashes** keeps the torchlight steady; **Reduced effects** makes the eye adaptation gentler. From

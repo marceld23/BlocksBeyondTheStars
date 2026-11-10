@@ -3,7 +3,8 @@
 // coarse far terrain softens. Barely noticeable on purpose: the blend tops out at 0.4–0.5 (DistanceSoftLook in
 // Client.Core holds the rules). A render-graph pass on the gameplay camera and the capture clones (DistanceSoftView +
 // DistanceSoftPass), Medium+ on a desktop client only; it compiles for every target because it is always-included.
-//   Pass 0  downsample — the camera colour to half resolution (one bilinear tap = the 2×2 average); alpha = the scene's
+//   Pass 0  downsample — the camera colour to half resolution, depth-aware over the 2×2 pixels (only those at the nearest
+//                        surface's distance count, so sky never bleeds into a ridge); alpha = the scene's
 //                        distance from the camera in metres (the haze's own measure), DS_SKY_DEPTH for the open sky.
 //   Pass 1/2 blur      — a depth-aware 7-tap gaussian, horizontal then vertical: taps across a depth edge drop out, and
 //                        the open sky never bleeds into a ridgeline (nor a ridgeline into the sky).
@@ -11,7 +12,8 @@
 //                        weight = _Sc_DistSoft.y × smoothstep(band start _Sc_DistSoft.z, haze end _Sc_Fog.y, distance).
 //                        It never touches the open sky (far-plane pixels: weight 0 — the sun, the stars, the aurora, the
 //                        rings and the clouds against the sky stay sharp) nor the moons and planets in the surface sky
-//                        (SkyBodyPhase draws them opaque at 60–460 m and marks them with stencil bit 64; the stencil test
+//                        (SkyBodyPhase draws them opaque at 60–460 m and marks them with stencil bit 64 — as do the particles and the
+//                        world-space labels, which sit in front of the far hills their depth reads; the stencil test
 //                        below skips those pixels). Where the upsample finds no neighbour at a similar distance (a thin
 //                        silhouette against the sky) it leaves the pixel sharp.
 // WebGL 2 / WebGPU rules: only explicit-LOD texture reads (the pass never runs in the browser, but it must compile there).
@@ -102,14 +104,40 @@ Shader "BlocksBeyondTheStars/DistanceSoft"
             #pragma vertex Vert
             #pragma fragment FragDownsample
 
+            // The 2×2 full-res pixels this half-res texel covers, depth-aware: the texel's distance is the nearest surface among
+            // them, and only the pixels at about that distance give their colour — so the open sky never bleeds into a
+            // ridgeline's texel (nor a ridge into the sky's). An all-sky texel keeps the plain average.
             float4 FragDownsample(Varyings input) : SV_Target
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
                 float2 uv = input.texcoord;
-                float3 col = SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_LinearClamp, uv, 0).rgb;
-                float raw = SAMPLE_TEXTURE2D_X_LOD(_CameraDepthTexture, sampler_PointClamp, uv, 0).r;
-                float dist = DsIsSky(raw) ? DS_SKY_DEPTH : min(DsDistance(uv, raw), DS_SKY_DEPTH * 0.4);
-                return float4(col, dist);
+                float2 h = _CameraDepthTexture_TexelSize.xy * 0.5;
+                float2 offs[4] = { float2(-h.x, -h.y), float2(h.x, -h.y), float2(-h.x, h.y), float2(h.x, h.y) };
+                float3 col[4];
+                float dist[4];
+                float nearest = DS_SKY_DEPTH;
+                [unroll]
+                for (int k = 0; k < 4; k++)
+                {
+                    float2 tuv = uv + offs[k];
+                    col[k] = SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_PointClamp, tuv, 0).rgb;
+                    float raw = SAMPLE_TEXTURE2D_X_LOD(_CameraDepthTexture, sampler_PointClamp, tuv, 0).r;
+                    dist[k] = DsIsSky(raw) ? DS_SKY_DEPTH : min(DsDistance(tuv, raw), DS_SKY_DEPTH * 0.4);
+                    nearest = min(nearest, dist[k]);
+                }
+
+                bool allSky = nearest >= DS_SKY_DEPTH * 0.5;
+                float3 sum = float3(0.0, 0.0, 0.0);
+                float wsum = 0.0;
+                [unroll]
+                for (int j = 0; j < 4; j++)
+                {
+                    float w = allSky ? 1.0 : DsDepthWeight(nearest, dist[j]);
+                    sum += col[j] * w;
+                    wsum += w;
+                }
+
+                return float4(sum / max(wsum, 1e-4), nearest);
             }
             ENDHLSL
         }

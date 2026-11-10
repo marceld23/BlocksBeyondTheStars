@@ -88,6 +88,16 @@ public sealed class TrainExitRulesTests
     }
 
     [Fact]
+    public void OnlyABodyStuckInTheDoor_CountsAsPushing_NotOneWalkingOut()
+    {
+        const float dt = 1f / 60f;
+        Assert.True(TrainExitRules.Stalled(1.10f, 1.10f, dt));          // against the platform's face
+        Assert.True(TrainExitRules.Stalled(1.10f, 1.105f, dt));         // creeping along a fraction
+        Assert.False(TrainExitRules.Stalled(1.00f, 1.00f + (4.3f * dt), dt)); // walking out at 4.3 b/s
+        Assert.True(TrainExitRules.Stalled(1f, 2f, 0f));                // no time passed: no evidence of walking
+    }
+
+    [Fact]
     public void TheDoorPush_LeavesAfterAMoment_OnlyWhileHalted()
     {
         float held = 0f;

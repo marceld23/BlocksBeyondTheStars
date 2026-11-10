@@ -98,7 +98,7 @@ public sealed class RailExitTests
     }
 
     [Fact]
-    public void ABlockedSide_SetsTheRiderDownOnTheOther_AndBothBlocked_BehindTheTrain()
+    public void ABlockedSide_SetsTheRiderDownOnTheOther_BothBlockedCloseBy_OneRingFarther_NeverBehindTheTrain()
     {
         var (a, pos, yaw) = Aboard("rail_exit_blocked", new Vector3f(0.9f, 0f, 0f));
         using (a)
@@ -106,7 +106,7 @@ public sealed class RailExitTests
             // A wall on the rider's side, from the ground to above the wagon's roof.
             for (int y = a.W.Feet; y <= a.W.Feet + 5; y++)
             {
-                Fill(a, Band(pos, yaw, 1.8f, 4.5f, 2.5f, y));
+                Fill(a, Band(pos, yaw, 1.8f, 3.4f, 2.5f, y));
             }
 
             a.Server.ExitTrainForTest(a.PlayerId);
@@ -114,20 +114,55 @@ public sealed class RailExitTests
             Assert.True(LocalX(pos, yaw, at) < -1.5f, "the other side");
             Assert.Equal(a.W.Feet, at.Y, 3);
 
-            // Both sides walled in (a cutting): out behind the train.
-            a.W.Player.State.Position = pos;
-            a.Server.EnterTrainForTest(a.PlayerId, a.TrainId, 0);
-            a.Server.FramedMoveForTest(a.PlayerId, a.W.Player.State.InTrain, new Vector3f(0.9f, 0f, 0f));
+            // Both sides walled in close by (a narrow cutting): one ring farther out, beside the train — never on the line's
+            // axis behind it, where the wagons would run into the rider.
+            Reboard(a, pos);
             for (int y = a.W.Feet; y <= a.W.Feet + 5; y++)
             {
-                Fill(a, Band(pos, yaw, -4.5f, -1.8f, 2.5f, y));
+                Fill(a, Band(pos, yaw, -3.4f, -1.8f, 2.5f, y));
             }
 
             a.Server.ExitTrainForTest(a.PlayerId);
             at = a.W.Player.State.Position;
             var local = RailRules.WorldToLocal(pos, yaw, at);
-            Assert.True(local.Z < -RailRules.WagonLength * 0.5f, $"behind the train, got local {local.X:0.0}/{local.Z:0.0}");
+            Assert.InRange(Math.Abs(local.X), 3.6f, 4.8f);
+            Assert.InRange(local.Z, -RailRules.WagonLength * 0.5f, RailRules.WagonLength * 0.5f);
             Assert.Equal(a.W.Feet, at.Y, 3);
+
+            // Walled in everywhere: today's point beside the wagon is the last resort.
+            Reboard(a, pos);
+            for (int y = a.W.Feet; y <= a.W.Feet + 5; y++)
+            {
+                Fill(a, Band(pos, yaw, 3.6f, 5f, 2.5f, y));
+                Fill(a, Band(pos, yaw, -5f, -3.6f, 2.5f, y));
+            }
+
+            a.Server.ExitTrainForTest(a.PlayerId);
+            local = RailRules.WorldToLocal(pos, yaw, a.W.Player.State.Position);
+            Assert.Equal(RailRules.ExitSide, local.X, 2);
+        }
+    }
+
+    private static void Reboard(RailTravelArena a, Vector3f pos)
+    {
+        a.W.Player.State.Position = pos;
+        a.Server.EnterTrainForTest(a.PlayerId, a.TrainId, 0);
+        a.Server.FramedMoveForTest(a.PlayerId, a.W.Player.State.InTrain, new Vector3f(0.9f, 0f, 0f));
+    }
+
+    [Fact]
+    public void AFrameReport_ArrivingAfterTheRiderWasSetDown_IsDropped()
+    {
+        var (a, _, _) = Aboard("rail_exit_late_frame", new Vector3f(0.9f, 0f, 0f));
+        using (a)
+        {
+            string frame = a.W.Player.State.InTrain;
+            a.Server.ExitTrainForTest(a.PlayerId);
+            var setDown = a.W.Player.State.Position;
+            a.Server.FramedMoveForTest(a.PlayerId, frame, new Vector3f(1.2f, 0f, 0.3f)); // still on its way when F was handled
+            Assert.Equal(setDown.X, a.W.Player.State.Position.X, 3);
+            Assert.Equal(setDown.Z, a.W.Player.State.Position.Z, 3);
+            Assert.Equal(string.Empty, a.W.Player.State.InTrain);
         }
     }
 }

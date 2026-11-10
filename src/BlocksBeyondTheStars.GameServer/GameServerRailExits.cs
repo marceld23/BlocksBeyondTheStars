@@ -17,8 +17,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// it. F used to drop the rider <see cref="RailRules.ExitSide"/> beside the wagon at floor height whatever stood there.
 /// Now <see cref="RailExitSpot"/> looks for a real standing spot (support below, two cells of headroom) outside the door:
 /// on the halt stop's side first (else the side the rider stood on), at the floor's height or the nearest one up to two
-/// above or one below, a few spots along the door; then the other side; then behind the train. The old point is the last
-/// resort. No chunk is loaded (a rider's surroundings are streamed anyway).
+/// above or one below, a few spots along the door; then the other side; then one ring farther out on either side — never
+/// behind the train, where the wagons would run into the rider. The old point is the last resort. No chunk is loaded (a
+/// rider's surroundings are streamed anyway).
 /// </summary>
 public sealed partial class GameServer
 {
@@ -26,8 +27,13 @@ public sealed partial class GameServer
     /// jambs (the wagon's door is the grid's z 2..3, local −1 … +1).</summary>
     private const float RailExitDoorHalf = 0.8f;
 
-    /// <summary>How far out from the wagon's middle a set-down spot is tried (the wall stands at 1.5).</summary>
+    /// <summary>How far out from the wagon's middle a set-down spot is tried (the wall stands at 1.5) — the first two on both
+    /// sides before the third, so the other side's door beats a long step on this one.</summary>
     private static readonly float[] RailExitOutward = { 2.3f, 3.1f };
+
+    /// <summary>The last ring tried on either side when both doors are blocked close by (a cutting, a narrow platform).
+    /// Never behind the train: on the line's axis a rider would stand in the wagons' path.</summary>
+    private const float RailExitFarOutward = 4.1f;
 
     /// <summary>A standing spot keeps at least this far off its cell's edges, so the body does not poke into a neighbour.</summary>
     private const float RailExitCellInset = 0.3f;
@@ -36,28 +42,24 @@ public sealed partial class GameServer
     private Vector3f RailExitSpot(ServerTrain t, RailLine line, RailRider rider)
     {
         var (pos, yaw) = WagonPose(t, line, rider.Wagon);
-        float side = RailExitPreferredSide(t, pos, yaw, rider);
+        float side = RailExitPreferredSide(t, line, rider);
         float zc = Math.Clamp(rider.Local.Z, -RailExitDoorHalf, RailExitDoorHalf);
         var along = new List<float> { zc, 0f, -RailExitDoorHalf, RailExitDoorHalf }.Distinct().ToList();
         foreach (float s in new[] { side, -side })
         {
             foreach (float outward in RailExitOutward)
             {
-                foreach (float z in along)
+                if (RailStandSpotAlong(pos, yaw, s * outward, along) is { } spot)
                 {
-                    if (RailStandSpotNear(pos, yaw, new Vector3f(s * outward, 0f, z)) is { } spot)
-                    {
-                        return spot;
-                    }
+                    return spot;
                 }
             }
         }
 
-        // Behind the train: past the open end of the last wagon.
-        var (lastPos, lastYaw) = WagonPose(t, line, Math.Max(0, t.Wagons.Count - 1));
-        foreach (float back in new[] { 1.2f, 2.0f })
+        // Both doors blocked close by: one ring farther out on either side.
+        foreach (float s in new[] { side, -side })
         {
-            if (RailStandSpotNear(lastPos, lastYaw, new Vector3f(0f, 0f, -((RailRules.WagonLength * 0.5f) + back))) is { } spot)
+            if (RailStandSpotAlong(pos, yaw, s * RailExitFarOutward, along) is { } spot)
             {
                 return spot;
             }
@@ -68,11 +70,28 @@ public sealed partial class GameServer
         return RailWrap(RailRules.LocalToWorld(pos, yaw, new Vector3f(old, 0f, Math.Clamp(rider.Local.Z, -RailRules.RiderHalfLength, RailRules.RiderHalfLength))));
     }
 
-    /// <summary>+1 or −1: the side of the halt stop when the train is halted at one, else the side the rider stood on.</summary>
-    private float RailExitPreferredSide(ServerTrain t, Vector3f pos, float yaw, RailRider rider)
+    /// <summary>The first standing spot at wagon-local <paramref name="x"/> along the door (<paramref name="along"/>), or null.</summary>
+    private Vector3f? RailStandSpotAlong(Vector3f pos, float yaw, float x, List<float> along)
     {
-        if (t.Halted && t.HaltStop is { } stop)
+        foreach (float z in along)
         {
+            if (RailStandSpotNear(pos, yaw, new Vector3f(x, 0f, z)) is { } spot)
+            {
+                return spot;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>+1 or −1: the side of the halt stop when the train is halted at one, else the side the rider stood on. The
+    /// stop's side is read in the line's own frame at the stop (its pose facing the train's way) — every wagon of the train
+    /// shares that sense of "right", while a rear wagon's own frame can turn away from a stop on a curve.</summary>
+    private float RailExitPreferredSide(ServerTrain t, RailLine line, RailRider rider)
+    {
+        if (t.Halted && t.HaltStop is { } stop && line.Stops.FirstOrDefault(s => s.Cell == stop) is var st && st.Cell == stop)
+        {
+            var (pos, yaw) = line.Spline.PoseAt(line.Spline.NormalizeArc(st.Arc), t.Facing);
             var at = Unwrapped(pos, new Vector3f(stop.X + 0.5f, pos.Y, stop.Z + 0.5f));
             float x = RailRules.WorldToLocal(pos, yaw, at).X;
             if (Math.Abs(x) > 0.25f)

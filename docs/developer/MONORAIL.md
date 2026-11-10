@@ -93,17 +93,23 @@ clears it), `NetNpc.FrameId/LocalX/Y/Z/LocalYaw` (#3445: an NPC passenger, see *
   block grid — and the door (grid z 2..3, wagon-local z −1…+1) is two blocks high, so a platform one block above the
   floor a player sees (1.3 up) could neither be stepped nor jumped onto. **F** (`LeaveTrain` → `RailExitSpot`,
   `GameServerRailExits.cs`) now searches a standing cell (`StandableAt`, support + two cells of headroom, no-load reads)
-  outside the door: the halt stop's side first (else the rider's), 2.3 then 3.1 out, along the door, feet from one below
-  to two above the floor (nearest the floor first); then the other side; then behind the last wagon; today's
-  `ExitSide` point last. The client never holds a train exit in the settle freeze: the set-down arrives as
+  outside the door: the halt stop's side first (read in the line's frame at the stop, so a rear wagon on a curve agrees;
+  else the rider's), 2.3 then 3.1 out, along the door, feet from one below to two above the floor (nearest the floor
+  first); then the other side; then a ring 4.1 out on either side — never behind the train, on the line's axis, where
+  the wagons would run into the rider; today's `ExitSide` point last. A framed move that reaches the server after the
+  set-down (still in flight when F was handled) is dropped in `HandleFramedMove` — its wagon-local numbers would read as a
+  world position near the origin; the client also holds its framed reports for 1.5 s after asking to leave
+  (`PlayerTrainRider.RequestExit`). The client never holds a train exit in the settle freeze: the set-down arrives as
   `GameBootstrap.TrainExitTarget` (not `RespawnTarget`), a walk-off keeps its own spot when the server's lies within
-  1.5 blocks of where it stepped off, an F set-down is a plain move (`TrainExitRules.SnapToServer`, Client.Core).
-  Pressing outward into the door of a **halted** train for 0.2 s sends the exit (`PlayerTrainRider.StepDoorExit`,
-  `TrainExitRules.PressingIntoDoor`). Off a **moving** train a walk-off is a jump: `ApplyKnock(wagon velocity × 0.5,
-  capped at 12, + a hop of 4)` (`TrainExitRules.JumpPush`; the wagon's velocity is measured from its own motion between
-  frames); **F** while it moves steps the body just outside the nearest free door and walks off from there
-  (`TryJumpOffMoving` — both doors blocked → the plain exit). The server has no move-speed check, and fall damage
-  counts the vertical landing speed only, so the leap itself never hurts.
+  1.5 blocks of where it stepped off (plus the wagon's speed × 0.5 s for a jump), an F set-down is a plain move
+  (`TrainExitRules.SnapToServer`, Client.Core). Pressing outward into the door of a **halted** train for 0.2 s — stuck
+  there, not walking out (`TrainExitRules.Stalled`: outward progress under 0.5 b/s) — sends the exit
+  (`PlayerTrainRider.StepDoorExit`, `TrainExitRules.PressingIntoDoor`). Off a **moving** train a walk-off is a jump:
+  `ApplyKnock(wagon velocity × 0.5, capped at 12, + a hop of 4)` (`TrainExitRules.JumpPush`; the wagon's velocity is
+  measured from its own motion over real time, restarted after a gap of more than 0.25 s and on boarding); **F** while
+  it moves steps the body just outside the nearest free door and walks off from there (`TryJumpOffMoving` — both doors
+  blocked → the plain exit). The server has no move-speed check, and fall damage counts the vertical landing speed only,
+  so the leap itself never hurts.
 - **Dealer.** `NpcProfessions`: `rail_dealer` (vendor, theme `rails`, post `rail_post`, building function `depot` —
   a new `StructureRoles` plot role); its building `village_depot_1` / `town_depot_1` (+ `_alien`) is a copy of the
   blockfarmer's quarry with the post marker swapped, optional in every modular settlement kit like every profession's;

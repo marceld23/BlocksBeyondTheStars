@@ -347,7 +347,6 @@ namespace BlocksBeyondTheStars.Client
             FogWisps = some;  // #3271
             CloudFog = some;  // #3272
             FogBanks = all;   // #3273
-            DistanceSoftness = all; // #3462
         }
 
         // Audio (0..1)

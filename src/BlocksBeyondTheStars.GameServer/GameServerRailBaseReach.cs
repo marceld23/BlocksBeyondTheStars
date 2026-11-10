@@ -215,6 +215,33 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>Drops the cached chains of bases whose owner is no longer on their body (1 Hz from the trip planner) — the
+    /// block hook checks every write against the cache, so it should only hold chains somebody can use.</summary>
+    private void PruneRailRelayChains()
+    {
+        if (_railRelayChains.Count == 0)
+        {
+            return;
+        }
+
+        List<int>? gone = null;
+        foreach (int baseId in _railRelayChains.Keys)
+        {
+            if (_bases.FirstOrDefault(b => b.Id == baseId) is not { } b || !OwnerIsHome(b))
+            {
+                (gone ??= new List<int>()).Add(baseId);
+            }
+        }
+
+        if (gone != null)
+        {
+            foreach (int baseId in gone)
+            {
+                _railRelayChains.Remove(baseId);
+            }
+        }
+    }
+
     /// <summary>The stops on any line that belong to a base (a line may have more than one).</summary>
     private IEnumerable<Vector3i> BaseRailStops(ServerBase b)
         => Rails.Lines.Values.SelectMany(l => l.Stops).Select(s => s.Cell).Where(c => RailBaseAt(c)?.Id == b.Id);

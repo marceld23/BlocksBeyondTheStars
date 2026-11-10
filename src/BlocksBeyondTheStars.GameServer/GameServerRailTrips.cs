@@ -255,6 +255,7 @@ public sealed partial class GameServer
         }
 
         rails.NextTripPlanAt = _uptime + 1.0;
+        PruneRailRelayChains(); // #3457: a chain whose owner left is dropped at once (every block write checks the cache)
         if (rails.Trips.Count >= MaxRailTripsPerWorld || _npcs.Count == 0 || !JoinedInActiveWorld().Any())
         {
             return;

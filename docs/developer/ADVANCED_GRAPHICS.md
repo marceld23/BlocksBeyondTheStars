@@ -457,9 +457,16 @@ off). Weather needs no rule of its own: fog, rain and sandstorms pull the haze r
     - far-plane pixels (open sky, the sun, stars, aurora, rings, clouds against the sky) get weight 0;
     - the moons and planets of the surface sky (`SkyBodyPhase`, opaque with `ZWrite On` at 60–460 m, inside the band)
       write stencil bit 64, and the composite binds the camera depth-stencil read-only and skips them;
-    - a pixel without a neighbour at a similar distance (a thin silhouette against the sky) stays sharp.
-  - It is off with *Reduced effects*, with the haze off, in the flight view, indoors and under water, and it fades with
-    the camera's open-sky exposure underground.
+    - a pixel without a neighbour at a similar distance (a thin silhouette against the sky) stays sharp;
+    - the downsample is depth-aware over its 2×2 pixels (only those at the nearest surface's distance count), so the sky's
+      colour never bleeds into a ridgeline texel.
+  - Transparents stay sharp: the depth texture is copied after the transparents (`m_CopyDepthMode: 1`), so moving the pass
+    before them would force a depth prepass. Instead the particles (`Particle`, `ParticleAlpha`: rain, snow, sparks, dust)
+    and the world-space labels (`WorldText`) write the same stencil bit 64 — their pixels read the depth of the hills
+    behind them and would otherwise be blurred with those hills. Smoke (`ParticleSmoke`) is soft anyway and does not.
+  - It is off with *Reduced effects*, with the haze off, in the flight view, indoors and under water, and it fades out
+    underground (`AtmosphereProbe.UndergroundFactor` — not the camera's open-sky exposure, which is 0 under any tree
+    crown and would switch it off for a player looking out of a forest).
   - It never runs in the browser: the WebGPU render-texture pitfalls and the frame budget. `DistanceSoft.shader` is
     always-included and in `ShaderPrewarm` (desktop), so it still compiles for WebGL.
   - The budget target is about 0.5 ms at 1080p (half resolution, 4 cheap passes). Measure with PerfProbe on

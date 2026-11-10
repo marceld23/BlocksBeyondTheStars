@@ -28,7 +28,8 @@ namespace BlocksBeyondTheStars.Client
     /// log; the process exits when done, so a script can run this end-to-end. Flags: <c>-perfProbe</c>,
     /// <c>-perfOut &lt;dir&gt;</c>, <c>-seed &lt;n&gt;</c>, <c>-perfIdle &lt;sec&gt;</c>, <c>-perfWalk &lt;sec&gt;</c>,
     /// <c>-perfPreset &lt;name&gt;</c>, <c>-perfVd &lt;n&gt;</c>, and <c>-perfFeature "ssao=off|half|full,depth=off,
-    /// smaa=off,scatter=off,shadowmap=2048,shadowdist=40"</c> (isolate one preset feature's cost — see #374).
+    /// smaa=off,scatter=off,softdist=off,shadowmap=2048,shadowdist=40"</c> (isolate one preset feature's cost — see #374;
+    /// <c>softdist=off</c> drops the soft-distance blur of #3462).
     /// The numbers are a coarse CPU/GC baseline (wall-clock frame times), not a GPU profile — for the deep
     /// dive attach the Unity Profiler to a development build. When the preset is GPU-bound (the Medium cliff
     /// in #374), the wall-clock frame time still moves with each feature toggle, so a <c>-perfFeature</c>
@@ -460,6 +461,11 @@ namespace BlocksBeyondTheStars.Client
                     case "scatter":
                         GroundScatter.Enabled = false;
                         tags.Add("scatterOff");
+                        break;
+                    case "softdist":
+                        // #3462: the soft-distance blur off (the texture softening stays — it is part of the block shader).
+                        var softSky = FindAnyObjectByType<Sky>();
+                        if (softSky != null) { softSky.DistanceSoftEnabled = false; tags.Add("softdistOff"); }
                         break;
                     case "shadowmap":
                         if (urp != null && int.TryParse(val, out var sm) && sm > 0) { urp.mainLightShadowmapResolution = sm; tags.Add($"sm{sm}"); }

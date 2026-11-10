@@ -41,10 +41,12 @@ his distance-blur analysis (variants A and B, barely noticeable, sky always shar
   is now his base's stop as well (his train still needs a seat, sleeper or bar wagon for villagers and guests).
 - **#3458 leaving a train** — F (`LeaveTrain` → `RailExitSpot`, `GameServerRailExits.cs`) sets the rider down on a real
   standing spot outside the door (halt stop's side first, else the rider's; 2.3/3.1 out; feet from one below to two above
-  the hovering floor; then the other side; behind the train; the old point last) — a platform step works. Client: the
+  the hovering floor; then the other side; a ring farther out — never behind the train; the old point last; a framed
+  move arriving after the set-down is dropped) — a platform step works. Client: the
   set-down arrives as `TrainExitTarget` (no settle freeze, no "Stabilisiere Position"), a walk-off keeps its own spot
   within 1.5 blocks of the server's (+ the wagon's speed × 0.5 s for a jump; `TrainExitRules.SnapToServer`, Client.Core);
-  pressing outward into the door of a halted train for 0.2 s leaves (`PlayerTrainRider.StepDoorExit`).
+  pressing outward into the door of a halted train for 0.2 s while stuck there leaves (`PlayerTrainRider.StepDoorExit`,
+  `TrainExitRules.Stalled`).
 - **#3459 Wild-West jump-off** — walking out of (or F on) a moving train keeps half the wagon's measured velocity (cap 12
   b/s) plus a hop of 4 (`TrainExitRules.JumpPush` → `ApplyKnock`); F steps out of the nearest free door first
   (`TryJumpOffMoving`). Damage only from the drop, as anywhere.
@@ -63,9 +65,13 @@ his distance-blur analysis (variants A and B, barely noticeable, sky always shar
 - **#3462 distance softness B "Soft distance"** — `DistanceSoftPass` (render graph, `DistanceSoftView` enqueues it on the
   world cameras at `BeforeRenderingPostProcessing`): half-res downsample with distance, depth-aware 7-tap blur H/V,
   composite `blend × smoothstep(band start ≈ 40 % of the haze range, haze end)` with blend ≈ 0.4–0.5. Far-plane pixels
-  untouched; the surface-sky moons and planets (`SkyBodyPhase`) write stencil bit 64 and the composite skips them.
+  untouched; the surface-sky moons and planets (`SkyBodyPhase`) — and the particles (`Particle`, `ParticleAlpha`: rain,
+  snow, sparks) and world-space labels (`WorldText`), whose depth reads the hills behind them — write stencil bit 64
+  and the composite skips them; the downsample is depth-aware (no sky colour in ridgeline texels). The blur fades out
+  underground only (`AtmosphereProbe.UndergroundFactor`), not under a tree crown.
   Medium+ desktop only (no row in the browser), off with Reduced effects / haze off / flight view; own switch
-  `ui.settings.distance_softness` ("Weiche Ferne" / "Soft distance") in all 14 languages, on with atmosphere "All".
+  `ui.settings.distance_softness` ("Weiche Ferne" / "Soft distance") in all 14 languages, on by default (the atmosphere
+  mode does not touch it — the row sits in the general graphics list).
   `DistanceSoft.shader` always-included + prewarmed (desktop).
 - Tests: `RailBaseReachTests`, `RailExitTests`, `TrainExitRulesTests`, `LoadingLoreTests` (rewritten),
   `DistanceSoftLookTests`, the bump snapshot assertions in `RailGuestTests`, text-fit lines for the veil footer and the

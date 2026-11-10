@@ -1044,7 +1044,10 @@ public sealed partial class GameServer
         var p = session.State;
         if (string.IsNullOrEmpty(p.InTrain))
         {
-            return false;
+            // #3458: a frame report from a client the server has just set down — its framed moves were still on the way.
+            // Those are wagon-local numbers (a metre or two from 0), never a world position: dropped, or the player would
+            // sit at the world origin until the next world-frame report (and the void rescue could dig them out there).
+            return !string.IsNullOrEmpty(move.FrameId);
         }
 
         p.Yaw = move.Yaw;

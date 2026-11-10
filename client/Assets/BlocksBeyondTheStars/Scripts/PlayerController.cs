@@ -525,7 +525,7 @@ namespace BlocksBeyondTheStars.Client
                     bool wantsUp = InputMap.JumpDown() || InputMap.CrouchHeld() || Mathf.Abs(InputMap.MoveX()) > 0.3f || Mathf.Abs(InputMap.MoveY()) > 0.3f;
                     if (InputMap.Down(InputAction.SpeederExit))
                     {
-                        Game.Network?.SendExitTrain();
+                        _train.RequestExit(); // #3458: the server finds a standing spot outside the door
                     }
                     else if (wantsUp && RailRules.TryParseFrame(Game.InTrain, out string sitTrain, out int sitWagon))
                     {
@@ -543,7 +543,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     if (!_train.TryJumpOffMoving(transform.eulerAngles.y, _pitch)) // #3459: off a moving train, a jump
                     {
-                        Game.Network?.SendExitTrain(); // #3458: the server finds a standing spot outside the door
+                        _train.RequestExit(); // #3458: the server finds a standing spot outside the door
                     }
                 }
                 else if (InputMap.Down(InputAction.Interact) && _train.TrainInteract())
