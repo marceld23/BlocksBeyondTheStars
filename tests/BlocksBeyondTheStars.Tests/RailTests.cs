@@ -294,6 +294,95 @@ public sealed class RailTests : IDisposable
     }
 
     [Fact]
+    public void ATrain_EasesIn_CruisesByTheDistanceToTheNextStop_AndRollsOntoIt_WithoutASnap()
+    {
+        // #3444 (Lyxette): a short hop in town stays gentle, a long leg reaches the top speed, the speed never jumps, and
+        // the train rolls onto each stop at a walking pace — the halt never pulls it back. The cab's "go" then sets it off
+        // from rest, and the stop it stood on does not catch it again.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var b = Builder(server);
+            for (int x = 0; x <= 300; x += 30)
+            {
+                Pylon(server, b, x, 0); // a straight 300-block line
+            }
+
+            Assert.Single(server.RailLinesForTest());
+            foreach (int sx in new[] { 40, 270 })
+            {
+                b.State.Position = new Vector3f(sx + 0.5f, Y + 2, 5.5f);
+                server.PlaceBlock(b.State.PlayerId, sx, Y, 3, "rail_stop"); // beside the line
+            }
+
+            Assert.Equal(2, Assert.Single(server.RailLinesForTest()).Stops);
+            Use(server, b, "rail_cab", new Vector3f(5.5f, Y + 1.5f, 0.5f));
+            var t = Assert.Single(server.TrainsForTest());
+            Assert.Equal(RailRules.NewCabSpeed, t.Speed); // a new cab: the middle setting, top speed 16
+            Assert.True(Assert.Single(server.NetTrainsForTest()).Velocity > 0f, "a running train is never sent as standing");
+
+            const double dt = 1.0 / 15.0;
+            float cap = RailMotion.TopSpeed(RailRules.NewCabSpeed);
+            var peaks = new System.Collections.Generic.List<float>();
+            var stops = new System.Collections.Generic.List<float>();
+            float peak = 0f, v = 0f, arc = t.Arc;
+            bool halted = false;
+            for (int i = 0; i < 15 * 120 && peaks.Count < 2; i++)
+            {
+                double step = halted ? 0.5 : dt;
+                server.TickForTest(step);
+                var now = server.TrainsForTest().Single();
+                float vNow = Math.Abs(server.NetTrainsForTest().Single().Velocity);
+                if (!halted)
+                {
+                    Assert.True(now.Arc >= arc - 0.002f, $"tick {i}: the train moved back from {arc} to {now.Arc}");
+                    Assert.True(now.Arc - arc <= (cap * dt) + 1e-3, $"tick {i}: a step of {now.Arc - arc} blocks");
+                }
+
+                if (now.Halted && !halted)
+                {
+                    // The tick it halted on came in at a walking pace, so the snap onto the stop is at most that tick's step.
+                    Assert.True(v <= RailMotion.ArrivalSpeed + (2f * RailMotion.Acceleration * dt), $"it came into the stop at {v} blocks/s");
+                    peaks.Add(peak);
+                    stops.Add(server.WagonPoseForTest(t.Id, 0)!.Value.Pos.X);
+                    peak = 0f;
+                }
+                else if (!now.Halted)
+                {
+                    // The wire never says less than the start speed for a running train (a standing one says 0).
+                    float from = Math.Max(v, RailMotion.StartSpeed);
+                    Assert.True(vNow - from <= (RailMotion.Acceleration * step) + 1e-3, $"tick {i}: the speed jumped from {v} to {vNow}");
+                    Assert.True(from - vNow <= (RailMotion.ServiceBrake * step) + 1e-3, $"tick {i}: the speed dropped from {v} to {vNow}");
+                    peak = Math.Max(peak, vNow);
+                }
+
+                halted = now.Halted;
+                arc = now.Arc;
+                v = vNow;
+            }
+
+            Assert.Equal(2, peaks.Count);
+            Assert.True(peaks[0] <= 8f, $"the 35-block hop to the first stop peaked at {peaks[0]} blocks/s");
+            Assert.True(peaks[1] > cap - 1f && peaks[1] <= cap + 1e-3f, $"the 230-block leg peaked at {peaks[1]} blocks/s");
+            Assert.InRange(stops[0], 38.5f, 42.5f); // the cab (the leading wagon) stands at each stop
+            Assert.InRange(stops[1], 268.5f, 272.5f);
+
+            // The cab's "go" at the stop: it sets off from rest and is not caught again by the stop it stood on.
+            float held = server.TrainsForTest().Single().Arc;
+            server.SetTrainForTest(b.State.PlayerId, t.Id, halt: 0);
+            Assert.True(Math.Abs(server.NetTrainsForTest().Single().Velocity) <= RailMotion.StartSpeed + 1e-4f);
+            for (int i = 0; i < 15; i++)
+            {
+                server.TickForTest(dt);
+            }
+
+            var gone = server.TrainsForTest().Single();
+            Assert.False(gone.Halted, "the stop it stood on caught it again");
+            Assert.InRange(gone.Arc - held, 1f, 3f); // one second of the ease-in: about 2 blocks
+        }
+    }
+
+    [Fact]
     public void Riders_RideInTheWagonsFrame_OneWalkingOneSeated_AndWalkingOutIsLeaving()
     {
         var server = Started(out var repo);
@@ -410,7 +499,7 @@ public sealed class RailTests : IDisposable
             Assert.Equal(2, server.TrainsForTest().Single().Riders.Count);
 
             const float dt = 1f / 15f;
-            float speed = RailRules.SpeedTable[server.TrainsForTest().Single().Speed - 1];
+            float speed = RailMotion.TopSpeed(server.TrainsForTest().Single().Speed); // #3444: the most it ever runs
             float maxStep = 1.5f * speed * dt + 0.05f;
             float worstB = 0f, worstW = 0f;
             int dir0 = server.TrainsForTest().Single().Direction;
@@ -478,6 +567,172 @@ public sealed class RailTests : IDisposable
             var cab = server.WagonPoseForTest(t.Id, 0)!.Value.Pos;
             var seats = server.WagonPoseForTest(t.Id, 1)!.Value.Pos;
             Assert.InRange(Dist(cab, seats), RailRules.WagonLength, RailRules.WagonLength + RailRules.WagonGap + 0.2f);
+        }
+    }
+
+    [Fact]
+    public void TheAutopilotSwitchedOnJustBeforeAStopAtSpeed_PassesIt_AndHaltsAtTheNextOne()
+    {
+        // #3444 review: a train at 24 blocks/s whose autopilot came on 3 blocks before a stop was cut onto that stop and
+        // halted dead from full speed. It cannot brake for that stop — it passes it and brakes into the next one.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var b = Builder(server);
+            for (int x = 0; x <= 300; x += 30)
+            {
+                Pylon(server, b, x, 0); // a straight 300-block line
+            }
+
+            foreach (int sx in new[] { 150, 270 })
+            {
+                b.State.Position = new Vector3f(sx + 0.5f, Y + 2, 5.5f);
+                server.PlaceBlock(b.State.PlayerId, sx, Y, 3, "rail_stop"); // beside the line
+            }
+
+            Assert.Equal(2, Assert.Single(server.RailLinesForTest()).Stops);
+            Use(server, b, "rail_cab", new Vector3f(5.5f, Y + 1.5f, 0.5f));
+            var t = Assert.Single(server.TrainsForTest());
+            server.SetTrainForTest(b.State.PlayerId, t.Id, speed: 3, autopilot: 0);
+            b.State.Position = server.WagonPoseForTest(t.Id, 0)!.Value.Pos;
+            server.EnterTrainForTest(b.State.PlayerId, t.Id, 0); // the driver runs it by hand to full speed
+
+            const double dt = 1.0 / 15.0;
+            for (int i = 0; i < 15 * 60 && server.WagonPoseForTest(t.Id, 0)!.Value.Pos.X < 147f; i++)
+            {
+                server.TickForTest(dt);
+            }
+
+            Assert.InRange(server.WagonPoseForTest(t.Id, 0)!.Value.Pos.X, 147f, 149.5f);
+            float v = Math.Abs(Assert.Single(server.NetTrainsForTest()).Velocity);
+            Assert.True(v > 23f, $"the driver only reached {v} blocks/s");
+
+            server.SetTrainForTest(b.State.PlayerId, t.Id, autopilot: 1);
+            bool halted = false;
+            for (int i = 0; i < 15 * 60 && !halted; i++)
+            {
+                server.TickForTest(dt);
+                float vNow = Math.Abs(Assert.Single(server.NetTrainsForTest()).Velocity);
+                halted = Assert.Single(server.TrainsForTest()).Halted;
+                float x = server.WagonPoseForTest(t.Id, 0)!.Value.Pos.X;
+                Assert.False(halted && x < 200f, $"it halted dead at the first stop (x {x}) from {v} blocks/s");
+                if (!halted)
+                {
+                    Assert.True(v - vNow <= (RailMotion.ServiceBrake * dt) + 1e-3, $"tick {i}: the speed dropped from {v} to {vNow}");
+                }
+                else
+                {
+                    Assert.True(v <= RailMotion.ArrivalSpeed + (2f * RailMotion.Acceleration * dt), $"it came into the second stop at {v} blocks/s");
+                }
+
+                v = vNow;
+            }
+
+            Assert.True(halted, "the autopilot never halted at the second stop");
+            Assert.InRange(server.WagonPoseForTest(t.Id, 0)!.Value.Pos.X, 268.5f, 272.5f);
+        }
+    }
+
+    [Fact]
+    public void AStopTooCloseToBrakeFor_IsNoTarget_AndBecomesTheLastStop()
+    {
+        // TrainTargets directly: a straight open line 300 long, stops at arcs 100 and 250, a lone cab 3 blocks before the first.
+        var line = new SvGameServer.RailLine
+        {
+            Id = 1,
+            Spline = RailSpline.Build(new[] { new Vector3f(0.5f, 60f, 0.5f), new Vector3f(150.5f, 60f, 0.5f), new Vector3f(300.5f, 60f, 0.5f) },
+                closed: false, WorldConstants.Circumference),
+        };
+        var first = new Vector3i(100, 60, 3);
+        var second = new Vector3i(250, 60, 3);
+        line.Stops.Add((100f, first));
+        line.Stops.Add((250f, second));
+        var t = new SvGameServer.ServerTrain { Arc = 97f, Velocity = 24f, Speed = 3 };
+        t.Wagons.Add(RailRules.CabItemKey);
+
+        var (_, ahead, stopAhead) = SvGameServer.TrainTargets(t, line, 0f);
+        Assert.Equal(first, t.LastStop); // passed this time: the halt check lets it through
+        Assert.True(stopAhead);
+        Assert.Equal(153f, ahead, 2); // the next stop is the target
+
+        // At a walking pace the same stop is the target, as ever.
+        t.LastStop = null;
+        t.Velocity = 4f;
+        (_, ahead, stopAhead) = SvGameServer.TrainTargets(t, line, 0f);
+        Assert.Null(t.LastStop);
+        Assert.True(stopAhead);
+        Assert.Equal(3f, ahead, 2);
+    }
+
+    [Fact]
+    public void OnALoopWithOneStop_TheStopItLeft_IsTheTargetOneLapAhead()
+    {
+        // #3444 review: after the halt the stop it left was no target, the leg was endless and the train set off toward the top
+        // speed for a wagon's length — then the leg became the loop and it braked again. Now the stop is the target a lap on.
+        var circle = new System.Collections.Generic.List<Vector3f>();
+        for (int i = 0; i < 16; i++)
+        {
+            double a = i * Math.PI * 2.0 / 16.0;
+            circle.Add(new Vector3f((float)(20.0 * Math.Cos(a)) + 100f, 60f, (float)(20.0 * Math.Sin(a)) + 100f));
+        }
+
+        var line = new SvGameServer.RailLine { Id = 1, Closed = true, Spline = RailSpline.Build(circle, closed: true, WorldConstants.Circumference) };
+        float total = line.Spline.TotalArc;
+        var stop = new Vector3i(120, 60, 100);
+        line.Stops.Add((10f, stop));
+        var t = new SvGameServer.ServerTrain { Arc = 10f, Speed = 3, LastStop = stop }; // it just departed from the stop
+        t.Wagons.Add(RailRules.CabItemKey);
+
+        var (behind, ahead, stopAhead) = SvGameServer.TrainTargets(t, line, 0f);
+        Assert.True(stopAhead);
+        Assert.Equal(total, ahead, 2); // a whole lap
+        Assert.Equal(0f, behind, 2);
+
+        t.Arc = 13f; // three blocks on — still within a wagon of the stop, so it is still the last stop
+        (behind, ahead, stopAhead) = SvGameServer.TrainTargets(t, line, 0f);
+        Assert.Equal(stop, t.LastStop);
+        Assert.True(stopAhead);
+        Assert.Equal(total - 3f, ahead, 2);
+        Assert.Equal(total, behind + ahead, 2); // the leg is the loop: its cruise, from the first block on
+        Assert.True(RailMotion.CruiseSpeed(behind + ahead, RailMotion.TopSpeed(3)) < RailMotion.TopSpeed(3));
+    }
+
+    [Fact]
+    public void ATrainLongerThanItsLine_IsSentAsStanding()
+    {
+        // #3444 review: a pinned autopilot train was sent at the arrival speed and the cab read "Running — 3 blocks/s".
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var b = Builder(server);
+            b.State.Inventory.SetSlot(10, new ItemStack("wagon_sleeper", 1));
+            Pylon(server, b, 0, 0);
+            Pylon(server, b, 13, 0); // a 13-block line: room for a cab and one wagon, not two
+            var line = Assert.Single(server.RailLinesForTest());
+            Assert.InRange(line.TotalArc, 12f, RailRules.TrainSpan(3) - 0.1f);
+            Use(server, b, "rail_cab", new Vector3f(6.5f, Y + 1.5f, 0.5f));
+            var t = Assert.Single(server.TrainsForTest());
+            server.TickForTest(0.5); // past the gadget cooldown
+            Use(server, b, "wagon_seats", server.WagonPoseForTest(t.Id, 1)!.Value.Pos);
+            server.TickForTest(0.5);
+            var net = Assert.Single(server.NetTrainsForTest());
+            Assert.Equal(2, net.Wagons.Length);
+            Assert.False(net.Halted);
+            Assert.True(Math.Abs(net.Velocity) > 0f, "a train with room to run is sent as running");
+
+            Use(server, b, "wagon_sleeper", server.WagonPoseForTest(t.Id, 2)!.Value.Pos);
+            server.TickForTest(0.5);
+            float at = Assert.Single(server.TrainsForTest()).Arc;
+            server.TickForTest(0.5);
+            net = Assert.Single(server.NetTrainsForTest());
+            Assert.Equal(3, net.Wagons.Length);
+            Assert.True(net.Autopilot);
+            Assert.True(net.Halted, "a train that cannot move is sent as standing");
+            Assert.Equal(0f, net.Velocity);
+            Assert.Equal(0f, net.HaltRemaining);
+            var pinned = Assert.Single(server.TrainsForTest());
+            Assert.Equal(at, pinned.Arc);
+            Assert.False(pinned.Halted); // only the wire says it stands: on a longer line it runs at once
         }
     }
 

@@ -136,8 +136,10 @@ public sealed partial class GameServer
 
     /// <summary>Whether a villager asks for a NEW wish right now: not while celebrating at the festival (#2604 — everybody
     /// is busy cheering) and not while away visiting a base (#2602 — hidden at home). Their lane keeps them (the coin does
-    /// not move on to somebody else); the "!" and the offer simply wait. A held wish is still handed over.</summary>
-    private static bool WishOfferPaused(ServerNpc npc) => npc.Phase == NpcPhase.Festival || npc.VisitingAway;
+    /// not move on to somebody else); the "!" and the offer simply wait. A held wish is still handed over. #3446: nor while
+    /// away on a train trip (or riding as a passenger) — the offer waits for them to be home again.</summary>
+    private static bool WishOfferPaused(ServerNpc npc)
+        => npc.Phase == NpcPhase.Festival || npc.VisitingAway || npc.Trip is not null || npc.TrainId.Length > 0;
 
     /// <summary>A hamlet's villagers have one wish at a time, every larger place two.</summary>
     private static int WishLaneCount(SettlementInstance s) => s.Tier == "hamlet" ? 1 : 2;

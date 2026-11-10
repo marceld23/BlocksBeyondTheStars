@@ -707,8 +707,9 @@ public sealed partial class GameServer
 
             npc.Patrol = npc.Job == "guard" ? patrol : null;
 
-            // #1248/#1658: a resident whose idle spot got built over or flooded moves out of it at once.
-            if (npc.Pose == 0 && npc.Goal is null)
+            // #1248/#1658: a resident whose idle spot got built over or flooded moves out of it at once (#3447: not one away
+            // on a train trip — its trip brings it home).
+            if (npc.Pose == 0 && npc.Goal is null && npc.Trip is null && npc.TrainId.Length == 0)
             {
                 var hc = npc.Home.ToBlock();
                 if (StandableSpot(hc.X, hc.Y, hc.Z) is null)

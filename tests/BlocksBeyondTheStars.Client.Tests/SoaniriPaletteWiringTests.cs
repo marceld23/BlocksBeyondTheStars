@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.Client.Tests;
@@ -10,7 +11,9 @@ namespace BlocksBeyondTheStars.Client.Tests;
 /// evergreen world's plants in their colours (<see cref="SeasonLook.TargetFor"/>, unit-tested), and the Unity wiring is
 /// guarded as source text (the scripts cannot load headless — the <see cref="ClientQuirksWiringTests"/> pattern): the flora
 /// colours are built with the world's planet type (its flora palette), the sky asks whether the type is evergreen, and the
-/// Soundeling, Soundrak and Sounder builders take their colours from the shared rules.
+/// Soundeling, Soundrak and Sounder builders take their colours from the shared rules. #3448: the rolled animals wear fur and
+/// skin (the "cold" theme), the builder keeps their coat marks in the planet's fauna palette and the micro-fauna take their
+/// colours from it.
 /// </summary>
 public sealed class SoaniriPaletteWiringTests
 {
@@ -70,6 +73,25 @@ public sealed class SoaniriPaletteWiringTests
         string sounder = Script("CreatureBuilder.Sounder.cs");
         Assert.Contains("SounderRules.SkinTones[0]", sounder);
         Assert.DoesNotContain("0.95f, 0.75f, 0.8f", sounder); // the pink inner ears are gone
+    }
+
+    [Fact]
+    public void SoanirisRolledAnimals_WearFurAndSkin_AndTheirMarksAndTheBugsStayInThePalette()
+    {
+        // #3448: the "cold" theme (warm coats, soft skins) instead of the crystal world's derived crystal and armour hides.
+        var soaniri = ContentLoader.LoadFromDirectory(ClientTestPaths.DataDir()).GetPlanet("sounder_world")!;
+        Assert.Equal("cold", FaunaThemes.ThemeOf(soaniri));
+        Assert.Contains(FaunaThemes.Themes["cold"], f => f.Family == "warmcoat");
+        Assert.Contains(FaunaThemes.Themes["cold"], f => f.Family == "softskin");
+        Assert.NotEmpty(FaunaTints.PaletteOf(soaniri));
+
+        // The builder hands the world's look (with its palette) to the pattern colour; the micro-fauna read the type's palette.
+        Assert.Contains("CreatureCoat.PatternRgb(seed, c.ColorRgb, pattern, _look)", Script("CreatureBuilder.cs"));
+        string bugs = Script("MicroFaunaView.cs");
+        Assert.Contains("RefreshFaunaPalette();", bugs);
+        Assert.Contains("FaunaTints.PaletteOf(Game.Content.GetPlanet(type))", bugs);
+        Assert.Contains("Color[] palette = inPalette ? _faunaPalette : kind.Palette;", bugs);
+        Assert.Contains("c.Tint = TintFor(kind);", bugs);
     }
 
     private static int CountOf(string text, string part)

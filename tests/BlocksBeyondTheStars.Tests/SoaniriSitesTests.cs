@@ -207,6 +207,19 @@ public sealed class SoaniriSitesTests : IClassFixture<SoaniriWorldFixture>, IDis
     }
 
     [Fact]
+    public void MirunsVillagers_WearTheSounderSkinAndSash_AndTheEldestIsTheTallest()
+    {
+        // #3449: they were dressed as settlers — a human skin, a settler outfit as the sash, a human size.
+        var villagers = _fx.Server.MirunVillagersForTest();
+        Assert.All(villagers, v => Assert.Contains(v.Skin, SounderRules.SkinTones));
+        Assert.All(villagers, v => Assert.Contains(v.Sash, SounderRules.SashTones));
+        Assert.All(villagers, v => Assert.InRange(v.Size, SounderRules.MinSize, SounderRules.MaxSize));
+        var eldest = villagers.Single(v => v.CharacterId == SvGameServer.EldestCharacterId);
+        Assert.Equal(SounderRules.MaxSize, eldest.Size);
+        Assert.All(villagers.Where(v => v.CharacterId != SvGameServer.EldestCharacterId), v => Assert.True(v.Size < eldest.Size, v.Name));
+    }
+
+    [Fact]
     public void Ornasa_HasThreeSealedChambers_AndAClosedBloomTrailOnMoss()
     {
         var server = _fx.Server;
@@ -309,5 +322,28 @@ public sealed class SoaniriSitesTests : IClassFixture<SoaniriWorldFixture>, IDis
         Assert.Equal((admin.State.Position.X, admin.State.Position.Y, admin.State.Position.Z), (snap.X, snap.Y, snap.Z));
         float dx = snap.X - tower.X, dz = snap.Z - tower.Z;
         Assert.True(dx * dx + dz * dz <= 6f * 6f, $"at the tower ({tower.X}, {tower.Z}), not at ({snap.X}, {snap.Z})");
+    }
+
+    /// <summary>#3448: "/biped" and "/arachnid" roll a species into the roster at runtime when the world has none — on Soaniri
+    /// it wears the planet's fauna palette like every rolled species of the roster, not a colour from any hue.</summary>
+    [Fact]
+    public void AdminSummonedSpecies_WearTheFaunaPalette()
+    {
+        var server = Started("snd_admin_fauna", 3448, out _);
+        foreach (var sp in server.SpeciesRoster.Where(s => s.BodyPlan is CreatureBodyPlan.Biped or CreatureBodyPlan.Arachnid))
+        {
+            sp.BodyPlan = CreatureBodyPlan.Standard; // a roster without either, whatever the seed rolled: the summons roll new ones
+        }
+
+        var admin = OnFoot(server, "Ada", new Vector3i(0, 120, 0));
+        int before = server.SpeciesRoster.Count;
+        server.SummonBipedForTest(admin.State.PlayerId); // placing them may find no room — the species joins the roster anyway
+        server.SummonArachnidForTest(admin.State.PlayerId);
+
+        var added = server.SpeciesRoster.Skip(before).ToList();
+        Assert.Equal(new[] { CreatureBodyPlan.Biped, CreatureBodyPlan.Arachnid }, added.Select(s => s.BodyPlan));
+        var palette = FaunaTints.PaletteOf(Content.GetPlanet(SoundersIds.PlanetType));
+        Assert.NotEmpty(palette);
+        Assert.All(added, sp => Assert.Equal(FaunaTints.CoatFor(sp.VoiceSeed, palette), (sp.ColorRgb, sp.BellyRgb)));
     }
 }

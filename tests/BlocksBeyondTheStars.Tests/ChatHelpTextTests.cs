@@ -24,6 +24,7 @@ public sealed class ChatHelpTextTests
         "ui.admin.help_teleport",
         "ui.admin.help_ressaw", // #3421
         "ui.admin.help_wilderness", // #2646
+        "ui.admin.help_rail", // #3447
         "ui.admin.help_inspect",
         "ui.admin.help_fleet",
         "ui.admin.help_story",

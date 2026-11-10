@@ -277,7 +277,8 @@ public sealed partial class GameServer
     /// not greeting a passer-by, not already talking and rested from the last talk — and not at the festival (#2604: the
     /// ring cheers, one voice at a time).</summary>
     private bool CanStartChatter(ServerNpc npc)
-        => npc.RoutineEnabled && npc.Pose != 2 && npc.Goal is null && !npc.SeatWait && npc.TalkWith is null
+        => npc.RoutineEnabled && npc.Trip is null && npc.TrainId.Length == 0 // #3446: no village chatter on a train trip
+           && npc.Pose != 2 && npc.Goal is null && !npc.SeatWait && npc.TalkWith is null
            && _uptime >= npc.ChatRestUntil && _uptime >= npc.AttendUntil
            && npc.ActivityKey != "npc.activity.posing" && npc.Role != "guardian" && npc.Phase != NpcPhase.Festival;
 

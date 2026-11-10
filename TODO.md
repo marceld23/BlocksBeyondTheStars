@@ -24,6 +24,57 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🚆 Rail travel, faster trains, Soaniri in blue/green, no wild animals in towns, loading-screen story — #3444–#3450, #3453, ✅ 2026-11-10 (merge pending) (⚠ playtest open)
+
+From Lyxette's F1 report "Zug Schnelligkeit?" (2026-11-09: the train too slow for far cities; visiting settlers should come
+by train, "more than decoration"), Justus' "Coole Anzeigen" (story lines over the loading bar), Marcel's Sounders colour
+request and his playtest (animals on village roofs).
+
+- **#3444 rail speed by distance** — `RailMotion` (Shared, modelled on `LiftMotion`): the settings are caps 8 / 16 / 24 b/s
+  (were fixed 4 / 8 / 12), new cabs start at setting 2; ease-in 4 b/s², cruise `clamp(leg / 6 s, 4, cap)` to the next target
+  (stop ahead / open line end, a loop's last stop one lap ahead), braking curve arriving at 2.5 b/s (no snap at the stop), a
+  stop that can no longer be reached gently (`CanArriveAt`, 5 b/s with the 8 b/s² service brake) is passed. Bend cap from
+  `RailCurveLimits` (chord ≥ 12 blocks / 2× sample spacing, horizontal 4 b/s², crests and dips 8 b/s²), cached per line.
+  Additive `NetTrain.Velocity`, client prediction via `TrainDrawArc.PredictSpeed` (old-server fallback 4/8/12); a train longer
+  than its line is sent as standing. Fixed on the way: "go" at a stop no longer re-halts at the same stop.
+- **#3445 NPC passengers** — `ServerTrain.NpcPassengers` (never in `Riders`), seats shared with players (players first),
+  board/alight only at a halt via a door/platform spot, positions derived in `TickTrains`, NPC movement/routine/chatter/
+  festival/wish/BaseLife skip passengers; additive `NetNpc.FrameId/LocalX/Y/Z/LocalYaw`, `NpcView.Train.cs` draws them on
+  the wagon without interpolation lag; every abort (stow, return, line gone/changed — set down on the OLD line object) sets
+  them down safely; RAM only.
+- **#3446 villager trips** — stop → place mapping (intercity station → its town; settlement box ±12; base core within 48 h /
+  24 v), plain villagers only (no job, story, guest, wish), per line every 0.2 in-game days by day, max 3 per world and 1 per
+  place; phases to station → wait → ride → square visit → back → home; out of reach the legs are 1 b/s timers and never
+  load terrain (`GameServerRailTripReach.cs`: loaded-only probes, guessed spots resolved once in reach), "never pop in front
+  of a player"; timeouts scale with the line (`RailTrainTimes`: wait/ride/guest window = max(300/900/180 s, 1.25 × round));
+  "Villagers ride along" switch on the cab panel (appended CSV field, old records on; additive `NetTrain.TakesPassengers` /
+  `SetTrainIntent.Passengers`). Greeting `npc.hello.visitor/passenger`, nameplate `npc.activity.train_trip`.
+- **#3447 guests by train** — a base with a stop on a line to a town ≥ 150 blocks away gets its neighbour visits by train
+  (the real villager rides, the #2602 guest copy takes over on the base platform, leaves by train with unseen exits and
+  timeouts at every step; fallbacks: walk-in neighbour, else a traveller — no visit is lost); base residents ride to the
+  connected town; admin `/guest`, `/railtrip [town]`; bump snapshot `rails` block; VILLAGE_LIFE.md drift fixed (merchant
+  weight 120 Market-only, path box 64).
+- **#3448 Soaniri fauna palette** — planet field `faunaPalette` (`FaunaTints.Dress` post-pass in `GenerateRoster` before
+  the authored append, no RNG draws, other worlds bit-identical; also `/biped`/`/arachnid`), Soaniri gets 8 light blue/aqua/
+  mint entries + `faunaTheme: "cold"` (fur/soft skin), palette-safe coat marks (no bold black/white), micro-fauna from the
+  palette. The Soundi is untouched.
+- **#3449 (bug)** Mirun's villagers and the Eldest wore human skin + settler outfits → `DressAsSounder` shared with
+  `SpawnSounderNpc`; the Eldest is the tallest.
+- **#3450 loading-screen story** — six lines `ui.loading.lore.1…6` in big letters over the bar (`LoadingLore`: progress
+  bands, ≥ 1.5 s per line, "You awaken!" guaranteed in the hand-off frame); the browser bar now creeps 0.60→0.85 while the
+  in-browser world boots instead of parking at 100 %.
+- **#3453 (bug) wild animals on village roofs / in lanes** — `SpawnSpotClear` had no settlement rule and `GroundFeetYAt`
+  landed on the roof; `StepBlocked` knew no towns. New `GameServerCreatureTownRules.cs`: intact settlement + lodge boxes
+  (+4 margin) reject ground-bound spawns (fliers only under open sky), a wild ground animal's step into/deeper into a town
+  counts as a wall (hostiles too — towns are safe ground), one left inside is removed after 30 s unseen; pets, companions,
+  story fauna exempt.
+- All new texts in 14 languages. Reviewed by two independent passes; every finding fixed (the loading pacing, the bend cap,
+  the dead stop at speed, the loop sprint, the stuck leaving train guest, pop-ins on abort paths, a lost visit, chunk loads
+  out of reach, timeouts on long lines, older-payload tests).
+
+Open: playtest — a villager riding the intercity train (`/railtrip`), a guest by train at a base stop (`/guest`), 24 b/s with
+seated and walking riders, browser chunk pop-in at 24 b/s, Soaniri's colours, the loading lines, a village without animals.
+
 ### 🐧 Linux AppImage starts again — launcher execute bit + packed-AppImage guard — #3451, ✅ 2026-11-09, PR #3452 (merge pending), ships in the next release
 
 - **#3451** (reported with cause, fix and workaround by Mathias, @maTzko13) every Linux AppImage up to v2026.11.14 died at

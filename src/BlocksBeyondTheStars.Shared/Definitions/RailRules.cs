@@ -59,8 +59,13 @@ public static class RailRules
     /// <summary>The line runs this far over the pylon's top cell (the tube's centre); the wagon floor sits <see cref="HoverHeight"/> above it.</summary>
     public const float LineRise = 1.2f;
 
-    /// <summary>The three speed settings (blocks per second along the line).</summary>
-    public static readonly float[] SpeedTable = { 4f, 8f, 12f };
+    /// <summary>The three speed settings' <b>top speeds</b> (blocks per second along the line). Since #3444 a train does
+    /// not run at its setting's speed: it eases in, cruises by the length of its leg and brakes into each stop
+    /// (<see cref="RailMotion"/>) — the setting is the most it ever goes.</summary>
+    public static readonly float[] SpeedTable = { 8f, 16f, 24f };
+
+    /// <summary>The speed setting a freshly placed cab starts at (#3444): the middle one, top speed 16 blocks/s.</summary>
+    public const int NewCabSpeed = 2;
 
     /// <summary>How long an autopilot train waits at a stop before it moves on (a signal on the stop's port departs it early).</summary>
     public const double StopHaltSeconds = 8.0;
@@ -77,7 +82,8 @@ public static class RailRules
     /// <summary>How long a public train waits at each station (#2125) — long enough for a player to walk up and board.</summary>
     public const double PublicStopHaltSeconds = 30.0;
 
-    /// <summary>The public train's speed setting (1..3, see <see cref="SpeedTable"/>): the middle one, 8 blocks/s.</summary>
+    /// <summary>The public train's speed setting (1..3, see <see cref="SpeedTable"/>): the middle one, top speed 16
+    /// blocks/s (#3444 — it runs the same speed profile as every train).</summary>
     public const int PublicTrainSpeed = 2;
 
     /// <summary>The public train's wagons from the cab backwards (#2125): the cab and one passenger wagon with six seats.</summary>

@@ -104,9 +104,9 @@ public sealed partial class GameServer
         RunFurnitureSearches(aoiSq);
         foreach (var npc in _npcs)
         {
-            if (!npc.RoutineEnabled || !InRoutineReach(npc, aoiSq))
+            if (!npc.RoutineEnabled || npc.Trip is not null || npc.TrainId.Length > 0 || !InRoutineReach(npc, aoiSq))
             {
-                continue;
+                continue; // #3445/#3446: a passenger or a traveller follows its trip, not its day
             }
 
             if (_uptime < npc.TalkHoldUntil)

@@ -395,7 +395,8 @@ live by `GameServerCreatures.cs`.
   eligible species skips the native pass outright (`CreatureBehaviour.BiomePassStarved`, #1325) —
   otherwise every spawn in that region was its single native, and a base there drowned in one species.
   Natives are tinted ~45 % toward their biome's anchor hue, so region A's fauna reads green-ish and
-  region B's violet-ish on the same world.
+  region B's violet-ish on the same world. A type with a `faunaPalette` (#3448, Soaniri) overrides both rolled
+  colours afterwards with its own entries (§51).
 
 **Live spawning:** a dynamic world cap (scaled by circumference × abundance × √players; a lush big
 world reaches ~25–45, backstopped by a safety ceiling of 64 — #470; the tick's fill gate and cadence read
@@ -437,7 +438,21 @@ player floor, in a sealed room or in a walled area (an amphibian only on player 
 never — a fish in a deep moat reads as walled in) — never a pet, a clone, a giant, the shapeshifter, or an animal that is
 provoked, hunting, begging/called, held in stasis or the target of anyone's taming session — but only while no player is looking at it: within the
 player's streaming radius, inside a ±70° cone around the yaw and with a sightline that only real walls block
-(glass, shaped forms, props and fluids see through); closer than 3 blocks always counts as seen. Only
+(glass, shaped forms, props and fluids see through); closer than 3 blocks always counts as seen.
+**Towns are not pastures (#3453, `GameServerCreatureTownRules.cs`).** The *town zone* is every intact settlement's box
+and every lodge's footprint, grown by `TownWildMargin` = 4 blocks on each side and reaching from 4 under the foundation
+row to 4 over the box top (the 48-block plinth under a town is not part of it); ruins and the intercity line stay wild.
+`SpawnSpotClear` rejects a land animal, an amphibian ashore and a cave dweller in the zone — before, the land spawn's
+"highest solid block" put whole herds on the roofs — while a flier may spawn over the town but not under one of its
+roofs (the air above it up to the box top must be open). `StepBlocked` treats a wild ground animal's step into the zone,
+or one column deeper into it, as a wall, so it steers round and turns away at the edge like at a cliff (#651); depth
+counts whole columns to the zone's nearest side, so an animal already inside may always step out or along and is never
+trapped. Hostiles stop at the edge too — a town is safe ground, the margin keeps a lunge off the lanes. The intruder
+sweep removes a wild ground animal that has stayed in the zone for `TownStayGraceSeconds` (30 s,
+`CombatEntity.InTownSince`) while nobody looks. Exempt: companions (a player's pet, a tamer's pet — the only animal a
+settlement keeps — the robot, Rudolpho, the story Soundi), giants, clones, the Sreekmakra, the Sounders' fauna, an
+animal begging, called or trotting off after a meal, and the target of a taming session. A world without settlements or
+lodges leaves every check at its first line. Only
 **awake, hostile** creatures deal damage — sleepers never attack — and the day/night cycle gates
 which species are awake. Bite + aggro ranges grow gently with species size past 2 (bite capped at
 the player's own 6-block attack reach).
@@ -3403,6 +3418,21 @@ pink. `evergreenFlora` (`PlanetType.EvergreenFlora`) keeps the plants' colours a
 growth, the HUD), but `SeasonLook.TargetFor` sends no autumn turn to amber and red and no winter paling for such a type. A
 type without the fields is unchanged. The rune stones and ancient bricks keep the moss's `crystal` biome palette.
 
+**The rolled animals too (#3448, Marcel 2026-11-09).** `faunaPalette` (`PlanetType.FaunaPalette`, the mirror of
+`floraPalette` — Soaniri's five light blues and aquas and three mints, every one well lighter than the moss) dresses the
+five ROLLED species of the "few" roster: one post-pass in `CreatureGenerator.GenerateRoster` after every rolled pass and
+before the authored records join (`FaunaTints.Dress`) gives each a body of one entry (saturation ±12 %, brightness ±8 %
+jittered, the hue kept — `FloraTints.Jittered`) and a belly of another entry that is at least 0.04 lighter in luma, else
+the body lightened 45 % toward white (`FaunaTints.CoatFor`). The pick is a hash of the species' own voice seed, so no RNG
+draw is added: every other type rolls bit-identically, and the authored four (the Soundi included) keep their designed
+colours. A species the admin commands `/biped` and `/arachnid` roll into the roster at runtime is dressed the same way
+(`FaunaTints.Dress` on that one species; `/hound`'s Schuppenhund keeps its scales — Soaniri rolls no hound). Rosters are
+not saved, so an existing Soaniri recolours on its next load; a tamed pet and a bio sample keep the
+colours they were taken with. `faunaTheme: "cold"` dresses them in warm coats and soft skins instead of the crystal world's
+derived crystal and armour hides. On the client the world's look carries the palette (`FaunaThemes.Look.Palette`, the HOME
+world's for a pet or a clone): `CreatureCoat.PatternRgb` then gives no bold black or white marks and puts a shifted mark on a
+palette hue, and the micro-fauna take their colours from it (`MicroFaunaView.TintFor`, without the planet's hue rotation).
+
 **The singing meadows (`WorldGenerator.SingingMeadows*.cs`, `PlanetType.SingingMeadows`).** One chunk pass before the pads
 are flattened. The zone of a column comes from its resolved biome (mud → marsh, moss over stone → slope, other moss →
 meadow). Per surface column, on its own host and in patches (an FBM field, scale 14): meadows grow bell blooms 5 : chime reeds
@@ -3428,7 +3458,10 @@ meadow props above. The monuments reserve the three footprints (`AppendSounderWo
   (carved obsidian, four `chime` blocks under its arms, a crystal on top) with bell blooms and an echo flower beside it, six
   5×5 huts of brick and reed planks on a ring (doors toward the plaza, a chime on every roof), three paper lanterns and a
   fringe of chime reeds. Every load spawns six Sounder villagers (`ServerNpc.Look = "sounder"`, settlement `mirun`, soft
-  Sounder names) outside their doors and **the Eldest** (`CharacterId = "eldest"`) by the bell post.
+  Sounder names) outside their doors and **the Eldest** (`CharacterId = "eldest"`) by the bell post. They are dressed like
+  every Sounder NPC (`DressAsSounder`, #3449 — they used to keep a settler's human skin, outfit and size): a skin and a sash
+  from `SounderRules.LookFor`, the Sounder's scale from `SizeFor`, all keyed by the name (the Eldest by its character id);
+  the Eldest is the tallest (`SounderRules.MaxSize`).
 - **Ornasa** (140–240 out, prefers the meadows, radius 22): broken obsidian paving, a broken outer wall, an amphitheatre with
   eight broken rune pillars (they sing their words) and a crystal on a plinth, and six slots on a ring 16 out: three ruined
   halls (two with a relic cache) and three **sealed sound chambers** (5×5×4 carved obsidian, a two-high sealed doorway toward

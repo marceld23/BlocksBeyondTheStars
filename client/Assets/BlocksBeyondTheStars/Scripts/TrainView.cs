@@ -241,7 +241,8 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>The train's drawn arc: the server's last arc run on by speed and direction, eased toward each update.</summary>
+        /// <summary>The train's drawn arc: the server's last arc run on by its speed (#3444: the velocity it sends) and
+        /// direction, eased toward each update.</summary>
         private void Pose()
         {
             double now = Time.timeAsDouble;
@@ -260,7 +261,9 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 view.Root.SetActive(true);
-                float speed = t.Halted ? 0f : RailRules.SpeedTable[Mathf.Clamp(t.Speed, 1, 3) - 1];
+                // #3444: the speed the server runs it at right now (it eases in and brakes into stops); an older server
+                // sends none, and its running train is drawn at its setting's old fixed speed.
+                float speed = TrainDrawArc.PredictSpeed(t.Velocity, t.Halted, t.Autopilot, t.Speed);
                 float age = (float)System.Math.Max(0.0, now - Game.TrainsReceivedAt);
 
                 // #2741: the wagons are posed by the train's fixed facing (an older server sends none: its direction), so a

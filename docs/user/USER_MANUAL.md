@@ -29,7 +29,10 @@ Last updated: 2026-10-04.
   saves; if the list is still being read, the left side shows a spinner and **Loading worlds…**, and *Create / Play*
   and *Random world* wait until it is there (they check your name against it). While a world starts, the loading
   screen's bottom line says what is happening right now — e.g. *Searching for landing sites…*, *Building
-  settlements…*, *Settlers are moving in…*, then *Connecting…* and *Building the world…*. **Host Game** → host a world for friends, **Join Server**, or
+  settlements…*, *Settlers are moving in…*, then *Connecting…* and *Building the world…*. Above the bar, a short
+  story steps along in big letters, one line at a time and each long enough to read — *The Sounders come and go…*,
+  *Humans travel into space…*, *Settlements are built in space…*, *Everything begins…*, *Everything ends…* — and *You
+  awaken!* is always the last line before the world appears (#3450, Justus' idea). **Host Game** → host a world for friends, **Join Server**, or
   **Official Worlds** → online multiplayer on the official servers (see below).
 - **Host Game (in-game multiplayer hosting):** the same world picker as singleplayer — *any* saved world
   can be hosted ("open to LAN" style) or a new one created — plus a host bar with **max players** (2–16)
@@ -2240,6 +2243,14 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
     only at a base with the **Market** focus (#3036, see above);
   - a **lost traveller** who asks the way to the village and thanks you with a few torches.
 
+  **Guests by train.** If your base has a **rail stop** nearby (within about 48 blocks of the core) on a monorail line
+  that also stops at a town **far away** (150 blocks or more) — and a train runs on it that takes villagers (see
+  *Monorail* below) — your neighbour comes from that town **by train** instead: *"… from Fernstadt is coming to visit
+  you by train!"*. Watch the train come in: they step off at your stop, walk over to you, and when it is time to go they
+  walk back to the platform and take the next train home (*"… is taking the train home to Fernstadt."*). If no train
+  comes in time, the neighbour from the nearest village walks over as before; a town right next to your base always sends
+  its guests on foot. Your base's own residents sometimes take the train to that town too — and come back.
+
   They wave hello, wait a couple of minutes (longer while you stand with them), and then walk off and are gone. Each
   guest gives its present once per player. A neighbour tells you where they are going — after their present or a wish
   they brought along: *"I'm heading home to Testville soon — come and see me there!"*, and when they leave: *"Tomas is
@@ -3474,8 +3485,9 @@ VEGA tells it; the Echoes, the Eldest and Roll speak in the scenes. It has eight
    **Ornemis** system appears on **your** star chart (only for players who learned the song; others can fly along aboard
    your ship).
 7. **Homecoming.** Jump to Ornemis (you need a jump drive) and land on **Soaniri**, a world in light blue and light green
-   (its plants keep their colours all year): singing plants, **Soundis**, **Soundelings**, a **Soundrak** or two, and at
-   night **Qualis** drifting in the sky. Visit **the Eldest** in the village **Mirun**.
+   (its plants keep their colours all year, and every animal, bug and Sounder there wears light blue and light green too):
+   singing plants, **Soundis**, **Soundelings**, a **Soundrak** or two, and at night **Qualis** drifting in the sky. Visit
+   **the Eldest** — the tallest Sounder — in the village **Mirun**.
    **Watch out for the Soundraks** — the ten-metre giants are dangerous from the very start. When one notices you (about
    11 blocks away) it **screams: that is the warning**. Back away and it lets you go; stay close and a few seconds later it
    charges and bites. It is slow, so you can always walk away, and it gives up after a short chase. The *calm disc* in the
@@ -3751,7 +3763,8 @@ controls line at the bottom leaves out the quick-bar keys.
   founded base from its edge while the owner is home — never inside, never destructive; see § Bases. Gated
   on the **Bandits** slider (no robbers, no scouts); the `dangerous` preset ships with it on.
 - **Friendly visitors** (Character tab → world rules, world admin, **on** by default in every preset): neighbours,
-  travelling merchants and lost travellers now and then visit your base while you are home; see § Bases.
+  travelling merchants and lost travellers now and then visit your base while you are home (a neighbour from a far town on your
+  monorail line comes by train); see § Bases.
 - **Growing galaxy** (world creation → Universe size → **"Growing"**): the galaxy starts at the normal 12
   systems — but every time someone hyperjumps into one of the current **outermost** systems, deep-space
   telescopes report a **brand-new system beyond it**. The galaxy literally grows at your frontier, up to a
@@ -3905,6 +3918,12 @@ controls line at the bottom leaves out the quick-bar keys.
   them to keep them. Your pets, bio-lab clones and an animal you are busy with (fighting, feeding, calling with the
   caller, taming it) always stay. Fliers and cave dwellers are not stopped by walls or floors, and fish and other
   water or lava animals are never sent away.
+- **Animals and towns.** Villages, towns and the huts out in the wild are the villagers' home, not a pasture: no wild
+  ground animal appears on their roofs, in their lanes or within a few blocks of them, and a wild animal walking — or
+  hunting you — toward a town turns away at its edge, so a town is safe ground. Birds and other fliers may still cross
+  the sky over a town, ruins stay wild, and a cave far under a town keeps its cave life. A wild animal that ends up in a
+  town anyway (you lured it in with food, or it was there in an older world) can always walk out again, and after a
+  while it quietly leaves when nobody is looking. Your pets follow you into town as everywhere.
 - **Every animal moves the way its body says.** Walkers jump one-block ledges (like you) and are stopped by
   two; crawlers (legless, serpentine or many-legged things) haul over one block and never jump; giants
   step but never jump; fliers land to rest and to sleep and take off again when disturbed — a skittish bird
@@ -4369,21 +4388,44 @@ look up: what a mix does follows from what goes in, and the same things always g
   wagon** or **bar wagon** just behind the last wagon to couple it on (six wagons at most). **E** near a wagon boards it
   — and so does simply **stepping in**: walk through a door or jump into a wagon, even a moving one, and you ride along;
   inside, **you walk around while it moves** — the wagon is your ground, wagon to wagon through the open ends — or sit
-  down on a seat (E beside it; jump or move to stand up). **E in the cab** opens the panel: **speed 1–3**, **halt / go**,
+  down on a seat (E beside it; jump or move to stand up). **E in the cab** opens the panel: the **top speed** —
+  **8, 16 or 24 blocks per second** (a new cab starts at 16) —, **halt / go**,
   **autopilot** (the train runs by itself, halts at every stop, and turns round at the ends of an open line — on a
   loop it just keeps going). When it turns round, the wagons stay exactly where they are and simply run the other way,
   so nobody aboard is thrown about — on the way back the cab pushes the train from behind, and at a stop the wagon in
   front halts at the stop. **F** or walking out of the open side leaves the train; you are set down beside it.
+- **How fast it goes.** The panel shows the speed right now. The train starts gently, and how fast it gets depends on
+  how far it is to the **next stop**: a short hop in town stays slow (about 7 blocks per second for 40 blocks), a long
+  line to a far city reaches the top speed — 16 from about 96 blocks on, 24 from about 150 blocks on. Before every
+  stop — and before the end of an open line — it brakes smoothly and rolls in slowly. It slows down for **sharp bends**
+  and for **steep hilltops and dips**; gentle curves and gently rolling hills keep it at full speed. If you switch the
+  autopilot on while racing towards a stop that is too close to brake for, the train rolls on past it and stops at the
+  next one instead. Driving by hand (autopilot off, you in the cab) it speeds up to the top speed and never stops at a
+  stop, but it still brakes before the end of the line. **Halt** stops it on the spot. A train longer than its line
+  cannot move at all — the panel says **Halted**; build the line longer, or pack the train up and couple fewer wagons.
   Allies may ride your train. The owner **packs it up** from the cab panel or with the stow key beside it: the cab
   and every wagon come back as items. A fall taken aboard is never a fall.
 - Other riders on the same train are placed inside the wagons exactly as your game draws them, so nobody slides
   through a wall on a curve or across the world seam.
 - **Intercity trains.** On some newer worlds, two towns or cities are joined by a monorail line. You'll find a
   **station** at the edge of each town — look for the amber station marker on the world map ("… Station"). A
-  **public train** runs back and forth between the two stations on its own and waits about **30 seconds** at each one.
+  **public train** runs back and forth between the two stations on its own (up to 16 blocks per second) and waits
+  about **30 seconds** at each one.
   Walk up to a wagon and press **E** to board (E beside a seat sits down, **F** leaves), then enjoy the ride. The train
   belongs to everyone: nobody needs a ticket, and nobody can drive, stop, pack up or add wagons to it. The stations and
   the line's pylons can't be mined.
+- **Villagers ride the train.** When a line has stops in (or right beside) two towns — the intercity line, or a line
+  you built with a **rail stop** in each town — the villagers now and then **take the train**. By day one of them walks
+  to the stop, waits on the platform, gets on when a train halts there (on a seat of a seat, sleeper or bar wagon —
+  never in the cab), rides to the other town, walks to its square, looks around for a few minutes and comes back the
+  same way. Their nameplate says *on a train trip* or *visiting*; walk past and they tell you where they are going or
+  where they are from (*"I'm visiting from Testville — I came by train!"*). At most three villagers travel on a world at
+  once, one from each town; villagers with a job (traders, quartermasters, guards …) and villagers whose wish you are
+  carrying stay at home. Your own train takes villagers only on **autopilot** and while the cab panel's **"Villagers
+  ride along"** switch is **on** (the default; switched off, nobody new gets on and anyone aboard rides on to their
+  stop). Players always come first: sit down where a villager sits and they move to another seat — or stand in the
+  aisle. If anything goes wrong (you pack the train up, a pylon of the line breaks, no train comes), they simply walk
+  home — nobody ever gets lost. No tickets, no fares.
 - **Abandoned stations.** Some newer worlds have the ruin of an old station instead — no working line, but an old
   wagon and salvage to scavenge (see *Ruins & treasure chests*).
 
@@ -4924,6 +4966,8 @@ confirmation is the brief HUD toast.
 | `/biped` | Summon a begging herd of this world's bipeds near you (Mini-Michi-Paul on a tropical world; rolls a begging biped into the world's fauna first if it has none) — for testing |
 | `/hound` | Summon this world's Schuppenhund near you (rolls this world's one into the fauna first if it has none) — for testing |
 | `/wanderer` | Call one of this world's wanderers to you right now — at any hour, without waiting (new worlds only; you must be on foot in the open, 60 m from a village, base, hut or camp, with no hostile near) — for testing |
+| `/guest` | A friendly visitor comes to your nearest base right now — by train when your base has a stop on a line to a far town, otherwise on foot (stand by your base's core by day) — for testing |
+| `/railtrip [Town]` | A villager takes the train right now on the monorail line nearest you (at any hour; the line needs stops at two places and a train on autopilot that takes villagers); `/railtrip Testville` picks the town they set off from — for testing |
 | `/fly` | Toggle free flight for yourself (no gravity). In **Creative/Sandbox** worlds everybody can already fly — double-tap **Space**; this is the per-player admin cheat for the other modes |
 | `/god` | Toggle invulnerability |
 | `/instant` | Toggle instant building: blocks, ship and station parts are placed without materials. Crafting is only free in Sandbox |

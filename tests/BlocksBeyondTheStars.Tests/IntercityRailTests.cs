@@ -161,6 +161,13 @@ public sealed class IntercityRailTests : IDisposable
             Assert.True(train.Autopilot);
             Assert.Equal(RailRules.PublicTrainSpeed, train.Speed);
 
+            // #3446: the public train always takes villagers, and each station's stop belongs to its town.
+            Assert.True(Assert.Single(server.NetTrainsForTest()).TakesPassengers);
+            foreach (var st in ic.Stations)
+            {
+                Assert.Equal((st.Settlement, "settlement"), server.RailPlaceForTest(st.Stop));
+            }
+
             // A stranger — allied with nobody — may ride it.
             var stranger = server.AddLocalPlayer("Stranger");
             stranger.State.AboardShip = false;
@@ -169,10 +176,11 @@ public sealed class IntercityRailTests : IDisposable
             stranger.State.Inventory.SetSlot(1, new ItemStack("wagon_seats", 1));
 
             // …but nobody steers it, halts it, packs it up or couples onto it.
-            server.SetTrainForTest("Stranger", train.Id, speed: 3, halt: 1, autopilot: 0);
+            server.SetTrainForTest("Stranger", train.Id, speed: 3, halt: 1, autopilot: 0, passengers: 0);
             var after = Assert.Single(server.TrainsForTest());
             Assert.Equal(RailRules.PublicTrainSpeed, after.Speed);
             Assert.True(after.Autopilot);
+            Assert.True(Assert.Single(server.NetTrainsForTest()).TakesPassengers);
             server.StowTrainForTest("Stranger", train.Id);
             Assert.Single(server.TrainsForTest());
             var tail = server.WagonPoseForTest(train.Id, train.Wagons.Count)!.Value.Pos;
@@ -222,7 +230,7 @@ public sealed class IntercityRailTests : IDisposable
             double now = 0, start = 0;
             Vector3i? at = server.TrainHaltForTest(train.Id).Stop;
             float farthest = 0f, worstStep = 0f;
-            float maxStep = 1.5f * RailRules.SpeedTable[RailRules.PublicTrainSpeed - 1] / 15f + 0.05f;
+            float maxStep = 1.5f * RailMotion.TopSpeed(RailRules.PublicTrainSpeed) / 15f + 0.05f; // #3444: its top speed
             for (int step = 0; step < 20000 && halts.Count < 3 && now < 600; step++)
             {
                 double dt = halted ? 0.5 : 1.0 / 15.0;

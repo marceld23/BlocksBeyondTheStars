@@ -122,6 +122,10 @@ public sealed partial class GameServer
 
         // #2646: /wanderer — a wanderer comes by right now, for testing
         ["summon_wanderer"] = new(AdminCommandGate.Cheats, static (s, session, _) => s.AdminSummonWanderer(session)),
+
+        // #3447: /guest — a visitor to your base now (by train when it has a stop); /railtrip [town] — a villager takes the train
+        ["summon_guest"] = new(AdminCommandGate.Cheats, static (s, session, _) => s.AdminSummonGuest(session)),
+        ["rail_trip"] = new(AdminCommandGate.Cheats, static (s, session, cmd) => s.AdminRailTrip(session, cmd.StringArg)),
         ["instant_build"] = new(AdminCommandGate.Cheats, static (s, session, _) => s.AdminCommandToggleInstantBuild(session)),
 
         // ---- Story QA (P8 telemetry): jump around the arc for testing ----

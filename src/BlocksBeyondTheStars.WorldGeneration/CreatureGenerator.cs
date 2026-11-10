@@ -95,6 +95,11 @@ public static class CreatureGenerator
             }
         }
 
+        // #3448: a type with a fauna palette (Soaniri's light blues and mints) dresses its ROLLED species in it — after every
+        // rolled pass, before the authored records join (they keep their designed colours), by each species' own seed (no RNG
+        // draw), so a type without a palette rolls bit-identically.
+        BlocksBeyondTheStars.Shared.World.FaunaTints.Dress(list, planet);
+
         // Airless bodies (asteroids / airless moons+planets) stay lifeless whatever the data says; otherwise the
         // authored species join at the tail on a generation-5 world. Their sub-seed is salted with the key, not
         // the slot, so adding a second authored species to a type never renames the first.

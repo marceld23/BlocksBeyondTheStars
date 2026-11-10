@@ -83,6 +83,17 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             Assert.That(Progress(20f, MinShow, false), Is.EqualTo(1f));
         }
 
+        [Test]
+        public void Progress_CreepsWhileTheBrowserHostBoots_InsteadOfParkingAtFull()
+        {
+            // #3450: the browser's MinShow is 1.2 s and its world boot often takes far longer — the loading screen feeds that
+            // boot into the same hold band, so the bar creeps (and the story lines keep their pace) until the world is up.
+            const float browserMinShow = 1.2f;
+            Assert.That(Next(8f, browserMinShow, true, false), Is.EqualTo(Verdict.Hold));
+            Assert.That(Progress(8f, browserMinShow, true), Is.GreaterThanOrEqualTo(HoldFloor).And.LessThan(HoldCap));
+            Assert.That(Progress(8f, browserMinShow, false), Is.EqualTo(1f), "booted: full, and the hand-off follows");
+        }
+
         // ---- #1988: the bar follows the server's reported boot passes ----
 
         [Test]

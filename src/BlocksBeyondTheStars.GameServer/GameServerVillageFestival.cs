@@ -480,17 +480,22 @@ public sealed partial class GameServer
     private static Vector3f SettlementBoxCentre(SettlementInstance s)
         => new((s.Min.X + s.Max.X) / 2 + 0.5f, s.GroundY + 1, (s.Min.Z + s.Max.Z) / 2 + 0.5f);
 
+    /// <summary>The layout's centre (the plaza <c>SettlementGenerator.StampCentralFeature</c> paves there), else the box's —
+    /// worked out without reading a block.</summary>
+    private static Vector3f SettlementSquareCentre(SettlementInstance s)
+        => s.Layout is { } layout
+            ? new Vector3f(s.Min.X + layout.Width / 2 + 0.5f, s.GroundY + 1, s.Min.Z + layout.Length / 2 + 0.5f)
+            : SettlementBoxCentre(s);
+
     /// <summary>
-    /// Where the festival gathers: the layout's centre (the plaza <c>SettlementGenerator.StampCentralFeature</c> paves
-    /// there) when a ring fits around it in the open; else the villagers' "npc" marker nearest that centre; else the
-    /// mission board; else the centre anyway. A ring "fits" when at least half of eight spots at the smallest radius can
-    /// be stood on with no wall between them and the middle (a kit grid with a closed centre puts a house there).
+    /// Where the festival gathers: the layout's centre (<see cref="SettlementSquareCentre"/>) when a ring fits around it in
+    /// the open; else the villagers' "npc" marker nearest that centre; else the mission board; else the centre anyway. A
+    /// ring "fits" when at least half of eight spots at the smallest radius can be stood on with no wall between them and
+    /// the middle (a kit grid with a closed centre puts a house there).
     /// </summary>
     private Vector3f FestivalAnchorFor(SettlementInstance s)
     {
-        var centre = s.Layout is { } layout
-            ? new Vector3f(s.Min.X + layout.Width / 2 + 0.5f, s.GroundY + 1, s.Min.Z + layout.Length / 2 + 0.5f)
-            : SettlementBoxCentre(s);
+        var centre = SettlementSquareCentre(s);
         var candidates = new List<Vector3f> { centre };
         candidates.AddRange(s.Markers.Where(m => string.Equals(m.Type, "npc", StringComparison.Ordinal))
             .Select(m => MarkerFeet(s, m.Pos)).OrderBy(p => WrapDistSq(p, centre)));
@@ -534,6 +539,7 @@ public sealed partial class GameServer
         double rangeSq = (double)FestivalAttendeeRange * FestivalAttendeeRange;
         return _npcs
             .Where(n => n.RoutineEnabled && n.BaseId == 0 && !n.VisitingAway && n.GuestKey.Length == 0
+                        && n.Trip is null && n.TrainId.Length == 0 // #3446: away on a train trip
                         && !string.Equals(n.Role, "guardian", StringComparison.Ordinal)
                         && string.Equals(n.Settlement, settlementName, StringComparison.Ordinal)
                         && WrapDistSq(n.Pos, anchor) <= rangeSq)

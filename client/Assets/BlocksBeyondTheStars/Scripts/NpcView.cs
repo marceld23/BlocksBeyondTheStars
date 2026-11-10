@@ -71,6 +71,11 @@ namespace BlocksBeyondTheStars.Client
             public int LastClip = -1;      // the clip its last babble ended with (the next one starts with another)
             public float NextIdleAt;       // unscaled time of its next idle-murmur try
             public int IdleCount;
+
+            // #3445: a passenger on a train — its wagon frame ("" = on foot), its wagon-local offset and facing (radians).
+            public string Frame = string.Empty;
+            public Vector3 RideLocal;
+            public float RideYaw;
             public bool Looking;           // its head follows the player
 
             // #2647: a hunter turns to face its shot for the length of the bow gesture (the server's facing may lag).
@@ -207,6 +212,15 @@ namespace BlocksBeyondTheStars.Client
             int circ = Game != null ? Game.Circumference : BlocksBeyondTheStars.Shared.World.WorldConstants.Circumference;
             foreach (var n in _npcs.Values)
             {
+                if (PlaceAboard(n))
+                {
+                    // #3445: a passenger sits (or stands) in its wagon as this client draws it — no interpolation lag behind
+                    // a moving wagon, no slide through its wall on a curve.
+                    UpdateZzz(n);
+                    UpdateLook(n);
+                    continue;
+                }
+
                 if (n.Pose != 0)
                 {
                     n.SettledWorld = n.Target; // #1869: sitting down / lying down is a snap onto the furniture, not a glide
@@ -979,6 +993,8 @@ namespace BlocksBeyondTheStars.Client
                         n.Yaw = n.TargetYaw;
                     }
                 }
+
+                ApplyRide(n, nd, at, snapPos, snapVel, stamped); // #3445: boarding and stepping off are snaps too
 
                 string held = nd.Pose == 0 ? nd.Held ?? string.Empty : string.Empty; // the tool is put away to sit or sleep
                 if (held != n.Held)

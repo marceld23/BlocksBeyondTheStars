@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -72,15 +73,24 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Percent of patterned rolled species that take a pattern from the world's favourite group.</summary>
         public const int PatternMotifPercent = 35;
 
-        /// <summary>A world's fauna look: its theme key, its motif family and favourite pattern group.</summary>
+        /// <summary>A world's fauna look: its theme key, its motif family and favourite pattern group — and its type's fauna
+        /// palette (#3448), which keeps the coat patterns in the world's colours.</summary>
         public sealed class Look
         {
-            public Look(string theme, string motifFamily, string patternGroup)
+            public Look(string theme, string motifFamily, string patternGroup, IReadOnlyList<int>? palette = null)
             {
                 Theme = theme;
                 MotifFamily = motifFamily;
                 PatternGroup = patternGroup;
+                Palette = palette ?? Array.Empty<int>();
             }
+
+            /// <summary>The planet type's fauna palette as 0xRRGGBB (<c>FaunaTints.PaletteOf</c>, #3448); empty = the type rolls
+            /// any colour. With entries, <see cref="CreatureCoat.PatternRgb"/> keeps the marks inside them.</summary>
+            public IReadOnlyList<int> Palette { get; }
+
+            /// <summary>True when the world's type dresses its fauna in a palette (<see cref="Palette"/> has entries).</summary>
+            public bool KeepsPalette => Palette.Count > 0;
 
             /// <summary>A key of <see cref="Themes"/>.</summary>
             public string Theme { get; }
@@ -134,7 +144,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The look of the world a creature belongs to, or null when the wire carries none (an older server) or the
-        /// planet is unknown to this client.</summary>
+        /// planet is unknown to this client. It carries the type's fauna palette (#3448) — the HOME world's for a companion or
+        /// a clone, like the theme.</summary>
         public static Look? For(NetCreature c, Func<string, PlanetType?>? planets)
         {
             if (string.IsNullOrEmpty(c.LookPlanet) || planets == null)
@@ -151,7 +162,7 @@ namespace BlocksBeyondTheStars.Client
             uint seed = unchecked((uint)c.LookSeed);
             string family = MotifFamilies[(int)(CoatMix.Mix(seed, CoatMix.SaltMotif) % (uint)MotifFamilies.Count)];
             string group = PatternGroups[(int)(CoatMix.Mix(seed, CoatMix.SaltPatternMotif) % (uint)PatternGroups.Count)];
-            return new Look(ThemeOf(planet), family, group);
+            return new Look(ThemeOf(planet), family, group, FaunaTints.PaletteOf(planet));
         }
 
         /// <summary>The theme's hides that are in <paramref name="pool"/>, each repeated by its family weight (a hide in two

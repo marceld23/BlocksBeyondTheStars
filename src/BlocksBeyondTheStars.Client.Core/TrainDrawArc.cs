@@ -8,7 +8,8 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// The arc a monorail train is drawn at between the server's updates (#2113, #2741): the drawn arc runs on at the
-    /// train's own speed and is eased toward the server's last arc (run on by the time since it arrived), both through
+    /// train's own speed (#3444: the speed the server sends, see <see cref="PredictSpeed"/>) and is eased toward the
+    /// server's last arc (run on by the time since it arrived), both through
     /// <see cref="RailRules.Advance"/> — so the drawing bounces off an open line's ends exactly like the server, instead of
     /// running past the end until the next update pulls it back. The drawn direction is the drawing's own; it takes the
     /// server's when the two disagree for longer than a bounce near the same end explains (a halted train the server
@@ -21,6 +22,31 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The longest the server's arc is run on (seconds): past this the train is waited for, not guessed.</summary>
         public const float MaxPredictSeconds = 1f;
+
+        /// <summary>The fixed speeds (blocks/s) an older server — before #3444's speed profile — ran its trains at, per
+        /// setting 1..3. Only for drawing such a server's trains: it sends no velocity.</summary>
+        public static readonly float[] LegacySpeedTable = { 4f, 8f, 12f };
+
+        /// <summary>The speed (≥ 0) the drawing runs a train on at between the server's lists (#3444): 0 while it is
+        /// halted; the magnitude of the server's <paramref name="velocity"/> (the direction travels separately) — and
+        /// when that is 0 on a train that is not halted but on autopilot, the server is an older one that sends no
+        /// velocity and ran the train at its setting's fixed speed: <see cref="LegacySpeedTable"/>. (A current server
+        /// never sends 0 for a running train; a manual train of an older server is eased to each list instead.)</summary>
+        public static float PredictSpeed(float velocity, bool halted, bool autopilot, int setting)
+        {
+            if (halted)
+            {
+                return 0f;
+            }
+
+            float speed = IsFinite(velocity) ? Math.Abs(velocity) : 0f;
+            if (speed > 0f)
+            {
+                return speed;
+            }
+
+            return autopilot ? LegacySpeedTable[Math.Clamp(setting, 1, LegacySpeedTable.Length) - 1] : 0f;
+        }
 
         /// <summary>One frame: the new drawn arc and direction. <paramref name="hasArc"/> false (the train's first frame)
         /// takes the server's predicted arc as it is. <paramref name="speed"/> is 0 for a halted train.

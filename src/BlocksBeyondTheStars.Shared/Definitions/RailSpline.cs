@@ -155,6 +155,33 @@ public sealed class RailSpline
             return _points[_points.Count - 1];
         }
 
+        int lo = SegmentAt(s), hi = lo + 1;
+        float span = _arc[hi] - _arc[lo];
+        float f = span < 1e-6f ? 0f : (s - _arc[lo]) / span;
+        var a = _points[lo];
+        var b = _points[hi];
+        return new Vector3f(a.X + (b.X - a.X) * f, a.Y + (b.Y - a.Y) * f, a.Z + (b.Z - a.Z) * f);
+    }
+
+    /// <summary>The length of the sampled segment the arc <paramref name="s"/> lies on (blocks; 0 for a line without one) —
+    /// the polyline's local resolution: a span between two pylons is cut into ten segments, so a 64-block span has
+    /// ≈ 6.4-block segments. <see cref="RailCurveLimits"/> measures curvature over chords at least twice this long, so the
+    /// polyline's corners read as the curve they approximate (#3444).</summary>
+    public float SampleSpacingAt(float s)
+    {
+        if (_points.Count < 2)
+        {
+            return 0f;
+        }
+
+        int lo = SegmentAt(NormalizeArc(s));
+        return _arc[lo + 1] - _arc[lo];
+    }
+
+    /// <summary>The index of the sample at or before the normalised arc <paramref name="s"/>, so <c>[i, i + 1]</c> is the
+    /// segment it lies on (at least two samples).</summary>
+    private int SegmentAt(float s)
+    {
         int lo = 0, hi = _arc.Count - 1;
         while (hi - lo > 1)
         {
@@ -169,11 +196,7 @@ public sealed class RailSpline
             }
         }
 
-        float span = _arc[hi] - _arc[lo];
-        float f = span < 1e-6f ? 0f : (s - _arc[lo]) / span;
-        var a = _points[lo];
-        var b = _points[hi];
-        return new Vector3f(a.X + (b.X - a.X) * f, a.Y + (b.Y - a.Y) * f, a.Z + (b.Z - a.Z) * f);
+        return lo;
     }
 
     /// <summary>The world point at arc length <paramref name="s"/> (X wrapped into the world).</summary>

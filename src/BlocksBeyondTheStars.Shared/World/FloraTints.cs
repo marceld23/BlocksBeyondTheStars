@@ -68,9 +68,7 @@ public static class FloraTints
 
         foreach (string spec in specs)
         {
-            string s = spec?.Trim() ?? string.Empty;
-            if (s.Length == 7 && s[0] == '#'
-                && int.TryParse(s.Substring(1), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out int rgb))
+            if (TryParseRgb(spec, out int rgb))
             {
                 colours.Add((((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f));
             }
@@ -79,9 +77,19 @@ public static class FloraTints
         return colours;
     }
 
+    /// <summary>One palette entry <c>"#rrggbb"</c> (blanks around it ignored) as 0xRRGGBB; false for anything else — the flora
+    /// palette's rule, shared with the fauna palette (<see cref="FaunaTints.PaletteOf"/>, #3448).</summary>
+    internal static bool TryParseRgb(string? spec, out int rgb)
+    {
+        rgb = 0;
+        string s = spec?.Trim() ?? string.Empty;
+        return s.Length == 7 && s[0] == '#'
+            && int.TryParse(s.Substring(1), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out rgb);
+    }
+
     /// <summary>A palette colour with the hash's small saturation (×0.88..1.12) and brightness (×0.92..1.08) jitter; the hue
-    /// stays (a channel's distance from the brightest one scales with the saturation).</summary>
-    private static (float R, float G, float B) Jittered((float R, float G, float B) c, ulong h)
+    /// stays (a channel's distance from the brightest one scales with the saturation). Shared with the fauna palette (#3448).</summary>
+    internal static (float R, float G, float B) Jittered((float R, float G, float B) c, ulong h)
     {
         float satK = 0.88f + ((h >> 12) % 1000UL) / 1000f * 0.24f;
         float valK = 0.92f + ((h >> 24) % 1000UL) / 1000f * 0.16f;
