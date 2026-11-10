@@ -47,6 +47,7 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             "BlocksBeyondTheStars/Cloud",
             "BlocksBeyondTheStars/CloudSea",     // #3272: the sea of clouds below a summit (CloudSea, Medium+ desktop)
             "BlocksBeyondTheStars/Decal",        // #3058: the High preset's scorch marks and craters (FxDecals)
+            "BlocksBeyondTheStars/DistanceSoft", // #3462: the soft distance on worlds with air (DistanceSoftView, Medium+ desktop)
             "BlocksBeyondTheStars/FarTerrain",
             "BlocksBeyondTheStars/FxBeam",   // VFX overhaul (#2152): beams, rings, shells, holograms, chips, dust, warp, cracks
             "BlocksBeyondTheStars/FxRing",

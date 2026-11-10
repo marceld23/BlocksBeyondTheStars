@@ -3221,6 +3221,7 @@
   "ui.settings.lens_flare": "Lens parlaması",
   "ui.settings.motion_blur": "Hareket bulanıklığı (uçuş)",
   "ui.settings.distance_haze": "Uzak pus ve güneş ışınları",
+  "ui.settings.distance_softness": "Yumuşak uzaklık",
   "ui.settings.ground_details": "Zemin ayrıntıları (çimen tutamları)",
   "ui.settings.atmosphere": "Atmosfer efektleri",
   "ui.settings.atmosphere.off": "Kapalı",

@@ -1646,10 +1646,6 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Time-based loading progress (0..1) for the uGUI loading bar.</summary>
         public float LoadingProgress => _loading.Progress;
 
-        /// <summary>#3450: the one frame the loading screen hands off to the game (<see cref="LoadingScreen.HandingOff"/>) — the
-        /// frame the world build freezes on, so the story line over the bar reads "You awaken!" there at the latest.</summary>
-        public bool LoadingHandingOff => _loading != null && _loading.HandingOff;
-
         private void Update()
         {
             // Shell-level touch latch (#1422): the first real touch flips the touch UI on for the MENUS

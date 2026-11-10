@@ -3221,6 +3221,7 @@
   "ui.settings.lens_flare": "Lens-Flare",
   "ui.settings.motion_blur": "Bewegungsunschärfe (Flug)",
   "ui.settings.distance_haze": "Entfernungsdunst & Sonnenstrahlen",
+  "ui.settings.distance_softness": "Weiche Ferne",
   "ui.settings.ground_details": "Bodendetails (Grasbüschel)",
   "ui.settings.atmosphere": "Atmosphäre-Effekte",
   "ui.settings.atmosphere.off": "Aus",

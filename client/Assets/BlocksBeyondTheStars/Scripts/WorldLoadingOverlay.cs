@@ -13,6 +13,8 @@ namespace BlocksBeyondTheStars.Client
     /// world type and a small spinner, then fades away once <see cref="GameBootstrap.WorldReady"/> goes
     /// true (the player has settled onto solid ground). Hyperspace jumps are masked by
     /// <see cref="HyperspaceWarp"/> instead, so those don't raise this overlay.
+    /// On the first entry into a world (<see cref="PrimeForInitialLoad"/>) Justus' story lines (<see cref="LoadingLore"/>,
+    /// #3450/#3460) replace the "Loading world…" footer, ending on "You awaken!" the moment the world is ready.
     /// Pure uGUI on a DPI-scaled canvas above everything; no bundled art.
     /// </summary>
     // Run after the gameplay views (default order 0), so when SpaceView ends its landing descent and clears
@@ -34,6 +36,8 @@ namespace BlocksBeyondTheStars.Client
         private const float ConfirmTimeout = 2.5f; // pre-raised veil: drop it if no world load confirms by here
         private const float FadeOut = 0.55f;        // only the reveal fades; the veil snaps to opaque on raise
 
+        private static readonly Color FooterColor = new Color(0.55f, 0.82f, 1.00f);
+
         private Canvas _canvas;
         private Image _backdrop;
         private Text _title;
@@ -51,6 +55,11 @@ namespace BlocksBeyondTheStars.Client
         private float _confirmTimer;   // seconds since the pre-raise, to time out an unconfirmed transition
         private bool _initial;  // the initial world-entry veil: pre-raised opaque before the first frame, bypasses the in-space hold
         private bool _joinSeen; // a WorldLoadStarted has arrived since priming — gates the initial veil's fade-out
+
+        // #3460: Justus' story on the initial-entry veil, in the footer's slot. None = the plain "Loading world…" footer.
+        private int _storyLine = LoadingLore.None;
+        private float _storySeconds;   // how long that line has been on show (unscaled seconds)
+        private string _storyText;     // the line's localized text, cached so a still frame allocates nothing
 
         // WorldRig sets Game right after AddComponent, so subscribe in Start (not OnEnable, which would
         // run during AddComponent while Game is still null).
@@ -133,6 +142,7 @@ namespace BlocksBeyondTheStars.Client
             _t = 0f;
             _fadingOut = false;
             _initial = false; // an in-game landing/boarding veil, not the initial-entry curtain
+            _storyLine = LoadingLore.None; // … so it says "Loading world…" / "Entering station…", not the story
             if (!_active)
             {
                 _alpha = 1f; // snap to opaque this frame so the surface/old view never flashes behind a fade-in
@@ -164,7 +174,30 @@ namespace BlocksBeyondTheStars.Client
             _active = true;
             _canvas.enabled = true;
             _backdrop.raycastTarget = true; // swallow clicks while the world loads
+            _storyLine = LoadingLore.None;
+            _storySeconds = 0f;
+            StepStory(false); // the story's first line is up from the very first frame
             Apply(); // paint it opaque this frame, before the in-game cameras render
+        }
+
+        /// <summary>#3460: steps Justus' story on the initial-entry veil — the first line with the veil, the next one every
+        /// <see cref="LoadingLore.MinLineSeconds"/> while the world loads, and "You awaken!" the moment it is ready (or the
+        /// veil gives up waiting). Never waits for the story: the veil's own timing decides when it lifts. Runs on unscaled
+        /// time, so a paused or slowed game clock cannot stall it.</summary>
+        private void StepStory(bool ready)
+        {
+            _storySeconds += Time.unscaledDeltaTime;
+            int line = LoadingLore.LineFor(ready, _storyLine, _storySeconds);
+            if (line == _storyLine)
+            {
+                return;
+            }
+
+            _storyLine = line;
+            _storySeconds = 0f;
+            string key = LoadingLore.KeyFor(line);
+            var loc = Game != null ? Game.Localizer : null;
+            _storyText = loc != null && loc.Has(key) ? loc.Get(key) : _footerBase;
         }
 
         private void Update()
@@ -222,6 +255,11 @@ namespace BlocksBeyondTheStars.Client
                 _fadingOut = true;
             }
 
+            if (_initial)
+            {
+                StepStory(ready || _fadingOut); // a world ready before MinShow keeps "You awaken!" up until the veil lifts
+            }
+
             // The veil is opaque the instant it's raised (Raise/PrimeForInitialLoad set alpha = 1); only the
             // reveal at the end fades, so nothing behind the curtain ever flashes while it ramps up.
             _alpha = _fadingOut ? Mathf.MoveTowards(_alpha, 0f, Time.deltaTime / FadeOut) : 1f;
@@ -246,10 +284,20 @@ namespace BlocksBeyondTheStars.Client
             _title.color = WithAlpha(new Color(0.86f, 0.95f, 1.00f), _alpha);
             _subtitle.color = WithAlpha(UiKit.CyanDim, _alpha * 0.95f);
 
-            // Footer "Loading world" with animated trailing dots for a sense of progress.
-            int dots = Mathf.Clamp(Mathf.FloorToInt(_t * 2.5f) % 4, 0, 3);
-            _footer.text = _footerBase + new string('.', dots);
-            _footer.color = WithAlpha(new Color(0.55f, 0.82f, 1.00f), _alpha);
+            if (_initial && _storyLine != LoadingLore.None)
+            {
+                // #3460: the story line in the footer's slot and size — the lines in the text colour, "You awaken!" in cyan
+                // (as on the bar screen in 11.15), the spinner still turning.
+                _footer.text = _storyText;
+                _footer.color = WithAlpha(_storyLine == LoadingLore.Last ? UiKit.Cyan : UiKit.TextCol, _alpha);
+            }
+            else
+            {
+                // Footer "Loading world" with animated trailing dots for a sense of progress.
+                int dots = Mathf.Clamp(Mathf.FloorToInt(_t * 2.5f) % 4, 0, 3);
+                _footer.text = _footerBase + new string('.', dots);
+                _footer.color = WithAlpha(FooterColor, _alpha);
+            }
 
             // A comet-tail highlight chasing around the ring of dots.
             float head = Mathf.Repeat(_t * 0.85f, 1f);

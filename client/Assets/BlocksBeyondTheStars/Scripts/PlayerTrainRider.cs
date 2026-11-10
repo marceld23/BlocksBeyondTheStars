@@ -99,7 +99,159 @@ namespace BlocksBeyondTheStars.Client
                 Player.Avatar?.SetSeated(false);
             }
 
+            TrackWagonVelocity();
             return true;
+        }
+
+        // ---------------------------------------------------------------------------------------------------------
+        // #3458/#3459: leaving — no settle freeze, out through the door of a halted train, jumping off a moving one
+        // ---------------------------------------------------------------------------------------------------------
+
+        /// <summary>The wagon's world velocity, from its own motion between frames (curves included), smoothed.</summary>
+        private Vector3 _wagonVelocity;
+        private Vector3 _lastWagonPos;
+        private bool _hasLastWagonPos;
+
+        /// <summary>A wagon jump this fast between two frames is a re-placement (a seam shift, a resync), not motion.</summary>
+        private const float WagonVelocityGlitch = 60f;
+
+        /// <summary>We left the frame on our side (a walk-off or a jump-off), and where — the server's set-down is compared
+        /// against it (<see cref="ConsumeExitSnap"/>).</summary>
+        private bool _walkedOff;
+        private Vector3 _walkedOffAt;
+        private float _walkedOffSpeed;
+
+        /// <summary>How long the rider has pressed into the door of a halted train, and when the exit was last asked for.</summary>
+        private float _doorPushHeld;
+        private float _doorExitSentAt = -10f;
+
+        private void TrackWagonVelocity()
+        {
+            if (_trainFrame == null)
+            {
+                _hasLastWagonPos = false;
+                return;
+            }
+
+            var pos = _trainFrame.position;
+            float dt = Time.deltaTime;
+            if (_hasLastWagonPos && dt > 1e-4f)
+            {
+                var v = (pos - _lastWagonPos) / dt;
+                if (v.magnitude < WagonVelocityGlitch)
+                {
+                    _wagonVelocity = Vector3.Lerp(_wagonVelocity, v, 1f - Mathf.Exp(-10f * dt));
+                }
+            }
+
+            _lastWagonPos = pos;
+            _hasLastWagonPos = true;
+        }
+
+        /// <summary>Whether the ridden train runs (not halted, the wagon moving) — leaving it is a jump.</summary>
+        private bool TrainMoving()
+        {
+            var train = Player.Game != null ? Player.Game.RiddenTrain : null;
+            var v = _wagonVelocity;
+            return train != null && !train.Halted && new Vector2(v.x, v.z).magnitude >= TrainExitRules.MinJumpSpeed;
+        }
+
+        /// <summary>Steps off on our side: report the spot in the frame (the server sets us down where we stepped off), stop
+        /// riding at once and — off a moving train — keep half its speed plus a hop (#3459).</summary>
+        private void WalkOff(Vector3f local, float yaw, float pitch)
+        {
+            bool moving = TrainMoving();
+            var v = _wagonVelocity;
+            Player.Game.Network.SendFramedMove(Player.Game.InTrain, local, yaw, pitch);
+            _leavingFrame = Player.Game.InTrain;
+            LeaveTrainFrame();
+            _hasLastWagonPos = false;
+            _walkedOff = true;
+            _walkedOffAt = transform.position;
+            _walkedOffSpeed = moving ? new Vector2(v.x, v.z).magnitude : 0f;
+            if (moving)
+            {
+                var push = TrainExitRules.JumpPush(new Vector3f(v.x, v.y, v.z));
+                Player.ApplyKnock(new Vector3(push.X, push.Y, push.Z));
+            }
+        }
+
+        /// <summary>#3459: F on a moving train jumps off out of the door on our side (the other if a tunnel wall blocks it):
+        /// the body steps just outside the door and walks off from there. False when the train stands or both doors are
+        /// blocked — the caller sends the plain exit then (the server finds a standing spot).</summary>
+        internal bool TryJumpOffMoving(float yaw, float pitch)
+        {
+            if (_trainFrame == null || Player.Game == null || Player.Game.Network == null || Player.Game.TrainSeat >= 0 || !TrainMoving())
+            {
+                return false;
+            }
+
+            var local = _trainFrame.InverseTransformPoint(transform.position);
+            float side = local.x >= 0f ? 1f : -1f;
+            float outward = RailRules.RiderHalfWidth + RailRules.LeaveMargin + 0.3f;
+            float z = Mathf.Clamp(local.z, -TrainExitRules.DoorHalf + 0.2f, TrainExitRules.DoorHalf - 0.2f);
+            foreach (float s in new[] { side, -side })
+            {
+                var l = new Vector3(s * outward, Mathf.Max(0.05f, local.y), z);
+                var world = _trainFrame.TransformPoint(l);
+                if (!BodyFitsAt(world))
+                {
+                    continue;
+                }
+
+                Player.Body.enabled = false;
+                transform.position = world;
+                Player.Body.enabled = true;
+                WalkOff(new Vector3f(l.x, l.y, l.z), yaw, pitch);
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>Whether the body's capsule fits at a spot (nothing but triggers there).</summary>
+        private bool BodyFitsAt(Vector3 feet)
+        {
+            float r = Player.Body.radius * 0.9f;
+            var bottom = feet + (Vector3.up * (r + 0.05f));
+            var top = feet + (Vector3.up * Mathf.Max(r + 0.05f, Player.Body.height - r - 0.05f));
+            return !Physics.CheckCapsule(bottom, top, r, PlayerController.WorldRayMask, QueryTriggerInteraction.Ignore);
+        }
+
+        /// <summary>#3458: a standing rider pressing outward into the door opening of a halted train for a moment leaves —
+        /// the server sets them down on a real standing spot (a platform step included). Call once per frame while aboard.</summary>
+        internal void StepDoorExit()
+        {
+            if (_trainFrame == null || Player.Game == null || Player.Game.Network == null || Player.Game.TrainSeat >= 0)
+            {
+                _doorPushHeld = 0f;
+                return;
+            }
+
+            var dir = (transform.right * InputMap.MoveX()) + (transform.forward * InputMap.MoveY());
+            var ld = _trainFrame.InverseTransformDirection(dir);
+            var local = _trainFrame.InverseTransformPoint(transform.position);
+            bool pressing = TrainExitRules.PressingIntoDoor(new Vector3f(local.x, local.y, local.z), ld.x, ld.z);
+            var train = Player.Game.RiddenTrain;
+            bool halted = train != null && train.Halted;
+            _doorPushHeld = TrainExitRules.StepDoorPush(_doorPushHeld, pressing, halted, Time.deltaTime);
+            if (TrainExitRules.DoorPushDone(_doorPushHeld) && Time.time - _doorExitSentAt > 1f)
+            {
+                _doorExitSentAt = Time.time;
+                _doorPushHeld = 0f;
+                Player.Game.Network.SendExitTrain();
+            }
+        }
+
+        /// <summary>#3458: whether the body must move to the server's set-down point — an F set-down always (plainly, no
+        /// settle freeze); a walk-off only when the server's point is far from where we stepped off. Clears the walk-off.</summary>
+        internal bool ConsumeExitSnap(Vector3 target)
+        {
+            bool walked = _walkedOff;
+            _walkedOff = false;
+            int circ = Player.Game != null ? Player.Game.Circumference : 0;
+            return TrainExitRules.SnapToServer(walked, new Vector3f(_walkedOffAt.x, _walkedOffAt.y, _walkedOffAt.z),
+                new Vector3f(target.x, target.y, target.z), circ, TrainExitRules.WalkOffTolerance(_walkedOffSpeed));
         }
 
         private void LeaveTrainFrame()
@@ -299,10 +451,9 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     // Walked off: report the spot in the frame, so the server sets us down where we stepped off (an
-                    // ExitTrain would put us beside the wagon instead), and stop riding on our side at once.
-                    Player.Game.Network.SendFramedMove(Player.Game.InTrain, l, yaw, pitch);
-                    _leavingFrame = Player.Game.InTrain;
-                    LeaveTrainFrame();
+                    // ExitTrain would put us beside the wagon instead), and stop riding on our side at once — off a
+                    // moving train with its momentum (#3459).
+                    WalkOff(l, yaw, pitch);
                     return true;
                 }
 

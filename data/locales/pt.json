@@ -3221,6 +3221,7 @@
   "ui.settings.lens_flare": "Reflexo de lente",
   "ui.settings.motion_blur": "Blur de movimento (voo)",
   "ui.settings.distance_haze": "Névoa distante e raios de sol",
+  "ui.settings.distance_softness": "Distância suave",
   "ui.settings.ground_details": "Detalhes do solo (tufos de grama)",
   "ui.settings.atmosphere": "Efeitos de atmosfera",
   "ui.settings.atmosphere.off": "Desligado",

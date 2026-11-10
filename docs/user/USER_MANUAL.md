@@ -29,10 +29,12 @@ Last updated: 2026-10-04.
   saves; if the list is still being read, the left side shows a spinner and **Loading worlds…**, and *Create / Play*
   and *Random world* wait until it is there (they check your name against it). While a world starts, the loading
   screen's bottom line says what is happening right now — e.g. *Searching for landing sites…*, *Building
-  settlements…*, *Settlers are moving in…*, then *Connecting…* and *Building the world…*. Above the bar, a short
-  story steps along in big letters, one line at a time and each long enough to read — *The Sounders come and go…*,
-  *Humans travel into space…*, *Settlements are built in space…*, *Everything begins…*, *Everything ends…* — and *You
-  awaken!* is always the last line before the world appears (#3450, Justus' idea). **Host Game** → host a world for friends, **Join Server**, or
+  settlements…*, *Settlers are moving in…*, then *Connecting…* and *Building the world…*. Then the screen goes dark
+  with the planet's name, and under the spinner a short story steps along, one line every one and a half seconds while
+  the world loads — *The Sounders come and go…*, *Humans travel into space…*, *Settlements are built in space…*,
+  *Everything begins…*, *Everything ends…* — and *You awaken!* the moment the world is ready (#3450/#3460, Justus'
+  idea). A fast world shows only the first lines; nothing waits for the story. Landings and boarding a station show
+  the plain *Loading world…* / *Entering station…* there instead. **Host Game** → host a world for friends, **Join Server**, or
   **Official Worlds** → online multiplayer on the official servers (see below).
 - **Host Game (in-game multiplayer hosting):** the same world picker as singleplayer — *any* saved world
   can be hosted ("open to LAN" style) or a new one created — plus a host bar with **max players** (2–16)
@@ -656,9 +658,17 @@ The air and the weather leave their mark on the world (atmosphere package, Octob
   lava lake glows at its shores, a crystal cavern in its colours. (The light index is built as chunks load, so
   switching this applies as the world streams in.)
 - **Soft particles**: dust, mist and smoke no longer cut a hard line into the ground (Medium and up).
+- **Soft distance** (only on worlds with air): far away, inside the haze, the block textures soften a little toward
+  their colour, so the distant landscape stops flickering when you move. This rides on **Distance haze & sun rays**
+  and runs on every preset. On **Medium** and up (not in the browser) the far part of the haze also gets a very slight
+  blur — the mountains read as far away. It has its own switch, **Settings → Graphics → Soft distance**, and is off
+  with **Reduced effects**. Both are barely noticeable on purpose. Shapes stay sharp, so you still spot a village or
+  an animal far away, and the sky, the sun, the stars and the moons and planets above you always stay sharp.
+  Airless moons, asteroids and the crystal world stay crisp to the horizon.
 
 The row **Atmosphere effects** sets them all at once — **Off**, **Some** (the cheap ones, what the browser's Low
-preset also gets), **All** — or **Custom**, which opens one switch per effect. The expensive effects (cloud shadows,
+preset also gets), **All** — or **Custom**, which opens one switch per effect (**All** also turns **Soft distance**
+on, **Off** and **Some** turn it off). The expensive effects (cloud shadows,
 light shafts, the emitter light, soft particles, caustics, the sea of clouds) need the **Medium** preset or better
 regardless of the switch; the fog banks in the air need **Low** or better. The fog wisps and the cloud fog itself run
 on every preset, the browser included. **Reduce flashes** keeps the torchlight steady; **Reduced effects** makes the eye adaptation gentler. From
@@ -2243,10 +2253,14 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
     only at a base with the **Market** focus (#3036, see above);
   - a **lost traveller** who asks the way to the village and thanks you with a few torches.
 
-  **Guests by train.** If your base has a **rail stop** nearby (within about 48 blocks of the core) on a monorail line
-  that also stops at a town **far away** (150 blocks or more) — and a train runs on it that takes villagers (see
-  *Monorail* below) — your neighbour comes from that town **by train** instead: *"… from Fernstadt is coming to visit
-  you by train!"*. Watch the train come in: they step off at your stop, walk over to you, and when it is time to go they
+  **Guests by train.** If your base has a **rail stop** nearby — within about **96 blocks** of the core, or within
+  **24 blocks** of a **power relay** of your base's relay chain (the same chain that powers your outer sentries, so a big
+  spaceport reaches its station) — on a monorail line that also stops at a town **far away** (150 blocks or more) — and
+  a train runs on it that takes villagers (see *Monorail* below; the train needs a **seat, sleeper or bar wagon** —
+  nobody rides in the cab) — your neighbour comes from that town **by train** instead: *"… from Fernstadt is coming to
+  visit you by train!"*. A station right beside a village counts for both: the village's people keep riding from it, and
+  it is your base's stop too. You count as home when you are near your base, near one of its relays, or **waiting on
+  its platform**. Watch the train come in: they step off at your stop, walk over to you, and when it is time to go they
   walk back to the platform and take the next train home (*"… is taking the train home to Fernstadt."*). If no train
   comes in time, the neighbour from the nearest village walks over as before; a town right next to your base always sends
   its guests on foot. Your base's own residents sometimes take the train to that town too — and come back.
@@ -4393,7 +4407,14 @@ look up: what a mix does follows from what goes in, and the same things always g
   **autopilot** (the train runs by itself, halts at every stop, and turns round at the ends of an open line — on a
   loop it just keeps going). When it turns round, the wagons stay exactly where they are and simply run the other way,
   so nobody aboard is thrown about — on the way back the cab pushes the train from behind, and at a stop the wagon in
-  front halts at the stop. **F** or walking out of the open side leaves the train; you are set down beside it.
+  front halts at the stop. **Getting off:** walk out through the door, or press **F** — you are put down on the
+  nearest spot outside the door where you can stand: the ground, or a **platform** up to about a block higher than the
+  wagon floor (the floor hovers a little above the pylon's top, so a platform one block higher is a step too tall to
+  walk up — **F** or simply **walking into the door** of a halted train gets you onto it). The best height for a
+  platform is the top of the block right above the pylon's top. You land at once — no "Stabilisiere Position" wait.
+  **Jumping off a moving train** works too, like in the Wild West: walk out of the door (or press **F**) while it runs
+  and you leap off with part of its speed, sliding a few blocks before you stop. The jump itself never hurts — only a
+  drop does, as anywhere (careful on a high viaduct); a wall simply stops you.
 - **How fast it goes.** The panel shows the speed right now. The train starts gently, and how fast it gets depends on
   how far it is to the **next stop**: a short hop in town stays slow (about 7 blocks per second for 40 blocks), a long
   line to a far city reaches the top speed — 16 from about 96 blocks on, 24 from about 150 blocks on. Before every

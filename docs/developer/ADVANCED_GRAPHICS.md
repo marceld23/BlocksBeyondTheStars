@@ -422,6 +422,52 @@ complete it from the outside.
   (`CloudSeaRules.DomeLowFade`: all below the base, none above the top), so they no longer hover overhead while you stand
   in a cloud or look down on the sea; the high cirrus stay. Only by height — on a world without a band nothing changes.
 
+### Distance softness on worlds with air (#3461, #3462)
+
+The haze only blends colour; the far field kept its full pixel sharpness, so point-filtered textures flickered and showed
+mip bands at distance, and the seam to the coarse far terrain stayed visible. Two parts soften the far part of the haze —
+both **barely noticeable** on purpose, both only where the world has air. The gate is the server's
+`AtmosphereDensity > 0`, not "the haze is on": the crystal world keeps a haze but has no air and stays as sharp as the
+moons, asteroids and the void. The rules are `DistanceSoftLook` (Client.Core, headless-tested). `Sky.Mist.cs`
+`ApplyDistanceSoft` turns them into one global, `_Sc_DistSoft` (layout in the `AtmosphereCommon.hlsl` header). The
+global is zeroed by `ClearMist`, faded out indoors and under water, and empty for preview cameras (their `_Sc_Fog` is
+off). Weather needs no rule of its own: fog, rain and sandstorms pull the haze range in, and both parts follow it.
+
+- **Texture softening (#3461, every preset, the browser too, rides on *Distance haze*):**
+  - `BlockAtlas.shader` fades a texel toward its tile's average colour along the distance veil
+    (`BbtsDistSoftTexture`: strength × the linear haze-distance term). The strength is 0.25 in thin air and 0.35 in
+    thick air, reached at the haze end.
+  - The average is one explicit-LOD tap of the atlas's mip with exactly one texel per tile: mip 6 of the 64-px tiles,
+    or mip 5 under Potato's global mip limit, which halves runtime textures. Sky sends that mip in `_Sc_DistSoft.w`.
+  - A cutout tile's black holes are divided out (mean / alpha).
+  - The alpha is never touched, and the normal map and the parallax fade by the same share.
+  - It is deliberately **not** a mip bias: with point filtering that only moves the hard mip bands closer, and the
+    cutout leaves would lose coverage (distant trees thinning out).
+  - Silhouettes stay crisp, so a village or a creature far away is as easy to spot as before.
+- **Soft distance (#3462, Medium+ on a desktop client, own switch *Soft distance* — `ClientSettings.DistanceSoftness`):**
+  - `DistanceSoftView` enqueues `DistanceSoftPass` on the world cameras at `BeforeRenderingPostProcessing`, after the
+    transparents and the heat shimmer and before bloom, while `Sky.DistanceBlur01 > 0`.
+  - The passes:
+    1. the camera colour to half resolution, with the scene's distance in alpha;
+    2. a depth-aware, separable 7-tap gaussian;
+    3. a depth-aware upsample blended over the camera colour with
+       `blend × smoothstep(band start, haze end, distance)`.
+  - The blend is 0.4 (thin air) to 0.5 (thick air). The band starts at 40 % of the haze range and is full at its end.
+  - The sky stays sharp:
+    - far-plane pixels (open sky, the sun, stars, aurora, rings, clouds against the sky) get weight 0;
+    - the moons and planets of the surface sky (`SkyBodyPhase`, opaque with `ZWrite On` at 60–460 m, inside the band)
+      write stencil bit 64, and the composite binds the camera depth-stencil read-only and skips them;
+    - a pixel without a neighbour at a similar distance (a thin silhouette against the sky) stays sharp.
+  - It is off with *Reduced effects*, with the haze off, in the flight view, indoors and under water, and it fades with
+    the camera's open-sky exposure underground.
+  - It never runs in the browser: the WebGPU render-texture pitfalls and the frame budget. `DistanceSoft.shader` is
+    always-included and in `ShaderPrewarm` (desktop), so it still compiles for WebGL.
+  - The budget target is about 0.5 ms at 1080p (half resolution, 4 cheap passes). Measure with PerfProbe on
+    Medium/High, and drop to quarter resolution if it is over.
+  - Fallback if a graphics API ever makes the stencil route unreliable: move the surface-sky body materials to a queue
+    after the opaque depth copy (2501). They then read as far plane, but they would drop out of the water reflections,
+    which reflect via the opaque copy.
+
 ## Design rationale worth keeping
 
 - **Why URP.** TAA, SSR, a maintained post stack, Forward+ many-lights and Shader Graph are first-class
@@ -494,6 +540,9 @@ Ordered by impact ÷ effort. These are the next polish milestones; each is prese
 
 - Fog banks and the sea of clouds (#3272/#3273): `MistCards.cs` + `MistCard.shader`, `CloudSea.cs` + `CloudSea.shader`,
   `MistNoiseTexture.cs`, the dome fade in `Clouds.cs`; Client.Core `MistCardRules`, `CloudSeaRules`, `MistNoise`.
+- Distance softness (#3461/#3462): `Sky.Mist.cs` (`ApplyDistanceSoft`), `AtmosphereCommon.hlsl` (`_Sc_DistSoft`,
+  `BbtsDistSoftTexture`), `BlockAtlas.shader`, `DistanceSoftView.cs` + `DistanceSoftPass.cs` + `DistanceSoft.shader`, the
+  stencil bit in `SkyBodyPhase.shader`; Client.Core `DistanceSoftLook`.
 
 ## Open questions
 

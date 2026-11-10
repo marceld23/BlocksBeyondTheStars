@@ -308,6 +308,18 @@ namespace BlocksBeyondTheStars.Client
                 _snapOntoFloor = true; // heal-tank / beam pad / landing: the feet are ON a floor cell (#1276)
             }
 
+            // #3458: set down off a train — moved there plainly, never held in the settle freeze ("Stabilisiere
+            // Position": the surroundings are streamed); a walk-off keeps its own spot when the server's agrees.
+            if (Game != null && Game.TrainExitTarget.HasValue)
+            {
+                var exitAt = Game.TrainExitTarget.Value;
+                Game.TrainExitTarget = null;
+                if (_train.ConsumeExitSnap(exitAt))
+                {
+                    SnapTo(exitAt);
+                }
+            }
+
             TickRest(); // #2823: before any early return — a snap above, the flight view or a cutscene ends the rest
 
             // Until the server has told us where we are, the controller must not exist as far as the
@@ -529,11 +541,18 @@ namespace BlocksBeyondTheStars.Client
 
                 if (InputMap.Down(InputAction.SpeederExit))
                 {
-                    Game.Network?.SendExitTrain();
+                    if (!_train.TryJumpOffMoving(transform.eulerAngles.y, _pitch)) // #3459: off a moving train, a jump
+                    {
+                        Game.Network?.SendExitTrain(); // #3458: the server finds a standing spot outside the door
+                    }
                 }
                 else if (InputMap.Down(InputAction.Interact) && _train.TrainInteract())
                 {
                     return;
+                }
+                else
+                {
+                    _train.StepDoorExit(); // #3458: walking into the door of a halted train steps out
                 }
             }
 

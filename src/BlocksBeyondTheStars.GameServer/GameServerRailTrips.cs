@@ -18,10 +18,11 @@ namespace BlocksBeyondTheStars.GameServer;
 /// ends with the villager placed where it was going, never in front of anyone; a leg in reach is walked with the NPC route
 /// search. Riding needs no such care: a passenger goes wherever its train goes (<see cref="CarryNpcPassengers"/>).
 /// <list type="bullet">
-/// <item><b>Places</b> (<see cref="RailPlaceAt"/>): an intercity station's stop belongs to its town; any other stop to the
-/// settlement whose box holds it or lies within <see cref="RailStopSettlementMargin"/>, else to a player base whose core
-/// is within <see cref="RailStopBaseReach"/>. A trip runs between two mapped stops of different places on the
-/// <b>same line</b> (there are no switches).</item>
+/// <item><b>Places</b> (<see cref="RailPlacesAt"/>, <c>GameServerRailBaseReach.cs</c>): an intercity station's stop belongs
+/// to its town; any other stop to the settlement whose box holds it or lies within <see cref="RailStopSettlementMargin"/> —
+/// and (#3457) also to a player base whose core is within <see cref="RailStopBaseReach"/> or one of whose power relays is
+/// within <see cref="RailStopRelayReach"/>. A trip runs between two stops of different places on the <b>same line</b>
+/// (there are no switches), never from a stop to itself.</item>
 /// <item><b>Who</b> (<see cref="MayTravelByRail"/>): a plain villager — a settler of the town with no post (no vendor,
 /// quartermaster, guard, innkeeper, gardener or craftsman), no story character, nobody who holds a player's wish, nobody
 /// celebrating, talking or away; awake and standing. #3447: a base's residents without a post ride from their base's stop
@@ -59,12 +60,6 @@ public sealed partial class GameServer
 
     /// <summary>A stop belongs to a settlement whose box holds it or lies within this many blocks of it.</summary>
     private const int RailStopSettlementMargin = 12;
-
-    /// <summary>A stop belongs to a player base whose core lies within this many blocks of it (horizontally) …</summary>
-    internal const float RailStopBaseReach = 48f;
-
-    /// <summary>… and this many up or down.</summary>
-    private const float RailStopBaseReachY = 24f;
 
     /// <summary>How fast a leg out of reach passes (blocks per second along the straight way).</summary>
     private const float RailTripVirtualSpeed = 1f;
@@ -162,7 +157,7 @@ public sealed partial class GameServer
         public Vector3i ToStop => Returning ? HomeStop : AwayStop;
     }
 
-    /// <summary>The place a stop belongs to (#3446): a settlement or a player base.</summary>
+    /// <summary>One place a stop belongs to (#3446): a settlement or a player base (#3457: a stop may have one of each).</summary>
     internal sealed class RailStopPlace
     {
         public Vector3i Stop;
@@ -181,36 +176,6 @@ public sealed partial class GameServer
 
     // ---------------- Places ----------------
 
-    /// <summary>The place a stop belongs to, or null (see the class summary).</summary>
-    private RailStopPlace? RailPlaceAt(Vector3i stop)
-    {
-        var ic = Intercity;
-        if (ic.Active && ic.Stations.FirstOrDefault(s => s.Stop == stop) is { } station
-            && _settlements.FirstOrDefault(s => !s.Ruined && s.Name == station.SettlementName) is { } town)
-        {
-            return new RailStopPlace { Stop = stop, Name = town.Name, Settlement = town };
-        }
-
-        var at = new Vector3f(stop.X + 0.5f, stop.Y, stop.Z + 0.5f);
-        SettlementInstance? best = null;
-        double bestSq = double.MaxValue;
-        foreach (var s in _settlements)
-        {
-            if (!s.Ruined && s.Name.Length > 0 && StopNearBox(stop, s) && WrapDistSq(at, SettlementCenter(s)) is var d && d < bestSq)
-            {
-                bestSq = d;
-                best = s;
-            }
-        }
-
-        if (best is not null)
-        {
-            return new RailStopPlace { Stop = stop, Name = best.Name, Settlement = best };
-        }
-
-        return RailBaseAt(stop) is { } b ? new RailStopPlace { Stop = stop, Name = b.Name, Base = b } : null;
-    }
-
     private bool StopNearBox(Vector3i stop, SettlementInstance s)
     {
         int m = RailStopSettlementMargin;
@@ -219,41 +184,14 @@ public sealed partial class GameServer
                && stop.Y >= s.Min.Y - m && stop.Y <= s.Max.Y + m;
     }
 
-    /// <summary>The nearest player base on this body whose core is within reach of a stop, or null.</summary>
-    private ServerBase? RailBaseAt(Vector3i stop)
-    {
-        ServerBase? best = null;
-        double bestSq = (double)RailStopBaseReach * RailStopBaseReach;
-        var at = new Vector3f(stop.X + 0.5f, stop.Y, stop.Z + 0.5f);
-        foreach (var b in _bases)
-        {
-            if (b.Planet != _world.LocationId || Math.Abs(b.Cell.Y - stop.Y) > RailStopBaseReachY)
-            {
-                continue;
-            }
-
-            var core = BaseCorePos(b);
-            double d = WrapDistSq(new Vector3f(at.X, core.Y, at.Z), core);
-            if (d <= bestSq)
-            {
-                bestSq = d;
-                best = b;
-            }
-        }
-
-        return best;
-    }
-
-    /// <summary>A line's stops that belong to a place, in arc order.</summary>
+    /// <summary>A line's stops that belong to a place, in arc order — one or two places per stop (#3457: a town's and a
+    /// base's).</summary>
     private List<RailStopPlace> RailStopPlaces(RailLine line)
     {
         var places = new List<RailStopPlace>();
         foreach (var (_, cell) in line.Stops)
         {
-            if (RailPlaceAt(cell) is { } p)
-            {
-                places.Add(p);
-            }
+            places.AddRange(RailPlacesAt(cell));
         }
 
         return places;
@@ -352,18 +290,7 @@ public sealed partial class GameServer
     /// home place by name). The admin's call skips the daytime. Returns the trip, or null when nobody may go.</summary>
     private RailTrip? TryStartRailTrip(RailLine line, List<RailStopPlace> places, string? homePlace, bool admin)
     {
-        var pairs = new List<(RailStopPlace Home, RailStopPlace Away)>();
-        foreach (var h in places)
-        {
-            foreach (var a in places)
-            {
-                if (a.Settlement is not null && !h.SamePlace(a))
-                {
-                    pairs.Add((h, a));
-                }
-            }
-        }
-
+        var pairs = RailTripPairs(places);
         for (int i = pairs.Count - 1; i > 0; i--)
         {
             int j = _tripRng.Next(i + 1);
@@ -387,6 +314,25 @@ public sealed partial class GameServer
         }
 
         return null;
+    }
+
+    /// <summary>Every (home, away) pair a trip may run between: the away place a town, a different place — and (#3457) a
+    /// different stop, since a stop may belong to a town and a base at once and nobody rides from a stop to itself.</summary>
+    private static List<(RailStopPlace Home, RailStopPlace Away)> RailTripPairs(List<RailStopPlace> places)
+    {
+        var pairs = new List<(RailStopPlace Home, RailStopPlace Away)>();
+        foreach (var h in places)
+        {
+            foreach (var a in places)
+            {
+                if (a.Settlement is not null && !h.SamePlace(a) && h.Stop != a.Stop)
+                {
+                    pairs.Add((h, a));
+                }
+            }
+        }
+
+        return pairs;
     }
 
     private bool RailTripDaytime(Vector3i at)

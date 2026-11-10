@@ -21,6 +21,18 @@ namespace BlocksBeyondTheStars.Client
         private static readonly int MistColorId = Shader.PropertyToID("_Sc_MistColor");
         private static readonly int CloudBandId = Shader.PropertyToID("_Sc_CloudBand");
         private static readonly int CloudBandColorId = Shader.PropertyToID("_Sc_CloudBandColor");
+        private static readonly int DistSoftId = Shader.PropertyToID("_Sc_DistSoft"); // #3461/#3462, see AtmosphereCommon.hlsl
+
+        /// <summary>#3462: the "Soft distance" switch, already gated to Medium+ on a desktop client
+        /// (<see cref="DistanceSoftView.EnabledFor"/>; wired by WorldRig, pushed live by the settings). Off until wired.</summary>
+        public bool DistanceSoftEnabled;
+
+        /// <summary>#3462: the player's Reduced effects — keeps the far field sharp (the blur is a comfort risk).</summary>
+        public bool ReducedEffects;
+
+        /// <summary>#3462: the soft-distance blur's largest blend right now (0 = nothing to draw: no air, indoors, under
+        /// water, the haze or the switch off, the flight view). <see cref="DistanceSoftView"/> enqueues its pass only above 0.</summary>
+        public float DistanceBlur01 { get; private set; }
 
         /// <summary>Seconds the cloud band takes to come or go completely when the weather changes.</summary>
         private const float BandEaseSeconds = 20f;
@@ -131,6 +143,7 @@ namespace BlocksBeyondTheStars.Client
             float maxHaze = (FogEnabled ? 1f : 0f) * (1f - _indoor); // 0 indoors or when the player disabled fog
             ApplyUnderwater(sky, seenDay, airDensity, ref fogStart, ref far, ref maxHaze);
             SetFog(new Vector4(fogStart, far, maxHaze, (FogEnabled || _submerged > 0.001f) ? 1f : 0f));
+            ApplyDistanceSoft(env, fogStart, far);
 
             float exposure = Probe != null ? Probe.CameraExposure : 1f;
             float mist = ApplyHeightFog(env, tod, day, exposure);
@@ -139,6 +152,24 @@ namespace BlocksBeyondTheStars.Client
             Shader.SetGlobalVector(MistCamId, _mistCam);
             float cover = ApplyCloudShadows(env, weatherIntensity, day, exposure);
             LogAtmosphere(fogStart, far, maxHaze, mist, exposure, tod, cover);
+        }
+
+        /// <summary>
+        /// #3461/#3462: the distance softness (<see cref="DistanceSoftLook"/>) — the texture softening along the haze and the
+        /// soft-distance blur's blend and band, both only where the world has air (the server sends density 0 for every
+        /// airless world, the crystal world included, so it stays as sharp as the moons) and faded out indoors and under
+        /// water; the blur also steps back with the camera's open-sky exposure (a long tunnel underground is not "far away in
+        /// the air"). No env yet = no air. w carries the atlas mip with one texel per tile (Potato's mip limit halves the atlas).
+        /// </summary>
+        private void ApplyDistanceSoft(WorldEnvironment env, float fogStart, float far)
+        {
+            float density = env?.AtmosphereDensity ?? 0f;
+            float open = (1f - _indoor) * (1f - _submerged);
+            float exposure = Probe != null ? Probe.CameraExposure : 1f;
+            float fade = DistanceSoftLook.TextureFade(density, FogEnabled) * open;
+            DistanceBlur01 = DistanceSoftLook.BlurBlend(density, DistanceSoftEnabled, FogEnabled, ReducedEffects) * open * Mathf.Clamp01(exposure);
+            int meanMip = DistanceSoftLook.TileMeanMip(BlockTextureAtlas.Tile, QualitySettings.globalTextureMipmapLimit);
+            Shader.SetGlobalVector(DistSoftId, new Vector4(fade, DistanceBlur01, DistanceSoftLook.BandStart(fogStart, far), meanMip));
         }
 
         /// <summary>Where the distance haze is complete (metres): the far-view range by the air's thinness, pulled in by storms,
@@ -438,6 +469,8 @@ namespace BlocksBeyondTheStars.Client
             Shader.SetGlobalVector(MistColorId, Vector4.zero);
             Shader.SetGlobalVector(CloudBandId, Vector4.zero);
             Shader.SetGlobalVector(MistCamId, _mistCam);
+            DistanceBlur01 = 0f; // #3461/#3462: no distance softness without a haze
+            Shader.SetGlobalVector(DistSoftId, Vector4.zero);
             RenderSettings.fog = false;
         }
 
@@ -452,7 +485,7 @@ namespace BlocksBeyondTheStars.Client
 
             _nextAtmosphereLog = Time.unscaledTime + 2f;
             Vector4 height = Shader.GetGlobalVector(FogHeightId);
-            Debug.Log($"[Atmosphere] fog start={fogStart:F1} end={far:F1} max={maxHaze:F2} | mist={mist:F2} floor={height.x:F1} k={height.y:F3} exposure={exposure:F2} wisp={Shader.GetGlobalVector(MistWispId)} cam={_mistCam} mistColor={MistColorLit} | band cover={_bandCover:F2} inCloud={_inCloud:F2} y={_bandBaseY:F0}..{_bandTopY:F0} | tint sky={_tintSky:F2} mist={_tintMist:F2} | adaptEv={(Probe != null ? Probe.AdaptationEv : 0f):F2} modelLight={_modelLight:F2} biome={Game.Environment?.Biome} tod={tod:F2} | cloud cover={cover:F2} strength={_cloudShadowVector.w:F2} | wet={_wet:F2} snow={_snow:F2} submerged={_submerged:F2} | aboard={Game.Aboard} station='{Game.StationName}' sky={Game.ExposedToSky} indoor={_indoor:F2} pos={Game.PlayerPosition} | globals surface={Shader.GetGlobalVector(SurfaceId)} height={height} cloud={Shader.GetGlobalVector(CloudShadowId)} noise={(Shader.GetGlobalTexture(CloudNoiseId) != null)} | lights={Game.World?.LightSourceCount ?? -1} natural={Game.World?.NaturalLightSourceCount ?? -1} emitters={BlocksBeyondTheStars.Client.ClientWorld.NaturalEmittersLight}");
+            Debug.Log($"[Atmosphere] fog start={fogStart:F1} end={far:F1} max={maxHaze:F2} | mist={mist:F2} floor={height.x:F1} k={height.y:F3} exposure={exposure:F2} wisp={Shader.GetGlobalVector(MistWispId)} cam={_mistCam} mistColor={MistColorLit} | band cover={_bandCover:F2} inCloud={_inCloud:F2} y={_bandBaseY:F0}..{_bandTopY:F0} | tint sky={_tintSky:F2} mist={_tintMist:F2} | distSoft={Shader.GetGlobalVector(DistSoftId)} | adaptEv={(Probe != null ? Probe.AdaptationEv : 0f):F2} modelLight={_modelLight:F2} biome={Game.Environment?.Biome} tod={tod:F2} | cloud cover={cover:F2} strength={_cloudShadowVector.w:F2} | wet={_wet:F2} snow={_snow:F2} submerged={_submerged:F2} | aboard={Game.Aboard} station='{Game.StationName}' sky={Game.ExposedToSky} indoor={_indoor:F2} pos={Game.PlayerPosition} | globals surface={Shader.GetGlobalVector(SurfaceId)} height={height} cloud={Shader.GetGlobalVector(CloudShadowId)} noise={(Shader.GetGlobalTexture(CloudNoiseId) != null)} | lights={Game.World?.LightSourceCount ?? -1} natural={Game.World?.NaturalLightSourceCount ?? -1} emitters={BlocksBeyondTheStars.Client.ClientWorld.NaturalEmittersLight}");
         }
 
         private static MistRgb ToRgb(Color c) => new MistRgb(c.r, c.g, c.b);

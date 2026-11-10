@@ -5,6 +5,7 @@
 // "earthshine" floor on the night side keep it readable. Distant, unshadowed ambience: no scene Light, no shadows.
 //
 // DUAL-PIPELINE (URP migration): SubShader 1 is the URP port (HLSL), SubShader 2 the Built-in RP pass (CG).
+// #3462: the URP pass writes stencil bit 64 — the soft distance's composite skips those pixels (sky bodies always sharp).
 Shader "BlocksBeyondTheStars/SkyBodyPhase"
 {
     Properties
@@ -34,6 +35,16 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
         Pass
         {
             Tags { "LightMode" = "UniversalForward" }
+            // #3462: mark the body's pixels (stencil bit 64) so the soft distance (DistanceSoft.shader) leaves the moons and
+            // planets of the surface sky sharp — they sit at 60–460 m, right inside the haze band it blurs. Nothing else in
+            // the world pass uses the stencil (UiHolo's is the UI's own).
+            Stencil
+            {
+                Ref 64
+                WriteMask 64
+                Comp Always
+                Pass Replace
+            }
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag

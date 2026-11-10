@@ -3221,6 +3221,7 @@
   "ui.settings.lens_flare": "Блимання лінзи",
   "ui.settings.motion_blur": "Розмиття руху (політ)",
   "ui.settings.distance_haze": "Серпанок удалині та сонячні промені",
+  "ui.settings.distance_softness": "М’яка далечінь",
   "ui.settings.ground_details": "Деталі землі (пучки трави)",
   "ui.settings.atmosphere": "Атмосферні ефекти",
   "ui.settings.atmosphere.off": "Вимкнено",

@@ -1016,11 +1016,7 @@ public sealed partial class GameServer
         {
             if (setDown)
             {
-                var (pos, yaw) = WagonPose(t, line, rider.Wagon);
-                // Beside the wagon, on the side the rider stood, at the floor.
-                float side = rider.Local.X >= 0f ? RailRules.ExitSide : -RailRules.ExitSide;
-                var w = RailRules.LocalToWorld(pos, yaw, new Vector3f(side, 0f, Math.Clamp(rider.Local.Z, -RailRules.RiderHalfLength, RailRules.RiderHalfLength)));
-                p.Position = new Vector3f((float)WorldConstants.WrapX((double)w.X, _world.Circumference), w.Y, (float)WorldConstants.WrapZ((double)w.Z, _world.Circumference));
+                p.Position = RailExitSpot(t, line, rider); // #3458: a real standing spot outside the door (GameServerRailExits.cs)
             }
 
             t.Riders.Remove(p.PlayerId);
