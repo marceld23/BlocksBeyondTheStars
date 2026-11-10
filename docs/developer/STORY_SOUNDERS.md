@@ -33,7 +33,9 @@ sketches by Theo and a classmate; the names by Marcel and Justus, 2026-11-07).
 - **Soaniri is light blue and light green** (#3423, Justus 2026-11-08): the Sounders, Soundis, Soundelings and Soundraks, the
   chime moss (light green with aqua clumps), the singing plants (light-green stalks and leaves; light-blue bells, tips, strands
   and throats), the wild plants (the planet's `floraPalette` of light greens) — and the plants keep their colours through
-  autumn and winter (`evergreenFlora`). The carved obsidian stays black, the sky and its star are untouched. Colours and
+  autumn and winter (`evergreenFlora`). #3448/#3449 (Marcel 2026-11-09): the rolled animals (the planet's `faunaPalette` of
+  light blues, aquas and mints, in fur and skin), the micro-fauna and Mirun's villagers and the Eldest (who wore a settler's
+  human skin until then) too. The carved obsidian stays black, the sky and its star are untouched. Colours and
   where they live: [CREATURE_RIG.md](CREATURE_RIG.md) § "The bodies of Soaniri", [WORLD_GENERATION.md](WORLD_GENERATION.md) §51.
 - **The twist inside the pack:** VEGA's old monument "translations" (her own pack's rune inscriptions) were the
   archive's guesses — the runes were never letters. VEGA's texts stay as they are; she says so herself in chapter 3.

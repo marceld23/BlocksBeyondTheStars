@@ -369,6 +369,7 @@ namespace BlocksBeyondTheStars.Client
             var npcs = root.AddComponent<NpcView>();
             boot.Views.Npcs = npcs;
             npcs.Game = boot;
+            npcs.Trains = trains; // #3445: NPC passengers are placed relative to the wagons this client draws
 
             // Render + collide doors (sci-fi sliders auto-open; village hinge doors toggle on E).
             var doors = root.AddComponent<DoorView>();

@@ -520,6 +520,14 @@ namespace BlocksBeyondTheStars.Client
                     net.SendAdminCommand("summon_wanderer");
                     return true;
 
+                case "/guest": // #3447: a visitor comes to your nearest base now — by train when it has a stop (testing)
+                    net.SendAdminCommand("summon_guest");
+                    return true;
+
+                case "/railtrip": // #3447: a villager takes the train now on the nearest line; "/railtrip Town" picks the town
+                    net.SendAdminCommand("rail_trip", stringArg: t.Substring(p[0].Length).Trim());
+                    return true;
+
                 case "/fly": net.SendAdminCommand("fly"); return true;
                 case "/god": net.SendAdminCommand("godmode"); return true;
                 case "/instant": net.SendAdminCommand("instant_build"); return true;
@@ -760,6 +768,7 @@ namespace BlocksBeyondTheStars.Client
             LocalLine(L("ui.admin.help_teleport"));
             LocalLine(L("ui.admin.help_ressaw")); // #3421: /ressaw into a buried G.D.S. ruin on any planet
             LocalLine(L("ui.admin.help_wilderness")); // #2646: /wanderer and /tp lodge
+            LocalLine(L("ui.admin.help_rail")); // #3447: /railtrip and /guest
             LocalLine(L("ui.admin.help_creatures")); // #3390: /arachnid, /biped, /hound, /creatures
             LocalLine(L("ui.admin.help_inspect"));
             LocalLine(L("ui.admin.help_fleet"));

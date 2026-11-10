@@ -31,8 +31,10 @@ namespace BlocksBeyondTheStars.Client
         public bool HandingOff { get; private set; }
 
         /// <summary>Bar fill 0..1: the time ramp over MinShow, or the creeping hold band while the bundled
-        /// server still generates its world (<see cref="LoadingHandoffPolicy.Progress"/>).</summary>
-        public float Progress => LoadingHandoffPolicy.Progress(_elapsed, MinShow, _shell.LocalServerBooting, _shell.LocalServerBootProgress);
+        /// server — or, in the browser, the in-process host (#3450: the bar used to sit at 100 % for that whole boot) —
+        /// still builds its world (<see cref="LoadingHandoffPolicy.Progress"/>).</summary>
+        public float Progress => LoadingHandoffPolicy.Progress(_elapsed, MinShow, _shell.LocalServerBooting || _shell.BrowserWorldBooting,
+            _shell.LocalServerBootProgress);
 
         public LoadingScreen(AppShell shell) => _shell = shell;
 

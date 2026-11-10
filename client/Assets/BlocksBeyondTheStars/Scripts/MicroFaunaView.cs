@@ -57,6 +57,11 @@ namespace BlocksBeyondTheStars.Client
         private Color _planetOrbColor = Color.white;      // the wisp's full-circle per-world hue (#752)
         private bool[] _planetKeep;                       // per kind-index: does this planet host the species?
 
+        // #3448: the world type's fauna palette (Soaniri's light blues and mints) — when it has entries, every critter takes
+        // its colour from it instead of its kind's palette and the planet's hue cast. Re-read when the type changes.
+        private Color[] _faunaPalette = System.Array.Empty<Color>();
+        private string _faunaPaletteType;
+
         // scratch reused each frame (no per-frame allocations)
         private readonly Dictionary<int, Vector3> _groupSum = new();
         private readonly Dictionary<int, int> _groupCount = new();
@@ -163,6 +168,7 @@ namespace BlocksBeyondTheStars.Client
             _planetSeedTimer -= dt;
             if (_planetSeedTimer > 0f && _planetKeep != null) return;
             _planetSeedTimer = 2f;
+            RefreshFaunaPalette();
 
             string key = Game.StarMap?.ActiveLocationId;
             if (string.IsNullOrEmpty(key)) key = Game.Environment?.Biome ?? string.Empty;
@@ -184,6 +190,26 @@ namespace BlocksBeyondTheStars.Client
             // the established rolls don't shift), bright + saturated because the additive shader multiplies
             // the tint into a white radial tile — a dull colour would just dim the orb.
             _planetOrbColor = Color.HSVToRGB((float)rng.NextDouble(), 0.75f, 1f);
+        }
+
+        /// <summary>#3448: reads the world type's fauna palette (<c>FaunaTints.PaletteOf</c>) when the type changes — empty for
+        /// a type without one, so the critters keep their own palettes. Retried while the content is not loaded yet.</summary>
+        private void RefreshFaunaPalette()
+        {
+            string type = Game.LoadingPlanetType ?? string.Empty;
+            if (type == _faunaPaletteType || Game.Content == null)
+            {
+                return;
+            }
+
+            _faunaPaletteType = type;
+            var palette = BlocksBeyondTheStars.Shared.World.FaunaTints.PaletteOf(Game.Content.GetPlanet(type));
+            _faunaPalette = new Color[palette.Count];
+            for (int i = 0; i < palette.Count; i++)
+            {
+                int rgb = palette[i];
+                _faunaPalette[i] = new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f, 1f);
+            }
         }
 
         /// <summary>Whether micro-fauna may appear at all right now, and (out) whether surface kinds are valid
@@ -420,36 +446,46 @@ namespace BlocksBeyondTheStars.Client
             c.Airborne = false;
             // No two individuals are the same size; the rare giant makes a nice "look at that one!" moment.
             c.SizeScale = Random.Range(0.75f, 1.35f) * (Random.value < 0.02f ? 1.5f : 1f);
-            // Glowing kinds keep their full saturated colour (additive). For the rest the tint is softened
-            // toward white so the generated sprite's own colours dominate (a hint of variety, not a muddy
-            // multiply) — while a procedural white-silhouette fallback still picks up a pastel of the palette.
-            // Variety on top: blend between two palette entries, vary the softening, then apply this planet's
-            // hue rotation and a nudge toward its flora tint so the local life shares the world's colour cast.
-            Color pick = Color.Lerp(
-                kind.Palette[Random.Range(0, kind.Palette.Length)],
-                kind.Palette[Random.Range(0, kind.Palette.Length)], Random.value);
-            pick = ShiftHue(pick, _planetHueShift);
-            if (kind.Key == "wisp")
-            {
-                // The wisp IS the world's colour (#752): every world rolls its own full-circle hue
-                // (RefreshPlanetSeed), unlike the deliberately narrow ±0.12 shift other species get so
-                // they stay recognisable. Slight per-individual value wobble keeps a swarm from being flat.
-                c.Tint = _planetOrbColor * Random.Range(0.85f, 1.05f);
-            }
-            else if (kind.Glow)
-            {
-                c.Tint = pick;
-            }
-            else
-            {
-                Color tint = Color.Lerp(Color.white, pick, Random.Range(0.25f, 0.65f));
-                c.Tint = Color.Lerp(tint, FloraTintColor(), 0.2f);
-            }
+            c.Tint = TintFor(kind);
 
             BuildQuad(c);
             c.Mr.sharedMaterial = kind.Glow ? _matGlow : _matAlpha;
             c.Go.SetActive(true);
             _alive.Add(c);
+        }
+
+        /// <summary>A new critter's tint. Glowing kinds keep their full saturated colour (additive). For the rest the tint is
+        /// softened toward white so the generated sprite's own colours dominate (a hint of variety, not a muddy multiply) —
+        /// while a procedural white-silhouette fallback still picks up a pastel of the palette. Variety on top: blend between
+        /// two palette entries, vary the softening, then apply this planet's hue rotation and a nudge toward its flora tint so
+        /// the local life shares the world's colour cast. #3448: on a world whose type has a fauna palette (Soaniri) every
+        /// critter — the wisp too — blends two of ITS entries instead, without the hue rotation, and is softened less (the
+        /// sprites are nearly grey), so the bugs wear the world's light blues and mints.</summary>
+        private Color TintFor(CritterKind kind)
+        {
+            bool inPalette = _faunaPalette.Length > 0;
+            Color[] palette = inPalette ? _faunaPalette : kind.Palette;
+            Color pick = Color.Lerp(palette[Random.Range(0, palette.Length)], palette[Random.Range(0, palette.Length)], Random.value);
+            if (!inPalette)
+            {
+                pick = ShiftHue(pick, _planetHueShift);
+            }
+
+            if (kind.Key == "wisp")
+            {
+                // The wisp IS the world's colour (#752): every world rolls its own full-circle hue
+                // (RefreshPlanetSeed), unlike the deliberately narrow ±0.12 shift other species get so
+                // they stay recognisable. Slight per-individual value wobble keeps a swarm from being flat.
+                return (inPalette ? pick : _planetOrbColor) * Random.Range(0.85f, 1.05f);
+            }
+
+            if (kind.Glow)
+            {
+                return pick;
+            }
+
+            Color tint = Color.Lerp(Color.white, pick, inPalette ? Random.Range(0.6f, 0.9f) : Random.Range(0.25f, 0.65f));
+            return Color.Lerp(tint, FloraTintColor(), 0.2f);
         }
 
         // --- movement + render -----------------------------------------------------------------------------

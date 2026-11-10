@@ -136,6 +136,10 @@ public sealed partial class CombatEntity
     /// colliding block (#1357; sleepers check every tick regardless). Server-only, never persisted.</summary>
     public double NextBodyCheckAt { get; set; }
 
+    /// <summary>#3453: server uptime at which the intruder sweep first found this wild ground animal inside a town's zone;
+    /// -1 while it is not in one (<c>GameServerCreatureTownRules</c>). Server-only, never persisted.</summary>
+    public double InTownSince { get; set; } = -1;
+
     /// <summary>What this entity drops when destroyed.</summary>
     public List<ItemAmount> Loot { get; set; } = new();
 

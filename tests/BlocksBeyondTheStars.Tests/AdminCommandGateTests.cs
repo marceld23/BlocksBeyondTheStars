@@ -338,6 +338,8 @@ public sealed class AdminCommandGateTests : IDisposable
             ["summon_biped"] = SvGameServer.AdminCommandGate.Cheats,
             ["summon_hound"] = SvGameServer.AdminCommandGate.Cheats,
             ["summon_wanderer"] = SvGameServer.AdminCommandGate.Cheats,
+            ["summon_guest"] = SvGameServer.AdminCommandGate.Cheats, // #3447
+            ["rail_trip"] = SvGameServer.AdminCommandGate.Cheats, // #3447
             ["instant_build"] = SvGameServer.AdminCommandGate.Cheats,
             ["advance_story"] = SvGameServer.AdminCommandGate.Cheats,
             ["reveal_finale"] = SvGameServer.AdminCommandGate.Cheats,
@@ -349,8 +351,8 @@ public sealed class AdminCommandGateTests : IDisposable
         };
         var actual = SvGameServer.AdminCommandTableForTest().ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
 
-        Assert.Equal(44, expected.Count);
-        Assert.Equal(44, actual.Count);
+        Assert.Equal(46, expected.Count);
+        Assert.Equal(46, actual.Count);
         Assert.Equal(expected.Keys.OrderBy(k => k, StringComparer.Ordinal), actual.Keys.OrderBy(k => k, StringComparer.Ordinal));
         foreach (var (verb, gate) in expected)
         {

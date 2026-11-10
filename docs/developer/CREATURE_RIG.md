@@ -187,7 +187,9 @@ at least 0.14; the cape and the eye mask are darker, the blaze lighter. About on
 wears a **bold** colour instead (#2864, `CreatureCoat.BoldRgb`): black marks on a warm vivid body (a
 warning look: wasp, ladybird), white, cream, yellow or red marks on a very dark body, black or white on
 everything else (zebra, panda, magpie) — never against the cape's or the blaze's direction, always the
-luma step. A part the pattern covers fully just takes the pattern colour on its plain hide; masked parts
+luma step. On a world whose type has a **fauna palette** (#3448, Soaniri — the look's `FaunaThemes.Look.Palette`, the
+home world's for a pet or a clone) the marks stay in its colours: no bold colour, and the shifted shade takes the hue of
+a palette entry instead of a step round the wheel. A part the pattern covers fully just takes the pattern colour on its plain hide; masked parts
 **bake** a coat texture (`CoatBake.Bake`: `lerp(body, pattern, mask) × normalised hide`), cached
 statically per (hide, pattern, mask variant, mask seed, colours, glow) and capped at 768 textures (~17 MB
 with the mip chains), past which new species simply go unpatterned and unlit. A species bakes one to a few.
@@ -423,7 +425,10 @@ measure the drawn bodies. Four are authored records in `data/creatures.json` (`s
 `bellyRgb`), the Soundelings wear one of six light-blue and light-green pastels (`SoundelingRules.Pastels`), a living Sounder a
 light-blue or light-green skin with a deeper blue or green sash (`SounderRules.SkinTones`/`SashTones`, pale mint inner ears),
 and a Quali's light-cyan bell glows aqua-mint. Every body is clearly lighter than the light-green moss or a different hue, so it
-reads on the ground; `SoaniriPaletteTests` holds them all in the blue/green band.
+reads on the ground; `SoaniriPaletteTests` holds them all in the blue/green band. #3448 (Marcel 2026-11-09) adds the rest of
+Soaniri's living beings: the five rolled species wear the planet's `faunaPalette` (light blues, aquas, mints; their coat marks
+stay in it, see "Coat patterns") in fur and skin (`faunaTheme: "cold"`), the micro-fauna take their colours from it, and #3449
+dresses Mirun's villagers and the Eldest like every Sounder NPC (`SounderRules.LookFor`, the Eldest at `MaxSize`).
 
 | Plan | File | Body |
 | --- | --- | --- |

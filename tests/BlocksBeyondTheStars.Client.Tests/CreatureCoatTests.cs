@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Client.Tests;
@@ -297,6 +299,48 @@ public sealed class CreatureCoatTests
 
         Assert.InRange(bold / (double)N, 0.13, 0.22);
         Assert.Null(CreatureCoat.BoldRgb(1, 0x808080, CoatPattern.None));
+    }
+
+    [Fact]
+    public void OnAPaletteWorld_TheMarksStayInThePalettesHues_AndAreNeverBold()
+    {
+        // #3448: Soaniri's rolled animals wear its fauna palette, and their coat patterns stay in it — no black or white bold
+        // marks, the shifted shade on a palette hue; the darker and lighter shades keep the body's hue.
+        var content = ContentLoader.LoadFromDirectory(ClientTestPaths.DataDir());
+        var palette = FaunaTints.PaletteOf(content.GetPlanet("sounder_world"));
+        Assert.NotEmpty(palette);
+        var look = FaunaThemes.For(new NetCreature { LookPlanet = "sounder_world", LookSeed = 77 }, k => content.GetPlanet(k))!;
+        Assert.True(look.KeepsPalette);
+        Assert.Equal(palette, look.Palette);
+        Assert.False(FaunaThemes.For(new NetCreature { LookPlanet = "desert", LookSeed = 77 }, k => content.GetPlanet(k))!.KeepsPalette);
+
+        var hues = palette.Select(HueOf).ToList();
+        double lo = hues.Min() - 10.0, hi = hues.Max() + 10.0; // a dark shade's 8-bit rounding moves its hue a few degrees
+        var bolds = new HashSet<int> { 0x1E1B1A, 0x34302E, 0xF2F0E8, 0xE8D9B0, 0xF2C230, 0xD8342B };
+        var patterns = Enum.GetValues(typeof(CoatPattern)).Cast<CoatPattern>().Where(p => p != CoatPattern.None).ToList();
+        int boldWithoutPalette = 0;
+        for (int i = 0; i < 3000; i++)
+        {
+            uint seed = (uint)((i * 7919) + 13);
+            int body = FaunaTints.CoatFor((int)seed, palette).Body;
+            var pattern = patterns[i % patterns.Count];
+            int mark = CreatureCoat.PatternRgb(seed, body, pattern, look);
+            Assert.DoesNotContain(mark, bolds);
+            CreatureCoat.Unpack(mark, out float r, out float g, out float b);
+            CreatureCoat.RgbToHsv(r, g, b, out _, out float sat, out _);
+            double hue = HueOf(mark);
+            Assert.True(sat < 0.08f || (hue >= lo && hue <= hi), $"body {body:X6} → {mark:X6} ({pattern}) has hue {hue:0}°");
+            boldWithoutPalette += bolds.Contains(CreatureCoat.PatternRgb(seed, body, pattern)) ? 1 : 0;
+        }
+
+        Assert.True(boldWithoutPalette > 0, "without the palette some of these species would wear bold marks");
+    }
+
+    private static double HueOf(int rgb)
+    {
+        CreatureCoat.Unpack(rgb, out float r, out float g, out float b);
+        CreatureCoat.RgbToHsv(r, g, b, out float h, out _, out _);
+        return h * 360.0;
     }
 
     [Fact]

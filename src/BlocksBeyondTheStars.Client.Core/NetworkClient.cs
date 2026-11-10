@@ -1362,9 +1362,9 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendExitTrain() => Send(new ExitTrainIntent());
 
-        /// <summary>The cab's panel: −1 leaves a setting unchanged.</summary>
-        public void SendSetTrain(string trainId, int speed = -1, int halt = -1, int autopilot = -1)
-            => Send(new SetTrainIntent { TrainId = trainId ?? string.Empty, Speed = speed, Halt = halt, Autopilot = autopilot });
+        /// <summary>The cab's panel: −1 leaves a setting unchanged (#3446: <paramref name="passengers"/> — villagers ride along).</summary>
+        public void SendSetTrain(string trainId, int speed = -1, int halt = -1, int autopilot = -1, int passengers = -1)
+            => Send(new SetTrainIntent { TrainId = trainId ?? string.Empty, Speed = speed, Halt = halt, Autopilot = autopilot, Passengers = passengers });
 
         public void SendStowTrain(string trainId) => Send(new StowTrainIntent { TrainId = trainId ?? string.Empty });
 

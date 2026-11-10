@@ -367,10 +367,14 @@ namespace BlocksBeyondTheStars.Client
         /// pastel lighter one, or a gentle hue shift toward a neighbouring colour — never the complementary hue (garish) and
         /// never a saturation past 0.9. The two-tone cape and the eye mask are darker, the belly blaze lighter (unless the
         /// body is too dark or too light to go that way). Then pushed until it differs from the body by
-        /// <see cref="MinLumaStep"/> in luma.</summary>
-        public static int PatternRgb(uint speciesSeed, int bodyRgb, CoatPattern pattern)
+        /// <see cref="MinLumaStep"/> in luma. On a world whose type has a fauna palette (<paramref name="look"/>'s
+        /// <see cref="FaunaThemes.Look.Palette"/>, #3448 — Soaniri) the marks stay in the world's colours: no bold black or white
+        /// marks, and the shifted shade takes the hue of a palette entry instead of a step round the wheel (darker and lighter
+        /// shades keep the body's hue anyway).</summary>
+        public static int PatternRgb(uint speciesSeed, int bodyRgb, CoatPattern pattern, FaunaThemes.Look? look = null)
         {
-            if (BoldRgb(speciesSeed, bodyRgb, pattern) is int bold)
+            bool keepPalette = look != null && look.KeepsPalette;
+            if (!keepPalette && BoldRgb(speciesSeed, bodyRgb, pattern) is int bold)
             {
                 return bold;
             }
@@ -402,9 +406,7 @@ namespace BlocksBeyondTheStars.Client
                     sat *= 0.45f;
                     break;
                 default:
-                    float step = 0.06f + ((h >> 8) % 7u) * 0.01f;       // 22°..43° round the wheel
-                    hue += ((h >> 4) & 1u) == 0u ? step : -step;
-                    hue -= (float)Math.Floor(hue);
+                    hue = keepPalette ? PaletteHue(h, look!.Palette) : ShiftedHue(hue, h);
                     sat = Math.Max(0.25f, Math.Min(0.85f, sat * 0.9f));
                     val = bodyLuma > 0.5f ? val * 0.62f : val + (1f - val) * 0.5f;
                     break;
@@ -443,6 +445,23 @@ namespace BlocksBeyondTheStars.Client
 
             HsvToRgb(hue, sat, val, out float fr, out float fg, out float fb);
             return Pack(fr, fg, fb);
+        }
+
+        /// <summary>The shifted shade's hue: 22°..43° round the wheel from the body's, one way or the other by the seed.</summary>
+        private static float ShiftedHue(float hue, uint h)
+        {
+            float step = 0.06f + ((h >> 8) % 7u) * 0.01f;
+            hue += ((h >> 4) & 1u) == 0u ? step : -step;
+            return hue - (float)Math.Floor(hue);
+        }
+
+        /// <summary>#3448: the shifted shade's hue on a world with a fauna palette — the hue of one palette entry, picked by the
+        /// seed, so the marks stay in the world's colours.</summary>
+        private static float PaletteHue(uint h, IReadOnlyList<int> palette)
+        {
+            Unpack(palette[(int)((h >> 8) % (uint)palette.Count)], out float r, out float g, out float b);
+            RgbToHsv(r, g, b, out float hue, out _, out _);
+            return hue;
         }
 
         /// <summary>Percent of patterned species that wear a bold pattern colour (#2864).</summary>

@@ -26,8 +26,9 @@ namespace BlocksBeyondTheStars.Client
         /// otherwise pin the loading screen forever. Same figure as the connect loop's local budget.</summary>
         public const float LocalBootCeilingSeconds = ConnectRetryPolicy.LocalBudgetSeconds;
 
-        /// <summary>While the server boots the bar creeps from the floor toward the cap (never reaching it),
-        /// so it visibly keeps working instead of parking at "100 %"; the ready signal snaps it to full.</summary>
+        /// <summary>While the server (or the browser's in-process host, #3450) boots the bar creeps from the floor toward
+        /// the cap (never reaching it), so it visibly keeps working instead of parking at "100 %"; the ready signal snaps
+        /// it to full.</summary>
         public const float HoldFloor = 0.60f;
         public const float HoldCap = 0.85f;
         public const float HoldTauSeconds = 12f;
@@ -52,15 +53,18 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Bar fill 0..1: the plain time ramp when nothing holds the launch, the creeping hold band
-        /// while the bundled server boots (monotonic in <paramref name="elapsed"/>, strictly below
-        /// <see cref="HoldCap"/>), and back to the ramp — i.e. 100 % — the moment the server reports ready.
+        /// while a world boots (monotonic in <paramref name="elapsed"/>, strictly below <see cref="HoldCap"/>), and back
+        /// to the ramp — i.e. 100 % — the moment it is ready.
         /// <para>#1988: when the server reports its boot passes, <paramref name="bootProgress"/> (0..1, negative
         /// while unknown) drives the hold band instead of the clock — the bar then moves with the work. It can
-        /// only ever move forward: a pass that finishes early does not pull the bar back to the time creep.</para></summary>
-        public static float Progress(float elapsed, float minShow, bool localBooting, float bootProgress = -1f)
+        /// only ever move forward: a pass that finishes early does not pull the bar back to the time creep.</para>
+        /// <para><paramref name="worldBooting"/>: the bundled desktop server, or (#3450) the browser's in-process host, still
+        /// brings its world up — the hand-off holds on either (<see cref="Next"/>), so the bar creeps for both instead of
+        /// parking the browser at 100 % for its whole boot.</para></summary>
+        public static float Progress(float elapsed, float minShow, bool worldBooting, float bootProgress = -1f)
         {
             float ramp = minShow <= 0f ? 1f : Clamp01(elapsed / minShow);
-            if (!localBooting)
+            if (!worldBooting)
             {
                 return ramp;
             }

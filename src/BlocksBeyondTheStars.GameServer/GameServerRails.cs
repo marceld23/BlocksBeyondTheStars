@@ -26,8 +26,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// not run through a solid block ("Hindernis"). A pylon carries at most two links, so a connected component is a path
 /// or a loop — a <b>line</b>, with a <see cref="RailSpline"/> through its pylon tops.</item>
 /// <item><b>The trains.</b> A world object (per world, persisted in the metadata): the cab placed on a line with the
-/// <c>rail_cab</c> gadget, wagons coupled behind it, an arc position the server advances every tick by the speed setting
-/// (autopilot, or a rider at the cab's panel), reversing at the ends of an open line, halting at every <c>rail_stop</c>
+/// <c>rail_cab</c> gadget, wagons coupled behind it, an arc position the server advances every tick by the speed profile
+/// under the setting's top speed (#3444, <c>GameServerRailMotion.cs</c>; autopilot, or a rider at the cab's panel), reversing at the ends of an open line, halting at every <c>rail_stop</c>
 /// on autopilot (a signal's edge on the stop departs it). Stow returns the items.</item>
 /// <item><b>The moving frame.</b> A rider's pose aboard is "frame + wagon-local offset" (<see cref="MoveIntent.FrameId"/>):
 /// the server derives their world position from the wagon pose it drives every tick, so every other system keeps
@@ -57,8 +57,26 @@ public sealed partial class GameServer
         /// <summary>The last pylon each builder placed (the auto-link's "previous pylon of the line").</summary>
         public Dictionary<string, Vector3i> LastPylon { get; } = new();
 
+        /// <summary>#3446: the train trips of this world's villagers (RAM only — a reload regenerates the villagers anyway).</summary>
+        public List<RailTrip> Trips { get; } = new();
+
+        /// <summary>#3446: uptime of the next trip start per line id (the planner's pace).</summary>
+        public Dictionary<int, double> NextTripAt { get; } = new();
+
+        /// <summary>#3446: the planner's 1 Hz throttle and the last tick the trips were stepped (a frozen world ends them).</summary>
+        public double NextTripPlanAt { get; set; }
+        public double TripsSteppedAt { get; set; } = double.NegativeInfinity;
+
+        /// <summary>#3445: the platform spot of a stop (where a passenger waits and steps off), cached for a while.</summary>
+        public Dictionary<Vector3i, (Vector3f? Spot, double At)> PlatformSpots { get; } = new();
+
         public void Clear()
         {
+            Trips.Clear();
+            NextTripAt.Clear();
+            NextTripPlanAt = 0;
+            TripsSteppedAt = double.NegativeInfinity;
+            PlatformSpots.Clear();
             Nodes.Clear();
             Trains.Clear();
             Lines.Clear();
@@ -86,6 +104,10 @@ public sealed partial class GameServer
         public bool Closed;
         public RailSpline Spline = null!;
         public List<(float Arc, Vector3i Cell)> Stops { get; } = new();
+
+        /// <summary>#3444: the bend speed limits along <see cref="Spline"/>, sampled on first use (a rebuilt line is a new
+        /// object, so they never go stale).</summary>
+        public RailCurveLimits? Curves;
     }
 
     internal sealed class ServerTrain
@@ -95,7 +117,13 @@ public sealed partial class GameServer
         public int LineId;
         /// <summary>The cab's arc position on the line.</summary>
         public float Arc;
-        public int Speed = 1;
+
+        /// <summary>The speed setting 1..3 — the train's top speed (#3444, <see cref="RailMotion.TopSpeed"/>).</summary>
+        public int Speed = RailRules.NewCabSpeed;
+
+        /// <summary>#3444: the speed the train runs at now along <see cref="Direction"/> (blocks/s, ≥ 0), driven by
+        /// <see cref="RailMotion"/>. RAM only — not in the save: a loaded train starts from rest.</summary>
+        public float Velocity;
 
         /// <summary>The way the train runs along the line: +1 toward increasing arc, −1 against it. Only moves the arc.</summary>
         public int Direction = 1;
@@ -110,6 +138,14 @@ public sealed partial class GameServer
         public Vector3i? LastStop;
         public List<string> Wagons { get; } = new();
         public Dictionary<string, RailRider> Riders { get; } = new();
+
+        /// <summary>#3445: the NPC passengers by NPC id — never in <see cref="Riders"/> (a rider in the cab drives). RAM only:
+        /// not in the save, never on the wire as riders (each NPC carries its own frame).</summary>
+        public Dictionary<int, RailRider> NpcPassengers { get; } = new();
+
+        /// <summary>#3446: whether villagers may ride this train (the owner's cab switch, default on; saved as an appended
+        /// field — an older record reads on). The public intercity train always takes them.</summary>
+        public bool TakesPassengers = true;
     }
 
     internal sealed class RailRider
@@ -535,12 +571,21 @@ public sealed partial class GameServer
         for (int i = rails.Trains.Count - 1; i >= 0; i--)
         {
             var t = rails.Trains[i];
+            var ranOn = old.FirstOrDefault(l => l.Id == t.LineId); // the line its passengers rode, before this rebuild
             if (RailRules.IsPublic(t.OwnerId) && !rails.Lines.ContainsKey(t.LineId) && IntercityLine() is { } generated)
             {
                 t.LineId = generated.Id; // #2125: the line was renumbered, not lost — the public train stays on it
             }
 
-            if (!rails.Lines.TryGetValue(t.LineId, out var line) || line.Spline.TotalArc < RailRules.WagonLength)
+            if (rails.Lines.TryGetValue(t.LineId, out var line) && line.Spline.TotalArc < RailRules.WagonLength)
+            {
+                line = null; // too short to carry it
+            }
+
+            // #3445: a line that changed or vanished under a train sets its passengers down — before the train moves onto the
+            // new line or is packed away, beside the wagon as it stood on the old one.
+            SettleNpcPassengersAfterRebuild(t, ranOn, line);
+            if (line is null)
             {
                 ReturnTrain(t, "@srv.rail.line_gone");
                 continue;
@@ -693,7 +738,7 @@ public sealed partial class GameServer
             OwnerId = p.PlayerId,
             LineId = best.Id,
             Arc = bestArc,
-            Speed = 1,
+            Speed = RailRules.NewCabSpeed, // #3444: the middle setting (top speed 16 blocks/s)
             Direction = 1,
             Facing = 1, // the cab points along the line; the wagons couple toward its start
             Autopilot = true,
@@ -809,6 +854,7 @@ public sealed partial class GameServer
     private void ReturnTrain(ServerTrain t, string message, PlayerSession? to = null)
     {
         var rails = Rails;
+        SetDownNpcPassengers(t); // #3445: nobody is packed away with the wagons
         foreach (var riderId in t.Riders.Keys.ToList())
         {
             if (FindSessionByPlayerId(riderId) is { } rs)
@@ -929,6 +975,8 @@ public sealed partial class GameServer
             Reject(session, "rail", "@srv.rail.seat_taken");
             return;
         }
+
+        MakeSeatForPlayer(t, wagon, seat); // #3445: players first — an NPC on that seat moves over
 
         // Standing: where they are, brought into the wagon; seated: on the seat.
         var un = Unwrapped(pos, p.Position);
@@ -1116,15 +1164,24 @@ public sealed partial class GameServer
             t.Autopilot = intent.Autopilot != 0;
         }
 
-        if (intent.Halt >= 0)
+        if (intent.Passengers >= 0)
         {
-            t.Halted = intent.Halt != 0;
+            t.TakesPassengers = intent.Passengers != 0; // #3446: villagers aboard ride on to their stop; nobody new boards
+        }
+
+        if (intent.Halt > 0)
+        {
+            // The driver's halt: it stands where it is (an emergency stop — the speed profile does not ease it out).
+            t.Halted = true;
             t.HaltStop = null;
             t.HaltUntil = 0;
-            if (!t.Halted)
-            {
-                t.LastStop = null; // "go" from a stop: the same stop does not catch it again until the next one
-            }
+            t.Velocity = 0f;
+        }
+        else if (intent.Halt == 0)
+        {
+            // "Go": it sets off from rest. The stop it may stand at stays its last stop (#3444: clearing it made the
+            // autopilot halt again at once on the stop it stood on), so the next stop is the next to catch it.
+            DepartTrain(t);
         }
 
         SaveRails();
@@ -1139,9 +1196,7 @@ public sealed partial class GameServer
         {
             if (t.Halted && t.HaltStop == stopCell && !RailRules.IsPublic(t.OwnerId)) // #2125: the public train keeps its timetable
             {
-                t.Halted = false;
-                t.HaltStop = null;
-                t.HaltUntil = 0;
+                DepartTrain(t);
                 any = true;
             }
         }
@@ -1164,7 +1219,7 @@ public sealed partial class GameServer
             return;
         }
 
-        bool moved = false;
+        bool moved = false, arrived = false;
         foreach (var t in rails.Trains)
         {
             if (!rails.Lines.TryGetValue(t.LineId, out var line))
@@ -1172,61 +1227,22 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (t.Halted)
+            if (t.Halted && t.HaltUntil > 0 && _uptime >= t.HaltUntil)
             {
-                if (t.HaltUntil > 0 && _uptime >= t.HaltUntil)
-                {
-                    t.Halted = false;
-                    t.HaltStop = null;
-                    t.HaltUntil = 0;
-                    moved = true;
-                }
+                DepartTrain(t); // the halt at a stop is over: it sets off from rest, this very tick
+                moved = true;
+            }
+
+            // Autopilot, or a rider in the cab: the train runs (GameServerRailMotion.cs). Nobody aboard on manual = it waits.
+            if (!t.Halted && TrainRuns(t))
+            {
+                RunTrain(t, line, dt);
+                arrived |= t.Halted; // it halted at a stop this tick
+                moved = true;
             }
             else
             {
-                // Autopilot, or a rider in the cab: the train runs. (Nobody aboard on manual = it waits.)
-                bool runs = t.Autopilot || t.Riders.Values.Any(r => r.Wagon == 0);
-                if (runs)
-                {
-                    float speed = RailRules.SpeedTable[Math.Clamp(t.Speed, 1, 3) - 1];
-                    float span = TrainSpan(t);
-                    int dir = t.Direction;
-                    float leadFrom = LeadArc(t, line, t.Arc, dir);
-
-                    // #2741: the arc runs, and on an open line it bounces off the ends of the train's range — only the
-                    // direction flips. The wagons keep their places and headings (they follow the train's facing), so the
-                    // riders, re-derived from their wagons below, ride through the reversal without a jump.
-                    var (arcNow, dirNow) = RailRules.Advance(t.Arc, dir, t.Facing, speed * (float)dt, line.Spline.TotalArc, span, line.Closed);
-                    t.Arc = arcNow;
-                    t.Direction = dirNow;
-
-                    // Autopilot: a stop the leading wagon passed this tick halts the train with that wagon at the stop (once
-                    // per stop, the next stop resets). A reversal splits the tick into the run to the end and the run back.
-                    if (t.Autopilot && line.Stops.Count > 0)
-                    {
-                        if (dirNow != dir && !line.Closed)
-                        {
-                            var (lo, hi) = RailRules.CabRange(line.Spline.TotalArc, span, t.Facing);
-                            float bound = dir > 0 ? hi : lo;
-                            if (!HaltAtCrossedStop(t, line, leadFrom, LeadArc(t, line, bound, dir), dir))
-                            {
-                                HaltAtCrossedStop(t, line, LeadArc(t, line, bound, dirNow), LeadArc(t, line, arcNow, dirNow), dirNow);
-                            }
-                        }
-                        else
-                        {
-                            HaltAtCrossedStop(t, line, leadFrom, LeadArc(t, line, arcNow, dir), dir);
-                        }
-
-                        float leadAt = LeadArc(t, line, t.Arc, t.Direction);
-                        if (t.LastStop is { } last && !line.Stops.Any(s => s.Cell == last && Math.Abs(NormDelta(leadAt, s.Arc, line)) < RailRules.WagonLength))
-                        {
-                            t.LastStop = null; // clear of the last stop: it may catch the train again next lap
-                        }
-                    }
-
-                    moved = true;
-                }
+                t.Velocity = 0f; // standing: halted, or a manual train nobody drives
             }
 
             // The riders ride: the server owns their world position while aboard.
@@ -1237,14 +1253,22 @@ public sealed partial class GameServer
                     rs.State.Position = RiderWorld(t, line, kv.Value);
                 }
             }
+
+            if (t.NpcPassengers.Count > 0)
+            {
+                CarryNpcPassengers(t, line); // #3445: and so do the NPC passengers
+            }
         }
+
+        StepRailTrips(); // #3446: the villagers' train trips (boarding and alighting at the halts happen right here)
 
         if (moved)
         {
             rails.TrainsDirty = true;
         }
 
-        BroadcastTrains();
+        // #3444: a train that just halted is told at once, so no client runs its drawing on past the stop for a list's length.
+        BroadcastTrains(force: arrived);
     }
 
     /// <summary>The arc of the train's leading wagon for a train arc and a direction of travel (#2741; a loop's wraps).</summary>
@@ -1258,7 +1282,9 @@ public sealed partial class GameServer
     /// <paramref name="leadTo"/>, travelling <paramref name="travel"/> (#2741): a stop it crossed (not the one it just
     /// left) halts the train with that wagon at the stop. A stop within a wagon's length of the dead end ahead turns the
     /// train round while it stands, rather than letting it creep to the end and back after the halt. Returns whether it
-    /// halted.</summary>
+    /// halted. #3444: the speed profile brings the train in at <see cref="RailMotion.ArrivalSpeed"/> and lands its last
+    /// step on the stop, so the snap onto the stop is (next to) nothing. This is THE "train halted at stop X" event (its
+    /// counterpart, "the train departs", is <see cref="DepartTrain"/>).</summary>
     private bool HaltAtCrossedStop(ServerTrain t, RailLine line, float leadFrom, float leadTo, int travel)
     {
         foreach (var (arc, cell) in line.Stops)
@@ -1270,6 +1296,7 @@ public sealed partial class GameServer
 
             float span = TrainSpan(t);
             t.Halted = true;
+            t.Velocity = 0f;
             t.HaltStop = cell;
             t.LastStop = cell;
             t.HaltUntil = _uptime + (RailRules.IsPublic(t.OwnerId) ? RailRules.PublicStopHaltSeconds : RailRules.StopHaltSeconds);
@@ -1352,12 +1379,17 @@ public sealed partial class GameServer
             Direction = t.Direction,
             Facing = t.Facing,
             Autopilot = t.Autopilot,
-            Halted = t.Halted,
+            Halted = WireHalted(t, LineOf(t)), // #3444: a train with no room to run on its line is sent as standing
             HaltRemaining = t.Halted && t.HaltUntil > 0 ? (float)Math.Max(0.0, t.HaltUntil - _uptime) : 0f,
             Wagons = t.Wagons.ToArray(),
             Riders = t.Riders.Keys.ToArray(),
+            Velocity = WireVelocity(t, LineOf(t)), // #3444
+            TakesPassengers = RailRules.IsPublic(t.OwnerId) || t.TakesPassengers, // #3446
         }).ToArray(),
     };
+
+    /// <summary>The line a train runs on (null when it is gone).</summary>
+    private RailLine? LineOf(ServerTrain t) => Rails.Lines.TryGetValue(t.LineId, out var line) ? line : null;
 
     private void SendRails(PlayerSession session)
     {
@@ -1407,7 +1439,8 @@ public sealed partial class GameServer
             tb.Append(t.Id).Append(',').Append(t.OwnerId).Append(',').Append(t.LineId).Append(',')
               .Append(t.Arc.ToString("0.###", CultureInfo.InvariantCulture)).Append(',').Append(t.Speed).Append(',').Append(t.Direction).Append(',')
               .Append(t.Autopilot ? 1 : 0).Append(',').Append(string.Join("+", t.Wagons))
-              .Append(',').Append(t.Facing); // #2741: appended, so an older server still reads the record
+              .Append(',').Append(t.Facing) // #2741: appended, so an older server still reads the record
+              .Append(',').Append(t.TakesPassengers ? 1 : 0); // #3446: appended too (a record without it takes passengers)
         }
 
         _meta.Trains[_world.LocationId] = tb.ToString();
@@ -1485,6 +1518,7 @@ public sealed partial class GameServer
 
                 // #2741: the facing; a record from before it existed faces its direction (the pose it was saved in).
                 t.Facing = f.Length > 8 && int.TryParse(f[8], out int facing) && facing != 0 ? (facing < 0 ? -1 : 1) : t.Direction;
+                t.TakesPassengers = f.Length <= 9 || f[9] != "0"; // #3446: an older record (no switch yet) takes passengers
                 foreach (string w in f[7].Split('+', StringSplitOptions.RemoveEmptyEntries))
                 {
                     t.Wagons.Add(w);
@@ -1561,11 +1595,11 @@ public sealed partial class GameServer
         }
     }
 
-    public void SetTrainForTest(string playerId, string trainId, int speed = -1, int halt = -1, int autopilot = -1)
+    public void SetTrainForTest(string playerId, string trainId, int speed = -1, int halt = -1, int autopilot = -1, int passengers = -1)
     {
         if (FindSessionByPlayerId(playerId) is { } s)
         {
-            HandleSetTrain(s, new SetTrainIntent { TrainId = trainId, Speed = speed, Halt = halt, Autopilot = autopilot });
+            HandleSetTrain(s, new SetTrainIntent { TrainId = trainId, Speed = speed, Halt = halt, Autopilot = autopilot, Passengers = passengers });
         }
     }
 

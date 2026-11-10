@@ -118,6 +118,14 @@ public sealed partial class GameServer
 
         /// <summary>Players who already got this guest's present (once per guest and player).</summary>
         public readonly HashSet<string> Gifted = new(StringComparer.Ordinal);
+
+        // --- #3447: a guest who came by train leaves by train (GameServerRailGuests.cs) ---
+        public bool ByTrain;
+        public int TrainLineId;
+        public Vector3i TrainStop;      // the base's stop
+        public Vector3i HomeStop;       // its town's stop
+        public byte TrainLeave;         // leaving: 0 to the platform, 1 waiting there, 2 aboard
+        public double TrainWaitSince;
     }
 
     /// <summary>How often the guests' script and the visit scheduler run per world.</summary>
@@ -141,7 +149,8 @@ public sealed partial class GameServer
     /// <summary>The base's quiet spell between two visits, in in-game days (× 0.8–1.2, E10: about one per 1.5 days).</summary>
     private const double BaseGuestCooldownDays = 1.5;
 
-    /// <summary>Spawn distances from the core: outside the zone and most yards, inside the 48-block NPC path box.</summary>
+    /// <summary>Spawn distances from the core: outside the zone and most yards, inside the NPC path box (±64 blocks,
+    /// <c>NpcGridPath.Limits.Default</c> since #3207).</summary>
     private static readonly float[] BaseGuestSpawnRadii = { 30f, 36f, 42f };
 
     /// <summary>Bearings tried per radius, spread from the preferred one.</summary>
@@ -295,9 +304,9 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (_uptime < next || _baseGuests.Any(g => g.BaseId == b.Id) || GuestHost(b) is not { } owner)
+            if (_uptime < next || _baseGuests.Any(g => g.BaseId == b.Id) || TrainGuestUnderway(b.Id) || GuestHost(b) is not { } owner)
             {
-                continue; // not yet, a guest is already there, or nobody is home — the window stays armed
+                continue; // not yet, a guest is already there (or on the train to it, #3447), or nobody is home — the window stays armed
             }
 
             // #3039: a Market base has merchants at the door twice as often.
@@ -310,13 +319,32 @@ public sealed partial class GameServer
 
             if (PickGuestKind(b) is { } kind)
             {
-                if (SpawnBaseGuest(b, owner, kind) is not null && kind == BaseGuestKind.Merchant)
-                {
-                    MaybeBringMarketPartner(b, owner); // #3039: a market day — a second merchant comes along
-                }
+                BringBaseGuest(b, owner, kind);
             }
 
             return; // one visit per tick
+        }
+    }
+
+    /// <summary>The rolled guest comes. #3447: a neighbour comes by train when a rail-connected town can send one — and when
+    /// that train cannot start after all, the walk-in neighbour comes, else a traveller (#3447 review: the roll counted the
+    /// train, so a due window was spent on nobody). Any other kind walks in; a merchant may bring a partner (#3039). A world
+    /// without a rail route rolls and draws exactly as before.</summary>
+    private void BringBaseGuest(ServerBase b, PlayerSession owner, BaseGuestKind kind)
+    {
+        if (kind == BaseGuestKind.Neighbour && TrainGuestPossible(b))
+        {
+            if (TryStartTrainGuest(b, owner) is null && SpawnBaseGuest(b, owner, kind) is null)
+            {
+                SpawnBaseGuest(b, owner, BaseGuestKind.Traveller);
+            }
+
+            return;
+        }
+
+        if (SpawnBaseGuest(b, owner, kind) is not null && kind == BaseGuestKind.Merchant)
+        {
+            MaybeBringMarketPartner(b, owner); // #3039: a market day — a second merchant comes along
         }
     }
 
@@ -371,7 +399,7 @@ public sealed partial class GameServer
             return forced;
         }
 
-        int neighbour = PickVisitingNeighbour(b).Source is not null ? 50 : 0;
+        int neighbour = PickVisitingNeighbour(b).Source is not null || TrainGuestPossible(b) ? 50 : 0; // #3447: or by train
         int merchant = !IsMarketBase(b) || _landedTraders.ContainsKey(_world.LocationId) ? 0 : BaseFocus.MarketMerchantWeight;
         const int traveller = 20;
         int roll = _guestRng.Next(neighbour + merchant + traveller);
@@ -407,9 +435,63 @@ public sealed partial class GameServer
             return null;
         }
 
+        double leave = kind == BaseGuestKind.Traveller ? TravellerBearing(core, nearestPlace) : bearing;
+        return SpawnBaseGuestAt(b, owner, kind, source, nearestPlace, spawn, leave);
+    }
+
+    /// <summary>Puts a guest of <paramref name="kind"/> at <paramref name="spawn"/> and sends it walking to the owner: a
+    /// neighbour is a copy of <paramref name="source"/>, its villager, who is hidden at home meanwhile. #3447: also the
+    /// guest who just stepped off the train at the base's stop (<see cref="ArriveAsTrainGuest"/>).</summary>
+    private BaseGuest SpawnBaseGuestAt(ServerBase b, PlayerSession owner, BaseGuestKind kind, ServerNpc? source,
+        SettlementInstance? place, Vector3f spawn, double leaveBearing)
+    {
         // #2688: a well-mixed seed — consecutive visits (the counter) seeded neighbouring Randoms whose first draws marched in step.
         var rng = new Random(StableHashing.Seed32("guest:" + b.Id.ToString(CultureInfo.InvariantCulture) + ":"
             + (_guestVisits++).ToString(CultureInfo.InvariantCulture), _meta.Seed));
+        var npc = MakeGuestNpc(kind, source, spawn, rng);
+        _npcs.Add(npc);
+        var guest = new BaseGuest
+        {
+            NpcId = npc.Id,
+            BaseId = b.Id,
+            OwnerId = owner.State.PlayerId,
+            Kind = kind,
+            Phase = BaseGuestPhase.Arriving,
+            PhaseSince = _uptime,
+            LastStepAt = _uptime,
+            Place = place?.Name ?? string.Empty,
+            LeaveBearing = leaveBearing,
+        };
+
+        if (source is not null)
+        {
+            // The villager walked over: they are not in the village meanwhile (hidden, frozen, no routine).
+            guest.SourceNpcId = source.Id;
+            guest.SourceRoutine = source.RoutineEnabled;
+            source.VisitingAway = true;
+            source.RoutineEnabled = false;
+            source.Goal = null;
+            source.Path = null;
+        }
+
+        _baseGuests.Add(guest);
+        SetGuestGoalNearOwner(guest, npc, owner, b);
+        BroadcastNpcs();
+        if (source is not null)
+        {
+            SendStandingsToWorld(); // #2617: the villager's standing badge and wish marker move onto the guest
+        }
+
+        Send(owner, new ServerMessage { Text = "@srv.guest.arriving:" + npc.Name });
+        PrefetchGuestLines(guest, npc, owner);
+        _log.Info($"Base guests: {GuestKindKey(kind)} '{npc.Name}' is walking to base #{b.Id} (owner '{owner.State.Name}').");
+        return guest;
+    }
+
+    /// <summary>The guest NPC of a kind: a neighbour wears its villager's name, look, settlement, person key and face; a
+    /// merchant and a traveller are coined (with a never-saved <c>guest:</c> memory key).</summary>
+    private ServerNpc MakeGuestNpc(BaseGuestKind kind, ServerNpc? source, Vector3f spawn, Random rng)
+    {
         ServerNpc npc;
         switch (kind)
         {
@@ -445,44 +527,7 @@ public sealed partial class GameServer
         npc.RoutineEnabled = false; // the visit script owns its goals
         npc.Leash = 0.6f;
         npc.ActivityKey = "npc.activity.visiting";
-        _npcs.Add(npc);
-
-        var guest = new BaseGuest
-        {
-            NpcId = npc.Id,
-            BaseId = b.Id,
-            OwnerId = owner.State.PlayerId,
-            Kind = kind,
-            Phase = BaseGuestPhase.Arriving,
-            PhaseSince = _uptime,
-            LastStepAt = _uptime,
-            Place = nearestPlace?.Name ?? string.Empty,
-            LeaveBearing = kind == BaseGuestKind.Traveller ? TravellerBearing(core, nearestPlace) : bearing,
-        };
-
-        if (source is not null)
-        {
-            // The villager walked over: they are not in the village meanwhile (hidden, frozen, no routine).
-            guest.SourceNpcId = source.Id;
-            guest.SourceRoutine = source.RoutineEnabled;
-            source.VisitingAway = true;
-            source.RoutineEnabled = false;
-            source.Goal = null;
-            source.Path = null;
-        }
-
-        _baseGuests.Add(guest);
-        SetGuestGoalNearOwner(guest, npc, owner, b);
-        BroadcastNpcs();
-        if (source is not null)
-        {
-            SendStandingsToWorld(); // #2617: the villager's standing badge and wish marker move onto the guest
-        }
-
-        Send(owner, new ServerMessage { Text = "@srv.guest.arriving:" + npc.Name });
-        PrefetchGuestLines(guest, npc, owner);
-        _log.Info($"Base guests: {GuestKindKey(kind)} '{npc.Name}' is walking to base #{b.Id} (owner '{owner.State.Name}').");
-        return guest;
+        return npc;
     }
 
     /// <summary>The villager a neighbour visit borrows (#2602): of the nearest inhabited settlement that has one, a
@@ -544,6 +589,7 @@ public sealed partial class GameServer
         => n.BaseId == 0 && n.CharacterId.Length == 0 && n.PersonKey.Length > 0 && n.Role == "settler"
            && n.Job is "" or "gardener" or "craftsman"
            && !n.VisitingAway && n.RoutineEnabled && n.Pose == 0 && n.Goal is null && n.TalkWith is null
+           && n.Trip is null && n.TrainId.Length == 0 // #3446: not while away on a train trip
            && (_festivalRuns.Count == 0 || FestivalPlaceOf(n) is null)
            && !NpcInPlayerDialog(n) && !AnyPlayerWithin(n.Pos, BaseGuestSourceUnseenRange);
 
@@ -760,6 +806,11 @@ public sealed partial class GameServer
 
     private void StepGuestLeaving(BaseGuest g, ServerNpc npc)
     {
+        if (g.ByTrain && StepGuestLeavingByTrain(g, npc))
+        {
+            return; // #3447: to the platform, the next train, gone with it
+        }
+
         if (_uptime - g.PhaseSince > BaseGuestHardDespawnSeconds && !AnyPlayerWithin(npc.Pos, BaseGuestHardDespawnRange))
         {
             EndBaseGuest(g, npc);
@@ -803,6 +854,11 @@ public sealed partial class GameServer
         g.Phase = BaseGuestPhase.Leaving;
         g.PhaseSince = _uptime;
         npc.AttendUntil = 0;
+        if (g.ByTrain && BeginGuestLeavingByTrain(g, npc))
+        {
+            return; // #3447: it came by train — back to the platform
+        }
+
         if (GuestLeaveSpot(g, npc) is { } spot)
         {
             SetNpcGoal(npc, spot, NpcArrival.None, 0.6f);
@@ -835,6 +891,7 @@ public sealed partial class GameServer
     {
         if (npc is not null)
         {
+            DropNpcPassenger(npc); // #3447: a guest gone with its train leaves no passenger behind
             _npcs.Remove(npc);
         }
 

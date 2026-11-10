@@ -161,19 +161,22 @@ public sealed partial class GameServer
             _npcs.Add(MakeSounderNpc(home, rng, leash: 6f));
         }
 
-        var eldest = MakeSounderNpc(new Vector3f(cx + 0.5f, floorY + 1f, cz + 2.5f), rng, leash: 1.5f);
-        eldest.CharacterId = EldestCharacterId;
-        _npcs.Add(eldest);
+        _npcs.Add(MakeSounderNpc(new Vector3f(cx + 0.5f, floorY + 1f, cz + 2.5f), rng, leash: 1.5f, EldestCharacterId));
         BroadcastNpcs();
     }
 
-    /// <summary>A Sounder villager: a settler with the Sounder look, a Sounder name and Mirun as its home.</summary>
-    private ServerNpc MakeSounderNpc(Vector3f home, Random rng, float leash)
+    /// <summary>A Sounder villager with Mirun as its home and a Sounder name, dressed like every Sounder (#3449,
+    /// <see cref="DressAsSounder"/>: a light-blue or light-green skin, a sash, the Sounder's own scale) — the Eldest the
+    /// tallest of them (<see cref="SounderRules.MaxSize"/>). The rng draws are the classic ones, so every villager keeps the
+    /// name it had.</summary>
+    private ServerNpc MakeSounderNpc(Vector3f home, Random rng, float leash, string characterId = "")
     {
         var npc = MakeNpc("settler", "sounders", robotic: false, home, rng);
-        npc.Look = SoundersIds.Sounder;
         npc.Settlement = MirunSettlement;
         npc.Name = SounderName(rng);
+        npc.CharacterId = characterId;
+        float size = characterId == EldestCharacterId ? SounderRules.MaxSize : 0f;
+        DressAsSounder(npc, echo: false, SounderSeed(npc.Name, characterId), size);
         npc.Leash = leash;
         return npc;
     }
@@ -195,7 +198,7 @@ public sealed partial class GameServer
 
     // ---------------- Test hooks ----------------
 
-    /// <summary>Test/inspection: Mirun's villagers on the active world (look, character id, name).</summary>
-    internal (string Look, string CharacterId, string Name)[] MirunVillagersForTest()
-        => _npcs.Where(n => n.Settlement == MirunSettlement).Select(n => (n.Look, n.CharacterId, n.Name)).ToArray();
+    /// <summary>Test/inspection: Mirun's villagers on the active world (look, character id, name, skin, sash, scale).</summary>
+    internal (string Look, string CharacterId, string Name, uint Skin, uint Sash, float Size)[] MirunVillagersForTest()
+        => _npcs.Where(n => n.Settlement == MirunSettlement).Select(n => (n.Look, n.CharacterId, n.Name, n.SkinRgb, n.OutfitRgb, n.Size)).ToArray();
 }

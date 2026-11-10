@@ -42,11 +42,8 @@ public sealed partial class GameServer
     internal int SpawnSounderNpc(string look, Vector3f pos, string name, string characterId = "", float leash = 1.6f, float size = 0f)
     {
         bool echo = SounderRules.IsEcho(look);
-        string key = characterId.Length > 0 ? characterId : name;
-        int seed = unchecked((int)WorldGenerator.StableHash("sounder:" + key));
+        int seed = SounderSeed(name, characterId);
         var npc = MakeNpc("settler", "sounders", robotic: false, pos, new System.Random(seed));
-        var (skin, sash) = SounderRules.LookFor(seed);
-        npc.Look = echo ? SoundersIds.Echo : SoundersIds.Sounder;
         npc.NameKey = echo ? EchoNameKey : SounderNameKey;
         if (name.Length > 0)
         {
@@ -54,15 +51,32 @@ public sealed partial class GameServer
         }
 
         npc.CharacterId = characterId;
-        npc.Size = size > 0f ? SounderRules.ClampSize(size) : SounderRules.SizeFor(seed);
-        npc.SkinRgb = echo ? SounderRules.EchoTeal : skin;
-        npc.OutfitRgb = echo ? SounderRules.EchoGlow : sash;
-        npc.LegsRgb = npc.SkinRgb;
-        npc.FaceSeed = seed != 0 ? seed : 1; // the client's seed for the hum's pitch and the body's small differences
+        DressAsSounder(npc, echo, seed, size);
         npc.Leash = System.Math.Max(0f, leash);
         _npcs.Add(npc);
         BroadcastNpcs();
         return npc.Id;
+    }
+
+    /// <summary>The seed a Sounder's look comes from: its story character id, else its name — the same Sounder looks the same on
+    /// every load.</summary>
+    internal static int SounderSeed(string name, string characterId)
+        => unchecked((int)WorldGenerator.StableHash("sounder:" + (characterId.Length > 0 ? characterId : name)));
+
+    /// <summary>Dresses an NPC as a Sounder (#3449: shared by <see cref="SpawnSounderNpc"/> and Mirun's villagers, who used to
+    /// keep the settler's human skin, outfit and size): the Sounder look, a skin and a sash from <see cref="SounderRules.LookFor"/>
+    /// (an Echo's translucent teal and glow instead), its scale — <paramref name="size"/> clamped, or 0 = one picked from the seed
+    /// (<see cref="SounderRules.SizeFor"/>) — and the face seed the client draws the hum's pitch and the body's small differences
+    /// from.</summary>
+    private static void DressAsSounder(ServerNpc npc, bool echo, int seed, float size = 0f)
+    {
+        var (skin, sash) = SounderRules.LookFor(seed);
+        npc.Look = echo ? SoundersIds.Echo : SoundersIds.Sounder;
+        npc.Size = size > 0f ? SounderRules.ClampSize(size) : SounderRules.SizeFor(seed);
+        npc.SkinRgb = echo ? SounderRules.EchoTeal : skin;
+        npc.OutfitRgb = echo ? SounderRules.EchoGlow : sash;
+        npc.LegsRgb = npc.SkinRgb;
+        npc.FaceSeed = seed != 0 ? seed : 1;
     }
 
     /// <summary>Removes a Sounder NPC (an Echo that goes back "to the other side", a villager who leaves). False when there is

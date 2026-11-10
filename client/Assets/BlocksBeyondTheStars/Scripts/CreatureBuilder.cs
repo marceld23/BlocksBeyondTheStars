@@ -2439,7 +2439,7 @@ namespace BlocksBeyondTheStars.Client
             _look = FaunaThemes.For(c, Planets);                 // #2868: the home world's theme and motif
             _placement = CreatureCoat.PlacementVariant(c.Id);    // #2865: this animal's own coat placement
             var pattern = CreatureCoat.PatternFor(c, _look, PatternTileAvailable);
-            Color mark = Rgb(CreatureCoat.PatternRgb(seed, c.ColorRgb, pattern));
+            Color mark = Rgb(CreatureCoat.PatternRgb(seed, c.ColorRgb, pattern, _look)); // #3448: a palette world keeps its marks in it
             CreatureCoat.JitterRgb(CreatureCoat.JitterBucket(c.Id), out float jr, out float jg, out float jb);
             var glow = GlowMasks.PatternFor(c);
             // #2862: a glowing species shines in its glow pattern now; only a soft rest of the old whole-body brightening

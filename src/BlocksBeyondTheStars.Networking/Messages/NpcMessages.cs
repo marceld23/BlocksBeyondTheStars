@@ -69,6 +69,24 @@ public sealed class NetNpc
     /// <summary>What the NPC carries (#1868): <c>npc_hoe</c> (gardener), <c>npc_hammer</c> (craftsman), <c>blade</c>
     /// (guard) — a render hint, not an item. Additive (contractless): "" = empty-handed as before.</summary>
     public string Held { get; set; } = string.Empty;
+
+    /// <summary>#3445: the train frame an NPC passenger rides in (<c>RailRules.FrameId</c>: train and wagon), "" = not
+    /// aboard. With a frame the client draws the NPC at <see cref="LocalX"/>/<see cref="LocalY"/>/<see cref="LocalZ"/> in the
+    /// wagon as it draws it (no interpolation lag behind a moving wagon); X/Y/Z stay the world position the server derives.
+    /// Additive (contractless): an older client ignores it and shows the world position.</summary>
+    public string FrameId { get; set; } = string.Empty;
+
+    /// <summary>#3445: the passenger's wagon-local offset (X across, Y up from the floor, Z toward the cab).</summary>
+    public float LocalX { get; set; }
+
+    /// <inheritdoc cref="LocalX"/>
+    public float LocalY { get; set; }
+
+    /// <inheritdoc cref="LocalX"/>
+    public float LocalZ { get; set; }
+
+    /// <summary>#3445: the passenger's facing in the wagon (radians about +Y, 0 = toward the cab, +π/2 = across to local +X).</summary>
+    public float LocalYaw { get; set; }
 }
 
 /// <summary>Full set of NPCs the client should currently render (server → client).</summary>

@@ -193,7 +193,8 @@ public sealed partial class GameServer
             NpcId = npc.Id,
             Name = npc.Name,
             Role = npc.Role,
-            Text = PassingLineText(session, npc, npcKey, welcomeBack),
+            // #3446: a traveller says where it is going, or where it is visiting from.
+            Text = (welcomeBack ? null : RailTripHello(session, npc)) ?? PassingLineText(session, npc, npcKey, welcomeBack),
             GreetingId = NextGreetingId(),
             Kind = welcomeBack ? NpcGreetingKinds.Welcome : NpcGreetingKinds.Passing,
             Gesture = NpcGestures.Wave,

@@ -6,6 +6,7 @@ using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Sounders;
 using BlocksBeyondTheStars.Shared.World;
+using BlocksBeyondTheStars.WorldGeneration;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Tests;
@@ -16,7 +17,8 @@ namespace BlocksBeyondTheStars.Tests;
 /// (<see cref="MinHue"/>–<see cref="MaxHue"/>: light green to light blue) — the four authored records and the rules' own
 /// colours, the Sounders' skins and sashes, the Soundelings' pastels, the moss and the singing plants (their block colours and
 /// their bundled tiles), and the wild flora's per-world colours from the planet's palette. The bodies stay readable on the moss,
-/// and a type without a palette keeps the classic any-hue roll.
+/// and a type without a palette keeps the classic any-hue roll. #3448 (Marcel, 2026-11-09): the rolled animals wear the planet's
+/// fauna palette too — light, clear of the moss, without moving any other roll — while the authored records keep their colours.
 /// </summary>
 public sealed class SoaniriPaletteTests
 {
@@ -63,6 +65,89 @@ public sealed class SoaniriPaletteTests
             Assert.True(HueDistance(h, mossH) >= 30.0 || v - mossV >= 0.15,
                 $"#{body:X6} (hue {h:0}°, value {v:0.00}) melts into the moss (hue {mossH:0}°, value {mossV:0.00})");
         }
+    }
+
+    [Fact]
+    public void TheRolledAnimalsOfSoaniri_WearTheFaunaPalette_LightAndClearOfTheMoss()
+    {
+        // #3448: the five rolled species of the "few" roster used to take any colour (the biome anchors land on orange, aqua
+        // and magenta); the planet's fauna palette dresses them now — and the authored four (the Soundi!) keep theirs.
+        var soaniri = Shipped.Value.GetPlanet(SoundersIds.PlanetType)!;
+        Assert.Equal(soaniri.FaunaPalette.Count, FaunaTints.PaletteOf(soaniri).Count); // every entry parses
+        Assert.All(FaunaTints.PaletteOf(soaniri), c => AssertLight(c, "fauna palette entry"));
+        var (mossH, _, mossV) = Hsv(MeanColour("chime_moss"));
+        for (long seed = 1; seed <= 24; seed++)
+        {
+            var roster = Roster(Shipped.Value, soaniri, seed * 7919);
+            var rolled = roster.Where(s => !s.Id.StartsWith(AuthoredPrefix, StringComparison.Ordinal)).ToList();
+            Assert.Equal(5, rolled.Count);
+            foreach (var sp in rolled)
+            {
+                AssertLight(sp.ColorRgb, sp.Name + " body");
+                AssertLight(sp.BellyRgb, sp.Name + " belly");
+                var (h, _, v) = Hsv(sp.ColorRgb);
+                Assert.True(HueDistance(h, mossH) >= 30.0 || v - mossV >= 0.15, $"{sp.Name} #{sp.ColorRgb:X6} melts into the moss");
+            }
+
+            foreach (var sp in roster.Where(s => s.Id.StartsWith(AuthoredPrefix, StringComparison.Ordinal)))
+            {
+                var record = Shipped.Value.AuthoredCreatures[sp.Id.Substring(AuthoredPrefix.Length)];
+                Assert.Equal(record.ColorRgb, sp.ColorRgb);
+                Assert.Equal(record.BellyRgb, sp.BellyRgb);
+            }
+        }
+    }
+
+    [Fact]
+    public void TheFaunaPalette_ChangesOnlyTheRolledColours_AndNoOtherTypeHasOne()
+    {
+        // No RNG draw is added: the same world without the palette rolls the very same species, only their colours differ —
+        // and every other type has no palette, so its rosters are bit-identical to before.
+        var bareContent = ContentLoader.LoadFromDirectory(TestPaths.DataDir()); // a private copy: its Soaniri loses the palette
+        var bare = bareContent.GetPlanet(SoundersIds.PlanetType)!;
+        bare.FaunaPalette = new List<string>();
+        var soaniri = Shipped.Value.GetPlanet(SoundersIds.PlanetType)!;
+        var palette = FaunaTints.PaletteOf(soaniri);
+        for (long seed = 1; seed <= 12; seed++)
+        {
+            var dressed = Roster(Shipped.Value, soaniri, seed * 104729);
+            var classic = Roster(bareContent, bare, seed * 104729);
+            Assert.Equal(classic.Count, dressed.Count);
+            for (int i = 0; i < dressed.Count; i++)
+            {
+                Assert.Equal((classic[i].Id, classic[i].Name, classic[i].VoiceSeed, classic[i].Size, classic[i].BodyPlan, classic[i].Habitat),
+                    (dressed[i].Id, dressed[i].Name, dressed[i].VoiceSeed, dressed[i].Size, dressed[i].BodyPlan, dressed[i].Habitat));
+                var expected = dressed[i].Id.StartsWith(AuthoredPrefix, StringComparison.Ordinal)
+                    ? (classic[i].ColorRgb, classic[i].BellyRgb)
+                    : FaunaTints.CoatFor(classic[i].VoiceSeed, palette);
+                Assert.Equal(expected, (dressed[i].ColorRgb, dressed[i].BellyRgb));
+            }
+        }
+
+        Assert.All(Shipped.Value.Planets.Values.Where(p => p.Key != SoundersIds.PlanetType), p => Assert.Empty(p.FaunaPalette));
+    }
+
+    [Fact]
+    public void TheFaunaPalette_SkipsBadEntries_AndTheBellyIsALighterEntryOrTheBodyLightened()
+    {
+        var planet = new PlanetType { Key = "x", FaunaPalette = new List<string> { "#9fd8f5", "blue", "#12345", " #a8f0d0 " } };
+        Assert.Equal(new[] { 0x9FD8F5, 0xA8F0D0 }, FaunaTints.PaletteOf(planet));
+        Assert.Empty(FaunaTints.PaletteOf(null));
+        Assert.Equal((0, 0), FaunaTints.CoatFor(7, FaunaTints.PaletteOf(null)));
+
+        var palette = FaunaTints.PaletteOf(Shipped.Value.GetPlanet(SoundersIds.PlanetType));
+        int fromAnotherEntry = 0;
+        for (int seed = 1; seed <= 500; seed++)
+        {
+            var (body, belly) = FaunaTints.CoatFor(seed, palette);
+            Assert.Equal((body, belly), FaunaTints.CoatFor(seed, palette)); // a pure function of the species' seed
+            Assert.True(FaunaTints.Luma(belly) > FaunaTints.Luma(body), $"#{body:X6} / #{belly:X6}");
+            bool entry = palette.Contains(belly);
+            Assert.True(entry || belly == FaunaTints.Lighten(body, FaunaTints.BellyLighten), $"#{belly:X6}");
+            fromAnotherEntry += entry ? 1 : 0;
+        }
+
+        Assert.InRange(fromAnotherEntry, 50, 450); // both kinds of belly occur
     }
 
     [Fact]
@@ -135,6 +220,13 @@ public sealed class SoaniriPaletteTests
         var vine = Shipped.Value.Blocks.Values.First(b => b.LightColor is int l && (l & 0xFFFFFF) != 0 && b.Key.StartsWith("flora_", StringComparison.Ordinal));
         Assert.Equal(PlantGlowLight.PackedFor(42, "Somewhere", vine), PlantGlowLight.PackedFor(42, "Somewhere", vine, meadow));
     }
+
+    /// <summary>The roster id prefix of an authored species.</summary>
+    private const string AuthoredPrefix = "au_";
+
+    /// <summary>A current-generation world's roster of <paramref name="planet"/>, its authored species included.</summary>
+    private static IReadOnlyList<CreatureSpecies> Roster(GameContent content, PlanetType planet, long seed)
+        => CreatureGenerator.GenerateRoster(planet, seed, WorldDescription.CurrentTerrainGeneration, content.AuthoredCreaturesFor(planet));
 
     private static void AssertInBand(int rgb, string what)
     {

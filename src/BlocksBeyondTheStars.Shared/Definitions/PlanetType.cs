@@ -226,6 +226,14 @@ public sealed class PlanetType
     /// reads it.</summary>
     public string FaunaTheme { get; set; } = string.Empty;
 
+    /// <summary>#3448: the colours this type's ROLLED animals wear, as <c>"#rrggbb"</c> (JSON <c>faunaPalette</c>, the mirror of
+    /// <see cref="FloraPalette"/>). Empty = the classic roll of any colour; otherwise every rolled species' body takes one entry
+    /// and its belly another, lighter one (<c>FaunaTints.CoatFor</c>), and the client keeps their coat patterns and the
+    /// micro-fauna in the same colours — Soaniri's light blues, aquas and mints. The authored records keep their designed
+    /// colours. Purely visual, nothing is saved: a change recolours every world of the type on its next load (a tamed pet and a
+    /// bio sample keep the colours they were taken with).</summary>
+    public List<string> FaunaPalette { get; set; } = new();
+
     /// <summary>0..1 — how much surface water this world has (raises the sea level so more basins flood); only
     /// worlds with an atmosphere get water. <c>null</c> = auto (atmosphere worlds get a moderate amount).</summary>
     public double? WaterAbundance { get; set; }

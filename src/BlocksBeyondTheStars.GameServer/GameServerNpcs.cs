@@ -148,6 +148,15 @@ public sealed partial class GameServer
         // --- #2640/#2641: the wilderness folk (GameServerLodges*.cs, GameServerNpcWork.cs) ---
         public string LodgeKey = string.Empty;  // the lodge this resident lives at ("x:z" of its origin); "" = none
         public NpcWorkState? WorkState;         // the shared job state machine's state (lodge residents, wanderers); lazy
+
+        // --- #3445: riding a train as a passenger (GameServerRailPassengers.cs) ---
+        public string TrainId = string.Empty;   // the train it rides ("" = on foot); the train places it every tick
+        public string RideFrame = string.Empty; // its frame (RailRules.FrameId) — NetNpc.FrameId
+        public Vector3f RideLocal;              // the wagon-local offset (a seat or a standing spot)
+        public float RideYaw;                   // its facing in the wagon (radians, 0 = toward the cab)
+
+        // --- #3446: a trip by train between two places (GameServerRailTrips.cs) ---
+        public RailTrip? Trip;                  // the trip it is on (null = none): its routine, chatter and jobs pause
     }
 
     /// <summary>What an NPC does when it reaches its walk goal (#1867).</summary>
@@ -322,9 +331,9 @@ public sealed partial class GameServer
         var crewStation = ActivePlayerStation(); // #1775: on a player station the crew is kept to its sealed pocket
         foreach (var npc in _npcs)
         {
-            if (npc.VisitingAway)
+            if (npc.VisitingAway || npc.TrainId.Length > 0)
             {
-                continue; // #2602: away visiting a base — the guest walking there is this villager
+                continue; // #2602: away visiting a base — the guest walking there is this villager; #3445: the train carries it
             }
 
             // #1775: the net — a crew member outside the pocket its post breathes in (a legacy spawn inside the hull,
@@ -874,6 +883,11 @@ public sealed partial class GameServer
         Pose = n.Pose,               // #1867
         ActivityKey = n.ActivityKey, // #1867/#1868
         Held = n.Held,               // #1868
+        FrameId = n.RideFrame,       // #3445: a passenger is drawn in its wagon's frame
+        LocalX = n.RideLocal.X,
+        LocalY = n.RideLocal.Y,
+        LocalZ = n.RideLocal.Z,
+        LocalYaw = n.RideYaw,
     };
 
     /// <summary>The G.D.S. guardian (#1793): a friendly machine in the city's colours — dark purple chassis and

@@ -1317,6 +1317,10 @@
     // #3423 (Justus: everything on Soaniri light blue and light green): the wild plants wear light greens (their blossoms turn
     // light blue in the shader's accent), and they keep their colours through autumn and winter.
     "floraPalette": ["#b4f08c", "#a6eba0", "#9ce6b0", "#c2f5b0", "#8fdc96", "#a8f0c4"], "evergreenFlora": true,
+    // #3448 (Marcel: every living being of the Sounders' world in light blue and light green): the rolled animals wear light
+    // blues, aquas and mints — all well lighter than the moss — in fur and skin (the "cold" theme's warm coats and soft skins)
+    // instead of the crystal world's derived crystal and armour hides. The authored four keep their own colours.
+    "faunaPalette": ["#9fd8f5", "#8ccbee", "#a6e4f2", "#86d6dc", "#a9c9f4", "#a8f0d0", "#bdf2e0", "#c4f4c0"], "faunaTheme": "cold",
     "authoredCreatures": ["soundi", "soundrak", "quali", "soundeling"],
     "biomes": [
       { "surfaceBlock": "chime_moss", "subSurfaceBlock": "dirt", "floraDensityMul": 1.0 },

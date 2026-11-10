@@ -662,6 +662,13 @@ public sealed partial class GameServer
             // Reject wild spawns within BaseSpawnExclusionRadius blocks of any base_core on the current world.
             return false;
         }
+
+        // #3453: nor in a town — no ground animal on its roofs or in its lanes, no flier under its roofs (GameServerCreatureTownRules).
+        if (TownSpawnBlocked(sp, pos))
+        {
+            return false;
+        }
+
         if (!HabitatSuitable(sp, pos) || EntityBlockedByShip(pos, CreatureShipMargin(sp)))
         {
             // Reject the SAME volume the movement barrier guards (not just the tight interior box), so a
@@ -1547,6 +1554,12 @@ public sealed partial class GameServer
 
         // #2583: a gas giant's gas sea carries nobody — not even a companion, which keeps its freedom from the terrain gate.
         if (StepsIntoGasSea(sp, motion, cur, cand, nextFeet))
+        {
+            return true;
+        }
+
+        // #3453: a wild ground animal does not walk into a town — or deeper into one it is already in (GameServerCreatureTownRules).
+        if (TownStepBlocked(c, sp, cur, cand, nextFeet))
         {
             return true;
         }
@@ -3316,6 +3329,7 @@ public sealed partial class GameServer
 
             sp = CreatureGenerator.GenerateArachnid(planet,
                 BlocksBeyondTheStars.WorldGeneration.WorldGenerator.RosterSeedFor(_meta.Seed, _world.LocationId));
+            FaunaTints.Dress(new[] { sp }, planet); // #3448: a rolled species wears the type's fauna palette, like the roster's
             _speciesRoster = _speciesRoster.Append(sp).ToArray();
             _speciesById[sp.Id] = sp;
             _locoProfiles[sp.Id] = LocomotionController.ForSpecies(sp);
@@ -3362,6 +3376,7 @@ public sealed partial class GameServer
             sp = CreatureGenerator.GenerateBiped(planet,
                 BlocksBeyondTheStars.WorldGeneration.WorldGenerator.RosterSeedFor(_meta.Seed, _world.LocationId),
                 _meta.Description.TerrainGeneration);
+            FaunaTints.Dress(new[] { sp }, planet); // #3448: a rolled species wears the type's fauna palette, like the roster's
             _speciesRoster = _speciesRoster.Append(sp).ToArray();
             _speciesById[sp.Id] = sp;
             _locoProfiles[sp.Id] = LocomotionController.ForSpecies(sp);

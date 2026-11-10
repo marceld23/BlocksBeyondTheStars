@@ -2,17 +2,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace BlocksBeyondTheStars.Client
 {
-    /// <summary>The cab's panel (#2113): the speed setting, halt / go, the autopilot switch, packing the train up and leaving
-    /// it. Opened with the interact key inside the cab; every button sends one intent and the panel re-reads the train
-    /// from the server's list, so what it shows is always the server's state.</summary>
+    /// <summary>The cab's panel (#2113): the speed setting (#3444: a top speed; the state line shows the speed right now),
+    /// halt / go, the autopilot switch, whether villagers ride along (#3446), packing the train up and leaving it. Opened
+    /// with the interact key inside the cab;
+    /// every button sends one intent and the panel re-reads the train from the server's list, so what it shows is always
+    /// the server's state.</summary>
     public sealed class TrainCabUi : UiPanel
     {
-        private const float W = 640f, H = 420f;
+        private const float W = 640f, H = 480f;
 
         private string _trainId = string.Empty;
         private float _nextRefresh;
@@ -111,10 +114,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            string state = t.Halted
-                ? (t.HaltRemaining > 0f ? string.Format(L("ui.train.state_stop"), Mathf.CeilToInt(t.HaltRemaining)) : L("ui.train.state_halted"))
-                : L("ui.train.state_running");
-            UiKit.AddText(panel, 32f, 66f, W - 64f, 26f, state, 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiKit.AddText(panel, 32f, 66f, W - 64f, 26f, StateText(t), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
 
             // #2125: the intercity line's public train (no owner) runs its own timetable — no controls, only the way out.
             if (string.IsNullOrEmpty(t.OwnerId))
@@ -126,13 +126,16 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            float y = 110f;
-            UiKit.AddText(panel, 32f, y, 160f, 40f, L("ui.train.speed"), 18, Color.white, TextAnchor.MiddleLeft);
+            // #3444: the three settings are top speeds (8 / 16 / 24 blocks/s): the train eases in, cruises by the distance to
+            // its next stop and brakes into it, never faster than the chosen one.
+            float y = 104f;
+            UiKit.AddText(panel, 32f, y, W - 64f, 26f, L("ui.train.top_speed"), 18, Color.white, TextAnchor.MiddleLeft);
+            y += 32f;
             for (int s = 1; s <= 3; s++)
             {
                 int speed = s;
-                var b = UiKit.AddButton(panel, 200f + (s - 1) * 100f, y, 88f, 40f, (t.Speed == s ? "● " : string.Empty) + s, () => Game?.Network?.SendSetTrain(_trainId, speed: speed));
-                _ = b;
+                string label = (t.Speed == s ? "● " : string.Empty) + Mathf.RoundToInt(RailMotion.TopSpeed(s));
+                UiKit.AddButton(panel, 32f + (s - 1) * 196f, y, 180f, 40f, label, () => Game?.Network?.SendSetTrain(_trainId, speed: speed));
             }
 
             y += 60f;
@@ -141,12 +144,30 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddButton(panel, 316f, y, 292f, 44f, t.Autopilot ? L("ui.train.autopilot_on") : L("ui.train.autopilot_off"),
                 () => Game?.Network?.SendSetTrain(_trainId, autopilot: t.Autopilot ? 0 : 1));
 
+            // #3446: villagers ride along between the towns on the line (and come to visit by train) — the owner's choice.
+            y += 64f;
+            UiKit.AddButton(panel, 32f, y, W - 64f, 44f, t.TakesPassengers ? L("ui.train.passengers_on") : L("ui.train.passengers_off"),
+                () => Game?.Network?.SendSetTrain(_trainId, passengers: t.TakesPassengers ? 0 : 1));
+
             y += 70f;
             UiKit.AddButton(panel, 32f, y, 260f, 44f, L("ui.train.leave"), () => { Game?.Network?.SendExitTrain(); Close(); });
             if (t.OwnerId == Game?.LocalPlayerId)
             {
                 UiKit.AddButton(panel, 316f, y, 292f, 44f, L("ui.train.stow"), () => { Game?.Network?.SendStowTrain(_trainId); Close(); });
             }
+        }
+
+        /// <summary>The state line: halted (at a stop with the seconds left), or running — with the speed it runs at right
+        /// now (#3444, the server's velocity; an older server's train at its setting's old fixed speed).</summary>
+        private string StateText(NetTrain t)
+        {
+            if (t.Halted)
+            {
+                return t.HaltRemaining > 0f ? string.Format(L("ui.train.state_stop"), Mathf.CeilToInt(t.HaltRemaining)) : L("ui.train.state_halted");
+            }
+
+            int now = Mathf.RoundToInt(TrainDrawArc.PredictSpeed(t.Velocity, t.Halted, t.Autopilot, t.Speed));
+            return now > 0 ? string.Format(L("ui.train.state_running_at"), now) : L("ui.train.state_running");
         }
     }
 }
