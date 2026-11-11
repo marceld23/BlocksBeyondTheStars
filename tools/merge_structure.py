@@ -12,6 +12,10 @@ where <kind> is "station" or "settlement". This tool folds that bundle into a ha
 The kit panel (#1877) writes <kind>_exports/<kit key>/kit.json; a bundle holding one is folded into
 data/structure_kits.json (replaced in place by key, else appended). A directory may hold both.
 
+A LANDMARK (#3492, town editor, "Use as: Landmark") is one file: landmark_exports/<key>/landmark.json, the compact
+template (a palette plus run-length rows). It is written to data/landmarks/<key>.json — one file per landmark, the
+editor's defaults stripped; `pinOnly` of a file that already exists is kept (the editor does not know the field).
+
 Each pool entry is { "key", "name", "tier", "cells": [ { x, y, z, kind, id }, ... ],
 "width", "height", "length" }. World-gen reads the matching pool and, when non-empty, may pick a
 hand-made template instead of the procedural generator (integration tracked in the plan).
@@ -48,13 +52,17 @@ def main():
 
     bundle = Path(sys.argv[1])
     merged = False
+    if (bundle / "landmark.json").exists():
+        merge_landmark(_load(bundle / "landmark.json"))
+        merged = True
+
     if (bundle / "kit.json").exists():
         merge_kit(_load(bundle / "kit.json"))
         merged = True
 
     if not (bundle / "structure.json").exists():
         if not merged:
-            sys.exit(f"no structure.json or kit.json in {bundle}")
+            sys.exit(f"no structure.json, kit.json or landmark.json in {bundle}")
         return
 
     meta = _load(bundle / "structure.json")
@@ -126,6 +134,46 @@ def _clean_cell(cell):
     if not c.get("port"):
         c.pop("port", None)
     return c
+
+
+LANDMARK_DIR = DATA / "landmarks"
+LANDMARK_KEEP = ("key", "name", "landmark", "width", "height", "length", "palette", "rows", "cells")
+
+
+def landmark_entry(landmark, existing):
+    """The data-file shape of a landmark the editor saved: every field the editor left at its default is dropped (an
+    empty ruin profile, weight 1, pack `default`, no conditions …), the cells and palette entries likewise; `pinOnly`
+    — a field the editor does not write — survives from the file that is already there."""
+    entry = {}
+    for field, value in landmark.items():
+        if field in LANDMARK_KEEP or value not in (None, "", 0, 0.0, False, []):
+            entry[field] = value
+    if entry.get("pack") == "default":
+        entry.pop("pack")
+    if entry.get("weight") == 1:
+        entry.pop("weight")
+    entry.pop("kind", None)  # the folder says it is a landmark
+    entry["landmark"] = True
+    entry["palette"] = [{k: v for k, v in p.items() if k in ("kind", "id") or v not in (None, "", 0, False)}
+                        for p in landmark.get("palette", [])]
+    entry["cells"] = [{k: v for k, v in c.items() if k in ("x", "y", "z", "kind", "id") or v not in (None, "", 0, False)}
+                      for c in landmark.get("cells", [])]
+    if existing and existing.get("pinOnly"):
+        entry["pinOnly"] = True
+    return entry
+
+
+def merge_landmark(landmark):
+    if not landmark.get("key"):
+        sys.exit("landmark.json has no key")
+    LANDMARK_DIR.mkdir(parents=True, exist_ok=True)
+    path = LANDMARK_DIR / f"{landmark['key']}.json"
+    entry = landmark_entry(landmark, _load(path) if path.exists() else None)
+    with path.open("w", encoding="utf-8", newline="\n") as f:  # one line per file, LF: the rows are the bulk
+        json.dump(entry, f, ensure_ascii=False, separators=(",", ":"))
+        f.write("\n")
+    print(f"merged landmark '{entry['key']}' ({len(entry['rows'])} rows, {len(entry['cells'])} cells with settings) "
+          f"into {path.relative_to(REPO)}")
 
 
 KIT_PATH = DATA / "structure_kits.json"

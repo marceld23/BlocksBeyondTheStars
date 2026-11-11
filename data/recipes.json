@@ -252,6 +252,10 @@
   { "key": "market_grocer_stew", "station": "market", "marketTheme": "grocer", "inputs": [ { "item": "copper_ore", "count": 3 } ], "outputs": [ { "item": "hearty_stew", "count": 2 } ] },
   { "key": "market_grocer_skewer", "station": "market", "marketTheme": "grocer", "inputs": [ { "item": "silicate", "count": 3 } ], "outputs": [ { "item": "mushroom_skewer", "count": 3 } ] },
   { "key": "market_grocer_ration", "station": "market", "marketTheme": "grocer", "inputs": [ { "item": "iron_ore", "count": 4 } ], "outputs": [ { "item": "emergency_ration", "count": 2 } ] },
+  // #3499: the burger restaurant's keeper (market theme "burgers" — a landmark's vendor marker names it).
+  { "key": "market_burger_single", "station": "market", "marketTheme": "burgers", "inputs": [ { "item": "copper_ore", "count": 2 } ], "outputs": [ { "item": "burger", "count": 1 } ] },
+  { "key": "market_burger_meal", "station": "market", "marketTheme": "burgers", "inputs": [ { "item": "iron_ore", "count": 5 } ], "outputs": [ { "item": "burger", "count": 3 } ] },
+  { "key": "market_burger_for_meat", "station": "market", "marketTheme": "burgers", "inputs": [ { "item": "creature_meat", "count": 2 } ], "outputs": [ { "item": "burger", "count": 2 } ] },
   { "key": "market_arms_cable", "station": "market", "marketTheme": "arms", "inputs": [ { "item": "copper_ore", "count": 4 } ], "outputs": [ { "item": "cable", "count": 3 } ] },
   { "key": "market_arms_titanium_plate", "station": "market", "marketTheme": "arms", "inputs": [ { "item": "iron_ore", "count": 6 }, { "item": "carbon", "count": 2 } ], "outputs": [ { "item": "titanium_plate", "count": 1 } ] },
   { "key": "market_arms_energy_cell", "station": "market", "marketTheme": "arms", "inputs": [ { "item": "crystal", "count": 2 } ], "outputs": [ { "item": "energy_cell_1", "count": 1 } ] },
