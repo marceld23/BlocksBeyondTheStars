@@ -771,6 +771,7 @@ namespace BlocksBeyondTheStars.Client
             LocalLine(L("ui.admin.help_gamemode"));
             LocalLine(L("ui.admin.help_teleport"));
             LocalLine(L("ui.admin.help_ressaw")); // #3421: /ressaw into a buried G.D.S. ruin on any planet
+            LocalLine(L("ui.admin.help_landmark")); // #3496: /landmark list, /landmark key, /tp landmark
             LocalLine(L("ui.admin.help_wilderness")); // #2646: /wanderer and /tp lodge
             LocalLine(L("ui.admin.help_rail")); // #3447: /railtrip and /guest
             LocalLine(L("ui.admin.help_creatures")); // #3390: /arachnid, /biped, /hound, /creatures

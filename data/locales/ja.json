@@ -409,6 +409,7 @@
   "ui.admin.help_gamemode": "ワールドモード：/gamemode explorer|creative|sandbox — 全員用；/gamemodeだけで現在のモードを表示します",
   "ui.admin.help_teleport": "テレポート: /tp X Y Z · /tp Target, 例: ship, city, village2, pad1, ancient · /tpp Player · /tp 単独でここにあるすべてのターゲットを一覧表示",
   "ui.admin.help_ressaw": "G.D.S. 遺跡: /ressaw — 最寄りの埋没遺跡へ移動（どの惑星でも）· /ressaw 2 で2番目の遺跡へ · /ressaw list で一覧表示",
+  "ui.admin.help_landmark": "ランドマーク: /landmark list — 一覧 · /landmark キー — 目の前に1つ建てる（廃墟は毎回ちがう姿） · /tp landmark — この惑星のランドマークへ",
   "ui.admin.help_wilderness": "荒野の人々: /wanderer — 今すぐ旅人がやってくる · /tp lodge [n] — 一番近い小屋へ (n: 次のもの)",
   "ui.admin.help_rail": "列車の旅: /railtrip [場所] — 村人が今すぐ列車に乗る（最寄りの路線） · /guest — 訪問者が今すぐ拠点に来る（できれば列車で）",
   "ui.admin.help_creatures": "クリーチャー: /arachnid · /biped · /hound — このワールドのアラクニッド、二足群、またはスケールハウンドがあなたのもとに来ます · /creatures — レポート",

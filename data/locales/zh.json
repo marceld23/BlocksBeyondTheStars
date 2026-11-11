@@ -409,6 +409,7 @@
   "ui.admin.help_gamemode": "世界模式：/gamemode explorer|creative|sandbox — 对所有人生效；单独输入 /gamemode 可显示当前模式",
   "ui.admin.help_teleport": "传送： /tp X Y Z · /tp Target，例如 ship, city, village2, pad1, ancient · /tpp Player · 单独输入 /tp 列出此处所有目标",
   "ui.admin.help_ressaw": "G.D.S. 遗迹：/ressaw — 直接传送到最近的埋藏遗迹，在任意行星上 · /ressaw 2 到第二个 · /ressaw list 显示全部",
+  "ui.admin.help_landmark": "地标: /landmark list — 全部列表 · /landmark 键名 — 在你面前立起一座（废墟每次都不一样） · /tp landmark — 前往本星球的地标",
   "ui.admin.help_wilderness": "荒野行人：/wanderer — 现在有个旅人会经过 · /tp lodge [n] — 传送到最近的小屋（n：下一个）",
   "ui.admin.help_rail": "火车旅行：/railtrip [地点] — 一位村民现在就乘火车出发（最近的线路） · /guest — 访客现在就来你的基地（能坐火车就坐火车）",
   "ui.admin.help_creatures": "生物： /arachnid · /biped · /hound — 本世界的蛛形生物、双足群或鳞犬会来到你身边 · /creatures — 报告",

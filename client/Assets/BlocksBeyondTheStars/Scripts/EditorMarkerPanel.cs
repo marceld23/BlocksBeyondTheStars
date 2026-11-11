@@ -129,8 +129,12 @@ namespace BlocksBeyondTheStars.Client
 
         // ---------------------------------------------------------------- rows
 
+        /// <summary>A row's label: 18 px on one line, down to two 13 px lines when a language runs long (the row is 48 high).</summary>
         private void Label(Transform body, float y, string key)
-            => UiKit.AddText(body, 32f, y + 6f, 360f, 36f, L(key), 18, UiKit.TextCol, TextAnchor.MiddleLeft);
+        {
+            var label = UiKit.AddText(body, 32f, y, 360f, 48f, L(key), 18, UiKit.TextCol, TextAnchor.MiddleLeft);
+            UiKit.FitLabelLines(label, 18, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize);
+        }
 
         /// <summary>A text row: the label and an input bound to one setting.</summary>
         private float TextRow(Transform body, float y, string labelKey, string setting, string placeholder, int maxLength = 96)

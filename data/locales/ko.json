@@ -409,6 +409,7 @@
   "ui.admin.help_gamemode": "월드 모드: /gamemode explorer|creative|sandbox — 모두에게 적용; /gamemode 단독 입력은 현재 모드를 보여줍니다",
   "ui.admin.help_teleport": "텔레포트: /tp X Y Z · /tp Target, 예: ship, city, village2, pad1, ancient · /tpp Player · /tp 단독 사용 시 여기에 있는 모든 대상이 나열됩니다",
   "ui.admin.help_ressaw": "G.D.S. 폐허: /ressaw — 가장 가까운 매장 폐허로 바로 이동, 어떤 행성에서든 · /ressaw 2 두 번째로 가까운 곳 · /ressaw list 모두 표시",
+  "ui.admin.help_landmark": "명소: /landmark list — 전체 목록 · /landmark 키 — 바로 앞에 하나를 세움 (폐허는 매번 다른 모습) · /tp landmark — 이 행성의 명소로",
   "ui.admin.help_wilderness": "야생 주민: /wanderer — 방랑자가 지금 바로 지나갑니다 · /tp lodge [n] — 가장 가까운 오두막으로 이동 (n: 그다음 오두막들)",
   "ui.admin.help_rail": "기차 여행: /railtrip [장소] — 주민이 지금 기차를 타요 (가장 가까운 노선) · /guest — 방문자가 지금 기지로 와요 (가능하면 기차로)",
   "ui.admin.help_creatures": "크리처: /arachnid · /biped · /hound — 이 월드의 거미류, 두발 떼나 비늘 사냥개가 당신에게 옵니다 · /creatures — 보고서",
