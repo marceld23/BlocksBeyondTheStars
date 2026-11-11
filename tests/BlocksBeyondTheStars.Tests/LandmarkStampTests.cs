@@ -340,6 +340,41 @@ public sealed class LandmarkStampTests : IDisposable
     }
 
     [Fact]
+    public void ATallLandmark_StreamsToItsTop_InItsOwnColumns_AsFarAsThePlayersChunkSphereReaches()
+    {
+        var content = ContentWith(LandmarkShapes.Tower(height: 120, ruin: false)); // #3489
+        var server = Start(content, out var repo, name: "lm_tall");
+        using (repo)
+        {
+            var lm = Assert.Single(server.LandmarksForTest);
+            int circ = server.World.Circumference;
+            var foot = WorldConstants.CanonicalChunk(WorldConstants.WorldToChunk(new Vector3i(lm.Origin.X + 8, lm.GroundY + 1, lm.Origin.Z + 8)), circ);
+            int topChunk = WorldConstants.WorldToChunk(lm.Origin.Y + 119);
+            Assert.Equal(topChunk, server.LandmarkTopChunkForTest(foot.X, foot.Z));
+            Assert.Equal(int.MinValue, server.LandmarkTopChunkForTest(foot.X + 8, foot.Z + 8)); // open country
+
+            // Standing at its foot with a wide view: the tower's own column streams to its top…
+            var (_, hiNear) = server.StreamColumnSpanForTest(foot, 0, 0, viewRadius: 12);
+            Assert.Equal(topChunk - foot.Y, hiNear);
+
+            // …a column of open country beside it does not grow…
+            var (_, hiBeside) = server.StreamColumnSpanForTest(foot, 6, 6, viewRadius: 12);
+            Assert.True(hiBeside < 4, $"a column without the landmark streams {hiBeside} chunks up");
+
+            // …and from six chunks away the far column (surface band only, before) reaches the top too.
+            var away = new ChunkCoord(foot.X - 6, foot.Y, foot.Z);
+            var (_, hiFar) = server.StreamColumnSpanForTest(away, 6, 0, viewRadius: 12);
+            Assert.Equal(topChunk - away.Y, hiFar);
+
+            // A small view (the browser's three chunks: a sphere of six) stops the lift where the chunk would be pruned.
+            var (_, hiSmall) = server.StreamColumnSpanForTest(away, 6, 0, viewRadius: 3);
+            Assert.True(hiSmall < topChunk - away.Y, "the lift ignored the player's chunk sphere");
+            var (_, hiSmallNear) = server.StreamColumnSpanForTest(foot, 0, 0, viewRadius: 3);
+            Assert.Equal(6, hiSmallNear);
+        }
+    }
+
+    [Fact]
     public void AChest_FollowsItsAuthor_Chance_Block_Hidden_AndTheDefaultTable()
     {
         var tower = LandmarkShapes.Tower(ruin: false, chest: "chance=0");

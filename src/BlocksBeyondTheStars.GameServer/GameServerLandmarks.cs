@@ -40,7 +40,7 @@ public sealed partial class GameServer
     private const int LandmarkPadMargin = 16;
 
     /// <summary>One landmark of the active world.</summary>
-    internal sealed class LandmarkInstance
+    internal sealed partial class LandmarkInstance
     {
         public required StructureTemplate Template { get; init; }
 
