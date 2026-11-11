@@ -378,6 +378,11 @@ internal sealed class LoadedWorld
     public bool AncientRuinStamped { get; set; }
     public List<GameServer.AncientRuinSite> AncientRuins { get; } = new();
 
+    // #3486 (generation 37): the landmark of this body — 0 or 1 giant authored building, re-derived every load from its
+    // placement record.
+    public bool LandmarksStamped { get; set; }
+    public List<GameServer.LandmarkInstance> Landmarks { get; } = new();
+
     // Fallen-city ruin stamp state — ruins are mineable, so they are stamped ONCE (guarded by this flag)
     // and then live on as persisted block edits; they are NOT re-stamped on reload (that would resurrect
     // blocks the player has cleared). Ruins are not tracked as structures (just terrain + loot).

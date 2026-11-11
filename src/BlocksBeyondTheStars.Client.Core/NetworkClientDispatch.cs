@@ -167,6 +167,7 @@ namespace BlocksBeyondTheStars.Client
             On<DoorList>(map, (c, m) => c.DoorsReceived?.Invoke(m));
             On<DataCubeList>(map, (c, m) => c.DataCubesReceived?.Invoke(m));
             On<FactoryList>(map, (c, m) => c.FactoriesReceived?.Invoke(m));
+            On<LandmarkList>(map, (c, m) => c.LandmarksReceived?.Invoke(m)); // #3494/#3497
             On<GameUnlocks>(map, (c, m) => c.GameUnlocksReceived?.Invoke(m));
             On<MiningProgress>(map, (c, m) => c.MiningProgressReceived?.Invoke(m));
             On<FloraRegrowStarted>(map, (c, m) => c.FloraRegrowStartedReceived?.Invoke(m));

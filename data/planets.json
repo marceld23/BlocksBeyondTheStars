@@ -1312,7 +1312,7 @@
     "weatherVolatility": 0.5, "seasonAmplitude": 0.15,
     "weatherEvents": { "drizzle": 1.0, "fog": 0.8, "ground_fog": 0.8, "gale": 0.2, "meteor_shower": 0.0, "ion_storm": 0.0, "acid_rain": 0.0, "heatwave": 0.0 },
     "calmTerrain": true, "peacefulFauna": true, "enemyDensity": 0.0,
-    "restrictStructures": true, "allowedStructures": ["monuments"], "monumentCount": [4, 6],
+    "restrictStructures": true, "allowedStructures": ["monuments", "landmarks"], "monumentCount": [4, 6],
     "singingMeadows": true,
     // #3423 (Justus: everything on Soaniri light blue and light green): the wild plants wear light greens (their blossoms turn
     // light blue in the shader's accent), and they keep their colours through autumn and winter.

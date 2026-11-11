@@ -197,6 +197,7 @@ public sealed partial class GameServer
 
         AppendIntercityPois(session, pois); // #2125: the two stations of the intercity line
         AppendLodgePois(session, pois); // #2640: the huts a player found or was told about
+        AppendLandmarkPois(session, pois); // #3496: the landmark somebody found
         AppendUniqueSitePois(session, pois); // #1129: this world's one-of-a-kind place, once shared
         AppendSounderWorldPois(session, pois); // #3358: Soaniri's Mirun, Ornasa and the Choir Tower
         AppendLandedTraderPoi(session, pois); // #1904: a trader ship parked here right now (live, never persisted)
@@ -1670,7 +1671,8 @@ public sealed partial class GameServer
         return OverlapsIntercityRail(x, z, halfExtent) // #2125: the stations and the route belong to the towns
             || OverlapsRailRuin(x, z, halfExtent)      // #2166: the abandoned monorail station
             || OverlapsLodge(x, z, halfExtent)         // #2640: the wilderness huts
-            || OverlapsAncientRuin(x, z, halfExtent);  // #3334: the buried G.D.S. ruin (a vault's chamber would cut into it)
+            || OverlapsAncientRuin(x, z, halfExtent)   // #3334: the buried G.D.S. ruin (a vault's chamber would cut into it)
+            || OverlapsLandmark(x, z, halfExtent);     // #3486: the landmark (its tunnels may reach under the whole footprint)
     }
 
     // --- count + balance model ----------------------------------------------------------------------------
@@ -2188,7 +2190,8 @@ public sealed partial class GameServer
     /// (mining, blasts, the pump, the drills, fire) treats the line like the towns it serves — and (#2640) to a lodge's
     /// house and yard (<see cref="IsLodgeBlock"/>). The wilderness folk's own work cores ask the narrower
     /// <c>IsSettlementBoxBlock || IsIntercityRailBlock</c>, so they may work inside their lodge.</summary>
-    public bool IsSettlementBlock(Vector3i pos) => IsSettlementBoxBlock(pos) || IsIntercityRailBlock(pos) || IsLodgeBlock(pos);
+    public bool IsSettlementBlock(Vector3i pos)
+        => IsSettlementBoxBlock(pos) || IsIntercityRailBlock(pos) || IsLodgeBlock(pos) || IsLandmarkBlock(pos); // #3499: an inhabited landmark
 
     /// <summary>True if the block lies in an intact settlement's protected box.</summary>
     private bool IsSettlementBoxBlock(Vector3i pos) => IntactSettlementAt(pos) is not null;

@@ -70,10 +70,12 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         // Geometry did not change (15838 / 12876 verts, 7580 + 306 / 6148 + 140 tris); sky unchanged.
         // Re-pinned 2026-11-08 (stale since #3383): the Sounders' new blocks shifted the block ids and atlas slots again.
         // Geometry did not change (15838 / 12876 verts, 7580 + 306 / 6148 + 140 tris); sky unchanged.
+        // Re-pinned 2026-11-11 (#3498): the landmarks' six decoration blocks shifted the block ids and atlas slots again.
+        // Geometry did not change (15838 / 12876 verts, 7580 + 306 / 6148 + 140 tris); sky unchanged.
         private static readonly Dictionary<string, ulong> Pinned = new Dictionary<string, ulong>
         {
-            ["deep (5,1,7)"] = 0xc69dcc0c9b3e3fcdUL,
-            ["surface (5,2,7)"] = 0xab20fc70cc48dd1dUL,
+            ["deep (5,1,7)"] = 0x762ced2ff554a22dUL,
+            ["surface (5,2,7)"] = 0xc9ddc2f74124591dUL,
             ["sky (5,3,7)"] = 0xd6a8cf1a27eab505UL,
         };
 

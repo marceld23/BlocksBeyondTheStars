@@ -33,24 +33,33 @@ public sealed partial class EditorTextFitTests
             "ui.marker.door_slide", "ui.marker.greenhouse", "ui.marker.grocer", "ui.marker.guard_post", "ui.marker.hangar", "ui.marker.heal_tank",
             "ui.marker.loot", "ui.marker.lounge", "ui.marker.mission_board", "ui.marker.npc", "ui.marker.quarters", "ui.marker.reporter",
             "ui.marker.room", "ui.marker.sage", "ui.marker.spawn", "ui.marker.streamer", "ui.marker.tamer", "ui.marker.tavern",
-            "ui.marker.vendor", "ui.marker.workshop", "ui.marker.device"),
+            "ui.marker.vendor", "ui.marker.workshop", "ui.marker.device",
+            "ui.marker.sound", "ui.marker.den", "ui.marker.keep", "ui.marker.cavity", "ui.marker.settings"), // #3492/#3493: the landmark tools
         Lines("Palette rows: an airlock block (a 52 px row when it needs three lines)", 230f, 52f, 15, 13, 13, "ui.ed.airlock_block")
             with { Sample = "Hull Airlock", MaxLines = 3 },
         Label("StructureEditor title", 348f, 18, "ui.struct.title_station", "ui.struct.title_settlement"),
         FitLine("StructureEditor field labels (348)", 348f, 13, 15, "ui.struct.key", "ui.struct.name", "ui.struct.pack", "ui.struct.surface",
-            "ui.struct.planet_types"),
+            "ui.struct.planet_types", "ui.ed.landmark.name_key"),
         Lines("StructureEditor row labels (140×36)", 140f, 36f, 16, 13, 13, "ui.struct.tier", "ui.struct.role", "ui.struct.function",
-            "ui.struct.port_door", "ui.struct.style", "ui.struct.weight"),
+            "ui.struct.port_door", "ui.struct.style", "ui.struct.weight", "ui.ed.landmark.profile", "ui.ed.landmark.strength",
+            "ui.ed.landmark.ground_row"),
         Lines("StructureEditor values (150×36)", 150f, 36f, 16, 13, 13, TierValueKeys.Concat(new[]
         {
-            "ui.use.whole", "ui.use.module", "ui.function.*", "ui.role_short.*", "ui.door_opt.*", "ui.style.human", "ui.style.alien",
+            "ui.use.whole", "ui.use.module", "ui.use.landmark", "ui.function.*", "ui.role_short.*", "ui.door_opt.*", "ui.style.human",
+            "ui.style.alien", "ui.ed.landmark.profile.*",
         }).ToArray()),
+        // #3492 the landmark form (StructureEditor.Landmark.cs): four toggles, the number rows' "Auto", the preview button.
+        Button("StructureEditor landmark toggles", 348f, 34f, "ui.ed.landmark.ruin", "ui.ed.landmark.atmosphere", "ui.ed.landmark.inhabited",
+            "ui.ed.landmark.protected") with { Prefix = "☐ " },
+        Label("StructureEditor landmark number value (90)", 90f, 16, "ui.ed.landmark.strength_auto"),
+        Button("StructureEditor ruin preview on / off", 348f, 34f, "ui.ed.landmark.preview_on", "ui.ed.landmark.preview_off"),
         Wrap("StructureEditor size hint (2 lines)", 348f, 2, 13, "ui.struct.size_station", "ui.struct.size_settlement", "ui.struct.size_module"),
         FitLine("StructureEditor kit label", 70f, 13, 15, "ui.struct.kit"),
         Button("StructureEditor Kits… (module row)", 124f, 30f, "ui.struct.kits"),
         Button("StructureEditor check seal / assemble / Kits… (whole)", 168f, 34f, "ui.struct.check_seal", "ui.struct.assemble", "ui.struct.kits"),
         Button("StructureEditor underground toggle (whole settlement, #3333)", 348f, 34f, "ui.struct.underground") with { Prefix = "☐ " },
-        FitLine("StructureEditor section titles", 348f, 13, 16, "ui.struct.generate_title", "ui.struct.brush"),
+        FitLine("StructureEditor section titles", 348f, 13, 16, "ui.struct.generate_title", "ui.struct.brush", "ui.ed.landmark.title",
+            "ui.ed.landmark.preview_title"),
         FitLine("StructureEditor seed label", 60f, 13, 15, "ui.struct.seed"),
         Button("StructureEditor reroll", 168f, 30f, "ui.struct.reroll"),
         Button("StructureEditor generate", 348f, 34f, "ui.struct.generate"),
@@ -65,7 +74,9 @@ public sealed partial class EditorTextFitTests
             "ui.ed.load_failed_hint", "ui.ed.assemble_failed_hint", "ui.ed.seal_ok", "ui.ed.seal_leaks", "ui.ed.port_errors",
             "ui.ed.door_lanes_blocked", "ui.ed.door_needs_wall", "ui.ed.bed_needs_room", "ui.ed.need_kit", "ui.ed.assembled", "ui.ed.generated",
             "ui.ed.not_found", "ui.ed.copy_hint", "ui.ed.loaded", "ui.ed.assemble_failed", "ui.ed.device.none", "ui.ed.device.saved",
-            "ui.ed.skipped") with { Sample = "my_town" },
+            "ui.ed.skipped", "ui.ed.landmark.preview_locked", "ui.ed.landmark.preview_back", "ui.ed.landmark.preview_shown",
+            "ui.ed.landmark.kept", "ui.ed.landmark.unkept", "ui.ed.landmark.problem", "ui.ed.landmark.saved", "ui.ed.landmark.no_submit",
+            "ui.ed.marker.none") with { Sample = "my_town" },
         Input("StructureEditor default name in the name field", 348f, 18, "ui.ed.default.station", "ui.ed.default.settlement"),
         Button("StructureEditor save / submit", 168f, 42f, "ui.struct.save", "ui.submit.button"),
         Button("StructureEditor load / back", 168f, 40f, "ui.struct.load", "ui.menu.back"),
@@ -91,6 +102,16 @@ public sealed partial class EditorTextFitTests
         Label("Device panel settings hint", 520f, 14, "ui.ed.device.settings_hint"),
         Button("Device panel apply", 300f, 48f, "ui.ed.device.apply"),
         Button("Device panel close", 220f, 48f, "ui.crystal.close"),
+
+        // #3493 the marker settings panel (EditorMarkerPanel.cs, 980 wide): chest, vendor, sound, den.
+        Label("Marker panel title", 916f, 22, "ui.ed.marker.title") with { Sample = "Animal den" },
+        Lines("Marker panel row labels (360×48)", 360f, 48f, 18, 13, 13, "ui.ed.marker.items", "ui.ed.marker.table", "ui.ed.marker.chance",
+            "ui.ed.marker.block", "ui.ed.marker.theme", "ui.ed.marker.name", "ui.ed.marker.sound", "ui.ed.marker.sound_pick",
+            "ui.ed.marker.radius", "ui.ed.marker.volume", "ui.ed.marker.species", "ui.ed.marker.count"),
+        Button("Marker panel stepper values", 520f, 48f, "ui.ed.marker.table_default", "ui.ed.marker.species_native") with { Suffix = "  →" },
+        Button("Marker panel toggles", 888f, 48f, "ui.ed.marker.hidden", "ui.ed.marker.inside") with { Prefix = "☐ " },
+        Label("Marker panel settings line", 916f, 14, "ui.ed.marker.defaults"),
+        Button("Marker panel apply", 300f, 48f, "ui.ed.device.apply"),
     };
 
     private static IEnumerable<FitSite> KitPanelSites() => new[]

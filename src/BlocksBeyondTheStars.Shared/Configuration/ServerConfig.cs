@@ -492,6 +492,21 @@ public sealed class ServerConfig
     public double RailRuinChance { get; set; } = 0.35;
 
     /// <summary>
+    /// Whether the server may stamp a <b>landmark</b> (#3483) on a new world (terrain generation 37+) — one giant
+    /// authored building per planet at most, most of them ruins derived from the intact design with the instance's seed.
+    /// Never on an asteroid, an airless, gas or void world. Only decides for bodies that have not decided yet; a
+    /// landmark a world already has stays. Deterministic from the world seed.
+    /// </summary>
+    public bool PlaceLandmarks { get; set; } = true;
+
+    /// <summary>
+    /// The chance (0..1) that a planet which could carry one gets its landmark (#3486) — about every third planet by
+    /// default (<see cref="Definitions.LandmarkRules.Chance"/>), scaled by the world's structures frequency. Rolled once
+    /// per body on a lane of its own; tests pin 1.0 to get a landmark wherever one fits.
+    /// </summary>
+    public double LandmarkChance { get; set; } = Definitions.LandmarkRules.Chance;
+
+    /// <summary>
     /// Singleplayer/admin convenience: guarantee one data cube right next to the start world's landing pad, so
     /// a solo player can always reach a minigame near spawn. Set only by the bundled singleplayer launcher;
     /// left off on shared/dedicated servers (where the random scatter applies as normal).

@@ -37,7 +37,7 @@ namespace BlocksBeyondTheStars.Client
         public AppShell Shell;
         public Mode EditorMode = Mode.Station;
 
-        private const int MaxW = 128, MaxH = 128, MaxL = 128;
+        private int MaxW => RoomSize; private int MaxH => RoomSize; private int MaxL => RoomSize; // #3491: 128 for a station, 256 in the town editor
         private const float RaycastDist = 2400f;
 
         private Camera _cam;
@@ -46,7 +46,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>One authored cell: the palette id + kind, plus the in-game per-voxel modifiers
         /// (dye/glow colour 0xRRGGBB, packed shape+orientation). Markers carry no modifiers.</summary>
-        private struct CellData { public string Id; public string Kind; public int Tint, Glow, Shape; public string Port; public int Mode; public string Config, Label; }
+        private struct CellData { public string Id; public string Kind; public int Tint, Glow, Shape; public string Port; public int Mode; public string Config, Label; public bool Keep; }
 
         /// <summary>#2260: what the device tool last set per device block — the next one of that block placed comes out alike.</summary>
         private readonly Dictionary<string, (int Mode, string Config, string Label)> _deviceBrush = new();
@@ -130,7 +130,7 @@ namespace BlocksBeyondTheStars.Client
         private EditorPaletteKit.Entry[] BuildPalette()
         {
             var list = new List<EditorPaletteKit.Entry>();
-            list.AddRange(EditorMode == Mode.Station ? StationMarkers() : SettlementMarkers());
+            list.AddRange(EditorMode == Mode.Station ? StationMarkers() : WithLandmarkTools(SettlementMarkers())); // #3492
             list.AddRange(EditorPaletteKit.BlockEntries(Shell, _atlas, hullAirlocks: EditorMode == Mode.Station)); // #1982
             return list.ToArray();
         }
@@ -371,20 +371,11 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var pal = _palette[_selected];
-            if (pal.Kind == "device")
+            if (pal.Kind is "device" or "port" or "keep" or "settings")
             {
-                // #2260: the device tool works on the device under the cursor.
-                bool onDevice = TryGetHitCell(out var dev) && _design.TryGetValue(dev, out var dd) && CarriesDeviceSettings(DeviceKindOf(dd));
-                _ghost?.Update(onDevice, dev, onDevice);
-                Hint(null);
-                return;
-            }
-
-            if (pal.Kind == "port")
-            {
-                // The port brush paints the wall block under the cursor, not the cell beside it.
-                bool onWall = TryGetHitCell(out var wall) && _design.TryGetValue(wall, out var wd) && wd.Kind == "block";
-                _ghost?.Update(onWall, wall, onWall);
+                // A tool works on the cell under the cursor, not the cell beside it (#1877, #2260, #3492, #3493).
+                bool on = TryGetHitCell(out var hit) && _design.TryGetValue(hit, out var hd) && ToolFits(pal.Kind, hd);
+                _ghost?.Update(on, hit, on);
                 Hint(null);
                 return;
             }
@@ -435,16 +426,9 @@ namespace BlocksBeyondTheStars.Client
         private void TryPlace()
         {
             var pal = _palette[_selected];
-            if (pal.Kind == "port")
+            if (ToolClick(pal))
             {
-                PaintPort(pal.Id); // #1877: the port brush marks an existing wall block
-                return;
-            }
-
-            if (pal.Kind == "device")
-            {
-                EditDevice(); // #2260
-                return;
+                return; // the port brush (#1877), the device tool (#2260), the keep brush, the settings tool (#3492/#3493) — or the ruin preview
             }
 
             if (!TryGetTargetCell(out var cell, out int hitFace) || !InBounds(cell) || _design.ContainsKey(cell))
@@ -488,7 +472,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void TryRemove()
         {
-            if (!TryGetHitCell(out var cell) || !_design.ContainsKey(cell))
+            if (_previewOn || !TryGetHitCell(out var cell) || !_design.ContainsKey(cell))
             {
                 return;
             }
@@ -616,10 +600,7 @@ namespace BlocksBeyondTheStars.Client
                 ? EditorVoxelPreview.RgbToColor(data.Tint)
                 : (data.Glow != 0 ? EditorVoxelPreview.RgbToColor(data.Glow) : (textured ? Color.white : pal.Color));
             bool port = !string.IsNullOrEmpty(data.Port);
-            if (port)
-            {
-                baseCol = Color.Lerp(baseCol, PortColor, 0.6f); // #1877: a docking port reads as a cyan wall block
-            }
+            baseCol = MarkedColor(baseCol, data); // #1877: a docking port reads cyan; #3492: a kept cell green
 
             bool door = pal.Kind == "marker" && DoorBlocks.IsDoorMarker(pal.Id);
             var silhouette = pal.Kind == "marker" && !door ? MarkerSilhouettes.For(pal.Id, MarkerSilhouettes.KindMarker) : null;
@@ -736,6 +717,12 @@ namespace BlocksBeyondTheStars.Client
             if (string.IsNullOrEmpty(key))
             {
                 SetStatus(L("ui.ed.need_key"));
+                return;
+            }
+
+            if (_landmarkMode)
+            {
+                ExportLandmark(key); // #3492: a landmark is one compact file of its own
                 return;
             }
 
@@ -861,6 +848,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            AddLandmarkItems(builtIn, user); // #3492
             _loadPicker = EditorLoadPicker.Show(Shell, _canvas.transform, new[] { builtIn, user, mine }, _design.Count, () => _loadPicker = null);
         }
 
@@ -943,7 +931,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     Id = c.id,
                     Kind = kind,
-                    Tint = c.tint, Glow = c.glow, Shape = c.shape, Port = c.port ?? string.Empty,
+                    Tint = c.tint, Glow = c.glow, Shape = c.shape, Port = c.port ?? string.Empty, Keep = c.keep,
                     Mode = c.mode, Config = c.config ?? string.Empty, Label = c.label ?? string.Empty, // #2260
                 };
                 PlaceCellData(cell, pal, data);
@@ -976,6 +964,7 @@ namespace BlocksBeyondTheStars.Client
             var skippedIds = new List<string>();
             int skipped = ApplyCells(cells, skippedIds);
             _underground = underground; // #3333
+            _landmarkMode = false; // #3492: LoadLandmark switches it back on
 
             _key = copy ? key + "_2" : key;
             _basedOn = copy ? key : string.Empty; // a submission names the shipped template it started from (#3262)

@@ -239,8 +239,15 @@ public sealed class WorldDescription
     /// quartermasters and vendor themes, #2833 twelve more wild plant species and mixed meadows, #2848–#2859 the tree
     /// variety and glow package, #2976 several fruits per world, picked per tree, #2988 the start system carries lead and
     /// uranium, #3005 the pumpkin as a wild species of the green worlds, #3306 KuBa-W, Jafar's school-club asteroid, #3325 the
-    /// Schuppenhund on the dry worlds, #3334 the buried G.D.S. ruins flooded with Ressaw, #3416 the rune shrines).</summary>
-    public const int CurrentTerrainGeneration = 36;
+    /// Schuppenhund on the dry worlds, #3334 the buried G.D.S. ruins flooded with Ressaw, #3416 the rune shrines, #3483 the
+    /// landmarks).</summary>
+    public const int CurrentTerrainGeneration = 37;
+
+    /// <summary>The generation of the landmarks (#3483, the school club's giant buildings): a world created at this
+    /// generation or later may carry ONE landmark per planet — a giant authored building, usually a ruin derived from the
+    /// intact design. A server-side stamp, so every chunk of every generation stays bit-identical; the gate only keeps a
+    /// landmark from ever growing into a world created before it.</summary>
+    public const int LandmarkGeneration = 37;
 
     /// <summary>The generation of the rune shrines (#3416, Justus' F1 reports 2026-11-08): a world created at this generation
     /// or later no longer scatters lone rune stones — the rune stones stand in small shrine ruins instead, a ring of stones

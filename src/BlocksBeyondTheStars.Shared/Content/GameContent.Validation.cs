@@ -571,7 +571,8 @@ public sealed partial class GameContent
 
             foreach (var kind in planet.AllowedStructures)
             {
-                if (kind is not ("sps_labs" or "net_fragments" or "monuments")) // #3358: Soaniri keeps its rune monuments
+                // #3358: Soaniri keeps its rune monuments. #3500: + its landmarks, and the buried ruins the stamper already asked for.
+                if (kind is not ("sps_labs" or "net_fragments" or "monuments" or LandmarkRules.StructureKind or "gds_ruins"))
                 {
                     problems.Add($"Planet '{planet.Key}' allows unknown structure kind '{kind}'.");
                 }
@@ -892,6 +893,7 @@ public sealed partial class GameContent
         ValidateFestivals(problems);
         ValidateFestivalCalendars(problems); // #3315, with the HUD frames and skins their doors unlock
         ValidateBoardStories(problems, RequireItem); // #3180
+        ValidateLootTables(problems, RequireItem); // #3488
 
         // #427: authored voxel ship layouts. The server used to turn an unknown cell id silently into hull
         // (`?? iron_wall`), so a data typo would ship invisibly — surface it at load like every other reference.

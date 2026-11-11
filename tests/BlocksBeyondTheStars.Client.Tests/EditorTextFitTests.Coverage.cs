@@ -17,6 +17,7 @@ public sealed partial class EditorTextFitTests
         "UiEditors", "TextureEditor", "StructureEditor", "ShipEditor", "AvatarEditor", "FaceEditor", "FormEditor", "ToolLookEditor",
         "LayerCanvasEditor", "ShapeEditor", "MaterialEditor", "ContentEditor", "EditorDevicePanel", "EditorFormPicker",
         "EditorLoadPicker", "EditorPaletteKit", "KitEditorPanel", "CreationSubmitDialog", "EditorSceneKit",
+        "EditorMarkerPanel",
     };
 
     /// <summary>Keys the editors name that are not drawn in a box of their own — with the reason.</summary>

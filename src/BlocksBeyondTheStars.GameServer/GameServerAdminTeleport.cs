@@ -42,7 +42,7 @@ public sealed partial class GameServer
     /// <summary>Target words in the order they are offered to the admin, worldgen first, player-built last.</summary>
     private static readonly string[] TeleportKinds =
     {
-        "ship", "pad", "city", "village", "ruin", "railruin", "vault", "ancient", "wreck", "factory", "camp", "lodge", "outpost",
+        "ship", "pad", "city", "village", "ruin", "railruin", "vault", "ancient", "landmark", "wreck", "factory", "camp", "lodge", "outpost",
         "monument", "treasure", "base", "beacon", "beam", "station",
     };
 
@@ -61,6 +61,7 @@ public sealed partial class GameServer
         "vaults" or "vault_ruin" => "vault",
         // #3392: the buried G.D.S. ruins and enclosed structures of #3333/#3334 ("Alte Städte")
         "ancients" or "ancientruin" or "ancient_ruin" or "altstadt" or "altstädte" or "altstaedte" => "ancient",
+        "landmarks" or "bauwerk" or "bauwerke" or "wahrzeichen" => "landmark", // #3486: the giant authored buildings
         "wrecks" => "wreck",
         "factories" => "factory",
         "camps" or "bandit" or "bandits" or "banditcamp" => "camp",
@@ -131,6 +132,14 @@ public sealed partial class GameServer
         {
             var e = ancients[i].Entrance;
             list.Add(new TeleportTarget("ancient", i + 1, $"ancient{i + 1}", SurfaceSpot(WorldConstants.WrapX(e.X + 2, _world.Circumference), e.Z)));
+        }
+
+        // #3486: a landmark — on the ground right in front of its footprint.
+        for (int i = 0; i < _landmarks.Count; i++)
+        {
+            var (cx, _, _, _) = _landmarks[i].Rect;
+            list.Add(new TeleportTarget("landmark", i + 1, $"landmark{i + 1}",
+                SurfaceSpot(WorldConstants.WrapX(cx, _world.Circumference), _landmarks[i].Origin.Z - 3)));
         }
 
         if (_wreckStamped && !_wreckClaimed)

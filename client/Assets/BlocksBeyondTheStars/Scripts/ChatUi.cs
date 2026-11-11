@@ -616,6 +616,10 @@ namespace BlocksBeyondTheStars.Client
                 // all of them. The server predicts, travels and answers (with its usage line for anything else).
                 case "/ressaw": net.SendAdminCommand("goto_ancient", stringArg: t.Substring(p[0].Length).Trim()); return true;
 
+                // #3486: "/landmark list" names the landmarks, "/landmark <key>" stamps one in front of the admin (a play
+                // test tool for authors; the server answers with its usage line for anything else).
+                case "/landmark": net.SendAdminCommand("landmark", stringArg: t.Substring(p[0].Length).Trim()); return true;
+
                 // #3368: the Sounders' Song QA — "/sounders status|start|chapter <n>|items|echo|song|soaniri|tower|soundi"
                 // (the server answers with its usage line for anything else).
                 case "/sounders": net.SendAdminCommand("sounders", stringArg: t.Substring(p[0].Length).Trim()); return true;
@@ -767,6 +771,7 @@ namespace BlocksBeyondTheStars.Client
             LocalLine(L("ui.admin.help_gamemode"));
             LocalLine(L("ui.admin.help_teleport"));
             LocalLine(L("ui.admin.help_ressaw")); // #3421: /ressaw into a buried G.D.S. ruin on any planet
+            LocalLine(L("ui.admin.help_landmark")); // #3496: /landmark list, /landmark key, /tp landmark
             LocalLine(L("ui.admin.help_wilderness")); // #2646: /wanderer and /tp lodge
             LocalLine(L("ui.admin.help_rail")); // #3447: /railtrip and /guest
             LocalLine(L("ui.admin.help_creatures")); // #3390: /arachnid, /biped, /hound, /creatures

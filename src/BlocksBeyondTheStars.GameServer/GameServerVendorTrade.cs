@@ -87,7 +87,7 @@ public sealed partial class GameServer
             }
 
             sells = true;
-            if (NpcProfessions.ByJob(vendor.Job) is { ShopOnly: true } && !InSameClosedRoom(player.Position, vendor.Pos))
+            if ((NpcProfessions.ByJob(vendor.Job) is { ShopOnly: true } || vendor.SellsOnlyInside) && !InSameClosedRoom(player.Position, vendor.Pos))
             {
                 continue;
             }

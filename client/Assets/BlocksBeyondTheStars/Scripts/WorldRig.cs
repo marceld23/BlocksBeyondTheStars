@@ -697,6 +697,15 @@ namespace BlocksBeyondTheStars.Client
             singingPlants.Game = boot;
             singingPlants.Camera = cam;
 
+            // #3494: world sound emitters — a landmark that sings across a valley, louder as the player comes closer.
+            var soundEmitters = root.AddComponent<SoundEmitterView>();
+            soundEmitters.Game = boot;
+            soundEmitters.Camera = cam;
+
+            // #3497: the far silhouette of this world's landmarks, beyond the streamed chunks.
+            var landmarkSilhouettes = root.AddComponent<LandmarkSilhouetteView>();
+            landmarkSilhouettes.Game = boot;
+
             // Ship-restamp materialize sweep (holo ring + shimmer when the hull is swapped at a pad).
             var shipBuild = root.AddComponent<ShipBuildFx>();
             shipBuild.Game = boot;

@@ -66,6 +66,8 @@ public sealed partial class GameServer
         /// their bed or post cell in the settlement layout) — friendship is per PERSON. "" = the NPC keeps the shared role
         /// key (the classic vendor and the quartermaster, guardians, station crew, base residents).</summary>
         public string PersonKey = string.Empty;
+        public string LandmarkKey = string.Empty; // #3499: the inhabited landmark this keeper belongs to, "" = none
+        public bool SellsOnlyInside; // #3499: a landmark keeper that only sells to a customer in its own closed room (the grocer's rule)
         public string NameKey = string.Empty;
         public string Name = string.Empty; // coined personal name (item 12)
         public Vector3f Home;

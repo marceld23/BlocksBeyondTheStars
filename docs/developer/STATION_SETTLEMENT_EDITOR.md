@@ -461,6 +461,28 @@ The shipped demo circuits come from the generators: `tools/gen_station_modules.p
 beside the arrival hall's door, conduits up the wall and along the ceiling edge to two ceiling lamps) and
 `tools/gen_settlement_modules.py` (the iron flat's light switch).
 
+## 3d. Landmarks — a third use (#3491–#3493, 2026-11-11)
+
+The town editor's **Use as** has a third value beside *Whole structure* and *Kit module*: **Landmark** — one giant building
+that the landmark stamper seats on a planet on its own ([LANDMARKS.md](LANDMARKS.md)). What the editor adds for it
+(`StructureEditor.Landmark.cs`, `EditorMarkerPanel.cs`):
+
+- **Room.** The town editor's room is `LandmarkRules.MaxSize` = 256 blocks a side (a station keeps 128).
+- **Form.** Ruin or as built, the ruin profile and strength, the conditions (*only on planets with air*, *only on
+  inhabited planets*), the ground row, *inhabited* (protected, only when it is no ruin) and the name's locale key.
+- **Ruin preview.** *Show as a ruin* builds the template from the room and runs `LandmarkGenerator.Build(…, ruin: true)`
+  with the preview seed — the server's own pass — then shows the result in place of the design; *Back to the design*
+  restores it, *Reroll* shows the next ruin. While the preview shows, placing, removing and saving are refused.
+- **Tools** (palette, markers group): **Keep** toggles the keep flag of a block (drawn green; the ruin pass leaves it
+  standing), **Cavity** places a cavity cell (pale blue; "this cell is air" below the ground row), **Marker settings**
+  opens the panel for a chest, vendor, sound or den marker; the **Sound** and **Animal den** markers.
+- **Save.** One compact file (`TemplateBody.Compact`, written with `JsonUtility`) to
+  `usercontent/landmark_templates/<key>.json` — the content loader reads that folder — and to
+  `landmark_exports/<key>/landmark.json` for `tools/merge_structure.py`. LOAD lists the shipped landmarks (as copies) and
+  the user's own, marked ♜. A landmark is not submitted through the creation inbox yet.
+- **No growth of the big file.** `StructureEditor.cs` only gained hooks (`ToolClick`, `ToolFits`, `MarkedColor`,
+  `WithLandmarkTools`, `ExportLandmark`, `AddLandmarkItems`); it is eleven lines shorter than before.
+
 ## 4. Open questions
 1. **Marker parity:** confirm the full marker vocabulary each editor must expose (vendor, mission board,
    medbay/heal-tank, hangar, quarters, npc spawn, loot) so authored structures are fully functional.

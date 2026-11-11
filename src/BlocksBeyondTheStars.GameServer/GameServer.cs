@@ -887,6 +887,7 @@ public sealed partial class GameServer
                         BootDetail("wreck", StampWreck);
                     }
 
+                    BootDetail("landmarks", () => StampLandmarks(restricted)); // #3486 (generation 37): one giant authored building — after everything that stands on the ground, before what is buried
                     BootDetail("ancient ruins", () => StampAncientRuins(restricted)); // #3334 (generation 35): the buried G.D.S. ruin — before the vaults, which keep clear of it
 
                     if (_config.PlaceVaults && !restricted)
@@ -1184,6 +1185,7 @@ public sealed partial class GameServer
         SendNetFragments(session); // story net fragments on this body (P2)
         SendVegaObjective(session); // the story objective is per body — "a fragment is HERE" (#1110)
         SendFactories(session); // factories on this body (animated machines + production terminals)
+        SendLandmarks(session); // #3494/#3497: the landmark's far silhouette and its sound emitters
         SendBeacons(session);
         SendMarkers(session); // the new body's markers (#1217) — the old world's set is stale now
         SendBeams(session); // placed beam blocks (teleporter pads) on this body
@@ -2863,6 +2865,7 @@ public sealed partial class GameServer
         SendDataCubes(session);
         SendNetFragments(session);
         SendFactories(session);
+        SendLandmarks(session);
         SendBeacons(session);
         SendMarkers(session);
         SendBeams(session);
@@ -3096,6 +3099,10 @@ public sealed partial class GameServer
             ? System.Math.Clamp(session.ViewDistance, 1, MaxClientViewDistanceChunks)
             : System.Math.Max(1, _config.ViewDistanceChunks);
 
+    /// <summary>How far (chunks, measured chunk to chunk in 3-D) a sent chunk may lie from the player before the sweep drops it
+    /// from the sent-set — the view radius plus four, at most 20. The client unloads one chunk further out (#3208).</summary>
+    private int SentSetPruneRadius(PlayerSession session) => System.Math.Min(EffectiveViewRadius(session) + 4, 20);
+
     private void StreamChunks() => StreamChunks(spectatorsOnly: false);
 
     /// <summary>Chunk streaming for observers while the world is held paused (#996): spectators don't hold
@@ -3205,6 +3212,7 @@ public sealed partial class GameServer
             // player's own altitude still streams its visible shell. See StreamColumnSpan.
             int seaLevel = _generator.SeaLevel(_world.Planet); // int.MinValue on a dry world; cached per world
             int nearRadius = NearFullColumnRadius; // #3208: the host's knob, read once per pass
+            int liftRadius = LandmarkLiftRadius(session); // #3489: how high a landmark's columns stream for this player
             var pending = new List<(ChunkCoord Coord, int Key)>();
             for (int dx = -streamRadius; dx <= streamRadius; dx++)
                 for (int dz = -streamRadius; dz <= streamRadius; dz++)
@@ -3214,7 +3222,7 @@ public sealed partial class GameServer
                         continue; // a square corner past the round fog edge — never visible, and outside the sweep's keep radius
                     }
 
-                    var (loDy, hiDy) = StreamColumnSpan(center, dx, dz, nearRadius, seaLevel);
+                    var (loDy, hiDy) = StreamColumnSpan(center, dx, dz, nearRadius, seaLevel, liftRadius);
                     for (int dy = loDy; dy <= hiDy; dy++)
                     {
                         int cy = center.Y + dy;
@@ -3317,11 +3325,11 @@ public sealed partial class GameServer
     /// in mid-water, with fake waterfall streaks down the band's side edges (#987). <see cref="FarColumnBand(int,int,int)"/>
     /// stretches a submerged column up to its real waterline instead. #1507: the band is cached per canonical column on
     /// the world — a pure function of the generator's surface and the world's sea level, so it never changes for a world.</para></summary>
-    private (int LoDy, int HiDy) StreamColumnSpan(ChunkCoord center, int dx, int dz, int nearRadius, int seaLevel)
+    private (int LoDy, int HiDy) StreamColumnSpan(ChunkCoord center, int dx, int dz, int nearRadius, int seaLevel, int liftRadius = 0)
     {
         if (IsNearFullColumn(dx, dz, nearRadius))
         {
-            return WithTextMonumentTop(center, dx, dz, (-NearColumnChunksDown, NearColumnChunksUp));
+            return WithStructureTop(center, dx, dz, (-NearColumnChunksDown, NearColumnChunksUp), liftRadius);
         }
 
         var bands = _worlds.Active.FarColumnBands;
@@ -3344,16 +3352,36 @@ public sealed partial class GameServer
             bands[columnKey] = band;
         }
 
-        return WithTextMonumentTop(center, dx, dz, (band.LoCy - center.Y, band.HiCy - center.Y));
+        return WithStructureTop(center, dx, dz, (band.LoCy - center.Y, band.HiCy - center.Y), liftRadius);
     }
 
     /// <summary>#3310: a column that carries a stone text tablet streams up to the tablet's top — the tablets of KuBa-W stand
     /// 80–110 blocks tall, far above both the near column's reach and a far column's surface band, and a tablet cut off
-    /// at the top could not be read.</summary>
-    private (int LoDy, int HiDy) WithTextMonumentTop(ChunkCoord center, int dx, int dz, (int LoDy, int HiDy) span)
+    /// at the top could not be read.
+    /// <para>#3489: a column that carries a LANDMARK streams up to the landmark's top in that column as well, but only as far
+    /// as the player's chunk sphere reaches (<paramref name="liftRadius"/> chunks, <see cref="LandmarkLiftRadius"/>): a chunk
+    /// beyond it would be pruned from the sent-set and unloaded by the client right away, and sent again on the next pass.
+    /// What stands above the sphere is the far silhouette's to draw (#3497).</para></summary>
+    private (int LoDy, int HiDy) WithStructureTop(ChunkCoord center, int dx, int dz, (int LoDy, int HiDy) span, int liftRadius)
     {
-        int top = TextMonumentTopChunk(center.X + dx, center.Z + dz);
-        return top == int.MinValue ? span : (span.LoDy, System.Math.Max(span.HiDy, top - center.Y));
+        int hi = span.HiDy;
+        int tablet = TextMonumentTopChunk(center.X + dx, center.Z + dz);
+        if (tablet != int.MinValue)
+        {
+            hi = System.Math.Max(hi, tablet - center.Y);
+        }
+
+        int reach = (liftRadius * liftRadius) - (dx * dx) - (dz * dz);
+        if (reach > 0)
+        {
+            int landmark = LandmarkTopChunk(center.X + dx, center.Z + dz);
+            if (landmark != int.MinValue)
+            {
+                hi = System.Math.Max(hi, System.Math.Min(landmark - center.Y, (int)System.Math.Sqrt(reach)));
+            }
+        }
+
+        return (span.LoDy, hi);
     }
 
     /// <summary>Sends one chunk to a session right now and records it as sent. The regular streaming pass
@@ -3546,7 +3574,7 @@ public sealed partial class GameServer
         foreach (var session in JoinedInActiveWorld())
         {
             var anchor = WorldConstants.CanonicalChunk(WorldConstants.WorldToChunk(session.State.Position.ToBlock()), _world.Circumference);
-            int pruneRadius = System.Math.Min(EffectiveViewRadius(session) + 4, 20);
+            int pruneRadius = SentSetPruneRadius(session);
             int pruneSq = pruneRadius * pruneRadius;
             int circumference = _world.Circumference;
             session.Streaming.SentChunks.RemoveWhere(c => WorldConstants.WrappedChunkDistanceSquared(c, anchor, circumference) > pruneSq);
@@ -4266,6 +4294,7 @@ public sealed partial class GameServer
         SendDataCubes(session);   // minigame download cubes on the join world
         SendNetFragments(session); // story net fragments on the join world (P2)
         SendFactories(session);   // factories on the join world (animated machines + production terminals)
+        SendLandmarks(session);   // #3494/#3497: the landmark's far silhouette and its sound emitters
         SendGameUnlocks(session); // the player's downloaded-games collection (per-player, persisted)
         BackfillPlaceDiscoveries(session); // pre-#1113 saves: mirror already-landed bodies into "Places" first
         BackfillScanSites(session); // pre-#1843 saves: derive WHERE for place/monument keys from the body id

@@ -1,0 +1,67 @@
+[
+  {
+    "key": "ruin_common",
+    "rolls": [
+      { "picks": 3, "entries": [
+        { "item": "iron_plate", "min": 1, "max": 4, "weight": 4 },
+        { "item": "cable", "min": 1, "max": 3, "weight": 3 },
+        { "item": "silicate", "min": 2, "max": 5, "weight": 3 },
+        { "item": "carbon_composite", "min": 1, "max": 3, "weight": 2 },
+        { "item": "copper_ore", "min": 2, "max": 5, "weight": 2 },
+        { "item": "iron_ore", "min": 2, "max": 5, "weight": 2 }
+      ] },
+      { "chance": 0.3, "entries": [
+        { "item": "data_fragment", "min": 1, "max": 2, "weight": 3 },
+        { "item": "crystal", "min": 1, "max": 2, "weight": 2 },
+        { "item": "gold_ingot", "min": 1, "max": 1, "weight": 1 }
+      ] }
+    ]
+  },
+  {
+    "key": "ruin_rich",
+    "rolls": [
+      { "picks": 3, "entries": [
+        { "item": "titanium_plate", "min": 1, "max": 3, "weight": 3 },
+        { "item": "circuit_board", "min": 1, "max": 2, "weight": 3 },
+        { "item": "energy_cell_1", "min": 1, "max": 2, "weight": 2 },
+        { "item": "iron_plate", "min": 2, "max": 5, "weight": 2 }
+      ] },
+      { "picks": 2, "chance": 0.6, "entries": [
+        { "item": "gold_ingot", "min": 1, "max": 3, "weight": 3 },
+        { "item": "crystal", "min": 1, "max": 3, "weight": 3 },
+        { "item": "data_fragment", "min": 1, "max": 3, "weight": 2 }
+      ] },
+      { "chance": 0.1, "entries": [
+        { "item": "access_code", "min": 1, "max": 1, "weight": 1 }
+      ] }
+    ]
+  },
+  {
+    "key": "mine_ore",
+    "rolls": [
+      { "picks": 3, "entries": [
+        { "item": "iron_ore", "min": 4, "max": 10, "weight": 4 },
+        { "item": "copper_ore", "min": 4, "max": 10, "weight": 4 },
+        { "item": "nickel_ore", "min": 3, "max": 8, "weight": 3 },
+        { "item": "carbon", "min": 3, "max": 8, "weight": 3 },
+        { "item": "gold_ore", "min": 1, "max": 4, "weight": 1 }
+      ] },
+      { "chance": 0.5, "entries": [
+        { "item": "torch", "min": 2, "max": 6, "weight": 3 },
+        { "item": "ladder", "min": 3, "max": 8, "weight": 2 },
+        { "item": "cable", "min": 1, "max": 3, "weight": 1 }
+      ] }
+    ]
+  },
+  {
+    "key": "kitchen_food",
+    "rolls": [
+      { "picks": 2, "entries": [
+        { "item": "berries", "min": 2, "max": 5, "weight": 3 },
+        { "item": "cooked_meat", "min": 1, "max": 3, "weight": 2 },
+        { "item": "hearty_stew", "min": 1, "max": 2, "weight": 2 },
+        { "item": "emergency_ration", "min": 1, "max": 2, "weight": 1 }
+      ] }
+    ]
+  }
+]

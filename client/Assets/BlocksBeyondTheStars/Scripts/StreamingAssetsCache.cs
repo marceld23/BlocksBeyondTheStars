@@ -52,6 +52,9 @@ namespace BlocksBeyondTheStars.Client
             "gds_logs.json", // #3341
             "hud_frames.json", // #3317
             "items.json",
+            "landmarks/sample_mine.json", // #3483
+            "landmarks/sample_store.json", // #3483
+            "landmarks/sample_tower.json", // #3483
             "locale_coverage.json",
             "locales/de.json",
             "locales/en.json",
@@ -68,6 +71,7 @@ namespace BlocksBeyondTheStars.Client
             "locales/uk.json",
             "locales/zh.json",
             "lodges.json",
+            "loot_tables.json", // #3488
             "minigames/catalog.json",
             "missions.json",
             "pioneer_skins.json",

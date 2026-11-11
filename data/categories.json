@@ -84,7 +84,8 @@
       "key": "deco", "nameKey": "category.deco.name", "group": "building", "icon": "cat_blocks", "iconItem": "lantern",
       "items": [ "torch", "lantern", "light_white", "light_red", "light_green", "strip_light_cyan", "strip_light_warm", "paper_lantern",
                  "diya_lamp", "pumpkin_lantern", "rug", "flower_pot", "gift_box", "bed", "name_tag", "signal_display", "melody_block",
-                 "chime", "dice_block", "gaming_pc", "gaming_monitor", "gaming_keyboard", "gaming_mouse" ],
+                 "chime", "dice_block", "gaming_pc", "gaming_monitor", "gaming_keyboard", "gaming_mouse",
+                 "mine_track", "mine_cart", "dripstone", "burger_bun", "burger_patty", "burger_cheese" ],
       "blueprints": [ "crystal_sound", "crystal_signals", "sounder_voice" ]
     },
     {

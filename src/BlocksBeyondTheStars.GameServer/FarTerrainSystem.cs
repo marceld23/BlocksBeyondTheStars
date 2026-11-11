@@ -282,8 +282,14 @@ internal sealed class FarTerrainSystem
         var block = new ushort[Cells];
         var tint = new int[Cells];
         var has = new bool[Cells];
+        int circumference = world.World.Circumference;
         foreach (var top in tops)
         {
+            if (world.Landmarks.Count > 0 && world.Landmarks.Exists(lm => lm.StandsAt(top.X, top.Y, top.Z, circumference)))
+            {
+                continue; // #3497: a landmark is drawn by its far silhouette — a height blob on top of it would hide its shape
+            }
+
             int cx = (top.X - minX) / FarTerrainTile.CellBlocks;
             int cz = (top.Z - minZ) / FarTerrainTile.CellBlocks;
             if ((uint)cx >= FarTerrainTile.CellsPerSide || (uint)cz >= FarTerrainTile.CellsPerSide)

@@ -136,6 +136,9 @@ refreshed 2026-10-23.
   twin swaps, step-wise block moves, the server-owned lift platform the client draws and rides, the kid rules.
 - [MONORAIL.md](MONORAIL.md) — the monorail hover train (#2113): pylons and energy lines, authored wagons on the
   spline, riders walking inside the moving frame, the intercity line and the abandoned stations.
+- [LANDMARKS.md](LANDMARKS.md) — landmarks (#3483): giant authored buildings, one per planet at most, derived into ruins by
+  one shared ruin pass; the compact template body, marker settings and loot tables, the underground part, sound emitters,
+  dens, the streaming lift and the far silhouette, authoring in the editor and by script.
 - [FACTORIES_RUINS_AND_CLAIMING.md](FACTORIES_RUINS_AND_CLAIMING.md) — factories with roster-limited
   production terminals, ruins/treasure chests, and access-code claiming.
 - [VOICE_CHAT.md](VOICE_CHAT.md) — push-to-talk voice chat + the tiered radio reach (planet/system/galaxy).

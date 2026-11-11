@@ -83,6 +83,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 y = BuildModuleRows(_body, y);
             }
+            else if (_landmarkMode)
+            {
+                y = BuildLandmarkRows(_body, y); // #3492
+            }
 
             y = BuildPackRows(_body, y);
             y = BuildGenerateRows(_body, y);
@@ -160,18 +164,8 @@ namespace BlocksBeyondTheStars.Client
             // Use as (#1826 / #1877): a complete structure, or a MODULE of a kit with a function — the composers dock
             // station modules port to port and stamp settlement / city modules into plots and districts.
             RowLabel(p, y, L("ui.struct.role"));
-            _roleLabel = ValueLabel(p, y, L(_moduleMode ? "ui.use.module" : "ui.use.whole"));
-            UiKit.AddFitButton(p, ArrowX, y + 3f, ArrowW, RowH, "→", () =>
-            {
-                _moduleMode = !_moduleMode;
-                if (_moduleMode && string.IsNullOrEmpty(_function))
-                {
-                    _function = Functions()[0];
-                }
-
-                SyncRole();
-                RebuildUi();
-            });
+            _roleLabel = ValueLabel(p, y, UseLabel());
+            UiKit.AddFitButton(p, ArrowX, y + 3f, ArrowW, RowH, "→", CycleUse); // #3492: whole → kit module → landmark
             y += ValueRowStep;
 
             // #1890: the kit panel is reachable in both modes — editing a kit needs no module on the table. A module also
@@ -257,7 +251,7 @@ namespace BlocksBeyondTheStars.Client
 
                 // #3333: a whole settlement may be UNDERGROUND — never rolled for the surface, only the underground stamper
                 // seats it. A module takes the flag from its kit (the kit panel's toggle).
-                if (!_moduleMode)
+                if (!_moduleMode && !_landmarkMode)
                 {
                     UiKit.AddFitButton(p, 16f, y, 348f, 34f, (_underground ? "☑ " : "☐ ") + L("ui.struct.underground"), () => { _underground = !_underground; RebuildUi(); });
                     y += 40f;
