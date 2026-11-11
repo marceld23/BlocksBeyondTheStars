@@ -150,6 +150,12 @@ namespace BlocksBeyondTheStars.Client
         // gets its horizon back. Unload stays beyond the draw cull so a visible chunk is never dropped;
         // the collider range never exceeds the cull (nothing interactable lives beyond it on mobile).
         // ViewDistanceChunks is the join-time value the server actually streams at (0 = server default 4).
+        /// <summary>#3497: how far (blocks) chunks are drawn right now — a landmark's far silhouette is cut away inside it.</summary>
+        public float ChunkDrawDistanceNow => EffectiveChunkDistances().Cull;
+
+        /// <summary>#3497: the view distance (chunks) the server streams this client at (its default when the client asked for none).</summary>
+        public int StreamViewDistanceChunks => ViewDistanceChunks > 0 ? ViewDistanceChunks : 4;
+
         private (float Cull, float Collider, float Unload) EffectiveChunkDistances()
         {
             int vd = ViewDistanceChunks > 0 ? ViewDistanceChunks : 4;

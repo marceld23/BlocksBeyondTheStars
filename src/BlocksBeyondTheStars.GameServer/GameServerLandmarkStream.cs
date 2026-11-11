@@ -53,6 +53,14 @@ public sealed partial class GameServer
 
     internal sealed partial class LandmarkInstance
     {
+        /// <summary>Whether a world cell lies in the landmark's box from its ground row up — the part the far silhouette
+        /// draws (#3497), which the far tiles therefore leave out.</summary>
+        public bool StandsAt(int x, int y, int z, int circumference)
+        {
+            int dx = WorldConstants.WrapDeltaX(x - Origin.X, circumference);
+            return dx >= 0 && dx < Structure.Width && z >= Origin.Z && z < Origin.Z + Structure.Length && y >= GroundY && y < Origin.Y + Structure.Height;
+        }
+
         private int[]? _columnTop;
         private readonly Dictionary<(int X, int Z), int> _topChunks = new();
 

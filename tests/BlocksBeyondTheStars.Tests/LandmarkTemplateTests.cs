@@ -271,4 +271,31 @@ public sealed class LandmarkTemplateTests
         Assert.All(content.LootTables.Values, t => Assert.NotEmpty(t.Rolls));
         Assert.All(content.Landmarks, t => Assert.Empty(LandmarkRules.Problems(t)));
     }
+
+    [Fact]
+    public void TheShippedSamples_AreCompact_PinOnly_AndBuild()
+    {
+        // tools/gen_landmarks.py: three small samples for play tests — never rolled, stamped only by /landmark <key>.
+        foreach (string key in new[] { "sample_tower", "sample_mine", "sample_store" })
+        {
+            var t = Content.LandmarkByKey(key);
+            Assert.NotNull(t);
+            Assert.True(t!.PinOnly, key + " would be rolled for a world");
+            Assert.True(TemplateBody.IsCompact(t));
+            Assert.All(t.Cells, c => Assert.Equal("marker", c.Kind));
+            Assert.StartsWith("landmark." + key, t.NameKey);
+            var layout = BlocksBeyondTheStars.WorldGeneration.LandmarkGenerator.Build(t, 1, 0, Content, "grass");
+            Assert.Equal(LandmarkRules.IsRuin(t), layout.Ruined);
+            Assert.Equal(t.GroundRow, layout.GroundRow);
+        }
+
+        Assert.Empty(Content.LandmarksFor(null, "meadowlands", atmosphere: true, inhabited: true)); // nothing is rolled yet
+        Assert.True(Content.LandmarkByKey("sample_mine")!.GroundRow > 0);
+        Assert.True(Content.LandmarkByKey("sample_store")!.Protected);
+        foreach (string locale in new[] { "en", "de" })
+        {
+            var table = TestLocales.Load(locale);
+            Assert.All(Content.Landmarks, t => Assert.True(table.ContainsKey(t.NameKey), $"{locale}: {t.NameKey} is missing"));
+        }
+    }
 }

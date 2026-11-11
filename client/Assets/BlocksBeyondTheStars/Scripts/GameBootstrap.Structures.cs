@@ -283,6 +283,16 @@ namespace BlocksBeyondTheStars.Client
         /// (animated machines) and used for the roster-filtered production terminal.</summary>
         public NetFactory[] Factories { get; private set; } = System.Array.Empty<NetFactory>();
 
+        /// <summary>#3497: the landmarks of the current world with their far silhouette models — drawn by
+        /// <c>LandmarkSilhouetteView</c> beyond the streamed chunks.</summary>
+        public NetLandmark[] Landmarks { get; private set; } = System.Array.Empty<NetLandmark>();
+
+        /// <summary>#3494: the sound emitters of the current world — played by <c>SoundEmitterView</c>.</summary>
+        public NetSoundEmitter[] SoundEmitters { get; private set; } = System.Array.Empty<NetSoundEmitter>();
+
+        /// <summary>Bumped whenever <see cref="Landmarks"/> / <see cref="SoundEmitters"/> are replaced, so the views rebuild.</summary>
+        public int LandmarksVersion { get; private set; }
+
         /// <summary>Start's subscriptions for the world's structures: ship stations, POIs, beacons, beams, the crystal
         /// net, lifts, bases, factories, landing pads, data cubes, speeders and trains. Called once from
         /// <see cref="Start"/>, before the transport connects.</summary>
@@ -311,6 +321,13 @@ namespace BlocksBeyondTheStars.Client
             };
             Network.BasesReceived += m => Bases = m.Bases ?? System.Array.Empty<NetBase>();
             Network.FactoriesReceived += m => Factories = m.Factories ?? System.Array.Empty<NetFactory>();
+            Network.LandmarksReceived += m =>
+            {
+                // #3494/#3497: the world's landmark silhouettes and sound emitters (an empty list clears the last world's)
+                Landmarks = m.Landmarks ?? System.Array.Empty<NetLandmark>();
+                SoundEmitters = m.Emitters ?? System.Array.Empty<NetSoundEmitter>();
+                LandmarksVersion++;
+            };
             Network.LandingPadsReceived += m =>
             {
                 LandingPads = m.Pads ?? System.Array.Empty<NetLandingPad>();

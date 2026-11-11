@@ -19,7 +19,7 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public sealed partial class StructureEditor
     {
-        [Serializable] private sealed class CellJson { public int x, y, z; public string kind, id; public int tint, glow, shape; public string port = string.Empty; public int mode; public string config = string.Empty, label = string.Empty; }
+        [Serializable] private sealed class CellJson { public int x, y, z; public string kind, id; public int tint, glow, shape; public string port = string.Empty; public int mode; public string config = string.Empty, label = string.Empty; public bool keep; }
         [Serializable] private sealed class LayoutJson { public int width, height, length; public List<CellJson> cells = new(); }
         [Serializable] private sealed class MetaJson
         {
@@ -125,6 +125,12 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_capturingPreview || CreationSubmitDialog.IsAnyOpen)
             {
+                return;
+            }
+
+            if (_landmarkMode)
+            {
+                SetStatus(L("ui.ed.landmark.no_submit")); // #3492: a landmark's compact file is not a submission bundle yet
                 return;
             }
 

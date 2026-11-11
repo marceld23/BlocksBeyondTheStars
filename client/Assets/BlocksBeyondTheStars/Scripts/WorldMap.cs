@@ -261,6 +261,7 @@ namespace BlocksBeyondTheStars.Client
                     ("map_settlement", "ui.map.settlement", new Color(0.5f, 0.95f, 0.6f)),
                     ("map_ruin", "ui.map.ruin", new Color(0.65f, 0.6f, 0.55f)),
                     ("map_lodge", "ui.map.kind_lodge", LodgeCol), // #2647: a wilderness hut
+                    ("map_ruin", "ui.map.kind_landmark", LandmarkCol), // #3496: a landmark (the fifteenth entry — the third row holds three)
                     ("map_base", "ui.map.kind_outpost", OutpostCol), // #2681: a pioneer's outpost (an NPC's base — the base icon in khaki gold)
                     ("map_wreck", "ui.map.wreck", new Color(1f, 0.55f, 0.3f)),
                     ("map_station", "ui.map.other", new Color(0.8f, 0.8f, 0.9f)),
@@ -794,9 +795,14 @@ namespace BlocksBeyondTheStars.Client
             TraderShipPoi => ("⚖", TraderShipCol, "map_ship"), // a landed trader ship's pilot (#1904) — the ship icon in trade gold
             HunterShuttlePoi => ("⚠", HunterShuttleCol, "map_ship"), // #3097: a hunter shuttle's robot camp — the ship icon in Guardian red
             "lodge" => ("⌂", LodgeCol, "map_lodge"), // #2647: a wilderness hut ("Tilda's hut") — a log cabin in warm wood brown
+            "landmark" => ("♜", LandmarkCol, "map_ruin"), // #3496: a giant building — the ruin icon in pale gold
             "outpost" => ("⌂", OutpostCol, "map_base"), // #2681: a pioneer's outpost ("Mira's outpost") — an NPC's base, in sand
             _ => ("◆", new Color(0.8f, 0.8f, 0.9f), "map_station"),
         };
+
+        /// <summary>#3496: the colour of a landmark (one giant authored building, usually a ruin) — a pale gold, apart from
+        /// the fallen settlement's grey-brown (the same icon) and the hut's wood brown.</summary>
+        public static readonly Color LandmarkCol = new Color(0.95f, 0.84f, 0.45f);
 
         /// <summary>#2647: the colour of a lodge (a small inhabited hut out in the wilderness) — a warm wood brown, apart from
         /// the ruin's grey-brown, the wreck's orange and the factory's pale amber.</summary>

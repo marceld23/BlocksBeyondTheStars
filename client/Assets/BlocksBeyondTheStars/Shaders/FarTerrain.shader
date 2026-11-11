@@ -4,6 +4,9 @@
 //   * the column mask (_Sc_FarMask, one texel per chunk column around the player): a column where a real chunk holding
 //     the surface is drawn never shows far terrain on top of it;
 //   * the level's inner radius (TEXCOORD0.x, blocks from _Sc_FarCenter): the coarse level stays out of the near disc.
+// #3497: the same shader draws a landmark's far silhouette (TEXCOORD0.x < 0). A tower stands far above the chunk that
+// holds the surface, so the column mask would hide all of it; instead it is cut away in a sphere around the player
+// (_Sc_LandmarkClip), where the landmark's real blocks are streamed and drawn.
 // No Properties block (only globals), so the SRP Batcher needs no UnityPerMaterial cbuffer here.
 Shader "BlocksBeyondTheStars/FarTerrain"
 {
@@ -19,10 +22,18 @@ Shader "BlocksBeyondTheStars/FarTerrain"
         TEXTURE2D(_Sc_FarMask); SAMPLER(sampler_Sc_FarMask);
         float4 _Sc_FarMaskParams; // xy = mask origin (scene blocks), z = 1 / mask size in blocks, w = on
         float4 _Sc_FarCenter;     // xyz = player, w = far-view range
+        float4 _Sc_LandmarkClip;  // #3497: xyz = player, w = the radius inside which a landmark's real blocks are drawn
 
         // Discards far-terrain fragments that real chunks or the finer level cover.
         void FarClip(float3 wp, float inner)
         {
+            if (inner < 0.0)
+            {
+                float3 away = wp - _Sc_LandmarkClip.xyz; // #3497: a landmark's silhouette — a sphere, never the mask
+                clip(dot(away, away) - _Sc_LandmarkClip.w * _Sc_LandmarkClip.w);
+                return;
+            }
+
             if (_Sc_FarMaskParams.w > 0.5)
             {
                 float2 uv = (wp.xz - _Sc_FarMaskParams.xy) * _Sc_FarMaskParams.z;
