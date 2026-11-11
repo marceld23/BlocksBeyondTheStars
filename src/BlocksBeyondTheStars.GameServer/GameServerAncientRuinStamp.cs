@@ -184,6 +184,7 @@ public sealed partial class GameServer
         _banditCamps.ForEach(c => Box(c.Min, c.Max));
         _factories.ForEach(f => Box(f.Min, f.Max));
         _spsLabs.ForEach(l => Box(l.Min, l.Max));
+        _landmarks.ForEach(lm => reserved.Add(lm.Rect)); // #3486: the landmark stamped right before
         return reserved;
     }
 

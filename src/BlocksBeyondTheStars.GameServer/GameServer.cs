@@ -887,6 +887,7 @@ public sealed partial class GameServer
                         BootDetail("wreck", StampWreck);
                     }
 
+                    BootDetail("landmarks", () => StampLandmarks(restricted)); // #3486 (generation 37): one giant authored building — after everything that stands on the ground, before what is buried
                     BootDetail("ancient ruins", () => StampAncientRuins(restricted)); // #3334 (generation 35): the buried G.D.S. ruin — before the vaults, which keep clear of it
 
                     if (_config.PlaceVaults && !restricted)

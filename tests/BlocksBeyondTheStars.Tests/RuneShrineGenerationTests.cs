@@ -96,7 +96,7 @@ public sealed class RuneShrineGenerationTests
         var savanna = Content.Planets["savanna"];
         Assert.Contains("rune-stone", Gen(31, WorldDescription.RuneShrineGeneration - 1).PropActiveForTest(savanna, true, true));
         Assert.DoesNotContain("rune-stone", Gen(31).PropActiveForTest(savanna, true, true));
-        Assert.Equal(WorldDescription.RuneShrineGeneration, WorldDescription.CurrentTerrainGeneration);
+        Assert.True(WorldDescription.RuneShrineGeneration <= WorldDescription.CurrentTerrainGeneration);
 
         // An older world has no shrine at all: no site, no claim on its trees and props.
         var meadow = Content.Planets["meadowlands"];
