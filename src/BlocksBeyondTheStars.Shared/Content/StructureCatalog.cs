@@ -45,6 +45,18 @@ public sealed class StructureCatalog
             }
         }
 
+        // #3484: a landmark is never a settlement — one that reached this pool (an export saved to the wrong folder) is
+        // reported and left out; the landmark pool is filled by SetLandmarks.
+        if (SettlementTemplates.Any(t => t != null && t.Landmark))
+        {
+            foreach (var t in SettlementTemplates.Where(t => t != null && t.Landmark))
+            {
+                warn?.Invoke($"Settlement template '{t.Key}' is a landmark — it belongs in the landmark folder and is not offered as a settlement.");
+            }
+
+            SettlementTemplates = SettlementTemplates.Where(t => t == null || !t.Landmark).ToList();
+        }
+
         _stationsByTier = GroupByTier(StationTemplates);
         _settlementsByTier = GroupByTier(SettlementTemplates);
         RefreshStructurePacks();
@@ -140,7 +152,106 @@ public sealed class StructureCatalog
         foreach (var t in StationTemplates) packs.Add(t.PackOrDefault);
         foreach (var t in SettlementTemplates) packs.Add(t.PackOrDefault);
         foreach (var k in StructureKits) packs.Add(k.PackOrDefault);
+        foreach (var t in Landmarks) packs.Add(t.PackOrDefault);
         StructurePacks = packs.ToList();
+    }
+
+    // --- landmarks (#3484) -------------------------------------------------------------------------------------
+
+    /// <summary>#3484: the LANDMARKS — single authored buildings the landmark stamper seats on a planet on their own.
+    /// A pool of its own: no settlement, module or underground pool ever offers one, and nothing else enters it.</summary>
+    public IReadOnlyList<StructureTemplate> Landmarks { get; private set; } = System.Array.Empty<StructureTemplate>();
+
+    /// <summary>Populates the landmark pool. A template without a key, with a key already taken or with a problem
+    /// (<see cref="LandmarkRules.Problems"/>, plus whatever <paramref name="extraProblems"/> finds — the content's block
+    /// check) is dropped with a warning, so one bad export never breaks the load. Pool order is kept: the stamper draws
+    /// by weight in this order.</summary>
+    public void SetLandmarks(IReadOnlyList<StructureTemplate>? landmarks, Action<string>? warn = null,
+        Func<StructureTemplate, IEnumerable<string>>? extraProblems = null)
+    {
+        var kept = new List<StructureTemplate>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var t in landmarks ?? System.Array.Empty<StructureTemplate>())
+        {
+            if (t == null || string.IsNullOrWhiteSpace(t.Key))
+            {
+                warn?.Invoke("Skipping a landmark without a key.");
+                continue;
+            }
+
+            if (!seen.Add(t.Key))
+            {
+                warn?.Invoke($"Skipping landmark '{t.Key}': a landmark with that key is already loaded.");
+                continue;
+            }
+
+            t.Landmark = true;
+            var problems = LandmarkRules.Problems(t);
+            if (extraProblems != null)
+            {
+                problems.AddRange(extraProblems(t));
+            }
+
+            if (problems.Count > 0)
+            {
+                warn?.Invoke($"Skipping landmark '{t.Key}': {string.Join("; ", problems)}.");
+                continue;
+            }
+
+            kept.Add(t);
+        }
+
+        Landmarks = kept;
+        RefreshStructurePacks();
+    }
+
+    /// <summary>A landmark by exact key (pinned replays), or null when it no longer exists.</summary>
+    public StructureTemplate? LandmarkByKey(string key)
+    {
+        foreach (var t in Landmarks)
+        {
+            if (t.Key == key)
+            {
+                return t;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The landmarks a planet may carry, in pool order: not pin-only, in the enabled packs, on the planet type, and
+    /// with their conditions met — <see cref="LandmarkRules.RequiresAtmosphere"/> needs <paramref name="atmosphere"/>,
+    /// <see cref="LandmarkRules.RequiresInhabited"/> needs <paramref name="inhabited"/>. With
+    /// <paramref name="namedTypeOnly"/> (a planet type with a structure whitelist, #3500) only landmarks whose
+    /// <see cref="StructureTemplate.PlanetTypes"/> NAME the type are offered — "every world" does not reach it.
+    /// </summary>
+    public IReadOnlyList<StructureTemplate> LandmarksFor(IReadOnlyCollection<string>? enabledPacks, string? planetType,
+        bool atmosphere, bool inhabited, bool namedTypeOnly = false)
+    {
+        var list = new List<StructureTemplate>();
+        foreach (var t in Landmarks)
+        {
+            if (t.PinOnly || !TemplateFits(t, enabledPacks, planetType))
+            {
+                continue;
+            }
+
+            if (namedTypeOnly && (string.IsNullOrEmpty(planetType) || !t.PlanetTypes.Contains(planetType!, StringComparer.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            if ((LandmarkRules.Requires(t, LandmarkRules.RequiresAtmosphere) && !atmosphere)
+                || (LandmarkRules.Requires(t, LandmarkRules.RequiresInhabited) && !inhabited))
+            {
+                continue;
+            }
+
+            list.Add(t);
+        }
+
+        return list;
     }
 
     /// <summary>A template of either pool by key — modules included (the kit entries resolve through here);

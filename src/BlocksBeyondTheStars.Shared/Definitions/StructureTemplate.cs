@@ -84,8 +84,67 @@ public sealed class StructureTemplate
     public int Length { get; set; }
     public List<TemplateCell> Cells { get; set; } = new();
 
+    // --- landmarks (#3484): one building that stands on its own -------------------------------------------------
+
+    /// <summary>#3484: a LANDMARK — a single authored building the landmark stamper seats on a planet on its own. It is
+    /// never a settlement, a module or an underground structure, and no settlement pool ever offers it.</summary>
+    public bool Landmark { get; set; }
+
+    /// <summary>#3484: whether the landmark stands as a ruin: <see cref="LandmarkRules.RuinNever"/> (or empty) = as
+    /// built, <see cref="LandmarkRules.RuinAlways"/> = run through the shared ruin pass with the instance's seed.</summary>
+    public string Ruin { get; set; } = string.Empty;
+
+    /// <summary>#3487: how the ruin pass treats the structure — <c>masonry</c> (walls and towers, the default),
+    /// <c>lattice</c> (light erosion, whole spans fall) or <c>underground</c> (cave-ins, the rock stays).</summary>
+    public string RuinProfile { get; set; } = string.Empty;
+
+    /// <summary>#3487: how far the decay goes, 0..1 (0 = the profile's own default).</summary>
+    public double RuinStrength { get; set; }
+
+    /// <summary>#3484: what a planet must offer (<see cref="LandmarkRules.RequiresAtmosphere"/>,
+    /// <see cref="LandmarkRules.RequiresInhabited"/>); empty = no condition beyond the stamper's own.</summary>
+    public List<string> Requires { get; set; } = new();
+
+    /// <summary>#3490: the template row that sits on the ground. Rows above it stand in the open, the rows below it are
+    /// carved into the rock (0 = the whole structure stands on the ground).</summary>
+    public int GroundRow { get; set; }
+
+    /// <summary>#3499: an inhabited landmark — its box is read-only like a lodge's and its posts are staffed.</summary>
+    public bool Protected { get; set; }
+
+    /// <summary>#3496: the locale key of the landmark's display name (the map entry, VEGA's hint); empty = <see cref="Name"/>.</summary>
+    public string NameKey { get; set; } = string.Empty;
+
+    /// <summary>#3485: the compact body's palette — what a run of <see cref="Rows"/> places. Empty on a template that
+    /// lists every cell in <see cref="Cells"/>.</summary>
+    public List<TemplatePaletteEntry> Palette { get; set; } = new();
+
+    /// <summary>#3485: the compact body — one string per (y, z) row that holds blocks:
+    /// <c>"y,z:x.count.palette x.count.palette"</c> (see <c>TemplateBody</c>). Cells with settings (markers, ports,
+    /// devices) stay in <see cref="Cells"/>.</summary>
+    public List<string> Rows { get; set; } = new();
+
     /// <summary>The pack this template belongs to, normalized ("default" when unset).</summary>
     public string PackOrDefault => string.IsNullOrWhiteSpace(Pack) ? "default" : Pack;
+}
+
+/// <summary>#3485: one palette entry of a template's compact body — a block (or a cavity) with its per-cell modifiers.</summary>
+public sealed class TemplatePaletteEntry
+{
+    /// <summary><c>block</c> (default) or <c>cavity</c> (#3490: "this cell is air").</summary>
+    public string Kind { get; set; } = "block";
+
+    /// <summary>The block key or material token; empty for a cavity.</summary>
+    public string Id { get; set; } = string.Empty;
+
+    public int Tint { get; set; }
+
+    public int Glow { get; set; }
+
+    public int Shape { get; set; }
+
+    /// <summary>#3487: the ruin pass leaves these cells standing.</summary>
+    public bool Keep { get; set; }
 }
 
 /// <summary>The module roles a settlement template can take (#1826) — the vocabulary the editor's "Use as"
@@ -212,8 +271,11 @@ public sealed class TemplateCell
     public int X { get; set; }
     public int Y { get; set; }
     public int Z { get; set; }
-    public string Kind { get; set; } = "block"; // "block" | "marker"
+    public string Kind { get; set; } = "block"; // "block" | "marker" | "cavity" (#3490: carve this cell to air)
     public string Id { get; set; } = string.Empty;
+
+    /// <summary>#3487: the ruin pass leaves this cell standing (block cells of a landmark).</summary>
+    public bool Keep { get; set; }
 
     /// <summary>Per-cell dye colour (0xRRGGBB; 0 = none). Applied to tintable blocks like in-game dye.</summary>
     public int Tint { get; set; }
@@ -239,7 +301,9 @@ public sealed class TemplateCell
 
     /// <summary>#2260: a Crystal Net device's settings line (<c>key=value;key=value</c>: a timer's period, a display's
     /// symbols, a direction <c>yaw=4</c>/<c>yaw=5</c> for up / down — a horizontal direction rides in <see cref="Shape"/>
-    /// as the block's front, so a turned module turns it along). Empty = defaults.</summary>
+    /// as the block's front, so a turned module turns it along). Empty = defaults.
+    /// <para>#3488: on a MARKER cell of a landmark the same field is the marker's settings line (a chest's content, a
+    /// vendor's theme, a sound's key and radius, a den's species — see <c>MarkerSettings</c>).</para></summary>
     public string Config { get; set; } = string.Empty;
 
     /// <summary>#2260: a Crystal Net device's name / own line (a display's text, an announcer's line, a sender's name).</summary>

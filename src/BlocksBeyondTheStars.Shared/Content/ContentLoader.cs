@@ -121,6 +121,18 @@ public static class ContentLoader
         }
 
         content.SetStructureKits(kits, warn);
+
+        // Landmarks (#3484): one file per landmark under data/landmarks, plus the editor's user-content folder. The loot
+        // tables (#3488) their chests may name are optional the same way: no loot_tables.json → no tables.
+        var landmarks = LoadLandmarks(Path.Combine(dataDir, "landmarks"), warn);
+        var lootTables = LoadArray<LootTableDefinition>(Path.Combine(dataDir, "loot_tables.json"));
+        if (!string.IsNullOrEmpty(userContentDir) && Directory.Exists(userContentDir))
+        {
+            landmarks.AddRange(LoadLandmarks(Path.Combine(userContentDir!, "landmark_templates"), warn));
+        }
+
+        content.SetLootTables(lootTables);
+        content.SetLandmarks(landmarks, warn);
         content.SetStories(stories);
         content.SetFailedStoryPacks(failedPacks);
 
@@ -249,6 +261,48 @@ public static class ContentLoader
             catch (JsonException ex)
             {
                 warn?.Invoke($"Skipping unreadable user template '{file}': {ex.Message}");
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>Loads every landmark of a folder (#3484): one <see cref="StructureTemplate"/> per file, in ordinal file-name
+    /// order (the pool order the stamper draws in), the key defaulting to the file name. A landmark usually carries the
+    /// compact body (#3485), so a file without listed cells is fine as long as it has rows; an unreadable or empty file
+    /// is reported and skipped.</summary>
+    private static List<StructureTemplate> LoadLandmarks(string dir, Action<string>? warn = null)
+    {
+        var result = new List<StructureTemplate>();
+        if (!Directory.Exists(dir))
+        {
+            return result;
+        }
+
+        var files = Directory.GetFiles(dir, "*.json");
+        Array.Sort(files, StringComparer.Ordinal);
+        foreach (var file in files)
+        {
+            try
+            {
+                var t = JsonSerializer.Deserialize<StructureTemplate>(File.ReadAllText(file), JsonOptions);
+                if (t == null || (t.Cells.Count == 0 && t.Rows.Count == 0))
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(t.Key))
+                {
+                    t.Key = Path.GetFileNameWithoutExtension(file);
+                }
+
+                t.Kind = "landmark";
+                t.Landmark = true;
+                result.Add(t);
+            }
+            catch (JsonException ex)
+            {
+                warn?.Invoke($"Skipping unreadable landmark '{file}': {ex.Message}");
             }
         }
 
