@@ -63,5 +63,9 @@ public static partial class NetCodec
         // an older server drops the intents (the item stays with the player); the state rides on additive fields.
         Register(333, typeof(GiveCompanionGearIntent));      // Client -> Server
         Register(334, typeof(TakeCompanionGearIntent));      // Client -> Server
+
+        // #3494/#3497 the landmarks: the far silhouettes and the sound emitters of the current world. No protocol bump — an
+        // older client drops it (no silhouette, no emitter sound); the blocks stream as chunks either way.
+        Register(335, typeof(LandmarkList));                 // Server -> Client
     }
 }

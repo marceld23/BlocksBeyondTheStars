@@ -163,6 +163,20 @@ public sealed partial class GameServer
             value = KnowledgeMonument;
             ledgerKey = $"monument:{_world.LocationId}:{tablet.Key}";
         }
+        else if (subjectType == "block" && LandmarkForScan(session, cell) is { } landmark)
+        {
+            // #3496: any block of a landmark points the scanner at the landmark — a readout, the knowledge of a relic and a
+            // Codex discovery once per body and landmark.
+            readout.Kind = "landmark";
+            readout.SubjectKey = "landmark_" + landmark.Key;
+            readout.Display = LandmarkName(landmark, session.Locale);
+            readout.InfoKey = landmark.Layout.Ruined ? "ui.scan.landmark.ruin" : "ui.scan.landmark.intact";
+            readout.ThreatKey = "ui.scan.threat.inert";
+            readout.LegacyInfo = landmark.Layout.Ruined ? "The ruin of a giant building." : "A giant building.";
+            readout.LegacyThreat = "Inert";
+            value = KnowledgeMonument;
+            ledgerKey = $"landmark:{_world.LocationId}:{landmark.Key}";
+        }
         else if (subjectType == "block" && (System.Array.IndexOf(RuneBlocks, subjectKey) >= 0 || subjectKey == FossilBlock)
                  && MonumentForScan(session) is { } monument
                  && (subjectKey != FossilBlock || WorldGeneration.MonumentGenerator.IsFossil(monument.Archetype)))

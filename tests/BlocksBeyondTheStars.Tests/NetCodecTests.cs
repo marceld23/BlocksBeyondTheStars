@@ -379,6 +379,7 @@ public sealed class NetCodecTests
         [332] = typeof(TalkToCompanionIntent),   // #3394
         [333] = typeof(GiveCompanionGearIntent), // #3398/#3399
         [334] = typeof(TakeCompanionGearIntent), // #3398/#3399
+        [335] = typeof(LandmarkList),            // #3494/#3497
 
     };
 

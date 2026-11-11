@@ -3471,9 +3471,9 @@ public sealed partial class GameServer
         float titanSq = titanRange * titanRange;
         int removed = _creatures.RemoveAll(c =>
         {
-            if (c.IsCompanion || c.IsGiant || c.CloneOf.Length > 0)
+            if (c.IsCompanion || c.IsGiant || c.CloneOf.Length > 0 || DenKeeps(c))
             {
-                return false; // companions are managed by ReconcileCompanions, giants by TickGiants (#1998) — never far-pruned
+                return false; // companions are managed by ReconcileCompanions, giants by TickGiants (#1998), a den's animals by the den (#3495) — never far-pruned
             }
 
             float limitSq = _speciesById.TryGetValue(c.SpeciesId, out var sp)

@@ -1185,6 +1185,7 @@ public sealed partial class GameServer
         SendNetFragments(session); // story net fragments on this body (P2)
         SendVegaObjective(session); // the story objective is per body — "a fragment is HERE" (#1110)
         SendFactories(session); // factories on this body (animated machines + production terminals)
+        SendLandmarks(session); // #3494/#3497: the landmark's far silhouette and its sound emitters
         SendBeacons(session);
         SendMarkers(session); // the new body's markers (#1217) — the old world's set is stale now
         SendBeams(session); // placed beam blocks (teleporter pads) on this body
@@ -2864,6 +2865,7 @@ public sealed partial class GameServer
         SendDataCubes(session);
         SendNetFragments(session);
         SendFactories(session);
+        SendLandmarks(session);
         SendBeacons(session);
         SendMarkers(session);
         SendBeams(session);
@@ -4292,6 +4294,7 @@ public sealed partial class GameServer
         SendDataCubes(session);   // minigame download cubes on the join world
         SendNetFragments(session); // story net fragments on the join world (P2)
         SendFactories(session);   // factories on the join world (animated machines + production terminals)
+        SendLandmarks(session);   // #3494/#3497: the landmark's far silhouette and its sound emitters
         SendGameUnlocks(session); // the player's downloaded-games collection (per-player, persisted)
         BackfillPlaceDiscoveries(session); // pre-#1113 saves: mirror already-landed bodies into "Places" first
         BackfillScanSites(session); // pre-#1843 saves: derive WHERE for place/monument keys from the body id

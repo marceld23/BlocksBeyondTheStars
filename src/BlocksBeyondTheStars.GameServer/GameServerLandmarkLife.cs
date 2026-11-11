@@ -55,6 +55,7 @@ public sealed partial class GameServer
             Rng = RngFor(lm.Seed, "markers"),
         };
         var lootRng = RngFor(lm.Seed, "landmark-loot");
+        lm.RevealKey = $"{_world.LocationId}|landmark:{lm.Key}";
         bool doors = false;
         foreach (var marker in lm.Structure.Markers)
         {
@@ -77,12 +78,22 @@ public sealed partial class GameServer
             {
                 QueueWorldCircuitCell(cell, marker.Data);
             }
+            else if (marker.Type == LandmarkRules.SoundMarker)
+            {
+                AddLandmarkEmitter(lm, cell, MarkerSettings.Parse(marker.Data)); // #3494
+            }
+            else if (marker.Type == LandmarkRules.DenMarker)
+            {
+                AddLandmarkDen(lm, cell, MarkerSettings.Parse(marker.Data)); // #3495
+            }
         }
 
         if (doors)
         {
             RegisterDoors();
         }
+
+        SpawnLandmarkResidents(lm); // #3499: only an inhabited landmark has any
     }
 
     /// <summary>The one-time container of a chest (idempotent through <see cref="WorldMetadata.GeneratedLoot"/>: a looted

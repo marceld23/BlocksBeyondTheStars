@@ -49,7 +49,7 @@ public sealed class SoaniriWorldTests
         Assert.Equal("chime_moss", p.SurfaceBlock);
         Assert.True(p.SingingMeadows);
         Assert.True(p.RestrictStructures);
-        Assert.Equal(new[] { "monuments" }, p.AllowedStructures);
+        Assert.Equal(new[] { "monuments", "landmarks" }, p.AllowedStructures); // #3500: the landmarks that name Soaniri
         Assert.Equal(new[] { 4, 6 }, p.MonumentCount);
         Assert.Equal(0.0, p.EnemyDensity);
         Assert.Contains("mud", p.Biomes.Select(b => b.SurfaceBlock));

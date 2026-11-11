@@ -130,6 +130,7 @@ public sealed partial class GameServer
             TickStep.Dt("TickBaseVisits", TickBaseVisits), // #2602 friendly visitors walk up to a base (1 Hz); #2997 walking near a base finds it
             TickStep.Plain("TickBaseLife", TickBaseLife), // #1120/#2718: settlers move in — per world, one base per 10 s, one scan per tick at most
             TickStep.Dt("TickLodges", TickLodges), // #2640/#2641: lodges found by passing players, the store crates (1 Hz)
+            TickStep.Dt("TickLandmarks", TickLandmarks), // #3495/#3496: a landmark found by a passing player, its dens (1 Hz)
             TickStep.Dt("TickWanderers", TickWanderers), // #2646: named travellers met in the open land (1 Hz)
             TickStep.Dt("TickNpcRoutine", TickNpcRoutine), // #1867/#1868: work by day, sit in the evening, sleep at night; jobs
             TickStep.Dt("TickNpcPaths", TickNpcPaths), // #1866: at most one NPC path search per tick

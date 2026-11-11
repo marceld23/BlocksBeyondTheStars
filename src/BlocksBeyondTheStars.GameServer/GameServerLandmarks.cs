@@ -26,7 +26,7 @@ namespace BlocksBeyondTheStars.GameServer;
 /// settlement) by weight, a quarter turn and the instance seed — each a hash of its own.</item>
 /// <item><b>Pinned, stamped once.</b> One placement record (<see cref="LandmarkRules.RecordKind"/>, index 0) holds the
 /// template key, the seat, the turn, the seed and the ruin pass revision; the blocks are written once (feature
-/// <c>landmark:0</c>) and a ruin stays as the players leave it. Every later load re-derives the layout from the record for
+/// <c>landmark:&lt;index&gt;</c>) and a ruin stays as the players leave it. Every later load re-derives the layout from the record for
 /// the markers — chests (once ever), doors, sound emitters, dens, residents. A body that was visited before the feature
 /// gets a pinned skip: nothing ever grows next to a base after the fact.</item>
 /// </list>
@@ -34,7 +34,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private const string LandmarkFeature = LandmarkRules.RecordKind + ":0";
+    /// <summary>The stamped-feature key of landmark <paramref name="index"/> of a body (0 = the rolled one; an admin's
+    /// <c>/landmark</c> stamps take the next free index).</summary>
+    private static string LandmarkFeature(int index) => LandmarkRules.RecordKind + ":" + index.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>How far a landmark keeps from the pads' levelled ground beyond its own footprint.</summary>
     private const int LandmarkPadMargin = 16;
@@ -82,6 +84,7 @@ public sealed partial class GameServer
         public required int Turns;
         public int OriginX, OriginZ, GroundY;
         public string Seat = "flat";
+        public int Index;
         public bool Fresh;
         public LandmarkLayout? Layout;
     }
@@ -125,12 +128,16 @@ public sealed partial class GameServer
             return;
         }
 
-        var rec = FindPlacementRecord(LandmarkRules.RecordKind, 0);
-        if (rec is not null)
+        // Every record of this body is replayed: index 0 is the rolled landmark, higher ones an admin stamped by hand.
+        var records = _meta.Placements.Where(r => r.LocationId == _world.LocationId && r.Kind == LandmarkRules.RecordKind).OrderBy(r => r.Index).ToList();
+        if (records.Count > 0)
         {
-            if (rec.Placed && LandmarkPlanFromRecord(rec) is { } pinned)
+            foreach (var rec in records)
             {
-                CommitLandmark(pinned);
+                if (rec.Placed && LandmarkPlanFromRecord(rec) is { } pinned)
+                {
+                    CommitLandmark(pinned);
+                }
             }
 
             return;
@@ -291,6 +298,7 @@ public sealed partial class GameServer
             OriginZ = rec.Z,
             GroundY = rec.GroundY,
             Seat = rec.Seat,
+            Index = rec.Index,
         };
         plan.Layout = BuildLandmarkLayout(plan);
         return plan;
@@ -302,7 +310,7 @@ public sealed partial class GameServer
         var layout = plan.Layout!;
         if (plan.Fresh)
         {
-            RecordPlacement(LandmarkRules.RecordKind, 0, new Vector3i(plan.OriginX, plan.GroundY, plan.OriginZ), plan.GroundY, false, plan.Seat,
+            RecordPlacement(LandmarkRules.RecordKind, plan.Index, new Vector3i(plan.OriginX, plan.GroundY, plan.OriginZ), plan.GroundY, false, plan.Seat,
                 plan.Template.Name, plan.Template.Key, kitLayout: LandmarkPin(plan), hashRevision: StructurePlacementRecord.MixedHashRevision);
             SavePlacementRecords();
         }
@@ -316,12 +324,12 @@ public sealed partial class GameServer
             Seed = plan.Seed,
         };
 
-        if (!FeatureStamped(LandmarkFeature))
+        if (!FeatureStamped(LandmarkFeature(plan.Index)))
         {
             var clock = System.Diagnostics.Stopwatch.StartNew();
             int cells = 0;
             _repo.RunInTransaction(() => cells = WriteLandmark(instance, plan.Seat));
-            MarkFeatureStamped(LandmarkFeature); // after the commit: a crash mid-stamp re-stamps, never half-marks
+            MarkFeatureStamped(LandmarkFeature(plan.Index)); // after the commit: a crash mid-stamp re-stamps, never half-marks
             _log.Info($"Stamped landmark '{instance.Key}' ({layout.Structure.Width}×{layout.Structure.Height}×{layout.Structure.Length}, " +
                       $"{(layout.Ruined ? "ruin" : "intact")}, seat {plan.Seat}) on '{_world.LocationId}': {cells} cells in {clock.ElapsedMilliseconds} ms.");
         }
