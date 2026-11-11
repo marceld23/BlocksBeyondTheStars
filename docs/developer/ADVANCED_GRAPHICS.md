@@ -429,14 +429,26 @@ mip bands at distance, and the seam to the coarse far terrain stayed visible. Tw
 both **barely noticeable** on purpose, both only where the world has air. The gate is the server's
 `AtmosphereDensity > 0`, not "the haze is on": the crystal world keeps a haze but has no air and stays as sharp as the
 moons, asteroids and the void. The rules are `DistanceSoftLook` (Client.Core, headless-tested). `Sky.Mist.cs`
-`ApplyDistanceSoft` turns them into one global, `_Sc_DistSoft` (layout in the `AtmosphereCommon.hlsl` header). The
-global is zeroed by `ClearMist`, faded out indoors and under water, and empty for preview cameras (their `_Sc_Fog` is
-off). Weather needs no rule of its own: fog, rain and sandstorms pull the haze range in, and both parts follow it.
+`ApplyDistanceSoft` turns them into two globals, `_Sc_DistSoft` and `_Sc_DistSoftRange` (layout in the
+`AtmosphereCommon.hlsl` header). They are zeroed by `ClearMist`, faded out indoors and under water, and empty for
+preview cameras (their `_Sc_Fog` is off).
+
+- **One switch (#3480, Lyxette "I want my far view back"):** *Soft distance* (`ClientSettings.DistanceSoftness`)
+  governs both parts — `Sky.TextureSoftEnabled` is the stored switch (every preset; the browser has no row and keeps the
+  default), `Sky.DistanceSoftEnabled` the same switch gated to the blur's presets. Before, the texture softening rode on
+  *Distance haze* alone and stayed on with *Soft distance* off.
+- **Clear-weather range (#3481):** both parts run on the world's clear-weather haze range, not the weather-shortened
+  one: `DistanceSoftLook.ClearHaze(FarHaze.BaseFar(chunk edge, far view, air), chunk edge, persistent mist, air)` —
+  the storm, the night, fog weather, a festival, sand and ash storms and the dawn haze still pull `_Sc_Fog` in, but no
+  longer drag the softening close (a storm used to put a building at middle distance at the band's full strength). The
+  blur band begins at `DistanceSoftLook.BlurBandStart` = max(40 % of the clear range, the streamed-chunk edge): real
+  blocks are never blurred, only the far terrain; with the far view off the haze ends at the chunk edge and nothing is
+  blurred. `_Sc_DistSoftRange` = (texture ramp start, end, blur band end).
 
 - **Texture softening (#3461, every preset, the browser too, rides on *Distance haze*):**
-  - `BlockAtlas.shader` fades a texel toward its tile's average colour along the distance veil
-    (`BbtsDistSoftTexture`: strength × the linear haze-distance term). The strength is 0.25 in thin air and 0.35 in
-    thick air, reached at the haze end.
+  - `BlockAtlas.shader` fades a texel toward its tile's average colour along the clear-weather haze
+    (`BbtsDistSoftTexture`: strength × the linear term from `_Sc_DistSoftRange.x` to `.y`). The strength is 0.25 in
+    thin air and 0.35 in thick air, reached at the clear haze end.
   - The average is one explicit-LOD tap of the atlas's mip with exactly one texel per tile: mip 6 of the 64-px tiles,
     or mip 5 under Potato's global mip limit, which halves runtime textures. Sky sends that mip in `_Sc_DistSoft.w`.
   - A cutout tile's black holes are divided out (mean / alpha).
@@ -451,8 +463,9 @@ off). Weather needs no rule of its own: fog, rain and sandstorms pull the haze r
     1. the camera colour to quarter resolution (four depth-aware taps per 4×4 block), with the scene's distance in alpha;
     2. a depth-aware, separable 7-tap gaussian;
     3. a depth-aware upsample blended over the camera colour with
-       `blend × smoothstep(band start, haze end, distance)`.
-  - The blend is 0.4 (thin air) to 0.5 (thick air). The band starts at 40 % of the haze range and is full at its end.
+       `blend × smoothstep(band start, band end, distance)` (`_Sc_DistSoft.z`, `_Sc_DistSoftRange.z`).
+  - The blend is 0.4 (thin air) to 0.5 (thick air). The band starts at 40 % of the clear-weather haze range, never inside
+    the streamed chunks (#3481), and is full at the clear haze end.
   - The sky stays sharp:
     - far-plane pixels (open sky, the sun, stars, aurora, rings, clouds against the sky) get weight 0;
     - the moons and planets of the surface sky (`SkyBodyPhase`, opaque with `ZWrite On` at 60–460 m, inside the band)

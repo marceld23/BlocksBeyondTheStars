@@ -659,10 +659,12 @@ The air and the weather leave their mark on the world (atmosphere package, Octob
   switching this applies as the world streams in.)
 - **Soft particles**: dust, mist and smoke no longer cut a hard line into the ground (Medium and up).
 - **Soft distance** (only on worlds with air): far away, inside the haze, the block textures soften a little toward
-  their colour, so the distant landscape stops flickering when you move. This rides on **Distance haze & sun rays**
-  and runs on every preset. On **Medium** and up (not in the browser) the far part of the haze also gets a very slight
-  blur — the mountains read as far away. It has its own switch, **Settings → Graphics → Soft distance**, and is off
-  with **Reduced effects**. Both are barely noticeable on purpose. Shapes stay sharp, so you still spot a village or
+  their colour, so the distant landscape stops flickering when you move. On **Medium** and up (not in the browser) the
+  far landscape beyond the loaded blocks also gets a very slight blur — the mountains read as far away; the blocks
+  around you are never blurred. Both follow the world's clear-weather view, so a storm, the night or fog still haze the
+  view in but do not smear your buildings closer by. **Settings → Graphics → Soft distance** switches **both** off (your
+  far view looks as it did before 2026.11.16); the blur is also off with **Reduced effects**. Both are barely noticeable
+  on purpose. Shapes stay sharp, so you still spot a village or
   an animal far away, and the sky, the sun, the stars and the moons and planets above you always stay sharp.
   Airless moons, asteroids and the crystal world stay crisp to the horizon.
 

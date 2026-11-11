@@ -22,10 +22,15 @@ namespace BlocksBeyondTheStars.Client
         private static readonly int CloudBandId = Shader.PropertyToID("_Sc_CloudBand");
         private static readonly int CloudBandColorId = Shader.PropertyToID("_Sc_CloudBandColor");
         private static readonly int DistSoftId = Shader.PropertyToID("_Sc_DistSoft"); // #3461/#3462, see AtmosphereCommon.hlsl
+        private static readonly int DistSoftRangeId = Shader.PropertyToID("_Sc_DistSoftRange"); // #3481, see AtmosphereCommon.hlsl
 
         /// <summary>#3462: the "Soft distance" switch, already gated to Medium+ on a desktop client
         /// (<see cref="DistanceSoftView.EnabledFor"/>; wired by WorldRig, pushed live by the settings). Off until wired.</summary>
         public bool DistanceSoftEnabled;
+
+        /// <summary>#3480: the "Soft distance" switch as stored — it governs the texture softening on every preset (the browser
+        /// has no row and keeps the default, on). Wired by WorldRig, pushed live by the settings.</summary>
+        public bool TextureSoftEnabled = true;
 
         /// <summary>#3462: the player's Reduced effects — keeps the far field sharp (the blur is a comfort risk).</summary>
         public bool ReducedEffects;
@@ -134,7 +139,7 @@ namespace BlocksBeyondTheStars.Client
             // Where the haze begins, as a fraction of the far edge: thin/clear-air worlds stay CRISP across the near + mid
             // distance and only veil the far edge (high start), while soupy worlds haze from much closer in (low start).
             // Weather that already crushed `far` keeps its near, dense look — a small `far` lands the haze close anyway.
-            float fogStart = far * Mathf.Lerp(0.78f, 0.55f, Mathf.Clamp01(airDensity));
+            float fogStart = DistanceSoftLook.HazeStart(far, airDensity);
             MirrorLegacyFog(sky, fogStart, far);
 
             // The actual visible haze: an explicit distance blend the shaders apply. Reaches FULL opacity at the far edge, so
@@ -143,7 +148,7 @@ namespace BlocksBeyondTheStars.Client
             float maxHaze = (FogEnabled ? 1f : 0f) * (1f - _indoor); // 0 indoors or when the player disabled fog
             ApplyUnderwater(sky, seenDay, airDensity, ref fogStart, ref far, ref maxHaze);
             SetFog(new Vector4(fogStart, far, maxHaze, (FogEnabled || _submerged > 0.001f) ? 1f : 0f));
-            ApplyDistanceSoft(env, fogStart, far);
+            ApplyDistanceSoft(env, renderDist, airDensity);
 
             float exposure = Probe != null ? Probe.CameraExposure : 1f;
             float mist = ApplyHeightFog(env, tod, day, exposure);
@@ -162,16 +167,26 @@ namespace BlocksBeyondTheStars.Client
         /// <see cref="AtmosphereProbe.UndergroundFactor"/>, not on the camera's open-sky exposure, which is 0 under any tree
         /// crown and would switch the blur off for a player looking out of a forest over a valley. No env yet = no air.
         /// w carries the atlas mip with one texel per tile (Potato's mip limit halves the atlas).
+        /// <para>#3480: the "Soft distance" switch governs the texture softening too. #3481: both run on the world's
+        /// clear-weather haze range (<see cref="DistanceSoftLook.ClearHaze"/>) — the weather still hazes the view in, but no
+        /// longer drags the softening close — and the blur band starts no nearer than the streamed chunks' edge
+        /// (<paramref name="renderDist"/>): the range goes out as <c>_Sc_DistSoftRange</c> (x/y the texture ramp, z the
+        /// blur band's end).</para>
         /// </summary>
-        private void ApplyDistanceSoft(WorldEnvironment env, float fogStart, float far)
+        private void ApplyDistanceSoft(WorldEnvironment env, float renderDist, float airDensity)
         {
             float density = env?.AtmosphereDensity ?? 0f;
             float open = (1f - _indoor) * (1f - _submerged);
             float aboveGround = Probe != null ? 1f - Probe.UndergroundFactor : 1f;
-            float fade = DistanceSoftLook.TextureFade(density, FogEnabled) * open;
+            float fade = DistanceSoftLook.TextureFade(density, TextureSoftEnabled, FogEnabled) * open;
             DistanceBlur01 = DistanceSoftLook.BlurBlend(density, DistanceSoftEnabled, FogEnabled, ReducedEffects) * open * Mathf.Clamp01(aboveGround);
             int meanMip = DistanceSoftLook.TileMeanMip(BlockTextureAtlas.Tile, QualitySettings.globalTextureMipmapLimit);
-            Shader.SetGlobalVector(DistSoftId, new Vector4(fade, DistanceBlur01, DistanceSoftLook.BandStart(fogStart, far), meanMip));
+            int farView = Game?.FarView != null ? Game.FarView.ActiveRange : 0;
+            float baseFar = BlocksBeyondTheStars.Client.FarTerrain.FarHaze.BaseFar(renderDist, farView, airDensity);
+            var (clearStart, clearEnd) = DistanceSoftLook.ClearHaze(baseFar, renderDist, PersistentMist(env), airDensity);
+            float band = DistanceSoftLook.BlurBandStart(clearStart, clearEnd, renderDist);
+            Shader.SetGlobalVector(DistSoftId, new Vector4(fade, DistanceBlur01, band, meanMip));
+            Shader.SetGlobalVector(DistSoftRangeId, new Vector4(clearStart, clearEnd, Mathf.Max(clearEnd, band + 1f), 0f));
         }
 
         /// <summary>Where the distance haze is complete (metres): the far-view range by the air's thinness, pulled in by storms,
@@ -473,6 +488,7 @@ namespace BlocksBeyondTheStars.Client
             Shader.SetGlobalVector(MistCamId, _mistCam);
             DistanceBlur01 = 0f; // #3461/#3462: no distance softness without a haze
             Shader.SetGlobalVector(DistSoftId, Vector4.zero);
+            Shader.SetGlobalVector(DistSoftRangeId, Vector4.zero); // #3481
             RenderSettings.fog = false;
         }
 

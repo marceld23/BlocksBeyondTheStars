@@ -9,7 +9,8 @@
 //   Pass 1/2 blur      — a depth-aware 7-tap gaussian, horizontal then vertical: taps across a depth edge drop out, and
 //                        the open sky never bleeds into a ridgeline (nor a ridgeline into the sky).
 //   Pass 3  composite  — a depth-aware upsample of the blurred image, blended over the camera colour with
-//                        weight = _Sc_DistSoft.y × smoothstep(band start _Sc_DistSoft.z, haze end _Sc_Fog.y, distance).
+//                        weight = _Sc_DistSoft.y × smoothstep(band start _Sc_DistSoft.z, band end _Sc_DistSoftRange.z,
+//                        distance) — #3481: the clear-weather haze range, the band never inside the streamed chunks.
 //                        It never touches the open sky (far-plane pixels: weight 0 — the sun, the stars, the aurora, the
 //                        rings and the clouds against the sky stay sharp) nor the moons and planets in the surface sky
 //                        (SkyBodyPhase draws them opaque at 60–460 m and marks them with stencil bit 64 — as do the particles and the
@@ -21,7 +22,7 @@
 // Globals (DistanceSoftPass; the AtmosphereCommon ones come from Sky.Mist.cs):
 //   _Sc_DistSoftTexel xy = 1 / quarter-res size, zw = quarter-res size
 //   _Sc_DistSoft      y = the largest blend, z = the band start (metres) — see AtmosphereCommon.hlsl
-//   _Sc_Fog           y = the haze end (metres): the blend is full there
+//   _Sc_DistSoftRange z = the band's end (metres): the blend is full there (#3481)
 Shader "BlocksBeyondTheStars/DistanceSoft"
 {
     SubShader
@@ -34,7 +35,7 @@ Shader "BlocksBeyondTheStars/DistanceSoft"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
         #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
-        #include "AtmosphereCommon.hlsl" // _Sc_Fog, _Sc_DistSoft
+        #include "AtmosphereCommon.hlsl" // _Sc_DistSoft, _Sc_DistSoftRange
 
         // The open sky's "distance" in the low-res alpha (a half float holds up to 65504).
         #define DS_SKY_DEPTH 60000.0
@@ -207,7 +208,7 @@ Shader "BlocksBeyondTheStars/DistanceSoft"
                 }
 
                 float d0 = DsDistance(uv, raw);
-                float bandEnd = max(_Sc_Fog.y, _Sc_DistSoft.z + 1.0);
+                float bandEnd = max(_Sc_DistSoftRange.z, _Sc_DistSoft.z + 1.0);
                 float weight = _Sc_DistSoft.y * smoothstep(_Sc_DistSoft.z, bandEnd, d0);
                 if (weight < 0.002)
                 {
