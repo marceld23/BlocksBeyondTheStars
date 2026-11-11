@@ -157,6 +157,7 @@ namespace BlocksBeyondTheStars.Client
         // Data-cube minigames: cubes to render on the current world + the player's downloaded-games collection.
         public event Action<DataCubeList>? DataCubesReceived;
         public event Action<FactoryList>? FactoriesReceived; // factories on the current world (animated machines + terminals)
+        public event Action<LandmarkList>? LandmarksReceived; // #3494/#3497: the world's landmark silhouettes and sound emitters
         public event Action<GameUnlocks>? GameUnlocksReceived;
 
         // Story system ("The VEGA Protocol"): the active story's shared progress, the world's net fragments,
