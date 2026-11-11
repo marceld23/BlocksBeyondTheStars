@@ -352,8 +352,8 @@ public sealed class AdminCommandGateTests : IDisposable
         };
         var actual = SvGameServer.AdminCommandTableForTest().ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
 
-        Assert.Equal(46, expected.Count);
-        Assert.Equal(46, actual.Count);
+        Assert.Equal(47, expected.Count);
+        Assert.Equal(47, actual.Count);
         Assert.Equal(expected.Keys.OrderBy(k => k, StringComparer.Ordinal), actual.Keys.OrderBy(k => k, StringComparer.Ordinal));
         foreach (var (verb, gate) in expected)
         {

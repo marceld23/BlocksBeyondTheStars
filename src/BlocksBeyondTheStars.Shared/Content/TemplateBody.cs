@@ -125,40 +125,7 @@ public static class TemplateBody
     /// existing one — the cells are the source). Cells with settings stay where they are, in their order.</summary>
     public static void Compact(StructureTemplate t)
     {
-        var all = new List<Plain>();
-        ForEachPlain(t, all.Add); // an existing compact body is folded in: Compact is idempotent
-        var kept = new List<TemplateCell>();
-        foreach (var c in t.Cells)
-        {
-            if (!IsPlain(c))
-            {
-                kept.Add(c);
-            }
-        }
-
-        // A cell with settings on a block wins over a plain cell at the same place (it IS that block).
-        var taken = new HashSet<(int, int, int)>();
-        foreach (var c in kept)
-        {
-            if (c.Kind != "marker")
-            {
-                taken.Add((c.X, c.Y, c.Z));
-            }
-        }
-
-        // Last write wins per cell, like the cell list itself.
-        var byCell = new Dictionary<(int, int, int), Plain>();
-        foreach (var p in all)
-        {
-            if (!taken.Contains((p.X, p.Y, p.Z)))
-            {
-                byCell[(p.X, p.Y, p.Z)] = p;
-            }
-        }
-
-        var sorted = new List<Plain>(byCell.Values);
-        sorted.Sort((a, b) => a.Y != b.Y ? a.Y.CompareTo(b.Y) : a.Z != b.Z ? a.Z.CompareTo(b.Z) : a.X.CompareTo(b.X));
-
+        var sorted = SortedPlainCells(t, out var kept);
         var palette = new List<TemplatePaletteEntry>();
         var index = new Dictionary<(bool, string, int, int, int, bool), int>();
         var rows = new List<string>();
@@ -172,45 +139,16 @@ public static class TemplateBody
             bool first = true;
             while (i < sorted.Count && sorted[i].Y == y && sorted[i].Z == z)
             {
-                var start = sorted[i];
-                var key = (start.Cavity, start.Id, start.Tint, start.Glow, start.Shape, start.Keep);
-                if (!index.TryGetValue(key, out int p))
-                {
-                    p = palette.Count;
-                    index[key] = p;
-                    palette.Add(new TemplatePaletteEntry
-                    {
-                        Kind = start.Cavity ? LandmarkRules.CavityKind : "block",
-                        Id = start.Id,
-                        Tint = start.Tint,
-                        Glow = start.Glow,
-                        Shape = start.Shape,
-                        Keep = start.Keep,
-                    });
-                }
-
-                int count = 1;
-                while (i + count < sorted.Count)
-                {
-                    var next = sorted[i + count];
-                    if (next.Y != y || next.Z != z || next.X != start.X + count
-                        || (next.Cavity, next.Id, next.Tint, next.Glow, next.Shape, next.Keep) != key)
-                    {
-                        break;
-                    }
-
-                    count++;
-                }
-
+                int count = RunLength(sorted, i);
                 if (!first)
                 {
                     sb.Append(' ');
                 }
 
                 first = false;
-                sb.Append(start.X.ToString(CultureInfo.InvariantCulture)).Append('.')
+                sb.Append(sorted[i].X.ToString(CultureInfo.InvariantCulture)).Append('.')
                     .Append(count.ToString(CultureInfo.InvariantCulture)).Append('.')
-                    .Append(p.ToString(CultureInfo.InvariantCulture));
+                    .Append(PaletteIndex(sorted[i], palette, index).ToString(CultureInfo.InvariantCulture));
                 i += count;
             }
 
@@ -220,6 +158,89 @@ public static class TemplateBody
         t.Palette = palette;
         t.Rows = rows;
         t.Cells = kept;
+    }
+
+    private static (bool, string, int, int, int, bool) LookOf(Plain p) => (p.Cavity, p.Id, p.Tint, p.Glow, p.Shape, p.Keep);
+
+    /// <summary>Every plain cell of the template — an existing compact body folded in, so <see cref="Compact"/> is
+    /// idempotent — one per place (the last one written wins, like the cell list itself), ordered by y, z, x.
+    /// <paramref name="kept"/> receives the cells with settings; a block cell with settings wins over a plain cell at
+    /// its place (it IS that block).</summary>
+    private static List<Plain> SortedPlainCells(StructureTemplate t, out List<TemplateCell> kept)
+    {
+        var all = new List<Plain>();
+        ForEachPlain(t, all.Add);
+        kept = new List<TemplateCell>();
+        var taken = new HashSet<(int, int, int)>();
+        foreach (var c in t.Cells)
+        {
+            if (IsPlain(c))
+            {
+                continue;
+            }
+
+            kept.Add(c);
+            if (c.Kind != "marker")
+            {
+                taken.Add((c.X, c.Y, c.Z));
+            }
+        }
+
+        var byCell = new Dictionary<(int, int, int), Plain>();
+        foreach (var p in all)
+        {
+            if (!taken.Contains((p.X, p.Y, p.Z)))
+            {
+                byCell[(p.X, p.Y, p.Z)] = p;
+            }
+        }
+
+        var sorted = new List<Plain>(byCell.Values);
+        sorted.Sort((a, b) => a.Y != b.Y ? a.Y.CompareTo(b.Y) : a.Z != b.Z ? a.Z.CompareTo(b.Z) : a.X.CompareTo(b.X));
+        return sorted;
+    }
+
+    /// <summary>How many cells from <paramref name="start"/> on continue one run: the same row, consecutive x, the same look.</summary>
+    private static int RunLength(List<Plain> sorted, int start)
+    {
+        var first = sorted[start];
+        var look = LookOf(first);
+        int count = 1;
+        while (start + count < sorted.Count)
+        {
+            var next = sorted[start + count];
+            if (next.Y != first.Y || next.Z != first.Z || next.X != first.X + count || LookOf(next) != look)
+            {
+                break;
+            }
+
+            count++;
+        }
+
+        return count;
+    }
+
+    /// <summary>The palette index of a cell's look, appended to the palette on its first use.</summary>
+    private static int PaletteIndex(Plain p, List<TemplatePaletteEntry> palette, Dictionary<(bool, string, int, int, int, bool), int> index)
+    {
+        var look = LookOf(p);
+        if (index.TryGetValue(look, out int at))
+        {
+            return at;
+        }
+
+        at = palette.Count;
+        index[look] = at;
+        palette.Add(new TemplatePaletteEntry
+        {
+            Kind = p.Cavity ? LandmarkRules.CavityKind : "block",
+            Id = p.Id,
+            Tint = p.Tint,
+            Glow = p.Glow,
+            Shape = p.Shape,
+            Keep = p.Keep,
+        });
+        return at;
     }
 
     /// <summary>The inverse of <see cref="Compact"/>: every plain cell becomes a <see cref="TemplateCell"/> again (the
