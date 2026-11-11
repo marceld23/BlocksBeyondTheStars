@@ -978,9 +978,8 @@ public sealed partial class GameServer
 
         MakeSeatForPlayer(t, wagon, seat); // #3445: players first — an NPC on that seat moves over
 
-        // Standing: where they are, brought into the wagon; seated: on the seat.
-        var un = Unwrapped(pos, p.Position);
-        var local = seat >= 0 ? seats[seat] : RailRules.ClampLocal(RailRules.WorldToLocal(pos, yaw, un));
+        // Standing: where they are, brought into the wagon; seated: on the seat (#3472: up from a seat — into the aisle).
+        var local = BoardingLocal(t, p, wagon, seat, pos, yaw);
         var rider = new RailRider { Wagon = wagon, Seat = seat, Local = local };
         t.Riders[p.PlayerId] = rider;
         p.InTrain = RailRules.FrameId(t.Id, wagon);

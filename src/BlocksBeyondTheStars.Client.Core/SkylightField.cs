@@ -133,6 +133,18 @@ namespace BlocksBeyondTheStars.Client
 
         private bool OpenAt(int wx, int wy, int wz) => wy > Top(wx, wz);
 
+        /// <summary>#3478 (Lyxette, building under water): whether the daylight reaches the cell — open to the sky, or covered
+        /// only by see-through blocks (water, leaves, glass) within <see cref="SkylightRules.ShadeDepthFull"/>. A lake has no
+        /// open column below its surface, so a cell under a few logs standing in it found no opening at all and went black
+        /// (skylight 0): the faces looking into it drew as flat dark quads among the lit lake floor. As an opening such a cell
+        /// lends its own light (the shade floor); it never asks for an opening itself — its thin cover is full — so the
+        /// search cannot recurse.</summary>
+        private bool LightReaches(int wx, int wy, int wz)
+        {
+            int top = Top(wx, wz);
+            return wy > top || (top - wy < SkylightRules.ShadeDepthFull && CoverCount(wx, wy, wz, top) == 0);
+        }
+
         private float Compute(int wx, int wy, int wz)
         {
             int top = Top(wx, wz);
@@ -145,7 +157,7 @@ namespace BlocksBeyondTheStars.Client
             int depth = top - wy + 1;
             int cover = depth <= SkylightRules.ShadeDepthNone ? CoverCount(wx, wy, wz, top) : SkylightRules.CoverSolid;
             float thin = SkylightRules.ThinCover(cover) * SkylightRules.DepthFade(depth);
-            float opening = thin >= 1f ? 0f : NearOpening(wx, wy, wz, open);
+            float opening = thin >= 1f ? 0f : NearOpening(wx, wy, wz);
             return SkylightRules.Covered(open, SkylightRules.CoveredFloor(depth, cover, opening));
         }
 
@@ -214,17 +226,16 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The near-opening share (0..1): the nearest open column at the cell's height — the kernel's rings first,
         /// then the eight compass directions out to <see cref="SkylightRules.ProbeReach"/> — scaled by that opening's own
         /// skylight, so the tunnel at the foot of a deep shaft is never brighter than the shaft's floor.</summary>
-        private float NearOpening(int wx, int wy, int wz, int kernelOpen)
+        private float NearOpening(int wx, int wy, int wz)
         {
-            if (kernelOpen > 0)
+            // #3478: the rings run even when no kernel column is open to the sky — under water a lit neighbour is covered
+            // only by water (LightReaches), which the open-sky kernel count never sees.
+            for (int ring = 1; ring <= SkylightRules.Kernel; ring++)
             {
-                for (int ring = 1; ring <= SkylightRules.Kernel; ring++)
+                float best = RingOpening(wx, wy, wz, ring);
+                if (best >= 0f)
                 {
-                    float best = RingOpening(wx, wy, wz, ring);
-                    if (best >= 0f)
-                    {
-                        return SkylightRules.NearOpening(ring) * best;
-                    }
+                    return SkylightRules.NearOpening(ring) * best;
                 }
             }
 
@@ -234,7 +245,7 @@ namespace BlocksBeyondTheStars.Client
                 for (int d = 0; d < DirX.Length; d++)
                 {
                     int px = wx + DirX[d] * dist, pz = wz + DirZ[d] * dist;
-                    if (OpenAt(px, wy, pz))
+                    if (LightReaches(px, wy, pz))
                     {
                         best = Math.Max(best, At(px, wy, pz));
                     }
@@ -257,7 +268,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 for (int oz = -ring; oz <= ring; oz++)
                 {
-                    if (Math.Max(Math.Abs(ox), Math.Abs(oz)) == ring && OpenAt(wx + ox, wy, wz + oz))
+                    if (Math.Max(Math.Abs(ox), Math.Abs(oz)) == ring && LightReaches(wx + ox, wy, wz + oz))
                     {
                         best = Math.Max(best, At(wx + ox, wy, wz + oz));
                     }

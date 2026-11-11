@@ -98,7 +98,8 @@ namespace BlocksBeyondTheStars.Client
 
             if (Player.Game.TrainSeat < 0 && !Player.Body.enabled)
             {
-                Player.Body.enabled = true; // stood up from a seat
+                StandUpIntoAisle(); // #3472: stood up from a seat — into the aisle, then the controller
+                Player.Body.enabled = true;
                 Player.Avatar?.SetSeated(false);
             }
 
@@ -292,17 +293,30 @@ namespace BlocksBeyondTheStars.Client
             transform.SetParent(null, true);
             _trainFrame = null;
             _trainFrameId = string.Empty;
+            ForgetHeldSeat();
+            Player.LeaveBerthView();
             Player.Body.enabled = true;
             Player.Avatar?.SetSeated(false);
             Player.ApplyCameraMode();
         }
 
-        /// <summary>A seated rider is parked on the seat of the wagon, controller off (the seat is the frame's fixed point).</summary>
-        internal void HoldTrainSeat()
+        /// <summary>The seat the body is parked on (frame + seat index), so sitting down turns it only once and standing up
+        /// knows where the aisle beside it is (#3472).</summary>
+        private string _heldSeatKey = string.Empty;
+        private Vector3f _heldSeat;
+        private bool _seatHeld;
+        private bool _heldBerth;
+
+        /// <summary>A seated rider is parked on the seat of the wagon, controller off (the seat is the frame's fixed point).
+        /// The first frame on a seat turns the body the way the seat faces (#3471: across the aisle; #3473: a berth from its
+        /// head toward its foot) — the look is free afterwards. Returns true on that first frame; <paramref name="berth"/> says
+        /// whether the seat is a sleeper's berth (lying down).</summary>
+        internal bool HoldTrainSeat(out bool berth)
         {
+            berth = false;
             if (_trainFrame == null || !RailRules.TryParseFrame(Player.Game.InTrain, out _, out int wagonIndex))
             {
-                return;
+                return false;
             }
 
             var train = Player.Game.RiddenTrain;
@@ -310,26 +324,87 @@ namespace BlocksBeyondTheStars.Client
             var seats = RailRules.SeatOffsets(item);
             if (Player.Game.TrainSeat >= seats.Count)
             {
-                return;
+                return false;
             }
 
             var seat = seats[Player.Game.TrainSeat];
+            berth = RailWagonLayout.IsBerthWagon(item);
             Player.Body.enabled = false;
             Player.VerticalVelocity = 0f;
             transform.position = _trainFrame.TransformPoint(new Vector3(seat.X, seat.Y, seat.Z));
-            Player.Avatar?.SetSeated(true);
-        }
-
-        /// <summary>E aboard: in the cab the panel opens; beside a seat you sit down. Returns true when it did something.</summary>
-        internal bool TrainInteract()
-        {
-            if (_trainFrame == null || !RailRules.TryParseFrame(Player.Game.InTrain, out string trainId, out int wagonIndex))
+            Player.Avatar?.SetSeated(!berth);
+            string key = Player.Game.InTrain + "#" + Player.Game.TrainSeat;
+            _seatHeld = true;
+            _heldSeat = seat;
+            _heldBerth = berth;
+            if (key == _heldSeatKey)
             {
                 return false;
             }
 
+            _heldSeatKey = key;
+            float facing = RailWagonLayout.SeatFacing(item, seat);
+            var dir = _trainFrame.TransformDirection(new Vector3(Mathf.Sin(facing), 0f, Mathf.Cos(facing)));
+            transform.rotation = Quaternion.Euler(0f, Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg, 0f);
+            return true;
+        }
+
+        /// <summary>#3473: the pillow view's eye of the berth the rider lies in (world), false when not lying in one.</summary>
+        internal bool BerthEyeWorld(out Vector3 eye)
+        {
+            eye = default;
+            if (_trainFrame == null || !_seatHeld || !_heldBerth)
+            {
+                return false;
+            }
+
+            var e = RailWagonLayout.BerthEye(_heldSeat);
+            eye = _trainFrame.TransformPoint(new Vector3(e.X, e.Y, e.Z));
+            return true;
+        }
+
+        /// <summary>#3472: up from a seat — the body goes into the aisle beside it before the controller comes back on. The
+        /// seat's own spot lies on its bench or berth cell, where the floor below has no face to stand on: a controller enabled
+        /// there fell through the moving train.</summary>
+        private void StandUpIntoAisle()
+        {
+            if (_seatHeld && _trainFrame != null)
+            {
+                var aisle = RailWagonLayout.StandUpPoint(_heldSeat);
+                transform.position = _trainFrame.TransformPoint(new Vector3(aisle.X, aisle.Y + 0.05f, aisle.Z));
+            }
+
+            ForgetHeldSeat();
+            Player.LeaveBerthView();
+        }
+
+        private void ForgetHeldSeat()
+        {
+            _seatHeld = false;
+            _heldBerth = false;
+            _heldSeatKey = string.Empty;
+        }
+
+        /// <summary>#3474: whether a seat of this wagon is in reach (the HUD's "sit down" prompt aboard).</summary>
+        internal bool SeatInReach() => NearestSeat(out _, out _) >= 0;
+
+        /// <summary>The nearest seat of the rider's wagon within reach (−1 for none, and none in the cab), with its train and wagon.</summary>
+        private int NearestSeat(out string trainId, out int wagonIndex)
+        {
+            if (_trainFrame == null || !RailRules.TryParseFrame(Player.Game.InTrain, out trainId, out wagonIndex))
+            {
+                trainId = string.Empty;
+                wagonIndex = -1;
+                return -1;
+            }
+
             var train = Player.Game.RiddenTrain;
             string item = train != null && train.Wagons != null && wagonIndex < train.Wagons.Length ? train.Wagons[wagonIndex] : string.Empty;
+            if (item == RailRules.CabItemKey)
+            {
+                return -1;
+            }
+
             var seats = RailRules.SeatOffsets(item);
             var local = _trainFrame.InverseTransformPoint(transform.position);
             int best = -1;
@@ -344,7 +419,19 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            if (best >= 0 && item != RailRules.CabItemKey)
+            return best;
+        }
+
+        /// <summary>E aboard: in the cab the panel opens; beside a seat you sit down. Returns true when it did something.</summary>
+        internal bool TrainInteract()
+        {
+            if (_trainFrame == null || !RailRules.TryParseFrame(Player.Game.InTrain, out string trainId, out int wagonIndex))
+            {
+                return false;
+            }
+
+            int best = NearestSeat(out _, out _);
+            if (best >= 0)
             {
                 Player.Game.Network?.SendEnterTrain(trainId, wagonIndex, best);
                 return true;
@@ -362,7 +449,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>On foot: E beside a wagon boards it (your own train or an ally's — the server decides).</summary>
         internal bool TryBoardNearbyTrain()
         {
-            if (Player.Game?.Network == null || Player.Game.Trains == null || Player.Game.Trains.Length == 0)
+            // #3474: aboard, E is not a boarding — it re-boarded the own wagon and swallowed the talk to a passenger.
+            if (_trainFrame != null || Player.Game?.Network == null || Player.Game.Trains == null || Player.Game.Trains.Length == 0)
             {
                 return false;
             }

@@ -54,6 +54,28 @@ public static class FurnitureShapes
     public static bool IsSeat(int shapeIndex)
         => shapeIndex == (int)BlockShape.Chair || shapeIndex == (int)BlockShape.Bench;
 
+    /// <summary>#3475: the heading (Unity yaw degrees: 0 = +Z, 90 = +X) of someone sitting on a chair or bench — away from
+    /// its backrest, which stands toward the form's local +Z after its yaw (<see cref="ShapeCode.YawDirection"/>). False
+    /// for any other form.</summary>
+    public static bool TrySeatFacingYawDegrees(int descriptor, out float yawDegrees)
+    {
+        yawDegrees = 0f;
+        if (!IsSeat(ShapeCode.ShapeOf(descriptor)))
+        {
+            return false;
+        }
+
+        var (x, z) = ShapeCode.YawDirection(ShapeCode.OrientationOf(descriptor));
+        yawDegrees = (x, z) switch
+        {
+            (0, 1) => 180f, // backrest toward +Z: facing −Z
+            (-1, 0) => 90f, // backrest toward −X: facing +X
+            (0, -1) => 0f,  // backrest toward −Z: facing +Z
+            _ => 270f,      // backrest toward +X: facing −X
+        };
+        return true;
+    }
+
     /// <summary>True when the form is one half of the two-cell bed.</summary>
     public static bool IsBedHalf(int shapeIndex)
         => shapeIndex == (int)BlockShape.BedHead || shapeIndex == (int)BlockShape.BedFoot;

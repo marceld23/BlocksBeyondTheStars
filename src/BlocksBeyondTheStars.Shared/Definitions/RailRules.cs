@@ -158,15 +158,10 @@ public static class RailRules
     /// <see cref="AutoLinkBendCostPerDegree"/> — the lowest cost that also passes every link rule wins.</summary>
     public static float AutoLinkCost(float distance, float bendDegrees) => distance + bendDegrees * AutoLinkBendCostPerDegree;
 
-    /// <summary>The seat spots of a wagon kind (wagon-local: X across, Y up from the floor, Z along, +Z toward the cab).</summary>
-    public static IReadOnlyList<Vector3f> SeatOffsets(string wagonItem) => wagonItem switch
-    {
-        "wagon_seats" => new[] { new Vector3f(-0.9f, 0f, 1.6f), new Vector3f(0.9f, 0f, 1.6f), new Vector3f(-0.9f, 0f, -0.4f), new Vector3f(0.9f, 0f, -0.4f), new Vector3f(-0.9f, 0f, -2.2f), new Vector3f(0.9f, 0f, -2.2f) },
-        "wagon_sleeper" => new[] { new Vector3f(-0.9f, 0f, 1.2f), new Vector3f(0.9f, 0f, 1.2f), new Vector3f(-0.9f, 0f, -1.4f), new Vector3f(0.9f, 0f, -1.4f) },
-        "wagon_bar" => new[] { new Vector3f(-0.9f, 0f, -1.8f), new Vector3f(0.9f, 0f, -1.8f) },
-        CabItemKey => new[] { new Vector3f(0f, 0f, 1.8f) }, // the driver's seat
-        _ => Array.Empty<Vector3f>(),
-    };
+    /// <summary>The seat spots of a wagon kind (wagon-local: X across, Y up from the floor, Z along, +Z toward the cab) —
+    /// each on its own bench or berth cell of <see cref="RailWagonLayout"/> (#3471): 8 in a seat wagon, 4 berths in the
+    /// sleeper, 4 at the bar, the cab's driver's place.</summary>
+    public static IReadOnlyList<Vector3f> SeatOffsets(string wagonItem) => RailWagonLayout.Seats(wagonItem);
 
     /// <summary>The wagon-local point of a rider clamped into the wagon's box (the walls and the roof are the limits).</summary>
     public static Vector3f ClampLocal(Vector3f local)

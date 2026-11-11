@@ -3232,13 +3232,21 @@ with a game version that has generation 35 get them — an older world never cha
     sentry's business.
   - **Crops, hydroponic trays or saplings**: the **gardener** (with a hoe) walks from bed to bed, **harvests**
     ripe crops into a **crate** at the base (they regrow as if you had picked them) and helps saplings grow
-    faster. No crate — the gardener only tends.
+    faster. The gardener also farms **your own garden around the base**: crops and **pumpkins** you planted and
+    the **fruit of trees you grew** from a sapling (the fruit grows back on its leaf), up to **32 blocks** from the
+    base core — inside or outside the walls. Only what *you* planted counts: wild plants, wild trees and other
+    players' fields are left alone, and so is anything in a village or in someone else's base. One harvest about
+    every one and a half minutes per base, by day, while you are nearby.
+  - **Where the gardener's harvest goes**: into a crate at the base that takes it; with no crate (or none that takes
+    it) it goes into the **base core's store** — collect it at the core like the core's own yield (the message about
+    the harvest only counts what went into a crate). When the core is full too, the plants stay standing for you.
   - **Workbench or forge**: the **craftsman** (with a hammer) puts two **plant fibres** into a base crate every
     five minutes — or, with a forge and **iron ore** in the crate, smelts **two ore into one ingot** (the same
     as the workbench would).
   - A crate that only takes certain items (a filter) or a full wooden box is respected: what does not fit
-    stays in the field.
-- A post, a crop or a workbench only counts **inside the base** (the same rule as for beds). A trading post
+    stays in the field (the gardener's harvest goes to the core instead, see above).
+- A post, a crop or a workbench only counts **inside the base** (the same rule as for beds) — except your own garden
+  around the base, which the gardener works anyway (see above). A trading post
   or a mission board placed where nobody can staff it tells you why — and so does an idle board when you open the
   Missions tab at it.
 
@@ -4416,8 +4424,11 @@ look up: what a mix does follows from what goes in, and the same things always g
   so nobody aboard is thrown about — on the way back the cab pushes the train from behind. At a stop the train **halts
   centred on the stop post**, whichever way it runs: put the post in the middle of your platform and the whole train
   stands beside it (near the end of a line it stops just short of the end, so no wagon hangs past it). Each wagon looks
-  its part: the seat wagon has wooden benches along its walls, the sleeper glowing bunks two high, the bar wagon a
-  wooden floor and its counter. **Getting off:** walk out through the door, or press **F** — you are put down on the
+  its part: the seat wagon has wooden benches along its walls (**8 seats**), the sleeper **4 berths** — a real bed
+  with a glowing bunk above it, two on each side — and the bar wagon a wooden floor, its counter and a bench opposite
+  (**4 seats**). On a bench you sit across the aisle; in a berth you **lie down** and look up along the bed, like in
+  any bed. Getting up — **E**, jump, crouch or any movement key — puts you back on your feet in the aisle beside your
+  seat. **Getting off:** walk out through the door, or press **F** — you are put down on the
   nearest spot outside the door where you can stand: the ground, or a **platform** up to about a block higher than the
   wagon floor (the floor hovers a little above the pylon's top, so a platform one block higher is a step too tall to
   walk up — **F** or simply **walking into the door** of a halted train gets you onto it). The best height for a
@@ -4442,7 +4453,8 @@ look up: what a mix does follows from what goes in, and the same things always g
   **station** at the edge of each town — look for the amber station marker on the world map ("… Station"). A
   **public train** runs back and forth between the two stations on its own (up to 16 blocks per second) and waits
   about **30 seconds** at each one.
-  Walk up to a wagon and press **E** to board (E beside a seat sits down, **F** leaves), then enjoy the ride. The train
+  Walk up to a wagon and press **E** to board (E beside a seat sits down — unless you are looking at a passenger: then
+  **E** talks to them, as the prompt says; **F** leaves), then enjoy the ride. The train
   belongs to everyone: nobody needs a ticket, and nobody can drive, stop, pack up or add wagons to it. The stations and
   the line's pylons can't be mined.
 - **Villagers ride the train.** When a line has stops in (or right beside) two towns — the intercity line, or a line
@@ -4474,8 +4486,9 @@ look up: what a mix does follows from what goes in, and the same things always g
   aluminium, …), concrete and hull walls, scrap, ice, obsidian — and **glass**, which stays see-through as a stair or a
   sphere. Only blocks with a form or job of their own keep it: fluids, lamps, crystals, machines, doors, crates and
   other props, leaves.
-- **Sitting:** press **E** on any **chair**- or **bench**-shaped cell to sit down — the camera settles to seat height
-  and other players see you sitting. **One seat, one sitter:** a seat somebody already sits on — another player or a
+- **Sitting:** press **E** on any **chair**- or **bench**-shaped cell to sit down — you turn to face away from the
+  backrest, the camera settles to seat height and other players see you sitting (in your own third-person view, too,
+  you sit on the seat). **One seat, one sitter:** a seat somebody already sits on — another player or a
   villager/crew member — can't be taken (*"Someone is already sitting there."*), and people won't sit down on your
   chair either: they wait beside it and sit down once you get up. Stand up with **E**, jump, crouch or any movement key.
 - **Faces:** everyone has a face of their own — some are clean-shaven, others wear a moustache, a goatee, a beard or a

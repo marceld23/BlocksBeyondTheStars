@@ -68,13 +68,16 @@ public sealed class NpcJobsTests
     }
 
     [Fact]
-    public void WithoutACrate_TheGardenerOnlyTends_AndTheCropStays()
+    public void WithoutACrate_AndAFullCore_TheGardenerOnlyTends_AndTheCropStays()
     {
+        // #3477: without a crate the harvest goes into the core's yield store (BaseGardenTests) — only with that full too is
+        // there nowhere to put it.
         using var w = new NpcLifeWorld(_content, "jobs_garden_nocrate");
         int baseId = w.FoundBase();
         int tx = NpcLifeWorld.Cx + 4, tz = NpcLifeWorld.Cz + 3;
         w.Set(tx, w.Feet, tz, "hydro_tray");
         w.Set(tx, w.Feet + 1, tz, "flora_cropberry");
+        w.Server.FillBaseCoreStoreForTest(baseId, "stone", BlocksBeyondTheStars.Shared.Definitions.BaseRules.YieldCapacity);
         w.Server.ScanBaseLifeForTest();
         Assert.Equal("gardener", w.Server.BaseResidentsForTest(baseId).Single().Job);
 

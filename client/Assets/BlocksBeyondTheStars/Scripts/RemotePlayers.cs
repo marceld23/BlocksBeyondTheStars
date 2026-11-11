@@ -239,7 +239,7 @@ namespace BlocksBeyondTheStars.Client
                     var aboard = wagon.TransformPoint(r.Local);
                     if (r.Seated)
                     {
-                        aboard.y -= 0.45f;
+                        aboard.y -= PlayerAvatar.SeatDrop;
                     }
 
                     aboard.y -= PlayerAvatar.CrouchDrop * r.Avatar.CrouchBlend; // #2435: the folded legs are shorter
@@ -256,7 +256,7 @@ namespace BlocksBeyondTheStars.Client
                     var scene = Game != null ? Game.ScenePos(pos.X, pos.Y, pos.Z) : new Vector3(pos.X, pos.Y, pos.Z);
                     if (r.Seated)
                     {
-                        scene.y -= 0.45f; // drop the pelvis onto the chair seat (#806) — the pose bends the legs
+                        scene.y -= PlayerAvatar.SeatDrop; // drop the pelvis onto the chair seat (#806) — the pose bends the legs
                     }
 
                     scene.y -= PlayerAvatar.CrouchDrop * r.Avatar.CrouchBlend; // #2435: a squatting friend sits lower

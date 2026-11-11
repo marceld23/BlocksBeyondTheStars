@@ -91,6 +91,28 @@ public sealed class RailPassengerTests
     }
 
     [Fact]
+    public void AnNpcInTheSleeper_LiesInItsBerth()
+    {
+        // #3473: a berth is a bed — the passenger lies on it (pose 2) with its facing from the foot to the head, as a villager
+        // lies in bed, instead of sitting inside the bunk.
+        using var a = new RailTravelArena(Content.Value, "rail_passenger_sleeper");
+        a.W.Player.State.Inventory.SetSlot(9, new BlocksBeyondTheStars.Shared.State.ItemStack(RailWagonLayout.SleeperItemKey, 1));
+        a.PlaceTrain(NpcLifeWorld.Cx - 10, RailWagonLayout.SleeperItemKey);
+        var platform = a.Server.RailStopPlatformSpotForTest(a.StopEast)!.Value;
+        int v = a.Server.SpawnVillagerForTest("Testville", platform);
+        Assert.Equal(new[] { RailRules.CabItemKey, RailWagonLayout.SleeperItemKey }, a.Server.TrainsForTest().Single().Wagons);
+        a.W.TickAt(0.4, 1.0);
+        Assert.Equal(a.StopEast, a.TickUntilHalted());
+        Assert.True(a.Server.BoardNpcForTest(v, a.TrainId));
+
+        var berth = Assert.Single(a.Server.NpcPassengersForTest(a.TrainId));
+        Assert.True(berth.Seat >= 0);
+        var net = a.Server.NetNpcForTest(v);
+        Assert.Equal(2, net.Pose);
+        Assert.Equal(RailWagonLayout.BerthHeadYaw(berth.Local), net.LocalYaw, 3);
+    }
+
+    [Fact]
     public void PlayersComeFirst_AnNpcGivesItsSeatUp_AndAFullTrainTakesNobody()
     {
         using var a = new RailTravelArena(Content.Value, "rail_passenger_seats");

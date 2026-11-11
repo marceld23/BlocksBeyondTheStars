@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using UnityEngine;
 
@@ -45,12 +46,24 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var at = wagon.TransformPoint(n.RideLocal);
+            n.Yaw = NpcTrainRide.DrawnYawDegrees(wagon.rotation.eulerAngles.y, n.RideYaw);
+            if (n.Pose == 2)
+            {
+                // #3473: asleep in a sleeper's berth, laid out like a villager in bed — the berth's middle is the ride point and
+                // the facing points from its foot to its head, so the feet go half a body toward the foot, the root lies on
+                // its back on the mattress.
+                var headward = Quaternion.Euler(0f, n.Yaw, 0f) * Vector3.forward;
+                n.Go.transform.position = at - (headward * (0.9f * n.Go.transform.localScale.y)) + (Vector3.up * RailWagonLayout.BerthTop);
+                n.Go.transform.rotation = Quaternion.Euler(-90f, n.Yaw + 180f, 0f);
+                n.SettledWorld = n.Target;
+                return true;
+            }
+
             if (n.Pose == 1)
             {
                 at.y -= NpcTrainRide.SeatDrop; // the pelvis on the seat, like a seated remote player
             }
 
-            n.Yaw = NpcTrainRide.DrawnYawDegrees(wagon.rotation.eulerAngles.y, n.RideYaw);
             n.Go.transform.position = at;
             n.Go.transform.rotation = Quaternion.Euler(0f, n.Yaw, 0f);
             n.SettledWorld = n.Target; // the server's world position (the bubble and the voice read it)

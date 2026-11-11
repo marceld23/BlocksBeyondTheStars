@@ -225,14 +225,16 @@ public sealed partial class GameServer
     }
 
     /// <summary>Copies a passenger's seat into the NPC (what the wire carries): the train, the frame, the offset, the facing
-    /// and the pose — seated (1) on a seat, standing (0) in the aisle.</summary>
+    /// and the pose — seated (1) on a seat, lying (2) in a sleeper's berth with the facing from its foot to its head (#3473,
+    /// as a villager lies in bed), standing (0) in the aisle.</summary>
     private static void SyncNpcRide(ServerNpc npc, ServerTrain t, RailRider r)
     {
         npc.TrainId = t.Id;
         npc.RideFrame = RailRules.FrameId(t.Id, r.Wagon);
         npc.RideLocal = r.Local;
-        npc.RideYaw = PassengerLocalYaw(r);
-        npc.Pose = r.Seat >= 0 ? (byte)1 : (byte)0;
+        bool berth = r.Seat >= 0 && r.Wagon >= 0 && r.Wagon < t.Wagons.Count && RailWagonLayout.IsBerthWagon(t.Wagons[r.Wagon]);
+        npc.RideYaw = berth ? RailWagonLayout.BerthHeadYaw(r.Local) : PassengerLocalYaw(r);
+        npc.Pose = berth ? (byte)2 : r.Seat >= 0 ? (byte)1 : (byte)0;
     }
 
     /// <summary>The NPC is on foot again (the caller places it).</summary>

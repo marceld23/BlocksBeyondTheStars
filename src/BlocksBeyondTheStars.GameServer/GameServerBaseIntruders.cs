@@ -122,9 +122,11 @@ public sealed partial class GameServer
         }
 
         // Land animals answer to all three rules. An amphibian only to the floor rule, and only while it stands on a
-        // solid block (OnPlayerBuiltFloor never counts water). Water, lava and cave life is never swept: a fish in a
-        // deep moat reads as "walled in" (the fill treats deep fluid as a wall), and a moat is exactly where it belongs.
-        if (sp.Habitat == CreatureHabitat.Amphibian)
+        // solid block (OnPlayerBuiltFloor never counts water) — and so does water life (#3476): a fish of a lake the
+        // player drained and built over rests on the floor, out of any water, for good. In water it is never swept, nor
+        // is lava and cave life: a fish in a deep moat reads as "walled in" (the fill treats deep fluid as a wall), and a
+        // moat is exactly where it belongs.
+        if (sp.Habitat is CreatureHabitat.Amphibian or CreatureHabitat.Water)
         {
             return OnPlayerBuiltFloor(c.Position);
         }

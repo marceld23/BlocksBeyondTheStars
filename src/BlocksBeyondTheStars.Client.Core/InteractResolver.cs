@@ -197,6 +197,12 @@ namespace BlocksBeyondTheStars.Client
         public static bool IsPerson(InteractKind kind)
             => kind is InteractKind.AimedTalk or InteractKind.AimedTrade or InteractKind.Trade or InteractKind.Talk;
 
+        /// <summary>#3474: whether someone is under the crosshair — a person or the own robot. Aboard a train this beats the
+        /// wagon seat in reach: NPC passengers sit on seats, and E sat the player down (moving the passenger over) while the
+        /// prompt said "talk".</summary>
+        public static bool IsAimedAtSomeone(InteractKind kind)
+            => kind is InteractKind.AimedTalk or InteractKind.AimedTrade or InteractKind.AimedCompanion or InteractKind.GiveCompanion;
+
         /// <summary>The aimed tier, in the order E always tried these — after the person under the crosshair, who has nothing
         /// solid in front of them and so stands before every block behind them, and the own robot companion (#3394), likewise.</summary>
         private static InteractKind ResolveAimed(InteractFacts f)

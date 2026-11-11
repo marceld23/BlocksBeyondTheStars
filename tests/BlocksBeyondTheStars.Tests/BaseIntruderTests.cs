@@ -240,6 +240,36 @@ public sealed class BaseIntruderTests : IDisposable
     }
 
     [Fact]
+    public void AFishStrandedOnAPlayerFloor_IsSweptWhileNobodyLooks()
+    {
+        // #3476 (Lyxette drained a lake and built his base on it): a fish of the old lake no longer sinks into the floor —
+        // it rests on it, out of any water. Like an amphibian ashore it answers to the floor rule and leaves unseen.
+        var server = Started("stranded", out var repo);
+        using (repo)
+        {
+            var fish = server.SpeciesRoster[0];
+            fish.Habitat = CreatureHabitat.Water;
+            fish.Temperament = CreatureTemperament.Passive;
+            fish.Activity = CreatureActivity.Cathemeral;
+            fish.BodyPlan = CreatureBodyPlan.Standard;
+            fish.Size = 1f;
+            fish.SocialGroupSize = 1;
+            fish.BiomeExclusive = false;
+
+            int padY = MaxTopY(server, Cx, Cz, 12) + 8;
+            var p = OnFoot(server, new Vector3f(Cx + 0.5f, padY + 1, Cz - 7.5f), 180f); // facing away from the floor
+            Pad(server, Cx, Cz, 10, padY, owner: p.State.PlayerId);
+            var ashore = new Vector3f(Cx + 0.5f, padY + 1, Cz + 5.5f);
+            Assert.True(server.OnPlayerBuiltFloorForTest(ashore));
+
+            string fishId = server.SpawnCreatureAtForTest(ashore, fish.Id);
+            server.PauseCreatureForTest(fishId, 30f);
+            Assert.True(server.SweepBaseIntrudersForTest());
+            Assert.DoesNotContain(server.Creatures, c => c.Id == fishId);
+        }
+    }
+
+    [Fact]
     public void AWildAnimalInRegrownGrass_OnNaturalGround_IsNotSwept()
     {
         // A harvested plant regrows under its harvester's name — the grass is "player-owned" in the store, the ground

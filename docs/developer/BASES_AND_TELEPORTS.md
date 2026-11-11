@@ -112,11 +112,37 @@ ticks while nobody plays and a singleplayer world earns while the game is closed
   pause-whitelisted (the core screen can be opened while a singleplayer world is held). Mining a core hands its rest to the
   owner's backpack when they are on that world; whatever does not fit (or everything, with the owner away) falls to the ground
   at the core as a drop packet.
+- **The base jobs bank into it too.** The Lumberjack's woodcutter (§7) and, since #3477, the **gardener** put what no base
+  crate takes into the store (`StoreInBaseCore`, never past the capacity; the gardener brings the store up to now first and
+  checks the room before it picks — no crate and a full core leave the plant standing). Neither depends on
+  `BaseYieldPercent`: it is work, not the core's own gathering.
 
 **Why lazy and not a catch-up like #2269:** the machine catch-up has to *simulate* work (drills dig real blocks), so it runs on
 return under a per-tick budget. A yield store only counts, so it can be computed in O(1) at read time — no tick cost at all,
 which matters on a Raspberry Pi and in a browser tab. The economy rule "never mint rare metals from nothing" holds: only
 common, planet-native ores and salvage — except a Miner base (§7), whose players dug down to the rare veins themselves.
+
+### The gardener's farm around the base (#3477)
+
+A tester turned a drained field beside his base into a garden and asked for a farmer whose harvest pays into the base. The
+#1868 gardener worked only crops *inside* the base (`BaseCellInside`); `GameServerBaseGarden.cs` adds the owner's own garden
+around it, collected into `BaseIndex.OwnerGarden` at every index rebuild (no cadence of its own):
+
+- **Query.** One `ListBlockEditsMatching` for the crops, `flora_pumpkin` and every fruit id (`_fruitIds`: the tree fruit, the
+  Fifi berries) in the core's ±32 (`BaseFocus.LumberjackRadius`) × ±32 (`BaseIndexHalfY`) box, at most 512 rows. A wild
+  plant the world generated is never a store row, so the store is the right place to look.
+- **Cheap filters first.** Within the 32 disc horizontally, standing and loaded, not regrowing, not already one of the crops
+  inside, not settlement-protected, not in a stranger's base zone or pad (`IsBaseProtected` for the owner), not a festival
+  deposit, and not a partner base's (`BaseOwnsCell`). Nearest the core first.
+- **The owner rule.** A crop or pumpkin counts when the owner is the cell's last editor (`GetBlockAttribution`; planting writes
+  the planter and server writes keep it). A fruit counts when the trunk it hangs from — the nearest sapling-kind log within 3
+  beside and 8 below, walked down to its foot — stands on a cell the owner edited: a grown sapling's cell keeps its planter,
+  a wild tree's root has no editor. At most 48 point lookups per rebuild (roots cached per rebuild), at most 24 sites kept.
+- **Work.** `GardenSites` appends the owner's garden after the inside sites (the 24-site cap holds), `BaseJobs` offers the
+  gardener for it, and `TendGardenSite` asks the owner rule once more before a pick (the index may be seconds old). The pick
+  is the shared `BreakBlockCore` without a player (drops, a fruit's colour into its regrow on the leaf); a crate first, else
+  the core store. The walk to a site also looks beside the column under a fruit (`GardenApproachSpot`). Pacing (90 s per
+  base), the day shift and the player-near rule are unchanged; a walled base needs a door for the gardener to get out.
 
 ## 7. A base's focus (#3036–#3040)
 
@@ -216,4 +242,5 @@ the Miner's shaft, the woodcutter job, the Radio reach), `BasePadTests` (#3069�
 volume, protection, the access matrix and locked listing, landing and holding, coming home, an inactive pad, the Market
 merchants, a restart), `TraderPadChoiceTests` (#3175/#3176: an Allies pad takes the trader end to end, the own ship on the only
 pad and an Only-me pad tell VEGA's reason, no pad beyond the reach, the far toast and relay, the store ignoring weather snow),
-`Client.Tests/BasePadViewTests` (grouping and lookup).
+`BaseGardenTests` (#3477: a pumpkin, a grown tree's fruit and its regrow, the owner's field outside the base, nothing beyond
+the reach / wild / another player's, the core store and its cap), `Client.Tests/BasePadViewTests` (grouping and lookup).

@@ -18,6 +18,7 @@ public sealed class SkylightFieldTests
 {
     private static readonly BlockId Stone = new BlockId(1);
     private static readonly BlockId Leaves = new BlockId(2);
+    private static readonly BlockId Water = new BlockId(3);
     private const int Ground = 3;
 
     /// <summary>A world of stone ground plus the cells set or dug by the test.</summary>
@@ -53,6 +54,28 @@ public sealed class SkylightFieldTests
     [Fact]
     public void OpenGround_SeesTheFullSky()
         => Assert.Equal(1f, new Scene().Field().At(8, Ground + 1, 8));
+
+    [Fact]
+    public void UnderWater_ACellBelowALogPillar_KeepsLightFromTheLakeAroundIt()
+    {
+        // #3478 (Lyxette): logs standing on a lake covered the water cells under them with three light-stopping blocks, and
+        // under water no column counts as open sky — the faces looking into those cells drew black among the lit lake floor.
+        var scene = new Scene();
+        scene.Fill(-30, 46, Ground + 1, Ground + 3, -30, 46, Water); // a lake three deep
+        scene.Fill(8, 8, Ground + 4, Ground + 6, 8, 8, Stone);       // three logs standing on it
+        var field = scene.Field();
+
+        Assert.Equal(SkylightRules.ShadeFloor, field.At(9, Ground + 1, 8), 4); // the lake floor beside it: as before
+        Assert.Equal(SkylightRules.ShadeFloor * SkylightRules.ShadeFloor, field.At(8, Ground + 1, 8), 4); // shade, not black
+    }
+
+    [Fact]
+    public void UnderWater_TheLakeFloorIsUnchanged()
+    {
+        var scene = new Scene();
+        scene.Fill(-30, 46, Ground + 1, Ground + 3, -30, 46, Water);
+        Assert.Equal(SkylightRules.ShadeFloor, scene.Field().At(8, Ground + 1, 8), 4);
+    }
 
     [Fact]
     public void ATreeCrown_KeepsTheShadeFloor()

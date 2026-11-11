@@ -130,6 +130,21 @@ public sealed class InteractResolverTests
         Assert.False(InteractResolver.IsPerson(InteractKind.NearStation));
     }
 
+    /// <summary>#3474 (Lyxette: "E conflicts: sit down vs. talk to the person"): aboard a train, someone under the crosshair
+    /// beats the wagon seat in reach — and the seat in reach alone shows the plain "sit down" prompt.</summary>
+    [Fact]
+    public void AboardATrain_ThePassengerUnderTheCrosshair_BeatsTheSeatInReach()
+    {
+        var f = new InteractFacts { AimedNpc = true, Seat = true };
+        var kind = InteractResolver.Resolve(f);
+        Assert.Equal(InteractKind.AimedTalk, kind);
+        Assert.True(InteractResolver.IsAimedAtSomeone(kind));
+        Assert.True(InteractResolver.IsAimedAtSomeone(InteractKind.AimedCompanion));
+        Assert.False(InteractResolver.IsAimedAtSomeone(InteractKind.Seat));
+        Assert.False(InteractResolver.IsAimedAtSomeone(InteractKind.Talk)); // a mere neighbour does not block the seat
+        Assert.Equal(InteractKind.Seat, InteractResolver.Resolve(new InteractFacts { Seat = true }));
+    }
+
     /// <summary>#3171 (Lyxette: "standing on it I can't start anything"): on a lift platform E chooses the floor — before a
     /// door or a trader beside it, but a device under the crosshair (a stop on the landing) still wins.</summary>
     [Fact]
