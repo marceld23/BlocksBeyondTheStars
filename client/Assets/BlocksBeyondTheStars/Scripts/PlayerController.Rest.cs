@@ -78,6 +78,7 @@ namespace BlocksBeyondTheStars.Client
             transform.position = Game != null
                 ? Game.ScenePos(cell.x + 0.5f, cell.y, cell.z + 0.5f)
                 : new Vector3(cell.x + 0.5f, cell.y, cell.z + 0.5f);
+            FaceAwayFromBackrest(cell); // #3475: sit facing out of the chair, not into its backrest
             Avatar?.SetSeated(true);
             if (Game != null)
             {

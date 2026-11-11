@@ -240,7 +240,7 @@ namespace BlocksBeyondTheStars.Client
                 if (n.Pose == 1)
                 {
                     // Seated (#1869), exactly like a seated remote player (#806): the pelvis drops onto the seat.
-                    n.Go.transform.position = scene + Vector3.down * 0.45f;
+                    n.Go.transform.position = scene + (Vector3.down * PlayerAvatar.SeatDrop);
                     n.Go.transform.rotation = Quaternion.Euler(0f, n.Yaw, 0f);
                 }
                 else if (n.Pose == 2)

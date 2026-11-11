@@ -33,6 +33,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// a bedroom wall takes the room's air, not its sleeper.</item>
 /// <item>The same inside rule decides the founding (#2677): a bed inside, or three machines inside — counted on demand
 /// for a base nobody lives at yet (<see cref="BaseMachinesInside"/>), cached on the index.</item>
+/// <item><b>The owner's garden around the base</b> (#3477): beside what counts inside, the owner's own crops, pumpkins and
+/// fruit trees within <see cref="BaseFocus.LumberjackRadius"/> of the core, inside or outside the walls
+/// (<c>BaseIndex.OwnerGarden</c>, <see cref="CollectOwnerGarden"/>).</item>
 /// <item>Cached per base, marked dirty by any block set within the base's reach, rebuilt lazily by the base-life
 /// scan; RAM only, never persisted — the store is the truth.</item>
 /// </list>
@@ -72,6 +75,10 @@ public sealed partial class GameServer
         public readonly List<Vector3i> Trays = new();       // hydro tray cells (a crop grows on top)
         public readonly List<Vector3i> Saplings = new();    // planted sapling cells
         public readonly List<Vector3i> SentryPosts = new(); // sentry_post cells
+
+        /// <summary>#3477: the owner's own ripe crops, pumpkins and tree fruit around the base (not among <see cref="Crops"/>),
+        /// nearest the core first, at most the gardener's site cap — see <see cref="CollectOwnerGarden"/>.</summary>
+        public readonly List<Vector3i> OwnerGarden = new();
 
         /// <summary>Profession post cells by job (2026-09), in index order.</summary>
         public readonly Dictionary<string, List<Vector3i>> ProfessionPosts = new(System.StringComparer.Ordinal);
@@ -251,6 +258,8 @@ public sealed partial class GameServer
             }
         }
 
+        CollectOwnerGarden(b, idx, partners); // #3477: after the crops inside are known (GameServerBaseGarden)
+
         // Deterministic order: residents take beds and seats in this order, the gardener walks its sites in it.
         System.Comparison<Vector3i> order = (p, q) => p.Y != q.Y ? p.Y.CompareTo(q.Y) : p.Z != q.Z ? p.Z.CompareTo(q.Z) : p.X.CompareTo(q.X);
         foreach (var list in new[] { idx.BedHeads, idx.Seats, idx.VendorPosts, idx.Boards, idx.Containers, idx.Workbenches, idx.Forges, idx.Crops, idx.Trays, idx.Saplings, idx.SentryPosts })
@@ -268,13 +277,14 @@ public sealed partial class GameServer
 
     /// <summary>The block edits of <paramref name="blocks"/> (or of the <paramref name="shapes"/> forms) in a base's index box —
     /// its walls reach (at most ±<see cref="BaseIndexHalfXZ"/>), ±<see cref="BaseIndexHalfY"/> around the core — asked per canonical
-    /// piece of the box (the store holds canonical columns), at most <paramref name="limit"/> rows in all.</summary>
+    /// piece of the box (the store holds canonical columns), at most <paramref name="limit"/> rows in all. <paramref name="halfXZ"/>
+    /// narrows the box horizontally (#3477: the owner's garden is looked for within the Lumberjack reach only).</summary>
     private List<BlocksBeyondTheStars.Persistence.BlockEdit> BaseIndexEdits(ServerBase b, IReadOnlyCollection<ushort> blocks,
-        IReadOnlyCollection<int> shapes, int limit)
+        IReadOnlyCollection<int> shapes, int limit, int halfXZ = BaseIndexHalfXZ)
     {
         var result = new List<BlocksBeyondTheStars.Persistence.BlockEdit>();
         int circ = _world.Circumference;
-        int reach = System.Math.Min(BaseWallReach(b), BaseIndexHalfXZ);
+        int reach = System.Math.Min(BaseWallReach(b), halfXZ);
         int latPeriod = WorldConstants.LatitudePeriodFor(circ);
         foreach (var (xLo, xHi) in CanonicalRanges(b.Cell.X - reach, b.Cell.X + reach, 0, circ))
         {

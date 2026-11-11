@@ -878,6 +878,10 @@ namespace BlocksBeyondTheStars.Client
         /// shins left the knees as the lowest point).</summary>
         public const float CrouchDrop = 0.32f;
 
+        /// <summary>How far a seated figure's root drops so the pelvis rests on the seat (#806) — the same for the own avatar
+        /// (#3475), a seated remote player and a seated NPC.</summary>
+        public const float SeatDrop = NpcTrainRide.SeatDrop;
+
         /// <summary>#3412 test seam: one animation step outside play mode (EditMode tests pose the figure and measure it).</summary>
         public void AnimateForTest(float dt) => Animate(dt);
 

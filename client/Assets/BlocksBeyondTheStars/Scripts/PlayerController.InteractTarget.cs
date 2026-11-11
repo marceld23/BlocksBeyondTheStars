@@ -111,6 +111,8 @@ namespace BlocksBeyondTheStars.Client
                 _facts.UsableBlock = key != null && Game.Content?.GetBlock(key)?.Usable == true; // #3345: a rune stone sings
             }
 
+            // #3474: aboard, a wagon seat in reach shows the same "sit down" prompt (a person under the crosshair still wins).
+            _facts.Seat |= _train.Frame != null && Game.TrainSeat < 0 && _train.SeatInReach();
             Game.AimedUseBlockKey = _facts.UsableBlock ? _aim.BlockKey : null; // the HUD names the use ("E: play the rune")
 
             _facts.OwnBase = Game.AimedOwnBase != null;

@@ -284,10 +284,12 @@ Wire (additive, contractless — no codec tag): `NetNpc.Pose`, `NetNpc.ActivityK
 
 ## 7. Jobs (`GameServerNpcJobs.cs`)
 
-- **Gardener**: sites = crops, saplings, the air over trays (one per column, ≤ 24); 20 s per site; a standing crop is
-  harvested every 90 s per base into the first crate that takes the drops (`NpcDepositToContainer` — consumables
-  allowed, filters and wood-box slots respected), regrowth via `ScheduleFloraRegrow`; saplings lose 30 s of growth
-  time per visit; harvest toast at most every 10 min.
+- **Gardener**: sites = crops, saplings, the air over trays, then (#3477) the owner's own crops, pumpkins and grown
+  trees' fruit within 32 of the core (`BaseIndex.OwnerGarden`, see `BASES_AND_TELEPORTS.md` §6) — one per column, ≤ 24;
+  20 s per site; a standing plant is harvested every 90 s per base through `BreakBlockCore` (no player; regrowth in the
+  plant's colour) into the first crate that takes the drops (`NpcDepositToContainer` — consumables allowed, filters and
+  wood-box slots respected), else into the core's yield store up to its cap; no crate and a full core leave it standing;
+  saplings lose 30 s of growth time per visit; harvest toast (crate deposits only) at most every 10 min.
 - **Craftsman**: at the bench every 300 s — forge + ≥ 2 iron ore in a crate → 1 ingot; else 2 plant fibre.
 - **Guard**: patrol = the standable yard cells within three wall cells of the outside (`ComputeGuardPatrol`, cached
   per index rebuild, ≤ 24 waypoints; a sentry post without walls gets a square round at radius 6). Every 2 s it

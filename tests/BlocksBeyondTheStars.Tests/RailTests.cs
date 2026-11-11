@@ -459,6 +459,36 @@ public sealed class RailTests : IDisposable
     }
 
     [Fact]
+    public void StandingUpFromAWagonSeat_PutsTheRiderIntoTheAisle()
+    {
+        // #3472 (Lyxette): standing up kept the rider on the seat's spot — inside the bench, over a floor without a face —
+        // and the client's controller fell through the moving train. Up from a seat is the aisle beside it.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var b = Builder(server);
+            Pylon(server, b, 0, 0);
+            Pylon(server, b, 30, 0);
+            Use(server, b, "rail_cab", new Vector3f(15.5f, Y + 1.5f, 0.5f));
+            var t = Assert.Single(server.TrainsForTest());
+            server.TickForTest(0.5);
+            Use(server, b, "wagon_seats", server.WagonPoseForTest(t.Id, 1)!.Value.Pos);
+            var seats = RailRules.SeatOffsets("wagon_seats");
+            b.State.Position = server.WagonPoseForTest(t.Id, 1)!.Value.Pos;
+            server.EnterTrainForTest(b.State.PlayerId, t.Id, 1, seat: 2);
+            Assert.True(b.State.Seated);
+
+            server.EnterTrainForTest(b.State.PlayerId, t.Id, 1); // stand up in the same wagon
+            Assert.False(b.State.Seated);
+            Assert.Equal(-1, b.State.TrainSeat);
+            var up = RailWagonLayout.StandUpPoint(seats[2]);
+            Assert.Equal(0f, b.State.TrainLocalX); // the aisle, not the bench
+            Assert.Equal(up.Y, b.State.TrainLocalY);
+            Assert.Equal(seats[2].Z, b.State.TrainLocalZ);
+        }
+    }
+
+    [Fact]
     public void AReversingTrain_CarriesItsRidersWithoutAJump()
     {
         // #2741: reversing at a line end used to swap the wagons round (the arc re-seated by the train's length) and turn

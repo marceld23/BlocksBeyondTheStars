@@ -1996,6 +1996,10 @@ public sealed partial class GameServer
     public (int Top, int Bed)? WaterSurfaceForTest(int x, int z)
         => _generator.TryGetWaterSurface(_world.Planet, x, z, out int top, out int bed) ? (top, bed) : null;
 
+    /// <summary>Test seam (#3476): the one-off habitat height a species is set down at for <paramref name="p"/> — what a
+    /// companion's spot and the taming scare bolt (<c>ShoveCreatureFrom</c>) place an animal at.</summary>
+    public Vector3f HabitatHeightForTest(string speciesId, Vector3f p) => AdjustHabitatHeight(_speciesById[speciesId], p);
+
     /// <summary>How far up or down a column a fluid body is followed. Deeper than any hand-dug moat and past
     /// the wide ground scan, so a real body is measured whole rather than clipped.</summary>
     private const int FluidColumnScan = 32;
@@ -2940,13 +2944,15 @@ public sealed partial class GameServer
                 // #1697: over a pond the band is measured from the water, not from the bed underneath it.
                 return new Vector3f(p.X, AirRestSurfaceYAt(x, z, p.Y, hover) + hover, p.Z);
             case CreatureHabitat.Water:
-                return new Vector3f(p.X, WaterColumnY(x, z, 0f, surface), p.Z);
+                return new Vector3f(p.X, WaterColumnY(x, z, 0f, surface, p.Y), p.Z);
             case CreatureHabitat.Lava:
                 return _generator.TryGetLavaSurface(_world.Planet, x, z, out int lavaTop, out _)
                     ? new Vector3f(p.X, lavaTop, p.Z)
                     : new Vector3f(p.X, GroundFeetYAt(x, z, (int)System.Math.Floor(p.Y), canopyCarries: false), p.Z);
             case CreatureHabitat.Amphibian:
-                return _generator.TryGetWaterSurface(_world.Planet, x, z, out int ampTop, out _)
+                // #3476: the generator's lake only while it still stands — over a lake the player drained and floored,
+                // its old top cell was the concrete (or the air above it), and the animal was set down in the floor.
+                return TryGetStandingGeneratedWater(x, z, out int ampTop, out _)
                     ? new Vector3f(p.X, ampTop, p.Z)
                     : new Vector3f(p.X, GroundFeetYAt(x, z, (int)System.Math.Floor(p.Y), canopyCarries: false), p.Z);
             default:
@@ -2971,7 +2977,7 @@ public sealed partial class GameServer
         {
             case MotionClass.Swimmer:
                 c.Vert.Airborne = false;
-                return new Vector3f(p.X, WaterColumnY(x, z, vertWave, surface,
+                return new Vector3f(p.X, WaterColumnY(x, z, vertWave, surface, p.Y,
                     holdY: sp.Habitat == CreatureHabitat.Amphibian ? p.Y : null,
                     bottom: CreatureMotion.IsBottomDweller(sp)), p.Z);
 
@@ -3193,12 +3199,18 @@ public sealed partial class GameServer
     /// <summary>The Y inside a column's LOCAL water body (sea, upland pond, or a pool the PLAYER built —
     /// not just the global sea level, so swimmers stay in the water they spawned in): porpoising on the
     /// creature's own wave, clamped to the column (shallow water just keeps them low). A dry column rests on
-    /// the bed (or holds <paramref name="holdY"/> when given — an amphibian ashore).
+    /// the ground (or holds <paramref name="holdY"/> when given — an amphibian ashore).
     ///
     /// <para>#1697: real blocks first. The generator only knows the water the world was born with, so a
     /// swimmer in a hand-dug pool snapped to the noise surface — the pre-excavation ground — instead of
-    /// porpoising in the water it was standing in.</para></summary>
-    private float WaterColumnY(int x, int z, float vertWave, int surface, float? holdY = null, bool bottom = false)
+    /// porpoising in the water it was standing in.</para>
+    ///
+    /// <para>#3476: and the other way round — a lake the player DRAINED and floored. The generator's lake is
+    /// asked only while it still stands (<see cref="TryGetStandingGeneratedWater"/>), and a dry column rests on
+    /// the REAL ground near <paramref name="bodyY"/>: a fish left behind porpoised through the old lake's band,
+    /// whose bottom is the player's concrete, and was drawn sunk into the floor with only its back showing.
+    /// Unloaded columns answer as before (the generator, else the noise surface).</para></summary>
+    private float WaterColumnY(int x, int z, float vertWave, int surface, float bodyY, float? holdY = null, bool bottom = false)
     {
         int waterTopY = int.MinValue, seabedY = int.MinValue;
         int bedFeet = SubmergedFeetYAt(x, z, (int)System.Math.Round(holdY ?? surface + 1f), FluidColumnScan);
@@ -3208,15 +3220,10 @@ public sealed partial class GameServer
             seabedY = bedFeet - 1;
         }
 
-        if (waterTopY == int.MinValue
-            && !_generator.TryGetWaterSurface(_world.Planet, x, z, out waterTopY, out seabedY))
+        if ((waterTopY == int.MinValue && !TryGetStandingGeneratedWater(x, z, out waterTopY, out seabedY))
+            || waterTopY <= seabedY + 1) // a puddle is no column to porpoise in
         {
-            return holdY ?? surface + 1f;
-        }
-
-        if (waterTopY <= seabedY + 1)
-        {
-            return holdY ?? surface + 1f; // a puddle is no column to porpoise in
+            return holdY ?? GroundFeetYAt(x, z, (int)System.Math.Floor(bodyY), canopyCarries: false);
         }
 
         float lo = seabedY + 1f, hi = waterTopY - 0.5f;
@@ -3228,6 +3235,28 @@ public sealed partial class GameServer
         }
 
         return lo + (hi - lo) * (0.5f + 0.45f * vertWave);
+    }
+
+    /// <summary>The generator's water body in a column (surface top, bed) — but only while it still stands there
+    /// (#3476): where the column is streamed in, its top cell must still be water (or a plant in it), or a lily pad
+    /// floating on water. The generator knows only the lake the world was born with, so a lake the player drained, or
+    /// filled up and floored, went on answering, and the animals that live in water were set and kept inside the
+    /// player's floor. A column that is not streamed in has no real blocks to read: the generator answers as it always
+    /// did. No-load reads (#1719).</summary>
+    private bool TryGetStandingGeneratedWater(int x, int z, out int topY, out int bedY)
+    {
+        if (!_generator.TryGetWaterSurface(_world.Planet, x, z, out topY, out bedY))
+        {
+            return false;
+        }
+
+        if (!_world.IsChunkLoaded(WorldConstants.WorldToChunk(new Vector3i(x, topY, z))))
+        {
+            return true;
+        }
+
+        return IsWaterOrSubmergedPlant(x, topY, z)
+            || (IsFlora(_world.GetBlockIfLoaded(new Vector3i(x, topY, z)).Value) && IsWaterOrSubmergedPlant(x, topY - 1, z));
     }
 
     /// <summary>Finds a standable cave floor (an air pocket on solid ground, with headroom) in a column, scanning

@@ -129,9 +129,15 @@ clears it), `NetNpc.FrameId/LocalX/Y/Z/LocalYaw` (#3445: an NPC passenger, see *
   URP bloom gives the band a soft glow; the pulses travel by scrolling the material's texture offset every frame (no
   mesh work). A stop is a short, wider amber section of the band. Caches one `RailSpline` per line by the server's list
   reference and hands it out (`SplineOf`).
-- `TrainView` — a wagon is a hand-authored voxel grid (`WagonCells`: floor, side sills with glass above, a door
-  opening in the middle of each side, a roof, the cab's windscreen and console, the seat wagon's benches, the sleeper's
-  bunks, the bar's counter) meshed by `ChunkMesher` like the speeder hull, with a `MeshCollider` that is always solid.
+- `TrainView` — a wagon is a hand-authored voxel grid, shared data in `Shared/Definitions/RailWagonLayout.cs` (`Cells`:
+  floor, side sills with glass above, a door opening in the middle of each side, a roof, the cab's windscreen and
+  console, the furnishing — #3471/#3473: the seat wagon's benches and the bar's bench are the built-in **bench form**
+  with the backrest to the wall, the sleeper's lower berths **two-cell beds** with a `crew_bunk` above, the bar's counter
+  cubes) meshed by `ChunkMesher` like the speeder hull — with the shapes passed as `worldShape`, so the floor under a
+  bench keeps its face — and a `MeshCollider` that is always solid. `RailRules.SeatOffsets` comes from the same layout:
+  every seat sits on its own bench or berth cell (the middle of a berth's two cells), none in the door opening, none in
+  a full cube (`RailWagonLayoutTests`). Before, the seats stood inside full-cube benches and bunks: the seated eye looked
+  through the bench and the floor, and standing up dropped the rider through the floor (#3472).
   Every frame each wagon is posed on the spline: the server's arc run on by its velocity (#3444,
   `TrainDrawArc.PredictSpeed`) and direction since the last update
   and eased toward each new one (`DrawArc`, stepped by the Unity-free `Client.Core/TrainDrawArc` through
@@ -146,7 +152,12 @@ clears it), `NetNpc.FrameId/LocalX/Y/Z/LocalYaw` (#3445: an NPC passenger, see *
   movement runs on top (walking, jumping, gravity onto the wagon's floor collider), `SendMovement` reports the
   **wagon-local** offset with the frame id at 10 Hz (`TrySendFramedMove` → `SendFramedMove`) and treats an offset
   outside the box as leaving; a seated rider is
-  parked on the seat with the controller off; E in the cab opens `TrainCabUi`, E beside a seat sits, F leaves; a fall
+  parked on the seat with the controller off and turned across the aisle once (`RailWagonLayout.SeatFacing`); in a
+  sleeper's berth the rider lies down — the beds' pillow view (`RailWagonLayout.BerthEye`, first person in either camera
+  mode, the body hidden, `PlayerController.TrainSeat.cs`). Standing up (`EnterTrain` seat −1) puts the body into the
+  aisle beside the seat (`RailWagonLayout.StandUpPoint`) before the controller is enabled — the server uses the same
+  point (`BoardingLocal`). E in the cab opens `TrainCabUi`; E beside a seat sits (the HUD shows the "sit down" prompt),
+  unless someone is under the crosshair — then E talks (#3474, `InteractResolver.IsAimedAtSomeone`); F leaves; a fall
   is never reported aboard. On foot, E near a wagon boards it (`TryBoardNearbyTrain`), and so does stepping into a
   wagon's box (`StepAboardTrain`, #2129 — edge-triggered, one `EnterTrain` per entry). Walking through an open end
   into the next wagon moves the frame there (`CrossToNeighbourWagon` sends `EnterTrain` for it; in the 0.6 m gap the
@@ -249,8 +260,8 @@ walking) made them a chore. Modelled on the lift's `LiftMotion` (#3204, ADR 0014
 The foundation of Lyxette's wish (2026-11-09): "the settlers who visit me should come by train". NPCs ride as passengers;
 who rides where is the trips' business (next sections). Server: `GameServerRailPassengers.cs`.
 
-- **Where they sit.** A **passenger wagon** is every wagon but the cab that has seats (`wagon_seats` 6, `wagon_sleeper` 4,
-  `wagon_bar` 2). An NPC takes a free seat (the wagon nearest it first); seats are shared with the players
+- **Where they sit.** A **passenger wagon** is every wagon but the cab that has seats (`wagon_seats` 8, `wagon_sleeper` 4,
+  `wagon_bar` 4). An NPC takes a free seat (the wagon nearest it first); seats are shared with the players
   (`NpcSeatHeld` looks at both). The NPC passengers live in `ServerTrain.NpcPassengers` (NPC id → `RailRider`), never in
   `Riders` — `TrainRuns` treats any rider in wagon 0 as the driver. A train takes NPCs only when it runs on its own
   (autopilot — a driver never halts at a stop) and its owner lets villagers ride (`TakesPassengers`, #3446; the public
@@ -266,14 +277,17 @@ who rides where is the trips' business (next sections). Server: `GameServerRailP
   every player's area of interest the door is not looked for — the passenger steps onto the platform spot — and the
   platform spot reads only loaded chunks (see "No terrain loads out of reach" below).
 - **Riding.** Every tick `TickTrains` places each passenger from its wagon (`CarryNpcPassengers` → `RiderWorld`, the
-  facing turned with the wagon): seated (pose 1) on a side bench facing the aisle, standing (pose 0) toward the cab. A
+  facing turned with the wagon): seated (pose 1) on a side bench facing the aisle, lying (pose 2, #3473) in a sleeper's
+  berth with the facing from its foot to its head (`RailWagonLayout.BerthHeadYaw`; talked to, it mumbles like any
+  sleeper), standing (pose 0) toward the cab. A
   reversal at a line's end moves nobody (#2741), so passengers ride through it like players. The
   NPC carries `TrainId` and its ride (`RideFrame`, `RideLocal`, `RideYaw`); the movement (`MoveNpcs`), the routine, the
   route search, the village chatter, the festival, the guests and the wish offers leave it alone. A passenger whose NPC
   is gone (a guest that ended, a resident whose bed went) drops off the list.
 - **Wire** (additive, contractless): `NetNpc.FrameId` (`RailRules.FrameId`), `LocalX/Y/Z`, `LocalYaw` (radians, 0 = toward
   the cab). X/Y/Z stay the world position. Client: `NpcView.Train.cs` draws a framed NPC at
-  `wagon.TransformPoint(local)` with the wagon's rotation every frame (the pelvis 0.45 down when seated), bypassing the
+  `wagon.TransformPoint(local)` with the wagon's rotation every frame (the pelvis 0.45 down when seated, laid on the
+  mattress like a villager in bed when lying), bypassing the
   interpolation buffer; a changed frame (boarded, stepped off, another wagon) resets the buffer — a snap. The rules are
   Unity-free in `Client.Core/NpcTrainRide.cs`. `WorldRig` hands `NpcView` the `TrainView` (like `RemotePlayers.Trains`). An
   older client ignores the frame and shows the world position.

@@ -516,14 +516,9 @@ namespace BlocksBeyondTheStars.Client
                 EndClimb(); // no wall climbing aboard a moving wagon
                 if (Game.TrainSeat >= 0)
                 {
-                    _train.HoldTrainSeat();
-                    LookAround();
-                    if (Camera != null && !ThirdPerson)
-                    {
-                        Camera.transform.localPosition = Vector3.Lerp(Camera.transform.localPosition, SeatedEye, Time.deltaTime * 8f);
-                    }
-
-                    bool wantsUp = InputMap.JumpDown() || InputMap.CrouchHeld() || Mathf.Abs(InputMap.MoveX()) > 0.3f || Mathf.Abs(InputMap.MoveY()) > 0.3f;
+                    HoldTrainSeatView(); // #3471/#3473/#3475: turned across the aisle or lying in a berth, the avatar on the seat
+                    bool wantsUp = InputMap.JumpDown() || InputMap.CrouchHeld() || InputMap.Down(InputAction.Interact)
+                        || Mathf.Abs(InputMap.MoveX()) > 0.3f || Mathf.Abs(InputMap.MoveY()) > 0.3f;
                     if (InputMap.Down(InputAction.SpeederExit))
                     {
                         _train.RequestExit(); // #3458: the server finds a standing spot outside the door
@@ -547,7 +542,7 @@ namespace BlocksBeyondTheStars.Client
                         _train.RequestExit(); // #3458: the server finds a standing spot outside the door
                     }
                 }
-                else if (InputMap.Down(InputAction.Interact) && _train.TrainInteract())
+                else if (InputMap.Down(InputAction.Interact) && !PersonAimed() && _train.TrainInteract()) // #3474: talk wins
                 {
                     return;
                 }
@@ -570,6 +565,7 @@ namespace BlocksBeyondTheStars.Client
                     Camera.transform.localPosition = Vector3.Lerp(Camera.transform.localPosition, SeatedEye, Time.deltaTime * 8f);
                 }
 
+                ApplySeatedAvatarDrop(); // #3475: the own avatar sits on the seat in the third-person view
                 bool chairGone = Game?.World == null
                     || Game.Health <= 0f // dying stands you up so the respawn teleport gets a live controller
                     || Game.SeatRejections != _seatRejectionsSeen // #2122: the server says somebody sits there (toast shown)

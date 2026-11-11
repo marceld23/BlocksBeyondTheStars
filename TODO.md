@@ -24,6 +24,43 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🚆 Lyxette's reports of 2026-11-11 — train seats, chairs, a fish in the floor, the gardener farms, dark faces under water — #3471–#3478, ✅ 2026-11-11, PR pending (⚠ playtest open)
+
+Seven reports from Lyxette (v2026.11.16, his world Kraegre). Shared wagon layout, server and client (Unity build local).
+
+- **#3471 wagon seats on real seats** — since #3464 the benches, bunks and the bar's sill were full cubes, and every seat
+  stood at floor height inside them: the seated eye looked through bench and floor. The wagon grid is now shared data
+  (`Shared/Definitions/RailWagonLayout.cs`): benches of the built-in **bench form** (backrest to the wall), the bar a
+  bench opposite its counter, and `RailRules.SeatOffsets` sits on those cells — seat wagon **8** seats (was 6), bar **4**
+  (was 2), none in the door. `TrainView` meshes the layout with `worldShape`, so the floor under a bench keeps its face.
+- **#3472 standing up no longer drops you through the floor** — the controller came back on inside the bench, over a floor
+  face culled by it, and the rider fell out of the moving train into the lake. Up from a seat is the aisle beside it
+  (`RailWagonLayout.StandUpPoint`), on the client and the server (`GameServerRailSeats.BoardingLocal`); E stands up too.
+- **#3473 lying down in the sleeper** — the lower berths are real two-cell beds with a glowing bunk above; taking a berth
+  lays you down with the beds' pillow view (first person in either camera mode, `PlayerController.TrainSeat.cs`); NPC
+  passengers lie in theirs (pose 2, facing foot → head; they mumble when talked to).
+- **#3474 E talks to the passenger you look at** — aboard, E sat you down beside any seat (moving the passenger over)
+  while the prompt said "talk", and `TryBoardNearbyTrain` swallowed E aboard. Someone under the crosshair now wins
+  (`InteractResolver.IsAimedAtSomeone`); a seat in reach shows the plain "sit down" prompt.
+- **#3475 chairs** — sitting down turns you away from the backrest (`FurnitureShapes.TrySeatFacingYawDegrees`; you sat
+  facing into it), and the own avatar drops onto the seat in the third-person view (`PlayerAvatar.SeatDrop`, like
+  remote avatars and NPCs) instead of hovering above it. Wagon seats turn you across the aisle.
+- **#3476 the creature in the concrete floor** — a lake the player drained and floored: water life porpoised through the
+  generator's old lake band, whose bottom was his concrete, and amphibians were set down at the old water top.
+  `TryGetStandingGeneratedWater` asks the generator's lake only while it still stands (unloaded columns as before); a dry
+  column rests on the real ground. A fish stranded on a player floor is swept unseen like an amphibian ashore.
+  Tests: `CreatureDrainedLakeTests` (5 of 7 red before the fix), `BaseIntruderTests`.
+- **#3477 the gardener farms** ("do we have a farmer?") — it now also harvests **pumpkins** and the **fruit of fruit
+  trees**, works the owner's fields and trees **around the base** (within 32 blocks, inside or outside the walls; never
+  wild flora, a village or another player's field), and without crate room **banks the harvest into the core's store**
+  like the Lumberjack's wood (`GameServerBaseGarden.cs`, `BaseIndex.OwnerGarden`). No new job, no new UI. `BaseGardenTests`.
+- **#3478 dark faces under water** — logs standing on a lake covered the water cells under them with three
+  light-stopping blocks, and under water no column counts as open sky: those cells got skylight 0 and the faces looking
+  into them drew as flat dark quads. `SkylightField.LightReaches`: a column covered only by see-through blocks (water,
+  leaves, glass) within the shade depth lends its light as an opening (`SkylightFieldTests`, red before the fix).
+- Playtest: sit on a bench and stand up in a moving train; lie down in a sleeper berth; E at a passenger; a chair in
+  both camera modes; Lyxette's garden with pumpkins and fruit trees outside the base; logs on a lake seen from under water.
+
 ### 🐋 Giants move smoothly and can be ridden — #3466–#3467, ✅ 2026-11-10, PR #3468 (`feaf3ced`), released in v2026.11.16 (⚠ playtest open)
 
 From Marcel's play on a gas giant: the sky giant stuttered, and a player who landed on its back fell off at once.

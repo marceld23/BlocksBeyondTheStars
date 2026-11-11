@@ -298,8 +298,7 @@ namespace BlocksBeyondTheStars.Client
         // The wagon meshes
         // ------------------------------------------------------------------------------------------------
 
-        // The grid: x 0..2 across (3 wide), y 0..4 (floor at 0, roof at 4), z 0..5 along (5 = the front).
-        private const int W = 3, H = 5, L = 6;
+        // The grid and the furnishing are shared data (RailWagonLayout): the seats the server hands out sit on these cells.
 
         private void BuildWagonMesh(GameObject root, string item, bool cab)
         {
@@ -308,19 +307,35 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var cells = WagonCells(item, cab);
+            var cells = new Dictionary<Vector3i, (BlockId Block, int Shape)>();
+            foreach (var c in RailWagonLayout.Cells(item, cab))
+            {
+                var id = Id(c.Block);
+                if (!id.IsAir)
+                {
+                    cells[new Vector3i(c.X, c.Y, c.Z)] = (id, c.Shape);
+                }
+            }
+
             var mats = Game.ChunkMaterialTransparent != null
                 ? new[] { Game.ChunkMaterial, Game.ChunkMaterialTransparent }
                 : new[] { Game.ChunkMaterial };
             var paint = ShipMeshBuilder.HullPaint(Game.Content, cab ? new Color(0.55f, 0.72f, 0.92f) : new Color(0.82f, 0.85f, 0.9f));
-            BlockId CellAt(int x, int y, int z) => cells.TryGetValue(new Vector3i(x, y, z), out var b) ? b : BlockId.Air;
+            BlockId CellAt(int x, int y, int z) => cells.TryGetValue(new Vector3i(x, y, z), out var b) ? b.Block : BlockId.Air;
+            // #3471: the benches and berths are shaped cells — the mesher must see their forms, or the floor under a bench
+            // stays culled as if a full cube stood on it (the hole the seated eye looked through).
+            int ShapeAt(int x, int y, int z) => cells.TryGetValue(new Vector3i(x, y, z), out var b) ? b.Shape : 0;
             var chunk = new ChunkData(new ChunkCoord(0, 0, 0));
             foreach (var kv in cells)
             {
-                chunk.Set(kv.Key.X, kv.Key.Y, kv.Key.Z, kv.Value);
+                chunk.Set(kv.Key.X, kv.Key.Y, kv.Key.Z, kv.Value.Block);
+                if (kv.Value.Shape != 0)
+                {
+                    chunk.SetShape(kv.Key.X, kv.Key.Y, kv.Key.Z, kv.Value.Shape);
+                }
             }
 
-            var (mesh, collider) = ChunkMesher.Build(chunk, Game.Content, CellAt, Game.Atlas, paintTint: paint);
+            var (mesh, collider) = ChunkMesher.Build(chunk, Game.Content, CellAt, Game.Atlas, paintTint: paint, worldShape: ShapeAt);
             if (mesh.vertexCount == 0)
             {
                 Destroy(mesh);
@@ -335,7 +350,8 @@ namespace BlocksBeyondTheStars.Client
             var go = new GameObject("Hull");
             go.transform.SetParent(root.transform, false);
             // Centre the grid on the wagon pose: the floor's top face is the frame's y = 0, the middle of the width its x = 0.
-            go.transform.localPosition = new Vector3(-W * 0.5f, -1f, -L * 0.5f);
+            var origin = RailWagonLayout.GridOrigin;
+            go.transform.localPosition = new Vector3(origin.X, origin.Y, origin.Z);
             if (collider != null)
             {
                 var mc = go.AddComponent<MeshCollider>();
@@ -345,131 +361,6 @@ namespace BlocksBeyondTheStars.Client
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             go.AddComponent<MeshRenderer>().sharedMaterials = mats;
             go.AddComponent<OwnedProceduralMesh>();
-        }
-
-        /// <summary>The authored wagon: a floor, side walls with a door opening in the middle, a roof on posts; the cab adds a
-        /// closed front with a windscreen, a seat wagon its benches, a sleeper its bunks, a bar its counter.</summary>
-        private Dictionary<Vector3i, BlockId> WagonCells(string item, bool cab)
-        {
-            var cells = new Dictionary<Vector3i, BlockId>();
-            var floor = Id("steel_floor");
-            var wall = Id("metal_panel");
-            var glass = Id("glass");
-            void Set(int x, int y, int z, BlockId id)
-            {
-                if (!id.IsAir)
-                {
-                    cells[new Vector3i(x, y, z)] = id;
-                }
-            }
-
-            for (int x = 0; x < W; x++)
-            {
-                for (int z = 0; z < L; z++)
-                {
-                    Set(x, 0, z, floor);          // the floor
-                    Set(x, H - 1, z, wall);       // the roof
-                }
-            }
-
-            // Side walls: a low sill everywhere, glass above it, the door opening (z 2..3) open to the sill.
-            for (int z = 0; z < L; z++)
-            {
-                bool door = z == 2 || z == 3;
-                foreach (int x in new[] { 0, W - 1 })
-                {
-                    if (!door)
-                    {
-                        Set(x, 1, z, wall);
-                        Set(x, 2, z, glass);
-                        Set(x, 3, z, glass);
-                    }
-                    else
-                    {
-                        Set(x, 3, z, wall); // the lintel over the door
-                    }
-                }
-            }
-
-            // The ends: the cab's front is closed with a windscreen; every other end stays open for the walk-through.
-            if (cab)
-            {
-                for (int x = 0; x < W; x++)
-                {
-                    Set(x, 1, L - 1, wall);
-                    Set(x, 2, L - 1, glass);
-                    Set(x, 3, L - 1, glass);
-                }
-
-                Set(1, 1, L - 2, wall); // the console
-            }
-
-            DressWagon(item, Set);
-            return cells;
-        }
-
-        /// <summary>#3464 (Lyxette: "a seat wagon, a bar wagon and a sleeper — but they all look the same"): the wagon's own
-        /// furnishing in blocks of its own. The benches, bunks and counter used to be the wall panel itself, set into the
-        /// side-wall cells (the 3-wide wagon's walk-way is its middle column), so they vanished into the wall. Now a seat wagon
-        /// has light wooden benches along both walls, a sleeper glowing bunks two high with pale berth panels between them, a
-        /// bar a mahogany floor, its counter along both walls and wooden stools' side — seen from inside and from the
-        /// platform alike. The middle column stays free, so you still walk through the train from wagon to wagon.</summary>
-        private void DressWagon(string item, System.Action<int, int, int, BlockId> set)
-        {
-            switch (item)
-            {
-                case "wagon_seats":
-                    var benchWood = Id("wood_planks_light");
-                    foreach (int z in new[] { 0, 1, 4, 5 })
-                    {
-                        set(0, 1, z, benchWood);
-                        set(W - 1, 1, z, benchWood);
-                    }
-
-                    break;
-                case "wagon_sleeper":
-                    var bunk = Id("crew_bunk");
-                    var berth = Id("lab_panel");
-                    foreach (int z in new[] { 0, 5 })
-                    {
-                        set(0, 1, z, berth);
-                        set(W - 1, 1, z, berth);
-                    }
-
-                    foreach (int z in new[] { 1, 4 })
-                    {
-                        set(0, 1, z, bunk);
-                        set(W - 1, 1, z, bunk);
-                        set(0, 2, z, bunk);
-                        set(W - 1, 2, z, bunk);
-                    }
-
-                    break;
-                case "wagon_bar":
-                    var mahogany = Id("wood_planks_mahogany");
-                    var counter = Id("shop_counter");
-                    for (int x = 0; x < W; x++)
-                    {
-                        for (int z = 0; z < L; z++)
-                        {
-                            set(x, 0, z, mahogany); // a warm wooden floor
-                        }
-                    }
-
-                    foreach (int z in new[] { 0, 1 })
-                    {
-                        set(0, 1, z, mahogany);
-                        set(W - 1, 1, z, mahogany);
-                    }
-
-                    foreach (int z in new[] { 4, 5 })
-                    {
-                        set(0, 1, z, counter);
-                        set(W - 1, 1, z, counter);
-                    }
-
-                    break;
-            }
         }
 
         private BlockId Id(string key) => Game.Content.GetBlock(key)?.NumericId ?? BlockId.Air;

@@ -185,13 +185,7 @@ public sealed partial class GameServer
             return;
         }
 
-        var store = YieldStore(BaseYieldKey(b));
-        int room = Math.Max(0, BaseRules.YieldCapacity - store.CountReady());
-        int put = Math.Min(room, count);
-        if (put > 0)
-        {
-            store.Items[item] = store.Items.TryGetValue(item, out int n) ? n + put : put;
-        }
+        StoreInBaseCore(b, item, count); // shared with the gardener's harvest (#3477, GameServerBaseGarden)
     }
 
     /// <summary>Test seam (#3036): the focus of the player's base at a cell on the active world.</summary>

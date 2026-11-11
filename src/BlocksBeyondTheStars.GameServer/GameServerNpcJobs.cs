@@ -7,7 +7,6 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
-using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 
@@ -17,10 +16,12 @@ namespace BlocksBeyondTheStars.GameServer;
 /// Jobs for base residents (#1868, Marcel 2026-09-13: "visible and with yield"). The base's own blocks decide who
 /// does what (see <see cref="AssignBaseResidents"/>); this is what they do on duty.
 /// <list type="bullet">
-/// <item><b>Gardener</b> (crops, hydro trays, saplings): walks from bed to bed, stays a while at each, harvests a
-/// standing crop into a base crate every <see cref="GardenerHarvestSeconds"/> — the crop's normal drops, regrowth
-/// scheduled exactly as when a player picks it — and tends saplings, which grow faster. No crate: tends only. The
-/// owner hears what was stored (at most every <see cref="HarvestToastSeconds"/>).</item>
+/// <item><b>Gardener</b> (crops, hydro trays, saplings — and since #3477 the owner's own crops, pumpkins and fruit trees
+/// around the base, see <c>GameServerBaseGarden</c>): walks from bed to bed, stays a while at each, harvests a standing
+/// plant every <see cref="GardenerHarvestSeconds"/> — its normal drops, regrowth scheduled exactly as when a player picks
+/// it — into a base crate, else into the core's yield store (#3477; no crate and a full core: tends only), and tends
+/// saplings, which grow faster. The owner hears what went into a crate (at most every <see cref="HarvestToastSeconds"/>);
+/// what went to the core waits there to be collected.</item>
 /// <item><b>Craftsman</b> (workbench, forge): every <see cref="CraftsmanYieldSeconds"/> at the bench puts two plant
 /// fibres in a base crate; with a forge and iron ore in that crate it smelts two ore into one ingot instead — the
 /// workshop recipe's ratio, so no metal appears from nothing.</item>
@@ -111,7 +112,7 @@ public sealed partial class GameServer
     // ---------------- gardener ----------------
 
     /// <summary>The garden sites of a base: every standing crop and sapling, and the air above every hydro tray (a
-    /// harvested crop regrows there), one per column, in the index's order.</summary>
+    /// harvested crop regrows there), then the owner's garden around the base (#3477), one per column, in the index's order.</summary>
     private static List<Vector3i> GardenSites(BaseIndex idx)
     {
         var sites = new List<Vector3i>();
@@ -137,6 +138,11 @@ public sealed partial class GameServer
         foreach (var t in idx.Trays)
         {
             Add(new Vector3i(t.X, t.Y + 1, t.Z));
+        }
+
+        foreach (var c in idx.OwnerGarden)
+        {
+            Add(c);
         }
 
         return sites;
@@ -171,15 +177,14 @@ public sealed partial class GameServer
         npc.SiteCursor = (npc.SiteCursor + 1) % sites.Count;
         npc.SiteUntil = 0;
         var site = sites[npc.SiteCursor];
-        var spot = SpotBeside(site, new HashSet<Vector3i>()) ?? SpotBeside(new Vector3i(site.X, site.Y - 1, site.Z), new HashSet<Vector3i>());
-        if (spot is { } s)
+        if (GardenApproachSpot(site) is { } s) // beside the site, or under a tree's fruit (#3477)
         {
             SetNpcGoal(npc, s, NpcArrival.None, WorkLeash);
         }
     }
 
-    /// <summary>A gardener at a site: harvests a standing crop when the base's harvest is due and a crate has room,
-    /// moves a sapling's growth clock forward.</summary>
+    /// <summary>A gardener at a site: harvests a standing plant when the base's harvest is due and a crate or the core has
+    /// room (#3477), moves a sapling's growth clock forward.</summary>
     private void TendGardenSite(ServerNpc npc, ServerBase b, BaseIndex idx, Vector3i site)
     {
         var canonical = WorldConstants.CanonicalBlock(site, _world.Circumference);
@@ -192,7 +197,7 @@ public sealed partial class GameServer
         }
 
         var id = _world.GetBlockIfLoaded(canonical);
-        if (id.IsAir || !_ixCrops.Contains(id.Value) || _floraRegrow.ContainsKey(canonical))
+        if (id.IsAir || !IsGardenHarvest(id.Value) || _floraRegrow.ContainsKey(canonical))
         {
             return; // nothing ripe standing here
         }
@@ -203,26 +208,21 @@ public sealed partial class GameServer
             return;
         }
 
+        int unused = 0;
         var def = _content.BlockById(id);
-        if (def is null)
+        if (def is null || (!IsInsideGardenSite(idx, canonical) && !IsOwnersGardenPlant(b, canonical, id.Value, null, ref unused)))
         {
-            return;
+            return; // #3477: the owner's garden around the base is asked again right before a pick — never a neighbour's
         }
 
-        var drops = def.Drops.Select(d => new ItemAmount(d.Item, d.Count)).ToList();
-        var crate = BaseCrateFor(idx, drops);
-        if (crate is null || !NpcDepositToContainer(crate, drops))
+        if (!HarvestGardenCell(b, idx, canonical, def, out int inCrate))
         {
-            return; // no crate, or no room: the crop stays standing for the player
+            return; // no crate, and the core is full: the plant stays standing for the player
         }
 
-        _world.SetBlock(canonical, BlockId.Air);
-        BroadcastToWorld(new BlockChanged { X = canonical.X, Y = canonical.Y, Z = canonical.Z, Block = BlockId.AirValue });
-        WriteBackStationCell(canonical, BlockId.Air);
-        ScheduleFloraRegrow(canonical, id.Value); // regrows like a player's harvest
-        int stored = state.Item2 + drops.Sum(d => d.Count);
+        int stored = state.Item2 + inCrate;
         double nextToast = state.Item3;
-        if (_uptime >= nextToast && FindSessionByPlayerId(b.OwnerId) is { } owner && owner.CurrentLocationId == b.Planet)
+        if (stored > 0 && _uptime >= nextToast && FindSessionByPlayerId(b.OwnerId) is { } owner && owner.CurrentLocationId == b.Planet)
         {
             Send(owner, new ServerMessage { Text = "@srv.base.harvest:" + stored });
             stored = 0;

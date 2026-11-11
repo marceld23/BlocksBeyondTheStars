@@ -369,9 +369,9 @@ public sealed partial class GameServer
     }
 
     /// <summary>The jobs a base offers, in priority order (#1868): trading post, mission board, the professions' posts,
-    /// guard (a walled base or a sentry post), gardener (crops, trays, saplings), craftsman (workbench, forge). #3038: a Lumberjack
-    /// base (<paramref name="focus"/>) wants a woodcutter (<see cref="BaseLumberjackJob"/>) before all of them — it needs no
-    /// post, only a free resident.</summary>
+    /// guard (a walled base or a sentry post), gardener (crops, trays, saplings; #3477 also the owner's garden around the base),
+    /// craftsman (workbench, forge). #3038: a Lumberjack base (<paramref name="focus"/>) wants a woodcutter
+    /// (<see cref="BaseLumberjackJob"/>) before all of them — it needs no post, only a free resident.</summary>
     private static List<string> BaseJobs(BaseIndex idx, List<Vector3f>? patrol, string focus = BaseFocus.None)
     {
         var jobs = new List<string>();
@@ -404,7 +404,7 @@ public sealed partial class GameServer
             jobs.Add("guard");
         }
 
-        if (idx.Crops.Count + idx.Trays.Count + idx.Saplings.Count > 0)
+        if (idx.Crops.Count + idx.Trays.Count + idx.Saplings.Count + idx.OwnerGarden.Count > 0) // #3477: or the owner's garden around it
         {
             jobs.Add("gardener");
         }
