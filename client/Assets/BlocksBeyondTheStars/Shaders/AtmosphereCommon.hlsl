@@ -50,8 +50,10 @@
 // on every airless world (the crystal world too), indoors, under water, in the flight view and with the haze switched off:
 //   _Sc_DistSoft      x = the texture softening's strength (BlockAtlas: the texels fade toward their tile's average colour
 //                     along the distance veil), y = the soft-distance blur's largest blend (DistanceSoft.shader, Medium+
-//                     desktop), z = where the blur band begins (metres; full at the haze end _Sc_Fog.y), w = the block
-//                     atlas's mip with one texel per tile (6 for the 64-px tiles, less under a global mip limit)
+//                     desktop), z = where the blur band begins (metres; never inside the streamed chunks, #3481), w = the
+//                     block atlas's mip with one texel per tile (6 for the 64-px tiles, less under a global mip limit)
+//   _Sc_DistSoftRange #3481: the world's CLEAR-WEATHER haze range the softness runs on (weather no longer pulls it in):
+//                     x = the texture ramp's start, y = its end (metres), z = the blur band's end (full there), w unused
 #ifndef BBTS_ATMOSPHERE_COMMON_INCLUDED
 #define BBTS_ATMOSPHERE_COMMON_INCLUDED
 
@@ -78,6 +80,7 @@ float4 _Sc_MistColor;      // #3271: see the header
 float4 _Sc_CloudBand;      // #3272: see the header
 float4 _Sc_CloudBandColor; // #3272: see the header
 float4 _Sc_DistSoft;       // #3461/#3462: see the header
+float4 _Sc_DistSoftRange;  // #3481: see the header
 TEXTURE2D(_Sc_CloudNoise); SAMPLER(sampler_Sc_CloudNoise);
 
 // #2814: the colour the interior fill lights the cabin in — white where nothing set it (a station, the menu, a preview).
@@ -453,8 +456,9 @@ float BbtsHazeAmount(float3 wp, float skylight)
 }
 
 // #3461: 0..1 how far a surface's texture detail fades toward its average colour at `wp` — the texture softening's strength
-// along the distance veil (the same linear start → end as the haze; not the height fog or the cloud band, which hide the
-// surface anyway). 0 wherever _Sc_DistSoft.x is: airless worlds, indoors, under water, the haze switched off.
+// along the world's clear-weather haze range (#3481: linear start → end of _Sc_DistSoftRange, so a storm no longer drags
+// it close; not the height fog or the cloud band, which hide the surface anyway). 0 wherever _Sc_DistSoft.x is: airless
+// worlds, indoors, under water, the haze or the "Soft distance" switch off (#3480).
 float BbtsDistSoftTexture(float3 wp)
 {
     if (_Sc_DistSoft.x <= 0.0 || _Sc_Fog.w < 0.5)
@@ -463,7 +467,7 @@ float BbtsDistSoftTexture(float3 wp)
     }
 
     float camDist = distance(wp, _WorldSpaceCameraPos);
-    return _Sc_DistSoft.x * saturate((camDist - _Sc_Fog.x) / max(1.0, _Sc_Fog.y - _Sc_Fog.x));
+    return _Sc_DistSoft.x * saturate((camDist - _Sc_DistSoftRange.x) / max(1.0, _Sc_DistSoftRange.y - _Sc_DistSoftRange.x));
 }
 
 // The haze colour for the terms: the distance veil takes the sky warmed toward the sun when looking at it (in-scatter),

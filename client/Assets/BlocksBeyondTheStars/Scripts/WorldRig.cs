@@ -537,6 +537,7 @@ namespace BlocksBeyondTheStars.Client
             sky.UnderwaterEnabled = shell.Settings.AtmosphereEffect(shell.Settings.Underwater, cheap: true);
             sky.DarkVisibility = shell.Settings.DarkVisibility; // #3265
             sky.DistanceSoftEnabled = DistanceSoftView.EnabledFor(shell.Settings); // #3462: the soft distance (Medium+ desktop)
+            sky.TextureSoftEnabled = shell.Settings == null || shell.Settings.DistanceSoftness; // #3480: and the texture softening
             sky.ReducedEffects = shell.Settings.ReducedEffects;
             probe.BubblesEnabled = sky.UnderwaterEnabled;
 

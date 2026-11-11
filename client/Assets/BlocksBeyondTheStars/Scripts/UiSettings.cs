@@ -722,6 +722,7 @@ namespace BlocksBeyondTheStars.Client
                 sky.UnderwaterEnabled = S.AtmosphereEffect(S.Underwater, cheap: true);
                 sky.DarkVisibility = S.DarkVisibility; // #3265
                 sky.DistanceSoftEnabled = DistanceSoftView.EnabledFor(S); // #3462
+                sky.TextureSoftEnabled = S.DistanceSoftness; // #3480: the same switch governs the texture softening
                 sky.ReducedEffects = S.ReducedEffects;
             }
 

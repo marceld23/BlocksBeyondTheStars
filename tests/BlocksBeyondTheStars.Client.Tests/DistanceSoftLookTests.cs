@@ -19,7 +19,7 @@ public sealed class DistanceSoftLookTests
     public void AnAirlessWorld_StaysSharp()
     {
         // Moons, asteroids and the void arrive with density 0 — and so does the crystal world, which keeps a haze.
-        Assert.Equal(0f, DistanceSoftLook.TextureFade(0f, hazeOn: true));
+        Assert.Equal(0f, DistanceSoftLook.TextureFade(0f, enabled: true, hazeOn: true));
         Assert.Equal(0f, DistanceSoftLook.BlurBlend(0f, enabled: true, hazeOn: true, reducedEffects: false));
         Assert.False(DistanceSoftLook.HasAir(0f));
         Assert.True(DistanceSoftLook.HasAir(Thin));
@@ -28,7 +28,7 @@ public sealed class DistanceSoftLookTests
     [Fact]
     public void ThickAir_SoftensMoreThanThinAir_AndBothStayBarelyNoticeable()
     {
-        float thinFade = DistanceSoftLook.TextureFade(Thin, true), thickFade = DistanceSoftLook.TextureFade(Thick, true);
+        float thinFade = DistanceSoftLook.TextureFade(Thin, true, true), thickFade = DistanceSoftLook.TextureFade(Thick, true, true);
         Assert.True(thinFade > 0f && thinFade < thickFade);
         Assert.InRange(thickFade, DistanceSoftLook.TextureFadeThin, DistanceSoftLook.TextureFadeThick);
 
@@ -45,14 +45,15 @@ public sealed class DistanceSoftLookTests
     [InlineData(5f)]
     public void TheCapsHold_ForAnyDensity(float density)
     {
-        Assert.InRange(DistanceSoftLook.TextureFade(density, true), 0f, 0.35f);
+        Assert.InRange(DistanceSoftLook.TextureFade(density, true, true), 0f, 0.35f);
         Assert.InRange(DistanceSoftLook.BlurBlend(density, true, true, false), 0f, 0.5f);
     }
 
     [Fact]
     public void EveryOffReason_TurnsItOff()
     {
-        Assert.Equal(0f, DistanceSoftLook.TextureFade(Thick, hazeOn: false));
+        Assert.Equal(0f, DistanceSoftLook.TextureFade(Thick, enabled: true, hazeOn: false));
+        Assert.Equal(0f, DistanceSoftLook.TextureFade(Thick, enabled: false, hazeOn: true)); // #3480
         Assert.Equal(0f, DistanceSoftLook.BlurBlend(Thick, enabled: false, hazeOn: true, reducedEffects: false));
         Assert.Equal(0f, DistanceSoftLook.BlurBlend(Thick, enabled: true, hazeOn: false, reducedEffects: false));
         Assert.Equal(0f, DistanceSoftLook.BlurBlend(Thick, enabled: true, hazeOn: true, reducedEffects: true));
@@ -91,13 +92,54 @@ public sealed class DistanceSoftLookTests
     }
 
     [Fact]
-    public void AFogPeaSouper_PullsTheBandIn_WithTheHaze()
+    public void TheSoftDistanceSwitch_TurnsBothPartsOff()
     {
-        // Fog weather crushes the haze range; the band follows it without a weather rule of its own.
-        float clear = DistanceSoftLook.BandStart(200f, 400f);
-        float fog = DistanceSoftLook.BandStart(30f, 60f);
-        Assert.True(fog < clear);
-        Assert.Equal(60f, DistanceSoftLook.BandStart(80f, 60f)); // degenerate range: at the end
+        // #3480 (Lyxette: "I want my far view back"): the one switch gives the far view of 2026.11.15 back — the faded
+        // textures went on with only "Distance haze" to stop them.
+        Assert.Equal(0f, DistanceSoftLook.TextureFade(Thick, enabled: false, hazeOn: true));
+        Assert.Equal(0f, DistanceSoftLook.BlurBlend(Thick, enabled: false, hazeOn: true, reducedEffects: false));
+        Assert.True(DistanceSoftLook.TextureFade(Thick, enabled: true, hazeOn: true) > 0f);
+    }
+
+    [Fact]
+    public void TheClearHaze_IsTheWorldsOwn_AndMatchesTheSkysStartRule()
+    {
+        // #3481: no weather, night, festival or fog weather goes in — only the world's air, its far view and its mist.
+        var (start, end) = DistanceSoftLook.ClearHaze(600f, 192f, 0f, 0.5f);
+        Assert.Equal(600f, end);
+        Assert.Equal(DistanceSoftLook.HazeStart(600f, 0.5f), start);
+        Assert.InRange(start, 0.55f * 600f, 0.78f * 600f);
+        Assert.Equal(0.78f * 400f, DistanceSoftLook.HazeStart(400f, 0f), 3);  // clear thin air: crisp far out
+        Assert.Equal(0.55f * 400f, DistanceSoftLook.HazeStart(400f, 1f), 3);  // thick air: hazes from closer in
+
+        // A world that is never clear (the gas giants) keeps its short view — that is the world, not the weather.
+        var (_, giant) = DistanceSoftLook.ClearHaze(600f, 192f, 1f, 0.5f);
+        Assert.True(giant < 600f);
+    }
+
+    [Theory]
+    [InlineData(600f, 192f)] // far view on: the band lies beyond the chunks anyway
+    [InlineData(260f, 192f)] // a short far view: the chunk edge holds the band back
+    [InlineData(192f, 192f)] // far view off: the haze ends at the chunk edge — no seam, no blur
+    public void TheBlurBand_NeverBeginsInsideTheStreamedChunks(float clearEnd, float chunkEdge)
+    {
+        // #3481: real blocks are never blurred, in any weather — the blur is for the seam to the far terrain.
+        float clearStart = DistanceSoftLook.HazeStart(clearEnd, 0.6f);
+        float band = DistanceSoftLook.BlurBandStart(clearStart, clearEnd, chunkEdge);
+        Assert.True(band >= chunkEdge, $"band {band} inside the chunk edge {chunkEdge}");
+        Assert.True(band >= DistanceSoftLook.BandStart(clearStart, clearEnd));
+        Assert.Equal(0f, DistanceSoftLook.BandWeight(chunkEdge - 1f, band, System.Math.Max(clearEnd, band + 1f)));
+    }
+
+    [Fact]
+    public void TheTextureRamp_FollowsTheClearHaze_NotTheStorm()
+    {
+        // #3481: a building 150 m off in a storm (the haze pulled in to 150 m) used to be at the ramp's full strength;
+        // on the clear-weather range (start 330 m, end 600 m) it is not touched.
+        var (start, end) = DistanceSoftLook.ClearHaze(600f, 192f, 0f, 0.6f);
+        Assert.Equal(0f, DistanceSoftLook.TextureWeight(150f, start, end));
+        Assert.Equal(1f, DistanceSoftLook.TextureWeight(end, start, end));
+        Assert.InRange(DistanceSoftLook.TextureWeight((start + end) * 0.5f, start, end), 0.45f, 0.55f);
     }
 
     [Theory]
@@ -115,6 +157,8 @@ public sealed class DistanceSoftLookTests
     {
         string common = ShaderText("AtmosphereCommon.hlsl");
         Assert.Contains("float4 _Sc_DistSoft;", common, StringComparison.Ordinal);
+        Assert.Contains("float4 _Sc_DistSoftRange;", common, StringComparison.Ordinal); // #3481
+        Assert.Contains("saturate((camDist - _Sc_DistSoftRange.x) / max(1.0, _Sc_DistSoftRange.y - _Sc_DistSoftRange.x))", common, StringComparison.Ordinal);
         Assert.Contains("float BbtsDistSoftTexture(float3 wp)", common, StringComparison.Ordinal);
 
         // A: the tile's average colour from the mip Sky sends, the alpha (the leaves' cutout) untouched.
@@ -133,6 +177,7 @@ public sealed class DistanceSoftLookTests
         Assert.Contains("if (DsIsSky(raw))", soft, StringComparison.Ordinal);
         // The composite's band weight is DistanceSoftLook.BandWeight (a smoothstep from the band start to the haze end).
         Assert.Contains("_Sc_DistSoft.y * smoothstep(_Sc_DistSoft.z, bandEnd, d0)", soft, StringComparison.Ordinal);
+        Assert.Contains("float bandEnd = max(_Sc_DistSoftRange.z, _Sc_DistSoft.z + 1.0);", soft, StringComparison.Ordinal); // #3481
     }
 
     [Fact]
@@ -142,11 +187,16 @@ public sealed class DistanceSoftLookTests
         Assert.Contains("Shader.PropertyToID(\"_Sc_DistSoft\")", mist, StringComparison.Ordinal);
         Assert.Contains("DistanceSoftLook.TextureFade(", mist, StringComparison.Ordinal);
         Assert.Contains("DistanceSoftLook.BlurBlend(", mist, StringComparison.Ordinal);
+        Assert.Contains("DistanceSoftLook.TextureFade(density, TextureSoftEnabled, FogEnabled)", mist, StringComparison.Ordinal); // #3480
+        Assert.Contains("DistanceSoftLook.ClearHaze(", mist, StringComparison.Ordinal);      // #3481
+        Assert.Contains("DistanceSoftLook.BlurBandStart(", mist, StringComparison.Ordinal);  // #3481
+        Assert.Contains("Shader.PropertyToID(\"_Sc_DistSoftRange\")", mist, StringComparison.Ordinal);
 
         int clear = mist.IndexOf("private void ClearMist()", StringComparison.Ordinal);
         Assert.True(clear > 0, "ClearMist not found");
         int end = mist.IndexOf("RenderSettings.fog = false;", clear, StringComparison.Ordinal);
         Assert.Contains("Shader.SetGlobalVector(DistSoftId, Vector4.zero);", mist.Substring(clear, end - clear), StringComparison.Ordinal);
+        Assert.Contains("Shader.SetGlobalVector(DistSoftRangeId, Vector4.zero);", mist.Substring(clear, end - clear), StringComparison.Ordinal);
     }
 
     private static string ShaderText(string file)

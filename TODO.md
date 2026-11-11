@@ -24,7 +24,23 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🚆 Lyxette's reports of 2026-11-11 — train seats, chairs, a fish in the floor, the gardener farms, dark faces under water — #3471–#3478, ✅ 2026-11-11, PR pending (⚠ playtest open)
+### 🌫️ "I want my far view back" — one switch for the distance softness, no storm smear — #3480–#3481, ✅ 2026-11-11, PR pending (⚠ playtest open)
+
+Lyxette (v2026.11.16, night storm with snow): his distant building had become "a soft hill". Both parts of the 11.16
+distance softness (#3461/#3462) followed the weather-shortened haze, and only the blur had a switch.
+
+- **#3480 one switch** — *Settings → Graphics → Soft distance* now turns the texture softening off too (it rode on
+  *Distance haze* alone): off is the far view of 2026.11.15. `Sky.TextureSoftEnabled` = the stored switch (every preset;
+  the browser has no row and keeps the default), `DistanceSoftLook.TextureFade(density, enabled, hazeOn)`.
+- **#3481 clear-weather range** — both parts run on the world's clear-weather haze range
+  (`DistanceSoftLook.ClearHaze`: its air, far view and persistent mist; no storm, night, fog weather, festival, dawn),
+  sent as the new global `_Sc_DistSoftRange`; the blur band starts no nearer than the streamed-chunk edge
+  (`BlurBandStart`), so real blocks are never blurred — only the far terrain. `DistanceSoftLookTests` extended.
+- Note: beyond the chunk view a build is still drawn by the far terrain as a smooth raised shape (#1820/#1821) — a
+  higher *View distance (chunks)* keeps it as blocks.
+- Playtest: Lyxette's base in a night storm with *Soft distance* on and off; a fog-weather day in the near field.
+
+### 🚆 Lyxette's reports of 2026-11-11 — train seats, chairs, a fish in the floor, the gardener farms, dark faces under water — #3471–#3478, ✅ 2026-11-11, PR #3479 (`c9e52977`) (⚠ playtest open)
 
 Seven reports from Lyxette (v2026.11.16, his world Kraegre). Shared wagon layout, server and client (Unity build local).
 
