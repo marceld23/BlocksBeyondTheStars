@@ -24,6 +24,44 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ♜ Landmarks — the framework for giant authored buildings and their ruins — #3483–#3500, ✅ 2026-11-11, PR pending (⚠ playtest open)
+
+The school club handed in a list of giant buildings (a leaning tower, a Roman gate, a mine with tunnels and caverns, a
+castle the Soundi live in, a statue that sounds, a burger restaurant shaped like a hamburger). Most stand only as ruins
+that must never look the same twice. This package is the **framework only** — the buildings themselves follow as
+content, authored in the town editor. New worlds only (terrain generation 37, save version 14). How it works:
+[docs/developer/LANDMARKS.md](docs/developer/LANDMARKS.md).
+
+- **#3484 template kind + catalog** — `data/landmarks/*.json` and `usercontent/landmark_templates`; fields ruin
+  (never/always/either), ruin profile + strength, conditions (air, inhabited), ground row, protected, name key;
+  `LandmarkRules.Problems` validates at load. **#3485 compact body** — palette + run-length rows (`TemplateBody`), so a
+  256³ room stays a small file.
+- **#3486 stamper** — `StampLandmarks`: at most one per planet, about every third (`LandmarkChance`), never on an
+  asteroid, an airless, gas or void world; one placement record, replayed on load. **#3500** Soaniri allows `landmarks`
+  that name it.
+- **#3487 one ruin pass** — `StructureRuiner` (crumble, erode, collapse spots, openings, cave-ins, settle, rubble,
+  overgrowth) from the instance seed: the same building, a different ruin on every planet; *keep* cells stay.
+- **#3488 marker settings + loot tables** — a marker carries `key=value` settings; chests with fixed items or a roll
+  from `data/loot_tables.json`, a chance to exist, hidden under a block. **#3490** ground row, cavity cells and a sealed
+  underground part (shafts, tunnels, caverns).
+- **#3489 streaming lift** — a tall landmark is streamed to its top inside the player's chunk sphere. **#3497 far
+  silhouette** — a coarse model sent once and drawn beyond the chunks (FarTerrain shader, sphere clip).
+- **#3494 sound emitters** (louder as you walk up), **#3495 dens** (animals that live there, stay and come back),
+  **#3496 discovery** (map POI, VEGA hint, scan → knowledge + Codex entry, `/landmark`, `/tp landmark`).
+- **#3491–#3493 editor** — the town editor's room is 256 a side; *Use as → Landmark* with its form, the ruin preview
+  (the server's own pass, reroll), the *Keep* and *Cavity* brushes, *Sound* and *Animal den* markers and the marker
+  settings panel (chest, vendor, sound, den). `tools/merge_structure.py` merges a landmark export.
+- **#3498 blocks** — `mine_track`, `mine_cart`, `dripstone`, `burger_bun`, `burger_patty`, `burger_cheese`
+  (AI tiles). **#3499 inhabited landmarks** — protected like a village, residents, a keeper who trades only inside;
+  the `burger` meal and the `burgers` market theme.
+- Three small **samples** ship pin-only (`sample_tower`, `sample_mine`, `sample_store`; `tools/gen_landmarks.py`): no
+  world rolls them, an admin stands one with `/landmark <key>`.
+- Not in this package (follow-ups): the buildings themselves; landmark submissions through the creation inbox; the
+  older decay passes (rail ruins, stations, factories) still run their own code beside the shared pass.
+- Playtest: `/landmark sample_tower` twice on a world with air (two different ruins, chests, map POI, scan, silhouette
+  from far away); `sample_mine` (shaft, sealed tunnels, cave-in); `sample_store` on an inhabited planet (keeper sells
+  burgers only inside, blocks protected); the editor's landmark mode with the ruin preview; the browser build.
+
 ### 🌫️ "I want my far view back" — one switch for the distance softness, no storm smear — #3480–#3481, ✅ 2026-11-11, PR pending (⚠ playtest open)
 
 Lyxette (v2026.11.16, night storm with snow): his distant building had become "a soft hill". Both parts of the 11.16

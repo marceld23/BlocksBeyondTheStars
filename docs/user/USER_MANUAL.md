@@ -2800,6 +2800,27 @@ with a game version that has generation 35 get them — an older world never cha
   very rarely, the skull of some creature that lived down there long ago. Like every ruin, everything is freely
   mineable.
 
+### Landmarks — giant buildings (worlds created since generation 37)
+- On about **every third planet with air** stands one **landmark**: a single giant building — a tower, a gate, a
+  mine — far bigger than anything a settlement builds. Never on an asteroid, and at most one per planet.
+- Most landmarks stand only as **ruins**, and no two ruins are alike: the same tower loses a different flank on every
+  planet. A ruin is **yours to mine** like every ruin, and what you take away stays gone.
+- Look for **chests** in the rubble. Some are hidden under a stone; what is in them was decided by whoever built the
+  landmark, and a chest you emptied never refills.
+- A landmark goes on your **planet map** (♜, pale gold) once you have come within sight of it on foot, VEGA points
+  out the first one, and **scanning any of its blocks** reads the landmark itself: knowledge, once per planet and
+  landmark, and an entry under **Discoveries → Landmarks**.
+- Some have an **underground part** — a mine's shaft, tunnels and caverns. The way in is on the surface; deeper down
+  a tunnel may have **caved in**, and you dig through.
+- **Animals** may have moved in: they live there, stay there and come back after a while when you chased them off.
+  Some landmarks have a **sound** of their own that gets louder as you walk up.
+- A few landmarks are **inhabited** — somebody keeps the house. Those are protected like a village, and the keeper
+  trades: at a burger restaurant you get **burgers** (a filling meal) for ore or meat, and only while you stand
+  inside.
+- From far away a landmark shows as a **silhouette** on the horizon, well beyond the blocks around you.
+- *The buildings themselves arrive with a coming update.* Until then a world carries none of its own; an admin can
+  stand one of the three samples in front of them with `/landmark` (see the admin commands).
+
 ### Monuments & runes
 - Somebody was here long before you. **Monuments** are the relics they left: a half-collapsed
   **arcade** of arches, a free-standing **gate** that leads nowhere, a ring of standing stones
@@ -4761,6 +4782,19 @@ player can find the way down. It is built exactly as you made it — doors, crat
 nobody lives there: an underground structure is a find, like a ruin, and every block is free to mine. The buried G.D.S.
 ruins (see *Buried G.D.S. ruins & Ressaw*) are the game's own underground kit. Stations cannot be underground.
 
+**Town editor — Landmark (Use as).** The third value of **Use as** is *Landmark*: one giant building that stands on a
+planet on its own. The room is **256 blocks** a side. The form sets whether it **stands as a ruin** (and how: walls and
+towers, lattice work, or a mine with cave-ins; how strongly), where it may stand (*only on planets with air*, *only on
+inhabited planets*), the **ground row** (the row that lies on the ground — everything below it is dug into the rock)
+and, for a building that is no ruin, *Inhabited* (protected, with its keepers). **Show as a ruin** shows what the game
+will make of your building — the same way the game does it; *Reroll* shows another one, *Back to the design* brings
+your building back (the preview is never saved, and nothing can be changed while it shows). New in the palette: the
+**Keep** brush (click a block: it stays standing in every ruin, shown green), the **Cavity** brush (the tunnels and
+caverns under the ground row, shown pale blue), the markers **Sound** and **Animal den**, and **Marker settings** —
+click a chest, a vendor, a sound or a den with it to set what is in the chest (fixed items like `iron_plate:2-4`, or a
+random pick from a loot list, the chance that the chest is there, hidden under a stone), what the vendor sells, how far
+the sound carries, and which animals live there. *Save* writes one file; it can appear in your next new world.
+
 **Station / Town editor — kit modules, ports and the seal.** Set **Use as** to *Kit module* to build a piece of a
 modular structure. Type the **Kit** it belongs to (or pick one with **Kits…**) and step the **Function**: a
 station module is a *Hub*, *Corridor*, *Crew cabins*, *Canteen*, *Bar*, *Market hall*, *Mission office*,
@@ -5005,6 +5039,7 @@ confirmation is the brief HUD toast.
 | `/tpp Player` | Teleport to a player on the body you are on — you land **beside** them, never inside them (#1055) |
 | `/ressaw` | Straight **into** the nearest buried G.D.S. ruin, on any planet: on dry floor beside the crate with the diving suit. If the body you stand on has none, the game works out from the world seed which planets have one, flies you to the nearest (no jump drive needed) and drops you inside — see *Testing an ancient ruin* below |
 | `/ressaw 2` · `/ressaw list` | The second-nearest ruin (`3`, `4` … the next ones) · list them all: number, planet, star system, under a city or under a vent tower |
+| `/landmark list` · `/landmark key` | List the landmarks of the game · stand one a few steps in front of you, whatever the planet's own roll said — a ruin comes out different every time (worlds of generation 37 or newer) |
 | `/settime day\|night\|noon\|midnight\|dawn\|dusk\|18:30\|6.5\|0.5` | Set the local time of day of the world you stand in: a word, a clock time, an hour from 1 to 24 or a part of the day below 1. Not out in space |
 | `/setweather clear\|clouds\|rain\|storm\|fog\|blizzard\|heatwave\|…` | Set the weather of the world you stand in (every weather key works; `cloudy` is accepted for `clouds`) |
 | `/giant colossus\|sandworm\|leviathan\|sky` | Summon this world's colossus, sandworm, leviathan or sky giant near you (a sandworm needs a sand sea, a leviathan a deep sea) — for testing |
@@ -5041,6 +5076,7 @@ and easy to mistype. The numbering is stable for a world: `village2` is the same
 | `railruin` | An abandoned monorail station (`bahnhofsruine` also works) |
 | `vault` | A buried vault's surface pillar ring |
 | `ancient` | A buried ancient ruin ("Alte Städte") — beside the top of its shaft: the hatch in a G.D.S. city street, or the vent tower in the open land (`ancients`, `altstadt` also work) |
+| `landmark` | A landmark (a giant building) — on the ground right in front of it (`landmarks`, `bauwerk`, `wahrzeichen` also work) |
 | `wreck` | The crashed ship — even before an NPC has pointed you at it |
 | `factory` | A factory's production terminal |
 | `camp` | A bandit camp (`bandit` also works) |

@@ -3582,3 +3582,25 @@ lies in the margin band between shrine cells).
 the shrines: they level their own footprint, so a shrine half under one keeps its other half (`NearestRuneShrine` skips a
 shrine under a settlement, rail, lodge, buried ruin or monument). A shrine's stone scans as material, like a lone stone, and
 `RuneSiteKind` calls it `lone`.
+
+## 53. Generation 37 — the landmarks (#3483: #3484–#3500, 2026-11-11, the school club's giant buildings)
+
+**Why.** The school club handed in a list of giant buildings — a leaning tower, a Roman city gate, a mine, a statue of the
+Soundi, a burger restaurant shaped like a hamburger — most of which should stand only as ruins that never look the same
+twice. This generation builds the framework; the buildings follow as content.
+
+**The gate.** `WorldDescription.LandmarkGeneration` = 37 = `CurrentTerrainGeneration`. A server-side stamp like the rail
+ruins and the buried ruins: every chunk of every generation stays bit-identical and no golden moves; the gate only keeps a
+landmark out of a world created before it.
+
+**What it adds to the pipeline.** One line in the structures stage, `StampLandmarks`, after everything that stands on the
+ground and before the buried ruins: at most ONE authored giant per planet (a hash roll, about every third), never on an
+asteroid, an airless, gas or void world; on a type with a structure whitelist only landmarks that name the type (Soaniri
+lists `landmarks`). The template is authored in the structure editor, stored in a compact body, turned by a quarter turn
+and — for a ruin — run through one shared ruin pass with the instance's seed. One placement record, one stamp; above the
+ground row no foundation plate, below it only blocks and cavity cells, every cavity sealed.
+
+Everything else — the template fields, the compact body, the ruin pass step by step, chests and loot tables, sound
+emitters, dens, discovery, the streaming lift and the far silhouette, authoring — is in [LANDMARKS.md](LANDMARKS.md).
+
+**Tests.** `LandmarkTemplateTests`, `StructureRuinerTests`, `LandmarkStampTests`, `LandmarkWorldTests`, `LandmarkClientTests`.

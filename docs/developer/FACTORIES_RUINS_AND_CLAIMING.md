@@ -30,6 +30,7 @@ StampSettlement → StampIntercityRail → StampRuins → StampRailRuins → Sta
 | Chests | `StampChests` (`GameServerChests.cs`) | `PlaceChests` | ~0–2, mostly none |
 | Intercity line (#2125) | `StampIntercityRail` (`GameServerIntercityRail.cs`) | `PlaceIntercityRail` + `IntercityRailChance` | 0–1, generation 19+, needs two towns — see [MONORAIL.md](MONORAIL.md) |
 | Abandoned station (#2166) | `StampRailRuins` (`GameServerRailRuins.cs`) | `PlaceRailRuins` + `RailRuinChance` | 0–1, generation 20+, unprotected like the ruins; skipped on airless, gas and restricted worlds — see [MONORAIL.md](MONORAIL.md) |
+| Landmark (#3483) | `StampLandmarks` (`GameServerLandmarks.cs`) | `PlaceLandmarks` + `LandmarkChance` | 0–1, generation 37+: one giant authored building, usually a ruin from the shared ruin pass, unprotected; never on an asteroid, an airless, gas or void world — see [LANDMARKS.md](LANDMARKS.md) |
 
 Every count/position is a hash of `seed ^ StableHash("<kind>:" + locationId)`, so adding any one of them
 leaves the rest of the universe unchanged. Placement reuses the settlement allocator
