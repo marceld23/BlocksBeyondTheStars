@@ -143,6 +143,13 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
                 reporter TEXT NOT NULL, owner TEXT NOT NULL, design_id INTEGER NOT NULL,
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
                 created_unix BIGINT NOT NULL, kind TEXT NOT NULL DEFAULT 'paint');
+            CREATE TABLE IF NOT EXISTS player_report (
+                id BIGSERIAL PRIMARY KEY, kind TEXT NOT NULL,
+                reporter TEXT NOT NULL, reporter_name TEXT NOT NULL, target TEXT NOT NULL, target_name TEXT NOT NULL,
+                note TEXT NOT NULL, planet TEXT NOT NULL, has_pos INTEGER NOT NULL,
+                x DOUBLE PRECISION NOT NULL, y DOUBLE PRECISION NOT NULL, z DOUBLE PRECISION NOT NULL,
+                evidence TEXT NOT NULL, created_unix BIGINT NOT NULL, state TEXT NOT NULL DEFAULT 'open',
+                handled_by TEXT NOT NULL DEFAULT '', handled_unix BIGINT NOT NULL DEFAULT 0);
             CREATE TABLE IF NOT EXISTS custom_shape (
                 id INTEGER PRIMARY KEY, owner TEXT NOT NULL, owner_name TEXT NOT NULL,
                 name TEXT NOT NULL, voxels TEXT NOT NULL);
@@ -1560,6 +1567,88 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         return result;
     }
 
+    // --- The world's own report list (#3508) ---
+
+    public long AddPlayerReport(StoredPlayerReport report)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO player_report (kind, reporter, reporter_name, target, target_name, note, planet, has_pos, " +
+                              "x, y, z, evidence, created_unix, state, handled_by, handled_unix) VALUES (@k, @r, @rn, @t, @tn, @n, @p, " +
+                              "@hp, @x, @y, @z, @e, @c, @s, @hb, @hu) RETURNING id;";
+            cmd.Parameters.AddWithValue("@k", report.Kind);
+            cmd.Parameters.AddWithValue("@r", report.ReporterId);
+            cmd.Parameters.AddWithValue("@rn", report.ReporterName);
+            cmd.Parameters.AddWithValue("@t", report.TargetId);
+            cmd.Parameters.AddWithValue("@tn", report.TargetName);
+            cmd.Parameters.AddWithValue("@n", report.Note);
+            cmd.Parameters.AddWithValue("@p", report.Planet);
+            cmd.Parameters.AddWithValue("@hp", report.HasPosition ? 1 : 0);
+            cmd.Parameters.AddWithValue("@x", (double)report.X);
+            cmd.Parameters.AddWithValue("@y", (double)report.Y);
+            cmd.Parameters.AddWithValue("@z", (double)report.Z);
+            cmd.Parameters.AddWithValue("@e", report.Evidence);
+            cmd.Parameters.AddWithValue("@c", report.CreatedUnix);
+            cmd.Parameters.AddWithValue("@s", string.IsNullOrEmpty(report.State) ? "open" : report.State);
+            cmd.Parameters.AddWithValue("@hb", report.HandledBy);
+            cmd.Parameters.AddWithValue("@hu", report.HandledUnix);
+            report.Id = Convert.ToInt64(cmd.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+            return report.Id;
+        }
+    }
+
+    public void SetPlayerReportState(long id, string state, string handledBy, long handledUnix)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "UPDATE player_report SET state = @s, handled_by = @hb, handled_unix = @hu WHERE id = @i;";
+            cmd.Parameters.AddWithValue("@s", state);
+            cmd.Parameters.AddWithValue("@hb", handledBy);
+            cmd.Parameters.AddWithValue("@hu", handledUnix);
+            cmd.Parameters.AddWithValue("@i", id);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<StoredPlayerReport> ListPlayerReports()
+    {
+        var result = new List<StoredPlayerReport>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT id, kind, reporter, reporter_name, target, target_name, note, planet, has_pos, x, y, z, evidence, " +
+                              "created_unix, state, handled_by, handled_unix FROM player_report ORDER BY id;";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new StoredPlayerReport
+                {
+                    Id = reader.GetInt64(0),
+                    Kind = reader.GetString(1),
+                    ReporterId = reader.GetString(2),
+                    ReporterName = reader.GetString(3),
+                    TargetId = reader.GetString(4),
+                    TargetName = reader.GetString(5),
+                    Note = reader.GetString(6),
+                    Planet = reader.GetString(7),
+                    HasPosition = reader.GetInt32(8) != 0,
+                    X = (float)reader.GetDouble(9),
+                    Y = (float)reader.GetDouble(10),
+                    Z = (float)reader.GetDouble(11),
+                    Evidence = reader.GetString(12),
+                    CreatedUnix = reader.GetInt64(13),
+                    State = reader.GetString(14),
+                    HandledBy = reader.GetString(15),
+                    HandledUnix = reader.GetInt64(16),
+                });
+            }
+        }
+
+        return result;
+    }
+
     // --- Player-designed block forms (#843) ---
 
     public void SaveCustomShape(StoredCustomShape shape)
@@ -2307,6 +2396,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         "beam", "crystal_cell", "base_claim", "base_pad", "alliance", "crew", "crew_member", "story_state", "named_blob",
         "location_status", "mission", "space_structure", "structure_edit", "flora_regrow", "weather_deposit",
         "fluid_cell", "fluid_source", "fire_cell", "paint_design", "paint_report", "custom_shape", "world_texture",
+        "player_report",
     };
 
     /// <summary>Rows written before the JSON writer hands its buffer to the file — the dump streams, so a large

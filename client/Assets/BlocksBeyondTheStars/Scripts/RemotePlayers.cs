@@ -104,6 +104,20 @@ namespace BlocksBeyondTheStars.Client
             return true;
         }
 
+        /// <summary>#3505: <see cref="TryGetPosition"/> plus the way the avatar faces (yaw, degrees) — the admin view's Follow
+        /// keeps behind the player.</summary>
+        public bool TryGetPose(string playerId, out Vector3 position, out float yaw)
+        {
+            yaw = 0f;
+            if (!TryGetPosition(playerId, out position))
+            {
+                return false;
+            }
+
+            yaw = _remotes[playerId].Go.transform.eulerAngles.y;
+            return true;
+        }
+
         /// <summary>#2725: whether another player is here with us right now — their presence still streams in (not timed out)
         /// and they are not hidden (up in space, or behind a stealth field). The host of a docking visit reads "Tom is
         /// visiting" from it while the guest walks in the host's ship.</summary>

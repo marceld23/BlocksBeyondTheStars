@@ -143,6 +143,11 @@ public sealed class JoinAccepted
     /// <summary>The fingerprint of the server's block palette (#2222, v9) — the client compares it with its own and
     /// leaves when it is missing or different, the mirror of the server's check on <see cref="JoinRequest"/>.</summary>
     public string ContentFingerprint { get; set; } = string.Empty;
+
+    /// <summary>#3508: the server files "Call an admin" (<see cref="CallAdminIntent"/>, the chat's <c>/admin Text</c>). An
+    /// older server leaves it false — the client then offers neither the pause menu's button nor the chat command, and a
+    /// typed <c>/admin</c> keeps its old meaning (the admin help). Appended contractless field.</summary>
+    public bool AdminCallSupported { get; set; }
 }
 
 public sealed class JoinRejected

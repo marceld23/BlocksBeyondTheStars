@@ -65,6 +65,13 @@ internal interface IObserverHost : IServerHost
 
     /// <summary>The galaxy (the server's <c>_galaxy</c>) — replaced when the server starts, so read it at use time.</summary>
     Galaxy Galaxy { get; }
+
+    /// <summary>Whether this admin may see observers (#3502: not the owner of an official hosted world).</summary>
+    bool SeesObservers(PlayerSession viewer);
+
+    /// <summary>Whether this admin may see players' positions (#3502: not the owner of an official hosted world, who
+    /// gets the body only — child safety).</summary>
+    bool SeesPositions(PlayerSession viewer);
 }
 
 /// <summary>
@@ -94,8 +101,10 @@ internal sealed class ObserverSystem
 
     /// <summary>Turns observer mode on: the world forgets the admin is there. Order matters — the ship object
     /// and the presence handshake must go out while the session is still "visible", otherwise the removal
-    /// messages are themselves suppressed and every client keeps a frozen avatar and a ghost ship.</summary>
-    private void EnterSpectate(PlayerSession session)
+    /// messages are themselves suppressed and every client keeps a frozen avatar and a ghost ship. Shared by the fleet
+    /// admin's <c>/spectate</c> and the invisible admin mode (#3503), which differ only in the line the admin reads and the
+    /// line the log keeps.</summary>
+    internal void EnterSpectate(PlayerSession session, string notice = "@srv.obs.on", string logLine = "entered observer mode")
     {
         var p = session.State;
 
@@ -122,13 +131,14 @@ internal sealed class ObserverSystem
 
         _host.BroadcastStarMap(); // #3052: the star map's player list drops the observer for everyone else right away
         _host.SendPlayerState(session);
-        _host.Send(session, new ServerMessage { Text = "@srv.obs.on" });
-        _host.CheatLog(p, "entered observer mode");
+        _host.Send(session, new ServerMessage { Text = notice });
+        _host.CheatLog(p, logLine);
     }
 
     /// <summary>Turns observer mode off and hands the admin back to the world as a normal player: the ship is
-    /// parked again and everyone is told about the avatar that just appeared.</summary>
-    private void ExitSpectate(PlayerSession session)
+    /// parked again and everyone is told about the avatar that just appeared. Shared with the invisible admin mode (#3503),
+    /// which puts the admin back at the entry point first.</summary>
+    internal void ExitSpectate(PlayerSession session, string notice = "@srv.obs.off", string logLine = "left observer mode")
     {
         var p = session.State;
         session.Spectating = false;
@@ -153,7 +163,11 @@ internal sealed class ObserverSystem
         _host.BroadcastFace(session);
         _host.BroadcastStarMap(); // #3052: and lists the admin again
         _host.SendPlayerState(session);
-        _host.Send(session, new ServerMessage { Text = "@srv.obs.off" });
+        if (notice.Length > 0)
+        {
+            _host.Send(session, new ServerMessage { Text = notice }); // #3503: the admin mode's way out said it with the snap
+        }
+
         // #2478 (E23): whoever had heard the arc out (B12) before the win counts as being there for it — read before the
         // catch-up below hears any missed beat. An observer is not aboard at the win, so the ending (and its achievement)
         // reaches them when observing ends.
@@ -165,7 +179,7 @@ internal sealed class ObserverSystem
         }
 
         _host.TryStartStoryTrack(session); // #2470: the start rule may hold now (observers never start a track)
-        _host.CheatLog(p, "left observer mode");
+        _host.CheatLog(p, logLine);
     }
 
     /// <summary><c>/spectate [on|off]</c> — fleet admins only.</summary>
@@ -194,8 +208,10 @@ internal sealed class ObserverSystem
     // ---------------- Inspection commands (issue #488) ----------------
 
     /// <summary>Every player this world knows: the live sessions plus every persisted record. Returns the live
-    /// session where there is one, so coordinates are current rather than "as of the last save".</summary>
-    private List<(PlayerState State, bool Online, bool Observing)> AllKnownPlayers()
+    /// session where there is one, so coordinates are current rather than "as of the last save". #3502: for an admin who may
+    /// not see observers (<see cref="IObserverHost.SeesObservers"/>) a player observing right now is left out altogether —
+    /// their record too, whose last-seen time and place would give the observer away.</summary>
+    private List<(PlayerState State, bool Online, bool Observing)> AllKnownPlayers(PlayerSession viewer)
     {
         var byId = new Dictionary<string, (PlayerState, bool, bool)>(StringComparer.OrdinalIgnoreCase);
 
@@ -207,9 +223,14 @@ internal sealed class ObserverSystem
             }
         }
 
+        bool seesObservers = _host.SeesObservers(viewer);
         foreach (var s in _host.Sessions.Values)
         {
-            if (s.Joined)
+            if (s.Joined && s.Spectating && !seesObservers)
+            {
+                byId.Remove(s.State.PlayerId);
+            }
+            else if (s.Joined)
             {
                 byId[s.State.PlayerId] = (s.State, true, s.Spectating);
             }
@@ -248,7 +269,7 @@ internal sealed class ObserverSystem
     /// <summary><c>/players</c> — who is on this world, and where everyone was last seen.</summary>
     internal void AdminListPlayers(PlayerSession session)
     {
-        var all = AllKnownPlayers();
+        var all = AllKnownPlayers(session);
         if (all.Count == 0)
         {
             _host.Send(session, new ServerMessage { Text = "@srv.obs.no_players" });
@@ -260,6 +281,7 @@ internal sealed class ObserverSystem
             Text = _host.Localize(session.Locale, "srv.obs.players_header").Replace("{count}", all.Count.ToString()),
         });
 
+        bool withPosition = _host.SeesPositions(session); // #3502: an official hosted world's owner gets the body only
         foreach (var (state, online, observing) in all)
         {
             string status = observing
@@ -274,7 +296,7 @@ internal sealed class ObserverSystem
                        + (state.ModeOverride == Shared.Configuration.PlayerModeOverride.None
                            ? string.Empty : $" [{state.ModeOverride}]")
                        + $" · {BodyLabel(state.CurrentLocationId)} · "
-                       + $"{Coords(state.Position)} · {status}",
+                       + (withPosition ? $"{Coords(state.Position)} · " : string.Empty) + status,
             });
         }
     }
@@ -289,7 +311,7 @@ internal sealed class ObserverSystem
             return;
         }
 
-        var match = AllKnownPlayers()
+        var match = AllKnownPlayers(session)
             .FirstOrDefault(e => string.Equals(e.State.Name, name.Trim(), StringComparison.OrdinalIgnoreCase));
         if (match.State is null)
         {
@@ -298,14 +320,19 @@ internal sealed class ObserverSystem
         }
 
         var s = match.State;
+        bool withPosition = _host.SeesPositions(session); // #3502: an official hosted world's owner gets the body only
         _host.Send(session, new ServerMessage
         {
-            Text = $"{s.Name}: {BodyLabel(s.CurrentLocationId)} · {Coords(s.Position)} · "
+            Text = $"{s.Name}: {BodyLabel(s.CurrentLocationId)} · "
+                   + (withPosition ? $"{Coords(s.Position)} · " : string.Empty)
                    + (match.Online
                        ? "online"
                        : _host.Localize(session.Locale, "srv.obs.last_seen").Replace("{time}", ShortTime(s.LastSeenUtc))),
         });
-        _host.Send(session, new ServerMessage { Text = $"/goto {s.CurrentLocationId} {Coords(s.Position).Replace('/', ' ')}" });
+        if (withPosition)
+        {
+            _host.Send(session, new ServerMessage { Text = $"/goto {s.CurrentLocationId} {Coords(s.Position).Replace('/', ' ')}" });
+        }
     }
 
     /// <summary>One listed structure: what it is, who owns it, where, and the command to jump there.</summary>
@@ -442,7 +469,7 @@ internal sealed class ObserverSystem
 
         // /goto <player>
         string playerName = string.Join(' ', parts).Trim('"');
-        var match = AllKnownPlayers()
+        var match = AllKnownPlayers(session)
             .FirstOrDefault(e => string.Equals(e.State.Name, playerName, StringComparison.OrdinalIgnoreCase));
         if (match.State is null)
         {
@@ -478,35 +505,53 @@ internal sealed class ObserverSystem
     }
 
     /// <summary>Moves the admin to <paramref name="bodyId"/> (if that is not where they already are) and snaps
-    /// them to <paramref name="target"/>.</summary>
-    private void GotoPosition(PlayerSession session, string bodyId, Vector3f target, string what)
+    /// them to <paramref name="target"/>. Shared with the admin view's jump and the way back out of admin mode (#3503,
+    /// #3505): <paramref name="snapReason"/> replaces the "Jumped to …" line, and <paramref name="logLine"/> (when not null)
+    /// the log line — an empty one logs nothing. False when the jump was refused (the admin was told why).</summary>
+    internal bool GotoPosition(PlayerSession session, string bodyId, Vector3f target, string what, string? snapReason = null,
+        string? logLine = null)
     {
-        if (string.IsNullOrEmpty(bodyId))
+        if (!TravelForGoto(session, bodyId))
         {
-            _host.Reject(session, "admin", "@srv.obs.unknown_destination");
-            return;
-        }
-
-        if (bodyId != session.CurrentLocationId)
-        {
-            if (_host.Galaxy?.FindBody(bodyId) is null)
-            {
-                _host.Reject(session, "admin", "@srv.obs.unknown_body");
-                return;
-            }
-
-            // adminBypass skips the jump-generator requirement; the Instant Travel rule does not apply
-            // because this is not the quick-travel screen.
-            _host.HandleTravel(session, new TravelIntent { DestinationBodyId = bodyId }, quickTravel: false, adminBypass: true, adminTeleport: true); // #2493: booked silently
-            if (session.CurrentLocationId != bodyId)
-            {
-                return; // travel refused (and already told the admin why)
-            }
+            return false;
         }
 
         // The snap has to ride the RespawnNotice channel or the client discards it (#414 M7) — shared with
         // the named teleport in GameServerAdminTeleport.
-        _host.SnapPlayerTo(session, target, "@srv.obs.jumped:" + what);
-        _host.CheatLog(session.State, $"jumped to {what} on {bodyId}");
+        _host.SnapPlayerTo(session, target, snapReason ?? "@srv.obs.jumped:" + what);
+        string line = logLine ?? $"jumped to {what} on {bodyId}";
+        if (line.Length > 0)
+        {
+            _host.CheatLog(session.State, line);
+        }
+
+        return true;
+    }
+
+    /// <summary>The travel half of <see cref="GotoPosition"/>: moves the admin to <paramref name="bodyId"/> unless they are
+    /// already there — silently, with the admin bypass. False when it was refused (the admin was told why).</summary>
+    internal bool TravelForGoto(PlayerSession session, string bodyId)
+    {
+        if (string.IsNullOrEmpty(bodyId))
+        {
+            _host.Reject(session, "admin", "@srv.obs.unknown_destination");
+            return false;
+        }
+
+        if (bodyId == session.CurrentLocationId)
+        {
+            return true;
+        }
+
+        if (_host.Galaxy?.FindBody(bodyId) is null)
+        {
+            _host.Reject(session, "admin", "@srv.obs.unknown_body");
+            return false;
+        }
+
+        // adminBypass skips the jump-generator requirement; the Instant Travel rule does not apply
+        // because this is not the quick-travel screen.
+        _host.HandleTravel(session, new TravelIntent { DestinationBodyId = bodyId }, quickTravel: false, adminBypass: true, adminTeleport: true); // #2493: booked silently
+        return session.CurrentLocationId == bodyId; // else the travel was refused (and already told the admin why)
     }
 }

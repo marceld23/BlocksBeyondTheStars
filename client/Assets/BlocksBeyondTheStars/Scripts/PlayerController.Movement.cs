@@ -241,7 +241,11 @@ namespace BlocksBeyondTheStars.Client
             {
                 UpdateGlide(false);
                 _sprint.Stop(); // #3374: the observer's flight has its own boost
-                SpectatorMove(h, v);
+                if (!StepAdminFollow(h, v)) // #3505: the admin view's Follow steers the flight while it lasts
+                {
+                    SpectatorMove(h, v);
+                }
+
                 return;
             }
 

@@ -67,5 +67,26 @@ public static partial class NetCodec
         // #3494/#3497 the landmarks: the far silhouettes and the sound emitters of the current world. No protocol bump — an
         // older client drops it (no silhouette, no emitter sound); the blocks stream as chunks either way.
         Register(335, typeof(LandmarkList));                 // Server -> Client
+
+        RegisterAdminViewMessages();
+    }
+
+    /// <summary>#3502 the in-game admin view (ids 336–347): admin mode, the roster, the event log, the direct chat and the world's
+    /// reports. No protocol bump — an older server drops the intents (no admin view), an older client the state. The next
+    /// message after these takes 348.</summary>
+    private static void RegisterAdminViewMessages()
+    {
+        Register(336, typeof(AdminModeIntent));              // Client -> Server (#3503 enter / leave admin mode)
+        Register(337, typeof(AdminPanelIntent));             // Client -> Server (#3505/#3506 the panel opened / closed)
+        Register(338, typeof(AdminRoster));                  // Server -> Client (#3505 every online player, 1 Hz)
+        Register(339, typeof(AdminJumpIntent));              // Client -> Server (#3505 jump to a player or a place)
+        Register(340, typeof(AdminEventBacklog));            // Server -> Client (#3506 the log when the panel opens)
+        Register(341, typeof(AdminEvent));                   // Server -> Client (#3506 one live event)
+        Register(342, typeof(DirectChatIntent));             // Client -> Server (#3507 a direct line)
+        Register(343, typeof(DirectChatMessage));            // Server -> Client (#3507)
+        Register(344, typeof(AdminReportList));              // Server -> Client (#3508 the world's reports)
+        Register(345, typeof(AdminReportAction));            // Client -> Server (#3508 done / open again)
+        Register(346, typeof(CallAdminIntent));              // Client -> Server (#3508 "Call an admin")
+        Register(347, typeof(PlayerReportIntent));           // Client -> Server (#3508 a player report, also the portal mirror)
     }
 }

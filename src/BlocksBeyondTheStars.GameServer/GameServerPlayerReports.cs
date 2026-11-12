@@ -67,13 +67,22 @@ public sealed partial class GameServer
         }
 
         var (target, note) = ResolveReportTarget(arguments);
+        SubmitPlayerReport(session, target, note);
+    }
+
+    /// <summary>A resolved player report on the server route — <c>/report</c> and the <see cref="PlayerReportIntent"/> without
+    /// the portal: refused for a name nobody played under or oneself, rate-limited, then forwarded to the operators, filed in
+    /// the world's own list (#3508) and confirmed. #3502: any player this world knows may be reported, online or not, with the
+    /// same answer — so a report never tells whether an invisible admin is around.</summary>
+    private void SubmitPlayerReport(PlayerSession session, KnownPlayer? target, string note)
+    {
         if (target is null)
         {
             Send(session, new ServerMessage { Text = "@srv.report.no_target" });
             return;
         }
 
-        if (ReferenceEquals(target, session))
+        if (SamePlayer(target.Id, session.State.PlayerId))
         {
             // Not an error worth an operator's time, and answering "you cannot report yourself" is friendlier
             // than filing it and having a human work out what happened.
@@ -81,26 +90,43 @@ public sealed partial class GameServer
             return;
         }
 
-        TrimWindow(session.Chat.RecentReportsAt, ReportWindowSeconds);
-        if (session.Chat.RecentReportsAt.Count >= MaxReportsPerWindow)
+        if (!TakeReportSlot(session, tellWhenFull: true))
         {
-            Send(session, new ServerMessage { Text = "@srv.report.too_many" });
             return;
         }
 
-        session.Chat.RecentReportsAt.Add(_uptime);
         ForwardPlayerReport(session, target, note);
-        Send(session, new ServerMessage { Text = "@srv.report.sent:" + (target.State.Name ?? "?") });
+        FilePlayerReportRow(session, target, note); // #3508: the world's admins see it too
+        Send(session, new ServerMessage { Text = "@srv.report.sent:" + target.Name });
+    }
+
+    /// <summary>The report rate limit (shared by <c>/report</c>, the Report button's mirror and "Call an admin", #3508):
+    /// true and stamped when another report fits into the window; false when it does not (told once, when asked to).</summary>
+    private bool TakeReportSlot(PlayerSession session, bool tellWhenFull)
+    {
+        TrimWindow(session.Chat.RecentReportsAt, ReportWindowSeconds);
+        if (session.Chat.RecentReportsAt.Count >= MaxReportsPerWindow)
+        {
+            if (tellWhenFull)
+            {
+                Send(session, new ServerMessage { Text = "@srv.report.too_many" });
+            }
+
+            return false;
+        }
+
+        session.Chat.RecentReportsAt.Add(_uptime);
+        return true;
     }
 
     /// <summary>Splits the argument into a reported player and a note. The whole argument is tried as a name
     /// first: player names may contain spaces (#980), so "/report mincraft Fan" is far more likely to be one
     /// name than a name plus the note "Fan". Only when that finds nobody is the first token taken as the
-    /// name and the rest as the note.</summary>
-    private (PlayerSession? Target, string Note) ResolveReportTarget(string arguments)
+    /// name and the rest as the note. A name is any player this world knows, online or offline (#3502).</summary>
+    private (KnownPlayer? Target, string Note) ResolveReportTarget(string arguments)
     {
         string whole = CleanReportName(arguments);
-        if (FindJoinedSessionByName(whole) is { } exact)
+        if (FindKnownPlayer(whole) is { } exact)
         {
             return (exact, string.Empty);
         }
@@ -118,7 +144,7 @@ public sealed partial class GameServer
             note = note.Substring(0, MaxReportNoteLength);
         }
 
-        return (FindJoinedSessionByName(name), note);
+        return (FindKnownPlayer(name), note);
     }
 
     /// <summary>Trims a typed name the way the admin commands do (#980): no quotes, no leading "@".</summary>
@@ -127,12 +153,13 @@ public sealed partial class GameServer
 
     /// <summary>Files the report: one operator ping and one row in the report inbox, carrying the world, who
     /// reported whom (with the arcade install id, which for a guest is the only identity there is), the
-    /// note, and the reported player's own recent lines as evidence.</summary>
-    private void ForwardPlayerReport(PlayerSession reporter, PlayerSession target, string note)
+    /// note, and the reported player's own recent lines as evidence (none for an offline player).</summary>
+    private void ForwardPlayerReport(PlayerSession reporter, KnownPlayer target, string note)
     {
         string reporterName = reporter.State.Name ?? "?";
-        string targetName = target.State.Name ?? "?";
-        string excerpt = ChatExcerpt(target);
+        string targetName = target.Name;
+        var lines = target.Session is null ? new List<string>() : RecentLines(target.Session);
+        string excerpt = ChatExcerpt(lines);
         string description = $"Player '{reporterName}' reported '{targetName}' in world '{_meta.WorldName}'." +
                              (note.Length > 0 ? $" Note: {note}" : string.Empty) +
                              (excerpt.Length > 0 ? $" | chat: {excerpt}" : " | no recent chat from the reported player.");
@@ -145,9 +172,9 @@ public sealed partial class GameServer
             reporter = reporterName,
             reporterInstallId = reporter.InstallId,
             reported = targetName,
-            reportedInstallId = target.InstallId,
+            reportedInstallId = target.Session?.InstallId ?? string.Empty,
             note,
-            chat = RecentLines(target),
+            chat = lines,
         };
 
         LastPlayerReportJsonForTest = PostReportToInbox(
@@ -159,9 +186,8 @@ public sealed partial class GameServer
     }
 
     /// <summary>The reported player's last lines as one quoted string for the human-readable description.</summary>
-    private static string ChatExcerpt(PlayerSession target)
+    private static string ChatExcerpt(List<string> lines)
     {
-        var lines = RecentLines(target);
         if (lines.Count == 0)
         {
             return string.Empty;

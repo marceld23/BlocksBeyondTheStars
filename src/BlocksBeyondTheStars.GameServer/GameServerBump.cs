@@ -106,8 +106,20 @@ public sealed partial class GameServer
             image = null;
         }
 
-        HandleBump(session, SanitizeBumpDescription(report.Description), image, report.ClientVersion, report.ReplyKey);
+        string description = SanitizeBumpDescription(report.Description);
+        HandleBump(session, description, image, report.ClientVersion, report.ReplyKey);
+        FileFeedbackReport(session, description, report.FeedbackTitle); // #3508: the world's admins see the title field only
     }
+
+    /// <summary>The other players a bump snapshot lists under <c>nearby.players</c>: within the radius, never an observer
+    /// (#3504) — the snapshot can be forwarded to the report inbox, and an invisible admin is in nobody's report.</summary>
+    private IEnumerable<PlayerSession> BumpNearbyPlayers(PlayerSession session, double r2)
+        => _sessions.Values.Where(o => o.Joined && !o.Spectating && o.ConnectionId != session.ConnectionId
+                                       && WrapDistSq(session.State.Position, o.State.Position) < r2);
+
+    /// <summary>Test seam (#3504): the names a bump snapshot of this player would list as nearby players.</summary>
+    internal IReadOnlyList<string> BumpNearbyPlayerNamesForTest(PlayerSession session)
+        => BumpNearbyPlayers(session, 24.0 * 24.0).Select(o => o.State.Name ?? string.Empty).ToList();
 
     /// <summary>Bounds + cleans a client-supplied bump description before it is written to the log and a
     /// JSON snapshot: cap the length (a runaway paste can't bloat the file) and strip control characters
@@ -288,7 +300,7 @@ public sealed partial class GameServer
                 }).ToList();
             npcs = _npcs.Where(npc => WrapDistSq(p.Position, npc.Pos) < r2)
                 .Select(npc => new { npc.Id, npc.Role, npc.Theme, x = npc.Pos.X, y = npc.Pos.Y, z = npc.Pos.Z }).ToList();
-            others = _sessions.Values.Where(o => o.Joined && o.ConnectionId != session.ConnectionId && WrapDistSq(p.Position, o.State.Position) < r2)
+            others = BumpNearbyPlayers(session, r2)
                 .Select(o => new { o.State.Name, x = o.State.Position.X, y = o.State.Position.Y, z = o.State.Position.Z }).ToList();
             doors = _doors.Where(d => WrapDistSq(p.Position, d.Pos) < r2)
                 .Select(d => new { d.Id, d.Kind, d.PlayerBuilt, d.Open, x = d.Pos.X, y = d.Pos.Y, z = d.Pos.Z }).ToList();

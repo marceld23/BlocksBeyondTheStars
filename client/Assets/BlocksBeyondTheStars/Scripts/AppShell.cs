@@ -22,7 +22,7 @@ namespace BlocksBeyondTheStars.Client
     /// Scaffold note: IMGUI (matching the existing HUD); real uGUI/UI-Toolkit art comes later.
     /// Attach this single component to a GameObject in the launcher scene.
     /// </summary>
-    public sealed class AppShell : MonoBehaviour
+    public sealed partial class AppShell : MonoBehaviour
     {
         /// <summary>The build version shown in the UI. Single source of truth = <see cref="Application.version"/>
         /// (PlayerSettings.bundleVersion), which the release CI sets from the git tag at build time
@@ -1313,6 +1313,7 @@ namespace BlocksBeyondTheStars.Client
         private void CancelQuit()
         {
             _confirmQuit = false;
+            CloseCallAdminDialog(); // #3508: the "Call an admin" box goes with the pause menu (AppShell.Admin.cs)
             SetWorldPaused(false);
             ShowQuitDialog(false);
             // Release our ownership — the arbiter re-locks the cursor this frame unless another panel is
@@ -1994,6 +1995,10 @@ namespace BlocksBeyondTheStars.Client
                     {
                         // The chat handled its own Esc (or just closed) — don't quit to the menu.
                     }
+                    else if (_confirmQuit && CallAdminDialogOpen)
+                    {
+                        CloseCallAdminDialog(); // #3508: Esc first closes the "Call an admin" box, the pause menu stays
+                    }
                     else if (_confirmQuit)
                     {
                         CancelQuit(); // Esc again dismisses the confirmation
@@ -2137,33 +2142,23 @@ namespace BlocksBeyondTheStars.Client
             // line of its own at the bottom of the panel (#2559), so the row adds that line too.
             var boot = Boot();
             bool returnShip = boot != null && boot.ReturnToShipOffered;
-            const float Row = 64f;
             const float ReasonH = 48f;
-            float panelH = returnShip ? 340f + Row + ReasonH : 340f;
-            var (_, panel) = UiKit.AddModalOverlay(canvas.transform, 720f, (1080f - panelH) / 2f, 480f, panelH);
+            // #3509: the Admin row (players the server lets into the admin view) and "Call an admin" (everyone in a world).
+            int extraRows = (returnShip ? 1 : 0) + PauseAdminRowCount(boot);
+            float panelH = 340f + (extraRows * PauseRow) + (returnShip ? ReasonH : 0f);
+            var (pauseOverlay, panel) = UiKit.AddModalOverlay(canvas.transform, 720f, (1080f - panelH) / 2f, 480f, panelH);
+            _pauseOverlay = pauseOverlay;
             UiKit.AddText(panel.transform, 24f, 24f, 432f, 44f,
                 L("ui.pause.title"), 26, UiKit.TextCol, TextAnchor.MiddleCenter);
             float y = 88f;
             UiKit.AddButton(panel.transform, 90f, y, 300f, 56f, L("ui.pause.resume"), CancelQuit);
-            y += Row;
+            y += PauseRow;
             UiKit.AddButton(panel.transform, 90f, y, 300f, 56f, L("ui.menu.settings"), OpenSettings);
-            y += Row;
-            _returnShipButton = null;
-            _returnShipLabel = null;
-            _returnShipReasonText = null;
-            _returnShipShownState = int.MinValue; // a fresh row shows its first state right away
-            _returnShipBlocked = false;
-            _returnShipWaitUntil = 0f; // an answer to a menu that was closed before it came is not this menu's
-            if (returnShip)
-            {
-                _returnShipButton = UiKit.AddButton(panel.transform, 90f, y, 300f, 56f, L("ui.pause.return_ship"), ReturnToShip);
-                _returnShipLabel = _returnShipButton.GetComponentInChildren<UnityEngine.UI.Text>();
-                RefreshReturnShipButton();
-                y += Row;
-            }
-
+            y += PauseRow;
+            y = AddPauseAdminRows(panel.transform, y, boot);
+            y = AddReturnShipRow(panel.transform, y, returnShip);
             UiKit.AddButton(panel.transform, 90f, y, 300f, 56f, L("ui.pause.quit"), ReturnToMenu);
-            y += Row;
+            y += PauseRow;
 
             // In multiplayer the world only stops once everybody is in their menu (#973), so the dialog has to
             // say which of the two it is instead of silently claiming a pause that is not running.
@@ -2180,6 +2175,29 @@ namespace BlocksBeyondTheStars.Client
                     string.Empty, 16, UiKit.Warn, TextAnchor.UpperCenter);
                 _returnShipReasonText.horizontalOverflow = HorizontalWrapMode.Wrap;
             }
+        }
+
+        /// <summary>The pause menu's row height.</summary>
+        private const float PauseRow = 64f;
+
+        /// <summary>"Back to my ship" (#2286) — the row and its state, fresh for a fresh menu; returns the next row's y.</summary>
+        private float AddReturnShipRow(Transform panel, float y, bool returnShip)
+        {
+            _returnShipButton = null;
+            _returnShipLabel = null;
+            _returnShipReasonText = null;
+            _returnShipShownState = int.MinValue; // a fresh row shows its first state right away
+            _returnShipBlocked = false;
+            _returnShipWaitUntil = 0f; // an answer to a menu that was closed before it came is not this menu's
+            if (!returnShip)
+            {
+                return y;
+            }
+
+            _returnShipButton = UiKit.AddButton(panel, 90f, y, 300f, 56f, L("ui.pause.return_ship"), ReturnToShip);
+            _returnShipLabel = _returnShipButton.GetComponentInChildren<UnityEngine.UI.Text>();
+            RefreshReturnShipButton();
+            return y + PauseRow;
         }
 
         private UnityEngine.UI.Text _pauseStatusText;

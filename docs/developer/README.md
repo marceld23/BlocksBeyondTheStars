@@ -178,6 +178,8 @@ refreshed 2026-10-23.
   editor output → worldgen integration + dev/test labelling.
 - [PLAYER_FEEDBACK.md](PLAYER_FEEDBACK.md) — the in-game F1/F2 feedback + crash-report pipeline.
 - [REPORT_HOST.md](REPORT_HOST.md) — ReportHost, the bug-report inbox the feedback pipeline uploads to.
+- [ADMIN_MODE.md](ADMIN_MODE.md) — the in-game admin view: players and positions, event log, direct chat, reports,
+  invisible jump and follow.
 
 ## Forward-looking
 

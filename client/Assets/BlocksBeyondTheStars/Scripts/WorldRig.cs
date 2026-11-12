@@ -272,6 +272,12 @@ namespace BlocksBeyondTheStars.Client
             var basePad = root.AddComponent<BasePadUi>();
             basePad.Game = boot;
 
+            // #3509: the admin view (F8 / the pause menu's Admin button) — who plays where, the log, direct chat and the
+            // world's reports, for the players the server lets in. Follow steers the local observer, hence the controller.
+            var adminPanel = root.AddComponent<AdminPanelUi>();
+            adminPanel.Game = boot;
+            adminPanel.Player = pc;
+
             // Story reader (#1110): fragments, memories and lore texts open in a modal reader, re-readable
             // from the Story tab. Must exist before the network handlers fire their first reveal.
             var reader = root.AddComponent<StoryReaderUi>();

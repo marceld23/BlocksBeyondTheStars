@@ -82,7 +82,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             });
             On<InventoryUpdate>(map, (c, m) => c.InventoryUpdated?.Invoke(m));
-            On<PlayerStateUpdate>(map, (c, m) => c.PlayerStateUpdated?.Invoke(m));
+            On<PlayerStateUpdate>(map, (c, m) => c.HandlePlayerStateUpdate(m)); // #3503: the own role and admin mode first
             On<CraftResult>(map, (c, m) => c.CraftCompleted?.Invoke(m));
             On<ActionRejected>(map, (c, m) => c.ActionRejected?.Invoke(m));
             On<ServerMessage>(map, (c, m) => c.ServerMessageReceived?.Invoke(m));
@@ -225,6 +225,11 @@ namespace BlocksBeyondTheStars.Client
             On<NpcDialogState>(map, (c, m) => c.NpcDialogReceived?.Invoke(m));
             On<BanditDemand>(map, (c, m) => c.BanditDemandReceived?.Invoke(m));
             On<BanditEncounterResult>(map, (c, m) => c.BanditResultReceived?.Invoke(m));
+            On<AdminRoster>(map, (c, m) => c.HandleAdminRoster(m)); // #3505 the admin view's Players tab
+            On<AdminEventBacklog>(map, (c, m) => c.HandleAdminEventBacklog(m)); // #3506 the Log tab
+            On<AdminEvent>(map, (c, m) => c.HandleAdminEvent(m)); // #3506
+            On<DirectChatMessage>(map, (c, m) => c.HandleDirectChat(m)); // #3507
+            On<AdminReportList>(map, (c, m) => c.HandleAdminReports(m)); // #3508 the Reports tab
             return map;
         }
 
@@ -242,6 +247,7 @@ namespace BlocksBeyondTheStars.Client
             TraderDiscountFrom = string.Empty;
             ResetCalendarState(); // #3315: the server sends the calendars and unlocks of this world after the join
             ResetStoryPackState(); // #3350: the hidden blueprints this player may see come after the join
+            ResetAdminState(m.PlayerId, m.AdminCallSupported); // #3502: the role and the admin view come with the session's first player state
             AdoptWorld(m.WorldId);
             ResyncHotbarSlot(); // #2525: the server restored the slot saved at the quit; the hand on screen wins
             JoinAccepted?.Invoke(m);

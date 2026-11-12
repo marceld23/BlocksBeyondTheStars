@@ -58,6 +58,10 @@ public sealed partial class GameServer : IObserverHost
         RequestStarMap or RequestMissions or RequestCompanionsIntent or RequestLandingPadsIntent => true,
         FarTerrainTileRequest => true, // read-only: the observer's far view (#1821)
         SetAppearanceIntent or SetFaceIntent or SetBodyPaintIntent or SetToolLookIntent => true, // cosmetic, and never broadcast while spectating anyway
+        // #3502 the admin view: leaving admin mode, the panel, the jump, the direct chat and the reports — the invisible
+        // admin mode IS observer mode, so its own controls must pass. A report or a call from an observer is harmless.
+        AdminModeIntent or AdminPanelIntent or AdminJumpIntent or DirectChatIntent or AdminReportAction => true,
+        CallAdminIntent or PlayerReportIntent => true,
         _ => false,
     };
 
@@ -77,7 +81,20 @@ public sealed partial class GameServer : IObserverHost
 
     // ---------------- Observer mode and inspection commands (ObserverSystem) ----------------
 
-    private void HandleSpectateCommand(PlayerSession session, string? arg) => _observerSystem.HandleSpectateCommand(session, arg);
+    private void HandleSpectateCommand(PlayerSession session, string? arg)
+    {
+        // #3503: the invisible admin mode is observer mode — "/spectate off" (or a bare toggle) from it leaves admin mode the
+        // proper way, back to the entry point, instead of dropping the admin wherever they hover.
+        bool off = string.IsNullOrWhiteSpace(arg) || arg!.Trim().ToLowerInvariant() is not ("on" or "an" or "1" or "true");
+        if (session.Admin.Mode == AdminModes.Invisible && off)
+        {
+            LeaveAdminMode(session);
+            return;
+        }
+
+        _observerSystem.HandleSpectateCommand(session, arg);
+        RefreshAdminRosters(); // #3504: the admins' player-mode roster lists observers no more (and again after)
+    }
 
     private void AdminListPlayers(PlayerSession session) => _observerSystem.AdminListPlayers(session);
 
@@ -127,4 +144,8 @@ public sealed partial class GameServer : IObserverHost
     void IObserverHost.SnapPlayerTo(PlayerSession session, Vector3f target, string reason) => SnapPlayerTo(session, target, reason);
 
     Galaxy IObserverHost.Galaxy => _galaxy;
+
+    bool IObserverHost.SeesObservers(PlayerSession viewer) => SeesObservers(viewer);
+
+    bool IObserverHost.SeesPositions(PlayerSession viewer) => SeesPositions(viewer);
 }

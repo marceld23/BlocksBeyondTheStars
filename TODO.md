@@ -24,7 +24,32 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🏗 Structure pipeline — one way into the world for every structure kind — #3510–#3524, ✅ 2026-11-12, PR pending (⚠ playtest open)
+### 🛡 Admin mode — the in-game admin view — #3502–#3509, ✅ 2026-11-12, PR pending (⚠ playtest open)
+
+A world admin gets an **Admin** view inside the game (F8 / pause menu): who plays and where, an event log (PvP defeats,
+deaths, joins, reports, moderation, admin actions), a direct chat with a player, invisible jump and follow, and every
+report filed in the world. How it works: [docs/developer/ADMIN_MODE.md](docs/developer/ADMIN_MODE.md).
+
+- **#3503 admin mode** — F8 / pause-menu *Admin*; invisible, no damage, free flight (the observer path, now shared with the
+  fleet `/spectate`), no cheats needed; back to the entry point on leaving; mining while observing gives nothing and is
+  logged. On an official hosted world a world owner gets the **visible** variant only (panel, no invisibility / jump /
+  follow) — child safety. The client learns its role (`PlayerStateUpdate.Role`, `AdminMode`, `AdminModeAvailable`).
+- **#3504 observer leaks** — doors, Crystal Net sensors, the `/bump` snapshot and the mode roster no longer see an observer.
+- **#3505 players tab** — `AdminRoster` 1 Hz with body, position, state; jump (same body or across bodies) and follow.
+- **#3506 event log** — 500-event ring buffer + `server.log`; PvP defeats logged world-wide; death causes.
+- **#3507 direct chat** — admin → player, players answer with `/r` only (no player-to-player whispers); screened, logged.
+- **#3508 reports** — every route (`/report`, Report button, paint/shape/texture reports, the F1 title, new **Call an
+  admin** `/admin text` + pause-menu button) files a row in the save's `player_report` table; the Reports tab with done /
+  jump / chat; a notice for admins with the panel closed.
+- **#3509 panel** — `AdminPanelUi` with four tabs, HUD badge with counts, highlighted direct lines with `/r` pre-filled;
+  texts in all 14 languages. Wire tags 336–347.
+- An independent review found 17 defects before the push (F1 description leak, rate limits, report probing, observer
+  leaks via `/players` / `/where` and animals, the ship body after a quit, …) — all fixed with tests; the hosted owner's
+  view carries bodies without coordinates, direct lines only from admin mode, calls also reach the operator.
+
+---
+
+### 🏗 Structure pipeline — one way into the world for every structure kind — #3510–#3524, ✅ 2026-11-12, PR #3526 (e5dc9dc1) (⚠ playtest open)
 
 About 35 kinds of built structures reached a world in at least five different ways, and only four families could be opened
 in the editor. Now every kind goes source → post passes → placement → record → replay, and the editor runs the same sources.

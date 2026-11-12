@@ -5051,6 +5051,54 @@ with none at all that you need one.
   that the command asks you to give the team a moment.
 - `/report` is not the same as `/mute Player`: mute hides someone **for you alone** and tells nobody,
   while a report asks a human to look.
+- Every report also reaches the **admins of this world** — they see it in their admin view (below). The same is true
+  for `/reportpaint`, `/reportshape` and `/reporttexture`.
+- You can report anybody who has played on this world, **online or not**; the answer is the same either way. A name
+  nobody ever played under is answered with "Nobody of that name has played on this world."
+
+### `/admin` — call an admin
+- **Syntax:** `/admin what you need`, or **Call an admin** in the pause menu (Esc).
+- For help without naming anybody: you are stuck, lost, or have a question. The call is saved for the admins of this
+  world — whether one of them is online right now or not, the answer is the same — and they can answer you directly. On
+  an official hosted world the team gets it too. A few in a row is plenty, like `/report`.
+- A bare `/admin` (or one without words) only shows how to use it; for an admin it lists the admin commands. On a
+  server too old to take calls, the pause menu has no **Call an admin** and `/admin` lists the admin commands.
+
+### `/r` — answer an admin
+- When an admin writes to you, the line shows highlighted in the chat (**Admin Name → you**) and a short notice pops
+  up. Answer with **`/r your answer`** — the chat box is already filled with `/r ` the first time you open it.
+- You can only answer an admin who wrote to you (for half an hour after their last line); there are no private
+  messages between players.
+
+### Admin view (F8) — for world admins
+Admins of a world (the world's creator, a name in the server's admin list, an operator) open their **admin view** with
+**F8** or **Admin** in the pause menu. While it is on, your character is **invisible** and takes **no damage**, and you
+fly freely through walls; leaving puts you back exactly where you started. No cheats are needed.
+
+| Tab | What you see | What you can do |
+|---|---|---|
+| **Players** | everyone online, grouped by planet: role, position, health, what they are doing (on foot, aboard, in space, dead …) | **Jump** to them, **Follow** them, **Chat**, **Silence**, **Kick** (click twice) |
+| **Log** | the newest events: who defeated whom in PvP, deaths and their cause, joins and leaves, reports, moderation, admin actions | filter by category, **Jump** to where it happened |
+| **Chat** | your direct conversations, one per player | write to a player |
+| **Reports** | every report of this world — players, paint, forms, textures, F1 feedback (its title only) and "Call an admin" | **Done**, **Jump** to the player or the place, **Chat** with the reporter |
+
+F8 or Esc closes the panel but keeps you invisible, so you can look around; F8 opens it again, **Leave admin mode** ends
+it. Mining still works while invisible (to remove an offensive build), but it gives you nothing. With the panel closed,
+a new report shows a short notice.
+
+- Admin mode starts on foot, and it waits while something else holds you: a duel, an open trade, a seat, a moving
+  lift, a visit to a friend's ship or a guest aboard your own.
+- Leaving takes you back where you started (to the first free spot above it, should someone have built there since).
+  If the way back is blocked right now, you stay in admin mode and can try again.
+- Watching is not playing: a planet you only visited invisibly does not become a quick-travel target, completes no
+  travel mission, and your ship stays where it was — also when the game saves or you quit while invisible.
+- Animals do not notice you while you are invisible — they do not wake, flee or announce themselves because of you.
+- You write to players from the admin view only; outside it you can answer an admin like any player, but not start a
+  conversation. You never see a report about yourself, nor a conversation of a player who reported you.
+
+On an **official hosted world** the world's owner gets the panel without the invisibility: players, log, chat and
+reports — but no jumping, following or invisible watching, and no positions: the owner sees on which planet a player
+is, never where on it. That is a child-safety rule. A "Call an admin" on such a world also reaches the team.
 
 ### Admin cheats (world admin / admin only)
 Type these **in the chat box** (Enter to open). They are **server-authoritative** and gated twice: the

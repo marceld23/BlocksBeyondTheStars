@@ -837,14 +837,17 @@ namespace BlocksBeyondTheStars.Client
         /// persists a rich snapshot of the reporter's situation and writes the image alongside it. The
         /// caller passes the client's build version so a forwarded report shows the reporter's build rather
         /// than the server's (see <see cref="BumpReport.ClientVersion"/>), and its reply key so the forwarded
-        /// row shares the reporter's thread credential (see <see cref="BumpReport.ReplyKey"/>, #1359).</summary>
-        public void SendBumpReport(string description, byte[] image, string clientVersion = "", string replyKey = "")
+        /// row shares the reporter's thread credential (see <see cref="BumpReport.ReplyKey"/>, #1359). The F1 dialog also
+        /// passes its title on its own (<see cref="BumpReport.FeedbackTitle"/>, #3508) — the only part the world's admins see.</summary>
+        public void SendBumpReport(string description, byte[] image, string clientVersion = "", string replyKey = "",
+            string feedbackTitle = "")
             => Send(new BumpReport
             {
                 Description = description ?? string.Empty,
                 Image = image ?? Array.Empty<byte>(),
                 ClientVersion = clientVersion ?? string.Empty,
                 ReplyKey = replyKey ?? string.Empty,
+                FeedbackTitle = feedbackTitle ?? string.Empty,
             });
 
         // Admin/cheat console (server validates IsAdmin + the CheatsAllowed rule and replies with a ServerMessage).
