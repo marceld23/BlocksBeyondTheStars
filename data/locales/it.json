@@ -4870,6 +4870,7 @@
   "ui.vega.act.ToggleThirdPerson": "[Vista]",
   "ui.vega.act.ToggleThermal": "[Visione termica]",
   "ui.vega.act.Sprint": "[Corsa]",
+  "ui.vega.act.AdminMode": "[Vista admin]",
   "ui.vega.next_key": "Continua · [{0}]",
   "ui.vega.next_pad": "Continua · {0}",
   "ui.vega.next_touch": "Continua · AVANTI ▶",

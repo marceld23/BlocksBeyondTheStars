@@ -4870,6 +4870,7 @@
   "ui.vega.act.ToggleThirdPerson": "[Weergave]",
   "ui.vega.act.ToggleThermal": "[Thermisch zicht]",
   "ui.vega.act.Sprint": "[Sprinten]",
+  "ui.vega.act.AdminMode": "[Adminweergave]",
   "ui.vega.next_key": "Doorgaan · [{0}]",
   "ui.vega.next_pad": "Doorgaan · {0}",
   "ui.vega.next_touch": "Doorgaan · VOLGENDE ▶",

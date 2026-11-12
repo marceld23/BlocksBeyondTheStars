@@ -4870,6 +4870,7 @@
   "ui.vega.act.ToggleThirdPerson": "[視点]",
   "ui.vega.act.ToggleThermal": "[サーマル視界]",
   "ui.vega.act.Sprint": "[ダッシュ]",
+  "ui.vega.act.AdminMode": "[管理者ビュー]",
   "ui.vega.next_key": "続ける · [{0}]",
   "ui.vega.next_pad": "続ける · {0}",
   "ui.vega.next_touch": "続ける · 次 ▶",

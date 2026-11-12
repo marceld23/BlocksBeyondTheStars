@@ -4870,6 +4870,7 @@
   "ui.vega.act.ToggleThirdPerson": "[视角]",
   "ui.vega.act.ToggleThermal": "[热感视觉]",
   "ui.vega.act.Sprint": "[冲刺]",
+  "ui.vega.act.AdminMode": "[管理员视图]",
   "ui.vega.next_key": "继续 · [{0}]",
   "ui.vega.next_pad": "继续 · {0}",
   "ui.vega.next_touch": "继续 · 下一步 ▶",

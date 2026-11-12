@@ -4870,6 +4870,7 @@
   "ui.vega.act.ToggleThirdPerson": "[시점]",
   "ui.vega.act.ToggleThermal": "[열 감지]",
   "ui.vega.act.Sprint": "[달리기]",
+  "ui.vega.act.AdminMode": "[관리자 보기]",
   "ui.vega.next_key": "계속 · [{0}]",
   "ui.vega.next_pad": "계속 · {0}",
   "ui.vega.next_touch": "계속 · 다음 ▶",

@@ -4870,6 +4870,7 @@
   "ui.vega.act.ToggleThirdPerson": "[Вид]",
   "ui.vega.act.ToggleThermal": "[Теплове бачення]",
   "ui.vega.act.Sprint": "[Біг]",
+  "ui.vega.act.AdminMode": "[Панель адміна]",
   "ui.vega.next_key": "Продовжити · [{0}]",
   "ui.vega.next_pad": "Продовжити · {0}",
   "ui.vega.next_touch": "Продовжити · ДАЛІ ▶",

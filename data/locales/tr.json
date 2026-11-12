@@ -4870,6 +4870,7 @@
   "ui.vega.act.ToggleThirdPerson": "[Görünüm]",
   "ui.vega.act.ToggleThermal": "[Termal görüş]",
   "ui.vega.act.Sprint": "[Koş]",
+  "ui.vega.act.AdminMode": "[Yönetici görünümü]",
   "ui.vega.next_key": "Devam et · [{0}]",
   "ui.vega.next_pad": "Devam et · {0}",
   "ui.vega.next_touch": "Devam et · İLERİ ▶",
