@@ -9,6 +9,7 @@ using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
+using BlocksBeyondTheStars.WorldGeneration.Sources;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -43,21 +44,33 @@ public sealed partial class GameServer
             return PlanForKit(kit, slot, seed);
         }
 
+        // #3518: a generator entry is pinned as source:<key>, an authored whole template as template:<key>.
         return template is null
             ? null
-            : PlanForSource(new AncientRuinPlan { Slot = slot, Seed = seed, Fresh = true, Source = "template:" + template.Key });
+            : PlanForSource(new AncientRuinPlan
+            {
+                Slot = slot,
+                Seed = seed,
+                Fresh = true,
+                Source = (template.IsSource ? SourceTemplates.RecordPrefix : "template:") + template.Key,
+            });
     }
 
     /// <summary>What a slot of body <paramref name="locationId"/> (type <paramref name="planetKey"/>) draws by weight: the
-    /// planet's underground kits, then its underground whole templates (pool order); the city slot only the G.D.S. ruin kits.
-    /// (null, null) when there is none. A pure function of the seed and the content — the stamp and the admin's
-    /// <c>/ressaw</c> prediction (#3421) both draw through it.</summary>
+    /// planet's underground kits, then its underground whole templates (pool order) and — from generation 38 (#3518) — its
+    /// underground generator entries; the city slot only the G.D.S. ruin kits. (null, null) when there is none. A pure function
+    /// of the seed and the content — the stamp and the admin's <c>/ressaw</c> prediction (#3421) both draw through it.</summary>
     private (StructureKit? Kit, StructureTemplate? Template) UndergroundPick(int slot, string locationId, string planetKey)
     {
         var packs = _meta.Description.EnabledStructurePacks;
         bool city = slot == UndergroundCitySlot;
         var kits = _content.UndergroundKitsFor(packs, planetKey).Where(k => !city || AncientRuinGenerator.IsGdsRuinKit(k)).ToList();
         var templates = city ? new List<StructureTemplate>() : _content.UndergroundTemplatesFor(packs, planetKey).ToList();
+        if (!city && TemplatePipelineWorld)
+        {
+            templates.AddRange(_content.UndergroundSourceTemplatesFor(packs, planetKey)); // appended: none = the same draw as before
+        }
+
         int total = kits.Sum(k => System.Math.Max(1, k.Weight)) + templates.Sum(t => System.Math.Max(1, t.Weight));
         if (total == 0)
         {
@@ -162,9 +175,16 @@ public sealed partial class GameServer
         }
 
         if (plan.Source.StartsWith("template:", System.StringComparison.Ordinal)
-            && _content.TemplateByKey(StructureKit.KindSettlement, plan.Source.Substring("template:".Length)) is { } t)
+            && _content.TemplateByKey(StructureKit.KindSettlement, plan.Source.Substring("template:".Length)) is { IsSource: false } t)
         {
             return SettlementGenerator.FromTemplate(t, _content, ModuleMaterials.ForSettlement(t.Tier, surface, alien: false, _content));
+        }
+
+        if (SourceTemplates.IsRecord(plan.Source))
+        {
+            // #3518: a generator entry, built with every row (the enclosure is underground anyway); one that is gone or no
+            // longer builds is skipped like any source that cannot be composed (its blocks stay).
+            return BuildUndergroundSource(SourceTemplates.KeyOfRecord(plan.Source), plan.Seed, surface);
         }
 
         return null;

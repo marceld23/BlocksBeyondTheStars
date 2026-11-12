@@ -2507,7 +2507,8 @@ clear corridor, and a public train you can ride whenever it is there and waiting
   pipeline changes — the line is a server-side stamp after the settlements — so every chunk of every generation stays
   bit-identical and no golden moves; the gate only keeps a line from ever growing into a world created before it.
 - **Eligible towns and the roll.** Inhabited settlements of tier `town` or `city` on the ground (not villages, hamlets,
-  ruins or sky-island towns); at least two, then `ServerConfig.IntercityRailChance` (0.6) on a lane of its own
+  ruins or sky-island towns); at least two, then the `intercity` chance (0.6, `data/structure_types.json`; a set
+  `ServerConfig.IntercityRailChance` overrides it, #3517) on a lane of its own
   (`seed ^ StableHash("intercity:" + body)`), so no other stream moves. The city world has one composed city, a restricted
   type (Titas, Valuma) stamps no settlements, a gas giant's towns stand on islands, an airless body has none — no line.
 - **The pair and the route.** Closest pair first (wrap-aware centre distance, at most six tries); the stations face each
@@ -2534,7 +2535,8 @@ rules hold (no tickets, no ID cards, no vending machines).
   is a server-side stamp, so every chunk of every generation stays bit-identical and no golden moves; the gate only keeps
   a ruin from ever growing into a world created before it.
 - **Which worlds and the roll.** Not void, not a gas world, not airless, no structure whitelist. At most one per world:
-  `ServerConfig.RailRuinChance` (0.35) times the structures-frequency factor (clamped to 0..2), rolled once with
+  the `rail_ruin` chance (0.35, `data/structure_types.json`; a set `ServerConfig.RailRuinChance` overrides it, #3517) times
+  the structures-frequency factor (clamped to 0..2), rolled once with
   `LaneRoll(seed, "railruin:" + body)` — its own lane, so no other stream moves.
 - **Reserved, pinned, stamped once.** `StampRailRuins` runs directly after `StampRuins` and keeps clear of the pads, the
   wreck site, every settlement, the intercity line and the ruins of the same load (`LoadedWorld.RuinFootprints`); every
@@ -3444,12 +3446,13 @@ columns) and **harp arches** (two obsidian pillars two cells either side of the 
 hanging under the lintel, half with a crystal on top; slopes 0.4 %, meadows 0.12 %; a steep anchor builds nothing). Every
 salt is `0x3358_0A0x`. `WorldGenerator.SingingZoneAt` exposes the zone (the server's site search prefers one per site).
 
-**The three sites (`GameServerSounderWorld*.cs`, `SounderSiteLayout`).** Stamped first in the structures stage, on the
+**The three sites (placement in `GameServerSounderWorld*.cs`; geometry in the WorldGeneration builder `SoaniriBuilder*.cs`
+with `SounderSiteLayout`, #3522).** Stamped first in the structures stage, on the
 `sounder_world` type only, like the unique sites: placement record `sounder:<key>` (index 0), the blocks written once inside a
 repo transaction, every later load re-derives only the transient part from the record. The search weighs 90 seeded spots in
 the site's distance band from the home pad (a second round three times as far out only when the first found no dry spot):
 dry under the centre and eight rim samples, clear of every pad and earlier site, scored by the spread of 13 ground samples
-plus 25 off the preferred zone; the floor is the median sample and `LevelSounderDisc` fills up to it and clears the hills and
+plus 25 off the preferred zone; the floor is the median sample and `SoaniriBuilder.LevelDisc` fills up to it and clears the hills and
 meadow props above. The monuments reserve the three footprints (`AppendSounderWorldReservations`); the world map lists them
 (`poi.mirun`, `poi.ornasa`, `poi.choir_tower`); each is a pack site (`RegisterPackSite("sounders", <key>, …)`, the markers
 `pack_site:mirun` / `pack_site:ornasa` / `pack_site:choir_tower`).
@@ -3604,3 +3607,45 @@ Everything else — the template fields, the compact body, the ruin pass step by
 emitters, dens, discovery, the streaming lift and the far silhouette, authoring — is in [LANDMARKS.md](LANDMARKS.md).
 
 **Tests.** `LandmarkTemplateTests`, `StructureRuinerTests`, `LandmarkStampTests`, `LandmarkWorldTests`, `LandmarkClientTests`.
+
+## 54. Generation 38 — one structure pipeline (#3510: #3511–#3524, 2026-11-12)
+
+**Why.** About 35 kinds of built structures reached a world in at least five different ways — five ways to remember what
+stands, a keep-clear check that missed half the kinds, eleven decay passes, seven seat searches — and only four families
+could be opened in the editor. This generation makes the new-world half of that consistent; the whole story is in
+[STRUCTURE_PIPELINE.md](STRUCTURE_PIPELINE.md).
+
+**The gate.** `WorldDescription.StructurePipelineGeneration` = 38 = `CurrentTerrainGeneration`. Server-side only: every
+chunk of every generation stays bit-identical and no chunk golden moves. Below 38 every stamper, every keep-clear check and
+every decay pass runs the old code byte for byte (`StructureGeneratorGoldenTests`, `StructurePlacementGoldenTests`,
+`StructureWriterGoldenTests` pin it).
+
+**What a generation-38 world gets.**
+- One footprint registry (`StructureFootprints`) every stamper registers with and every keep-clear check asks — vaults,
+  cubes, chests and unique sites no longer land in a camp, a factory, a monument or a ruin.
+- The fallen settlements, the monuments' erosion, the buried G.D.S. ruin's decay and the SPS labs run the shared
+  `StructureRuiner` (settle included — no floating storeys).
+- Settlement templates may turn and may stand as ruins (a turned template records `turns=` on every path, the legacy
+  re-derive of settlements switched on after a first visit included); chest / sound / den marker settings work in
+  settlement and station templates; station templates resolve material tokens; generator entries (`source`) sit in the pools
+  next to authored templates — built from their seed and parameters alone (a settlement or city entry is purely procedural,
+  `station_kit` is no entry; a metropolis entry is the `city` source only).
+- A station pinned to a complete template replays that template even when its template coin says no (older worlds keep the
+  old replay, which stamped the procedural interior over it on the next session — changing it would change their stations).
+- Planet and space wrecks are the real ship layout (repairable, `hull` ruin profile) instead of a box. A space wreck pins
+  its design and its layout fingerprint (`SpaceWreckLayouts`); a changed layout drifts as that design's box. The planet
+  wreck records its hull's extent, and later loads reserve that box as the crash site instead of a fresh pick.
+- The SPS lab's lab module stands as built (keep cells), roof and walls whole.
+- Fresh procedural settlements are recorded as `procedural`; only a generation-38 world reads that marker back, and no
+  template may be keyed `procedural`, `kit:…` or `source:…` (the loader drops one).
+
+What changed for **every** world (not gated, bug fixes): counts per kind, a settlement's tier and verdict and the wreck
+design are written down on the next load and read back from then on; the guardian-core chamber is written once (an older
+save, whose every load wrote it, keeps what stands — the chamber's chunk already holds its edits); chests no longer
+duplicate on a reload; a nudged data cube stays; standalone ruins, monuments, text tablets, chests, data cubes and the
+guardian core have placement records (backfilled on the first load of an older save, `StructureBookkeepingTests.OldSave`).
+
+**Tests.** `StructureGoldens*` (generators, placement, writers), `StructureSourceTests*`, `StructureBookkeepingTests*`,
+`StructureRuinerTests*`, `StructureDecayTests*`, `TemplatePipelineTests`, `TemplatePipelineEntryTests`,
+`TemplatePipelineWorldTests*`, `StationTemplatePinTests`, `StructureTypeRulesTests`, `StructureFootprintTests`,
+`UserShipTests`, `WreckLayoutGenerationTests`, `WreckLayoutStampTests`, `SpaceWreckLayoutTests`.

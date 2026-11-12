@@ -196,6 +196,9 @@ public sealed class ShipSnapshot
     public float Shield { get; set; }
     public string ShipType { get; set; } = "starter";
 
+    /// <summary>#3520: a user ship's literal name (<see cref="ShipState.DisplayName"/>). Absent in older saves ⇒ empty.</summary>
+    public string DisplayName { get; set; } = string.Empty;
+
     /// <summary>Wreck flag (<see cref="ShipState.Downed"/>): the ship was lost under KeepShipOnDeath=false and
     /// is grounded until repaired. Persisted so a restart/rejoin doesn't hand back a flight-ready ship for free.</summary>
     public bool Downed { get; set; }
@@ -662,6 +665,7 @@ public static class StateMapper
         Hull = ship.Hull,
         Shield = ship.Shield,
         ShipType = ship.ShipType,
+        DisplayName = ship.DisplayName,
         Downed = ship.Downed,
         BuiltCells = ship.BuiltCells,
         Commissioned = ship.Commissioned,
@@ -679,6 +683,7 @@ public static class StateMapper
         Hull = s.Hull,
         Shield = s.Shield,
         ShipType = string.IsNullOrEmpty(s.ShipType) ? "starter" : s.ShipType,
+        DisplayName = s.DisplayName ?? string.Empty,
         Downed = s.Downed,
         BuiltCells = s.BuiltCells ?? string.Empty,
         Commissioned = s.Commissioned,

@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
@@ -62,9 +63,9 @@ public sealed partial class GameServer
         }
 
         var planet = _world.Planet;
-        if (planet.Void)
+        if (!StructureConditionsHold(StructureTypeRules.DataCube, planet))
         {
-            return; // stations have no surface to scatter cubes on
+            return; // stations have no surface to scatter cubes on (the kind's shipped condition, #3517)
         }
 
         long cSeed = _meta.Seed ^ WorldGenerator.StableHash("datacube:" + _world.LocationId);
@@ -73,7 +74,7 @@ public sealed partial class GameServer
         // Most bodies carry none; the rest one to three. Tuned so cubes feel like an occasional reward, and
         // moons/asteroids/barren worlds are as likely to be empty as not.
         double r = rng.NextDouble();
-        int count = r < 0.45 ? 0 : r < 0.80 ? 1 : r < 0.95 ? 2 : 3;
+        int count = PinnedCount(DataCubeRecordKind, StructureType(StructureTypeRules.DataCube).CountBelow(r)); // #3513; #3517: [0.45, 0.80, 0.95]
 
         int requested = count;
         for (int i = 0; i < count; i++)
@@ -81,12 +82,25 @@ public sealed partial class GameServer
             // A deterministic spot away from the spawn/landing area, each cube in its own direction (mirrors vaults).
             int ax = WorldConstants.WrapX((60 + rng.Next(360)) * (rng.Next(2) == 0 ? 1 : -1), _world.Circumference);
             int az = (60 + rng.Next(360)) * (rng.Next(2) == 0 ? 1 : -1);
-            if (OverlapsAnySettlement(ax, az))
+
+            // #3513: where a cube stands is recorded at its first spawn and replayed (its draws above still ran) — a cube
+            // nudged off a settlement on the fresh world used to be dropped from the second load on.
+            if (FindPlacementRecord(DataCubeRecordKind, i) is { } rec)
+            {
+                if (rec.Placed)
+                {
+                    AddDataCube(i, rec.X, rec.GroundY, rec.Z);
+                }
+
+                continue;
+            }
+
+            bool nudged = false;
+            if (KeepClearBlocked(StructureTypeRules.DataCube, ax, az, 0)) // #3514: generation 38: the registry
             {
                 // #586: on a fresh world, nudge deterministically off the settlement footprint (no extra
                 // rng, so the other cubes' rolls are untouched). Legacy worlds keep the frozen skip — the
                 // cube ids are sequential, and a retro-inserted cube would shift every later id.
-                bool nudged = false;
                 if (_worlds.Active.VirginAtLoad)
                 {
                     for (int radius = 12; radius <= 96 && !nudged; radius += 12)
@@ -96,7 +110,7 @@ public sealed partial class GameServer
                             double a = step * System.Math.PI / 4.0;
                             int nx = WorldConstants.WrapX(ax + (int)(System.Math.Cos(a) * radius), _world.Circumference);
                             int nz = az + (int)(System.Math.Sin(a) * radius);
-                            if (!OverlapsAnySettlement(nx, nz))
+                            if (!KeepClearBlocked(StructureTypeRules.DataCube, nx, nz, 0))
                             {
                                 ax = nx;
                                 az = nz;
@@ -108,19 +122,18 @@ public sealed partial class GameServer
 
                 if (!nudged)
                 {
+                    RecordPlacementSkip(DataCubeRecordKind, i);
                     continue; // don't bury a cube inside a settlement
                 }
             }
 
             int surfaceY = _generator.SurfaceHeight(planet, ax, az);
-
-            _dataCubes.Add(new ServerDataCube
-            {
-                Id = _nextDataCubeId++,
-                Pos = new Vector3f(ax + 0.5f, surfaceY + 1f, az + 0.5f),
-                Seed = WorldGenerator.StableHash($"datacube:{_world.LocationId}:{i}") ^ _meta.Seed,
-            });
+            RecordPlacement(DataCubeRecordKind, i, new Vector3i(ax, surfaceY, az), surfaceY, onIsland: false,
+                nudged ? "nudged" : "rolled", "datacube_" + i);
+            AddDataCube(i, ax, surfaceY, az);
         }
+
+        SavePlacementRecords();
 
         // Singleplayer/admin convenience: drop one guaranteed cube near the start world's landing pad, once
         // per session (so the first world a solo player lands on always has a minigame within reach). It sits
@@ -145,6 +158,19 @@ public sealed partial class GameServer
         {
             _log.Info($"Scattered {_dataCubes.Count} data cube(s) on '{_world.LocationId}'.");
         }
+    }
+
+    /// <summary>Adds the body's cube <paramref name="index"/> standing on column (<paramref name="x"/>, <paramref name="z"/>)
+    /// whose ground is <paramref name="surfaceY"/>; its seed comes from the index, so a replay holds the same game.</summary>
+    private void AddDataCube(int index, int x, int surfaceY, int z)
+    {
+        _dataCubes.Add(new ServerDataCube
+        {
+            Id = _nextDataCubeId++,
+            Pos = new Vector3f(x + 0.5f, surfaceY + 1f, z + 0.5f),
+            Seed = WorldGenerator.StableHash($"datacube:{_world.LocationId}:{index}") ^ _meta.Seed,
+        });
+        RegisterFootprint(StructureTypeRules.DataCube, (x, z, 1, 1)); // #3514
     }
 
     private void SendDataCubes(PlayerSession session)

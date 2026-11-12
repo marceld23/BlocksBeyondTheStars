@@ -392,6 +392,10 @@ internal sealed class LoadedWorld
     // right after them keeps clear of them. Empty on every later load — the station's own spot is pinned by then.
     public List<(int Cx, int Cz, int Hw, int Hl)> RuinFootprints { get; } = new();
 
+    // #3514: the footprint registry — every stamped structure's ground box (and the pads and the crash site), filled by the
+    // structures stage on every load; terrain generation 38+ keeps clear through it.
+    public StructureFootprints Footprints { get; } = new();
+
     // The abandoned monorail station of this world (#2166): 0 or 1, re-derived every load from its placement record.
     public List<RailRuinInstance> RailRuins { get; } = new();
 

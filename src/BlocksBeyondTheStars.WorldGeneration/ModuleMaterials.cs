@@ -55,6 +55,24 @@ public sealed class ModuleMaterials
         };
     }
 
+    /// <summary>#3519: a space station's materials — the procedural stations' own hull: iron walls and roof, glass accents
+    /// (the viewports), steel floors and walkways. A station template resolves its tokens with these on a world of terrain
+    /// generation 38 or later (before it a token cell stayed air).</summary>
+    public static ModuleMaterials ForStation(GameContent content)
+    {
+        ushort B(string key, ushort fallback = 0) => content.GetBlock(key)?.NumericId.Value ?? fallback;
+        ushort wall = B("iron_wall", B("stone"));
+        ushort floor = B("steel_floor", wall);
+        return new ModuleMaterials
+        {
+            Wall = wall,
+            Accent = B("glass", wall),
+            Roof = wall,
+            Floor = floor,
+            Path = floor,
+        };
+    }
+
     /// <summary>The G.D.S. city's materials: iron walls (the district tint colours them), glass accents, steel floors,
     /// sandstone paving.</summary>
     public static ModuleMaterials ForCity(GameContent content)

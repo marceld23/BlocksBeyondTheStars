@@ -169,7 +169,7 @@ public sealed partial class GameServer
         var rec = FindPlacementRecord(IntercityLineKind, 0);
         if (rec is null)
         {
-            if (!_config.PlaceIntercityRail || _generator.TerrainGeneration < WorldDescription.IntercityRailGeneration)
+            if (!_config.PlaceIntercityRail || !StructureKindDue(StructureTypeRules.Intercity)) // #3517: on, generation 19+ as shipped
             {
                 return; // an older world never grows a line; a server that switched the feature off decides nothing
             }
@@ -218,9 +218,9 @@ public sealed partial class GameServer
     /// whose route fits. Null when there is no line.</summary>
     private IntercityPlan? DecideIntercityRail(PlanetType planet)
     {
-        if (planet.IsGasWorld || planet.CityWorld.Length > 0 || planet.RestrictStructures)
+        if (!StructureConditionsHold(StructureTypeRules.Intercity, planet) || planet.RestrictStructures)
         {
-            return null; // islands only / one composed city / a structure whitelist
+            return null; // islands only / one composed city (the kind's shipped conditions, #3517) / a structure whitelist
         }
 
         var eligible = new List<SettlementInstance>();
@@ -237,7 +237,7 @@ public sealed partial class GameServer
             return null;
         }
 
-        if (IntercityRoll(_meta.Seed, _world.LocationId) >= _config.IntercityRailChance)
+        if (IntercityRoll(_meta.Seed, _world.LocationId) >= StructureChance(StructureTypeRules.Intercity, _config.IntercityRailChance))
         {
             return null;
         }
@@ -321,6 +321,13 @@ public sealed partial class GameServer
 
         var (wreckX, wreckZ) = WreckAnchorFor(_landingPads);
         others.Add((wreckX, wreckZ, WreckReservedHalfExtent, WreckReservedHalfExtent));
+        if (UsesFootprintRegistry)
+        {
+            // #3514: generation 38 — every registered box but the towns (the pads, the crash site as large as its hull), as
+            // registered: the line keeps its own tight margins between the towns it joins.
+            others = Footprints.Reserved((_, _) => 0, 0, exceptKind: StructureTypeRules.Settlement);
+        }
+
         var everySettlement = new List<(int Cx, int Cz, int Hw, int Hl)>(others);
         var notA = new List<(int Cx, int Cz, int Hw, int Hl)>(others);
         var notB = new List<(int Cx, int Cz, int Hw, int Hl)>(others);
@@ -771,6 +778,11 @@ public sealed partial class GameServer
             var q = plan.Pylons[j + 1];
             int dx = WorldConstants.WrapDeltaX(q.X - p.X, circ), dz = q.Z - p.Z;
             ic.Reservations.Add((p.X + dx / 2, p.Z + dz / 2, Math.Abs(dx) / 2 + 3, Math.Abs(dz) / 2 + 3));
+        }
+
+        foreach (var r in ic.Reservations)
+        {
+            RegisterFootprint(StructureTypeRules.Intercity, r, owner: StructureTypeRules.Intercity); // #3514: one structure, many boxes
         }
     }
 

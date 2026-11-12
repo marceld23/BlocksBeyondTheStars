@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.Sounders;
@@ -26,13 +27,13 @@ namespace BlocksBeyondTheStars.GameServer;
 public sealed partial class GameServer
 {
     /// <summary>The village of the last Sounders (also its pack-site id).</summary>
-    internal const string MirunSiteKey = "mirun";
+    internal const string MirunSiteKey = SoaniriBuilder.MirunKey;
 
     /// <summary>The ruin city of the old Sounders (also its pack-site id).</summary>
-    internal const string OrnasaSiteKey = "ornasa";
+    internal const string OrnasaSiteKey = SoaniriBuilder.OrnasaKey;
 
     /// <summary>The Choir Tower — the finale stage, the melody site and pack site <c>choir_tower</c>.</summary>
-    internal const string ChoirTowerSiteKey = "choir_tower";
+    internal const string ChoirTowerSiteKey = SoaniriBuilder.ChoirTowerKey;
 
     /// <summary>The placement-record kind prefix of a Soaniri site.</summary>
     internal const string SounderSiteRecordPrefix = "sounder:";
@@ -47,19 +48,20 @@ public sealed partial class GameServer
     /// <summary>The three sites, in stamping order (each one keeps clear of the ones before it).</summary>
     internal static readonly SounderSiteSpec[] SounderSites =
     {
-        new(MirunSiteKey, MirunRadius, 48, 110, "marsh"),
-        new(OrnasaSiteKey, OrnasaRadius, 140, 240, "meadow"),
-        new(ChoirTowerSiteKey, ChoirBarrenRadius, 220, 330, "slope"),
+        new(MirunSiteKey, SoaniriBuilder.MirunRadius, 48, 110, "marsh"),
+        new(OrnasaSiteKey, SoaniriBuilder.OrnasaRadius, 140, 240, "meadow"),
+        new(ChoirTowerSiteKey, SoaniriBuilder.ChoirBarrenRadius, 220, 330, "slope"),
     };
 
     /// <summary>Whether the active world is a Sounder world (the <c>sounder_world</c> type).</summary>
     private bool IsSounderWorld => string.Equals(_world.Planet?.Key, SoundersIds.PlanetType, StringComparison.Ordinal);
 
-    /// <summary>Stamps (or re-derives) Soaniri's village, ruin city and Choir Tower — on a Sounder world only. Runs in the
-    /// structures stage right after the text tablets, before the monuments (which reserve around the three).</summary>
+    /// <summary>Stamps (or re-derives) Soaniri's village, ruin city and Choir Tower — on a Sounder world only, while the
+    /// <c>sounder_site</c> kind is switched on in <c>data/structure_types.json</c> (#3517). Runs in the structures stage right
+    /// after the text tablets, before the monuments (which reserve around the three).</summary>
     private void StampSounderWorld()
     {
-        if (!IsSounderWorld)
+        if (!IsSounderWorld || !StructureType(StructureTypeRules.SounderSite).Enabled)
         {
             return;
         }
@@ -70,6 +72,8 @@ public sealed partial class GameServer
             if (StampSounderSite(spec, placed) is { } at)
             {
                 placed.Add((at.X, at.Z, spec.Radius));
+                RegisterFootprint(StructureTypeRules.SounderSite, (at.X, at.Z, spec.Radius + 4, spec.Radius + 4), // #3514
+                    owner: StructureTypeRules.SounderSite + ":" + spec.Key);
             }
         }
     }
@@ -108,21 +112,14 @@ public sealed partial class GameServer
         return (cx, cz);
     }
 
+    /// <summary>Writes a site's blocks once (#3522: the geometry is <see cref="SoaniriBuilder"/>'s): the cells canonical on
+    /// both seams, the levelling on the generator's natural surface, the decorative hashes keyed by this body. The builder's
+    /// relic-cache spots are not acted on here — <see cref="AfterSounderSite"/> spawns them on every load.</summary>
     private void WriteSounderSite(string key, int cx, int floorY, int cz)
     {
-        var b = new SounderBlocks(this);
-        switch (key)
-        {
-            case MirunSiteKey:
-                WriteMirun(b, cx, floorY, cz);
-                break;
-            case OrnasaSiteKey:
-                WriteOrnasa(b, cx, floorY, cz);
-                break;
-            case ChoirTowerSiteKey:
-                WriteChoirTower(b, cx, floorY, cz);
-                break;
-        }
+        var planet = _world.Planet;
+        var sink = new WorldCellSink(_world, canonical: true);
+        new SoaniriBuilder(sink, _content, _world.LocationId, (x, z) => _generator.SurfaceHeight(planet, x, z)).Build(key, cx, floorY, cz);
     }
 
     /// <summary>Every load (and right after the stamp): what a site re-derives from its record.</summary>
@@ -184,24 +181,15 @@ public sealed partial class GameServer
         return best < int.MaxValue;
     }
 
-    /// <summary>Clear of every landing pad and earlier site, and no water, lava or sea ice under the centre or the eight rim
-    /// samples at 70 % of the radius.</summary>
+    /// <summary>Clear of every landing pad and earlier site (generation 38+, #3514: of every registered box — the pads, the crash
+    /// site, the sites before), and no water, lava or sea ice under the centre or the eight rim samples at 70 % of the radius.</summary>
     private bool SounderSiteClear(SounderSiteSpec spec, List<(int X, int Z, int Radius)> placed, int x, int z)
     {
-        foreach (var pad in _landingPads)
+        if (UsesFootprintRegistry
+                ? KeepClearBlocked(StructureTypeRules.SounderSite, x, z, spec.Radius + 4)
+                : SounderSiteCrowded(spec, placed, x, z))
         {
-            if (SounderDistance(x, z, pad.CenterX, pad.CenterZ) < pad.Radius + spec.Radius + 6)
-            {
-                return false;
-            }
-        }
-
-        foreach (var other in placed)
-        {
-            if (SounderDistance(x, z, other.X, other.Z) < other.Radius + spec.Radius + 10)
-            {
-                return false;
-            }
+            return false;
         }
 
         var planet = _world.Planet;
@@ -218,6 +206,28 @@ public sealed partial class GameServer
         }
 
         return true;
+    }
+
+    /// <summary>The distance checks of generation 37 and older: too near a landing pad or a site placed before.</summary>
+    private bool SounderSiteCrowded(SounderSiteSpec spec, List<(int X, int Z, int Radius)> placed, int x, int z)
+    {
+        foreach (var pad in _landingPads)
+        {
+            if (SounderDistance(x, z, pad.CenterX, pad.CenterZ) < pad.Radius + spec.Radius + 6)
+            {
+                return true;
+            }
+        }
+
+        foreach (var other in placed)
+        {
+            if (SounderDistance(x, z, other.X, other.Z) < other.Radius + spec.Radius + 10)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Lower is better: ten per block of height spread over thirteen samples, plus 25 off the preferred zone.</summary>

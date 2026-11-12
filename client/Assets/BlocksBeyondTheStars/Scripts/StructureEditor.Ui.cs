@@ -68,9 +68,11 @@ namespace BlocksBeyondTheStars.Client
             _canvas.sortingOrder = 5;
             var root = _canvas.transform;
 
-            // Left: palette (markers + every placeable block), grouped by category, with a search filter.
+            // Left: palette (markers, tools + every placeable block), grouped by category, with a search filter — only what the
+            // design's target reads (#3523); the selection stays an index into the whole palette.
+            int shownSelected = RefreshShownPalette();
             (_palListParent, _palList) = EditorPaletteKit.AddPalettePanel(Shell, root, PanelH, L("ui.struct.palette"), L("ui.pal.search"),
-                _palette, _selected, _search, v => { _search = v ?? string.Empty; _palList.Rebuild(_search); }, i => _selected = i);
+                _shown, shownSelected, _search, v => { _search = v ?? string.Empty; _palList.Rebuild(_search); }, SelectShown);
 
             // Right: metadata, in a scrolling body.
             var meta = RightPanel(root, 380f, PanelH);
@@ -78,19 +80,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(meta, 16f, 12f, 348f, 26f, title, 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             _body = UiKit.AddScrollViewport(meta, "MetaBody", 0f, BodyY, 376f, BodyH, out var scroll);
             UiKit.AddInlineScrollbar(scroll, 6f);
-            float y = BuildIdentityRows(_body, 8f);
-            if (_moduleMode)
-            {
-                y = BuildModuleRows(_body, y);
-            }
-            else if (_landmarkMode)
-            {
-                y = BuildLandmarkRows(_body, y); // #3492
-            }
-
-            y = BuildPackRows(_body, y);
-            y = BuildGenerateRows(_body, y);
-            y = BuildBrushRows(_body, y);
+            float y = BuildBodyRows(_body);
             _body.sizeDelta = new Vector2(0f, y + 8f);
             _body.anchoredPosition = new Vector2(0f, Mathf.Clamp(_bodyScroll, 0f, Mathf.Max(0f, y + 8f - BodyH)));
             scroll.onValueChanged.AddListener(_ => _bodyScroll = _body.anchoredPosition.y);
@@ -104,6 +94,35 @@ namespace BlocksBeyondTheStars.Client
 
             // Controls hint, between the two side panels.
             EditorSceneKit.AddBottomHint(root, EditorSceneKit.BottomHintWidth(300f, 380f), L("ui.struct.hint"));
+        }
+
+        /// <summary>The scrolling body: identity, the rows of the chosen <i>Use as</i>, pack and weight, then — for a design — the
+        /// previews and the procedural starting point, the stamping panel (#3523) and the brush. Returns the body's height.</summary>
+        private float BuildBodyRows(Transform body)
+        {
+            float y = BuildIdentityRows(body, 8f);
+            if (_entryMode)
+            {
+                y = BuildEntryRows(body, y); // #3523: a generator entry
+            }
+            else if (_moduleMode)
+            {
+                y = BuildModuleRows(body, y);
+            }
+            else if (_landmarkMode)
+            {
+                y = BuildLandmarkRows(body, y); // #3492
+            }
+
+            y = BuildPackRows(body, y);
+            if (!_entryMode)
+            {
+                y = BuildPreviewRows(body, y); // #3523: quarter turn, materials, ruin
+                y = BuildGenerateRows(body, y);
+            }
+
+            y = BuildStampingRows(body, y); // #3523: what happens when it is stamped
+            return _entryMode ? y : BuildBrushRows(body, y);
         }
 
         /// <summary>A row label of the 140 px column: 16 px down to 13 on one line, else two lines at 13 (#3263).</summary>
@@ -151,8 +170,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddFitButton(p, ArrowX, y + 3f, ArrowW, RowH, "→", () =>
             {
                 _tier = (_tier + 1) % _tiers.Length;
-                _tierLabel.text = TierLabel(_tiers[_tier]);
-                if (_sizeHintLabel != null) _sizeHintLabel.text = SizeHint(_tiers[_tier]);
+                RebuildUi(); // #3523: the tier is the style the stamping panel and a city module's palette follow
             });
             y += ValueRowStep;
 
@@ -189,16 +207,14 @@ namespace BlocksBeyondTheStars.Client
         private float BuildModuleRows(Transform p, float y)
         {
             RowLabel(p, y, L("ui.struct.function"));
-            var functionLabel = ValueLabel(p, y, FunctionLabel(_function));
+            ValueLabel(p, y, FunctionLabel(_function));
             UiKit.AddFitButton(p, ArrowX, y + 3f, ArrowW, RowH, "→", () =>
             {
                 var list = Functions();
                 int i = System.Array.IndexOf(list, _function ?? string.Empty);
                 _function = list[(i + 1) % list.Length];
                 SyncRole();
-                functionLabel.text = FunctionLabel(_function);
-                _tierLabel.text = TierLabel(_tiers[_tier]);
-                if (_sizeHintLabel != null) _sizeHintLabel.text = SizeHint(_tiers[_tier]);
+                RebuildUi(); // #3523: a city role makes it a city module — the palette and the stamping panel follow
             });
             y += ValueRowStep;
             if (EditorMode == Mode.Station)
@@ -251,7 +267,7 @@ namespace BlocksBeyondTheStars.Client
 
                 // #3333: a whole settlement may be UNDERGROUND — never rolled for the surface, only the underground stamper
                 // seats it. A module takes the flag from its kit (the kit panel's toggle).
-                if (!_moduleMode && !_landmarkMode)
+                if (!_moduleMode && !_landmarkMode && !_entryMode) // an entry's pool says whether it is underground (#3523)
                 {
                     UiKit.AddFitButton(p, 16f, y, 348f, 34f, (_underground ? "☑ " : "☐ ") + L("ui.struct.underground"), () => { _underground = !_underground; RebuildUi(); });
                     y += 40f;
@@ -259,33 +275,6 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return y;
-        }
-
-        /// <summary>The procedural starting point (#1401): seed, reroll, generate — and the villages' surface block.</summary>
-        private float BuildGenerateRows(Transform p, float y)
-        {
-            SectionTitle(p, y, L("ui.struct.generate_title"));
-            y += 28f;
-            var seedLabel = UiKit.AddText(p, 16f, y, 60f, RowH, L("ui.struct.seed"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            UiKit.FitLabelSingleLine(seedLabel, 60f, UiKit.EditorMinFontSize, 15);
-            var seedInput = UiKit.AddInput(p, 80f, y, 110f, RowH, _seed.ToString(), v => { if (int.TryParse(v, out var s)) _seed = s; });
-            seedInput.contentType = InputField.ContentType.IntegerNumber;
-            UiKit.AddFitButton(p, 196f, y, 168f, RowH, L("ui.struct.reroll"), () =>
-            {
-                _seed = UnityEngine.Random.Range(1, 1000000);
-                seedInput.SetTextWithoutNotify(_seed.ToString());
-            });
-            y += 36f;
-            UiKit.AddFitButton(p, 16f, y, 348f, 34f, L("ui.struct.generate"), GenerateProcedural);
-            y += 40f;
-            if (EditorMode == Mode.Settlement)
-            {
-                FieldLabel(p, y, L("ui.struct.surface"));
-                UiKit.AddInput(p, 16f, y + 26f, 348f, 30f, _surface, v => _surface = v ?? string.Empty);
-                y += 66f;
-            }
-
-            return y + 6f;
         }
 
         /// <summary>The block brush — dye, glow, form and orientation for newly placed BLOCK cells — and the cell count.</summary>

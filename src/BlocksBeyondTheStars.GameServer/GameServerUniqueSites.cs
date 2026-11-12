@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.State;
@@ -93,10 +94,12 @@ public sealed partial class GameServer
     {
         string kind = "unique:" + siteKey;
         var record = FindPlacementRecord(kind, 0);
+        int half = footprint / 2 + 2;
         if (record is not null)
         {
             if (record.Placed)
             {
+                RegisterFootprint(StructureTypeRules.UniqueSite, (record.X, record.Z, half, half)); // #3514
                 afterStamp(record.X, record.GroundY, record.Z);
             }
 
@@ -117,12 +120,14 @@ public sealed partial class GameServer
         var rng = new Random(unchecked((int)(seed ^ (seed >> 32))));
         int pad0X = _landingPads.Count > 0 ? _landingPads[0].CenterX : 0;
         int pad0Z = _landingPads.Count > 0 ? _landingPads[0].CenterZ : 0;
-        int half = footprint / 2 + 2;
 
         // #2738: from SeaIceWetGeneration a frozen sea is no site either — a body frozen through read as dry seabed and the
         // site was stamped at the seabed height, under the ice (the centre column is the one this search reads).
         bool seaIceIsWet = SeaIceIsWet;
-        bool Fits(int x, int z) => !OverlapsAnySettlement(x, z, half + 4) && !_generator.IsSurfaceLava(planet, x, z)
+        // #3514: generation 38 keeps the kind's margin (10) from every registered box, older worlds 4 + 6 from the settlements & co.
+        bool Fits(int x, int z) => !(UsesFootprintRegistry ? KeepClearBlocked(StructureTypeRules.UniqueSite, x, z, half)
+                : OverlapsAnySettlement(x, z, half + 4))
+            && !_generator.IsSurfaceLava(planet, x, z)
             && !_generator.TryGetWaterSurface(planet, x, z, out _, out _)
             && !(seaIceIsWet && _generator.SurfaceIceThickness(planet, x, z) > 0);
 
@@ -151,6 +156,7 @@ public sealed partial class GameServer
 
         int groundY = _generator.SurfaceHeight(planet, cx, cz);
         writeBlocks(cx, groundY, cz);
+        RegisterFootprint(StructureTypeRules.UniqueSite, (cx, cz, half, half)); // #3514
         RecordPlacement(kind, 0, new Vector3i(cx, groundY, cz), groundY, onIsland: false, "flat", string.Empty);
         SavePlacementRecords();
         ReportStamp(kind, 1, 1);
@@ -158,51 +164,11 @@ public sealed partial class GameServer
         afterStamp(cx, groundY, cz);
     }
 
-    /// <summary>The Singing Shrine: a brick plinth, a ring of rune pillars, a humming green beacon — and
-    /// glowing strip-light "voices" between the stones.</summary>
+    /// <summary>The Singing Shrine (<see cref="UniqueSiteBuilder.BuildShrine"/>, #3522): a brick plinth, a ring of rune
+    /// pillars, a humming green beacon — and glowing strip-light "voices" between the stones. Its relic cache spawns in
+    /// <see cref="AfterShrine"/> on every load, so the builder's loot spot is not acted on here.</summary>
     private void WriteShrine(int cx, int groundY, int cz)
-    {
-        var brick = _content.GetBlock("ancient_brick")?.NumericId ?? BlockId.Air;
-        var rune = _content.GetBlock("rune_stone")?.NumericId ?? BlockId.Air;
-        var beam = _content.GetBlock("beam_block")?.NumericId ?? BlockId.Air;
-        var light = _content.GetBlock("strip_light_cyan")?.NumericId ?? BlockId.Air;
-        if (brick.IsAir || rune.IsAir)
-        {
-            return;
-        }
-
-        for (int dx = -6; dx <= 6; dx++)
-            for (int dz = -6; dz <= 6; dz++)
-            {
-                if (dx * dx + dz * dz <= 36)
-                {
-                    SetSiteBlock(cx + dx, groundY, cz + dz, brick);
-                }
-            }
-
-        for (int i = 0; i < 8; i++)
-        {
-            double a = i * Math.PI / 4.0;
-            int px = cx + (int)Math.Round(Math.Cos(a) * 5.0);
-            int pz = cz + (int)Math.Round(Math.Sin(a) * 5.0);
-            for (int dy = 1; dy <= 3; dy++)
-            {
-                SetSiteBlock(px, groundY + dy, pz, rune);
-            }
-
-            if (!light.IsAir && i % 2 == 0)
-            {
-                SetSiteBlock(px, groundY + 4, pz, light); // the "voices": four softly glowing crowns
-            }
-        }
-
-        SetSiteBlock(cx, groundY + 1, cz, rune);
-        SetSiteBlock(cx, groundY + 2, cz, rune);
-        if (!beam.IsAir)
-        {
-            SetSiteBlock(cx, groundY + 3, cz, beam); // the shrine's green song, visible from afar
-        }
-    }
+        => UniqueSiteBuilder.BuildShrine(new WorldCellSink(_world), _content, cx, groundY, cz);
 
     /// <summary>Runs every load on the shrine world: the relic cache (idempotent) + the keepers.</summary>
     private void AfterShrine(int cx, int groundY, int cz)
@@ -237,55 +203,11 @@ public sealed partial class GameServer
         BroadcastNpcs();
     }
 
-    /// <summary>The Sealed Observatory: a granite drum under a glass dome, one narrow entrance, and the
-    /// old Service's survey terminal still blinking inside.</summary>
+    /// <summary>The Sealed Observatory (<see cref="UniqueSiteBuilder.BuildObservatory"/>, #3522): a granite drum under a
+    /// glass dome, one narrow entrance, and the old Service's survey terminal still blinking inside. Its cache spawns in
+    /// <see cref="AfterObservatory"/> on every load, so the builder's loot spot is not acted on here.</summary>
     private void WriteObservatory(int cx, int groundY, int cz)
-    {
-        var stone = _content.GetBlock("granite")?.NumericId ?? BlockId.Air;
-        var glass = _content.GetBlock("glass")?.NumericId ?? BlockId.Air;
-        if (stone.IsAir || glass.IsAir)
-        {
-            return;
-        }
-
-        for (int dx = -4; dx <= 4; dx++)
-            for (int dz = -4; dz <= 4; dz++)
-            {
-                int r2 = dx * dx + dz * dz;
-                if (r2 > 16)
-                {
-                    continue;
-                }
-
-                SetSiteBlock(cx + dx, groundY, cz + dz, stone); // floor disc
-                if (r2 >= 12) // the drum wall, with a 2-tall south doorway
-                {
-                    bool doorway = dx == 0 && dz > 0;
-                    for (int dy = 1; dy <= 2 && !doorway; dy++)
-                    {
-                        SetSiteBlock(cx + dx, groundY + dy, cz + dz, stone);
-                    }
-
-                    SetSiteBlock(cx + dx, groundY + 3, cz + dz, stone); // lintel ring closes over the door
-                }
-            }
-
-        // The dome: shrinking glass rings up to the cap.
-        for (int dy = 4; dy <= 6; dy++)
-        {
-            int r = 6 - dy + 1; // 3, 2, 1
-            for (int dx = -r; dx <= r; dx++)
-                for (int dz = -r; dz <= r; dz++)
-                {
-                    if (dx * dx + dz * dz >= (r - 1) * (r - 1) && dx * dx + dz * dz <= r * r)
-                    {
-                        SetSiteBlock(cx + dx, groundY + dy, cz + dz, glass);
-                    }
-                }
-        }
-
-        SetSiteBlock(cx, groundY + 7, cz, glass); // the cap
-    }
+        => UniqueSiteBuilder.BuildObservatory(new WorldCellSink(_world), _content, cx, groundY, cz);
 
     /// <summary>Runs every load on the observatory world: the survey terminal's cache (idempotent).</summary>
     private void AfterObservatory(int cx, int groundY, int cz)
@@ -293,9 +215,6 @@ public sealed partial class GameServer
         var lootRng = new Random(unchecked((int)WorldGenerator.StableHash("observatory-loot:" + _world.LocationId)));
         SpawnStructureLoot(ObservatorySiteKey, "data_terminal", new Vector3f(cx + 0.5f, groundY + 1f, cz + 0.5f), lootRng);
     }
-
-    private void SetSiteBlock(int x, int y, int z, BlockId id)
-        => _world.SetBlock(new Vector3i(WorldConstants.WrapX(x, _world.Circumference), y, z), id);
 
     // ---------------- Map + hints ----------------
 

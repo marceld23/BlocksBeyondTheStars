@@ -38,6 +38,9 @@ public sealed partial class GameServer
     /// <summary>Container id prefix of a landmark's chest.</summary>
     internal const string LandmarkChestContainerPrefix = "loot_landmark_chest_";
 
+    /// <summary>The lane of a landmark chest's existence and content hashes (kept as it shipped: the saves' chests depend on it).</summary>
+    private const string LandmarkChestLane = "landmark";
+
     private static readonly HashSet<string> LandmarkLootMarkers = new(System.StringComparer.Ordinal) { "loot", "data_terminal", "relic_cache" };
 
     /// <summary>Everything a stamped landmark is at runtime, from its markers.</summary>
@@ -80,11 +83,11 @@ public sealed partial class GameServer
             }
             else if (marker.Type == LandmarkRules.SoundMarker)
             {
-                AddLandmarkEmitter(lm, cell, MarkerSettings.Parse(marker.Data)); // #3494
+                AddMarkerEmitter(lm.Emitters, cell, MarkerSettings.Parse(marker.Data)); // #3494
             }
             else if (marker.Type == LandmarkRules.DenMarker)
             {
-                AddLandmarkDen(lm, cell, MarkerSettings.Parse(marker.Data)); // #3495
+                AddMarkerDen(lm.Dens, cell, MarkerSettings.Parse(marker.Data)); // #3495
             }
         }
 
@@ -129,9 +132,14 @@ public sealed partial class GameServer
     }
 
     /// <summary>What a chest holds: the author's fixed items, the roll of the author's table, or the default table.</summary>
-    internal List<ItemStack> LandmarkChestItems(Vector3i cell, MarkerSettings settings)
+    internal List<ItemStack> LandmarkChestItems(Vector3i cell, MarkerSettings settings) => MarkerChestItems(LandmarkChestLane, cell, settings);
+
+    /// <summary>What a chest holds (#3488; shared with the settlements and stations since #3519): the author's fixed items,
+    /// the roll of the author's table, or the default table — every draw a hash of the world seed, the body, the chest's cell
+    /// and the owner's lane.</summary>
+    internal List<ItemStack> MarkerChestItems(string lane, Vector3i cell, MarkerSettings settings)
     {
-        ulong seed = StableHashing.Mixed($"landmark:chest:{_world.LocationId}:{cell.X}:{cell.Y}:{cell.Z}", _meta.Seed);
+        ulong seed = StableHashing.Mixed($"{lane}:chest:{_world.LocationId}:{cell.X}:{cell.Y}:{cell.Z}", _meta.Seed);
         var items = new List<ItemStack>();
         var fixedItems = MarkerSettings.ParseItems(settings.Get("items"));
         for (int i = 0; i < fixedItems.Count; i++)

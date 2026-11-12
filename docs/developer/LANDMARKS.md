@@ -94,20 +94,36 @@ the markers a visitor finds — chests, the classic loot markers, sounds and den
 pre-built circuits are gone.
 
 `StructureRuiner.Revision` is pinned with every placement: a stamped ruin is re-derived on later loads for its
-markers, so a change of the pass needs a new revision that old records do not take.
+markers, so a change of the pass needs a new revision that old records do not take. Since #3515 the record's `rev` is
+read back and handed to `LandmarkGenerator.Build(…, ruin, revision)` (a record without `rev` replays as 1, a revision
+the build does not know as the newest it knows); `StructureRuiner.Run` dispatches on it. Revision 1 is the pass above,
+pinned by `StructureRuinerGoldenTests` and the landmark goldens.
+
+**Shared with the other ruins (#3515).** `RuinOptions` change what a caller builds, every field defaulting to the pass
+above: `Overgrowth` / `OvergrowthBlock`, a weighted `RubblePalette`, `ErodeShaped` (column cylinders, arch ramps),
+`StrengthAt` per column (`RuinOptions.SpareBox` spares a plot), `ProtectRowsUpTo`, a fixed `LightOffBlock`,
+`Substitutions` (weathering after the openings: stone → moss stone, panel → rusted panel, empty target = gone) and
+`Scorch` (a block and/or tint, one chance next to a breach, one elsewhere). Each new step draws on a lane of its own, so
+none moves another. The profile `hull` (a wreck) has no ground: no crumbled patches, no height grading, no rubble, no
+flora — erosion bites and collapse balls breach it anywhere, and what stays is what hangs on a kept cell, a protected
+row or the largest piece left. Landmarks refuse `hull` (`LandmarkRules.Profiles`; `AllProfiles` lists all four). The
+marker filter and seating live in `RuinMarkerRules`; `VoxelGrid.Over` / `CopyOf` / `CopyTo` run the pass over another
+generator's block, tint and shape arrays, `KeepWhere` / `KeepBox` mark kept cells.
 
 ## 4. The stamp (#3486, #3490)
 
 `StampLandmarks` is one line of the structures boot stage, after everything that stands on the ground and before the
-buried ruins — so the vaults, cubes, chests and unique sites stamped later keep clear (`OverlapsAnySettlement`).
+buried ruins — so the vaults, cubes, chests and unique sites stamped later keep clear (`OverlapsAnySettlement`; on terrain
+generation 38+ the footprint registry, #3514, which also replaces the landmark's own reserved list — see
+[FACTORIES_RUINS_AND_CLAIMING.md](FACTORIES_RUINS_AND_CLAIMING.md)).
 
 - **Gate.** `WorldDescription.LandmarkGeneration` = 37 = `CurrentTerrainGeneration`. A server-side stamp: no chunk of
   any generation changes.
 - **Where never.** An asteroid, an airless, gas or void world, the finale body; with `PlaceLandmarks` off; on a type
   with a structure whitelist unless it names `landmarks` — and then only landmarks whose `planetTypes` name that type
   (Soaniri, #3500).
-- **Roll.** `LandmarkRolls`: a hash of seed and body below `LandmarkChance` (0.34) × the structures frequency — about
-  every third planet.
+- **Roll.** `LandmarkRolls`: a hash of seed and body below the `landmark` chance of `data/structure_types.json` (0.34; a set
+  `ServerConfig.LandmarkChance` overrides it, #3517) × the structures frequency — about every third planet.
 - **Pick, turn, seed.** One of the planet's candidates by weight (only those the body is four footprints around), a
   quarter turn and the instance seed, each a hash of its own.
 - **Seat.** The guaranteed placement search (#586) with every pad and structure reserved. A landmark that only stands
@@ -177,10 +193,10 @@ with the far view off it is drawn up to 512 blocks and only as far as the camera
 | Area | Files |
 |---|---|
 | Template, rules, settings, loot | `Shared/Definitions/StructureTemplate.cs`, `LandmarkRules.cs`, `MarkerSettings.cs`, `LootTable.cs`; `Shared/Content/TemplateBody.cs`, `StructureCatalog.cs`, `GameContent.Landmarks.cs`, `ContentLoader.cs` |
-| Build and ruin | `WorldGeneration/LandmarkGenerator.cs`, `StructureRuiner*.cs`, `VoxelGrid.cs`, `LandmarkSilhouette.cs` |
+| Build and ruin | `WorldGeneration/LandmarkGenerator.cs`, `StructureRuiner*.cs`, `RuinOptions.cs`, `RuinMarkers.cs`, `VoxelGrid.cs`, `LandmarkSilhouette.cs` |
 | Server | `GameServer/GameServerLandmarks.cs` (roll, pick, seat, record), `…LandmarkStamp.cs`, `…LandmarkLife.cs` (markers, chests), `…LandmarkWorld.cs` (emitters, dens, discovery, the client's list), `…LandmarkResidents.cs`, `…LandmarkStream.cs`, `…LandmarkAdmin.cs` |
 | Wire | `Networking/Messages/LandmarkMessages.cs` (tag 335) |
 | Client | `Client.Core/Audio/SoundEmitterMix.cs`, `Client.Core/LandmarkSilhouetteMesh.cs`; `SoundEmitterView.cs`, `LandmarkSilhouetteView.cs`, `Shaders/FarTerrain.shader`, `WorldMap.cs`, `WikiUI.cs` |
 | Editor | `StructureEditor.Landmark.cs`, `EditorMarkerPanel.cs` |
 | Data and tools | `data/landmarks/*.json`, `data/loot_tables.json`, `tools/gen_landmarks.py`, `tools/merge_structure.py` |
-| Tests | `LandmarkTemplateTests`, `StructureRuinerTests`, `LandmarkStampTests`, `LandmarkWorldTests`, `LandmarkClientTests` |
+| Tests | `LandmarkTemplateTests`, `StructureRuinerTests` (+ `…GoldenTests`, `…OptionTests`, `…HullTests`), `LandmarkStampTests`, `LandmarkWorldTests`, `LandmarkClientTests` |

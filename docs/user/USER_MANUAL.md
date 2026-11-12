@@ -2641,6 +2641,10 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - A crashed wreck shows a **wreck panel** (right HUD) with a hull-repair progress bar. Aim at a breach
   (missing hull cell) and press **R** while holding the **matching block** — the panel lists which blocks
   are still needed. When fully repaired, **Claim ship** adds it to your fleet.
+- In worlds created with this version, a wreck is the **real ship** that crashed — the same hull, cockpit, cargo bay
+  and engines as the flying ship, its doors open, burnt and broken open in places. Loot lies beside the cargo bays, a
+  ship module beside the reactor or workshop, a data terminal beside each cockpit. Older worlds keep their box-shaped
+  wrecks. A wreck whose ship type was removed from the game can no longer be repaired (its blocks stay).
 
 ### Factories
 - **Factories** are rare industrial halls found on some breathable worlds — metal walls and windows with
@@ -4755,7 +4759,35 @@ and antennae may sit anywhere outside the box (that is how the shipped ships are
 under the stepper tells you how big the game's own generator builds that tier), set a **Seed** (or **Reroll**)
 and press **Generate**: the same generator the world uses builds a station / settlement of that tier into the
 room, markers included, ready to edit and save as a template. Villages use the **Surface block** field as their
-material (e.g. `grass`, `sand`, `stone`).
+material (e.g. `grass`, `sand`, `stone`). The **…** button next to *Generator* lets you pick **any** of the game's
+structure generators instead — a bandit camp, a lodge, a monument, a wreck, a vault, a ruin, a derelict station and
+many more (the Town editor offers what stands on or under a planet, the Station editor what floats in space). Each one
+shows its own settings (a size, a style, a switch …); where a generator can build its structure both whole and worn,
+**☑ As in the world** shows it decayed the way the world builds it, unticked it comes out intact. Everything it builds
+can be edited and saved like your own design.
+
+**Station / Town editor — generator entries.** *Use as → Generator entry* saves no blocks at all: it saves a generator
+with its settings, weight, pack and planet types. In every new world it builds a fresh structure with that world's own
+seed, so no two look the same. Pick the **Pool** it joins (the Town editor: *Settlements*, *Underground* or
+*Landmarks*; the Station editor: *Stations*); the room shows what the generator builds with the seed of the form
+(**Update the preview**, or **Reroll**). Changing a setting does not rebuild the preview — press **Update the preview**
+when you want to see it; the camera stays where you put it. A *Landmarks* entry also has the landmark switches (*needs
+air*, *inhabited worlds only*). LOAD lists the game's own entries and yours, marked ⚙. A generator entry and a design
+can't share a name: if one of the other kind already uses the key, *Save* says so and saves nothing — pick another key.
+An entry whose generator this version doesn't know (or that doesn't fit its pool) says so when you load it; pick a
+generator with **…** before you save it.
+
+**Station / Town editor — preview and stamping.** **Quarter turn ↻** shows your design turned the way the game may turn
+it in a world (four turns bring it back), **Show materials** shows the planet materials (*Wall*, *Roof* …) as the blocks
+they become with your surface block, and **Show as a ruin** — for a whole settlement and a landmark — shows how the
+game would let it fall. Nothing can be changed while a preview shows; *Back to the design* brings it back.
+**▸ Stamping: what the world does with it** opens a list of everything the game does when it places your design: where
+and how it sits, what the planet materials turn into, the furniture, turning, the ruin, every chest (where, how likely,
+what is in it), sounds and animal dens, who lives there and how much room other buildings keep. The palette only offers
+what your kind of design uses (the **Keep** brush only where a building can fall into ruin, **Cavity** only for a
+landmark, ports only for a station kit module …). If the design still holds something the game will not use, *Save*
+says so in the status line and saves anyway; planet materials in a station kit module are refused, because they would
+turn into air there.
 
 **Town editor — whole settlement or building module (Use as).** Every settlement template is either a **whole
 structure** (the default: world-gen may drop the complete settlement onto a planet exactly as you built it) or a
@@ -4852,12 +4884,18 @@ connection the submission waits and goes out the next time you start the game.
 
 | Editor | Designs | Export → merge tool |
 |---|---|---|
-| **Ship Editor** | Custom ship types (hull, viewports, lights, engine, hatch, station tiles) | `ship.json` + `layout.json` → `tools/merge_ship.py` |
+| **Ship Editor** | Custom ship types (hull, viewports, lights, engine, hatch, station tiles) | `ship.json` + `layout.json` → `tools/merge_ship.py`; Save also writes `usercontent/ship_types/<key>.json`, so your ship can fly past as a trader or a pirate in your own worlds (see below) |
 | **Station Editor** | Space stations or station kit modules (hull/glass/light + hangar/vendor/mission/heal/quarters/console/cabin/lounge markers, docking ports) and station kits | `structure.json` + `layout.json` (+ `kit.json`) → `tools/merge_structure.py` |
 | **Town Editor** | Settlements/villages or their modules (walls, windows, ladders/stairs, lamps + vendor/mission/NPC markers) and settlement / city kits | `structure.json` + `layout.json` (+ `kit.json`) → `tools/merge_structure.py` |
 | **Avatar Editor** | Player skin (per-part colours, pixel face, body paintings + gear preview) and up to eight saved **outfits** | `skin.json` (the whole look) → `tools/gen_pioneer_skins.py --from-skin` — an adopted skin becomes a pioneer's look (Apply also saves locally) |
 | **Item & Recipe Editor** | Items (stats, tool/weapon properties, worn + eaten effects) + recipes (station, inputs, market vendor theme) + optional blueprint gating | `content.json` → `tools/merge_recipe.py` |
 | **Material Editor** | Block materials: paint a 64×64 tile, set mining (hardness/tool/drops), palette section, dyeable/shapeable, look (gloss/metal/glow/colour), world spawn (frequency/depth/world-type) | `material.json` + `texture.bytes` → `tools/merge_material.py` |
+
+**Your ships in your worlds:** every ship you save in the Ship Editor also goes to your user-content folder. The next
+time you start a game, it can come by as a trader's ship or a pirate's ship. A ship wider than a landing pad (17 × 17)
+only flies past and never lands. **LOAD → Your ships** opens it again. A few names belong to the game (`custom`,
+`starter` and the game's own ships such as `scout`): a ship saved under one of them goes to your worlds as `<name>_2`, and
+the status line tells you. Your ships don't appear in the build menu at a ship station in this version.
 
 **Avatar Editor outfits:** the **Outfits** panel beside the controls keeps up to eight named looks
 (colours + pixel face + body paint). Type a name in **Skin name** and press **Save outfit** to store the

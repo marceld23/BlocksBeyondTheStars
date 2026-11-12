@@ -3,7 +3,6 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
-using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 
@@ -34,62 +33,20 @@ public sealed partial class GameServer
             return; // a vault stamped before crystal vaults existed stays as it is
         }
 
-        int X(int dx) => WorldConstants.WrapX(ax + dx, _world.Circumference);
+        int circ = _world.Circumference;
         if (write)
         {
-            var shell = (_content.GetBlock("deepslate") ?? _content.GetBlock("stone"))!.NumericId;
-            BlockId B(string key) => _content.GetBlock(key)?.NumericId ?? BlockId.Air;
-            var conduit = B("crystal_conduit");
-            var phase = B("phase_block");
-            var sw = B("crystal_switch");
-            var gate = B("logic_block");
-            var lamp = B("light_white");
-            int top = floorY + 3, north = az + 4;
-
-            // The niche: two cells of air behind the north wall, walled in.
-            for (int dy = 0; dy <= 1; dy++)
+            // The geometry is VaultBuilder's (#3522): every device cell it writes is followed by its device marker — a
+            // world-circuit cell, registered once the net has loaded (or right away, below). Its loot spot is spawned below,
+            // on every entry.
+            var sink = new WorldCellSink(_world, onMark: (type, x, y, z, data) =>
             {
-                _world.SetBlock(new Vector3i(X(0), floorY + dy, az + 5), BlockId.Air);
-                _world.SetBlock(new Vector3i(X(-1), floorY + dy, az + 5), shell);
-                _world.SetBlock(new Vector3i(X(1), floorY + dy, az + 5), shell);
-                _world.SetBlock(new Vector3i(X(0), floorY + dy, az + 6), shell);
-            }
-
-            _world.SetBlock(new Vector3i(X(0), floorY - 1, az + 5), shell);
-            _world.SetBlock(new Vector3i(X(0), floorY + 2, az + 5), shell);
-
-            // The door, the gate above it (pointing down: yaw 5 rides in its settings), the wire between them.
-            var cells = new System.Collections.Generic.List<(Vector3i Cell, BlockId Block, string Data)>
-            {
-                (new Vector3i(X(0), floorY, north), phase, TemplateDevices.Encode(0, string.Empty, string.Empty)),
-                (new Vector3i(X(0), floorY + 1, north), phase, TemplateDevices.Encode(0, string.Empty, string.Empty)),
-                (new Vector3i(X(0), floorY + 2, north), conduit, TemplateDevices.Encode(0, string.Empty, string.Empty)),
-                (new Vector3i(X(0), top, north), gate, TemplateDevices.Encode((int)LogicMode.And, "yaw=" + CrystalNetRules.YawDown, string.Empty)),
-            };
-
-            // A wire along the top of the north wall to each side, down the side wall's corner to a switch.
-            foreach (int side in new[] { -1, 1 })
-            {
-                for (int dx = 1; dx <= 4; dx++)
+                if (type == TemplateDevices.Marker)
                 {
-                    cells.Add((new Vector3i(X(side * dx), top, north), conduit, TemplateDevices.Encode(0, string.Empty, string.Empty)));
+                    QueueWorldCircuitCell(new Vector3i(WorldConstants.WrapX(x, circ), y, z), data);
                 }
-
-                cells.Add((new Vector3i(X(side * 4), top, north - 1), conduit, TemplateDevices.Encode(0, string.Empty, string.Empty)));
-                cells.Add((new Vector3i(X(side * 4), top - 1, north - 1), conduit, TemplateDevices.Encode(0, string.Empty, string.Empty)));
-                cells.Add((new Vector3i(X(side * 4), floorY + 1, north - 1), sw, TemplateDevices.Encode(0, string.Empty, string.Empty)));
-                _world.SetBlock(new Vector3i(X(side * 2), top - 1, north), lamp); // the wire's ON lamp
-            }
-
-            foreach (var (cell, block, data) in cells)
-            {
-                if (!block.IsAir)
-                {
-                    _world.SetBlock(cell, block, 0, 0, 0);
-                    QueueWorldCircuitCell(cell, data); // registered once the net has loaded (or right away, below)
-                }
-            }
-
+            });
+            VaultBuilder.BuildCrystalPuzzle(sink, _content, ax, az, floorY);
             MarkFeatureStamped(flag);
             if (CrystalNet.Subscribed)
             {
@@ -99,7 +56,8 @@ public sealed partial class GameServer
 
         // The niche's loot: a generator of its own, so the vault loop's rolls stay as they were.
         var rng = new System.Random(unchecked((int)WorldGenerator.StableHash($"crystal_vault_loot:{ax}:{az}")));
-        SpawnStructureLoot("vault", "loot", new Vector3f(X(0), floorY, az + 5), rng);
+        var niche = VaultBuilder.CrystalNiche(ax, az, floorY);
+        SpawnStructureLoot("vault", "loot", new Vector3f(WorldConstants.WrapX(niche.X, circ), niche.Y, niche.Z), rng);
     }
 
     /// <summary>Test seam: stamps a crystal vault's puzzle around an anchor (as a fresh vault would) and registers it.</summary>

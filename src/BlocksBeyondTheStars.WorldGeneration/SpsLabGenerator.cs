@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 
 namespace BlocksBeyondTheStars.WorldGeneration;
@@ -10,7 +11,8 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// <summary>
 /// Builds an abandoned <b>SPS research station</b> (2026-09, Titas) deterministically from a seed: two or three rusted
 /// modules — the lab with its data terminal, a store room, sometimes a generator shed — beside an old ship pad and a
-/// helicopter pad with its "H". Holes in the walls and roofs, scrap on the floor. Reuses the
+/// helicopter pad with its "H". Holes in the walls and roofs, scrap on the floor (from terrain generation 38 made by the
+/// shared ruin pass, #3516). Reuses the
 /// <see cref="SettlementStructure"/> container so the settlement placement/stamp pipeline applies unchanged.
 /// Markers: <c>sps_cache</c> (salvage) and <c>data_terminal</c> (the lore terminal). No NPCs — only machines.
 /// </summary>
@@ -39,17 +41,23 @@ public static class SpsLabGenerator
         (8, 11), (22, 11), (19, 16),                                                         // before the doorways
     };
 
-    public static SettlementStructure Generate(long seed, string groundBlock, GameContent content)
+    /// <summary>
+    /// Builds a lab. Every older world (and the default 0) gets it built holed — rusted panels, holes and scrap drawn per
+    /// wall cell. From terrain generation 38 (<paramref name="terrainGeneration"/>, #3516) it is built intact of clean metal
+    /// panels and then weathers through a weak shared ruin pass (<see cref="RuinPass"/>).
+    /// </summary>
+    public static SettlementStructure Generate(long seed, string groundBlock, GameContent content, int terrainGeneration = 0)
     {
         var rng = new System.Random(unchecked((int)(seed ^ (seed >> 32))));
         int w = Size, h = Height, l = Size;
         var blocks = new ushort[w * h * l];
         var markers = new List<SettlementMarker>();
+        bool intact = StructureDecay.Applies(terrainGeneration);
 
         ushort B(string key, ushort fallback = 0) => content.GetBlock(key)?.NumericId.Value ?? fallback;
         ushort ground = B(groundBlock);
         ushort stone = B("stone", ground);
-        ushort wall = B("rusted_panel", stone);
+        ushort wall = intact ? B(PanelBlock, B(RustedPanelBlock, stone)) : B(RustedPanelBlock, stone);
         ushort floor = B("steel_floor", stone);
         ushort glass = B("glass", 0);
         ushort console = B("lab_panel", wall);
@@ -90,7 +98,11 @@ public static class SpsLabGenerator
                     Set(x, 0, z, floor);
                     for (int y = 1; y <= 4; y++)
                     {
-                        if (edge)
+                        if (edge && intact)
+                        {
+                            Set(x, y, z, wall); // #3516: the ruin pass weathers it afterwards
+                        }
+                        else if (edge)
                         {
                             // Weathered: one wall cell in twelve rusted through, one in twenty lies as scrap.
                             double r = rng.NextDouble();
@@ -98,7 +110,7 @@ public static class SpsLabGenerator
                         }
                     }
 
-                    Set(x, 5, z, rng.NextDouble() < 0.1 && !edge ? (ushort)0 : wall); // roof, with a few holes
+                    Set(x, 5, z, !intact && rng.NextDouble() < 0.1 && !edge ? (ushort)0 : wall); // roof, with a few holes
                 }
             }
 
@@ -219,7 +231,51 @@ public static class SpsLabGenerator
             }
         }
 
+        if (intact)
+        {
+            var grid = VoxelGrid.Over(w, h, l, blocks);
+            RuinPass(grid, markers, seed, groundBlock, content);
+            return new SettlementStructure(w, h, l, Tier, ruined: true, inhabitant: string.Empty,
+                blocks, markers, buildingCount: modules, grid.Mods, grid.Shapes);
+        }
+
         return new SettlementStructure(w, h, l, Tier, ruined: true, inhabitant: string.Empty,
             blocks, markers, buildingCount: modules);
+    }
+
+    /// <summary>The wall and roof panel a lab of generation 38 is built of (#3516), and what it weathers to.</summary>
+    internal const string PanelBlock = "metal_panel", RustedPanelBlock = "rusted_panel";
+
+    /// <summary>The strength of a lab's ruin pass (#3516): weak — it stood abandoned, nobody tore it down.</summary>
+    internal const double RuinStrength = 0.25;
+
+    /// <summary>The share of the panels that rusted (#3516); the rest still shows the clean metal.</summary>
+    internal const double RustChance = 0.8;
+
+    /// <summary>The lab module (x, z, inclusive): the data terminal's room. Its cells are keep cells of the pass (every row), so
+    /// it keeps its whole roof and its walls — the cold, airless room the server finds under it (<c>GameServer.InSpsLab</c>).
+    /// A strength factor of 0 would not do: the crumble and the erosion bites still act there.</summary>
+    internal static readonly (int MinX, int MinZ, int MaxX, int MaxZ) LabModule = (2, 2, 14, 10);
+
+    /// <summary>
+    /// The weathering of a lab of generation 38 (#3516): a weak shared ruin pass (<see cref="StructureRuiner"/>, profile
+    /// masonry, ground row 0) over the intact compound — the store room and the generator shed lose bits of wall and roof, the
+    /// panels rust (<see cref="RustChance"/>), glass is smashed, what fell lies as scrap. The lab module stands as built (keep
+    /// cells, <see cref="LabModule"/>); no flora grows (it would stand on the pads, <see cref="OpenColumns"/>, which hold nothing
+    /// above the pad row — the pass only takes from what stands and piles scrap where something fell). The markers' cells (the
+    /// data terminal, the caches) stay free.
+    /// </summary>
+    private static void RuinPass(VoxelGrid grid, List<SettlementMarker> markers, long seed, string groundBlock, GameContent content)
+    {
+        grid.KeepBox(LabModule.MinX, 0, LabModule.MinZ, LabModule.MaxX, Height - 1, LabModule.MaxZ);
+        var options = new RuinOptions
+        {
+            Overgrowth = false,
+            RubblePalette = new[] { new RuinWeightedBlock("scrap_metal") },
+            Substitutions = new[] { new RuinSubstitution(PanelBlock, RustedPanelBlock, RustChance) },
+            ProtectRowsUpTo = 0, // the floor and the pads: their lamps (the red corners, the white line, the "H") stay lit
+        };
+        StructureRuiner.Run(grid, content, StructureDecay.Seed("sps_lab", seed), LandmarkRules.ProfileMasonry, RuinStrength,
+            groundRow: 0, markers, groundBlock, StructureDecay.Revision, options);
     }
 }

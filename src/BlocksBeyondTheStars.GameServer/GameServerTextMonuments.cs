@@ -73,17 +73,24 @@ public sealed partial class GameServer
     private void StampTextMonuments()
     {
         var planet = _world.Planet;
-        if (planet.TextMonuments.Count == 0 || _generator.TerrainGeneration < WorldDescription.KubaWGeneration)
+        var rules = StructureType(StructureTypeRules.TextTablet); // #3517: generation 33 as shipped
+        if (planet.TextMonuments.Count == 0 || !rules.Enabled || _generator.TerrainGeneration < rules.MinGeneration)
         {
             return;
         }
 
         var records = RecordedTextMonuments();
-        foreach (var spec in planet.TextMonuments)
+        for (int order = 0; order < planet.TextMonuments.Count; order++)
         {
+            var spec = planet.TextMonuments[order];
             var tablet = BuildTextTablet(spec);
-            if (records.TryGetValue(spec.Key, out var record))
+            // #3513: the placement record is preferred; the feature string older builds wrote (and still read) is the fallback,
+            // and a tablet known only from it gains its record here.
+            var pinned = TextTabletSeat(TextTabletRecord(spec.Key));
+            if (pinned is not null || records.ContainsKey(spec.Key))
             {
+                var record = pinned ?? records[spec.Key];
+                RecordTextTablet(order, spec.Key, spec.Pad, record);
                 _textMonuments.Add(new TextMonumentInstance
                 {
                     Key = spec.Key,
@@ -93,6 +100,7 @@ public sealed partial class GameServer
                     Anchor = record.Anchor,
                     Tablet = tablet,
                 });
+                RegisterTextTabletFootprint(_textMonuments[^1]);
                 continue;
             }
 
@@ -110,10 +118,23 @@ public sealed partial class GameServer
                 StampTextTablet(planet, instance);
                 ClearTextMonumentView(planet, instance, standPad);
             });
+            RecordTextTablet(order, spec.Key, spec.Pad, seat); // #3513: saved with the feature mark below
             MarkFeatureStamped($"{TextMonumentRecordPrefix}{spec.Key}:{seat.Fx}:{seat.Fz}:{seat.Anchor.X}:{seat.Anchor.Y}:{seat.Anchor.Z}");
             _textMonuments.Add(instance);
+            RegisterTextTabletFootprint(instance);
             _log.Info($"Stamped text monument '{spec.Key}' on '{_world.LocationId}' at {seat.Anchor} facing ({seat.Fx},{seat.Fz}).");
         }
+
+        SavePlacementRecords();
+    }
+
+    /// <summary>Registers a tablet's ground box (#3514): the slab between its two far corners, X unwrapped.</summary>
+    private void RegisterTextTabletFootprint(TextMonumentInstance m)
+    {
+        var a = m.World(0, 0, 0);
+        var b = m.World(m.Tablet.Width - 1, 0, m.Tablet.Depth - 1);
+        Footprints.Add(StructureTypeRules.TextTablet, System.Math.Min(a.X, b.X), System.Math.Min(a.Z, b.Z), System.Math.Max(a.X, b.X),
+            System.Math.Max(a.Z, b.Z), StructureType(StructureTypeRules.TextTablet).KeepClear);
     }
 
     /// <summary>The tablet a spec spells: basalt slab, concrete letters, the accent run in gold.</summary>

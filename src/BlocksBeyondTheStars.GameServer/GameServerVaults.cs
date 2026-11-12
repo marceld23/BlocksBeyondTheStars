@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
-using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 
@@ -57,9 +57,9 @@ public sealed partial class GameServer
 
         _vaultsStamped = true;
         var planet = _world.Planet;
-        if (planet.Void)
+        if (!StructureConditionsHold(StructureTypeRules.Vault, planet))
         {
-            return; // stations have no terrain to bury anything in
+            return; // stations have no terrain to bury anything in (the kind's shipped condition, #3517)
         }
 
         bool write = !FeatureStamped("vaults");
@@ -67,11 +67,13 @@ public sealed partial class GameServer
         var rng = new System.Random(unchecked((int)(vSeed ^ (vSeed >> 32))));
         // World options: the chosen vault frequency scales both rolls (Off ⇒ none; Frequent ⇒ most
         // worlds carry one and a second becomes common).
+        // #3517: the chance of a first (0.75) and of a second vault (0.35) and their bounds (0.95, 0.8) are the kind's.
         double f = _meta.Description.Vaults.StructureFactor();
-        int count = rng.NextDouble() < System.Math.Min(0.95, 0.75 * f)
-            ? (rng.NextDouble() < System.Math.Min(0.8, 0.35 * f) ? 2 : 1)
+        var rules = StructureType(StructureTypeRules.Vault);
+        int count = rng.NextDouble() < System.Math.Min(rules.ThresholdCaps[0], rules.Thresholds[0] * f)
+            ? (rng.NextDouble() < System.Math.Min(rules.ThresholdCaps[1], rules.Thresholds[1] * f) ? 2 : 1)
             : 0;
-
+        count = PinnedCount("vault", count); // #3513: drawn above as always, pinned at the first run
 
         for (int i = 0; i < count; i++)
         {
@@ -96,7 +98,7 @@ public sealed partial class GameServer
             if (!_worlds.Active.VirginAtLoad)
             {
                 // Legacy world: the frozen behaviour (silent skips included), recorded for future loads.
-                if (OverlapsAnySettlement(wx, az, 6))
+                if (KeepClearBlocked(StructureTypeRules.Vault, wx, az, VaultHalfExtent))
                 {
                     RecordPlacementSkip("vault", i);
                     continue;
@@ -121,7 +123,7 @@ public sealed partial class GameServer
             // works (the old `surfaceY < 24` gate predates the deep floor — a chamber fits under any dry
             // ground now), a water column gets the WELLHEAD variant (chamber under the seabed, cased shaft
             // rising through the water). Lava columns are skipped by the nudge (nobody dives into lava).
-            bool Fits(int x, int z) => !OverlapsAnySettlement(x, z, 6) && !_generator.IsSurfaceLava(planet, x, z);
+            bool Fits(int x, int z) => !KeepClearBlocked(StructureTypeRules.Vault, x, z, VaultHalfExtent) && !_generator.IsSurfaceLava(planet, x, z);
             int vx = wx, vz = az;
             if (!Fits(vx, vz))
             {
@@ -189,7 +191,7 @@ public sealed partial class GameServer
             }
             else
             {
-                bool FitsExtra(int x, int z) => !OverlapsAnySettlement(x, z, 6) && !_generator.IsSurfaceLava(planet, x, z);
+                bool FitsExtra(int x, int z) => !KeepClearBlocked(StructureTypeRules.Vault, x, z, VaultHalfExtent) && !_generator.IsSurfaceLava(planet, x, z);
                 int vx = fwx, vz = fz;
                 bool ok = FitsExtra(vx, vz);
                 for (int radius = 12; radius <= 96 && !ok; radius += 12)
@@ -270,90 +272,15 @@ public sealed partial class GameServer
             return; // frozen legacy behaviour: too low to bury a chamber under (sea floors etc.)
         }
 
-        var shell = (_content.GetBlock("deepslate") ?? _content.GetBlock("stone"))!.NumericId;
-        var pillar = (_content.GetBlock("granite") ?? _content.GetBlock("stone"))!.NumericId;
-        var cache = _content.GetBlock("data_cache")?.NumericId ?? BlockId.Air;
-
-        // #467: on re-entry only the runtime state is re-derived; block writes are one-time. Every rng
-        // consumption below stays unconditional so write/no-write walks the identical roll sequence.
-        void Put(Vector3i p, BlockId b)
-        {
-            if (write)
-            {
-                _world.SetBlock(p, b);
-            }
-        }
-
-        int floorY = surfaceY - 16;
-
-        // Chamber: a 9×9 outer shell (7×7 inside), 4 air-high, deepslate walls/floor/ceiling.
-        for (int dx = -4; dx <= 4; dx++)
-            for (int dz = -4; dz <= 4; dz++)
-                for (int dy = -1; dy <= 4; dy++)
-                {
-                    var p = new Vector3i(WorldConstants.WrapX(ax + dx, _world.Circumference), floorY + dy, az + dz);
-                    bool isShell = dx is -4 or 4 || dz is -4 or 4 || dy is -1 or 4;
-                    Put(p, isShell ? shell : BlockId.Air);
-                }
-
-        // Shaft: a 2×2 drop from the surface into the chamber's ceiling corner (the way in — bring a jetpack
-        // or dig steps back out).
-        for (int dy = floorY + 4; dy <= surfaceY + 1; dy++)
-        {
-            for (int dx = -1; dx <= 0; dx++)
-                for (int dz = -1; dz <= 0; dz++)
-                {
-                    Put(new Vector3i(WorldConstants.WrapX(ax + dx, _world.Circumference), dy, az + dz), BlockId.Air);
-                }
-        }
-
-        // Wellhead (#586): case the shaft up through the water column as a 4×4 stone well tube with the
-        // 2×2 drop inside, mouth one block above the water line — a diveable ancient well.
-        if (waterTop != int.MinValue)
-        {
-            for (int dy = surfaceY + 2; dy <= waterTop + 1; dy++)
-            {
-                for (int dx = -2; dx <= 1; dx++)
-                    for (int dz = -2; dz <= 1; dz++)
-                    {
-                        bool casing = dx is -2 or 1 || dz is -2 or 1;
-                        Put(new Vector3i(WorldConstants.WrapX(ax + dx, _world.Circumference), dy, az + dz),
-                            casing ? shell : BlockId.Air);
-                    }
-            }
-        }
-
-        // Surface hint: a broken ring of weathered pillars (1–2 tall, some missing) around the shaft mouth.
-        (int X, int Z)[] ring = { (3, 0), (2, 2), (0, 3), (-2, 2), (-3, 0), (-2, -2), (0, -3), (2, -2) };
-        foreach (var (rx, rz) in ring)
-        {
-            if (rng.NextDouble() < 0.3)
-            {
-                continue; // a collapsed pillar — the ring reads ancient, not freshly built
-            }
-
-            int px = WorldConstants.WrapX(ax + rx, _world.Circumference);
-            int py = _generator.SurfaceHeight(planet, px, az + rz);
-            int h = 1 + rng.Next(2);
-            for (int dy = 1; dy <= h; dy++)
-            {
-                Put(new Vector3i(px, py + dy, az + rz), pillar);
-            }
-        }
-
-        // Treasure: data caches in the chamber corners + lootable containers via the structure-loot system
-        // (salvage capsule + a data terminal — generated once, persisted, looted with G like wreck loot).
-        if (!cache.IsAir)
-        {
-            Put(new Vector3i(WorldConstants.WrapX(ax + 3, _world.Circumference), floorY, az + 3), cache);
-            Put(new Vector3i(WorldConstants.WrapX(ax - 3, _world.Circumference), floorY, az + 3), cache);
-            Put(new Vector3i(WorldConstants.WrapX(ax + 3, _world.Circumference), floorY, az - 3), cache);
-        }
-
-        // Loot markers stay unconditional — SpawnStructureLoot is idempotent via GeneratedLoot.
-        SpawnStructureLoot("vault", "loot", new Vector3f(ax - 2, floorY, az - 2), rng);
-        SpawnStructureLoot("vault", "loot", new Vector3f(ax + 2, floorY, az - 3), rng);
-        SpawnStructureLoot("vault", "data_terminal", new Vector3f(ax, floorY, az), rng);
+        // The geometry is VaultBuilder's (#3522). #467: on re-entry only the runtime state is re-derived — the sink drops
+        // the block writes; every rng consumption (the pillar ring's gaps and heights, then the loot) stays unconditional
+        // so write/no-write walks the identical roll sequence. The builder's loot spots spawn their containers from the
+        // same stream, in its order (salvage capsule ×2 + a data terminal — generated once via GeneratedLoot, persisted,
+        // looted with G like wreck loot).
+        var sink = new WorldCellSink(_world, write,
+            onMark: (type, x, y, z, _) => SpawnStructureLoot("vault", type, new Vector3f(x, y, z), rng));
+        VaultBuilder.Build(sink, _content, ax, az, surfaceY, waterTop == int.MinValue ? null : waterTop, rng, WrappedSurfaceHeight());
+        int floorY = VaultBuilder.FloorY(surfaceY);
 
         if (IsCrystalVault(ax, az))
         {
@@ -361,5 +288,9 @@ public sealed partial class GameServer
         }
 
         _vaultEntrances.Add(new Vector3i(ax, surfaceY, az));
+        RegisterFootprint(StructureTypeRules.Vault, (ax, az, VaultHalfExtent, VaultHalfExtent)); // #3514: on the stamp and every re-derive
     }
+
+    /// <summary>The half extent a vault keeps clear around its shaft — the chamber, the crystal niche and the pillar ring.</summary>
+    private const int VaultHalfExtent = 6;
 }

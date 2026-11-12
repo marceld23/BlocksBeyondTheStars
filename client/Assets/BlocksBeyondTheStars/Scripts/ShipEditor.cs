@@ -970,7 +970,8 @@ namespace BlocksBeyondTheStars.Client
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, "ship.json"), JsonUtility.ToJson(ship, true));
                 File.WriteAllText(Path.Combine(dir, "layout.json"), JsonUtility.ToJson(layout, true));
-                _status = string.Format(L("ui.ed.saved_ship"), key, _design.Count, dir);
+                string userKey = WriteUserShip(key, ship, layout); // #3520: the one-file copy the local server reads (ShipEditor.UserContent.cs)
+                _status = string.Format(L("ui.ed.saved_ship"), key, _design.Count, dir) + UserShipRenamedNote(key, userKey);
             }
             catch (Exception e)
             {
@@ -982,8 +983,8 @@ namespace BlocksBeyondTheStars.Client
         private EditorLoadPicker _loadPicker;
 
         /// <summary>The LOAD dialog (#1394): the shipped ships (every <see cref="ShipDefinition"/> with a
-        /// layout, straight from the loaded content) as starting points, then the user's own exports under
-        /// <c>ship_exports/</c>. The starter ship is a code-built box without a layout and is not listed.</summary>
+        /// layout, straight from the loaded content) as starting points, the user ships of <c>usercontent/ship_types/</c> (#3520),
+        /// then the user's own exports under <c>ship_exports/</c>. The starter ship is a code-built box without a layout and is not listed.</summary>
         private void OpenLoadPicker()
         {
             _loadPicker?.Close();
@@ -1027,7 +1028,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            _loadPicker = EditorLoadPicker.Show(Shell, _canvas.transform, new[] { builtIn, mine }, _design.Count, () => _loadPicker = null);
+            _loadPicker = EditorLoadPicker.Show(Shell, _canvas.transform, new[] { builtIn, UserShipsSection(), mine }, _design.Count, () => _loadPicker = null);
         }
 
         /// <summary>Finds the palette entry for a loaded cell — by id AND kind first (a block and a marker may

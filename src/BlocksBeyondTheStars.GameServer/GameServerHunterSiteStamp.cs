@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
+using BlocksBeyondTheStars.WorldGeneration;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -125,106 +126,45 @@ public sealed partial class GameServer
         return max - min;
     }
 
-    /// <summary>The one-time stamp: the hull box (hull cells, air everywhere else in it — the hill, the grass, a trunk), the
-    /// ground filled under the deck where it dips (at most four deep), the shuttle's own dock in the hold and one or two more
-    /// on a steel plate beside it. Records the docks.</summary>
+    /// <summary>The one-time stamp (#3522: the geometry is <see cref="HunterCampBuilder"/>'s): the hull box (hull cells, air
+    /// everywhere else in it — the hill, the grass, a trunk), the ground filled under the deck where it dips (at most four
+    /// deep), the shuttle's own dock in the hold and one or two more on a steel plate beside it, on the real ground of their
+    /// columns and only where it is dry. Records the docks.</summary>
     private void StampHunterSite(HunterShuttleSiteRecord rec, System.Random rng, int ox, int fy, int oz)
-    {
-        var bay = _content.GetBlock(GuardianBayBlockKey);
-        var cells = new Dictionary<Vector3i, (BlockDefinition Def, int Tint, int Shape)>();
-        foreach (var (cell, part) in HunterShuttleHull.Cells)
-        {
-            if (HunterShuttleBlock(part) is { } def)
-            {
-                cells[cell] = (def, def.Tintable ? HunterShuttleHull.DyeOf(part) : 0, 0);
-            }
-        }
-
-        if (bay is not null)
-        {
-            cells[HunterShuttleHull.Bay] = (bay, 0, CubeFacing.Pack(HunterShuttleHull.BayFront));
-        }
-
-        for (int x = 0; x < HunterShuttleHull.Width; x++)
-            for (int z = 0; z < HunterShuttleHull.Length; z++)
-                for (int y = 0; y <= HunterShuttleHull.Height; y++) // one row over the roof too: no grass tuft on top
-                {
-                    var world = new Vector3i(ox + x, fy + y, oz + z);
-                    if (cells.TryGetValue(new Vector3i(x, y, z), out var c))
-                    {
-                        StampHunterCell(world, c.Def.NumericId, c.Tint, c.Shape);
-                    }
-                    else
-                    {
-                        StampHunterCell(world, BlockId.Air, 0, 0);
-                    }
-                }
-
-        FillUnderHunterDeck(ox, fy, oz);
-        rec.Spawners.Clear();
-        if (bay is not null)
-        {
-            rec.Spawners.Add(new HunterShuttleSiteCell { X = ox + HunterShuttleHull.Bay.X, Y = fy + HunterShuttleHull.Bay.Y, Z = oz + HunterShuttleHull.Bay.Z });
-            int outside = 1 + rng.Next(HunterShuttleHull.OutsideDocks.Length); // 2–3 docks in all
-            for (int i = 0; i < outside; i++)
-            {
-                StampOutsideHunterDock(rec, bay, ox, oz, HunterShuttleHull.OutsideDocks[i]);
-            }
-        }
-    }
-
-    /// <summary>Fills the dips under the deck with the planet's ground (at most four cells deep per column).</summary>
-    private void FillUnderHunterDeck(int ox, int fy, int oz)
     {
         var planet = _world.Planet;
         string surface = planet.Biomes.Count > 0 ? planet.Biomes[0].SurfaceBlock : planet.SurfaceBlock;
-        var ground = (_content.GetBlock(surface) ?? _content.GetBlock("stone"))?.NumericId ?? BlockId.Air;
-        if (ground.IsAir)
-        {
-            return;
-        }
-
-        foreach (var (cell, part) in HunterShuttleHull.Cells)
-        {
-            if (part != HunterShuttleHull.Part.Floor)
-            {
-                continue;
-            }
-
-            for (int d = 1; d <= 4; d++)
-            {
-                var below = new Vector3i(ox + cell.X, fy - d, oz + cell.Z);
-                var id = _world.GetBlock(below);
-                if (!id.IsAir && !IsFluid(id.Value))
-                {
-                    break;
-                }
-
-                StampHunterCell(below, ground, 0, 0);
-            }
-        }
+        rec.Spawners.Clear();
+        HunterCampBuilder.Build(new HunterCampSink(this, rec), _content, surface, ox, fy, oz, rng, HunterGroundFeet,
+            (x, z, feet) => MachineWaterDepth(x, z, feet) <= 0 && WithinBuildHeight(feet + 1));
     }
 
-    /// <summary>A dock beside the shuttle: on the ground of its own column, on a steel plate, its front facing out — skipped
-    /// where that ground is wet.</summary>
-    private void StampOutsideHunterDock(HunterShuttleSiteRecord rec, BlockDefinition bay, int ox, int oz, (int X, int Z, int Front) spot)
+    /// <summary>The hunter camp's sink: every cell through <see cref="StampHunterCell"/> (inside the build height, no air
+    /// written over air, a <c>BlockChanged</c> for the clients — the camp carries no glow), reads from the world, and every
+    /// dock marker becomes one of the record's docks.</summary>
+    private sealed class HunterCampSink : IStructureCellSink
     {
-        int x = ox + spot.X, z = oz + spot.Z;
-        int feet = HunterGroundFeet(x, z);
-        if (MachineWaterDepth(x, z, feet) > 0 || !WithinBuildHeight(feet + 1))
+        private readonly GameServer _server;
+        private readonly HunterShuttleSiteRecord _rec;
+
+        public HunterCampSink(GameServer server, HunterShuttleSiteRecord rec)
         {
-            return;
+            _server = server;
+            _rec = rec;
         }
 
-        var plate = _content.GetBlock("steel_floor") ?? _content.GetBlock("metal_panel");
-        if (plate is not null)
-        {
-            StampHunterCell(new Vector3i(x, feet - 1, z), plate.NumericId, plate.Tintable ? HunterShuttleHull.FloorDye : 0, 0);
-        }
+        public void Set(int x, int y, int z, BlockId block, int tint, int glow, int shape)
+            => _server.StampHunterCell(new Vector3i(x, y, z), block, tint, shape);
 
-        StampHunterCell(new Vector3i(x, feet, z), bay.NumericId, 0, CubeFacing.Pack(spot.Front));
-        StampHunterCell(new Vector3i(x, feet + 1, z), BlockId.Air, 0, 0);
-        rec.Spawners.Add(new HunterShuttleSiteCell { X = x, Y = feet, Z = z });
+        public BlockId Get(int x, int y, int z) => _server._world.GetBlock(new Vector3i(x, y, z));
+
+        public void Mark(string type, int x, int y, int z, string data)
+        {
+            if (type == HunterCampBuilder.DockMarker)
+            {
+                _rec.Spawners.Add(new HunterShuttleSiteCell { X = x, Y = y, Z = z });
+            }
+        }
     }
 
     /// <summary>Writes one cell (a server stamp — no owner) and tells the world's clients when it changed.</summary>

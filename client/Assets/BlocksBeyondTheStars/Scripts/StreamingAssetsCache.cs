@@ -292,6 +292,7 @@ namespace BlocksBeyondTheStars.Client
             "stories/vega_protocol/lore_sites.json",
             "stories/vega_protocol/story.json",
             "structure_kits.json",
+            "structure_types.json", // #3517
             "village_life.json",
             "whatsnew.json",
             "wiki/articles.json",

@@ -222,6 +222,9 @@ public sealed partial class GameServer
         _objectTransport = transport as IObjectServerTransport;
         _repo = repo;
         _log = logger ?? new NullGameLogger();
+        // #3518: the generator entries the source registry does not accept (unknown source, wrong pool, bad parameters) are
+        // dropped with a warning — Shared, which loads the content, cannot see the registry.
+        WorldGeneration.Sources.SourceTemplates.Validate(content, _log.Warn);
         // Everything the AI writes for players passes the world's content screen (#1221). Wrapped HERE,
         // at the one place the provider is chosen, so no AI call site has to remember it — including an
         // injected test double, which is what lets the fallback be tested.
@@ -837,7 +840,11 @@ public sealed partial class GameServer
                     // 2026-09 (generation 8): a type with a structure whitelist (Titas, Valuma) stamps only what it names.
                     // #3358: Soaniri on any save — the pack appends it to old galaxies too, and no town may stamp over Mirun.
                     bool restricted = StructuresRestricted(planet); // #3421: shared with the /ressaw prediction
-                    bool Allowed(string kind) => !restricted || planet.AllowedStructures.Contains(kind);
+                    // #3517: a kind's whitelist key and its data switch come from data/structure_types.json (the switch is read
+                    // here for the kinds whose server switch is read here; the others read it beside theirs).
+                    bool Allowed(string kind) => StructureKindAllowed(kind, planet, restricted);
+                    bool Stamps(string kind) => StructureType(kind).Enabled && Allowed(kind);
+                    RegisterBootFootprints(); // #3514: the pads and the planned crash site, before any stamper
 
                     // #3310 (generation 33): a type's stone text tablets (KuBa-W) — first, in front of their pads, on every
                     // world of the type whatever the structure options say (self-skips on every other type).
@@ -847,42 +854,50 @@ public sealed partial class GameServer
                     // sounder_world type only, right after the tablets and before the monuments (they reserve around them).
                     BootDetail("sounder world", StampSounderWorld);
 
-                    if (_config.PlaceSettlements && !restricted)
+                    if (_config.PlaceSettlements && Stamps(StructureTypeRules.Settlement))
                     {
                         BootDetail("settlements", StampSettlement);
                         BootDetail("intercity rail", StampIntercityRail); // #2125 (generation 19): right after the towns, before anything else reserves ground
                     }
 
-                    if (_config.PlaceRuins && !restricted)
+                    if (_config.PlaceRuins && Stamps(StructureTypeRules.Ruin))
                     {
                         BootDetail("ruins", StampRuins); // standalone fallen-city ruins (unprotected) — after settlements so they avoid them
                     }
 
-                    if (!restricted)
+                    if (Allowed(StructureTypeRules.RailRuin))
                     {
                         BootDetail("rail ruins", StampRailRuins); // #2166 (generation 20): an abandoned monorail station on some worlds — after the ruins, before every later structure
                     }
 
-                    if (!restricted)
+                    if (Allowed(StructureTypeRules.BanditCamp))
                     {
                         BootDetail("bandit camps", StampBanditCamps); // small hostile outposts (unprotected; self-skips per config + Bandits rule)
+                    }
+
+                    if (Allowed(StructureTypeRules.Lodge))
+                    {
                         BootDetail("lodges", StampLodges); // #2640: wilderness huts and their residents (generation 25+; after the camps so it avoids them)
+                    }
+
+                    if (Allowed(StructureTypeRules.Outpost))
+                    {
                         BootDetail("pioneer outposts", StampPioneerOutposts); // #2681: the lodge variant a pioneer lives in (after the huts so it avoids them)
                     }
 
                     BootDetail("sps labs", StampSpsLabs); // 2026-09: abandoned SPS research stations — only on a type that allows them (Titas)
 
-                    if (_config.PlaceMonuments && Allowed("monuments")) // #3358: a restricted type may keep its rune relics (Soaniri)
+                    if (_config.PlaceMonuments && Stamps(StructureTypeRules.Monument)) // #3358: a restricted type may keep its rune relics (Soaniri)
                     {
                         BootDetail("monuments", StampMonuments); // eroded rune relics (unprotected) — the only surface feature airless bodies get
                     }
 
-                    if (_config.PlaceFactories && !restricted)
+                    if (_config.PlaceFactories && Stamps(StructureTypeRules.Factory))
                     {
                         BootDetail("factories", StampFactories); // rare industrial factories (protected until claimed) — avoid settlements
                     }
 
-                    if (_config.PlaceWrecks && !restricted)
+                    if (_config.PlaceWrecks && Stamps(StructureTypeRules.Wreck))
                     {
                         BootDetail("wreck", StampWreck);
                     }
@@ -890,27 +905,27 @@ public sealed partial class GameServer
                     BootDetail("landmarks", () => StampLandmarks(restricted)); // #3486 (generation 37): one giant authored building — after everything that stands on the ground, before what is buried
                     BootDetail("ancient ruins", () => StampAncientRuins(restricted)); // #3334 (generation 35): the buried G.D.S. ruin — before the vaults, which keep clear of it
 
-                    if (_config.PlaceVaults && !restricted)
+                    if (_config.PlaceVaults && Stamps(StructureTypeRules.Vault))
                     {
                         BootDetail("vaults", StampVaults); // buried vault ruins ("Welten reicher" W-R3) — 0-2 per world, loot via containers
                     }
 
-                    if (_config.PlaceDataCubes && !restricted)
+                    if (_config.PlaceDataCubes && Stamps(StructureTypeRules.DataCube))
                     {
                         BootDetail("data cubes", StampDataCubes); // minigame download cubes — 0-N per world (many bodies get none)
                     }
 
-                    if (Allowed("net_fragments"))
+                    if (Stamps(StructureTypeRules.NetFragment))
                     {
                         BootDetail("net fragments", StampNetFragments); // story net fragments scattered on the surface (P2; self-skips when story off / Void)
                     }
 
-                    if (_config.PlaceChests && !restricted)
+                    if (_config.PlaceChests && Stamps(StructureTypeRules.Chest))
                     {
                         BootDetail("chests", StampChests); // rare standalone treasure caches (0-N per body)
                     }
 
-                    if (!restricted)
+                    if (Stamps(StructureTypeRules.UniqueSite))
                     {
                         BootDetail("unique sites", StampUniqueSites); // #1129: this body may carry one of the galaxy's one-of-a-kind places
                     }

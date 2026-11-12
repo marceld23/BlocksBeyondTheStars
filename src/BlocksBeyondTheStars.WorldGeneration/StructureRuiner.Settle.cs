@@ -62,7 +62,7 @@ internal sealed partial class StructureRuiner
                     }
 
                     int i = _g.Index(x, y, z);
-                    if (_g.Cavity[i] && !_markerCell[i] && U(LaneCaveFill, x, y, z) < 0.8)
+                    if (_g.Cavity[i] && !_markerCell[i] && U(LaneCaveFill, x, y, z) < 0.8 && !Protected(y) && !Spared(x, y, z))
                     {
                         _g.Cavity[i] = false;
                         _g.Set(x, y, z, _rock);
@@ -100,22 +100,43 @@ internal sealed partial class StructureRuiner
     }
 
     /// <summary>Whatever no longer hangs together with the ground comes down: a flood fill from the anchors — every
-    /// block at or below the ground row (it sits in the rock) and every kept cell — through touching blocks; the rest
-    /// falls.</summary>
+    /// block at or below the ground row (it sits in the rock), in a protected row and every kept cell; for a hull, which
+    /// has no ground, also the largest piece that is left — through touching blocks; the rest falls.</summary>
     private void Settle()
     {
         var held = new BitArray(_g.Blocks.Length);
         var open = new Stack<int>();
         int layer = _g.H * _g.L;
+        int anchoredUpTo = System.Math.Max(_ground, _t.ProtectRows);
         for (int i = 0; i < _g.Blocks.Length; i++)
         {
-            if (_g.Blocks[i] != 0 && ((i % layer) / _g.L <= _ground || _g.Keep[i]))
+            if (_g.Blocks[i] != 0 && ((i % layer) / _g.L <= anchoredUpTo || _g.Keep[i]))
             {
                 held[i] = true;
                 open.Push(i);
             }
         }
 
+        if (_hull)
+        {
+            AnchorLargestPiece(held, open);
+        }
+
+        Spread(held, open);
+        for (int i = 0; i < _g.Blocks.Length; i++)
+        {
+            if (_g.Blocks[i] != 0 && !held[i])
+            {
+                Fell(i / layer, (i % layer) / _g.L, i % _g.L);
+            }
+        }
+    }
+
+    /// <summary>Marks every block that touches a marked one (faces and edges), from the cells on the stack, until
+    /// nothing is left to mark. Returns how many it marked.</summary>
+    private int Spread(BitArray marked, Stack<int> open)
+    {
+        int layer = _g.H * _g.L, count = 0;
         while (open.Count > 0)
         {
             int i = open.Pop();
@@ -129,20 +150,45 @@ internal sealed partial class StructureRuiner
                 }
 
                 int n = _g.Index(nx, ny, nz);
-                if (_g.Blocks[n] != 0 && !held[n])
+                if (_g.Blocks[n] != 0 && !marked[n])
                 {
-                    held[n] = true;
+                    marked[n] = true;
                     open.Push(n);
+                    count++;
                 }
             }
         }
 
+        return count;
+    }
+
+    /// <summary>A hull (#3515) has no ground to hang on: the largest piece of touching blocks that is left (the first in
+    /// cell order on a tie) holds, like a kept cell.</summary>
+    private void AnchorLargestPiece(BitArray held, Stack<int> open)
+    {
+        var seen = new BitArray(_g.Blocks.Length);
+        var stack = new Stack<int>();
+        int best = -1, bestSize = 0;
         for (int i = 0; i < _g.Blocks.Length; i++)
         {
-            if (_g.Blocks[i] != 0 && !held[i])
+            if (_g.Blocks[i] == 0 || seen[i])
             {
-                Fell(i / layer, (i % layer) / _g.L, i % _g.L);
+                continue;
             }
+
+            seen[i] = true;
+            stack.Push(i);
+            int size = 1 + Spread(seen, stack);
+            if (size > bestSize)
+            {
+                (best, bestSize) = (i, size);
+            }
+        }
+
+        if (best >= 0 && !held[best])
+        {
+            held[best] = true;
+            open.Push(best);
         }
     }
 
@@ -152,17 +198,17 @@ internal sealed partial class StructureRuiner
     private const int RubbleReach = 3;
 
     /// <summary>Rubble where something came down: one or two blocks of what fell (the planet's rock when only glass
-    /// and fittings fell), on the lowest free cell of the column near the ground. Never in a marker's cell.</summary>
+    /// and fittings fell) or of the options' palette, on the lowest free cell of the column near the ground. Never in a
+    /// marker's cell or a protected row.</summary>
     private void Rubble()
     {
-        double share = 0.25 + (0.45 * _s);
         for (int x = 0; x < _g.W; x++)
         {
             for (int z = 0; z < _g.L; z++)
             {
                 int c = Column(x, z);
                 ushort block = _fallenBlock[c] != 0 ? _fallenBlock[c] : _rock;
-                if (_fallen[c] == 0 || block == 0 || U(LaneRubble, x, 0, z) >= share)
+                if (_fallen[c] == 0 || (block == 0 && _t.RubbleTotal == 0) || U(LaneRubble, x, 0, z) >= 0.25 + (0.45 * S(x, z)))
                 {
                     continue;
                 }
@@ -177,33 +223,32 @@ internal sealed partial class StructureRuiner
                 for (int k = 0; k < pile && y + k <= _ground + RubbleReach && y + k < _g.H; k++)
                 {
                     int i = _g.Index(x, y + k, z);
-                    if (!_markerCell[i] && !_g.Cavity[i]) // a marker's cell and the mouth of a shaft stay free
+                    if (!_markerCell[i] && !_g.Cavity[i] && !Protected(y + k)) // a marker's cell and the mouth of a shaft stay free
                     {
-                        _g.Set(x, y + k, z, block);
+                        _g.Set(x, y + k, z, _t.RubbleTotal > 0 ? PickRubble(x, y + k, z) : block);
                     }
                 }
             }
         }
     }
 
-    /// <summary>The biome's flora pushes through the floor: on a share of the free cells right above a block of the
-    /// ground row. Never in a marker's cell.</summary>
+    /// <summary>The biome's flora (or the options' flora) pushes through the floor: on a share of the free cells right
+    /// above a block of the ground row. Never in a marker's cell or a protected row.</summary>
     private void Overgrowth()
     {
-        if (_flora == 0 || _ground + 1 >= _g.H)
+        if (_t.Flora == 0 || _ground + 1 >= _g.H || Protected(_ground + 1))
         {
             return;
         }
 
-        double share = 0.04 + (0.08 * _s);
         for (int x = 0; x < _g.W; x++)
         {
             for (int z = 0; z < _g.L; z++)
             {
                 if (_g.Solid(x, _ground, z) && !_g.Solid(x, _ground + 1, z)
-                    && !_markerCell[_g.Index(x, _ground + 1, z)] && U(LaneFlora, x, 0, z) < share)
+                    && !_markerCell[_g.Index(x, _ground + 1, z)] && U(LaneFlora, x, 0, z) < 0.04 + (0.08 * S(x, z)))
                 {
-                    _g.Set(x, _ground + 1, z, _flora);
+                    _g.Set(x, _ground + 1, z, _t.Flora);
                 }
             }
         }

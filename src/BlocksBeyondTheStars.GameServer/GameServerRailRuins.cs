@@ -41,9 +41,10 @@ public sealed partial class GameServer
 
     private List<RailRuinInstance> _railRuins => _worlds.Active.RailRuins;
 
-    /// <summary>Whether a world could once have had a station: ground underfoot, air to breathe, no structure whitelist.</summary>
-    private static bool RailRuinEligible(PlanetType planet)
-        => !planet.Void && !planet.IsAirless && !planet.IsGasWorld && !planet.RestrictStructures;
+    /// <summary>Whether a world could once have had a station: ground underfoot, air to breathe (the kind's conditions in
+    /// data/structure_types.json, #3517), no structure whitelist.</summary>
+    private bool RailRuinEligible(PlanetType planet)
+        => StructureConditionsHold(StructureTypeRules.RailRuin, planet) && !planet.RestrictStructures;
 
     /// <summary>Decides (once, pinned), stamps (once) and re-derives this world's abandoned station. Runs right after the ruins.</summary>
     private void StampRailRuins()
@@ -65,13 +66,14 @@ public sealed partial class GameServer
         var rec = FindPlacementRecord(RailRuinKind, 0);
         if (rec is null)
         {
-            if (!_config.PlaceRailRuins || _generator.TerrainGeneration < WorldDescription.RailRuinGeneration || !RailRuinEligible(planet))
+            var rules = StructureType(StructureTypeRules.RailRuin); // #3517: generation 20, chance 0.35, the factory seat as shipped
+            if (!_config.PlaceRailRuins || !rules.Enabled || _generator.TerrainGeneration < rules.MinGeneration || !RailRuinEligible(planet))
             {
                 return; // an older world never grows one; a server that switched the feature off decides nothing
             }
 
             double factor = _meta.Description.Settlements.StructureFactor();
-            double chance = Math.Clamp(_config.RailRuinChance * Math.Clamp(factor, 0.0, 2.0), 0.0, 1.0);
+            double chance = Math.Clamp(StructureChance(StructureTypeRules.RailRuin, _config.RailRuinChance) * Math.Clamp(factor, 0.0, 2.0), 0.0, 1.0);
             if (LaneRoll(_meta.Seed, "railruin:" + _world.LocationId) >= chance)
             {
                 RecordPlacementSkip(RailRuinKind, 0);
@@ -81,8 +83,9 @@ public sealed partial class GameServer
 
             heading = RngFor(instSeed, "heading").Next(4);
             var fresh = RailRuinGenerator.Generate(instSeed, heading, surface, _content);
-            if (!TryPlaceStructureGuaranteed(fresh, RngFor(instSeed, "search"), RailRuinReservedFootprints(), wantIsland: false,
-                    SeatPolicy.Factory, avoidPlayerEdits: !_worlds.Active.VirginAtLoad,
+            if (!TryPlaceStructureGuaranteed(fresh, RngFor(instSeed, "search"),
+                    KeepClearFor(StructureTypeRules.RailRuin, RailRuinReservedFootprints()), wantIsland: false, // #3514: generation 38: the registry
+                    SeatPolicyOf(StructureTypeRules.RailRuin, SeatPolicy.Factory), avoidPlayerEdits: !_worlds.Active.VirginAtLoad,
                     out origin, out groundY, out bool onIsland, out seat))
             {
                 RecordPlacementSkip(RailRuinKind, 0);
@@ -114,14 +117,16 @@ public sealed partial class GameServer
         }
 
         var structure = RailRuinGenerator.Generate(instSeed, heading, surface, _content);
-        _railRuins.Add(new RailRuinInstance
+        var ruin = new RailRuinInstance
         {
             Origin = new Vector3i(origin.X, groundY, origin.Z),
             Heading = heading,
             Width = structure.Width,
             Length = structure.Length,
             Seat = seat,
-        });
+        };
+        _railRuins.Add(ruin);
+        RegisterFootprint(StructureTypeRules.RailRuin, ruin.Rect); // #3514
 
         if (!FeatureStamped(RailRuinFeature))
         {

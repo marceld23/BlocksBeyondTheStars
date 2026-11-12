@@ -120,6 +120,40 @@ On **Save**, the editor writes a self-contained bundle to a known export folder 
 
 The format is plain JSON so a developer can read/diff it. The key must be unique + slug-safe.
 
+**User ships (#3520).** Save also writes the ship as ONE file to the user-content folder,
+`usercontent/ship_types/<key>.json` (`UserShipFile`): `key`, `name`, `description` (literal texts, no locale keys),
+`baseHull`, `baseShield`, `flightSpeed`, `handling`, `requiredBlueprint`, `craftCost`, `startModules`, `uses`, `pack`,
+`weight` and the `layout` embedded as `{ width, height, length, cells }`. The local server reads that folder at start
+(`ContentLoader.LoadUserShips` → `GameContent.SetUserShips`), so the ship turns up in your worlds without a merge or a
+rebuild. A key the game reserves — `custom` (the self-built ships), `starter`, or the key of a shipped ship or layout,
+any letter case — is never written: the copy goes under the first free `<key>_2`, `_3`, … and the status line says so
+(`UserShipFileRules`, Client.Core). LOAD lists these files in a section of their own. A re-save keeps a file's `uses`
+(an empty list too: the raw text decides whether the field is there), `pack` and `weight`; a new file gets `["npc"]`.
+
+The server checks each file and drops a broken one with a warning, never failing the load. It drops a file for a
+malformed or reserved key (`GameContent.IsReservedUserShipKey`: `custom`, `starter`, shipped ships and layouts,
+case-insensitive) or one an earlier file took, an empty layout, an unknown block or
+element, a cell outside the editor room, an unknown module, item or blueprint, or a craftable hull wider than the
+17 × 17 landing square. It clamps the stats to the editor's ranges and fills the same defaults as `merge_ship.py`: the
+interior from the layout, the layout under the ship's key, and start modules from the station tiles when the file names
+none. User ships are kept in `GameContent.UserShips`, never in `Ships`. The wreck pools of existing worlds and the
+creative "all ships" grant enumerate `Ships`, so a new file cannot change them. `GetShip`/`GetShipLayout` resolve user
+ships after the shipped ones. Each consumer opts in through `uses` (no `uses` field = `["npc"]`), and only a ship whose
+`pack` the world enables joins a pool:
+
+- `npc`: bandit raiders and trader flights. User ships are appended after the shipped designs, so a server without
+  user ships draws the same ships as before. A hull wider than a pad never lands.
+- `wreck`: wrecks of new worlds — opt-in, because a planet wreck can be repaired and claimed into the fleet.
+- `craft`: crafting by a `CraftShipIntent`. This also needs the server option `allowUserShipCrafting`, off by default,
+  because otherwise any client could craft a free ship. **This version's build menu does not offer user ships** (the
+  client's content has none), so in practice a user ship reaches a fleet only as a repaired, claimed wreck.
+
+An owned user ship carries its name and flight values on `NetOwnedShip` (the #949 pattern), because the client's own
+content does not know it; the name is also stored with the ship (`ShipState.DisplayName`). When its file is removed or
+no longer loads, the ship keeps its type (it comes back whole with the file), shows its stored name, and flies on its
+stored cells if the fleet entry has them — else on the starter hull WITHOUT its persisted edits (they belong to the other
+hull), with a warning in the log.
+
 ---
 
 ## 6. Developer integration (merge)

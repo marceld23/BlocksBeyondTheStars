@@ -10,6 +10,7 @@ using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
+using BlocksBeyondTheStars.WorldGeneration.Sources;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -28,8 +29,8 @@ public sealed partial class GameServer
 {
     // --- count model knobs ---
     private const double SettlementRefCirc = 8000.0; // mid-planet circumference → sizeFactor 1.0
-    private const double SettlementBaseDensity = 3.0; // expected settlements at H=1, size 1.0, Normal frequency, character 1.0
-    private const int SettlementHardCap = 8;          // backstop only — placement/space usually caps lower
+    // #3517: the base density (3.0 expected settlements at H=1, size 1.0, Normal frequency, character 1.0) and the hard cap (8, a
+    // backstop — placement usually caps lower) are the settlement kind's in data/structure_types.json.
     private const int SettlementCollisionMargin = 6;  // blocks of clearance kept around pads/wreck/other settlements
 
     private List<SettlementInstance> _settlements => _worlds.Active.Settlements;
@@ -255,9 +256,9 @@ public sealed partial class GameServer
         }
 
         double h = Hospitability(planet);
-        if (factor <= 0 || h <= 0)
+        if (factor <= 0 || h <= 0 || !StructureConditionsHold(StructureTypeRules.Settlement, planet))
         {
-            return; // airless / no atmosphere, or settlements switched off ⇒ none
+            return; // airless / no atmosphere (the shipped condition), or settlements switched off ⇒ none
         }
 
         // Count = hospitability × world size × base density × frequency × a per-world "character" multiplier
@@ -266,8 +267,11 @@ public sealed partial class GameServer
         double sizeFactor = _world.Circumference / SettlementRefCirc;
         double character = RollWorldCharacter(rng);
         // #2031: a type may bias the count (the toxic worlds: 0.1, a rare find); 1.0 is the identical draw for every other type.
-        double lambda = h * sizeFactor * SettlementBaseDensity * factor * character * System.Math.Max(0.0, planet.SettlementsBias);
-        int requested = DrawCount(rng, lambda, SettlementHardCap);
+        // #3517: the base density and the cap are the kind's (data/structure_types.json).
+        var rules = StructureType(StructureTypeRules.Settlement);
+        double lambda = h * sizeFactor * rules.Density * factor * character * System.Math.Max(0.0, planet.SettlementsBias);
+        // #3513: the count is drawn on every load (the body stream spawns the residents after it), a pinned one replaces it.
+        int requested = PinnedCount("settlement", DrawCount(rng, lambda, rules.Cap));
         if (requested <= 0)
         {
             return;
@@ -286,6 +290,7 @@ public sealed partial class GameServer
 
         var (wreckX, wreckZ) = WreckAnchorFor(_landingPads); // one shared rule, not a second copy of the offset (#1684)
         reserved.Add((wreckX, wreckZ, WreckReservedHalfExtent, WreckReservedHalfExtent));
+        reserved = KeepClearFor(StructureTypeRules.Settlement, reserved); // #3514: generation 38 keeps clear through the registry
 
         // Phase A — decide each settlement's design + a collision-free, dry/flat (or sky-island) spot.
         var placed = new List<PlacedSettlement>();
@@ -295,17 +300,22 @@ public sealed partial class GameServer
             long instSeed = sSeed ^ unchecked((long)(i + 1) * (long)0x9E3779B97F4A7C15);
             var ir = new System.Random(unchecked((int)(instSeed ^ (instSeed >> 32))));
 
-            string tier = RollTier(ir, h);
-            bool ruined;
-            SettlementStructure structure;
-
             // #1115 / #1876: the record is consulted BEFORE any pick — a pinned instance replays its template or its
             // kit composition, a pre-pinning record replays against the LEGACY pool only (draw for draw), and a
             // FRESH instance draws from the joint table of complete templates and kits (modular is the standard)
             // on a lane of its own, so the per-instance stream — the legacy roll, ruined, island — is the same at
             // the stamp and on every replay.
             var pinRec = FindPlacementRecord("settlement", i);
+
+            // #3513: the tier roll is drawn on every load (the stream contract); a recorded tier replaces it.
+            string rolledTier = RollTier(ir, h);
+            string tier = pinRec?.Tier is { Length: > 0 } pinnedTier ? pinnedTier : rolledTier;
+            bool ruined;
+            SettlementStructure structure;
+
             bool pinnedKit = pinRec is { Placed: true, Modules: >= 2 };
+            // #3513: a generation-38 settlement composed procedurally says so — it replays as procedural, never as a template.
+            bool pinnedProcedural = TemplatePipelineWorld && pinRec is { Placed: true, Template: StructurePlacementRecord.ProceduralTemplate };
             bool fresh = pinRec is null && _worlds.Active.VirginAtLoad;
             bool legacyReplay = (pinRec is { Placed: true, Template.Length: 0 } && !pinnedKit) // pinned era, before pinning
                 || (pinRec is null && !_worlds.Active.VirginAtLoad);                         // pre-#586 world, same deal
@@ -324,7 +334,23 @@ public sealed partial class GameServer
                 : null;
             StructureKit? kit = null;
             SettlementLayoutSpec? layout = null;
-            if (pinRec is { Placed: true, Template.Length: > 0 })
+            StructureTemplate? source = null; // #3518: a generator entry, drawn fresh or pinned
+            if (pinnedProcedural)
+            {
+                template = null; // the coin above was still drawn (stream contract); a procedural instance takes no template
+            }
+            else if (SourceTemplates.IsRecord(pinRec?.Template))
+            {
+                // #3518: a generator entry replays itself, never the legacy pick (the coin above was still drawn). One that is
+                // gone leaves its blocks as they were stamped and re-derives nothing.
+                template = null;
+                source = PinnedSettlementSource(pinRec!);
+                if (source is null)
+                {
+                    continue;
+                }
+            }
+            else if (pinRec is { Placed: true, Template.Length: > 0 })
             {
                 template = _content.SettlementTemplateByKey(pinRec.Template) ?? template; // the pinned layout wins
             }
@@ -345,7 +371,8 @@ public sealed partial class GameServer
                 var templates = _content.CompleteTemplatesFor(StructureKit.KindSettlement, tier, packs, _world.Planet.Key);
                 var kits = _content.KitsFor(StructureKit.KindSettlement, tier, packs, _world.Planet.Key);
                 var lane = RngFor(instSeed, "kitpick");
-                (template, kit) = PickTemplateOrKit(templates, kits, lane.NextDouble() < useP, lane);
+                // #3518: generation 38 appends the tier's generator entries after the kits (none: the same draw as before).
+                (template, kit, source) = PickTemplateKitOrSource(templates, kits, SettlementSourcesFor(tier), lane.NextDouble() < useP, lane);
 
                 if (kit != null)
                 {
@@ -361,14 +388,37 @@ public sealed partial class GameServer
                 composition = pinRec?.Composition is { } pinned ? new List<string>(pinned) : new List<string>();
             }
 
-            if (planet.RuinedSettlementsOnly)
+            if (planet.RuinedSettlementsOnly && !TemplatePipelineWorld)
             {
                 // #2031: nobody lives on this world — a complete template is an inhabited settlement, so the generator's
                 // ruined build takes its place (every pick above was still drawn: the instance stream is unchanged).
+                // #3519: from generation 38 the template stays and stands as a fallen settlement instead (below).
                 template = null;
             }
 
-            if (template != null)
+            int turns = 0; // #3519: a whole template's quarter turns (generation 38), pinned in the record
+            if ((template != null || source != null) && TemplatePipelineWorld)
+            {
+                // #3519 / #3518 (generation 38): a whole template or a generator entry rolls the ruin verdict like every
+                // settlement (a ruined-only world ruins it) and a template turns; both are pinned in the record.
+                bool rolledRuined = ir.NextDouble() < RuinChance(h) || planet.RuinedSettlementsOnly;
+                ruined = pinRec?.Ruined ?? rolledRuined;
+                tier = template?.Tier ?? tier;
+                turns = template != null ? SettlementTemplateTurns(pinRec, instSeed) : 0;
+                if (BuildWholeSettlement(template ?? source!, tier, ruined, turns, instSeed, surface) is not { } whole)
+                {
+                    if (pinRec is null)
+                    {
+                        RecordPlacementSkip("settlement", i); // decided once: this entry cannot be built here
+                    }
+
+                    continue;
+                }
+
+                structure = whole;
+                composition = null; // a whole structure holds no plots
+            }
+            else if (template != null)
             {
                 tier = template.Tier;
                 ruined = false;
@@ -379,11 +429,14 @@ public sealed partial class GameServer
             else
             {
                 // The ruin roll is drawn first either way (the stream contract); a toxic world (#2031) ruins every settlement.
-                ruined = ir.NextDouble() < RuinChance(h) || planet.RuinedSettlementsOnly;
+                // #3513: a recorded verdict replaces the roll — a template pick drawn ahead of it moves the stream when a new
+                // template of this tier arrives, which used to flip an existing settlement between ruin and village.
+                bool rolledRuined = ir.NextDouble() < RuinChance(h) || planet.RuinedSettlementsOnly;
+                ruined = pinRec?.Ruined ?? rolledRuined;
                 bool kitPath = kit != null || pinnedKit;
                 structure = SettlementGenerator.Generate(tier, ruined, instSeed, surface, _content,
                     modulesOn ? modules : null, moduleChance, composition, _log.Warn, layout, kit, kitPath ? kitPool : null,
-                    legacyCrops, legacyModuleRoll);
+                    legacyCrops, legacyModuleRoll, _meta.Description.TerrainGeneration); // #3516: generation 38 ruins through the shared pass
                 if (pinRec is { Placed: true } && pinRec.Composition is null && composition is { Count: > 0 })
                 {
                     pinRec.Composition = composition; // freeze the current picks of a pre-#1872 record once
@@ -430,7 +483,7 @@ public sealed partial class GameServer
 
                 seat = "legacy";
                 name = UniqueName(SettlementDisplayName(tier, ruined, ir), usedNames);
-                RecordPlacement("settlement", i, origin, groundY, onIsland, seat, name, template?.Key ?? string.Empty, modules: 0);
+                RecordPlacement("settlement", i, origin, groundY, onIsland, seat, name, template?.Key ?? string.Empty, modules: 0, kitLayout: RecordedSettlementLayout(null, null, turns)); // #3519: turns=…
             }
             else
             {
@@ -438,7 +491,8 @@ public sealed partial class GameServer
                 // It draws from its own rng lane so the shared per-instance stream stays search-independent;
                 // the name comes from a dedicated lane for the same reason.
                 if (!TryPlaceStructureGuaranteed(structure, RngFor(instSeed, "search"), reserved, wantIsland,
-                        ruined ? SeatPolicy.Ruin : SeatPolicy.Inhabited, avoidPlayerEdits: false,
+                        ruined ? SeatPolicyOf(StructureTypeRules.Ruin, SeatPolicy.Ruin) : SeatPolicyOf(StructureTypeRules.Settlement, SeatPolicy.Inhabited),
+                        avoidPlayerEdits: false,
                         out origin, out groundY, out onIsland, out seat))
                 {
                     RecordPlacementSkip("settlement", i); // all-lava carve-out — see TryPlaceStructureGuaranteed
@@ -446,11 +500,13 @@ public sealed partial class GameServer
                 }
 
                 name = UniqueName(SettlementDisplayName(tier, ruined, RngFor(instSeed, "name")), usedNames);
-                RecordPlacement("settlement", i, origin, groundY, onIsland, seat, name, template?.Key ?? string.Empty,
+                RecordPlacement("settlement", i, origin, groundY, onIsland, seat, name, RecordedSettlementTemplate(template, source, kit),
                     modules: kit != null ? 2 : 1, composition: composition, kit: kit?.Key ?? string.Empty,
-                    kitLayout: kit != null && layout is { } spec ? spec.Serialize() : string.Empty,
+                    kitLayout: RecordedSettlementLayout(kit, layout, turns), // #3519: a turned template pins turns=…
                     hashRevision: StructurePlacementRecord.MixedHashRevision); // #2689: planted with the mixed crop pick
             }
+
+            PinSettlementTraits(FindPlacementRecord("settlement", i), rolledTier, ruined); // #3513: written once, replayed after
 
             placed.Add(new PlacedSettlement
             {
@@ -511,6 +567,7 @@ public sealed partial class GameServer
         _settlementMarkers.Clear();
         _worlds.Active.GuestBeds.Clear(); // #2986: rebuilt with the markers below
         _worlds.Active.SettlementDoorFits.Clear(); // #1986/#1994: rebuilt with the markers below
+        var markerLife = TemplatePipelineWorld ? ResetMarkerLife(SettlementMarkerOwner) : null; // #3519: chests, sounds, dens
         foreach (var p in placed)
         {
             var inst = new SettlementInstance
@@ -560,6 +617,12 @@ public sealed partial class GameServer
                     // #2260: a pre-built circuit (street lamps on a daylight sensor, a doorbell) — registered once the net loads
                     QueueWorldCircuitCell(new Vector3i(p.Origin.X + m.LocalPos.X, p.GroundY + m.LocalPos.Y, p.Origin.Z + m.LocalPos.Z), m.Data);
                 }
+
+                if (markerLife is not null)
+                {
+                    _ = ApplyStructureMarker(markerLife, m.Type, m.Data,
+                        new Vector3i(p.Origin.X + m.LocalPos.X, p.GroundY + m.LocalPos.Y, p.Origin.Z + m.LocalPos.Z)); // #3519
+                }
             }
 
             // An inhabited settlement's mission board offers an endless rolling set of gather missions: seed the
@@ -571,6 +634,7 @@ public sealed partial class GameServer
             }
 
             _settlements.Add(inst);
+            RegisterFootprintBox(StructureTypeRules.Settlement, inst.Min, inst.Max); // #3514
         }
 
         // Phase D — populate inhabited settlements with NPCs and hang real doors in the doorways.
@@ -597,6 +661,7 @@ public sealed partial class GameServer
         // #1876: a kit city — the record pins the kit and its grid; a fresh city draws a city kit for this planet
         // type (by weight) when one exists, else the composer's own map. Off keeps the map procedural.
         StructureKit? cityKit = null;
+        StructureTemplate? citySource = null; // #3518: a generator entry of the metropolis tier, drawn fresh or pinned
         var cityLayout = CityLayoutSpec.Default;
         bool kitCity = false;
         if (rec is { Placed: true, Modules: >= 2 })
@@ -608,10 +673,19 @@ public sealed partial class GameServer
                 cityLayout = CityLayoutSpec.Default;
             }
         }
+        else if (rec is { Placed: true } && SourceTemplates.IsRecord(rec.Template))
+        {
+            citySource = PinnedSettlementSource(rec); // #3518: replays itself; gone → its blocks stay, nothing is re-derived
+            if (citySource is null)
+            {
+                return;
+            }
+        }
         else if (rec is null && _meta.Description.SettlementTemplateUse.Probability() > 0)
         {
             var kits = _content.KitsFor(StructureKit.KindCity, null, _meta.Description.EnabledStructurePacks, planet.Key);
-            int total = 0;
+            var sources = SettlementSourcesFor(CityGenerator.Tier); // #3518: generation 38 appends them after the kits
+            int total = sources.Sum(s => System.Math.Max(1, s.Weight));
             foreach (var k in kits) total += System.Math.Max(1, k.Weight);
             if (total > 0)
             {
@@ -622,6 +696,7 @@ public sealed partial class GameServer
                     if (r < 0) { cityKit = k; break; }
                 }
 
+                citySource = cityKit is null ? AppendedSourceAt(sources, r) : null;
                 if (cityKit != null)
                 {
                     kitCity = true;
@@ -630,8 +705,15 @@ public sealed partial class GameServer
             }
         }
 
-        int size = cityLayout.Footprint;
-        var origin = new Vector3i(pad.CenterX - size / 2, pad.CenterY, pad.CenterZ - size / 2);
+        // #3518: a generator entry is built before the city is seated — its own footprint, centred on pad 0 like the city's.
+        var sourceCity = citySource is null ? null : BuildWholeSettlement(citySource, CityGenerator.Tier, ruined: false, turns: 0, sSeed, surface);
+        if (citySource is not null && sourceCity is null)
+        {
+            return; // warned: the entry cannot be built — nothing stands here
+        }
+
+        int size = sourceCity?.Width ?? cityLayout.Footprint;
+        var origin = new Vector3i(pad.CenterX - size / 2, pad.CenterY, pad.CenterZ - (sourceCity?.Length ?? size) / 2);
         int groundY = pad.CenterY;
         string name;
         bool modulesOn;
@@ -646,7 +728,8 @@ public sealed partial class GameServer
         {
             name = CityDisplayName(RngFor(sSeed, "cityname"));
             modulesOn = true;
-            RecordPlacement("settlement", 0, origin, groundY, false, "shelf", name, "city:" + planet.CityWorld,
+            RecordPlacement("settlement", 0, origin, groundY, false, "shelf", name,
+                citySource is null ? "city:" + planet.CityWorld : SourceTemplates.RecordOf(citySource),
                 modules: kitCity ? 2 : 1, kit: cityKit?.Key ?? string.Empty, kitLayout: kitCity ? cityLayout.Serialize() : string.Empty,
                 hashRevision: StructurePlacementRecord.MixedHashRevision);
         }
@@ -667,14 +750,17 @@ public sealed partial class GameServer
             ? (rec?.Composition is { } pinned ? new List<string>(pinned) : new List<string>())
             : null;
         // #2690: `rec` is the record as loaded (null for a city composed right now) — a pre-#1872 one freezes the legacy roll.
-        var structure = CityGenerator.Generate(sSeed, _content, zones, modulesOn ? modules : null, moduleChance, composition, _log.Warn,
-            kitCity ? cityLayout : null, cityKit, kitCity ? kitPool : null, UsesLegacyModuleRoll(rec));
+        var structure = sourceCity ?? CityGenerator.Generate(sSeed, _content, zones, modulesOn ? modules : null, moduleChance, composition, _log.Warn,
+            kitCity ? cityLayout : null, cityKit, kitCity ? kitPool : null, UsesLegacyModuleRoll(rec),
+            terrainGeneration: _meta.Description.TerrainGeneration); // #3519: generation 38 — the district modules' marker settings
         if (composition is { Count: > 0 } && (rec ?? FindPlacementRecord("settlement", 0)) is { } cityRec && cityRec.Composition is null)
         {
             cityRec.Composition = composition;
             _placementRecordsDirty = true;
             SavePlacementRecords();
         }
+
+        PinSettlementTraits(rec ?? FindPlacementRecord("settlement", 0), CityGenerator.Tier, ruined: false); // #3513: like every settlement
 
         var placed = new List<PlacedSettlement>
         {

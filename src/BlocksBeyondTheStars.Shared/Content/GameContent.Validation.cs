@@ -901,12 +901,7 @@ public sealed partial class GameContent
         {
             foreach (var cell in layout.Cells)
             {
-                if (cell.Kind == "station")
-                {
-                    continue; // station types map to marker blocks server-side (unknown → hull marker, by design)
-                }
-
-                if (string.IsNullOrEmpty(cell.Id) || (!ShipLayoutCell.IsElementId(cell.Id) && !_blocks.ContainsKey(cell.Id)))
+                if (!IsKnownLayoutCell(cell)) // the same check drops a user ship's unknown cell (#3520)
                 {
                     problems.Add($"Ship layout '{layout.Key}' cell ({cell.X},{cell.Y},{cell.Z}) references unknown block or element '{cell.Id}'.");
                 }

@@ -78,24 +78,28 @@ namespace BlocksBeyondTheStars.Client
 
         // ---------------------------------------------------------------- "use as"
 
-        private string UseLabel() => L(_landmarkMode ? "ui.use.landmark" : _moduleMode ? "ui.use.module" : "ui.use.whole");
+        private string UseLabel()
+            => L(_entryMode ? "ui.use.entry" : _landmarkMode ? "ui.use.landmark" : _moduleMode ? "ui.use.module" : "ui.use.whole");
 
-        /// <summary>Whole structure → kit module → landmark (the town editor only) → whole structure.</summary>
+        /// <summary>Whole structure → kit module → landmark (the town editor only) → generator entry (#3523) → whole structure.
+        /// A preview gives the design back first; a generator entry shows its source's build.</summary>
         private void CycleUse()
         {
-            if (_previewOn)
+            EndPreview();
+            if (_entryMode)
             {
-                TogglePreview();
+                _entryMode = false;
             }
-
-            if (_landmarkMode)
+            else if (_landmarkMode)
             {
                 _landmarkMode = false;
+                _entryMode = true;
             }
             else if (_moduleMode)
             {
                 _moduleMode = false;
                 _landmarkMode = EditorMode == Mode.Settlement;
+                _entryMode = EditorMode == Mode.Station;
             }
             else
             {
@@ -107,6 +111,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             SyncRole();
+            ShowEntryPreview(); // nothing outside an entry
             RebuildUi();
         }
 
@@ -137,7 +142,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_previewOn)
             {
-                SetStatus(L("ui.ed.landmark.preview_locked"));
+                SetStatus(L(PreviewLockedKey())); // #3523: a turn, the materials, a ruin or an entry's build
                 return true;
             }
 
@@ -164,7 +169,7 @@ namespace BlocksBeyondTheStars.Client
         private bool ToolFits(string tool, CellData d) => tool switch
         {
             "device" => CarriesDeviceSettings(DeviceKindOf(d)),
-            "settings" => d.Kind == "marker" && EditorMarkerPanel.Edits(d.Id),
+            "settings" => d.Kind == "marker" && EditorMarkerPanel.Edits(d.Id) && StructureStampRules.ReadsMarkerSettings(_target, d.Id), // #3523
             _ => d.Kind == "block", // the port and the keep brush paint a block
         };
 
@@ -193,7 +198,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void EditMarker()
         {
-            if (!TryGetHitCell(out var cell) || !_design.TryGetValue(cell, out var d) || d.Kind != "marker" || !EditorMarkerPanel.Edits(d.Id))
+            if (!TryGetHitCell(out var cell) || !_design.TryGetValue(cell, out var d) || !ToolFits("settings", d))
             {
                 SetStatus(L("ui.ed.marker.none"));
                 return;
@@ -246,34 +251,7 @@ namespace BlocksBeyondTheStars.Client
 
             FieldLabel(p, y, L("ui.ed.landmark.name_key"));
             UiKit.AddInput(p, 16f, y + 26f, 348f, 30f, _lmNameKey, v => _lmNameKey = v ?? string.Empty);
-            y += 66f;
-            return BuildPreviewRows(p, y);
-        }
-
-        private float BuildPreviewRows(Transform p, float y)
-        {
-            SectionTitle(p, y, L("ui.ed.landmark.preview_title"));
-            y += 28f;
-            var seedLabel = UiKit.AddText(p, 16f, y, 60f, RowH, L("ui.struct.seed"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            UiKit.FitLabelSingleLine(seedLabel, 60f, UiKit.EditorMinFontSize, 15);
-            var seedInput = UiKit.AddInput(p, 80f, y, 110f, RowH, _previewSeed.ToString(), v => { if (int.TryParse(v, out var s)) _previewSeed = s; });
-            seedInput.contentType = UnityEngine.UI.InputField.ContentType.IntegerNumber;
-            UiKit.AddFitButton(p, 196f, y, 168f, RowH, L("ui.struct.reroll"), () =>
-            {
-                _previewSeed = UnityEngine.Random.Range(1, 1000000);
-                if (_previewOn)
-                {
-                    TogglePreview(); // back to the design …
-                    TogglePreview(); // … and the next ruin
-                }
-                else
-                {
-                    seedInput.SetTextWithoutNotify(_previewSeed.ToString());
-                }
-            });
-            y += 36f;
-            UiKit.AddFitButton(p, 16f, y, 348f, 34f, L(_previewOn ? "ui.ed.landmark.preview_off" : "ui.ed.landmark.preview_on"), TogglePreview);
-            return y + 46f;
+            return y + 66f; // the ruin preview is the shared preview section (StructureEditor.Previews.cs, #3523)
         }
 
         private float LandmarkToggle(Transform p, float y, string key, bool on, Action flip)
@@ -318,8 +296,9 @@ namespace BlocksBeyondTheStars.Client
             return cells;
         }
 
-        /// <summary>The design as a landmark template (cells listed; <see cref="TemplateBody.Compact"/> packs them for a save).</summary>
-        private StructureTemplate BuildLandmarkTemplate(string key)
+        /// <summary>The design (or <paramref name="cells"/>) as a landmark template (cells listed; <see cref="TemplateBody.Compact"/>
+        /// packs them for a save).</summary>
+        private StructureTemplate BuildLandmarkTemplate(string key, List<CellJson> cells = null)
         {
             var t = new StructureTemplate
             {
@@ -348,7 +327,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             int maxX = 0, maxY = 0, maxZ = 0;
-            foreach (var c in SnapshotCells())
+            foreach (var c in cells ?? SnapshotCells())
             {
                 t.Cells.Add(new TemplateCell
                 {
@@ -381,42 +360,8 @@ namespace BlocksBeyondTheStars.Client
             return string.IsNullOrEmpty(surface) || Shell?.Content?.GetBlock(surface) == null ? "stone" : surface;
         }
 
-        /// <summary>Shows the ruin the server would derive with <see cref="_previewSeed"/> — or, on the second click, the
-        /// design again.</summary>
-        private void TogglePreview()
-        {
-            if (Shell?.Content == null)
-            {
-                return;
-            }
-
-            var skipped = new List<string>();
-            if (_previewOn)
-            {
-                ApplyCells(_previewBackup ?? new List<CellJson>(), skipped);
-                _previewBackup = null;
-                _previewOn = false;
-                SetStatus(L("ui.ed.landmark.preview_back"));
-                RebuildUi();
-                return;
-            }
-
-            if (_design.Count == 0)
-            {
-                SetStatus(L("ui.submit.empty"));
-                return;
-            }
-
-            _previewBackup = SnapshotCells();
-            int before = _design.Count;
-            var layout = LandmarkGenerator.Build(BuildLandmarkTemplate("preview"), _previewSeed, 0, Shell.Content, PreviewSurface(), ruin: true);
-            ApplyCells(RuinCells(layout), skipped);
-            _previewOn = true;
-            _status = string.Format(L("ui.ed.landmark.preview_shown"), _previewSeed, _design.Count, before);
-            RebuildUi();
-        }
-
-        /// <summary>The cells of a built landmark: its blocks by key, its cavities, the markers that survived.</summary>
+        /// <summary>The cells of a built landmark: its blocks by key, its cavities, the markers that survived (the ruin preview,
+        /// StructureEditor.Previews.cs).</summary>
         private List<CellJson> RuinCells(LandmarkLayout layout)
         {
             var s = layout.Structure;
@@ -488,7 +433,7 @@ namespace BlocksBeyondTheStars.Client
                 string dir = Path.Combine(LandmarkExportsRoot, key);
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, "landmark.json"), json);
-                SetStatus(string.Format(L("ui.ed.landmark.saved"), key, _design.Count, json.Length / 1024));
+                SetStatus(string.Format(L("ui.ed.landmark.saved"), key, _design.Count, json.Length / 1024) + SaveWarnings()); // #3523
             }
             catch (Exception e)
             {
@@ -558,6 +503,11 @@ namespace BlocksBeyondTheStars.Client
             {
                 foreach (var t in Shell.Content.Landmarks)
                 {
+                    if (t.IsSource)
+                    {
+                        continue; // #3523: a generator entry is listed by AddEntryItems
+                    }
+
                     var template = t;
                     builtIn.Items.Add(new EditorLoadPicker.Item
                     {
@@ -568,6 +518,12 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            AddUserLandmarkItems(user);
+        }
+
+        /// <summary>The user's own landmarks of <c>usercontent/landmark_templates/</c>, in file-name order.</summary>
+        private void AddUserLandmarkItems(EditorLoadPicker.Section user)
+        {
             if (!Directory.Exists(UserLandmarksRoot))
             {
                 return;
@@ -585,6 +541,11 @@ namespace BlocksBeyondTheStars.Client
                 catch (Exception)
                 {
                     continue; // one unreadable file must not hide the rest
+                }
+
+                if (t.Rows.Count == 0 && t.Cells.Count == 0)
+                {
+                    continue; // #3523: a generator entry (no cells) is listed by AddEntryItems
                 }
 
                 if (string.IsNullOrEmpty(t.Key))

@@ -172,6 +172,8 @@ refreshed 2026-10-23.
 
 - [SHIP_TYPE_EDITOR.md](SHIP_TYPE_EDITOR.md) — the in-game ship-type editor.
 - [STATION_SETTLEMENT_EDITOR.md](STATION_SETTLEMENT_EDITOR.md) — the station/settlement structure editor.
+- [STRUCTURE_PIPELINE.md](STRUCTURE_PIPELINE.md) — how every built structure gets into a world: sources, ruin pass,
+  placement rules, footprints, records, generator entries, user ships, layout wrecks.
 - [EDITORS_WORLDGEN_AND_DEV_LABELLING_ANALYSIS.md](EDITORS_WORLDGEN_AND_DEV_LABELLING_ANALYSIS.md) —
   editor output → worldgen integration + dev/test labelling.
 - [PLAYER_FEEDBACK.md](PLAYER_FEEDBACK.md) — the in-game F1/F2 feedback + crash-report pipeline.

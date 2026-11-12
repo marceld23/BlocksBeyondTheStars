@@ -19,8 +19,12 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    /// <summary>Spawns a one-time lootable container at a structure marker (idempotent across reloads).</summary>
-    private void SpawnStructureLoot(string structureKind, string markerType, Vector3f pos, System.Random rng)
+    /// <summary>Spawns a one-time lootable container at a structure marker (idempotent across reloads).
+    /// <paramref name="replayDraws"/> (#3513): when the container was generated before, still roll its loot and drop it, so
+    /// <paramref name="rng"/> advances exactly as at the first spawn — for a caller whose later draws (the next chest's spot)
+    /// come from the same stream. Off by default: every other caller's stream ends with the loot, or its later draws were
+    /// always made without these on a reload.</summary>
+    private void SpawnStructureLoot(string structureKind, string markerType, Vector3f pos, System.Random rng, bool replayDraws = false)
     {
         // Story fragments in structures (#1109): a data terminal or relic cache may also hold a net fragment.
         // Deliberately OUTSIDE the GeneratedLoot guard — fragments re-derive per residency (minus found ones),
@@ -36,6 +40,11 @@ public sealed partial class GameServer
         string key = $"{structureKind}:{markerType}:{bx}:{by}:{bz}";
         if (_meta.GeneratedLoot.Contains(key))
         {
+            if (replayDraws && !gds)
+            {
+                _ = BuildStructureLoot(markerType, rng); // the first spawn's draws, without their container
+            }
+
             return; // already generated once (container may since have been looted away)
         }
 

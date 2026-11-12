@@ -94,6 +94,22 @@ public sealed class WorldMetadata
     public System.Collections.Generic.Dictionary<string, int> SpaceSalvage { get; set; } = new();
 
     /// <summary>
+    /// #3521: the ship design each space wreck is built from on a world of terrain generation 38 or later — wreck body id →
+    /// ship key. The wreck is built from that ship's layout; the design is drawn once from the layout-wreck pool (shipped
+    /// ships plus user ships that allow wrecks) and pinned here, so a new ship in the pool never turns an existing wreck into
+    /// another. Older worlds keep the box wreck and never write it. Additive: an older build ignores the field.
+    /// </summary>
+    public System.Collections.Generic.Dictionary<string, string> SpaceWreckDesigns { get; set; } = new();
+
+    /// <summary>
+    /// #3521: the layout fingerprint (<c>WreckGenerator.LayoutFingerprint</c>) each space wreck of <see cref="SpaceWreckDesigns"/>
+    /// was built from — wreck body id → fingerprint, pinned with the design (or on the first load after, for a pin written
+    /// without one). When the ship's layout changes, the wreck drifts as its design's box instead of a different hull.
+    /// Additive: an older build ignores the field.
+    /// </summary>
+    public System.Collections.Generic.Dictionary<string, string> SpaceWreckLayouts { get; set; } = new();
+
+    /// <summary>
     /// Player claims over spawned structures (factories): each maps a structure's stable per-world key to its
     /// owner. A claimed structure becomes an editable player base for the owner + their allies. Founded by
     /// consuming an access code at the structure. Persisted (the structures themselves re-derive from the seed).
@@ -125,6 +141,20 @@ public sealed class WorldMetadata
     /// the outcome here (self-healing migration; monuments pioneered this pattern via StampedFeatures).
     /// </summary>
     public System.Collections.Generic.List<StructurePlacementRecord> Placements { get; set; } = new();
+
+    /// <summary>
+    /// #3513: how many instances each structure kind rolled on a body — <c>"{locationId}|{kind}"</c> → the count the kind's
+    /// roll gave (the requested count, before placement: an instance that found no spot still counts and has its own skip
+    /// record in <see cref="Placements"/>). The roll reads the content (hospitability, planet biases), the world rules (the
+    /// bandit level) and tuning numbers — all of which may change after a body was stamped — so the count is written down
+    /// the first time a stamper runs after #3513 (on a fresh body and on the next load of an older save alike: the value
+    /// computed then is the original as long as nothing changed) and read back on every later load. The stampers still make
+    /// every draw they made before and only replace the result, so no later draw moves. A switch that turns a kind off (a
+    /// world option, <c>Bandits: Off</c>, an airless body) still turns it off — a pinned count only decides how many there
+    /// are when the kind runs. Kinds: settlement, ruin, banditcamp, lodge, outpost, spslab, factory, wreck, vault, datacube,
+    /// chest, monument. Additive JSON field: an older build drops it, a missing entry means "roll as before, then pin".
+    /// </summary>
+    public System.Collections.Generic.Dictionary<string, int> StructureCounts { get; set; } = new();
 
     /// <summary>
     /// Persisted body identity (#468): bodyId → planetType, pinned when a body is first generated. Without
@@ -489,8 +519,24 @@ public sealed class FestivalRecord
 /// decision "no spot" permanently (legacy worlds only — the guaranteed search always finds one).</summary>
 public sealed class StructurePlacementRecord
 {
+    /// <summary>#3513: the <see cref="Template"/> of a settlement composed procedurally — no whole template, no kit — on a
+    /// world of terrain generation <see cref="WorldDescription.StructurePipelineGeneration"/> or later. Before it such a
+    /// settlement was recorded with an empty template, which also means "a record from before template pinning" and replays
+    /// through the legacy template pool; the marker makes it replay as procedural, never as a template.</summary>
+    public const string ProceduralTemplate = "procedural";
+
     public string LocationId { get; set; } = string.Empty;
-    public string Kind { get; set; } = string.Empty; // settlement | factory | banditcamp | ruin | vault
+
+    /// <summary>The structure kind. One record per instance, keyed (location, kind, index): <c>settlement</c> (the city of a
+    /// city world too: index 0, template <c>city:&lt;key&gt;</c>), <c>factory</c>, <c>banditcamp</c>, <c>lodge</c>,
+    /// <c>outpost</c>, <c>spslab</c>, <c>wreck</c>, <c>vault</c>, <c>vault_frontier</c>, <c>rail_line</c>,
+    /// <c>rail_station</c>, <c>rail_ruin</c>, <c>landmark</c>, <c>underground</c>, <c>unique:&lt;site&gt;</c>,
+    /// <c>sounder:&lt;building&gt;</c> — and since #3513 also the kinds that had no record: <c>ruin</c> (a standalone fallen
+    /// town), <c>monument</c> (template = archetype; the <c>monument@…</c> stamped feature stays for older builds),
+    /// <c>text_tablet</c> (template = the tablet's key, kit layout = <c>fx=…;fz=…</c>; the <c>textmonument@…</c> feature
+    /// stays too), <c>chest</c> and <c>datacube</c> (the cell / column they stand on) and <c>guardian_core</c> (the
+    /// chamber's centre column, floor height in <see cref="GroundY"/>).</summary>
+    public string Kind { get; set; } = string.Empty;
     public int Index { get; set; }                    // instance index within its kind's deterministic roll order
     public bool Placed { get; set; }
     public int X { get; set; }                        // structure-local (0,0,0) world column (vaults: shaft centre)
@@ -502,7 +548,9 @@ public sealed class StructurePlacementRecord
 
     /// <summary>The hand-designed template this instance was stamped from (#1115), "" for procedural — or
     /// for records from before template pinning existed, which replay against the LEGACY template pool so
-    /// a growing pool never morphs their layout under the stamped blocks.</summary>
+    /// a growing pool never morphs their layout under the stamped blocks. A procedural settlement of a generation-38 world
+    /// carries <see cref="ProceduralTemplate"/> instead (#3513). Other kinds pin their own design key here (a lodge's
+    /// profession, a landmark's template, a monument's archetype, a text tablet's key, <c>heading=…</c> for the rail).</summary>
     public string Template { get; set; } = string.Empty;
 
     /// <summary>Settlement records (#1827): whether authored building MODULES may be composed into this
@@ -547,6 +595,40 @@ public sealed class StructurePlacementRecord
     /// the crops the players saw. Additive JSON field.
     /// </summary>
     public int HashRevision { get; set; }
+
+    /// <summary>
+    /// #3513: settlement records — the size tier the instance rolled (<c>hamlet</c>, <c>village</c>, <c>town</c>,
+    /// <c>city</c>; before a whole template's own tier replaces it); ruin records — the fallen town's tier. The roll reads the
+    /// body's hospitability, which comes from the content, so it is written down once — at the first stamp, or on the next
+    /// load of a record from before the field — and replayed: the stamper still draws the roll, then takes this. Null = not
+    /// recorded yet. Additive JSON field.
+    /// </summary>
+    public string? Tier { get; set; }
+
+    /// <summary>
+    /// #3513: settlement records — whether the instance is a ruin. Recorded like <see cref="Tier"/> and replayed in place of
+    /// the ruin roll, which could flip before: a pick drawn ahead of it from the template pool draws once more when a new
+    /// template of the instance's tier arrives (a user template), and the ruin roll then reads the next number. Before terrain
+    /// generation 38 a whole template always stands intact, whatever this says; from 38 (#3519) a whole template or a generator
+    /// entry falls when this says so. Null = not recorded yet. Additive JSON field.
+    /// </summary>
+    public bool? Ruined { get; set; }
+
+    /// <summary>
+    /// #3513: wreck records — the ship design the wreck was built from (a key of <c>ships.json</c>). The planet wreck draws
+    /// its design from the ship list in dictionary order, so a new ship moved the pick under an existing wreck; the draw
+    /// still runs, then the recorded design replaces it. Kept apart from <see cref="Template"/>, whose empty value marks the
+    /// classic box wreck (a layout wreck pins its ship there). Null = not recorded yet. Additive JSON field.
+    /// </summary>
+    public string? Design { get; set; }
+
+    /// <summary>#3513: the footprint's extent along X and Z for a kind that is not rebuilt from its generator on every load
+    /// (a standalone ruin, a monument, a text tablet), so its keep-clear box can be restored from the record. 0 = not
+    /// recorded. Additive JSON fields.</summary>
+    public int Width { get; set; }
+
+    /// <inheritdoc cref="Width"/>
+    public int Length { get; set; }
 }
 
 /// <summary>A kit station's pinned composition (#1874) — see <see cref="WorldMetadata.StationKits"/>.</summary>

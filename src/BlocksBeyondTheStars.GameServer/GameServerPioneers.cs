@@ -24,8 +24,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <list type="bullet">
 /// <item><b>Which worlds</b> (<see cref="PioneersBelongHere"/>): the lodges' — terrain generation 25 or newer, lodges and
 /// settlements on, not void, airless, ruined-only, gas or city, "Settlements" not off — plus <see cref="Shared.Configuration.ServerConfig.PlacePioneers"/>
-/// and a <b>breathable</b> atmosphere. λ = the lodges' hospitability shape × world size × <see cref="PioneerBaseDensity"/>,
-/// at most <see cref="PioneerHardCap"/> per world (its own cap, beside the huts'). Placement records <c>outpost/i</c> (the
+/// and a <b>breathable</b> atmosphere. λ = the lodges' hospitability shape × world size × the <c>outpost</c> kind's density
+/// (1.4, <c>data/structure_types.json</c>), at most its cap (<see cref="PioneerHardCap"/>) per world (its own cap, beside the huts'). Placement records <c>outpost/i</c> (the
 /// template pins the resident's work, the kit layout the boat), voxels stamped once (<c>FeatureStamped("outposts")</c>) and
 /// only on a body nobody has visited yet (<c>VirginAtLoad</c>), so the chunk pipeline stays bit-identical.</item>
 /// <item><b>The structure</b> (<see cref="PioneerOutpostGenerator"/>): a closed room of stone, the biome's earth, iron or
@@ -62,10 +62,9 @@ public sealed partial class GameServer
     /// <summary>The nameplate activity of a pioneer on the way out or back.</summary>
     internal const string PioneerExploringKey = "npc.activity.exploring";
 
-    /// <summary>Expected outposts at hospitability 1, world size 1 and the Normal "Settlements" option.</summary>
-    private const double PioneerBaseDensity = 1.4;
-
-    /// <summary>The most outposts on one world (its own cap, beside the huts' <see cref="LodgeRules.HardCap"/>).</summary>
+    /// <summary>The most outposts on one world as shipped (its own cap, beside the huts' <see cref="LodgeRules.HardCap"/>) — the
+    /// <c>outpost</c> kind's cap in <c>data/structure_types.json</c> (#3517), which the stamper reads, as is its density (1.4
+    /// expected outposts at hospitability 1, world size 1 and the Normal "Settlements" option).</summary>
     internal const int PioneerHardCap = 2;
 
     /// <summary>A pioneer is away on its away days from this local day fraction …</summary>
@@ -149,16 +148,15 @@ public sealed partial class GameServer
     /// <summary>Whether pioneer outposts belong on the active world (see the class summary).</summary>
     private bool PioneersBelongHere()
     {
-        if (!_config.PlacePioneers || !_config.PlaceLodges || !_config.PlaceSettlements || _content.Lodges.Count == 0
-            || _generator.TerrainGeneration < WorldDescription.WildernessFolkGeneration)
+        var rules = StructureType(StructureTypeRules.Outpost); // #3517: generation 25 and the conditions as shipped
+        if (!_config.PlacePioneers || !_config.PlaceLodges || !_config.PlaceSettlements || !rules.Enabled || _content.Lodges.Count == 0
+            || _generator.TerrainGeneration < rules.MinGeneration)
         {
             return false; // switched off, no professions, or an older world
         }
 
         var planet = _world.Planet;
-        if (planet is null || planet.Void || planet.IsAirless || planet.RuinedSettlementsOnly || planet.IsGasWorld
-            || planet.CityWorld.Length > 0
-            || !string.Equals(planet.Atmosphere, "breathable", System.StringComparison.OrdinalIgnoreCase)
+        if (planet is null || !StructureConditionsHold(StructureTypeRules.Outpost, planet)
             || (planet.RestrictStructures && _generator.TerrainGeneration >= WorldDescription.ExtremePlanetsGeneration))
         {
             return false; // a pioneer settles where people can breathe
@@ -181,7 +179,9 @@ public sealed partial class GameServer
         var rng = new System.Random(unchecked((int)(pSeed ^ (pSeed >> 32))));
         double h = System.Math.Clamp((Hospitability(planet) - 0.35) / 0.65, 0.0, 1.0);
         double sizeFactor = _world.Circumference / SettlementRefCirc;
-        int count = DrawCount(rng, h * sizeFactor * PioneerBaseDensity * _meta.Description.Settlements.StructureFactor(), PioneerHardCap);
+        int count = PinnedCount("outpost", // #3513: drawn as always, pinned at the first run
+            DrawCount(rng, h * sizeFactor * StructureType(StructureTypeRules.Outpost).Density * _meta.Description.Settlements.StructureFactor(),
+                StructureType(StructureTypeRules.Outpost).Cap));
         if (count <= 0)
         {
             return;
@@ -189,7 +189,7 @@ public sealed partial class GameServer
 
         string surface = planet.Biomes.Count > 0 ? planet.Biomes[0].SurfaceBlock : planet.SurfaceBlock;
         var traits = LodgeTraits(planet, Tier1OresOf(planet));
-        var reserved = OutpostReservations();
+        var reserved = KeepClearFor(StructureTypeRules.Outpost, OutpostReservations()); // #3514: generation 38: the registry
         bool blocksAlreadyStamped = FeatureStamped("outposts");
         var placed = new List<(PlacedSettlement P, PioneerOutpostGenerator.Outpost Outpost, LodgeProfessionDefinition Work, int Index, long Seed, string Boat)>();
         for (int i = 0; i < count; i++)
@@ -275,7 +275,7 @@ public sealed partial class GameServer
 
         foreach (var (p, outpost, work, index, seed, boat) in placed)
         {
-            MaterializeOutpost(p, outpost, work, index, seed, boat);
+            RegisterLodgeFootprint(MaterializeOutpost(p, outpost, work, index, seed, boat)); // #3514: the outpost and its boat
         }
 
         RegisterDoors();
@@ -338,7 +338,8 @@ public sealed partial class GameServer
         bool any = false;
         foreach (string lane in new[] { "search", "search2", "search3" })
         {
-            if (!TryPlaceStructureGuaranteed(s, RngFor(instSeed, lane), reserved, wantIsland: false, SeatPolicy.Camp,
+            if (!TryPlaceStructureGuaranteed(s, RngFor(instSeed, lane), reserved, wantIsland: false,
+                    SeatPolicyOf(StructureTypeRules.Outpost, SeatPolicy.Camp),
                     avoidPlayerEdits: false, out var o, out int gy, out bool island, out string st))
             {
                 continue;

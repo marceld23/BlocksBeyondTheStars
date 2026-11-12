@@ -490,7 +490,8 @@ abandoned stations followed a generation later as ruins — see the next section
 
 - **When.** Worlds of `WorldDescription.IntercityRailGeneration` (19) or newer, with at least two **eligible** settlements
   (inhabited, tier `town` or `city`, on the ground — villages, hamlets, ruins and sky-island towns do not count), roll
-  `ServerConfig.IntercityRailChance` (0.6) once on a lane of their own (`seed ^ StableHash("intercity:" + body)`).
+  the `intercity` chance of `data/structure_types.json` (0.6; `ServerConfig.IntercityRailChance` overrides it when set,
+  #3517) once on a lane of their own (`seed ^ StableHash("intercity:" + body)`).
   `ServerConfig.PlaceIntercityRail` switches new decisions off. The city world (one composed city), restricted types
   (`RestrictStructures`: Titas, Valuma), gas giants and airless bodies never get one. The pairs are tried closest first
   (at most six); the first whose route fits wins, a world where none fits simply has no line.
@@ -556,7 +557,8 @@ after the power died. Marcel's rail rules still hold — no tickets, no ID cards
   light, `rail_pylon` or `rail_stop` survives (the pylon heads are `broken_machine`, the stop plate rusted over), so no
   linker mistakes the ruin for a line.
 - **When.** Worlds of `WorldDescription.RailRuinGeneration` (20) or newer that could once have had towns: not void, not
-  a gas world, not airless, no structure whitelist. At most one per world: `ServerConfig.RailRuinChance` (0.35) scaled
+  a gas world, not airless, no structure whitelist. At most one per world: the `rail_ruin` chance of
+  `data/structure_types.json` (0.35; `ServerConfig.RailRuinChance` overrides it when set, #3517) scaled
   by the structures-frequency option, rolled once on a lane of its own (`LaneRoll(seed, "railruin:" + body)` — the
   same SplitMix finaliser as the intercity line's roll, which now calls it too). `ServerConfig.PlaceRailRuins` switches
   new decisions off.

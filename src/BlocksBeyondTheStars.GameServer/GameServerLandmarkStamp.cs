@@ -166,11 +166,15 @@ public sealed partial class GameServer
 
     /// <summary>Whether a chest marker's chest exists (settings <c>chance</c>, default 1) — a hash of the world seed, the
     /// body and the marker's cell, so the stamp and every later load agree.</summary>
-    private bool LandmarkChestExists(Vector3i cell, MarkerSettings settings)
+    private bool LandmarkChestExists(Vector3i cell, MarkerSettings settings) => MarkerChestExists(LandmarkChestLane, cell, settings);
+
+    /// <summary>Whether a chest marker's chest exists (#3488; shared with the settlements and stations since #3519): the
+    /// <c>chance</c> setting against a hash of the world seed, the body, the marker's cell and the owner's lane.</summary>
+    private bool MarkerChestExists(string lane, Vector3i cell, MarkerSettings settings)
     {
         double chance = settings.GetDouble("chance", 1.0);
         return chance >= 1.0
-               || StableHashing.Unit($"landmark:chest:exists:{_world.LocationId}:{cell.X}:{cell.Y}:{cell.Z}", _meta.Seed) < chance;
+               || StableHashing.Unit($"{lane}:chest:exists:{_world.LocationId}:{cell.X}:{cell.Y}:{cell.Z}", _meta.Seed) < chance;
     }
 
     /// <summary>A crate block in every existing chest's cell (settings <c>block</c>, default the wooden crate), and — with
@@ -192,23 +196,32 @@ public sealed partial class GameServer
                 continue;
             }
 
-            string key = settings.Get("block", LandmarkChestBlock);
-            var block = _content.GetBlock(ContainerSystem.IsContainerBlock(key) ? key : LandmarkChestBlock) ?? _content.GetBlock("crate");
-            if (block is null)
-            {
-                continue;
-            }
-
-            _world.SetBlock(cell, block.NumericId);
-            n++;
-            var above = new Vector3i(cell.X, cell.Y + 1, cell.Z);
-            if (settings.GetBool("hidden") && _world.GetBlock(above).IsAir)
-            {
-                _world.SetBlock(above, AncientRuinBlock("stone"));
-                n++;
-            }
+            n += WriteMarkerChestBlock(cell, settings);
         }
 
         return n;
+    }
+
+    /// <summary>One chest's crate block (settings <c>block</c>, default the wooden crate) and — with <c>hidden=1</c> — a stone
+    /// on top of it when the cell above is free (#3488; shared with the settlements and stations since #3519). Returns the
+    /// cells written.</summary>
+    private int WriteMarkerChestBlock(Vector3i cell, MarkerSettings settings)
+    {
+        string key = settings.Get("block", LandmarkChestBlock);
+        var block = _content.GetBlock(ContainerSystem.IsContainerBlock(key) ? key : LandmarkChestBlock) ?? _content.GetBlock("crate");
+        if (block is null)
+        {
+            return 0;
+        }
+
+        _world.SetBlock(cell, block.NumericId);
+        var above = new Vector3i(cell.X, cell.Y + 1, cell.Z);
+        if (settings.GetBool("hidden") && _world.GetBlock(above).IsAir)
+        {
+            _world.SetBlock(above, AncientRuinBlock("stone"));
+            return 2;
+        }
+
+        return 1;
     }
 }

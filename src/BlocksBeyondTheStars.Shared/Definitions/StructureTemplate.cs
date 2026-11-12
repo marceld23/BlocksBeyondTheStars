@@ -124,6 +124,26 @@ public sealed class StructureTemplate
     /// devices) stay in <see cref="Cells"/>.</summary>
     public List<string> Rows { get; set; } = new();
 
+    // --- generator entries (#3518): a procedural source as a weighted pool entry -------------------------------------
+
+    /// <summary>
+    /// #3518: a GENERATOR ENTRY — the key of a structure source (<c>StructureSources</c> in WorldGeneration: <c>monument</c>,
+    /// <c>settlement</c>, <c>station</c> …) that builds this entry instead of authored cells. Such a template holds no cells;
+    /// it takes part in its pool like a whole template — pack, weight, planet types, tier, <see cref="Underground"/> — and the
+    /// source builds the structure from <see cref="SourceParams"/> and the instance's seed. It is offered by the settlement
+    /// pool (whole entries; tier <see cref="StructureRoles.MetropolisTier"/> = a city world's city), the station pool, the
+    /// landmark pool and the underground pool, only on worlds of terrain generation 38 or later, and never as a kit module.
+    /// Empty = an authored template.
+    /// </summary>
+    public string Source { get; set; } = string.Empty;
+
+    /// <summary>#3518: the source's parameters as a settings line (<c>key=value;key=value</c>, see <c>MarkerSettings</c>);
+    /// a parameter it does not name takes its default. Read only when <see cref="Source"/> is set.</summary>
+    public string SourceParams { get; set; } = string.Empty;
+
+    /// <summary>Whether this template is a generator entry (<see cref="Source"/> set).</summary>
+    public bool IsSource => !string.IsNullOrWhiteSpace(Source);
+
     /// <summary>The pack this template belongs to, normalized ("default" when unset).</summary>
     public string PackOrDefault => string.IsNullOrWhiteSpace(Pack) ? "default" : Pack;
 }

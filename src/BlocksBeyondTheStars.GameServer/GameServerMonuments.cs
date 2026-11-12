@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using System.Linq;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
@@ -27,8 +28,6 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private const int MonumentHardCap = 3;
-
     /// <summary>How far from a monument's bounds a scan still counts as a scan OF that monument.</summary>
     private const float MonumentScanReach = 14f;
 
@@ -73,15 +72,16 @@ public sealed partial class GameServer
         var planet = _world.Planet;
         double sizeFactor = System.Math.Clamp(_world.Circumference / SettlementRefCirc, 0.5, 2.0);
         double r = rng.NextDouble() / sizeFactor;
-        int count = r < 0.30 ? 0 : r < 0.75 ? 1 : r < 0.95 ? 2 : 3;
-        count = System.Math.Min(MonumentHardCap, (int)System.Math.Round(count * System.Math.Clamp(factor, 0.0, 2.0)));
+        var rules = StructureType(StructureTypeRules.Monument); // #3517: thresholds [0.30, 0.75, 0.95] and cap 3 as shipped
+        int count = rules.CountBelow(r);
+        count = System.Math.Min(rules.Cap, (int)System.Math.Round(count * System.Math.Clamp(factor, 0.0, 2.0)));
 
         // Frontier scaling (#1122): full-frontier worlds roll one monument MORE (still under the hard
         // cap). After the rolls, so the rng stream — and every existing world's count — is unchanged;
         // zero-count worlds stay empty (the slider's "none here" verdict is respected out there too).
         if (count > 0 && FrontierTierForBody(_world.LocationId) >= 2)
         {
-            count = System.Math.Min(MonumentHardCap, count + 1);
+            count = System.Math.Min(rules.Cap, count + 1);
         }
 
         // #3358: a type that names its own count (Soaniri, "many rune ruins") replaces the roll — after it, so the rng stream
@@ -90,6 +90,8 @@ public sealed partial class GameServer
         {
             count = TypeMonumentCount(planet.MonumentCount[0], planet.MonumentCount[1], mSeed);
         }
+
+        count = PinnedCount("monument", count); // #3513: decided once anyway (the features below) — kept beside every other kind's
 
         if (count <= 0)
         {
@@ -130,6 +132,8 @@ public sealed partial class GameServer
                 (camp.Max.X - camp.Min.X) / 2 + 1, (camp.Max.Z - camp.Min.Z) / 2 + 1));
         }
 
+        reserved = KeepClearFor(StructureTypeRules.Monument, reserved); // #3514: generation 38 keeps clear through the registry
+
         // Each monument on a body is a different silhouette, so a world never shows the same relic twice.
         // #1649: generation-1 worlds draw from the larger pool (six more silhouettes); classic worlds keep the
         // five, in the same order, so a loaded save meets the same relics.
@@ -146,23 +150,26 @@ public sealed partial class GameServer
 
             // avoidPlayerEdits (#527): monuments are new in this release, so they stamp into worlds people
             // have already built in — never on top of somebody's base. On a fresh world the guaranteed
-            // search takes over (#586) — a relic may even stand in a lava plain; monuments already pin
-            // their positions via their own record keys, so no extra placement record is needed.
+            // search takes over (#586) — a relic may even stand in a lava plain. The position is pinned twice: by the
+            // feature key older builds read, and (#3513) by a placement record like every other kind's.
             Vector3i origin;
             int groundY;
             bool onIsland;
+            string seat = "legacy";
             if (_worlds.Active.VirginAtLoad)
             {
                 if (!TryPlaceStructureGuaranteed(structure, RngFor(MonumentSeed(mSeed, i), "search"), reserved,
-                        wantIsland: false, SeatPolicy.Monument, avoidPlayerEdits: true,
-                        out origin, out groundY, out onIsland, out _))
+                        wantIsland: false, SeatPolicyOf(StructureTypeRules.Monument, SeatPolicy.Monument), avoidPlayerEdits: true,
+                        out origin, out groundY, out onIsland, out seat))
                 {
+                    RecordPlacementSkip(MonumentRecordKind, i); // #3513: "no spot" is a record too
                     continue;
                 }
             }
             else if (!TryPlaceSettlement(structure, ir, reserved, wantIsland: false,
                     out origin, out groundY, out onIsland, avoidPlayerEdits: true))
             {
+                RecordPlacementSkip(MonumentRecordKind, i);
                 continue;
             }
 
@@ -176,6 +183,7 @@ public sealed partial class GameServer
                 OnIsland = onIsland,
                 Name = archetype,
                 Rng = ir,
+                Seat = seat,
             }, archetype, i));
             reserved.Add((origin.X + structure.Width / 2, origin.Z + structure.Length / 2,
                 structure.Width / 2 + 1, structure.Length / 2 + 1));
@@ -200,9 +208,13 @@ public sealed partial class GameServer
 
         foreach (var (p, archetype, index) in placed)
         {
+            // #3513: the record beside the feature string (older builds read the string; this build prefers the record).
+            RecordMonument(index, archetype, p.Origin, p.GroundY, p.OnIsland, p.Seat, p.Structure);
             MarkFeatureStamped($"{MonumentRecordPrefix}{index}:{archetype}:{p.Origin.X}:{p.GroundY}:{p.Origin.Z}");
             RegisterMonument(p, archetype);
         }
+
+        SavePlacementRecords();
 
         _log.Info($"Stamped {placed.Count} monument(s) on '{_world.LocationId}': " +
                   string.Join(", ", placed.Select(x => x.Archetype)) + ".");
@@ -220,59 +232,41 @@ public sealed partial class GameServer
     {
         var ir = new System.Random(unchecked((int)(instSeed ^ (instSeed >> 32))));
         bool withCache = ir.NextDouble() < 0.35; // roughly one relic in three hides a cache
-        return (MonumentGenerator.Generate(archetype, instSeed, surface, _content, withCache), ir);
+        // #3516: generation 38 weathers through the shared ruin pass — no flora on an airless body.
+        return (MonumentGenerator.Generate(archetype, instSeed, surface, _content, withCache, _meta.Description.TerrainGeneration,
+            _world.Planet.IsAirless), ir);
     }
 
-    /// <summary>The placements this body recorded when its monuments were first stamped.</summary>
-    private List<string> RecordedMonuments()
-    {
-        string prefix = _world.LocationId + "|" + MonumentRecordPrefix;
-        var found = new List<string>();
-        foreach (var f in _meta.StampedFeatures)
-        {
-            if (f.StartsWith(prefix, System.StringComparison.Ordinal))
-            {
-                found.Add(f.Substring(prefix.Length));
-            }
-        }
-
-        return found;
-    }
-
-    /// <summary>Rebuilds this body's monument instances from their recorded placements: same archetype, same
-    /// seed, same origin — so the bounds match the stones that are actually in the ground, whatever the player
-    /// has since built nearby.</summary>
-    private void RederiveMonuments(List<string> records, long mSeed)
+    /// <summary>Rebuilds this body's monument instances from their recorded placements (<see cref="RecordedMonuments"/>): same
+    /// archetype, same seed, same origin — so the bounds match the stones that are actually in the ground, whatever the player
+    /// has since built nearby. A monument known only from its feature string (an older save) gains its record here (#3513).</summary>
+    private void RederiveMonuments(List<MonumentPlacement> records, long mSeed)
     {
         var planet = _world.Planet;
         string surface = planet.Biomes.Count > 0 ? planet.Biomes[0].SurfaceBlock : planet.SurfaceBlock;
 
-        foreach (string record in records)
+        foreach (var record in records)
         {
-            var parts = record.Split(':');
-            if (parts.Length != 5
-                || !int.TryParse(parts[0], out int index)
-                || !int.TryParse(parts[2], out int ox)
-                || !int.TryParse(parts[3], out int gy)
-                || !int.TryParse(parts[4], out int oz))
+            var (structure, ir) = BuildMonument(record.Archetype, MonumentSeed(mSeed, record.Index), surface);
+            if (!record.Recorded)
             {
-                _log.Warn($"Ignoring malformed monument record '{record}' on '{_world.LocationId}'.");
-                continue;
+                RecordMonument(record.Index, record.Archetype, record.Origin, record.Origin.Y, onIsland: false, "legacy", structure);
             }
 
-            var (structure, ir) = BuildMonument(parts[1], MonumentSeed(mSeed, index), surface);
             RegisterMonument(new PlacedSettlement
             {
                 Structure = structure,
-                Origin = new Vector3i(ox, gy, oz),
-                GroundY = gy,
+                Origin = record.Origin,
+                GroundY = record.Origin.Y,
                 Tier = "monument",
                 Ruined = true,
                 OnIsland = false,
-                Name = parts[1],
+                Name = record.Archetype,
                 Rng = ir,
-            }, parts[1]);
+            }, record.Archetype);
         }
+
+        SavePlacementRecords();
     }
 
     /// <summary>Adds the runtime instance and (idempotently) its relic cache.</summary>
@@ -286,6 +280,7 @@ public sealed partial class GameServer
             Center = new Vector3f(p.Origin.X + s.Width / 2f, p.GroundY + 1, p.Origin.Z + s.Length / 2f),
             Archetype = archetype,
         });
+        RegisterFootprintBox(StructureTypeRules.Monument, _monuments[^1].Min, _monuments[^1].Max); // #3514: on the stamp and every replay
 
         foreach (var m in s.Markers)
         {

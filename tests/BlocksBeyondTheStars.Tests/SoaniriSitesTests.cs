@@ -14,6 +14,7 @@ using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Sounders;
 using BlocksBeyondTheStars.Shared.World;
+using BlocksBeyondTheStars.WorldGeneration;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -303,6 +304,30 @@ public sealed class SoaniriSitesTests : IClassFixture<SoaniriWorldFixture>, IDis
         server.Start();
         Assert.Empty(server.SounderSitesForTest());
         Assert.Empty(server.OrnasaChambers);
+        Assert.Empty(server.MirunVillagersForTest());
+    }
+
+    [Fact]
+    public void TheSounderSiteKind_SwitchedOffInTheDataFile_StampsNoSite()
+    {
+        // #3517: structure_types.json's sounder_site.enabled is read like every kind's switch.
+        var content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
+        content.SetStructureTypes(StructureTypeRules.Parse("""{ "sounder_site": { "enabled": false } }"""));
+        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "snd_off"));
+        _repos.Add(repo);
+        var config = new ServerConfig
+        {
+            WorldName = "snd_off",
+            Seed = 3358,
+            StartPlanet = SoundersIds.PlanetType,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            World = { TerrainGeneration = WorldDescription.CurrentTerrainGeneration },
+        };
+        var server = new SvGameServer(config, content, new RecordingTransport(), repo);
+        server.Start();
+        Assert.Equal(SoundersIds.PlanetType, server.World.Planet.Key);
+        Assert.Empty(server.SounderSitesForTest());
         Assert.Empty(server.MirunVillagersForTest());
     }
 
