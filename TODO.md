@@ -24,6 +24,38 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🏗 Structure pipeline — one way into the world for every structure kind — #3510–#3524, ✅ 2026-11-12, PR pending (⚠ playtest open)
+
+About 35 kinds of built structures reached a world in at least five different ways, and only four families could be opened
+in the editor. Now every kind goes source → post passes → placement → record → replay, and the editor runs the same sources.
+New-world changes are gated on terrain generation **38**; below it everything is byte-identical (goldens). How it works:
+[docs/developer/STRUCTURE_PIPELINE.md](docs/developer/STRUCTURE_PIPELINE.md).
+
+- **#3511 goldens** — every generator, 14 placement worlds and the direct writers pinned before anything moved.
+- **#3512 sources** — `IStructureSource` + `StructureSources`: 26 sources (settlement, ruin, city, monument, camp, lodge,
+  outpost, SPS lab, factory, rail station / ruin, wreck, text tablet, landmark, G.D.S. ruin, station, station kit, derelict,
+  vault, shrine, observatory, Mirun, Ornasa, Choir Tower, guardian core, hunter camp).
+- **#3513 bookkeeping (bug fixes, every world)** — the guardian-core chamber is written once (was rewritten on every start),
+  chests no longer duplicate on a reload, a nudged data cube stays, counts / tier / ruined / wreck design are written down
+  instead of re-rolled; records for ruins, monuments, text tablets, chests, cubes, the guardian core.
+- **#3514 footprints** — one `StructureFootprints` registry for every keep-clear check (gen 38).
+- **#3515 `StructureRuiner`** — revisions read back, `RuinOptions`, the `hull` profile, shared marker helpers.
+- **#3516 decay** — fallen settlements, monument erosion, the G.D.S. ruin and SPS labs on the shared pass (gen 38).
+- **#3517 `data/structure_types.json`** — placement numbers of 20 kinds as data (defaults = the old constants).
+- **#3518 generator entries** — `source` templates next to authored ones in every pool, recorded and replayed.
+- **#3519 templates** — chest / sound / den settings in settlement and station templates, templates as ruins and turned,
+  station material tokens (gen 38).
+- **#3520 user ships** — `usercontent/ship_types`, never in the shipped pool; crafting only with a server option.
+- **#3521 layout wrecks** — planet and space wrecks are the real ship, repairable (gen 38).
+- **#3522 builders** — vaults, unique sites, Soaniri buildings, guardian core, hunter camp as WorldGeneration builders.
+- **#3523 editor** — generate any kind, generator entries, the stamping panel, turn / ruin previews, honest tools.
+- Also fixed (gen 38): a pinned station template replayed procedurally when the template coin said no (tier with
+  templates, no kits). An independent review found 19 more defects before the push (reserved ship / template keys,
+  entries built only from seed + params, editor key clashes, old `server.json` chance values, the SPS lab roof, …) — all
+  fixed with tests; a simulated old-save test covers the backfill (no duplicate chests, the guardian chamber left alone).
+
+---
+
 ### ♜ Landmarks — the framework for giant authored buildings and their ruins — #3483–#3500, ✅ 2026-11-11, PR pending (⚠ playtest open)
 
 The school club handed in a list of giant buildings (a leaning tower, a Roman gate, a mine with tunnels and caverns, a

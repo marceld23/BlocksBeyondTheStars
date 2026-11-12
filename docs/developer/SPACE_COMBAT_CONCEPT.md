@@ -217,7 +217,7 @@ planet it could land on.
 later, 150 units from the first pilot it may hunt (never a Sandbox pilot), with the `SpaceWarpFx` style `hunter_shuttle`
 (the client's `hunter_shuttle_warp` chirp) and VEGA's `vega.hunter_shuttle.spotted`. Kind `HunterShuttle`, enemy
 `hunter_shuttle` in `data/enemies.json`: hull 35, a gun of 2/s (the weakest in space), loot 2 data fragments + a circuit
-board. Its hull is a real voxel design (`HunterShuttleHull`: a stubby lander, 7 × 4 × 10, pale Guardian steel `0x7A8494`
+board. Its hull is a real voxel design (`HunterShuttleHull`, in WorldGeneration since #3522: a stubby lander, 7 × 4 × 10, pale Guardian steel `0x7A8494`
 with a red band `0xC8322A`, a cockpit screen over a red sensor eye, nozzles beside an open rear hatch) sent like the
 raider's (`ship:bandit:<id>`, `ship_remote`), so the client's voxel-raider path draws it (`SpaceTargeting.IsVoxelHullShipKind`)
 and its wreckage is cut from it (`LeavesCombatDebris`).

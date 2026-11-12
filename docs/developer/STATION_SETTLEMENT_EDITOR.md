@@ -483,6 +483,68 @@ that the landmark stamper seats on a planet on its own ([LANDMARKS.md](LANDMARKS
 - **No growth of the big file.** `StructureEditor.cs` only gained hooks (`ToolClick`, `ToolFits`, `MarkedColor`,
   `WithLandmarkTools`, `ExportLandmark`, `AddLandmarkItems`); it is eleven lines shorter than before.
 
+## 3e. Every structure kind (#3523, 2026-11-12)
+
+The editors now reach every kind of the structure pipeline ([STRUCTURE_PIPELINE.md](STRUCTURE_PIPELINE.md)): they generate
+from any source, save generator entries, say what happens when a design is stamped and offer only the tools its target
+reads. The design's **target** (`StampTarget` in Client.Core: the editor, *Use as*, the underground toggle, a city role, an
+entry's pool) drives all of it.
+
+- **Generate from any source** (`StructureEditor.Sources.cs`). *Generate* runs any source of `StructureSources` — the very
+  build the server runs for a fresh instance — instead of the two fixed generators. The source picker lists them by where
+  they stand (surface, underground, space); one the editor cannot bake says which editor it belongs in (the station editor
+  bakes space sources, the town editor surface and underground ones; a ship source is never offered). The form shows the
+  source's parameters (`IStructureSource.GetParams`: a number with − / +, a choice, a switch or a text; a `tier` parameter
+  starts at the form's size), the **seed** with its reroll and, where the source has an intact form, **as in the world**
+  (the generator's own decay at the current terrain generation) against intact. The result loads as editable cells:
+  blocks by key with dye, glow and form, markers on the marker palette (a chest's or sound's settings kept), pre-built
+  devices on their blocks, cavity cells as cavity. The classic Generate is the `settlement` / `station` source.
+- **Generator entries** (`StructureEditor.Entry.cs`). *Use as → Generator entry* turns the form into an entry: the pool
+  (the town editor: settlement, underground or landmark; the station editor: station), the source with its parameters and
+  the seed. The room shows the source's build with that seed, read-only like a preview; a changed parameter does not
+  rebuild it (stepping a number through − / + would rebuild the source and re-frame the camera on every click) — *Update
+  the preview* does, and keeps the camera where it is. A landmark entry also shows the landmark conditions (*needs air*,
+  *inhabited worlds only*). Save runs the registry's own check (`SourceTemplates.Problem`, so the server never drops it at
+  start: an entry builds from its seed and parameters alone — a settlement or city entry without a kit, no `station_kit`,
+  a metropolis entry only from the `city` source) and writes the entry to the user-content folder the loader reads for its
+  pool (`settlement_templates` — an underground entry flagged —, `station_templates`, `landmark_templates`) plus
+  `entry.json` in the export folder (`<kind>_exports/<key>/`, `landmark_exports/<key>/` for a landmark entry). Designs and
+  entries share those folders: a save is **refused** when a file of the other kind already holds the key (a design is never
+  overwritten by an entry, nor an entry by a design — `UserTemplateFiles` in Client.Core). The fields the form has no row
+  for (`pinOnly`, `legacyPool`, the ruin settings, `groundRow`, `protected`, `nameKey`, `requires`) are written back as the
+  loaded file had them. LOAD lists the shipped entries (as copies) and the user's own, marked ⚙; an entry whose source is
+  unknown here or does not fit its pool says so in the status line and is not saved until a source is picked.
+- **The "Stamping…" panel** (`StructureEditor.Stamping.cs`, `StampStepsDescriber` in Client.Core). A collapsible list of the
+  stamp-time steps that apply to the target, in the order the server runs them, with this design's values: what builds it
+  (an entry's source and weight), seat and foundation, material tokens (what each resolves to for the surface field and
+  style), furniture, the quarter turn, the ruin pass (profile and strength), chests one by one (where, chance, contents),
+  sounds and dens, residents and posts, keep-clear distances from `data/structure_types.json`. Unity-free, so the headless
+  suite pins it against the server's code paths.
+- **Previews** (`StructureEditor.Previews.cs`). **Quarter turn** shows the design turned the way the server turns a whole
+  settlement template, a landmark or a station module (`TemplateTransform.RotateY`; four turns bring it back).
+  **Materials** shows every material token as the block this target resolves it to. **Ruin** — a landmark or a whole
+  settlement template — runs the server's own pass with the preview seed (`LandmarkGenerator.Build(…, ruin: true)`, or
+  `SettlementGenerator.FromTemplate` with a ruined `TemplateStamp`: masonry, keep cells standing). Previews are read-only:
+  placing, removing and saving are refused until *Back to the design*.
+- **Honest tools** (`StructureStampRules` in Client.Core). The palette shows only what the target reads: the keep tool where a
+  ruin pass runs (a whole settlement, a settlement module, a landmark), the cavity tool in a landmark only, marker settings,
+  sound and den markers where generation 38 honours them, material tokens where a resolver runs, docking ports in a station
+  kit module only, a chest marker in a station only as a whole template. The design keeps what it has — loading never drops a
+  cell. **Save** names what the target will not read in the status line (keep, cavity, port cells, sound and den markers,
+  marker settings) and goes ahead; it **refuses** material tokens in a station kit module, whose composer has no resolver
+  (a token cell would stamp as air).
+- **Ship editor user content** (`ShipEditor.UserContent.cs`, #3520). Save also writes the ship as one data-shaped file,
+  `usercontent/ship_types/<key>.json` (definition + layout), which the local server reads at start — a designed ship can
+  turn up as a raider or trader (and, with `wreck` added to its `uses`, as a wreck) without a merge or a rebuild. A key the
+  game reserves (`custom`, `starter`, a shipped ship or layout) is never written: the copy goes under `<key>_2` and the status
+  line says so. A file already there keeps its `uses` (an empty list too), pack and weight; a new one gets `["npc"]`. LOAD
+  lists those files in a section of their own.
+- **Merge** (`tools/merge_structure.py`). A bundle with `entry.json` goes to the pool the editor saved it for —
+  `data/station_templates.json`, `data/settlement_templates.json` (with `underground: true` for an underground entry) or
+  `data/landmarks/<key>.json` — replaced in place by key, else appended, the editor's defaults stripped (`pack: default`,
+  `weight: 1`, empty planet types and parameters; a landmark entry drops tier and kind). Fields the editor does not write
+  (`pinOnly`, a landmark's `requires`) survive a re-merge; cells and module fields never do (the loader would drop the entry).
+
 ## 4. Open questions
 1. **Marker parity:** confirm the full marker vocabulary each editor must expose (vendor, mission board,
    medbay/heal-tank, hangar, quarters, npc spawn, loot) so authored structures are fully functional.

@@ -123,9 +123,9 @@ public sealed class SettlementStructure
 /// single-storey in the biome's surface material; towns are multi-storey iron/glass. One building
 /// hosts the <b>market vendor</b>, one the <b>mission board</b>, the rest are dwellings with an
 /// <b>NPC</b> spawn (human or alien). The <b>ruined</b> variant runs a decay pass (drops blocks,
-/// no NPCs, scatters loot).
+/// no NPCs, scatters loot) — from terrain generation 38 the shared ruin pass (#3516).
 /// </summary>
-public static class SettlementGenerator
+public static partial class SettlementGenerator
 {
     public const int Plot = 8;       // plot stride (building + street margin); public so the editor can show the tier envelope (#1402)
     private const int Building = 6;  // max building footprint (Building×Building)
@@ -209,79 +209,11 @@ public static class SettlementGenerator
 
     /// <summary>Builds a settlement structure from a hand-designed template (the editor export) — blocks
     /// become voxels, markers become vendor/mission_board/npc points. Templates are intact (not ruined).
-    /// Rooms the author marked with a <see cref="RoomMarker"/> are furnished (#1828).</summary>
+    /// Rooms the author marked with a <see cref="RoomMarker"/> are furnished (#1828). Every world before terrain generation
+    /// 38 stamps a whole template through here; generation 38 passes a <see cref="TemplateStamp"/> (the overload in
+    /// SettlementGenerator.Templates.cs: turned, marker settings, maybe fallen).</summary>
     public static SettlementStructure FromTemplate(StructureTemplate t, GameContent content, ModuleMaterials? materials = null)
-    {
-        int w = System.Math.Max(1, t.Width), h = System.Math.Max(1, t.Height), l = System.Math.Max(1, t.Length);
-        var blocks = new ushort[w * h * l];
-        var mods = new Dictionary<int, (int, int)>();
-        var shapes = new Dictionary<int, int>();
-        var markers = new List<SettlementMarker>();
-        int buildings = 0;
-
-        foreach (var cell in t.Cells)
-        {
-            if (cell.X < 0 || cell.Y < 0 || cell.Z < 0 || cell.X >= w || cell.Y >= h || cell.Z >= l)
-            {
-                continue;
-            }
-
-            if (cell.Kind == "marker")
-            {
-                markers.Add(new SettlementMarker(cell.Id, new Vector3i(cell.X, cell.Y, cell.Z)));
-                if (cell.Id == "npc" || cell.Id == "vendor") buildings++;
-            }
-            else
-            {
-                ushort id = MaterialTokens.IsToken(cell.Id)
-                    ? (materials ?? ModuleMaterials.ForSettlement(t.Tier, "stone", alien: false, content)).Resolve(cell.Id) // #1885
-                    : content.GetBlock(cell.Id)?.NumericId.Value ?? 0;
-                if (id != 0)
-                {
-                    int idx = (cell.X * h + cell.Y) * l + cell.Z;
-                    blocks[idx] = id;
-                    if (cell.Tint != 0 || cell.Glow != 0) mods[idx] = (cell.Tint, cell.Glow);
-                    if (cell.Shape != 0) shapes[idx] = cell.Shape;
-                    if (TemplateDevices.DataFor(cell) is { } device)
-                    {
-                        markers.Add(new SettlementMarker(TemplateDevices.Marker, new Vector3i(cell.X, cell.Y, cell.Z), data: device)); // #2260
-                    }
-                }
-            }
-        }
-
-        markers.AddRange(FurnishAuthoredRooms((x, y, z) => blocks[(x * h + y) * l + z], w, h, l, markers,
-            RoomFurnisher.PaletteFor(RoomFurnisher.StyleFor(t.Tier, alien: false), content),
-            (long)WorldGenerator.StableHash("furnish:" + t.Key), SinkFor(blocks, w, h, l, mods, shapes))); // #2986: + guest beds
-
-        // Fallback vendor for templates without one — in a FREE cell (#480, was ST-9): the old fixed centre
-        // spot could sit inside a wall, burying the vendor. Scan upward at the centre for the first air cell
-        // with something solid below; a fully solid column falls back to the roof.
-        // NOTE (#480, was ST-9b): templates carry no door_slide/door_hinge markers unless the author places
-        // them — RegisterDoors hangs doors ONLY on markers, so authored doorways without markers stay open
-        // arches. Place door markers in the editor where you want working doors.
-        if (!markers.Exists(m => m.Type == "vendor"))
-        {
-            int vx = w / 2, vz = l / 2, vy = 1;
-            for (int y = 1; y < h; y++)
-            {
-                if (blocks[(vx * h + y) * l + vz] == 0 && blocks[(vx * h + (y - 1)) * l + vz] != 0)
-                {
-                    vy = y;
-                    break;
-                }
-
-                if (y == h - 1)
-                {
-                    vy = h - 1; // solid column all the way up → roof
-                }
-            }
-
-            markers.Add(new SettlementMarker("vendor", new Vector3i(vx, vy, vz)));
-        }
-
-        return new SettlementStructure(w, h, l, t.Tier, ruined: false, inhabitant: "human", blocks, markers, System.Math.Max(1, buildings), mods, shapes);
-    }
+        => FromTemplate(t, content, materials, stamp: null);
 
     /// <summary>The flora species a biome's surface grows in gardens and overgrowth: cacti on sand, frost flowers on ice,
     /// mushrooms on mud, ferns on grass, ember blooms on basalt, the generic plant everywhere else. Also used by the
@@ -306,12 +238,14 @@ public static class SettlementGenerator
     /// historical, poorly mixed hash picks for a settlement whose blocks or records were decided with them: the
     /// crop per greenhouse for a placement record from before #2689, the module roll for a record from before #1872
     /// (modules on, no composition yet) that freezes its picks now. Everything else takes the mixed picks.</para>
+    /// <para><paramref name="terrainGeneration"/> (#3516): a ruin of a world of generation 38 or newer decays through the
+    /// shared ruin pass (<see cref="RuinPass"/>); every older world (and the default 0) keeps the settlement's own decay.</para>
     /// </summary>
     public static SettlementStructure Generate(string tier, bool ruined, long seed, string biomeSurfaceBlock, GameContent content,
         IReadOnlyList<StructureTemplate>? modules = null, double moduleChance = 0.0,
         IList<string>? composition = null, System.Action<string>? warn = null,
         SettlementLayoutSpec? layout = null, StructureKit? kit = null, IReadOnlyList<StructureTemplate>? kitModules = null,
-        bool legacyCrops = false, bool legacyModuleRoll = false)
+        bool legacyCrops = false, bool legacyModuleRoll = false, int terrainGeneration = 0)
     {
         bool town = IsTownStyle(tier);
         var (baseCols, baseRows, baseFloors) = Layout(tier);
@@ -409,6 +343,12 @@ public static class SettlementGenerator
         var furniture = RoomFurnisher.PaletteFor(RoomFurnisher.StyleFor(tier, alien), content);
 
         var markers = new List<SettlementMarker>();
+
+        // #3519 (generation 38): a module's markers carry their settings (chests, sounds, dens) and its keep cells survive
+        // the ruin pass — the author's tools work as in a landmark. Older worlds compose exactly as before.
+        bool markerSettings = StructureDecay.Applies(terrainGeneration);
+        var keepCells = new List<int>();
+        void KeepCell(int x, int y, int z) => keepCells.Add((x * h + y) * l + z);
 
         // Street paths along the plot margins (a simple grid of lanes on the ground).
         if (path != 0)
@@ -518,7 +458,8 @@ public static class SettlementGenerator
                     ox = cxp * plot + 1 + (building - module.Width) / 2;
                     oz = czp * plot + 1 + (building - module.Length) / 2;
                     fp = System.Math.Max(module.Width, module.Length);
-                    StampModule(module, ox, 0, oz, content, Get, setCell, moduleMarkers, furniture, plotHash, materials);
+                    StampModule(module, ox, 0, oz, content, Get, setCell, moduleMarkers, furniture, plotHash, materials,
+                        markerSettings, markerSettings ? KeepCell : null);
                     int side = DoorSideOf(moduleMarkers, ox, oz, module.Width, module.Length, out var entrance);
                     if (side >= 0)
                     {
@@ -546,6 +487,11 @@ public static class SettlementGenerator
 
                 // Interaction / spawn marker at the building's interior floor centre.
                 var centre = new Vector3i(ox + fp / 2, 1, oz + fp / 2);
+                if (ruined && markerSettings && module != null)
+                {
+                    markers.AddRange(moduleMarkers.FindAll(m => IsSettingsMarker(m.Type))); // #3519: a ruin keeps them, like a landmark
+                }
+
                 if (!ruined)
                 {
                     string role = plotIndex switch
@@ -638,7 +584,15 @@ public static class SettlementGenerator
         // walls mostly survive while roofs and upper storeys are almost all gone — and one building is spared
         // the worst of it so it reads as a half-standing tower. Rubble piles and flora then reclaim the
         // ground. Every ruin differs (the spared plot + the seeded thresholds vary per instance).
-        if (ruined)
+        // #3516: generation 38 hands the ruin to the shared ruin pass instead (it is the stream's last consumer, too).
+        if (ruined && StructureDecay.Applies(terrainGeneration))
+        {
+            var spared = SparedPlot(rng, cols, rows, plot, building);
+            var grid = VoxelGrid.Over(w, h, l, blocks, mods, shapes);
+            keepCells.ForEach(i => grid.Keep[i] = true); // #3519: the modules' keep cells stand
+            RuinPass(grid, markers, spared, tier, seed, biomeSurfaceBlock, content);
+        }
+        else if (ruined)
         {
             ushort rubble = B("stone", wall);
 
@@ -937,10 +891,14 @@ public static class SettlementGenerator
 
     /// <summary>Stamps a module's cells at (<paramref name="ox"/>, <paramref name="oy"/>, <paramref name="oz"/>)
     /// of the destination grid, translates its markers into <paramref name="markersOut"/> and furnishes the
-    /// rooms it marks (#1828). <paramref name="get"/> reads the destination (for the room flood fill).</summary>
+    /// rooms it marks (#1828). <paramref name="get"/> reads the destination (for the room flood fill).
+    /// <para>#3519 (generation 38): <paramref name="markerSettings"/> hands every marker its settings line as data (a chest's
+    /// content, a sound, a den — like a landmark's), and <paramref name="keep"/> hears every keep cell the module stamps (in
+    /// destination coordinates), so a ruin pass over the settlement leaves it standing.</para></summary>
     internal static void StampModule(StructureTemplate module, int ox, int oy, int oz, GameContent content,
         System.Func<int, int, int, ushort> get, RoomFurnisher.CellSink setCell, List<SettlementMarker> markersOut,
-        RoomFurnisher.Palette furniture, long furnishSeed, ModuleMaterials? materials = null)
+        RoomFurnisher.Palette furniture, long furnishSeed, ModuleMaterials? materials = null, bool markerSettings = false,
+        System.Action<int, int, int>? keep = null)
     {
         int w = module.Width, h = module.Height, l = module.Length;
         var local = new List<SettlementMarker>();
@@ -953,7 +911,7 @@ public static class SettlementGenerator
 
             if (cell.Kind == "marker")
             {
-                local.Add(new SettlementMarker(cell.Id, new Vector3i(cell.X, cell.Y, cell.Z)));
+                local.Add(new SettlementMarker(cell.Id, new Vector3i(cell.X, cell.Y, cell.Z), data: markerSettings ? cell.Config : string.Empty));
             }
             else
             {
@@ -963,6 +921,11 @@ public static class SettlementGenerator
                 if (id != 0)
                 {
                     setCell(ox + cell.X, oy + cell.Y, oz + cell.Z, id, cell.Shape, cell.Tint, cell.Glow);
+                    if (cell.Keep)
+                    {
+                        keep?.Invoke(ox + cell.X, oy + cell.Y, oz + cell.Z);
+                    }
+
                     if (TemplateDevices.DataFor(cell) is { } device)
                     {
                         local.Add(new SettlementMarker(TemplateDevices.Marker, new Vector3i(cell.X, cell.Y, cell.Z), data: device)); // #2260

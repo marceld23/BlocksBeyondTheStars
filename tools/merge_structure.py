@@ -16,6 +16,13 @@ A LANDMARK (#3492, town editor, "Use as: Landmark") is one file: landmark_export
 template (a palette plus run-length rows). It is written to data/landmarks/<key>.json — one file per landmark, the
 editor's defaults stripped; `pinOnly` of a file that already exists is kept (the editor does not know the field).
 
+A GENERATOR ENTRY (#3518, #3523, either editor, "Use as: Generator entry") is a template without cells — a structure
+source, its parameters, weight, pack and planet types: <kind>_exports/<key>/entry.json, or
+landmark_exports/<key>/entry.json for a landmark entry. It goes to the pool the editor saved it for —
+data/station_templates.json, data/settlement_templates.json (an underground entry with `underground: true`) or
+data/landmarks/<key>.json — replaced in place by key, else appended (a pool draws its entries after everything else
+anyway), the editor's defaults stripped.
+
 Each pool entry is { "key", "name", "tier", "cells": [ { x, y, z, kind, id }, ... ],
 "width", "height", "length" }. World-gen reads the matching pool and, when non-empty, may pick a
 hand-made template instead of the procedural generator (integration tracked in the plan).
@@ -60,9 +67,13 @@ def main():
         merge_kit(_load(bundle / "kit.json"))
         merged = True
 
+    if (bundle / "entry.json").exists():
+        merge_generator_entry(_load(bundle / "entry.json"))
+        merged = True
+
     if not (bundle / "structure.json").exists():
         if not merged:
-            sys.exit(f"no structure.json, kit.json or landmark.json in {bundle}")
+            sys.exit(f"no structure.json, kit.json, landmark.json or entry.json in {bundle}")
         return
 
     meta = _load(bundle / "structure.json")
@@ -169,11 +180,90 @@ def merge_landmark(landmark):
     LANDMARK_DIR.mkdir(parents=True, exist_ok=True)
     path = LANDMARK_DIR / f"{landmark['key']}.json"
     entry = landmark_entry(landmark, _load(path) if path.exists() else None)
+    _dump_landmark(path, entry)
+    print(f"merged landmark '{entry['key']}' ({len(entry['rows'])} rows, {len(entry['cells'])} cells with settings) "
+          f"into {path.relative_to(REPO)}")
+
+
+def _dump_landmark(path, entry):
     with path.open("w", encoding="utf-8", newline="\n") as f:  # one line per file, LF: the rows are the bulk
         json.dump(entry, f, ensure_ascii=False, separators=(",", ":"))
         f.write("\n")
-    print(f"merged landmark '{entry['key']}' ({len(entry['rows'])} rows, {len(entry['cells'])} cells with settings) "
-          f"into {path.relative_to(REPO)}")
+
+
+# What a generator entry never carries: its source builds it (no cells, rows or palette) and it is a whole structure (no
+# module role, kit or function). A re-merge over an authored template of the same key drops them (#3518).
+ENTRY_SHAPE_FIELDS = ("cells", "rows", "palette", "width", "height", "length", "groundRow", "role", "kit", "function",
+                      "style")
+
+
+def entry_pool(entry):
+    """The pool a generator entry belongs to: `landmark` (a landmark entry), `station` or `settlement` (which also holds
+    the underground entries, flagged)."""
+    if entry.get("landmark") or entry.get("kind") == "landmark":
+        return "landmark"
+    return "station" if entry.get("kind") == "station" else "settlement"
+
+
+def generator_entry(entry, existing):
+    """The data-file shape of a generator entry the editor saved (#3518, #3523; EntryJson in StructureEditor.Entry.cs).
+
+    The editor writes every field; the file keeps the ones set — no `pack: default`, no `weight: 1`, no empty planet
+    types or parameters, `underground` only on an underground entry of the settlement pool. A landmark entry carries no
+    tier and no kind (its folder says what it is) and `landmark: true`, like a landmark file. A field of the existing
+    entry the editor does not write at all (`pinOnly`, a landmark's `requires` …) survives a re-merge — except the cells
+    and module fields an entry must not have (the loader would drop the entry).
+    """
+    pool = entry_pool(entry)
+    data = {"key": entry["key"], "name": entry.get("name") or entry["key"]}
+    if pool != "landmark":
+        data["tier"] = entry.get("tier") or "medium"
+        data["kind"] = pool
+    pack = entry.get("pack") or "default"
+    if pack != "default":
+        data["pack"] = pack
+    weight = max(1, int(entry.get("weight", 1) or 1))
+    if weight != 1:
+        data["weight"] = weight
+    if entry.get("planetTypes"):
+        data["planetTypes"] = list(entry["planetTypes"])
+    if pool == "settlement" and entry.get("underground"):
+        data["underground"] = True
+    if pool == "landmark":
+        data["landmark"] = True
+    data["source"] = entry["source"].strip()
+    if entry.get("sourceParams"):
+        data["sourceParams"] = entry["sourceParams"]
+    for field, value in (existing or {}).items():
+        if field not in entry and field not in data and field not in ENTRY_SHAPE_FIELDS:
+            data[field] = value
+    return data
+
+
+def merge_generator_entry(entry):
+    if not entry.get("key"):
+        sys.exit("entry.json has no key")
+    if not (entry.get("source") or "").strip():
+        sys.exit(f"entry.json '{entry['key']}' names no source")
+
+    pool = entry_pool(entry)
+    if pool == "landmark":
+        LANDMARK_DIR.mkdir(parents=True, exist_ok=True)
+        path = LANDMARK_DIR / f"{entry['key']}.json"
+        data = generator_entry(entry, _load(path) if path.exists() else None)
+        _dump_landmark(path, data)
+    else:
+        path = POOL_FOR[pool]
+        templates = _load(path) if path.exists() else []
+        index = next((i for i, t in enumerate(templates) if t.get("key") == entry["key"]), None)
+        data = generator_entry(entry, templates[index] if index is not None else None)
+        if index is None:
+            templates.append(data)
+        else:
+            templates[index] = data
+        _dump(path, templates)
+    where = "underground " if data.get("underground") else ""
+    print(f"merged {where}generator entry '{data['key']}' (source '{data['source']}') into {path.relative_to(REPO)}")
 
 
 KIT_PATH = DATA / "structure_kits.json"

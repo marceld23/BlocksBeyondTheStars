@@ -38,10 +38,17 @@ public sealed class WreckStructure
 
     private readonly ushort[] _blocks;     // current (decayed) blocks
     private readonly ushort[] _intact;     // the full hull (repair target)
+    private readonly WreckCellExtras? _extras; // #3521: a layout wreck's dye, glow, shape and interior
     public IReadOnlyList<WreckMarker> Markers { get; }
 
     internal WreckStructure(int w, int h, int l, string shipType, string origin,
         ushort[] blocks, ushort[] intact, IReadOnlyList<WreckMarker> markers)
+        : this(w, h, l, shipType, origin, blocks, intact, markers, null)
+    {
+    }
+
+    internal WreckStructure(int w, int h, int l, string shipType, string origin,
+        ushort[] blocks, ushort[] intact, IReadOnlyList<WreckMarker> markers, WreckCellExtras? extras)
     {
         Width = w;
         Height = h;
@@ -51,12 +58,42 @@ public sealed class WreckStructure
         _blocks = blocks;
         _intact = intact;
         Markers = markers;
+        _extras = extras;
     }
+
+    /// <summary>#3521: true for a wreck built from its ship's layout (<see cref="WreckGenerator.GenerateFromLayout"/>),
+    /// false for the classic hollow box.</summary>
+    public bool FromLayout => _extras is not null;
+
+    /// <summary>#3521: the layout cell of local cell (0, 0, 0) — a layout cell is the local cell plus this offset. Zero
+    /// for the box wreck.</summary>
+    public Vector3i LayoutOffset => _extras?.Offset ?? new Vector3i(0, 0, 0);
 
     public ushort Get(int x, int y, int z) => _blocks[(x * Height + y) * Length + z];
 
+    /// <summary>The dye and glow of the current block (0 = none; the box wreck has none).</summary>
+    public (int Tint, int Glow) ModifierAt(int x, int y, int z)
+        => _extras is not null && _extras.Mods.TryGetValue((x * Height + y) * Length + z, out var m) ? m : (0, 0);
+
+    /// <summary>The packed shape of the current block (0 = a plain cube).</summary>
+    public int ShapeAt(int x, int y, int z)
+        => _extras is not null && _extras.Shapes.TryGetValue((x * Height + y) * Length + z, out int s) ? s : 0;
+
     /// <summary>The block this cell should hold in a fully repaired hull (0 = interior/air).</summary>
     public ushort IntactAt(int x, int y, int z) => _intact[(x * Height + y) * Length + z];
+
+    /// <summary>The dye and glow a repaired cell takes (0 = none).</summary>
+    public (int Tint, int Glow) IntactModifierAt(int x, int y, int z)
+        => _extras is not null && _extras.IntactMods.TryGetValue((x * Height + y) * Length + z, out var m) ? m : (0, 0);
+
+    /// <summary>The packed shape a repaired cell takes (0 = a plain cube).</summary>
+    public int IntactShapeAt(int x, int y, int z)
+        => _extras is not null && _extras.IntactShapes.TryGetValue((x * Height + y) * Length + z, out int s) ? s : 0;
+
+    /// <summary>#3521: whether the cell is the inside of a layout wreck's hull — air in the intact hull, between its floor
+    /// and its roof. A planet stamp clears these cells, so a hull sunk into the ground is walkable. Never for the box.</summary>
+    public bool IsInterior(int x, int y, int z)
+        => _extras is not null && InBounds(x, y, z) && _extras.Interior[(x * Height + y) * Length + z];
 
     /// <summary>True if a hull block is missing here (a breach the player must rebuild to repair).</summary>
     public bool IsBreach(int x, int y, int z)
@@ -97,8 +134,10 @@ public sealed class WreckStructure
 /// design's hollow hull (iron_wall shell + a glass viewport), records it as the intact repair mask,
 /// then decays it: random breaches in the shell + scorch (carbon) flecks. Drops loot/module/lore
 /// markers inside. Human wrecks use iron; alien wrecks swap to a crystal-toned hull.
+/// <para>#3521: from terrain generation 38 a wreck is built from its ship's real layout instead
+/// (<see cref="GenerateFromLayout"/>, WreckGenerator.Layout.cs); this classic box stays byte-identical for older worlds.</para>
 /// </summary>
-public static class WreckGenerator
+public static partial class WreckGenerator
 {
     public static WreckStructure Generate(ShipDefinition design, long seed, GameContent content)
     {

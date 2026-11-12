@@ -258,6 +258,7 @@ public static class ServerConfigOptions
         Variable("BBS_WORLD_OWNER", Text((c, v) => c.WorldOwnerAccountId = v), "Control-plane account id of the world's owner."),
         Both("no-player-admins", "BBS_NO_PLAYER_ADMINS", Flag((c, v) => c.NoPlayerAdmins = v), "No saved player role grants admin on this instance (#2486; true/false, 1/0, yes/no, on/off)."),
         Variable("BBS_ANNOUNCE_TOKEN", Text((c, v) => c.AnnounceToken = v), "Shared secret for the WebSocket gateway's POST /announce; empty = off."),
+        Both("allow-user-ship-crafting", "BBS_ALLOW_USER_SHIP_CRAFTING", Flag((c, v) => c.AllowUserShipCrafting = v), "Players may craft user ships whose uses list names \"craft\" (#3520; true/false, 1/0, yes/no, on/off; default off)."),
 
         // --- Command-line-only switches ---
         Switch("no-config", Ignore, "Start from in-memory defaults without config/server.json; read from the raw args by ServerConfig.LoadForStartup, recognised here so its value token is consumed."),

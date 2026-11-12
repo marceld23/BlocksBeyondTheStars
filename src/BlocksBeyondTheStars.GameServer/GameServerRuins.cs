@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
@@ -17,11 +18,11 @@ namespace BlocksBeyondTheStars.GameServer;
 /// mineable) plus scavengeable loot caches. Because they are mineable they are stamped <b>once</b> (guarded
 /// by <see cref="WorldManager.LoadedWorld.RuinsStamped"/>) and then persist as block edits — never
 /// re-stamped on reload (that would resurrect blocks the player cleared). Deterministic from the world seed.
+/// Each ruin still gets a placement record (#3513, kind <c>ruin</c>: origin, tier, footprint), from which every later load
+/// restores the footprints the stampers after it keep clear of.
 /// </summary>
 public sealed partial class GameServer
 {
-    private const int RuinHardCap = 3;
-
     private bool _ruinsStamped { get => _worlds.Active.RuinsStamped; set => _worlds.Active.RuinsStamped = value; }
 
     private void StampRuins()
@@ -32,14 +33,20 @@ public sealed partial class GameServer
             // persisted edits. Ruins are deliberately mineable, so re-stamping would resurrect every
             // scavenged wall (the doc comment above always promised this; the persisted registry is
             // what finally makes it true across world unloads).
+            if (!_ruinsStamped)
+            {
+                RestoreRuinFootprints(); // #3513: the later stampers keep clear of them on every load, not only the first
+            }
+
             _ruinsStamped = true;
             return;
         }
 
         var planet = _world.Planet;
 
-        // A fallen city implies a once-habitable world: skip truly airless bodies (asteroids/airless moons).
-        if (planet.IsAirless)
+        // A fallen city implies a once-habitable world: skip truly airless bodies (asteroids/airless moons) — the kind's
+        // shipped condition (#3517, data/structure_types.json).
+        if (!StructureConditionsHold(StructureTypeRules.Ruin, planet))
         {
             return;
         }
@@ -63,8 +70,9 @@ public sealed partial class GameServer
         double sizeFactor = System.Math.Clamp(_world.Circumference / SettlementRefCirc, 0.5, 2.0);
         // #1761: a type may bias its roll (the scrap planet: 2.0); 1.0 is the identical draw for every other type.
         double r = rng.NextDouble() / sizeFactor * System.Math.Max(0.0, planet.RuinsBias);
-        int count = r < 0.55 ? 0 : r < 0.85 ? 1 : 2;
-        count = System.Math.Min(RuinHardCap, (int)System.Math.Round(count * System.Math.Clamp(factor, 0.0, 2.0)));
+        var rules = StructureType(StructureTypeRules.Ruin); // #3517: thresholds [0.55, 0.85] and cap 3 as shipped
+        int count = rules.CountBelow(r);
+        count = PinnedCount(RuinRecordKind, System.Math.Min(rules.Cap, (int)System.Math.Round(count * System.Math.Clamp(factor, 0.0, 2.0))));
         if (count <= 0)
         {
             return;
@@ -89,6 +97,7 @@ public sealed partial class GameServer
         }
 
         AppendIntercityReservations(reserved); // #2125: the intercity line's stations and route
+        reserved = KeepClearFor(StructureTypeRules.Ruin, reserved); // #3514: generation 38 keeps clear through the registry
 
         var placed = new List<PlacedSettlement>();
         var usedNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
@@ -104,11 +113,13 @@ public sealed partial class GameServer
 
             // A fallen city skews large so the rubble field reads as a real settlement that once stood here.
             string tier = ir.NextDouble() < 0.55 ? "town" : "city";
-            var structure = SettlementGenerator.Generate(tier, ruined: true, instSeed, surface, _content);
+            var structure = SettlementGenerator.Generate(tier, ruined: true, instSeed, surface, _content,
+                terrainGeneration: _meta.Description.TerrainGeneration); // #3516: generation 38 ruins through the shared pass
 
-            // #586: ruins stamp exactly once and never re-derive positions, so no placement record is
-            // needed — a fresh world gets the guaranteed search (drowned/lava ruins allowed), a legacy
-            // world stamping its one-time ruins now keeps the frozen first-fit search.
+            // #586: ruins stamp exactly once and never re-derive positions — a fresh world gets the guaranteed
+            // search (drowned/lava ruins allowed), a legacy world stamping its one-time ruins now keeps the frozen
+            // first-fit search. #3513: the outcome is recorded all the same (kind "ruin"), so every kind has a
+            // record and the footprints the later stampers keep clear of come back on every load.
             Vector3i origin;
             int groundY;
             bool onIsland;
@@ -116,20 +127,22 @@ public sealed partial class GameServer
             if (_worlds.Active.VirginAtLoad)
             {
                 if (!TryPlaceStructureGuaranteed(structure, RngFor(instSeed, "search"), reserved,
-                        wantIsland: false, SeatPolicy.Ruin, avoidPlayerEdits: false,
+                        wantIsland: false, SeatPolicyOf(StructureTypeRules.Ruin, SeatPolicy.Ruin), avoidPlayerEdits: false,
                         out origin, out groundY, out onIsland, out seat))
                 {
+                    RecordPlacementSkip(RuinRecordKind, i);
                     continue;
                 }
             }
             else if (!TryPlaceSettlement(structure, ir, reserved, wantIsland: false, out origin, out groundY, out onIsland))
             {
+                RecordPlacementSkip(RuinRecordKind, i);
                 continue;
             }
 
             string name = UniqueName(SettlementDisplayName(tier, true,
                 _worlds.Active.VirginAtLoad ? RngFor(instSeed, "name") : ir), usedNames);
-            placed.Add(new PlacedSettlement
+            var ruin = new PlacedSettlement
             {
                 Structure = structure,
                 Origin = origin,
@@ -140,13 +153,16 @@ public sealed partial class GameServer
                 Name = name,
                 Seat = seat,
                 Rng = ir,
-            });
-            var footprint = (origin.X + structure.Width / 2, origin.Z + structure.Length / 2,
-                structure.Width / 2 + 1, structure.Length / 2 + 1);
+            };
+            placed.Add(ruin);
+            RecordRuin(i, ruin); // #3513
+            var footprint = RuinFootprint(origin.X, origin.Z, structure.Width, structure.Length);
             reserved.Add(footprint);
             _worlds.Active.RuinFootprints.Add(footprint); // #2166: the abandoned station decided next keeps clear of it
+            RegisterFootprint(StructureTypeRules.Ruin, footprint); // #3514
         }
 
+        SavePlacementRecords();
         ReportStamp("ruin", count, placed.Count);
         if (placed.Count == 0)
         {

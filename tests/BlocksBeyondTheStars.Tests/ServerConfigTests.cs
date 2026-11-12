@@ -543,4 +543,39 @@ public sealed class ServerConfigTests
             }
         }
     }
+
+    [Fact]
+    public void AnOldServerJson_WithTheOldStructureChanceDefaults_LeavesTheChancesToTheDataFile()
+    {
+        // #3517: every server.json written before the chances moved to data/structure_types.json holds the old code defaults
+        // explicitly (written on the first run). Read as overrides they would pin the old numbers over the data file for good.
+        string dir = Path.Combine(Path.GetTempPath(), "bbts_cfgchance_" + Guid.NewGuid().ToString("N"));
+        string path = Path.Combine(dir, "server.json");
+        try
+        {
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(path, """{ "IntercityRailChance": 0.6, "RailRuinChance": 0.35, "LandmarkChance": 0.34 }""");
+            var old = ServerConfig.Load(path);
+            Assert.Null(old.IntercityRailChance);
+            Assert.Null(old.RailRuinChance);
+            Assert.Null(old.LandmarkChance);
+
+            // A value the operator chose stays an override — in the file and through FromJson.
+            File.WriteAllText(path, """{ "IntercityRailChance": 1.0, "RailRuinChance": 0.0, "LandmarkChance": 0.5 }""");
+            var chosen = ServerConfig.Load(path);
+            Assert.Equal((1.0, 0.0, 0.5), (chosen.IntercityRailChance, chosen.RailRuinChance, chosen.LandmarkChance));
+            Assert.Null(ServerConfig.FromJson("""{ "LandmarkChance": 0.34 }""").LandmarkChance);
+            Assert.Equal(0.5, ServerConfig.FromJson(chosen.ToJson()).LandmarkChance);
+
+            // A fresh file writes no chance at all, so the data file decides from the start.
+            File.Delete(path);
+            var fresh = ServerConfig.Load(path);
+            Assert.Null(fresh.IntercityRailChance);
+            Assert.Null(ServerConfig.Load(path).LandmarkChance);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
 }

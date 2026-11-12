@@ -37,6 +37,25 @@ leaves the rest of the universe unchanged. Placement reuses the settlement alloc
 (`TryPlaceSettlement` + the reserved-footprint list) so structures never overlap pads, wrecks or each
 other.
 
+**The numbers are data (#3517).** The thresholds, caps, densities, chances, minimum generations, seat policies, conditions
+and whitelist keys of every stamped kind live in [`data/structure_types.json`](../../data/structure_types.json) over the
+C# defaults in `StructureTypeRules` (Shared) — its header comment says which fields each kind reads. The shipped file equals
+the defaults (`StructureTypeRulesTests`); a broken entry is reported and dropped. The `Place*` flags stay server switches
+(both must be on); a chance set in `ServerConfig` (`IntercityRailChance`, `RailRuinChance`, `LandmarkChance` — unset by
+default) overrides the file's — a stored value equal to the old code default (0.6, 0.35, 0.34, which every older
+`server.json` holds) reads as unset, and an override that differs from the file is logged once. A file can raise a kind's
+`minGeneration`, never lower it below the C# default. A changed number only reaches bodies stamped afterwards: what stands
+replays from its records.
+
+**One footprint registry (#3514, terrain generation 38+).** Every stamper registers the ground box of what it stamped —
+on the stamp and on every replay — in `StructureFootprints` (`LoadedWorld.Footprints`), the pads and the planned crash site
+first (the crash site as large as the layout wreck's hull). On a generation-38 world every keep-clear check asks it — the
+searches' reserved lists (`KeepClearFor`) and the point checks of the vaults, cubes, chests, unique sites and the wreck
+(`KeepClearBlocked`) — with the kind's `keepClear` margin (and its `keepClearFrom` margins per kind). So nothing is stamped
+into a monument, a ruin, a camp, a factory or a lab any more, and the landmark's and the buried ruin's private lists are
+registry queries. Older worlds keep exactly the checks they were stamped with (`StructureFootprintTests`; the generation-37
+placement golden is unchanged).
+
 ---
 
 ## 2. Factories

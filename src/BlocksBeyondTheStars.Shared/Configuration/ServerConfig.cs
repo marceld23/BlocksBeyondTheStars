@@ -365,10 +365,15 @@ public sealed class ServerConfig
     public string PostgresConnectionString { get; set; } = string.Empty;
 
     /// <summary>Optional writable folder holding in-game-editor structure templates
-    /// (<c>station_templates/*.json</c>, <c>settlement_templates/*.json</c>). When set, they are merged
+    /// (<c>station_templates/*.json</c>, <c>settlement_templates/*.json</c>, the user ships <c>ship_types/*.json</c>, #3520). When set, they are merged
     /// into the template pools at load so player-authored structures appear in new worlds without a
     /// rebuild. Empty ⇒ only the shipped <c>data/</c> pools are used.</summary>
     public string UserContentDir { get; set; } = string.Empty;
+
+    /// <summary>#3520: whether a player may craft a user ship (<c>usercontent/ship_types/</c>) whose <c>uses</c> list names
+    /// <c>craft</c>. Off by default: such a file is the server operator's, its cost and blueprint are whatever the file says,
+    /// so without this switch any client could craft a free ship with a <c>CraftShipIntent</c>.</summary>
+    public bool AllowUserShipCrafting { get; set; }
 
     /// <summary>Whether to stamp the enterable starter-ship hull at the start landing zone (M23a).</summary>
     public bool PlaceStarterShip { get; set; } = true;
@@ -470,11 +475,12 @@ public sealed class ServerConfig
     public bool PlaceIntercityRail { get; set; } = true;
 
     /// <summary>
-    /// The chance (0..1) that a world with at least two inhabited towns or cities gets its intercity line (#2125) — 0.6 by
-    /// default (Marcel's decision). Rolled once per world, deterministically from the seed and the body id, on a lane of its
+    /// The chance (0..1) that a world with at least two inhabited towns or cities gets its intercity line (#2125). Unset
+    /// (null) takes the <c>intercity</c> kind's chance from <c>data/structure_types.json</c> (#3517: 0.6, Marcel's decision);
+    /// a value here overrides it. Rolled once per world, deterministically from the seed and the body id, on a lane of its
     /// own; tests pin 1.0 to get a line wherever one fits.
     /// </summary>
-    public double IntercityRailChance { get; set; } = 0.6;
+    public double? IntercityRailChance { get; set; }
 
     /// <summary>
     /// Whether the server may stamp the ruin of an <b>abandoned monorail station</b> (#2166) on a new world (terrain
@@ -485,11 +491,12 @@ public sealed class ServerConfig
     public bool PlaceRailRuins { get; set; } = true;
 
     /// <summary>
-    /// The chance (0..1) that a world which could carry one gets its abandoned monorail station (#2166) — 0.35 by default,
-    /// scaled by the world's structures frequency. Rolled once per world, deterministically from the seed and the body id,
-    /// on a lane of its own; tests pin 1.0 to get a ruin wherever one fits.
+    /// The chance (0..1) that a world which could carry one gets its abandoned monorail station (#2166), scaled by the
+    /// world's structures frequency. Unset (null) takes the <c>rail_ruin</c> kind's chance from <c>data/structure_types.json</c>
+    /// (#3517: 0.35); a value here overrides it. Rolled once per world, deterministically from the seed and the body id, on a
+    /// lane of its own; tests pin 1.0 to get a ruin wherever one fits.
     /// </summary>
-    public double RailRuinChance { get; set; } = 0.35;
+    public double? RailRuinChance { get; set; }
 
     /// <summary>
     /// Whether the server may stamp a <b>landmark</b> (#3483) on a new world (terrain generation 37+) — one giant
@@ -500,11 +507,12 @@ public sealed class ServerConfig
     public bool PlaceLandmarks { get; set; } = true;
 
     /// <summary>
-    /// The chance (0..1) that a planet which could carry one gets its landmark (#3486) — about every third planet by
-    /// default (<see cref="Definitions.LandmarkRules.Chance"/>), scaled by the world's structures frequency. Rolled once
-    /// per body on a lane of its own; tests pin 1.0 to get a landmark wherever one fits.
+    /// The chance (0..1) that a planet which could carry one gets its landmark (#3486), scaled by the world's structures
+    /// frequency. Unset (null) takes the <c>landmark</c> kind's chance from <c>data/structure_types.json</c> (#3517: about
+    /// every third planet, <see cref="Definitions.LandmarkRules.Chance"/>); a value here overrides it. Rolled once per body on
+    /// a lane of its own; tests pin 1.0 to get a landmark wherever one fits.
     /// </summary>
-    public double LandmarkChance { get; set; } = Definitions.LandmarkRules.Chance;
+    public double? LandmarkChance { get; set; }
 
     /// <summary>
     /// Singleplayer/admin convenience: guarantee one data cube right next to the start world's landing pad, so
@@ -558,7 +566,24 @@ public sealed class ServerConfig
             return fresh;
         }
 
-        return JsonSerializer.Deserialize<ServerConfig>(File.ReadAllText(path), Options) ?? new ServerConfig();
+        return (JsonSerializer.Deserialize<ServerConfig>(File.ReadAllText(path), Options) ?? new ServerConfig()).ForgetOldStructureChanceDefaults();
+    }
+
+    /// <summary>The single-roll structure chances every <c>server.json</c> written before #3517 holds explicitly — the old code
+    /// defaults, written on the first run, not a decision of the operator.</summary>
+    internal const double OldIntercityRailChance = 0.6, OldRailRuinChance = 0.35, OldLandmarkChance = 0.34;
+
+    /// <summary>
+    /// #3517: a stored <see cref="IntercityRailChance"/>, <see cref="RailRuinChance"/> or <see cref="LandmarkChance"/> equal to
+    /// its old code default reads as "not set", so <c>data/structure_types.json</c> decides — an old <c>server.json</c> would
+    /// otherwise pin the old numbers over the data file for good. Any other value stays an override (the server logs it once).
+    /// </summary>
+    internal ServerConfig ForgetOldStructureChanceDefaults()
+    {
+        IntercityRailChance = IntercityRailChance == OldIntercityRailChance ? null : IntercityRailChance;
+        RailRuinChance = RailRuinChance == OldRailRuinChance ? null : RailRuinChance;
+        LandmarkChance = LandmarkChance == OldLandmarkChance ? null : LandmarkChance;
+        return this;
     }
 
     public void Save(string path)
@@ -575,7 +600,7 @@ public sealed class ServerConfig
     public string ToJson() => JsonSerializer.Serialize(this, Options);
 
     public static ServerConfig FromJson(string json)
-        => JsonSerializer.Deserialize<ServerConfig>(json, Options) ?? new ServerConfig();
+        => (JsonSerializer.Deserialize<ServerConfig>(json, Options) ?? new ServerConfig()).ForgetOldStructureChanceDefaults();
 
     /// <summary>
     /// Applies <c>--key value</c> command-line overrides onto this config. Used to embed/launch

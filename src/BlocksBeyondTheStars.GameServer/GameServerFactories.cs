@@ -26,7 +26,6 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private const int FactoryHardCap = 2;
     private const float FactoryTerminalReach = 4f;
 
     private List<FactoryInstance> _factories => _worlds.Active.Factories;
@@ -94,7 +93,7 @@ public sealed partial class GameServer
         _factories.Clear();
 
         var planet = _world.Planet;
-        if (planet.IsAirless)
+        if (!StructureConditionsHold(StructureTypeRules.Factory, planet)) // #3517: not airless, as shipped
         {
             return; // factories belong to once-industrialised worlds, not bare airless rocks
         }
@@ -139,10 +138,12 @@ public sealed partial class GameServer
         }
         else
         {
-            count = r < 0.70 ? 0 : r < 0.92 ? 1 : 2;
-            count = System.Math.Min(FactoryHardCap, (int)System.Math.Round(count * System.Math.Clamp(factor, 0.0, 2.0)));
+            var rules = StructureType(StructureTypeRules.Factory); // #3517: thresholds [0.70, 0.92] and cap 2 as shipped
+            count = rules.CountBelow(r);
+            count = System.Math.Min(rules.Cap, (int)System.Math.Round(count * System.Math.Clamp(factor, 0.0, 2.0)));
         }
 
+        count = PinnedCount("factory", count); // #3513: drawn above as always, pinned at the first run
         if (count <= 0)
         {
             return;
@@ -169,6 +170,7 @@ public sealed partial class GameServer
         AppendIntercityReservations(reserved); // #2125: the intercity line's stations and route
         AppendRailRuinReservations(reserved); // #2166: the abandoned monorail station
         AppendLodgeReservations(reserved); // #2640: the wilderness huts
+        reserved = KeepClearFor(StructureTypeRules.Factory, reserved); // #3514: generation 38 keeps clear through the registry
 
         var placed = new List<(PlacedSettlement P, List<string> Roster)>();
         var usedNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
@@ -234,7 +236,7 @@ public sealed partial class GameServer
             {
                 // #2070: on an industrial type the FIRST hall stands in sight of the pad (the near ring, ≤ 80 blocks).
                 if (!TryPlaceStructureGuaranteed(structure, RngFor(instSeed, "search"), reserved,
-                        wantIsland: false, SeatPolicy.Factory, avoidPlayerEdits: false,
+                        wantIsland: false, SeatPolicyOf(StructureTypeRules.Factory, SeatPolicy.Factory), avoidPlayerEdits: false,
                         out origin, out groundY, out _, out seat, nearDistance: typedCount && i == 0 ? 80 : 0))
                 {
                     RecordPlacementSkip("factory", i);
@@ -327,6 +329,7 @@ public sealed partial class GameServer
             }
 
             _factories.Add(inst);
+            RegisterFootprintBox(StructureTypeRules.Factory, inst.Min, inst.Max); // #3514
         }
 
         _log.Info($"Stamped {_factories.Count} factory(ies) on '{_world.LocationId}'.");

@@ -41,4 +41,13 @@ public sealed class ShipDefinition
     /// <summary>Optional voxel layout key (a <see cref="ShipLayout"/> in <c>data/ship_layouts/</c>): when
     /// set, the server stamps that exact design instead of the parametric box. Null = parametric box.</summary>
     public string? Layout { get; set; }
+
+    /// <summary>#3520: the literal name of a user ship (<see cref="UserShip"/>), which has no locale entry — null for every
+    /// shipped ship, whose name is <see cref="NameKey"/>. Never read from <c>data/ships.json</c>.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? DisplayName { get; set; }
+
+    /// <summary>#3520: the literal description of a user ship; null for a shipped ship (<see cref="DescriptionKey"/>).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? DisplayDescription { get; set; }
 }

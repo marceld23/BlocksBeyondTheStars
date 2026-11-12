@@ -152,12 +152,14 @@ public static class CityGenerator
     /// <paramref name="moduleChance"/> per district, a hash of seed + grid cell decides whether a district is
     /// stamped from a module of its role instead of the procedural one. Plaza and open districts never are.
     /// <paramref name="legacyModuleRoll"/> (#2690) brings back the historical roll, under which a whole district column
-    /// decided alike — for a record from before #1872 that freezes the picks it was stamped with.</summary>
+    /// decided alike — for a record from before #1872 that freezes the picks it was stamped with.
+    /// <paramref name="terrainGeneration"/> (#3519): from generation 38 a district module's markers carry their settings (a
+    /// chest's content, a sound, a den), like a landmark's; the default 0 composes as every older world does.</summary>
     public static SettlementStructure Generate(long seed, GameContent content, IReadOnlyList<OpenZone> openZones,
         IReadOnlyList<StructureTemplate>? modules = null, double moduleChance = 0.0,
         IList<string>? composition = null, System.Action<string>? warn = null,
         CityLayoutSpec? layout = null, StructureKit? kit = null, IReadOnlyList<StructureTemplate>? kitModules = null,
-        bool legacyModuleRoll = false)
+        bool legacyModuleRoll = false, int terrainGeneration = 0)
     {
         // #1876: a kit city takes its grid from the layout spec (districts per side, district size, street width, height, map).
         var spec = layout ?? CityLayoutSpec.Default;
@@ -347,7 +349,8 @@ public static class CityGenerator
                 {
                     var moduleMarkers = new List<SettlementMarker>();
                     SettlementGenerator.StampModule(authored, mx + (size - authored.Width) / 2, 0, mz + (size - authored.Length) / 2,
-                        content, Get, SetCell, moduleMarkers, furniture, WorldGenerator.StableHash($"furnish:city:{seed}:{gx}:{gz}"), materials);
+                        content, Get, SetCell, moduleMarkers, furniture, WorldGenerator.StableHash($"furnish:city:{seed}:{gx}:{gz}"), materials,
+                        markerSettings: StructureDecay.Applies(terrainGeneration)); // #3519
                     foreach (var m in moduleMarkers)
                     {
                         markers.Add(m);

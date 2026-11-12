@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using System.Linq;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
@@ -25,10 +26,12 @@ public sealed partial class GameServer
 
     private List<SpsLabInstance> _spsLabs => _worlds.Active.SpsLabs;
 
-    /// <summary>Whether the active world's type stamps SPS labs (generation 8).</summary>
+    /// <summary>Whether the active world's type stamps SPS labs (generation 8): the <c>spslab</c> kind's switch, generation and
+    /// conditions in <c>data/structure_types.json</c> (#3517) — as shipped, only a type that names <c>sps_labs</c>.</summary>
     private bool SpsLabWorld()
-        => _world.Planet is { Void: false } planet && planet.AllowedStructures.Contains("sps_labs")
-            && _generator.TerrainGeneration >= WorldDescription.ExtremePlanetsGeneration;
+        => _world.Planet is { } planet && StructureType(StructureTypeRules.SpsLab) is { Enabled: true } rules
+            && StructureConditionsHold(StructureTypeRules.SpsLab, planet)
+            && _generator.TerrainGeneration >= rules.MinGeneration;
 
     private void StampSpsLabs()
     {
@@ -40,7 +43,8 @@ public sealed partial class GameServer
         var planet = _world.Planet;
         long lSeed = _meta.Seed ^ WorldGenerator.StableHash("spslab:" + _world.LocationId);
         var rng = new System.Random(unchecked((int)(lSeed ^ (lSeed >> 32))));
-        int count = 3 + rng.Next(4); // 3..6
+        var rules = StructureType(StructureTypeRules.SpsLab); // #3517: 3..6 as shipped
+        int count = PinnedCount("spslab", rules.MinCount + rng.Next(rules.Cap - rules.MinCount + 1)); // #3513: drawn as always, pinned at the first run
         var surface = planet.Biomes.Count > 0 ? planet.Biomes[0].SurfaceBlock : planet.SurfaceBlock;
 
         var reserved = new List<(int Cx, int Cz, int Hw, int Hl)>();
@@ -52,6 +56,7 @@ public sealed partial class GameServer
         int pad0X = _landingPads.Count > 0 ? _landingPads[0].CenterX : 0;
         int pad0Z = _landingPads.Count > 0 ? _landingPads[0].CenterZ : 0;
         reserved.Add((pad0X - 56, pad0Z + 56, 14, 14)); // the wreck zone (see GameServerWrecks.StampWreck)
+        reserved = KeepClearFor(StructureTypeRules.SpsLab, reserved); // #3514: generation 38 keeps clear through the registry
 
         bool blocksAlreadyStamped = FeatureStamped("spslabs");
         var placed = new List<PlacedSettlement>();
@@ -59,7 +64,7 @@ public sealed partial class GameServer
         {
             long instSeed = lSeed ^ unchecked((long)(i + 1) * (long)0x9E3779B97F4A7C15);
             var ir = new System.Random(unchecked((int)(instSeed ^ (instSeed >> 32))));
-            var structure = SpsLabGenerator.Generate(instSeed, surface, _content);
+            var structure = SpsLabGenerator.Generate(instSeed, surface, _content, _generator.TerrainGeneration); // #3516: intact + weak ruin pass from 38
 
             Vector3i origin;
             int groundY;
@@ -79,7 +84,7 @@ public sealed partial class GameServer
                 seat = rec.Seat;
             }
             else if (!TryPlaceStructureGuaranteed(structure, RngFor(instSeed, "search"), reserved,
-                         wantIsland: false, SeatPolicy.Camp, avoidPlayerEdits: !_worlds.Active.VirginAtLoad,
+                         wantIsland: false, SeatPolicyOf(StructureTypeRules.SpsLab, SeatPolicy.Camp), avoidPlayerEdits: !_worlds.Active.VirginAtLoad,
                          out origin, out groundY, out onIsland, out seat,
                          seatOk: (o, style) => SpsLabSeatOpen(structure, o, style)))
             {
@@ -144,6 +149,7 @@ public sealed partial class GameServer
             }
 
             _spsLabs.Add(lab);
+            RegisterFootprintBox(StructureTypeRules.SpsLab, lab.Min, lab.Max); // #3514
         }
 
         _log.Info($"SPS labs on '{_world.LocationId}': {placed.Count} placed.");

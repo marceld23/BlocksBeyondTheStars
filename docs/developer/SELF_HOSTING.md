@@ -147,12 +147,29 @@ command line**, so env vars override the file but the in-game host's CLI flags s
 | `BBS_CHUNK_GEN_WORKERS` | `chunkGenWorkers` (default 2, 0 = generate inline on the tick) | `BBS_TICK_TIMING_LOG_SECONDS` | `tickTimingLogSeconds` |
 | `BBS_BACKUP_INTERVAL_MINUTES` | `backupIntervalMinutes` | `BBS_BACKUP_KEEP` | `backupKeepCount` |
 | `BBS_NEAR_COLUMN_RADIUS` | `nearColumnRadiusChunks` (default 4, 2–8) | `BBS_NEAR_COLUMN_UP` | `nearColumnChunksUp` (default 3, 2–3) |
-| `BBS_MAX_ANCHORED_CHUNKS` | `maxAnchoredChunks` (default 512, 0 = off) | | |
+| `BBS_MAX_ANCHORED_CHUNKS` | `maxAnchoredChunks` (default 512, 0 = off) | `BBS_ALLOW_USER_SHIP_CRAFTING` | `allowUserShipCrafting` (default off) |
 
 The table lists the common ones. The complete list — every `BBS_*` variable and `--switch` with its aliases, fallback
 variables and a one-line description — is the option table `ServerConfigOptions.All` in
 [`ServerConfigOptions.cs`](../../src/BlocksBeyondTheStars.Shared/Configuration/ServerConfigOptions.cs); the server logs
 the variables it applied at start-up.
+
+**User ships** (`userContentDir/ship_types/<key>.json`, #3520): the ship editor's Save also writes each designed ship
+there as one file (definition + layout). The server checks every file at start and drops a broken one with a warning
+in the log. It never adds them to the shipped ships, and it refuses the keys the game reserves (`custom`, `starter`, any
+shipped ship or layout). By default a user ship only flies as an NPC: a raider or a trader (`"uses": ["npc"]`, also what
+a file without `uses` means). A hull wider than the 17 × 17 landing square never lands; a ship joins only worlds that
+enable its `pack`. Add `"wreck"` to let new worlds crash it as a wreck — a player who repairs that wreck claims the ship.
+`"craft"` lets the server accept a craft request for it only while `allowUserShipCrafting` (CLI
+`--allow-user-ship-crafting true`, env `BBS_ALLOW_USER_SHIP_CRAFTING=1`) is on — the file sets the cost and blueprint, so
+leave it off unless you trust the files in that folder. **This version's build menu does not list user ships**, so
+players cannot craft them from the game yet whatever the option says. An owned user ship whose file you remove keeps its
+name and comes back whole when the file returns; meanwhile it flies as the starter hull (the log says so).
+
+**Structure chances** (`intercityRailChance`, `railRuinChance`, `landmarkChance`): unset by default — the chances then
+come from `data/structure_types.json`. A `server.json` written before that file existed holds the old defaults (0.6, 0.35,
+0.34) explicitly; the server reads exactly those values as "not set", so the data file decides. Any other value stays an
+override, and the server logs once per kind when it differs from the data file.
 
 **Chunk generation workers** (`chunkGenWorkers`, CLI `--chunk-gen-workers`): first-visit chunks are generated on this
 many background threads, each with its own world generator (up to ~18 MB of terrain memos per thread at view distance

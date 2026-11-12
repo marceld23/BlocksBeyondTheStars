@@ -19,12 +19,11 @@ namespace BlocksBeyondTheStars.GameServer;
 /// a crystal growing inside, two with a relic cache) and three sealed <b>sound chambers</b> — solid cubes of carved obsidian
 /// with a two-high sealed doorway toward the amphitheatre, a crystal above it and a relic cache inside. Chambers 0 and 1 are
 /// for the Resonance Blaster (the items pack opens them through <see cref="OpenOrnasaChamber"/>); chamber 2 is where the
-/// bell-bloom trail leads (#3367) and opens when the trail's last bloom does.
+/// bell-bloom trail leads (#3367) and opens when the trail's last bloom does. The blocks are <see cref="SoaniriBuilder"/>'s
+/// (#3522); this part re-derives the chambers, the caches and the trail from the record on every load.
 /// </summary>
 public sealed partial class GameServer
 {
-    private const int OrnasaRadius = 22;
-
     /// <summary>One of Ornasa's sound chambers on the active world (re-derived every load from the site record).</summary>
     internal sealed class OrnasaChamber
     {
@@ -46,143 +45,6 @@ public sealed partial class GameServer
     }
 
     private readonly Dictionary<string, List<OrnasaChamber>> _ornasaChambers = new(StringComparer.Ordinal);
-
-    private void WriteOrnasa(in SounderBlocks b, int cx, int floorY, int cz)
-    {
-        LevelSounderDisc(cx, cz, floorY, OrnasaRadius, b.Moss, b.Dirt);
-        WriteOrnasaGround(b, cx, floorY, cz);
-        WriteOrnasaAmphitheatre(b, cx, floorY, cz);
-        for (int slot = 0; slot < SounderSiteLayout.OrnasaSlots; slot++)
-        {
-            var (sx, sz) = SounderSiteLayout.OrnasaSlotCentre(cx, cz, slot);
-            if (slot % 2 == 0)
-            {
-                WriteOrnasaHall(b, sx, floorY, sz, cx, cz);
-            }
-            else
-            {
-                WriteOrnasaChamber(b, sx, floorY, sz, cx, cz);
-            }
-        }
-
-        for (int k = 0; k < SounderSiteLayout.BloomTrailLength; k++)
-        {
-            var cell = SounderSiteLayout.BloomTrailCell(cx, floorY, cz, k);
-            SounderClear(cell.X, cell.Y, cell.Z);
-            SounderPlant(b, cell.X, floorY, cell.Z, b.Bloom);
-        }
-    }
-
-    /// <summary>The broken paving and the broken outer wall (gaps where a wall section fell).</summary>
-    private void WriteOrnasaGround(in SounderBlocks b, int cx, int floorY, int cz)
-    {
-        for (int dx = -OrnasaRadius; dx <= OrnasaRadius; dx++)
-        {
-            for (int dz = -OrnasaRadius; dz <= OrnasaRadius; dz++)
-            {
-                double d = Math.Sqrt((dx * dx) + (dz * dz));
-                int x = cx + dx, z = cz + dz;
-                if (d > OrnasaRadius)
-                {
-                    continue;
-                }
-
-                if (d >= OrnasaRadius - 1.5)
-                {
-                    double sector = SounderHash("ornasa-wall", (int)Math.Floor(Math.Atan2(dx, dz) * 6.0), 0);
-                    int height = sector < 0.22 ? 0 : 1 + (int)(SounderHash("ornasa-wall-h", x, z) * 4.0);
-                    SounderColumn(x, z, floorY + 1, floorY + height, b.CarvedObsidian);
-                    continue;
-                }
-
-                if (SounderHash("ornasa-paving", x, z) < 0.35)
-                {
-                    SounderSet(x, floorY, z, b.CarvedObsidian);
-                }
-            }
-        }
-    }
-
-    /// <summary>The amphitheatre: a paved disc, eight broken rune pillars (one to three stones) and a crystal on a plinth.</summary>
-    private void WriteOrnasaAmphitheatre(in SounderBlocks b, int cx, int floorY, int cz)
-    {
-        for (int dx = -6; dx <= 6; dx++)
-        {
-            for (int dz = -6; dz <= 6; dz++)
-            {
-                if ((dx * dx) + (dz * dz) <= 40)
-                {
-                    SounderSet(cx + dx, floorY, cz + dz, b.CarvedObsidian);
-                }
-            }
-        }
-
-        for (int i = 0; i < 8; i++)
-        {
-            var (px, pz) = SounderSiteLayout.Polar(cx, cz, 5.0, (i * Math.PI / 4.0) + (Math.PI / 8.0));
-            int height = 1 + (int)(SounderHash("ornasa-rune", px, pz) * 3.0);
-            SounderColumn(px, pz, floorY + 1, floorY + height, b.Rune);
-        }
-
-        SounderSet(cx, floorY + 1, cz, b.CarvedObsidian);
-        SounderSet(cx, floorY + 2, cz, b.Crystal);
-    }
-
-    /// <summary>A ruined hall (7×7): every wall column broken to its own height (brick at the foot, obsidian above, now and
-    /// then a rune stone on top), a doorway toward the amphitheatre and a crystal growing in the middle.</summary>
-    private void WriteOrnasaHall(in SounderBlocks b, int sx, int floorY, int sz, int cx, int cz)
-    {
-        var (tx, tz) = SounderSiteLayout.TowardCentre(sx, sz, cx, cz);
-        for (int dx = -3; dx <= 3; dx++)
-        {
-            for (int dz = -3; dz <= 3; dz++)
-            {
-                int x = sx + dx, z = sz + dz;
-                if (Math.Abs(dx) != 3 && Math.Abs(dz) != 3)
-                {
-                    SounderSet(x, floorY, z, b.Brick); // the old floor
-                    continue;
-                }
-
-                bool doorway = (dx == tx * 3 && dz == 0 && tz == 0) || (dz == tz * 3 && dx == 0 && tx == 0);
-                int height = doorway ? 0 : 1 + (int)(SounderHash("ornasa-hall", x, z) * 5.0);
-                for (int y = 1; y <= height; y++)
-                {
-                    bool top = y == height && height >= 3 && SounderHash("ornasa-hall-rune", x, z) < 0.2;
-                    SounderSet(x, floorY + y, z, top ? b.Rune : y == 1 ? b.Brick : b.CarvedObsidian);
-                }
-            }
-        }
-
-        SounderSet(sx, floorY + 1, sz, b.Crystal);
-    }
-
-    /// <summary>A sealed sound chamber: a 5×5×4 cube of carved obsidian, hollow inside (3×3×3), its doorway toward the
-    /// amphitheatre sealed with obsidian and a crystal set into the wall above it.</summary>
-    private void WriteOrnasaChamber(in SounderBlocks b, int sx, int floorY, int sz, int cx, int cz)
-    {
-        var (tx, tz) = SounderSiteLayout.TowardCentre(sx, sz, cx, cz);
-        for (int dx = -2; dx <= 2; dx++)
-        {
-            for (int dz = -2; dz <= 2; dz++)
-            {
-                bool inside = Math.Abs(dx) <= 1 && Math.Abs(dz) <= 1;
-                for (int y = 1; y <= 4; y++)
-                {
-                    if (inside && y <= 3)
-                    {
-                        SounderClear(sx + dx, floorY + y, sz + dz);
-                    }
-                    else
-                    {
-                        SounderSet(sx + dx, floorY + y, sz + dz, b.CarvedObsidian); // the walls, the roof — and the seal
-                    }
-                }
-            }
-        }
-
-        SounderSet(sx + (tx * 2), floorY + 3, sz + (tz * 2), b.Crystal);
-    }
 
     /// <summary>Every load: registers the chambers and the bloom trail of Ornasa and spawns its caches (idempotent).</summary>
     private void AfterOrnasa(int cx, int floorY, int cz)

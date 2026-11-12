@@ -21,9 +21,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <item><b>New worlds only.</b> Terrain generation 25 (<see cref="WorldDescription.WildernessFolkGeneration"/>) or newer,
 /// <see cref="Shared.Configuration.ServerConfig.PlaceLodges"/> and <c>PlaceSettlements</c> on, never on a void, airless,
 /// ruined-only, gas or city world (the restricted Titas/Valuma types never reach the stage).</item>
-/// <item><b>How many.</b> λ = hospitability shaped to (h − 0.35)/0.65 × world size × <see cref="LodgeBaseDensity"/> ×
-/// the world's "Settlements" factor, drawn in Bernoulli slots, at most <see cref="LodgeRules.HardCap"/>: lush worlds have
-/// one to four, harsh ones none or one.</item>
+/// <item><b>How many.</b> λ = hospitability shaped to (h − 0.35)/0.65 × world size × the <c>lodge</c> kind's density (2.2,
+/// <c>data/structure_types.json</c>, #3517) × the world's "Settlements" factor, drawn in Bernoulli slots, at most the kind's
+/// cap (<see cref="LodgeRules.HardCap"/>): lush worlds have one to four, harsh ones none or one.</item>
 /// <item><b>Where.</b> The camps' mechanics: placement records <c>lodge/i</c> (the record's template pins the
 /// profession), <c>TryPlaceStructureGuaranteed</c> with the camp seat policy, the voxels stamped once
 /// (<c>FeatureStamped("lodges")</c>), the instances re-derived on every load. Reserved: the pads, the wreck zone, the
@@ -43,9 +43,6 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    /// <summary>Expected lodges at hospitability 1, world size 1 and the Normal "Settlements" option.</summary>
-    private const double LodgeBaseDensity = 2.2;
-
     /// <summary>The ground kept free round every settlement and camp (a hut stands clearly outside them).</summary>
     internal const int LodgeReserveMargin = 40;
 
@@ -131,15 +128,15 @@ public sealed partial class GameServer
     /// re-derives their instances and residents on every load.</summary>
     private void StampLodges()
     {
-        if (!_config.PlaceLodges || !_config.PlaceSettlements || _content.Lodges.Count == 0
-            || _generator.TerrainGeneration < WorldDescription.WildernessFolkGeneration)
+        var rules = StructureType(StructureTypeRules.Lodge); // #3517: generation 25, density 2.2, cap 6, the camp seat as shipped
+        if (!_config.PlaceLodges || !_config.PlaceSettlements || !rules.Enabled || _content.Lodges.Count == 0
+            || _generator.TerrainGeneration < rules.MinGeneration)
         {
             return; // never on an older world; switched off; or no lodge data
         }
 
         var planet = _world.Planet;
-        if (planet is null || planet.Void || planet.IsAirless || planet.RuinedSettlementsOnly || planet.IsGasWorld
-            || planet.CityWorld.Length > 0)
+        if (planet is null || !StructureConditionsHold(StructureTypeRules.Lodge, planet))
         {
             return; // nobody lives out in the open on a station, an airless rock, a toxic ruin world, a gas giant or the city world
         }
@@ -154,7 +151,7 @@ public sealed partial class GameServer
         var rng = new System.Random(unchecked((int)(lSeed ^ (lSeed >> 32))));
         double h = System.Math.Clamp((Hospitability(planet) - 0.35) / 0.65, 0.0, 1.0);
         double sizeFactor = _world.Circumference / SettlementRefCirc;
-        int count = DrawCount(rng, h * sizeFactor * LodgeBaseDensity * factor, LodgeRules.HardCap);
+        int count = PinnedCount("lodge", DrawCount(rng, h * sizeFactor * rules.Density * factor, rules.Cap)); // #3513
         if (count <= 0)
         {
             return;
@@ -191,6 +188,7 @@ public sealed partial class GameServer
             reserved.Add((cx, cz, hw + LodgeSpacing, hl + LodgeSpacing)); // nobody lives in the rubble of a fallen town
         }
 
+        reserved = KeepClearFor(StructureTypeRules.Lodge, reserved); // #3514: generation 38: the registry (the same margins, by kind)
         bool blocksAlreadyStamped = FeatureStamped("lodges");
         var used = new List<string>();
         var placed = new List<(PlacedSettlement P, LodgeProfessionDefinition Profession, int Index)>();
@@ -242,7 +240,7 @@ public sealed partial class GameServer
             else
             {
                 if (!TryPlaceStructureGuaranteed(structure, RngFor(instSeed, "search"), reserved,
-                        wantIsland: false, SeatPolicy.Camp, avoidPlayerEdits: false,
+                        wantIsland: false, SeatPolicyOf(StructureTypeRules.Lodge, SeatPolicy.Camp), avoidPlayerEdits: false,
                         out origin, out groundY, out onIsland, out seat))
                 {
                     RecordPlacementSkip("lodge", i);
@@ -292,7 +290,7 @@ public sealed partial class GameServer
         // Instances, the store crates, the doors and the residents: re-derived on every load.
         foreach (var (p, profession, index) in placed)
         {
-            MaterializeLodge(p, profession, index, traits);
+            RegisterLodgeFootprint(MaterializeLodge(p, profession, index, traits)); // #3514
         }
 
         RegisterDoors(); // the hinge doors of the huts (rebuilds the whole registry, settlements' and ships' included)

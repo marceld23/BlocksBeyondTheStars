@@ -140,7 +140,7 @@ public sealed class StructureTemplatePoolTests : IDisposable
                 using (repo)
                 {
                     var rec = server.PlacementRecordsForTest.FirstOrDefault(r =>
-                        r.Kind == "settlement" && r.Placed && !string.IsNullOrEmpty(r.Template));
+                        r.Kind == "settlement" && r.Placed && IsWholeTemplatePin(r.Template));
                     if (rec is null)
                     {
                         server.Stop();
@@ -166,7 +166,7 @@ public sealed class StructureTemplatePoolTests : IDisposable
                 using (repo)
                 {
                     var again = server.PlacementRecordsForTest.First(r =>
-                        r.Kind == "settlement" && r.Placed && !string.IsNullOrEmpty(r.Template));
+                        r.Kind == "settlement" && r.Placed && IsWholeTemplatePin(r.Template));
                     Assert.Equal(pinnedTemplate, again.Template);
                     server.Stop();
                 }
@@ -177,4 +177,9 @@ public sealed class StructureTemplatePoolTests : IDisposable
 
         Assert.Fail("no seed in 1..60 produced a template settlement at Frequent — the pool should make this common");
     }
+
+    /// <summary>Whether a settlement record pins a whole template — neither empty (procedural or legacy) nor the explicit
+    /// procedural marker a generation-38 world writes (#3513).</summary>
+    private static bool IsWholeTemplatePin(string template)
+        => !string.IsNullOrEmpty(template) && template != Shared.State.StructurePlacementRecord.ProceduralTemplate;
 }

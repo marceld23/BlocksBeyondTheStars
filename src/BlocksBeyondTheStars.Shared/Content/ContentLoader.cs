@@ -175,6 +175,10 @@ public static class ContentLoader
         // The wilderness folk's professions (#2640) are optional the same way: no lodges.json → no lodges.
         content.SetLodges(LoadArray<LodgeProfessionDefinition>(Path.Combine(dataDir, "lodges.json")));
 
+        // The placement rules of the stamped structure kinds (#3517): no structure_types.json → the C# defaults; a broken
+        // entry is reported and dropped (its kind keeps the defaults), never a failed load.
+        content.SetStructureTypes(StructureTypeRules.Load(Path.Combine(dataDir, "structure_types.json"), warn));
+
         // The old logs in a derelict's supply crates (#2633) are optional the same way: no derelict_logs.json → no logs —
         // and so are the G.D.S. logs in a buried ruin's crates (#3341): no gds_logs.json → no G.D.S. logs.
         content.SetDerelictLogs(LoadLogFragments(Path.Combine(dataDir, "derelict_logs.json")));
@@ -201,6 +205,14 @@ public static class ContentLoader
             : null);
 
         content.Validate();
+
+        // User ships (#3520): one file per ship from the ship editor. Checked against the validated content and kept apart
+        // from the shipped Ships (warn and drop, never a failed load).
+        if (!string.IsNullOrEmpty(userContentDir) && Directory.Exists(userContentDir))
+        {
+            content.SetUserShips(LoadUserShips(Path.Combine(userContentDir!, "ship_types"), warn), warn);
+        }
+
         return content;
     }
 
@@ -227,7 +239,9 @@ public static class ContentLoader
     }
 
     /// <summary>Loads every <see cref="StructureTemplate"/> from a user-content sub-folder (one per file,
-    /// key defaulting to the file name). Malformed files are skipped so one bad export can't break load.</summary>
+    /// key defaulting to the file name). Malformed files are skipped so one bad export can't break load. A file without
+    /// cells is skipped too — unless it is a generator entry (#3518, <see cref="StructureTemplate.Source"/>), which has none
+    /// by design; the pools check it (<see cref="StructureCatalog.SourceShapeProblems"/>, the source registry).</summary>
     private static List<StructureTemplate> LoadUserTemplates(string dir, string kind, Action<string>? warn = null)
     {
         var result = new List<StructureTemplate>();
@@ -241,7 +255,7 @@ public static class ContentLoader
             try
             {
                 var t = JsonSerializer.Deserialize<StructureTemplate>(File.ReadAllText(file), JsonOptions);
-                if (t == null || t.Cells.Count == 0)
+                if (t == null || (t.Cells.Count == 0 && !t.IsSource))
                 {
                     continue;
                 }
@@ -269,8 +283,8 @@ public static class ContentLoader
 
     /// <summary>Loads every landmark of a folder (#3484): one <see cref="StructureTemplate"/> per file, in ordinal file-name
     /// order (the pool order the stamper draws in), the key defaulting to the file name. A landmark usually carries the
-    /// compact body (#3485), so a file without listed cells is fine as long as it has rows; an unreadable or empty file
-    /// is reported and skipped.</summary>
+    /// compact body (#3485), so a file without listed cells is fine as long as it has rows (or is a generator entry, #3518);
+    /// an unreadable or empty file is reported and skipped.</summary>
     private static List<StructureTemplate> LoadLandmarks(string dir, Action<string>? warn = null)
     {
         var result = new List<StructureTemplate>();
@@ -286,7 +300,7 @@ public static class ContentLoader
             try
             {
                 var t = JsonSerializer.Deserialize<StructureTemplate>(File.ReadAllText(file), JsonOptions);
-                if (t == null || (t.Cells.Count == 0 && t.Rows.Count == 0))
+                if (t == null || (t.Cells.Count == 0 && t.Rows.Count == 0 && !t.IsSource))
                 {
                     continue;
                 }
@@ -339,6 +353,47 @@ public static class ContentLoader
             catch (JsonException ex)
             {
                 warn?.Invoke($"Skipping unreadable user kit '{file}': {ex.Message}");
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>#3520: reads every user ship of a folder (<c>usercontent/ship_types/*.json</c>, one <see cref="UserShipFile"/>
+    /// per file) in ordinal file-name order — the order the NPC pools append them in. The key defaults to the file name. A
+    /// file that cannot be read or parsed is reported through <paramref name="warn"/> and skipped; the checks against the
+    /// content (<see cref="GameContent.SetUserShips"/>) come after.</summary>
+    public static List<UserShipFile> LoadUserShips(string dir, Action<string>? warn = null)
+    {
+        var result = new List<UserShipFile>();
+        if (!Directory.Exists(dir))
+        {
+            return result;
+        }
+
+        var files = Directory.GetFiles(dir, "*.json");
+        Array.Sort(files, StringComparer.Ordinal);
+        foreach (var file in files)
+        {
+            try
+            {
+                var ship = JsonSerializer.Deserialize<UserShipFile>(File.ReadAllText(file), JsonOptions);
+                if (ship == null)
+                {
+                    warn?.Invoke($"Skipping empty user ship '{file}'.");
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(ship.Key))
+                {
+                    ship.Key = Path.GetFileNameWithoutExtension(file);
+                }
+
+                result.Add(ship);
+            }
+            catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
+            {
+                warn?.Invoke($"Skipping unreadable user ship '{file}': {ex.Message}");
             }
         }
 

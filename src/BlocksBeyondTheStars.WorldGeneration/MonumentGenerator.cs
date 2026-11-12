@@ -23,7 +23,7 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// is the first procedural generator to populate its per-cell <b>shape</b> and <b>glow</b> modifiers —
 /// arches, columns and lintels come from <see cref="BlockShape"/> forms, not from new geometry.
 /// </summary>
-public static class MonumentGenerator
+public static partial class MonumentGenerator
 {
     /// <summary>The monument silhouettes. One instance of a body's monuments is generated per archetype,
     /// so a body never shows the same kind twice.</summary>
@@ -52,20 +52,25 @@ public static class MonumentGenerator
     private static readonly int[] RuneGlows = { 0x3FD8E8, 0xA870F0, 0xF0A03C, 0x5FE08A };
 
     /// <summary>Builds the monument. <paramref name="withCache"/> adds a <c>relic_cache</c> loot marker
-    /// (the stamper turns it into a lootable container).</summary>
+    /// (the stamper turns it into a lootable container). From terrain generation 38 (<paramref name="terrainGeneration"/>,
+    /// #3516) the archetype is built without its own erosion and weathers through the shared ruin pass instead
+    /// (<see cref="RuinPass"/>; no flora on an <paramref name="airless"/> body); every older world (and the default 0) keeps
+    /// the monument's own erosion.</summary>
     public static SettlementStructure Generate(string archetype, long seed, string biomeSurfaceBlock,
-        GameContent content, bool withCache)
+        GameContent content, bool withCache, int terrainGeneration = 0, bool airless = false)
     {
         var rng = new System.Random(unchecked((int)(seed ^ (seed >> 32)) ^ (int)WorldGenerator.StableHash(archetype)));
 
         ushort B(string key, ushort fallback = 0) => content.GetBlock(key)?.NumericId.Value ?? fallback;
         ushort stone = B("stone");
+        bool pipeline = StructureDecay.Applies(terrainGeneration);
         var mat = new Materials(
             masonry: B("ancient_brick", stone),
             rune: B("rune_stone", B("ancient_brick", stone)),
             rubble: B(biomeSurfaceBlock, stone),
             glow: RuneGlows[rng.Next(RuneGlows.Length)],
-            bone: B("bone", stone));
+            bone: B("bone", stone),
+            deferErosion: pipeline);
 
         var c = archetype switch
         {
@@ -84,6 +89,11 @@ public static class MonumentGenerator
             "fossil_serpent" => Serpent(mat, rng),
             _ => Arcade(mat, rng),
         };
+
+        if (pipeline)
+        {
+            RuinPass(c, archetype, seed, biomeSurfaceBlock, airless, content); // #3516: before the runes and the cache, as the erosion was
+        }
 
         if (!IsFossil(archetype))
         {
@@ -107,13 +117,18 @@ public static class MonumentGenerator
         public readonly int Glow;
         public readonly ushort Bone; // #2341: what a fossil is made of
 
-        public Materials(ushort masonry, ushort rune, ushort rubble, int glow, ushort bone)
+        /// <summary>#3516: the archetype only notes how it would erode (<see cref="Canvas.Erosion"/>); the shared ruin pass
+        /// erodes it afterwards.</summary>
+        public readonly bool DeferErosion;
+
+        public Materials(ushort masonry, ushort rune, ushort rubble, int glow, ushort bone, bool deferErosion)
         {
             Masonry = masonry;
             Rune = rune;
             Rubble = rubble;
             Glow = glow;
             Bone = bone;
+            DeferErosion = deferErosion;
         }
     }
 
@@ -177,7 +192,7 @@ public static class MonumentGenerator
             }
         }
 
-        Erode(c, rng, baseP: 0.05, topP: 0.28, protectY: 2); // the lower shafts always survive — a colonnade must read as one
+        Erode(c, mat, rng, baseP: 0.05, topP: 0.28, protectY: 2); // the lower shafts always survive — a colonnade must read as one
         return c;
     }
 
@@ -250,7 +265,7 @@ public static class MonumentGenerator
             }
         }
 
-        Erode(c, rng, baseP: 0.03, topP: 0.30, protectY: 1, protectDoor: (gapMin, gapMax, cz, height));
+        Erode(c, mat, rng, baseP: 0.03, topP: 0.30, protectY: 1, protectDoor: (gapMin, gapMax, cz, height));
         return c;
     }
 
@@ -328,7 +343,7 @@ public static class MonumentGenerator
         c.Set(cx + 1, 1, cz, mat.Masonry, ShapeCode.Pack(BlockShape.Slab, 0));
         c.Set(cx - 1, 1, cz, mat.Masonry, ShapeCode.Pack(BlockShape.Slab, 0));
 
-        Erode(c, rng, baseP: 0.04, topP: 0.22, protectY: 1); // every stone keeps a visible foot
+        Erode(c, mat, rng, baseP: 0.04, topP: 0.22, protectY: 1); // every stone keeps a visible foot
         return c;
     }
 
@@ -389,7 +404,7 @@ public static class MonumentGenerator
         }
 
         // Only the upper half of the shaft weathers — an obelisk that loses its base is just a plinth.
-        Erode(c, rng, baseP: 0.0, topP: 0.35, protectY: 2 + shaft / 2);
+        Erode(c, mat, rng, baseP: 0.0, topP: 0.35, protectY: 2 + shaft / 2);
         return c;
     }
 
@@ -439,7 +454,7 @@ public static class MonumentGenerator
             }
         }
 
-        Erode(c, rng, baseP: 0.05, topP: 0.20, protectY: 0);
+        Erode(c, mat, rng, baseP: 0.05, topP: 0.20, protectY: 0);
         return c;
     }
 
@@ -472,10 +487,17 @@ public static class MonumentGenerator
 
     /// <summary>Takes pieces away — probability rises with height so bases survive and crowns come down.
     /// One protected course (<paramref name="protectY"/> and below) keeps the footprint readable, and a gate's
-    /// doorway jambs are never eroded so the opening stays walkable.</summary>
-    private static void Erode(Canvas c, System.Random rng, double baseP, double topP, int protectY,
+    /// doorway jambs are never eroded so the opening stays walkable. #3516: with <see cref="Materials.DeferErosion"/> it only
+    /// notes the settings for the shared ruin pass and draws nothing.</summary>
+    private static void Erode(Canvas c, Materials mat, System.Random rng, double baseP, double topP, int protectY,
         (int MinX, int MaxX, int CZ, int Height)? protectDoor = null)
     {
+        if (mat.DeferErosion)
+        {
+            c.Erosion = (topP, protectY, protectDoor);
+            return;
+        }
+
         for (int x = 0; x < c.W; x++)
         {
             for (int y = 0; y < c.H; y++)
@@ -654,7 +676,7 @@ public static class MonumentGenerator
         // corbels under the deck ends
         c.Set(x0 + 2, Deck, cz, mat.Masonry, ShapeCode.Pack(BlockShape.Ramp, 1));
         c.Set(x1 - 2, Deck, cz, mat.Masonry, ShapeCode.Pack(BlockShape.Ramp, 3));
-        Erode(c, rng, baseP: 0.02, topP: 0.2, protectY: 3);
+        Erode(c, mat, rng, baseP: 0.02, topP: 0.2, protectY: 3);
         return c;
     }
 
@@ -704,7 +726,7 @@ public static class MonumentGenerator
             c.Set(x, height / 2, z1, mat.Rune, glow: mat.Glow);
         }
 
-        Erode(c, rng, baseP: 0.0, topP: 0.3, protectY: 3);
+        Erode(c, mat, rng, baseP: 0.0, topP: 0.3, protectY: 3);
         return c;
     }
 
@@ -745,7 +767,7 @@ public static class MonumentGenerator
         // the sarcophagus slab and a rune lintel over the passage
         c.Set(cx, 1, cz + 1, mat.Rune, ShapeCode.Pack(BlockShape.Slab, 0), mat.Glow);
         c.Set(cx, 3, 0, mat.Rune, glow: mat.Glow);
-        Erode(c, rng, baseP: 0.0, topP: 0.18, protectY: 2);
+        Erode(c, mat, rng, baseP: 0.0, topP: 0.18, protectY: 2);
         return c;
     }
 
@@ -788,7 +810,7 @@ public static class MonumentGenerator
             c.Set(cx + dx, 8, cz + 1, mat.Rune, glow: mat.Glow);
         }
 
-        Erode(c, rng, baseP: 0.0, topP: 0.25, protectY: 3);
+        Erode(c, mat, rng, baseP: 0.0, topP: 0.25, protectY: 3);
         return c;
     }
 
@@ -861,7 +883,7 @@ public static class MonumentGenerator
                 }
         }
 
-        Erode(c, rng, baseP: 0.0, topP: 0.2, protectY: 4);
+        Erode(c, mat, rng, baseP: 0.0, topP: 0.2, protectY: 4);
         return c;
     }
 
@@ -898,7 +920,7 @@ public static class MonumentGenerator
             }
         }
 
-        Erode(c, rng, baseP: 0.02, topP: 0.22, protectY: 3);
+        Erode(c, mat, rng, baseP: 0.02, topP: 0.22, protectY: 3);
         return c;
     }
 
@@ -997,7 +1019,7 @@ public static class MonumentGenerator
             c.Set(x, ty, cz + (x > 31 ? 1 : 0), bone);
         }
 
-        Erode(c, rng, baseP: 0.0, topP: 0.12, protectY: 0);
+        Erode(c, mat, rng, baseP: 0.0, topP: 0.12, protectY: 0);
         return c;
     }
 
@@ -1049,7 +1071,7 @@ public static class MonumentGenerator
             c.Set(cx + dx, 0, 1, bone);
         }
 
-        Erode(c, rng, baseP: 0.0, topP: 0.15, protectY: 1);
+        Erode(c, mat, rng, baseP: 0.0, topP: 0.15, protectY: 1);
         return c;
     }
 
@@ -1094,7 +1116,7 @@ public static class MonumentGenerator
         c.Set(1, 0, hz, bone);
         c.Set(0, 3, hz, bone); // a brow
 
-        Erode(c, rng, baseP: 0.0, topP: 0.1, protectY: 0);
+        Erode(c, mat, rng, baseP: 0.0, topP: 0.1, protectY: 0);
         return c;
     }
 
@@ -1108,6 +1130,10 @@ public static class MonumentGenerator
         public readonly int H;
         public readonly int L;
         public readonly List<SettlementMarker> Markers = new();
+
+        /// <summary>#3516: how the archetype asked to erode (top chance, protected rows, a gate's doorway) when the shared
+        /// ruin pass erodes it instead (<see cref="Materials.DeferErosion"/>); null until it asked.</summary>
+        public (double TopP, int ProtectY, (int MinX, int MaxX, int CZ, int Height)? Door)? Erosion;
 
         private readonly ushort[] _blocks;
         private readonly Dictionary<int, (int Tint, int Glow)> _mods = new();
@@ -1170,6 +1196,9 @@ public static class MonumentGenerator
         public SettlementStructure ToStructure(string archetype)
             => new(W, H, L, "monument:" + archetype, ruined: true, inhabitant: string.Empty,
                 _blocks, Markers, buildingCount: 1, _mods, _shapes);
+
+        /// <summary>The canvas as a ruin-pass grid (#3516) — the pass works right in its cells.</summary>
+        public VoxelGrid Grid() => VoxelGrid.Over(W, H, L, _blocks, _mods, _shapes);
 
         private bool In(int x, int y, int z) => x >= 0 && y >= 0 && z >= 0 && x < W && y < H && z < L;
 

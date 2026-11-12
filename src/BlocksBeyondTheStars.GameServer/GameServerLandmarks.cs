@@ -9,6 +9,7 @@ using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
+using BlocksBeyondTheStars.WorldGeneration.Sources;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -87,6 +88,10 @@ public sealed partial class GameServer
         public int Index;
         public bool Fresh;
         public LandmarkLayout? Layout;
+
+        /// <summary>The ruin-pass revision the landmark is built with (#3515): the newest for a fresh one, the pinned
+        /// <c>rev</c> for a record (1 when a record carries none).</summary>
+        public int Revision = LandmarkGenerator.RuinRevision;
     }
 
     private List<LandmarkInstance> _landmarks => _worlds.Active.Landmarks;
@@ -100,10 +105,10 @@ public sealed partial class GameServer
 
     /// <summary>Whether the active world may carry a landmark at all (the gate, the kind of body, the whitelist).</summary>
     private bool LandmarksAllowed(PlanetType planet, bool restricted)
-        => _config.PlaceLandmarks
-           && _generator.TerrainGeneration >= WorldDescription.LandmarkGeneration
-           && !planet.Void && !planet.IsGasWorld && !planet.IsAirless && !IsAsteroidBody(planet)
-           && (!restricted || planet.AllowedStructures.Contains(LandmarkRules.StructureKind));
+        => _config.PlaceLandmarks && StructureType(StructureTypeRules.Landmark) is { Enabled: true } rules // #3517: data/structure_types.json
+           && _generator.TerrainGeneration >= rules.MinGeneration
+           && StructureConditionsHold(StructureTypeRules.Landmark, planet) // not void, gas, airless or an asteroid, as shipped
+           && StructureKindAllowed(StructureTypeRules.Landmark, planet, restricted);
 
     /// <summary>An asteroid: a body of the asteroid-field kind, or a type of the asteroid family (the school club's KuBa-W too).</summary>
     private bool IsAsteroidBody(PlanetType planet)
@@ -159,7 +164,7 @@ public sealed partial class GameServer
     private LandmarkPlan? PlanLandmark(PlanetType planet, bool restricted)
     {
         double factor = System.Math.Clamp(_meta.Description.Settlements.StructureFactor(), 0.0, 2.0);
-        if (factor <= 0 || !LandmarkRolls(_meta.Seed, _world.LocationId, _config.LandmarkChance * factor))
+        if (factor <= 0 || !LandmarkRolls(_meta.Seed, _world.LocationId, StructureChance(StructureTypeRules.Landmark, _config.LandmarkChance) * factor))
         {
             return null;
         }
@@ -167,6 +172,14 @@ public sealed partial class GameServer
         var candidates = _content.LandmarksFor(_meta.Description.EnabledStructurePacks, planet.Key, atmosphere: !planet.IsAirless,
                 inhabited: InhabitedSettlementCount > 0, namedTypeOnly: restricted)
             .Where(t => LandmarkFitsBody(t, _world.Circumference)).ToList();
+        if (TemplatePipelineWorld)
+        {
+            // #3518: the generator entries after the authored landmarks (none: the same pick as before). Their size is the
+            // source's — the seat search decides whether one fits.
+            candidates.AddRange(_content.LandmarksFor(_meta.Description.EnabledStructurePacks, planet.Key, atmosphere: !planet.IsAirless,
+                inhabited: InhabitedSettlementCount > 0, namedTypeOnly: restricted, sources: true));
+        }
+
         if (candidates.Count == 0)
         {
             return null;
@@ -190,11 +203,11 @@ public sealed partial class GameServer
         {
             Template = template,
             Seed = unchecked((long)StableHashing.Mixed("landmark:" + body, _meta.Seed)),
-            Turns = StableHashing.Index("landmark:turn:" + body, _meta.Seed, 4),
+            Turns = template.IsSource ? 0 : StableHashing.Index("landmark:turn:" + body, _meta.Seed, 4), // #3518: an entry stands as built
             Fresh = true,
         };
         plan.Layout = BuildLandmarkLayout(plan);
-        if (!TrySeatLandmark(plan))
+        if (plan.Layout is null || !TrySeatLandmark(plan))
         {
             ReportStamp(LandmarkRules.RecordKind, 1, 0);
             return null;
@@ -218,8 +231,12 @@ public sealed partial class GameServer
         return planet.Biomes.Count > 0 ? planet.Biomes[0].SurfaceBlock : planet.SurfaceBlock;
     }
 
-    private LandmarkLayout BuildLandmarkLayout(LandmarkPlan plan)
-        => LandmarkGenerator.Build(plan.Template, plan.Seed, plan.Turns, _content, LandmarkSurfaceBlock());
+    /// <summary>The plan's layout: the authored body, or (#3518) a generator entry's build — null (warned) when its source can
+    /// no longer build it.</summary>
+    private LandmarkLayout? BuildLandmarkLayout(LandmarkPlan plan)
+        => plan.Template.IsSource
+            ? BuildSourceLandmark(plan.Template, plan.Seed, plan.Revision)
+            : LandmarkGenerator.Build(plan.Template, plan.Seed, plan.Turns, _content, LandmarkSurfaceBlock(), ruin: null, plan.Revision);
 
     /// <summary>What a landmark keeps clear of: every pad (with a wide margin), the wreck site, the settlements, the rail
     /// line and its ruin, the lodges, the Sounder sites, the fallen ruins, the monuments, the camps, the factories, the labs.</summary>
@@ -256,7 +273,8 @@ public sealed partial class GameServer
         bool buried = layout.GroundRow > 0;
         var policy = new SeatPolicy(AllowStilts: !buried, AllowLava: false, PreferRugged: false);
         bool SeatOk(Vector3i origin, string seat) => !buried || seat is "flat" or "slope";
-        if (!TryPlaceStructureGuaranteed(layout.Structure, RngFor(plan.Seed, "search"), LandmarkReserved(), wantIsland: false, policy,
+        if (!TryPlaceStructureGuaranteed(layout.Structure, RngFor(plan.Seed, "search"),
+                KeepClearFor(StructureTypeRules.Landmark, LandmarkReserved()), wantIsland: false, policy, // #3514: generation 38: the registry
                 avoidPlayerEdits: false, out var origin, out int groundY, out _, out string seat, seatOk: SeatOk))
         {
             return false;
@@ -269,13 +287,22 @@ public sealed partial class GameServer
     // ---------------------------------------------------------------- the record
 
     private static string LandmarkPin(LandmarkPlan plan)
-        => new MarkerSettings()
+    {
+        var pin = new MarkerSettings()
             .Set("turns", plan.Turns)
-            .Set("rev", LandmarkGenerator.RuinRevision)
-            .Set("seed", plan.Seed.ToString(CultureInfo.InvariantCulture))
-            .ToString();
+            .Set("rev", plan.Revision)
+            .Set("seed", plan.Seed.ToString(CultureInfo.InvariantCulture));
+        if (plan.Template.IsSource)
+        {
+            pin.Set(SourceTemplates.PinKey, plan.Template.Source); // #3518: built by a source — replayed only through one
+        }
 
-    /// <summary>The plan a placed record pins — null when its template is gone (the blocks stay, nothing is re-derived).</summary>
+        return pin.ToString();
+    }
+
+    /// <summary>The plan a placed record pins — null when its template is gone (the blocks stay, nothing is re-derived). #3518:
+    /// a record pinned to a generator entry (<c>src=…</c>) replays only through that entry's source, an authored record only
+    /// through an authored landmark — a key that changed sides is gone too.</summary>
     private LandmarkPlan? LandmarkPlanFromRecord(StructurePlacementRecord rec)
     {
         var template = _content.LandmarkByKey(rec.Template);
@@ -286,6 +313,14 @@ public sealed partial class GameServer
         }
 
         var pin = MarkerSettings.Parse(rec.KitLayout);
+        string pinnedSource = pin.Get(SourceTemplates.PinKey);
+        if (!string.Equals(pinnedSource, template.IsSource ? template.Source.Trim() : string.Empty, System.StringComparison.Ordinal))
+        {
+            _log.Warn($"Landmark '{rec.Template}' on '{_world.LocationId}' was built {(pinnedSource.Length > 0 ? "by the source '" + pinnedSource + "'" : "from its authored body")}, " +
+                      "which the content no longer holds under that key — its blocks stay, nothing else is restored.");
+            return null;
+        }
+
         long seed = long.TryParse(pin.Get("seed"), NumberStyles.Integer, CultureInfo.InvariantCulture, out long s)
             ? s
             : unchecked((long)StableHashing.Mixed("landmark:" + _world.LocationId, _meta.Seed));
@@ -294,6 +329,7 @@ public sealed partial class GameServer
             Template = template,
             Seed = seed,
             Turns = pin.GetInt("turns", 0),
+            Revision = pin.GetInt("rev", 1), // #3515: replay through the revision it was stamped with
             OriginX = rec.X,
             OriginZ = rec.Z,
             GroundY = rec.GroundY,
@@ -301,7 +337,7 @@ public sealed partial class GameServer
             Index = rec.Index,
         };
         plan.Layout = BuildLandmarkLayout(plan);
-        return plan;
+        return plan.Layout is null ? null : plan; // #3518: an entry whose source no longer builds — its blocks stay
     }
 
     /// <summary>Pins a fresh landmark, stamps its blocks once, then builds the runtime instance and what its markers become.</summary>
@@ -335,6 +371,7 @@ public sealed partial class GameServer
         }
 
         _landmarks.Add(instance);
+        RegisterFootprint(StructureTypeRules.Landmark, instance.Rect); // #3514
         MaterializeLandmark(instance);
         if (plan.Fresh)
         {

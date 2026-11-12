@@ -306,15 +306,11 @@ public sealed partial class GameServer
     /// <summary>Coins a trader (#2603, shared by the flight scene and the planet-side arrivals): a ship type — ANY defined
     /// non-starter type, weighted toward roomy cargo hulls so traffic reads as traders (enumerating
     /// <c>GameContent.Ships</c> means new ship types appear automatically) — a pilot's name and a hull tint, all drawn from
-    /// <paramref name="rng"/> in that order. Null when there is no ship content at all.</summary>
-    private NpcTrader? CoinTrader(System.Random rng)
+    /// <paramref name="rng"/> in that order. Null when there is no ship content at all. <paramref name="landing"/>: a planet-side
+    /// arrival, which only flies a hull that fits a landing pad (#3520).</summary>
+    private NpcTrader? CoinTrader(System.Random rng, bool landing = false)
     {
-        var pool = _content.Ships.Values.Where(s => s.Key != "starter").ToList();
-        if (pool.Count == 0)
-        {
-            pool = _content.Ships.Values.ToList();
-        }
-
+        var pool = TraderShipPool(landing);
         if (pool.Count == 0)
         {
             return null; // no ship content at all → nothing to fly
@@ -388,13 +384,27 @@ public sealed partial class GameServer
         return true;
     }
 
+    /// <summary>The trader ship candidates: every shipped type but the starter (only the starter when that is all there is),
+    /// then the user ships with the <c>npc</c> use (#3520) — appended, so a server without user ships draws exactly as before.</summary>
+    private List<ShipDefinition> TraderShipPool(bool landing)
+    {
+        var pool = _content.Ships.Values.Where(s => s.Key != "starter").ToList();
+        if (pool.Count == 0)
+        {
+            pool = _content.Ships.Values.ToList();
+        }
+
+        pool.AddRange(NpcUserShipDesigns(landing));
+        return pool;
+    }
+
     private ShipDefinition WeightedShip(List<ShipDefinition> pool, System.Random rng)
     {
-        int total = pool.Sum(s => System.Math.Max(1, _content.StartCargoSlots(s)));
+        int total = pool.Sum(s => System.Math.Max(1, _content.StartCargoSlots(s)) * UserShipWeight(s));
         int roll = rng.Next(total);
         foreach (var s in pool)
         {
-            roll -= System.Math.Max(1, _content.StartCargoSlots(s));
+            roll -= System.Math.Max(1, _content.StartCargoSlots(s)) * UserShipWeight(s);
             if (roll < 0)
             {
                 return s;
@@ -662,9 +672,9 @@ public sealed partial class GameServer
     private bool TryLandTraderOnBody(SpaceInstance instance, NpcTrader t)
     {
         var body = _galaxy.FindBody(t.DestBodyId);
-        if (body is null || _landedTraders.ContainsKey(t.DestBodyId))
+        if (body is null || _landedTraders.ContainsKey(t.DestBodyId) || UserShipTooWideToLand(t.ShipType))
         {
-            return false; // gone, or a trader is already parked there (one at a time)
+            return false; // gone, a trader is already parked there (one at a time), or a user hull wider than a pad (#3520)
         }
 
         string planetKey = body.PlanetType ?? _meta.DefaultPlanetType;
@@ -1241,7 +1251,7 @@ public sealed partial class GameServer
     private bool BringPlanetTraderIn(string bodyId, List<PlayerSession> present, System.Random rng)
     {
         var (marketPad, pad) = PickTraderPad(bodyId, present, hailedOwnersFirst: false, out bool found);
-        if (!found || CoinTrader(rng) is not { } t)
+        if (!found || CoinTrader(rng, landing: true) is not { } t)
         {
             return false;
         }

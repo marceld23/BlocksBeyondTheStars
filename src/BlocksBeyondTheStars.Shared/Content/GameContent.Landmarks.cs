@@ -18,8 +18,8 @@ public sealed partial class GameContent
 
     /// <inheritdoc cref="StructureCatalog.LandmarksFor"/>
     public IReadOnlyList<StructureTemplate> LandmarksFor(IReadOnlyCollection<string>? enabledPacks, string? planetType,
-        bool atmosphere, bool inhabited, bool namedTypeOnly = false)
-        => _structures.LandmarksFor(enabledPacks, planetType, atmosphere, inhabited, namedTypeOnly);
+        bool atmosphere, bool inhabited, bool namedTypeOnly = false, bool sources = false)
+        => _structures.LandmarksFor(enabledPacks, planetType, atmosphere, inhabited, namedTypeOnly, sources);
 
     /// <summary>Populates the landmark pool (#3484). Beside <see cref="LandmarkRules.Problems"/> a landmark is dropped
     /// (with a warning) when a block of its body does not exist — a landmark never breaks the load.</summary>

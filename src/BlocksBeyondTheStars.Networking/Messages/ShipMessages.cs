@@ -132,6 +132,11 @@ public sealed class NetOwnedShip
     /// <summary>The ship's fitted module keys (#1268) — the Fleet tab lists what each hangar ship carries.
     /// New field on an existing contractless MessagePack message: an older client ignores it.</summary>
     public string[] Modules { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>#3520: the literal name of a ship the client cannot resolve from its content — a user ship from the server's
+    /// <c>usercontent/ship_types/</c> (which also fills <see cref="FlightSpeed"/>/<see cref="Handling"/>, the #949 pattern).
+    /// Empty = name it by its locale key as before. New field on a contractless message: an older client ignores it.</summary>
+    public string Name { get; set; } = string.Empty;
 }
 
 /// <summary>The player's owned ships and which is active (sent on join and on change).</summary>

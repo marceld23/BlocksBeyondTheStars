@@ -27,8 +27,18 @@ public static class LandmarkRules
     public const string ProfileLattice = "lattice";
     public const string ProfileUnderground = "underground";
 
+    /// <summary>#3515: the ruin profile of a wreck — a hull with no ground (breaches, scorch, smashed glass, dead lights;
+    /// what settles is what no longer hangs on the largest piece). The shared ruin pass knows it; a landmark does not take
+    /// it (a landmark stands on the ground and needs its rubble and flora), so it is not in <see cref="Profiles"/>.</summary>
+    public const string ProfileHull = "hull";
+
     public static readonly string[] RuinModes = { RuinNever, RuinAlways };
+
+    /// <summary>The ruin profiles a LANDMARK template may name (the editor cycles through these).</summary>
     public static readonly string[] Profiles = { ProfileMasonry, ProfileLattice, ProfileUnderground };
+
+    /// <summary>Every profile the shared ruin pass knows: the landmark ones plus <see cref="ProfileHull"/>.</summary>
+    public static readonly string[] AllProfiles = { ProfileMasonry, ProfileLattice, ProfileUnderground, ProfileHull };
 
     public const string RequiresAtmosphere = "atmosphere";
     public const string RequiresInhabited = "inhabited";
@@ -90,11 +100,12 @@ public static class LandmarkRules
         return false;
     }
 
-    /// <summary>What is wrong with a landmark template, one sentence each — empty when it is fine.</summary>
+    /// <summary>What is wrong with a landmark template, one sentence each — empty when it is fine. A generator entry (#3518)
+    /// has no size of its own (its source builds it), so only its sizes that are set are checked.</summary>
     public static List<string> Problems(StructureTemplate t)
     {
         var problems = new List<string>();
-        if (t.Width <= 0 || t.Height <= 0 || t.Length <= 0)
+        if (!t.IsSource && (t.Width <= 0 || t.Height <= 0 || t.Length <= 0))
         {
             problems.Add("it has no size");
         }
@@ -110,7 +121,9 @@ public static class LandmarkRules
 
         if (t.RuinProfile.Length > 0 && Array.FindIndex(Profiles, p => string.Equals(p, t.RuinProfile, StringComparison.OrdinalIgnoreCase)) < 0)
         {
-            problems.Add($"unknown ruin profile '{t.RuinProfile}' (masonry | lattice | underground)");
+            problems.Add(string.Equals(t.RuinProfile, ProfileHull, StringComparison.OrdinalIgnoreCase)
+                ? "the ruin profile 'hull' is for wrecks, not landmarks (masonry | lattice | underground)"
+                : $"unknown ruin profile '{t.RuinProfile}' (masonry | lattice | underground)");
         }
 
         if (t.RuinStrength < 0 || t.RuinStrength > 1)
