@@ -1129,9 +1129,10 @@ public sealed partial class GameServer
         }
 
         var (systemName, planetName) = ActiveLocationNames();
-        OnPlayerTravelled(session, body.Id, body.Name); // complete any "travel to a place" mission objective (item 31)
         if (!session.Spectating)
         {
+            OnPlayerTravelled(session, body.Id, body.Name); // complete any "travel to a place" mission objective (item 31) — #3502: not by watching
+
             if (IsGuardianSystemLocation(body.Id))
             {
                 TryStartStoryTrack(session); // #2470: never leave a player in the finale without its story
@@ -1552,8 +1553,11 @@ public sealed partial class GameServer
 
     /// <summary>Writes a player's whole fleet to the save (#848): every owned ship under its own key, the
     /// active one additionally under the legacy key, and the fleet index onto the player record. The caller
-    /// persists the player state itself (or calls <see cref="PersistFleet"/>, which does both).</summary>
-    private void SaveFleet(PlayerSession session)
+    /// persists the player state itself (or calls <see cref="PersistFleet"/>, which does both). #3503: an invisible admin's
+    /// ship is written on the body it stood on when admin mode started, wherever the admin hovers.</summary>
+    private void SaveFleet(PlayerSession session) => WithAdminEntryShipBody(session, () => SaveFleetRows(session));
+
+    private void SaveFleetRows(PlayerSession session)
     {
         var p = session.State;
         // Ships whose rows failed to load this session stay in the index (#1275): never prune what we could not read.
@@ -2617,6 +2621,10 @@ public sealed partial class GameServer
         // a dying host's guest goes home before the respawn takes the ship away.
         EndShipVisitsOf(session);
         EndCreatureDuelOf(session.State.PlayerId, DuelEnd.Lost); // #3365: a duel with a Soundi ends — try again any time
+        if (!session.Respawn.SparedByPvp)
+        {
+            AdminEventDeath(session, reason); // #3506: the admin view logs the death and its cause (a PvP defeat logs itself)
+        }
 
         var p = session.State;
         bool dropSalvage = !Rules.KeepInventoryOnDeath && !session.Respawn.SparedByPvp && // #2972: a PvP defeat costs nothing
@@ -4256,6 +4264,7 @@ public sealed partial class GameServer
             TerrainGeneration = _meta.Description.TerrainGeneration, // #1644
             TerrainLavaCoreVolcanoes = _meta.Description.LavaCoreVolcanoes, // #2172: the planet map previews need it too
             ContentFingerprint = _content.BlockFingerprint, // #2222: the client checks it against its own
+            AdminCallSupported = true, // #3508: "Call an admin" is filed here — the client offers it only then
         });
         session.AnnouncedWorldId = WorldIdOf(state.CurrentLocationId); // #2117
         SendInventory(session);
@@ -4353,6 +4362,7 @@ public sealed partial class GameServer
 
         session.InJoinPlacement = false; // #2465: from here on, what happens is the player's doing
         _log.Info($"Player '{name}' joined (connection {connectionId}).");
+        AdminEventJoin(session); // #3506: the admin view's log
     }
 
     /// <summary>SHA-256 hex of a join token; empty/missing token → empty hash (name stays unclaimed).
@@ -4644,7 +4654,7 @@ public sealed partial class GameServer
         OnMarkerOwnerJoined(session); // the loaded state is the truth for this player's shared markers (#1293)
         RestoreStationOnJoin(session, savedLocation, savedPosition); // #1925: saved aboard a station → back on it
         TellOwnerOfStationsCommissionedAway(session); // #2492: like the network join
-        session.InJoinPlacement = false; // #2465
+        EndLocalJoinPlacement(session); // #2465 the join's own placement is over; #3506 the admin view logs the join
         return session;
     }
 
@@ -5147,6 +5157,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (session.Spectating && ObserverMineRefusal(pos, def) is { } observerRefusal)
+        {
+            Reject(session, "mine", observerRefusal); // #3503: an observer never destroys what a crate holds
+            return;
+        }
+
         var tool = ActiveTool(session.State);
         if (!ToolCanMine(tool, def))
         {
@@ -5183,6 +5199,12 @@ public sealed partial class GameServer
         {
             _miningProgress[pos] = (current.Value, progress);
             Send(session, new MiningProgress { X = pos.X, Y = pos.Y, Z = pos.Z, Fraction = progress / hardness });
+            return;
+        }
+
+        if (session.Spectating)
+        {
+            ObserverBreak(session, pos, def); // #3503: one block, no items, logged
             return;
         }
 
@@ -5337,7 +5359,8 @@ public sealed partial class GameServer
         }
 
         // #2201: what a player breaks also yields a sample of its species (a plant, a tree) or of its deposit (an ore).
-        if (session is not null)
+        // #3503: not for an observer — the moderation lever yields nothing.
+        if (session is not null && !session.Spectating)
         {
             BioOnBlockBroken(session, pos, def, current.Value, bredSeed, naturalDeposit);
         }
@@ -5373,9 +5396,9 @@ public sealed partial class GameServer
 
         OnSupportRemoved(pos); // #1319: a granular block above a mined cell settles down
 
-        if (session is null)
+        if (session is null || session.Spectating)
         {
-            return; // a machine's break: no VEGA, no mission progress, no flowerling grudge
+            return; // a machine's break (#3503: or an observer's): no VEGA, no mission progress, no flowerling grudge
         }
 
         OnBlockMined(session, def.Key);
@@ -6157,7 +6180,10 @@ public sealed partial class GameServer
     }
 
     private void CheatLog(PlayerState admin, string message)
-        => _log.Info($"[CHEAT] Admin {admin.Name} {message}.");
+    {
+        _log.Info($"[CHEAT] Admin {admin.Name} {message}.");
+        AdminEventCheat(admin, message); // #3506: the admin view's log keeps every admin action too
+    }
 
     /// <summary>Per-player mode override (#1121): <c>/mode &lt;player&gt; survival|creative|world</c> — the
     /// world admin lets one player play by another mode's rules than the world's (kid = creative flight +
@@ -6438,7 +6464,7 @@ public sealed partial class GameServer
 
                 SaveFleet(session); // each player's own ships; also refreshes the fleet index on their state
                 session.State.LastSeenUtc = WallUtcNowIso(); // #2595: online right now — "last seen" stays current
-                _repo.SavePlayer(session.State);
+                SavePlayerRecord(session); // #3503: an invisible admin is saved at the admin mode's entry point
             }
 
             CheckpointLootPackets(); // #1367: expiring drop packets carry their exact age across a shutdown
@@ -6532,6 +6558,13 @@ public sealed partial class GameServer
             }
 
             HandlePlayerReport(session, text.Substring("/report".Length).Trim());
+            return;
+        }
+
+        // #3507/#3508: "/r Text" answers in the direct chat, "/admin Text" calls an admin — before the radio gate and the mute
+        // check for the same reason as /report (the call for help must always get through; /r applies the mute itself).
+        if (TryHandleAdminChatCommand(session, text))
+        {
             return;
         }
 
@@ -6715,6 +6748,9 @@ public sealed partial class GameServer
             InTrain = p.InTrain, // #2113
             TrainSeat = p.TrainSeat,
             Spectating = session.Spectating,
+            Role = (byte)p.Role, // #3503: the client learns its own role (self only, never in the presence)
+            AdminMode = session.Admin.Mode,
+            AdminModeAvailable = AdminModeAvailableFor(session),
             // A creative world lets everybody fly; a per-player Creative override (#1121) grants it too;
             // /fly keeps working as the per-player admin cheat.
             CanFly = Rules.CreativeFlightFor(p.ModeOverride) || p.Fly,
@@ -6839,10 +6875,15 @@ public sealed partial class GameServer
         // points, no frontier growth, no achievements, no knowledge.
         if (session.Spectating || silent)
         {
-            session.State.LandedBodies.Add(body.Id);
-            if (!string.IsNullOrEmpty(body.SystemId))
+            // #3502: the invisible admin mode books nothing at all — its save is the entry point, so no rejoin ever lands
+            // here, and a body only watched must not become a quick-travel target or a known system of the admin's own play.
+            if (session.Admin.Mode != AdminModes.Invisible)
             {
-                session.State.KnownSystems.Add(body.SystemId);
+                session.State.LandedBodies.Add(body.Id);
+                if (!string.IsNullOrEmpty(body.SystemId))
+                {
+                    session.State.KnownSystems.Add(body.SystemId);
+                }
             }
 
             SendExploredMap(session, body.Id);
@@ -6942,7 +6983,8 @@ public sealed partial class GameServer
         string[] modeValues = System.Array.Empty<string>();
         if (session.State.IsAdmin)
         {
-            var online = _sessions.Values.Where(s => s.Joined).OrderBy(s => s.State.Name).Take(24).ToList();
+            // #3504: an observer is not on the roster — it is the player list of an admin who may be no observer at all
+            var online = _sessions.Values.Where(s => s.Joined && !s.Spectating).OrderBy(s => s.State.Name).Take(24).ToList();
             modeNames = online.Select(s => s.State.Name).ToArray();
             modeValues = online.Select(s => s.State.ModeOverride.ToString()).ToArray();
         }

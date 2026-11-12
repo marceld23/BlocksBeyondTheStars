@@ -158,6 +158,7 @@ public sealed partial class GameServer
             case ChatVerdict.Block:
                 _log.Info($"Chat filter: dropped a line from '{who}' ({(result.Pii ? "personal data: " : "term: ")}{result.MatchedTerm}).");
                 Send(session, new ServerMessage { Text = result.Pii ? "@srv.chat.pii_blocked" : "@srv.chat.blocked" });
+                AdminEventModeration(result.Pii ? "admin.ev.filter_pii" : "admin.ev.filter_blocked", null, session); // #3506
                 NoteChatFilterHit(session); // #1208: keep doing this and the channel goes quiet for a while
                 return null;
             case ChatVerdict.Mask:
@@ -167,6 +168,7 @@ public sealed partial class GameServer
                     Send(session, new ServerMessage { Text = "@srv.chat.masked" });
                 }
 
+                AdminEventFilterMasked(session); // #3506: never the line, only that it happened (at most every 30 s per player)
                 NoteChatFilterHit(session); // #1208
                 return result.Text;
             default:
@@ -414,6 +416,7 @@ public sealed partial class GameServer
         _log.Info($"Chat auto-mute: '{who}' muted for {minutes} min ({why}).");
         NotifyOperator($"chat auto-mute [{_meta.WorldName}]",
             $"Player '{who}' was muted for {minutes} minutes ({why}).", "mute");
+        AdminEventModeration("admin.ev.auto_mute", null, session, minutes.ToString(System.Globalization.CultureInfo.InvariantCulture)); // #3506
     }
 
     /// <summary>Drops the timestamps that have fallen out of a sliding window.</summary>
@@ -490,6 +493,7 @@ public sealed partial class GameServer
             target.Chat.RecentFilterHitsAt.Clear();
             Send(target, new ServerMessage { Text = "@srv.chat.unmuted" });
             _log.Info($"Chat un-silenced: '{who}' by '{admin.State.Name}'.");
+            AdminEventModeration("admin.ev.unsilence", admin, target, admin.State.Name ?? "?"); // #3506
             return "@srv.admin.unsilenced:" + who;
         }
 
@@ -500,6 +504,8 @@ public sealed partial class GameServer
         _log.Info($"Chat silenced: '{who}' for {span} min by '{admin.State.Name}'.");
         NotifyOperator($"chat silenced [{_meta.WorldName}]",
             $"Admin '{admin.State.Name}' paused '{who}' chat for {span} minutes.", "mute");
+        AdminEventModeration("admin.ev.silence", admin, target, admin.State.Name ?? "?",
+            span.ToString(System.Globalization.CultureInfo.InvariantCulture)); // #3506
         return "@srv.admin.silenced:" + who;
     }
 
@@ -560,6 +566,7 @@ public sealed partial class GameServer
                              $"'{ownerName}' at {x},{y},{z} on {planet} (world '{_meta.WorldName}'). " +
                              $"Review with /{kind}wipe #{designId} (or by owner name).";
         NotifyOperator($"{kind} report [{_meta.WorldName}]", description, "triangular_flag_on_post");
+        FileContentReportRow(kind, session, designId, ownerId, ownerName, planet, x, y, z); // #3508: the world's admins see it too
         PostReportToInbox(
             $"{kind} report [{_meta.WorldName}]: #{designId} by '{ownerName}'",
             description,
@@ -650,6 +657,7 @@ public sealed partial class GameServer
             _log.Info($"Kicking '{session.State.Name}'{(reason.Length > 0 ? $" ({reason})" : string.Empty)}.");
             SendTo(session.ConnectionId, new JoinRejected { Reason = reason });
             _kickFlush.Add((session.ConnectionId, KickFlushSeconds));
+            AdminEventModeration("admin.ev.kick", null, session); // #3506: an admin's /kick and the portal's alike
         }
     }
 }

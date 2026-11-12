@@ -477,7 +477,9 @@ namespace BlocksBeyondTheStars.Client
                 // panel came up stays open and ApplyGravityOnly keeps its slow sink (#2296) — a plunge at full gravity
                 // behind a menu would be a fall the player never chose.
                 UpdateJetpack(false);
-                if (string.IsNullOrEmpty(Game.InSpeeder) && _seatCell is null && _restCell is null)
+                // #3509: an observer (the invisible admin mode with its panel open) hovers — its controller is off for the
+                // noclip flight, and gravity has nothing to move.
+                if (string.IsNullOrEmpty(Game.InSpeeder) && _seatCell is null && _restCell is null && !Game.Spectating)
                 {
                     StepGiantRide(); // #3467: a giant's back keeps carrying you while the inventory is open
                     ApplyGravityOnly(); // seated: the controller is disabled and the chair holds us anyway; resting: we stand still

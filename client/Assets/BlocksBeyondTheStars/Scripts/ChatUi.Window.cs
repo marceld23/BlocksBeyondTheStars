@@ -82,7 +82,7 @@ namespace BlocksBeyondTheStars.Client
             if (OnScreenKeyboardUi.WantedFor())
             {
                 // The keyboard first: the window lays itself out above the keyboard's panel from its very first frame.
-                OpenPadKeyboard();
+                OpenPadKeyboard(TakeReplyPrefill()); // #3507: "/r " ready after an admin's line
                 OpenWindow(ChatWindowMode.Pad);
                 return;
             }
@@ -93,6 +93,7 @@ namespace BlocksBeyondTheStars.Client
             // under an inactive parent — the row then appeared but took no keys, and neither Enter nor Esc could get the
             // player out.
             _input.ActivateInputField();
+            PrefillReply(); // #3507: "/r " ready after an admin's line (ChatUi.Direct.cs)
         }
 
         private void OpenWindow(ChatWindowMode mode)
@@ -339,9 +340,9 @@ namespace BlocksBeyondTheStars.Client
             RefreshBig();
         }
 
-        private void OpenPadKeyboard()
+        private void OpenPadKeyboard(string initial = "")
         {
-            OnScreenKeyboardUi.Open(L("ui.chat.hint"), string.Empty, _input != null ? _input.characterLimit : 0,
+            OnScreenKeyboardUi.Open(L("ui.chat.hint"), initial ?? string.Empty, _input != null ? _input.characterLimit : 0,
                 OnPadDone, OnPadCancel, dim: false); // the history above the keyboard stays readable
         }
 

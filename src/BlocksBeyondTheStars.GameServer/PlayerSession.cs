@@ -110,8 +110,12 @@ public sealed class PlayerSession
     /// <summary>Observer mode (issue #487): this player is invisible to everyone — no presence, no avatar, no
     /// nameplate — leaves no footprint in the world (no parked ship, no landing pad, no fauna) and is ignored by
     /// creatures. Session-scoped, never persisted: a crash or reconnect always drops back to normal play, which
-    /// is the safe default. Only ever set for <see cref="IsFleetAdmin"/> sessions.</summary>
+    /// is the safe default. Set for a fleet admin's <c>/spectate</c> and for the invisible admin mode (#3503), which world
+    /// admins may enter too — except on an official hosted world, where only a fleet admin goes invisible.</summary>
     public bool Spectating { get; set; }
+
+    /// <summary>The admin view (#3502): admin mode, its entry point, the open panel and the direct-chat conversations.</summary>
+    public PlayerSessionAdmin Admin { get; } = new();
 
     /// <summary>Chat rate limit, anti-spam windows and report evidence of this connection (#1208, #1222).</summary>
     public PlayerSessionChat Chat { get; } = new();

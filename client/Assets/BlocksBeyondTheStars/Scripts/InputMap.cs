@@ -78,6 +78,10 @@ namespace BlocksBeyondTheStars.Client
         // on foot, the speeder's boost reads it only while driving); the pad's left-stick click (shared with ContextActions:
         // moving = run, standing = the list) and the touch RUN button switch it on while moving.
         Sprint,
+
+        // #3503: the admin view (the panel of the in-game admin mode), appended so no existing value moves. Only read for a
+        // player the server lets into it (NetworkClient.HasAdminView); a pad reaches it through the pause menu's Admin button.
+        AdminMode,         // enter admin mode and open its panel / toggle the panel while in it — default F8
     }
 
     /// <summary>
@@ -169,6 +173,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.PlanetMap, InputAction.VegaContinue, InputAction.ContextActions,
             InputAction.PingMarker, InputAction.FeedCreature, // #2282: Feed was in no group, so Q could not be rebound
             InputAction.Sprint, // #3374
+            InputAction.AdminMode, // #3503: F8 — the admin view
         };
 
         /// <summary>Flight / EVA actions exposed as a second rebinding group.</summary>
@@ -250,6 +255,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.FlightTargetHostile => KeyCode.R,
             InputAction.FlightTargetAhead => KeyCode.Mouse1,
             InputAction.Sprint => KeyCode.LeftShift, // #3374: free on foot; SpeederBoost reads the same key only while driving
+            InputAction.AdminMode => KeyCode.F8, // #3503: one of the free function keys, far from the movement hand
             _ => KeyCode.None,
         };
 
@@ -566,6 +572,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.FlightTargetHostile => "ui.key.flight_target_hostile",
             InputAction.FlightTargetAhead => "ui.key.flight_target_ahead",
             InputAction.Sprint => "ui.key.sprint",
+            InputAction.AdminMode => "ui.key.admin_mode",
             _ => string.Empty,
         };
 

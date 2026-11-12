@@ -660,8 +660,9 @@ namespace BlocksBeyondTheStars.Client
             // Path A — rich server snapshot via the existing /bump pipeline (meaningful on own/SP servers). The
             // reply key rides along (#1359) so the server's forwarded row carries the same thread credential as
             // the direct upload below: the inbox pairs the two rows by it, and an answer on either one reaches us.
+            // #3508: the title also travels on its own — the world's admins see that field only, never the description.
             string serverNote = string.IsNullOrEmpty(title) ? desc : title + " — " + desc;
-            Game?.Network?.SendBumpReport("[feedback] " + serverNote, jpg ?? Array.Empty<byte>(), AppShell.Version, _replyKey);
+            Game?.Network?.SendBumpReport("[feedback] " + serverNote, jpg ?? Array.Empty<byte>(), AppShell.Version, _replyKey, title);
 
             // Path B — client-direct upload to the report inbox. The body is serialized ONCE here on the
             // main thread; only the POST leaves the game loop.

@@ -215,6 +215,12 @@ namespace BlocksBeyondTheStars.Client
             string worldId = Game.HostedWorldId;
             var portal = new PortalClient(portalUrl);
             var result = await Task.Run(() => portal.Report(session, playerName, "other", "in-game report", worldId));
+            if (result.Ok)
+            {
+                // #3508: the world's own admins see it too — flagged, so the server files it without forwarding it again.
+                Game?.Network?.SendPlayerReport(playerName, string.Empty, alsoFiledWithPortal: true);
+            }
+
             if (button == null)
             {
                 return; // menu closed while the request ran

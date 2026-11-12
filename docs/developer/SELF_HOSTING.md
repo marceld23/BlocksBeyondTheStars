@@ -194,9 +194,18 @@ configuration: names in `BBS_ADMINS` and a verified `BBS_WORLD_OWNER` keep their
 powers because those were never a role. Off by default; leave it off for a normal community server, or nobody can
 change its world rules in-game.
 
-`BBS_FLEET_ADMINS` is a step above and means "operator of this installation". It is the only thing that unlocks
-the invisible **observer mode** (`/spectate`) and the cross-body `/goto`, because those reach into worlds other
-people own. Two deliberate properties:
+**The in-game admin view** (F8, [ADMIN_MODE.md](ADMIN_MODE.md)) — players and positions, event log, direct chat,
+reports, jump and follow — is open to every admin of a world, without cheats. On a self-hosted, LAN or singleplayer
+world a world admin uses it **invisibly** (no damage, free flight). On an official hosted fleet world (an instance with
+a join-token secret) a world owner who is not a fleet admin gets the **visible** variant only: the panel, but no
+invisibility, jump or follow, no positions (the body only), and their direct lines are screened and logged — a
+child-safety rule. There, a player's "Call an admin" also reaches the operators (notify channel + report inbox,
+`reportType` `admin-call`), since the owner may be away for days. Reports filed in the world are stored in the save's
+`player_report` table, so a world admin sees them even when no report inbox is configured.
+
+`BBS_FLEET_ADMINS` is a step above and means "operator of this installation". It unlocks the invisible **observer
+mode** (`/spectate`) and the cross-body `/goto` everywhere, and the invisible admin view on hosted worlds, because those
+reach into worlds other people own. Two deliberate properties:
 
 - It is **never written into a save.** Roles live in the player record, and player records travel with an
   exported/re-uploaded world — an operator-level role stored there would follow the world onto machines the

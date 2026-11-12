@@ -200,6 +200,20 @@ public sealed class PlayerStateUpdate
     /// presence at all while it is set.</summary>
     public bool Spectating { get; set; }
 
+    /// <summary>#3503: the player's own role (<c>Shared.State.PlayerRole</c> as a byte: 0 Player, 1 Moderator, 2 Admin,
+    /// 3 WorldAdmin). Self only — never part of <see cref="PlayerPresence"/>. New field on an existing contractless
+    /// MessagePack message: an older client ignores it, an older server leaves it 0.</summary>
+    public byte Role { get; set; }
+
+    /// <summary>#3503: the admin mode the player is in (<see cref="AdminModes"/>: 0 off, 1 invisible, 2 visible — the panel
+    /// only). Self only; an older server leaves it 0.</summary>
+    public byte AdminMode { get; set; }
+
+    /// <summary>#3503: the admin mode this player would get (<see cref="AdminModes"/>): 0 = no access to the admin view (the
+    /// client hides F8 and the pause menu's Admin button), 1 = the invisible mode, 2 = the visible variant of an official
+    /// hosted world's owner. Self only; an older server leaves it 0.</summary>
+    public byte AdminModeAvailable { get; set; }
+
     /// <summary>This world lets the player fly freely (Creative/Sandbox worlds, or the <c>/fly</c> cheat).
     /// The client offers the double-tap-jump toggle only while this is set. New field on an existing
     /// contractless MessagePack message: an older client ignores it, an older server leaves it false.</summary>

@@ -73,8 +73,15 @@ public sealed partial class GameServer
         // in the same poll as the join, before the next tick lifts the hold — dropping them left the newcomer in the
         // default colours with no face or paint for everyone.
         SetAppearanceIntent or SetFaceIntent or SetBodyPaintIntent or SetToolLookIntent => true,
-        _ => false,
+        _ => AdminViewMayPassAHold(message),
     };
+
+    /// <summary>#3502: the admin view is reached from the pause menu (its Admin button, "Call an admin") and its panel may hold
+    /// a singleplayer world. Entering or leaving admin mode moves nobody but the admin; the panel, the direct chat, the report
+    /// list and a report change no simulated state. (The jump needs the invisible mode, which is observer mode and passes the
+    /// hold anyway.)</summary>
+    private static bool AdminViewMayPassAHold(object message)
+        => message is AdminModeIntent or AdminPanelIntent or DirectChatIntent or AdminReportAction or CallAdminIntent or PlayerReportIntent;
 
     /// <summary>#3370: what a body waiting for the respawn choice (#462) may still send. It lies dead at the death spot at
     /// 0 HP for up to 30 s; the server used to ignore only its moves and its shots, so it could mine, build, open doors,

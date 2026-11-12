@@ -202,6 +202,13 @@ public sealed partial class GameServer
         On<CoreHackIntent>(map, (gs, s, m) => gs.HandleCoreHack(s, m));
         On<CoreDialogueChoiceIntent>(map, (gs, s, m) => gs.HandleCoreDialogueChoice(s, m));
         On<RequestStoryResolutionIntent>(map, (gs, s, _) => gs.HandleRequestStoryResolution(s)); // #1124: watch the ending again
+        On<AdminModeIntent>(map, (gs, s, m) => gs.HandleAdminMode(s, m)); // #3503 enter / leave admin mode
+        On<AdminPanelIntent>(map, (gs, s, m) => gs.HandleAdminPanel(s, m)); // #3505/#3506 the panel streams while open
+        On<AdminJumpIntent>(map, (gs, s, m) => gs.HandleAdminJump(s, m)); // #3505
+        On<DirectChatIntent>(map, (gs, s, m) => gs.HandleDirectChat(s, m)); // #3507
+        On<AdminReportAction>(map, (gs, s, m) => gs.HandleAdminReportAction(s, m)); // #3508
+        On<CallAdminIntent>(map, (gs, s, m) => gs.HandleCallAdmin(s, m.Text)); // #3508 "Call an admin"
+        On<PlayerReportIntent>(map, (gs, s, m) => gs.HandlePlayerReportIntent(s, m)); // #3508 (also the portal mirror)
         return map;
     }
 

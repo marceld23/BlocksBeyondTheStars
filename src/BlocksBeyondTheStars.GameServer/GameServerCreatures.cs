@@ -65,6 +65,7 @@ public sealed partial class GameServer
     // world had loaded last. Read them where they are used: a reference kept across a world switch is the old world's.
     private CreatureSpecies[] _speciesRoster { get => _worlds.Active.SpeciesRoster; set => _worlds.Active.SpeciesRoster = value; }
     private readonly List<PlayerSession> _creatureTargets = new(); // reused per tick (no per-tick LINQ alloc)
+    private readonly List<PlayerSession> _creatureReactors = new(); // #3502: the targets without observers — who animals react to
     private Dictionary<string, CreatureSpecies> _speciesById => _worlds.Active.SpeciesById;
     private Dictionary<string, LocomotionProfile> _locoProfiles => _worlds.Active.LocoProfiles; // per-species movement tuning
     private List<CombatEntity> _creatures => _worlds.Active.Creatures;
@@ -261,21 +262,14 @@ public sealed partial class GameServer
             BroadcastCreatures();
         }
 
-        // Reuse a field list instead of allocating a fresh Where(...).ToList() every tick (15 Hz).
-        _creatureTargets.Clear();
-        foreach (var s in JoinedInActiveWorld())
-        {
-            if (!s.State.AboardShip && !InSpace(s.State.PlayerId))
-            {
-                _creatureTargets.Add(s);
-            }
-        }
-
+        FillCreatureTargets();
         var targets = _creatureTargets;
         if (targets.Count == 0)
         {
             return;
         }
+
+        var reactors = _creatureReactors;
 
         // #1717: the cadence and the fill gate read the SAME ceiling the spawner enforces. The model alone can
         // reach ~200 on a huge lush world with the Extreme rule and four players; TrySpawnCreatureNear clamps
@@ -301,12 +295,12 @@ public sealed partial class GameServer
 
         // #900: in a storm, a blizzard or an ion squall the wildlife hunkers down — same movement code,
         // just a slower clock, so herds visibly settle while the weather rages and pick up again after.
-        if (MoveCreatures(targets, dt * WeatherCreatureActivity()))
+        if (MoveCreatures(reactors, dt * WeatherCreatureActivity()))
         {
             BroadcastCreatures(); // a boxed-in sleeper was removed (#1320)
         }
 
-        TickCalmGifts(targets); // #1760: a calm flowerling spills a gift for a player who has not been mining
+        TickCalmGifts(reactors); // #1760: a calm flowerling spills a gift for a player who has not been mining
 
         // Despawn creatures that drifted far from every player so the cap frees up and fauna keeps
         // appearing around players as they explore — life is spread across the whole planet, not just
@@ -387,7 +381,7 @@ public sealed partial class GameServer
             // client's lunge and attack call use the same reach, so no bite lands silently any more.
             float prox = CreatureReach.BiteRange(sp.Size);
 
-            foreach (var session in targets)
+            foreach (var session in reactors)
             {
                 var p = session.State;
                 // Cloaked, god-mode, creative-override (#1121) and Sandbox (#2712) players aren't detected — nor is a body awaiting
@@ -423,6 +417,28 @@ public sealed partial class GameServer
                     {
                         RespawnPlayer(session, "@srv.death.wildlife");
                     }
+                }
+            }
+        }
+    }
+
+    /// <summary>Fills the two per-tick player lists (reused fields — no per-tick LINQ allocation at 15 Hz): every player on
+    /// foot in the active world (<see cref="_creatureTargets"/>) keeps the population and the pruning going — an observer's
+    /// view must not empty the land — but only the players who are really there make an animal react
+    /// (<see cref="_creatureReactors"/>, #3502): an observer wakes no sleeper, scares no skittish animal off, draws no Soundrak
+    /// scream and no VEGA announcement, earns no calm gift and is nobody's prey.</summary>
+    private void FillCreatureTargets()
+    {
+        _creatureTargets.Clear();
+        _creatureReactors.Clear();
+        foreach (var s in JoinedInActiveWorld())
+        {
+            if (!s.State.AboardShip && !InSpace(s.State.PlayerId))
+            {
+                _creatureTargets.Add(s);
+                if (!s.Spectating)
+                {
+                    _creatureReactors.Add(s);
                 }
             }
         }

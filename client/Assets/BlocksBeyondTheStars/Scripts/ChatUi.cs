@@ -67,6 +67,7 @@ namespace BlocksBeyondTheStars.Client
             UpdateContextVisibility();
             UpdateWindowFrame(); // the big window: yields, refocus, scrolling, re-layout (ChatUi.Window.cs)
             UpdateLaneFrame();   // the compact lane: VEGA flips and the fade tick (ChatUi.Lane.cs)
+            UpdateReplyCaret();  // #3507: a "/r " put into the field lands with the caret after it (ChatUi.Direct.cs)
             HandleKeys();
         }
 
@@ -80,6 +81,7 @@ namespace BlocksBeyondTheStars.Client
                 // whichever line came last. The toast path stays — chat is the readable copy.
                 Game.Network.ServerMessageReceived += OnServerMessage;
                 Game.Network.ActionRejected += OnActionRejected;
+                Game.Network.DirectChatReceived += OnDirectChat; // #3507: the admin's lines and the answers (ChatUi.Direct.cs)
                 _subscribed = true;
             }
 
@@ -171,6 +173,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.ChatReceived -= OnChat;
                 Game.Network.ServerMessageReceived -= OnServerMessage;
                 Game.Network.ActionRejected -= OnActionRejected;
+                Game.Network.DirectChatReceived -= OnDirectChat;
                 _subscribed = false;
             }
 
@@ -337,6 +340,11 @@ namespace BlocksBeyondTheStars.Client
             LocalLine(result.Ok
                 ? L("ui.chat.report_sent").Replace("{name}", reportedName)
                 : L("ui.chat.report_failed"));
+            if (result.Ok)
+            {
+                // #3508: the world's own admins see it too — flagged, so the server files it without forwarding it again.
+                Game?.Network?.SendPlayerReport(reportedName, note, alsoFiledWithPortal: true);
+            }
         }
 
         /// <summary>Captures an in-game screenshot (downscaled JPG) at the end of the frame — with the chat
@@ -445,10 +453,23 @@ namespace BlocksBeyondTheStars.Client
 
                     LocalLine(L("ui.chat.help_player"));
                     LocalLine(L("ui.chat.help_player_more")); // #3390: mute and the report helpers
+                    if (net.AdminCallSupported)
+                    {
+                        LocalLine(L("ui.admin.help_contact")); // #3507/#3508: /admin Text calls an admin, /r answers one
+                    }
+
                     LocalLine(L("ui.chat.help_admin_hint"));
                     return true;
 
+                // #3508: "/admin Text" calls the admins of this world (stuck, lost, a question — no player named) when the
+                // server files such calls and this player is no admin; a bare "/admin" (and every other case) is still the
+                // admin help.
                 case "/admin":
+                    if (p.Length >= 2 && net.TrySendCallAdmin(t.Substring(p[0].Length)))
+                    {
+                        return true;
+                    }
+
                     AdminHelp();
                     return true;
 
@@ -785,6 +806,8 @@ namespace BlocksBeyondTheStars.Client
             LocalLine(L("ui.admin.help_maintenance"));
             LocalLine(L("ui.admin.help_content")); // #3390: the wipe commands for published paint, textures and shapes
             LocalLine(L("ui.admin.help_moderation"));
+            LocalLine(L("ui.admin.help_adminview")); // #3509: F8 / the pause menu's Admin button
+            LocalLine(L("ui.admin.help_contact")); // #3507/#3508: /admin Text and /r Text
         }
 
         private static bool TryF(string s, out float v)

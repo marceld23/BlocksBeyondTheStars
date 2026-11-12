@@ -32,6 +32,12 @@ public sealed class BumpReport
     /// player; the server never sees the secret itself. Empty from older clients and the text-only
     /// <c>/bump</c>. MessagePack is contractless, so the extra field is backward compatible.</summary>
     public string ReplyKey { get; set; } = string.Empty;
+
+    /// <summary>#3508: the F1 dialog's title field on its own — the only part of a <c>[feedback]</c> bump the world's admins
+    /// ever read (their report list files the title, never the description, which may hold an e-mail or worse). Empty from
+    /// older clients, the text-only <c>/bump</c> and an F1 report without a title: the row then carries no text at all.
+    /// Additive contractless field.</summary>
+    public string FeedbackTitle { get; set; } = string.Empty;
 }
 
 /// <summary>A broadcast chat line (server→clients).</summary>

@@ -125,6 +125,9 @@ public sealed class MemoryWorldSnapshot
     /// <summary>World textures (#1958). Additive: a snapshot written before them reads back as an empty list.</summary>
     public List<StoredWorldTexture> WorldTextures { get; set; } = new();
     public List<StoredPaintReport> PaintReports { get; set; } = new();
+
+    /// <summary>The world's own report list (#3508). Additive: a snapshot written before it reads back as an empty list.</summary>
+    public List<StoredPlayerReport> PlayerReports { get; set; } = new();
     public List<StoredAlliance> Alliances { get; set; } = new();
     public List<StoredCrew> Crews { get; set; } = new();
     public List<StoredCrewMember> CrewMembers { get; set; } = new();
@@ -186,6 +189,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     private readonly Dictionary<int, StoredCustomShape> _customShapes = new();
     private readonly Dictionary<string, StoredWorldTexture> _worldTextures = new(StringComparer.Ordinal);
     private readonly List<StoredPaintReport> _paintReports = new();
+    private readonly List<StoredPlayerReport> _playerReports = new(); // #3508, oldest first
     private readonly Dictionary<(string A, string B), StoredAlliance> _alliances = new();
     private readonly Dictionary<string, StoredCrew> _crews = new();
     private readonly Dictionary<(string Crew, string Player), StoredCrewMember> _crewMembers = new();
@@ -280,6 +284,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
             CustomShapes = _customShapes.Values.Select(CloneCustomShape).ToList(),
             WorldTextures = _worldTextures.Values.Select(CloneWorldTexture).ToList(),
             PaintReports = _paintReports.Select(ClonePaintReport).ToList(),
+            PlayerReports = _playerReports.Select(ClonePlayerReport).ToList(),
             Alliances = _alliances.Values.Select(a => new StoredAlliance { PlayerA = a.PlayerA, PlayerB = a.PlayerB, FormedUtc = a.FormedUtc }).ToList(),
             Crews = _crews.Values.Select(CloneCrew).ToList(),
             CrewMembers = _crewMembers.Values.Select(CloneCrewMember).ToList(),
@@ -388,6 +393,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
         _customShapes.Clear(); // was missing: an import over a used repository kept the old forms
         _worldTextures.Clear();
         _paintReports.Clear();
+        _playerReports.Clear();
         _alliances.Clear();
         _crews.Clear();
         _crewMembers.Clear();
@@ -495,6 +501,11 @@ public sealed class MemoryWorldRepository : IWorldRepository
         foreach (var report in snapshot.PaintReports)
         {
             _paintReports.Add(ClonePaintReport(report));
+        }
+
+        foreach (var report in snapshot.PlayerReports ?? new List<StoredPlayerReport>())
+        {
+            _playerReports.Add(ClonePlayerReport(report));
         }
 
         foreach (var alliance in snapshot.Alliances)
@@ -1440,6 +1451,62 @@ public sealed class MemoryWorldRepository : IWorldRepository
             return _paintReports.Select(ClonePaintReport).ToList();
         }
     }
+
+    public long AddPlayerReport(StoredPlayerReport report)
+    {
+        lock (_gate)
+        {
+            _dirty = true;
+            long next = _playerReports.Count == 0 ? 1 : _playerReports.Max(r => r.Id) + 1;
+            report.Id = next;
+            _playerReports.Add(ClonePlayerReport(report));
+            return next;
+        }
+    }
+
+    public void SetPlayerReportState(long id, string state, string handledBy, long handledUnix)
+    {
+        lock (_gate)
+        {
+            if (_playerReports.FirstOrDefault(r => r.Id == id) is { } row)
+            {
+                _dirty = true;
+                row.State = state;
+                row.HandledBy = handledBy;
+                row.HandledUnix = handledUnix;
+            }
+        }
+    }
+
+    public IReadOnlyList<StoredPlayerReport> ListPlayerReports()
+    {
+        lock (_gate)
+        {
+            return _playerReports.Select(ClonePlayerReport).ToList();
+        }
+    }
+
+    private static StoredPlayerReport ClonePlayerReport(StoredPlayerReport r)
+        => new()
+        {
+            Id = r.Id,
+            Kind = r.Kind,
+            ReporterId = r.ReporterId,
+            ReporterName = r.ReporterName,
+            TargetId = r.TargetId,
+            TargetName = r.TargetName,
+            Note = r.Note,
+            Planet = r.Planet,
+            HasPosition = r.HasPosition,
+            X = r.X,
+            Y = r.Y,
+            Z = r.Z,
+            Evidence = r.Evidence,
+            CreatedUnix = r.CreatedUnix,
+            State = r.State,
+            HandledBy = r.HandledBy,
+            HandledUnix = r.HandledUnix,
+        };
 
     public void SaveBeam(StoredBeam beam)
     {

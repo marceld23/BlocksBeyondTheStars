@@ -71,6 +71,7 @@ public sealed partial class GameServer
         return new TickStep[]
         {
             TickStep.Dt("Moderation", TickModeration),
+            TickStep.Dt("AdminView", TickAdminView), // #3505: an admin panel may hold a singleplayer world — its roster keeps going
             TickStep.Dt("ConnectionGate", TickConnectionGate), // #3194: a pause must not shield a connection that never joins
             TickStep.Dt("HullRelay", TickHullRelay), // #3196: a repaint from the pause menu still reaches the world
             TickStep.Dt("Maintenance", TickMaintenance),
@@ -200,6 +201,7 @@ public sealed partial class GameServer
             TickStep.Dt("HostedLifecycle", TickHostedLifecycle), // idle shutdown + /status snapshot (hosted worlds)
             TickStep.Dt("Maintenance", TickMaintenance), // announcement intake + restart countdown broadcasts
             TickStep.Dt("Moderation", TickModeration), // kick intake + the delayed close behind it
+            TickStep.Dt("AdminView", TickAdminView), // #3505: the admin panel's roster (1 Hz) and the idle clock
             TickStep.Dt("CrashReportFlush", MaybeFlushCrashReports), // best-effort background upload of queued reports
         };
     }

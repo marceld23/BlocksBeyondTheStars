@@ -53,6 +53,7 @@ public sealed partial class GameServer
         new("markers", static (g, s, loc) => g.OnMarkerOwnerLeftWorld(s, loc, disconnected: true)), // #1293
         new("world presence", static (g, s, loc) => g.RemoveLeaverFromWorld(s, loc)),
         new("admin rosters", static (g, _, _) => g.RefreshAdminRosters()),
+        new("admin view", static (g, s, loc) => g.AdminViewOnLeave(s, loc)), // #3502: the leave event; conversations end
         new("world unload", static (g, _, loc) => g.UnloadLeftWorld(loc)),
     };
 
@@ -85,7 +86,7 @@ public sealed partial class GameServer
     private void SaveLeaver(PlayerSession session)
     {
         session.State.LastSeenUtc = WallUtcNowIso();
-        _repo.SavePlayer(session.State);
+        SavePlayerRecord(session); // #3503: quitting in the invisible admin mode saves the admin at its entry point
     }
 
     /// <summary>Drops the leaver's transient alliance requests and crew invites; online allies and mates see the change.</summary>

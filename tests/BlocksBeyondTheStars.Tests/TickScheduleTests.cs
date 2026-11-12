@@ -82,7 +82,8 @@ public sealed class TickScheduleTests : IDisposable
         string[] held = _server.TickScheduleNamesForTest(SvGameServer.TickPhase.Held);
         string[] post = _server.TickScheduleNamesForTest(SvGameServer.TickPhase.PostWorld);
 
-        Assert.Equal(new[] { "Moderation", "ConnectionGate", "HullRelay", "Maintenance", "HostedLifecycle", "SpectatorChunks" }, held);
+        Assert.Equal(new[] { "Moderation", "AdminView", "ConnectionGate", "HullRelay", "Maintenance", "HostedLifecycle", "SpectatorChunks" }, held);
+        Assert.Contains("AdminView", post);      // #3505: the admin panel's roster runs whether or not the world is held
         Assert.Contains("Moderation", post);
         Assert.Contains("ConnectionGate", post); // #3194: the pre-join deadline runs whether or not the world is held
         Assert.Contains("HullRelay", post);      // #3196: so does the coalesced hull rebroadcast

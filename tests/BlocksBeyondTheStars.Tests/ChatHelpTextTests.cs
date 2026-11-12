@@ -38,6 +38,8 @@ public sealed class ChatHelpTextTests
         "ui.admin.help_festival", // #3389/#3390
         "ui.admin.help_content", // #3390
         "ui.admin.help_moderation",
+        "ui.admin.help_adminview", // #3502 the admin view (F8)
+        "ui.admin.help_contact", // #3507/#3508 /r and /admin
         "ui.chat.help_player_more", // #3390
         "ui.cmd.usage_give",
         "ui.cmd.usage_tpp",

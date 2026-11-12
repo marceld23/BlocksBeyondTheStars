@@ -1884,12 +1884,19 @@ public sealed partial class GameServer
         CrystalDiscoveryBeat(); // #2257: the first own network ON, the first amber light, the first old world circuit
     }
 
+    /// <summary>Test seam (#3504): the player ids the presence sensors of the active world count this beat.</summary>
+    internal IReadOnlyList<string> CrystalPresencePlayersForTest()
+    {
+        GatherCrystalPresence();
+        return _crystalPresence.Where(e => e.Kind == PresenceFilter.Players).Select(e => e.PlayerId).ToList();
+    }
+
     private void GatherCrystalPresence()
     {
         _crystalPresence.Clear();
         foreach (var s in JoinedInActiveWorld())
         {
-            if (!InSpace(s.State.PlayerId))
+            if (!InSpace(s.State.PlayerId) && !s.Spectating) // #3504: no sensor counts an invisible observer
             {
                 _crystalPresence.Add((s.State.Position, PresenceFilter.Players, s.State.PlayerId));
             }

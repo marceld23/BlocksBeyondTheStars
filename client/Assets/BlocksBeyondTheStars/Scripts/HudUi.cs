@@ -208,6 +208,7 @@ namespace BlocksBeyondTheStars.Client
             // they are invisible is how you end up "fixing" a world nobody can see you in.
             _observer = UiText.Add(root, W / 2f - 160, 30, 320, 24, string.Empty, 18, UiKit.Warn,
                 TextAnchor.MiddleCenter, FontStyle.Bold);
+            BuildAdminCounts(root); // #3509: open reports, unread direct lines and the followed player under the badge
             _prompt = UiText.Add(root, W / 2f - 400, H / 2f + 24, 800, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             _loot = UiText.Add(root, W / 2f - 160, H / 2f + 48, 320, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             // #3431: the controls line spans the screen less a small margin and shrinks to fit — a long language with the fly
@@ -315,7 +316,7 @@ namespace BlocksBeyondTheStars.Client
                 ShowToast(toastMsg);
             }
             _inSpace.text = Game.InSpace ? loc.Get("ui.hud.in_space") : string.Empty;
-            _observer.text = Game.Spectating ? loc.Get("ui.hud.observer") : string.Empty;
+            RefreshObserverBadge(loc); // #3509: ADMIN in admin mode, SPECTATOR for the fleet /spectate (HudUi.Admin.cs)
             // #1516: compose the hint in a local and assign ONCE — assigning the base line first and then
             // appending with `+=` dirtied the Text (mesh regeneration) on every refresh even when the final
             // string was identical; the setter only early-outs on an equal string.

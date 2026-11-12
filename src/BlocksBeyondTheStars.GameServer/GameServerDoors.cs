@@ -258,21 +258,17 @@ public sealed partial class GameServer
 
     private bool IsSolidBlock(int x, int y, int z) => !_world.GetBlock(new Vector3i(x, y, z)).IsAir;
 
-    private void TickDoors(double dt)
+    /// <summary>Who opens a slide door this tick, into <see cref="_doorTargets"/>. Any player on foot (incl. someone standing
+    /// inside their ship at the hatch) opens a slide door near them; only players piloting in space are excluded — and, since
+    /// #3504, an invisible observer, whose door opening by itself would give them away. (The old NPC-style aboard-ship filter
+    /// kept the ship's own hatch from ever opening for the player inside it.) Reuses a field list instead of allocating a
+    /// fresh Where(...).Select(...).ToList() every tick (15 Hz).</summary>
+    private void GatherDoorTargets()
     {
-        if (_doors.Count == 0)
-        {
-            return;
-        }
-
-        // Any player on foot (incl. someone standing inside their ship at the hatch) opens a slide door near
-        // them; only players piloting in space are excluded. (The old NPC-style aboard-ship filter kept the
-        // ship's own hatch from ever opening for the player inside it.)
-        // Reuse a field list instead of allocating a fresh Where(...).Select(...).ToList() every tick (15 Hz).
         _doorTargets.Clear();
         foreach (var s in JoinedInActiveWorld())
         {
-            if (!InSpace(s.State.PlayerId))
+            if (!InSpace(s.State.PlayerId) && !s.Spectating)
             {
                 _doorTargets.Add(s.State.Position);
             }
@@ -287,7 +283,23 @@ public sealed partial class GameServer
                 _doorTargets.Add(npc.Pos);
             }
         }
+    }
 
+    /// <summary>Test seam (#3504): the positions that open slide doors in the active world this tick.</summary>
+    internal IReadOnlyList<Vector3f> DoorOpenersForTest()
+    {
+        GatherDoorTargets();
+        return _doorTargets.ToList();
+    }
+
+    private void TickDoors(double dt)
+    {
+        if (_doors.Count == 0)
+        {
+            return;
+        }
+
+        GatherDoorTargets();
         var targets = _doorTargets;
         bool changed = false;
         foreach (var door in _doors)

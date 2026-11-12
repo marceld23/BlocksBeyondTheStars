@@ -18,6 +18,7 @@ public sealed class PushToTalkKeysTests
     {
         "E", "F", "X", "X", "V", "G", "H", "R", "L", "B", "R", "I", "J", "Return", "Mouse2", "F", "L", "P", "M", "B",
         "LeftShift", "F", "R", "U", "O", "T", "K", "N", "M", "C", "Q", "Escape", "Tab", "T", "R", "Mouse1",
+        "LeftShift", "F8", // Sprint (#3374), AdminMode (#3503)
     };
 
     [Fact]

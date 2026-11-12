@@ -380,6 +380,18 @@ public sealed class NetCodecTests
         [333] = typeof(GiveCompanionGearIntent), // #3398/#3399
         [334] = typeof(TakeCompanionGearIntent), // #3398/#3399
         [335] = typeof(LandmarkList),            // #3494/#3497
+        [336] = typeof(AdminModeIntent),         // #3503
+        [337] = typeof(AdminPanelIntent),        // #3505/#3506
+        [338] = typeof(AdminRoster),             // #3505
+        [339] = typeof(AdminJumpIntent),         // #3505
+        [340] = typeof(AdminEventBacklog),       // #3506
+        [341] = typeof(AdminEvent),              // #3506
+        [342] = typeof(DirectChatIntent),        // #3507
+        [343] = typeof(DirectChatMessage),       // #3507
+        [344] = typeof(AdminReportList),         // #3508
+        [345] = typeof(AdminReportAction),       // #3508
+        [346] = typeof(CallAdminIntent),         // #3508
+        [347] = typeof(PlayerReportIntent),      // #3508
 
     };
 

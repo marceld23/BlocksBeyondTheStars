@@ -43,6 +43,12 @@ public sealed class MaterialPool
     public static MaterialPool WithoutEquipment(GameContent content, PlayerState player, ShipState ship)
         => new(content, player.Inventory, player.AboardShip ? ship.Cargo : null, equipment: null);
 
+    /// <summary>
+    /// #3503: a pool over a scratch inventory nobody holds — whatever is added to it is gone once it is dropped. Mining in
+    /// observer / admin mode breaks the block through the normal path with this pool, so the moderation lever yields no items.
+    /// </summary>
+    public static MaterialPool Discarding(GameContent content) => new(content, new Inventory(36), cargo: null, equipment: null);
+
     public int Count(string item) => _personal.CountOf(item) + (_cargo?.CountOf(item) ?? 0) + (_equipment?.CountOf(item) ?? 0)
         + CountChanged(_personal, item) + CountChanged(_cargo, item) + CountChanged(_equipment, item);
 

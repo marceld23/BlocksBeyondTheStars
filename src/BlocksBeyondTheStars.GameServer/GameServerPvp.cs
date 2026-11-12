@@ -118,6 +118,7 @@ public sealed partial class GameServer
             return;
         }
 
+        AdminEventPvpDefeat(attacker, target); // #3506: the admin view logs it for the whole world, before the respawn moves the target
         foreach (var s in JoinedInActiveWorld())
         {
             Send(s, new ServerMessage
@@ -265,6 +266,7 @@ public sealed partial class GameServer
         }
 
         _pvpTimer = 1.0;
+        AdminEventDuelEnd(a, b, winner ?? string.Empty); // #3506: the admin view's log
     }
 
     // ---------------- The 1 Hz pass ----------------

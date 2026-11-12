@@ -112,6 +112,47 @@ public sealed class StoredPaintReport
     public long CreatedUnix { get; set; }
 }
 
+/// <summary>#3508: one row of the world's own report list — every report route files one (a player report, a paint / shape /
+/// texture report, an F1/F2 feedback title, a "Call an admin" request), so the admins of THIS world see it in the admin
+/// view. Persisted per world (table <c>player_report</c>); the state is the only thing that changes after filing.</summary>
+public sealed class StoredPlayerReport
+{
+    /// <summary>The row id, assigned by the repository when the row is added (0 before that).</summary>
+    public long Id { get; set; }
+
+    /// <summary>"player", "paint", "shape", "texture", "help" or "feedback".</summary>
+    public string Kind { get; set; } = string.Empty;
+
+    public string ReporterId { get; set; } = string.Empty;
+    public string ReporterName { get; set; } = string.Empty;
+
+    /// <summary>The reported player, or the owner of the reported content; empty for help and feedback.</summary>
+    public string TargetId { get; set; } = string.Empty;
+    public string TargetName { get; set; } = string.Empty;
+
+    /// <summary>The reporter's note, the help text, the feedback title, or which design/texture was reported.</summary>
+    public string Note { get; set; } = string.Empty;
+
+    /// <summary>The place (a body id + position) when it is known.</summary>
+    public string Planet { get; set; } = string.Empty;
+    public bool HasPosition { get; set; }
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
+
+    /// <summary>The reported player's recent chat lines, one per line ('\n'-separated), as the others saw them.</summary>
+    public string Evidence { get; set; } = string.Empty;
+
+    public long CreatedUnix { get; set; }
+
+    /// <summary>"open" or "done".</summary>
+    public string State { get; set; } = "open";
+
+    /// <summary>The admin who last changed <see cref="State"/>, and when (Unix seconds); empty / 0 while untouched.</summary>
+    public string HandledBy { get; set; } = string.Empty;
+    public long HandledUnix { get; set; }
+}
+
 /// <summary>A placed radio beacon, persisted by its world cell with its player-typed label + owner (item 37).</summary>
 public sealed class StoredBeacon
 {
@@ -569,6 +610,16 @@ public interface IWorldRepository : IDisposable
 
     /// <summary>Lists every stored paint report.</summary>
     IReadOnlyList<StoredPaintReport> ListPaintReports();
+
+    /// <summary>#3508: appends a row to the world's report list and returns its new id (also written to
+    /// <see cref="StoredPlayerReport.Id"/>).</summary>
+    long AddPlayerReport(StoredPlayerReport report);
+
+    /// <summary>#3508: an admin marked a report done or open again; unknown ids are ignored.</summary>
+    void SetPlayerReportState(long id, string state, string handledBy, long handledUnix);
+
+    /// <summary>#3508: every row of the world's report list, oldest first.</summary>
+    IReadOnlyList<StoredPlayerReport> ListPlayerReports();
 
     /// <summary>Stores (inserts or replaces) a placed beam block, keyed by its world cell.</summary>
     void SaveBeam(StoredBeam beam);
