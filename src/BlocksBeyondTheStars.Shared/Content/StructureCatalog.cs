@@ -8,9 +8,10 @@ namespace BlocksBeyondTheStars.Shared.Content;
 /// <summary>
 /// The hand-designed station/settlement template pools, their tier-matched sub-pools, the distinct pack list and the
 /// structure kits (#1873), plus the weighted, tier-, pack- and planet-filtered picks world-gen and the composers draw
-/// from. Owned by <see cref="GameContent"/>, which delegates its structure members here.
+/// from. Owned by <see cref="GameContent"/>, which delegates its structure members here. The generator entries (#3518)
+/// live in the same pools; their own lookups are in StructureCatalog.Sources.cs.
 /// </summary>
-public sealed class StructureCatalog
+public sealed partial class StructureCatalog
 {
     /// <summary>Hand-designed station/settlement templates (empty unless a pool file is present);
     /// world-gen may roll one of these instead of the procedural generator.</summary>
@@ -56,6 +57,12 @@ public sealed class StructureCatalog
 
             SettlementTemplates = SettlementTemplates.Where(t => t == null || !t.Landmark).ToList();
         }
+
+        // #3518: a generator entry holds no cells and is never a module; #3519: a material token nobody knows is reported.
+        StationTemplates = KeepWellFormedSources(StationTemplates, StructureKit.KindStation, warn);
+        SettlementTemplates = KeepWellFormedSources(SettlementTemplates, StructureKit.KindSettlement, warn);
+        ReportUnknownTokens(StationTemplates, StructureKit.KindStation, warn);
+        ReportUnknownTokens(SettlementTemplates, StructureKit.KindSettlement, warn);
 
         _stationsByTier = GroupByTier(StationTemplates);
         _settlementsByTier = GroupByTier(SettlementTemplates);
@@ -107,10 +114,16 @@ public sealed class StructureCatalog
                     continue;
                 }
 
-                if (TemplateByKey(kind, e.Module) is null)
+                if (TemplateByKey(kind, e.Module) is not { } module)
                 {
                     warn?.Invoke($"Structure kit '{kit.Key}': entry '{e.Module}' names no {kind} module — dropped.");
                     continue;
+                }
+
+                if (module.IsSource)
+                {
+                    warn?.Invoke($"Structure kit '{kit.Key}': entry '{e.Module}' is a generator entry, not a module — dropped.");
+                    continue; // #3518: a generator entry builds a whole structure, never a kit's piece
                 }
 
                 if (e.Required && e.Min < 1)
@@ -133,7 +146,7 @@ public sealed class StructureCatalog
                 continue;
             }
 
-            if (kit.Start.Length > 0 && TemplateByKey(kind, kit.Start) is null)
+            if (kit.Start.Length > 0 && TemplateByKey(kind, kit.Start) is not { IsSource: false })
             {
                 warn?.Invoke($"Structure kit '{kit.Key}': start module '{kit.Start}' does not exist — the first required entry starts the composition.");
                 kit.Start = string.Empty;
@@ -187,6 +200,7 @@ public sealed class StructureCatalog
 
             t.Landmark = true;
             var problems = LandmarkRules.Problems(t);
+            problems.AddRange(SourceShapeProblems(t)); // #3518: a generator entry holds no cells
             if (extraProblems != null)
             {
                 problems.AddRange(extraProblems(t));
@@ -225,14 +239,16 @@ public sealed class StructureCatalog
     /// <see cref="LandmarkRules.RequiresInhabited"/> needs <paramref name="inhabited"/>. With
     /// <paramref name="namedTypeOnly"/> (a planet type with a structure whitelist, #3500) only landmarks whose
     /// <see cref="StructureTemplate.PlanetTypes"/> NAME the type are offered — "every world" does not reach it.
+    /// <paramref name="sources"/> (#3518): false lists the authored landmarks, true the generator entries only — a stamper
+    /// appends those after the authored ones, so a pool without entries draws exactly as before.
     /// </summary>
     public IReadOnlyList<StructureTemplate> LandmarksFor(IReadOnlyCollection<string>? enabledPacks, string? planetType,
-        bool atmosphere, bool inhabited, bool namedTypeOnly = false)
+        bool atmosphere, bool inhabited, bool namedTypeOnly = false, bool sources = false)
     {
         var list = new List<StructureTemplate>();
         foreach (var t in Landmarks)
         {
-            if (t.PinOnly || !TemplateFits(t, enabledPacks, planetType))
+            if (t.IsSource != sources || t.PinOnly || !TemplateFits(t, enabledPacks, planetType))
             {
                 continue;
             }
@@ -377,9 +393,9 @@ public sealed class StructureCatalog
         var list = new List<StructureTemplate>();
         foreach (var t in SettlementTemplates)
         {
-            if (!t.IsModule && t.Underground && !t.PinOnly && TemplateFits(t, enabledPacks, planetType))
+            if (!t.IsModule && !t.IsSource && t.Underground && !t.PinOnly && TemplateFits(t, enabledPacks, planetType))
             {
-                list.Add(t);
+                list.Add(t); // #3518: the underground generator entries are listed apart (UndergroundSourceTemplatesFor)
             }
         }
 
@@ -443,9 +459,10 @@ public sealed class StructureCatalog
         var byTier = new Dictionary<string, List<StructureTemplate>>(StringComparer.OrdinalIgnoreCase);
         foreach (var t in pool)
         {
-            if (t.IsModule)
+            if (t.IsModule || t.IsSource)
             {
-                continue; // #1826: a building module is composed INTO a settlement, never rolled as one
+                continue; // #1826: a building module is composed INTO a settlement, never rolled as one; #3518: a generator
+                          // entry has pools of its own (SourceTemplatesFor), so the legacy picks never see one
             }
 
             var tier = string.IsNullOrWhiteSpace(t.Tier) ? "medium" : t.Tier;

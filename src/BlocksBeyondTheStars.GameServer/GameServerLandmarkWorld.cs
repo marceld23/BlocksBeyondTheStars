@@ -99,7 +99,8 @@ public sealed partial class GameServer
 
     // ---------------------------------------------------------------- markers → emitters and dens
 
-    private void AddLandmarkEmitter(LandmarkInstance lm, Vector3i cell, MarkerSettings settings)
+    /// <summary>A sound marker's emitter (#3494) — a landmark's, or (#3519) a settlement's or a station's.</summary>
+    private static void AddMarkerEmitter(List<LandmarkEmitter> emitters, Vector3i cell, MarkerSettings settings)
     {
         string sound = settings.Get("sound");
         if (sound.Length == 0)
@@ -107,7 +108,7 @@ public sealed partial class GameServer
             return;
         }
 
-        lm.Emitters.Add(new LandmarkEmitter
+        emitters.Add(new LandmarkEmitter
         {
             Position = new Vector3f(cell.X + 0.5f, cell.Y + 0.5f, cell.Z + 0.5f),
             Sound = sound,
@@ -116,10 +117,11 @@ public sealed partial class GameServer
         });
     }
 
-    private void AddLandmarkDen(LandmarkInstance lm, Vector3i cell, MarkerSettings settings)
+    /// <summary>A den marker's den (#3495) — a landmark's, or (#3519) a settlement's or a station's.</summary>
+    private void AddMarkerDen(List<LandmarkDen> dens, Vector3i cell, MarkerSettings settings)
     {
         string species = settings.Get("species", DenNativeSpecies);
-        lm.Dens.Add(new LandmarkDen
+        dens.Add(new LandmarkDen
         {
             Id = $"den:{_world.LocationId}:{cell.X}:{cell.Y}:{cell.Z}",
             Cell = cell,
@@ -131,11 +133,11 @@ public sealed partial class GameServer
 
     // ---------------------------------------------------------------- the tick
 
-    /// <summary>Per-world 1 Hz pass: the map reveal and the dens.</summary>
+    /// <summary>Per-world 1 Hz pass: the map reveal and the dens (a landmark's, and #3519 a settlement's or a station's).</summary>
     private void TickLandmarks(double dt)
     {
         _ = dt;
-        if (_worlds.Active is null || _landmarks.Count == 0)
+        if (_worlds.Active is null || (_landmarks.Count == 0 && !HasStructureDens(_world.LocationId)))
         {
             return;
         }
@@ -160,6 +162,11 @@ public sealed partial class GameServer
             {
                 spawned |= TickDen(den, players);
             }
+        }
+
+        foreach (var den in StructureDensAt(world))
+        {
+            spawned |= TickDen(den, players); // #3519
         }
 
         if (spawned)
@@ -188,7 +195,8 @@ public sealed partial class GameServer
 
     /// <summary>Whether the far-creature prune must leave this animal alone: it lives at a den a player is near.</summary>
     private bool DenKeeps(CombatEntity c)
-        => c.DenId.Length > 0 && _landmarks.Any(lm => lm.Dens.Any(d => d.Awake && d.Id == c.DenId));
+        => c.DenId.Length > 0 && (_landmarks.Any(lm => lm.Dens.Any(d => d.Awake && d.Id == c.DenId))
+                                  || StructureDensAt(_world.LocationId).Any(d => d.Awake && d.Id == c.DenId));
 
     /// <summary>The species a den houses on this world, or null: an authored species the roster already has, or — for
     /// <see cref="DenNativeSpecies"/> — the planet's first peaceful species.</summary>
@@ -370,7 +378,7 @@ public sealed partial class GameServer
     private LandmarkList LandmarkListFor(PlayerSession session) => new()
     {
         Landmarks = _landmarks.Select(lm => ToNetLandmark(lm, session)).ToArray(),
-        Emitters = _landmarks.SelectMany(lm => lm.Emitters).Select(e => new NetSoundEmitter
+        Emitters = _landmarks.SelectMany(lm => lm.Emitters).Concat(StructureEmittersAt(_world.LocationId)).Select(e => new NetSoundEmitter
         {
             X = e.Position.X,
             Y = e.Position.Y,

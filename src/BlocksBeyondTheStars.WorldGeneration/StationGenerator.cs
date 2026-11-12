@@ -134,8 +134,13 @@ public static class StationGenerator
 
     /// <summary>Builds a station structure from a hand-designed template (the editor export) instead of
     /// generating one — blocks become voxels, markers become interaction points. Unknown block keys are
-    /// skipped (air). Guarantees a vendor + mission board so the station stays functional.</summary>
-    public static StationStructure FromTemplate(StructureTemplate t, GameContent content)
+    /// skipped (air). Guarantees a vendor + mission board so the station stays functional.
+    /// <para>#3519 (terrain generation 38, the server passes both): <paramref name="materials"/> resolves the material tokens
+    /// (<see cref="ModuleMaterials.ForStation"/>) — without it a token cell stays air, as before — and
+    /// <paramref name="markerSettings"/> hands every marker its settings line as data (a chest's content, a sound, a den),
+    /// like a landmark's.</para></summary>
+    public static StationStructure FromTemplate(StructureTemplate t, GameContent content, ModuleMaterials? materials = null,
+        bool markerSettings = false)
     {
         int w = System.Math.Max(1, t.Width), h = System.Math.Max(1, t.Height), l = System.Math.Max(1, t.Length);
         var blocks = new ushort[w * h * l];
@@ -152,11 +157,13 @@ public static class StationGenerator
 
             if (cell.Kind == "marker")
             {
-                markers.Add(new StationMarker(cell.Id, new Vector3i(cell.X, cell.Y, cell.Z)));
+                markers.Add(new StationMarker(cell.Id, new Vector3i(cell.X, cell.Y, cell.Z), markerSettings ? cell.Config : string.Empty));
             }
             else
             {
-                ushort id = content.GetBlock(cell.Id)?.NumericId.Value ?? 0;
+                ushort id = materials != null && MaterialTokens.IsToken(cell.Id)
+                    ? materials.Resolve(cell.Id)
+                    : content.GetBlock(cell.Id)?.NumericId.Value ?? 0;
                 if (id != 0)
                 {
                     int idx = (cell.X * h + cell.Y) * l + cell.Z;
@@ -171,12 +178,18 @@ public static class StationGenerator
             }
         }
 
+        AddServiceMarkers(markers, w, l);
+        return new StationStructure(w, h, l, t.Tier, 7, 6, 7, blocks, markers, new List<StationModule>(), mods, shapes);
+    }
+
+    /// <summary>The services a station must offer, at its centre when the structure has none of its own: a vendor, a mission
+    /// board, a hangar (shared by the templates and the generator entries, #3518).</summary>
+    internal static void AddServiceMarkers(List<StationMarker> markers, int w, int l)
+    {
         var centre = new Vector3i(w / 2, 1, l / 2);
         if (!markers.Exists(m => m.Type == "vendor")) markers.Add(new StationMarker("vendor", centre));
         if (!markers.Exists(m => m.Type == "mission_board")) markers.Add(new StationMarker("mission_board", centre));
         if (!markers.Exists(m => m.Type == "hangar")) markers.Add(new StationMarker("hangar", centre));
-
-        return new StationStructure(w, h, l, t.Tier, 7, 6, 7, blocks, markers, new List<StationModule>(), mods, shapes);
     }
 
     public static StationStructure Generate(string sizeTier, long seed, GameContent content)

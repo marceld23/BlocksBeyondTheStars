@@ -207,19 +207,32 @@ public static class AncientRuinGenerator
 
     /// <summary>Composes a ruin. <paramref name="composition"/> follows the composers' pin rule (#1872): a non-empty list
     /// replays, an empty one records the picks, null does neither. The entrance stands on crossing
-    /// (<paramref name="crossI"/>, <paramref name="crossJ"/>) — see <see cref="EntranceCrossings"/>.</summary>
+    /// (<paramref name="crossI"/>, <paramref name="crossJ"/>) — see <see cref="EntranceCrossings"/>. From terrain generation 38
+    /// (<paramref name="terrainGeneration"/>, #3516) the walls break and the roofs fall through the shared ruin pass
+    /// (<see cref="AncientRuinBuilder.RuinPass"/>); every older world (and the default 0) keeps the ruin's own decay.</summary>
     public static AncientRuinLayout Compose(long seed, GameContent content, CityLayoutSpec spec, StructureKit? kit,
-        IReadOnlyList<StructureTemplate>? pool, IList<string>? composition, int crossI, int crossJ, System.Action<string>? warn = null)
+        IReadOnlyList<StructureTemplate>? pool, IList<string>? composition, int crossI, int crossJ, System.Action<string>? warn = null,
+        int terrainGeneration = 0)
     {
         var city = CityGenerator.Generate(seed, content, System.Array.Empty<CityGenerator.OpenZone>(), null, 0.0, composition, warn,
             spec, kit, pool);
         var ruin = new AncientRuinBuilder(seed, content, city, spec.Height + Headroom, ShaftAt(spec, crossI, crossJ));
-        ruin.Decay();
-        ruin.Collapse();
+        IReadOnlyList<SettlementMarker> crates = city.Markers;
+        if (StructureDecay.Applies(terrainGeneration))
+        {
+            crates = ruin.RuinPass(city.Markers);
+            ruin.Collapse(sinkholesOnly: true);
+        }
+        else
+        {
+            ruin.Decay();
+            ruin.Collapse();
+        }
+
         ruin.SetRessawIntoWalls();
         int door = ruin.Tube(gds: true);
         var basins = ruin.Basins();
-        var caches = ruin.Caches(city.Markers);
+        var caches = ruin.Caches(crates);
         var features = new AncientRuinFeatures
         {
             Shaft = ruin.Shaft,

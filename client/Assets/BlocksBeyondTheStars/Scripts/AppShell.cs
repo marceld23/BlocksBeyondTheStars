@@ -661,6 +661,9 @@ namespace BlocksBeyondTheStars.Client
                 {
                     // Only English + the active locale parse now; the other tables parse on demand (#1522).
                     loaded = ContentLoader.LoadFromDirectory(dataDir, eagerLocale: locale);
+                    // #3518/#3523: generator entries the source registry does not accept are dropped as on the server (the editors
+                    // never offer one) — inside the guard, so a failure there is a failed load, never an escaped exception.
+                    BlocksBeyondTheStars.WorldGeneration.Sources.SourceTemplates.Validate(loaded, w => Debug.LogWarning("[Content] " + w));
                 }
                 catch (System.Exception e)
                 {

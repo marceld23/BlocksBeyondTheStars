@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.World;
+using BlocksBeyondTheStars.WorldGeneration;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -430,17 +431,9 @@ public sealed partial class GameServer
         return s;
     }
 
-    /// <summary>The existing block a hull part is made of (with fallbacks for a minimal test content), or null.</summary>
-    private BlockDefinition? HunterShuttleBlock(HunterShuttleHull.Part part) => part switch
-    {
-        HunterShuttleHull.Part.Plate or HunterShuttleHull.Part.Trim => _content.GetBlock("metal_panel") ?? _content.GetBlock("iron_wall"),
-        HunterShuttleHull.Part.Floor => _content.GetBlock("steel_floor") ?? _content.GetBlock("metal_panel") ?? _content.GetBlock("iron_wall"),
-        HunterShuttleHull.Part.Glass => _content.GetBlock("glass_clear") ?? _content.GetBlock("glass"),
-        HunterShuttleHull.Part.Window => _content.GetBlock("glass"),
-        HunterShuttleHull.Part.Eye => _content.GetBlock("light_red"),
-        HunterShuttleHull.Part.Nozzle => _content.GetBlock(EngineNozzleBlock) ?? _content.GetBlock("iron_wall"),
-        _ => null,
-    };
+    /// <summary>The existing block a hull part is made of (with fallbacks for a minimal test content), or null — the same
+    /// mapping the camp's ground stamp uses (<see cref="HunterShuttleHull.BlockOf"/>).</summary>
+    private BlockDefinition? HunterShuttleBlock(HunterShuttleHull.Part part) => HunterShuttleHull.BlockOf(_content, part);
 
     // ---------------- Test hooks ----------------
 

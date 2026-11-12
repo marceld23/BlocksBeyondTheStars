@@ -124,13 +124,15 @@ namespace BlocksBeyondTheStars.Client
             Id = id, Label = L("ui.marker." + id), Kind = "marker", Group = "markers", Color = c,
         };
 
-        /// <summary>The full palette: the interaction markers this structure kind needs, then every
-        /// placeable block from the loaded content — localized, category-grouped and iconed with its
-        /// real atlas tile (see <see cref="EditorPaletteKit"/>). Built once in Start.</summary>
+        /// <summary>The full palette: the interaction markers this structure kind needs, the tools, the material tokens, then
+        /// every placeable block from the loaded content — localized, category-grouped and iconed with its real atlas tile (see
+        /// <see cref="EditorPaletteKit"/>). Built once in Start; the panel shows what the design's target reads (#3523,
+        /// StructureEditor.Stamping.cs).</summary>
         private EditorPaletteKit.Entry[] BuildPalette()
         {
             var list = new List<EditorPaletteKit.Entry>();
-            list.AddRange(EditorMode == Mode.Station ? StationMarkers() : WithLandmarkTools(SettlementMarkers())); // #3492
+            list.AddRange(WithLandmarkTools(EditorMode == Mode.Station ? StationMarkers() : SettlementMarkers())); // #3492
+            list.AddRange(TokenEntries()); // #1890; #3523: a whole station template resolves them too
             list.AddRange(EditorPaletteKit.BlockEntries(Shell, _atlas, hullAirlocks: EditorMode == Mode.Station)); // #1982
             return list.ToArray();
         }
@@ -160,6 +162,7 @@ namespace BlocksBeyondTheStars.Client
             M("blockfarmer", ProfessionColors[5]),
             M("streamer", ProfessionColors[6]),
             M("reporter", ProfessionColors[7]),
+            M("chest", new Color(0.75f, 0.55f, 0.25f)),      // #3523: a loot chest (its settings, generation 38)
             P("door"),                                       // #1877: docking ports — painted onto wall blocks
             P("wide"),
             P("ladder"),
@@ -263,11 +266,6 @@ namespace BlocksBeyondTheStars.Client
             M("blockfarmer", ProfessionColors[5]),
             M("streamer", ProfessionColors[6]),
             M("reporter", ProfessionColors[7]),
-            T(MaterialTokens.Wall, new Color(0.62f, 0.55f, 0.42f)), // #1890: material tokens — resolved per planet
-            T(MaterialTokens.Accent, new Color(0.55f, 0.85f, 0.95f)),
-            T(MaterialTokens.Roof, new Color(0.55f, 0.4f, 0.3f)),
-            T(MaterialTokens.Floor, new Color(0.5f, 0.5f, 0.48f)),
-            T(MaterialTokens.Path, new Color(0.7f, 0.65f, 0.5f)),
             P("door"),                                          // #1877: docking ports (ground kits may use them later)
             P("wide"),
             P("ladder"),
@@ -720,15 +718,14 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (_landmarkMode)
+            if (ExportElsewhere(key))
             {
-                ExportLandmark(key); // #3492: a landmark is one compact file of its own
-                return;
+                return; // #3523: a generator entry, a landmark (#3492) — or a preview, which is never the design
             }
 
-            if (!ValidateForExport())
+            if (!ValidateForExport() || RefuseUnreadTokens())
             {
-                return; // #1877: a broken port or a leaking module never leaves the editor
+                return; // #1877: a broken port or a leaking module never leaves the editor; #3523: nor a token a module cannot resolve
             }
 
             var (meta, layout) = BuildExport(key);
@@ -752,7 +749,7 @@ namespace BlocksBeyondTheStars.Client
                 Directory.CreateDirectory(userDir);
                 File.WriteAllText(Path.Combine(userDir, key + ".json"), JsonUtility.ToJson(tpl, true));
 
-                SetStatus(string.Format(L("ui.ed.saved_structure"), key, _design.Count, meta.pack));
+                SetStatus(string.Format(L("ui.ed.saved_structure"), key, _design.Count, meta.pack) + SaveWarnings()); // #3523
             }
             catch (Exception e)
             {
@@ -783,6 +780,11 @@ namespace BlocksBeyondTheStars.Client
                 sorted.Sort((a, b) => string.CompareOrdinal(a.Key, b.Key));
                 foreach (var t in sorted)
                 {
+                    if (t.IsSource)
+                    {
+                        continue; // a generator entry has no cells (#3523: AddEntryItems lists it)
+                    }
+
                     var tpl = t;
                     builtIn.Items.Add(new EditorLoadPicker.Item
                     {
@@ -849,6 +851,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             AddLandmarkItems(builtIn, user); // #3492
+            AddEntryItems(builtIn, user); // #3523
             _loadPicker = EditorLoadPicker.Show(Shell, _canvas.transform, new[] { builtIn, user, mine }, _design.Count, () => _loadPicker = null);
         }
 
@@ -950,7 +953,7 @@ namespace BlocksBeyondTheStars.Client
             foreach (var c in t.Cells)
             {
                 cells.Add(new CellJson { x = c.X, y = c.Y, z = c.Z, kind = c.Kind, id = c.Id, tint = c.Tint, glow = c.Glow, shape = c.Shape, port = c.Port ?? string.Empty,
-                    mode = c.Mode, config = c.Config ?? string.Empty, label = c.Label ?? string.Empty });
+                    mode = c.Mode, config = c.Config ?? string.Empty, label = c.Label ?? string.Empty, keep = c.Keep });
             }
 
             ApplyTemplate(t.Key, t.Name, t.Tier, t.PackOrDefault, t.Weight, t.PlanetTypes, cells, copy: true, role: t.Role, kit: t.Kit, function: t.Function, style: t.Style, underground: t.Underground);
@@ -965,6 +968,8 @@ namespace BlocksBeyondTheStars.Client
             int skipped = ApplyCells(cells, skippedIds);
             _underground = underground; // #3333
             _landmarkMode = false; // #3492: LoadLandmark switches it back on
+            _entryMode = _entrySourceInvalid = false; _entryExtras = null; // #3523: LoadEntry sets them again
+            DropPreview(); // a load replaced the design a preview kept aside
 
             _key = copy ? key + "_2" : key;
             _basedOn = copy ? key : string.Empty; // a submission names the shipped template it started from (#3262)
@@ -1037,90 +1042,6 @@ namespace BlocksBeyondTheStars.Client
             int p = SettlementGenerator.Plot;
             return string.Format(L("ui.struct.size_settlement"),
                 cols * p + 1, (cols + 1) * p + 1, rows * p + 1, (rows + 1) * p + 1, baseFloors, town ? baseFloors + 1 : baseFloors);
-        }
-
-        /// <summary>Runs the world-gen generator for the current tier + seed on the client (the client ships the
-        /// WorldGeneration assembly) and loads the result as editable cells (#1401): blocks via numeric id → key,
-        /// markers onto the marker palette. A procedural city becomes a five-minute template job.</summary>
-        private void GenerateProcedural()
-        {
-            if (Shell?.Content == null)
-            {
-                return;
-            }
-
-            string tier = _tiers[_tier];
-            if (tier == StructureRoles.MetropolisTier)
-            {
-                tier = "city"; // the district envelope has no settlement generator of its own; a city is the closest start
-            }
-
-            var cells = new List<CellJson>();
-            var devices = new Dictionary<Vector3i, (int Mode, string Config, string Label)>(); // #2260
-            try
-            {
-                int w, h, l;
-                Func<int, int, int, ushort> get;
-                if (EditorMode == Mode.Station)
-                {
-                    var s = StationGenerator.Generate(tier, _seed, Shell.Content);
-                    w = s.Width; h = s.Height; l = s.Length; get = s.Get;
-                    foreach (var m in s.Markers)
-                    {
-                        if (!TakeDeviceMarker(m.Type, m.Data, m.LocalPos, devices)) // #2260: a device's settings go onto its block
-                        {
-                            cells.Add(new CellJson { x = m.LocalPos.X, y = m.LocalPos.Y, z = m.LocalPos.Z, kind = "marker", id = m.Type });
-                        }
-                    }
-                }
-                else
-                {
-                    string surface = Slug(_surface);
-                    if (string.IsNullOrEmpty(surface) || Shell.Content.GetBlock(surface) == null)
-                    {
-                        surface = "stone"; // the generator's own fallback material
-                    }
-
-                    var s = SettlementGenerator.Generate(tier, ruined: false, _seed, surface, Shell.Content);
-                    w = s.Width; h = s.Height; l = s.Length; get = s.Get;
-                    foreach (var m in s.Markers)
-                    {
-                        if (!TakeDeviceMarker(m.Type, m.Data, m.LocalPos, devices)) // #2260: a device's settings go onto its block
-                        {
-                            cells.Add(new CellJson { x = m.LocalPos.X, y = m.LocalPos.Y, z = m.LocalPos.Z, kind = "marker", id = m.Type });
-                        }
-                    }
-                }
-
-                // Markers first: a block on a marker cell is the one that gets skipped (and reported), never the
-                // vendor / mission board a settlement needs to function.
-                for (int x = 0; x < w; x++)
-                {
-                    for (int y = 0; y < h; y++)
-                    {
-                        for (int z = 0; z < l; z++)
-                        {
-                            ushort v = get(x, y, z);
-                            if (v == 0 || Shell.Content.BlockById(new BlockId(v)) is not { } def)
-                            {
-                                continue;
-                            }
-
-                            var dv = devices.TryGetValue(new Vector3i(x, y, z), out var found) ? found : (0, string.Empty, string.Empty);
-                            cells.Add(new CellJson { x = x, y = y, z = z, kind = "block", id = def.Key, mode = dv.Item1, config = dv.Item2, label = dv.Item3 });
-                        }
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning($"[StructureEditor] Load failed: {e}");
-                SetStatus(L("ui.ed.load_failed_hint")); // a friendly line; the exception goes to the log (#3263)
-                return;
-            }
-
-            ApplyTemplate($"{ModeName}_{tier}_{_seed}", $"{TierLabel(tier)} #{_seed}", tier, "default", 1, null, cells, copy: false);
-            SetStatus(string.Format(L("ui.ed.generated"), TierLabel(tier), _design.Count, _seed) + "\n" + _status);
         }
 
         /// <summary>Clears the current build and rebuilds it (+ the form) from a saved export bundle.</summary>
@@ -1478,6 +1399,8 @@ namespace BlocksBeyondTheStars.Client
             _kitPanel = null;
             _formPicker?.Close();
             _formPicker = null;
+            _sourcePicker?.Close(); // #3523
+            _sourcePicker = null;
             if (_canvas != null)
             {
                 Destroy(_canvas.gameObject);

@@ -153,7 +153,7 @@ public sealed partial class GameServer
 {
     /// <summary>#2162: the block a ship layout's <c>engine</c> element and the box ship's rear nozzles stamp as — the
     /// client's exhaust plumes are placed on it (they all sat on the rear door while engines stamped as carbon).</summary>
-    internal const string EngineNozzleBlock = "engine_nozzle";
+    internal const string EngineNozzleBlock = ShipCellBlocks.EngineNozzleBlock;
 
     /// <summary>S5: how close the suit must be to a static structure (asteroid/station) to mine/build on it —
     /// a coarse anti-grief range so you can't edit a body across the flight zone.</summary>
@@ -172,8 +172,8 @@ public sealed partial class GameServer
     private SpaceStructure BuildShipStructure(string ownerId)
         => _ship.IsCustom
             ? BuildCustomShipStructure("ship:" + ownerId, ownerId, _ship, commissioned: true, applyEdits: true)
-            : BuildShipStructureFrom("ship:" + ownerId, ownerId,
-                _content.GetShip(_ship.ShipType) ?? _content.GetShip("starter"), persistEdits: true);
+            : _content.GetShip(_ship.ShipType) is { } design ? BuildShipStructureFrom("ship:" + ownerId, ownerId, design, persistEdits: true)
+                : BuildUnresolvedShipStructure(ownerId); // #3520: a removed user ship (GameServerUserShips.cs)
 
     /// <summary>Builds a peaceful NPC trader's ship as a voxel structure straight from a ship-type key — no
     /// player owner, no persisted edits. Reuses the exact player-ship voxel pipeline so a trader renders 1:1
@@ -190,17 +190,16 @@ public sealed partial class GameServer
     {
         var s = new SpaceStructure { Id = structureId, Kind = "ship", OwnerId = ownerId };
 
-        var wall = _content.GetBlock("iron_wall")?.NumericId ?? BlockId.Air;
-        var glass = _content.GetBlock("glass")?.NumericId ?? wall;
-        var glassClear = _content.GetBlock("glass_clear")?.NumericId ?? glass; // the cockpit's front screen (#1283)
-        var dark = _content.GetBlock("carbon")?.NumericId ?? _content.GetBlock("basalt")?.NumericId ?? wall;
-
+        // #3521: the blocks and the per-cell mapping are shared with the wreck built from the same layout (ShipCellBlocks).
         // #2162: engines are the real nozzle block (dark housing, glowing throat ring), not plain dark hull — the client
         // finds its exhaust plumes by it, and with carbon there it found none and parked every plume on the rear door.
-        var nozzle = _content.GetBlock(EngineNozzleBlock)?.NumericId ?? dark;
-        var lightW = _content.GetBlock("light_white")?.NumericId ?? glass;
-        var lightR = _content.GetBlock("light_red")?.NumericId ?? lightW;
-        var lightG = _content.GetBlock("light_green")?.NumericId ?? lightW;
+        var palette = ShipCellPalette.From(_content);
+        var wall = palette.Wall;
+        var glass = palette.Glass;
+        var glassClear = palette.GlassClear; // the cockpit's front screen (#1283)
+        var nozzle = palette.Nozzle;
+        var lightR = palette.LightRed;
+        var lightG = palette.LightGreen;
         if (wall.IsAir)
         {
             return s; // no hull block in content → an empty structure (client keeps the cube model)
@@ -215,49 +214,43 @@ public sealed partial class GameServer
             foreach (var cell in layout.Cells)
             {
                 var p = new Vector3i(cell.X, cell.Y, cell.Z);
-
-                // Station tiles: an interior interaction marker block + the gameplay anchor (ship-as-object:
-                // the structure IS the walkable ship everywhere now, so the stations live in it).
-                if (cell.Kind == "station")
+                var mapped = ShipCellBlocks.Map(cell, palette, _content);
+                switch (mapped.Role)
                 {
-                    s.Set(p, _content.GetBlock(StationBlockKey(cell.Id))?.NumericId ?? wall);
-                    s.StationCells.Add((cell.Id, p));
-                    if (cell.Id == "medbay")
-                    {
-                        s.MedbayCell = p;
-                    }
+                    case ShipCellRole.Station:
+                        // Station tiles: an interior interaction marker block + the gameplay anchor (ship-as-object:
+                        // the structure IS the walkable ship everywhere now, so the stations live in it).
+                        s.Set(p, mapped.Block);
+                        s.StationCells.Add((cell.Id, p));
+                        if (cell.Id == "medbay")
+                        {
+                            s.MedbayCell = p;
+                        }
 
-                    continue;
-                }
-
-                switch (cell.Id)
-                {
-                    case "hatch":
+                        continue;
+                    case ShipCellRole.Opening:
                         continue; // an open entry renders as a hole
-                    case "door_slide":
-                    case "door_hinge":
-                    case "door_energy": // ship doors all register as energy doors anyway (item 35)
+                    case ShipCellRole.Door:
                         s.DoorCells.Add(p); // a server-authoritative slide door fills this opening
                         continue;
-                    case "glass": s.Set(p, glass); continue;
-                    case "light":
-                    case "headlight": s.Set(p, lightW); continue;
-                    case "light_red": s.Set(p, lightR); continue;
-                    case "light_green": s.Set(p, lightG); continue;
-                    case "engine": s.Set(p, nozzle); continue;
+                }
+
+                if (!mapped.CarriesModifiers)
+                {
+                    s.Set(p, mapped.Block); // glass, the lights, the engine nozzle
+                    continue;
                 }
 
                 // Any block key (iron_wall, carbon cargo, …) renders as that block; unknown ids fall back to hull.
                 // Authored dye/glow/shape ride along (the ship editor can tint + shape + orient any block).
                 // #427: content validation rejects unknown ids at load, so this fallback should never fire —
                 // if it does (a layout that bypassed the loader), say so once instead of stamping hull silently.
-                var cellBlock = _content.GetBlock(cell.Id);
-                if (cellBlock == null && _warnedLayoutIds.Add($"{layout.Key}:{cell.Id}"))
+                if (mapped.UnknownId && _warnedLayoutIds.Add($"{layout.Key}:{cell.Id}"))
                 {
                     _log.Warn($"Ship layout '{layout.Key}' cell ({cell.X},{cell.Y},{cell.Z}) has unknown block id '{cell.Id}' — stamping hull instead.");
                 }
 
-                s.Set(p, cellBlock?.NumericId ?? wall, cell.Tint, cell.Glow, cell.Shape);
+                s.Set(p, mapped.Block, mapped.Tint, mapped.Glow, mapped.Shape);
             }
 
             // Guarantee a flush, solid floor across the footprint (fills layout gaps) so the player never
@@ -265,16 +258,7 @@ public sealed partial class GameServer
             // columns the hull actually encloses (a floor or roof cell) get filled: a non-rectangular plan
             // (the hammerhead's T-shape) must not grow floating floor tiles in the notches of its bounding
             // rect, and an exterior attachment (a nav light on a flank) must not grow one under itself.
-            var footprint = new HashSet<(int X, int Z)>();
-            foreach (var cell in layout.Cells)
-            {
-                if ((cell.Y == 0 || cell.Y == layout.Height) &&
-                    cell.X >= 0 && cell.X < layout.Width && cell.Z >= 0 && cell.Z < layout.Length)
-                {
-                    footprint.Add((cell.X, cell.Z));
-                }
-            }
-
+            var footprint = ShipCellBlocks.FloorFootprint(layout);
             for (int fx = 0; fx < layout.Width; fx++)
                 for (int fz = 0; fz < layout.Length; fz++)
                 {

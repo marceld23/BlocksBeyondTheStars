@@ -52,7 +52,8 @@ try
     logger.Info($"Loaded content: {content.Blocks.Count} blocks, {content.Items.Count} items, {content.Recipes.Count} recipes, {content.Planets.Count} planets.");
     if (userContentDir != null && Directory.Exists(userContentDir))
     {
-        logger.Info($"User content '{userContentDir}': {content.StationTemplates.Count} station + {content.SettlementTemplates.Count} settlement template(s) in pool.");
+        logger.Info($"User content '{userContentDir}': {content.StationTemplates.Count} station + {content.SettlementTemplates.Count} settlement template(s) in pool, "
+                    + $"{content.UserShips.Count} user ship(s).");
     }
 }
 catch (Exception ex)

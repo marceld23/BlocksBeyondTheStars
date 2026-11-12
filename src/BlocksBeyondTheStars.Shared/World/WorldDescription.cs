@@ -240,8 +240,16 @@ public sealed class WorldDescription
     /// variety and glow package, #2976 several fruits per world, picked per tree, #2988 the start system carries lead and
     /// uranium, #3005 the pumpkin as a wild species of the green worlds, #3306 KuBa-W, Jafar's school-club asteroid, #3325 the
     /// Schuppenhund on the dry worlds, #3334 the buried G.D.S. ruins flooded with Ressaw, #3416 the rune shrines, #3483 the
-    /// landmarks).</summary>
-    public const int CurrentTerrainGeneration = 37;
+    /// landmarks, #3510 the structure pipeline).</summary>
+    public const int CurrentTerrainGeneration = StructurePipelineGeneration;
+
+    /// <summary>The generation of the structure pipeline (#3510): a world created at this generation or later stamps its
+    /// structures through the unified pipeline — one footprint registry every stamper keeps clear of, the shared decay pass,
+    /// placement rules from <c>data/structure_types.json</c>, wrecks built from the real ship layout — and records a
+    /// procedurally composed settlement with an explicit <c>procedural</c> template instead of the ambiguous empty one
+    /// (#3513). Server-side stamps only, so every chunk of every generation stays bit-identical; the gate keeps every older
+    /// world's structures exactly as they were stamped and replayed.</summary>
+    public const int StructurePipelineGeneration = 38;
 
     /// <summary>The generation of the landmarks (#3483, the school club's giant buildings): a world created at this
     /// generation or later may carry ONE landmark per planet — a giant authored building, usually a ruin derived from the

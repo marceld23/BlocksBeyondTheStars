@@ -112,6 +112,15 @@ public sealed partial class GameContent
     /// <inheritdoc cref="StructureCatalog.StationTemplateByKey"/>
     public StructureTemplate? StationTemplateByKey(string key) => _structures.StationTemplateByKey(key);
 
+    /// <inheritdoc cref="StructureCatalog.SourceTemplatesFor"/>
+    public IReadOnlyList<StructureTemplate> SourceTemplatesFor(string kind, string tier, IReadOnlyCollection<string>? enabledPacks, string? planetType) => _structures.SourceTemplatesFor(kind, tier, enabledPacks, planetType);
+
+    /// <inheritdoc cref="StructureCatalog.UndergroundSourceTemplatesFor"/>
+    public IReadOnlyList<StructureTemplate> UndergroundSourceTemplatesFor(IReadOnlyCollection<string>? enabledPacks, string? planetType) => _structures.UndergroundSourceTemplatesFor(enabledPacks, planetType);
+
+    /// <inheritdoc cref="StructureCatalog.SourceTemplateByKey"/>
+    public StructureTemplate? SourceTemplateByKey(string kind, string key) => _structures.SourceTemplateByKey(kind, key);
+
     // --- Pluggable story packs (loaded from data/stories/<id>/story.json by the content loader) ---
 
     private IReadOnlyDictionary<string, StoryDefinition> _stories =
@@ -813,7 +822,8 @@ public sealed partial class GameContent
     public RecipeDefinition? GetRecipe(string key) => _recipes.TryGetValue(key, out var r) ? r : null;
     public BlueprintDefinition? GetBlueprint(string key) => _blueprints.TryGetValue(key, out var b) ? b : null;
     public ShipModuleDefinition? GetShipModule(string key) => _shipModules.TryGetValue(key, out var m) ? m : null;
-    public ShipDefinition? GetShip(string key) => _ships.TryGetValue(key, out var s) ? s : null;
+    /// <summary>A ship type by key: a shipped one (<see cref="Ships"/>), else a user ship (<see cref="UserShips"/>, #3520).</summary>
+    public ShipDefinition? GetShip(string key) => _ships.TryGetValue(key, out var s) ? s : UserShipByKey(key)?.Definition;
 
     /// <summary>A design's cargo capacity as built: the <c>cargo_slots</c> of its start modules. The hold is
     /// only ever sized from modules (the server's ResizeCargo), so this is the one number that can never
@@ -832,7 +842,9 @@ public sealed partial class GameContent
 
         return slots;
     }
-    public ShipLayout? GetShipLayout(string? key) => !string.IsNullOrEmpty(key) && _shipLayouts.TryGetValue(key, out var l) ? l : null;
+    /// <summary>A ship layout by key: a shipped one, else a user ship's (keyed like its ship, #3520).</summary>
+    public ShipLayout? GetShipLayout(string? key) => string.IsNullOrEmpty(key) ? null
+        : _shipLayouts.TryGetValue(key!, out var l) ? l : UserShipByKey(key)?.Layout;
     public PlanetType? GetPlanet(string key) => _planets.TryGetValue(key, out var p) ? p : null;
     public MissionDefinition? GetMission(string id) => _missions.TryGetValue(id, out var m) ? m : null;
 

@@ -213,139 +213,6 @@ public sealed partial class GameServer
     /// <summary>How close to the core terminal the player must be for the breach to channel (chamber-sized).</summary>
     private const float CoreChamberReach = 7f;
 
-    /// <summary>Stamps the buried Guardian-core chamber on the finale body (idempotent per world). The chamber
-    /// sits ~24 blocks down with an iron shell and a glowing red core column at its centre (the terminal you
-    /// breach). Two routes reach it: <b>Route A</b> drops down a pre-carved 3×3 <b>aperture shaft</b> from the
-    /// surface (ringed by plating so the maw is visible); <b>Route B</b> simply mines down through the shell.
-    /// The finale body carries no other structures (see the per-world init), so nothing collides with it.</summary>
-    private void StampGuardianCoreChamber()
-    {
-        var aw = _worlds.Active;
-        if (aw.GuardianCoreStamped)
-        {
-            return;
-        }
-
-        aw.GuardianCoreStamped = true;
-        var planet = _world.Planet;
-        if (planet.Void)
-        {
-            return;
-        }
-
-        var shell = (_content.GetBlock("iron_wall") ?? _content.GetBlock("deepslate") ?? _content.GetBlock("stone"))!.NumericId;
-        var core = _content.GetBlock("light_red")?.NumericId ?? BlockId.Air;
-        var floorBlk = _content.GetBlock("steel_floor")?.NumericId ?? shell;
-        var frame = _content.GetBlock("metal_panel")?.NumericId ?? shell;
-        var window = _content.GetBlock("glass")?.NumericId ?? BlockId.Air;
-
-        int ax = WorldConstants.WrapX(48, _world.Circumference);
-        int az = 24;
-        int surfaceY = _generator.SurfaceHeight(planet, ax, az);
-        if (surfaceY < 40)
-        {
-            surfaceY = 64; // the finale core must bury cleanly even over low terrain
-        }
-
-        int floorY = surfaceY - (CoreShaftDepth + 1); // 24 down; the column's floor cell (the centre) 23 below the surface
-        aw.CoreChamberCenter = new Vector3i(ax, floorY + 1, az);
-        aw.HasCoreChamber = true;
-
-        // Chamber: an 11×11 outer shell (9×9 inside), 6 air high — the inner core, walled in iron with a
-        // plated floor.
-        const int R = 5;
-        for (int dx = -R; dx <= R; dx++)
-            for (int dz = -R; dz <= R; dz++)
-                for (int dy = -1; dy <= 6; dy++)
-                {
-                    var p = new Vector3i(WorldConstants.WrapX(ax + dx, _world.Circumference), floorY + dy, az + dz);
-                    bool wall = dx == -R || dx == R || dz == -R || dz == R;
-                    if (dy == -1)
-                    {
-                        _world.SetBlock(p, floorBlk); // plated walkable floor
-                    }
-                    else if (dy == 6 || wall)
-                    {
-                        _world.SetBlock(p, shell);
-                    }
-                    else
-                    {
-                        _world.SetBlock(p, BlockId.Air);
-                    }
-                }
-
-        // Glow strips: red lights set into the middle of each wall at eye level.
-        if (!core.IsAir)
-        {
-            foreach (var (wx, wz) in new[] { (-R, 0), (R, 0), (0, -R), (0, R) })
-            {
-                _world.SetBlock(new Vector3i(WorldConstants.WrapX(ax + wx, _world.Circumference), floorY + 2, az + wz), core);
-            }
-        }
-
-        // The dormant core: a glowing red heart on a plated pedestal, framed by four metal pillars and glass
-        // windows — the terminal the player breaches (centre of the chamber).
-        for (int dx = -1; dx <= 1; dx++)
-            for (int dz = -1; dz <= 1; dz++)
-            {
-                _world.SetBlock(new Vector3i(WorldConstants.WrapX(ax + dx, _world.Circumference), floorY, az + dz), frame);
-            }
-
-        if (!core.IsAir)
-        {
-            for (int dy = 1; dy <= 4; dy++)
-            {
-                _world.SetBlock(new Vector3i(ax, floorY + dy, az), core);
-            }
-        }
-
-        foreach (var (cx, cz) in new[] { (-1, -1), (-1, 1), (1, -1), (1, 1) })
-        {
-            for (int dy = 1; dy <= 5; dy++)
-            {
-                _world.SetBlock(new Vector3i(WorldConstants.WrapX(ax + cx, _world.Circumference), floorY + dy, az + cz), frame);
-            }
-        }
-
-        if (!window.IsAir)
-        {
-            foreach (var (ex, ez) in new[] { (-1, 0), (1, 0), (0, -1), (0, 1) })
-            {
-                for (int dy = 2; dy <= 3; dy++)
-                {
-                    _world.SetBlock(new Vector3i(WorldConstants.WrapX(ax + ex, _world.Circumference), floorY + dy, az + ez), window);
-                }
-            }
-        }
-
-        // Route A — the aperture: a 3×3 open shaft from the surface down into the chamber, offset toward the
-        // +Z wall so you drop onto open floor (not onto the core) and walk in to the heart.
-        int shaftZ = az + CoreShaftOffsetZ;
-        for (int dy = floorY + 6; dy <= surfaceY + 1; dy++)
-            for (int dx = -1; dx <= 1; dx++)
-                for (int dz = -1; dz <= 1; dz++)
-                {
-                    _world.SetBlock(new Vector3i(WorldConstants.WrapX(ax + dx, _world.Circumference), dy, shaftZ + dz), BlockId.Air);
-                }
-
-        // A low ring of plating around the shaft mouth so the opening reads as the core's maw from the surface.
-        for (int dx = -2; dx <= 2; dx++)
-            for (int dz = -2; dz <= 2; dz++)
-            {
-                if (System.Math.Abs(dx) != 2 && System.Math.Abs(dz) != 2)
-                {
-                    continue;
-                }
-
-                int rx = WorldConstants.WrapX(ax + dx, _world.Circumference);
-                int ry = _generator.SurfaceHeight(planet, rx, shaftZ + dz);
-                _world.SetBlock(new Vector3i(rx, ry + 1, shaftZ + dz), shell);
-                _world.SetBlock(new Vector3i(rx, ry + 2, shaftZ + dz), shell);
-            }
-
-        _log.Info($"Stamped the Guardian core chamber on '{_world.LocationId}' at ({ax},{floorY},{az}).");
-    }
-
     /// <summary>True once the player has reached the inner-core chamber on the finale body (within
     /// <see cref="CoreChamberReach"/> of the terminal). On any other world (no chamber) this defers to the
     /// system gate, so it never blocks the hack where a chamber was never stamped.</summary>
@@ -865,10 +732,10 @@ public sealed partial class GameServer
 
     /// <summary>How far the surface lies above the column's floor cell (the stamp: floor 24 below the surface, the column one
     /// above the floor).</summary>
-    private const int CoreShaftDepth = 23;
+    private const int CoreShaftDepth = WorldGeneration.GuardianCoreBuilder.ShaftDepth;
 
     /// <summary>How far the shaft sits from the column towards +Z (the stamp's <c>shaftZ = az + 3</c>).</summary>
-    private const int CoreShaftOffsetZ = 3;
+    private const int CoreShaftOffsetZ = WorldGeneration.GuardianCoreBuilder.ShaftOffsetZ;
 
     // ---------------- Helpers ----------------
 

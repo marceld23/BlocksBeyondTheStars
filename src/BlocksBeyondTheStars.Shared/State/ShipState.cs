@@ -21,6 +21,10 @@ public sealed class ShipState
     /// <summary>Ship type/design key (see <c>data/ships.json</c>); drives the hull design + base stats.</summary>
     public string ShipType { get; set; } = "starter";
 
+    /// <summary>#3520: the literal name of a user ship (<c>usercontent/ship_types/</c>) as it joined the fleet — shown when
+    /// its file is gone or no longer loads and <see cref="ShipType"/> resolves to nothing. Empty for every other ship.</summary>
+    public string DisplayName { get; set; } = string.Empty;
+
     /// <summary>
     /// Current hull integrity (space combat, `anf_space_flight.md` §8.4). Reaching 0 disables
     /// the ship and recovers it to its base — there is no permanent ship loss (§8.5). The

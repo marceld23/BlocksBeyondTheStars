@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
@@ -113,7 +114,10 @@ public sealed partial class GameServer
             int dist = 160 + rng.Next(240);
             int cx = WorldConstants.WrapX(pad0X + (int)System.Math.Round(System.Math.Cos(ang) * dist), circ);
             int cz = System.Math.Clamp(pad0Z + (int)System.Math.Round(System.Math.Sin(ang) * dist), -latBand, latBand);
-            if (OverlapsAnySettlement(cx, cz, System.Math.Max(w, l) / 2 + 4) || OverlapsFootprint(cx, cz, w / 2, l / 2, reserved, 8))
+            bool blocked = UsesFootprintRegistry // #3514: generation 38 asks the registry, with the kind's margins
+                ? Footprints.Overlaps(cx, cz, (w / 2) + 1, (l / 2) + 1, KeepClearMargins(StructureTypeRules.Underground))
+                : OverlapsAnySettlement(cx, cz, System.Math.Max(w, l) / 2 + 4) || OverlapsFootprint(cx, cz, w / 2, l / 2, reserved, 8);
+            if (blocked)
             {
                 continue;
             }

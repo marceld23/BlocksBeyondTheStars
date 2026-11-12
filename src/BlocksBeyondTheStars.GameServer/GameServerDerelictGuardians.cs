@@ -25,8 +25,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    /// <summary>The bay's block key (data/blocks.json).</summary>
-    internal const string GuardianBayBlockKey = "guardian_spawner";
+    /// <summary>The bay's block key (data/blocks.json) — the same block the hunter camp's robot docks use.</summary>
+    internal const string GuardianBayBlockKey = WorldGeneration.HunterShuttleHull.DockBlockKey;
 
     /// <summary>Seconds aboard before the bay releases its first guardian — time to look around and hear VEGA.</summary>
     internal const double GuardianFirstReleaseSeconds = 60.0;

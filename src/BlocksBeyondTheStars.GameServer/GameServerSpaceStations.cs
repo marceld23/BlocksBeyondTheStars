@@ -9,6 +9,7 @@ using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
+using BlocksBeyondTheStars.WorldGeneration.Sources;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -617,6 +618,7 @@ public sealed partial class GameServer
         SendEnvironment(session);
         SendInventory(session);
         SendNpcs(session); // the station's crew (vendor / quartermaster / dockhands)
+        SendLandmarks(session); // #3519: the station's sound emitters — and it clears the emitters of the world the player left
         // The station's doors — to everyone aboard (#2607): the registry was rebuilt above with fresh ids (and the doors
         // hung since), so a player already inside would otherwise keep stale door ids.
         BroadcastDoors();
@@ -922,6 +924,9 @@ public sealed partial class GameServer
         StationComposition? composition = null;
         bool pinned = _meta.StationTemplates.TryGetValue(station.Id, out var pinnedKey);
         bool pinnedKit = pinned && pinnedKey!.StartsWith("kit:", System.StringComparison.Ordinal);
+        bool pinnedSource = pinned && SourceTemplates.IsRecord(pinnedKey); // #3518: a generator entry
+        StationStructure? sourceStructure = null;
+        StructureTemplate? pickedEntry = null;
         bool fresh = !pinned && !_repo.HasAnyBlockEdits(StationLocationIdPrefix + station.Id);
         double useP = _meta.Description.StationTemplateUse.Probability();
         bool legacyHit = roll.NextDouble() < useP; // consumed for every station: the legacy stream contract (#1115)
@@ -955,16 +960,26 @@ public sealed partial class GameServer
                 _log.Warn($"Station '{station.Name}' is pinned to a kit but has no composition record — falling back to the procedural interior.");
             }
         }
+        else if (pinnedSource)
+        {
+            // #3518: a generator entry replays itself, never the legacy pick. One that is gone or no longer builds falls back
+            // to the procedural interior, like a kit that no longer replays (a station is stamped every session).
+            sourceStructure = BuildStationSource(station, SourceTemplates.KeyOfRecord(pinnedKey!), sSeed);
+        }
         else if (fresh)
         {
             if (useP > 0)
             {
                 // #1888: the option is the share of complete templates — the legacy roll above IS that coin (a
                 // Bernoulli draw at the option's probability), then a weighted pick among the templates or the kits.
+                // #3518: generation 38 appends the tier's generator entries after the kits (none: the same draw as before).
                 var templates = _content.CompleteTemplatesFor(StructureKit.KindStation, station.SizeTier, packs, null);
                 var kits = _content.KitsFor(StructureKit.KindStation, station.SizeTier, packs, null);
-                var (pickedTemplate, kit) = PickTemplateOrKit(templates, kits, legacyHit, roll);
+                var (pickedTemplate, kit, pickedSource) = PickTemplateKitOrSource(templates, kits, StationSourcesFor(station.SizeTier), legacyHit, roll);
                 template = pickedTemplate;
+                sourceStructure = pickedSource is null ? null : BuildStationSource(station, pickedSource.Key, sSeed);
+                pickedEntry = sourceStructure is null ? null : pickedSource; // one that cannot be built: procedural, recorded so
+
                 if (kit != null)
                 {
                     kitStructure = StationKitComposer.Compose(kit, key => _content.TemplateByKey(StructureKit.KindStation, key), sSeed, _content, out composition, out var failure);
@@ -985,6 +1000,13 @@ public sealed partial class GameServer
                 template = string.IsNullOrEmpty(pinnedKey) ? null : _content.StationTemplateByKey(pinnedKey!) ?? template;
             }
         }
+        else if (pinned && !string.IsNullOrEmpty(pinnedKey) && TemplatePipelineWorld)
+        {
+            // A fresh pick takes a template even when the coin said no if the tier has templates but no kits (PickTemplateOrKit)
+            // and pins it; its replay depended on the coin again and fell back to the procedural interior. From generation 38
+            // the pinned template wins here too (older worlds keep the old replay exactly: their stations stamp it every session).
+            template = _content.StationTemplateByKey(pinnedKey!);
+        }
 
         if (!pinned)
         {
@@ -995,15 +1017,19 @@ public sealed partial class GameServer
             }
             else
             {
-                _meta.StationTemplates[station.Id] = template?.Key ?? string.Empty;
+                _meta.StationTemplates[station.Id] = pickedEntry != null ? SourceTemplates.RecordOf(pickedEntry) : template?.Key ?? string.Empty;
             }
 
             _repo.SaveMetadata(_meta);
         }
 
+        // #3519: from generation 38 a station template's material tokens become the station's hull blocks and its markers
+        // carry their settings (chests, sounds, dens).
         structure = kitStructure
+            ?? sourceStructure
             ?? (template != null
-                ? StationGenerator.FromTemplate(template, _content)
+                ? StationGenerator.FromTemplate(template, _content, TemplatePipelineWorld ? ModuleMaterials.ForStation(_content) : null,
+                    markerSettings: TemplatePipelineWorld)
                 : StationGenerator.Generate(station.SizeTier, sSeed, _content));
 
         station.Structure = structure;
@@ -1062,6 +1088,7 @@ public sealed partial class GameServer
         }
 
         station.Markers.Clear();
+        var markerLife = TemplatePipelineWorld ? ResetMarkerLife(StationMarkerOwner) : null; // #3519: chests, sounds, dens
         foreach (var m in structure.Markers)
         {
             var pos = new Vector3f(station.Origin.X + m.LocalPos.X + 0.5f,
@@ -1072,6 +1099,12 @@ public sealed partial class GameServer
             {
                 // #2260: a pre-built circuit (the airlock, the alarm) — the station world's net has loaded already
                 RegisterWorldCircuitCell(new Vector3i(station.Origin.X + m.LocalPos.X, station.Origin.Y + m.LocalPos.Y, station.Origin.Z + m.LocalPos.Z), m.Data);
+            }
+
+            if (markerLife is not null)
+            {
+                _ = ApplyStructureMarker(markerLife, m.Type, m.Data,
+                    new Vector3i(station.Origin.X + m.LocalPos.X, station.Origin.Y + m.LocalPos.Y, station.Origin.Z + m.LocalPos.Z));
             }
         }
 

@@ -1,0 +1,88 @@
+{
+  "_comment": "Placement rules of the stamped structure kinds (#3517). Every value here equals the C# default in StructureTypeRules (a test holds them together); a field or kind left out keeps its default, a broken entry is reported and dropped. Which fields a kind reads (not every kind reads conditions or whitelist), and what thresholds mean per kind: see StructureTypeRules. minGeneration can be raised, never lowered below the C# default. keepClear/keepClearFrom act on terrain generation 38+ only. ServerConfig's intercity/rail-ruin/landmark chance overrides this file when set. Changing a number only affects bodies stamped afterwards: what stands is replayed from its placement records.",
+  "text_tablet": {
+    "enabled": true, "minGeneration": 33, "chance": 0, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
+    "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": [], "whitelist": ""
+  },
+  "sounder_site": {
+    "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
+    "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": [], "whitelist": ""
+  },
+  "settlement": {
+    "enabled": true, "minGeneration": 0, "chance": 0, "density": 3.0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 8,
+    "seatPolicy": "inhabited", "keepClear": 6, "keepClearFrom": {}, "conditions": ["atmosphere"], "whitelist": ""
+  },
+  "intercity": {
+    "enabled": true, "minGeneration": 19, "chance": 0.6, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
+    "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": ["notGas", "notCityWorld"], "whitelist": ""
+  },
+  "ruin": {
+    "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [0.55, 0.85], "thresholdCaps": [], "minCount": 0, "cap": 3,
+    "seatPolicy": "ruin", "keepClear": 6, "keepClearFrom": {}, "conditions": ["atmosphere"], "whitelist": ""
+  },
+  "rail_ruin": {
+    "enabled": true, "minGeneration": 20, "chance": 0.35, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
+    "seatPolicy": "factory", "keepClear": 6, "keepClearFrom": {}, "conditions": ["notVoid", "atmosphere", "notGas"], "whitelist": ""
+  },
+  "banditcamp": {
+    "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [0.75, 0.60, 0.45, 0.30], "thresholdCaps": [], "minCount": 0, "cap": 2,
+    "seatPolicy": "camp", "keepClear": 6, "keepClearFrom": {}, "conditions": ["atmosphere", "notRuinedOnly"], "whitelist": ""
+  },
+  "lodge": {
+    "enabled": true, "minGeneration": 25, "chance": 0, "density": 2.2, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 6,
+    "seatPolicy": "camp", "keepClear": 6,
+    "keepClearFrom": { "pad": 16, "wreck_site": 14, "settlement": 40, "banditcamp": 40, "ruin": 24, "lodge": 24, "outpost": 24 },
+    "conditions": ["notVoid", "atmosphere", "notRuinedOnly", "notGas", "notCityWorld"], "whitelist": ""
+  },
+  "outpost": {
+    "enabled": true, "minGeneration": 25, "chance": 0, "density": 1.4, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 2,
+    "seatPolicy": "camp", "keepClear": 6,
+    "keepClearFrom": { "pad": 16, "wreck_site": 14, "settlement": 40, "banditcamp": 40, "ruin": 24, "lodge": 24, "outpost": 24 },
+    "conditions": ["notVoid", "atmosphere", "notRuinedOnly", "notGas", "notCityWorld", "breathable"], "whitelist": ""
+  },
+  "spslab": {
+    "enabled": true, "minGeneration": 8, "chance": 0, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 3, "cap": 6,
+    "seatPolicy": "camp", "keepClear": 6, "keepClearFrom": {}, "conditions": ["notVoid", "namedByType"], "whitelist": "sps_labs"
+  },
+  "monument": {
+    "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [0.30, 0.75, 0.95], "thresholdCaps": [], "minCount": 0, "cap": 3,
+    "seatPolicy": "monument", "keepClear": 6, "keepClearFrom": {}, "conditions": [], "whitelist": "monuments"
+  },
+  "factory": {
+    "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [0.70, 0.92], "thresholdCaps": [], "minCount": 0, "cap": 2,
+    "seatPolicy": "factory", "keepClear": 6, "keepClearFrom": {}, "conditions": ["atmosphere"], "whitelist": ""
+  },
+  "wreck": {
+    "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
+    "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": [], "whitelist": ""
+  },
+  "landmark": {
+    "enabled": true, "minGeneration": 37, "chance": 0.34, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
+    "seatPolicy": "", "keepClear": 6, "keepClearFrom": { "pad": 20, "wreck_site": 8 },
+    "conditions": ["notVoid", "notGas", "atmosphere", "notAsteroid"], "whitelist": "landmarks"
+  },
+  "underground": {
+    "enabled": true, "minGeneration": 35, "chance": 0.04, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
+    "seatPolicy": "", "keepClear": 10, "keepClearFrom": { "pad": 30, "wreck_site": 8 }, "conditions": ["notVoid", "notGas"], "whitelist": "gds_ruins"
+  },
+  "vault": {
+    "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [0.75, 0.35], "thresholdCaps": [0.95, 0.8], "minCount": 0, "cap": 0,
+    "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": ["notVoid"], "whitelist": ""
+  },
+  "datacube": {
+    "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [0.45, 0.80, 0.95], "thresholdCaps": [], "minCount": 0, "cap": 0,
+    "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": ["notVoid"], "whitelist": ""
+  },
+  "net_fragment": {
+    "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
+    "seatPolicy": "", "keepClear": 0, "keepClearFrom": {}, "conditions": [], "whitelist": "net_fragments"
+  },
+  "chest": {
+    "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [0.6, 0.88], "thresholdCaps": [], "minCount": 0, "cap": 0,
+    "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": ["notVoid"], "whitelist": ""
+  },
+  "unique_site": {
+    "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
+    "seatPolicy": "", "keepClear": 10, "keepClearFrom": {}, "conditions": [], "whitelist": ""
+  }
+}

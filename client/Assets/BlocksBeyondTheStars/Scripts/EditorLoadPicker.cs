@@ -36,13 +36,15 @@ namespace BlocksBeyondTheStars.Client
         private readonly GameObject _overlay;
         private readonly Transform _panel;
         private readonly Action _onClosed;
+        private readonly string _title;
 
         public GameObject Overlay => _overlay;
 
-        private EditorLoadPicker(AppShell shell, Transform canvas, Action onClosed)
+        private EditorLoadPicker(AppShell shell, Transform canvas, Action onClosed, string title)
         {
             _shell = shell;
             _onClosed = onClosed;
+            _title = title;
             // Shared menu-modal chrome (#588): a scrim so the editor behind stays dim and unclickable.
             var (overlay, panel) = UiKit.AddModalOverlay(canvas, 640f, 220f, W, H);
             _overlay = overlay;
@@ -52,10 +54,12 @@ namespace BlocksBeyondTheStars.Client
         private string L(string key) => _shell != null ? _shell.L(key) : key;
 
         /// <summary>Opens the picker. <paramref name="currentCells"/> &gt; 0 makes every load ask first.
-        /// Returns the picker so the caller can destroy it (e.g. when the whole UI is rebuilt).</summary>
-        public static EditorLoadPicker Show(AppShell shell, Transform canvas, IReadOnlyList<Section> sections, int currentCells, Action onClosed = null)
+        /// Returns the picker so the caller can destroy it (e.g. when the whole UI is rebuilt). <paramref name="title"/>
+        /// replaces "Load" for a list that picks something else (the structure editor's generators, #3523).</summary>
+        public static EditorLoadPicker Show(AppShell shell, Transform canvas, IReadOnlyList<Section> sections, int currentCells, Action onClosed = null,
+            string title = null)
         {
-            var picker = new EditorLoadPicker(shell, canvas, onClosed);
+            var picker = new EditorLoadPicker(shell, canvas, onClosed, title);
             picker.BuildList(sections, currentCells);
             return picker;
         }
@@ -81,7 +85,7 @@ namespace BlocksBeyondTheStars.Client
         private void BuildList(IReadOnlyList<Section> sections, int currentCells)
         {
             ClearPanel();
-            UiKit.AddText(_panel, 20f, 14f, W - 40f, 28f, L("ui.struct.load"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddText(_panel, 20f, 14f, W - 40f, 28f, _title ?? L("ui.struct.load"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
 
             var list = UiKit.ScrollList(_panel, 16f, 52f, W - 32f, H - 52f - 64f);
             int rows = 0;
@@ -114,7 +118,7 @@ namespace BlocksBeyondTheStars.Client
         private void BuildConfirm(Item item, int currentCells)
         {
             ClearPanel();
-            UiKit.AddText(_panel, 20f, 14f, W - 40f, 28f, L("ui.struct.load"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddText(_panel, 20f, 14f, W - 40f, 28f, _title ?? L("ui.struct.load"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             var msg = UiKit.AddText(_panel, 20f, 70f, W - 40f, 120f,
                 string.Format(L("ui.ed.confirm_replace"), currentCells, item.Label), 16, UiKit.Warn, TextAnchor.UpperLeft);
             msg.horizontalOverflow = HorizontalWrapMode.Wrap;

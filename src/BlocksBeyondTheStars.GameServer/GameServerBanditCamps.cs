@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Shared.Configuration;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
@@ -20,11 +21,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private const int BanditCampHardCap = 2;
-
     private void StampBanditCamps()
     {
-        if (!_config.PlaceBanditCamps || Rules.Bandits == AlienActivity.Off)
+        var rules = StructureType(StructureTypeRules.BanditCamp); // #3517: the odds, cap 2 and the camp seat as shipped
+        if (!_config.PlaceBanditCamps || !rules.Enabled || Rules.Bandits == AlienActivity.Off)
         {
             // Deliberately NOT marked as stamped: a world first visited with bandits off still gets its
             // camps if the option is turned on later (the placement itself stays seed-deterministic).
@@ -32,7 +32,7 @@ public sealed partial class GameServer
         }
 
         var planet = _world.Planet;
-        if (planet.IsAirless || planet.RuinedSettlementsOnly)
+        if (!StructureConditionsHold(StructureTypeRules.BanditCamp, planet))
         {
             return; // bandits camp where they can breathe (matches the ruins/settlement logic); nobody lives on a toxic world (#2031)
         }
@@ -57,18 +57,20 @@ public sealed partial class GameServer
             };
         }
 
-        double odds = activity switch
+        double odds = activity switch // the "no camp" odds per level: the kind's thresholds (data/structure_types.json)
         {
-            AlienActivity.Rare => 0.75,
-            AlienActivity.Normal => 0.60,
-            AlienActivity.Frequent => 0.45,
-            AlienActivity.Extreme => 0.30,
+            AlienActivity.Rare => rules.Thresholds[0],
+            AlienActivity.Normal => rules.Thresholds[1],
+            AlienActivity.Frequent => rules.Thresholds[2],
+            AlienActivity.Extreme => rules.Thresholds[3],
             _ => 1.0,
         };
         odds = System.Math.Clamp(1.0 - (1.0 - odds) * _meta.Description.Danger.DangerFactor(), 0.05, 1.0);
         double r = rng.NextDouble();
         int count = r < odds ? 0 : r < odds + (1.0 - odds) * 0.8 ? 1 : 2;
-        count = System.Math.Min(BanditCampHardCap, count);
+        // #3513: the count is pinned at the first run — a later change of the bandit level (or the danger option) leaves the
+        // camps of an existing body as they are; switching bandits off (above) still switches them off.
+        count = PinnedCount("banditcamp", System.Math.Min(rules.Cap, count));
         if (count <= 0)
         {
             return;
@@ -94,6 +96,7 @@ public sealed partial class GameServer
 
         AppendIntercityReservations(reserved); // #2125: the intercity line's stations and route
         AppendRailRuinReservations(reserved); // #2166: the abandoned monorail station
+        reserved = KeepClearFor(StructureTypeRules.BanditCamp, reserved); // #3514: generation 38 keeps clear through the registry
 
         bool blocksAlreadyStamped = FeatureStamped("banditcamps");
         var placed = new List<PlacedSettlement>();
@@ -137,7 +140,7 @@ public sealed partial class GameServer
             else
             {
                 if (!TryPlaceStructureGuaranteed(structure, RngFor(instSeed, "search"), reserved,
-                        wantIsland: false, SeatPolicy.Camp, avoidPlayerEdits: false,
+                        wantIsland: false, SeatPolicyOf(StructureTypeRules.BanditCamp, SeatPolicy.Camp), avoidPlayerEdits: false,
                         out origin, out groundY, out onIsland, out seat))
                 {
                     RecordPlacementSkip("banditcamp", i);
@@ -206,6 +209,7 @@ public sealed partial class GameServer
 
             camp.Cleared = FeatureStamped("banditcamp:" + camp.Key + ":cleared");
             _banditCamps.Add(camp);
+            RegisterFootprintBox(StructureTypeRules.BanditCamp, camp.Min, camp.Max); // #3514
             if (!camp.Cleared)
             {
                 SpawnBanditCampGuards(camp, p.Rng);

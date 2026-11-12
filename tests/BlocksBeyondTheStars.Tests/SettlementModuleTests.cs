@@ -736,7 +736,8 @@ public sealed class SettlementModuleTests : IDisposable
             var server = Started(content, world, seed, out var repo);
             using (repo)
             {
-                var recs = server.PlacementRecordsForTest.Where(r => r.Kind == "settlement" && r.Placed && r.Template.Length == 0).ToList();
+                var recs = server.PlacementRecordsForTest.Where(r => r.Kind == "settlement" && r.Placed
+                    && (r.Template.Length == 0 || r.Template == StructurePlacementRecord.ProceduralTemplate)).ToList(); // #3513: gen 38 says so
                 if (recs.Count == 0)
                 {
                     server.Stop();

@@ -53,7 +53,12 @@ public sealed partial class GameServer
             return;
         }
 
-        var lm = ForceLandmark(template, session.State.Position.ToBlock());
+        if (ForceLandmark(template, session.State.Position.ToBlock()) is not { } lm)
+        {
+            Reject(session, "admin", "@srv.landmark.unknown"); // #3518: a generator entry its source cannot build (warned)
+            return;
+        }
+
         CheatLog(session.State, $"stamped landmark '{template.Key}' on {_world.LocationId} at ({lm.Origin.X}, {lm.GroundY}, {lm.Origin.Z})");
         Send(session, new ServerMessage
         {
@@ -85,8 +90,9 @@ public sealed partial class GameServer
     }
 
     /// <summary>Stamps <paramref name="template"/> in front of <paramref name="at"/> on the active world, whatever its roll
-    /// and its conditions say, under the next free record index. Returns the new instance.</summary>
-    internal LandmarkInstance ForceLandmark(StructureTemplate template, Vector3i at)
+    /// and its conditions say, under the next free record index. Returns the new instance — null when a generator entry's
+    /// source cannot build it (#3518).</summary>
+    internal LandmarkInstance? ForceLandmark(StructureTemplate template, Vector3i at)
     {
         int index = _meta.Placements.Where(r => r.LocationId == _world.LocationId && r.Kind == LandmarkRules.RecordKind)
             .Select(r => r.Index + 1).DefaultIfEmpty(0).Max();
@@ -95,11 +101,16 @@ public sealed partial class GameServer
         {
             Template = template,
             Seed = unchecked((long)StableHashing.Mixed(lane, _meta.Seed)),
-            Turns = StableHashing.Index(lane + ":turn", _meta.Seed, 4),
+            Turns = template.IsSource ? 0 : StableHashing.Index(lane + ":turn", _meta.Seed, 4), // #3518: an entry stands as built
             Index = index,
             Fresh = true,
         };
         plan.Layout = BuildLandmarkLayout(plan);
+        if (plan.Layout is null)
+        {
+            return null;
+        }
+
         var s = plan.Layout.Structure;
         plan.OriginX = at.X - (s.Width / 2);
         plan.OriginZ = at.Z + LandmarkAdminGap;

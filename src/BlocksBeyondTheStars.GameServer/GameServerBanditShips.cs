@@ -417,16 +417,13 @@ public sealed partial class GameServer
     /// the smaller hulls — a scout raider is the common sight, a hammerhead pirate a rare one.</summary>
     private ShipDefinition? PickRaiderDesign()
     {
-        var pool = _content.Ships.Values
-            .Where(s => s.Key != "starter" && _content.GetShipLayout(s.Layout) is { Cells.Count: > 0 })
-            .OrderBy(s => s.Key, System.StringComparer.Ordinal)
-            .ToList();
+        var pool = RaiderDesignPool();
         if (pool.Count == 0)
         {
             return null;
         }
 
-        int Weight(ShipDefinition d) => System.Math.Max(1, 600 - (_content.GetShipLayout(d.Layout)?.Cells.Count ?? 0));
+        int Weight(ShipDefinition d) => System.Math.Max(1, 600 - (_content.GetShipLayout(d.Layout)?.Cells.Count ?? 0)) * UserShipWeight(d);
         int roll = _banditRng.Next(pool.Sum(Weight));
         foreach (var d in pool)
         {
@@ -438,6 +435,18 @@ public sealed partial class GameServer
         }
 
         return pool[pool.Count - 1];
+    }
+
+    /// <summary>The raider candidates: the shipped designs with a layout but the starter (key order), then the user ships with
+    /// the <c>npc</c> use (#3520) — appended, so a server without user ships draws exactly as before.</summary>
+    private List<ShipDefinition> RaiderDesignPool()
+    {
+        var pool = _content.Ships.Values
+            .Where(s => s.Key != "starter" && _content.GetShipLayout(s.Layout) is { Cells.Count: > 0 })
+            .OrderBy(s => s.Key, System.StringComparer.Ordinal)
+            .ToList();
+        pool.AddRange(NpcUserShipDesigns(landing: false));
+        return pool;
     }
 
     /// <summary>Dyes a hull in raider colours (#2357): every tintable plating cell near-black, the outermost cells of

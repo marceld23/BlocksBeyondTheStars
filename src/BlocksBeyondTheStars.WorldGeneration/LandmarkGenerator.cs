@@ -58,23 +58,28 @@ public static class LandmarkGenerator
     /// <summary>The tier name a landmark's structure carries.</summary>
     public const string Tier = "landmark";
 
-    /// <summary>The revision of the ruin pass a fresh landmark is stamped with (pinned in its placement record).</summary>
+    /// <summary>The revision of the ruin pass a fresh landmark is stamped with (pinned in its placement record as
+    /// <c>rev</c>; a record replays through the revision it pins, #3515).</summary>
     public const int RuinRevision = StructureRuiner.Revision;
 
-    /// <summary>The marker types a RUIN keeps. Everything alive or working — residents, vendors, boards, doors, rooms,
-    /// pre-built circuits — is gone from a ruin; what is left is what a visitor finds.</summary>
-    public static readonly string[] RuinMarkers =
-    {
-        LandmarkRules.ChestMarker, "loot", "data_terminal", "relic_cache", LandmarkRules.SoundMarker, LandmarkRules.DenMarker,
-    };
+    /// <summary>The marker types a RUIN keeps (<see cref="RuinMarkerRules.Kept"/>, the same array).</summary>
+    public static readonly string[] RuinMarkers = RuinMarkerRules.Kept;
 
     /// <summary>
-    /// Builds the landmark. <paramref name="ruin"/> null = what the template says (<see cref="LandmarkRules.IsRuin"/>);
-    /// the editor passes true / false to preview either. <paramref name="surfaceBlock"/> is the biome surface the
-    /// material tokens and the overgrowth follow.
+    /// Builds the landmark with the newest ruin revision (<see cref="RuinRevision"/>). <paramref name="ruin"/> null =
+    /// what the template says (<see cref="LandmarkRules.IsRuin"/>); the editor passes true / false to preview either.
+    /// <paramref name="surfaceBlock"/> is the biome surface the material tokens and the overgrowth follow.
     /// </summary>
     public static LandmarkLayout Build(StructureTemplate t, long seed, int turns, GameContent content, string surfaceBlock,
         bool? ruin = null)
+        => Build(t, seed, turns, content, surfaceBlock, ruin, RuinRevision);
+
+    /// <summary>
+    /// Builds the landmark with ruin revision <paramref name="revision"/> — the one its placement record pins (#3515),
+    /// so a standing landmark is re-derived exactly as it was stamped. Otherwise as the overload without a revision.
+    /// </summary>
+    public static LandmarkLayout Build(StructureTemplate t, long seed, int turns, GameContent content, string surfaceBlock,
+        bool? ruin, int revision)
     {
         turns = ((turns % 4) + 4) % 4;
         bool swap = (turns & 1) == 1;
@@ -87,12 +92,23 @@ public static class LandmarkGenerator
         FillBlocks(t, turns, grid, content, materials);
         var markers = ReadMarkers(t, turns, grid, content);
         int groundRow = System.Math.Clamp(t.GroundRow, 0, h - 1);
-        bool ruined = ruin ?? LandmarkRules.IsRuin(t);
+        return Finish(t, grid, markers, groundRow, ruin ?? LandmarkRules.IsRuin(t), seed, content, surfaceBlock, revision, turns);
+    }
+
+    /// <summary>
+    /// The landmark from its filled grid (shared by the authored body and a generator entry, #3518): when it stands as a ruin,
+    /// the shared ruin pass with the template's profile and strength, then only the markers a ruin keeps, seated on what is
+    /// left; then the layout with its cavity count.
+    /// </summary>
+    internal static LandmarkLayout Finish(StructureTemplate t, VoxelGrid grid, List<SettlementMarker> markers, int groundRow, bool ruined,
+        long seed, GameContent content, string surfaceBlock, int revision, int turns)
+    {
         if (ruined)
         {
-            StructureRuiner.Run(grid, content, seed, LandmarkRules.ProfileOf(t), t.RuinStrength, groundRow, markers, surfaceBlock);
-            markers.RemoveAll(m => System.Array.IndexOf(RuinMarkers, m.Type) < 0);
-            SeatMarkers(grid, markers, groundRow);
+            StructureRuiner.Run(grid, content, seed, LandmarkRules.ProfileOf(t), t.RuinStrength, groundRow, markers, surfaceBlock,
+                revision, options: null);
+            RuinMarkerRules.KeepOnly(markers);
+            RuinMarkerRules.Seat(grid, markers, groundRow);
         }
 
         int cavities = 0;
@@ -101,7 +117,7 @@ public static class LandmarkGenerator
             cavities += c ? 1 : 0;
         }
 
-        var structure = new SettlementStructure(w, h, l, Tier, ruined, inhabitant: string.Empty, grid.Blocks, markers,
+        var structure = new SettlementStructure(grid.W, grid.H, grid.L, Tier, ruined, inhabitant: string.Empty, grid.Blocks, markers,
             buildingCount: 1, grid.Mods, grid.Shapes);
         return new LandmarkLayout(structure, groundRow, grid.Cavity, ruined, turns, cavities);
     }
@@ -166,41 +182,6 @@ public static class LandmarkGenerator
             grid.Cavity[i] = false;
             grid.Keep[i] = p.Keep;
         });
-    }
-
-    /// <summary>
-    /// After the ruin pass: every surviving marker comes to rest on what is left. A marker whose floor fell drops
-    /// straight down to the next solid cell (below the ground row a cell that is neither a block nor a cavity is the
-    /// planet's rock and carries it too), and its own cell and the one above are freed — so a chest lies in the rubble
-    /// of the floor it stood on instead of hanging in the air.
-    /// </summary>
-    private static void SeatMarkers(VoxelGrid grid, List<SettlementMarker> markers, int groundRow)
-    {
-        bool Carries(int x, int y, int z)
-            => y < 0 || grid.Solid(x, y, z) || (y < groundRow && !grid.Cavity[grid.Index(x, y, z)]);
-
-        for (int i = 0; i < markers.Count; i++)
-        {
-            var m = markers[i];
-            int x = m.LocalPos.X, y = m.LocalPos.Y, z = m.LocalPos.Z;
-            while (y > 0 && !Carries(x, y - 1, z))
-            {
-                y--;
-            }
-
-            for (int dy = 0; dy <= 1; dy++)
-            {
-                if (grid.Solid(x, y + dy, z))
-                {
-                    grid.Clear(x, y + dy, z);
-                }
-            }
-
-            if (y != m.LocalPos.Y)
-            {
-                markers[i] = new SettlementMarker(m.Type, new Vector3i(x, y, z), m.DoorAxis, m.Data);
-            }
-        }
     }
 
     /// <summary>The template's marker cells, turned, with their settings line as the marker's data — plus a

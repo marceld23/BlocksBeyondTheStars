@@ -224,10 +224,11 @@ internal sealed partial class AncientRuinBuilder
     // ---------------------------------------------------------------- collapses
 
     /// <summary>Three to five collapse spots away from the entrance: the first two are sinkholes (the floor gave way into
-    /// the flooded undercroft), the others are fallen roofs with rubble on the floor.</summary>
-    public void Collapse()
+    /// the flooded undercroft), the others are fallen roofs with rubble on the floor. <paramref name="sinkholesOnly"/>
+    /// (#3516, after the shared ruin pass, which brought the roofs down already): the two sinkholes alone.</summary>
+    public void Collapse(bool sinkholesOnly = false)
     {
-        int spots = 3 + (int)(U(LaneSpots, 0, 0, 0) * 3);
+        int spots = sinkholesOnly ? Sinkholes : 3 + (int)(U(LaneSpots, 0, 0, 0) * 3);
         int placed = 0;
         for (int attempt = 0; attempt < 48 && placed < spots; attempt++)
         {

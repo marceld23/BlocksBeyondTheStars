@@ -4,7 +4,7 @@
 using System;
 using BlocksBeyondTheStars.Shared.Geometry;
 
-namespace BlocksBeyondTheStars.GameServer;
+namespace BlocksBeyondTheStars.WorldGeneration;
 
 /// <summary>
 /// #3358: the pure geometry of Soaniri's ruin city Ornasa and the Choir Tower — where the ruined halls, the three sound
@@ -12,7 +12,7 @@ namespace BlocksBeyondTheStars.GameServer;
 /// every load re-derives the chambers, the trail and the melody site from the same functions, so the two always agree.
 /// Bearings follow the compass: north is +Z, east is +X, angles run clockwise from north.
 /// </summary>
-internal static class SounderSiteLayout
+public static class SounderSiteLayout
 {
     /// <summary>Ornasa's six slots on a ring around the amphitheatre: the even ones are ruined halls, the odd ones the three
     /// sealed sound chambers (slot 1 → chamber 0, 3 → 1, 5 → 2).</summary>

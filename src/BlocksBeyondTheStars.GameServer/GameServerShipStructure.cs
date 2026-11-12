@@ -6,6 +6,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
+using BlocksBeyondTheStars.WorldGeneration;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -340,21 +341,11 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>The block a station cell stamps as (#1009). Each marker is the themed machine block whose
-    /// WORLD function matches the station's — heal tank heals/anchors spawn like the medbay, the workbench
-    /// crafts like the workshop, the bed is the home-spawn quarters analogue, the crate the storage box —
-    /// so the rooms read at a glance instead of stamping as generic stone/carbon/ice. Station cells sit in
-    /// the structure baseline (never minable), so the blocks' hardness/drops/flammability never apply.</summary>
-    private static string StationBlockKey(string station) => station switch
-    {
-        "medbay" => "heal_tank",
-        "cockpit" => "data_cache",
-        "workshop" => "workbench",
-        "quarters" => "bed",
-        "cargo" => "crate",
-        "console" => "data_cache", // #1073: the ship console reads as a terminal instead of vanishing into the hull
-        _ => "iron_wall",
-    };
+    /// <summary>The block a station cell stamps as (#1009) — the themed machine block whose WORLD function matches the
+    /// station's. Station cells sit in the structure baseline (never minable), so the blocks' hardness/drops/flammability
+    /// never apply. #3521: the mapping lives in <see cref="ShipCellBlocks.StationBlockKey"/>, shared with the wrecks built
+    /// from a ship layout.</summary>
+    private static string StationBlockKey(string station) => ShipCellBlocks.StationBlockKey(station);
 
     /// <summary>True when the player has stepped out of the ship — through the hatch, off the edge, or off the
     /// floor into the surrounding void. Used to turn "walk out the door in the in-space ship interior" into an EVA

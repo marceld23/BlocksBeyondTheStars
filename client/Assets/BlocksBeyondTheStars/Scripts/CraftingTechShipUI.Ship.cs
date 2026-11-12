@@ -36,7 +36,7 @@ namespace BlocksBeyondTheStars.Client
                 foreach (var s in Game.OwnedShips)
                 {
                     string key = "fleet:" + s.Id;
-                    AddCard(y, L($"ship.{s.Type}.name"), "cat_fleet", s.Active ? L("ui.ships.active") : L("ui.ships.switch"),
+                    AddCard(y, FleetShipName(s), "cat_fleet", s.Active ? L("ui.ships.active") : L("ui.ships.switch"),
                         s.Active ? UiKit.Cyan : UiKit.TextCol, key, () => { _selected = key; RebuildDetail(); });
                     y += 88f;
                 }
@@ -263,6 +263,11 @@ namespace BlocksBeyondTheStars.Client
             return 488f;
         }
 
+        /// <summary>A fleet ship's name: its locale entry, or — for a user ship from the server's usercontent folder, which this
+        /// client's content does not know (#3520) — the literal name the fleet message carries.</summary>
+        private string FleetShipName(NetOwnedShip s)
+            => !string.IsNullOrEmpty(s.Name) && Game.Content.GetShip(s.Type) == null ? s.Name : L($"ship.{s.Type}.name");
+
         private float DetailShip()
         {
             float y = 0f;
@@ -276,7 +281,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 var def = Game.Content.GetShip(s.Type);
-                UiKit.AddText(_detail, 8, y, 620, 40, L($"ship.{s.Type}.name"), 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
+                UiKit.AddText(_detail, 8, y, 620, 40, FleetShipName(s), 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
                 y += 48f;
                 y = ShipStats(def, y);
 

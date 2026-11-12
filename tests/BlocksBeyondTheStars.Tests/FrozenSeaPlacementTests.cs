@@ -76,8 +76,10 @@ public sealed class FrozenSeaPlacementTests : IDisposable
                 AssertTheWreckIsNotUnderTheIce(server, wreck, world);
             }
 
+            // #3513 records the scattered pickups too — they are no seated structures: a chest's fallback capsule rests on the
+            // ice top by design (#2738), a data cube stands on its column's ground wherever it was rolled (the seabed too).
             var records = server.PlacementRecordsForTest
-                .Where(r => r.Placed && !r.OnIsland && r.Seat is not ("buried" or "wellhead" or "crash"))
+                .Where(r => r.Placed && !r.OnIsland && r.Seat is not ("buried" or "wellhead" or "crash") && r.Kind is not ("chest" or "datacube"))
                 .ToList();
             Assert.NotEmpty(records);
             int stilts = 0;

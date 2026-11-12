@@ -43,10 +43,12 @@ public sealed partial class GameServer
     /// <summary>The G.D.S. ruin a city world always hides under its city.</summary>
     internal const int UndergroundCitySlot = 1;
 
-    /// <summary>The chance that a planet's roll slot carries a structure (a few percent; scaled by the Vaults option).</summary>
+    /// <summary>The chance that a planet's roll slot carries a structure as shipped (a few percent; scaled by the Vaults option) —
+    /// the <c>underground</c> kind's chance in <c>data/structure_types.json</c> (#3517), which the boot reads.</summary>
     internal const double AncientRuinChance = 0.04;
 
-    /// <summary>The key a restricted planet type names in <c>allowedStructures</c> to carry underground structures.</summary>
+    /// <summary>The key a restricted planet type names in <c>allowedStructures</c> to carry underground structures as shipped —
+    /// the <c>underground</c> kind's whitelist key in <c>data/structure_types.json</c> (#3517), which the boot reads.</summary>
     internal const string AncientRuinStructureKey = "gds_ruins";
 
     /// <summary>Rows from the lowest surface over the footprint down to the ceiling shell.</summary>
@@ -150,7 +152,11 @@ public sealed partial class GameServer
     /// <summary>Whether body <paramref name="locationId"/> of the world <paramref name="worldSeed"/> rolls its roll slot (a G.D.S.
     /// city world fills its city slot anyway). <paramref name="factor"/> is the Vaults option's structure factor.</summary>
     internal static bool AncientRuinRolls(long worldSeed, string locationId, double factor)
-        => StableHashing.Unit("gds_ruin:roll:" + locationId, worldSeed) < AncientRuinChance * factor;
+        => AncientRuinRolls(worldSeed, locationId, factor, AncientRuinChance);
+
+    /// <summary>The roll with the chance of the <c>underground</c> kind (<c>data/structure_types.json</c>, #3517).</summary>
+    internal static bool AncientRuinRolls(long worldSeed, string locationId, double factor, double chance)
+        => StableHashing.Unit("gds_ruin:roll:" + locationId, worldSeed) < chance * factor;
 
     /// <summary>The boot stamp (one line in the structure chain, before the vaults so they keep clear of it): the city slot on
     /// a city world, then the roll slot when the planet rolls it.</summary>
@@ -186,13 +192,14 @@ public sealed partial class GameServer
         }
 
         return (!string.IsNullOrEmpty(planet.CityWorld),
-            AncientRuinRolls(_meta.Seed, locationId, _meta.Description.Vaults.StructureFactor()));
+            AncientRuinRolls(_meta.Seed, locationId, _meta.Description.Vaults.StructureFactor(), StructureType(StructureTypeRules.Underground).Chance));
     }
 
     private bool AncientRuinsAllowed(PlanetType planet, bool restricted)
-        => !planet.Void && !planet.IsGasWorld && _config.PlaceRuins
-           && _generator.TerrainGeneration >= WorldDescription.AncientRuinsGeneration
-           && (!restricted || planet.AllowedStructures.Contains(AncientRuinStructureKey));
+        => StructureConditionsHold(StructureTypeRules.Underground, planet) && _config.PlaceRuins // #3517: not void or gas, as shipped
+           && StructureType(StructureTypeRules.Underground) is { Enabled: true } rules
+           && _generator.TerrainGeneration >= rules.MinGeneration
+           && StructureKindAllowed(StructureTypeRules.Underground, planet, restricted);
 
     /// <summary>Whether the boot's structure stage stamps only what <paramref name="planet"/>'s whitelist names (generation 8,
     /// Titas and Valuma; #3358: Soaniri on any save). The boot and the <c>/ressaw</c> prediction both read it here.</summary>
@@ -254,7 +261,8 @@ public sealed partial class GameServer
     private void CommitAncientRuin(AncientRuinPlan plan)
     {
         var layout = plan.Gds
-            ? AncientRuinGenerator.Compose(plan.Seed, _content, plan.Spec, plan.Kit, ModulePool(), plan.Composition, plan.CrossI, plan.CrossJ, _log.Warn)
+            ? AncientRuinGenerator.Compose(plan.Seed, _content, plan.Spec, plan.Kit, ModulePool(), plan.Composition, plan.CrossI, plan.CrossJ, _log.Warn,
+                _generator.TerrainGeneration) // #3516: generation 38 decays through the shared ruin pass
             : AncientRuinGenerator.Enclose(plan.Seed, _content, plan.Built!, plan.KitKey, plan.Composition);
         if (plan.Fresh)
         {
@@ -296,6 +304,7 @@ public sealed partial class GameServer
             Kit = plan.KitKey,
             Caches = caches,
         });
+        RegisterFootprint(StructureTypeRules.Underground, _worlds.Active.AncientRuins[^1].Rect); // #3514
         ReportStamp(UndergroundKind, 1, 1);
     }
 
@@ -366,7 +375,8 @@ public sealed partial class GameServer
         }
 
         return plan.Gds
-            ? AncientRuinGenerator.Compose(plan.Seed, _content, plan.Spec, plan.Kit, ModulePool(), plan.Composition, plan.CrossI, plan.CrossJ)
+            ? AncientRuinGenerator.Compose(plan.Seed, _content, plan.Spec, plan.Kit, ModulePool(), plan.Composition, plan.CrossI, plan.CrossJ,
+                terrainGeneration: _generator.TerrainGeneration)
             : AncientRuinGenerator.Enclose(plan.Seed, _content, plan.Built!, plan.KitKey, plan.Composition);
     }
 

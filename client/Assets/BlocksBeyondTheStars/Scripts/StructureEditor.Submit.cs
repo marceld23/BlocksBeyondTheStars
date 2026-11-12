@@ -82,7 +82,12 @@ namespace BlocksBeyondTheStars.Client
                     x = kv.Key.X, y = kv.Key.Y, z = kv.Key.Z,
                     kind = string.IsNullOrEmpty(d.Kind) ? "block" : d.Kind, id = d.Id,
                     tint = d.Tint, glow = d.Glow, shape = d.Shape, port = d.Port ?? string.Empty,
-                    mode = DeviceMode(d), config = DeviceConfig(d), label = DeviceLabel(d), // #2260
+                    mode = DeviceMode(d), label = DeviceLabel(d), // #2260
+                    // #3523: a marker's settings (a chest, a sound, a den — read by generation-38 worlds) and the keep flag (the
+                    // ruin pass of a fallen whole template or module) travel with every template; Save warns where the target
+                    // ignores them.
+                    config = d.Kind == "marker" ? d.Config ?? string.Empty : DeviceConfig(d),
+                    keep = d.Keep && d.Kind != "marker",
                 });
                 maxX = Mathf.Max(maxX, kv.Key.X);
                 maxY = Mathf.Max(maxY, kv.Key.Y);
@@ -128,6 +133,13 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            if (_entryMode || _previewOn)
+            {
+                // #3523: a generator entry is a file of a few lines (share it); a preview is never the design.
+                SetStatus(L(_entryMode ? "ui.ed.entry.no_submit" : PreviewLockedKey()));
+                return;
+            }
+
             if (_landmarkMode)
             {
                 SetStatus(L("ui.ed.landmark.no_submit")); // #3492: a landmark's compact file is not a submission bundle yet
@@ -154,9 +166,9 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (!ValidateForExport())
+            if (!ValidateForExport() || RefuseUnreadTokens())
             {
-                return; // the same gate as Save: a broken port or a leaking module is not sent either
+                return; // the same gate as Save: a broken port, a leaking module or a token it cannot resolve is not sent either
             }
 
             var payload = BuildPayload(key);

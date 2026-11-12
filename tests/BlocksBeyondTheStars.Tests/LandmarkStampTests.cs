@@ -165,6 +165,48 @@ public sealed class LandmarkStampTests : IDisposable
         }
     }
 
+    /// <summary>#3515: a landmark replays through the ruin revision its record pins — <c>rev=1</c> as stamped, a record
+    /// without <c>rev</c> (none existed before the revision was read back) as revision 1, and a revision this build does
+    /// not know (a newer build's record) through the newest it knows instead of failing.</summary>
+    [Theory]
+    [InlineData("1")]
+    [InlineData("")]
+    [InlineData("99")]
+    public void ARecord_ReplaysThroughItsPinnedRuinRevision(string rev)
+    {
+        var content = ContentWith(LandmarkShapes.Tower());
+        string name = "lm_rev_" + (rev.Length == 0 ? "none" : rev);
+        ulong stamped;
+        var server = Start(content, out var repo, name: name);
+        using (repo)
+        {
+            var lm = Assert.Single(server.LandmarksForTest);
+            Assert.True(lm.Layout.Ruined);
+            stamped = StructureGoldens.Landmark(content, lm.Layout);
+            Assert.Contains("rev=1", Assert.Single(server.PlacementRecordsForTest, r => r.Kind == LandmarkRules.RecordKind).KitLayout);
+            server.Stop();
+        }
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        using (var edit = new SqliteWorldRepository(new SaveGamePaths(_root, name)))
+        {
+            edit.Initialize();
+            var meta = edit.LoadMetadata()!;
+            var rec = meta.Placements.Single(r => r.Kind == LandmarkRules.RecordKind);
+            rec.KitLayout = MarkerSettings.Parse(rec.KitLayout).Set("rev", rev).ToString();
+            Assert.Equal(rev.Length > 0, rec.KitLayout.Contains("rev=", StringComparison.Ordinal));
+            edit.SaveMetadata(meta);
+        }
+
+        var again = Start(content, out var repo2, name: name);
+        using (repo2)
+        {
+            var lm = Assert.Single(again.LandmarksForTest);
+            Assert.Equal(stamped, StructureGoldens.Landmark(content, lm.Layout));
+            Assert.DoesNotContain(again.StampReportForTest, r => r.Kind == LandmarkRules.RecordKind);
+        }
+    }
+
     [Fact]
     public void TwoWorldsOfTheSameSeed_GetTheSameLandmark_AndAnotherSeedAnotherRuin()
     {

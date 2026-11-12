@@ -40,6 +40,7 @@ public sealed partial class GameServer
         var ship = new ShipState
         {
             ShipType = def.Key,
+            DisplayName = def.DisplayName ?? string.Empty, // #3520: a user ship keeps its name should its file go away
             CurrentLocationId = _meta.DefaultPlanetType,
             Hull = def.BaseHull,
             Shield = 0f,
@@ -106,6 +107,11 @@ public sealed partial class GameServer
             return (false, "Unknown ship type.");
         }
 
+        if (UserShipCraftRefusal(shipType) is { } refused)
+        {
+            return (false, refused); // #3520: a user ship only with its craft use AND the server's permission
+        }
+
         var p = session.State;
         if (!string.IsNullOrEmpty(def.RequiredBlueprint) && !p.UnlockedBlueprints.Contains(def.RequiredBlueprint!))
         {
@@ -130,7 +136,7 @@ public sealed partial class GameServer
         Send(session, new ServerMessage
         {
             Text = Localize(session.Locale, "srv.misc.ship_crafted")
-                .Replace("{name}", LocalizedName(session.Locale, def.NameKey, shipType)),
+                .Replace("{name}", def.DisplayName ?? LocalizedName(session.Locale, def.NameKey, shipType)),
         });
         return (true, id);
     }
@@ -292,6 +298,10 @@ public sealed partial class GameServer
                 entry.FlightSpeed = speed;
                 entry.Handling = handling;
                 entry.Commissioned = kv.Value.Commissioned;
+            }
+            else
+            {
+                FillUserShipFleetEntry(entry, kv.Value); // #3520: a user ship's name + flight values, the same way
             }
 
             list.Add(entry);

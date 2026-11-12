@@ -98,6 +98,7 @@ public static class TemplateTransform
                 Mode = c.Mode,     // #2260: a pre-built device keeps its settings; its horizontal direction turns with the
                 Config = c.Config, // front in Shape, an up / down direction (yaw=4/5 in Config) needs no turn
                 Label = c.Label,
+                Keep = c.Keep,     // #3519: a turned settlement template keeps what its ruin pass must leave standing
             });
         }
 

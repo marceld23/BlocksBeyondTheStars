@@ -63,8 +63,8 @@ public sealed partial class GameServer
                 return;
             }
 
-            var design = designs[rng.Next(designs.Count)];
-            var hull = WreckGenerator.Generate(design, seed, _content);
+            var design = designs[rng.Next(designs.Count)]; // drawn as always: the height and the salvage follow in the stream
+            var hull = SpaceWreckHull(body.Id, design, seed);
             float height = (rng.Next(9) - 4) * 3f; // -12 .. +12, stable per wreck
             var pos = new Vector3f(
                 (body.SystemX - anchor.SystemX) * SystemBodyLayout.FlightViewScale,
@@ -134,13 +134,86 @@ public sealed partial class GameServer
                 for (int z = 0; z < hull.Length; z++)
                 {
                     ushort b = hull.Get(x, y, z);
-                    if (b != 0)
+                    if (b == 0)
                     {
-                        s.Set(new Vector3i(x - ox, y - oy, z - oz), new BlockId(b));
+                        continue;
+                    }
+
+                    var cell = new Vector3i(x - ox, y - oy, z - oz);
+                    var (tint, glow) = hull.ModifierAt(x, y, z);
+                    int shape = hull.ShapeAt(x, y, z);
+                    if (tint != 0 || glow != 0 || shape != 0)
+                    {
+                        s.Set(cell, new BlockId(b), tint, glow, shape); // #3521: a layout wreck keeps its dye and shapes
+                    }
+                    else
+                    {
+                        s.Set(cell, new BlockId(b));
                     }
                 }
 
         return s;
+    }
+
+    /// <summary>
+    /// #3521: the hull of a space wreck. On a world of terrain generation 38 or later it is built from a ship layout: the
+    /// design is drawn once by hash from the layout-wreck pool (<see cref="WreckGenerator.LayoutDesigns"/>) and pinned per
+    /// wreck in <see cref="Shared.State.WorldMetadata.SpaceWreckDesigns"/> with its layout's fingerprint
+    /// (<see cref="Shared.State.WorldMetadata.SpaceWreckLayouts"/>), so a new ship in the pool never changes an existing wreck.
+    /// A pinned design whose layout has changed since drifts as the box of that design; one whose ship or layout is gone as the
+    /// box of the drawn design. Older worlds keep the classic box of <paramref name="drawn"/>.
+    /// </summary>
+    private WreckStructure SpaceWreckHull(string bodyId, ShipDefinition drawn, long seed)
+    {
+        if (_meta.Description.TerrainGeneration < WorldDescription.StructurePipelineGeneration)
+        {
+            return WreckGenerator.Generate(drawn, seed, _content);
+        }
+
+        if (!_meta.SpaceWreckDesigns.TryGetValue(bodyId, out string? key))
+        {
+            var pick = WreckGenerator.PickDesign(WreckGenerator.LayoutDesigns(_content, claimable: false, _meta.Description.EnabledStructurePacks),
+                StableHashing.Mixed("spacewreck:design:" + bodyId, _meta.Seed));
+            if (pick is null)
+            {
+                return WreckGenerator.Generate(drawn, seed, _content); // no ship has a layout: the box
+            }
+
+            key = pick.Value.Design.Key;
+            _meta.SpaceWreckDesigns[bodyId] = key;
+            _meta.SpaceWreckLayouts[bodyId] = WreckGenerator.LayoutFingerprint(pick.Value.Layout);
+            _repo.SaveMetadata(_meta); // once per wreck, ever
+        }
+
+        var design = _content.GetShip(key);
+        if (design is not null && _content.GetShipLayout(design.Layout) is { Cells.Count: > 0 } layout)
+        {
+            string fp = WreckGenerator.LayoutFingerprint(layout);
+            if (!_meta.SpaceWreckLayouts.TryGetValue(bodyId, out string? pinnedFp))
+            {
+                _meta.SpaceWreckLayouts[bodyId] = fp; // a design pinned without its fingerprint: pin the layout it stands as now
+                _repo.SaveMetadata(_meta);
+            }
+            else if (pinnedFp != fp)
+            {
+                WarnSpaceWreckOnce(bodyId, $"The space wreck '{bodyId}' was built from the layout of '{key}', which has changed since — it drifts as the box of a '{key}'.");
+                return WreckGenerator.Generate(design, seed, _content);
+            }
+
+            return WreckGenerator.GenerateFromLayout(design, layout, seed, _content, groundRow: -1);
+        }
+
+        WarnSpaceWreckOnce(bodyId, $"The space wreck '{bodyId}' was a '{key}', whose ship or layout is gone — it drifts as the box of a '{drawn.Key}'.");
+        return WreckGenerator.Generate(drawn, seed, _content);
+    }
+
+    /// <summary>Logs a space wreck's fallback once per wreck and server run.</summary>
+    private void WarnSpaceWreckOnce(string bodyId, string message)
+    {
+        if (_warnedLayoutIds.Add("spacewreck:" + bodyId))
+        {
+            _log.Warn(message);
+        }
     }
 
     /// <summary>What a salvaged-to-nothing wreck pays out — the rows of <c>data/space_salvage.json</c> (#2352) by hull

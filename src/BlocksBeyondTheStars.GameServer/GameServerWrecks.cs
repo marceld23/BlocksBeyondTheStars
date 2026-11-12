@@ -75,7 +75,14 @@ public sealed partial class GameServer
         var rng = new System.Random(unchecked((int)(wSeed ^ (wSeed >> 32))));
 
         // World options: the chosen wreck frequency scales the per-world chance (Off ⇒ none).
-        if (rng.NextDouble() > WreckChance(planet) * _meta.Description.PlanetWrecks.StructureFactor())
+        double factor = _meta.Description.PlanetWrecks.StructureFactor();
+        bool rolled = rng.NextDouble() <= WreckChance(planet) * factor;
+
+        // #3513: whether the body has a wreck is pinned like every count (drawn above as always) — and a wreck that has its
+        // record stands whatever the roll says now. The option switched off still means none.
+        var pinned = FindPlacementRecord("wreck", 0);
+        bool exists = PinnedCount("wreck", rolled ? 1 : 0) > 0 || pinned is { Placed: true };
+        if (!exists || factor <= 0)
         {
             return; // no wreck on this world
         }
@@ -87,8 +94,12 @@ public sealed partial class GameServer
             return;
         }
 
-        var design = designs[rng.Next(designs.Count)];
-        var structure = WreckGenerator.Generate(design, wSeed, _content);
+        // #3513: the pick is drawn as always (the name and the loot follow it in the stream); a recorded design replaces it —
+        // the list is in dictionary order, so a new ship moved the pick under an existing wreck. #3521: a generation-38
+        // wreck is built from a ship layout instead (PlanWreck); a record with an empty template keeps the classic box.
+        var drawn = designs[rng.Next(designs.Count)];
+        var plan = PlanWreck(pinned, drawn, wSeed);
+        var structure = plan.Structure;
 
         // #1684: where the wreck stands is PINNED like every other structure. It used to be re-derived from
         // landing pad 0 on every world load while its blocks were written exactly once — and pads are not
@@ -96,7 +107,77 @@ public sealed partial class GameServer
         // changed it twice inside one release) would have slid the origin, the markers and the repair mask off
         // the blocks lying in the world, and every repair on a visible wreck cell would answer "not part of
         // the repair mask".
-        var pinned = FindPlacementRecord("wreck", 0);
+        var (ax, az, groundY) = plan.FromLayout
+            ? LayoutWreckSite(planet, pinned, structure?.Width ?? 1, structure?.Length ?? 1)
+            : ClassicWreckSite(planet, pinned, structure!);
+        // Half-buried crash pose: sink the hull one block into the ground (a layout wreck's decay spares the rows up to
+        // WreckGenerator.PlanetGroundRow, the one at the surface).
+        int baseY = groundY - (plan.FromLayout ? WreckGenerator.PlanetGroundRow : 1);
+        _wreckOrigin = new Vector3i(ax, baseY, az);
+
+        // Stamp only the wreck's solid blocks (breaches stay as the existing terrain/air) — and only ONCE
+        // per world (#467): on re-entry the runtime state (structure, markers, name) is re-derived from the
+        // same deterministic rolls, but the blocks are the player's now — repairs stay repaired, mined
+        // hull stays mined, nothing resurrects.
+        bool write = !FeatureStamped("wreck") && structure is not null;
+        if (write)
+        {
+            StampWreckBlocks(structure!, ax, baseY, az);
+        }
+
+        _wreck = structure; // #3521: null for a layout wreck whose layout is gone or changed — its repair and claim are off
+        _wreckName = WreckDisplayName(plan.Origin, plan.Design ?? drawn, rng);
+        // #466: the claim is persisted — travelling away and back no longer resets it (that minted a free
+        // ship per lap: repair once, then re-claim on every re-entry).
+        _wreckClaimed = _meta.Claims.Exists(c => c.Key == _world.LocationId + "|wreck");
+
+        _wreckMarkers.Clear();
+        foreach (var m in structure?.Markers ?? System.Array.Empty<WreckMarker>())
+        {
+            var pos = new Vector3f(ax + m.LocalPos.X + 0.5f, baseY + m.LocalPos.Y + 0.5f, az + m.LocalPos.Z + 0.5f);
+            _wreckMarkers.Add((m.Type, pos));
+
+            // Loot caches, the recoverable module and the data terminal are all scavengeable.
+            if (m.Type is "loot" or "module" or "data_terminal")
+            {
+                SpawnStructureLoot("wreck", m.Type, pos, rng);
+            }
+        }
+
+        _wreckStamped = true;
+        RegisterWreckFootprint(structure, ax, az); // #3514: the hull's box replaces the crash-site reservation
+        // Pin it — on the first stamp, and once for a save whose wreck predates pinning (it keeps exactly the
+        // spot the current rule derives, which is where its blocks are: the pre-generation-2 pad rule was
+        // frozen by #1665 precisely so existing pads never move).
+        if (pinned is not { Placed: true })
+        {
+            RecordPlacement("wreck", 0, _wreckOrigin, groundY, onIsland: false, seat: "crash", name: _wreckName,
+                template: plan.Template, kitLayout: plan.KitLayout);
+            SavePlacementRecords();
+        }
+
+        if (plan.Design is { } design)
+        {
+            PinWreckDesign(design.Key); // #3513: once — at the first stamp, or on the next load of an older record
+        }
+
+        PinWreckBox(structure); // #3514: the crash site the later loads reserve is the box that stands, not a fresh pick
+
+        if (write)
+        {
+            MarkFeatureStamped("wreck");
+            _log.Info($"Wreck '{_wreckName}' ({structure!.Origin} {structure.ShipType}{(plan.FromLayout ? ", from its layout" : string.Empty)}) stamped at ({ax}, {baseY}, {az}) with {_wreckMarkers.Count} markers, {structure.BreachCount()} breaches.");
+        }
+    }
+
+    /// <summary>
+    /// Where a classic box wreck stands (the rule as it always was): the pinned spot, or a fixed offset from landing pad 0
+    /// nudged off any settlement, moved to dry ground when the footprint stands in water or sea ice (#2756). The box
+    /// extends +X/+Z from that spot. Returns the spot and the ground height the hull is sunk into.
+    /// </summary>
+    private (int X, int Z, int GroundY) ClassicWreckSite(Shared.Definitions.PlanetType planet, Shared.State.StructurePlacementRecord? pinned,
+        WreckStructure structure)
+    {
         bool seaIceIsWet = SeaIceIsWet; // #2756: from generation 27 the crash site is never under water or sea ice
         int ax, az;
         int? restY = null;
@@ -114,7 +195,7 @@ public sealed partial class GameServer
             // Anchor offset from the first landing pad — its zone is reserved during settlement placement so the
             // two never overlap. If a settlement still sits here (e.g. a hand-placed one), nudge the wreck outward.
             (ax, az) = WreckAnchorFor(_landingPads);
-            for (int nudge = 0; nudge < 12 && OverlapsAnySettlement(ax, az, System.Math.Max(structure.Width, structure.Length) / 2); nudge++)
+            for (int nudge = 0; nudge < 12 && WreckSiteBlocked(ax, az, System.Math.Max(structure.Width, structure.Length) / 2); nudge++)
             {
                 ax = WorldConstants.WrapX(ax - 24, _world.Circumference);
                 az += 16;
@@ -126,62 +207,33 @@ public sealed partial class GameServer
             }
         }
 
-        int groundY = restY ?? _generator.SurfaceHeight(planet, ax, az);
-        int baseY = groundY - 1; // half-buried crash pose: sink the hull one block into the ground
-        _wreckOrigin = new Vector3i(ax, baseY, az);
+        return (ax, az, restY ?? _generator.SurfaceHeight(planet, ax, az));
+    }
 
-        // Stamp only the wreck's solid blocks (breaches stay as the existing terrain/air) — and only ONCE
-        // per world (#467): on re-entry the runtime state (structure, markers, name) is re-derived from the
-        // same deterministic rolls, but the blocks are the player's now — repairs stay repaired, mined
-        // hull stays mined, nothing resurrects.
-        bool write = !FeatureStamped("wreck");
-        if (write)
+    /// <summary>Writes the wreck's blocks once (with a layout wreck's dye, glow and shape) and, for a layout wreck, clears
+    /// the inside of its hull, so a hull sunk into the ground is walkable on its own floor (#3521). Breached hull cells keep
+    /// what the world had there.</summary>
+    private void StampWreckBlocks(WreckStructure structure, int ax, int baseY, int az)
+    {
+        for (int x = 0; x < structure.Width; x++)
         {
-            for (int x = 0; x < structure.Width; x++)
-                for (int y = 0; y < structure.Height; y++)
-                    for (int z = 0; z < structure.Length; z++)
-                    {
-                        ushort b = structure.Get(x, y, z);
-                        if (b != 0)
-                        {
-                            _world.SetBlock(new Vector3i(ax + x, baseY + y, az + z), new BlockId(b));
-                        }
-                    }
-        }
-
-        _wreck = structure;
-        _wreckName = WreckDisplayName(structure.Origin, design, rng);
-        // #466: the claim is persisted — travelling away and back no longer resets it (that minted a free
-        // ship per lap: repair once, then re-claim on every re-entry).
-        _wreckClaimed = _meta.Claims.Exists(c => c.Key == _world.LocationId + "|wreck");
-
-        _wreckMarkers.Clear();
-        foreach (var m in structure.Markers)
-        {
-            var pos = new Vector3f(ax + m.LocalPos.X + 0.5f, baseY + m.LocalPos.Y + 0.5f, az + m.LocalPos.Z + 0.5f);
-            _wreckMarkers.Add((m.Type, pos));
-
-            // Loot caches, the recoverable module and the data terminal are all scavengeable.
-            if (m.Type is "loot" or "module" or "data_terminal")
+            for (int y = 0; y < structure.Height; y++)
             {
-                SpawnStructureLoot("wreck", m.Type, pos, rng);
+                for (int z = 0; z < structure.Length; z++)
+                {
+                    ushort b = structure.Get(x, y, z);
+                    var pos = new Vector3i(ax + x, baseY + y, az + z);
+                    if (b != 0)
+                    {
+                        var (tint, glow) = structure.ModifierAt(x, y, z);
+                        _world.SetBlock(pos, new BlockId(b), tint, glow, structure.ShapeAt(x, y, z));
+                    }
+                    else if (structure.IsInterior(x, y, z))
+                    {
+                        _world.SetBlock(pos, BlockId.Air);
+                    }
+                }
             }
-        }
-
-        _wreckStamped = true;
-        // Pin it — on the first stamp, and once for a save whose wreck predates pinning (it keeps exactly the
-        // spot the current rule derives, which is where its blocks are: the pre-generation-2 pad rule was
-        // frozen by #1665 precisely so existing pads never move).
-        if (pinned is not { Placed: true })
-        {
-            RecordPlacement("wreck", 0, _wreckOrigin, groundY, onIsland: false, seat: "crash", name: _wreckName);
-            SavePlacementRecords();
-        }
-
-        if (write)
-        {
-            MarkFeatureStamped("wreck");
-            _log.Info($"Wreck '{_wreckName}' ({structure.Origin} {design.Key}) stamped at ({ax}, {baseY}, {az}) with {_wreckMarkers.Count} markers, {structure.BreachCount()} breaches.");
         }
     }
 
@@ -235,9 +287,11 @@ public sealed partial class GameServer
         foreach (var (dx, dz) in offsets)
         {
             int x = WorldConstants.WrapX(ax + dx, _world.Circumference), z = az + dz;
-            if (!OverlapsFootprint(x + w / 2, z + l / 2, hw, hl, reserved, SettlementCollisionMargin)
-                && !OverlapsAnySettlement(x + w / 2, z + l / 2, System.Math.Max(w, l) / 2)
-                && !FootprintWet(planet, x, z, w, l))
+            bool blocked = UsesFootprintRegistry // #3514: generation 38+ asks the registry (the crash-site reservation aside)
+                ? Footprints.Overlaps(x + w / 2, z + l / 2, hw, hl, KeepClearMargins(StructureTypeRules.Wreck), StructureTypeRules.WreckSite)
+                : OverlapsFootprint(x + w / 2, z + l / 2, hw, hl, reserved, SettlementCollisionMargin)
+                  || OverlapsAnySettlement(x + w / 2, z + l / 2, System.Math.Max(w, l) / 2);
+            if (!blocked && !FootprintWet(planet, x, z, w, l))
             {
                 return (x, z, null);
             }
@@ -315,9 +369,16 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (!_wreckStamped || _wreck is null)
+        if (!_wreckStamped)
         {
             Reject(session, "wreck_repair", "@srv.wreck.none");
+            return false;
+        }
+
+        if (_wreck is null)
+        {
+            // #3521: a layout wreck whose layout is gone or changed — its blocks stand, but there is no mask to repair to.
+            Reject(session, "wreck_repair", "@srv.wreck.unknown_design");
             return false;
         }
 
@@ -367,8 +428,9 @@ public sealed partial class GameServer
             pool.Remove(new[] { new ItemAmount(itemKey, 1) });
         }
 
-        _world.SetBlock(pos, required.NumericId);
-        BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = required.NumericId.Value });
+        var (tint, glow, shape) = WreckIntactLook(pos); // #3521: a layout wreck's cell comes back dyed and shaped
+        _world.SetBlock(pos, required.NumericId, tint, glow, shape);
+        BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = required.NumericId.Value, Tint = tint, Glow = glow, Shape = shape });
         SendInventory(session);
         SendWreckRepairStatus(session);
         return true;
@@ -383,9 +445,15 @@ public sealed partial class GameServer
             return (false, string.Empty);
         }
 
-        if (!_wreckStamped || _wreck is null)
+        if (!_wreckStamped)
         {
             Reject(session, "wreck_claim", "@srv.wreck.nothing_claim");
+            return (false, string.Empty);
+        }
+
+        if (_wreck is null)
+        {
+            Reject(session, "wreck_claim", "@srv.wreck.unknown_design"); // #3521: a layout wreck without its layout
             return (false, string.Empty);
         }
 
@@ -423,7 +491,7 @@ public sealed partial class GameServer
         Send(session, new ServerMessage
         {
             Text = Localize(session.Locale, "srv.wreck.claim_done")
-                .Replace("{name}", LocalizedName(session.Locale, def.NameKey, def.Key)),
+                .Replace("{name}", def.DisplayName ?? LocalizedName(session.Locale, def.NameKey, def.Key)), // #3520: a user ship's own name
         });
         SendWreckRepairStatus(session);
         return (true, id);
@@ -498,7 +566,7 @@ public sealed partial class GameServer
             ShipType = _wreck?.ShipType ?? string.Empty,
             Remaining = WreckRepairRemaining,
             Total = WreckRepairTotal,
-            Claimable = _wreckStamped && !_wreckClaimed && WreckRepairRemaining == 0,
+            Claimable = _wreckStamped && _wreck is not null && !_wreckClaimed && WreckRepairRemaining == 0,
             Claimed = _wreckClaimed,
             Needs = string.Join(",", WreckRepairCells().Select(c => c.BlockKey).Distinct()),
         });
