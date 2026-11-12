@@ -343,7 +343,8 @@ public sealed partial class GameServer
     private void BlastCell(PlayerSession session, Vector3i p)
     {
         var b = _world.GetBlock(p);
-        if (b.IsAir || IsShipBlock(p) || IsSettlementBlock(p) || IsStationBlock(p)
+        if (b.IsAir || IsShipBlock(p) || IsSettlementGuardedForPlayers(p) || IsStationBlock(p)
+            || IsProtectedStructureCell(p, session.State.IsAdmin) // generation 39: a structure its template protects
             || IsBaseProtected(p, session.State.PlayerId, session.State.IsAdmin)
             || BasePadBusy(p) // #3069: a landing pad that holds a ship
             || IsLockedCrateAt(p)) // #3294: an owner-locked crate — its spill would hand the owner's items to anyone
@@ -447,7 +448,8 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (IsShipBlock(p) || IsSettlementBlock(p) || IsStationBlock(p)
+        if (IsShipBlock(p) || IsSettlementGuardedForPlayers(p) || IsStationBlock(p)
+            || IsProtectedStructureCell(p, session.State.IsAdmin) // generation 39: a structure its template protects
             || IsBaseProtected(p, session.State.PlayerId, session.State.IsAdmin))
         {
             Reject(session, "gadget", "@srv.gadget.not_usable");

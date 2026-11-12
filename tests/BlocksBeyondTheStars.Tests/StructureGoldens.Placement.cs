@@ -120,12 +120,13 @@ public sealed partial class StructurePlacementGoldenTests : IDisposable
         AssertCase(name, first, second);
     }
 
-    /// <summary>The landmark stamper (#3486): the three shipped samples made rollable (they ship pin-only), chance 1.</summary>
+    /// <summary>The landmark stamper (#3486): the three shipped samples made rollable (they ship pin-only), chance 1 — the
+    /// samples alone, so the school club's landmarks shipped beside them (generation 39) leave this pool as it was.</summary>
     [Fact]
     public void AFreshWorldWithLandmarks_StampsThePinnedLandmark_AndReplaysIt()
     {
         var content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
-        var samples = content.Landmarks.ToList();
+        var samples = content.Landmarks.Where(t => t.Key.StartsWith("sample_", StringComparison.Ordinal)).ToList();
         Assert.Equal(3, samples.Count);
         foreach (var t in samples)
         {

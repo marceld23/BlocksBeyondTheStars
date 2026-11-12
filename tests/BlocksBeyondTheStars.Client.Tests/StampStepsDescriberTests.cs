@@ -278,7 +278,7 @@ public sealed class StampStepsDescriberTests
     }
 
     [Fact]
-    public void ALandmark_FallsWithItsProfile_OrStandsInhabited()
+    public void ALandmark_FallsWithItsProfile_OrStandsStaffed()
     {
         var ruin = Design(StampTarget.Landmark);
         ruin.Ruin = true;
@@ -287,14 +287,21 @@ public sealed class StampStepsDescriberTests
         var steps = StampStepsDescriber.Describe(ruin, Content);
         Assert.Equal(new[] { "ui.ed.landmark.profile.lattice", "40", "0" }, Args(Step(steps, StampStepsDescriber.TitleRuin)));
         Assert.Equal("ui.stamp.seat.landmark", Step(steps, StampStepsDescriber.TitleSeat).Text);
-        Assert.Equal("ui.stamp.residents.landmark", Step(steps, StampStepsDescriber.TitleResidents).Text);
+        Assert.Equal("ui.stamp.residents.landmark_ruin", Step(steps, StampStepsDescriber.TitleResidents).Text);
 
-        var inhabited = Design(StampTarget.Landmark);
-        inhabited.Protected = true;
-        steps = StampStepsDescriber.Describe(inhabited, Content);
-        Assert.Equal("ui.stamp.ruin.never", Step(steps, StampStepsDescriber.TitleRuin).Text);
-        Assert.Equal("ui.stamp.residents.landmark_inhabited", Step(steps, StampStepsDescriber.TitleResidents).Text);
-        Assert.Equal("ui.stamp.seat.landmark_flat", Step(steps, StampStepsDescriber.TitleSeat).Text);
+        // Generation 39: an intact landmark staffs its posts whatever its protection (GameServer LandmarkInstance.Staffed).
+        foreach (string protection in LandmarkRules.ProtectionModes)
+        {
+            var intact = Design(StampTarget.Landmark);
+            intact.Protection = protection;
+            intact.Markers.Add(new StampMarker("vendor", "theme=burgers;inside=1"));
+            steps = StampStepsDescriber.Describe(intact, Content);
+            Assert.Equal("ui.stamp.ruin.never", Step(steps, StampStepsDescriber.TitleRuin).Text);
+            var residents = Step(steps, StampStepsDescriber.TitleResidents);
+            Assert.Equal("ui.stamp.residents.landmark_staffed", residents.Text);
+            Assert.Equal(new[] { "1", "0", "0" }, Args(residents));
+            Assert.Equal("ui.stamp.seat.landmark_flat", Step(steps, StampStepsDescriber.TitleSeat).Text);
+        }
     }
 
     [Fact]
@@ -372,11 +379,18 @@ public sealed class StampStepsDescriberTests
     {
         foreach (var target in AllTargets)
         {
-            foreach (bool ruin in new[] { false, true })
+            foreach (var (ruin, protection) in new[] { (false, "auto"), (true, "auto"), (false, "protected"), (true, "open"), (false, "") })
             {
                 var d = Design(target, ruin ? "town" : "village", "sand");
                 d.Ruin = ruin;
-                d.Protected = !ruin;
+                d.Protection = protection;
+                d.Seat = ruin ? LandmarkRules.SeatSpan : string.Empty;
+                if (ruin)
+                {
+                    d.RuinZones.Add(new RuinZone { X1 = 3, Y1 = 3, Z1 = 3, Profile = LandmarkRules.ProfileLattice });
+                    d.RuinZones.Add(new RuinZone { X0 = 4, X1 = 6, Y1 = 2, Z1 = 2, Strength = 0.3 });
+                }
+
                 d.GroundRow = ruin ? 3 : 0;
                 d.Source = "settlement";
                 d.Function = StructureRoles.Hub;

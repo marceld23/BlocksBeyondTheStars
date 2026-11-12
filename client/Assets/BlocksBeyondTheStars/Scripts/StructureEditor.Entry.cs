@@ -45,6 +45,10 @@ namespace BlocksBeyondTheStars.Client
             public double ruinStrength;
             public List<string> requires = new();
             public int groundRow;
+            public string seat = string.Empty;              // generation 39: a landmark entry's seat ("" or span) …
+            public List<ZoneJson> ruinZones = new();        // … and its ruin zones
+            public int minTerrainGeneration;
+            public string protection = string.Empty;        // generation 39: the form's Protection row ("" = auto), any pool
         }
 
         private bool _entryMode;
@@ -286,6 +290,10 @@ namespace BlocksBeyondTheStars.Client
                 nameKey = extras.nameKey ?? string.Empty,
                 groundRow = extras.groundRow,
                 requires = requires,
+                seat = landmark ? extras.seat ?? string.Empty : string.Empty,
+                ruinZones = landmark ? extras.ruinZones ?? new List<ZoneJson>() : new List<ZoneJson>(),
+                minTerrainGeneration = extras.minTerrainGeneration,
+                protection = ProtectionWord(),
             };
         }
 
@@ -397,6 +405,8 @@ namespace BlocksBeyondTheStars.Client
             pinOnly = t.PinOnly, legacyPool = t.LegacyPool, @protected = t.Protected,
             ruin = t.Ruin ?? string.Empty, ruinProfile = t.RuinProfile ?? string.Empty, ruinStrength = t.RuinStrength,
             nameKey = t.NameKey ?? string.Empty, groundRow = t.GroundRow, requires = new List<string>(t.Requires),
+            seat = t.Seat ?? string.Empty, ruinZones = ToZoneJsons(t.RuinZones), minTerrainGeneration = t.MinTerrainGeneration,
+            protection = t.Protection ?? string.Empty,
         };
 
         private EditorLoadPicker.Item EntryItem(EntryJson e, string pool, bool copy) => new EditorLoadPicker.Item
@@ -411,7 +421,9 @@ namespace BlocksBeyondTheStars.Client
         /// the pool is said so — never silently swapped for the pool's default.</summary>
         private void LoadEntry(EntryJson e, string pool, bool copy)
         {
-            ApplyTemplate(e.key, e.name, e.tier, e.pack, e.weight, e.planetTypes, new List<CellJson>(), copy, underground: e.underground);
+            ApplyTemplate(e.key, e.name, e.tier, e.pack, e.weight, e.planetTypes, new List<CellJson>(), copy, underground: e.underground,
+                protection: ProtectionOfLoaded(e.protection, e.@protected && pool == StructureStampRules.PoolLandmark,
+                    string.Equals(e.ruin, LandmarkRules.RuinAlways, StringComparison.OrdinalIgnoreCase)));
             _moduleMode = false;
             _landmarkMode = false;
             _entryMode = true;

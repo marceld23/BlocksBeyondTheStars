@@ -200,6 +200,7 @@ public sealed partial class GameServer
 
         return _world.Definition(b) is { Mineable: true }
                && !IsShipBlock(c) && !IsSettlementBlock(c) && !IsStationBlock(c)
+               && !IsProtectedStructureCell(c) // generation 39: a structure its template protects
                && !IsBaseProtected(c, session.State.PlayerId, session.State.IsAdmin) && !BasePadBusy(c) && !IsLockedCrateAt(c);
     }
 

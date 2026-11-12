@@ -154,6 +154,7 @@ public sealed partial class GameServer
                     if (!WithinBuildHeight(pos.Y) || !_world.GetBlock(pos).IsAir
                         || (!session.State.IsAdmin && IsOnLandingPad(pos))
                         || IsStationBlock(pos)
+                        || IsProtectedStructureCell(pos, session.State.IsAdmin) // generation 39: a protected structure
                         || IsTextMonumentProtected(pos) // #3311
                         || IsFactoryProtected(pos, session.State.PlayerId, session.State.IsAdmin)
                         || IsBaseProtected(pos, session.State.PlayerId, session.State.IsAdmin)

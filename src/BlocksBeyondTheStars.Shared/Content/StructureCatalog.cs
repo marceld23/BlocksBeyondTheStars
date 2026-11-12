@@ -63,6 +63,8 @@ public sealed partial class StructureCatalog
         SettlementTemplates = KeepWellFormedSources(SettlementTemplates, StructureKit.KindSettlement, warn);
         ReportUnknownTokens(StationTemplates, StructureKit.KindStation, warn);
         ReportUnknownTokens(SettlementTemplates, StructureKit.KindSettlement, warn);
+        ResetUnknownProtection(StationTemplates, StructureKit.KindStation, warn);
+        ResetUnknownProtection(SettlementTemplates, StructureKit.KindSettlement, warn);
 
         _stationsByTier = GroupByTier(StationTemplates);
         _settlementsByTier = GroupByTier(SettlementTemplates);
@@ -157,6 +159,21 @@ public sealed partial class StructureCatalog
 
         StructureKits = kept;
         RefreshStructurePacks();
+    }
+
+    /// <summary>A whole template's <see cref="StructureTemplate.Protection"/> word the game does not know (generation 39) is
+    /// reported and read as <see cref="LandmarkRules.ProtectionAuto"/> — the template keeps its kind's rule and stays in the
+    /// pool (a landmark with one is dropped instead, like any landmark with an unknown word).</summary>
+    private static void ResetUnknownProtection(IReadOnlyList<StructureTemplate> templates, string kind, Action<string>? warn)
+    {
+        foreach (var t in templates)
+        {
+            if (t != null && LandmarkRules.ProtectionProblem(t) is { } problem)
+            {
+                warn?.Invoke($"The {kind} template '{t.Key}': {problem} — it keeps the rule of its kind.");
+                t.Protection = string.Empty;
+            }
+        }
     }
 
     private void RefreshStructurePacks()

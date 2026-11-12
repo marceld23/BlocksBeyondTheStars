@@ -75,6 +75,7 @@
       "items": [ "stone", "dirt", "grass", "wood_log", "wood_planks", "wood_planks_light", "wood_planks_mahogany", "concrete", "glass", "glass_clear", "metal_panel", "iron_wall", "steel_wall", "steel_floor",
                  "insulated_wall", "iron_block", "copper_block", "gold_block", "silver_block", "aluminium_block", "tin_block", "nickel_block",
                  "cobalt_block", "platinum_block", "lead_block", "zinc_block", "tungsten_block", "titanium_block", "bronze_block", "brass_block",
+                 "travertine", "blackened_sandstone", "verdigris_copper",
                  "ladder", "stairs", "door_wood", "door_hinge", "door_slide", "door_energy", "trapdoor", "energy_gate", "phase_block",
                  "crystal_conduit", "machine_block", "tree_leaves", "tree_leaves_b", "tree_leaves_c", "blossom_leaves", "pine_needles",
                  "palm_frond", "mushroom_stem", "mushroom_cap" ],
@@ -85,7 +86,8 @@
       "items": [ "torch", "lantern", "light_white", "light_red", "light_green", "strip_light_cyan", "strip_light_warm", "paper_lantern",
                  "diya_lamp", "pumpkin_lantern", "rug", "flower_pot", "gift_box", "bed", "name_tag", "signal_display", "melody_block",
                  "chime", "dice_block", "gaming_pc", "gaming_monitor", "gaming_keyboard", "gaming_mouse",
-                 "mine_track", "mine_cart", "dripstone", "burger_bun", "burger_patty", "burger_cheese" ],
+                 "mine_track", "mine_cart", "dripstone", "burger_bun", "burger_patty", "burger_cheese", "burger_lettuce", "burger_tomato",
+                 "burger_bun_sesame" ],
       "blueprints": [ "crystal_sound", "crystal_signals", "sounder_voice" ]
     },
     {

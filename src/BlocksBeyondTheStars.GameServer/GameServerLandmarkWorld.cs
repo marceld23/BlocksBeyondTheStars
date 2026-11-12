@@ -338,7 +338,7 @@ public sealed partial class GameServer
         {
             if (LandmarkGap(lm, p.Position) <= LandmarkHintRange)
             {
-                ShipAiHintOnce(session, lm.Protected ? "landmark_house" : "landmark_near");
+                ShipAiHintOnce(session, LandmarkIsKept(lm) ? "landmark_house" : "landmark_near");
             }
         }
     }
@@ -355,7 +355,7 @@ public sealed partial class GameServer
 
     private NetLandmark ToNetLandmark(LandmarkInstance lm, PlayerSession session)
     {
-        var model = lm.Silhouette ??= LandmarkSilhouette.Build(lm.Layout);
+        var model = lm.Silhouette ??= LandmarkSilhouetteOf(lm); // generation 39: from its structure overlay
         var corner = WorldConstants.CanonicalBlock(new Vector3i(lm.Origin.X, lm.GroundY, lm.Origin.Z), _world.Circumference);
         return new NetLandmark
         {

@@ -223,6 +223,10 @@ public sealed partial class GameServer
         /// "legacy"/"flat"/"slope" (foundation + stepped skirt), "shelf" (cut &amp; fill at median height),
         /// "stilts" (platform over water on pile columns), "lava" (basalt plinth), "island" (sky deck).</summary>
         public string Seat = "legacy";
+
+        /// <summary>The whole template's protection on this world (generation 39: <c>auto</c> / <c>protected</c> / <c>open</c>,
+        /// see GameServerStructureProtection.cs); <c>auto</c> everywhere else.</summary>
+        public string Protection = LandmarkRules.ProtectionAuto;
     }
 
     private void StampSettlement()
@@ -519,6 +523,7 @@ public sealed partial class GameServer
                 Name = name,
                 Rng = ir,
                 Seat = seat,
+                Protection = ProtectionOnThisWorld(template ?? source), // generation 39: the whole template's or entry's word
             });
             reserved.Add((origin.X + structure.Width / 2, origin.Z + structure.Length / 2,
                 structure.Width / 2 + 1, structure.Length / 2 + 1));
@@ -634,7 +639,7 @@ public sealed partial class GameServer
             }
 
             _settlements.Add(inst);
-            RegisterFootprintBox(StructureTypeRules.Settlement, inst.Min, inst.Max); // #3514
+            RegisterSettlementFootprint(inst, p.Protection); // #3514; generation 39: the template's protection
         }
 
         // Phase D — populate inhabited settlements with NPCs and hang real doors in the doorways.
@@ -775,6 +780,7 @@ public sealed partial class GameServer
                 Name = name,
                 Rng = rng,
                 Seat = "shelf",
+                Protection = ProtectionOnThisWorld(sourceCity is null ? null : citySource), // generation 39: a city entry's word
             },
         };
         SavePlacementRecords();
@@ -2191,7 +2197,7 @@ public sealed partial class GameServer
     /// belt to that brace for anything it misses. Nor is a block a player placed there (#2727,
     /// <see cref="IsPlayerBuiltInSettlement"/>).</summary>
     private bool IsSettlementProtected(Vector3i pos, BlockId id)
-        => IsSettlementBlock(pos)
+        => IsSettlementGuardedForPlayers(pos) // generation 39: an `open` settlement lets players mine
            && !(SettlementVegetationIds.Contains(id.Value) && !IsSettlementLayoutCell(pos) && !IsLodgeLayoutCell(pos)) // #2640: a hut's log frame is the hut's
            && !IsPlayerBuiltInSettlement(pos, id);
 
@@ -2263,6 +2269,7 @@ public sealed partial class GameServer
             Name = name,
             Rng = new System.Random(7),
             Seat = "flat",
+            Protection = ProtectionOnThisWorld(template), // generation 39: the template's protection
         };
         CommitSettlements(new List<PlacedSettlement> { placed }, surface, new System.Random(11));
     }
@@ -2281,6 +2288,13 @@ public sealed partial class GameServer
 
     /// <summary>True if the block lies in an intact settlement's protected box.</summary>
     private bool IsSettlementBoxBlock(Vector3i pos) => IntactSettlementAt(pos) is not null;
+
+    /// <summary><see cref="IsSettlementBlock"/> for what a PLAYER does (mining, the blaster, the pump): an intact settlement
+    /// whose template says <c>open</c> (generation 39, <see cref="SettlementInstance.Unguarded"/>) lets players go — the
+    /// world's own processes (fire, the villagers' and wilderness folk's work, the hunter sites) still keep out of it through
+    /// <see cref="IsSettlementBlock"/>. Everywhere else the two are the same.</summary>
+    private bool IsSettlementGuardedForPlayers(Vector3i pos)
+        => IntactSettlementAt(pos) is { Unguarded: false } || IsIntercityRailBlock(pos) || IsLodgeBlock(pos) || IsLandmarkBlock(pos);
 
     /// <summary>The intact settlement whose protected box holds the cell, or null.</summary>
     private SettlementInstance? IntactSettlementAt(Vector3i pos)

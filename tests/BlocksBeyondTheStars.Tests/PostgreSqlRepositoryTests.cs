@@ -293,6 +293,7 @@ public sealed class PostgreSqlRepositoryTests
             repo.SavePaintReport(new StoredPaintReport { ReporterId = "wing", OwnerId = "pilot", DesignId = 1, Planet = "ice", CreatedUnix = 1_790_000_000 });
             repo.SaveCustomShape(new StoredCustomShape { Id = 70, OwnerId = "pilot", OwnerName = "Pilot", Name = "Arch", Voxels = "ff00" });
             repo.SaveWorldTexture(new StoredWorldTexture { Key = "stone", Frames = 1, Data = "AAAA", OwnerId = "pilot", OwnerName = "Pilot", CreatedUnix = 1_790_000_000 });
+            repo.SaveStructureOverlay(new StoredStructureOverlay { Planet = "ice", Key = "landmark:0", Data = new byte[] { 1, 2, 3 } }); // generation 39
 
             string backup = repo.CreateBackup("backup_pg");
 

@@ -381,6 +381,7 @@ public sealed partial class GameServer
     private bool NpcMinerProtected(Vector3i cell)
         => IsShipBlock(cell) || IsSettlementBoxBlock(cell) || IsIntercityRailBlock(cell) || IsStationBlock(cell)
            || IsGuardianCoreProtected(cell) || IsTextMonumentProtected(cell) // #3311
+           || IsProtectedStructureCell(cell) // generation 39: a structure its template protects
            || IsFactoryProtected(cell, string.Empty, false)
            || IsBaseProtected(cell, string.Empty, false);
 

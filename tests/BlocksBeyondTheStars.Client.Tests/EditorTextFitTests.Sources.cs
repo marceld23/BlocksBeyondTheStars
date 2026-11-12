@@ -13,7 +13,7 @@ public sealed partial class EditorTextFitTests
     {
         "ui.stamp.build.entry", "ui.stamp.seat.*", "ui.stamp.tokens.air", "ui.stamp.furnish.*", "ui.stamp.turn.*", "ui.stamp.ruin.*",
         "ui.stamp.chest.underground", "ui.stamp.chest.ignored", "ui.stamp.chest.summary", "ui.stamp.life.*", "ui.stamp.residents.*",
-        "ui.stamp.keep_clear",
+        "ui.stamp.keep_clear", "ui.stamp.protection.*",
     };
 
     private static IEnumerable<FitSite> StructureSourceSites() => new[]
@@ -46,6 +46,7 @@ public sealed partial class EditorTextFitTests
         Wrap("Stamping token step (block names)", 348f, 8, 13, "ui.stamp.tokens.resolved", "ui.stamp.tokens.fixed") with { Sample = "Steel Floor" },
         Wrap("Stamping chest lines (measured)", 336f, 4, 13, "ui.stamp.chest.items", "ui.stamp.chest.table", "ui.stamp.chest.more")
             with { Prefix = "• ", Sample = "iron_plate:2-4" },
+        Wrap("Stamping ruin zone lines (measured, generation 39)", 336f, 4, 13, "ui.stamp.ruin.zone_line") with { Prefix = "• ", Sample = "255, 255, 255" },
 
         // The status line (348×84, five lines at 13 px).
         Wrap("StructureEditor status: sources, entries, previews", 348f, 5, 13, "ui.struct.source_needs_station", "ui.struct.source_needs_town",

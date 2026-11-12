@@ -604,6 +604,14 @@ TEXTURES = [
     ("burger_bun", "the golden-brown toasted crust of a burger bun filling the whole image edge to edge, smooth and slightly glossy, scattered pale sesame seeds"),
     ("burger_patty", "a dark brown grilled beef burger patty surface filling the whole image edge to edge, coarse crumbly texture with darker char marks"),
     ("burger_cheese", "smooth melted yellow cheddar cheese filling the whole image edge to edge, soft glossy highlights and a few gentle folds"),
+    # #3483 the materials of the school club's giant buildings: the pale and the blackened masonry of the gates and the
+    # amphitheatre, the patinated copper of the statue, and the burger's other layers.
+    ("travertine", "pale cream travertine limestone filling the whole image edge to edge, warm ivory and light beige tones, many small irregular pits and pores, faint wavy horizontal banding, matte, seamless"),
+    ("blackened_sandstone", "old sandstone darkened by centuries of weather filling the whole image edge to edge, dark slate grey and dark umber brown, clearly visible coarse sand grain, eroded pits and softly worn lighter grey-brown patches, evenly lit, dark but not black, matte, seamless"),
+    ("verdigris_copper", "old weathered copper covered in a pale green verdigris patina filling the whole image edge to edge, mottled soft turquoise and mint green with small patches of warm brown copper showing through, faint streaks running downwards, seamless"),
+    ("burger_lettuce", "fresh crisp green lettuce leaves filling the whole image edge to edge, crinkled wavy leaf surface in bright and light greens with pale whitish veins, top-down, seamless"),
+    ("burger_tomato", "fresh red tomato slices filling the whole image edge to edge, overlapping round juicy red slices showing their pale seed chambers with small yellow seeds, glossy highlights, top-down, seamless"),
+    ("burger_bun_sesame", "the shiny light golden top crust of a sesame burger bun filling the whole image edge to edge, a glossy baked crust thickly covered with very many small pale cream sesame seeds close together, evenly lit with no darker edges, no border, no frame, no vignette, top-down, seamless"),
     ("chime_moss", "a soft dense alien moss carpet filling the whole image edge to edge, plump violet and teal moss tufts with tiny pale glowing tips like little bells, top-down, seamless"),
     ("chime_reed", f"side view of one tuft of thin tall slender alien reeds, pale teal stems glowing softly, each reed ending in a small round glowing violet bead like a tiny chime, rooted at the bottom edge of the image and reaching almost to its top, {ON_BLACK}"),
     ("bell_bloom", f"side view of one friendly alien flower plant, a single large closed bell-shaped blossom of soft violet petals nodding from a curved teal stem with two broad rounded teal leaves near the ground, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}"),

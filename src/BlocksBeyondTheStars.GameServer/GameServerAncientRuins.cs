@@ -304,7 +304,7 @@ public sealed partial class GameServer
             Kit = plan.KitKey,
             Caches = caches,
         });
-        RegisterFootprint(StructureTypeRules.Underground, _worlds.Active.AncientRuins[^1].Rect); // #3514
+        RegisterUndergroundFootprint(_worlds.Active.AncientRuins[^1]); // #3514; generation 39: the template's protection
         ReportStamp(UndergroundKind, 1, 1);
     }
 

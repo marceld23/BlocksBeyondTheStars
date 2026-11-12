@@ -192,6 +192,7 @@ public sealed class LandmarkTemplateTests
         pinned.PinOnly = true;
 
         var warnings = new List<string>();
+        content.GetPlanet("sounder_world")!.FixedLandmarks.Clear(); // the shipped Soaniri names its fixed landmarks; this pool has none
         content.SetLandmarks(new[] { everywhere, soaniri, burger, pinned }, warnings.Add);
         Assert.Empty(warnings);
         Assert.Contains("extras", content.StructurePacks);
@@ -236,6 +237,7 @@ public sealed class LandmarkTemplateTests
         var twin = LandmarkShapes.Tower("good");
 
         var warnings = new List<string>();
+        content.GetPlanet("sounder_world")!.FixedLandmarks.Clear(); // the shipped Soaniri names its fixed landmarks; this pool has none
         content.SetLandmarks(new[] { good, unknownBlock, badWords, badRow, tooBig, module, twin, new StructureTemplate() }, warnings.Add);
         Assert.Equal(new[] { "good" }, content.Landmarks.Select(t => t.Key));
         Assert.Equal(7, warnings.Count);
@@ -289,7 +291,12 @@ public sealed class LandmarkTemplateTests
             Assert.Equal(t.GroundRow, layout.GroundRow);
         }
 
-        Assert.Empty(Content.LandmarksFor(null, "meadowlands", atmosphere: true, inhabited: true)); // nothing is rolled yet
+        // What is rolled is the school club's landmarks only, and only on a world of terrain generation 39 or later.
+        var rolled = Content.LandmarksFor(null, "meadowlands", atmosphere: true, inhabited: true);
+        Assert.NotEmpty(rolled);
+        Assert.DoesNotContain(rolled, t => t.Key.StartsWith("sample_", System.StringComparison.Ordinal));
+        Assert.All(rolled, t => Assert.True(t.MinTerrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.SchoolClubLandmarksGeneration,
+            t.Key + " would be rolled on a world older than generation 39"));
         Assert.True(Content.LandmarkByKey("sample_mine")!.GroundRow > 0);
         Assert.True(Content.LandmarkByKey("sample_store")!.Protected);
         foreach (string locale in new[] { "en", "de" })

@@ -301,6 +301,15 @@
   { "key": "burger_bun", "nameKey": "block.burger_bun.name", "category": "building", "hardness": 0.6, "requiredTool": "none", "minToolTier": 0, "color": 14263387, "drops": [ { "item": "burger_bun", "count": 1 } ] },
   { "key": "burger_patty", "nameKey": "block.burger_patty.name", "category": "building", "hardness": 0.6, "requiredTool": "none", "minToolTier": 0, "color": 5913122, "drops": [ { "item": "burger_patty", "count": 1 } ] },
   { "key": "burger_cheese", "nameKey": "block.burger_cheese.name", "category": "building", "hardness": 0.6, "requiredTool": "none", "minToolTier": 0, "color": 15909424, "drops": [ { "item": "burger_cheese", "count": 1 } ] },
+  // #3483: the building materials of the school club's giant buildings — the pale limestone of the leaning tower and the
+  // golden bird gate, the blackened sandstone of the old city gate, the green copper of the singer's statue, and the
+  // burger's remaining layers (lettuce, tomato, the sesame top bun). All craftable at the workbench.
+  { "key": "travertine", "nameKey": "block.travertine.name", "category": "building", "hardness": 3.4, "requiredTool": "drill", "minToolTier": 1, "color": 15982255, "drops": [ { "item": "travertine", "count": 1 } ] },
+  { "key": "blackened_sandstone", "nameKey": "block.blackened_sandstone.name", "category": "building", "hardness": 3.6, "requiredTool": "drill", "minToolTier": 1, "color": 3156002, "drops": [ { "item": "blackened_sandstone", "count": 1 } ] },
+  { "key": "verdigris_copper", "nameKey": "block.verdigris_copper.name", "category": "building", "hardness": 4.4, "requiredTool": "drill", "minToolTier": 1, "color": 6731910, "metal": 0.2, "drops": [ { "item": "verdigris_copper", "count": 1 } ] },
+  { "key": "burger_lettuce", "nameKey": "block.burger_lettuce.name", "category": "building", "hardness": 0.6, "requiredTool": "none", "minToolTier": 0, "color": 6404659, "drops": [ { "item": "burger_lettuce", "count": 1 } ] },
+  { "key": "burger_tomato", "nameKey": "block.burger_tomato.name", "category": "building", "hardness": 0.6, "requiredTool": "none", "minToolTier": 0, "color": 15152927, "gloss": 0.3, "drops": [ { "item": "burger_tomato", "count": 1 } ] },
+  { "key": "burger_bun_sesame", "nameKey": "block.burger_bun_sesame.name", "category": "building", "hardness": 0.6, "requiredTool": "none", "minToolTier": 0, "color": 15501342, "drops": [ { "item": "burger_bun_sesame", "count": 1 } ] },
   { "key": "paul_stem",   "nameKey": "block.paul_stem.name",   "category": "terrain", "hardness": 0.8, "requiredTool": "none", "minToolTier": 0, "color": 4102970, "flammable": true, "drops": [ { "item": "paul_stem", "count": 1 } ] },
   { "key": "paul_leaf",   "nameKey": "block.paul_leaf.name",   "category": "terrain", "hardness": 0.4, "requiredTool": "none", "minToolTier": 0, "color": 3123338, "flammable": true, "drops": [ { "item": "paul_leaf", "count": 1 } ] },
   { "key": "paul_petals", "nameKey": "block.paul_petals.name", "category": "terrain", "hardness": 0.4, "requiredTool": "none", "minToolTier": 0, "color": 6967256, "flammable": true, "drops": [ { "item": "paul_petals", "count": 1 }, { "item": "toxic_berries", "count": 2 } ] },

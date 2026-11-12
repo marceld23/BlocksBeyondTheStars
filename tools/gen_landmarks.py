@@ -7,118 +7,34 @@ body (#3485): a palette plus run-length rows ("y,z:x.count.palette x.count.palet
 settings (markers) listed one by one. They stay editable in the in-game structure editor (town editor, "Use as:
 Landmark"): LOAD shows them, SAVE writes the same format.
 
-Today the script writes three small SAMPLES, all `pinOnly` — never rolled for a world, only stamped by an admin with
-`/landmark <key>` — so the framework can be play-tested before the school club's real buildings exist:
+It writes three small SAMPLES, all `pinOnly` — never rolled for a world, only stamped by an admin with
+`/landmark <key>` — so the framework can be play-tested on its own:
 
   sample_tower   a ruined watchtower with two chests, a sound and a den           (profile masonry)
   sample_mine    a hut over a shaft, tunnels and a cavern, carved into the rock   (profile underground, ground row)
   sample_store   an inhabited store with a keeper who only sells inside           (protected, as built)
 
-Run it after editing (stdlib only):  uv run --no-project python tools/gen_landmarks.py
-It rewrites the files it owns and writes LF line endings.
+and then every landmark script in tools/landmarks/ — a `<key>.py` there that defines `build()` returning a
+`geom.Design` (see tools/landmarks/README.md for the toolkit: cylinders, domes, arches, trusses, stairs, text ...).
+
+Run it after editing (stdlib only):  uv run --no-project python tools/gen_landmarks.py [key ...]
+With keys it writes only those. It rewrites the files it owns and writes LF line endings.
 """
 from __future__ import annotations
 
-import json
+import importlib
+import sys
 from pathlib import Path
 
-OUT = Path(__file__).resolve().parent.parent / "data" / "landmarks"
+LANDMARK_SCRIPTS = Path(__file__).resolve().parent / "landmarks"
+sys.path.insert(0, str(LANDMARK_SCRIPTS))
+# One copy of the toolkit for the samples and the landmark scripts alike (they import it as `geom`).
+_geom = importlib.import_module("geom")
+Design = _geom.Design
+OUT = _geom.OUT
 
-
-class Design:
-    """A landmark under construction: plain cells (a block or a cavity) by position, plus marker cells."""
-
-    def __init__(self, key: str, name: str, **header) -> None:
-        self.header = {"key": key, "name": name, "landmark": True, **header}
-        self.plain: dict[tuple[int, int, int], tuple] = {}
-        self.markers: list[dict] = []
-
-    # --- writing cells -------------------------------------------------------------------------------------------
-    def block(self, x: int, y: int, z: int, block: str, tint: int = 0, glow: int = 0, shape: int = 0, keep: bool = False) -> None:
-        self.plain[(x, y, z)] = ("block", block, tint, glow, shape, keep)
-
-    def cavity(self, x: int, y: int, z: int) -> None:
-        self.plain[(x, y, z)] = ("cavity", "", 0, 0, 0, False)
-
-    def clear(self, x: int, y: int, z: int) -> None:
-        self.plain.pop((x, y, z), None)
-
-    def box(self, x0: int, y0: int, z0: int, x1: int, y1: int, z1: int, block: str, **kw) -> None:
-        """A solid box, corners inclusive."""
-        for x in range(x0, x1 + 1):
-            for y in range(y0, y1 + 1):
-                for z in range(z0, z1 + 1):
-                    self.block(x, y, z, block, **kw)
-
-    def shell(self, x0: int, y0: int, z0: int, x1: int, y1: int, z1: int, block: str, **kw) -> None:
-        """The four walls of a box (no floor, no roof), corners inclusive."""
-        for x in range(x0, x1 + 1):
-            for y in range(y0, y1 + 1):
-                for z in range(z0, z1 + 1):
-                    if x in (x0, x1) or z in (z0, z1):
-                        self.block(x, y, z, block, **kw)
-
-    def carve(self, x0: int, y0: int, z0: int, x1: int, y1: int, z1: int) -> None:
-        """A cavity box (underground: tunnels and caverns), corners inclusive."""
-        for x in range(x0, x1 + 1):
-            for y in range(y0, y1 + 1):
-                for z in range(z0, z1 + 1):
-                    self.cavity(x, y, z)
-
-    def marker(self, x: int, y: int, z: int, marker: str, settings: str = "") -> None:
-        cell = {"x": x, "y": y, "z": z, "kind": "marker", "id": marker}
-        if settings:
-            cell["config"] = settings
-        self.markers.append(cell)
-
-    # --- the file ------------------------------------------------------------------------------------------------
-    def template(self) -> dict:
-        xs = [p[0] for p in self.plain] + [m["x"] for m in self.markers]
-        ys = [p[1] for p in self.plain] + [m["y"] for m in self.markers]
-        zs = [p[2] for p in self.plain] + [m["z"] for m in self.markers]
-        palette: list[dict] = []
-        index: dict[tuple, int] = {}
-        rows: list[str] = []
-        cells = sorted(self.plain.items(), key=lambda kv: (kv[0][1], kv[0][2], kv[0][0]))
-        i = 0
-        while i < len(cells):
-            (_, y, z), _ = cells[i]
-            runs = []
-            while i < len(cells) and cells[i][0][1] == y and cells[i][0][2] == z:
-                (x, _, _), look = cells[i]
-                count = 1
-                while (i + count < len(cells) and cells[i + count][0] == (x + count, y, z) and cells[i + count][1] == look):
-                    count += 1
-                if look not in index:
-                    index[look] = len(palette)
-                    kind, block, tint, glow, shape, keep = look
-                    entry = {"kind": kind, "id": block}
-                    entry.update({k: v for k, v in (("tint", tint), ("glow", glow), ("shape", shape)) if v})
-                    if keep:
-                        entry["keep"] = True
-                    palette.append(entry)
-                runs.append(f"{x}.{count}.{index[look]}")
-                i += count
-            rows.append(f"{y},{z}:" + " ".join(runs))
-        return {
-            **self.header,
-            "width": max(xs) + 1,
-            "height": max(ys) + 1,
-            "length": max(zs) + 1,
-            "palette": palette,
-            "rows": rows,
-            "cells": self.markers,
-        }
-
-    def write(self) -> None:
-        OUT.mkdir(parents=True, exist_ok=True)
-        t = self.template()
-        path = OUT / f"{t['key']}.json"
-        with path.open("w", encoding="utf-8", newline="\n") as f:
-            json.dump(t, f, ensure_ascii=False, separators=(",", ":"))
-            f.write("\n")
-        print(f"{path.name}: {t['width']}x{t['height']}x{t['length']}, {len(self.plain)} cells, "
-              f"{len(t['palette'])} palette entries, {path.stat().st_size} bytes")
+# Modules of the toolkit itself — every other tools/landmarks/<key>.py is a landmark script.
+TOOLKIT = {"__init__", "geom", "solids", "shapecode", "blockfont", "templatefile", "preview", "selftest"}
 
 
 def sample_tower() -> Design:
@@ -211,10 +127,27 @@ def sample_store() -> Design:
     return d
 
 
-def main() -> None:
-    for design in (sample_tower(), sample_mine(), sample_store()):
-        design.write()
+def landmark_scripts() -> list[str]:
+    """The keys of the landmark scripts in tools/landmarks/, sorted."""
+    return sorted(p.stem for p in LANDMARK_SCRIPTS.glob("*.py") if p.stem not in TOOLKIT and not p.stem.startswith("_"))
+
+
+def main(keys: list[str] | None = None) -> None:
+    wanted = set(keys or [])
+    for build in (sample_tower, sample_mine, sample_store):
+        if not wanted or build.__name__ in wanted:
+            build().write()
+    for key in landmark_scripts():
+        if wanted and key not in wanted:
+            continue
+        module = importlib.import_module(key)
+        if not hasattr(module, "build"):
+            print(f"  skipped tools/landmarks/{key}.py: no build()")
+            continue
+        designs = module.build()
+        for design in designs if isinstance(designs, (list, tuple)) else [designs]:
+            design.write()
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

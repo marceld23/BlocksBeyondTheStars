@@ -98,7 +98,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             ["light_white"] = 0x8ad9ac33d897e9d5UL,
             ["light_red"] = 0x532e9caef6687ac5UL,
             ["light_green"] = 0x6725b9a585b93bd5UL,
-            [AllBlocks] = 0x6ab30c8a6fa0cdf6UL, // #3498: the landmarks' six decoration blocks joined the content; every per-key pin still passed
+            [AllBlocks] = 0xaff4fe4cd0ae5b0dUL, // the school club's landmarks: six more building blocks joined the content; every per-key pin still passed
         };
 
         private static GameContent LoadContentOrIgnore()

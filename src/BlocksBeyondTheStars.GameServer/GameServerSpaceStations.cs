@@ -81,6 +81,10 @@ public sealed partial class GameServer
         /// station once set, so interior edits map back onto the cell grid and a later stamp never shifts.</summary>
         public bool Materialised { get; set; }
         public Vector3i StampMin { get; set; }
+
+        /// <summary>Terrain generation 39: the station's template or generator entry says <c>open</c> — its hull is free to
+        /// mine and build on (<see cref="IsStationBlock"/> lets it go); false everywhere else.</summary>
+        public bool Unguarded { get; set; }
     }
 
     /// <summary>Station markers for tests/inspection; empty until the station is stamped.</summary>
@@ -1034,6 +1038,8 @@ public sealed partial class GameServer
 
         station.Structure = structure;
         station.Kit = kitStructure != null ? composition : null;
+        station.Unguarded = kitStructure is null && ProtectionOnThisWorld(sourceStructure != null ? StationEntryOf(station) : template)
+            == LandmarkRules.ProtectionOpen; // generation 39: the template's (or entry's) protection
         station.Origin = StationStampOrigin - structure.ModuleShift; // #1918: an old kit station's modules stay put
         return structure;
     }
@@ -1367,7 +1373,7 @@ public sealed partial class GameServer
         string loc = _world.LocationId;
         if (!loc.StartsWith(StationLocationIdPrefix, System.StringComparison.Ordinal)
             || !_stationsById.TryGetValue(loc.Substring(StationLocationIdPrefix.Length), out var station)
-            || !station.Stamped || station.Structure is null)
+            || !station.Stamped || station.Structure is null || station.Unguarded)
         {
             return false;
         }

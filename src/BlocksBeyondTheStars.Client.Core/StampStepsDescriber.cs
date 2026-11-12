@@ -58,10 +58,11 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// "What happens when it is stamped" (#3523): the stamp-time steps that apply to a design of the structure editor, in the
     /// order the server runs them — what builds it (a generator entry), where and how it is seated, its material tokens, the
-    /// furniture, the quarter turn, the ruin pass, its chests, sounds and dens, who lives there and how far other structures
-    /// stay away. The rules mirror the server's code paths on a world of terrain generation 38 (<see cref="StructureStampRules"/>
-    /// for what each target reads); the values come from the design and the content (the token resolvers, the placement rules
-    /// of <c>data/structure_types.json</c>). Unity-free so the headless suite checks it; the editor only translates and draws.
+    /// furniture, the quarter turn, the ruin pass, its chests, sounds and dens, who lives there, whether players may change it
+    /// and how far other structures stay away. The rules mirror the server's code paths on a new world: terrain generation 38,
+    /// plus generation 39's span seat, ruin zones, protection and landmark residents (<see cref="StructureStampRules"/> for what
+    /// each target reads); the values come from the design and the content (the token resolvers, the placement rules of
+    /// <c>data/structure_types.json</c>). Unity-free so the headless suite checks it; the editor only translates and draws.
     /// </summary>
     public static class StampStepsDescriber
     {
@@ -74,6 +75,7 @@ namespace BlocksBeyondTheStars.Client
         public const string TitleChests = "ui.stamp.title.chests";
         public const string TitleLife = "ui.stamp.title.life";
         public const string TitleResidents = "ui.stamp.title.residents";
+        public const string TitleProtection = "ui.stamp.title.protection";
         public const string TitleKeepClear = "ui.stamp.title.keep_clear";
 
         /// <summary>The loot table of a landmark chest that names neither items nor a table (the server's
@@ -114,6 +116,7 @@ namespace BlocksBeyondTheStars.Client
             AddIfAny(steps, Chests(d));
             AddIfAny(steps, Life(d));
             steps.Add(Residents(d));
+            steps.Add(new StampStep(TitleProtection, StructureStampRules.ProtectionKey(d)));
             AddIfAny(steps, KeepClear(d.Target, content));
             return steps;
         }
@@ -130,6 +133,14 @@ namespace BlocksBeyondTheStars.Client
 
         private static StampStep Seat(StampDesign d)
         {
+            if (d.Target is StampTarget.Landmark or StampTarget.LandmarkEntry
+                && string.Equals(d.Seat, LandmarkRules.SeatSpan, StringComparison.OrdinalIgnoreCase))
+            {
+                // Generation 39: a bridge — the ground row is its deck row (the server's span seat search).
+                return new StampStep(TitleSeat, "ui.stamp.seat.span", StampArg.Of(d.GroundRow), StampArg.Of(LandmarkRules.SpanGapDepth),
+                    StampArg.Of(LandmarkRules.SpanBankTolerance));
+            }
+
             string text = d.Target switch
             {
                 StampTarget.SettlementWhole or StampTarget.SettlementEntry => "ui.stamp.seat.settlement",
@@ -259,7 +270,8 @@ namespace BlocksBeyondTheStars.Client
                 case StampTarget.Landmark when d.Ruin:
                     {
                         var (profile, strength) = Profile(d);
-                        return new StampStep(TitleRuin, "ui.stamp.ruin.always", StampArg.Key(profile), StampArg.Of(strength), StampArg.Of(d.KeepCells));
+                        return d.RuinZones.Count > 0 ? ZonedRuin(d, profile, strength)
+                            : new StampStep(TitleRuin, "ui.stamp.ruin.always", StampArg.Key(profile), StampArg.Of(strength), StampArg.Of(d.KeepCells));
                     }
 
                 case StampTarget.SettlementEntry when d.Tier != StructureRoles.MetropolisTier:
@@ -277,6 +289,29 @@ namespace BlocksBeyondTheStars.Client
             string profile = LandmarkRules.ProfileOf(new StructureTemplate { RuinProfile = d.RuinProfile ?? string.Empty });
             double strength = d.RuinStrength > 0 ? Math.Min(1.0, d.RuinStrength) : DefaultStrength(profile);
             return ("ui.ed.landmark.profile." + profile, Percent(strength));
+        }
+
+        /// <summary>A landmark with ruin zones (generation 39): how many zones fall on their own and how the rest falls, then one
+        /// line per zone in its order (where zones overlap, the first wins) — its box, its profile and its strength (a zone that
+        /// names none takes the landmark's profile, a strength of 0 the profile's default).</summary>
+        private static StampStep ZonedRuin(StampDesign d, string profileKey, int strength)
+        {
+            var head = new StampStep(TitleRuin, "ui.stamp.ruin.zoned", StampArg.Of(d.RuinZones.Count), StampArg.Key(profileKey),
+                StampArg.Of(strength), StampArg.Of(d.KeepCells));
+            var owner = new StructureTemplate { RuinProfile = d.RuinProfile ?? string.Empty };
+            var lines = new List<StampStep>(d.RuinZones.Count);
+            for (int i = 0; i < d.RuinZones.Count; i++)
+            {
+                var z = d.RuinZones[i];
+                string profile = LandmarkRules.ProfileOf(owner, z);
+                double share = z.Strength > 0 ? Math.Min(1.0, z.Strength) : DefaultStrength(profile);
+                lines.Add(new StampStep(TitleRuin, "ui.stamp.ruin.zone_line", StampArg.Of(i + 1),
+                    StampArg.Of($"{Math.Min(z.X0, z.X1)}, {Math.Min(z.Y0, z.Y1)}, {Math.Min(z.Z0, z.Z1)}"),
+                    StampArg.Of($"{Math.Max(z.X0, z.X1)}, {Math.Max(z.Y0, z.Y1)}, {Math.Max(z.Z0, z.Z1)}"),
+                    StampArg.Key("ui.ed.landmark.profile." + profile), StampArg.Of(Percent(share))));
+            }
+
+            return new StampListStep(head, lines, 0);
         }
 
         /// <summary>The strength a ruin profile runs with when the template names none — the shared ruin pass's own default
@@ -379,8 +414,8 @@ namespace BlocksBeyondTheStars.Client
                 StampTarget.StationWhole => "ui.stamp.residents.station",
                 StampTarget.StationModule => "ui.stamp.residents.station_module",
                 StampTarget.UndergroundWhole or StampTarget.UndergroundEntry => "ui.stamp.residents.underground",
-                StampTarget.Landmark when d.Protected && !d.Ruin => "ui.stamp.residents.landmark_inhabited",
-                StampTarget.Landmark => "ui.stamp.residents.landmark",
+                // Generation 39: every intact landmark staffs its posts, whatever its protection; a ruin has nobody.
+                StampTarget.Landmark => d.Ruin ? "ui.stamp.residents.landmark_ruin" : "ui.stamp.residents.landmark_staffed",
                 StampTarget.StationEntry => "ui.stamp.residents.station_entry",
                 _ => "ui.stamp.residents.entry",
             };

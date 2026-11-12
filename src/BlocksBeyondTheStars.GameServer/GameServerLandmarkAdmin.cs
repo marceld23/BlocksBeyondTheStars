@@ -104,6 +104,8 @@ public sealed partial class GameServer
             Turns = template.IsSource ? 0 : StableHashing.Index(lane + ":turn", _meta.Seed, 4), // #3518: an entry stands as built
             Index = index,
             Fresh = true,
+            // A giant made for a newer generation (the school club's, gen 39) is one stored blob on any world.
+            ForceOverlay = template.MinTerrainGeneration > _meta.Description.TerrainGeneration,
         };
         plan.Layout = BuildLandmarkLayout(plan);
         if (plan.Layout is null)

@@ -52,9 +52,20 @@ namespace BlocksBeyondTheStars.Client
             "gds_logs.json", // #3341
             "hud_frames.json", // #3317
             "items.json",
+            "landmarks/blocks_king.json", // the school club's landmarks (terrain generation 39)
+            "landmarks/eifelnyde.json",
+            "landmarks/golden_bird_gate.json",
+            "landmarks/leaning_tower.json",
+            "landmarks/old_mine.json",
+            "landmarks/porta_nigra.json",
+            "landmarks/portasseum.json",
             "landmarks/sample_mine.json", // #3483
             "landmarks/sample_store.json", // #3483
             "landmarks/sample_tower.json", // #3483
+            "landmarks/singer_statue.json",
+            "landmarks/soaniri_castle.json",
+            "landmarks/soundi_statue.json",
+            "landmarks/suspension_bridge.json",
             "locale_coverage.json",
             "locales/de.json",
             "locales/en.json",

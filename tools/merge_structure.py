@@ -136,7 +136,30 @@ def merged_entry(meta, layout, existing):
                 entry[field] = meta[field]
             else:
                 entry.pop(field, None)
+    # The school club's landmarks (terrain generation 39): `protection` (auto | protected | open) of a whole template — `auto`
+    # (the default) is stripped; a bundle from an editor that predates the field leaves the pool's value alone.
+    if "protection" in meta:
+        _set_protection(entry, meta["protection"])
     return entry
+
+
+def _set_protection(entry, value):
+    """Writes a template's `protection` word into a data entry: `auto` / empty (the default, the rule of its kind) removes
+    the field, `protected` / `open` set it."""
+    if value and value != "auto":
+        entry["protection"] = value
+    else:
+        entry.pop("protection", None)
+
+
+def _clean_zone(zone):
+    """A ruin zone as the data file keeps it: its corners always, the profile and strength only when set."""
+    z = {k: int(zone.get(k, 0) or 0) for k in ("x0", "y0", "z0", "x1", "y1", "z1")}
+    if zone.get("profile"):
+        z["profile"] = zone["profile"]
+    if zone.get("strength"):
+        z["strength"] = zone["strength"]
+    return z
 
 
 def _clean_cell(cell):
@@ -169,8 +192,16 @@ def landmark_entry(landmark, existing):
                         for p in landmark.get("palette", [])]
     entry["cells"] = [{k: v for k, v in c.items() if k in ("x", "y", "z", "kind", "id") or v not in (None, "", 0, False)}
                       for c in landmark.get("cells", [])]
+    # Generation 39: `ruinZones` (boxes with their own profile and strength), `seat` (`span`) and `protection` — the
+    # defaults (no zones, the guaranteed search, `auto`) are stripped by the loop above or here.
+    if entry.get("ruinZones"):
+        entry["ruinZones"] = [_clean_zone(z) for z in entry["ruinZones"]]
+    _set_protection(entry, entry.get("protection"))
     if existing and existing.get("pinOnly"):
         entry["pinOnly"] = True
+    # `minTerrainGeneration` (39 on the school club's landmarks: older worlds never roll them) is not an editor field either.
+    if existing and existing.get("minTerrainGeneration") and "minTerrainGeneration" not in landmark:
+        entry["minTerrainGeneration"] = existing["minTerrainGeneration"]
     return entry
 
 
@@ -234,6 +265,12 @@ def generator_entry(entry, existing):
     data["source"] = entry["source"].strip()
     if entry.get("sourceParams"):
         data["sourceParams"] = entry["sourceParams"]
+    # Generation 39: an entry's `protection` (any pool), a landmark entry's `seat` and ruin zones — written when set.
+    _set_protection(data, entry.get("protection"))
+    if pool == "landmark" and entry.get("seat"):
+        data["seat"] = entry["seat"]
+    if pool == "landmark" and entry.get("ruinZones"):
+        data["ruinZones"] = [_clean_zone(z) for z in entry["ruinZones"]]
     for field, value in (existing or {}).items():
         if field not in entry and field not in data and field not in ENTRY_SHAPE_FIELDS:
             data[field] = value

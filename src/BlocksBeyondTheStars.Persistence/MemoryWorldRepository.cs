@@ -148,6 +148,10 @@ public sealed class MemoryWorldSnapshot
 
     /// <summary>Burning cells (#2787) — without them a fire burning at save time never burned out. Additive.</summary>
     public List<FireCellRow> FireCells { get; set; } = new();
+
+    /// <summary>The structure overlays (terrain generation 39): a landmark's cells, one blob per placed landmark. Additive:
+    /// a snapshot written before them reads back as an empty list.</summary>
+    public List<StoredStructureOverlay> StructureOverlays { get; set; } = new();
 }
 
 /// <summary>
@@ -159,7 +163,7 @@ public sealed class MemoryWorldSnapshot
 /// block-palette remap on content shifts. <see cref="Flush"/> raises <see cref="Flushed"/> so the
 /// host can persist the blob exactly when the server would have committed to disk.
 /// </summary>
-public sealed class MemoryWorldRepository : IWorldRepository
+public sealed partial class MemoryWorldRepository : IWorldRepository
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = false };
 
@@ -312,6 +316,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
                 Remaining = kv.Value.Remaining,
                 Generation = kv.Value.Generation,
             }).ToList(),
+            StructureOverlays = SnapshotStructureOverlaysLocked(),
         };
 
         foreach (var kv in _blockEdits)
@@ -409,6 +414,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
         _crystalCells.Clear();
         _fluidCells.Clear();
         _fireCells.Clear();
+        RestoreStructureOverlaysLocked(snapshot.StructureOverlays);
 
         foreach (var kv in snapshot.BlockPalette)
         {
@@ -677,6 +683,8 @@ public sealed class MemoryWorldRepository : IWorldRepository
                 _ships[id] = JsonSerializer.Serialize(ship, JsonOptions);
             }
         }
+
+        RemapStructureOverlaysLocked(remap);
     }
 
     // ---------------- Metadata ----------------
@@ -952,6 +960,11 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            if (HasStructureOverlayLocked(planet))
+            {
+                return true; // a structure overlay is a worldgen stamp too (generation 39)
+            }
+
             foreach (var kv in _blockEdits)
             {
                 if (kv.Key.Planet == planet)

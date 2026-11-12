@@ -670,6 +670,8 @@ public sealed partial class GameContent
         "chime_moss", "carved_obsidian", // #3358: Soaniri's ground and the old Sounder builders' stone
         // #3498: the landmarks' decoration blocks — a dripstone cone is a stalagmite, a rounded bun the top of a burger.
         "mine_track", "mine_cart", "dripstone", "burger_bun", "burger_patty", "burger_cheese",
+        // #3483: the school club landmarks' building materials — a rounded sesame bun is the restaurant's dome.
+        "travertine", "blackened_sandstone", "verdigris_copper", "burger_lettuce", "burger_tomato", "burger_bun_sesame",
     };
 
     /// <summary>

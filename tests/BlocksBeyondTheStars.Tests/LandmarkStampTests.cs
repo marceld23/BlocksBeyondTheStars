@@ -118,7 +118,7 @@ public sealed class LandmarkStampTests : IDisposable
             Assert.Equal("test_tower", rec.Template);
             Assert.Equal((lm.Origin.X, lm.GroundY, lm.Origin.Z), (rec.X, rec.GroundY, rec.Z));
             Assert.Contains("turns=", rec.KitLayout);
-            Assert.Contains("rev=1", rec.KitLayout);
+            Assert.Contains("rev=" + BlocksBeyondTheStars.WorldGeneration.LandmarkGenerator.RuinRevision, rec.KitLayout); // generation 39: the newest
             Assert.Contains(server.StampReportForTest, r => r.Kind == LandmarkRules.RecordKind && r.Requested == 1 && r.Placed == 1);
 
             // Every block of the layout stands in the world (the chest's crate sits in its marker's free cell).
@@ -165,7 +165,7 @@ public sealed class LandmarkStampTests : IDisposable
         }
     }
 
-    /// <summary>#3515: a landmark replays through the ruin revision its record pins — <c>rev=1</c> as stamped, a record
+    /// <summary>#3515: a landmark replays through the ruin revision its record pins — the newest as stamped, a record
     /// without <c>rev</c> (none existed before the revision was read back) as revision 1, and a revision this build does
     /// not know (a newer build's record) through the newest it knows instead of failing.</summary>
     [Theory]
@@ -183,7 +183,8 @@ public sealed class LandmarkStampTests : IDisposable
             var lm = Assert.Single(server.LandmarksForTest);
             Assert.True(lm.Layout.Ruined);
             stamped = StructureGoldens.Landmark(content, lm.Layout);
-            Assert.Contains("rev=1", Assert.Single(server.PlacementRecordsForTest, r => r.Kind == LandmarkRules.RecordKind).KitLayout);
+            Assert.Contains("rev=" + BlocksBeyondTheStars.WorldGeneration.LandmarkGenerator.RuinRevision,
+                Assert.Single(server.PlacementRecordsForTest, r => r.Kind == LandmarkRules.RecordKind).KitLayout);
             server.Stop();
         }
 

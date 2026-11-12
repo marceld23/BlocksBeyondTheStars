@@ -5126,6 +5126,13 @@ public sealed partial class GameServer
             return;
         }
 
+        // Generation 39: a structure its template protects (a statue, the burger restaurant …) — admins pass.
+        if (!harvestingPlant && IsProtectedStructureCell(pos, session.State.IsAdmin))
+        {
+            Reject(session, "mine", "@srv.protect.structure");
+            return;
+        }
+
         // #1830: the Guardian core is breached, not dug out — its column was a bare-hand light block and the
         // one-shot stamp never brought it back once a player had mined it.
         if (IsGuardianCoreProtected(pos))
@@ -5482,6 +5489,7 @@ public sealed partial class GameServer
     /// <see cref="HandleMine"/> refuses that one too, and so does this list.</summary>
     private bool IsBreakProtected(Vector3i p, BlockId id, string actorId, bool actorIsAdmin)
         => IsShipBlock(p) || IsSettlementProtected(p, id) || IsStationBlock(p)
+           || IsProtectedStructureCell(p, actorIsAdmin) // generation 39: a structure its template protects
            || IsGuardianCoreProtected(p) // #1830
            || IsTextMonumentProtected(p) // #3311: KuBa-W's stone tablets
            || (IsIntercityRailBlock(p) && !IsSettlementBoxBlock(p))

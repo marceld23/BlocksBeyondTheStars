@@ -573,6 +573,7 @@ public sealed partial class GameServer
     private bool BridgeCellProtected(Vector3i p, string ownerId)
         => IsShipBlock(p) || IsSettlementProtected(p, BlockId.Air) || IsStationBlock(p) || IsGuardianCoreProtected(p)
            || IsTextMonumentProtected(p) // #3311
+           || IsProtectedStructureCell(p) // generation 39: a structure its template protects
            || IsBaseProtected(p, ownerId, false);
 
     // ------------------------------------------------------------------------------------------------------
@@ -719,6 +720,7 @@ public sealed partial class GameServer
         var id = _world.GetBlock(p);
         return IsShipBlock(p) || IsSettlementProtected(p, id) || IsStationBlock(p) || IsGuardianCoreProtected(p)
                || IsTextMonumentProtected(p) // #3311
+               || IsProtectedStructureCell(p) // generation 39: a structure its template protects
                || IsFactoryProtected(p, ownerId, false) || IsBaseProtected(p, ownerId, false);
     }
 }

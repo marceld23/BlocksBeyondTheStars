@@ -369,10 +369,11 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var pal = _palette[_selected];
-            if (pal.Kind is "device" or "port" or "keep" or "settings")
+            if (pal.Kind is "device" or "port" or "keep" or "settings" or StructureStampRules.KindZone)
             {
-                // A tool works on the cell under the cursor, not the cell beside it (#1877, #2260, #3492, #3493).
-                bool on = TryGetHitCell(out var hit) && _design.TryGetValue(hit, out var hd) && ToolFits(pal.Kind, hd);
+                // A tool works on the cell under the cursor, not the cell beside it (#1877, #2260, #3492, #3493); the zone tool on
+                // the corner it would set (StructureEditor.Zones.cs).
+                bool on = ToolGhostCell(pal.Kind, out var hit);
                 _ghost?.Update(on, hit, on);
                 Hint(null);
                 return;
@@ -743,6 +744,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     key = key, name = _name, tier = meta.tier, kind = meta.kind, pack = meta.pack, weight = meta.weight,
                     planetTypes = meta.planetTypes, role = meta.role, kit = meta.kit, function = meta.function, style = meta.style, underground = meta.underground,
+                    protection = meta.protection, // generation 39
                     width = layout.width, height = layout.height, length = layout.length, cells = layout.cells,
                 };
                 string userDir = Path.Combine(AppPaths.Root, "usercontent", meta.kind + "_templates");
@@ -828,7 +830,8 @@ namespace BlocksBeyondTheStars.Client
                     {
                         Label = string.IsNullOrEmpty(t.name) ? t.key : t.name,
                         Detail = Detail(t.tier, t.width, t.length, t.height, t.cells.Count),
-                        Load = () => ApplyTemplate(t.key, t.name, t.tier, t.pack, t.weight, t.planetTypes, t.cells, copy: false, role: t.role, kit: t.kit, function: t.function, style: t.style, underground: t.underground),
+                        Load = () => ApplyTemplate(t.key, t.name, t.tier, t.pack, t.weight, t.planetTypes, t.cells, copy: false, role: t.role, kit: t.kit, function: t.function, style: t.style, underground: t.underground,
+                            protection: t.protection),
                     });
                 }
             }
@@ -956,17 +959,20 @@ namespace BlocksBeyondTheStars.Client
                     mode = c.Mode, config = c.Config ?? string.Empty, label = c.Label ?? string.Empty, keep = c.Keep });
             }
 
-            ApplyTemplate(t.Key, t.Name, t.Tier, t.PackOrDefault, t.Weight, t.PlanetTypes, cells, copy: true, role: t.Role, kit: t.Kit, function: t.Function, style: t.Style, underground: t.Underground);
+            ApplyTemplate(t.Key, t.Name, t.Tier, t.PackOrDefault, t.Weight, t.PlanetTypes, cells, copy: true, role: t.Role, kit: t.Kit, function: t.Function, style: t.Style, underground: t.Underground,
+                protection: t.Protection);
         }
 
         /// <summary>Common load path for built-in and user templates: cells + form fields, then the status
         /// (skipped cells, copy hint) and a UI rebuild.</summary>
         private void ApplyTemplate(string key, string name, string tier, string pack, int weight, List<string> planetTypes, IEnumerable<CellJson> cells, bool copy, string role = "",
-            string kit = "", string function = "", string style = "", bool underground = false)
+            string kit = "", string function = "", string style = "", bool underground = false, string protection = "")
         {
             var skippedIds = new List<string>();
             int skipped = ApplyCells(cells, skippedIds);
             _underground = underground; // #3333
+            _protection = LandmarkRules.ProtectionOf(protection); // generation 39: the template's own (a kit module's is ignored)
+            ResetLandmarkExtras(); // ruin zones, seat … (LoadLandmark sets them again)
             _landmarkMode = false; // #3492: LoadLandmark switches it back on
             _entryMode = _entrySourceInvalid = false; _entryExtras = null; // #3523: LoadEntry sets them again
             DropPreview(); // a load replaced the design a preview kept aside
@@ -1073,7 +1079,8 @@ namespace BlocksBeyondTheStars.Client
                     kit: meta?.kit ?? string.Empty,
                     function: meta?.function ?? string.Empty,
                     style: meta?.style ?? string.Empty,
-                    underground: meta != null && meta.underground);
+                    underground: meta != null && meta.underground,
+                    protection: meta?.protection ?? string.Empty);
             }
             catch (Exception e)
             {

@@ -324,6 +324,11 @@ public sealed partial class GameServer
         return PlacementVerdict.Continue;
     }
 
+    /// <summary>Rule "structure" (terrain generation 39): nothing is placed into a structure its template protects (the footprint
+    /// registry's guarded boxes); admins pass.</summary>
+    private PlacementVerdict StructureProtectionRule(PlayerSession session, PlacementRequest r)
+        => IsProtectedStructureCell(r.Pos, session.State.IsAdmin) ? PlacementVerdict.Refuse("@srv.protect.structure") : PlacementVerdict.Continue;
+
     /// <summary>Rule "monument" (#3311): nothing is placed into a stone text tablet of KuBa-W or onto its plinth.</summary>
     private PlacementVerdict TextMonumentProtectionRule(PlacementRequest r)
         => IsTextMonumentProtected(r.Pos) ? PlacementVerdict.Refuse("@srv.protect.monument") : PlacementVerdict.Continue;
@@ -517,6 +522,7 @@ public sealed partial class GameServer
         new("above_head", static (g, s, r) => g.NotAboveOwnHeadRule(s, r)),
         new("landing_pad", static (g, s, r) => g.LandingPadRule(s, r)),
         new("station", static (g, _, r) => g.StationProtectionRule(r)),
+        new("structure", static (g, s, r) => g.StructureProtectionRule(s, r)), // generation 39: a template's protection
         new("monument", static (g, _, r) => g.TextMonumentProtectionRule(r)), // #3311
         new("factory", static (g, s, r) => g.FactoryProtectionRule(s, r)),
         new("base", static (g, s, r) => g.BaseProtectionRule(s, r)),

@@ -2822,8 +2822,33 @@ with a game version that has generation 35 get them — an older world never cha
   trades: at a burger restaurant you get **burgers** (a filling meal) for ore or meat, and only while you stand
   inside.
 - From far away a landmark shows as a **silhouette** on the horizon, well beyond the blocks around you.
-- *The buildings themselves arrive with a coming update.* Until then a world carries none of its own; an admin can
-  stand one of the three samples in front of them with `/landmark` (see the admin commands).
+- **The giant buildings (worlds created since generation 39).** Worlds made with an older version keep what they
+  have; only new worlds roll these.
+
+  | Landmark | Where | State |
+  |---|---|---|
+  | **Leaning Tower** — a round bell tower with galleries, a spiral stair inside, bells at the top | any planet with air | ruin |
+  | **Porta Nigra** — a black sandstone city gate with two towers, halls and galleries | any planet with air | ruin |
+  | **Portasseum** — an amphitheatre with black-framed arches, seats, an arena and tunnels under the sand | any planet with air | ruin |
+  | **Old Mine** — a headframe over a shaft, three levels of tunnels with rails and carts, caverns with dripstone | any planet with air | ruin |
+  | **Golden Bird Gate** — twelve columns and a golden bird on the roof | any planet with air | ruin |
+  | **Eifelnyde** — an iron lattice tower on a stepped pyramid with a treasure chamber inside | any planet with air | ruin |
+  | **Suspension Bridge** — two towers and cables over water or a valley; walk from bank to bank | any planet with air, only where there is a gap to span | ruin |
+  | **Soundi Statue** — a Soundi as tall as a tower on a crystal-cornered pedestal | any planet with air | **intact** |
+  | **Castle of Soaniri** — eight towers, a curtain wall and a huge keep; **Soundis live in it** | **always on Soaniri** | ruin |
+  | **Singer Statue** — a green copper figure raising a microphone; the Sounders' choir grows louder as you come closer | **always on Soaniri** | **intact** |
+  | **Blocks King** — a restaurant shaped like a giant burger, with a burger seller inside and a lettuce terrace | planets with at least one inhabited settlement | **intact** |
+
+- **Intact landmarks are protected:** you cannot mine or build on them (admins can). A ruin is open to everyone. A
+  template from the editor says which it is (see the editor's *Protection* setting).
+- **Building materials:** the stones and layers of the landmarks are made at the **workbench**: *Travertine* (3 stone +
+  1 sand → 4), *Blackened Sandstone* (2 sandstone + 1 carbon → 2), *Green Copper* (1 copper block + 1 water), *Mine
+  Track* (1 iron ingot + 1 log → 4), *Mine Cart* (2 iron plates + 1 iron ingot → 2), *Burger Bun* (2 grain + 1 water →
+  4), *Sesame Bun Top* (4 buns + 1 seed → 4), *Burger Patty* (1 cooked meat → 2), *Burger Cheese* (2 algae rations + 1
+  salt → 4), *Burger Lettuce* (3 plant fibre → 4) and *Burger Tomato* (3 berries → 4). *Dripstone* is only mined in the
+  caverns.
+- An admin can stand any of them in front of them with `/landmark <key>` (see the admin commands); the three small
+  samples (`sample_tower`, `sample_mine`, `sample_store`) still exist for that.
 
 ### Monuments & runes
 - Somebody was here long before you. **Monuments** are the relics they left: a half-collapsed
@@ -4788,6 +4813,11 @@ what your kind of design uses (the **Keep** brush only where a building can fall
 landmark, ports only for a station kit module …). If the design still holds something the game will not use, *Save*
 says so in the status line and saves anyway; planet materials in a station kit module are refused, because they would
 turn into air there.
+**Protection** (every *Use as* form of a whole structure — a settlement, an underground structure, a station, a landmark,
+a generator entry; not a kit module, which follows its kit): *Auto* keeps the game's rule for that kind (the line under
+it says which — an inhabited settlement and a station are protected, a ruin and an underground structure are open, a
+landmark is protected while it stands intact), *Protected* means nobody but an admin can mine or build there, *Open*
+means everyone can. It applies in worlds created since generation 39; the stamping list shows it.
 
 **Town editor — whole settlement or building module (Use as).** Every settlement template is either a **whole
 structure** (the default: world-gen may drop the complete settlement onto a planet exactly as you built it) or a
@@ -4818,7 +4848,14 @@ ruins (see *Buried G.D.S. ruins & Ressaw*) are the game's own underground kit. S
 planet on its own. The room is **256 blocks** a side. The form sets whether it **stands as a ruin** (and how: walls and
 towers, lattice work, or a mine with cave-ins; how strongly), where it may stand (*only on planets with air*, *only on
 inhabited planets*), the **ground row** (the row that lies on the ground — everything below it is dug into the rock)
-and, for a building that is no ruin, *Inhabited* (protected, with its keepers). **Show as a ruin** shows what the game
+and **where it stands**: *On the ground*, or *A span over water or a valley* — a bridge: the game only puts it where its
+middle third crosses water or a valley at least 12 deep and both ends rest on dry land at the ground row (no such place
+→ it does not stand on that planet). An intact landmark keeps its keepers (vendor and resident markers are staffed); a
+ruin has nobody. **Ruin zones** (while it stands as a ruin) let parts of one building fall in their own way — a lattice
+tower on a stone pyramid: *Add* a zone, set its two corners with the palette tool **Ruin zone (two corners)** (two clicks
+in the room) or as numbers, and step its style (*As the landmark*, walls and towers, lattice work, a mine) and strength
+(*Auto* = the style's own); where zones overlap the first one wins, at most a few per landmark; the zones show as coloured
+wire boxes, the selected one thicker, and **Show as a ruin** honours them. **Show as a ruin** shows what the game
 will make of your building — the same way the game does it; *Reroll* shows another one, *Back to the design* brings
 your building back (the preview is never saved, and nothing can be changed while it shows). New in the palette: the
 **Keep** brush (click a block: it stays standing in every ruin, shown green), the **Cavity** brush (the tunnels and

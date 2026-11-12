@@ -32,6 +32,9 @@ namespace BlocksBeyondTheStars.Client
         private static readonly string[] KnownSounds =
         {
             "amb_sounder", SingingPlantChorus.ChimeReedLoop, SingingPlantChorus.BellBloomLoop, SingingPlantChorus.HarpVineLoop,
+            // The school club's landmarks (terrain generation 39): the arena's wind, the mine's dripping water, the Soaniri castle
+            // and the Sounders' choir at the singer statue.
+            "amb_portasseum_wind", "amb_mine_drip", "amb_soaniri_castle", "amb_singer_choir",
         };
 
         private static readonly string[] CrateBlocks = { "wood_crate", "crate" };

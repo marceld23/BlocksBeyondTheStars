@@ -50,6 +50,7 @@ namespace BlocksBeyondTheStars.Client
             _ghost?.Dispose();
             _overlay?.Dispose();
             _ghostMeshes?.Dispose();
+            _zoneFrames?.Dispose();
             _formPicker?.Close();
             _formPicker = null;
             _atlas?.Release(); // palette sprites reference this texture; the editor holds a reference (#423 lesson, shared since #1523)
@@ -94,6 +95,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Controls hint, between the two side panels.
             EditorSceneKit.AddBottomHint(root, EditorSceneKit.BottomHintWidth(300f, 380f), L("ui.struct.hint"));
+            SyncZoneBoxes(); // a landmark's ruin zones in the room (StructureEditor.Zones.cs)
         }
 
         /// <summary>The scrolling body: identity, the rows of the chosen <i>Use as</i>, pack and weight, then — for a design — the
@@ -115,6 +117,11 @@ namespace BlocksBeyondTheStars.Client
             }
 
             y = BuildPackRows(body, y);
+            if (StructureStampRules.TakesProtection(_target))
+            {
+                y = BuildProtectionRows(body, y); // generation 39: every whole template and entry; a kit module follows its structure
+            }
+
             if (!_entryMode)
             {
                 y = BuildPreviewRows(body, y); // #3523: quarter turn, materials, ruin

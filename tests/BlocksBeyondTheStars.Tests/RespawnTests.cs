@@ -80,10 +80,10 @@ public sealed class RespawnTests : IDisposable
             Assert.Equal(0, p.Inventory.CountOf("iron_ore")); // dropped
             Assert.Equal(1, p.Inventory.CountOf("basic_drill")); // tool kept
 
-            var capsules = repo.ListContainers(server.ActiveLocationId); // keyed by body id, not planet type
-            Assert.Single(capsules);
-            Assert.Equal("salvage_capsule", capsules[0].Kind);
-            Assert.Contains(capsules[0].Items, s => s.Item == "iron_ore" && s.Count == 10);
+            // Keyed by body id, not planet type. Only the capsule counts: since terrain generation 39 the body may carry a
+            // giant landmark whose chests are containers too.
+            var capsule = Assert.Single(repo.ListContainers(server.ActiveLocationId), c => c.Kind == "salvage_capsule");
+            Assert.Contains(capsule.Items, s => s.Item == "iron_ore" && s.Count == 10);
         }
     }
 

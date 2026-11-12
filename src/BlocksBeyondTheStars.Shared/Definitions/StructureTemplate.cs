@@ -109,11 +109,46 @@ public sealed class StructureTemplate
     /// carved into the rock (0 = the whole structure stands on the ground).</summary>
     public int GroundRow { get; set; }
 
-    /// <summary>#3499: an inhabited landmark — its box is read-only like a lodge's and its posts are staffed.</summary>
+    /// <summary>#3499: an inhabited landmark — its box is read-only like a lodge's and its posts are staffed. Read on worlds
+    /// below terrain generation 39 only: from there <see cref="Protection"/> decides the box, and every intact landmark's
+    /// posts are staffed.</summary>
     public bool Protected { get; set; }
 
     /// <summary>#3496: the locale key of the landmark's display name (the map entry, VEGA's hint); empty = <see cref="Name"/>.</summary>
     public string NameKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The school club's landmarks (terrain generation 39): the RUIN ZONES of a landmark — boxes of the template that decay
+    /// with a profile and a strength of their own (a lattice tower on a masonry pyramid). The ruin pass runs once per zone
+    /// (everything outside it untouched), then once over the cells of no zone with the template's own profile and strength,
+    /// then one shared settle, rubble and overgrowth. Template coordinates (before the quarter turn), inclusive corners; where
+    /// two zones overlap the first one wins. Empty = the whole landmark decays as one, exactly as before
+    /// (<see cref="LandmarkRules.ZoneProblems"/> validates them). JSON <c>ruinZones</c>.
+    /// </summary>
+    public List<RuinZone> RuinZones { get; set; } = new();
+
+    /// <summary>
+    /// The school club's landmarks (terrain generation 39): how a landmark is seated — empty = the guaranteed search every
+    /// landmark takes, <see cref="LandmarkRules.SeatSpan"/> = a span across water or a valley (a bridge): the middle third of
+    /// its long axis over the gap, both ends on the banks at its ground row (= the deck row). Older worlds ignore it.
+    /// </summary>
+    public string Seat { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether the stamped structure is read-only for players, for EVERY whole template (a settlement, a station, a landmark,
+    /// an underground structure, a generator entry): <see cref="LandmarkRules.ProtectionAuto"/> (or empty, the default) = the
+    /// rule of its kind as it always was (an inhabited settlement and a station protected, a ruin open; a landmark protected
+    /// while intact), <see cref="LandmarkRules.ProtectionProtected"/> = always protected,
+    /// <see cref="LandmarkRules.ProtectionOpen"/> = never. Read on worlds of terrain generation 39 or later only; a template
+    /// without the field behaves exactly as before.
+    /// </summary>
+    public string Protection { get; set; } = string.Empty;
+
+    /// <summary>The oldest terrain generation a world may have for the landmark stamper to ROLL this template (the school club's
+    /// landmarks: 39, so a world created before them never grows one on a body it has not visited yet); 0 = every world, as
+    /// before. A pinned record, a fixed landmark (generation 39 anyway) and an admin's <c>/landmark</c> do not ask. Read by
+    /// the landmark pool only. JSON <c>minTerrainGeneration</c>.</summary>
+    public int MinTerrainGeneration { get; set; }
 
     /// <summary>#3485: the compact body's palette — what a run of <see cref="Rows"/> places. Empty on a template that
     /// lists every cell in <see cref="Cells"/>.</summary>
@@ -165,6 +200,36 @@ public sealed class TemplatePaletteEntry
 
     /// <summary>#3487: the ruin pass leaves these cells standing.</summary>
     public bool Keep { get; set; }
+}
+
+/// <summary>One ruin zone of a landmark (<see cref="StructureTemplate.RuinZones"/>): a box of the template (inclusive corners,
+/// template coordinates before the quarter turn) that decays with its own profile and strength. JSON
+/// <c>{ "x0", "y0", "z0", "x1", "y1", "z1", "profile", "strength" }</c>.</summary>
+public sealed class RuinZone
+{
+    public int X0 { get; set; }
+
+    public int Y0 { get; set; }
+
+    public int Z0 { get; set; }
+
+    public int X1 { get; set; }
+
+    public int Y1 { get; set; }
+
+    public int Z1 { get; set; }
+
+    /// <summary>The zone's ruin profile (<see cref="LandmarkRules.Profiles"/>); empty = the template's.</summary>
+    public string Profile { get; set; } = string.Empty;
+
+    /// <summary>How far the zone decays, 0..1; 0 = its profile's own default.</summary>
+    public double Strength { get; set; }
+
+    /// <summary>Whether the cell lies in the zone's box.</summary>
+    public bool Contains(int x, int y, int z)
+        => x >= System.Math.Min(X0, X1) && x <= System.Math.Max(X0, X1)
+           && y >= System.Math.Min(Y0, Y1) && y <= System.Math.Max(Y0, Y1)
+           && z >= System.Math.Min(Z0, Z1) && z <= System.Math.Max(Z0, Z1);
 }
 
 /// <summary>The module roles a settlement template can take (#1826) — the vocabulary the editor's "Use as"

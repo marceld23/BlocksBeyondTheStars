@@ -63,5 +63,37 @@
         { "item": "emergency_ration", "min": 1, "max": 2, "weight": 1 }
       ] }
     ]
+  },
+  {
+    "key": "soaniri_castle",
+    "rolls": [
+      { "picks": 3, "entries": [
+        { "item": "resonance_crystal", "min": 2, "max": 5, "weight": 4 },
+        { "item": "carved_obsidian", "min": 4, "max": 10, "weight": 3 },
+        { "item": "crystal", "min": 1, "max": 3, "weight": 3 },
+        { "item": "chime", "min": 1, "max": 2, "weight": 2 },
+        { "item": "paper_lantern", "min": 2, "max": 4, "weight": 2 }
+      ] },
+      { "chance": 0.5, "entries": [
+        { "item": "gold_ingot", "min": 1, "max": 3, "weight": 2 },
+        { "item": "silver_ingot", "min": 1, "max": 3, "weight": 2 },
+        { "item": "data_fragment", "min": 1, "max": 2, "weight": 1 }
+      ] }
+    ]
+  },
+  {
+    "key": "soaniri_castle_tower",
+    "rolls": [
+      { "picks": 2, "entries": [
+        { "item": "resonance_crystal", "min": 1, "max": 3, "weight": 3 },
+        { "item": "obsidian", "min": 3, "max": 8, "weight": 3 },
+        { "item": "chime_moss", "min": 4, "max": 10, "weight": 2 },
+        { "item": "paper_lantern", "min": 1, "max": 3, "weight": 2 }
+      ] },
+      { "chance": 0.25, "entries": [
+        { "item": "crystal", "min": 1, "max": 2, "weight": 2 },
+        { "item": "silver_ingot", "min": 1, "max": 2, "weight": 1 }
+      ] }
+    ]
   }
 ]

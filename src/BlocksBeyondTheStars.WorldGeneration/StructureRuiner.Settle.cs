@@ -61,8 +61,10 @@ internal sealed partial class StructureRuiner
                         continue;
                     }
 
+                    // A cavity is never a kept cell in a landmark's own body, so the keep test only ever holds back the cells
+                    // of another ruin zone (StructureRuiner.Zones.cs) — the output of every unzoned pass stays as it was.
                     int i = _g.Index(x, y, z);
-                    if (_g.Cavity[i] && !_markerCell[i] && U(LaneCaveFill, x, y, z) < 0.8 && !Protected(y) && !Spared(x, y, z))
+                    if (_g.Cavity[i] && !_markerCell[i] && !_g.Keep[i] && U(LaneCaveFill, x, y, z) < 0.8 && !Protected(y) && !Spared(x, y, z))
                     {
                         _g.Cavity[i] = false;
                         _g.Set(x, y, z, _rock);
@@ -219,6 +221,11 @@ internal sealed partial class StructureRuiner
                     y++;
                 }
 
+                if (y == _ground && HangsInTheAir(x, z))
+                {
+                    continue;
+                }
+
                 int pile = _fallen[c] >= 24 && U(LaneRubble, x, 1, z) < 0.5 ? 2 : 1;
                 for (int k = 0; k < pile && y + k <= _ground + RubbleReach && y + k < _g.H; k++)
                 {
@@ -231,6 +238,13 @@ internal sealed partial class StructureRuiner
             }
         }
     }
+
+    /// <summary>Revision 2, a lattice whose ground row lies above the template's bottom (a bridge's trusses over its piers):
+    /// the ground row there is the banks' level, not the ground under the span, so rubble lies on it only where a block of
+    /// the frame lies right below — never in the air over the gap. A ground row at the bottom is the ground itself;
+    /// revision 1 and every other profile never ask.</summary>
+    private bool HangsInTheAir(int x, int z)
+        => _revision >= 2 && _profile == LandmarkRules.ProfileLattice && _ground > 0 && !_g.Solid(x, _ground - 1, z);
 
     /// <summary>The biome's flora (or the options' flora) pushes through the floor: on a share of the free cells right
     /// above a block of the ground row. Never in a marker's cell or a protected row.</summary>

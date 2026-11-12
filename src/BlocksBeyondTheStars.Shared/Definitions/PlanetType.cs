@@ -557,6 +557,14 @@ public sealed class PlanetType
     /// marsh, raises obsidian outcrops with resonance-crystal caps and harp arches with harp vines under their lintels
     /// (<c>WorldGenerator.StampSingingMeadows</c>). Off for every other type.</summary>
     public bool SingingMeadows { get; set; }
+
+    // --- The school club's landmarks (terrain generation 39). No-op default, read on generation-39 worlds only. ---
+
+    /// <summary>The FIXED LANDMARKS of this type (Soaniri: the castle and the singer statue): landmark template keys stamped on
+    /// every body of the type, always — each under its own placement record (the record index is its position in this list),
+    /// seat and seed. A type with at least one fixed landmark the pool holds has no rolled landmark. A key the landmark pool
+    /// does not hold is reported at load and skipped. Empty = the classic one-per-planet roll. JSON <c>fixedLandmarks</c>.</summary>
+    public List<string> FixedLandmarks { get; set; } = new();
 }
 
 /// <summary>One stone text tablet of a planet type (#3310, KuBa-W): the lines it spells and the landing pad it faces.</summary>

@@ -20,6 +20,8 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// one side of its top, a wall its crown).</item>
 /// <item><b>Erosion</b> — bites out of walls, more of them the higher up; the base course stays.</item>
 /// <item><b>Collapse spots</b> — holes through roofs and floors.</item>
+/// <item><b>Breaks</b> (revision 2, lattice only, StructureRuiner.Breaks.cs) — thin planes cut clean through a tall or a long
+/// frame, so the settle brings down a tower's top or a section of a span.</item>
 /// <item><b>Openings</b> — glass is smashed, lights are dead.</item>
 /// <item><b>Weathering</b> and <b>scorch marks</b> (#3515, only when the options ask for them).</item>
 /// <item><b>Cave-ins</b> (below the ground row) — stretches of a tunnel or a cavern fill with rubble.</item>
@@ -35,16 +37,18 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// cave-ins; <i>hull</i> (#3515, a wreck) has no ground at all — no crumbled patches, no height grading, no rubble, no
 /// flora: erosion bites and collapse balls breach it anywhere, and what settles is what no longer hangs on a kept cell, a
 /// protected row or the largest piece that is left.</para>
-/// <para><b>Revisions</b>: <see cref="Revision"/> 1 is the pass as it shipped with the landmarks. A placement pins the
-/// revision it was stamped with and replays through it, so a later change of the default output becomes revision 2 and
-/// never moves a marker of a structure that already stands. <see cref="RuinOptions"/> (#3515) change what a caller
-/// builds; a fresh set of options is the revision's own output.</para>
+/// <para><b>Revisions</b>: revision 1 is the pass as it shipped with the landmarks. A placement pins the revision it was
+/// stamped with and replays through it, so a later change of the default output never moves a marker of a structure that
+/// already stands. Revision 2 (the school club's landmarks, terrain generation 39) adds the lattice breaks and lets a
+/// lattice's rubble lie only on something; every other profile builds exactly what revision 1 builds.
+/// <see cref="RuinOptions"/> (#3515) change what a caller builds; a fresh set of options is the revision's own output.</para>
 /// </summary>
 internal sealed partial class StructureRuiner
 {
     /// <summary>The newest revision of the pass. Pinned with a placement (#3486): a stamped ruin is re-derived with the
-    /// revision it was stamped with, so a later change here never moves a marker of a landmark that already stands.</summary>
-    public const int Revision = 1;
+    /// revision it was stamped with, so a later change here never moves a marker of a landmark that already stands.
+    /// Revision 2 adds the lattice breaks (StructureRuiner.Breaks.cs).</summary>
+    public const int Revision = 2;
 
     private const long LaneCrumble = 0x11, LaneJitter = 0x12, LaneBite = 0x13, LaneSpeckle = 0x14, LaneSpot = 0x15,
         LaneSpotFall = 0x16, LaneGlass = 0x17, LaneLight = 0x18, LaneCaveIn = 0x19, LaneCaveFill = 0x1A, LaneRubble = 0x1B,
@@ -67,6 +71,7 @@ internal sealed partial class StructureRuiner
     private readonly int _above;  // rows above the ground row
     private readonly int _floor;  // the lowest row erosion and collapse balls reach
     private readonly Tuning _t;
+    private readonly int _revision; // 1 or 2 (any newer revision runs the newest one this build knows)
     private readonly BitArray _markerCell;
     private readonly BitArray? _breach;     // cells the decay took out — only tracked for scorch marks
     private readonly int[] _fallen;         // per column: cells that came down
@@ -76,8 +81,9 @@ internal sealed partial class StructureRuiner
     private readonly Dictionary<ushort, ushort> _lightOff = new();
 
     private StructureRuiner(VoxelGrid grid, GameContent content, long seed, string profile, double strength, int groundRow,
-        IReadOnlyList<Vector3i> markerCells, string surfaceBlock, RuinOptions options)
+        IReadOnlyList<Vector3i> markerCells, string surfaceBlock, RuinOptions options, int revision)
     {
+        _revision = revision <= 1 ? 1 : Revision;
         _g = grid;
         _content = content;
         _seed = seed;
@@ -99,10 +105,11 @@ internal sealed partial class StructureRuiner
     /// <summary>The strength a profile decays with when the template names none.</summary>
     public static double DefaultStrength(string profile) => profile == LandmarkRules.ProfileLattice ? 0.4 : 0.5;
 
-    /// <summary>Runs the newest revision with the default options over <paramref name="grid"/> in place.</summary>
+    /// <summary>Runs revision 1 — the pass as it shipped, the one this call always ran — with the default options over
+    /// <paramref name="grid"/> in place. Every caller in the game names its revision.</summary>
     public static void Run(VoxelGrid grid, GameContent content, long seed, string profile, double strength, int groundRow,
         IReadOnlyList<SettlementMarker> markers, string surfaceBlock)
-        => Run(grid, content, seed, profile, strength, groundRow, markers, surfaceBlock, Revision, null);
+        => Run(grid, content, seed, profile, strength, groundRow, markers, surfaceBlock, 1, null);
 
     /// <summary>Runs revision <paramref name="revision"/> with <paramref name="options"/> (null = the defaults) over
     /// <paramref name="grid"/> in place; the markers' cells stay free.</summary>
@@ -127,18 +134,15 @@ internal sealed partial class StructureRuiner
         IReadOnlyList<Vector3i> markerCells, string surfaceBlock, int revision, RuinOptions? options)
     {
         var r = new StructureRuiner(grid, content, seed, profile, strength, groundRow, markerCells, surfaceBlock,
-            options ?? new RuinOptions());
-        switch (revision)
-        {
-            default:
-                r.RunRevision1();
-                break;
-        }
+            options ?? new RuinOptions(), revision);
+        r.Decay();
+        r.Finish();
     }
 
-    /// <summary>Revision 1 — the pass as the landmarks shipped with it (#3487), plus the option steps of #3515, which
-    /// draw nothing unless asked for.</summary>
-    private void RunRevision1()
+    /// <summary>The decay steps — everything before the settle (a ruin zone runs these on its own, StructureRuiner.Zones.cs):
+    /// revision 1's as the landmarks shipped with it (#3487), plus the option steps of #3515, which draw nothing unless asked
+    /// for, plus revision 2's lattice breaks.</summary>
+    private void Decay()
     {
         if (!_hull && _profile != LandmarkRules.ProfileLattice)
         {
@@ -147,10 +151,16 @@ internal sealed partial class StructureRuiner
 
         Erode();
         CollapseSpots();
+        Breaks();
         Openings();
         Weather();
         ScorchMarks();
         CaveIns();
+    }
+
+    /// <summary>The pass's end: the settle, then rubble and overgrowth where something fell (none for a hull).</summary>
+    private void Finish()
+    {
         Settle();
         if (!_hull)
         {

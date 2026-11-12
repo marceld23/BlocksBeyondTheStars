@@ -882,6 +882,18 @@ sings the same tune, for everyone. One word per player per 1.5 s.
 feedback); the server lets everyone else nearby hear them. See [STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md)
 § "Melody puzzles" for the puzzles and the bar.
 
+## 36. The school club landmarks' sound loops (#3483) — *ElevenLabs clips*
+
+A landmark's `sound` marker (`sound=<clip>;radius=…;volume=…`, [LANDMARKS.md](LANDMARKS.md) §5) plays a bundled loop that
+swells as the player comes closer. Every loop is a `bed` (`amb_` prefix) for `tools/audio/level_clips.py`.
+
+| clip | class | length | prompt (prompt influence) |
+|---|---|---|---|
+| `amb_soaniri_castle` | bed | 20 s, seamless loop | "seamless loop of small fluffy friendly creatures calling softly to each other inside an old stone castle courtyard, gentle sweet sung coos and little melodic warbles answering from near and far, echoing off high stone walls, a light breeze, calm and cozy, no music, no words" (0.4) — the castle of Soaniri (radius 100) |
+| `amb_singer_choir` | bed | 20 s, seamless loop | "seamless loop of a gentle wordless choir of soft voices humming a slow warm peaceful melody, airy and far away, carried on the wind across a meadow, long reverberant tones, calm and wondrous, no instruments, no drums, no words" (0.4) — the singer statue (radius 120) |
+| `amb_portasseum_wind` | bed | 20 s, seamless loop | "seamless loop of wind blowing through the stone arches of a huge empty ancient amphitheatre, soft hollow whistling gusts, airy echoes rolling around the arena, faint distant reverberation, calm and a little mysterious, no voices, no music, no birds" (0.4) — the Portasseum's arena (radius 120) |
+| `amb_mine_drip` | bed | 16 s, seamless loop | "calm underground cave ambience: slow single water droplets dripping into a small still pool, soft natural echo, faint distant trickle, quiet and gentle, no music, no voices" (0.3) — the old mine's pool cavern (radius 56) and its deepest cavern (radius 44) |
+
 ## Totals & rollout
 
 The planned rollout has largely landed. Current state:

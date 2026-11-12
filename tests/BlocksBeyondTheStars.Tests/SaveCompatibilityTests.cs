@@ -1012,6 +1012,7 @@ public sealed class SaveCompatibilityTests : IDisposable
         [12] = "3c2dc70b1a64cb6b", // the buried G.D.S. ruins (#3334–#3342): ressaw, ressaw_block(_cracked), ressaw_crystal_ore, ressaw_conduit, gds_skull, gds_diving_helmet, gds_guardian_head
         [13] = "15a21e5143e39760", // the Sounders' Song (#3352, #3358): song_spindle, chime_moss, carved_obsidian, resonance_crystal, chime_reed, bell_bloom, bell_bloom_open, harp_vine, echo_flower
         [14] = "24b3ddf96717f9ed", // the landmarks' decoration blocks (#3498): mine_track, mine_cart, dripstone, burger_bun, burger_patty, burger_cheese
+        [15] = "e51fefab7946404b", // the school club landmarks' materials (#3483): travertine, blackened_sandstone, verdigris_copper, burger_lettuce, burger_tomato, burger_bun_sesame
     };
 
     [Fact]

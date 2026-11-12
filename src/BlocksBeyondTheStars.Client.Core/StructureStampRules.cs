@@ -124,7 +124,18 @@ namespace BlocksBeyondTheStars.Client
 
         public int GroundRow { get; set; }
 
-        public bool Protected { get; set; }
+        /// <summary>How a landmark is seated: empty = the guaranteed search, <see cref="LandmarkRules.SeatSpan"/> = across water
+        /// or a valley (terrain generation 39).</summary>
+        public string Seat { get; set; } = string.Empty;
+
+        /// <summary>A landmark's ruin zones (template coordinates, inclusive corners; terrain generation 39).</summary>
+        public List<RuinZone> RuinZones { get; } = new List<RuinZone>();
+
+        // --- every whole template and generator entry
+
+        /// <summary>The template's protection word (terrain generation 39): empty or <see cref="LandmarkRules.ProtectionAuto"/> =
+        /// the rule of its kind, <see cref="LandmarkRules.ProtectionProtected"/>, <see cref="LandmarkRules.ProtectionOpen"/>.</summary>
+        public string Protection { get; set; } = string.Empty;
 
         // --- a generator entry
 
@@ -187,6 +198,9 @@ namespace BlocksBeyondTheStars.Client
         public const string KindSettings = "settings";
         public const string KindPort = "port";
         public const string KindDevice = "device";
+
+        /// <summary>The zone tool: two clicks in the room set a landmark's ruin zone (terrain generation 39).</summary>
+        public const string KindZone = "zone";
 
         /// <summary>The target of a design: the editor (station or town), its "Use as" and the pool of an entry.</summary>
         public static StampTarget TargetFor(bool station, bool module, bool landmark, bool entry, bool underground, bool cityModule, string? pool)
@@ -282,6 +296,46 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Docking ports are read by the station kit composer only.</summary>
         public static bool ReadsPorts(StampTarget t) => t == StampTarget.StationModule;
 
+        /// <summary>Only a landmark's ruin pass runs zone by zone (its ruin zones, terrain generation 39).</summary>
+        public static bool ReadsZones(StampTarget t) => t == StampTarget.Landmark;
+
+        /// <summary>Whether the target names a protection of its own (terrain generation 39): every whole template — a settlement,
+        /// an underground structure, a landmark, a station — and every generator entry. A kit module goes with the structure it
+        /// is part of.</summary>
+        public static bool TakesProtection(StampTarget t)
+            => t is not (StampTarget.SettlementModule or StampTarget.CityModule or StampTarget.StationModule);
+
+        /// <summary>
+        /// The sentence that says what the design's protection does (the form's line under the picker and the stamping panel's
+        /// step): protected, open, or — for <see cref="LandmarkRules.ProtectionAuto"/> — the rule of its kind as the server keeps
+        /// it: an intact settlement and a station protected, a fallen settlement and an underground find open, a landmark
+        /// protected while it stands intact. A module's protection is its structure's.
+        /// </summary>
+        public static string ProtectionKey(StampDesign d)
+        {
+            if (!TakesProtection(d.Target))
+            {
+                return "ui.stamp.protection.module";
+            }
+
+            switch (LandmarkRules.ProtectionOf(d.Protection))
+            {
+                case LandmarkRules.ProtectionProtected:
+                    return "ui.stamp.protection.protected";
+                case LandmarkRules.ProtectionOpen:
+                    return "ui.stamp.protection.open";
+            }
+
+            return d.Target switch
+            {
+                StampTarget.StationWhole or StampTarget.StationEntry => "ui.stamp.protection.auto_station",
+                StampTarget.UndergroundWhole or StampTarget.UndergroundEntry => "ui.stamp.protection.auto_underground",
+                StampTarget.Landmark => d.Ruin ? "ui.stamp.protection.auto_landmark_ruin" : "ui.stamp.protection.auto_landmark_intact",
+                StampTarget.LandmarkEntry => "ui.stamp.protection.auto_landmark",
+                _ => "ui.stamp.protection.auto_settlement",
+            };
+        }
+
         /// <summary>Whether the palette shows an entry of <paramref name="kind"/> / <paramref name="id"/> for the target: a tool
         /// or marker the target ignores is hidden. A generator entry has no cells, so nothing but the plain blocks and markers
         /// stays (the room is read-only anyway).</summary>
@@ -299,6 +353,7 @@ namespace BlocksBeyondTheStars.Client
                 KindCavity => ReadsCavity(t),
                 KindSettings => ReadsMarkerSettings(t),
                 KindDevice => !IsEntry(t),
+                KindZone => ReadsZones(t),
                 "marker" when id is LandmarkRules.SoundMarker or LandmarkRules.DenMarker => ReadsMarkerSettings(t),
                 "marker" when id == LandmarkRules.ChestMarker && IsStation(t) => t == StampTarget.StationWhole,
                 _ => true,

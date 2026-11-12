@@ -12,7 +12,9 @@ namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
 /// INHABITED landmarks (#3499) — a landmark whose template is <c>protected</c> and not a ruin: one building in the open
-/// country that somebody keeps, like a lodge (a burger restaurant with a keeper who sells food).
+/// country that somebody keeps, like a lodge (a burger restaurant with a keeper who sells food). From terrain generation 39
+/// residents and protection are apart: every intact landmark staffs its posts, and its box is protected by the template's
+/// <c>protection</c> through the footprint registry (GameServerStructureProtection.cs).
 /// <list type="bullet">
 /// <item><b>Protection.</b> Its box — down through the plinth — is read-only for everyone, through the one rule every
 /// guard already asks (<see cref="IsSettlementBlock"/>: mining, bursts, the blaster, the pump, the drills, fire). A
@@ -30,12 +32,13 @@ public sealed partial class GameServer
     private const float LandmarkKeeperLeash = 1.5f;
 
     /// <summary>Whether the cell lies in an inhabited landmark's protected box (the footprint, from the plinth's foot to
-    /// the roof).</summary>
+    /// the roof) — the rule of the worlds below terrain generation 39; from 39 a protected landmark's box is in the footprint
+    /// registry (<see cref="IsProtectedStructureCell(Vector3i)"/>) and this rule holds none.</summary>
     private bool IsLandmarkBlock(Vector3i pos)
     {
         foreach (var lm in _landmarks)
         {
-            if (!lm.Protected)
+            if (!lm.Protected || !lm.LegacyRules)
             {
                 continue;
             }
@@ -51,6 +54,13 @@ public sealed partial class GameServer
         return false;
     }
 
+    /// <summary>Whether somebody keeps the landmark (VEGA's "a house out here" line): below terrain generation 39 a protected
+    /// one, from 39 an intact one with a post marker — a protected statue nobody lives in is no house.</summary>
+    private static bool LandmarkIsKept(LandmarkInstance lm)
+        => lm.LegacyRules
+            ? lm.Protected
+            : lm.Staffed && lm.Structure.Markers.Any(m => NpcProfessions.ByMarker(m.Type) is not null || m.Type is "vendor" or "npc");
+
     /// <summary>Test seam: <see cref="IsLandmarkBlock"/>.</summary>
     internal bool IsLandmarkBlockForTest(Vector3i pos) => IsLandmarkBlock(pos);
 
@@ -58,10 +68,12 @@ public sealed partial class GameServer
     internal System.Collections.Generic.List<(string Role, string Theme, bool InsideOnly, string NameKey, Vector3f Post)> LandmarkResidentsForTest(string key)
         => _npcs.Where(n => n.LandmarkKey == key).Select(n => (n.Role, n.Theme, n.SellsOnlyInside, n.NameKey, n.Home)).ToList();
 
-    /// <summary>The residents of an inhabited landmark, one per post marker (idempotent per load).</summary>
+    /// <summary>The residents of an inhabited landmark, one per post marker (idempotent per load). Below terrain generation 39
+    /// only a protected landmark has any; from 39 every intact one with posts, whatever its protection
+    /// (<see cref="LandmarkInstance.Staffed"/>).</summary>
     private void SpawnLandmarkResidents(LandmarkInstance lm)
     {
-        if (!lm.Protected || _npcs.Any(n => n.LandmarkKey == lm.Key))
+        if (!lm.Staffed || _npcs.Any(n => n.LandmarkKey == lm.Key))
         {
             return;
         }

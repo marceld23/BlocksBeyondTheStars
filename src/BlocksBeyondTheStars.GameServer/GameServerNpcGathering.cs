@@ -243,6 +243,7 @@ public sealed partial class GameServer
     private bool GatherCellProtected(Vector3i c)
         => IsSettlementBoxBlock(c) || IsIntercityRailBlock(c) || IsStationBlock(c) || IsGuardianCoreProtected(c)
            || IsTextMonumentProtected(c) // #3311
+           || IsProtectedStructureCell(c) // generation 39: a structure its template protects
            || IsFactoryProtected(c, string.Empty, false) || IsBaseProtected(c, string.Empty, false)
            || IsShipBlock(c) || InShipInterior(c);
 

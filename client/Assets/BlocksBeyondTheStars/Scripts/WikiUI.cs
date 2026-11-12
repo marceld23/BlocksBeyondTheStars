@@ -695,7 +695,7 @@ namespace BlocksBeyondTheStars.Client
             // #3496: a landmark's key is "landmark:<location>:<key>" — one discovery per body and landmark, like a monument's.
             foreach (var kind in new[] { "place", "creature", "microfauna", "tree", "flora", "block", "monument", "landmark", "asteroid" })
             {
-                var names = new List<(string Name, string Where)>();
+                var names = new List<(string Name, string Where, string Desc)>();
                 foreach (var pair in log)
                 {
                     int colon = pair.Key.IndexOf(':');
@@ -708,7 +708,7 @@ namespace BlocksBeyondTheStars.Client
                     string subject = string.IsNullOrEmpty(pair.Value)
                         ? (colon > 0 ? pair.Key.Substring(colon + 1) : pair.Key) // pre-#484 entry: raw key
                         : pair.Value;
-                    names.Add((SubjectName(subject), WhereFound(pair.Key, kind)));
+                    names.Add((SubjectName(subject), WhereFound(pair.Key, kind), kind == "landmark" ? LandmarkDesc(pair.Key) : string.Empty));
                 }
 
                 if (names.Count == 0)
@@ -718,15 +718,9 @@ namespace BlocksBeyondTheStars.Client
 
                 names.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.CurrentCultureIgnoreCase));
                 sb.Append("<b>").Append(L("ui.wiki.discoveries." + kind)).Append(" (").Append(names.Count).Append(")</b>\n"); // per-kind tally (#1103)
-                foreach (var (name, where) in names)
+                foreach (var (name, where, desc) in names)
                 {
-                    sb.Append("  • ").Append(name);
-                    if (!string.IsNullOrEmpty(where))
-                    {
-                        sb.Append("  —  <color=#9fb4c8>").Append(where).Append("</color>"); // dim, like the "?" fillers
-                    }
-
-                    sb.Append('\n');
+                    AppendDiscovery(sb, name, where, desc);
                 }
 
                 sb.Append('\n');
@@ -795,6 +789,28 @@ namespace BlocksBeyondTheStars.Client
             // A body the galaxy filed under no system: drop the dangling ", " the template leaves behind.
             return string.IsNullOrEmpty(site.System) ? line.TrimEnd(' ', ',') : line;
         }
+
+        /// <summary>One discovery: "• name — where found" (the site dim, like the "?" fillers), and — a landmark — its Codex line
+        /// indented under it, dim like the chapters' descriptions.</summary>
+        private static void AppendDiscovery(StringBuilder sb, string name, string where, string desc)
+        {
+            sb.Append("  • ").Append(name);
+            if (!string.IsNullOrEmpty(where))
+            {
+                sb.Append("  —  <color=#9fb4c8>").Append(where).Append("</color>");
+            }
+
+            sb.Append('\n');
+            if (!string.IsNullOrEmpty(desc))
+            {
+                sb.Append("      <color=#9fb4c8>").Append(desc).Append("</color>\n");
+            }
+        }
+
+        /// <summary>A discovered landmark's Codex line: <c>landmark.&lt;key&gt;.desc</c>, the key being the part of the ledger key
+        /// <c>landmark:&lt;location&gt;:&lt;key&gt;</c> after its last colon — empty when the locale has no such text.</summary>
+        private string LandmarkDesc(string ledgerKey)
+            => Desc("landmark." + ledgerKey.Substring(ledgerKey.LastIndexOf(':') + 1) + ".desc");
 
         /// <summary>Localizes a discovery subject: a block/item key resolves through the content tables, a
         /// coined species name is already language-neutral and shows as-is (mirrors <c>HudUi.ScanSubjectName</c>).</summary>
