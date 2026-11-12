@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🛡 Admin mode — the in-game admin view — #3502–#3509, ✅ 2026-11-12, PR pending (⚠ playtest open)
+### 🛡 Admin mode — the in-game admin view — #3502–#3509, ✅ 2026-11-12, PR #3525 (dfe24b0c) (⚠ playtest open)
 
 A world admin gets an **Admin** view inside the game (F8 / pause menu): who plays and where, an event log (PvP defeats,
 deaths, joins, reports, moderation, admin actions), a direct chat with a player, invisible jump and follow, and every
@@ -81,7 +81,7 @@ New-world changes are gated on terrain generation **38**; below it everything is
 
 ---
 
-### ♜ Landmarks — the framework for giant authored buildings and their ruins — #3483–#3500, ✅ 2026-11-11, PR pending (⚠ playtest open)
+### ♜ Landmarks — the framework for giant authored buildings and their ruins — #3483–#3500, ✅ 2026-11-11, PR #3501 (7604df5c) (⚠ playtest open)
 
 The school club handed in a list of giant buildings (a leaning tower, a Roman gate, a mine with tunnels and caverns, a
 castle the Soundi live in, a statue that sounds, a burger restaurant shaped like a hamburger). Most stand only as ruins

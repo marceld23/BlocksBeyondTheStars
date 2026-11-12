@@ -11,6 +11,79 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.17] — 2026-11-12
+
+The builder release. **Room for giant buildings:** the school club's list of giant buildings — a leaning tower, a city gate,
+a mine with caverns, a castle the Soundis live in, a burger restaurant — gets its framework: one giant per planet on about
+every third, mostly as a ruin that falls apart differently on every planet, with hidden chests, animal dens, sounds and a
+far silhouette. **Every building in the editor:** the structure editor can now generate every kind of building the game
+places (26 of them), and in new worlds ruins collapse properly, wrecks are the real crashed ship and nothing is stamped
+into anything else. **The admin view (F8):** who plays and where, an event log, direct chat, every report of the world,
+and an invisible jump to any player — plus **Call an admin** for everyone. And Lyxette's train reports are done.
+
+ℹ️ **Compatibility:** new blocks for the giant buildings — the **save version rises to 14** (worlds are upgraded on first
+open; older versions can no longer open them afterwards) and the **terrain generation rises to 38**: the new building
+rules apply to new worlds, existing worlds keep every building exactly where it is. The network protocol stays at
+**version 11**, but game and server must be on the same version: the desktop game updates itself at start, and the
+browser is always current.
+
+### 🏛️ Giant buildings — the framework (#3483–#3500)
+
+- **One giant per planet**, on about every third planet with air, never on asteroids; authored in the town editor
+  (*Use as → Landmark*, a room of 256 blocks a side) and stored compactly.
+- **Ruins that never look the same twice:** one shared ruin pass (crumbling, erosion, collapse, smashed glass, cave-ins,
+  settling, rubble, overgrowth) driven by each planet's own seed; *keep* cells stay standing.
+- **Inside:** hidden chests with fixed items or a loot table, animal dens that keep their pack, sounds that swell as you
+  walk up, underground tunnels and caverns sealed against water and lava.
+- **Seen from afar:** a coarse silhouette beyond the streamed chunks; tall buildings stream up to their top.
+- **Discovery:** on the map within 80 blocks, a VEGA hint, scanning gives knowledge and a Codex entry.
+- New blocks `mine_track`, `mine_cart`, `dripstone`, burger bun / patty / cheese; the `burger` meal. Three small samples
+  ship for admins (`/landmark`); the school club's buildings follow as content.
+
+### 🏗️ One way into the world for every building (#3510–#3524)
+
+- **Every kind in the editor:** *Generate* now offers all 26 generators — settlements, ruins, cities, monuments, bandit
+  camps, lodges, outposts, SPS labs, factories, rail stations and ruins, wrecks, text tablets, landmarks, the G.D.S. ruin,
+  stations, derelicts, vaults, the unique sites, the Sounders' buildings, the guardian core, hunter camps — with their
+  settings, a seed reroll and *intact / as in the world*; the result is editable.
+- **Generator entries:** *Use as → Generator entry* puts a generator with its settings into the same pool as hand-built
+  designs, with a weight.
+- **Stamping panel and previews:** what happens when a design is placed (foundation, materials, furnishing, turning, ruin,
+  chests, residents), plus turn, material and ruin previews; tools a target ignores are hidden.
+- **Ship editor:** saved ships go to your user content and fly as traders and bandits in your worlds (crafting them stays
+  off unless a server enables it).
+- **New worlds (terrain generation 38):** fallen settlements, monuments, the buried G.D.S. ruin and SPS labs crumble with
+  the shared ruin pass (nothing floats); settlement templates may turn and stand as ruins; chests, sounds and dens work in
+  village and station designs; station designs resolve material placeholders; **wrecks are the real ship layout** —
+  cockpit, cargo bay, open doors — and can still be repaired and claimed; one footprint registry keeps every building
+  clear of every other.
+- **Fixed in every world:** the guardian-core chamber was rebuilt on every server start; a second chest could appear
+  after a reload; moved data cubes vanished; the number of camps, factories and villages, a village's size and whether
+  it is a ruin, and the wreck's ship were re-rolled on every load — a new template could turn an inhabited village into a
+  ruin. All of them are written down now.
+- Placement numbers of 20 kinds live in `data/structure_types.json` (defaults = the old values).
+
+### 🛡️ The admin view (#3502–#3509)
+
+- **F8** or **Admin** in the pause menu: invisible, no damage, free flight; leaving returns you to where you started.
+  No cheats needed.
+- **Players:** everyone online on every planet — role, position, health, state; **Jump** (across planets too),
+  **Follow**, **Chat**, **Silence**, **Kick**.
+- **Log:** PvP defeats (world-wide), deaths with their cause, joins and leaves, reports, moderation, admin actions.
+- **Chat:** write to a player directly; players answer with **/r** (no private messages between players).
+- **Reports:** every report of the world — players, paint, forms, textures, the F1 title, and the new **Call an admin**
+  (**/admin** text or the pause-menu button).
+- On official hosted worlds the owner gets the view without invisibility, jump, follow or coordinates — child safety.
+
+### 🚃 Lyxette's reports (#3471–#3478, #3480, #3481)
+
+- Wagons have real bench seats, sleeper berths and a bar bench; standing up puts you into the aisle; you lie down in a
+  berth; **E** talks to passengers aboard; sitting faces away from the backrest.
+- No fish stuck in player floors; the gardener harvests pumpkins and tree fruit and works the fields around the base;
+  blocks under see-through blocks no longer draw black.
+- **Soft distance** is one switch for the texture softening and the blur — off gives the sharp far view back — and storms
+  no longer smear it.
+
 ## [2026.11.16] — 2026-11-10
 
 The ride-along release. **Ride on the giants:** land on a sky giant, a leviathan or a sandworm and it carries you
