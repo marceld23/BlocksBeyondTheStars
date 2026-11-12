@@ -58,9 +58,15 @@ public static class LandmarkGenerator
     /// <summary>The tier name a landmark's structure carries.</summary>
     public const string Tier = "landmark";
 
-    /// <summary>The revision of the ruin pass a fresh landmark is stamped with (pinned in its placement record as
-    /// <c>rev</c>; a record replays through the revision it pins, #3515).</summary>
+    /// <summary>The newest revision of the ruin pass (pinned in a placement record as <c>rev</c>; a record replays through
+    /// the revision it pins, #3515). A fresh landmark takes <see cref="RuinRevisionFor"/> its world's generation.</summary>
     public const int RuinRevision = StructureRuiner.Revision;
+
+    /// <summary>The ruin revision a FRESH landmark of a world of terrain generation <paramref name="terrainGeneration"/> is
+    /// stamped with: the newest (2, the lattice breaks) from the school club's generation 39 on, revision 1 before — an older
+    /// world's new landmarks and their records stay exactly as that world's build stamped them.</summary>
+    public static int RuinRevisionFor(int terrainGeneration)
+        => terrainGeneration >= Shared.World.WorldDescription.SchoolClubLandmarksGeneration ? RuinRevision : 1;
 
     /// <summary>The marker types a RUIN keeps (<see cref="RuinMarkerRules.Kept"/>, the same array).</summary>
     public static readonly string[] RuinMarkers = RuinMarkerRules.Kept;
@@ -103,7 +109,22 @@ public static class LandmarkGenerator
     internal static LandmarkLayout Finish(StructureTemplate t, VoxelGrid grid, List<SettlementMarker> markers, int groundRow, bool ruined,
         long seed, GameContent content, string surfaceBlock, int revision, int turns)
     {
-        if (ruined)
+        if (ruined && t.RuinZones is { Count: > 0 })
+        {
+            // The school club's ruin zones (generation 39 content): a template that names none never comes here, so its
+            // ruin is byte-identical to the pass as it shipped.
+            var cells = new Vector3i[markers.Count];
+            for (int i = 0; i < cells.Length; i++)
+            {
+                cells[i] = markers[i].LocalPos;
+            }
+
+            StructureRuiner.RunZoned(grid, content, seed, LandmarkRules.ProfileOf(t), t.RuinStrength, groundRow, cells, surfaceBlock,
+                revision, options: null, ZonesFor(t, turns));
+            RuinMarkerRules.KeepOnly(markers);
+            RuinMarkerRules.Seat(grid, markers, groundRow);
+        }
+        else if (ruined)
         {
             StructureRuiner.Run(grid, content, seed, LandmarkRules.ProfileOf(t), t.RuinStrength, groundRow, markers, surfaceBlock,
                 revision, options: null);
@@ -120,6 +141,31 @@ public static class LandmarkGenerator
         var structure = new SettlementStructure(grid.W, grid.H, grid.L, Tier, ruined, inhabitant: string.Empty, grid.Blocks, markers,
             buildingCount: 1, grid.Mods, grid.Shapes);
         return new LandmarkLayout(structure, groundRow, grid.Cavity, ruined, turns, cavities);
+    }
+
+    /// <summary>The template's ruin zones in the grid's coordinates: each box turned with the structure (a generator entry, which
+    /// never turns, keeps its boxes), its profile resolved (empty = the template's) and its strength as authored.</summary>
+    internal static List<RuinZoneBox> ZonesFor(StructureTemplate t, int turns)
+    {
+        var boxes = new List<RuinZoneBox>(t.RuinZones.Count);
+        foreach (var z in t.RuinZones)
+        {
+            if (z is null)
+            {
+                continue;
+            }
+
+            var (ax, az) = Turn(z.X0, z.Z0, t.Width, t.Length, turns);
+            var (bx, bz) = Turn(z.X1, z.Z1, t.Width, t.Length, turns);
+            if (turns == 0 || t.Width <= 0 || t.Length <= 0)
+            {
+                (ax, az, bx, bz) = (z.X0, z.Z0, z.X1, z.Z1);
+            }
+
+            boxes.Add(new RuinZoneBox(ax, z.Y0, az, bx, z.Y1, bz, LandmarkRules.ProfileOf(t, z), z.Strength));
+        }
+
+        return boxes; // clipped to the grid by the pass
     }
 
     /// <summary>One cell of the template turned by <paramref name="turns"/> quarter turns — the rule of

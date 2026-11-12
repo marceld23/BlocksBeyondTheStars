@@ -142,6 +142,11 @@ public sealed partial class GameServer
             return "@srv.protect.station";
         }
 
+        if (IsProtectedStructureCell(cell, p.IsAdmin))
+        {
+            return "@srv.protect.structure"; // generation 39: a structure its template protects
+        }
+
         if (IsTextMonumentProtected(cell))
         {
             return "@srv.protect.monument"; // #3311: KuBa-W's stone tablets

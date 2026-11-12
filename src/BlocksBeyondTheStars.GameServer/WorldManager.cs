@@ -33,6 +33,10 @@ internal sealed class SettlementInstance
     /// <summary>#2693: the settlement's place key (<c>settle_&lt;n&gt;</c>, body + name + world seed), computed once on first
     /// use by <c>GameServer.SettlementPlaceKey</c> — never set it elsewhere.</summary>
     public string? PlaceKey { get; set; }
+
+    /// <summary>Terrain generation 39: the template says <c>open</c> — the settlement box rule lets this intact settlement go
+    /// (its blocks are free to mine); false everywhere else.</summary>
+    public bool Unguarded { get; set; }
 }
 
 /// <summary>One stamped factory on a world: an industrial hall with a production terminal and one or more

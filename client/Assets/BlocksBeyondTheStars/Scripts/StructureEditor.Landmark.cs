@@ -19,15 +19,18 @@ namespace BlocksBeyondTheStars.Client
     /// <list type="bullet">
     /// <item><b>The room</b> is <see cref="LandmarkRules.MaxSize"/> blocks a side in the town editor (a bridge or a castle
     /// with its wall does not fit into 128).</item>
-    /// <item><b>The form</b>: ruin or as built, the ruin profile and strength, the conditions (atmosphere, inhabited
-    /// planet), "inhabited" (protected, its posts staffed) and the ground row — the row that lies on the ground; what is
-    /// below it is carved into the rock.</item>
+    /// <item><b>The form</b>: ruin or as built, the ruin profile and strength, the ruin zones and the seat (on the ground or a
+    /// span; terrain generation 39, StructureEditor.Zones.cs), the ground row — the row that lies on the ground (a span's deck);
+    /// what is below it is carved into the rock — and the conditions (atmosphere, inhabited planet). Whether players may change
+    /// it is the Protection row every whole template has (generation 39; it replaced the "inhabited: protected" toggle — an
+    /// intact landmark staffs its posts whatever its protection).</item>
     /// <item><b>The ruin preview</b> runs the very pass the server runs (<see cref="LandmarkGenerator"/>) over the design
     /// with a seed of the author's choice and shows the result; a second click brings the design back. While it shows,
     /// nothing can be placed, removed or saved — a preview is never the design.</item>
     /// <item><b>Tools</b> in the palette: the <i>keep</i> brush (cells the ruin pass leaves standing), the <i>cavity</i>
     /// brush (the tunnels and caverns of an underground part), the <i>settings</i> tool (a click on a chest, vendor, sound
-    /// or den marker opens <see cref="EditorMarkerPanel"/>), and the <i>sound</i> and <i>den</i> markers.</item>
+    /// or den marker opens <see cref="EditorMarkerPanel"/>), the <i>zone</i> tool (two corner clicks set a ruin zone), and the
+    /// <i>sound</i> and <i>den</i> markers.</item>
     /// <item><b>Save</b> writes the compact template (<see cref="TemplateBody"/>) to the user-content folder — the local
     /// server offers it to the next new world — and an export bundle for <c>tools/merge_structure.py</c>.</item>
     /// </list>
@@ -47,7 +50,10 @@ namespace BlocksBeyondTheStars.Client
             public float ruinStrength;
             public List<string> requires = new();
             public int groundRow;
-            public bool @protected;
+            public bool @protected; // legacy (#3499, read below terrain generation 39): kept from a loaded file, never set anew
+            public string protection = string.Empty, seat = string.Empty; // generation 39: "" = auto / the guaranteed search
+            public List<ZoneJson> ruinZones = new();
+            public int minTerrainGeneration; // no form row: kept from the loaded file
             public int width, height, length;
             public List<PaletteJson> palette = new();
             public List<string> rows = new();
@@ -61,7 +67,7 @@ namespace BlocksBeyondTheStars.Client
         private bool _lmRuin = true;
         private string _lmProfile = LandmarkRules.ProfileMasonry;
         private float _lmStrength; // 0 = the profile's own
-        private bool _lmAtmosphere = true, _lmInhabited, _lmProtected;
+        private bool _lmAtmosphere = true, _lmInhabited;
         private int _groundRow;
         private string _lmNameKey = string.Empty;
         private int _previewSeed = 1;
@@ -86,6 +92,7 @@ namespace BlocksBeyondTheStars.Client
         private void CycleUse()
         {
             EndPreview();
+            _zoneCorner = null; // a zone tool click waiting for its second corner is forgotten
             if (_entryMode)
             {
                 _entryMode = false;
@@ -132,6 +139,7 @@ namespace BlocksBeyondTheStars.Client
                 Tool("keep", "keep", KeepColor),
                 Tool(LandmarkRules.CavityKind, LandmarkRules.CavityKind, CavityColor),
                 Tool("settings", "settings", new Color(1f, 0.85f, 0.35f)),
+                Tool(StructureStampRules.KindZone, StructureStampRules.KindZone, ZoneColor(0)), // generation 39: ruin zones
             };
             return list.ToArray();
         }
@@ -159,6 +167,9 @@ namespace BlocksBeyondTheStars.Client
                     return true;
                 case "settings":
                     EditMarker();
+                    return true;
+                case StructureStampRules.KindZone:
+                    ZoneClick();
                     return true;
                 default:
                     return false;
@@ -238,17 +249,16 @@ namespace BlocksBeyondTheStars.Client
                     _lmStrength <= 0f ? L("ui.ed.landmark.strength_auto") : Mathf.RoundToInt(_lmStrength * 100f) + " %",
                     () => _lmStrength = Mathf.Max(0f, Mathf.Round((_lmStrength - 0.1f) * 10f) / 10f),
                     () => _lmStrength = Mathf.Min(1f, Mathf.Round((_lmStrength + 0.1f) * 10f) / 10f));
+                y = BuildZoneRows(p, y); // generation 39: boxes that fall in their own way (StructureEditor.Zones.cs)
             }
 
+            y = BuildSeatRow(p, y); // generation 39: on the ground, or a span over water or a valley
             y = LandmarkNumber(p, y, "ui.ed.landmark.ground_row", _groundRow.ToString(),
                 () => _groundRow = Mathf.Max(0, _groundRow - 1), () => _groundRow = Mathf.Min(RoomSize - 1, _groundRow + 1));
             y = LandmarkToggle(p, y, "ui.ed.landmark.atmosphere", _lmAtmosphere, () => _lmAtmosphere = !_lmAtmosphere);
             y = LandmarkToggle(p, y, "ui.ed.landmark.inhabited", _lmInhabited, () => _lmInhabited = !_lmInhabited);
-            if (!_lmRuin)
-            {
-                y = LandmarkToggle(p, y, "ui.ed.landmark.protected", _lmProtected, () => _lmProtected = !_lmProtected);
-            }
 
+            // Generation 39: whether players may change it is the Protection row every whole template has (below the pack rows).
             FieldLabel(p, y, L("ui.ed.landmark.name_key"));
             UiKit.AddInput(p, 16f, y + 26f, 348f, 30f, _lmNameKey, v => _lmNameKey = v ?? string.Empty);
             return y + 66f; // the ruin preview is the shared preview section (StructureEditor.Previews.cs, #3523)
@@ -313,7 +323,12 @@ namespace BlocksBeyondTheStars.Client
                 RuinProfile = _lmProfile,
                 RuinStrength = _lmStrength,
                 GroundRow = _groundRow,
-                Protected = !_lmRuin && _lmProtected,
+                // Generation 39: `protection` decides; the legacy flag (read by worlds below 39 only) follows an explicit
+                // "protected" on an intact landmark, so an older world that rolls it keeps it read-only too.
+                Protection = ProtectionWord(),
+                Protected = !_lmRuin && LandmarkRules.ProtectionOf(_protection) == LandmarkRules.ProtectionProtected,
+                Seat = IsSpan(_lmSeat) ? LandmarkRules.SeatSpan : string.Empty,
+                MinTerrainGeneration = _lmMinGeneration,
                 NameKey = (_lmNameKey ?? string.Empty).Trim(),
             };
             if (_lmAtmosphere)
@@ -342,6 +357,7 @@ namespace BlocksBeyondTheStars.Client
             t.Width = maxX + 1;
             t.Height = maxY + 1;
             t.Length = maxZ + 1;
+            t.RuinZones = ClampedZones(t.Width, t.Height, t.Length, out _); // the ruin preview builds with them too
             return t;
         }
 
@@ -417,6 +433,13 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var t = BuildLandmarkTemplate(key);
+            ClampedZones(t.Width, t.Height, t.Length, out int outside);
+            if (_lmRuin && outside > 0 && _design.Count > 0)
+            {
+                SetStatus(string.Format(L("ui.ed.zone.outside"), outside)); // a ruin zone that would be left out: say so instead
+                return;
+            }
+
             var problems = LandmarkRules.Problems(t);
             if (_design.Count == 0 || problems.Count > 0)
             {
@@ -449,6 +472,8 @@ namespace BlocksBeyondTheStars.Client
                 key = t.Key, name = t.Name, pack = t.PackOrDefault, weight = t.Weight, planetTypes = new List<string>(t.PlanetTypes),
                 ruin = t.Ruin, ruinProfile = t.RuinProfile, ruinStrength = (float)t.RuinStrength, requires = new List<string>(t.Requires),
                 groundRow = t.GroundRow, @protected = t.Protected, nameKey = t.NameKey,
+                protection = t.Protection ?? string.Empty, seat = t.Seat ?? string.Empty, ruinZones = ToZoneJsons(t.RuinZones),
+                minTerrainGeneration = t.MinTerrainGeneration,
                 width = t.Width, height = t.Height, length = t.Length, rows = new List<string>(t.Rows),
             };
             foreach (var p in t.Palette)
@@ -473,6 +498,8 @@ namespace BlocksBeyondTheStars.Client
                 PlanetTypes = j.planetTypes ?? new List<string>(), Ruin = j.ruin ?? string.Empty, RuinProfile = j.ruinProfile ?? string.Empty,
                 RuinStrength = j.ruinStrength, Requires = j.requires ?? new List<string>(), GroundRow = j.groundRow, Protected = j.@protected,
                 NameKey = j.nameKey ?? string.Empty, Width = j.width, Height = j.height, Length = j.length, Rows = j.rows ?? new List<string>(),
+                Protection = j.protection ?? string.Empty, Seat = j.seat ?? string.Empty, RuinZones = FromZoneJsons(j.ruinZones),
+                MinTerrainGeneration = j.minTerrainGeneration,
             };
             foreach (var p in j.palette ?? new List<PaletteJson>())
             {
@@ -579,7 +606,8 @@ namespace BlocksBeyondTheStars.Client
 
             _previewOn = false;
             _previewBackup = null;
-            ApplyTemplate(source.Key, source.Name, string.Empty, source.PackOrDefault, source.Weight, source.PlanetTypes, cells, copy);
+            ApplyTemplate(source.Key, source.Name, string.Empty, source.PackOrDefault, source.Weight, source.PlanetTypes, cells, copy,
+                protection: ProtectionOfLoaded(source.Protection, source.Protected, LandmarkRules.IsRuin(source)));
             _moduleMode = false;
             _landmarkMode = true;
             _lmRuin = LandmarkRules.IsRuin(source);
@@ -587,10 +615,19 @@ namespace BlocksBeyondTheStars.Client
             _lmStrength = (float)source.RuinStrength;
             _lmAtmosphere = LandmarkRules.Requires(source, LandmarkRules.RequiresAtmosphere);
             _lmInhabited = LandmarkRules.Requires(source, LandmarkRules.RequiresInhabited);
-            _lmProtected = source.Protected;
             _groundRow = source.GroundRow;
             _lmNameKey = source.NameKey ?? string.Empty;
+            _lmSeat = LandmarkRules.IsSpanSeat(source) ? LandmarkRules.SeatSpan : string.Empty; // generation 39
+            _lmMinGeneration = source.MinTerrainGeneration;
+            LoadZones(source.RuinZones);
             RebuildUi();
         }
+
+        /// <summary>A loaded file's protection: its <c>protection</c> word, else — a file from before generation 39 — its legacy
+        /// <c>protected</c> flag on an intact landmark as <see cref="LandmarkRules.ProtectionProtected"/> (what that flag meant), else
+        /// auto.</summary>
+        private static string ProtectionOfLoaded(string protection, bool legacyProtected, bool ruin)
+            => !string.IsNullOrEmpty(protection) ? LandmarkRules.ProtectionOf(protection)
+                : legacyProtected && !ruin ? LandmarkRules.ProtectionProtected : LandmarkRules.ProtectionAuto;
     }
 }

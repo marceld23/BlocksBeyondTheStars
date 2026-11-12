@@ -12,7 +12,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// column that carries a landmark to the landmark's top IN THAT COLUMN (not the box's: the air beside a tower costs
 /// nothing), but never past the player's chunk sphere: a chunk further away than the sent-set prune radius would be
 /// dropped by the sweep and unloaded by the client at once, and sent again on the next pass. What stands above the
-/// sphere is drawn by the far silhouette (#3497).
+/// sphere is drawn by the far silhouette (#3497). A landmark stored as a structure overlay (generation 39) takes its column
+/// tops from the overlay's cells.
 /// </summary>
 public sealed partial class GameServer
 {
@@ -36,6 +37,7 @@ public sealed partial class GameServer
             int relX = WorldConstants.WrapDeltaX(x0 - lm.Origin.X, _world.Circumference), relZ = z0 - lm.Origin.Z;
             if (relX + last >= 0 && relX < lm.Structure.Width && relZ + last >= 0 && relZ < lm.Structure.Length)
             {
+                ResolveLandmarkColumns(lm); // generation 39: the column tops of its structure overlay
                 top = System.Math.Max(top, lm.TopChunk(relX, relZ));
             }
         }
@@ -63,6 +65,17 @@ public sealed partial class GameServer
 
         private int[]? _columnTop;
         private readonly Dictionary<(int X, int Z), int> _topChunks = new();
+
+        /// <summary>Whether the server handed the column tops of the landmark's structure overlay over (or found none).</summary>
+        public bool ColumnsResolved { get; set; }
+
+        /// <summary>Generation 39: the column tops as the landmark's structure overlay has them (template rows, per
+        /// <c>x * Length + z</c>, −1 = empty) instead of its layout's.</summary>
+        public void UseColumnTops(int[] tops)
+        {
+            _columnTop = tops;
+            _topChunks.Clear();
+        }
 
         /// <summary>The highest structure row with a block in column (x, z), −1 when the column is empty.</summary>
         private int ColumnTop(int x, int z)

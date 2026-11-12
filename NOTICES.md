@@ -24,7 +24,7 @@ also keeps the generator scripts from painting over it.
 - `metal_panel` — **Screelit** (submission 2026-11-01, #3086): the hull panel without its sixteen corner rivets (247 of
   4096 pixels repainted), taken over 1:1 as he asked — the game ships exactly the submitted bytes.
 
-**Sound effects:** `client/Assets/Resources/audio/*.mp3` (476 files, incl. the Ressaw blocks' `ressaw_crack` (a glassy crystal crack) and `ressaw_leak` (a liquid seep) (#3343, `gen_sound.py`, 2026-11-07), the Sounders story pack's 37 clips (#3363,
+**Sound effects:** `client/Assets/Resources/audio/*.mp3` (480 files, incl. the school club landmarks' loops `amb_soaniri_castle` (Soundis calling softly between castle walls), `amb_singer_choir` (a gentle wordless humming choir), `amb_mine_drip` (water dripping into a still pool in a cave — the old mine) and `amb_portasseum_wind` (wind echoing through the arches of an empty amphitheatre) (#3483, `gen_sound.py`, 2026-11-12), the Ressaw blocks' `ressaw_crack` (a glassy crystal crack) and `ressaw_leak` (a liquid seep) (#3343, `gen_sound.py`, 2026-11-07), the Sounders story pack's 37 clips (#3363,
 2026-11-07): the Soundi's 14 calls `soundi_call_01`…`soundi_call_14` — the project owner's own ElevenLabs takes, made
 for the game's animated series (2026-09-21/26) and copied over unchanged except for the levelling — and 23 new
 `gen_sound.py` clips: the Echoes' hums `echo_hum_1`…`_4`, the Eldest's `elder_hum_1`/`_2`, the Soundrak's
@@ -154,8 +154,11 @@ of the three ruin props `gds_skull`, `gds_diving_helmet`, `gds_guardian_head`; 2
 nine tiles (#3363, 2026-11-07: the `song_spindle` picture, `carved_obsidian`, `resonance_crystal`, `chime_moss` and the
 singing plants `chime_reed`, `bell_bloom`, `bell_bloom_open`, `harp_vine`, `echo_flower` — side-view billboards on black,
 cut by `bake_leaf_alpha.py`; the moss and the five plants recoloured into light green and light blue on 2026-11-08 by the
-deterministic script `tools/ai-assets/recolour_soaniri.py`, #3423, no model), and the landmarks' six decoration tiles (#3498, 2026-11-11:
-`mine_track`, `mine_cart`, `dripstone`, `burger_bun`, `burger_patty`, `burger_cheese`)) are
+deterministic script `tools/ai-assets/recolour_soaniri.py`, #3423, no model), the landmarks' six decoration tiles (#3498, 2026-11-11:
+`mine_track`, `mine_cart`, `dripstone`, `burger_bun`, `burger_patty`, `burger_cheese`), and the school club landmarks' six
+building materials (#3483, 2026-11-12: `travertine`, `blackened_sandstone`, `verdigris_copper`, `burger_lettuce`,
+`burger_tomato`, `burger_bun_sesame` — the tomato and the sesame bun made seamless afterwards by the deterministic
+`tools/ai-assets/heal_seams.py`, no model)) are
 **AI-generated** with the same **OpenAI** image API (`gpt-image-1-mini`, 64px pixel-art tiles — see
 `tools/ai-assets/gen_textures.py`, bundled as raw bytes by `bundle_textures.py`), loaded into the
 block atlas at runtime via `Texture2D.LoadRawTextureData`; same OpenAI usage terms.

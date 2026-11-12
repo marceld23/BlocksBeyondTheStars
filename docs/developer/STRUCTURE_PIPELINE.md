@@ -107,6 +107,10 @@ never move a monument's relic cache or a G.D.S. crate that is re-derived from th
   register their box on stamp and on replay; `Overlaps(x, z, halfExtent, margin, exceptKind?)` with the larger of the
   asker's `keepClear`, its `keepClearFrom[kind]` and the entry's own margin. Generation 38 uses it for every keep-clear check;
   older worlds keep their exact old checks (data cubes and chests have no records there, a wider check would move them).
+- **Protection** (generation 39): every whole template carries `protection` (`auto` / `protected` / `open`, settable in
+  the editor's *Use as* form). A protected box rides on the structure's footprint entry (`GuardBox`) and one query,
+  `IsProtectedStructureCell` (`GameServerStructureProtection.cs`), sits beside the station check at every protection
+  site; `auto` keeps each kind's old rule. Details in [LANDMARKS.md](LANDMARKS.md) §5.
 - **Records**: every stamped kind has a `StructurePlacementRecord` (new kinds `ruin`, `monument`, `text_tablet`, `chest`,
   `datacube`, `guardian_core`; monuments and text tablets also keep their old feature strings). A fresh procedural
   settlement at generation 38 is recorded as `procedural`, never as the ambiguous empty template (only a generation-38

@@ -343,6 +343,21 @@
   { "key": "refine_resonance_crystal", "station": "refinery", "inputs": [ { "item": "resonance_crystal", "count": 1 } ], "outputs": [ { "item": "crystal", "count": 2 } ] },
   // #3358: the Sounder builders' carved obsidian (Ornasa, the Choir Tower) — the same grooves cut into any obsidian.
   { "key": "carved_obsidian", "station": "workshop", "requiredBlueprint": "archaeology", "inputs": [ { "item": "obsidian", "count": 2 } ], "outputs": [ { "item": "carved_obsidian", "count": 2 } ] },
+  // #3483: the landmarks' building materials, made at the workbench like any building block — the pale and the blackened
+  // masonry of the gates and the amphitheatre, the statue's green copper, the mine's track and cart, and every layer the
+  // burger restaurant is built from (#3498 had left them found-only). Dripstone stays a found material: it is mined in the
+  // caverns, never made.
+  { "key": "travertine",          "station": "workshop", "inputs": [ { "item": "stone", "count": 3 }, { "item": "sand", "count": 1 } ],                            "outputs": [ { "item": "travertine", "count": 4 } ] },
+  { "key": "blackened_sandstone", "station": "workshop", "inputs": [ { "item": "sandstone", "count": 2 }, { "item": "carbon", "count": 1 } ],                       "outputs": [ { "item": "blackened_sandstone", "count": 2 } ] },
+  { "key": "verdigris_copper",    "station": "workshop", "inputs": [ { "item": "copper_block", "count": 1 }, { "item": "water", "count": 1 } ],                    "outputs": [ { "item": "verdigris_copper", "count": 1 } ] },
+  { "key": "mine_track",          "station": "workshop", "inputs": [ { "item": "iron_ingot", "count": 1 }, { "item": "wood_log", "group": "logs", "count": 1 } ], "outputs": [ { "item": "mine_track", "count": 4 } ] },
+  { "key": "mine_cart",           "station": "workshop", "inputs": [ { "item": "iron_plate", "count": 2 }, { "item": "iron_ingot", "count": 1 } ],                 "outputs": [ { "item": "mine_cart", "count": 2 } ] },
+  { "key": "burger_bun",          "station": "workshop", "inputs": [ { "item": "grain", "count": 2 }, { "item": "water", "count": 1 } ],                           "outputs": [ { "item": "burger_bun", "count": 4 } ] },
+  { "key": "burger_bun_sesame",   "station": "workshop", "inputs": [ { "item": "burger_bun", "count": 4 }, { "item": "plant_seed", "count": 1 } ],                 "outputs": [ { "item": "burger_bun_sesame", "count": 4 } ] },
+  { "key": "burger_patty",        "station": "workshop", "inputs": [ { "item": "cooked_meat", "count": 1 } ],                                                      "outputs": [ { "item": "burger_patty", "count": 2 } ] },
+  { "key": "burger_cheese",       "station": "workshop", "inputs": [ { "item": "algae_ration", "count": 2 }, { "item": "salt", "count": 1 } ],                     "outputs": [ { "item": "burger_cheese", "count": 4 } ] },
+  { "key": "burger_lettuce",      "station": "workshop", "inputs": [ { "item": "plant_fiber", "count": 3 } ],                                                      "outputs": [ { "item": "burger_lettuce", "count": 4 } ] },
+  { "key": "burger_tomato",       "station": "workshop", "inputs": [ { "item": "berries", "count": 3 } ],                                                          "outputs": [ { "item": "burger_tomato", "count": 4 } ] },
   { "key": "water_snow",         "station": "hand",     "inputs": [ { "item": "snow", "count": 2 } ],                                     "outputs": [ { "item": "water", "count": 1 } ] },
   { "key": "water_ice",          "station": "hand",     "inputs": [ { "item": "ice", "count": 2 } ],                                      "outputs": [ { "item": "water", "count": 1 } ] },
   { "key": "fiber_mycelium",     "station": "hand",     "inputs": [ { "item": "mycelium", "count": 1 } ],                                 "outputs": [ { "item": "plant_fiber", "count": 2 } ] },

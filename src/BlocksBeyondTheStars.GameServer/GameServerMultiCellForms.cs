@@ -113,6 +113,7 @@ public sealed partial class GameServer
         if (!WithinReach(session.State, cell)
             || (!session.State.IsAdmin && IsOnLandingPad(cell))
             || IsStationBlock(cell)
+            || IsProtectedStructureCell(cell, session.State.IsAdmin) // generation 39: a structure its template protects
             || IsFactoryProtected(cell, session.State.PlayerId, session.State.IsAdmin)
             || IsBaseProtected(cell, session.State.PlayerId, session.State.IsAdmin))
         {

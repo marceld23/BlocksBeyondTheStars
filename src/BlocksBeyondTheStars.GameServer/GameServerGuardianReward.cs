@@ -258,6 +258,7 @@ public sealed partial class GameServer
 
         var centre = new Vector3f(c.X + 0.5f, c.Y + 0.5f, c.Z + 0.5f);
         if (IsShipBlock(c) || EntityBlockedByShip(centre) || IsSettlementBlock(c) || IsStationBlock(c) || IsOnLandingPad(c)
+            || IsProtectedStructureCell(c) // generation 39: a structure its template protects
             || BasePadBusy(c) || IsGuardianCoreProtected(c) || IsTextMonumentProtected(c) // #3311
             || IsBaseProtected(c, ownerId, false) || IsFactoryProtected(c, ownerId, false))
         {

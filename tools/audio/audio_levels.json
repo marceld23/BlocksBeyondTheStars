@@ -137,11 +137,35 @@
    "peak": -7.2,
    "sha256": "d1b2144525b0a41e1b4dfa3286fb5d99282494bc7390630e3a038ed897fe64df"
   },
+  "amb_mine_drip": {
+   "class": "bed",
+   "level": -21.0,
+   "peak": -0.8,
+   "sha256": "3c3be9e655ca39e83e5aaea891e606052ceb5b0aee948acb71e11df86da58b32"
+  },
   "amb_ocean": {
    "class": "bed",
    "level": -20.4,
    "peak": -5.7,
    "sha256": "db6512f1d4df01901d7b993a1d9e9fead0901e1c1c24c7e77266dcf994d1e1b8"
+  },
+  "amb_portasseum_wind": {
+   "class": "bed",
+   "level": -20.5,
+   "peak": -2.1,
+   "sha256": "a29ed1ae7ce70b38f77e94554d3ec6b36f6b1659b61f6df8eaa08633468a8e11"
+  },
+  "amb_singer_choir": {
+   "class": "bed",
+   "level": -21.4,
+   "peak": -10.9,
+   "sha256": "bee5430649cf5071f5291ce4a6cbc98e410e9ddbcc21c427fc9b5fb72925a437"
+  },
+  "amb_soaniri_castle": {
+   "class": "bed",
+   "level": -20.6,
+   "peak": -1.4,
+   "sha256": "5951aa90a60e1fc42bfd1b5cf0cd5a906a23a7a5076e8c0b91185672502b11ea"
   },
   "amb_sounder": {
    "class": "bed",

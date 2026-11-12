@@ -24,7 +24,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <item><b>The roll and the pick.</b> <see cref="LandmarkRolls"/>: a pure hash of seed and body below
 /// <c>ServerConfig.LandmarkChance</c> × the structures frequency. Then one of the planet's candidates
 /// (<c>GameContent.LandmarksFor</c>: pack, planet type, <c>atmosphere</c>, <c>inhabited</c> = the body carries an inhabited
-/// settlement) by weight, a quarter turn and the instance seed — each a hash of its own.</item>
+/// settlement) by weight, a quarter turn and the instance seed — each a hash of its own. Terrain generation 39: a candidate
+/// that finds no seat gives way to another one (up to <see cref="LandmarkPickAttempts"/>), a span template seats across water
+/// or a valley, and a type with fixed landmarks gets those instead of the roll (GameServerLandmarkSeats.cs).</item>
 /// <item><b>Pinned, stamped once.</b> One placement record (<see cref="LandmarkRules.RecordKind"/>, index 0) holds the
 /// template key, the seat, the turn, the seed and the ruin pass revision; the blocks are written once (feature
 /// <c>landmark:&lt;index&gt;</c>) and a ruin stays as the players leave it. Every later load re-derives the layout from the record for
@@ -64,8 +66,19 @@ public sealed partial class GameServer
         /// <summary>Exclusive upper corner of the box.</summary>
         public Vector3i Max => new(Origin.X + Structure.Width, Origin.Y + Structure.Height, Origin.Z + Structure.Length);
 
-        /// <summary>An inhabited landmark: read-only for visitors, its posts staffed (#3499). A ruin never is.</summary>
-        public bool Protected => Template.Protected && !Layout.Ruined;
+        /// <summary>Whether its box is read-only for players. Below terrain generation 39 an inhabited landmark (#3499: the
+        /// template's <c>protected</c> flag on an intact one, through <see cref="IsLandmarkBlock"/>); from 39 the template's
+        /// <see cref="StructureTemplate.Protection"/> (auto = while intact), held in the footprint registry
+        /// (<see cref="IsProtectedStructureCell(Vector3i)"/>). Set when the instance is committed.</summary>
+        public bool Protected { get; init; }
+
+        /// <summary>Whether the world keeps the landmark rules from before terrain generation 39: the box guarded by
+        /// <see cref="IsLandmarkBlock"/>, residents only in a protected landmark.</summary>
+        public bool LegacyRules { get; init; }
+
+        /// <summary>Whether its posts are staffed (residents at every profession, vendor and npc marker): below generation 39 a
+        /// protected landmark; from 39 every intact one, whatever its protection.</summary>
+        public bool Staffed => LegacyRules ? Protected : !Layout.Ruined;
 
         public (int Cx, int Cz, int Hw, int Hl) Rect
             => (Origin.X + (Structure.Width / 2), Origin.Z + (Structure.Length / 2), (Structure.Width / 2) + 1, (Structure.Length / 2) + 1);
@@ -89,9 +102,14 @@ public sealed partial class GameServer
         public bool Fresh;
         public LandmarkLayout? Layout;
 
-        /// <summary>The ruin-pass revision the landmark is built with (#3515): the newest for a fresh one, the pinned
-        /// <c>rev</c> for a record (1 when a record carries none).</summary>
+        /// <summary>The ruin-pass revision the landmark is built with (#3515): its world's for a fresh one
+        /// (<see cref="LandmarkGenerator.RuinRevisionFor"/>), the pinned <c>rev</c> for a record (1 when a record carries none).</summary>
         public int Revision = LandmarkGenerator.RuinRevision;
+
+        /// <summary>Stores the cells as a structure overlay even on a world below generation 39 — an admin's hand stamp of a
+        /// template made for a newer generation (one of the school club's giants: millions of cells as block edits would
+        /// stall the tick and bloat the save).</summary>
+        public bool ForceOverlay;
     }
 
     private List<LandmarkInstance> _landmarks => _worlds.Active.Landmarks;
@@ -145,6 +163,18 @@ public sealed partial class GameServer
                 }
             }
 
+            if (SchoolClubLandmarkWorld && _content.FixedLandmarksFor(planet) is { Count: > 0 } pending)
+            {
+                StampMissingFixedLandmarks(pending, records); // generation 39: a fixed one a crash left unrecorded
+            }
+
+            return;
+        }
+
+        // The school club's landmarks (generation 39): a type with fixed landmarks gets every one of them, never a roll.
+        if (SchoolClubLandmarkWorld && _content.FixedLandmarksFor(planet) is { Count: > 0 } fixedOnes)
+        {
+            StampFixedLandmarks(fixedOnes);
             return;
         }
 
@@ -180,40 +210,64 @@ public sealed partial class GameServer
                 inhabited: InhabitedSettlementCount > 0, namedTypeOnly: restricted, sources: true));
         }
 
+        // The school club's landmarks name minTerrainGeneration 39: an older world never rolls them (none of its candidates
+        // moves — a template without the field is offered as before).
+        candidates.RemoveAll(t => t.MinTerrainGeneration > _generator.TerrainGeneration);
         if (candidates.Count == 0)
         {
             return null;
         }
 
         string body = _world.LocationId;
+        for (int attempt = 0; candidates.Count > 0; attempt++)
+        {
+            var template = PickLandmark(candidates, attempt == 0 ? "landmark:pick:" + body
+                : "landmark:pick:" + body + ":" + attempt.ToString(CultureInfo.InvariantCulture));
+            var plan = new LandmarkPlan
+            {
+                Template = template,
+                Seed = unchecked((long)StableHashing.Mixed("landmark:" + body, _meta.Seed)),
+                Turns = template.IsSource ? 0 : StableHashing.Index("landmark:turn:" + body, _meta.Seed, 4), // #3518: an entry stands as built
+                Fresh = true,
+            };
+            plan.Layout = BuildLandmarkLayout(plan);
+            if (plan.Layout is not null && TrySeatLandmark(plan))
+            {
+                return plan;
+            }
+
+            // Generation 39: a candidate with no seat on this body (a bridge without a river) gives way to another one; an
+            // older world keeps its one pick.
+            if (!SchoolClubLandmarkWorld || attempt + 1 >= LandmarkPickAttempts)
+            {
+                break;
+            }
+
+            candidates.Remove(template);
+        }
+
+        ReportStamp(LandmarkRules.RecordKind, 1, 0);
+        return null;
+    }
+
+    /// <summary>How many candidates a generation-39 body tries before it carries none (each try is a full seat search).</summary>
+    private const int LandmarkPickAttempts = 4;
+
+    /// <summary>One of the candidates by weight (clamped to ≥ 1), drawn by a hash of the lane and the world seed.</summary>
+    private StructureTemplate PickLandmark(List<StructureTemplate> candidates, string lane)
+    {
         int total = candidates.Sum(t => System.Math.Max(1, t.Weight));
-        int at = (int)(StableHashing.Unit("landmark:pick:" + body, _meta.Seed) * total);
-        var template = candidates[candidates.Count - 1];
+        int at = (int)(StableHashing.Unit(lane, _meta.Seed) * total);
         foreach (var t in candidates)
         {
             at -= System.Math.Max(1, t.Weight);
             if (at < 0)
             {
-                template = t;
-                break;
+                return t;
             }
         }
 
-        var plan = new LandmarkPlan
-        {
-            Template = template,
-            Seed = unchecked((long)StableHashing.Mixed("landmark:" + body, _meta.Seed)),
-            Turns = template.IsSource ? 0 : StableHashing.Index("landmark:turn:" + body, _meta.Seed, 4), // #3518: an entry stands as built
-            Fresh = true,
-        };
-        plan.Layout = BuildLandmarkLayout(plan);
-        if (plan.Layout is null || !TrySeatLandmark(plan))
-        {
-            ReportStamp(LandmarkRules.RecordKind, 1, 0);
-            return null;
-        }
-
-        return plan;
+        return candidates[candidates.Count - 1];
     }
 
     /// <summary>A body carries a landmark only when it is several footprints around and a latitude band is left over — a
@@ -232,11 +286,19 @@ public sealed partial class GameServer
     }
 
     /// <summary>The plan's layout: the authored body, or (#3518) a generator entry's build — null (warned) when its source can
-    /// no longer build it.</summary>
+    /// no longer build it. A fresh plan first takes its world's ruin revision (generation 39: revision 2, the lattice breaks;
+    /// an older world: revision 1, as it always stamped).</summary>
     private LandmarkLayout? BuildLandmarkLayout(LandmarkPlan plan)
-        => plan.Template.IsSource
+    {
+        if (plan.Fresh)
+        {
+            plan.Revision = LandmarkGenerator.RuinRevisionFor(_generator.TerrainGeneration);
+        }
+
+        return plan.Template.IsSource
             ? BuildSourceLandmark(plan.Template, plan.Seed, plan.Revision)
             : LandmarkGenerator.Build(plan.Template, plan.Seed, plan.Turns, _content, LandmarkSurfaceBlock(), ruin: null, plan.Revision);
+    }
 
     /// <summary>What a landmark keeps clear of: every pad (with a wide margin), the wreck site, the settlements, the rail
     /// line and its ruin, the lodges, the Sounder sites, the fallen ruins, the monuments, the camps, the factories, the labs.</summary>
@@ -267,15 +329,20 @@ public sealed partial class GameServer
     /// <summary>Seats the planned landmark with the guaranteed search (#586). A landmark that only stands on the ground may
     /// stand in water on its piers (a bridge, a drowned gate); one with an underground part needs dry, even ground for its
     /// way in, and nothing may stand in lava.</summary>
-    private bool TrySeatLandmark(LandmarkPlan plan)
+    private bool TrySeatLandmark(LandmarkPlan plan, bool avoidPlayerEdits = false)
     {
+        if (SchoolClubLandmarkWorld && LandmarkRules.IsSpanSeat(plan.Template))
+        {
+            return TrySeatLandmarkSpan(plan); // generation 39: a span across water or a valley (GameServerLandmarkSeats.cs)
+        }
+
         var layout = plan.Layout!;
         bool buried = layout.GroundRow > 0;
         var policy = new SeatPolicy(AllowStilts: !buried, AllowLava: false, PreferRugged: false);
         bool SeatOk(Vector3i origin, string seat) => !buried || seat is "flat" or "slope";
         if (!TryPlaceStructureGuaranteed(layout.Structure, RngFor(plan.Seed, "search"),
                 KeepClearFor(StructureTypeRules.Landmark, LandmarkReserved()), wantIsland: false, policy, // #3514: generation 38: the registry
-                avoidPlayerEdits: false, out var origin, out int groundY, out _, out string seat, seatOk: SeatOk))
+                avoidPlayerEdits, out var origin, out int groundY, out _, out string seat, seatOk: SeatOk))
         {
             return false;
         }
@@ -286,7 +353,7 @@ public sealed partial class GameServer
 
     // ---------------------------------------------------------------- the record
 
-    private static string LandmarkPin(LandmarkPlan plan)
+    private string LandmarkPin(LandmarkPlan plan)
     {
         var pin = new MarkerSettings()
             .Set("turns", plan.Turns)
@@ -295,6 +362,11 @@ public sealed partial class GameServer
         if (plan.Template.IsSource)
         {
             pin.Set(SourceTemplates.PinKey, plan.Template.Source); // #3518: built by a source — replayed only through one
+        }
+
+        if (LandmarkOverlayWorld || plan.ForceOverlay)
+        {
+            pin.Set(LandmarkStoragePin, LandmarkOverlayStorage); // generation 39: its cells are one structure overlay (GameServerLandmarkOverlay.cs)
         }
 
         return pin.ToString();
@@ -351,6 +423,7 @@ public sealed partial class GameServer
             SavePlacementRecords();
         }
 
+        bool legacy = !SchoolClubLandmarkWorld;
         var instance = new LandmarkInstance
         {
             Template = plan.Template,
@@ -358,6 +431,8 @@ public sealed partial class GameServer
             Origin = new Vector3i(plan.OriginX, plan.GroundY - layout.GroundRow, plan.OriginZ),
             GroundY = plan.GroundY,
             Seed = plan.Seed,
+            LegacyRules = legacy,
+            Protected = legacy ? plan.Template.Protected && !layout.Ruined : LandmarkRules.IsProtected(plan.Template, byKind: !layout.Ruined),
         };
 
         if (!FeatureStamped(LandmarkFeature(plan.Index)))
@@ -371,7 +446,19 @@ public sealed partial class GameServer
         }
 
         _landmarks.Add(instance);
-        RegisterFootprint(StructureTypeRules.Landmark, instance.Rect); // #3514
+        if (instance.Protected && !legacy)
+        {
+            // generation 39: the box, down through the plinth (or the piles), is protected through the footprint registry
+            int foot = plan.Seat is "stilts" or LandmarkRules.SeatSpan ? LandmarkPileDepth : LandmarkPlinthDepth;
+            RegisterProtectedFootprint(StructureTypeRules.Landmark, instance.Rect, new StructureFootprints.GuardBox(
+                instance.Origin.X, instance.Origin.Y - foot, instance.Origin.Z,
+                instance.Max.X - 1, instance.Max.Y - 1, instance.Max.Z - 1));
+        }
+        else
+        {
+            RegisterFootprint(StructureTypeRules.Landmark, instance.Rect); // #3514
+        }
+
         MaterializeLandmark(instance);
         if (plan.Fresh)
         {

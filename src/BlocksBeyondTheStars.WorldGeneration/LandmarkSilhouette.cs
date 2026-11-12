@@ -101,6 +101,88 @@ public sealed class LandmarkSilhouette
         return new LandmarkSilhouette(step, w, h, l, cells, blocks.ToArray(), tints.ToArray());
     }
 
+    /// <summary>
+    /// Samples a landmark given as its non-air cells (terrain generation 39: the cells of its structure overlay) — the same
+    /// model <see cref="Build"/> makes of a layout with exactly these blocks. Cells are in model-space blocks: X in
+    /// [0, <paramref name="width"/>), Y counted from the ground row in [0, <paramref name="height"/>), Z in
+    /// [0, <paramref name="length"/>), each cell at most once (an overlay holds a cell once); a cell outside that box and an
+    /// air cell are ignored.
+    /// </summary>
+    public static LandmarkSilhouette FromCells(int width, int height, int length,
+        IEnumerable<(int X, int Y, int Z, ushort Block, int Tint)> cells, int step = DefaultStep)
+    {
+        step = System.Math.Max(1, step);
+        int w = (width + step - 1) / step, h = (height + step - 1) / step, l = (length + step - 1) / step;
+
+        // One key per cell: model cell, block, dye — sorted, a model cell's cells lie together, its materials in ascending
+        // (block, dye) order, which is Dominant's tie rule.
+        var keys = new List<(long Model, ushort Block, int Tint)>();
+        foreach (var (x, y, z, block, tint) in cells)
+        {
+            if (block == 0 || x < 0 || y < 0 || z < 0 || x >= width || y >= height || z >= length)
+            {
+                continue;
+            }
+
+            keys.Add(((((long)(x / step) * h) + (y / step)) * l + (z / step), block, tint));
+        }
+
+        keys.Sort();
+        var model = new byte[w * h * l];
+        var palette = new Dictionary<(ushort Block, int Tint), int>();
+        var blocks = new List<ushort>();
+        var tints = new List<int>();
+        for (int i = 0; i < keys.Count;)
+        {
+            long cell = keys[i].Model;
+            int solid = 0, bestCount = 0;
+            (ushort Block, int Tint) best = default;
+            while (i < keys.Count && keys[i].Model == cell)
+            {
+                var material = (keys[i].Block, keys[i].Tint);
+                int run = 0;
+                while (i < keys.Count && keys[i].Model == cell && (keys[i].Block, keys[i].Tint) == material)
+                {
+                    run++;
+                    i++;
+                }
+
+                solid += run;
+                if (run > bestCount)
+                {
+                    (best, bestCount) = (material, run);
+                }
+            }
+
+            if (solid >= MinBlocks)
+            {
+                model[cell] = (byte)PaletteIndex(best, palette, blocks, tints);
+            }
+        }
+
+        return new LandmarkSilhouette(step, w, h, l, model, blocks.ToArray(), tints.ToArray());
+    }
+
+    /// <summary>The 1-based palette index of a material, added on first use (a 256th material reads as the first).</summary>
+    private static int PaletteIndex((ushort Block, int Tint) material, Dictionary<(ushort Block, int Tint), int> palette,
+        List<ushort> blocks, List<int> tints)
+    {
+        if (palette.TryGetValue(material, out int index))
+        {
+            return index;
+        }
+
+        if (blocks.Count >= byte.MaxValue)
+        {
+            return 1;
+        }
+
+        blocks.Add(material.Block);
+        tints.Add(material.Tint);
+        palette[material] = blocks.Count;
+        return blocks.Count;
+    }
+
     /// <summary>The block (with its dye) most of the solid blocks of one model cell are — null when fewer than
     /// <see cref="MinBlocks"/> are solid.</summary>
     private static (ushort Block, int Tint)? Dominant(SettlementStructure s, int x0, int y0, int z0, int step,

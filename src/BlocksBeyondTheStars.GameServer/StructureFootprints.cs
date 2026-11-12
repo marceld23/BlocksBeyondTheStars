@@ -23,16 +23,28 @@ namespace BlocksBeyondTheStars.GameServer;
 internal sealed class StructureFootprints
 {
     /// <summary>One registered box: its kind, centre, half extents, the margin it keeps, and the structure it belongs to (one
-    /// structure may register several boxes — the intercity line's stations and spans, an outpost and its boat).</summary>
-    internal readonly record struct Footprint(string Kind, int Cx, int Cz, int Hw, int Hl, int Margin, string Owner)
+    /// structure may register several boxes — the intercity line's stations and spans, an outpost and its boat). Terrain
+    /// generation 39: <see cref="Guard"/> = the structure's PROTECTED cells (null = not protected) — the box players may not
+    /// mine or build in (<see cref="IsGuarded"/>).</summary>
+    internal readonly record struct Footprint(string Kind, int Cx, int Cz, int Hw, int Hl, int Margin, string Owner, GuardBox? Guard = null)
     {
         public int MinX => Cx - Hw;
         public int MaxX => Cx + Hw;
         public int MinZ => Cz - Hl;
         public int MaxZ => Cz + Hl;
+
+        /// <summary>Whether the structure's cells are protected.</summary>
+        public bool Protected => Guard is not null;
     }
 
+    /// <summary>A protected box of cells (terrain generation 39): inclusive corners, X wrapped around the world like the
+    /// footprints, Y and Z not.</summary>
+    internal readonly record struct GuardBox(int MinX, int MinY, int MinZ, int MaxX, int MaxY, int MaxZ);
+
     private readonly List<Footprint> _entries = new();
+
+    /// <summary>The entries that carry a guard (the protection query walks only these).</summary>
+    private readonly List<GuardBox> _guards = new();
 
     /// <summary>The world's circumference (the X wrap); 0 = no wrap.</summary>
     public int Circumference { get; set; }
@@ -40,18 +52,63 @@ internal sealed class StructureFootprints
     /// <summary>Every registered box, in registration order.</summary>
     public IReadOnlyList<Footprint> Entries => _entries;
 
-    public void Clear() => _entries.Clear();
+    public void Clear()
+    {
+        _entries.Clear();
+        _guards.Clear();
+    }
 
-    /// <summary>Registers a box given by its corners (inclusive cells): centre (min + max) / 2, half extents (max − min) / 2 + 1.</summary>
-    public void Add(string kind, int minX, int minZ, int maxX, int maxZ, int margin, string? owner = null)
-        => Add(kind, ((minX + maxX) / 2, (minZ + maxZ) / 2, ((maxX - minX) / 2) + 1, ((maxZ - minZ) / 2) + 1), margin, owner);
+    /// <summary>Registers a box given by its corners (inclusive cells): centre (min + max) / 2, half extents (max − min) / 2 + 1.
+    /// <paramref name="guard"/> (generation 39) = the structure's protected cells.</summary>
+    public void Add(string kind, int minX, int minZ, int maxX, int maxZ, int margin, string? owner = null, GuardBox? guard = null)
+        => Add(kind, ((minX + maxX) / 2, (minZ + maxZ) / 2, ((maxX - minX) / 2) + 1, ((maxZ - minZ) / 2) + 1), margin, owner, guard);
 
-    /// <summary>Registers a box given as a centre and half extents.</summary>
-    public void Add(string kind, (int Cx, int Cz, int Hw, int Hl) rect, int margin, string? owner = null)
-        => _entries.Add(new Footprint(kind, rect.Cx, rect.Cz, rect.Hw, rect.Hl, margin, owner ?? kind + "#" + _entries.Count));
+    /// <summary>Registers a box given as a centre and half extents; <paramref name="guard"/> (generation 39) = the structure's
+    /// protected cells.</summary>
+    public void Add(string kind, (int Cx, int Cz, int Hw, int Hl) rect, int margin, string? owner = null, GuardBox? guard = null)
+    {
+        _entries.Add(new Footprint(kind, rect.Cx, rect.Cz, rect.Hw, rect.Hl, margin, owner ?? kind + "#" + _entries.Count, guard));
+        if (guard is { } g)
+        {
+            _guards.Add(g);
+        }
+    }
 
     /// <summary>Drops every box of a kind (the crash-site reservation once the wreck stands). Returns how many went.</summary>
-    public int RemoveKind(string kind) => _entries.RemoveAll(e => e.Kind == kind);
+    public int RemoveKind(string kind)
+    {
+        int removed = _entries.RemoveAll(e => e.Kind == kind);
+        _guards.Clear();
+        foreach (var e in _entries)
+        {
+            if (e.Guard is { } g)
+            {
+                _guards.Add(g);
+            }
+        }
+
+        return removed;
+    }
+
+    /// <summary>Whether a cell lies in a protected box (terrain generation 39: <see cref="Footprint.Guard"/>).</summary>
+    public bool IsGuarded(int x, int y, int z)
+    {
+        foreach (var g in _guards)
+        {
+            if (y < g.MinY || y > g.MaxY || z < g.MinZ || z > g.MaxZ)
+            {
+                continue;
+            }
+
+            int dx = DeltaX(x - g.MinX);
+            if (dx >= 0 && dx <= g.MaxX - g.MinX)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>Whether a square of <paramref name="halfExtent"/> around a point comes closer than <paramref name="margin"/> (or
     /// an entry's own, larger margin) to any box — <paramref name="exceptKind"/>'s boxes aside.</summary>

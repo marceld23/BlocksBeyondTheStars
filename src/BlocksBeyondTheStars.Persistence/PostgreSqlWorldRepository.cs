@@ -15,7 +15,7 @@ namespace BlocksBeyondTheStars.Persistence;
 /// player/ship snapshots in a hosted database for long-running dedicated/MMO-style servers.
 /// Each world is isolated in its own schema, while sidecar logs/backups still live on disk.
 /// </summary>
-public sealed class PostgreSqlWorldRepository : IWorldRepository
+public sealed partial class PostgreSqlWorldRepository : IWorldRepository
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = false };
 
@@ -155,7 +155,9 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
                 name TEXT NOT NULL, voxels TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS world_texture (
                 key TEXT PRIMARY KEY, frames INTEGER NOT NULL, fps INTEGER NOT NULL, data TEXT NOT NULL,
-                owner TEXT NOT NULL, owner_name TEXT NOT NULL, created_unix BIGINT NOT NULL);");
+                owner TEXT NOT NULL, owner_name TEXT NOT NULL, created_unix BIGINT NOT NULL);
+            CREATE TABLE IF NOT EXISTS structure_overlay (
+                planet TEXT NOT NULL, key TEXT NOT NULL, data BYTEA NOT NULL, PRIMARY KEY (planet, key));");
             // (Landing pads are deterministic + live-occupancy now — no per-player landing_zone table; item 38.)
 
             // Migrate older saves to carry per-voxel colour modifiers (dyed blocks / coloured lights). The
@@ -240,6 +242,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
             RemapBlockColumn("weather_deposit", remap);
             RemapSpaceStructureBlocks(remap);
             RemapShipHulls(remap);
+            RemapStructureOverlays(remap);
             WriteBlockPaletteLocked(currentPalette);
         });
     }
@@ -665,7 +668,9 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "SELECT 1 FROM block_edit WHERE planet = @p LIMIT 1;";
+            // A structure overlay is a worldgen stamp too (generation 39) — a body whose only stamp is a landmark was materialised.
+            cmd.CommandText = "SELECT 1 WHERE EXISTS (SELECT 1 FROM block_edit WHERE planet = @p) " +
+                              "OR EXISTS (SELECT 1 FROM structure_overlay WHERE planet = @p);";
             cmd.Parameters.AddWithValue("@p", planet);
             return cmd.ExecuteScalar() is not null;
         }
@@ -2396,7 +2401,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         "beam", "crystal_cell", "base_claim", "base_pad", "alliance", "crew", "crew_member", "story_state", "named_blob",
         "location_status", "mission", "space_structure", "structure_edit", "flora_regrow", "weather_deposit",
         "fluid_cell", "fluid_source", "fire_cell", "paint_design", "paint_report", "custom_shape", "world_texture",
-        "player_report",
+        "player_report", "structure_overlay",
     };
 
     /// <summary>Rows written before the JSON writer hands its buffer to the file — the dump streams, so a large

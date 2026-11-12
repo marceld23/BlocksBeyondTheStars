@@ -155,7 +155,10 @@ internal sealed class LandmarkSource : StructureSourceBase
         var template = r.Content.LandmarkByKey(p.Get("template"))
                        ?? throw new InvalidOperationException("The content holds no landmark template (data/landmarks/).");
         bool? ruin = r.AsInWorld ? p.Tri("ruin") : false;
-        var layout = LandmarkGenerator.Build(template, r.Seed, p.Int("turns"), r.Content, r.Surface, ruin);
+        // The ruin revision of the request's world generation: an older world's entry keeps building revision 1 (no
+        // lattice breaks), exactly as it stood before the school club's generation 39.
+        var layout = LandmarkGenerator.Build(template, r.Seed, p.Int("turns"), r.Content, r.Surface, ruin,
+            LandmarkGenerator.RuinRevisionFor(r.Generation));
         var s = layout.Structure;
         var b = new BuiltStructure(Key, s.Width, s.Height, s.Length, layout.GroundRow);
         BuiltConvert.CopyGrid(b, s.Width, s.Height, s.Length, 0, s.Get, s.GetModifier, s.GetShape);

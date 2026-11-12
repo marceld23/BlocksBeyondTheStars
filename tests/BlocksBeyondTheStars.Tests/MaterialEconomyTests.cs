@@ -380,4 +380,29 @@ public sealed class MaterialEconomyTests
             Assert.True(de.Has($"item.{key}.name"), key);
         }
     }
+
+    /// <summary>The landmarks' building materials (#3483, and the #3498 blocks that shipped found-only): every one is
+    /// made at the workbench, drops itself and is named in both languages. Dripstone is a found material and stays
+    /// without a recipe.</summary>
+    [Fact]
+    public void LandmarkBuildingMaterials_AreMadeAtTheWorkbench_DripstoneIsFoundOnly()
+    {
+        var en = _c.CreateLocalizer(GameLocale.English);
+        var de = _c.CreateLocalizer(GameLocale.German);
+        foreach (var key in new[]
+                 {
+                     "travertine", "blackened_sandstone", "verdigris_copper", "burger_lettuce", "burger_tomato", "burger_bun_sesame",
+                     "mine_track", "mine_cart", "burger_bun", "burger_patty", "burger_cheese",
+                 })
+        {
+            var block = _c.GetBlock(key);
+            Assert.True(block is not null && block.Mineable && block.Drops.Any(d => d.Item == key), $"{key} must drop itself");
+            Assert.True(block!.Shapeable && block.Tintable, $"{key} must take a form and a dye like every cube material");
+            Assert.Equal(key, _c.GetItem(key)?.PlacesBlock);
+            Assert.Contains(_c.Recipes.Values, r => r.Station == CraftingStation.Workshop && r.Outputs.Any(o => o.Item == key));
+            Assert.True(en.Has($"block.{key}.name") && de.Has($"block.{key}.name"), key);
+        }
+
+        Assert.DoesNotContain(_c.Recipes.Values, r => r.Station != CraftingStation.Market && r.Outputs.Any(o => o.Item == "dripstone"));
+    }
 }

@@ -15,9 +15,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// The authoritative runtime world for the active planet. Chunks are generated on demand
 /// from the seed and have persisted player edits applied on top; only edits are stored
 /// (technical requirements §11). Loaded chunks are cached and unloaded when far from all
-/// players.
+/// players. From terrain generation 39 a landmark's cells come from its structure overlay, applied under the edits
+/// (ServerWorld.Overlays.cs).
 /// </summary>
-public sealed class ServerWorld
+public sealed partial class ServerWorld
 {
     private readonly GameContent _content;
 
@@ -150,16 +151,30 @@ public sealed class ServerWorld
 
     private ChunkData Store(ChunkCoord coord, ChunkData chunk)
     {
+        bool overlaid = false;
+        if (StructureOverlays.At(coord) is { } overlays)
+        {
+            // Generation 39: a landmark's cells (one overlay per placed landmark) under the edits — what players changed wins.
+            foreach (var cells in overlays)
+            {
+                ApplyOverlayCells(chunk, cells, null);
+            }
+
+            overlaid = true;
+        }
+
         foreach (var edit in _repo.LoadChunkEdits(LocationId, coord))
         {
             var local = WorldConstants.WorldToLocal(edit.WorldPosition);
             chunk.Set(local.X, local.Y, local.Z, new BlockId(edit.Block));
-            if (edit.Tint != 0 || edit.Glow != 0)
+            // A generated chunk carries no dye or shape under an edit, so zeros need no write there; an overlay cell does
+            // (a stair, a dyed stone, a coloured light) — a plain block a player put in its place must not inherit them.
+            if (overlaid || edit.Tint != 0 || edit.Glow != 0)
             {
                 chunk.SetModifier(local.X, local.Y, local.Z, edit.Tint, edit.Glow); // dyed block / coloured light
             }
 
-            if (edit.Shape != 0)
+            if (overlaid || edit.Shape != 0)
             {
                 chunk.SetShape(local.X, local.Y, local.Z, edit.Shape); // non-cube building form (sphere/ramp/…)
             }

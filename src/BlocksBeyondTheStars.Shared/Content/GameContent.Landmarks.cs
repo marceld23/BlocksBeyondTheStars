@@ -24,7 +24,40 @@ public sealed partial class GameContent
     /// <summary>Populates the landmark pool (#3484). Beside <see cref="LandmarkRules.Problems"/> a landmark is dropped
     /// (with a warning) when a block of its body does not exist — a landmark never breaks the load.</summary>
     public void SetLandmarks(IReadOnlyList<StructureTemplate>? landmarks, Action<string>? warn = null)
-        => _structures.SetLandmarks(landmarks, warn, UnknownLandmarkBlocks);
+    {
+        _structures.SetLandmarks(landmarks, warn, UnknownLandmarkBlocks);
+        foreach (var planet in _planets.Values)
+        {
+            foreach (string key in planet.FixedLandmarks ?? new List<string>())
+            {
+                if (LandmarkByKey(key) is null)
+                {
+                    warn?.Invoke($"Planet '{planet.Key}' names the fixed landmark '{key}', which is not in the landmark pool — skipped.");
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// The fixed landmarks of a planet type (terrain generation 39, <see cref="PlanetType.FixedLandmarks"/>): each key the
+    /// landmark pool holds, with its position in the list (its placement record index), in list order. A key the pool does
+    /// not hold is skipped (reported at load). Pack, planet types, conditions and <c>pinOnly</c> are not asked: a fixed
+    /// landmark always stands on its type.
+    /// </summary>
+    public IReadOnlyList<(int Index, StructureTemplate Template)> FixedLandmarksFor(PlanetType? planet)
+    {
+        var list = new List<(int, StructureTemplate)>();
+        var keys = planet?.FixedLandmarks ?? new List<string>();
+        for (int i = 0; i < keys.Count; i++)
+        {
+            if (keys[i] is { Length: > 0 } key && LandmarkByKey(key) is { } template)
+            {
+                list.Add((i, template));
+            }
+        }
+
+        return list;
+    }
 
     /// <summary>The block keys a landmark names that the content does not have (material tokens are fine).</summary>
     private IEnumerable<string> UnknownLandmarkBlocks(StructureTemplate t)

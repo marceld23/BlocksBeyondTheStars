@@ -16,7 +16,9 @@
 
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
     <Compile Remove="SqliteWorldRepository.cs" />
+    <Compile Remove="SqliteWorldRepository.*.cs" />
     <Compile Remove="PostgreSqlWorldRepository.cs" />
+    <Compile Remove="PostgreSqlWorldRepository.*.cs" />
     <Compile Remove="WorldRepositoryFactory.cs" />
   </ItemGroup>
 

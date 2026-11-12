@@ -55,7 +55,7 @@ public sealed class LandmarkWorldTests : IDisposable
     }
 
     private SvGameServer Start(GameContent content, string name, out RecordingTransport transport, string planet = "meadowlands",
-        long seed = 20261111, bool cheats = false, double chance = 1.0)
+        long seed = 20261111, bool cheats = false, double chance = 1.0, int generation = WorldDescription.CurrentTerrainGeneration)
     {
         transport = new RecordingTransport();
         var repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
@@ -71,7 +71,7 @@ public sealed class LandmarkWorldTests : IDisposable
             LandmarkChance = chance,
             Rules = cheats ? new GameRules { AdminCheats = true, AllowCheatsInSurvival = true } : new GameRules(),
         };
-        config.World.TerrainGeneration = WorldDescription.CurrentTerrainGeneration;
+        config.World.TerrainGeneration = generation;
         var server = new SvGameServer(config, content, transport, repo);
         server.Start();
         return server;
@@ -298,6 +298,8 @@ public sealed class LandmarkWorldTests : IDisposable
         Assert.Equal("block", elsewhere.Kind);
     }
 
+    /// <summary>#3499 as it stands on the worlds before terrain generation 39 (from 39 the template's <c>protection</c> decides,
+    /// StructureProtectionTests).</summary>
     [Fact]
     public void AnInhabitedLandmark_IsProtected_AndItsKeeperSellsItsOwnTrade_ARuinIsNeither()
     {
@@ -306,7 +308,8 @@ public sealed class LandmarkWorldTests : IDisposable
         shop.Cells.RemoveAll(c => c.Kind == "marker");
         shop.Cells.Add(LandmarkShapes.Marker(8, 1, 8, "vendor", "theme=grocer;inside=1;name=npc.role.grocer"));
         shop.Cells.Add(LandmarkShapes.Marker(4, 1, 8, "npc"));
-        var server = Start(ContentWith(shop), "lm_shop", out _);
+        const int Generation = WorldDescription.StructurePipelineGeneration;
+        var server = Start(ContentWith(shop), "lm_shop", out _, generation: Generation);
         var lm = Assert.Single(server.LandmarksForTest);
         Assert.True(lm.Protected);
         Walker(server);
@@ -328,7 +331,7 @@ public sealed class LandmarkWorldTests : IDisposable
         // The ruin of the very same building: free to mine, nobody home.
         var ruin = LandmarkShapes.Tower("test_shop", ruin: true);
         ruin.Protected = true;
-        var other = Start(ContentWith(ruin), "lm_shop_ruin", out _);
+        var other = Start(ContentWith(ruin), "lm_shop_ruin", out _, generation: Generation);
         var fallen = Assert.Single(other.LandmarksForTest);
         Assert.False(fallen.Protected);
         Assert.False(other.IsLandmarkBlockForTest(At(other, fallen, new Vector3i(0, 1, 5))));

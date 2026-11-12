@@ -93,6 +93,19 @@ public sealed class StoredWorldTexture
     public long CreatedUnix { get; set; }
 }
 
+/// <summary>A structure overlay (terrain generation 39): the final cells of one placed structure — a landmark — as one
+/// compressed blob (<c>Shared.World.StructureOverlay</c>), instead of a block edit per cell. Keyed by the body and the
+/// structure's own key (a landmark's stamped-feature key, <c>landmark:&lt;index&gt;</c>); written once, when the structure is
+/// stamped, and applied under the players' block edits whenever one of its chunks loads.</summary>
+public sealed class StoredStructureOverlay
+{
+    public string Planet { get; set; } = string.Empty;
+    public string Key { get; set; } = string.Empty;
+
+    /// <summary>The blob <c>StructureOverlay.Encode</c> wrote.</summary>
+    public byte[] Data { get; set; } = Array.Empty<byte>();
+}
+
 /// <summary>A player report against a painted block or a player-designed form (moderation v1): who reported
 /// what where, kept for operator review. Deliberately append-only; wiping the design does not delete its
 /// reports. <see cref="Kind"/> tells the two apart ("paint" — the original rows — or "shape").</summary>
@@ -447,8 +460,8 @@ public interface IWorldRepository : IDisposable
 
     /// <summary>Records the current block-id palette (numeric id → block key) and, if a stored palette from an
     /// earlier content set is present and differs, remaps every persisted numeric block id (block edits,
-    /// structure edits, flora regrowth, weather deposits, stored space structures and the hulls of self-built
-    /// ships) to the current assignment BEFORE any world loads. Call once at startup after
+    /// structure edits, flora regrowth, weather deposits, stored space structures, the hulls of self-built
+    /// ships and the cells of the structure overlays) to the current assignment BEFORE any world loads. Call once at startup after
     /// <see cref="Initialize"/>. This is what stops a content update that
     /// inserts a block — which shifts the sort-order-assigned ids — from silently decoding every existing
     /// save's edits to the wrong blocks. A block key no longer in content maps to air (0).</summary>
@@ -769,12 +782,23 @@ public interface IWorldRepository : IDisposable
         IReadOnlyCollection<ushort> blocks, IReadOnlyCollection<int> shapeIndices, int limit);
 
     /// <summary>True if the location holds ANY persisted block edit, by any writer — worldgen stamps
-    /// included. This is the ground truth for "was this world ever materialised before?" (#586): a world
+    /// included, and a structure overlay counts as one (it IS a worldgen stamp, only stored as one blob).
+    /// This is the ground truth for "was this world ever materialised before?" (#586): a world
     /// with zero edits has never had its stamp chain run, so the placement search may use the current
     /// algorithm freely; a world with edits must re-derive legacy positions so structures stay attached
     /// to their stamped blocks. Metadata markers can't answer this — saves from before the stamp registry
     /// carry none.</summary>
     bool HasAnyBlockEdits(string planet);
+
+    /// <summary>Stores (inserts or replaces) a structure overlay, keyed by its body and key (terrain generation 39).</summary>
+    void SaveStructureOverlay(StoredStructureOverlay overlay);
+
+    /// <summary>Every structure overlay of a body — all of them are applied whenever one of their chunks loads, so the
+    /// server reads them once when the world becomes resident.</summary>
+    IReadOnlyList<StoredStructureOverlay> ListStructureOverlays(string planet);
+
+    /// <summary>Removes a structure overlay (the cells it held fall back to the generated terrain under the edits).</summary>
+    void DeleteStructureOverlay(string planet, string key);
 
     /// <summary>Records the generation/discovery status of a location (system or body).</summary>
     void SetLocationStatus(string locationId, string status);

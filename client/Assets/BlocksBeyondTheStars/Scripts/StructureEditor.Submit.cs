@@ -31,6 +31,7 @@ namespace BlocksBeyondTheStars.Client
             public string function = string.Empty;   // #1877: the module's function within its kit
             public string style = string.Empty;      // #1890: "" = human, "alien" = the alien variant
             public bool underground;                 // #3333: a whole settlement template only the underground stamper seats
+            public string protection = string.Empty; // generation 39: "" = auto (the rule of its kind), protected, open; a module none
         }
 
         // Data-shaped StructureTemplate (matches the server's StructureTemplate JSON) written straight to
@@ -45,6 +46,7 @@ namespace BlocksBeyondTheStars.Client
             public string function = string.Empty;
             public string style = string.Empty;
             public bool underground;
+            public string protection = string.Empty;
             public int width, height, length;
             public List<CellJson> cells = new();
         }
@@ -69,7 +71,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The structure as its export files: every authored cell with its device settings (#2260), the
-        /// bounding size, and the template facts (kind, tier, pack, role, kit, function, style, underground).</summary>
+        /// bounding size, and the template facts (kind, tier, pack, role, kit, function, style, underground, protection).</summary>
         private (MetaJson Meta, LayoutJson Layout) BuildExport(string key)
         {
             int maxX = 0, maxY = 0, maxZ = 0;
@@ -122,6 +124,7 @@ namespace BlocksBeyondTheStars.Client
                 function = _moduleMode ? _function ?? string.Empty : string.Empty,
                 style = _moduleMode && EditorMode == Mode.Settlement ? _style ?? string.Empty : string.Empty,
                 underground = !_moduleMode && EditorMode == Mode.Settlement && _underground,
+                protection = ProtectionWord(), // generation 39: merge_structure.py strips auto
             };
         }
 

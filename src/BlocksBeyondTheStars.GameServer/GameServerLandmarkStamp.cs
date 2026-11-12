@@ -21,6 +21,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// would run in — air, a liquid, loose ground — the cell beside it is sealed with stone, the buried ruin's rule (#3334).</item>
 /// <item><b>The chests</b> (#3488): a crate block in every chest marker's cell that exists by its chance.</item>
 /// </list>
+/// The cells go through an <see cref="IStructureCellSink"/> in this order: straight into the world, a <c>SetBlock</c> per
+/// cell (every landmark of a world older than terrain generation 39 — byte-identical to the writer before the sink), or —
+/// for a record pinned <c>storage=overlay</c> — into the landmark's structure overlay (GameServerLandmarkOverlay.cs).
 /// </summary>
 public sealed partial class GameServer
 {
@@ -38,25 +41,41 @@ public sealed partial class GameServer
     /// <summary>Writes the whole landmark (inside the caller's transaction). Returns the cells written.</summary>
     private int WriteLandmark(LandmarkInstance lm, string seat)
     {
-        int cells = WriteLandmarkAboveGround(lm, seat == "stilts");
-        if (lm.Layout.GroundRow > 0)
+        if (LandmarkOverlayKey(lm) is { } key)
         {
-            cells += WriteLandmarkUnderground(lm);
+            return StampLandmarkOverlay(lm, seat, key); // generation 39: one blob, no block edit per cell
         }
 
-        return cells + WriteLandmarkChests(lm);
+        return WriteLandmarkCells(new WorldCellSink(_world, canonical: true), lm, seat);
     }
 
-    private void SetLandmarkCell(LandmarkInstance lm, int x, int y, int z)
+    /// <summary>Every cell of the landmark, in the stamp's order: the rows from the ground row up, the rows under it, the
+    /// chests. Returns the cells written.</summary>
+    private int WriteLandmarkCells(IStructureCellSink sink, LandmarkInstance lm, string seat)
+    {
+        bool span = seat == LandmarkRules.SeatSpan; // generation 39: a bridge (GameServerLandmarkSeats.cs)
+        int cells = WriteLandmarkAboveGround(sink, lm, seat == "stilts", span);
+        if (lm.Layout.GroundRow > 0)
+        {
+            cells += WriteLandmarkUnderground(sink, lm);
+            cells += span ? WriteLandmarkSpanPiles(sink, lm) : 0;
+        }
+
+        return cells + WriteLandmarkChests(sink, lm);
+    }
+
+    private static void SetLandmarkCell(IStructureCellSink sink, LandmarkInstance lm, int x, int y, int z)
     {
         var s = lm.Structure;
         var (tint, glow) = s.GetModifier(x, y, z);
-        _world.SetBlock(lm.Cell(new Vector3i(x, y, z)), new BlockId(s.Get(x, y, z)), tint, glow, s.GetShape(x, y, z));
+        var cell = lm.Cell(new Vector3i(x, y, z));
+        sink.Set(cell.X, cell.Y, cell.Z, new BlockId(s.Get(x, y, z)), tint, glow, s.GetShape(x, y, z));
     }
 
     /// <summary>The rows from the ground row up: per column, everything from the ground row to the column's top (its
-    /// highest block or cavity), air included, then the plinth under its foot.</summary>
-    private int WriteLandmarkAboveGround(LandmarkInstance lm, bool onWater)
+    /// highest block or cavity), air included, then the plinth under its foot — on a <paramref name="span"/> only where its
+    /// foot rests on a bank, never down into the gap it spans.</summary>
+    private int WriteLandmarkAboveGround(IStructureCellSink sink, LandmarkInstance lm, bool onWater, bool span = false)
     {
         var s = lm.Structure;
         var layout = lm.Layout;
@@ -81,13 +100,13 @@ public sealed partial class GameServer
 
                 for (int y = g; y <= top; y++)
                 {
-                    SetLandmarkCell(lm, x, y, z);
+                    SetLandmarkCell(sink, lm, x, y, z);
                 }
 
                 n += top - g + 1;
-                if (s.Get(x, g, z) != 0 && (!onWater || ((x & 3) == 0 && (z & 3) == 0)))
+                if (s.Get(x, g, z) != 0 && (!onWater || ((x & 3) == 0 && (z & 3) == 0)) && !(span && SpanGapUnder(lm, x, z)))
                 {
-                    n += WriteLandmarkPlinth(lm, x, z, onWater ? LandmarkPileDepth : LandmarkPlinthDepth);
+                    n += WriteLandmarkPlinth(sink, lm, x, z, onWater ? LandmarkPileDepth : LandmarkPlinthDepth);
                 }
             }
         }
@@ -96,7 +115,7 @@ public sealed partial class GameServer
     }
 
     /// <summary>The foot block of a column carried down to the natural ground, so nothing hangs in the air on a slope.</summary>
-    private int WriteLandmarkPlinth(LandmarkInstance lm, int x, int z, int depth)
+    private int WriteLandmarkPlinth(IStructureCellSink sink, LandmarkInstance lm, int x, int z, int depth)
     {
         var foot = new BlockId(lm.Structure.Get(x, lm.Layout.GroundRow, z));
         int wx = lm.Origin.X + x, wz = lm.Origin.Z + z;
@@ -104,7 +123,7 @@ public sealed partial class GameServer
         int n = 0;
         for (int y = lm.GroundY - 1; y >= floorY; y--)
         {
-            _world.SetBlock(new Vector3i(wx, y, wz), foot);
+            sink.Put(wx, y, wz, foot);
             n++;
         }
 
@@ -113,7 +132,7 @@ public sealed partial class GameServer
 
     /// <summary>The rows under the ground row: the template's blocks, its cavities carved to air, and a stone seal beside
     /// every cavity cell that touches something which is neither part of the landmark nor solid rock.</summary>
-    private int WriteLandmarkUnderground(LandmarkInstance lm)
+    private int WriteLandmarkUnderground(IStructureCellSink sink, LandmarkInstance lm)
     {
         var s = lm.Structure;
         var layout = lm.Layout;
@@ -131,11 +150,11 @@ public sealed partial class GameServer
                         continue; // the planet's own rock
                     }
 
-                    SetLandmarkCell(lm, x, y, z);
+                    SetLandmarkCell(sink, lm, x, y, z);
                     n++;
                     if (cavity)
                     {
-                        n += SealLandmarkCavity(lm, x, y, z, shell);
+                        n += SealLandmarkCavity(sink, lm, x, y, z, shell);
                     }
                 }
             }
@@ -144,7 +163,7 @@ public sealed partial class GameServer
         return n;
     }
 
-    private int SealLandmarkCavity(LandmarkInstance lm, int x, int y, int z, BlockId shell)
+    private int SealLandmarkCavity(IStructureCellSink sink, LandmarkInstance lm, int x, int y, int z, BlockId shell)
     {
         var s = lm.Structure;
         int n = 0;
@@ -156,10 +175,23 @@ public sealed partial class GameServer
                 continue; // the landmark's own cell
             }
 
-            n += SealAncientRuinCell(lm.Cell(new Vector3i(nx, ny, nz)), shell);
+            n += SealLandmarkCell(sink, lm.Cell(new Vector3i(nx, ny, nz)), shell);
         }
 
         return n;
+    }
+
+    /// <summary>The buried ruin's seal (<see cref="SealAncientRuinCell"/>) through a sink: <paramref name="shell"/> into a cell
+    /// that would let something in — air, a liquid, loose (granular) ground or anything not solid. Returns 1 when it wrote.</summary>
+    private int SealLandmarkCell(IStructureCellSink sink, Vector3i cell, BlockId shell)
+    {
+        if (_content.BlockById(sink.Get(cell.X, cell.Y, cell.Z)) is { Solid: true, Liquid: false, Granular: false })
+        {
+            return 0;
+        }
+
+        sink.Put(cell.X, cell.Y, cell.Z, shell);
+        return 1;
     }
 
     // ---------------------------------------------------------------- chests
@@ -179,7 +211,7 @@ public sealed partial class GameServer
 
     /// <summary>A crate block in every existing chest's cell (settings <c>block</c>, default the wooden crate), and — with
     /// <c>hidden=1</c> — a stone on top of it when the cell above is free.</summary>
-    private int WriteLandmarkChests(LandmarkInstance lm)
+    private int WriteLandmarkChests(IStructureCellSink sink, LandmarkInstance lm)
     {
         int n = 0;
         foreach (var m in lm.Structure.Markers)
@@ -196,7 +228,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            n += WriteMarkerChestBlock(cell, settings);
+            n += WriteMarkerChestBlock(sink, cell, settings);
         }
 
         return n;
@@ -206,6 +238,10 @@ public sealed partial class GameServer
     /// on top of it when the cell above is free (#3488; shared with the settlements and stations since #3519). Returns the
     /// cells written.</summary>
     private int WriteMarkerChestBlock(Vector3i cell, MarkerSettings settings)
+        => WriteMarkerChestBlock(new WorldCellSink(_world, canonical: true), cell, settings);
+
+    /// <summary><see cref="WriteMarkerChestBlock(Vector3i, MarkerSettings)"/> through a sink.</summary>
+    private int WriteMarkerChestBlock(IStructureCellSink sink, Vector3i cell, MarkerSettings settings)
     {
         string key = settings.Get("block", LandmarkChestBlock);
         var block = _content.GetBlock(ContainerSystem.IsContainerBlock(key) ? key : LandmarkChestBlock) ?? _content.GetBlock("crate");
@@ -214,11 +250,11 @@ public sealed partial class GameServer
             return 0;
         }
 
-        _world.SetBlock(cell, block.NumericId);
+        sink.Put(cell.X, cell.Y, cell.Z, block.NumericId);
         var above = new Vector3i(cell.X, cell.Y + 1, cell.Z);
-        if (settings.GetBool("hidden") && _world.GetBlock(above).IsAir)
+        if (settings.GetBool("hidden") && sink.Get(above.X, above.Y, above.Z).IsAir)
         {
-            _world.SetBlock(above, AncientRuinBlock("stone"));
+            sink.Put(above.X, above.Y, above.Z, AncientRuinBlock("stone"));
             return 2;
         }
 

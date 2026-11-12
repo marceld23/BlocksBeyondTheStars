@@ -34,7 +34,8 @@ public sealed partial class EditorTextFitTests
             "ui.marker.loot", "ui.marker.lounge", "ui.marker.mission_board", "ui.marker.npc", "ui.marker.quarters", "ui.marker.reporter",
             "ui.marker.room", "ui.marker.sage", "ui.marker.spawn", "ui.marker.streamer", "ui.marker.tamer", "ui.marker.tavern",
             "ui.marker.vendor", "ui.marker.workshop", "ui.marker.device",
-            "ui.marker.sound", "ui.marker.den", "ui.marker.keep", "ui.marker.cavity", "ui.marker.settings"), // #3492/#3493: the landmark tools
+            "ui.marker.sound", "ui.marker.den", "ui.marker.keep", "ui.marker.cavity", "ui.marker.settings", // #3492/#3493: the landmark tools
+            "ui.marker.zone"), // generation 39: the ruin zone tool
         Lines("Palette rows: an airlock block (a 52 px row when it needs three lines)", 230f, 52f, 15, 13, 13, "ui.ed.airlock_block")
             with { Sample = "Hull Airlock", MaxLines = 3 },
         Label("StructureEditor title", 348f, 18, "ui.struct.title_station", "ui.struct.title_settlement"),
@@ -42,15 +43,27 @@ public sealed partial class EditorTextFitTests
             "ui.struct.planet_types", "ui.ed.landmark.name_key"),
         Lines("StructureEditor row labels (140×36)", 140f, 36f, 16, 13, 13, "ui.struct.tier", "ui.struct.role", "ui.struct.function",
             "ui.struct.port_door", "ui.struct.style", "ui.struct.weight", "ui.ed.landmark.profile", "ui.ed.landmark.strength",
-            "ui.ed.landmark.ground_row"),
+            "ui.ed.landmark.ground_row", "ui.ed.landmark.seat", "ui.ed.protection"),
         Lines("StructureEditor values (150×36)", 150f, 36f, 16, 13, 13, TierValueKeys.Concat(new[]
         {
             "ui.use.whole", "ui.use.module", "ui.use.landmark", "ui.function.*", "ui.role_short.*", "ui.door_opt.*", "ui.style.human",
-            "ui.style.alien", "ui.ed.landmark.profile.*",
+            "ui.style.alien", "ui.ed.landmark.profile.*", "ui.ed.landmark.seat.*", "ui.ed.protection.*", "ui.ed.zone.profile_own",
         }).ToArray()),
-        // #3492 the landmark form (StructureEditor.Landmark.cs): four toggles, the number rows' "Auto", the preview button.
-        Button("StructureEditor landmark toggles", 348f, 34f, "ui.ed.landmark.ruin", "ui.ed.landmark.atmosphere", "ui.ed.landmark.inhabited",
-            "ui.ed.landmark.protected") with { Prefix = "☐ " },
+        // #3492 the landmark form (StructureEditor.Landmark.cs): three toggles, the number rows' "Auto", the preview button.
+        Button("StructureEditor landmark toggles", 348f, 34f, "ui.ed.landmark.ruin", "ui.ed.landmark.atmosphere", "ui.ed.landmark.inhabited")
+            with { Prefix = "☐ " },
+        // Generation 39 (StructureEditor.Stamping.cs): the line under the Protection picker of every whole template and entry.
+        Wrap("StructureEditor protection line (measured, 348)", 348f, 3, 13, "ui.stamp.protection.*"),
+        // Generation 39 (StructureEditor.Zones.cs): a landmark's ruin zones.
+        FitLine("StructureEditor ruin zones title", 348f, 13, 16, "ui.ed.zone.title"),
+        Button("StructureEditor add a ruin zone", 348f, 34f, "ui.ed.zone.add"),
+        Wrap("StructureEditor ruin zone hint (measured)", 348f, 8, 13, "ui.ed.zone.hint"),
+        FitLine("StructureEditor ruin zone name (200)", 200f, 13, 16, "ui.ed.zone.name"),
+        Button("StructureEditor ruin zone remove", 120f, 30f, "ui.ed.zone.remove"),
+        FitLine("StructureEditor ruin zone corner labels (60)", 60f, 13, 15, "ui.ed.zone.from", "ui.ed.zone.to"),
+        Button("StructureEditor ruin zone: two clicks set it", 348f, 34f, "ui.ed.zone.select") with { Prefix = "○ " },
+        Wrap("StructureEditor status: ruin zones", 348f, 5, 13, "ui.ed.zone.corner", "ui.ed.zone.set", "ui.ed.zone.full",
+            "ui.ed.zone.not_ruin", "ui.ed.zone.outside") with { Sample = "255, 255, 255" },
         Label("StructureEditor landmark number value (90)", 90f, 16, "ui.ed.landmark.strength_auto"),
         Button("StructureEditor ruin preview on / off", 348f, 34f, "ui.ed.landmark.preview_on", "ui.ed.landmark.preview_off"),
         Wrap("StructureEditor size hint (2 lines)", 348f, 2, 13, "ui.struct.size_station", "ui.struct.size_settlement", "ui.struct.size_module"),

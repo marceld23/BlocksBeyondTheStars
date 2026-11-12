@@ -13,8 +13,10 @@ namespace BlocksBeyondTheStars.Client
     /// the underground toggle, a city role, an entry's pool) decides
     /// <list type="bullet">
     /// <item>the <b>Stamping…</b> panel: the stamp-time steps that apply — seat and foundation, material tokens, furniture,
-    /// rotation, the ruin pass, chests, sounds and dens, residents, keep-clear — with this design's values
+    /// rotation, the ruin pass, chests, sounds and dens, residents, protection, keep-clear — with this design's values
     /// (<see cref="StampStepsDescriber"/>, Unity-free);</item>
+    /// <item>the <b>protection</b> picker (terrain generation 39) of every whole template and generator entry: auto (the rule of
+    /// its kind, said in a line under it), protected or open — written as <c>protection</c> by Save, Submit and the user file;</item>
     /// <item>the <b>palette</b>: a tool or marker the target ignores is hidden (<see cref="StructureStampRules.ShowsInPalette"/>);
     /// the design keeps what it has, loading never drops a cell;</item>
     /// <item><b>Save</b>: a warning in the status line for what the target will not read, and a refusal for material tokens a
@@ -63,10 +65,48 @@ namespace BlocksBeyondTheStars.Client
             d.RuinProfile = _landmarkMode ? _lmProfile : string.Empty;
             d.RuinStrength = _landmarkMode ? _lmStrength : 0.0;
             d.GroundRow = _groundRow;
-            d.Protected = _lmProtected;
+            d.Protection = _protection;
+            d.Seat = _landmarkMode ? _lmSeat : _entryMode ? _entryExtras?.seat ?? string.Empty : string.Empty;
+            if (_landmarkMode)
+            {
+                d.RuinZones.AddRange(_zones);
+            }
+
             d.Source = CurrentSource().Key;
             d.Weight = _weight;
             return d;
+        }
+
+        // ---------------------------------------------------------------- protection (terrain generation 39)
+
+        /// <summary>The design's protection: <see cref="LandmarkRules.ProtectionAuto"/> (the rule of its kind),
+        /// <see cref="LandmarkRules.ProtectionProtected"/> or <see cref="LandmarkRules.ProtectionOpen"/> — offered for every whole
+        /// template and generator entry (<see cref="StructureStampRules.TakesProtection"/>); a kit module follows its structure.</summary>
+        private string _protection = LandmarkRules.ProtectionAuto;
+
+        /// <summary>The protection row (auto → protected → open) and the line saying what it means for this target.</summary>
+        private float BuildProtectionRows(Transform p, float y)
+        {
+            RowLabel(p, y, L("ui.ed.protection"));
+            ValueLabel(p, y, L("ui.ed.protection." + LandmarkRules.ProtectionOf(_protection)));
+            UiKit.AddFitButton(p, ArrowX, y + 3f, ArrowW, RowH, "→", () =>
+            {
+                var modes = LandmarkRules.ProtectionModes;
+                _protection = modes[(Array.IndexOf(modes, LandmarkRules.ProtectionOf(_protection)) + 1) % modes.Length];
+                RebuildUi();
+            });
+            y += ValueRowStep;
+            UiKit.AddMeasuredText(p, 16f, y, 348f, L(StructureStampRules.ProtectionKey(StampFormFields(new StampDesign()))), 13, UiKit.CyanDim,
+                out float h);
+            return y + h + 8f;
+        }
+
+        /// <summary>The protection word a save writes: empty for auto (the template behaves as its kind always did), else
+        /// <c>protected</c> / <c>open</c> — and empty for a kit module, which has none of its own.</summary>
+        private string ProtectionWord()
+        {
+            string word = LandmarkRules.ProtectionOf(_protection);
+            return word == LandmarkRules.ProtectionAuto || !StructureStampRules.TakesProtection(CurrentTarget()) ? string.Empty : word;
         }
 
         /// <summary>The design (never a preview) as the describer and the save checks read it.</summary>

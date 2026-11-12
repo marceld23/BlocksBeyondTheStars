@@ -52,9 +52,11 @@ public sealed class WorldMetadata
     /// <c>gds_diving_helmet</c>, <c>gds_guardian_head</c>). 13 = the Sounders' Song (#3352, #3358: <c>song_spindle</c>, <c>chime_moss</c>,
     /// <c>carved_obsidian</c>, <c>resonance_crystal</c> and the singing plants <c>chime_reed</c>, <c>bell_bloom</c>,
     /// <c>bell_bloom_open</c>, <c>harp_vine</c>, <c>echo_flower</c>). 14 = the landmarks' decoration blocks (#3498: <c>mine_track</c>,
-    /// <c>mine_cart</c>, <c>dripstone</c>, <c>burger_bun</c>, <c>burger_patty</c>, <c>burger_cheese</c>).</para>
+    /// <c>mine_cart</c>, <c>dripstone</c>, <c>burger_bun</c>, <c>burger_patty</c>, <c>burger_cheese</c>). 15 = the school club
+    /// landmarks' building materials (#3483: <c>travertine</c>, <c>blackened_sandstone</c>, <c>verdigris_copper</c>,
+    /// <c>burger_lettuce</c>, <c>burger_tomato</c>, <c>burger_bun_sesame</c>).</para>
     /// </summary>
-    public const int CurrentSaveVersion = 14;
+    public const int CurrentSaveVersion = 15;
 
     /// <summary>The save version of the build that last opened this world — see <see cref="CurrentSaveVersion"/>.
     /// Absent in the JSON ⇒ 1, the version every save carried before the check existed.</summary>
