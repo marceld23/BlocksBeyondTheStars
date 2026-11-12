@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### ♜ The school club's giant buildings — eleven landmarks, overlay storage, ruin zones, protection — #3529–#3549, ✅ 2026-11-12, PR pending (⚠ playtest open)
+### ♜ The school club's giant buildings — eleven landmarks, overlay storage, ruin zones, protection — #3529–#3549, ✅ 2026-11-12, PR #3550 (⚠ playtest open)
 
 The eleven giant buildings from the school club's list, built on the landmark framework (#3483) — new worlds only
 (terrain generation **39**, save version **15**); gen ≤ 38 stays byte-identical. How it works:
