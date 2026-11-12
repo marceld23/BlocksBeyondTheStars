@@ -826,7 +826,11 @@ public sealed partial class GameServer
     {
         var at = new Vector3f(tank.Cell.X + 0.5f, tank.Cell.Y + 1f, tank.Cell.Z + 0.5f);
         string id = NextEntityId();
-        var spot = CompanionSpotNear(sp, id, at);
+        // #3552: a water clone goes into the water by the tank that its habitat check found — set on the dry ring round the
+        // tank it could never step back in (a swimmer never steps onto dry land) and, as a clone, is never swept away.
+        var spot = sp.Habitat == CreatureHabitat.Water && TryFindWaterSpotNear(sp, at, out var water)
+            ? water
+            : CompanionSpotNear(sp, id, at);
         SpawnCreature(sp, spot);
         var clone = _creatures[^1];
         clone.CloneOf = CloneTankKey(tank.Cell);

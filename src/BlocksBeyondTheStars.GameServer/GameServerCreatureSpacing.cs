@@ -55,7 +55,7 @@ public sealed partial class GameServer
 
     /// <summary>Whether a wild animal is asleep right now — the same rule the movement loop and the wire use.</summary>
     private bool CreatureAsleep(CombatEntity c, CreatureSpecies sp)
-        => !c.IsCompanion && !SpeciesActive(sp, c.Position) && c.AwakeOverrideTimer <= 0;
+        => !c.IsCompanion && !SpeciesActive(sp, c.Position) && c.AwakeOverrideTimer <= 0 && !StrandedOutOfWater(c, sp); // #3552
 
     /// <summary>Whether the spacing applies to a body of this class at all: ground-bound animals and land hoverers (a gas-sac
     /// grazer floats a hand above its feet). Fliers, air hoverers and swimmers pass over and under each other.</summary>

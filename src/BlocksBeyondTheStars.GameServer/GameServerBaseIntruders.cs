@@ -21,8 +21,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <item>Never an animal a player is busy with: provoked, hunting, begging or called by a caller block, held in stasis,
 /// or the target of anyone's taming session (a wild animal lured home to be tamed).</item>
 /// <item>Only land animals are swept. Amphibians answer to the floor rule alone, and only while they stand on a solid
-/// block; water, lava and cave life is never swept (a fish in a deep moat reads as walled in). Air life only over the
-/// closed yards of a base that uses energy fences (#3148), whose fence holds fliers too.</item>
+/// block; lava and cave life is never swept, nor is water life in its water (a fish in a deep moat reads as walled in).
+/// Air life only over the closed yards of a base that uses energy fences (#3148), whose fence holds fliers too.
+/// #3552: water life OUT of its water leaves wherever it lies, base or no base (<see cref="StrandedOutOfWater"/>).</item>
 /// <item>"Looking" is generous on purpose: within the player's streaming radius, inside a wide cone around the look
 /// direction (pitch ignored) and with a clear sightline — glass, shaped blocks, plants and fluids do not hide it.
 /// An animal within a few blocks always counts as seen.</item>
@@ -122,13 +123,20 @@ public sealed partial class GameServer
         }
 
         // Land animals answer to all three rules. An amphibian only to the floor rule, and only while it stands on a
-        // solid block (OnPlayerBuiltFloor never counts water) — and so does water life (#3476): a fish of a lake the
-        // player drained and built over rests on the floor, out of any water, for good. In water it is never swept, nor
-        // is lava and cave life: a fish in a deep moat reads as "walled in" (the fill treats deep fluid as a wall), and a
-        // moat is exactly where it belongs.
-        if (sp.Habitat is CreatureHabitat.Amphibian or CreatureHabitat.Water)
+        // solid block (OnPlayerBuiltFloor never counts water). Lava and cave life is never swept, nor is water life in its
+        // water: a fish in a deep moat reads as "walled in" (the fill treats deep fluid as a wall), and a moat is exactly
+        // where it belongs.
+        if (sp.Habitat == CreatureHabitat.Amphibian)
         {
             return OnPlayerBuiltFloor(c.Position);
+        }
+
+        // #3552: water life OUT of its water leaves wherever it lies — on a floor a player built (#3476: a fish of a lake
+        // he drained and built over) as on natural ground. Only a player floor sent it away before; on a beach or a bank
+        // it stayed for good, and it roamed and slept there.
+        if (sp.Habitat == CreatureHabitat.Water)
+        {
+            return StrandedOutOfWater(c, sp);
         }
 
         // #3148: a flier over the closed yard of a base that uses energy fences — penned in when the ring closed, or one that
@@ -150,6 +158,35 @@ public sealed partial class GameServer
     /// <summary>The habitats the floor rule speaks for (spawn and sweep): land walkers, and amphibians — those only
     /// while ashore, because <see cref="OnPlayerBuiltFloor"/> never counts a body standing in fluid.</summary>
     private static bool FloorRuleApplies(CreatureSpecies sp) => sp.Habitat is CreatureHabitat.Land or CreatureHabitat.Amphibian;
+
+    /// <summary>#3552: a wild water animal whose feet are not in water — set ashore by a rescue, left behind by a lake the
+    /// player drained, or on a pond that ran dry. Such a fish does not sleep (<see cref="CreatureAsleep"/>, the tick and the
+    /// wire ask this), steps only back into water (<see cref="CreatureBehaviour.TerrainStepBlocked"/>) and leaves while
+    /// nobody looks (the sweep). Pets are never stranded. A column that is not streamed in has no real blocks to read, so
+    /// it is not judged. Water or a plant standing in water both count as water (no-load reads).</summary>
+    private bool StrandedOutOfWater(CombatEntity c, CreatureSpecies sp)
+    {
+        if (sp.Habitat != CreatureHabitat.Water || c.IsCompanion || _creatureWaterId == 0)
+        {
+            return false;
+        }
+
+        var cell = c.Position.ToBlock();
+        if (!_world.IsChunkLoaded(WorldConstants.WorldToChunk(cell)))
+        {
+            return false;
+        }
+
+        // A plant at the feet is water when water stands above its stalk — which may reach into the chunk above; if that
+        // one is not streamed in, the water reads as air, so the fish is not judged.
+        ushort at = _world.GetBlockIfLoaded(cell).Value;
+        if (IsFlora(at) && !_world.IsChunkLoaded(WorldConstants.WorldToChunk(new Vector3i(cell.X, cell.Y + SubmergedPlantScan, cell.Z))))
+        {
+            return false;
+        }
+
+        return !IsWaterOrSubmergedPlant(cell.X, cell.Y, cell.Z);
+    }
 
     /// <summary>True while any player's taming session (the translator attempt that drives <c>TameProgress</c>) is on
     /// this creature. At most one attempt per player, so a plain scan is cheap.</summary>

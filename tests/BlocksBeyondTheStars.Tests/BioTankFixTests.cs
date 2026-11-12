@@ -416,6 +416,52 @@ public sealed class BioTankFixTests : IDisposable
         Assert.Equal(1, Samples(p, seed));
     }
 
+    /// <summary>#3552: a grown swimmer is released into the pond by the tank, not onto the dry ring round it — a swimmer
+    /// never steps onto dry land any more, and a clone is never swept, so one set down dry would lie there for good. The
+    /// pond sits five blocks off, past the three-block ring the release used to pick from.</summary>
+    [Fact]
+    public void AGrownSwimmer_IsReleasedIntoThePondBesideTheTank()
+    {
+        var server = NewServer();
+        var p = TankOwner(server);
+        var swimmer = new CreatureSpecies
+        {
+            Id = "swimmer",
+            Name = "Test Swimmer",
+            Habitat = CreatureHabitat.Water,
+            Temperament = CreatureTemperament.Passive,
+            Legs = 0,
+            VoiceSeed = 4711,
+            DropItem = "creature_meat",
+        };
+        uint seed = server.RegisterForeignCreatureForTest(swimmer, "elsewhere");
+        Assert.True(server.GiveSampleForTest(p, seed, 1));
+        Configure(server, p, Tank, "sp=" + Choice(seed));
+
+        // A stone basin, its 3×3 pond two cells deep, centred five blocks east of the tank.
+        for (int dx = 3; dx <= 7; dx++)
+        {
+            for (int dz = -2; dz <= 2; dz++)
+            {
+                bool rim = dx is 3 or 7 || Math.Abs(dz) == 2;
+                server.World.SetBlock(new Vector3i(Tank.X + dx, Tank.Y - 2, Tank.Z + dz), Block("stone"));
+                for (int y = Tank.Y - 1; y <= Tank.Y; y++)
+                {
+                    server.World.SetBlock(new Vector3i(Tank.X + dx, y, Tank.Z + dz), rim ? Block("stone") : Block("water"));
+                }
+            }
+        }
+
+        Start(server, p, Tank);
+        Assert.True(server.CrystalDeviceOutput(Tank));
+        Ticks(server, CrystalNetRules.CloneGrowSeconds + 2.0);
+
+        var clone = Assert.Single(Clones(server));
+        var cell = new Vector3i((int)MathF.Floor(clone.Position.X), (int)MathF.Floor(clone.Position.Y), (int)MathF.Floor(clone.Position.Z));
+        Assert.True(server.World.GetBlock(cell).Value == Block("water").Value,
+            $"the swimmer was released at {clone.Position} — not into the pond beside the tank");
+    }
+
     // ---------------- 4. A tank over the cap ----------------
 
     [Fact]

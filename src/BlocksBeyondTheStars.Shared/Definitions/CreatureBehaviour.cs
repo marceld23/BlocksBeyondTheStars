@@ -133,13 +133,15 @@ public static class CreatureBehaviour
     /// (one block — a jump for walkers, a slow climb-over for crawlers and giants; two is a wall, as for the
     /// player) and drop by at most <see cref="CreatureMotion.StepDownLimit"/> (a real fall: walkers 3, crawlers
     /// 2, giants 1). The target column's water must be wadeable (≤ 1 deep) unless the animal is amphibious.</item>
-    /// <item><b>Swimmers</b>: a creature that is in water never steps into a dry column (an already-stranded
-    /// individual keeps its legacy freedom so it can still wander at all); amphibians may leave.</item>
+    /// <item><b>Swimmers</b>: never step into a dry column — in water they keep to their water body, and a stranded one
+    /// (#3552: its old "legacy freedom" let a fish glide along a player's walkway) can only step back into water. The
+    /// server sends a stranded fish away while nobody looks. Amphibians may leave.</item>
     /// <item><b>Fliers and hoverers</b> are unaffected — except a LAND hoverer (a gas-sac grazer), which the server
     /// gates as a walker (#1862, <see cref="CreatureMotion.IsLandHoverer"/>): it floats 0.8 above the ground, so a
     /// two-block wall and a moat must stop it like everything else that lives down there.</item>
     /// </list>
-    /// Depths are in water cells (surface − bed); pass 0 for a dry column.
+    /// Depths are in water cells (surface − bed); pass 0 for a dry column. Since #3552 only the target column's depth
+    /// decides; <paramref name="curWaterDepth"/> is kept so the callers' argument lists stay as they are.
     /// </summary>
     public static bool TerrainStepBlocked(
         MotionClass motion,
@@ -167,7 +169,7 @@ public static class CreatureBehaviour
 
                 return !amphibious && nextWaterDepth > 1; // wading is fine, swimming is not (amphibians swim)
             case MotionClass.Swimmer:
-                return !amphibious && curWaterDepth > 0 && nextWaterDepth <= 0; // never leave the water body
+                return !amphibious && nextWaterDepth <= 0; // never onto dry land — stranded, only back into water (#3552)
             default:
                 return false; // fliers + hoverers
         }

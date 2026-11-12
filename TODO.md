@@ -160,6 +160,31 @@ content, authored in the town editor. New worlds only (terrain generation 37, sa
   from far away); `sample_mine` (shaft, sealed tunnels, cave-in); `sample_store` on an inhabited planet (keeper sells
   burgers only inside, blocks protected); the editor's landmark mode with the ruin preview; the browser build.
 
+### 🐟 "The thing with the fish doesn't quite work yet" — water life stays in its water — #3551–#3552, ✅ 2026-11-12, PR pending (⚠ playtest open)
+
+Lyxette (v2026.11.17, after #3476): a fish of his world's water roster (legless, finned, nocturnal — a pure water
+species, not an amphibian) lay asleep on his sandstone walkway over the lake he had drained and filled. Spawning was
+clean (water life spawns only in real water); three later paths put it on land and kept it there.
+
+- **#3551 the water it is in is found first** — `WaterColumnY` measured the column from the generator surface downward,
+  so a pond standing ABOVE the terrain the world was born with (a pool on a platform, a moat in a filled-up lake) was
+  invisible and the fish was set on the ground under it, or into the fill. The probe starts at the body's own Y now.
+- **#3551 the stuck-body rescue keeps water life in water** — `DisplaceEmbeddedCreature` moved a body that touches a block
+  to the nearest standable cell, and a standable cell is dry by definition: a fish taller than the water under a walkway
+  laid on its pond (his fish is four cells tall) landed on the walkway. Water life goes to the nearest water at least two
+  cells deep that holds its body (`TryFindWaterSpotNear`), or is removed — never set on land.
+- **#3552 a stranded fish does not live on ashore** — a swimmer never steps into a dry column (its "legacy freedom" let
+  a stranded one roam the land); out of water it does not sleep (tick, wire, /bump); the sweep removes it while nobody
+  looks, wherever it lies (`StrandedOutOfWater`; the player-floor rule is amphibians-only again). A grown water clone is
+  released into the water by its tank (it used to drop onto the dry ring round the tank — and a clone is never swept).
+- Tests: `StrandedWaterLifeTests` (8, all red before the fix — the walkway one puts the fish on the walkway exactly as
+  reported), `BioTankFixTests.AGrownSwimmer_IsReleasedIntoThePondBesideTheTank` (red before), `CreatureTests` swimmer
+  gate, `CreatureDrainedLakeTests` adjusted.
+- Playtest: Lyxette's walkway by day (no fish lying on it); a pool on a raised platform with fish in it; a walkway laid
+  over a pond with fish under it.
+- Not in this package: his gardener-reach / outpost idea (answered: a second base core by the garden gives it its own
+  gardener, #2996), NPCs using the Crystal Net drawbridge.
+
 ### 🌫️ "I want my far view back" — one switch for the distance softness, no storm smear — #3480–#3481, ✅ 2026-11-11, PR pending (⚠ playtest open)
 
 Lyxette (v2026.11.16, night storm with snow): his distant building had become "a soft hill". Both parts of the 11.16
