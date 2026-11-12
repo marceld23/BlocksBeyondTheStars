@@ -214,9 +214,10 @@ public sealed class CreatureDrainedLakeTests : IDisposable
         }
     }
 
-    /// <summary>The report itself, on the tick: a fish left behind in the drained lake — one holding still, one roaming the
-    /// base — lies on the floor every tick, never inside it. It used to porpoise through the old lake's band, bed + 1 to the
-    /// old top, with the concrete in the lower part of it.</summary>
+    /// <summary>The report itself, on the tick: a fish left behind in the drained lake — one holding still, one free to move
+    /// — lies on the floor every tick, never inside it. It used to porpoise through the old lake's band, bed + 1 to the
+    /// old top, with the concrete in the lower part of it. #3552: a stranded fish leaves while nobody looks, so the watcher
+    /// stands right between the two (always "seen"), and the free one no longer roams the floor.</summary>
     [Fact]
     public void AStrandedFish_InADrainedLake_LiesOnTheFloor_NeverInIt()
     {
@@ -226,7 +227,7 @@ public sealed class CreatureDrainedLakeTests : IDisposable
             Force(server, CreatureHabitat.Water);
             var lake = FindLake(server);
             int walk = DrainAndFloor(server, lake, filled: false);
-            Watcher(server, new Vector3f(lake.X + BasinR - 1.5f, walk, lake.Z + BasinR - 1.5f));
+            Watcher(server, new Vector3f(lake.X - 0.5f, walk, lake.Z + 1.0f)); // ~1.1 blocks from each fish
 
             string still = server.SpawnCreatureAtForTest(new Vector3f(lake.X + 0.5f, walk, lake.Z + 0.5f));
             server.PauseCreatureForTest(still, 60f);

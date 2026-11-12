@@ -722,11 +722,13 @@ public sealed class CreatureTests : IDisposable
     public void TerrainGate_Swimmer_NeverLeavesItsWaterBody_AmphibianMay()
     {
         // In water → dry column is blocked (no more medusae/schools stranding on the beach); moving
-        // between wet columns is free; an already-stranded individual keeps its legacy freedom so it
-        // is never wedged in place; an amphibian legitimately crosses the shoreline.
+        // between wet columns is free; an amphibian legitimately crosses the shoreline. #3552: a stranded
+        // individual no longer roams the land ("legacy freedom" let a fish glide along a walkway) — it may
+        // only step back into water; the server sends it away while nobody looks.
         Assert.True(CreatureBehaviour.TerrainStepBlocked(MotionClass.Swimmer, false, false, 60, 64, 3, 0));
         Assert.False(CreatureBehaviour.TerrainStepBlocked(MotionClass.Swimmer, false, false, 60, 60, 3, 2));
-        Assert.False(CreatureBehaviour.TerrainStepBlocked(MotionClass.Swimmer, false, false, 64, 64, 0, 0));
+        Assert.True(CreatureBehaviour.TerrainStepBlocked(MotionClass.Swimmer, false, false, 64, 64, 0, 0));
+        Assert.False(CreatureBehaviour.TerrainStepBlocked(MotionClass.Swimmer, false, false, 64, 62, 0, 2));
         Assert.False(CreatureBehaviour.TerrainStepBlocked(MotionClass.Swimmer, false, true, 60, 64, 3, 0));
     }
 

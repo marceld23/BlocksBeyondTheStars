@@ -1197,7 +1197,8 @@ public sealed partial class GameServer
             // falls through to normal temperament-driven behaviour (skittish ones flee, hunters seek, others
             // just wander).
             var motion = EffectiveMotion(creature, sp);
-            bool asleep = !SpeciesActive(sp, creature.Position) && creature.AwakeOverrideTimer <= 0;
+            bool asleep = !SpeciesActive(sp, creature.Position) && creature.AwakeOverrideTimer <= 0
+                && !StrandedOutOfWater(creature, sp); // #3552: a fish ashore does not lie down there
 
             // #1320: a sleeper skips every collision gate on the movement path, so a player building a wall
             // or floor THROUGH a sleeping herd left the bodies embedded in the masonry all night. Re-validate
@@ -1721,9 +1722,9 @@ public sealed partial class GameServer
 
     /// <summary>The embedded-body check (#1320 sleepers, #1357 awake creatures too). False when the body sits
     /// clear of every colliding block. Otherwise the creature is roused (<see cref="CreatureWakeSeconds"/>)
-    /// and stepped to the nearest clear standable spot within <see cref="SleeperRelocateRadius"/> — or, boxed
-    /// in on every side, queued for removal (the caller drops it after the loop; the list can't change
-    /// mid-iteration).</summary>
+    /// and stepped to the nearest clear standable spot within <see cref="SleeperRelocateRadius"/> — water life to
+    /// the nearest water that holds its body (#3551) — or, boxed in on every side, queued for removal (the caller
+    /// drops it after the loop; the list can't change mid-iteration).</summary>
     private bool DisplaceEmbeddedCreature(CombatEntity creature, CreatureSpecies sp)
     {
         if (!CreatureBodyBlocked(sp, creature.Position))
@@ -1731,7 +1732,12 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (TryFindClearSpotNear(sp, creature.Position, out var clear))
+        // #3551: a standable cell is dry by definition (a fluid fails its headroom), so the rescue set a fish on land — a
+        // fish too tall for the water under a walkway laid on its pond landed on the walkway.
+        bool moved = sp.Habitat == CreatureHabitat.Water
+            ? TryFindWaterSpotNear(sp, creature.Position, out var clear)
+            : TryFindClearSpotNear(sp, creature.Position, out clear);
+        if (moved)
         {
             creature.Position = clear;
             creature.AwakeOverrideTimer = CreatureWakeSeconds; // it wakes up and walks off, like a creature you bump
@@ -1806,6 +1812,69 @@ public sealed partial class GameServer
 
         spot = from;
         return false;
+    }
+
+    /// <summary>#3551: the water sibling of <see cref="TryFindClearSpotNear"/> — the nearest spot in REAL water where the
+    /// body fits: its own column first, then rings of 1..<see cref="SleeperRelocateRadius"/> blocks in eight directions.
+    /// The first pass measures each column's water from just above the body (the water it is in, a step aside); only then
+    /// a second pass looks from a ring's height above it, so a pond a step higher counts, but never before the lake beside
+    /// the fish. The water must be at least two cells deep — <see cref="WaterColumnY"/> calls one cell a puddle, no column
+    /// to swim in — and the spot sits mid-band, where that probe holds a swimmer at rest. No water in reach: false, and the
+    /// caller removes the animal — never sets it on land. No-load reads.</summary>
+    private bool TryFindWaterSpotNear(CreatureSpecies sp, Vector3f from, out Vector3f spot)
+    {
+        int ox = (int)System.Math.Floor(from.X), oz = (int)System.Math.Floor(from.Z);
+        int refY = (int)System.Math.Floor(from.Y);
+        float margin = CreatureShipMargin(sp);
+        for (int pass = 0; pass < 2; pass++)
+        {
+            int probeY = pass == 0 ? refY + 1 : refY + 1 + SleeperRelocateRadius;
+            for (int r = 0; r <= SleeperRelocateRadius; r++)
+            {
+                for (int d = 0; d < (r == 0 ? 1 : RelocateDirs.Length); d++)
+                {
+                    int x = ox + (r == 0 ? 0 : RelocateDirs[d].Dx * r), z = oz + (r == 0 ? 0 : RelocateDirs[d].Dz * r);
+                    if (WaterSpotIn(sp, x, z, probeY, from.Y, margin, out spot))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        spot = from;
+        return false;
+    }
+
+    /// <summary>One column of <see cref="TryFindWaterSpotNear"/>: the water body found from <paramref name="probeY"/>
+    /// downward, the swim band's middle, accepted when it is water, within reach of <paramref name="fromY"/> and holds the
+    /// body clear of every block and of a parked ship — at the middle and at the band's top, where the swimmer's wave
+    /// carries it, so a fish set here is not stuck again a moment later.</summary>
+    private bool WaterSpotIn(CreatureSpecies sp, int x, int z, int probeY, float fromY, float margin, out Vector3f spot)
+    {
+        spot = default;
+        int bedFeet = SubmergedFeetYAt(x, z, probeY, FluidColumnScan);
+        if (bedFeet == int.MinValue)
+        {
+            return false;
+        }
+
+        int top = FluidTopAt(x, z, bedFeet);
+        if (top <= bedFeet)
+        {
+            return false; // one cell: a puddle (WaterColumnY's rule) — a fish set there is ashore the next tick
+        }
+
+        var cand = new Vector3f(x + 0.5f, bedFeet + ((top - 0.5f - bedFeet) * 0.5f), z + 0.5f);
+        if (System.Math.Abs(cand.Y - fromY) > SleeperRelocateRadius || !HabitatSuitable(sp, cand)
+            || CreatureBodyBlocked(sp, cand) || CreatureBodyBlocked(sp, new Vector3f(cand.X, top - 0.5f, cand.Z))
+            || EntityBlockedByShip(cand, margin))
+        {
+            return false;
+        }
+
+        spot = cand;
+        return true;
     }
 
     private const float CreaturePanicRadius = 12f;    // how far a startle (#653) spreads to same-species kin
@@ -3225,11 +3294,21 @@ public sealed partial class GameServer
     /// asked only while it still stands (<see cref="TryGetStandingGeneratedWater"/>), and a dry column rests on
     /// the REAL ground near <paramref name="bodyY"/>: a fish left behind porpoised through the old lake's band,
     /// whose bottom is the player's concrete, and was drawn sunk into the floor with only its back showing.
-    /// Unloaded columns answer as before (the generator, else the noise surface).</para></summary>
+    /// Unloaded columns answer as before (the generator, else the noise surface).</para>
+    ///
+    /// <para>#3551: and the water the body is IN comes first. The probe started at the generator surface and only
+    /// looked down, so a pond standing above the terrain the world was born with — a pool on a platform, a moat dug
+    /// into a lake the player filled up — was never found: the fish was set on the ground under it, or into the fill
+    /// (and the stuck-body rescue then lifted it onto the nearest floor).</para></summary>
     private float WaterColumnY(int x, int z, float vertWave, int surface, float bodyY, float? holdY = null, bool bottom = false)
     {
         int waterTopY = int.MinValue, seabedY = int.MinValue;
-        int bedFeet = SubmergedFeetYAt(x, z, (int)System.Math.Round(holdY ?? surface + 1f), FluidColumnScan);
+        int bedFeet = SubmergedFeetYAt(x, z, (int)System.Math.Floor(bodyY), FluidColumnScan);
+        if (bedFeet == int.MinValue)
+        {
+            bedFeet = SubmergedFeetYAt(x, z, (int)System.Math.Round(holdY ?? surface + 1f), FluidColumnScan);
+        }
+
         if (bedFeet != int.MinValue)
         {
             waterTopY = FluidTopAt(x, z, bedFeet);
@@ -3590,7 +3669,8 @@ public sealed partial class GameServer
     private NetCreature ToNetCreatureCore(CombatEntity e)
     {
         _speciesById.TryGetValue(e.SpeciesId, out var sp);
-        bool asleep = sp != null && !SpeciesActive(sp, e.Position) && e.AwakeOverrideTimer <= 0 && !e.IsCompanion; // roused or companion → not asleep
+        bool asleep = sp != null && !SpeciesActive(sp, e.Position) && e.AwakeOverrideTimer <= 0 && !e.IsCompanion // roused or companion → not asleep
+            && !StrandedOutOfWater(e, sp); // #3552: nor a fish ashore
 
         // Motion class + vertical state on the wire (#1333, additive): a walker is airborne mid-jump/fall (with
         // its velocity so the client can integrate the arc between updates), a flier is airborne unless perched,
