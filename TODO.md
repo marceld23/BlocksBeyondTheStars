@@ -35,8 +35,8 @@ pool biome as the habitat, and Leni (snow and ice, exclusive) was preferred in r
   pass and `BiomePassStarved` ask `CreatureBehaviour.NativeHere` in the pool's numbering; a species whose biome the world
   lacks counts as agnostic there. Runtime only — no roster, colour, save or generation change; every world spawns right
   from its next load.
-- Tests: `CreatureBiomeAffinityTests` (the pool index names the ground's biome on six types × 12 bodies; 23 015 native
-  picks over every multi-biome type all on their own biome; a homeless species is agnostic; a type without a pool is
+- Tests: `CreatureBiomeAffinityTests` (the pool index names the ground's biome on six types × 6 bodies; 7 293 native
+  picks over every multi-biome type (two bodies each) all on their own biome; a homeless species is agnostic; a type without a pool is
   unchanged; Leni is native only on snow or ice).
 - Playtest: on a varied or boreal world, the animals of one colour family keep to one kind of ground; the bio lab's habitat
   matches where the animal was met; Leni turns up on the snow.

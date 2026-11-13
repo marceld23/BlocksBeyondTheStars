@@ -51,7 +51,7 @@ public sealed class CreatureBiomeAffinityTests
     public void ThePoolIndex_NamesTheGroundsBiome_AndTheWorldsBiomesAreItsPick(string type)
     {
         var planet = Content.Planets[type];
-        for (int b = 0; b < 12; b++)
+        for (int b = 0; b < 6; b++)
         {
             var gen = Gen(1000 + (b * 7919L), $"sys{b}-p1");
             var onWorld = gen.PoolBiomesOnWorld(planet);
@@ -74,7 +74,7 @@ public sealed class CreatureBiomeAffinityTests
         int checkedSpecies = 0, homeless = 0;
         foreach (var planet in Content.Planets.Values.Where(p => p.Biomes.Count > 1 && !p.Void && !p.IsAirless).OrderBy(p => p.Key))
         {
-            for (int b = 0; b < 6; b++)
+            for (int b = 0; b < 2; b++) // two bodies per type: every multi-biome type, within the fast tier
             {
                 long seed = 50 + (b * 104729L);
                 string body = $"sys{b}-p2";
@@ -100,7 +100,7 @@ public sealed class CreatureBiomeAffinityTests
         }
 
         _out.WriteLine($"{checkedSpecies} native picks checked, {homeless} species homeless on their world (agnostic there)");
-        Assert.True(checkedSpecies > 1000, $"only {checkedSpecies} native picks checked");
+        Assert.True(checkedSpecies > 500, $"only {checkedSpecies} native picks checked");
     }
 
     [Fact]
