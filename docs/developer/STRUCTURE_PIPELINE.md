@@ -107,6 +107,14 @@ never move a monument's relic cache or a G.D.S. crate that is re-derived from th
   register their box on stamp and on replay; `Overlaps(x, z, halfExtent, margin, exceptKind?)` with the larger of the
   asker's `keepClear`, its `keepClearFrom[kind]` and the entry's own margin. Generation 38 uses it for every keep-clear check;
   older worlds keep their exact old checks (data cubes and chests have no records there, a wider check would move them).
+- **Site rules and reserved ground** (generation 40, #3563–#3571): each kind's `site` object says where it likes to stand
+  (fresh-water and coast distance bands, `prominence` high/low, `relief` flat/rugged, an `altitude` band, `ground`
+  blocks, `weights`) — the guaranteed search tries its first ring best-first by it, every hard check unchanged — and its
+  `grade` object (`radius`, `maxCut`, `maxFill`) how a fresh stamp seated `flat` / `slope` / `shelf` reserves its
+  ground: the footprint joins the world's site flats before the stamp writes, the generator levels and grades it, the list
+  is pinned in `WorldMetadata.BodySites` and read back in the landing-pad stage of every later load. Only during the boot's
+  structures stage of a body without edits (never an admin placement). The foundation, skirt and shelf fill come from the
+  biome at the site. Details in [WORLD_GENERATION.md](WORLD_GENERATION.md) §55.
 - **Protection** (generation 39): every whole template carries `protection` (`auto` / `protected` / `open`, settable in
   the editor's *Use as* form). A protected box rides on the structure's footprint entry (`GuardBox`) and one query,
   `IsProtectedStructureCell` (`GameServerStructureProtection.cs`), sits beside the station check at every protection

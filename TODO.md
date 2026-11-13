@@ -24,6 +24,34 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🏞️ Geography package — river valleys, site search with a map, sites reserve their ground — #3555 (#3556–#3573), ✅ 2026-11-13, PR pending (⚠ playtest open)
+
+Terrain generation 40 (`WorldDescription.GeographyGeneration`, new worlds only — every older world generates and places
+byte-identically). Details: [WORLD_GENERATION.md §55](docs/developer/WORLD_GENERATION.md).
+
+- **#3556 three height stages** — `NaturalSurfaceHeight` (every older generation's answer) → valley stage → site-grade stage;
+  the calibration, the river routing, the planet-map previews and the biome pick read the natural stage.
+- **#3557–#3559 river valleys** — `RiverValleys`: the ground eases down toward every surface river (brook / gathered / trunk /
+  lake profiles, deepest cut 10–28), a river column keeps its carve, a bank never sinks below the water beside it, land
+  never sinks into the sea; `valleyStrength` per planet type (lava rivers half, `river_lowlands` 1.25).
+- **#3561 distance layers** — fresh-water and coast distance on the river network's grid.
+- **#3563–#3564 site search with a map** — `site` objects in `data/structure_types.json`; the guaranteed search tries its
+  first ring best-first (settlements by fresh water on earthy flat ground, monuments on hilltops, camps in hollows, …).
+- **#3565** foundations, skirts and shelf fills from the biome at the site.
+- **#3566** `Tools layers` — a body's terrain layers as PNG images.
+- **#3567–#3571 sites reserve their ground** — `SiteFlat`: a fresh stamp's box is levelled and graded by the generator
+  (`grade` objects), pinned in `WorldMetadata.BodySites`, read back before the first chunk, sent to the client
+  (`FarTerrainWorldInfo.Sites`); trees, props and caves keep out of a box; the city world and ground-seated landmarks take
+  part; the stamper keeps skirt and cut as the safety net, the stepped apron goes.
+- Tests: `RiverValleyTests`, `SiteGradeTests`, `SiteGroundServerTests`, `FarTerrainSiteTests`, `StructureTypeRulesTests`,
+  golden groups `river_lowlands-gen40`, `highland-gen40`, `jungle-gen40`.
+- Not in this package: floodplain flags still come from the natural ground (they lie on the trunk's valley floor anyway);
+  monuments and landmarks keep the first pool biome as their material (their replay re-derives from it); the coast distance
+  exists only on worlds with routed rivers.
+- Playtest (new world): a river valley from the ground and from orbit; a village by the water; a monument on a hill; a
+  bandit camp in a hollow; a town on a slope without a plinth wall; the city world's rim and plaza; a landmark; a lava
+  world's rivers; the far view of a town from a ridge; the in-browser singleplayer's first boot.
+
 ### 🛬 "A bit impractical" — coming home lands on the reserved pad — #3554, ✅ 2026-11-13, PR pending (⚠ playtest open)
 
 Lyxette (v2026.11.17): four pads at his HQ, pad 1 set to *Only me*, pads 2–4 to *Everyone*; flying home he landed on

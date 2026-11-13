@@ -175,6 +175,11 @@ Guarded by `RiverFieldTests` (and the lava analogue in `WorldGenerationTests`):
 - **Sealed (generation 24)** — `WaterSealGenerationTests`: no generated water outside river columns and falls has air
   beside or below it; `WaterKindAt` names a river, its fall and a waterfall band. `WaterModelTests` pins the live side: a
   woken river fall never spreads.
+- **Valleys keep the seal (generation 40, #3558)** — the ground eases down toward every surface river (`RiverValleys`,
+  [WORLD_GENERATION.md §55](WORLD_GENERATION.md)), but a river column keeps its own height and a column beside a surface
+  river column never sinks below that river's water, and land never sinks into the sea. The routing itself reads the
+  NATURAL height, so the network, its lakes and its waterfalls are exactly generation 39's. `RiverValleyTests.Valleys_KeepEveryRiverSealed`
+  walks every river column's four neighbours.
 
 Per the project verification routine, `client/Assets` changes (shaders, VFX, audio) want a **local
 Unity build** to eyeball cascades, embers, heat-haze and the new sounds in-engine and confirm
@@ -188,6 +193,8 @@ client/server agree on river/lava placement.
   sources, flow accumulation, waterfall flag).
 - `src/BlocksBeyondTheStars.WorldGeneration/RiverField.cs` — block-resolution rasterizer; carries
   `FillFluid`.
+- `src/BlocksBeyondTheStars.WorldGeneration/RiverValleys.cs` — generation 40: the valleys around the rasterised reaches and the
+  fresh-water / coast distance layers on the network's grid.
 - `src/BlocksBeyondTheStars.WorldGeneration/WorldGenerator.cs` and its partials — `RiverFieldFor` /
   `BuildRiverField` (water vs lava selection) and `SurfaceRiverDepth` in `WorldGenerator.Fluids.cs`, the
   chunk fill of `Generate` in `WorldGenerator.ChunkFill.cs`, and the water/landing/flora queries.
