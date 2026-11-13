@@ -1085,6 +1085,9 @@ public sealed partial class WorldGenerator
         // shrine), before the pads (a shrine keeps clear of them).
         StampRuneShrines(chunk, k);
 
+        // Generation 40 (#3568): no cave opens under a reserved site's box (nothing to do without sites).
+        PlugSiteFoundations(planet, chunk, coord, biomes, seed);
+
         // Landing pads (ship-as-object): level + clear the planned pad areas so the placed ship structure
         // always sits on flat, solid, vegetation-free ground.
         FlattenLandingPads(planet, chunk, coord, biomes, seed);

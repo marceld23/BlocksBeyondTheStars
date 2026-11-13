@@ -271,14 +271,16 @@ Two steps, both in [`WorldGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGen
 
 1. **How many** — a planet type lists a *pool* of biomes; each world activates a seed-derived
    **2..pool** of them. A single-biome type yields exactly one.
-2. **Where** — a **separate low-frequency noise field** (`FbmTorus`, scale **360**, 3 octaves) maps
-   each column to a biome index.
+2. **Where** — a **low-frequency noise field** (`FbmTorus`, scale **360**, 3 octaves, seed `^ 0x0B10E`) blended with
+   the column's normalised **altitude** (#476: 60 % field, 40 % altitude between the world's 2nd and 98th height
+   percentile) maps each column to a biome index — so a planet's biome list reads bottom-to-top, entry 0 in the lowlands,
+   the last on the peaks. Hot zones (Titas) and the sand sea are region fields cut at a measured quantile on top.
 
-> **Biomes are independent of terrain.** There is no temperature/elevation biome model. The biome
-> index comes from its own noise field (`seed ^ 0x0B10E`), *not* from height or the terrain-profile
-> field (`seed ^ 0x7E44A1`). Mountains and biomes are rolled separately and overlap freely. The large
-> scale (360, ~7.5× the default `TerrainScale` of 48) just makes each biome a big contiguous region
-> so per-biome systems (weather) cover a meaningful area.
+> **No climate model.** There is no moisture field and no latitude (the torus has no poles): the biome list is a band
+> sequence of one field plus altitude, so entry *i* only borders *i − 1* and *i + 1*. The large scale (360, ~7.5× the
+> default `TerrainScale` of 48) makes each biome a big contiguous region so per-biome systems (weather) cover a
+> meaningful area. From generation 40 (§55) the altitude share reads the **natural** height: river valleys and site
+> grades never move a biome border.
 
 Each resolved biome carries its own surface/sub-surface blocks, a **flora theme**, and flora/tree
 density multipliers (a multiplier of 0 ⇒ a treeless biome). There are **11 flora themes** (temperate,
@@ -1108,7 +1110,8 @@ feature, not by a test hook):
 Golden groups `ocean-gen3`, `frozen_ocean-gen3`, `karst-gen3` pin the families; `highland-gen3` activates
 none of them and must equal `highland-gen1` — the control that generation 3 without a family IS generation
 1. A Slow-tier guard keeps a generation-3 chunk within 1.3× a generation-1 chunk (the client bakes up to
-32 768 columns on its main thread; no generation-time budget existed before).
+32 768 preview columns per map — on its main thread in the browser build, on worker threads on the desktop; no
+generation-time budget existed before).
 
 
 ### 13.2 Part 2 — the rock landforms
@@ -3649,3 +3652,97 @@ guardian core have placement records (backfilled on the first load of an older s
 `StructureRuinerTests*`, `StructureDecayTests*`, `TemplatePipelineTests`, `TemplatePipelineEntryTests`,
 `TemplatePipelineWorldTests*`, `StationTemplatePinTests`, `StructureTypeRulesTests`, `StructureFootprintTests`,
 `UserShipTests`, `WreckLayoutGenerationTests`, `WreckLayoutStampTests`, `SpaceWreckLayoutTests`.
+
+## 55. Generation 40 — the geography package (#3555: #3556–#3573, 2026-11-13)
+
+Three additive steps that let the land and what stands on it fit together. `WorldDescription.GeographyGeneration = 40`
+(`CurrentTerrainGeneration`); every change reads it, so every older world generates and places byte-identically.
+
+**The surface height in three stages** (`WorldGenerator.GeographyGen40.cs`). `NaturalSurfaceHeight` is what every older
+generation answers (the raw relief, one landmark overlay, the sea rows, the sand-sea raise). From generation 40
+`SurfaceHeight` lays two stages over it — the **valley** stage and the **site-grade** stage — and memoises the result
+(`_stagedCache`, cleared with the other column memos). What must not see the later stages reads the natural one:
+
+| Reads the natural stage | Why |
+|---|---|
+| the calibration sample | the sea level is a percentile of the natural ground (no valley turns land into sea) |
+| the river routing and rasterisation (`BuildRiverField`, `SampleRiverGrid`) | the valleys are cut toward the routed water — the routing cannot depend on them (a thread-static `t_naturalOnly` scope guards the build) |
+| `SummarizeSurface` (orbit sphere, sky bodies, landing map, weather map) | a bake for a body in the sky must never build that body's river field |
+| the biome pick (`BiomeIndex` reads the natural height whenever it is given the column's own surface; `BiomeIndexAt` and the other public biome queries read it directly) | valleys and grades never move a biome border, and asking another body's biome never builds its river field |
+
+**River valleys** (#3557–#3559, `RiverValleys.cs`). `RiverField.Build` keeps the EDGE columns of every surface reach (a
+river column with a 4-neighbour that is not one) as samples — position, water surface, class — bucketed by 16-block cell,
+plus a mask of the cells any sample can reach. The class comes from the reach: a brook (one or two wide), a river that has
+gathered flow, a trunk, a lake. Per sample the allowed height is `water + rise(distance)`; within the reach's inner 70 % the
+ground is cut down to it, over the outer 30 % the cut fades out; the deepest cut is capped per class (a river through a
+massif widens its gorge, it does not carve the mountain away). The lowest answer over every sample in reach wins.
+
+| Class | Reach | Flat floor | Slope beyond | Deepest cut |
+|---|---|---|---|---|
+| Brook | 10 | 1 | 1 : 1 | 10 |
+| Gathered | 22 | 3 | 1 : 2 | 20 |
+| Trunk | 36 | 6 | 1 : 3 | 28 |
+| Lake | 18 | 3 | 1 : 2 | 12 |
+
+`PlanetType.valleyStrength` (default 1, 0 = none) scales the reach, the floor and the cut; lava rivers take half of it
+(`ValleyStrengthPercent`); `river_lowlands` carries 1.25. The rules that keep the water where it is: a river column keeps
+its own height (its carve is the field's), a column beside a surface river column never sinks below that river's water
+(`KeepWaterSealed`, the generation-24 seal by construction), and land never sinks into the sea (`KeepAboveSea`).
+Underground (karst) reaches record no samples. Floodplains and lake shores are still flagged by the rasteriser against the
+natural ground — beside a trunk they lie within the six-block floor anyway.
+
+**Distance layers** (#3561). The same build runs two multi-source breadth-first passes over the network's 16-block grid:
+blocks to the nearest fresh water (a stamped surface river or lake) and to the nearest sea cell (`RiverGeography`).
+`FreshWaterDistance`, `CoastDistance` (both `RiverGeography.None` on a world without routed rivers) and `AltitudeQuantile`
+(the calibration's sorted heights) are what the site search asks.
+
+**Site search with a map** (#3563–#3564, `GameServerGeography.cs`). Each kind in `data/structure_types.json` carries a `site`
+object — `water` / `coast` (distance bands in blocks), `prominence` (`high` / `low`, the centre against a ring 48 blocks out),
+`relief` (`flat` / `rugged`, the spread over a ring 16 blocks out), `altitude` (a band of height quantiles), `ground`
+(biome surface blocks), `weights`. The guaranteed search draws its first ring exactly as before (all draws up front, so an
+older world tries them in draw order and is untouched) and on a generation-40 world tries them best-first by the weighted
+score; every hard check, the wider rings and the placement guarantee are unchanged. Shipped preferences: settlements by
+fresh water on low to middle, flat, earthy ground; lodges by water or the coast, low; bandit camps in a rugged hollow away
+from water; monuments on a hilltop; outposts on high ground; factories flat at middle height; landmarks flat with some
+prominence; ruins, rail ruins and SPS labs neutral.
+
+**Sites reserve their ground** (#3567–#3571, `SiteFlat.cs`). A fresh stamp seated `flat`, `slope` or `shelf` of a kind with a
+`grade` (`radius`, `maxCut`, `maxFill` in `structure_types.json`) reserves its footprint before it writes
+(`ReserveSiteGround`): the box joins the world's `SiteFlats`, the generator levels the box to the structure's floor and
+grades the land within the radius toward it (several grades blend by weight), held within the cut and fill limits — where
+the land is steeper, the stamper's skirt and cut (kept as the safety net) finish the job, and only the stepped apron is
+gone. Pads win over a grade, a river column keeps its carve, a column beside a river never sinks below its water, a sea
+column is never raised. Trees, giant flora, props, Fifi plants and singing props skip anchors near a box (the
+`RuneShrineClaims` check every pass already asks), rune shrines do not seat beside one, and the cells eight deep under a
+box are plugged after the stamps (`PlugSiteFoundations`, the pad rule). The resident chunks the grade reaches are dropped
+when a site is added, so they regenerate graded.
+
+- **When.** Only during the boot's `structures` stage of a body that had no block edit at load (`WithSiteGround`); an
+  admin placing a landmark in a live world reserves nothing. A site already in the list is never added twice.
+- **Pinned.** The list is written to `WorldMetadata.BodySites` (`minX,minZ,width,length,floorY,radius,maxCut,maxFill;…`)
+  while it grows and read back in the landing-pad stage of every later load, before any chunk generates — never
+  re-derived, so a changed template or rule cannot move the ground under a town.
+- **Who.** Settlements (a ruined one with the ruin's grade), ruins, bandit camps, lodges, outposts, SPS labs, monuments,
+  factories, the rail ruin, landmarks seated on the ground (a span across water reserves none) and the city world (its
+  whole footprint at the pad's level with a ring half as wide again; the pads inside keep their own levelling). Not: the
+  wreck, vaults, tablets, Sounder sites, unique sites, intercity stations, anything stilted, molten, on an island or buried.
+- **The client.** `FarTerrainWorldInfo.Sites` carries the list (packed ints, additive); `FarWorldGenerator` applies it, so the
+  far view meets the real chunks around a town.
+
+**The site's own ground** (#3565). `StampSettlementBlocks` builds the foundation, the skirt and the shelf fill from the
+biome under the footprint's centre (`FoundationGround`) instead of the first pool biome — every stamper that goes through it
+(settlements, the city, ruins, camps, lodges, outposts, factories, labs, the rail ruin, intercity stations). Monuments and
+landmarks keep the first pool biome: their material is part of the build that their replay re-derives from the record.
+
+**Developer view** (#3566). `dotnet run --project src/BlocksBeyondTheStars.Tools -- layers <seed> <planetType>
+[--circumference N] [--generation N] [--body id] [--step N] [--out dir]` writes the height, water, valley depth, fresh-water
+and coast distance and biome layers of a body as PNG images (`TerrainLayerExport`, a minimal PNG writer, no dependency).
+
+**Tests.** `RiverValleyTests` (only lowers, the seal beside every river column, never into the sea, both seams and a fresh
+generator, older generations and a dry world unchanged, lava at half, the map reads the natural ground and builds no field,
+biome borders, the distance layers, the Slow-tier cost guard 40 vs 39), `SiteGradeTests` (level box, limits, no steps, the
+seam, pads win, the sea is never raised, no tree or hole in the box, older worlds ignore sites, the pin text),
+`SiteGroundServerTests` (a fresh world reserves and pins, the reload reads the same list and the same ground, an older world
+reserves nothing, the city, the landmarks, the search prefers what a kind likes), `FarTerrainSiteTests` (the client's far
+terrain equals the server's over sites and valleys), `StructureTypeRulesTests` (the objects merge and validate), golden groups
+`river_lowlands-gen40`, `highland-gen40`, `jungle-gen40`.

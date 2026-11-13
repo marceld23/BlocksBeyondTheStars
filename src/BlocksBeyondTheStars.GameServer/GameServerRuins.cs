@@ -128,11 +128,13 @@ public sealed partial class GameServer
             {
                 if (!TryPlaceStructureGuaranteed(structure, RngFor(instSeed, "search"), reserved,
                         wantIsland: false, SeatPolicyOf(StructureTypeRules.Ruin, SeatPolicy.Ruin), avoidPlayerEdits: false,
-                        out origin, out groundY, out onIsland, out seat))
+                        out origin, out groundY, out onIsland, out seat, siteKind: StructureTypeRules.Ruin))
                 {
                     RecordPlacementSkip(RuinRecordKind, i);
                     continue;
                 }
+
+                ReserveSiteGround(StructureTypeRules.Ruin, structure.Width, structure.Length, origin, groundY, seat); // #3569
             }
             else if (!TryPlaceSettlement(structure, ir, reserved, wantIsland: false, out origin, out groundY, out onIsland))
             {

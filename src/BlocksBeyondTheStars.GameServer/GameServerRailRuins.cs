@@ -86,7 +86,7 @@ public sealed partial class GameServer
             if (!TryPlaceStructureGuaranteed(fresh, RngFor(instSeed, "search"),
                     KeepClearFor(StructureTypeRules.RailRuin, RailRuinReservedFootprints()), wantIsland: false, // #3514: generation 38: the registry
                     SeatPolicyOf(StructureTypeRules.RailRuin, SeatPolicy.Factory), avoidPlayerEdits: !_worlds.Active.VirginAtLoad,
-                    out origin, out groundY, out bool onIsland, out seat))
+                    out origin, out groundY, out bool onIsland, out seat, siteKind: StructureTypeRules.RailRuin))
             {
                 RecordPlacementSkip(RailRuinKind, 0);
                 SavePlacementRecords();
@@ -96,6 +96,7 @@ public sealed partial class GameServer
 
             RecordPlacement(RailRuinKind, 0, origin, groundY, onIsland, seat, RailRuinKind,
                 template: "heading=" + heading.ToString(CultureInfo.InvariantCulture));
+            ReserveSiteGround(StructureTypeRules.RailRuin, fresh.Width, fresh.Length, origin, groundY, seat); // #3569
             SavePlacementRecords();
         }
         else if (!rec.Placed)

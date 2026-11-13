@@ -497,7 +497,7 @@ public sealed partial class GameServer
                 if (!TryPlaceStructureGuaranteed(structure, RngFor(instSeed, "search"), reserved, wantIsland,
                         ruined ? SeatPolicyOf(StructureTypeRules.Ruin, SeatPolicy.Ruin) : SeatPolicyOf(StructureTypeRules.Settlement, SeatPolicy.Inhabited),
                         avoidPlayerEdits: false,
-                        out origin, out groundY, out onIsland, out seat))
+                        out origin, out groundY, out onIsland, out seat, siteKind: ruined ? StructureTypeRules.Ruin : StructureTypeRules.Settlement))
                 {
                     RecordPlacementSkip("settlement", i); // all-lava carve-out — see TryPlaceStructureGuaranteed
                     continue;
@@ -508,6 +508,8 @@ public sealed partial class GameServer
                     modules: kit != null ? 2 : 1, composition: composition, kit: kit?.Key ?? string.Empty,
                     kitLayout: RecordedSettlementLayout(kit, layout, turns), // #3519: a turned template pins turns=…
                     hashRevision: StructurePlacementRecord.MixedHashRevision); // #2689: planted with the mixed crop pick
+                ReserveSiteGround(ruined ? StructureTypeRules.Ruin : StructureTypeRules.Settlement, structure.Width, structure.Length,
+                    origin, groundY, seat); // #3569: the generator levels and grades the ground before the stamp
             }
 
             PinSettlementTraits(FindPlacementRecord("settlement", i), rolledTier, ruined); // #3513: written once, replayed after
@@ -786,6 +788,13 @@ public sealed partial class GameServer
         SavePlacementRecords();
         ReportStamp("settlement", 1, 1);
         _worlds.Active.CityFootprint = (origin.X, origin.Z, origin.X + structure.Width - 1, origin.Z + structure.Length - 1);
+        if (rec is null)
+        {
+            // #3571: a city composed right now reserves its whole footprint at the pad's level (the pads inside keep their own
+            // levelling, which runs last) and grades a wide ring around it.
+            ReserveSiteGround(StructureTypeRules.Settlement, structure.Width, structure.Length, origin, groundY, "shelf", CityGrade());
+        }
+
         CommitSettlements(placed, surface, rng);
         _log.Info($"Stamped the '{planet.CityWorld}' city '{name}' ({structure.Width}×{structure.Length}, {_npcs.Count} residents) around pad 0 on '{_world.LocationId}'.");
     }
@@ -834,12 +843,12 @@ public sealed partial class GameServer
         bool stilts = p.Seat == "stilts";
         bool lavaSeat = p.Seat == "lava";
         bool seaIceIsWet = SeaIceIsWet; // #2738
+        (surface, string sub) = FoundationGround(origin, s.Width, s.Length, surface); // #3565: from generation 40 the biome it stands on
         var foundationId = _content.GetBlock(surface)?.NumericId ?? BlockId.Air;
 
         // Seat materials. The shelf fills with the biome's sub-surface block so the cut reads as bedrock, a
         // lava plinth is basalt, stilt piles are logs for inhabited builds and weathered stone for ruins.
         var planet = _world.Planet;
-        string sub = planet.Biomes.Count > 0 ? planet.Biomes[0].SubSurfaceBlock : planet.SubSurfaceBlock;
         var shelfFillId = _content.GetBlock(sub)?.NumericId ?? foundationId;
         var basaltId = (_content.GetBlock("basalt") ?? _content.GetBlock("stone"))?.NumericId ?? foundationId;
         var pileId = p.Ruined
@@ -965,7 +974,7 @@ public sealed partial class GameServer
 
             // Slope/shelf seats get a stepped apron around the plinth so no sheer foundation wall meets the
             // ground (#586) — one terrace ring per step, only where the plinth actually stands proud.
-            if (p.Seat is "slope" or "shelf")
+            if (p.Seat is "slope" or "shelf" && !SiteGraded(origin)) // #3569: reserved ground needs no apron
             {
                 StampFoundationApron(p, skirtId);
             }
@@ -1285,7 +1294,7 @@ public sealed partial class GameServer
     private bool TryPlaceStructureGuaranteed(SettlementStructure s, System.Random rng,
         List<(int Cx, int Cz, int Hw, int Hl)> reserved, bool wantIsland, SeatPolicy policy,
         bool avoidPlayerEdits, out Vector3i origin, out int groundY, out bool onIsland, out string seat,
-        int nearDistance = 0, System.Func<Vector3i, string, bool>? seatOk = null)
+        int nearDistance = 0, System.Func<Vector3i, string, bool>? seatOk = null, string? siteKind = null)
     {
         origin = default;
         groundY = 0;
@@ -1329,12 +1338,32 @@ public sealed partial class GameServer
         // catch it when the near ring is full.
         int attempts = System.Math.Max(w, l) > 48 ? 160 : 64;
         int ring1 = nearDistance > 40 ? nearDistance - 40 : baseDist;
+        // The ring's candidates are drawn up front — the same draws in the same order as the classic loop, which never left
+        // one out — so a generation-40 world can try them best-first by the kind's site rules (#3564) and every other world
+        // tries them in draw order, exactly as before.
+        var ring1Spots = new (int Cx, int Cz)[attempts];
         for (int attempt = 0; attempt < attempts; attempt++)
         {
             double ang = rng.NextDouble() * System.Math.PI * 2.0;
             int dist = 40 + rng.Next(0, ring1);
-            int cx = pad0X + (int)System.Math.Round(System.Math.Cos(ang) * dist);
-            int cz = System.Math.Clamp(pad0Z + (int)System.Math.Round(System.Math.Sin(ang) * dist), -latBand, latBand);
+            ring1Spots[attempt] = (pad0X + (int)System.Math.Round(System.Math.Cos(ang) * dist),
+                System.Math.Clamp(pad0Z + (int)System.Math.Round(System.Math.Sin(ang) * dist), -latBand, latBand));
+        }
+
+        var siteRule = SiteRuleFor(siteKind);
+        if (siteRule is not null)
+        {
+            RankBySite(ring1Spots, siteRule);
+        }
+
+        for (int attempt = 0; attempt < attempts; attempt++)
+        {
+            var (cx, cz) = ring1Spots[attempt];
+            if (siteRule is not null)
+            {
+                LastSitePickForTest = attempt; // overwritten until one passes; reset below when none does
+            }
+
             if (Blocked(cx, cz, SettlementCollisionMargin))
             {
                 continue;
@@ -1378,6 +1407,11 @@ public sealed partial class GameServer
             groundY = gy;
             seat = ring1Seat;
             return true;
+        }
+
+        if (siteRule is not null)
+        {
+            LastSitePickForTest = -1; // no ranked candidate passed: the wider rings decide
         }
 
         // Rings 2+ — collect + rank. Widening rings, then a terminal margin-2 ring; the best candidate seen

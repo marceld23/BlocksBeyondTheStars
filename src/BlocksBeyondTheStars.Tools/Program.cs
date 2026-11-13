@@ -37,6 +37,10 @@ try
             RequireArgs(args, 4, "import-pack <savesRoot> <worldName> <inFile> [dataDir]");
             return ImportPack(args[1], args[2], args[3], args.Length > 4 ? args[4] : "data");
 
+        case "layers":
+            RequireArgs(args, 3, "layers <seed> <planetType> [--circumference N] [--generation N] [--body id] [--step N] [--out dir] [--data dir]");
+            return ExportLayers(args);
+
         default:
             PrintUsage();
             return 1;
@@ -57,6 +61,8 @@ static void PrintUsage()
     Console.WriteLine("  BlocksBeyondTheStars.Tools backup <savesRoot> <world>  Create a consistent world backup");
     Console.WriteLine("  BlocksBeyondTheStars.Tools export-pack <savesRoot> <world> <outFile>          Export admin content pack");
     Console.WriteLine("  BlocksBeyondTheStars.Tools import-pack <savesRoot> <world> <inFile> [dataDir]  Import & validate a content pack");
+    Console.WriteLine("  BlocksBeyondTheStars.Tools layers <seed> <planetType> [--circumference N] [--generation N] [--body id] [--step N] [--out dir] [--data dir]");
+    Console.WriteLine("                                                         Write a body's terrain layers as PNG images (developer view)");
     Console.WriteLine("Set BBS_DATABASE_PROVIDER=postgresql and BBS_POSTGRES_CONNECTION_STRING for hosted PostgreSQL worlds.");
 }
 
@@ -66,6 +72,41 @@ static void RequireArgs(string[] args, int count, string usage)
     {
         throw new ArgumentException($"Usage: {usage}", nameof(args));
     }
+}
+
+// #3566: the geography package's whole-planet view — height, water, valley depth, fresh-water and coast distance, biomes.
+static int ExportLayers(string[] args)
+{
+    string Option(string name, string fallback)
+    {
+        int at = Array.IndexOf(args, name);
+        return at > 0 && at + 1 < args.Length ? args[at + 1] : fallback;
+    }
+
+    long seed = long.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture);
+    var content = ContentLoader.LoadFromDirectory(Option("--data", "data"));
+    var planet = content.GetPlanet(args[2]) ?? throw new ArgumentException($"Unknown planet type '{args[2]}'.", nameof(args));
+    int circumference = int.Parse(Option("--circumference", "6000"), System.Globalization.CultureInfo.InvariantCulture);
+    int generation = int.Parse(Option("--generation", BlocksBeyondTheStars.Shared.World.WorldDescription.CurrentTerrainGeneration.ToString(
+        System.Globalization.CultureInfo.InvariantCulture)), System.Globalization.CultureInfo.InvariantCulture);
+    int step = int.Parse(Option("--step", Math.Max(1, circumference / 512).ToString(System.Globalization.CultureInfo.InvariantCulture)),
+        System.Globalization.CultureInfo.InvariantCulture);
+    string outDir = Option("--out", "layers");
+
+    var generator = new BlocksBeyondTheStars.WorldGeneration.WorldGenerator(seed, content);
+    generator.SetContinentsEnabled(true);
+    generator.SetLavaCoreVolcanoes(true);
+    generator.SetTerrainGeneration(generation);
+    generator.SetWorldMode(circumference, planet.Cratered, landingPads: null, Option("--body", "sys0-p1"));
+    Directory.CreateDirectory(outDir);
+    foreach (var (layer, png) in BlocksBeyondTheStars.WorldGeneration.TerrainLayerExport.Render(generator, planet, circumference, step))
+    {
+        string path = Path.Combine(outDir, $"{planet.Key}-{seed}-{layer}.png");
+        File.WriteAllBytes(path, png);
+        Console.WriteLine($"  {path}");
+    }
+
+    return 0;
 }
 
 static int ValidateContent(string dataDir)

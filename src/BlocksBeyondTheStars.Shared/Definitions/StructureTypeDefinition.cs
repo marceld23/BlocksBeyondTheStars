@@ -68,6 +68,12 @@ public sealed class StructureTypeDefinition
     /// <see cref="PlanetType.AllowedStructures"/> to carry the kind; empty = never on such a type.</summary>
     public string Whitelist { get; set; } = string.Empty;
 
+    /// <summary>Terrain generation 40 (#3563): where the kind likes to stand (empty = neutral, the classic order).</summary>
+    public StructureSiteRule Site { get; set; } = new();
+
+    /// <summary>Terrain generation 40 (#3563): how the kind reserves its ground (radius 0 = it reserves none).</summary>
+    public StructureGradeRule Grade { get; set; } = new();
+
     /// <summary>The count of a cumulative roll: how many thresholds lie at or below <paramref name="roll"/> — with
     /// [0.55, 0.85] a roll under 0.55 is 0, under 0.85 is 1, else 2 (the old <c>r &lt; a ? 0 : r &lt; b ? 1 : 2</c>).</summary>
     public int CountBelow(double roll)
@@ -110,6 +116,8 @@ public sealed class StructureTypeDefinition
         KeepClearFrom = new Dictionary<string, int>(KeepClearFrom, StringComparer.Ordinal),
         Conditions = new List<string>(Conditions),
         Whitelist = Whitelist,
+        Site = Site.Clone(),
+        Grade = Grade.Clone(),
     };
 
     /// <summary>Whether two definitions hold the same rules (every field; the margins by kind, the conditions in order).</summary>
@@ -120,5 +128,6 @@ public sealed class StructureTypeDefinition
            && MinCount == other.MinCount && Cap == other.Cap && SeatPolicy == other.SeatPolicy && KeepClear == other.KeepClear
            && KeepClearFrom.Count == other.KeepClearFrom.Count
            && KeepClearFrom.All(kv => other.KeepClearFrom.TryGetValue(kv.Key, out int v) && v == kv.Value)
-           && Conditions.SequenceEqual(other.Conditions, StringComparer.Ordinal) && Whitelist == other.Whitelist;
+           && Conditions.SequenceEqual(other.Conditions, StringComparer.Ordinal) && Whitelist == other.Whitelist
+           && Site.SameAs(other.Site) && Grade.SameAs(other.Grade);
 }

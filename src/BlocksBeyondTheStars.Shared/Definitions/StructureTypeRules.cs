@@ -211,6 +211,8 @@ public sealed partial class StructureTypeRules
             .Select(c => $"unknown condition '{c}' ({string.Join(" | ", ConditionNames)})"));
         problems.AddRange(t.KeepClearFrom.Where(kv => kv.Value < 0 || (kv.Key != Pad && kv.Key != WreckSite && !Kinds.Contains(kv.Key)))
             .Select(kv => $"keepClearFrom '{kv.Key}' names no kind or is negative"));
+        problems.AddRange(t.Site.Problems());
+        problems.AddRange(t.Grade.Problems());
         return problems;
     }
 
@@ -227,7 +229,7 @@ public sealed partial class StructureTypeRules
     private static List<StructureTypeDefinition> BuildDefaults()
     {
         (string, int)[] hut = { (Pad, 16), (WreckSite, 14), (Settlement, 40), (BanditCamp, 40), (Ruin, 24), (Lodge, 24), (Outpost, 24) };
-        return new List<StructureTypeDefinition>
+        return WithGeography(new List<StructureTypeDefinition>
         {
             Def(TextTablet, minGeneration: WorldDescription.KubaWGeneration),
             Def(SounderSite),
@@ -264,8 +266,62 @@ public sealed partial class StructureTypeRules
             Def(NetFragment, whitelist: "net_fragments", keepClear: 0),
             Def(Chest, thresholds: new[] { 0.6, 0.88 }, conditions: new[] { ConditionNotVoid }),
             Def(UniqueSite, keepClear: 10),
-        };
+        });
     }
+
+    /// <summary>
+    /// The geography defaults (terrain generation 40, #3563) laid over the kinds: where each likes to stand and how it
+    /// reserves its ground. Settlements by fresh water (20–120 blocks), low to middle ground, flat, on grass or dirt; lodges
+    /// by water or the coast, low; bandit camps in a rugged hollow away from water; monuments on a hilltop; outposts on high
+    /// ground; factories flat at middle height; landmarks flat with some prominence; ruins, rail ruins and SPS labs neutral.
+    /// The grades: a settlement 16 around (cut and fill up to 24), a factory or a landmark likewise, the smaller sites 10–12.
+    /// The wreck, the vaults, the tablets, the Sounder sites, the unique sites and the underground kinds reserve nothing.
+    /// </summary>
+    private static List<StructureTypeDefinition> WithGeography(List<StructureTypeDefinition> kinds)
+    {
+        foreach (var t in kinds)
+        {
+            (t.Site, t.Grade) = t.Kind switch
+            {
+                Settlement => (Site(water: new[] { 20, 120 }, relief: "flat", altitude: new[] { 0.1, 0.6 }, ground: new[] { "grass", "dirt" }),
+                    Grade(16, 24, 24)),
+                Lodge => (Site(water: new[] { 0, 60 }, coast: new[] { 0, 60 }, prominence: "low"), Grade(10, 12, 12)),
+                BanditCamp => (Site(water: new[] { 80, 100000 }, prominence: "low", relief: "rugged",
+                    weights: new[] { ("water", 1.0), ("prominence", 2.0) }), Grade(10, 12, 12)),
+                Monument => (Site(prominence: "high", weights: new[] { ("prominence", 3.0) }), Grade(10, 16, 16)),
+                Outpost => (Site(prominence: "high", altitude: new[] { 0.6, 1.0 }, weights: new[] { ("prominence", 2.0) }), Grade(10, 12, 12)),
+                Factory => (Site(relief: "flat", altitude: new[] { 0.3, 0.7 }, weights: new[] { ("relief", 2.0) }), Grade(14, 24, 24)),
+                Landmark => (Site(prominence: "high", relief: "flat", weights: new[] { ("relief", 2.0) }), Grade(16, 24, 24)),
+                Ruin or RailRuin => (new StructureSiteRule(), Grade(12, 16, 16)),
+                SpsLab => (new StructureSiteRule(), Grade(12, 16, 16)),
+                _ => (new StructureSiteRule(), new StructureGradeRule()),
+            };
+        }
+
+        return kinds;
+    }
+
+    private static StructureSiteRule Site(int[]? water = null, int[]? coast = null, string prominence = "", string relief = "",
+        double[]? altitude = null, string[]? ground = null, (string Term, double Weight)[]? weights = null)
+    {
+        var rule = new StructureSiteRule
+        {
+            Water = new List<int>(water ?? Array.Empty<int>()),
+            Coast = new List<int>(coast ?? Array.Empty<int>()),
+            Prominence = prominence,
+            Relief = relief,
+            Altitude = new List<double>(altitude ?? Array.Empty<double>()),
+            Ground = new List<string>(ground ?? Array.Empty<string>()),
+        };
+        foreach (var (term, weight) in weights ?? Array.Empty<(string, double)>())
+        {
+            rule.Weights[term] = weight;
+        }
+
+        return rule;
+    }
+
+    private static StructureGradeRule Grade(int radius, int maxCut, int maxFill) => new() { Radius = radius, MaxCut = maxCut, MaxFill = maxFill };
 
     /// <summary>A kind → margin map (a fresh one per call: the defaults never share a dictionary).</summary>
     private static Dictionary<string, int> Margins(params (string Kind, int Margin)[] margins)

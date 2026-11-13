@@ -274,6 +274,11 @@ public sealed partial class WorldGenerator
     /// <summary>A shrine keeps clear of every landing pad's levelled ground (its islet included), with a few blocks to spare.</summary>
     private bool RuneShrineNearPad(int cx, int cz)
     {
+        if (_sites.Length != 0 && SiteClaims(cx, cz, 16))
+        {
+            return true; // generation 40 (#3568): nor does a shrine seat in (or next to) a reserved site
+        }
+
         foreach (var p in _landingPads)
         {
             int dx = WorldConstants.WrapDeltaX(cx - p.CenterX, _circumference);
@@ -590,6 +595,13 @@ public sealed partial class WorldGenerator
     /// </summary>
     private bool RuneShrineClaims(PlanetType planet, int worldX, int worldZ, int reach)
     {
+        // Generation 40 (#3568): a reserved site claims its box the same way — every vegetation and prop pass asks here
+        // before it anchors, so a town's ground stays clear without the stamper carving trees out of it.
+        if (_sites.Length != 0 && SiteClaims(worldX, worldZ, reach))
+        {
+            return true;
+        }
+
         if (!RuneShrinesOn(planet))
         {
             return false;

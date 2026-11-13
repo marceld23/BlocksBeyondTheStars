@@ -37,10 +37,76 @@ public sealed partial class StructureTypeRules
         public Dictionary<string, int>? KeepClearFrom { get; set; }
         public List<string>? Conditions { get; set; }
         public string? Whitelist { get; set; }
+        public SiteEntry? Site { get; set; }
+        public GradeEntry? Grade { get; set; }
 
         [JsonExtensionData]
         public Dictionary<string, JsonElement>? Unknown { get; set; }
     }
+
+    /// <summary>A kind's <c>site</c> object as the file has it (#3563): every field optional.</summary>
+    private sealed class SiteEntry
+    {
+        public List<int>? Water { get; set; }
+        public List<int>? Coast { get; set; }
+        public string? Prominence { get; set; }
+        public string? Relief { get; set; }
+        public List<double>? Altitude { get; set; }
+        public List<string>? Ground { get; set; }
+        public Dictionary<string, double>? Weights { get; set; }
+
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement>? Unknown { get; set; }
+    }
+
+    /// <summary>A kind's <c>grade</c> object as the file has it (#3563): every field optional.</summary>
+    private sealed class GradeEntry
+    {
+        public int? Radius { get; set; }
+        public int? MaxCut { get; set; }
+        public int? MaxFill { get; set; }
+
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement>? Unknown { get; set; }
+    }
+
+    /// <summary>The unknown field names of an entry, its <c>site</c> and its <c>grade</c> object (comments excluded).</summary>
+    private static List<string> UnknownFields(Entry entry)
+    {
+        static IEnumerable<string> Named(Dictionary<string, JsonElement>? unknown, string prefix)
+            => unknown?.Keys.Where(k => !k.StartsWith("_", StringComparison.Ordinal)).Select(k => prefix + k) ?? Enumerable.Empty<string>();
+
+        return Named(entry.Unknown, string.Empty).Concat(Named(entry.Site?.Unknown, "site.")).Concat(Named(entry.Grade?.Unknown, "grade."))
+            .ToList();
+    }
+
+    /// <summary>The default site rule with every field the entry sets replaced.</summary>
+    private static StructureSiteRule MergeSite(StructureSiteRule defaults, SiteEntry? e)
+    {
+        var s = defaults.Clone();
+        if (e is null)
+        {
+            return s;
+        }
+
+        s.Water = e.Water ?? s.Water;
+        s.Coast = e.Coast ?? s.Coast;
+        s.Prominence = e.Prominence ?? s.Prominence;
+        s.Relief = e.Relief ?? s.Relief;
+        s.Altitude = e.Altitude ?? s.Altitude;
+        s.Ground = e.Ground ?? s.Ground;
+        s.Weights = e.Weights is { } w ? new Dictionary<string, double>(w, StringComparer.Ordinal) : s.Weights;
+        return s;
+    }
+
+    /// <summary>The default grade rule with every field the entry sets replaced.</summary>
+    private static StructureGradeRule MergeGrade(StructureGradeRule defaults, GradeEntry? e)
+        => new()
+        {
+            Radius = e?.Radius ?? defaults.Radius,
+            MaxCut = e?.MaxCut ?? defaults.MaxCut,
+            MaxFill = e?.MaxFill ?? defaults.MaxFill,
+        };
 
     /// <summary>The rules of a file — the defaults when it does not exist or cannot be read (reported).</summary>
     public static StructureTypeRules Load(string path, Action<string>? warn = null)
@@ -130,7 +196,7 @@ public sealed partial class StructureTypeRules
             return null;
         }
 
-        var unknown = entry.Unknown?.Keys.Where(k => !k.StartsWith("_", StringComparison.Ordinal)).ToList() ?? new List<string>();
+        var unknown = UnknownFields(entry);
         if (unknown.Count > 0)
         {
             warn?.Invoke($"structure_types.json: '{kind}' has unknown field(s) {string.Join(", ", unknown)} — it keeps its defaults.");
@@ -172,6 +238,8 @@ public sealed partial class StructureTypeRules
         t.KeepClearFrom = e.KeepClearFrom is { } from ? new Dictionary<string, int>(from, StringComparer.Ordinal) : t.KeepClearFrom;
         t.Conditions = e.Conditions ?? t.Conditions;
         t.Whitelist = e.Whitelist ?? t.Whitelist;
+        t.Site = MergeSite(t.Site, e.Site);
+        t.Grade = MergeGrade(t.Grade, e.Grade);
         return t;
     }
 }

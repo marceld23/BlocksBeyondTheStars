@@ -141,13 +141,14 @@ public sealed partial class GameServer
             {
                 if (!TryPlaceStructureGuaranteed(structure, RngFor(instSeed, "search"), reserved,
                         wantIsland: false, SeatPolicyOf(StructureTypeRules.BanditCamp, SeatPolicy.Camp), avoidPlayerEdits: false,
-                        out origin, out groundY, out onIsland, out seat))
+                        out origin, out groundY, out onIsland, out seat, siteKind: StructureTypeRules.BanditCamp))
                 {
                     RecordPlacementSkip("banditcamp", i);
                     continue;
                 }
 
                 RecordPlacement("banditcamp", i, origin, groundY, onIsland, seat, "bandit_camp_" + i);
+                ReserveSiteGround(StructureTypeRules.BanditCamp, structure.Width, structure.Length, origin, groundY, seat); // #3569
             }
 
             placed.Add(new PlacedSettlement

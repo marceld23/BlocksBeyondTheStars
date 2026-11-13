@@ -114,6 +114,14 @@ public sealed class RiverField
     /// river columns directly instead of scanning the whole world for them (#1067).</summary>
     public IReadOnlyDictionary<(int X, int Z), RiverColumn> ColumnsByPosition => _cols;
 
+    /// <summary>Terrain generation 40 (#3557): the valleys the ground eases into toward this field's surface reaches; null on
+    /// every older field, on a field built without a strength, and on an empty one.</summary>
+    public RiverValleys? Valleys { get; private set; }
+
+    /// <summary>Terrain generation 40 (#3561): the fresh-water and coast distances on the network's grid; null on every older
+    /// field and on an empty one.</summary>
+    public RiverGeography? Geography { get; private set; }
+
     private RiverField(Dictionary<(int, int), RiverColumn> cols, Dictionary<(int, int), int> lakeShore,
         Dictionary<(int, int), int> pooled, HashSet<(int, int)> floodplain, int morphologyColumns,
         int circumference, int waterfalls, BlockId fillFluid)
@@ -168,9 +176,12 @@ public sealed class RiverField
         double sinuosity = 0.0,
         int distributaries = 0,
         int floodplainWidth = 0,
-        bool bankClamp = false)
+        bool bankClamp = false,
+        int valleyStrengthPercent = 0,
+        bool geography = false)
     {
         var cols = new Dictionary<(int, int), RiverColumn>();
+        var classes = valleyStrengthPercent > 0 ? new Dictionary<(int X, int Z), byte>() : null; // generation 40 (#3557)
         var floodplain = new HashSet<(int, int)>();
         int morphologyColumns = 0, outletStrokes = 0, trunkStrokes = 0;
         // Pooled (flat-lake) columns and the coarse cell that set their level — the lake-shore pass below
@@ -440,6 +451,8 @@ public sealed class RiverField
                     {
                         pooledCols[(WorldConstants.WrapX(sx, circumference), WorldConstants.WrapZ(sz, circumference))] = cellIdx;
                     }
+
+                    NoteValleyClass(classes, sx, sz, circumference, underground, pooled, width);
                 }
 
                 // Floodplain (generation 3): the dry ground either side of a trunk reach, where it lies within a
@@ -557,7 +570,28 @@ public sealed class RiverField
             Morphology = sinuosity > 0.0 || distributaries > 0 || floodplainWidth > 0,
             OutletStrokeCount = outletStrokes,
             TrunkStrokeCount = trunkStrokes,
+            Valleys = classes is null ? null : RiverValleys.Build(cols, classes, circumference, valleyStrengthPercent),
+            Geography = geography ? RiverGeography.Build(net, cols, circumference) : null,
         };
+    }
+
+    /// <summary>Generation 40 (#3557): remembers the valley class of a surface reach's column — a lake, or by the reach's
+    /// width a brook, a gathered river or a trunk. Where strokes overlap the larger class wins. A no-op on every older build
+    /// (<paramref name="classes"/> null) and under ground.</summary>
+    private static void NoteValleyClass(Dictionary<(int X, int Z), byte>? classes, int x, int z, int circumference, bool underground,
+        bool pooled, int width)
+    {
+        if (classes is null || underground)
+        {
+            return;
+        }
+
+        byte cls = pooled ? RiverValleys.Lake : width <= 2 ? RiverValleys.Brook : width <= 4 ? RiverValleys.Gathered : RiverValleys.Trunk;
+        var key = (WorldConstants.WrapX(x, circumference), WorldConstants.WrapZ(z, circumference));
+        if (!classes.TryGetValue(key, out var had) || had < cls)
+        {
+            classes[key] = cls;
+        }
     }
 
     /// <summary>

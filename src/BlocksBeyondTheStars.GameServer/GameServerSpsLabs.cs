@@ -86,7 +86,7 @@ public sealed partial class GameServer
             else if (!TryPlaceStructureGuaranteed(structure, RngFor(instSeed, "search"), reserved,
                          wantIsland: false, SeatPolicyOf(StructureTypeRules.SpsLab, SeatPolicy.Camp), avoidPlayerEdits: !_worlds.Active.VirginAtLoad,
                          out origin, out groundY, out onIsland, out seat,
-                         seatOk: (o, style) => SpsLabSeatOpen(structure, o, style)))
+                         seatOk: (o, style) => SpsLabSeatOpen(structure, o, style), siteKind: StructureTypeRules.SpsLab))
             {
                 RecordPlacementSkip("spslab", i); // #2696: no dry site under the open sky — the world has one lab fewer
                 continue;
@@ -94,6 +94,7 @@ public sealed partial class GameServer
             else
             {
                 RecordPlacement("spslab", i, origin, groundY, onIsland, seat, "sps_lab_" + i);
+                ReserveSiteGround(StructureTypeRules.SpsLab, structure.Width, structure.Length, origin, groundY, seat); // #3569
             }
 
             placed.Add(new PlacedSettlement

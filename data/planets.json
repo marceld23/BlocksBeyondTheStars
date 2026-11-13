@@ -706,7 +706,7 @@
   },
   {
     "key": "river_lowlands", "waterTint": "auto", "minTerrainGeneration": 3, "floraTheme": "temperate", "baseTemperature": 15, "nameKey": "planet.river_lowlands.name", "atmosphereHeight": 230, "cloudColor": 15592941, "cloudDensity": 0.5, "mist": 0.75,
-    "terrainTags": ["wetland"],
+    "terrainTags": ["wetland"], "valleyStrength": 1.25,
     "baseHeight": 62, "amplitude": 10, "terrainScale": 58.0, "terrainStyle": "flats",
     "terrainStyles": ["flats", "downs"],
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,

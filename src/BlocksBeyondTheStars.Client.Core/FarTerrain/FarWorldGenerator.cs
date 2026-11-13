@@ -34,7 +34,8 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
             generator.SetLavaCoreVolcanoes(info.LavaCoreVolcanoes);
             generator.SetTerrainGeneration(info.TerrainGeneration);
             generator.SetWorldMode(info.Circumference > 0 ? info.Circumference : WorldConstants.Circumference,
-                info.Cratered, FarTerrainSource.UnpackPads(info.Pads), string.IsNullOrEmpty(info.LocationId) ? null : info.LocationId);
+                info.Cratered, FarTerrainSource.UnpackPads(info.Pads), string.IsNullOrEmpty(info.LocationId) ? null : info.LocationId,
+                siteFlats: SiteFlat.Unpack(info.Sites)); // generation 40 (#3570): the ground the server reserved
             planet = p;
             return generator;
         }

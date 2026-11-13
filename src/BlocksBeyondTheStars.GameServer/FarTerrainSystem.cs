@@ -367,6 +367,7 @@ internal sealed class FarTerrainSystem
             TerrainGeneration = _host.Metadata.Description.TerrainGeneration,
             Void = world.Planet.Void,
             Pads = packed,
+            Sites = BlocksBeyondTheStars.WorldGeneration.SiteFlat.Pack(world.SiteFlats), // generation 40 (#3570): the reserved ground
             MaxTileRangeBlocks = FarTileMaxRangeBlocks,
         };
     }

@@ -233,6 +233,7 @@ public sealed partial class GameServer
                 }
 
                 RecordPlacement("outpost", i, origin, groundY, onIsland, seat, "outpost_" + i, template: work.Key, kitLayout: boat);
+                ReserveSiteGround(StructureTypeRules.Outpost, outpost.Structure.Width, outpost.Structure.Length, origin, groundY, seat); // #3569
             }
 
             placed.Add((new PlacedSettlement
@@ -340,7 +341,7 @@ public sealed partial class GameServer
         {
             if (!TryPlaceStructureGuaranteed(s, RngFor(instSeed, lane), reserved, wantIsland: false,
                     SeatPolicyOf(StructureTypeRules.Outpost, SeatPolicy.Camp),
-                    avoidPlayerEdits: false, out var o, out int gy, out bool island, out string st))
+                    avoidPlayerEdits: false, out var o, out int gy, out bool island, out string st, siteKind: StructureTypeRules.Outpost))
             {
                 continue;
             }

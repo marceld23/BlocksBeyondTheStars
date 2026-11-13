@@ -429,6 +429,10 @@ public sealed class PlanetType
     /// <summary>Share of the surface that is hot zone (Titas 0.15) — needs one <see cref="Biome.HotZone"/> biome; 0 = none.</summary>
     public double HotZoneShare { get; set; }
 
+    /// <summary>Terrain generation 40 (#3559): how strongly the ground eases down toward this type's surface rivers — scales
+    /// a valley's reach, its flat floor and how deep it cuts. Null = 1 (lava rivers take half of it); 0 = no valleys.</summary>
+    public double? ValleyStrength { get; set; }
+
     /// <summary>Only leafless dead trees grow, on snow and bare ground too, and past the tree line (Titas).</summary>
     public bool DeadForests { get; set; }
 

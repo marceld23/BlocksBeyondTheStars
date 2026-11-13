@@ -342,7 +342,7 @@ public sealed partial class GameServer
         bool SeatOk(Vector3i origin, string seat) => !buried || seat is "flat" or "slope";
         if (!TryPlaceStructureGuaranteed(layout.Structure, RngFor(plan.Seed, "search"),
                 KeepClearFor(StructureTypeRules.Landmark, LandmarkReserved()), wantIsland: false, policy, // #3514: generation 38: the registry
-                avoidPlayerEdits, out var origin, out int groundY, out _, out string seat, seatOk: SeatOk))
+                avoidPlayerEdits, out var origin, out int groundY, out _, out string seat, seatOk: SeatOk, siteKind: StructureTypeRules.Landmark))
         {
             return false;
         }
@@ -421,6 +421,10 @@ public sealed partial class GameServer
             RecordPlacement(LandmarkRules.RecordKind, plan.Index, new Vector3i(plan.OriginX, plan.GroundY, plan.OriginZ), plan.GroundY, false, plan.Seat,
                 plan.Template.Name, plan.Template.Key, kitLayout: LandmarkPin(plan), hashRevision: StructurePlacementRecord.MixedHashRevision);
             SavePlacementRecords();
+            // #3571: a fresh landmark of the boot's structures stage reserves its ground (an admin placement does not — the
+            // stage flag is down then); a span across water seats "span" and reserves none.
+            ReserveSiteGround(StructureTypeRules.Landmark, layout.Structure.Width, layout.Structure.Length,
+                new Vector3i(plan.OriginX, plan.GroundY, plan.OriginZ), plan.GroundY, plan.Seat);
         }
 
         bool legacy = !SchoolClubLandmarkWorld;
