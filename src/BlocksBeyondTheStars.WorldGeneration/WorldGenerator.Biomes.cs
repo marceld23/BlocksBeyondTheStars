@@ -127,7 +127,7 @@ public sealed partial class WorldGenerator
         var b = biomes[biomes.Count <= 1
             ? 0
             : BiomeIndex(CalibFor(planet), PlanetSeed(planet), worldX, worldZ, biomes.Count,
-                SurfaceHeight(planet, worldX, worldZ))];
+                BiomeQueryHeight(planet, worldX, worldZ))]; // #3556: the natural ground from generation 40
         var grass = _content.GetBlock("grass")?.NumericId ?? BlockId.Air;
         var dirt = _content.GetBlock("dirt")?.NumericId ?? BlockId.Air;
         return (!grass.IsAir && b.Surface == grass) || (!dirt.IsAir && b.Surface == dirt);
@@ -157,7 +157,7 @@ public sealed partial class WorldGenerator
         return count <= 1
             ? 0
             : BiomeIndex(CalibFor(planet), PlanetSeed(planet), worldX, worldZ, count,
-                SurfaceHeight(planet, worldX, worldZ));
+                BiomeQueryHeight(planet, worldX, worldZ)); // #3556: the natural ground from generation 40
     }
 
     /// <summary>How many distinct biomes this planet's world uses.</summary>
@@ -183,6 +183,11 @@ public sealed partial class WorldGenerator
     /// the last entry caps the peaks. Regions stay large so per-biome weather covers a meaningful area.</summary>
     private int BiomeIndex(WorldCalibration calib, long seed, int worldX, int worldZ, int count, int surfaceY)
     {
+        if (GeographyWorld && calib.Planet is { } planet)
+        {
+            surfaceY = BiomeAltitude(planet, worldX, worldZ, surfaceY); // #3556: valleys and grades never move a biome border
+        }
+
         if (calib.SandBiome >= 0)
         {
             // Generation 9 (#2000): the sand-sea field claims its low columns; the classic mix spreads over the rest.

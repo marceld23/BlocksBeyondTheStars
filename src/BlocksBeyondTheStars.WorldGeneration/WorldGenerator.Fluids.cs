@@ -261,7 +261,7 @@ public sealed partial class WorldGenerator
             return fast.Value;
         }
 
-        var field = _riverFields.TryGet(key, out var hit) ? hit : _riverFields.GetOrBuild(key, () => BuildRiverField(planet));
+        var field = _riverFields.TryGet(key, out var hit) ? hit : _riverFields.GetOrBuild(key, () => NaturalOnly(() => BuildRiverField(planet))); // #3556: routed over the natural stage
         _riverSlot = new WorldSlot<RiverField>(key, field);
         return field;
     }
@@ -282,7 +282,7 @@ public sealed partial class WorldGenerator
         int circumference = _circumference;
         ParallelWork.For(gridH, _buildWorkers, this, ModeSibling,
             (gz, generator) => RiverNetwork.SampleRow(gz, circumference, latitudePeriod, cellSize,
-                (x, z) => generator.SurfaceHeight(planet, x, z), heights));
+                (x, z) => generator.NaturalSurfaceHeight(planet, x, z), heights)); // #3556: the natural stage
         return heights;
     }
 
@@ -308,7 +308,7 @@ public sealed partial class WorldGenerator
             ?? (string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase) ? 0.0 : 0.55);
 
         int period = WorldConstants.LatitudePeriodFor(_circumference);
-        int Height(int x, int z) => SurfaceHeight(planet, x, z);
+        int Height(int x, int z) => NaturalSurfaceHeight(planet, x, z); // #3556: valleys are cut toward this routing
         long refArea = (long)(WorldConstants.Circumference / 16) * (WorldConstants.LatitudePeriodFor(WorldConstants.Circumference) / 16);
         long area = (long)(_circumference / 16) * (period / 16);
         double areaScale = area / (double)refArea;
@@ -332,7 +332,8 @@ public sealed partial class WorldGenerator
             return RiverField.Build(net, Height, _circumference, fillFluid: waterId,
                 channelFlowThreshold: 1, fullWidthAccum: 8, sunkRegion: sunk,
                 sinuosity: morph ? 1.0 : 0.0, distributaries: morph ? 4 : 0, floodplainWidth: morph ? 6 : 0,
-                bankClamp: WaterSealed); // generation 24 (#2516): no water above the lower bank
+                bankClamp: WaterSealed, // generation 24 (#2516): no water above the lower bank
+                valleyStrengthPercent: ValleyStrengthPercent(planet, lava: false), geography: GeographyWorld); // generation 40
         }
 
         // LAVA rivers (L2): only the `lava` and `ashen` worlds (user decision). Magma is viscous, so the
@@ -348,7 +349,8 @@ public sealed partial class WorldGenerator
             // channel at width 1 (FlowAccum never exceeds 1 on a lava world), making this tuning inert.
             return RiverField.Build(net, Height, _circumference, fillFluid: lavaId,
                 channelFlowThreshold: 1, maxWidth: 9, fullWidthAccum: 1, maxLakeDepth: 4, estuaryWiden: 4,
-                bankClamp: WaterSealed); // generation 24 (#2516)
+                bankClamp: WaterSealed, // generation 24 (#2516)
+                valleyStrengthPercent: ValleyStrengthPercent(planet, lava: true), geography: GeographyWorld); // generation 40: half-strength valleys
         }
 
         return RiverField.Empty(_circumference);

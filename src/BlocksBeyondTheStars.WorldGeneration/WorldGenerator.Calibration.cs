@@ -22,6 +22,7 @@ public sealed partial class WorldGenerator
     private sealed class WorldCalibration
     {
         public int SeaLevel = int.MinValue;   // int.MinValue = dry world
+        public PlanetType? Planet;            // #3556: the type it was measured for (the biome pick reads its natural ground)
         public BlockId SeaFluid;
         public int[] SortedHeights = System.Array.Empty<int>(); // coarse whole-world surface sample, sorted
         public int MinHeight, MaxHeight;
@@ -116,7 +117,7 @@ public sealed partial class WorldGenerator
     private WorldCalibration BuildCalibration(PlanetType planet)
     {
         long seed = PlanetSeed(planet);
-        var c = new WorldCalibration();
+        var c = new WorldCalibration { Planet = planet };
         double R01(long salt) => (double)((ulong)(seed ^ salt) % 10000UL) / 10000.0;
 
         // 1) Whole-world height sample (coarse but torus-complete) — the basis for the percentile sea level
@@ -130,7 +131,7 @@ public sealed partial class WorldGenerator
         var hs = new System.Collections.Generic.List<int>((_circumference / stepX + 1) * (period / stepZ + 1));
         for (int z = -period / 2; z < period / 2; z += stepZ)
             for (int x = 0; x < _circumference; x += stepX)
-                hs.Add(SurfaceHeight(planet, x, z));
+                hs.Add(NaturalSurfaceHeight(planet, x, z)); // #3556: the sea is a percentile of the natural ground
         hs.Sort();
         c.SortedHeights = hs.ToArray();
         c.MinHeight = c.SortedHeights[0];

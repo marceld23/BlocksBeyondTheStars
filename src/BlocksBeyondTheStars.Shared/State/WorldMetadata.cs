@@ -184,6 +184,16 @@ public sealed class WorldMetadata
     public System.Collections.Generic.Dictionary<string, string> BodyLandingPads { get; set; } = new();
 
     /// <summary>
+    /// Pinned site flats (#3569, terrain generation 40): bodyId → the ground the body's stamped structures reserved, one
+    /// entry per site as <c>minX,minZ,width,length,floorY,radius,maxCut,maxFill</c>, sites separated by <c>;</c>. The
+    /// generator levels each box to its floor and grades the land around it, so the list must reach the generator before
+    /// the body's first chunk on every load: it is written while the first structures stage stamps and read back in the
+    /// landing-pad stage afterwards — never re-derived, so a later change to a template or a rule cannot move the ground
+    /// under a town. Additive JSON field, no migration; an older world has no entry.
+    /// </summary>
+    public System.Collections.Generic.Dictionary<string, string> BodySites { get; set; } = new();
+
+    /// <summary>
     /// The monorail (#2113): bodyId → the rail graph of that world (one pylon per entry as <c>x,y,z:lx,ly,lz;lx,ly,lz</c>,
     /// pylons separated by <c>|</c>) and bodyId → its trains (one per entry as <c>id,owner,line,arc,speed,dir,auto,wagon+wagon</c>,
     /// trains separated by <c>|</c>). The pylons are blocks in the world; the links between them and the trains are

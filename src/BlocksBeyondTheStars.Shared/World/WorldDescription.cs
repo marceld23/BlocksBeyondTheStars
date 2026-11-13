@@ -240,8 +240,18 @@ public sealed class WorldDescription
     /// variety and glow package, #2976 several fruits per world, picked per tree, #2988 the start system carries lead and
     /// uranium, #3005 the pumpkin as a wild species of the green worlds, #3306 KuBa-W, Jafar's school-club asteroid, #3325 the
     /// Schuppenhund on the dry worlds, #3334 the buried G.D.S. ruins flooded with Ressaw, #3416 the rune shrines, #3483 the
-    /// landmarks, #3510 the structure pipeline, the school club's giant buildings with their overlay storage).</summary>
-    public const int CurrentTerrainGeneration = SchoolClubLandmarksGeneration;
+    /// landmarks, #3510 the structure pipeline, the school club's giant buildings with their overlay storage, #3555 the
+    /// geography package: river valleys, site search with a map, sites that reserve their ground).</summary>
+    public const int CurrentTerrainGeneration = GeographyGeneration;
+
+    /// <summary>The generation of the geography package (#3555): the surface height becomes three stages — the natural
+    /// height (every older generation's whole answer), the river valleys (the ground eases down toward every surface river,
+    /// #3558) and the site grade (a stamped structure's footprint is level in the generator itself and the land around it is
+    /// graded, #3567) — the placement search ranks its candidates by the kind's site rules (#3564), structures build with the
+    /// ground of the biome they stand on (#3565), and the biome pick reads the natural height (valleys and grades never move
+    /// a biome border). Every chunk of every older generation stays bit-identical: the calibration, the river routing and
+    /// the planet-map previews read the natural stage on every generation.</summary>
+    public const int GeographyGeneration = 40;
 
     /// <summary>The generation of the school club's giant buildings: a world created at this generation or later rolls the
     /// school club's landmarks, carries the fixed landmarks of its planet type, and stores every landmark it stamps as ONE

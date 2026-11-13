@@ -52,6 +52,11 @@ public sealed partial class ServerWorld
     /// any pad-area chunk generates — and re-applied to the shared generator per chunk generation.</summary>
     public List<LandingPadFlatten> LandingPadFlats { get; } = new();
 
+    /// <summary>Terrain generation 40 (#3569): the ground this world's stamped structures reserved — levelled and graded by
+    /// the generator like the pads. Read back from the save in the landing-pad stage (before any chunk), grown while the
+    /// first structures stage stamps, and applied with every mode change like <see cref="LandingPadFlats"/>.</summary>
+    public List<SiteFlat> SiteFlats { get; } = new();
+
     /// <summary>Whether this body generates with airless-moon cratering (item 33). Stamped by the server
     /// at world-load so every chunk generation can fully re-configure the shared generator (#424 S13).</summary>
     public bool Cratered { get; set; }
@@ -126,7 +131,7 @@ public sealed partial class ServerWorld
             if (_own is null || !_own.SharesGlobalSettingsWith(_template))
             {
                 _own = _template.CreateSibling();
-                _own.SetWorldMode(Circumference, Cratered, LandingPadFlats, LocationId, FrontierOreBoost);
+                _own.SetWorldMode(Circumference, Cratered, LandingPadFlats, LocationId, FrontierOreBoost, SiteFlats);
             }
 
             return _own;
@@ -138,7 +143,7 @@ public sealed partial class ServerWorld
     /// stamps change, and whenever the server points its cursor here. Applying the mode the generator already has is a
     /// comparison and nothing else (#1816).</summary>
     public void ApplyGeneratorMode()
-        => Generator.SetWorldMode(Circumference, Cratered, LandingPadFlats, LocationId, FrontierOreBoost);
+        => Generator.SetWorldMode(Circumference, Cratered, LandingPadFlats, LocationId, FrontierOreBoost, SiteFlats);
 
     /// <summary>#1817: takes a chunk a worker generated for this world (with this world's mode) into the cache —
     /// persisted edits are applied here, on the tick thread, exactly as <see cref="GetOrLoadChunk"/> does. A chunk

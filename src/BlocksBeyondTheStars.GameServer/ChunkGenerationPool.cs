@@ -44,6 +44,7 @@ internal sealed class ChunkGenerationPool : IDisposable
         public int Circumference;
         public bool Cratered;
         public LandingPadFlatten[] Pads = Array.Empty<LandingPadFlatten>();
+        public SiteFlat[] Sites = Array.Empty<SiteFlat>(); // generation 40 (#3569)
         public string LocationId = string.Empty;
         public double OreBoost;
         public bool Priority;
@@ -338,7 +339,7 @@ internal sealed class ChunkGenerationPool : IDisposable
         bool sameMode = job.Error == null && job.Chunk != null
             && job.Circumference == world.Circumference && job.Cratered == world.Cratered
             && job.OreBoost.Equals(world.FrontierOreBoost) && job.LocationId == world.LocationId
-            && LandingPadFlatten.SameList(job.Pads, world.LandingPadFlats);
+            && LandingPadFlatten.SameList(job.Pads, world.LandingPadFlats) && SiteFlat.SameList(job.Sites, world.SiteFlats);
         if (sameMode)
         {
             world.AdoptGenerated(job.Coord, job.Chunk!);
@@ -359,6 +360,7 @@ internal sealed class ChunkGenerationPool : IDisposable
         Circumference = world.Circumference,
         Cratered = world.Cratered,
         Pads = LandingPadFlatten.Snapshot(world.LandingPadFlats),
+        Sites = SiteFlat.Snapshot(world.SiteFlats),
         LocationId = world.LocationId,
         OreBoost = world.FrontierOreBoost,
         Priority = priority,
@@ -401,7 +403,7 @@ internal sealed class ChunkGenerationPool : IDisposable
                     generator = _template.CreateSibling(); // a setter ran on the server's generator after start
                 }
 
-                generator.SetWorldMode(job.Circumference, job.Cratered, job.Pads, job.LocationId, job.OreBoost);
+                generator.SetWorldMode(job.Circumference, job.Cratered, job.Pads, job.LocationId, job.OreBoost, job.Sites);
                 job.Chunk = generator.Generate(job.Planet, job.Coord);
             }
             catch (Exception e)

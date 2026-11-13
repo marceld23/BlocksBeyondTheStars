@@ -73,7 +73,7 @@ public sealed partial class WorldGenerator
     /// bodies of the same planet type are different worlds. Null/empty keeps the legacy per-type seeding.
     /// </summary>
     public void SetWorldMode(int circumference, bool cratered, IReadOnlyList<LandingPadFlatten>? landingPads,
-        string? locationId = null, double frontierOreBoost = 1.0)
+        string? locationId = null, double frontierOreBoost = 1.0, IReadOnlyList<SiteFlat>? siteFlats = null)
     {
         // #1816: ServerWorld re-applies the mode before EVERY chunk it generates. Re-applying the identical mode
         // must not wipe the column memos (#1526), or every stacked chunk of a column pays the column phase again.
@@ -83,13 +83,15 @@ public sealed partial class WorldGenerator
             && _crateredWorld == cratered
             && _locationId == (locationId ?? string.Empty)
             && _frontierOreBoost.Equals(frontierOreBoost)
-            && SamePads(_padSnapshot, landingPads))
+            && SamePads(_padSnapshot, landingPads)
+            && SiteFlat.SameList(_sites, siteFlats)) // generation 40 (#3567): the reserved ground is world mode too
         {
             _landingPads = landingPads ?? System.Array.Empty<LandingPadFlatten>();
             return;
         }
 
         _modeApplied = true;
+        _sites = SiteFlat.Snapshot(siteFlats);
         _padSnapshot = SnapshotPads(landingPads);
         _circumference = circumference;
         _crateredWorld = cratered;
@@ -146,7 +148,7 @@ public sealed partial class WorldGenerator
     private WorldGenerator ModeSibling()
     {
         var sibling = CreateSibling();
-        sibling.SetWorldMode(_circumference, _crateredWorld, _padSnapshot, _locationId, _frontierOreBoost);
+        sibling.SetWorldMode(_circumference, _crateredWorld, _padSnapshot, _locationId, _frontierOreBoost, _sites);
         return sibling;
     }
 
@@ -959,6 +961,7 @@ public sealed partial class WorldGenerator
         lock (_columnLock)
         {
             _surfaceCache.Clear();
+            _stagedCache.Clear(); // generation 40 (#3556): the valley and site-grade stages over it
             _forestCache.Clear();
             _columnProfiles.Clear();
         }
@@ -1229,9 +1232,10 @@ public sealed partial class WorldGenerator
     /// (#477), massifs, table mountains, rift chasms (#577/#578) and the #698–#709 families. Table order is
     /// the precedence (volcano &gt; caldera &gt; massif &gt; butte &gt; … &gt; rift), one landmark per column, so a
     /// landmark's own summit/fluid helpers always anchor to ground no other landmark has moved.
-    /// Everything that consumes terrain (rivers, settlements, pads, previews) goes through here, so
-    /// every system sees the same mountain.</summary>
-    public int SurfaceHeight(PlanetType planet, int worldX, int worldZ)
+    /// This is the NATURAL stage (#3556): every generation before 40 answers with it alone; from 40
+    /// <see cref="SurfaceHeight"/> lays the river valleys and the site grades over it. The calibration, the
+    /// river routing and the planet-map previews read this stage on every generation.</summary>
+    public int NaturalSurfaceHeight(PlanetType planet, int worldX, int worldZ)
     {
         var key = (planet.Key, ColumnKey(worldX, worldZ));
         lock (_columnLock)
@@ -1242,7 +1246,7 @@ public sealed partial class WorldGenerator
             }
         }
 
-        int h = SurfaceHeightUncached(planet, worldX, worldZ);
+        int h = NaturalSurfaceHeightUncached(planet, worldX, worldZ);
         lock (_columnLock)
         {
             if (_surfaceCache.Count >= SurfaceCacheCap)
@@ -1256,8 +1260,8 @@ public sealed partial class WorldGenerator
         return h;
     }
 
-    /// <summary>The memo-free surface height — what <see cref="SurfaceHeight"/> caches (tests compare the two).</summary>
-    internal int SurfaceHeightUncached(PlanetType planet, int worldX, int worldZ)
+    /// <summary>The memo-free natural height — what <see cref="NaturalSurfaceHeight"/> caches.</summary>
+    internal int NaturalSurfaceHeightUncached(PlanetType planet, int worldX, int worldZ)
     {
         var w = WonderFor(planet); // #712: every gate is a cached boolean; #1644: the active rows are cached too
         int h = RawSurfaceHeight(planet, w, worldX, worldZ);
@@ -1274,7 +1278,7 @@ public sealed partial class WorldGenerator
     }
 
     /// <summary>The raw height <paramref name="h"/> of a column plus its one landmark overlay and the sand-sea raise,
-    /// clamped — the rest of <see cref="SurfaceHeightUncached"/>, run while the raw-height slot holds the column.</summary>
+    /// clamped — the rest of <see cref="NaturalSurfaceHeightUncached"/>, run while the raw-height slot holds the column.</summary>
     private int LandmarkedHeight(PlanetType planet, WonderProfile w, int worldX, int worldZ, int h)
     {
         double overlay = 0.0;
@@ -1310,7 +1314,7 @@ public sealed partial class WorldGenerator
         return h > MaxNaturalSurfaceY ? MaxNaturalSurfaceY : h;
     }
 
-    /// <summary>The raw relief of the column <see cref="SurfaceHeightUncached"/> is resolving on this thread (#2759). The
+    /// <summary>The raw relief of the column <see cref="NaturalSurfaceHeightUncached"/> is resolving on this thread (#2759). The
     /// sea-relative rows (the ria, the coast families) and a few others read the raw height of that same column again —
     /// on a ria world a second full relief evaluation per column, about 40 % of the height, which every chunk, pad search
     /// and pond-level search paid. <see cref="RawSurfaceHeight(PlanetType, WonderProfile, int, int)"/> is a pure function

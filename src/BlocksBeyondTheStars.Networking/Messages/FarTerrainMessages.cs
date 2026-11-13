@@ -26,6 +26,13 @@ public sealed class FarTerrainWorldInfo
 
     public const int PadStride = 8;
 
+    /// <summary>#3570 (terrain generation 40): the ground the world's structures reserved — <see cref="SiteStride"/> ints each:
+    /// minX, minZ, width, length, floorY, radius, maxCut, maxFill. The client's generator levels and grades it exactly as the
+    /// server's does, so the far view meets the real chunks around a town. Additive (contractless): an older server sends none.</summary>
+    public int[] Sites { get; set; } = System.Array.Empty<int>();
+
+    public const int SiteStride = 8;
+
     /// <summary>#3059: the farthest tile centre (blocks from the player, wrap-aware) this server answers
     /// <see cref="FarTerrainTileRequest"/>s for; the client asks for nothing beyond it. Additive (contractless): an
     /// older client ignores it, and an older server leaves it 0, which means <see cref="LegacyMaxTileRangeBlocks"/>.</summary>

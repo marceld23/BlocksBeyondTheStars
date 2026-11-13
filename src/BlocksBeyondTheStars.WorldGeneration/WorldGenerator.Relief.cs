@@ -116,7 +116,7 @@ public sealed partial class WorldGenerator
 
     private int RawSurfaceHeight(PlanetType planet, WonderProfile w, int worldX, int worldZ)
     {
-        var slot = t_rawColumn; // #2759: the column SurfaceHeightUncached is resolving — computed once
+        var slot = t_rawColumn; // #2759: the column NaturalSurfaceHeightUncached is resolving — computed once
         if (slot.Holds(this, planet, w, worldX, worldZ))
         {
             return slot.Raw;

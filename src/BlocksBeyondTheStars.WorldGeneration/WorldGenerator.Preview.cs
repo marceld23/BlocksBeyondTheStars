@@ -51,8 +51,22 @@ public readonly struct SurfaceSummary
 public sealed partial class WorldGenerator
 {
     /// <summary>Summarises one column for a map pixel: height, biome, the ground block a viewer from orbit would
-    /// see, the plant cover and whether an upland pond lies there.</summary>
+    /// see, the plant cover and whether an upland pond lies there. Reads the natural stage on every generation (#3556): a map
+    /// pixel spans dozens of blocks, and a bake for a body in the sky must never build that body's river field.</summary>
     public SurfaceSummary SummarizeSurface(PlanetType planet, int worldX, int worldZ)
+    {
+        t_naturalOnly++;
+        try
+        {
+            return SummarizeNaturalSurface(planet, worldX, worldZ);
+        }
+        finally
+        {
+            t_naturalOnly--;
+        }
+    }
+
+    private SurfaceSummary SummarizeNaturalSurface(PlanetType planet, int worldX, int worldZ)
     {
         int h = SurfaceHeight(planet, worldX, worldZ);
         var biomes = ResolveBiomes(planet);
