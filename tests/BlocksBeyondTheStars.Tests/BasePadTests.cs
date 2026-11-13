@@ -320,6 +320,56 @@ public sealed class BasePadTests : IDisposable
     }
 
     [Fact]
+    public void ALandingNobodyPicked_TakesTheReservedPad_BeforeThePublicOnes()
+    {
+        // #3554 (a player's report): pad "only me" plus public pads — coming home took the public pad with the smallest X and
+        // blocked the merchants' place while the reserved pad stood empty.
+        var server = Started(out var repo, "reserved", ship: true);
+        using (repo)
+        {
+            var owner = FourPadsOfMixedAccess(server);
+
+            server.EnterSpace("Owner");
+            server.LandOnCurrentBodyForTest(owner);
+            Assert.Equal(PadEast, server.HeldBasePadForTest(owner));
+        }
+    }
+
+    [Fact]
+    public void ALandingNobodyPicked_SkipsABuiltOverReservedPad_ForTheNextMostPrivateOne()
+    {
+        var server = Started(out var repo, "reservedbuilt", ship: true);
+        using (repo)
+        {
+            var owner = FourPadsOfMixedAccess(server);
+            server.World.SetBlock(new Vector3i(PadEast.X + 3, PadEast.Y + 2, PadEast.Z - 1), _content.GetBlock("stone")!.NumericId,
+                owner: owner.State.PlayerId); // the owner built into the reserved pad's square (#3146)
+
+            server.EnterSpace("Owner");
+            server.LandOnCurrentBodyForTest(owner);
+            Assert.Equal(PadSouth, server.HeldBasePadForTest(owner)); // "me + allies" before the public pad with the smaller X
+        }
+    }
+
+    /// <summary>#3554: four own pads — "only me" on the one with the LARGEST X, "everyone" on the one with the smallest (the pick
+    /// by cell alone), "me + allies" between them.</summary>
+    private PlayerSession FourPadsOfMixedAccess(SvGameServer server)
+    {
+        var owner = Player(server, "Owner");
+        FoundBase(server, owner, Core);
+        foreach (var pad in new[] { PadWest, PadSouth, PadNorth, PadEast })
+        {
+            Assert.Null(server.PlaceBasePadForTest(owner, pad));
+        }
+
+        server.SetBasePadForTest(owner, PadWest, string.Empty, BasePadAccess.Everyone);
+        server.SetBasePadForTest(owner, PadNorth, string.Empty, BasePadAccess.Everyone);
+        server.SetBasePadForTest(owner, PadSouth, string.Empty, BasePadAccess.Allies);
+        server.SetBasePadForTest(owner, PadEast, string.Empty, BasePadAccess.Owner);
+        return owner;
+    }
+
+    [Fact]
     public void MiningTheCore_MakesThePadInactive_AndANewCoreBringsItBack()
     {
         var server = Started(out var repo);
