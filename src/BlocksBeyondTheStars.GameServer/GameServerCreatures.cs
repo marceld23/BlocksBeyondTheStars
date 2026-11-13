@@ -555,14 +555,17 @@ public sealed partial class GameServer
         int z = (int)System.Math.Floor(player.Position.Z) + dz;
         int surface = _generator.SurfaceHeight(_world.Planet, x, z);
         LoadSpawnGround(x, z, surface); // #2960: judge the spot by its real blocks, never by an unloaded chunk's air
-        int biome = _generator.BiomeIndexAt(_world.Planet, x, z);
+        // #3575: the biome in the planet TYPE's numbering — the one a species' affinity counts in — and which of the type's
+        // biomes this world carries at all (a species whose biome is missing here belongs nowhere in particular).
+        int biome = _generator.BiomePoolIndexAt(_world.Planet, x, z);
+        var poolOnWorld = _generator.PoolBiomesOnWorld(_world.Planet);
         int share = SpeciesShare(cap);
 
         // Two passes: first only species native to this biome (so a multi-biome world shows different fauna in
         // different regions), then any species — so a biome never goes empty if none of its natives fit here.
         // A biome with a single native skips the native pass outright (#1325): otherwise every spawn in that
         // region was that one species, and a base there drowned in a monoculture up to the world cap.
-        for (int pass = CreatureBehaviour.BiomePassStarved(_speciesRoster, biome) ? 1 : 0; pass < 2; pass++)
+        for (int pass = CreatureBehaviour.BiomePassStarved(_speciesRoster, biome, poolOnWorld) ? 1 : 0; pass < 2; pass++)
         {
             for (int n = 0; n < _speciesRoster.Length; n++)
             {
@@ -572,7 +575,7 @@ public sealed partial class GameServer
                     continue; // 2026-09: the shapeshifter never spawns as an animal — TickSreekmakra places the one
                 }
 
-                if (pass == 0 && sp.BiomeAffinity >= 0 && sp.BiomeAffinity != biome)
+                if (pass == 0 && !CreatureBehaviour.NativeHere(sp.BiomeAffinity, biome, poolOnWorld))
                 {
                     continue; // not native to this biome (relaxed on the second pass)
                 }

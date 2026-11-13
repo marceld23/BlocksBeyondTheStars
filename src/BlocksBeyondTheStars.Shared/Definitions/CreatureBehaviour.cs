@@ -179,20 +179,39 @@ public static class CreatureBehaviour
     /// species are native to (or agnostic of) <paramref name="biome"/>. With a 9-species roster spread over
     /// several biomes a region can easily have exactly ONE native, and the native-first pass then turned
     /// every spawn around a base in that region into the same species — 36 of one kind at a swamp base.
-    /// A starved spot skips straight to the any-species pass so the region still gets variety.</summary>
-    public static bool BiomePassStarved(System.Collections.Generic.IReadOnlyList<CreatureSpecies> roster, int biome)
+    /// A starved spot skips straight to the any-species pass so the region still gets variety.
+    /// <paramref name="biome"/> and <paramref name="poolOnWorld"/> follow <see cref="NativeHere"/>.</summary>
+    public static bool BiomePassStarved(System.Collections.Generic.IReadOnlyList<CreatureSpecies> roster, int biome,
+        System.Collections.Generic.IReadOnlyList<bool>? poolOnWorld = null)
     {
         int eligible = 0;
         for (int i = 0; i < roster.Count; i++)
         {
-            int affinity = roster[i].BiomeAffinity;
-            if (affinity < 0 || affinity == biome)
+            if (NativeHere(roster[i].BiomeAffinity, biome, poolOnWorld))
             {
                 eligible++;
             }
         }
 
         return eligible < 2;
+    }
+
+    /// <summary>
+    /// #3575: whether a species may spawn in the spawner's native pass at a spot — it is biome-agnostic (affinity −1), its
+    /// biome is the one at the spot, or its biome is not on this world at all (then it belongs nowhere in particular and
+    /// counts as agnostic). Both <paramref name="affinity"/> and <paramref name="poolBiome"/> count in the planet TYPE's
+    /// biome pool (<c>planet.Biomes</c>) — the numbering the roster draws affinities in — never in the world's own shuffled
+    /// subset. <paramref name="poolOnWorld"/> says, by pool index, which pool biomes the world carries; null treats every
+    /// one as present.
+    /// </summary>
+    public static bool NativeHere(int affinity, int poolBiome, System.Collections.Generic.IReadOnlyList<bool>? poolOnWorld = null)
+    {
+        if (affinity < 0 || affinity == poolBiome)
+        {
+            return true;
+        }
+
+        return poolOnWorld is not null && (affinity >= poolOnWorld.Count || !poolOnWorld[affinity]);
     }
 
     /// <summary>Blends a heading toward a target heading by fraction <paramref name="t"/> (0..1) along the

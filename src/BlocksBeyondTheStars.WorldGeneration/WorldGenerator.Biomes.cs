@@ -18,8 +18,9 @@ public sealed partial class WorldGenerator
     internal readonly struct BiomeResolved
     {
         public BiomeResolved(BlockId surface, BlockId sub, double floraMul, double treeMul, FloraThemes.Theme theme,
-            double reliefMul = 1.0, bool hot = false, bool sandSea = false)
+            double reliefMul = 1.0, bool hot = false, bool sandSea = false, int poolIndex = -1)
         {
+            PoolIndex = poolIndex;
             Hot = hot;
             SandSea = sandSea;
             Surface = surface;
@@ -44,6 +45,10 @@ public sealed partial class WorldGenerator
 
         /// <summary>The sand-sea biome (generation 9, #2000) — placed by the sea field, not the altitude mix.</summary>
         public bool SandSea { get; }
+
+        /// <summary>#3575: this biome's index in the planet type's pool (<c>planet.Biomes</c>) — the index a creature's
+        /// biome affinity counts in; -1 for the single biome of a type without a pool.</summary>
+        public int PoolIndex { get; }
     }
 
     /// <summary>
@@ -111,7 +116,7 @@ public sealed partial class WorldGenerator
             var b = planet.Biomes[order[i]];
             var theme = string.IsNullOrWhiteSpace(b.FloraTheme) ? planetTheme : FloraThemes.Resolve(b.FloraTheme);
             list.Add(new BiomeResolved(ResolveBlock(b.SurfaceBlock), ResolveBlock(b.SubSurfaceBlock),
-                b.FloraDensityMul, b.TreeDensityMul, theme, b.ReliefMul, b.HotZone, b.SandSea));
+                b.FloraDensityMul, b.TreeDensityMul, theme, b.ReliefMul, b.HotZone, b.SandSea, order[i]));
         }
 
         return list;
