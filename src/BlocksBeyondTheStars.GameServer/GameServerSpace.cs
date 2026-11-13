@@ -179,6 +179,7 @@ public sealed partial class GameServer
         var flats = _world.LandingPadFlats;
         flats.Clear();
         flats.AddRange(PadFlats(pads));
+        LoadPinnedSiteFlats(); // generation 40 (#3569): the ground the body's structures reserved, before any chunk generates
         _world.ApplyGeneratorMode(); // #2235: this world's own generator levels the new pads from the next query on
     }
 

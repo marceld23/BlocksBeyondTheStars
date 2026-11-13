@@ -826,7 +826,7 @@ public sealed partial class GameServer
             });
             BootStage("creatures", InitCreatures);
 
-            BootStage("structures", () =>
+            BootStage("structures", () => WithSiteGround(world.VirginAtLoad, () => // #3569: fresh stamps reserve their ground
             {
                 if (locationId == GuardianCoreBodyId)
                 {
@@ -930,7 +930,7 @@ public sealed partial class GameServer
                         BootDetail("unique sites", StampUniqueSites); // #1129: this body may carry one of the galaxy's one-of-a-kind places
                     }
                 }
-            });
+            }));
         }
 
         LoadPlayerDoors(); // persisted player-built doors load on every world (void or not, settlement or not)

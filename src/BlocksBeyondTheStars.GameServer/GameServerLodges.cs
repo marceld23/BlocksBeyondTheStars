@@ -241,13 +241,14 @@ public sealed partial class GameServer
             {
                 if (!TryPlaceStructureGuaranteed(structure, RngFor(instSeed, "search"), reserved,
                         wantIsland: false, SeatPolicyOf(StructureTypeRules.Lodge, SeatPolicy.Camp), avoidPlayerEdits: false,
-                        out origin, out groundY, out onIsland, out seat))
+                        out origin, out groundY, out onIsland, out seat, siteKind: StructureTypeRules.Lodge))
                 {
                     RecordPlacementSkip("lodge", i);
                     continue;
                 }
 
                 RecordPlacement("lodge", i, origin, groundY, onIsland, seat, "lodge_" + i, template: profession.Key);
+                ReserveSiteGround(StructureTypeRules.Lodge, structure.Width, structure.Length, origin, groundY, seat); // #3569
             }
 
             used.Add(profession.Key);

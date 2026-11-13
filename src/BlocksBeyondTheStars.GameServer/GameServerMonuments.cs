@@ -160,11 +160,13 @@ public sealed partial class GameServer
             {
                 if (!TryPlaceStructureGuaranteed(structure, RngFor(MonumentSeed(mSeed, i), "search"), reserved,
                         wantIsland: false, SeatPolicyOf(StructureTypeRules.Monument, SeatPolicy.Monument), avoidPlayerEdits: true,
-                        out origin, out groundY, out onIsland, out seat))
+                        out origin, out groundY, out onIsland, out seat, siteKind: StructureTypeRules.Monument))
                 {
                     RecordPlacementSkip(MonumentRecordKind, i); // #3513: "no spot" is a record too
                     continue;
                 }
+
+                ReserveSiteGround(StructureTypeRules.Monument, structure.Width, structure.Length, origin, groundY, seat); // #3569
             }
             else if (!TryPlaceSettlement(structure, ir, reserved, wantIsland: false,
                     out origin, out groundY, out onIsland, avoidPlayerEdits: true))

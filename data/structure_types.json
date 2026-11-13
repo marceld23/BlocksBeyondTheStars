@@ -1,88 +1,128 @@
 {
-  "_comment": "Placement rules of the stamped structure kinds (#3517). Every value here equals the C# default in StructureTypeRules (a test holds them together); a field or kind left out keeps its default, a broken entry is reported and dropped. Which fields a kind reads (not every kind reads conditions or whitelist), and what thresholds mean per kind: see StructureTypeRules. minGeneration can be raised, never lowered below the C# default. keepClear/keepClearFrom act on terrain generation 38+ only. ServerConfig's intercity/rail-ruin/landmark chance overrides this file when set. Changing a number only affects bodies stamped afterwards: what stands is replayed from its placement records.",
+  "_comment": "Placement rules of the stamped structure kinds (#3517). Every value here equals the C# default in StructureTypeRules (a test holds them together); a field or kind left out keeps its default, a broken entry is reported and dropped. Which fields a kind reads (not every kind reads conditions or whitelist), and what thresholds mean per kind: see StructureTypeRules. minGeneration can be raised, never lowered below the C# default. keepClear/keepClearFrom act on terrain generation 38+ only; site (where a kind likes to stand) and grade (how it reserves its ground) on terrain generation 40+ only. ServerConfig's intercity/rail-ruin/landmark chance overrides this file when set. Changing a number only affects bodies stamped afterwards: what stands is replayed from its placement records.",
   "text_tablet": {
     "enabled": true, "minGeneration": 33, "chance": 0, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
-    "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": [], "whitelist": ""
+    "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": [], "whitelist": "",
+    "site": { "water": [], "coast": [], "prominence": "", "relief": "", "altitude": [], "ground": [], "weights": {} },
+    "grade": { "radius": 0, "maxCut": 0, "maxFill": 0 }
   },
   "sounder_site": {
     "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
-    "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": [], "whitelist": ""
+    "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": [], "whitelist": "",
+    "site": { "water": [], "coast": [], "prominence": "", "relief": "", "altitude": [], "ground": [], "weights": {} },
+    "grade": { "radius": 0, "maxCut": 0, "maxFill": 0 }
   },
   "settlement": {
     "enabled": true, "minGeneration": 0, "chance": 0, "density": 3.0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 8,
-    "seatPolicy": "inhabited", "keepClear": 6, "keepClearFrom": {}, "conditions": ["atmosphere"], "whitelist": ""
+    "seatPolicy": "inhabited", "keepClear": 6, "keepClearFrom": {}, "conditions": ["atmosphere"], "whitelist": "",
+    "site": { "water": [20, 120], "coast": [], "prominence": "", "relief": "flat", "altitude": [0.1, 0.6], "ground": ["grass", "dirt"], "weights": {} },
+    "grade": { "radius": 16, "maxCut": 24, "maxFill": 24 }
   },
   "intercity": {
     "enabled": true, "minGeneration": 19, "chance": 0.6, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
-    "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": ["notGas", "notCityWorld"], "whitelist": ""
+    "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": ["notGas", "notCityWorld"], "whitelist": "",
+    "site": { "water": [], "coast": [], "prominence": "", "relief": "", "altitude": [], "ground": [], "weights": {} },
+    "grade": { "radius": 0, "maxCut": 0, "maxFill": 0 }
   },
   "ruin": {
     "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [0.55, 0.85], "thresholdCaps": [], "minCount": 0, "cap": 3,
-    "seatPolicy": "ruin", "keepClear": 6, "keepClearFrom": {}, "conditions": ["atmosphere"], "whitelist": ""
+    "seatPolicy": "ruin", "keepClear": 6, "keepClearFrom": {}, "conditions": ["atmosphere"], "whitelist": "",
+    "site": { "water": [], "coast": [], "prominence": "", "relief": "", "altitude": [], "ground": [], "weights": {} },
+    "grade": { "radius": 12, "maxCut": 16, "maxFill": 16 }
   },
   "rail_ruin": {
     "enabled": true, "minGeneration": 20, "chance": 0.35, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
-    "seatPolicy": "factory", "keepClear": 6, "keepClearFrom": {}, "conditions": ["notVoid", "atmosphere", "notGas"], "whitelist": ""
+    "seatPolicy": "factory", "keepClear": 6, "keepClearFrom": {}, "conditions": ["notVoid", "atmosphere", "notGas"], "whitelist": "",
+    "site": { "water": [], "coast": [], "prominence": "", "relief": "", "altitude": [], "ground": [], "weights": {} },
+    "grade": { "radius": 12, "maxCut": 16, "maxFill": 16 }
   },
   "banditcamp": {
     "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [0.75, 0.60, 0.45, 0.30], "thresholdCaps": [], "minCount": 0, "cap": 2,
-    "seatPolicy": "camp", "keepClear": 6, "keepClearFrom": {}, "conditions": ["atmosphere", "notRuinedOnly"], "whitelist": ""
+    "seatPolicy": "camp", "keepClear": 6, "keepClearFrom": {}, "conditions": ["atmosphere", "notRuinedOnly"], "whitelist": "",
+    "site": { "water": [80, 100000], "coast": [], "prominence": "low", "relief": "rugged", "altitude": [], "ground": [], "weights": { "water": 1, "prominence": 2 } },
+    "grade": { "radius": 10, "maxCut": 12, "maxFill": 12 }
   },
   "lodge": {
     "enabled": true, "minGeneration": 25, "chance": 0, "density": 2.2, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 6,
     "seatPolicy": "camp", "keepClear": 6,
     "keepClearFrom": { "pad": 16, "wreck_site": 14, "settlement": 40, "banditcamp": 40, "ruin": 24, "lodge": 24, "outpost": 24 },
-    "conditions": ["notVoid", "atmosphere", "notRuinedOnly", "notGas", "notCityWorld"], "whitelist": ""
+    "conditions": ["notVoid", "atmosphere", "notRuinedOnly", "notGas", "notCityWorld"], "whitelist": "",
+    "site": { "water": [0, 60], "coast": [0, 60], "prominence": "low", "relief": "", "altitude": [], "ground": [], "weights": {} },
+    "grade": { "radius": 10, "maxCut": 12, "maxFill": 12 }
   },
   "outpost": {
     "enabled": true, "minGeneration": 25, "chance": 0, "density": 1.4, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 2,
     "seatPolicy": "camp", "keepClear": 6,
     "keepClearFrom": { "pad": 16, "wreck_site": 14, "settlement": 40, "banditcamp": 40, "ruin": 24, "lodge": 24, "outpost": 24 },
-    "conditions": ["notVoid", "atmosphere", "notRuinedOnly", "notGas", "notCityWorld", "breathable"], "whitelist": ""
+    "conditions": ["notVoid", "atmosphere", "notRuinedOnly", "notGas", "notCityWorld", "breathable"], "whitelist": "",
+    "site": { "water": [], "coast": [], "prominence": "high", "relief": "", "altitude": [0.6, 1.0], "ground": [], "weights": { "prominence": 2 } },
+    "grade": { "radius": 10, "maxCut": 12, "maxFill": 12 }
   },
   "spslab": {
     "enabled": true, "minGeneration": 8, "chance": 0, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 3, "cap": 6,
-    "seatPolicy": "camp", "keepClear": 6, "keepClearFrom": {}, "conditions": ["notVoid", "namedByType"], "whitelist": "sps_labs"
+    "seatPolicy": "camp", "keepClear": 6, "keepClearFrom": {}, "conditions": ["notVoid", "namedByType"], "whitelist": "sps_labs",
+    "site": { "water": [], "coast": [], "prominence": "", "relief": "", "altitude": [], "ground": [], "weights": {} },
+    "grade": { "radius": 12, "maxCut": 16, "maxFill": 16 }
   },
   "monument": {
     "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [0.30, 0.75, 0.95], "thresholdCaps": [], "minCount": 0, "cap": 3,
-    "seatPolicy": "monument", "keepClear": 6, "keepClearFrom": {}, "conditions": [], "whitelist": "monuments"
+    "seatPolicy": "monument", "keepClear": 6, "keepClearFrom": {}, "conditions": [], "whitelist": "monuments",
+    "site": { "water": [], "coast": [], "prominence": "high", "relief": "", "altitude": [], "ground": [], "weights": { "prominence": 3 } },
+    "grade": { "radius": 10, "maxCut": 16, "maxFill": 16 }
   },
   "factory": {
     "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [0.70, 0.92], "thresholdCaps": [], "minCount": 0, "cap": 2,
-    "seatPolicy": "factory", "keepClear": 6, "keepClearFrom": {}, "conditions": ["atmosphere"], "whitelist": ""
+    "seatPolicy": "factory", "keepClear": 6, "keepClearFrom": {}, "conditions": ["atmosphere"], "whitelist": "",
+    "site": { "water": [], "coast": [], "prominence": "", "relief": "flat", "altitude": [0.3, 0.7], "ground": [], "weights": { "relief": 2 } },
+    "grade": { "radius": 14, "maxCut": 24, "maxFill": 24 }
   },
   "wreck": {
     "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
-    "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": [], "whitelist": ""
+    "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": [], "whitelist": "",
+    "site": { "water": [], "coast": [], "prominence": "", "relief": "", "altitude": [], "ground": [], "weights": {} },
+    "grade": { "radius": 0, "maxCut": 0, "maxFill": 0 }
   },
   "landmark": {
     "enabled": true, "minGeneration": 37, "chance": 0.34, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
     "seatPolicy": "", "keepClear": 6, "keepClearFrom": { "pad": 20, "wreck_site": 8 },
-    "conditions": ["notVoid", "notGas", "atmosphere", "notAsteroid"], "whitelist": "landmarks"
+    "conditions": ["notVoid", "notGas", "atmosphere", "notAsteroid"], "whitelist": "landmarks",
+    "site": { "water": [], "coast": [], "prominence": "high", "relief": "flat", "altitude": [], "ground": [], "weights": { "relief": 2 } },
+    "grade": { "radius": 16, "maxCut": 24, "maxFill": 24 }
   },
   "underground": {
     "enabled": true, "minGeneration": 35, "chance": 0.04, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
-    "seatPolicy": "", "keepClear": 10, "keepClearFrom": { "pad": 30, "wreck_site": 8 }, "conditions": ["notVoid", "notGas"], "whitelist": "gds_ruins"
+    "seatPolicy": "", "keepClear": 10, "keepClearFrom": { "pad": 30, "wreck_site": 8 }, "conditions": ["notVoid", "notGas"], "whitelist": "gds_ruins",
+    "site": { "water": [], "coast": [], "prominence": "", "relief": "", "altitude": [], "ground": [], "weights": {} },
+    "grade": { "radius": 0, "maxCut": 0, "maxFill": 0 }
   },
   "vault": {
     "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [0.75, 0.35], "thresholdCaps": [0.95, 0.8], "minCount": 0, "cap": 0,
-    "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": ["notVoid"], "whitelist": ""
+    "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": ["notVoid"], "whitelist": "",
+    "site": { "water": [], "coast": [], "prominence": "", "relief": "", "altitude": [], "ground": [], "weights": {} },
+    "grade": { "radius": 0, "maxCut": 0, "maxFill": 0 }
   },
   "datacube": {
     "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [0.45, 0.80, 0.95], "thresholdCaps": [], "minCount": 0, "cap": 0,
-    "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": ["notVoid"], "whitelist": ""
+    "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": ["notVoid"], "whitelist": "",
+    "site": { "water": [], "coast": [], "prominence": "", "relief": "", "altitude": [], "ground": [], "weights": {} },
+    "grade": { "radius": 0, "maxCut": 0, "maxFill": 0 }
   },
   "net_fragment": {
     "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
-    "seatPolicy": "", "keepClear": 0, "keepClearFrom": {}, "conditions": [], "whitelist": "net_fragments"
+    "seatPolicy": "", "keepClear": 0, "keepClearFrom": {}, "conditions": [], "whitelist": "net_fragments",
+    "site": { "water": [], "coast": [], "prominence": "", "relief": "", "altitude": [], "ground": [], "weights": {} },
+    "grade": { "radius": 0, "maxCut": 0, "maxFill": 0 }
   },
   "chest": {
     "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [0.6, 0.88], "thresholdCaps": [], "minCount": 0, "cap": 0,
-    "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": ["notVoid"], "whitelist": ""
+    "seatPolicy": "", "keepClear": 6, "keepClearFrom": {}, "conditions": ["notVoid"], "whitelist": "",
+    "site": { "water": [], "coast": [], "prominence": "", "relief": "", "altitude": [], "ground": [], "weights": {} },
+    "grade": { "radius": 0, "maxCut": 0, "maxFill": 0 }
   },
   "unique_site": {
     "enabled": true, "minGeneration": 0, "chance": 0, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
-    "seatPolicy": "", "keepClear": 10, "keepClearFrom": {}, "conditions": [], "whitelist": ""
+    "seatPolicy": "", "keepClear": 10, "keepClearFrom": {}, "conditions": [], "whitelist": "",
+    "site": { "water": [], "coast": [], "prominence": "", "relief": "", "altitude": [], "ground": [], "weights": {} },
+    "grade": { "radius": 0, "maxCut": 0, "maxFill": 0 }
   }
 }

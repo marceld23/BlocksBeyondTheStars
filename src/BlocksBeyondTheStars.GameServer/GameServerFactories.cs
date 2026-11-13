@@ -237,7 +237,7 @@ public sealed partial class GameServer
                 // #2070: on an industrial type the FIRST hall stands in sight of the pad (the near ring, ≤ 80 blocks).
                 if (!TryPlaceStructureGuaranteed(structure, RngFor(instSeed, "search"), reserved,
                         wantIsland: false, SeatPolicyOf(StructureTypeRules.Factory, SeatPolicy.Factory), avoidPlayerEdits: false,
-                        out origin, out groundY, out _, out seat, nearDistance: typedCount && i == 0 ? 80 : 0))
+                        out origin, out groundY, out _, out seat, nearDistance: typedCount && i == 0 ? 80 : 0, siteKind: StructureTypeRules.Factory))
                 {
                     RecordPlacementSkip("factory", i);
                     continue;
@@ -245,6 +245,7 @@ public sealed partial class GameServer
 
                 name = UniqueName(FactoryName(RngFor(instSeed, "name")), usedNames);
                 RecordPlacement("factory", i, origin, groundY, onIsland: false, seat, name);
+                ReserveSiteGround(StructureTypeRules.Factory, structure.Width, structure.Length, origin, groundY, seat); // #3569
             }
 
             PinFactoryRoster(FindPlacementRecord("factory", i), roster);
