@@ -24,6 +24,23 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🦌 Creatures are native to their own biome again — #3575, ✅ 2026-11-13, PR pending (⚠ playtest open)
+
+A side finding of the geography analysis: a species' biome affinity counts in the planet **type's** biome pool, the
+spawner's region index in the **world's** own shuffled subset (`ResolveBiomes`, #696) — measured over 300 bodies per
+type, only 30 % of the species were native in their own biome, 55 % in another, 15 % nowhere. The bio lab named the
+pool biome as the habitat, and Leni (snow and ice, exclusive) was preferred in regions without snow.
+
+- **#3575** `BiomeResolved.PoolIndex`, `WorldGenerator.BiomePoolIndexAt` and `PoolBiomesOnWorld`; the spawner's native
+  pass and `BiomePassStarved` ask `CreatureBehaviour.NativeHere` in the pool's numbering; a species whose biome the world
+  lacks counts as agnostic there. Runtime only — no roster, colour, save or generation change; every world spawns right
+  from its next load.
+- Tests: `CreatureBiomeAffinityTests` (the pool index names the ground's biome on six types × 6 bodies; 7 293 native
+  picks over every multi-biome type (two bodies each) all on their own biome; a homeless species is agnostic; a type without a pool is
+  unchanged; Leni is native only on snow or ice).
+- Playtest: on a varied or boreal world, the animals of one colour family keep to one kind of ground; the bio lab's habitat
+  matches where the animal was met; Leni turns up on the snow.
+
 ### 🏞️ Geography package — river valleys, site search with a map, sites reserve their ground — #3555 (#3556–#3573), ✅ 2026-11-13, PR pending (⚠ playtest open)
 
 Terrain generation 40 (`WorldDescription.GeographyGeneration`, new worlds only — every older world generates and places

@@ -392,9 +392,15 @@ live by `GameServerCreatures.cs`.
   beat, leaves when the food is stowed or after 25 s, and rushes / squabbles over / eats a piece thrown with the
   Feed action). Authored species may set `begsForFood` in `data/creatures.json`.
 - **Per biome:** on multi-biome worlds each species gets a **biome affinity** (`rng.Next(biomeCount)`,
-  or −1 = anywhere). Spawning prefers biome natives, then falls back to any species — roughly
-  **one-plus native species per biome** plus the biome-agnostic ones. A biome with fewer than **two**
-  eligible species skips the native pass outright (`CreatureBehaviour.BiomePassStarved`, #1325) —
+  or −1 = anywhere) — an index into the planet **type's** biome pool (`planet.Biomes`); an authored species takes the
+  first pool entry whose surface it names. Spawning prefers biome natives, then falls back to any species — roughly
+  **one-plus native species per biome** plus the biome-agnostic ones. The native pass asks in the same numbering
+  (#3575): `BiomePoolIndexAt` translates the world's own biome at the spot (a world takes 2 … pool of the pool and
+  shuffles them) back to its pool index, and `CreatureBehaviour.NativeHere` takes a species there when it is agnostic,
+  native to that biome, or native to a biome this world does not carry (`PoolBiomesOnWorld` — it then belongs nowhere in
+  particular). Before #3575 the spawner compared the affinity with the world's own index: on a measured 300 bodies per
+  type only 30 % of the species were native in their own biome, 55 % in another and 15 % nowhere. A biome with fewer than
+  **two** eligible species skips the native pass outright (`CreatureBehaviour.BiomePassStarved`, #1325) —
   otherwise every spawn in that region was its single native, and a base there drowned in one species.
   Natives are tinted ~45 % toward their biome's anchor hue, so region A's fauna reads green-ish and
   region B's violet-ish on the same world. A type with a `faunaPalette` (#3448, Soaniri) overrides both rolled
