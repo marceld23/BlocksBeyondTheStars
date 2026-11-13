@@ -24,12 +24,13 @@ public sealed class RiverValleys
     /// <summary>A brook (one or two wide), a river that has gathered flow, a trunk river, a lake.</summary>
     public const byte Brook = 0, Gathered = 1, Trunk = 2, Lake = 3;
 
-    // Per class at strength 100: the reach (blocks from the water's edge), the flat floor beside the water, and the slope
-    // beyond it (rise per run).
-    private static readonly int[] Reach100 = { 8, 20, 32, 16 };
-    private static readonly int[] Floor100 = { 0, 2, 5, 2 };
-    private static readonly int[] RiseNum = { 3, 1, 1, 1 };
-    private static readonly int[] RiseDen = { 2, 1, 2, 2 };
+    // Per class at strength 100: the reach (blocks from the water's edge), the flat floor beside the water, the slope beyond
+    // it (rise per run) and the deepest cut (a river through a massif widens its gorge, it does not carve the mountain away).
+    private static readonly int[] Reach100 = { 10, 22, 36, 18 };
+    private static readonly int[] Floor100 = { 1, 3, 6, 3 };
+    private static readonly int[] RiseNum = { 1, 1, 1, 1 };
+    private static readonly int[] RiseDen = { 1, 2, 3, 2 };
+    private static readonly int[] MaxCut100 = { 10, 20, 28, 12 };
 
     /// <summary>The share of a valley's reach over which the cut fades out to nothing.</summary>
     private const double FadeShare = 0.3;
@@ -47,10 +48,11 @@ public sealed class RiverValleys
     private readonly int _cellReach; // how many cells around a column can hold a sample in reach
     private readonly double[] _reach;
     private readonly double[] _floor;
+    private readonly double[] _maxCut;
     private readonly double _depth;  // how much of the cut is taken (strength, capped at 1)
 
     private RiverValleys(int circumference, int period, int gridW, int gridH, int[] start, int[] x, int[] z, int[] water,
-        byte[] cls, bool[] mask, int cellReach, double[] reach, double[] floor, double depth, int strengthPercent)
+        byte[] cls, bool[] mask, int cellReach, double[] reach, double[] floor, double[] maxCut, double depth, int strengthPercent)
     {
         _circumference = circumference;
         _period = period;
@@ -65,6 +67,7 @@ public sealed class RiverValleys
         _cellReach = cellReach;
         _reach = reach;
         _floor = floor;
+        _maxCut = maxCut;
         _depth = depth;
         StrengthPercent = strengthPercent;
     }
@@ -149,10 +152,12 @@ public sealed class RiverValleys
         double s = strengthPercent / 100.0;
         var reach = new double[4];
         var floor = new double[4];
+        var maxCut = new double[4];
         for (int k = 0; k < 4; k++)
         {
             reach[k] = System.Math.Max(2.0, Reach100[k] * s);
             floor[k] = Floor100[k] * s;
+            maxCut[k] = MaxCut100[k] * s;
         }
 
         double maxReach = System.Math.Max(System.Math.Max(reach[0], reach[1]), System.Math.Max(reach[2], reach[3]));
@@ -180,7 +185,7 @@ public sealed class RiverValleys
         }
 
         return new RiverValleys(circumference, period, gridW, gridH, start, xs, zs, water, cls2, mask, cellReach, reach, floor,
-            System.Math.Min(1.0, s), strengthPercent);
+            maxCut, System.Math.Min(1.0, s), strengthPercent);
     }
 
     private static int CellOf(int x, int z, int period, int gridW, int gridH)
@@ -261,7 +266,7 @@ public sealed class RiverValleys
 
         double fadeFrom = reach * (1.0 - FadeShare);
         double w = d <= fadeFrom ? 1.0 : (reach - d) / (reach - fadeFrom);
-        return natural - ((natural - cap) * w * _depth);
+        return natural - System.Math.Min(_maxCut[k], (natural - cap) * w * _depth);
     }
 }
 

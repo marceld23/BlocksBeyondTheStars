@@ -404,4 +404,9 @@ public sealed partial class WorldGenerator
     /// <summary>The site flats as the client gets them (far-terrain handshake).</summary>
     public int[] PackedSiteFlats() => SiteFlat.Pack(_sites);
 
+    /// <summary>Whether this world's river field is built already (tests: a preview bake must never build it).</summary>
+    internal bool RiverFieldCachedForTest(PlanetType planet)
+        => _riverFields.TryGet((_worldSeed, planet.Key, _circumference, _crateredWorld, _locationSalt, _continentsEnabled, _lavaCoreVolcanoes,
+            _terrainGeneration), out _);
+
 }
