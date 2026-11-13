@@ -302,8 +302,7 @@ public sealed partial class WorldGenerator
             return RiverField.Empty(_circumference); // dry world: no sea, nothing to drain into
         }
 
-        var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
-        var lavaId = _content.GetBlock("lava")?.NumericId ?? BlockId.Air;
+        BlockId waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air, lavaId = _content.GetBlock("lava")?.NumericId ?? BlockId.Air;
         double pondAbundance = planet.WaterAbundance
             ?? (string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase) ? 0.0 : 0.55);
 
@@ -347,10 +346,10 @@ public sealed partial class WorldGenerator
             // (they rarely merge the way dense water tributaries do). fullWidthAccum 1 (#474): a lava flow
             // reaches full width without needing tributaries — the old absolute divisor kept every lava
             // channel at width 1 (FlowAccum never exceeds 1 on a lava world), making this tuning inert.
+            // Generation 24 (#2516): no lava above the lower bank; generation 40: half-strength valleys and the distance layers.
             return RiverField.Build(net, Height, _circumference, fillFluid: lavaId,
-                channelFlowThreshold: 1, maxWidth: 9, fullWidthAccum: 1, maxLakeDepth: 4, estuaryWiden: 4,
-                bankClamp: WaterSealed, // generation 24 (#2516)
-                valleyStrengthPercent: ValleyStrengthPercent(planet, lava: true), geography: GeographyWorld); // generation 40: half-strength valleys
+                channelFlowThreshold: 1, maxWidth: 9, fullWidthAccum: 1, maxLakeDepth: 4, estuaryWiden: 4, bankClamp: WaterSealed,
+                valleyStrengthPercent: ValleyStrengthPercent(planet, lava: true), geography: GeographyWorld);
         }
 
         return RiverField.Empty(_circumference);

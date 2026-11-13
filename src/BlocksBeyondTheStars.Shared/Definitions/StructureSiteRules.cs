@@ -20,7 +20,12 @@ public sealed class StructureSiteRule
     /// <summary>The weight names <see cref="Weights"/> may use, and what an absent one counts.</summary>
     public static readonly IReadOnlyDictionary<string, double> DefaultWeights = new Dictionary<string, double>(StringComparer.Ordinal)
     {
-        ["water"] = 3.0, ["coast"] = 2.0, ["prominence"] = 1.0, ["relief"] = 1.0, ["altitude"] = 1.0, ["ground"] = 2.0,
+        ["water"] = 3.0,
+        ["coast"] = 2.0,
+        ["prominence"] = 1.0,
+        ["relief"] = 1.0,
+        ["altitude"] = 1.0,
+        ["ground"] = 2.0,
     };
 
     /// <summary>Preferred distance to fresh water (a river or a lake), in blocks: [low, high], or empty.</summary>

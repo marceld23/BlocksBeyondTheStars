@@ -22,7 +22,7 @@ public sealed class StructureTypeRulesTests
     private static readonly string[] Fields =
     {
         "enabled", "minGeneration", "chance", "density", "thresholds", "thresholdCaps", "minCount", "cap", "seatPolicy", "keepClear",
-        "keepClearFrom", "conditions", "whitelist",
+        "keepClearFrom", "conditions", "whitelist", "site", "grade",
     };
 
     [Fact]
@@ -61,6 +61,37 @@ public sealed class StructureTypeRulesTests
         var content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
 
         Assert.All(StructureTypeRules.Kinds, kind => Assert.True(content.StructureTypes.Get(kind).SameAs(StructureTypeRules.Defaults.Get(kind))));
+    }
+
+    /// <summary>Terrain generation 40 (#3563): the site and grade objects merge field by field over the kind's defaults, and a
+    /// broken one (a band backwards, a radius out of range, an unknown field or term) drops the whole entry.</summary>
+    [Fact]
+    public void TheSiteAndGradeObjects_MergeFieldByField_AndABrokenOneIsDropped()
+    {
+        const string json = """
+            {
+              "settlement": { "site": { "water": [0, 40] }, "grade": { "radius": 8 } },
+              "lodge": { "site": { "water": [60, 10] } },
+              "factory": { "grade": { "radius": 90 } },
+              "monument": { "site": { "colour": "red" } },
+              "outpost": { "site": { "weights": { "luck": 2 } } }
+            }
+            """;
+        var warnings = new List<string>();
+        var rules = StructureTypeRules.Parse(json, warnings.Add);
+
+        var settlement = rules.Get(StructureTypeRules.Settlement);
+        var shipped = StructureTypeRules.Defaults.Get(StructureTypeRules.Settlement);
+        Assert.Equal(new[] { 0, 40 }, settlement.Site.Water);
+        Assert.Equal(shipped.Site.Ground, settlement.Site.Ground); // the fields the entry left out keep the defaults
+        Assert.Equal(8, settlement.Grade.Radius);
+        Assert.Equal(shipped.Grade.MaxCut, settlement.Grade.MaxCut);
+
+        foreach (string kind in new[] { StructureTypeRules.Lodge, StructureTypeRules.Factory, StructureTypeRules.Monument, StructureTypeRules.Outpost })
+        {
+            Assert.True(rules.Get(kind).SameAs(StructureTypeRules.Defaults.Get(kind)), $"'{kind}' should keep its defaults.");
+            Assert.Single(warnings, w => w.Contains($"'{kind}'", StringComparison.Ordinal));
+        }
     }
 
     [Fact]

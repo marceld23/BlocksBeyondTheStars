@@ -87,9 +87,17 @@ public sealed class PlanetMapPondTests
         // as water at map scale). Two generators, so the map side's statistics stay clean.
         var map = Generator(content, WorldDescription.CurrentTerrainGeneration);
         var exact = Generator(content, WorldDescription.CurrentTerrainGeneration);
+        // From generation 40 (#3556) the map reads the NATURAL ground on purpose (a body's bake in the sky never builds its
+        // river field), so a pond a river valley opens is not on it: the columns a valley can reach are left out here.
+        var valleys = exact.RiverFieldFor(planet).Valleys;
         int real = 0, extra = 0;
         foreach (var (x, z) in MapColumns(PlaytestCircumference, 48, 24))
         {
+            if (valleys is not null && valleys.Near(x, z))
+            {
+                continue;
+            }
+
             bool pond = map.SummarizeSurface(planet, x, z).Pond;
             if (exact.SurfacePondDepth(planet, x, z) > 0)
             {

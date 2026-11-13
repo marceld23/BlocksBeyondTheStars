@@ -152,6 +152,11 @@ public sealed class WorldGenerationGoldenTests
         // shrine (centre -194, 153, floor 65; at the default 6000 circumference every sample chunk lies in the margin band
         // between shrine cells, so this group uses a 5472 body). Every older group above stays as it was.
         new("meadowlands-shrine-gen36", 32, "meadowlands", 5472, false, "golden:shrine-body", 36),
+        // Generation 40 (2026-11-13, #3555): the river valleys over three river-rich worlds (the site grades are server-side and
+        // need a site list, which no group sets). Every older group above stays as it was.
+        new("river_lowlands-gen40", 20260903, "river_lowlands", 0, false, null, 40),
+        new("highland-gen40", 20260903, "highland", 0, false, null, 40),
+        new("jungle-gen40", 20260903, "jungle", 0, false, null, 40),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -264,6 +269,10 @@ public sealed class WorldGenerationGoldenTests
             ["sounder_world-gen34"] = 0xd2de9688bff3467cUL,
             // Pinned 2026-11-08 (the rune shrines, generation 36, #3416; Windows 11, .NET 10). The shrine is in (-13,4,9).
             ["meadowlands-shrine-gen36"] = 0xb280a9da4c47a92cUL,
+            // Pinned 2026-11-13 (the geography package, generation 40, #3555; Windows 11, .NET 10).
+            ["river_lowlands-gen40"] = 0x4e2fb2addddd1142UL,
+            ["highland-gen40"] = 0x6618be7212975e14UL,
+            ["jungle-gen40"] = 0x77867e40fd4142b4UL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.

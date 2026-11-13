@@ -94,59 +94,20 @@ public sealed class RiverValleys
         int period = WorldConstants.LatitudePeriodFor(circumference);
         int gridW = System.Math.Max(1, (circumference + CellSize - 1) / CellSize);
         int gridH = System.Math.Max(1, (period + CellSize - 1) / CellSize);
-
-        bool Surface((int, int) key) => cols.TryGetValue(key, out var c) && !c.Underground;
-
-        // The edge columns, sorted so the buckets (and so every later sum) never depend on dictionary order.
-        var edges = new List<(int Cell, int X, int Z, int Water, byte Class)>();
-        foreach (var kv in cols)
-        {
-            if (kv.Value.Underground)
-            {
-                continue;
-            }
-
-            var (x, z) = kv.Key;
-            bool edge = !Surface((WorldConstants.WrapX(x + 1, circumference), z))
-                        || !Surface((WorldConstants.WrapX(x - 1, circumference), z))
-                        || !Surface((x, WorldConstants.WrapZ(z + 1, circumference)))
-                        || !Surface((x, WorldConstants.WrapZ(z - 1, circumference)));
-            if (!edge)
-            {
-                continue;
-            }
-
-            byte cls = classes.TryGetValue(kv.Key, out var c) ? c : Brook;
-            edges.Add((CellOf(x, z, period, gridW, gridH), x, z, kv.Value.WaterSurfaceY, cls));
-        }
-
+        var edges = EdgeSamples(cols, classes, circumference, period, gridW, gridH);
         if (edges.Count == 0)
         {
             return null;
         }
 
-        edges.Sort((a, b) => a.Cell != b.Cell ? a.Cell.CompareTo(b.Cell)
-            : a.X != b.X ? a.X.CompareTo(b.X) : a.Z.CompareTo(b.Z));
-
-        int n = gridW * gridH;
-        var start = new int[n + 1];
-        foreach (var e in edges)
-        {
-            start[e.Cell + 1]++;
-        }
-
-        for (int c = 0; c < n; c++)
-        {
-            start[c + 1] += start[c];
-        }
-
+        var start = Buckets(edges, gridW * gridH);
         var xs = new int[edges.Count];
         var zs = new int[edges.Count];
         var water = new int[edges.Count];
-        var cls2 = new byte[edges.Count];
+        var cls = new byte[edges.Count];
         for (int i = 0; i < edges.Count; i++)
         {
-            (_, xs[i], zs[i], water[i], cls2[i]) = edges[i];
+            (_, xs[i], zs[i], water[i], cls[i]) = edges[i];
         }
 
         double s = strengthPercent / 100.0;
@@ -162,10 +123,61 @@ public sealed class RiverValleys
 
         double maxReach = System.Math.Max(System.Math.Max(reach[0], reach[1]), System.Math.Max(reach[2], reach[3]));
         int cellReach = (int)System.Math.Ceiling(maxReach / CellSize);
+        var mask = Mask(start, gridW, gridH, cellReach);
+        return new RiverValleys(circumference, period, gridW, gridH, start, xs, zs, water, cls, mask, cellReach, reach, floor,
+            maxCut, System.Math.Min(1.0, s), strengthPercent);
+    }
 
-        // The mask: every cell within cellReach of a cell that holds a sample.
-        var mask = new bool[n];
-        for (int c = 0; c < n; c++)
+    /// <summary>The edge columns of every surface reach (a river column with a 4-neighbour that is not one), with their cell,
+    /// water surface and class — sorted, so the buckets (and so every later minimum) never depend on dictionary order.</summary>
+    private static List<(int Cell, int X, int Z, int Water, byte Class)> EdgeSamples(Dictionary<(int X, int Z), RiverField.RiverColumn> cols,
+        Dictionary<(int X, int Z), byte> classes, int circumference, int period, int gridW, int gridH)
+    {
+        bool Surface((int, int) key) => cols.TryGetValue(key, out var c) && !c.Underground;
+
+        var edges = new List<(int Cell, int X, int Z, int Water, byte Class)>();
+        foreach (var kv in cols)
+        {
+            var (x, z) = kv.Key;
+            bool edge = !kv.Value.Underground
+                        && (!Surface((WorldConstants.WrapX(x + 1, circumference), z))
+                            || !Surface((WorldConstants.WrapX(x - 1, circumference), z))
+                            || !Surface((x, WorldConstants.WrapZ(z + 1, circumference)))
+                            || !Surface((x, WorldConstants.WrapZ(z - 1, circumference))));
+            if (edge)
+            {
+                byte cls = classes.TryGetValue(kv.Key, out var c) ? c : Brook;
+                edges.Add((CellOf(x, z, period, gridW, gridH), x, z, kv.Value.WaterSurfaceY, cls));
+            }
+        }
+
+        edges.Sort((a, b) => a.Cell != b.Cell ? a.Cell.CompareTo(b.Cell)
+            : a.X != b.X ? a.X.CompareTo(b.X) : a.Z.CompareTo(b.Z));
+        return edges;
+    }
+
+    /// <summary>The CSR starts of the sorted samples per cell: cell c holds [start[c], start[c + 1]).</summary>
+    private static int[] Buckets(List<(int Cell, int X, int Z, int Water, byte Class)> edges, int cells)
+    {
+        var start = new int[cells + 1];
+        foreach (var e in edges)
+        {
+            start[e.Cell + 1]++;
+        }
+
+        for (int c = 0; c < cells; c++)
+        {
+            start[c + 1] += start[c];
+        }
+
+        return start;
+    }
+
+    /// <summary>Every cell within <paramref name="cellReach"/> cells (both seams wrapped) of a cell that holds a sample.</summary>
+    private static bool[] Mask(int[] start, int gridW, int gridH, int cellReach)
+    {
+        var mask = new bool[gridW * gridH];
+        for (int c = 0; c < mask.Length; c++)
         {
             if (start[c + 1] == start[c])
             {
@@ -175,17 +187,15 @@ public sealed class RiverValleys
             int gx = c % gridW, gz = c / gridW;
             for (int dz = -cellReach; dz <= cellReach; dz++)
             {
-                int mz = ((gz + dz) % gridH + gridH) % gridH;
+                int mz = (((gz + dz) % gridH) + gridH) % gridH;
                 for (int dx = -cellReach; dx <= cellReach; dx++)
                 {
-                    int mx = ((gx + dx) % gridW + gridW) % gridW;
-                    mask[mz * gridW + mx] = true;
+                    mask[(mz * gridW) + ((((gx + dx) % gridW) + gridW) % gridW)] = true;
                 }
             }
         }
 
-        return new RiverValleys(circumference, period, gridW, gridH, start, xs, zs, water, cls2, mask, cellReach, reach, floor,
-            maxCut, System.Math.Min(1.0, s), strengthPercent);
+        return mask;
     }
 
     private static int CellOf(int x, int z, int period, int gridW, int gridH)

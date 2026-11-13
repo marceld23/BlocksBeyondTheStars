@@ -87,7 +87,8 @@ public sealed class RiverValleyTests
 
         _out.WriteLine($"{type}: {lowered}/{n} columns beside rivers lowered, deepest {deepest}");
         Assert.True(lowered > n / 5, $"{type}: only {lowered} of {n} columns beside rivers lie in a valley");
-        Assert.True(deepest <= 28, $"{type}: a valley cut {deepest} deep (the trunk limit is 28)");
+        double limit = 28 * (planet.ValleyStrength ?? 1.0); // the trunk class cuts at most 28 at strength 1
+        Assert.True(deepest <= limit, $"{type}: a valley cut {deepest} deep (the trunk limit is {limit})");
     }
 
     [Theory]
