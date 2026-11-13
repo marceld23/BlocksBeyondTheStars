@@ -24,6 +24,22 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛬 "A bit impractical" — coming home lands on the reserved pad — #3554, ✅ 2026-11-13, PR pending (⚠ playtest open)
+
+Lyxette (v2026.11.17): four pads at his HQ, pad 1 set to *Only me*, pads 2–4 to *Everyone*; flying home he landed on
+pad 2. At an outpost with two pads he would block the one public pad the merchants need.
+
+- **#3554 the automatic landing picks the most private own pad first** — a landing nobody picked by hand (star-map
+  Travel, the map's Land, a landing back on the launch body without a choice) took the player's first own free pad by
+  cell X/Y/Z, whatever its access. `OwnFreeBasePad` now orders by access — *Only me*, *Me + allies*, *Everyone* — and only
+  then by cell; a built-over pad is still skipped. Merchants never took an *Only me* pad (#3175), so the reservation now
+  works both ways. A pad picked in the landing map is unchanged.
+- Tests: `BasePadTests.ALandingNobodyPicked_TakesTheReservedPad_BeforeThePublicOnes` and
+  `…_SkipsABuiltOverReservedPad_ForTheNextMostPrivateOne` (both red before the fix — the pad with the smallest X won).
+- Playtest: two own pads, *Only me* on the one with the larger X; take off, Travel home → the ship stands on it.
+- Not in this package: his "suburbs" wish (one base of several connected areas without extra base cores) — answered, not
+  planned for now; as world admin he can raise *Bases per world* himself.
+
 ### ♜ The school club's giant buildings — eleven landmarks, overlay storage, ruin zones, protection — #3529–#3549, ✅ 2026-11-12, PR #3550 (⚠ playtest open)
 
 The eleven giant buildings from the school club's list, built on the landmark framework (#3483) — new worlds only

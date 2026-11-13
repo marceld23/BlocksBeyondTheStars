@@ -3,7 +3,9 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 namespace BlocksBeyondTheStars.Shared.Definitions;
 
-/// <summary>Who may land on a player-built base landing pad (#3069) — the owner sets it at the pad.</summary>
+/// <summary>Who may land on a player-built base landing pad (#3069) — the owner sets it at the pad. The values run from the
+/// most private to the most open: the owner's automatic landing tries their pads in this order (#3554), and the numbers are
+/// saved with each pad.</summary>
 public enum BasePadAccess
 {
     /// <summary>Only the pad's owner (admins always may) — no travelling merchant either.</summary>

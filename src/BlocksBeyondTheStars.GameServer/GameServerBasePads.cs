@@ -326,14 +326,16 @@ public sealed partial class GameServer
     }
 
     /// <summary>#3072: the player's own free, active base pad on a body for a landing they did not pick by hand — "coming
-    /// home". Several: a fixed order by cell, so the pick is always the same; one they built over is skipped (#3146) unless
-    /// they hold it. Null when there is none.</summary>
+    /// home". Several: the most private first (#3554) — "only me", then "me + allies", then "everyone" — so the owner lands on
+    /// the pad they reserved and leaves the public ones to the merchants and guests; within one access a fixed order by cell,
+    /// so the pick is always the same. One they built over is skipped (#3146) unless they hold it. Null when there is none.</summary>
     private ServerBasePad? OwnFreeBasePad(PlayerSession session, string body)
     {
         string me = session.State.PlayerId;
         return _basePads
             .Where(p => p.Planet == body && p.OwnerId == me && BaseOfPad(p) is not null && BasePadHolderName(body, p.Cell, me) is null)
-            .OrderBy(p => p.Cell.X).ThenBy(p => p.Cell.Y).ThenBy(p => p.Cell.Z)
+            .OrderBy(p => (int)p.Access)
+            .ThenBy(p => p.Cell.X).ThenBy(p => p.Cell.Y).ThenBy(p => p.Cell.Z)
             .FirstOrDefault(p => HoldsBasePad(session, body, p.Cell) || !BasePadBuiltOver(p));
     }
 

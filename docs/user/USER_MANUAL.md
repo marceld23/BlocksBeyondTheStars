@@ -2298,6 +2298,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   **Land here**. A pad you may not use shows **locked** — and a stranger's pad only once you have found their base.
 - **Coming home:** a landing you do not pick by hand — **Travel** on the star map, or a landing back on the body you
   launched from without choosing a pad — sets you down on **your own free landing pad** of that world, if you have one.
+  With several, the most private comes first: a pad set to **Only me**, then **Me + allies**, then **Everyone** (#3554) —
+  so you land on the pad you reserved and leave the public ones free for merchants and guests.
 - A ship on a pad **holds it**, also while its pilot is up in space; the pad block cannot be mined then. **Mining the
   base core** puts its pads to sleep (nobody can land there) until a core stands near them again.
 - **Market bases:** a travelling merchant visiting a base with the **Market** focus lands on one of its free pads set to
