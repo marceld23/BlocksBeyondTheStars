@@ -38,6 +38,16 @@ public sealed partial class GameServer
     /// (−1 = none passed; the wider rings decided).</summary>
     internal int LastSitePickForTest { get; set; } = -1;
 
+    /// <summary>The active world's reserved sites (tests).</summary>
+    internal IReadOnlyList<SiteFlat> SiteFlatsForTest => _world.SiteFlats;
+
+    /// <summary>A body's pinned site text in the save (tests), null when it has none.</summary>
+    internal string? PinnedSitesForTest(string body) => _meta.BodySites.TryGetValue(body, out var text) ? text : null;
+
+    /// <summary>How well a centre suits a kind's site rule on the active world (tests); 0 for a neutral kind.</summary>
+    internal double SiteScoreForTest(string kind, int x, int z)
+        => StructureType(kind).Site is { IsNeutral: false } rule ? SiteScore(rule, x, z) : 0.0;
+
     // ------------------------------------------------------------------ the pinned list
 
     /// <summary>Runs the boot's structures stage with fresh stamps allowed to reserve their ground (a body stamped for the
