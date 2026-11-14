@@ -10,7 +10,8 @@ namespace BlocksBeyondTheStars.Client.Tests;
 /// <summary>
 /// #3335 and #3337 on the client: Ressaw is a liquid you swim in like water (the probe reads the block data), it takes its
 /// own milky look everywhere the client draws a liquid (<see cref="LiquidLook"/> — the mesher's shader mode, the screen wash,
-/// the underwater fog), and the Ressaw diving suit draws its own pieces. The Unity side is guarded as source text.
+/// the underwater fog), and the Ressaw diving suit draws its own pieces. #3644: the Grand Technicians' red fluid shares the
+/// look (in red) and nothing else. The Unity side is guarded as source text.
 /// </summary>
 public sealed class RessawLookTests
 {
@@ -31,8 +32,39 @@ public sealed class RessawLookTests
     [InlineData("gas", LiquidLookKind.Gas)]
     [InlineData("gas_dense", LiquidLookKind.DenseGas)]
     [InlineData("ressaw", LiquidLookKind.Ressaw)]
+    [InlineData("gt_fluid", LiquidLookKind.RedFluid)]
     [InlineData(null, LiquidLookKind.Water)]
     public void EachLiquid_TakesItsLook(string? key, LiquidLookKind expected) => Assert.Equal(expected, LiquidLook.Of(key));
+
+    [Theory]
+    [InlineData("ressaw", true)]
+    [InlineData("gt_fluid", true)]
+    [InlineData("water", false)]
+    [InlineData("oil", false)]
+    [InlineData("gas", false)]
+    [InlineData("gas_dense", false)]
+    [InlineData(null, false)]
+    public void OnlyRessawAndTheRedFluid_GlowStill(string? key, bool expected) => Assert.Equal(expected, LiquidLook.GlowsStill(key));
+
+    [Fact]
+    public void TheRedFluid_IsAStillGlowingDecoration_InTheShippedData()
+    {
+        // #3644: you swim through it like water, it glows and lights its surface like Ressaw — and it is decoration only:
+        // never mined, never pumped (no drops), no item, and none of Ressaw's mechanics (the server keys those to "ressaw").
+        var fluid = Content.GetBlock(LiquidLook.RedFluidKey);
+        Assert.NotNull(fluid);
+        Assert.True(fluid!.Liquid);
+        Assert.False(fluid.Solid);
+        Assert.False(fluid.Mineable);
+        Assert.Empty(fluid.Drops);
+        Assert.Null(fluid.RandomDrops);
+        Assert.False(fluid.Flammable);
+        Assert.True(fluid.Emission > 0f, "the red fluid glows");
+        Assert.True(fluid.LightSurfaceOnly, "a tank lights from its surface, not its depth");
+        Assert.Equal("grosstechniker", fluid.Civilization);
+        Assert.DoesNotContain(Content.Items.Values, i => i.PlacesBlock == LiquidLook.RedFluidKey || i.Key == LiquidLook.RedFluidKey);
+        Assert.Equal(LiquidLook.RessawKey, BlocksBeyondTheStars.Shared.Definitions.RessawCrackRules.LiquidKey);
+    }
 
     [Fact]
     public void Ressaw_IsAStillGlowingLiquid_InTheShippedData()
@@ -76,12 +108,14 @@ public sealed class RessawLookTests
     public void TheMesher_DrawsRessawSeeThrough_LikeAWaterSurface_InItsOwnShaderMode()
     {
         string mesher = Script("ChunkMesher.cs");
-        Assert.Contains("or \"phase_block_open\" or \"force_field_off\" or LiquidLook.RessawKey;", mesher); // see-through
-        Assert.Contains("if (key is \"water\" or \"gas\" or \"gas_dense\" or LiquidLook.RessawKey) f |= TraitWater;", mesher);
-        Assert.Contains("if (isGas || (isWater && traits.IsRessaw(id)))", mesher);
+        // #3644: the red fluid takes every one of these steps through LiquidLook.GlowsStill.
+        Assert.Contains("or \"phase_block_open\" or \"force_field_off\" || LiquidLook.GlowsStill(def?.Key);", mesher); // see-through
+        Assert.Contains("if (key is \"water\" or \"gas\" or \"gas_dense\" || LiquidLook.GlowsStill(key)) f |= TraitWater;", mesher);
+        Assert.Contains("if (isGas || (isWater && traits.GlowsStill(id)))", mesher);
         Assert.Contains("isGas ? (isDenseGas ? 6f : 5f) : MilkyLiquidMode", mesher);
-        Assert.Contains("public const float MilkyLiquidMode = 7f;", Script("ChunkMesher.Ressaw.cs"));
-        Assert.Contains("Content.GetBlock(LiquidLook.RessawKey)", Script("ChunkMesher.Ressaw.cs"));
+        string still = Script("ChunkMesher.Ressaw.cs");
+        Assert.Contains("public const float MilkyLiquidMode = 7f;", still);
+        Assert.Contains("IdPlusOne(LiquidLook.RessawKey) | (IdPlusOne(LiquidLook.RedFluidKey) << 15)", still);
     }
 
     [Fact]
@@ -102,12 +136,16 @@ public sealed class RessawLookTests
     {
         string weather = Script("WeatherFx.cs");
         Assert.Contains("LiquidLookKind.Ressaw => EyeIn.Ressaw,", weather);
+        Assert.Contains("LiquidLookKind.RedFluid => EyeIn.RedFluid,", weather); // #3644: the same veil, in red
+        Assert.Contains("bool glowing = eye is EyeIn.Ressaw or EyeIn.RedFluid;", weather);
+        Assert.Contains("GUI.color = _veilRed ? new Color(", weather);
         Assert.Contains("_milkyWash > 0.01f", weather); // keeps the overlay alive while it fades
         Assert.Contains("DrawRessawWash(); // #3335", weather);
 
         string mist = Script("Sky.Mist.cs");
-        Assert.Contains("_murkIsRessaw = IsRessawAt(Camera.transform.position);", mist);
-        Assert.Contains("Color water = _murkIsRessaw ? RessawMurk", mist);
+        Assert.Contains("_murkLook = LiquidLookAt(Camera.transform.position);", mist);
+        Assert.Contains("bool glowing = LiquidLook.GlowsStill(_murkLook);", mist);
+        Assert.Contains("Color water = glowing ? (_murkLook == LiquidLookKind.RedFluid ? RedFluidMurk : RessawMurk)", mist);
     }
 
     [Fact]

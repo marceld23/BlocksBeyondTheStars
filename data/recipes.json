@@ -361,6 +361,10 @@
   { "key": "burger_cheese",       "station": "workshop", "inputs": [ { "item": "algae_ration", "count": 2 }, { "item": "salt", "count": 1 } ],                     "outputs": [ { "item": "burger_cheese", "count": 4 } ] },
   { "key": "burger_lettuce",      "station": "workshop", "inputs": [ { "item": "plant_fiber", "count": 3 } ],                                                      "outputs": [ { "item": "burger_lettuce", "count": 4 } ] },
   { "key": "burger_tomato",       "station": "workshop", "inputs": [ { "item": "berries", "count": 3 } ],                                                          "outputs": [ { "item": "burger_tomato", "count": 4 } ] },
+  // #3644: the Grand Technicians' dark dressed sandstone — the one block of their ruins a player can also make at the workbench
+  // (a lighter darkening than the weathered blackened sandstone: more stone to one piece of coal). Their glyph stones, eye and
+  // mural stay found only.
+  { "key": "dark_sandstone",      "station": "workshop", "inputs": [ { "item": "sandstone", "count": 4 }, { "item": "carbon", "count": 1 } ],                       "outputs": [ { "item": "dark_sandstone", "count": 4 } ] },
   { "key": "water_snow",         "station": "hand",     "inputs": [ { "item": "snow", "count": 2 } ],                                     "outputs": [ { "item": "water", "count": 1 } ] },
   { "key": "water_ice",          "station": "hand",     "inputs": [ { "item": "ice", "count": 2 } ],                                      "outputs": [ { "item": "water", "count": 1 } ] },
   { "key": "fiber_mycelium",     "station": "hand",     "inputs": [ { "item": "mycelium", "count": 1 } ],                                 "outputs": [ { "item": "plant_fiber", "count": 2 } ] },

@@ -158,7 +158,10 @@ deterministic script `tools/ai-assets/recolour_soaniri.py`, #3423, no model), th
 `mine_track`, `mine_cart`, `dripstone`, `burger_bun`, `burger_patty`, `burger_cheese`), and the school club landmarks' six
 building materials (#3483, 2026-11-12: `travertine`, `blackened_sandstone`, `verdigris_copper`, `burger_lettuce`,
 `burger_tomato`, `burger_bun_sesame` — the tomato and the sesame bun made seamless afterwards by the deterministic
-`tools/ai-assets/heal_seams.py`, no model)) are
+`tools/ai-assets/heal_seams.py`, no model), and the lost civilizations' fifteen tiles (#3644/#3645, 2026-11-14: the
+Grand Technicians' `glyph_stone`, `glyph_stone_band`, `dark_sandstone`, `gt_eye`, the red fluid `gt_fluid` and their mural
+`gt_mural_0` … `gt_mural_7` — one 1536x1024 picture, `gpt-image-1-mini` at medium quality, cut into 4 x 2 tiles by the
+deterministic `tools/ai-assets/cut_mural.py` — and the Labyrinth Builders' `maze_stone`, `maze_stone_carved`)) are
 **AI-generated** with the same **OpenAI** image API (`gpt-image-1-mini`, 64px pixel-art tiles — see
 `tools/ai-assets/gen_textures.py`, bundled as raw bytes by `bundle_textures.py`), loaded into the
 block atlas at runtime via `Texture2D.LoadRawTextureData`; same OpenAI usage terms.

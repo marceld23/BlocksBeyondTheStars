@@ -27,7 +27,8 @@ namespace BlocksBeyondTheStars.Client
         private float _underwater; // smoothed 0..1 blue submerged wash
         private float _gasWash;    // #2134: smoothed 0..1 — the eye in a gas giant's gas sea (its own amber haze, not the water blue)
         private float _denseWash;  // #2134: smoothed 0..1 — the eye in the dense gas under it (a dark, churning body)
-        private float _milkyWash;  // #3335: smoothed 0..1 — the eye in Ressaw (a milky white, softly glowing veil)
+        private float _milkyWash;  // #3335: smoothed 0..1 — the eye in Ressaw (a milky white, softly glowing veil) or the red fluid
+        private bool _veilRed;     // #3644: the veil is the Grand Technicians' red fluid's, not Ressaw's (kept while it fades)
         private Texture2D _churnTex; // #2134: a soft tileable noise, drifted in two layers over the dense wash (and the Ressaw veil)
 
         // Frost overlay (cold worlds): ice fogs the screen edges as the air drops below freezing. The texture
@@ -113,7 +114,9 @@ namespace BlocksBeyondTheStars.Client
             _underwater = Mathf.MoveTowards(_underwater, eye == EyeIn.Water ? 1f : 0f, Time.deltaTime * 3.5f);
             _gasWash = Mathf.MoveTowards(_gasWash, eye == EyeIn.Gas ? 1f : 0f, Time.deltaTime * 3.5f);
             _denseWash = Mathf.MoveTowards(_denseWash, eye == EyeIn.DenseGas ? 1f : 0f, Time.deltaTime * 2.5f);
-            _milkyWash = Mathf.MoveTowards(_milkyWash, eye == EyeIn.Ressaw ? 1f : 0f, Time.deltaTime * 3.5f);
+            bool glowing = eye is EyeIn.Ressaw or EyeIn.RedFluid; // #3644: the red fluid takes Ressaw's veil, in red
+            _milkyWash = Mathf.MoveTowards(_milkyWash, glowing ? 1f : 0f, Time.deltaTime * 3.5f);
+            _veilRed = glowing ? eye == EyeIn.RedFluid : _veilRed;
 
             if (Game?.Environment == null)
             {
@@ -385,7 +388,7 @@ namespace BlocksBeyondTheStars.Client
             return _dropTex;
         }
 
-        private enum EyeIn { Air, Water, Gas, DenseGas, Ressaw }
+        private enum EyeIn { Air, Water, Gas, DenseGas, Ressaw, RedFluid }
 
         /// <summary>What the first-person eye (≈ the head, ~1.5 above the player root) is in: water — including inside a
         /// submerged plant, ladder or form, like the server's oxygen drain (#1902) — or, on a gas giant, the gas sea or the
@@ -412,6 +415,7 @@ namespace BlocksBeyondTheStars.Client
                 LiquidLookKind.DenseGas => EyeIn.DenseGas,
                 LiquidLookKind.Gas => EyeIn.Gas,
                 LiquidLookKind.Ressaw => EyeIn.Ressaw,
+                LiquidLookKind.RedFluid => EyeIn.RedFluid, // #3644
                 _ => EyeIn.Water,
             };
         }
@@ -490,9 +494,10 @@ namespace BlocksBeyondTheStars.Client
             float w = Screen.width, h = Screen.height, t = Time.time;
             var full = new Rect(0, 0, w, h);
             float veil = _milkyWash * Mathf.Lerp(1f, 0.6f, Sky.UnderwaterFog);
-            GUI.color = new Color(0.90f, 0.91f, 0.97f, 0.46f * veil);
+            // #3644: in the red fluid the same veil, in a glowing red (the churn on it a lighter, pinker red).
+            GUI.color = _veilRed ? new Color(0.80f, 0.14f, 0.13f, 0.46f * veil) : new Color(0.90f, 0.91f, 0.97f, 0.46f * veil);
             GUI.DrawTexture(full, Texture2D.whiteTexture);
-            GUI.color = new Color(1f, 1f, 1f, 0.22f * veil);
+            GUI.color = _veilRed ? new Color(1f, 0.55f, 0.50f, 0.22f * veil) : new Color(1f, 1f, 1f, 0.22f * veil);
             GUI.DrawTextureWithTexCoords(full, ChurnTexture(), new Rect(t * 0.012f, -t * 0.009f, 1.3f, 1.3f * h / Mathf.Max(1f, w)));
             GUI.color = prev;
         }

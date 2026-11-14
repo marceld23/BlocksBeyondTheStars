@@ -54,9 +54,11 @@ public sealed class WorldMetadata
     /// <c>bell_bloom_open</c>, <c>harp_vine</c>, <c>echo_flower</c>). 14 = the landmarks' decoration blocks (#3498: <c>mine_track</c>,
     /// <c>mine_cart</c>, <c>dripstone</c>, <c>burger_bun</c>, <c>burger_patty</c>, <c>burger_cheese</c>). 15 = the school club
     /// landmarks' building materials (#3483: <c>travertine</c>, <c>blackened_sandstone</c>, <c>verdigris_copper</c>,
-    /// <c>burger_lettuce</c>, <c>burger_tomato</c>, <c>burger_bun_sesame</c>).</para>
+    /// <c>burger_lettuce</c>, <c>burger_tomato</c>, <c>burger_bun_sesame</c>). 16 = the lost civilizations' blocks (#3644: the
+    /// Grand Technicians' <c>glyph_stone</c>, <c>glyph_stone_band</c>, <c>dark_sandstone</c>, <c>gt_eye</c>, <c>gt_fluid</c>,
+    /// <c>gt_mural_0</c> … <c>gt_mural_7</c>; #3645: the Labyrinth Builders' <c>maze_stone</c>, <c>maze_stone_carved</c>).</para>
     /// </summary>
-    public const int CurrentSaveVersion = 15;
+    public const int CurrentSaveVersion = 16;
 
     /// <summary>The save version of the build that last opened this world — see <see cref="CurrentSaveVersion"/>.
     /// Absent in the JSON ⇒ 1, the version every save carried before the check existed.</summary>
