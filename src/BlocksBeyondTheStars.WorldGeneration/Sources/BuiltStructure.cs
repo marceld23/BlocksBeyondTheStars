@@ -55,12 +55,16 @@ public readonly struct BuiltMarker : IEquatable<BuiltMarker>
 /// <c>(x · Height + y) · Length + z</c> like <see cref="SettlementStructure"/>), the sparse per-cell dye/glow and
 /// shape+orientation, the cells the structure carves to air in the ground, its markers and the row that sits on the
 /// ground. Rows below <see cref="GroundRow"/> lie in the ground (a cellar, a flooded basin, a landmark's underground
-/// part); a source whose generator has nothing below its floor row keeps it at 0.
+/// part); a source whose generator has nothing below its floor row keeps it at 0. A source may also name cells the
+/// shared ruin pass must leave standing (<see cref="Keep"/>, #3645).
 /// </summary>
 public sealed class BuiltStructure
 {
     private const ulong FnvOffset = 14695981039346656037UL;
     private const ulong FnvPrime = 1099511628211UL;
+
+    /// <summary>Separates the kept cells from the cavity cells in <see cref="ContentHash"/> ("KEEP").</summary>
+    private const int KeepTag = 0x4B454550;
 
     public BuiltStructure(string sourceKey, int width, int height, int length, int groundRow = 0)
     {
@@ -111,6 +115,11 @@ public sealed class BuiltStructure
     /// <summary>Cells the generator explicitly carves to air in the ground (a landmark's tunnels, an outpost's cellar).</summary>
     public HashSet<int> Cavity { get; } = new();
 
+    /// <summary>#3645: cells the shared ruin pass leaves standing when the structure stands as a ruin (a maze ruin's lowest
+    /// wall rows) — the keep brush of an authored template. The converters (<see cref="BuiltConverters"/>) carry them into
+    /// the working grid; empty for every source that keeps nothing.</summary>
+    public HashSet<int> Keep { get; } = new();
+
     /// <summary>The markers, in the generator's order.</summary>
     public List<BuiltMarker> Markers { get; } = new();
 
@@ -125,6 +134,8 @@ public sealed class BuiltStructure
     public int GetShape(int x, int y, int z) => Shapes.TryGetValue(Index(x, y, z), out int s) ? s : 0;
 
     public bool IsCavity(int x, int y, int z) => Cavity.Contains(Index(x, y, z));
+
+    public bool IsKept(int x, int y, int z) => Keep.Contains(Index(x, y, z));
 
     /// <summary>Sets a cell's block, dye/glow and shape (zero modifiers and a plain shape clear the cell's entries).</summary>
     public void Set(int x, int y, int z, ushort block, int tint = 0, int glow = 0, int shape = 0)
@@ -162,8 +173,9 @@ public sealed class BuiltStructure
         return n;
     }
 
-    /// <summary>A stable 64-bit FNV-1a hash over the size, the ground row, every block, the modifiers, shapes and cavity
-    /// cells in cell order, and the markers in their order — equal structures hash equal on every platform.</summary>
+    /// <summary>A stable 64-bit FNV-1a hash over the size, the ground row, every block, the modifiers, shapes, cavity and
+    /// kept cells in cell order, and the markers in their order — equal structures hash equal on every platform. A structure
+    /// without kept cells hashes exactly as it did before they existed.</summary>
     public ulong ContentHash()
     {
         ulong h = FnvOffset;
@@ -189,6 +201,15 @@ public sealed class BuiltStructure
         foreach (int i in Sorted(Cavity))
         {
             h = Mix(h, i);
+        }
+
+        if (Keep.Count > 0)
+        {
+            h = Mix(h, KeepTag);
+            foreach (int i in Sorted(Keep))
+            {
+                h = Mix(h, i);
+            }
         }
 
         h = Mix(h, Markers.Count);

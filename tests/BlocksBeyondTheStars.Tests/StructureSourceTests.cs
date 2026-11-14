@@ -33,6 +33,7 @@ public sealed partial class StructureSourceTests
         "ancient_ruin",
         "station", "station_kit", "derelict",
         "vault", "singing_shrine", "sealed_observatory", "mirun", "ornasa", "choir_tower", "guardian_core", "hunter_camp",
+        "maze_ruin",
     };
 
     public static TheoryData<string> SourceKeys()
@@ -121,7 +122,7 @@ public sealed partial class StructureSourceTests
     [Fact]
     public void SeededSources_DifferBetweenSeeds()
     {
-        foreach (string key in new[] { "settlement", "monument", "bandit_camp", "factory", "wreck", "station", "derelict" })
+        foreach (string key in new[] { "settlement", "monument", "bandit_camp", "factory", "wreck", "station", "derelict", "maze_ruin" })
         {
             var source = StructureSources.Get(key)!;
             Assert.NotEqual(source.Build(new StructureBuildRequest(Content, SeedA)).ContentHash(),
@@ -199,7 +200,9 @@ public sealed partial class StructureSourceTests
         ulong marker = b.ContentHash();
         b.Cavity.Add(0);
         ulong cavity = b.ContentHash();
-        Assert.Equal(6, new[] { empty, block, tint, shape, marker, cavity }.Distinct().Count());
+        b.Keep.Add(0);
+        ulong kept = b.ContentHash();
+        Assert.Equal(7, new[] { empty, block, tint, shape, marker, cavity, kept }.Distinct().Count());
         Assert.NotEqual(new BuiltStructure("t", 2, 2, 2).ContentHash(), new BuiltStructure("t", 2, 2, 2, groundRow: 1).ContentHash());
     }
 }

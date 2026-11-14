@@ -159,6 +159,9 @@ public static class StructureSources
         new SoaniriSiteSource(SoaniriBuilder.ChoirTowerKey),
         new GuardianCoreSource(),
         new HunterCampSource(),
+
+        // The lost civilizations (#3645)
+        new MazeRuinSource(),
     };
 
     private static IEnumerable<string> KeysOf(string? settingsLine)

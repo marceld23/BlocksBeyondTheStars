@@ -191,6 +191,7 @@ public static class BuiltConverters
         int w = b.Width, h = b.Height - y0, l = b.Length;
         var grid = new VoxelGrid(w, h, l);
         Copy(b, y0, grid);
+        CopyKeep(b, y0, grid);
         var markers = new List<SettlementMarker>();
         int buildings = 0;
         foreach (var m in b.Markers)
@@ -256,6 +257,7 @@ public static class BuiltConverters
             grid.Cavity[i] = true;
         }
 
+        CopyKeep(b, 0, grid);
         var markers = new List<SettlementMarker>();
         foreach (var m in b.Markers)
         {
@@ -264,6 +266,21 @@ public static class BuiltConverters
 
         return LandmarkGenerator.Finish(entry, grid, markers, b.GroundRow, LandmarkRules.IsRuin(entry), seed, content, surfaceBlock,
             revision, turns: 0, options, dress);
+    }
+
+    /// <summary>#3645: the built structure's kept cells (<see cref="BuiltStructure.Keep"/>) from row <paramref name="y0"/> up
+    /// as the grid's keep bits, so the shared ruin pass leaves them standing.</summary>
+    private static void CopyKeep(BuiltStructure b, int y0, VoxelGrid grid)
+    {
+        foreach (int i in b.Keep)
+        {
+            int z = i % b.Length, column = i / b.Length;
+            int y = (column % b.Height) - y0, x = column / b.Height;
+            if (grid.In(x, y, z))
+            {
+                grid.Keep[grid.Index(x, y, z)] = true;
+            }
+        }
     }
 
     /// <summary>Copies the built cells from row <paramref name="y0"/> up into the grid's row 0 up.</summary>
