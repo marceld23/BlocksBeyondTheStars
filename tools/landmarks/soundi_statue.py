@@ -133,7 +133,8 @@ def figure() -> Sculpture:
 # ---------------------------------------------------------------- the pedestal
 def pedestal(d: Design) -> None:
     """A hollow carved-obsidian plinth with a stepped foot and a cornice, resonance crystals glowing in its corners and
-    along its cornice, crystal clusters at the foot's corners and the name in crystal letters on the front."""
+    along its cornice and crystal clusters at the foot's corners. The front carries no name: the Sounders raised the
+    statue, and they write in sound, not in letters (#3577)."""
     stone = Mix("carved_obsidian", ("obsidian", 0.12), seed=3)
     x1, z1 = PED_W - 1, PED_L - 1
     d.box(0, 0, 0, x1, 1, z1, stone)                                   # the foot (two rows, the whole footprint)
@@ -158,9 +159,6 @@ def pedestal(d: Design) -> None:
         for (ox, oz), h in (((0, 0), 4), ((dx, 0), 2), ((0, dz), 3), ((dx, dz), 1)):
             for y in range(2, 2 + h):
                 d.put(x + ox, y, z + oz, crystal)
-    word = "SOUNDI"
-    w, _ = Design.text_size(word)
-    d.text(word, (PED_W - w) // 2, 3, 2, crystal, dir="+x")             # on the front face (it looks toward -z)
     # A staircase up the back, so a visitor can stand between the Soundi's paws.
     d.stairs((PED_W - STAIR_W) // 2, 0, z1 + PED_H, 0, -1, PED_H, stone, width=STAIR_W, fill_below=True)
     for x in range((PED_W - STAIR_W) // 2 - 1, (PED_W + STAIR_W) // 2 + 1):  # the cornice opens onto the stair
