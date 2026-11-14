@@ -23,21 +23,21 @@ public sealed class CivilizationFrameworkTests
 
     internal static CivilizationDefinition Civ(string key, string[]? types = null, string[]? atmospheres = null, int min = 1, int max = 1,
         int perSystem = 1, string start = CivilizationRules.StartAllowed, bool underwater = false) => new()
-    {
-        Key = key,
-        NameKey = "civ." + key + ".name",
-        Scope = new CivilizationScope
         {
-            Count = new List<int> { min, max },
-            PerSystem = perSystem,
-            PlanetTypes = (types ?? System.Array.Empty<string>()).ToList(),
-            Atmospheres = (atmospheres ?? System.Array.Empty<string>()).ToList(),
-            Conditions = new List<string> { CivilizationRules.ConditionNotAsteroid, CivilizationRules.ConditionNotGas, CivilizationRules.ConditionNotVoid },
-            StartSystem = start,
-            Underwater = underwater,
-        },
-        Sites = new List<CivilizationSitePool> { new() { Pool = CivilizationRules.PoolGiant } },
-    };
+            Key = key,
+            NameKey = "civ." + key + ".name",
+            Scope = new CivilizationScope
+            {
+                Count = new List<int> { min, max },
+                PerSystem = perSystem,
+                PlanetTypes = (types ?? System.Array.Empty<string>()).ToList(),
+                Atmospheres = (atmospheres ?? System.Array.Empty<string>()).ToList(),
+                Conditions = new List<string> { CivilizationRules.ConditionNotAsteroid, CivilizationRules.ConditionNotGas, CivilizationRules.ConditionNotVoid },
+                StartSystem = start,
+                Underwater = underwater,
+            },
+            Sites = new List<CivilizationSitePool> { new() { Pool = CivilizationRules.PoolGiant } },
+        };
 
     private static GameContent ContentWith(params CivilizationDefinition[] civs)
     {
