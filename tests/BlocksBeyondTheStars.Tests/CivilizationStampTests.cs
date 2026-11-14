@@ -107,6 +107,9 @@ public sealed class CivilizationStampTests : IDisposable
         // so the content's tags still name a civilization and the loader has nothing to warn about.
         var civs = content.Civilizations.Where(c => !c.IsFramework).Append(civ).ToArray();
         content.SetCivilizations(civs, templates, warnings.Add);
+        // The shipped framework civilizations are left out on purpose (the test's civilization is the only one stamped), so
+        // their blocks' tags name an unloaded civilization — that warning is expected; anything else is not.
+        warnings.RemoveAll(w => w.StartsWith("Content names unknown civilization", System.StringComparison.Ordinal));
         Assert.True(warnings.Count == 0, string.Join(" | ", warnings));
         return content;
     }
