@@ -32,6 +32,7 @@ public sealed class StructureTemplatePoolTests : IDisposable
         "tavern", "workshop", "guard_post", // #1885: the innkeeper's and the craftsman's posts, the G.D.S. guardians
         "doctor", "grocer", "arms_dealer", "sage", "tamer", "blockfarmer", "streamer", "reporter", // 2026-09: profession posts
         "rail_dealer", // #2113: the monorail's dealer at the depot
+        "entrance", // #3585: the road side of a module without a door (fields, gardens, pens)
     };
 
     private readonly string _root;

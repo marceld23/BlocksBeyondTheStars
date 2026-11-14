@@ -205,8 +205,11 @@ public sealed partial class WorldGenerator
         target = h;
         lead = default;
         double sumW = 0.0, sumT = 0.0, bestW = 0.0;
-        foreach (var site in _sites)
+        var near = NearSites(worldX, worldZ);
+        int count = near?.Count ?? _sites.Length;
+        for (int i = 0; i < count; i++)
         {
+            var site = _sites[near is null ? i : near[i]];
             double d = DistanceToBox(site, worldX, worldZ);
             if (d <= 0.0)
             {
@@ -258,8 +261,11 @@ public sealed partial class WorldGenerator
     /// <summary>The site whose box holds this column, if any.</summary>
     private bool TrySiteBoxAt(int worldX, int worldZ, out SiteFlat site)
     {
-        foreach (var s in _sites)
+        var near = NearSites(worldX, worldZ);
+        int count = near?.Count ?? _sites.Length;
+        for (int i = 0; i < count; i++)
         {
+            var s = _sites[near is null ? i : near[i]];
             if (DistanceToBox(s, worldX, worldZ) <= 0.0)
             {
                 site = s;
@@ -271,13 +277,26 @@ public sealed partial class WorldGenerator
         return false;
     }
 
+    /// <summary>The bucket index over <see cref="_sites"/> (#3591), rebuilt with the world mode; null without sites.</summary>
+    private SiteIndex? _siteIndex;
+
+    /// <summary>The sites that may reach a column, ascending (#3591) — an empty list when none can; null means "scan them
+    /// all" (no index).</summary>
+    private List<int>? NearSites(int worldX, int worldZ)
+        => _siteIndex is { } index ? index.Near(worldX, worldZ) ?? NoSites : null;
+
+    private static readonly List<int> NoSites = new();
+
     /// <summary>True when a reserved site's box lies within <paramref name="reach"/> blocks of this column — a tree, a prop or
     /// a giant plant anchored here would grow into the town, so the passes skip the anchor (#3568). Always false without
     /// sites (every older world).</summary>
     private bool SiteClaims(int worldX, int worldZ, int reach)
     {
-        foreach (var s in _sites)
+        var near = reach <= RuneShrineMaxReach ? NearSites(worldX, worldZ) : null; // the index covers reaches up to 16
+        int count = near?.Count ?? _sites.Length;
+        for (int i = 0; i < count; i++)
         {
+            var s = _sites[near is null ? i : near[i]];
             if (DistanceToBox(s, worldX, worldZ) <= reach + 1)
             {
                 return true;

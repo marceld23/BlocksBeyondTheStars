@@ -401,6 +401,18 @@ per-instance stream is still drawn so `ruined` / `island` never shift). Shipped:
 (43 station modules, 5 station kits) and `tools/gen_settlement_modules.py` (the default settlement kits + the G.D.S.
 city kit).
 
+**Planned kits (#3602, generation 41).** A settlement kit's `layout` picks the composer: `""` the plot grid above, `grid`
+a grown grid, `grown` road first (`forms`: street, green, round, cluster, cross, bank). `mainStreet`, `spacing` (largest
+setback), `extent` (box side, 0 = by tier) and `flat` shape a planned layout; its entries are drawn like a station kit's
+(required first, then by weight to a tier count) and placed along the roads by function — `StructureRoles.Ring`: market,
+board and tavern at the plaza, fields, gardens, pens, greenhouses, stables and quarries at the edge. A module is turned so
+its door faces its road; a module without a door names the road side with the `entrance` marker (a door or entrance on −Z
+is the default front). `minTerrainGeneration` keeps a kit out of older worlds' fresh draws. A city kit with `grown` gets an
+irregular outline (district map letter `.`), shifted rows, the wall along the outline and suburbs from `suburbKit`. Farm
+modules and the planned kits come from `tools/gen_grown_settlement_modules.py`. The editor: the kit panel's *Layout*
+stepper (its rows follow the layout), a clickable district map, the function pick list, and the `settlement` source's
+`relief` / `form` preview parameters. Details in [WORLD_GENERATION.md](WORLD_GENERATION.md) §56.
+
 **Settlement modules (#1885–#1890).** Fields `style` (`""` | `alien`) and the plot functions `tavern` / `workshop`
 (house slots; markers `tavern` / `workshop` name the room's furniture and the keeper's post). Block cells may carry a
 material token (`@wall @accent @roof @floor @path`, `MaterialTokens`) instead of a block key — resolved at stamp time

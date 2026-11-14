@@ -23,11 +23,19 @@ internal sealed class SettlementSource : StructureSourceBase
     {
     }
 
+    /// <summary>The ground a planned kit's preview is laid on (#3600): flat, a slope, or rolling hills.</summary>
+    public static readonly string[] Reliefs = { "flat", "slope", "hills" };
+
+    /// <summary>The village forms a grown kit's preview may insist on, "auto" first (the kit draws).</summary>
+    public static readonly string[] FormOptions = { "auto", "street", "green", "round", "cluster", "cross", "bank" };
+
     public override IReadOnlyList<StructureParam> GetParams(GameContent content) => new[]
     {
         StructureParam.Choice("tier", Tiers, "village"),
         StructureParam.Bool("ruined", false),
         StructureParam.Choice("kit", SourceOptions.KitKeys(content.KitsFor(StructureKit.KindSettlement, null, null, null), withNone: true), string.Empty),
+        StructureParam.Choice("relief", Reliefs, "flat"),
+        StructureParam.Choice("form", FormOptions, "auto"),
     };
 
     protected override BuiltStructure BuildCore(StructureBuildRequest r, SourceParams p)
@@ -48,6 +56,11 @@ internal sealed class SettlementSource : StructureSourceBase
             tier = kit.Tier;
         }
 
+        if (kit is { IsPlanned: true })
+        {
+            return BuiltConvert.FromSettlement(Key, PlannedPreview(r, p, kit, tier));
+        }
+
         var modules = DefaultWorld.SettlementModules(content, PlanetKey(r));
         double moduleChance = DefaultWorld.ModuleChance(modules.Count);
         SettlementLayoutSpec? layout = kit != null ? SettlementLayoutSpec.FromKit(kit, tier, LaneRng(r.Seed, "kitlayout")) : null;
@@ -55,6 +68,37 @@ internal sealed class SettlementSource : StructureSourceBase
             new List<string>(), null, layout, kit, kit != null ? DefaultWorld.KitModulePool(content) : null,
             terrainGeneration: r.Generation);
         return BuiltConvert.FromSettlement(Key, s);
+    }
+
+    /// <summary>
+    /// A planned kit (#3600): planned the way the server plans it — on ground of the picked relief (a slope rising toward +X, or
+    /// rolling hills, both from the seed), the picked form insisted on ("auto" lets the kit draw), a bank village's water on
+    /// the −Z side — and baked with the kit module pool.
+    /// </summary>
+    private static SettlementStructure PlannedPreview(StructureBuildRequest r, SourceParams p, StructureKit kit, string tier)
+    {
+        string relief = p.Get("relief");
+        double phase = (r.Seed & 0xFFFF) / 997.0;
+        System.Func<int, int, int>? ground = relief switch
+        {
+            "slope" => (x, z) => 64 + (x / 6),
+            "hills" => (x, z) => 64 + (int)System.Math.Round((6 * System.Math.Sin((x / 9.0) + phase)) + (4 * System.Math.Cos((z / 7.0) - phase))),
+            _ => null,
+        };
+        string form = p.Get("form");
+        var pool = DefaultWorld.KitModulePool(r.Content);
+        var plan = SettlementPlanner.Plan(new SettlementPlanRequest
+        {
+            Tier = tier,
+            Seed = r.Seed,
+            Kit = kit,
+            Pool = pool,
+            Ground = ground,
+            Form = form == "auto" ? string.Empty : form,
+            WaterSide = form == "bank" ? 0 : -1,
+        });
+        // The editor stands the preview on flat ground: the terraces get their plinths as cells (the stamper lays them in a world).
+        return SettlementPlanBaker.Bake(plan, tier, p.Bool("ruined"), r.Seed, r.Surface, r.Content, pool, plinths: ground != null);
     }
 }
 

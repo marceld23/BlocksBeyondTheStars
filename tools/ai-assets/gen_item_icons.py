@@ -62,6 +62,12 @@ ITEMS = [
     ("creature_meat", "a juicy grilled steak of meat on a small bone"),
     ("cooked_meat", "a golden-brown roasted meat joint on a small bone with rising steam wisps, freshly cooked over a campfire"),
     ("hearty_stew", "a steaming rustic bowl of thick brown meat and grain stew with red berries, wooden spoon"),
+    # #3597: the pens' products and what they cook into
+    ("egg", "a single smooth speckled cream-coloured alien farm egg, slightly larger at the bottom"),
+    ("milk", "a small glass bottle of fresh white milk with a cork stopper, a drop on the rim"),
+    ("wool", "a soft fluffy bundle of pale lavender alien wool, loosely tied with a thread"),
+    ("fried_egg", "a fried egg in a small black skillet pan, bright yellow yolk, crispy white edges, light steam"),
+    ("pancake", "a short stack of three golden fluffy pancakes on a small plate with a drizzle of red berry syrup"),
     ("burger", "a big juicy hamburger: golden sesame bun, a dark grilled patty, a slice of melted yellow cheese and a green lettuce leaf"),
     ("algae_soup", "a steaming bowl of smooth bright green algae soup with a sprinkle of salt flakes"),
     ("mushroom_skewer", "three grilled tan mushroom caps on a wooden skewer stick, lightly charred"),

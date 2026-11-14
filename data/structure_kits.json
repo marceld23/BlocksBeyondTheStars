@@ -3017,5 +3017,2718 @@
         "weight": 1
       }
     ]
+  },
+  {
+    "key": "hamlet_grown_1",
+    "name": "Hamlet Grown 1",
+    "kind": "settlement",
+    "tier": "hamlet",
+    "pack": "default",
+    "weight": 8,
+    "minTerrainGeneration": 41,
+    "layout": "grown",
+    "entries": [
+      {
+        "module": "village_market_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_market_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_board_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_board_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_workshop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_workshop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_house_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "village_house_1_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "village_house_2",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_2_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_3",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_3_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_greenhouse_1",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_greenhouse_1_alien",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_field_1",
+        "min": 1,
+        "max": 2,
+        "required": true,
+        "weight": 2
+      },
+      {
+        "module": "village_field_1_alien",
+        "min": 1,
+        "max": 2,
+        "required": true,
+        "weight": 2
+      },
+      {
+        "module": "village_field_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_field_2_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_garden_1",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_garden_1_alien",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_garden_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_garden_2_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_pen_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_pen_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_clinic_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_clinic_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_shop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_shop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_armory_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_armory_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_library_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_library_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_stable_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_stable_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_quarry_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_quarry_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_studio_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_studio_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_newsroom_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_newsroom_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_depot_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_depot_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      }
+    ],
+    "forms": [
+      "street",
+      "cluster",
+      "round",
+      "bank"
+    ]
+  },
+  {
+    "key": "hamlet_grid_1",
+    "name": "Hamlet Grown Grid 1",
+    "kind": "settlement",
+    "tier": "hamlet",
+    "pack": "default",
+    "weight": 4,
+    "minTerrainGeneration": 41,
+    "layout": "grid",
+    "entries": [
+      {
+        "module": "village_market_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_market_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_board_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_board_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_workshop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_workshop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_house_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "village_house_1_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "village_house_2",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_2_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_3",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_3_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_greenhouse_1",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_greenhouse_1_alien",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_field_1",
+        "min": 1,
+        "max": 2,
+        "required": true,
+        "weight": 2
+      },
+      {
+        "module": "village_field_1_alien",
+        "min": 1,
+        "max": 2,
+        "required": true,
+        "weight": 2
+      },
+      {
+        "module": "village_field_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_field_2_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_garden_1",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_garden_1_alien",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_garden_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_garden_2_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_pen_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_pen_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_clinic_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_clinic_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_shop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_shop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_armory_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_armory_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_library_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_library_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_stable_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_stable_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_quarry_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_quarry_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_studio_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_studio_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_newsroom_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_newsroom_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_depot_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_depot_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      }
+    ]
+  },
+  {
+    "key": "village_grown_1",
+    "name": "Village Grown 1",
+    "kind": "settlement",
+    "tier": "village",
+    "pack": "default",
+    "weight": 8,
+    "minTerrainGeneration": 41,
+    "layout": "grown",
+    "entries": [
+      {
+        "module": "village_market_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_market_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_board_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_board_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_tavern_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_tavern_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_workshop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_workshop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_house_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "village_house_1_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "village_house_2",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_2_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_3",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_3_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_greenhouse_1",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_greenhouse_1_alien",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_field_1",
+        "min": 1,
+        "max": 2,
+        "required": true,
+        "weight": 2
+      },
+      {
+        "module": "village_field_1_alien",
+        "min": 1,
+        "max": 2,
+        "required": true,
+        "weight": 2
+      },
+      {
+        "module": "village_field_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_field_2_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_garden_1",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_garden_1_alien",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_garden_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_garden_2_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_pen_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 2
+      },
+      {
+        "module": "village_pen_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 2
+      },
+      {
+        "module": "village_clinic_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_clinic_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_shop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_shop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_armory_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_armory_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_library_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_library_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_stable_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_stable_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_quarry_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_quarry_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_studio_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_studio_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_newsroom_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_newsroom_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_depot_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_depot_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      }
+    ],
+    "forms": [
+      "street",
+      "green",
+      "round",
+      "cluster",
+      "cross",
+      "bank"
+    ]
+  },
+  {
+    "key": "village_grid_1",
+    "name": "Village Grown Grid 1",
+    "kind": "settlement",
+    "tier": "village",
+    "pack": "default",
+    "weight": 4,
+    "minTerrainGeneration": 41,
+    "layout": "grid",
+    "entries": [
+      {
+        "module": "village_market_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_market_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_board_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_board_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_tavern_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_tavern_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "village_workshop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_workshop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_house_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "village_house_1_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "village_house_2",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_2_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_3",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_house_3_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "village_greenhouse_1",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_greenhouse_1_alien",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_field_1",
+        "min": 1,
+        "max": 2,
+        "required": true,
+        "weight": 2
+      },
+      {
+        "module": "village_field_1_alien",
+        "min": 1,
+        "max": 2,
+        "required": true,
+        "weight": 2
+      },
+      {
+        "module": "village_field_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_field_2_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_garden_1",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_garden_1_alien",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_garden_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_garden_2_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_pen_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 2
+      },
+      {
+        "module": "village_pen_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 2
+      },
+      {
+        "module": "village_clinic_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_clinic_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_shop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_shop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_armory_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_armory_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_library_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_library_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_stable_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_stable_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_quarry_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_quarry_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_studio_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_studio_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_newsroom_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_newsroom_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_depot_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "village_depot_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      }
+    ]
+  },
+  {
+    "key": "town_grown_1",
+    "name": "Town Grown 1",
+    "kind": "settlement",
+    "tier": "town",
+    "pack": "default",
+    "weight": 8,
+    "minTerrainGeneration": 41,
+    "layout": "grown",
+    "entries": [
+      {
+        "module": "town_market_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_market_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_board_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_board_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_tavern_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_tavern_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_workshop_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_workshop_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_house_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "town_house_1_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "town_house_2",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "town_house_2_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "town_greenhouse_1",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_greenhouse_1_alien",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_field_1",
+        "min": 1,
+        "max": 2,
+        "required": true,
+        "weight": 2
+      },
+      {
+        "module": "town_field_1_alien",
+        "min": 1,
+        "max": 2,
+        "required": true,
+        "weight": 2
+      },
+      {
+        "module": "town_field_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_field_2_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_garden_1",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_garden_1_alien",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_garden_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_garden_2_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_pen_2",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 2
+      },
+      {
+        "module": "town_pen_2_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 2
+      },
+      {
+        "module": "town_clinic_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_clinic_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_shop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_shop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_armory_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_armory_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_library_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_library_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_stable_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_stable_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_quarry_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_quarry_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_studio_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_studio_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_newsroom_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_newsroom_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_depot_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_depot_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      }
+    ],
+    "forms": [
+      "street",
+      "green",
+      "cluster",
+      "cross",
+      "bank"
+    ]
+  },
+  {
+    "key": "town_grid_1",
+    "name": "Town Grown Grid 1",
+    "kind": "settlement",
+    "tier": "town",
+    "pack": "default",
+    "weight": 4,
+    "minTerrainGeneration": 41,
+    "layout": "grid",
+    "entries": [
+      {
+        "module": "town_market_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_market_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_board_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_board_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_tavern_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_tavern_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_workshop_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_workshop_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_house_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "town_house_1_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "town_house_2",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "town_house_2_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "town_greenhouse_1",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_greenhouse_1_alien",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_field_1",
+        "min": 1,
+        "max": 2,
+        "required": true,
+        "weight": 2
+      },
+      {
+        "module": "town_field_1_alien",
+        "min": 1,
+        "max": 2,
+        "required": true,
+        "weight": 2
+      },
+      {
+        "module": "town_field_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_field_2_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_garden_1",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_garden_1_alien",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_garden_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_garden_2_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_pen_2",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 2
+      },
+      {
+        "module": "town_pen_2_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 2
+      },
+      {
+        "module": "town_clinic_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_clinic_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_shop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_shop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_armory_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_armory_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_library_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_library_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_stable_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_stable_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_quarry_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_quarry_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_studio_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_studio_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_newsroom_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_newsroom_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_depot_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_depot_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      }
+    ]
+  },
+  {
+    "key": "city_grown_1",
+    "name": "City Grown 1",
+    "kind": "settlement",
+    "tier": "city",
+    "pack": "default",
+    "weight": 8,
+    "minTerrainGeneration": 41,
+    "layout": "grown",
+    "entries": [
+      {
+        "module": "town_market_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_market_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_board_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_board_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_tavern_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_tavern_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_workshop_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_workshop_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_house_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "town_house_1_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "town_house_2",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "town_house_2_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "city_tall_house_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "city_tall_house_1_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "town_greenhouse_1",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_greenhouse_1_alien",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_field_1",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "town_field_1_alien",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "town_field_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_field_2_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_garden_1",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_garden_1_alien",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_garden_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_garden_2_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_pen_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "town_pen_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "town_clinic_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_clinic_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_shop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_shop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_armory_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_armory_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_library_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_library_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_stable_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_stable_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_quarry_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_quarry_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_studio_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_studio_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_newsroom_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_newsroom_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_depot_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_depot_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      }
+    ],
+    "forms": [
+      "street",
+      "cluster",
+      "cross",
+      "bank"
+    ]
+  },
+  {
+    "key": "city_grid_1",
+    "name": "City Grown Grid 1",
+    "kind": "settlement",
+    "tier": "city",
+    "pack": "default",
+    "weight": 4,
+    "minTerrainGeneration": 41,
+    "layout": "grid",
+    "entries": [
+      {
+        "module": "town_market_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_market_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_board_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_board_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_tavern_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_tavern_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_workshop_1",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_workshop_1_alien",
+        "min": 1,
+        "max": 1,
+        "required": true,
+        "weight": 1
+      },
+      {
+        "module": "town_house_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "town_house_1_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "town_house_2",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "town_house_2_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "city_tall_house_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "city_tall_house_1_alien",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "town_greenhouse_1",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_greenhouse_1_alien",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_field_1",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "town_field_1_alien",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "town_field_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_field_2_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_garden_1",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_garden_1_alien",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_garden_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_garden_2_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_pen_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "town_pen_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "town_clinic_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_clinic_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_shop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_shop_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_armory_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_armory_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_library_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_library_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_stable_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_stable_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_quarry_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_quarry_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_studio_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_studio_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_newsroom_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_newsroom_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_depot_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_depot_1_alien",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      }
+    ]
+  },
+  {
+    "key": "city_gds_suburb_1",
+    "name": "G.D.S. Suburb 1",
+    "kind": "settlement",
+    "tier": "town",
+    "pack": "default",
+    "weight": 1,
+    "pinOnly": true,
+    "planetTypes": [
+      "gds_desert"
+    ],
+    "minTerrainGeneration": 41,
+    "layout": "grown",
+    "forms": [
+      "street"
+    ],
+    "flat": true,
+    "entries": [
+      {
+        "module": "town_house_1",
+        "min": 0,
+        "max": 12,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "town_house_2",
+        "min": 0,
+        "max": 12,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "town_workshop_1",
+        "min": 0,
+        "max": 2,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_workshop_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_depot_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_shop_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "town_quarry_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      }
+    ]
+  },
+  {
+    "key": "city_gds_grown_1",
+    "name": "G.D.S. City Grown 1",
+    "kind": "city",
+    "tier": "metropolis",
+    "pack": "default",
+    "weight": 6,
+    "planetTypes": [
+      "gds_desert"
+    ],
+    "minTerrainGeneration": 41,
+    "grid": 7,
+    "districtSize": 32,
+    "street": 4,
+    "height": 20,
+    "grown": true,
+    "suburbKit": "city_gds_suburb_1",
+    "roleMap": [
+      ".RRGR..",
+      "TRRMRRT",
+      "RGHMGRR",
+      "RMMPMMR",
+      "RRGMGR.",
+      "TRRHRRT",
+      "..RGRR."
+    ],
+    "entries": [
+      {
+        "module": "gds_housing_1",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 2
+      },
+      {
+        "module": "gds_housing_2",
+        "min": 0,
+        "max": 30,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "gds_market_1",
+        "min": 0,
+        "max": 4,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "gds_market_2",
+        "min": 0,
+        "max": 4,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "gds_hall_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "gds_hall_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "gds_garden_1",
+        "min": 0,
+        "max": 8,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "gds_garden_2",
+        "min": 0,
+        "max": 8,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "gds_tower_1",
+        "min": 0,
+        "max": 4,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "gds_tower_2",
+        "min": 0,
+        "max": 4,
+        "required": false,
+        "weight": 1
+      },
+      {
+        "module": "gds_services_1",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 3
+      },
+      {
+        "module": "gds_services_2",
+        "min": 0,
+        "max": 1,
+        "required": false,
+        "weight": 3
+      }
+    ]
   }
 ]

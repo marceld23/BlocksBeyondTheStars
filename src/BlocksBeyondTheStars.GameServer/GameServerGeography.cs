@@ -101,21 +101,33 @@ public sealed partial class GameServer
         }
 
         var site = new SiteFlat(origin.X, origin.Z, width, length, groundY, grade.Radius, grade.MaxCut, grade.MaxFill);
-        foreach (var had in _world.SiteFlats)
+        AddSiteFlats(new[] { site }, origin.X - (site.Radius + 1), origin.Z - (site.Radius + 1),
+            origin.X + width + site.Radius + 1, origin.Z + length + site.Radius + 1);
+    }
+
+    /// <summary>Adds reserved sites to the active world (#3569; several at once for a grown settlement, #3591): a site already
+    /// in the list is skipped (a body whose only stamps are overlays reads as untouched on its next load), the list is pinned,
+    /// the generator applies it and every resident chunk inside the given box is dropped (it regenerates graded).</summary>
+    private void AddSiteFlats(IEnumerable<SiteFlat> sites, int minX, int minZ, int maxX, int maxZ)
+    {
+        bool added = false;
+        foreach (var site in sites)
         {
-            if (had.MinX == site.MinX && had.MinZ == site.MinZ && had.Width == site.Width && had.Length == site.Length)
+            if (!_world.SiteFlats.Exists(had => had.MinX == site.MinX && had.MinZ == site.MinZ && had.Width == site.Width && had.Length == site.Length))
             {
-                return; // reserved already (a body whose only stamps are overlays reads as untouched on its next load)
+                _world.SiteFlats.Add(site);
+                added = true;
             }
         }
 
-        _world.SiteFlats.Add(site);
+        if (!added)
+        {
+            return;
+        }
+
         _meta.BodySites[_world.LocationId] = SiteFlat.Format(_world.SiteFlats);
         _world.ApplyGeneratorMode();
-
-        int r = site.Radius + 1;
-        _world.ForgetChunksIn(new Vector3i(origin.X - r, MinBuildY, origin.Z - r),
-            new Vector3i(origin.X + width + r, MaxBuildY, origin.Z + length + r));
+        _world.ForgetChunksIn(new Vector3i(minX, MinBuildY, minZ), new Vector3i(maxX, MaxBuildY, maxZ));
         _worlds.Active.FarColumnBands.Clear(); // the streamed band of a column reads its surface
         _worlds.Active.WaterColumns.Clear();   // the water classes read the ground beside the water
     }

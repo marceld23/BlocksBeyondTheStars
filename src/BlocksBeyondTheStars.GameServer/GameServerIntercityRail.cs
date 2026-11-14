@@ -615,28 +615,31 @@ public sealed partial class GameServer
             return c - span / 2;
         }
 
+        // #3594: a planned settlement's station docks where a road leaves the box on that side, at the road's height.
+        var exit = RoadExitFor(s, heading, px, partnerZ);
+        double tx = exit?.X ?? px, tz = exit?.Z ?? partnerZ;
         int ox, oz;
         switch (heading)
         {
             case 0:
                 ox = s.Max.X + 1;
-                oz = Cross(s.Min.Z, s.Max.Z, partnerZ, l);
+                oz = Cross(s.Min.Z, s.Max.Z, tz, l);
                 break;
             case 1:
                 ox = s.Min.X - w;
-                oz = Cross(s.Min.Z, s.Max.Z, partnerZ, l);
+                oz = Cross(s.Min.Z, s.Max.Z, tz, l);
                 break;
             case 2:
                 oz = s.Max.Z + 1;
-                ox = Cross(s.Min.X, s.Max.X, px, w);
+                ox = Cross(s.Min.X, s.Max.X, tx, w);
                 break;
             default:
                 oz = s.Min.Z - l;
-                ox = Cross(s.Min.X, s.Max.X, px, w);
+                ox = Cross(s.Min.X, s.Max.X, tx, w);
                 break;
         }
 
-        return BuildStation(s.Name, heading, new Vector3i(ox, s.GroundY, oz), "slope", structure);
+        return BuildStation(s.Name, heading, new Vector3i(ox, exit?.FloorY ?? s.GroundY, oz), "slope", structure);
     }
 
     /// <summary>A station from its pinned parts (heading, origin, seat): the structure is regenerated, the markers placed.</summary>

@@ -224,6 +224,7 @@ public sealed partial class GameServer
         _professionTickAt[world] = _uptime + 1.0;
         TickStreamers();
         SyncTamerPets();
+        TickSettlementFarms(); // #3597: the pens' animals and their products
     }
 
     /// <summary>A streamer asks each player walking by for a photo — at most once per in-game day per player and place,

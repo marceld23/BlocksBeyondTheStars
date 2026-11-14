@@ -354,6 +354,12 @@
   { "key": "rug",         "nameKey": "item.rug.name",         "category": "block", "maxStack": 64,   "placesBlock": "rug",         "descriptionKey": "item.rug.desc" },
   { "key": "flower_pot",  "nameKey": "item.flower_pot.name",  "category": "block", "maxStack": 64,   "placesBlock": "flower_pot",  "descriptionKey": "item.flower_pot.desc" },
   { "key": "cooked_meat", "nameKey": "item.cooked_meat.name", "category": "consumable", "maxStack": 99, "descriptionKey": "item.cooked_meat.desc", "consumeHealth": 25, "consumeHunger": 60 },
+  // #3597: the products of a grown village's pens (collected from the pen's crate) and what they cook into.
+  { "key": "egg", "nameKey": "item.egg.name", "category": "material", "maxStack": 99, "descriptionKey": "item.egg.desc" },
+  { "key": "milk", "nameKey": "item.milk.name", "category": "consumable", "maxStack": 99, "descriptionKey": "item.milk.desc", "consumeHealth": 4, "consumeHunger": 15 },
+  { "key": "wool", "nameKey": "item.wool.name", "category": "material", "maxStack": 1024, "descriptionKey": "item.wool.desc" },
+  { "key": "fried_egg", "nameKey": "item.fried_egg.name", "category": "consumable", "maxStack": 99, "descriptionKey": "item.fried_egg.desc", "consumeHealth": 8, "consumeHunger": 30 },
+  { "key": "pancake", "nameKey": "item.pancake.name", "category": "consumable", "maxStack": 99, "descriptionKey": "item.pancake.desc", "consumeHealth": 10, "consumeHunger": 45 },
   // #1203 campfire meals (field_kitchen): the three best foods in the game — cooked, not foraged.
   { "key": "hearty_stew", "nameKey": "item.hearty_stew.name", "category": "consumable", "maxStack": 99, "descriptionKey": "item.hearty_stew.desc", "consumeHealth": 30, "consumeHunger": 80 },
   { "key": "algae_soup", "nameKey": "item.algae_soup.name", "category": "consumable", "maxStack": 99, "descriptionKey": "item.algae_soup.desc", "consumeHealth": 10, "consumeHunger": 60 },

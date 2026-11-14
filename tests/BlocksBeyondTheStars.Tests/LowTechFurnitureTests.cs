@@ -185,8 +185,8 @@ public sealed class LowTechFurnitureTests : IDisposable
             p.State.Inventory.Add("wood_crate", 1, 64);
 
             server.PlaceBlock(p.State.PlayerId, 1, 64, 0, "wood_crate");
-            // Worldgen pre-seeds ruin salvage containers — pick out OUR box by its crate kind.
-            var box = Assert.Single(server.Containers, c => c.Kind == "crate");
+            // Worldgen pre-seeds ruin salvage containers and a grown village's pen crates (#3597) — pick out OUR box by its cell.
+            var box = Assert.Single(server.Containers, c => c.Kind == "crate" && c.Position.Equals(new Vector3i(1, 64, 0)));
 
             // Ten distinct loose materials in the pockets — the box accepts only its slot budget (8);
             // the remaining stacks stay with the player instead of vanishing.
@@ -214,7 +214,7 @@ public sealed class LowTechFurnitureTests : IDisposable
 
             // Mining the box hands its stored stacks back (shared crate plumbing).
             server.MineBlock(p.State.PlayerId, 1, 64, 0);
-            Assert.DoesNotContain(server.Containers, c => c.Kind == "crate");
+            Assert.DoesNotContain(server.Containers, c => c.Id == box.Id);
             Assert.Equal(1, p.State.Inventory.CountOf("wood_crate"));
             Assert.Equal(10, ores.Sum(o => p.State.Inventory.CountOf(o) > 0 ? 1 : 0));
         }

@@ -110,6 +110,58 @@ public sealed class StructureKit
     /// H hall, G garden, T tower, R housing. Empty = the composer's own rule for any odd grid.</summary>
     public List<string> RoleMap { get; set; } = new();
 
+    // --- the planned layouts (#3602, terrain generation 41) ---
+
+    /// <summary>The classic plot grid (empty, every kit before #3602).</summary>
+    public const string LayoutPlots = "";
+
+    /// <summary>A grown grid (#3586): ordered blocks with uneven strides, a main lane, the market in the middle, houses
+    /// turned to their lane, thinning toward the edge.</summary>
+    public const string LayoutGrid = "grid";
+
+    /// <summary>Road first (#3587): a road skeleton of one of the <see cref="Forms"/>, the buildings grown along it.</summary>
+    public const string LayoutGrown = "grown";
+
+    /// <summary>Every layout, in the order the editor's stepper walks them.</summary>
+    public static readonly string[] Layouts = { LayoutPlots, LayoutGrid, LayoutGrown };
+
+    /// <summary>The village forms a grown kit may take (#3587).</summary>
+    public static readonly string[] AllForms = { "street", "green", "round", "cluster", "cross", "bank" };
+
+    /// <summary>The oldest terrain generation that may draw this kit for a fresh structure (#3583); 0 = every world. A pinned
+    /// replay finds a kit by key whatever this says.</summary>
+    public int MinTerrainGeneration { get; set; }
+
+    /// <summary>Settlement kits: how the composer lays the settlement out — <see cref="LayoutPlots"/> (the classic grid of
+    /// <see cref="ColsMin"/> … <see cref="ModulesOnly"/>), <see cref="LayoutGrid"/> or <see cref="LayoutGrown"/> (a pinned
+    /// settlement plan, #3584).</summary>
+    public string Layout { get; set; } = LayoutPlots;
+
+    /// <summary>A grown kit's village forms (empty = every form).</summary>
+    public List<string> Forms { get; set; } = new();
+
+    /// <summary>A planned kit's main street width in blocks (1–4); 0 = 2.</summary>
+    public int MainStreet { get; set; }
+
+    /// <summary>A planned kit's largest setback of a building from its road in blocks (1–4); 0 = 3.</summary>
+    public int Spacing { get; set; }
+
+    /// <summary>A planned kit's box side in blocks (32–128); 0 = the tier's default.</summary>
+    public int Extent { get; set; }
+
+    /// <summary>A planned kit that stays on one level instead of following the terrain (#3590).</summary>
+    public bool Flat { get; set; }
+
+    /// <summary>City kits (#3599): every other district row shifted by half a district, the wall along the outline of the
+    /// districts, a suburb grown outside the gates.</summary>
+    public bool Grown { get; set; }
+
+    /// <summary>A grown city kit's suburb: the settlement kit whose modules the suburb grows from ("" = none).</summary>
+    public string SuburbKit { get; set; } = string.Empty;
+
+    /// <summary>Whether this is a planned settlement layout (grid or grown) rather than the classic plots.</summary>
+    public bool IsPlanned => Layout == LayoutGrid || Layout == LayoutGrown;
+
     public string PackOrDefault => string.IsNullOrWhiteSpace(Pack) ? "default" : Pack;
 
     public string KindOrDefault => string.IsNullOrWhiteSpace(Kind) ? KindStation : Kind.Trim().ToLowerInvariant();

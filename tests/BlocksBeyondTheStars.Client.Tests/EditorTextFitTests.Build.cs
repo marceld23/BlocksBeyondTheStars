@@ -33,7 +33,7 @@ public sealed partial class EditorTextFitTests
             "ui.marker.door_slide", "ui.marker.greenhouse", "ui.marker.grocer", "ui.marker.guard_post", "ui.marker.hangar", "ui.marker.heal_tank",
             "ui.marker.loot", "ui.marker.lounge", "ui.marker.mission_board", "ui.marker.npc", "ui.marker.quarters", "ui.marker.reporter",
             "ui.marker.room", "ui.marker.sage", "ui.marker.spawn", "ui.marker.streamer", "ui.marker.tamer", "ui.marker.tavern",
-            "ui.marker.vendor", "ui.marker.workshop", "ui.marker.device",
+            "ui.marker.vendor", "ui.marker.workshop", "ui.marker.device", "ui.marker.entrance",
             "ui.marker.sound", "ui.marker.den", "ui.marker.keep", "ui.marker.cavity", "ui.marker.settings", // #3492/#3493: the landmark tools
             "ui.marker.zone"), // generation 39: the ruin zone tool
         Lines("Palette rows: an airlock block (a 52 px row when it needs three lines)", 230f, 52f, 15, 13, 13, "ui.ed.airlock_block")
@@ -141,6 +141,14 @@ public sealed partial class EditorTextFitTests
             "ui.kit.building", "ui.kit.storeys"),
         Lines("Kit panel kind / tier values", 166f, 30f, 14, 13, 13, TierValueKeys.Append("ui.kit.kind.*").ToArray()),
         Button("Kit panel modules only / underground (#3333)", 192f, 30f, "ui.kit.modules_only", "ui.kit.underground") with { Prefix = "☐ " },
+        FitLine("Kit panel layout field labels (140, #3600)", 140f, 13, 14, "ui.kit.layout", "ui.kit.main_street", "ui.kit.spacing",
+            "ui.kit.extent", "ui.kit.forms", "ui.kit.suburb_kit"),
+        Lines("Kit panel layout values (166×30, #3600)", 166f, 30f, 14, 13, 13, "ui.kit.layout.*"),
+        Button("Kit panel flat / grown city (#3600)", 192f, 30f, "ui.kit.flat", "ui.kit.grown_city") with { Prefix = "☐ " },
+        Button("Kit panel village forms (#3600)", 192f, 30f, "ui.kit.form.*") with { Prefix = "☐ " },
+        Wrap("Kit panel district map legend (390, #3600)", 390f, 12, 13, "ui.kit.map_legend"),
+        Label("Function picker title (#3600)", 280f, 18, "ui.struct.function"),
+        Button("Function picker rows (#3600)", 360f, 32f, "ui.role_short.*", "ui.function.*") with { Prefix = "▶ " },
         Label("Kit panel column: module", 220f, 13, "ui.kit.col_module"),
         Label("Kit panel columns: min / max", 50f, 13, "ui.kit.col_min", "ui.kit.col_max"),
         Label("Kit panel column: required", 90f, 13, "ui.kit.col_required"),

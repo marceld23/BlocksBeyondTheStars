@@ -47,6 +47,7 @@ public sealed class CityWorldTests : IDisposable
             AutoSaveIntervalMinutes = 9999,
             PlaceStarterShip = false,
         };
+        config.World.TerrainGeneration = WorldDescription.GeographyGeneration; // #3602: the classic city (the grown one: GrownSettlementServerTests)
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         return server;

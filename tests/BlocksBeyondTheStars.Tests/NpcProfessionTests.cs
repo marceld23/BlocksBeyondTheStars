@@ -9,6 +9,7 @@ using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
@@ -411,7 +412,7 @@ public sealed class NpcProfessionTests : IDisposable
     [Fact]
     public void TheGdsCity_GetsItsTwoServicesDistricts_AndTheirSixProfessions()
     {
-        var kit = Assert.Single(Content.KitsFor(StructureKit.KindCity, null, null, "gds_desert"));
+        var kit = Assert.Single(Content.KitsFor(StructureKit.KindCity, null, null, "gds_desert", WorldDescription.GeographyGeneration)); // the classic city kit (#3599)
         var pool = Content.SettlementTemplates.Where(t => t.IsModule).ToList();
         var spec = CityLayoutSpec.FromKit(kit);
         foreach (var services in new[] { "gds_services_1", "gds_services_2" })

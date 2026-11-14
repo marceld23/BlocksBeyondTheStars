@@ -241,8 +241,17 @@ public sealed class WorldDescription
     /// uranium, #3005 the pumpkin as a wild species of the green worlds, #3306 KuBa-W, Jafar's school-club asteroid, #3325 the
     /// Schuppenhund on the dry worlds, #3334 the buried G.D.S. ruins flooded with Ressaw, #3416 the rune shrines, #3483 the
     /// landmarks, #3510 the structure pipeline, the school club's giant buildings with their overlay storage, #3555 the
-    /// geography package: river valleys, site search with a map, sites that reserve their ground).</summary>
-    public const int CurrentTerrainGeneration = GeographyGeneration;
+    /// geography package: river valleys, site search with a map, sites that reserve their ground, #3602 the grown
+    /// settlements: road-first villages, grown grids, terrain-following towns, a metropolis that grew, farms at the edge).</summary>
+    public const int CurrentTerrainGeneration = GrownSettlementsGeneration;
+
+    /// <summary>The generation of the grown settlements (#3602): a body stamped for the first time in a world of this
+    /// generation or later may draw the grown and grown-grid settlement kits (<c>StructureKit.MinTerrainGeneration</c>) — a
+    /// layout planned into the site's ground and pinned as a <c>SettlementPlan</c>, stamped by its column map (no box printed
+    /// into the land), protected by it, with fields, gardens and pens at its edge — and the G.D.S. city kit that grew beyond
+    /// its walls. Server-side stamps only: every chunk of every older generation stays bit-identical, and every settlement
+    /// that already stands replays exactly as before.</summary>
+    public const int GrownSettlementsGeneration = 41;
 
     /// <summary>The generation of the geography package (#3555): the surface height becomes three stages — the natural
     /// height (every older generation's whole answer), the river valleys (the ground eases down toward every surface river,

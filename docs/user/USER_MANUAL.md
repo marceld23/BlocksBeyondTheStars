@@ -1309,7 +1309,8 @@ players.
   break there and the block stays where it is.
 - Ship hull, station, settlement and other players' protected landing zones cannot be mined — **except
   plants**: you may always pick flora, wherever it grows (that is what makes a settlement greenhouse worth
-  visiting), you just cannot take the building apart. **What you build in a village stays yours:** a floor you lay
+  visiting), you just cannot take the building apart. In a **grown village** only its houses, roads, yards and farms
+  are protected — the open corners between them are ordinary ground you may dig and build on. **What you build in a village stays yours:** a floor you lay
   in a lane or a wall you put up in front of a hut can be mined again like any block of yours. The village's own
   houses, fences and the ground it stands on stay protected — you may paint them, but painting never makes them yours
   to mine.
@@ -2088,6 +2089,27 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   the G.D.S. city. Settlements that already stand in your world keep their buildings exactly as they are; their people
   now follow the beds that are there. Every **tavern** also keeps a **guest bed** for travellers where its room has
   space: no villager ever sleeps in it, so you can rest there and make it your home spawn.
+- **Grown villages (worlds created since generation 41).** Half of the new settlements look as if they grew over the
+  years: a road comes in with gentle bends and the houses stand along it, their doors turned to the road and a small
+  path leading up to each. They come in several forms — a **street village** along one road, a **green village** whose
+  houses face a long meadow in the middle, a **round village** ringed around its square, a **cluster** of crooked
+  lanes, a **crossroads village** and, beside a river, a **riverside village** with its houses on the land side. A
+  quarter are **ordered villages** with straight lanes but houses set back unevenly, and a quarter keep the old plot
+  grid. The market, the notice house and the tavern stand at the square; **fields, gardens, pens and greenhouses** lie
+  at the edge, and the place thins out toward the open land. On sloping ground the village **follows the hill**: each
+  house stands on its own terrace and the roads climb in small steps (never more than one block at a time). The
+  corners between the houses are left as they were — trees, grass and all.
+- **Fields, gardens and pens.** You may harvest a village's **fields** and **gardens** like a greenhouse — a field is
+  bigger, so its crops take about four minutes to grow back. A **pen** keeps two or three tame animals of the planet; its
+  **crate in the fence** fills slowly (about one product every three minutes, up to twelve) with what they give: an
+  **egg** from winged or two-legged animals, **milk** from large ones, **wool** from the rest. Fry an egg at a campfire
+  (**fried egg**), bake **pancakes** there from an egg, milk and two grain, drink the milk, and make a **rug** (3 wool)
+  or a **bed** (6 logs + 4 wool) by hand. The grocer sells eggs and milk too.
+- **The G.D.S. city that grew (worlds created since generation 41).** A new desert city no longer fills a perfect
+  square: some edge districts are left to the desert, every other row of districts is shifted by half a block of houses
+  (so the streets meet in T junctions), the wall follows the outline with a tower on every outer corner, and outside each
+  gate a small suburb of houses and workshops grew along the road — still inside the city's cool air when you are under
+  a roof.
 - **Gravity ends at the hull**: inside your station's box (plus a few blocks around it) you walk; step or fall
   past that and the suit **floats** — jump rises, crouch sinks, so you drift back to the deck or build the
   outer hull from outside. Drift very far away and you are set back beside the station core. **U** always returns you to
@@ -4867,7 +4889,7 @@ random pick from a loot list, the chance that the chest is there, hidden under a
 the sound carries, and which animals live there. *Save* writes one file; it can appear in your next new world.
 
 **Station / Town editor — kit modules, ports and the seal.** Set **Use as** to *Kit module* to build a piece of a
-modular structure. Type the **Kit** it belongs to (or pick one with **Kits…**) and step the **Function**: a
+modular structure. Type the **Kit** it belongs to (or pick one with **Kits…**) and pick the **Function** (**…**): a
 station module is a *Hub*, *Corridor*, *Crew cabins*, *Canteen*, *Bar*, *Market hall*, *Mission office*,
 *Medbay*, *Hydroponics*, *Storage*, *Hangar* or plain *Room*; a town module takes the plot / district roles
 above. Mark where another module may dock with the **port brushes** at the top of the palette — *Port: door*,
@@ -4897,9 +4919,20 @@ size and style, filterable. A kit has a key, name, kind
 (*station*, *settlement* or *city*), size tier, weight and planet types, how many modules it uses (min / max)
 and one row per module: minimum and maximum copies, *Required*, draw weight and whether the composer may rotate
 it. Station kits also name a start module and a maximum extent, and how many **Solar wings**, **Antennas** and
-**Domes** the station gets on the outside (0 = none; **Assemble** shows them, blue solar cells included); settlement kits set the plot grid (columns,
-rows, plot stride, building size, storeys, *Modules only*); city kits set the district grid, district size,
-street width, height and the district map. **Save kit** writes it to the user-content folder (live in the next
+**Domes** the station gets on the outside (0 = none; **Assemble** shows them, blue solar cells included). Settlement kits
+pick their **Layout**: *Plot grid* sets the classic grid (columns, rows, plot stride, building size, storeys, *Modules
+only*); *Grown grid* and *Grown* set the **Main street** width, the largest **Setback** of a house from its road, the
+**Extent** (box size, 0 = by size tier) and **Flat** (stay on one level instead of following the ground); *Grown* also
+switches the village **Forms** the kit may take (street, green, round, cluster, crossroads, riverside). The rows below
+the layout change with it. City kits set the district grid, district size, street width and height; the **district map**
+is a grid of letters — click a district to step it through *P* plaza, *R* housing, *M* market, *H* hall, *G* garden,
+*T* tower, *O* open ground and *.* no district. **Grown city** shifts every other row of districts by half a district,
+runs the wall along the outline and grows a suburb from the **Suburb kit** outside every gate.
+
+The **Function** of a kit module is a pick list (**…**), and the farm functions *Field*, *Garden* and *Pen* join it
+(they take a house plot in a plot grid and go to the edge of a grown village). A module without a door marks the side
+that should face the road with the **Entrance** marker. In the town editor's *Generate*, the settlement source previews
+a grown kit on **Ground** *Flat*, *Slope* or *Hills* and in a **Village form** of your choice. **Save kit** writes it to the user-content folder (live in the next
 new world, drawn from the same weighted table as the complete templates) and an export bundle for
 `tools/merge_structure.py`. Saved worlds keep the exact composition they were created with — reloading never
 rebuilds a station, village or city differently.

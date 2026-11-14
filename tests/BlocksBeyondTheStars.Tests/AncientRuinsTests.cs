@@ -131,7 +131,7 @@ public sealed class AncientRuinsTests : IDisposable
     public void TheSurfaceGdsCity_NeverComposesARuinDistrict()
     {
         var surfaceModules = Content.SettlementModulesFor(null, "gds_desert");
-        var cityKit = Assert.Single(Content.KitsFor(StructureKit.KindCity, null, null, "gds_desert"));
+        var cityKit = Assert.Single(Content.KitsFor(StructureKit.KindCity, null, null, "gds_desert", WorldDescription.GeographyGeneration)); // the classic city kit (#3599)
         for (long seed = 1; seed <= 6; seed++)
         {
             var composition = new List<string>();

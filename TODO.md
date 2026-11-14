@@ -24,6 +24,34 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🏘️ Grown settlements (terrain generation 41) — epic #3602 (#3583–#3601), ✅ 2026-11-14, PR pending (⚠ playtest open)
+
+Villages, towns and the G.D.S. metropolis no longer have to be rectangles (Marcel's decisions 2026-11-14: grown grid AND
+road first, a mix with the old grid kits, everything editable in the editor, the metropolis per E1, fields / gardens / pens /
+greenhouses at the edge and harvestable, follow the terrain, protection by mask). Details: WORLD_GENERATION.md §56.
+
+- **#3583 generation 41 + kit gate**: `StructureKit.MinTerrainGeneration`, `KitsFor(..., generation)`; older worlds never
+  draw a new kit, every standing settlement replays unchanged.
+- **#3584 the pinned plan**: `SettlementPlan` (lots + column map, deflated) in `StructurePlacementRecord.Plan`, baked on
+  every replay by `SettlementPlanBaker`.
+- **#3585 modules turn to their road**, `entrance` marker for door-less modules.
+- **#3586 grown grid** and **#3587 road first** (street, green, round, cluster, crossroads, riverside) — `SettlementPlanner`.
+- **#3588 the mask**: stamper per column, no path frame / box fence; **#3589 site first, layout second**; **#3590 terrain
+  heights** (road steps of one block, half-step slabs, rise ≤ 6); **#3591 sites per lot and road stretch** + `SiteIndex`.
+- **#3592 protection, "above the floor", creature town zone by column**; **#3593 ruins** keep their terraces; **#3594
+  intercity station at a road exit, festival on the plaza marker**.
+- **#3595 farm modules** (field, garden, pen; village / town, human / alien); **#3596 field crops regrow in 240 s**;
+  **#3597 pen animals + products** (egg, milk, wool; fried egg, pancakes, wool rug / bed; grocer offers; 5 new icons).
+- **#3598 kits**: `<tier>_grown_1` (8) / `<tier>_grid_1` (4) next to the classic modular kits (2 + 2) — mix 50/25/25.
+- **#3599 the G.D.S. city that grew**: irregular outline (`.`), shifted rows, wall along the outline, suburbs outside the
+  gates (pinned), other pads kept open.
+- **#3600 editor**: kit panel *Layout* stepper, clickable district map, function pick list, `relief` / `form` preview.
+- **#3601 docs + locales**: manual, WORLD_GENERATION §56, STRUCTURE_PIPELINE, STATION_SETTLEMENT_EDITOR; 46 keys in all
+  14 languages (hand-fixed "grown" ≠ "cultivated", village-green terms).
+- ⚠ **Playtest**: a fresh world (generation 41) — walk a grown village on a slope, check doors / paths / terraces, dig in
+  an empty corner, harvest a field (4 min regrow), collect from a pen crate, cook pancakes; a G.D.S. world's city with its
+  suburbs; the kit panel and the town editor's grown preview at every UI scale.
+
 ### 📉 Platform scaling: chunk memory, browser audio, bundled-server workers — #3579–#3582, ✅ 2026-11-14, PR pending (⚠ playtest open)
 
 From the 2026-11-14 analysis of the Raspberry-Pi goal, the VPS and weak tablets (Marcel's picks of its findings):

@@ -643,7 +643,8 @@ public sealed partial class GameServer
         for (int i = _creatures.Count - 1; i >= 0; i--)
         {
             var c = _creatures[i];
-            if (c.IsCompanion && !valid.Contains(c.CompanionId) && !c.OwnerId.StartsWith(NpcPetOwnerPrefix, System.StringComparison.Ordinal))
+            if (c.IsCompanion && !valid.Contains(c.CompanionId) && !c.OwnerId.StartsWith(NpcPetOwnerPrefix, System.StringComparison.Ordinal)
+                && !IsPenAnimal(c)) // #3597: a pen's animals are kept by the farm tick
             {
                 _creatures.RemoveAt(i); // an NPC's pet (the tamer's, 2026-09) is kept by the professions tick instead
             }
@@ -790,10 +791,9 @@ public sealed partial class GameServer
             return;
         }
 
-        if (NpcPetOwner(c) is { } tamer)
+        if (MoveNonPlayerCompanion(c, sp, moveDt))
         {
-            MoveTamerPet(c, sp, tamer.Pos, moveDt); // the tamer's pet (2026-09) trots after its NPC
-            return;
+            return; // the tamer's pet (2026-09) trots after its NPC, a pen's animal (#3597) ambles about its pen
         }
 
         var owner = FindSessionByPlayerId(c.OwnerId);

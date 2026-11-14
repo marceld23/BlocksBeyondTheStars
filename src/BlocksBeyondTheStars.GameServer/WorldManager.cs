@@ -37,6 +37,12 @@ internal sealed class SettlementInstance
     /// <summary>Terrain generation 39: the template says <c>open</c> — the settlement box rule lets this intact settlement go
     /// (its blocks are free to mine); false everywhere else.</summary>
     public bool Unguarded { get; set; }
+
+    /// <summary>#3594: the markers that carry data (a road exit's side, a field's or a pen's size), world space.</summary>
+    public List<(string Type, Vector3f Pos, string Data)> DataMarkers { get; } = new();
+
+    /// <summary>#3592: a planned settlement's town-zone depth map (the box grown by the zone's margin), built on first use.</summary>
+    public byte[]? TownDepth { get; set; }
 }
 
 /// <summary>One stamped factory on a world: an industrial hall with a production terminal and one or more
@@ -211,6 +217,8 @@ internal sealed class LoadedWorld
     public List<GameServer.ServerNetFragment> NetFragments { get; } = new(); // story net fragments scattered on the surface (P2)
     public List<(string Type, Vector3f Pos)> SettlementMarkers { get; } = new(); // union of EVERY settlement's markers (doors + proximity)
     public HashSet<Vector3i> GuestBeds { get; } = new(); // #2986: canonical head cells of the taverns' guest beds — no NPC takes them
+    public List<GameServer.SettlementFarmArea> SettlementFields { get; } = new(); // #3596: the fields of the intact planned settlements
+    public List<GameServer.SettlementFarmArea> SettlementPens { get; } = new(); // #3597: their pens (inner area, product crates)
 
     /// <summary>
     /// #1986/#1994: the door a stamped structure asks for, by its block cell — the wall it was cut into and

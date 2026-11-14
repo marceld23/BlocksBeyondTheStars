@@ -249,6 +249,7 @@ namespace BlocksBeyondTheStars.Client
             M("door_slide", new Color(0.40f, 0.85f, 0.95f)),
             M("door_hinge", new Color(0.60f, 0.40f, 0.20f)),
             M("door_energy", new Color(0.35f, 0.80f, 1f)), // the airtight air-curtain door (#793)
+            M("entrance", new Color(0.95f, 0.85f, 0.45f)), // #3585: the road side of a module without a door (a field, a pen)
             M("room", new Color(0.75f, 0.55f, 0.85f)),     // furnish this floor procedurally (#1828)
             M("loot", new Color(0.8f, 0.7f, 0.3f)),
             M("greenhouse", new Color(0.45f, 0.85f, 0.35f)),    // the generator's garden-house marker (#626, #1401)

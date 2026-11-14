@@ -23,7 +23,7 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// perimeter wall is purple with one red band, and the four gates open onto the axis streets.</para>
 /// <para>Deterministic from the seed: the same body always composes the same city.</para>
 /// </summary>
-public static class CityGenerator
+public static partial class CityGenerator
 {
     public const string Tier = "metropolis";
     public const int Modules = 7;
@@ -71,6 +71,9 @@ public static class CityGenerator
         Garden,
         Tower,
         Housing,
+
+        /// <summary>#3599: no district here (the district map's <c>.</c>) — the grown city's outline leaves it to the land.</summary>
+        None,
     }
 
     /// <summary>The role of the module at grid cell (<paramref name="gx"/>, <paramref name="gz"/>) — public so
@@ -93,6 +96,7 @@ public static class CityGenerator
                 case 'G': return Role.Garden;
                 case 'T': return Role.Tower;
                 case 'R': return Role.Housing;
+                case '.': return Role.None; // #3599
             }
         }
 
@@ -159,7 +163,7 @@ public static class CityGenerator
         IReadOnlyList<StructureTemplate>? modules = null, double moduleChance = 0.0,
         IList<string>? composition = null, System.Action<string>? warn = null,
         CityLayoutSpec? layout = null, StructureKit? kit = null, IReadOnlyList<StructureTemplate>? kitModules = null,
-        bool legacyModuleRoll = false, int terrainGeneration = 0)
+        bool legacyModuleRoll = false, int terrainGeneration = 0, IList<string>? suburbPlans = null)
     {
         // #1876: a kit city takes its grid from the layout spec (districts per side, district size, street width, height, map).
         var spec = layout ?? CityLayoutSpec.Default;
@@ -286,20 +290,36 @@ public static class CityGenerator
                 seed)
             : null;
 
-        // 1) Streets: the grid lanes, dark paving.
-        for (int i = 0; i <= grid; i++)
+        // 1) Streets: the grid lanes, dark paving — a grown city's streets only where its districts are (#3599).
+        if (spec.Grown)
         {
-            int s0 = i * (size + streetW);
-            Fill(s0, 0, 0, s0 + streetW - 1, 0, l - 1, street);
-            Fill(0, 0, s0, w - 1, 0, s0 + streetW - 1, street);
+            CityGrowth.PaintStreets(spec, (x0, z0, x1, z1, b) => Fill(x0, 0, z0, x1, 0, z1, b), street, steelFloor);
+        }
+        else
+        {
+            for (int i = 0; i <= grid; i++)
+            {
+                int s0 = i * (size + streetW);
+                Fill(s0, 0, 0, s0 + streetW - 1, 0, l - 1, street);
+                Fill(0, 0, s0, w - 1, 0, s0 + streetW - 1, street);
+            }
         }
 
         // 2) Modules.
         for (int gx = 0; gx < grid; gx++)
             for (int gz = 0; gz < grid; gz++)
             {
-                var (mx, mz) = ModuleOriginFor(gx, gz, size, streetW);
+                var (mx, mz) = spec.DistrictOrigin(gx, gz);
                 var role = RoleAtFor(gx, gz, grid, spec.RoleMap);
+                if (role == Role.None)
+                {
+                    if (record)
+                    {
+                        composition!.Add(string.Empty); // #3599: no district — the land stays (its slot pins nothing)
+                    }
+
+                    continue;
+                }
                 bool blocked = false;
                 foreach (var zone in openZones)
                 {
@@ -386,8 +406,18 @@ public static class CityGenerator
                 }
             }
 
-        // 3) The perimeter wall with its red band, four gates on the axis streets, guard posts at the gates.
-        StampWall();
+        // 3) The perimeter wall with its red band, four gates on the axis streets, guard posts at the gates — a grown city's
+        //    wall follows the outline of its districts, and a suburb grows outside its gates (#3599).
+        if (spec.Grown)
+        {
+            var gates = CityGrowth.Gates(spec);
+            CityGrowth.Wall(spec, gates, (x, y, z, b, t) => { tint = t; Set(x, y, z, b); tint = 0; }, wall, lamp, markers);
+            buildings += CityGrowth.Suburbs(spec, gates, seed, content, kit, kitModules ?? modules, suburbPlans, warn, SetCell, markers);
+        }
+        else
+        {
+            StampWall();
+        }
 
         tint = 0;
         return new SettlementStructure(w, h, l, Tier, ruined: false, inhabitant: "human", blocks, markers, System.Math.Max(1, buildings), mods, shapes);

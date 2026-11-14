@@ -33,7 +33,7 @@ public static partial class SettlementGenerator
     /// fittings fell) and the biome's flora on the ground. One plot is spared (<see cref="SparedPlotFactor"/>) so a
     /// half-standing tower keeps reading from afar. The loot markers' cells stay free.
     /// </summary>
-    private static void RuinPass(VoxelGrid grid, List<SettlementMarker> markers, (int MinX, int MinZ, int MaxX, int MaxZ) spared,
+    internal static void RuinPass(VoxelGrid grid, List<SettlementMarker> markers, (int MinX, int MinZ, int MaxX, int MaxZ) spared,
         string tier, long seed, string biomeSurfaceBlock, GameContent content)
     {
         var options = new RuinOptions

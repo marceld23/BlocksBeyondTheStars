@@ -94,6 +94,7 @@ public sealed partial class WorldGenerator
         _sites = SiteFlat.Snapshot(siteFlats);
         _padSnapshot = SnapshotPads(landingPads);
         _circumference = circumference;
+        _siteIndex = SiteIndex.Build(_sites, circumference); // #3591: a grown settlement reserves many small sites
         _crateredWorld = cratered;
         _landingPads = landingPads ?? System.Array.Empty<LandingPadFlatten>();
         _locationId = locationId ?? string.Empty;

@@ -373,7 +373,7 @@ public sealed partial class GameServer
                 // #1888 (Marcel 2026-09-14): the option is the SHARE of complete templates — a coin at its probability on
                 // the instance's own lane, then a weighted pick among the tier's templates or its kits.
                 var templates = _content.CompleteTemplatesFor(StructureKit.KindSettlement, tier, packs, _world.Planet.Key);
-                var kits = _content.KitsFor(StructureKit.KindSettlement, tier, packs, _world.Planet.Key);
+                var kits = _content.KitsFor(StructureKit.KindSettlement, tier, packs, _world.Planet.Key, _meta.Description.TerrainGeneration); // #3583
                 var lane = RngFor(instSeed, "kitpick");
                 // #3518: generation 38 appends the tier's generator entries after the kits (none: the same draw as before).
                 (template, kit, source) = PickTemplateKitOrSource(templates, kits, SettlementSourcesFor(tier), lane.NextDouble() < useP, lane);
@@ -398,6 +398,19 @@ public sealed partial class GameServer
                 // ruined build takes its place (every pick above was still drawn: the instance stream is unchanged).
                 // #3519: from generation 38 the template stays and stands as a fallen settlement instead (below).
                 template = null;
+            }
+
+            // #3584/#3589: a planned kit (grid or grown) is seated first and planned into its site, a pinned plan baked again.
+            if ((pinRec is { Placed: true } && pinRec.Plan.Length > 0) || (fresh && kit is { IsPlanned: true }))
+            {
+                if (StampPlannedInstance(new PlannedInstance(i, instSeed, ir, pinRec, kit, tier, rolledTier, h, surface), reserved, usedNames, kitPool) is { } planned)
+                {
+                    placed.Add(planned);
+                    reserved.Add((planned.Origin.X + planned.Structure.Width / 2, planned.Origin.Z + planned.Structure.Length / 2,
+                        planned.Structure.Width / 2 + 1, planned.Structure.Length / 2 + 1));
+                }
+
+                continue;
             }
 
             int turns = 0; // #3519: a whole template's quarter turns (generation 38), pinned in the record
@@ -595,6 +608,11 @@ public sealed partial class GameServer
                 var pos = new Vector3f(p.Origin.X + m.LocalPos.X + 0.5f, p.GroundY + m.LocalPos.Y + 0.5f, p.Origin.Z + m.LocalPos.Z + 0.5f);
                 inst.Markers.Add((m.Type, pos));
                 _settlementMarkers.Add((m.Type, pos));
+                if (m.Data.Length > 0)
+                {
+                    inst.DataMarkers.Add((m.Type, pos, m.Data)); // #3594: a road exit's side, a field's or a pen's size
+                }
+
                 if (m.Type == SettlementGenerator.GuestBedMarker)
                 {
                     _worlds.Active.GuestBeds.Add(WorldConstants.CanonicalBlock(
@@ -644,6 +662,8 @@ public sealed partial class GameServer
             RegisterSettlementFootprint(inst, p.Protection); // #3514; generation 39: the template's protection
         }
 
+        RegisterSettlementFarms(); // #3596/#3597: the fields, pens and product crates of the planned settlements
+
         // Phase D — populate inhabited settlements with NPCs and hang real doors in the doorways.
         BootDetail("  npcs", () => SpawnSettlementNpcs(rng));
         BootDetail("  doors", RegisterDoors);
@@ -690,7 +710,7 @@ public sealed partial class GameServer
         }
         else if (rec is null && _meta.Description.SettlementTemplateUse.Probability() > 0)
         {
-            var kits = _content.KitsFor(StructureKit.KindCity, null, _meta.Description.EnabledStructurePacks, planet.Key);
+            var kits = _content.KitsFor(StructureKit.KindCity, null, _meta.Description.EnabledStructurePacks, planet.Key, _meta.Description.TerrainGeneration); // #3583
             var sources = SettlementSourcesFor(CityGenerator.Tier); // #3518: generation 38 appends them after the kits
             int total = sources.Sum(s => System.Math.Max(1, s.Weight));
             foreach (var k in kits) total += System.Math.Max(1, k.Weight);
@@ -756,10 +776,12 @@ public sealed partial class GameServer
         List<string>? composition = modulesOn
             ? (rec?.Composition is { } pinned ? new List<string>(pinned) : new List<string>())
             : null;
+        var suburbs = CitySuburbPins(rec, cityLayout, origin, size, zones); // #3599: a grown city's suburbs, pinned like its districts
         // #2690: `rec` is the record as loaded (null for a city composed right now) — a pre-#1872 one freezes the legacy roll.
         var structure = sourceCity ?? CityGenerator.Generate(sSeed, _content, zones, modulesOn ? modules : null, moduleChance, composition, _log.Warn,
             kitCity ? cityLayout : null, cityKit, kitCity ? kitPool : null, UsesLegacyModuleRoll(rec),
-            terrainGeneration: _meta.Description.TerrainGeneration); // #3519: generation 38 — the district modules' marker settings
+            terrainGeneration: _meta.Description.TerrainGeneration, suburbPlans: suburbs); // #3519: generation 38 — the district modules' marker settings
+        PinCitySuburbs(rec, suburbs);
         if (composition is { Count: > 0 } && (rec ?? FindPlacementRecord("settlement", 0)) is { } cityRec && cityRec.Composition is null)
         {
             cityRec.Composition = composition;
@@ -836,6 +858,12 @@ public sealed partial class GameServer
     /// a town must not reach into the town's own timber).</summary>
     private void StampSettlementBlocks(PlacedSettlement p, string surface, bool crownRing = true)
     {
+        if (p.Structure.HasColumnMap && p.Seat is "flat" or "slope" or "shelf")
+        {
+            StampPlannedBlocks(p, surface, crownRing); // #3588: a planned settlement claims its columns, not its box
+            return;
+        }
+
         var s = p.Structure;
         int gy = p.GroundY;
         var origin = p.Origin;
@@ -2259,7 +2287,7 @@ public sealed partial class GameServer
     /// holds it — and is not a pioneer's boat (#2681), which is the outpost's however it was edited.</summary>
     private bool AboveSettlementFloor(Vector3i pos)
     {
-        if (IntactSettlementAt(pos) is { } s && pos.Y <= s.GroundY)
+        if (IntactSettlementAt(pos) is { } s && pos.Y <= SettlementFloorY(s, pos)) // #3592: a planned column's own floor
         {
             return false;
         }
@@ -2350,7 +2378,9 @@ public sealed partial class GameServer
             // #480 (was ST-7): the protected volume reaches BELOW Min.Y too — the foundation plinth is
             // filled from the foundation row down to the natural surface (up to 48 on sloped ground), and
             // leaving it mineable let a "protected" village be undermined from underneath.
-            if (pos.Y >= s.Min.Y - 48 && pos.Y <= s.Max.Y && pos.Z >= s.Min.Z && pos.Z <= s.Max.Z)
+            // #3592: a planned settlement protects only the columns it claims, each from its own floor down.
+            if (pos.Y <= s.Max.Y && pos.Z >= s.Min.Z && pos.Z <= s.Max.Z
+                && (s.Layout is not { HasColumnMap: true } ? pos.Y >= s.Min.Y - 48 : pos.Y >= (long)SettlementFloorY(s, pos) - 48))
             {
                 return s;
             }

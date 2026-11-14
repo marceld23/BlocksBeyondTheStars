@@ -360,8 +360,7 @@ public sealed partial class GameServer
         // #2038: a fruit takes longer to ripen again than a tuft of grass, and it comes back in the colour its tree kind
         // rolled — the cell's tint, read by the harvest before the cell was cleared and persisted with the timer.
         // #2209: a bred plant grows back more slowly than a wild one — its samples must not come faster than a wild plant's.
-        double seconds = _fruitIds.Contains(floraId) ? BlocksBeyondTheStars.WorldGeneration.FruitRules.RegrowSeconds
-            : IsBredPlant(floraId) ? BredRegrowSeconds : FloraRegrowSeconds;
+        double seconds = RegrowSecondsAt(pos, floraId);
         _floraRegrow[pos] = (floraId, seconds, tint);
         _repo.SaveFloraRegrow(_world.LocationId, pos, floraId, seconds, tint);
 
