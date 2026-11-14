@@ -12,13 +12,15 @@
 # SHARDED TEST MATRIX (#716): the server suite (tests/BlocksBeyondTheStars.Tests) is CPU-bound and already
 # scales ~perfectly with cores in-process (xunit.runner.json pins maxParallelThreads 4 because of the
 # WorldGenerator lock convoy, #536; the runner has 4 vCPUs) — so the only way to go faster is more runners.
-# Ten of them since 2026-10-09 (four → six in #1254): the repo is public, so ubuntu-latest minutes are
-# not billed, and the only real cost of another shard is one more copy of the ~100 s build.
+# Twelve of them since 2026-11-14 (four → six in #1254, ten on 2026-10-09): the repo is public, so
+# ubuntu-latest minutes are not billed, and the only real cost of another shard is one more copy of the
+# ~2 min build.
 # scripts/partition-tests.py deterministically packs test CLASSES onto shards (tier-aware weights from
 # real trx data: scripts/test-shard-weights.json + test-shard-weights-slow.json) and emits each shard's
-# --filter. Shard 1 additionally runs the small Client.Tests suite (~11 s) and a partition-completeness
-# check (--list-tests cross-check) so a class no shard filter matches can never be SILENTLY untested;
-# the packer knows about that extra load and hands shard 1 correspondingly less server work.
+# --filter. Shard 1 additionally runs the Client.Tests suite (3 682 tests, ~2 min on 2026-11-14 — it was
+# ~11 s once) and a partition-completeness check (--list-tests cross-check) so a class no shard filter
+# matches can never be SILENTLY untested; the packer knows about that extra load (SHARD1_FIXED_COST) and
+# hands shard 1 correspondingly less server work.
 # The weights DECAY — every new test class is guessed at 10 s — so the same check also enforces a
 # ceiling on how much of the partition is guesswork (--weight-drift-guard, PR gate only).
 #
@@ -73,12 +75,13 @@ jobs:
         # The ONE place the shard count lives: `strategy.job-total` hands it to partition-tests.py
         # below, so the matrix and the packer can no longer disagree (a mismatch would silently drop
         # a shard's worth of tests — `verify` only checks that each test maps to exactly one of the N
-        # filters it was ASKED about). Ten since 2026-10-09: the fast tier has grown to ~14 100 s of
-        # predicted test wall clock (weights of 2026-10-07; 2 549 s in August), against ~100 s of fixed
-        # checkout/restore/build per shard. Six shards carried ~2 350 s each — a 10–12 min tail on a normal
-        # runner, 14–16 min on a slow one, where the per-test 120 s guardrail started tripping on queue and
-        # lock waits. Ten carry ~1 400 s each (≈ 7–8 min); twelve would only buy one more minute.
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        # filters it was ASKED about). Twelve since 2026-11-14: the fast tier has grown to ~21 300
+        # test-seconds (terrain generations 40–42 made every world boot dearer; ~14 100 when ten were
+        # chosen on 2026-10-09, 2 549 in August), against ~2–3 min of fixed checkout/restore/build per
+        # shard. Ten shards on stale weights ran 9–17.5 min (one 1 636 test-s, another 2 670); re-packed,
+        # twelve carry ~1 800 each (≈ 8 min of tests). Each extra shard buys less: past ~14 the fixed
+        # build dominates.
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     steps:
       - uses: actions/checkout@v5
 
@@ -104,7 +107,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      # Shard 1 also owns the small Client.Tests suite (~11 s), so shards 2-4 skip restoring and
+      # Shard 1 also owns the Client.Tests suite (~2 min), so the other shards skip restoring and
       # building it entirely.
       - name: Restore
         run: |
