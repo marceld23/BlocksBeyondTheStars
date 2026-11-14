@@ -41,6 +41,9 @@ try
             RequireArgs(args, 3, "layers <seed> <planetType> [--circumference N] [--generation N] [--body id] [--step N] [--out dir] [--data dir]");
             return ExportLayers(args);
 
+        case "giantship":
+            return BlocksBeyondTheStars.Tools.GiantShipTool.Run(args);
+
         default:
             PrintUsage();
             return 1;
@@ -63,6 +66,8 @@ static void PrintUsage()
     Console.WriteLine("  BlocksBeyondTheStars.Tools import-pack <savesRoot> <world> <inFile> [dataDir]  Import & validate a content pack");
     Console.WriteLine("  BlocksBeyondTheStars.Tools layers <seed> <planetType> [--circumference N] [--generation N] [--body id] [--step N] [--out dir] [--data dir]");
     Console.WriteLine("                                                         Write a body's terrain layers as PNG images (developer view)");
+    Console.WriteLine("  BlocksBeyondTheStars.Tools giantship <key|file.json> [--data dir] [--check] [--setting intact|planet|space] [--seed N] [--airless] [--turns N] [--out file.json]");
+    Console.WriteLine("                                                         Check a giant ship; write it intact or as a wreck (a template preview.py renders)");
     Console.WriteLine("Set BBS_DATABASE_PROVIDER=postgresql and BBS_POSTGRES_CONNECTION_STRING for hosted PostgreSQL worlds.");
 }
 

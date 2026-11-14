@@ -136,17 +136,9 @@ namespace BlocksBeyondTheStars.Client
                     if (sq < bestSq)
                     {
                         bestSq = sq;
-                        // #1917: a station with a known hangar is flown to the point in front of its mouth.
-                        if (StationApproachPoint(e.Id, DockApproachStandOff) is { } approach)
-                        {
-                            target = approach;
-                            arriveSq = DockApproachArrive * DockApproachArrive;
-                        }
-                        else
-                        {
-                            target = sp;
-                            arriveSq = BoardRange * BoardRange * 0.64f; // well inside dock range before handing over
-                        }
+                        // #1917: a station with a known hangar is flown to the point in front of its mouth; #3615: a giant
+                        // wreck to the point in front of its hull.
+                        StationFlightTarget(e, pos, out target, out arriveSq);
                     }
                 }
             }
@@ -680,17 +672,8 @@ namespace BlocksBeyondTheStars.Client
                     {
                         if (e.Kind == "SpaceStation" && e.Id == id)
                         {
-                            if (StationApproachPoint(e.Id, DockApproachStandOff) is { } approach)
-                            {
-                                target = approach; // #1917: in front of the hangar mouth
-                                arriveSq = DockApproachArrive * DockApproachArrive;
-                            }
-                            else
-                            {
-                                target = new Vector3(e.X, e.Y, e.Z);
-                                arriveSq = BoardRange * BoardRange * 0.64f;
-                            }
-
+                            // #1917: in front of the hangar mouth; #3615: a giant wreck in front of its hull.
+                            StationFlightTarget(e, _ship != null ? _ship.transform.localPosition : Vector3.zero, out target, out arriveSq);
                             return true;
                         }
 

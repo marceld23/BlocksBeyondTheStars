@@ -25,7 +25,7 @@ namespace BlocksBeyondTheStars.GameServer;
 /// cells), plus a position in the flight scene. S1 only renders it (the player's own ship rides the live ship
 /// pose, so its <see cref="Position"/> is informational); free-space block edits + collision arrive in S2.
 /// </summary>
-public sealed class SpaceStructure
+public sealed partial class SpaceStructure
 {
     public string Id { get; set; } = string.Empty;
     public string Kind { get; set; } = "ship"; // ship | station | asteroid
@@ -105,44 +105,59 @@ public sealed class SpaceStructure
 
     public void Set(Vector3i pos, BlockId block)
     {
-        Revision++;
-        if (block.IsAir)
-        {
-            Cells.Remove(pos);
-            Mods.Remove(pos);
-            Shapes.Remove(pos);
-        }
-        else
-        {
-            Cells[pos] = block;
-        }
+        SetCell(pos, block);
+        AfterSet(pos); // #3612: the cached box, the shell and the derived delta follow
     }
 
     /// <summary>Sets a block together with its per-cell dye/glow + shape (authored ship cells).</summary>
     public void Set(Vector3i pos, BlockId block, int tint, int glow, int shape)
     {
-        Set(pos, block);
+        SetCell(pos, block);
+        if (!block.IsAir)
+        {
+            if (tint != 0 || glow != 0)
+            {
+                Mods[pos] = (tint, glow);
+            }
+            else
+            {
+                Mods.Remove(pos);
+            }
+
+            if (shape != 0)
+            {
+                Shapes[pos] = shape;
+            }
+            else
+            {
+                Shapes.Remove(pos);
+            }
+        }
+
+        AfterSet(pos);
+    }
+
+    /// <summary>The cell write itself (the block only — a plain block over a dyed cell keeps its dye, as it always did).</summary>
+    private void SetCell(Vector3i pos, BlockId block)
+    {
+        Revision++;
         if (block.IsAir)
         {
-            return;
-        }
+            if (Cells.Remove(pos))
+            {
+                UntrackBox(pos);
+            }
 
-        if (tint != 0 || glow != 0)
-        {
-            Mods[pos] = (tint, glow);
-        }
-        else
-        {
             Mods.Remove(pos);
+            Shapes.Remove(pos);
         }
-
-        if (shape != 0)
+        else if (Cells.TryAdd(pos, block))
         {
-            Shapes[pos] = shape;
+            TrackBox(pos);
         }
         else
         {
-            Shapes.Remove(pos);
+            Cells[pos] = block;
         }
     }
 
@@ -805,11 +820,12 @@ public sealed partial class GameServer
 
         // S5 hardening: a static structure (asteroid/station) has a real world position — require the suit to be
         // near it, so you can't mine/build across the whole zone. (The own ship rides the pilot, so skip it.)
+        // #3612: measured to the edited cell where the flight view draws it — a giant hull is worked along its whole length, and
+        // its far end is out of reach from its middle (a small structure keeps its centre measure, InStructureEditRange).
         if (s.Kind != "ship")
         {
             var suit = PilotPositionIn(instance, p.PlayerId); // #994: range from THIS pilot's suit/ship
-            float ex = suit.X - s.Position.X, ey = suit.Y - s.Position.Y, ez = suit.Z - s.Position.Z;
-            if (ex * ex + ey * ey + ez * ez > StructureEditRange * StructureEditRange)
+            if (!InStructureEditRange(s, suit, new Vector3i(intent.X, intent.Y, intent.Z), StructureEditRange))
             {
                 Reject(session, "structure", "@srv.structure.too_far");
                 return;
@@ -964,6 +980,7 @@ public sealed partial class GameServer
             if (s.Kind == "station")
             {
                 ResendStationDesignIfBoxChanged(instance, s, boxBefore); // #2607: after the block change, so the chips still fly
+                PublishLaidOpenCells(s); // #3612: a hole into a hidden hall shows the hall's walls to every orbit
             }
 
             // A fully mined-out asteroid is gone — remove its body + paired entity (the field respawns later).
@@ -1117,6 +1134,7 @@ public sealed partial class GameServer
         if (s.Kind == "station")
         {
             ResendStationDesignIfBoxChanged(instance, s, stationBoxBefore); // #2607
+            PublishLaidOpenCells(s); // #3612: glass built into a shell lets the pilots see what lies behind it
             if (!s.Boardable)
             {
                 TryCommissionStation(instance, s, session);
@@ -1564,77 +1582,15 @@ public sealed partial class GameServer
 
     /// <summary>Sends a structure's voxel grid + size to a client as a <see cref="SpaceShipDesign"/> (item 20, S1).
     /// <paramref name="kindOverride"/> = "ship_remote" sends ANOTHER player's ship design (the client caches it per
-    /// pilot for the flight view + the landing/launch FX instead of treating it as the own ship).</summary>
+    /// pilot for the flight view + the landing/launch FX instead of treating it as the own ship). #3612: a design too big
+    /// for one message goes in parts, a <see cref="SpaceStructure.ShellOnly"/> structure as its visible shell
+    /// (<see cref="ShipDesignParts"/>, GameServerSpaceStructureDesign.cs).</summary>
     private void SendShipDesign(PlayerSession session, SpaceStructure s, string? kindOverride = null)
     {
-        int n = s.Cells.Count;
-        var xs = new int[n];
-        var ys = new int[n];
-        var zs = new int[n];
-        var bs = new ushort[n];
-        // Modifier arrays are emitted only when the design actually carries dye/glow/shape (authored ships),
-        // so plain hulls stay as compact as before.
-        bool anyMods = s.Mods.Count > 0 || s.Shapes.Count > 0;
-        var tints = anyMods ? new int[n] : System.Array.Empty<int>();
-        var glows = anyMods ? new int[n] : System.Array.Empty<int>();
-        var shapes = anyMods ? new int[n] : System.Array.Empty<int>();
-        int i = 0;
-        foreach (var kv in s.Cells)
+        foreach (var part in ShipDesignParts(s, kindOverride))
         {
-            xs[i] = kv.Key.X;
-            ys[i] = kv.Key.Y;
-            zs[i] = kv.Key.Z;
-            bs[i] = kv.Value.Value;
-            if (anyMods)
-            {
-                if (s.Mods.TryGetValue(kv.Key, out var m)) { tints[i] = m.Tint; glows[i] = m.Glow; }
-                if (s.Shapes.TryGetValue(kv.Key, out var sh)) { shapes[i] = sh; }
-            }
-
-            i++;
+            Send(session, part);
         }
-
-        // #2119: the doors the owner built, drawn closed by the flight view (their cells are air) — #2607: a player
-        // station's doors too.
-        var doors = s.PlacedDoorAxes.OrderBy(d => d.Key.X).ThenBy(d => d.Key.Y).ThenBy(d => d.Key.Z).ToList();
-
-        // #2587: the design's own doorways to space (the rear hatch), so the flight view caps exactly those.
-        var hatch = ShipHatchCells(s);
-
-        Send(session, new SpaceShipDesign
-        {
-            DoorX = doors.Select(d => d.Key.X).ToArray(),
-            DoorY = doors.Select(d => d.Key.Y).ToArray(),
-            DoorZ = doors.Select(d => d.Key.Z).ToArray(),
-            DoorKind = doors.Select(d => s.DoorKinds.TryGetValue(d.Key, out var k) ? k : DoorBlocks.Energy).ToArray(),
-            DoorAxisX = doors.Select(d => d.Value).ToArray(),
-            HatchX = hatch.Select(c => c.X).ToArray(),
-            HatchY = hatch.Select(c => c.Y).ToArray(),
-            HatchZ = hatch.Select(c => c.Z).ToArray(),
-            HatchKnown = s.Kind == "ship", // #2587: an empty list from this server means "no hatch", not "guess"
-            OwnerId = s.OwnerId,
-            Id = s.Id,
-            Kind = kindOverride ?? s.Kind,
-            PosX = s.Position.X,
-            PosY = s.Position.Y,
-            PosZ = s.Position.Z,
-            Width = s.Width,
-            Height = s.Height,
-            Length = s.Length,
-            X = xs,
-            Y = ys,
-            Z = zs,
-            Block = bs,
-            Tint = tints,
-            Glow = glows,
-            Shape = shapes,
-            HasDock = s.HasDock,
-            DockX = s.DockX,
-            DockY = s.DockY,
-            DockZ = s.DockZ,
-            DockOutX = s.DockOutX,
-            DockOutZ = s.DockOutZ,
-        });
     }
 
     // ---------------- item 20 S3 + #687: voxel ore asteroids ----------------

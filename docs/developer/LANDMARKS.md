@@ -4,7 +4,9 @@
 > eleven buildings** ship on top of it from terrain generation **39** (`WorldDescription.SchoolClubLandmarksGeneration`,
 > save version 15) together with overlay storage (§4), ruin zones (§3), the span seat and fixed landmarks (§4) and
 > settable protection (§5). The three small **samples** stay pin-only (`/landmark <key>`). Their generator scripts:
-> `tools/landmarks/<key>.py`, run by `tools/gen_landmarks.py`; `tools/landmarks/preview.py <key>` renders a PNG.
+> `tools/landmarks/<key>.py`, run by `tools/gen_landmarks.py`; `tools/landmarks/preview.py <key>` renders a PNG. The
+> **giant ship wrecks** (#3625, terrain generation 42) reuse this machinery — the compact body, the ruin pass (revision 3,
+> §3), the stamp with overlay storage, chests, emitters, the lift and the silhouette — see [GIANT_SHIPS.md](GIANT_SHIPS.md).
 
 A **landmark** is one giant building that stands on a planet on its own: a leaning tower, a city gate, a mine, a
 statue. It is authored (and stays editable) in the structure editor, and most of them stand only as **ruins** that the
@@ -25,7 +27,8 @@ its own generator; none could be called for an arbitrary structure.
 
 A landmark is a `StructureTemplate` with `landmark: true`, one file per landmark under `data/landmarks/<key>.json`
 (the editor's own under `usercontent/landmark_templates/`). It never enters a settlement, module or underground pool,
-and nothing else enters the landmark pool (`GameContent.Landmarks`, `LandmarksFor`).
+and nothing else enters the landmark pool (`GameContent.Landmarks`, `LandmarksFor`) — a template flagged `giantShip` is
+left out with a warning: it belongs in `data/giant_ships/` ([GIANT_SHIPS.md](GIANT_SHIPS.md)).
 
 | field | meaning |
 |---|---|
@@ -97,7 +100,12 @@ ruin and no step moves another:
 7. **Rubble and overgrowth** on the ground where something fell.
 
 What stays: cells the author marked **keep** are never touched and hold what hangs on them; ladders and shaped pieces
-are never eroded but fall with the wall that carried them; rows at and below the ground row are anchored. A marker's
+are never eroded but fall with the wall that carried them; rows at and below the ground row are anchored. A **mounted
+light** (a torch or lantern carrying the #2683 wall / floor / ceiling descriptor, §7) is a shaped cell, so it is never
+eroded either — but the settle keeps a cell while any neighbour stands, so after the pass `LandmarkLights.DropUnheld`
+(#3626) removes every mounted light whose holding block is gone (neither a block that holds a light nor, below the ground
+row, the planet's rock): a wall torch falls with its wall, as the server's support rule (#2532) pops it in the living
+world. A template without mounted lights is ruined byte for byte as before. A marker's
 cell is never filled, and a marker whose floor fell comes down with it and rests on what is left. A ruin keeps only
 the markers a visitor finds — chests, the classic loot markers, sounds and dens; residents, vendors, doors, rooms and
 pre-built circuits are gone.
@@ -132,9 +140,21 @@ above: `Overgrowth` / `OvergrowthBlock`, a weighted `RubblePalette`, `ErodeShape
 `Scorch` (a block and/or tint, one chance next to a breach, one elsewhere). Each new step draws on a lane of its own, so
 none moves another. The profile `hull` (a wreck) has no ground: no crumbled patches, no height grading, no rubble, no
 flora — erosion bites and collapse balls breach it anywhere, and what stays is what hangs on a kept cell, a protected
-row or the largest piece left. Landmarks refuse `hull` (`LandmarkRules.Profiles`; `AllProfiles` lists all four). The
-marker filter and seating live in `RuinMarkerRules`; `VoxelGrid.Over` / `CopyOf` / `CopyTo` run the pass over another
-generator's block, tint and shape arrays, `KeepWhere` / `KeepBox` mark kept cells.
+row or the largest piece left. Landmarks refuse `hull` and `crash` (`LandmarkRules.Profiles`; `AllProfiles` lists all
+five). The marker filter and seating live in `RuinMarkerRules`; `VoxelGrid.Over` / `CopyOf` / `CopyTo` run the pass over
+another generator's block, tint and shape arrays, `KeepWhere` / `KeepBox` mark kept cells. `FreezeWater` (#3609, its own
+step right after the scorch marks) turns every `water` cell into `ice` with its tint and glow, kept cells included.
+
+**Revision 3 — the giant wrecks (#3609, terrain generation 42).** Revision 3 (`StructureRuiner.GiantRevision`, the newest
+revision the pass knows; `StructureRuiner.Revision`, what a fresh landmark takes, stays 2) changes only the profiles `hull`
+and `crash` — a landmark profile builds exactly what revision 2 builds. `crash` is new: a giant ship wreck lying on a
+planet, the hull decay anchored on its buried keel (the rows up to the ground row) and its kept cells, with a rubble
+palette and overgrowth only where the body has air. At revision 3 neither profile erodes cell by cell: the holes are
+noise-shaped collapse balls that scale with the hull and take a share of its blocks, small bites at the edges of the
+breaches, and — for a long hull — breaks into two or three sections; glass goes in patches, every light is switched off,
+scorch lies in patches (a soot tint on a metal hull, crystal on an alien one), and in space every piece of at least 400
+touching blocks stays. Details in [GIANT_SHIPS.md](GIANT_SHIPS.md) §4 (`StructureRuiner.Giant.cs`,
+`StructureRuiner.GiantDecay.cs`). A record of a revision newer than the build knows runs revision 3.
 
 **Ruin zones (the school club's landmarks).** A template's `ruinZones` give parts of one landmark their own decay (the
 lattice tower on the masonry pyramid). `LandmarkGenerator` turns the boxes with the structure and calls
@@ -235,6 +255,9 @@ repositories (and the browser's snapshot blob). A 200 × 100 × 200 hollow hall 
   an admin's `/landmark` of a template made for a newer generation (`minTerrainGeneration` above the world's — the school
   club's giants) is pinned `storage=overlay` on any world (`LandmarkPlan.ForceOverlay`), so it never writes millions of
   rows.
+- **Giant wrecks** (#3610) go through the same writer into the same storage, always: one overlay per wreck under its
+  feature key `giant_wreck:<index>`, on every world and for an admin's hand stamp too — never a block edit per cell
+  ([GIANT_SHIPS.md](GIANT_SHIPS.md) §5).
 
 Ruins are not protected: what players mine stays mined (from generation 39 unless the template says `protected`, §5).
 
@@ -286,6 +309,8 @@ Ruins are not protected: what players mine stays mined (from generation 39 unles
 - **From the overlay (generation 39).** A landmark stored as a structure overlay takes both the column tops of the lift
   and its silhouette (`LandmarkSilhouette.FromCells`, the same model `Build` makes of a layout with these blocks) from
   its overlay's cells — crates and hidden stones included.
+- **Giant wrecks** (#3610) ride along: the lift lifts their columns, their silhouettes and emitters go out in the same
+  `LandmarkList` after the landmarks' (`NetLandmark.Kind` = `giant_wreck`), and the far tiles leave their cells out.
 
 Known limits: the model comes from the pinned layout, so a landmark players dismantled still shows whole from afar;
 with the far view off it is drawn up to 512 blocks and only as far as the camera's far plane reaches.
@@ -309,6 +334,18 @@ with the far view off it is drawn up to 512 blocks and only as far as the camera
   (`tools/landmarks/<key>.py`), all of them and the three samples by `tools/gen_landmarks.py`. `preview.py` renders a
   template to a PNG (front, side, top, isometric, cut-away sections) without Unity. A generated landmark opens in the
   editor like any other.
+- **Lights hang on what holds them** (#3626, #3627). `Design.write()` runs `mount_lights()` (`tools/landmarks/lightmount.py`,
+  a mirror of `PropShapes`): every torch and lantern (lit or `_off`) without a shape gets the #2683 mount descriptor of the
+  block that holds it — a **torch** on a wall first (the side with open room in front wins, then the faces in
+  `ShapeCode.WallFaces` order), else the floor, never the ceiling; a **lantern** on the ceiling, else the floor it stands
+  on, else a wall. "Holds a light" is `PropShapes.HoldsLight` (solid, no liquid, no slim walk-through prop); below the ground
+  row an empty cell that is no cavity and no marker counts as the planet's rock (never for a giant ship, which also drifts in
+  space). A light nothing holds keeps descriptor 0 and is printed as a warning for its script to fix (so is one buried on
+  all six sides, which is mounted but seen by nobody); a light that already has a shape stays as authored. The client draws a mounted torch leaning out of its
+  wall on a plate instead of the upright rosette that stood in front of the wall. The three released samples are written
+  without the pass (`light_mounts = False` in `tools/gen_landmarks.py`), byte for byte as they shipped
+  (`LandmarkLightMountTests`: every light of every other shipped landmark is mounted, a torch on a wall first, and its
+  holding cell holds a light; the stamped layout keeps every mount, turned with the landmark).
 - **New blocks** for the content: `mine_track`, `mine_cart`, `dripstone`, `burger_bun`, `burger_patty`,
   `burger_cheese` (#3498, save version 14). A stalagmite is a `dripstone` cone; hanging, the same cone with its up
   face turned down. The school club package adds `travertine`, `blackened_sandstone`, `verdigris_copper`,
@@ -335,11 +372,11 @@ with the far view off it is drawn up to 512 blocks and only as far as the camera
 | Area | Files |
 |---|---|
 | Template, rules, settings, loot | `Shared/Definitions/StructureTemplate.cs`, `LandmarkRules.cs`, `MarkerSettings.cs`, `LootTable.cs`; `Shared/Content/TemplateBody.cs`, `StructureCatalog.cs`, `GameContent.Landmarks.cs`, `ContentLoader.cs` |
-| Build and ruin | `WorldGeneration/LandmarkGenerator.cs`, `StructureRuiner*.cs`, `RuinOptions.cs`, `RuinMarkers.cs`, `VoxelGrid.cs`, `LandmarkSilhouette.cs` |
+| Build and ruin | `WorldGeneration/LandmarkGenerator.cs`, `StructureRuiner*.cs`, `RuinOptions.cs`, `RuinMarkers.cs`, `VoxelGrid.cs`, `LandmarkSilhouette.cs`, `LandmarkLights.cs` (mounted lights fall with their holder) |
 | Server | `GameServer/GameServerLandmarks.cs` (roll, pick, seat, record), `…LandmarkStamp.cs`, `…LandmarkLife.cs` (markers, chests), `…LandmarkWorld.cs` (emitters, dens, discovery, the client's list), `…LandmarkResidents.cs`, `…LandmarkStream.cs`, `…LandmarkAdmin.cs`, `…LandmarkOverlay.cs` (overlay storage), `ServerWorld.Overlays.cs`, `StructureOverlayIndex.cs`, `…LandmarkSeats.cs` (fixed landmarks, the span seat), `GameServerStructureProtection.cs` + `StructureFootprints.cs` (protection) |
 | Overlay storage | `Shared/World/StructureOverlay.cs`, `StructureOverlayBuilder.cs`; `Persistence/*WorldRepository.Overlays.cs` (table `structure_overlay`) |
 | Wire | `Networking/Messages/LandmarkMessages.cs` (tag 335) |
 | Client | `Client.Core/Audio/SoundEmitterMix.cs`, `Client.Core/LandmarkSilhouetteMesh.cs`; `SoundEmitterView.cs`, `LandmarkSilhouetteView.cs`, `Shaders/FarTerrain.shader`, `WorldMap.cs`, `WikiUI.cs` |
 | Editor | `StructureEditor.Landmark.cs`, `StructureEditor.Zones.cs`, `EditorMarkerPanel.cs`; `Client.Core/StampStepsDescriber.cs`, `StructureStampRules.cs` |
-| Data and tools | `data/landmarks/*.json`, `data/loot_tables.json`, `tools/gen_landmarks.py`, `tools/landmarks/*.py`, `tools/merge_structure.py` |
-| Tests | `LandmarkTemplateTests`, `StructureRuinerTests` (+ `…GoldenTests`, `…OptionTests`, `…HullTests`), `LandmarkStampTests`, `LandmarkWorldTests`, `LandmarkClientTests`, `LandmarkOverlayWorldTests`, `StructureOverlayTests`, `StructureRuinerZoneTests`, `LandmarkSchoolClubTests` (span, fixed), `StructureProtectionTests` |
+| Data and tools | `data/landmarks/*.json`, `data/loot_tables.json`, `tools/gen_landmarks.py`, `tools/landmarks/*.py` (`lightmount.py`: the light-mount pass), `tools/merge_structure.py` |
+| Tests | `LandmarkTemplateTests`, `StructureRuinerTests` (+ `…GoldenTests`, `…OptionTests`, `…HullTests`, `…CrashTests` for revision 3), `LandmarkStampTests`, `LandmarkWorldTests`, `LandmarkClientTests`, `LandmarkOverlayWorldTests`, `StructureOverlayTests`, `StructureRuinerZoneTests`, `LandmarkSchoolClubTests` (span, fixed), `StructureProtectionTests`, `LandmarkLightMountTests` |

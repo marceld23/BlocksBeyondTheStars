@@ -35,8 +35,8 @@ def box(d: Design, x0: int, y0: int, z0: int, x1: int, y1: int, z1: int, m) -> s
 def drift(d: Design, points: list[tuple[int, int]], y: int, lamps: bool = True, track: bool = True) -> set:
     """A timbered tunnel through (x, z) points on walk row y (consecutive points share x or z): carved five wide and four
     high, a frame every four blocks (two log posts at the sides, a log cap across the ceiling — three blocks stay free
-    between the posts), a track set into the floor down the middle, a lantern under every third cap and a torch in a
-    wall niche between the frames."""
+    between the posts), a track set into the floor down the middle, a lantern under every third cap and a torch on the
+    rock wall between the frames (in the tunnel's outermost lane, so it hangs on the wall, #3626)."""
     carved: set = set()
     n = 0
     for (ax, az), (bx, bz) in itertools.pairwise(points):
@@ -56,8 +56,12 @@ def drift(d: Design, points: list[tuple[int, int]], y: int, lamps: bool = True, 
                 if lamps and n % 12 == 0:
                     d.put(x, y + 2, z, "lantern")
             elif lamps and n % 8 == 2:
-                wx, wz = (x, z + 3) if along_x else (x + 3, z)
-                d.put(wx, y + 1, wz, "torch")
+                for side in (1, -1):  # the +side wall, else the other one (a crossing tunnel may have carved it away)
+                    wall = d.get(*((x, y + 1, z + 3 * side) if along_x else (x + 3 * side, y + 1, z)))
+                    if wall is None or wall[0] == "block":
+                        wx, wz = (x, z + 2 * side) if along_x else (x + 2 * side, z)
+                        d.put(wx, y + 1, wz, "torch")
+                        break
             n += 1
     return carved
 
@@ -76,7 +80,7 @@ def station(d: Design, y: int) -> None:
             if (x in (SX - 1, SX + 4) or z in (SZ - 1, SZ + 4)) and not (z == SZ + 4 and LADDER[0] - 1 <= x <= LADDER[0] + 1)]
     d.fill(rail, PLANK.shaped(sc.pack(sc.FENCE)))
     for x, z in ((SX - 5, SZ - 5), (SX + 8, SZ + 8), (SX - 5, SZ + 8), (SX + 8, SZ - 5)):
-        d.put(x, y + 3, z, "lantern")
+        d.put(x, y + 4, z, "lantern")                                          # hanging from the rock ceiling
     d.put(SX + 7, y, SZ - 4, CART)
 
 
@@ -153,7 +157,7 @@ def level_one(d: Design) -> None:
     for x, z in ((47, 31), (48, 31), (47, 32)):
         d.put(x, y, z, Mat("wood_crate"))
     d.chest(57, y, 38, table="mine_ore", chance=0.8)
-    d.put(52, y + 3, 34, "lantern")
+    d.put(52, y + 4, 34, "lantern")                                           # hanging from the ceiling
 
 
 def stope(d: Design, x0: int, y: int, z0: int, x1: int, z1: int, seed: int) -> None:
@@ -210,7 +214,7 @@ def decline(d: Design) -> None:
             d.fill([(x, tread + h, z) for z in (83, 87) for h in range(1, 4)], LOG)
             d.fill([(x, tread + 4, z) for z in range(83, 88)], LOG.shaped(sc.beam("z")))
         if k % 8 == 6:
-            d.put(x, tread + 2, 88, "torch")
+            d.put(x, tread + 2, 86, "torch")                                  # on the rock wall beside the stair
     box(d, SX + 10 + steps, bottom, 83, SX + 10 + steps + 4, bottom + 3, 87, CAVITY)  # the landing below
 
 
@@ -231,7 +235,7 @@ def level_three(d: Design) -> None:
     d.scatter(walls, Mix(("gold_ore", 3), ("diamond_ore", 1), ("iron_ore", 2), seed=9), 0.22, seed=19, where="empty")
     d.chest(118, y, 143, table="ruin_rich")
     d.chest(106, y, 143, items="gold_ore:4-9,diamond_ore:1-2")
-    d.put(112, y + 5, 138, "lantern")
+    d.put(112, y + 6, 138, "lantern")                                         # hanging from the ceiling
     d.put(108, y, 133, CART)
 
 
@@ -274,7 +278,7 @@ def shaft_house(d: Design) -> None:
     d.fill(rail, PLANK.shaped(sc.pack(sc.FENCE)))
     d.chest(85, G + 1, 86, table="mine_ore")
     d.put(74, G + 5, 86, "lantern")
-    d.put(85, G + 5, 75, "lantern")
+    d.put(86, G + 5, 75, "lantern")                                           # on the wall
 
 
 def roof(d: Design, x0: int, z0: int, x1: int, z1: int, y0: int, m=None) -> None:
@@ -347,8 +351,8 @@ def engine_house(d: Design) -> None:
     box(d, 107, G + 1, 74, 109, G + 22, 76, Mix(("ancient_brick", 4), ("stone", 1), seed=44))  # the chimney
     box(d, 108, G + 1, 75, 108, G + 22, 75, CLEAR)
     d.chest(108, G + 1, 86, table="mine_ore")
-    d.put(98, G + 6, 74, "lantern")
-    d.put(108, G + 6, 80, "lantern")
+    d.put(97, G + 6, 74, "lantern")                                           # both on a wall
+    d.put(109, G + 6, 80, "lantern")
 
 
 def build() -> Design:

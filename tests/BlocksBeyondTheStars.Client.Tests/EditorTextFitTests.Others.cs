@@ -85,5 +85,9 @@ public sealed partial class EditorTextFitTests
         Label("Settings: dark visibility label (330 px at 20)", 330f, 20, "ui.settings.dark_visibility"),
         Wrap("Settings: dark visibility hint (495 wide at 14, measured height)", 495f, 4, 14, "ui.settings.dark_visibility_hint"),
         Label("Settings: soft distance label (330 px at 20, #3462)", 330f, 20, "ui.settings.distance_softness"),
+        // #3615: the giant wrecks — the travel screen's paragraph (CraftingTechShipUI.Map.cs, 600 × 150 at 18: seven lines) and
+        // the planet map's legend slot (WorldMap.cs, 140 px slot − 36 for the icon, at 15).
+        Wrap("Travel screen: giant wreck detail (600 × 150 at 18)", 600f, 7, 18, "ui.map.giantwreck_detail"),
+        Label("Planet map legend: giant wreck (104 px at 15)", 104f, 15, "ui.map.kind_giant_wreck"),
     };
 }

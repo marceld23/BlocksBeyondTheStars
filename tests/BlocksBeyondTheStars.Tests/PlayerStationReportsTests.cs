@@ -38,7 +38,16 @@ public sealed class PlayerStationReportsTests : IDisposable
         IGameLogger? logger = null)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
-        var config = new ServerConfig { WorldName = name, Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = placeStarterShip };
+        // No giant wreck (#3614): these reports are about the players' own stations, and a giant's background build would
+        // compete for the CPU with the air fills whose wall-clock budget some of these tests measure.
+        var config = new ServerConfig
+        {
+            WorldName = name,
+            Seed = 1,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = placeStarterShip,
+            PlaceGiantWrecks = false,
+        };
         config.Rules.FreeSpaceFlight = true;
         var server = new SvGameServer(config, _content, transport ?? new LoopbackServerTransport(new LoopbackLink()), repo, logger);
         server.Start();

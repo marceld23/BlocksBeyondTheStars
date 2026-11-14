@@ -42,8 +42,8 @@ public sealed partial class GameServer
     /// <summary>Target words in the order they are offered to the admin, worldgen first, player-built last.</summary>
     private static readonly string[] TeleportKinds =
     {
-        "ship", "pad", "city", "village", "ruin", "railruin", "vault", "ancient", "landmark", "wreck", "factory", "camp", "lodge", "outpost",
-        "monument", "treasure", "base", "beacon", "beam", "station",
+        "ship", "pad", "city", "village", "ruin", "railruin", "vault", "ancient", "landmark", "giantwreck", "wreck", "factory", "camp", "lodge",
+        "outpost", "monument", "treasure", "base", "beacon", "beam", "station",
     };
 
     /// <summary>Accepted spellings of a target word. Plurals and the map's own vocabulary are folded in so
@@ -62,6 +62,8 @@ public sealed partial class GameServer
         // #3392: the buried G.D.S. ruins and enclosed structures of #3333/#3334 ("Alte Städte")
         "ancients" or "ancientruin" or "ancient_ruin" or "altstadt" or "altstädte" or "altstaedte" => "ancient",
         "landmarks" or "bauwerk" or "bauwerke" or "wahrzeichen" => "landmark", // #3486: the giant authored buildings
+        // #3610: the giant ship wrecks on planets
+        "giantwrecks" or "giant_wreck" or "giantship" or "riesenschiff" or "riesenwrack" or "riesenwracks" => "giantwreck",
         "wrecks" => "wreck",
         "factories" => "factory",
         "camps" or "bandit" or "bandits" or "banditcamp" => "camp",
@@ -142,6 +144,7 @@ public sealed partial class GameServer
                 SurfaceSpot(WorldConstants.WrapX(cx, _world.Circumference), _landmarks[i].Origin.Z - 3)));
         }
 
+        AppendGiantWreckTargets(list); // #3610 (GameServerGiantWrecksAdmin.cs)
         if (_wreckStamped && !_wreckClaimed)
         {
             // No reveal check here, unlike the map POI: an admin looking for the wreck is doing support, not

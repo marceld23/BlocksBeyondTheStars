@@ -32,13 +32,46 @@ public static class LandmarkRules
     /// it (a landmark stands on the ground and needs its rubble and flora), so it is not in <see cref="Profiles"/>.</summary>
     public const string ProfileHull = "hull";
 
+    /// <summary>#3609 (ruin revision 3): the ruin profile of a giant wreck lying on a planet — the hull decay of
+    /// <see cref="ProfileHull"/> anchored on the ground rows and kept cells, with scrap rubble and (on a body with air)
+    /// overgrowth. Only giant ships take it; a landmark does not.</summary>
+    public const string ProfileCrash = "crash";
+
     public static readonly string[] RuinModes = { RuinNever, RuinAlways };
 
     /// <summary>The ruin profiles a LANDMARK template may name (the editor cycles through these).</summary>
     public static readonly string[] Profiles = { ProfileMasonry, ProfileLattice, ProfileUnderground };
 
-    /// <summary>Every profile the shared ruin pass knows: the landmark ones plus <see cref="ProfileHull"/>.</summary>
-    public static readonly string[] AllProfiles = { ProfileMasonry, ProfileLattice, ProfileUnderground, ProfileHull };
+    /// <summary>Every profile the shared ruin pass knows: the landmark ones plus <see cref="ProfileHull"/> and
+    /// <see cref="ProfileCrash"/>.</summary>
+    public static readonly string[] AllProfiles = { ProfileMasonry, ProfileLattice, ProfileUnderground, ProfileHull, ProfileCrash };
+
+    /// <summary>#3609: the ruin profiles a GIANT SHIP's ruin zones may name (<see cref="GiantShipRules"/>): <see cref="ProfileCrash"/>
+    /// and <see cref="ProfileHull"/> (a part that decays everywhere, ground or not) and <see cref="ProfileLattice"/> (a mast or a
+    /// gantry). On a planet a zone decays with the profile it names; in space every zone decays as a hull (there is no ground) —
+    /// only its strength is its own. An empty zone profile takes the setting's own (crash on a planet, hull in space).</summary>
+    public static readonly string[] GiantShipProfiles = { ProfileCrash, ProfileHull, ProfileLattice };
+
+    /// <summary>A giant ship's ruin zone profile for a setting (#3609): in space (<paramref name="space"/>) always
+    /// <see cref="ProfileHull"/>; on a planet the zone's own when it names one of <see cref="GiantShipProfiles"/>, else
+    /// <see cref="ProfileCrash"/>.</summary>
+    public static string GiantProfileOf(RuinZone zone, bool space)
+    {
+        if (space)
+        {
+            return ProfileHull;
+        }
+
+        foreach (string p in GiantShipProfiles)
+        {
+            if (string.Equals(zone.Profile, p, StringComparison.OrdinalIgnoreCase))
+            {
+                return p;
+            }
+        }
+
+        return ProfileCrash;
+    }
 
     public const string RequiresAtmosphere = "atmosphere";
     public const string RequiresInhabited = "inhabited";
@@ -280,7 +313,9 @@ public static class LandmarkRules
         {
             problems.Add(string.Equals(t.RuinProfile, ProfileHull, StringComparison.OrdinalIgnoreCase)
                 ? "the ruin profile 'hull' is for wrecks, not landmarks (masonry | lattice | underground)"
-                : $"unknown ruin profile '{t.RuinProfile}' (masonry | lattice | underground)");
+                : string.Equals(t.RuinProfile, ProfileCrash, StringComparison.OrdinalIgnoreCase)
+                    ? "the ruin profile 'crash' is for giant ship wrecks, not landmarks (masonry | lattice | underground)"
+                    : $"unknown ruin profile '{t.RuinProfile}' (masonry | lattice | underground)");
         }
 
         if (t.RuinStrength < 0 || t.RuinStrength > 1)

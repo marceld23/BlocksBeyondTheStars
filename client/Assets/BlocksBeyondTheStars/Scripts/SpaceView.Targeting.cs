@@ -832,7 +832,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 var pos = new Vector3(e.X, e.Y, e.Z);
                 float dist = (pos - shipPos).magnitude;
-                if (dist > scanner.Range || dist < 0.01f)
+                if (ScanRangeDistance(e, shipPos, dist) > scanner.Range || dist < 0.01f) // #3615: a giant wreck to its hull
                 {
                     return false;
                 }

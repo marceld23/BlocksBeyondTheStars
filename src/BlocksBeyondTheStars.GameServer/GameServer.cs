@@ -903,6 +903,7 @@ public sealed partial class GameServer
                     }
 
                     BootDetail("landmarks", () => StampLandmarks(restricted)); // #3486 (generation 37): one giant authored building — after everything that stands on the ground, before what is buried
+                    BootDetail("giant wrecks", () => StampGiantWrecks(restricted)); // #3610 (generation 42): a giant ship wreck — right after the landmark, which it keeps clear of
                     BootDetail("ancient ruins", () => StampAncientRuins(restricted)); // #3334 (generation 35): the buried G.D.S. ruin — before the vaults, which keep clear of it
 
                     if (_config.PlaceVaults && Stamps(StructureTypeRules.Vault))
@@ -6493,6 +6494,7 @@ public sealed partial class GameServer
             CheckpointLootPackets(); // #1367: expiring drop packets carry their exact age across a shutdown
             FlushBioRegister(force: true); // #2201: the species register rides with every save
             FlushFloatingSalvage();        // #2748: floating space salvage, atomic with the cargo saved above
+            FlushDerivedStations();        // #3613: the giant wrecks' coalesced changes — never lost on a clean stop
             _repo.SaveMetadata(_meta);
         });
     }

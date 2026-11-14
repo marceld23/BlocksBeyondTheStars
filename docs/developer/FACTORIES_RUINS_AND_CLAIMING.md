@@ -31,6 +31,7 @@ StampSettlement → StampIntercityRail → StampRuins → StampRailRuins → Sta
 | Intercity line (#2125) | `StampIntercityRail` (`GameServerIntercityRail.cs`) | `PlaceIntercityRail` + `IntercityRailChance` | 0–1, generation 19+, needs two towns — see [MONORAIL.md](MONORAIL.md) |
 | Abandoned station (#2166) | `StampRailRuins` (`GameServerRailRuins.cs`) | `PlaceRailRuins` + `RailRuinChance` | 0–1, generation 20+, unprotected like the ruins; skipped on airless, gas and restricted worlds — see [MONORAIL.md](MONORAIL.md) |
 | Landmark (#3483) | `StampLandmarks` (`GameServerLandmarks.cs`) | `PlaceLandmarks` + `LandmarkChance` | 0–1, generation 37+: one giant authored building, usually a ruin from the shared ruin pass, unprotected; never on an asteroid, an airless, gas or void world — see [LANDMARKS.md](LANDMARKS.md) |
+| Giant ship wreck (#3608) | `StampGiantWrecks` (`GameServerGiantWrecks.cs`) | `PlaceGiantWrecks` + `GiantWreckChance` + the world option `GiantWrecks` | 0–1, generation 42+: the wreck of a huge authored spaceship (about every 20th planet), unprotected; airless bodies and asteroids allowed when big enough, never a gas or void world or the finale body — see [GIANT_SHIPS.md](GIANT_SHIPS.md) |
 
 Every count/position is a hash of `seed ^ StableHash("<kind>:" + locationId)`, so adding any one of them
 leaves the rest of the universe unchanged. Placement reuses the settlement allocator
@@ -43,7 +44,9 @@ C# defaults in `StructureTypeRules` (Shared) — its header comment says which f
 the defaults (`StructureTypeRulesTests`); a broken entry is reported and dropped. The `Place*` flags stay server switches
 (both must be on); a chance set in `ServerConfig` (`IntercityRailChance`, `RailRuinChance`, `LandmarkChance` — unset by
 default) overrides the file's — a stored value equal to the old code default (0.6, 0.35, 0.34, which every older
-`server.json` holds) reads as unset, and an override that differs from the file is logged once. A file can raise a kind's
+`server.json` holds) reads as unset, and an override that differs from the file is logged once. `GiantWreckChance` (#3608,
+next to `LandmarkChance`) overrides the `giant_wreck` chance (0.05) the same way, except that it never had a written-out
+default — every stored value is the operator's. A file can raise a kind's
 `minGeneration`, never lower it below the C# default. A changed number only reaches bodies stamped afterwards: what stands
 replays from its records.
 

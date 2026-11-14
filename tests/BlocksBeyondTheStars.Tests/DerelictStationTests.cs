@@ -161,7 +161,9 @@ public sealed class DerelictStationTests : IDisposable
         using (repoOff)
         {
             Assert.Empty(off.DerelictIdsForTest);
-            before = off.Galaxy.AllBodies().Select(b => (b.Id, b.Name, b.SystemX, b.SystemZ)).ToList();
+            // #3614: the giant wrecks (a derelict family of their own, placed after the derelicts) are not compared here.
+            before = off.Galaxy.AllBodies().Where(b => !Shared.Definitions.GiantShipRules.IsGiantWreckId(b.Id))
+                .Select(b => (b.Id, b.Name, b.SystemX, b.SystemZ)).ToList();
             off.Stop();
         }
 

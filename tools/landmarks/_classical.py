@@ -171,7 +171,8 @@ def radial(cx: float, cz: float, a: float, r0: float, r1: float, y0: int, y1: in
 
 
 def lights(d: Design, cells: Iterable[Cell], block: str = "torch") -> int:
-    """Puts a light in every given cell that is still empty (torches stand in the air beside a wall)."""
+    """Puts a light in every given cell that is still empty — give it a cell beside a wall: `Design.write` hangs it on
+    that wall (the light-mount pass, #3627; a cell with no wall near floats and is reported)."""
     n = 0
     for p in cells:
         if p not in d.plain:

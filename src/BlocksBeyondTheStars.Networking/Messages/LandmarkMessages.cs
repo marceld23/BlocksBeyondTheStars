@@ -34,6 +34,11 @@ public sealed class NetLandmark
 {
     public string Key { get; set; } = string.Empty;
 
+    /// <summary>#3610: what stands there — <c>landmark</c> (a landmark; empty from an older server) or <c>giant_wreck</c> (a
+    /// giant ship wreck, <c>GiantShipRules.MapType</c>; <see cref="Key"/> is then the giant ship's key). The silhouette fields
+    /// mean the same for both. Contractless-additive: an older client ignores it and draws a wreck like a landmark.</summary>
+    public string Kind { get; set; } = string.Empty;
+
     /// <summary>The display name in the receiving player's language.</summary>
     public string Name { get; set; } = string.Empty;
 

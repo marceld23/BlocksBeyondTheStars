@@ -112,6 +112,23 @@ public sealed class WorldMetadata
     public System.Collections.Generic.Dictionary<string, string> SpaceWreckLayouts { get; set; } = new();
 
     /// <summary>
+    /// #3614: what each giant wreck in space is built from — wreck body id (<c>derelict:giant-…</c>) →
+    /// <c>&lt;template key&gt;|&lt;template fingerprint&gt;|r&lt;ruin revision&gt;|d&lt;ship-decay revision&gt;|b&lt;base hash&gt;</c>
+    /// (<c>GiantShipGenerator.Fingerprint</c>, <c>GiantDerelictLayout.BaseHash</c>), written the first time the wreck is built. The
+    /// wreck stores only the players' changes over the base build, so it is rebuilt only while all of that still comes out the
+    /// same; a new ship in the pool never turns an existing wreck into another. Additive: an older build ignores the field.
+    /// </summary>
+    public System.Collections.Generic.Dictionary<string, string> GiantWreckDesigns { get; set; } = new();
+
+    /// <summary>
+    /// #3614: where each giant wreck in space floats in its system's flight — wreck body id → <c>x;y;z</c> (invariant culture),
+    /// chosen by the wreck's size the first time it is built (clear of the derelicts and the player stations of that moment)
+    /// and kept from then on, so a station built later never moves it. Placed anew only when the wreck itself is (its base
+    /// changed with nothing stored on it). Additive: an older build ignores the field.
+    /// </summary>
+    public System.Collections.Generic.Dictionary<string, string> GiantWreckSpots { get; set; } = new();
+
+    /// <summary>
     /// Player claims over spawned structures (factories): each maps a structure's stable per-world key to its
     /// owner. A claimed structure becomes an editable player base for the owner + their allies. Founded by
     /// consuming an access code at the structure. Persisted (the structures themselves re-derive from the seed).

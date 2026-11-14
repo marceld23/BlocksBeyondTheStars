@@ -103,7 +103,8 @@ internal sealed partial class StructureRuiner
 
     /// <summary>Whatever no longer hangs together with the ground comes down: a flood fill from the anchors — every
     /// block at or below the ground row (it sits in the rock), in a protected row and every kept cell; for a hull, which
-    /// has no ground, also the largest piece that is left — through touching blocks; the rest falls.</summary>
+    /// has no ground, also the largest piece that is left (at revision 3 every piece of at least <see cref="MinPieceCells"/>
+    /// too) — through touching blocks; the rest falls.</summary>
     private void Settle()
     {
         var held = new BitArray(_g.Blocks.Length);
@@ -119,7 +120,11 @@ internal sealed partial class StructureRuiner
             }
         }
 
-        if (_hull)
+        if (_hull && _giant)
+        {
+            AnchorBigPieces(held, open); // revision 3 (StructureRuiner.Giant.cs)
+        }
+        else if (_hull)
         {
             AnchorLargestPiece(held, open);
         }

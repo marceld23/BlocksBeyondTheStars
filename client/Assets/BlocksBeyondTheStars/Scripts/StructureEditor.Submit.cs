@@ -149,6 +149,12 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            if (_giantShipMode)
+            {
+                SetStatus(L("ui.ed.giantship.no_submit")); // #3616: nor is a giant ship's
+                return;
+            }
+
             string key = Slug(_key);
             if (string.IsNullOrEmpty(key))
             {

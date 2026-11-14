@@ -107,17 +107,9 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Sends a station's design to everyone floating in its instance (its doorways changed).</summary>
-    private void ResendStationDesign(SpaceInstance instance, SpaceStructure s)
-    {
-        foreach (var pid in instance.Players)
-        {
-            if (FindSessionByPlayerId(pid) is { } other)
-            {
-                SendShipDesign(other, s);
-            }
-        }
-    }
+    /// <summary>Sends a station's design to everyone floating in its instance (its doorways changed) — built and encoded once
+    /// for all of them (#3612).</summary>
+    private void ResendStationDesign(SpaceInstance instance, SpaceStructure s) => SendShipDesignTo(PilotsIn(instance), s);
 
     // ---------------- persistence ----------------
 
@@ -410,10 +402,7 @@ public sealed partial class GameServer
             PersistStationDoors(s);
         }
 
-        foreach (var instance in _spaceInstances.Values.Where(i => i.Structures.ContainsKey(s.Id))) // #2634: every orbit a derelict floats in
-        {
-            ResendStationDesign(instance, s);
-        }
+        SendShipDesignTo(PilotsHolding(s), s); // #2634: every orbit a derelict floats in — #3612: one build for all of them
     }
 
     // ---------------- boarding at the door ----------------

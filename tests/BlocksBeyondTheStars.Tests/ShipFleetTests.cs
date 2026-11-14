@@ -97,6 +97,22 @@ public sealed class ShipFleetTests : IDisposable
     }
 
     [Fact]
+    public void CraftShip_RefusesTheStarter_ItHasNoBlueprintAndIsNeverForSale()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            pilot.State.InstantBuild = true; // no material cost: only the blueprint rule can refuse (#3606)
+
+            var (ok, _) = server.CraftShip("Pilot", "starter");
+
+            Assert.False(ok);
+            Assert.Single(server.OwnedShips);
+        }
+    }
+
+    [Fact]
     public void SwitchShip_ChangesActiveAndStats()
     {
         var server = Started(out var repo);

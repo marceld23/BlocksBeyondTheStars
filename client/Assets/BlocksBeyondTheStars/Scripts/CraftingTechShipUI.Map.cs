@@ -510,10 +510,13 @@ namespace BlocksBeyondTheStars.Client
             if (isStation)
             {
                 // #2632: a derelict station — what it is and what waits aboard (no air where the hull is broken).
+                // #3615: a giant ship wreck has its own, longer paragraph (seven lines of room).
                 if (BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsDerelictId(body.Id))
                 {
-                    UiKit.AddText(_detail, 8, y, 600, 110, L("ui.map.derelict_detail"), 18, new Color(0.85f, 0.65f, 0.35f), TextAnchor.UpperLeft);
-                    y += 118f;
+                    float h = BlocksBeyondTheStars.Client.Core.GiantWreckText.IsGiantWreck(body.Id) ? GiantWreckDetailH : 110f;
+                    UiKit.AddText(_detail, 8, y, 600, h, L(BlocksBeyondTheStars.Client.Core.GiantWreckText.DerelictDetail(body.Id)), 18,
+                        new Color(0.85f, 0.65f, 0.35f), TextAnchor.UpperLeft);
+                    y += h + 8f;
                 }
 
                 bool mine = !string.IsNullOrEmpty(body.OwnerName) && body.OwnerName == Game.LocalPlayerId;

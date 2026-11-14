@@ -46,6 +46,10 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>A generator entry of the station pool.</summary>
         StationEntry,
+
+        /// <summary>#3616: a GIANT SHIP (town editor, <see cref="GiantShipRules"/>) — never built by anyone: it lies wrecked on a
+        /// planet (ruin profile crash) and drifts wrecked in space (profile hull). Appended last so the older values keep theirs.</summary>
+        GiantShip,
     }
 
     /// <summary>A marker cell of a design: its type and its settings line (empty for most).</summary>
@@ -202,8 +206,14 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The zone tool: two clicks in the room set a landmark's ruin zone (terrain generation 39).</summary>
         public const string KindZone = "zone";
 
-        /// <summary>The target of a design: the editor (station or town), its "Use as" and the pool of an entry.</summary>
-        public static StampTarget TargetFor(bool station, bool module, bool landmark, bool entry, bool underground, bool cityModule, string? pool)
+        /// <summary>#3616: the relic cache marker — a loot marker a giant ship keeps (<see cref="GiantShipRules.Markers"/>); the
+        /// palette offers it to a giant ship only.</summary>
+        public const string RelicCacheMarker = "relic_cache";
+
+        /// <summary>The target of a design: the editor (station or town), its "Use as" and the pool of an entry.
+        /// <paramref name="giantShip"/> (#3616) is the town editor's "Use as: Giant ship".</summary>
+        public static StampTarget TargetFor(bool station, bool module, bool landmark, bool entry, bool underground, bool cityModule, string? pool,
+            bool giantShip = false)
         {
             if (entry)
             {
@@ -220,6 +230,11 @@ namespace BlocksBeyondTheStars.Client
                 return module ? StampTarget.StationModule : StampTarget.StationWhole;
             }
 
+            if (giantShip)
+            {
+                return StampTarget.GiantShip;
+            }
+
             if (module)
             {
                 return cityModule ? StampTarget.CityModule : StampTarget.SettlementModule;
@@ -229,7 +244,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Whether the target is a generator entry (no cells: its source builds it).</summary>
-        public static bool IsEntry(StampTarget t) => t >= StampTarget.SettlementEntry;
+        public static bool IsEntry(StampTarget t)
+            => t is StampTarget.SettlementEntry or StampTarget.UndergroundEntry or StampTarget.LandmarkEntry or StampTarget.StationEntry;
 
         /// <summary>Whether the target is a station (the station editor's targets).</summary>
         public static bool IsStation(StampTarget t) => t is StampTarget.StationWhole or StampTarget.StationModule or StampTarget.StationEntry;
@@ -266,24 +282,29 @@ namespace BlocksBeyondTheStars.Client
             => station ? kind == StructureSourceKind.Space : kind is StructureSourceKind.Surface or StructureSourceKind.Underground;
 
         /// <summary>Where a ruin pass may run over the template's own cells: a fallen whole settlement, a settlement module of a
-        /// fallen settlement, a landmark.</summary>
-        public static bool ReadsKeep(StampTarget t) => t is StampTarget.SettlementWhole or StampTarget.SettlementModule or StampTarget.Landmark;
+        /// fallen settlement, a landmark, a giant ship (always a wreck).</summary>
+        public static bool ReadsKeep(StampTarget t)
+            => t is StampTarget.SettlementWhole or StampTarget.SettlementModule or StampTarget.Landmark or StampTarget.GiantShip;
 
-        /// <summary>Only a landmark carves cavity cells (its underground part).</summary>
-        public static bool ReadsCavity(StampTarget t) => t == StampTarget.Landmark;
+        /// <summary>A landmark carves cavity cells (its underground part); a giant ship's cavity is carved air on a planet and
+        /// plain air in space.</summary>
+        public static bool ReadsCavity(StampTarget t) => t is StampTarget.Landmark or StampTarget.GiantShip;
 
         /// <summary>Where chest, sound and den markers carry their settings (terrain generation 38): settlement whole templates,
-        /// settlement and city modules, whole station templates, landmarks — not a station kit module, not an underground
-        /// template (enclosed as built).</summary>
+        /// settlement and city modules, whole station templates, landmarks, giant ships (chests and sounds) — not a station kit
+        /// module, not an underground template (enclosed as built).</summary>
         public static bool ReadsMarkerSettings(StampTarget t) => t is StampTarget.SettlementWhole or StampTarget.SettlementModule
-            or StampTarget.CityModule or StampTarget.StationWhole or StampTarget.Landmark;
+            or StampTarget.CityModule or StampTarget.StationWhole or StampTarget.Landmark or StampTarget.GiantShip;
 
         /// <summary>Whether the target reads the settings of a marker of type <paramref name="marker"/>: a chest, a sound and a den
-        /// where <see cref="ReadsMarkerSettings(StampTarget)"/>; a vendor's theme and name only in a landmark.</summary>
+        /// where <see cref="ReadsMarkerSettings(StampTarget)"/> (a giant ship has no den — a wreck is abandoned); a vendor's theme
+        /// and name only in a landmark; a doorway's axis (<see cref="GiantShipRules.AxisSetting"/>) only in a giant ship.</summary>
         public static bool ReadsMarkerSettings(StampTarget t, string? marker) => marker switch
         {
             "vendor" => t == StampTarget.Landmark,
-            LandmarkRules.ChestMarker or LandmarkRules.SoundMarker or LandmarkRules.DenMarker => ReadsMarkerSettings(t),
+            GiantShipRules.DoorMarker => t == StampTarget.GiantShip,
+            LandmarkRules.DenMarker => t != StampTarget.GiantShip && ReadsMarkerSettings(t),
+            LandmarkRules.ChestMarker or LandmarkRules.SoundMarker => ReadsMarkerSettings(t),
             _ => false,
         };
 
@@ -303,7 +324,7 @@ namespace BlocksBeyondTheStars.Client
         /// an underground structure, a landmark, a station — and every generator entry. A kit module goes with the structure it
         /// is part of.</summary>
         public static bool TakesProtection(StampTarget t)
-            => t is not (StampTarget.SettlementModule or StampTarget.CityModule or StampTarget.StationModule);
+            => t is not (StampTarget.SettlementModule or StampTarget.CityModule or StampTarget.StationModule or StampTarget.GiantShip);
 
         /// <summary>
         /// The sentence that says what the design's protection does (the form's line under the picker and the stamping panel's
@@ -313,6 +334,11 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         public static string ProtectionKey(StampDesign d)
         {
+            if (d.Target == StampTarget.GiantShip)
+            {
+                return "ui.stamp.protection.giant_ship"; // #3616: a wreck names no protection — players may always take it apart
+            }
+
             if (!TakesProtection(d.Target))
             {
                 return "ui.stamp.protection.module";
@@ -336,14 +362,29 @@ namespace BlocksBeyondTheStars.Client
             };
         }
 
+        /// <summary>#3615: the palette word of a giant ship's way in — just "Entrance": the settlement word
+        /// (<c>ui.marker.entrance</c>, "Entrance (road side)") names a module's road side, and a ship has no road.</summary>
+        public const string GiantEntranceLabelKey = "ui.ed.giantship.entrance";
+
+        /// <summary>The locale key of a marker's palette label for the target: <c>ui.marker.&lt;id&gt;</c>, but the giant
+        /// ship's own word for its <see cref="GiantShipRules.EntranceMarker"/> (<see cref="GiantEntranceLabelKey"/>).</summary>
+        public static string MarkerLabelKey(StampTarget t, string? id)
+            => t == StampTarget.GiantShip && id == GiantShipRules.EntranceMarker ? GiantEntranceLabelKey : "ui.marker." + id;
+
         /// <summary>Whether the palette shows an entry of <paramref name="kind"/> / <paramref name="id"/> for the target: a tool
         /// or marker the target ignores is hidden. A generator entry has no cells, so nothing but the plain blocks and markers
-        /// stays (the room is read-only anyway).</summary>
+        /// stays (the room is read-only anyway). A giant ship shows exactly its own markers (<see cref="GiantShipRules.Markers"/>);
+        /// the relic cache is a giant ship's only.</summary>
         public static bool ShowsInPalette(StampTarget t, string? kind, string? id)
         {
             if (kind == "block" && MaterialTokens.IsToken(id))
             {
                 return ResolvesTokens(t);
+            }
+
+            if (kind == "marker" && t == StampTarget.GiantShip)
+            {
+                return Array.IndexOf(GiantShipRules.Markers, id) >= 0;
             }
 
             return kind switch
@@ -352,8 +393,9 @@ namespace BlocksBeyondTheStars.Client
                 KindKeep => ReadsKeep(t),
                 KindCavity => ReadsCavity(t),
                 KindSettings => ReadsMarkerSettings(t),
-                KindDevice => !IsEntry(t),
+                KindDevice => !IsEntry(t) && t != StampTarget.GiantShip,
                 KindZone => ReadsZones(t),
+                "marker" when id == RelicCacheMarker => false,
                 "marker" when id is LandmarkRules.SoundMarker or LandmarkRules.DenMarker => ReadsMarkerSettings(t),
                 "marker" when id == LandmarkRules.ChestMarker && IsStation(t) => t == StampTarget.StationWhole,
                 _ => true,

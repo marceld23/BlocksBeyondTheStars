@@ -53,6 +53,11 @@ public sealed class RuinOptions
     /// (default) = none.</summary>
     public RuinScorch? Scorch { get; set; }
 
+    /// <summary>#3609: water freezes — every <c>water</c> cell becomes <c>ice</c> (keeping its tint and glow), a step of its
+    /// own right after the scorch marks: the pool of a wreck in space or on an airless body. Kept cells and protected rows
+    /// freeze too (the cold is no decay). Default false.</summary>
+    public bool FreezeWater { get; set; }
+
     /// <summary>A <see cref="StrengthAt"/> map that spares the columns of one box (inclusive): <paramref name="factor"/>
     /// inside, 1 outside.</summary>
     public static Func<int, int, double> SpareBox(int minX, int minZ, int maxX, int maxZ, double factor)

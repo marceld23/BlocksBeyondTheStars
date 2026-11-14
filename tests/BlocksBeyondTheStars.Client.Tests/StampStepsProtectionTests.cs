@@ -37,6 +37,7 @@ public sealed class StampStepsProtectionTests
     [InlineData(StampTarget.SettlementModule, false)]
     [InlineData(StampTarget.CityModule, false)]
     [InlineData(StampTarget.StationModule, false)]
+    [InlineData(StampTarget.GiantShip, false)] // #3616: a wreck names none — it is always open
     public void EveryWholeTemplateAndEntryTakesAProtection_AModuleFollowsItsStructure(StampTarget target, bool takes)
         => Assert.Equal(takes, StructureStampRules.TakesProtection(target));
 
@@ -67,6 +68,12 @@ public sealed class StampStepsProtectionTests
             foreach (string mode in LandmarkRules.ProtectionModes)
             {
                 string key = StructureStampRules.ProtectionKey(Design(target, mode));
+                if (target == StampTarget.GiantShip)
+                {
+                    Assert.Equal("ui.stamp.protection.giant_ship", key); // #3616: a wreck is open, whatever a file names
+                    continue;
+                }
+
                 if (!StructureStampRules.TakesProtection(target))
                 {
                     Assert.Equal("ui.stamp.protection.module", key);

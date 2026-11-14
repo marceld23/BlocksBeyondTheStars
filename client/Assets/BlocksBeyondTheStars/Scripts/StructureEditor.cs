@@ -255,6 +255,7 @@ namespace BlocksBeyondTheStars.Client
             M("greenhouse", new Color(0.45f, 0.85f, 0.35f)),    // the generator's garden-house marker (#626, #1401)
             M("chest", new Color(0.75f, 0.55f, 0.25f)),         // loot chest (stilt_hamlet, #1398)
             M("data_terminal", new Color(0.35f, 0.9f, 0.9f)),   // lore terminal (walled_market, #1398)
+            M(StructureStampRules.RelicCacheMarker, new Color(0.9f, 0.6f, 0.95f)), // #3616: a giant ship's loot marker (shown for one only)
             M("tavern", new Color(0.85f, 0.55f, 0.25f)),        // #1890: the innkeeper's post — the room is a tavern
             M("workshop", new Color(0.55f, 0.55f, 0.6f)),       // #1890: the craftsman's post — the room is a workshop
             M("lounge", new Color(0.85f, 0.65f, 0.35f)),        // an evening seat
@@ -855,6 +856,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             AddLandmarkItems(builtIn, user); // #3492
+            AddGiantShipItems(builtIn, user); // #3616
             AddEntryItems(builtIn, user); // #3523
             _loadPicker = EditorLoadPicker.Show(Shell, _canvas.transform, new[] { builtIn, user, mine }, _design.Count, () => _loadPicker = null);
         }
@@ -974,6 +976,7 @@ namespace BlocksBeyondTheStars.Client
             _underground = underground; // #3333
             _protection = LandmarkRules.ProtectionOf(protection); // generation 39: the template's own (a kit module's is ignored)
             ResetLandmarkExtras(); // ruin zones, seat … (LoadLandmark sets them again)
+            ResetGiantShipExtras(); // #3616: LoadGiantShip sets them again
             _landmarkMode = false; // #3492: LoadLandmark switches it back on
             _entryMode = _entrySourceInvalid = false; _entryExtras = null; // #3523: LoadEntry sets them again
             DropPreview(); // a load replaced the design a preview kept aside

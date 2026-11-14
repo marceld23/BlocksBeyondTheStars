@@ -40,8 +40,13 @@ public static class Protocol
     /// v11 (#2289/#2293/#2296): the suit has eleven equipment slots (four module slots) — a v10 client sizes its worn row
     /// for nine and would lose the pieces in slots 9 and 10; EquipItemIntent.FromCargo wears a piece straight from the
     /// hold, which a v10 server would read as the backpack slot of the same index and put on the wrong item; and
-    /// SetGlidingIntent / PlayerPresence.Gliding carry the glider.</summary>
-    public const int Version = 11;
+    /// SetGlidingIntent / PlayerPresence.Gliding carry the glider.
+    /// v12 (#3612): a structure design too big for one message (a giant wreck's hull) travels in PARTS of one
+    /// SpaceShipDesign.Serial (PartIndex / PartCount) that the client joins (Client.Core.SpaceDesignAssembler) — a v11 client
+    /// takes every part for the whole design and draws only the last one; and a station's mined or placed cell reaches the
+    /// pilots outside as a StructureBlockChanged carrying its dye, glow and shape instead of a whole design, which a v11
+    /// client meshes plain. Refusing the join tells such a player to update instead.</summary>
+    public const int Version = 12;
 
     /// <summary>The join refusal both sides use when the content fingerprints differ or one is missing (#2222):
     /// the server sends it as the <c>JoinRejected</c> reason, the client raises the same reason itself when the

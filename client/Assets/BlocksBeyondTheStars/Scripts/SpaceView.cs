@@ -90,42 +90,7 @@ namespace BlocksBeyondTheStars.Client
         private float FlightClamp => Mathf.Max(_bounds, _stationReach);
         private const float FlightShipScale = 0.5f; // voxel ship is shown half-size while piloting (1:1 on EVA)
 
-        // item 20 S3: voxel ore asteroids — static structures at world positions, separate from the own ship.
-        private sealed class VoxStruct
-        {
-            public Dictionary<Vector3i, BlockId> Cells;
-            public Vector3 Centre;
-            public Vector3 Pos;     // root-local position of the structure
-            public GameObject Root; // null until (re)built
-            public bool MeshDirty;
-
-            public string Kind;     // "asteroid" | "station" | "wreck"
-            public Dictionary<Vector3i, (int Tint, int Glow)> Mods; // authored dye/glow (a station's blue solar cells)
-            public Dictionary<Vector3i, int> Shapes;                // authored shapes (slabs, furniture seen through a window)
-            public Vector3 Half;    // half the cells' box, centred on Pos
-
-            // #1917: a generated station's hangar mouth — root-local centre + the direction pointing out of it.
-            public bool HasDock;
-            public Vector3 Dock;
-            public Vector3 DockOut;
-
-            // #2607: a player station's doors (drawn as doors, aimed at on a spacewalk) and its owner (the door preview
-            // shows only where the suit may build: the owner and their allies).
-            public List<SpaceDoors.Door> Doors = new();
-            public HashSet<Vector3i> DoorCells = new();
-            public string OwnerId = string.Empty;
-
-            // #2676: a derelict station's hull gets the broken-look extras (sparks, tumbling pieces, a flickering beacon).
-            public string Id = string.Empty;
-            public bool Derelict;
-
-            // #3409: the flight instance this design arrived for (the server sends the SpaceState before the designs), so
-            // the in-flight rebuild of a jump (#1677) keeps the new system's designs instead of wiping them with the old.
-            public string Instance = string.Empty;
-
-            public bool IsStation => Kind == "station";
-        }
-
+        // item 20 S3: voxel structures (asteroids, stations, wrecks, debris) — the VoxStruct record lives in SpaceView.StructureMesh.cs.
         private readonly Dictionary<string, VoxStruct> _structs = new Dictionary<string, VoxStruct>();
         private readonly List<string> _structRemove = new List<string>();
 
@@ -363,11 +328,11 @@ namespace BlocksBeyondTheStars.Client
 
             // item 20 S2/S3: subscribe to voxel-structure edits/designs/removals as soon as the network exists
             // (kept for the rig's lifetime) — early enough that the first asteroid batch on space-entry isn't missed.
-            if (Game.Network != null && !_structSubscribed)
+            if (Game.Network != null && Game.SpaceDesigns != null && !_structSubscribed)
             {
                 Game.Network.StructureBlockChangedReceived += OnStructureBlockChanged;
                 Game.Network.StructureMiningProgressReceived += OnStructureMiningProgress; // #685
-                Game.Network.SpaceShipDesignReceived += OnStructureDesign;
+                Game.SpaceDesigns.DesignReady += OnStructureDesign; // #3612: whole designs only (a giant's parts joined)
                 Game.Network.SpaceEntityDestroyed += OnStructEntityDestroyed;
                 Game.Network.SpaceEntityDestroyed += OnEntityDestroyedFx; // #2156: explosions instead of vanishing
                 Game.Network.SpaceEntityDestroyed += OnLockedEntityDestroyed; // #2277: a killed lock moves on to the next attacker

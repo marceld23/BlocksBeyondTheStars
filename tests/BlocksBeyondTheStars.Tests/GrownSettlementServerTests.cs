@@ -90,6 +90,51 @@ public sealed class GrownSettlementServerTests : IDisposable
         }
     }
 
+    /// <summary>#3605: the vegetation carve ran after the structure was written and ate its wood_log roofs, ridges and fence posts.</summary>
+    [Fact]
+    public void PlannedVillage_KeepsEveryBuiltBlock_LogRoofsIncluded()
+    {
+        ushort log = Content.GetBlock("wood_log")!.NumericId.Value;
+        int logCells = 0;
+        var lost = new System.Collections.Generic.List<string>();
+        for (long seed = 2602; seed < 2606; seed++)
+        {
+            var server = Start("roof" + seed, "meadowlands", seed, WorldDescription.GrownSettlementsGeneration, out var repo);
+            try
+            {
+                foreach (var (min, groundY, layout) in server.PlannedSettlementsForTest)
+                {
+                    for (int x = 0; x < layout.Width; x++)
+                        for (int z = 0; z < layout.Length; z++)
+                            for (int y = 0; y < layout.Height; y++)
+                            {
+                                ushort want = layout.Get(x, y, z);
+                                if (want == 0)
+                                {
+                                    continue;
+                                }
+
+                                logCells += want == log ? 1 : 0;
+                                var at = new Vector3i(min.X + x, groundY + y, min.Z + z);
+                                ushort got = server.World.GetBlock(at).Value;
+                                if (got != want)
+                                {
+                                    lost.Add($"seed {seed} {at}: want {want} got {got}");
+                                }
+                            }
+                }
+            }
+            finally
+            {
+                server.Stop();
+                repo.Dispose();
+            }
+        }
+
+        Assert.True(logCells > 0, "no planned settlement held a log block — the test would prove nothing");
+        Assert.True(lost.Count == 0, $"{lost.Count} built blocks missing, e.g. {string.Join("; ", lost.Take(5))}");
+    }
+
     [Fact]
     public void ThePlannedBox_IsProtectedOnlyWhereItIsClaimed()
     {

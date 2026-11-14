@@ -226,6 +226,12 @@ namespace BlocksBeyondTheStars.Client
         public readonly System.Collections.Generic.Dictionary<string, (string Body, string System)> DiscoveryWhere
             = new System.Collections.Generic.Dictionary<string, (string Body, string System)>();
 
+        /// <summary>#3611: the ship class of each giant wreck in space this session scanned — its coined name → ship key, from
+        /// the readout's class trait. The ledger records only the coined name, so the Codex names the class from here
+        /// (until the next join snapshot; after that its line reads the space readout's sentence).</summary>
+        public readonly System.Collections.Generic.Dictionary<string, string> GiantWreckClassByName
+            = new System.Collections.Generic.Dictionary<string, string>();
+
         /// <summary>The enemies this player has met (#2971) — the Codex's "Enemies" chapter fills their entries. Mirrors the
         /// server's <c>PlayerState.EnemiesMet</c>.</summary>
         public readonly System.Collections.Generic.HashSet<string> EnemiesMet = new System.Collections.Generic.HashSet<string>();
@@ -372,6 +378,13 @@ namespace BlocksBeyondTheStars.Client
                     PlanetOverviewCard.ShowReadout(this, m); // #2247: the ship scanner's readouts open on the right
                 }
 
+                // #3611: a giant wreck in space names its ship class in a trait — the Codex names the class from here.
+                if (BlocksBeyondTheStars.Client.Core.GiantWreckText.IsSpaceReadout(m.Kind, m.SubjectKey) && !string.IsNullOrEmpty(m.Subject)
+                    && BlocksBeyondTheStars.Client.Core.GiantWreckText.ShipKeyFromTraits(m.TraitKeys) is { } shipClass)
+                {
+                    GiantWreckClassByName[m.Subject] = shipClass;
+                }
+
                 if (m.FirstTime && m.KnowledgeGained > 0)
                 {
                     // Localized (#484) — this toast used to be an English literal in the German build too.
@@ -387,6 +400,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     Discoveries.Clear(); // the join snapshot replaces whatever a previous session left
                     DiscoveryWhere.Clear();
+                    GiantWreckClassByName.Clear(); // #3611: another world's wrecks may carry the same coined names
                 }
 
                 var entries = m.Entries ?? System.Array.Empty<string>();

@@ -171,6 +171,20 @@ come from `data/structure_types.json`. A `server.json` written before that file 
 0.34) explicitly; the server reads exactly those values as "not set", so the data file decides. Any other value stays an
 override, and the server logs once per kind when it differs from the data file.
 
+**Giant ship wrecks** (#3625): `placeGiantWrecks` (default `true`) is the host's switch. Off, the server lays no giant ship
+wreck on a planet stamped from then on (a planet wreck a world already has stays — it is part of the terrain) and keeps
+every wreck in SPACE out of the world, an existing one too: no body on the star map, no contact; what the save holds of them
+(their pins, flight spots, changes, interior, chests) is kept, and they come back as they were when you switch it on again.
+`giantWreckChance` (unset by default, then the `giant_wreck` chance of `data/structure_types.json`, 0.05 — about every 20th
+planet, terrain generation 42+) overrides the planet chance; it never had a written-out default, so any value you store
+counts. Both are `server.json` keys only. How often the galaxy holds them is a world option like the derelicts: CLI
+`--giant-wrecks off|veryrare|rare|normal|frequent` for a fresh world (the save keeps it; one wreck always drifts in the start
+system unless it is `off`, which also keeps the planets free of them). They are built from `data/giant_ships/*.json` plus the
+user content folder's `giant_ship_templates/`; a broken file is dropped with a warning in the log. Building a wreck in space
+takes about a second for a big ship on a desktop (several on a Raspberry Pi) and allocates 43–59 MB while it runs (about
+7–15 MB stay); with `chunkGenWorkers` above 0 it runs ahead on one background thread for the systems where players fly or
+sit aboard their ship, with 0 the start system's wreck is built during the boot.
+
 **Chunk generation workers** (`chunkGenWorkers`, CLI `--chunk-gen-workers`): first-visit chunks are generated on this
 many background threads, each with its own world generator and its terrain memos — about 20 MB per thread for one player
 at view distance 8, about 45 MB at view distance 16 (measured 2026-11-14 on terrain generation 40). A streaming pass still

@@ -517,6 +517,26 @@ public sealed class ServerConfig
     public double? LandmarkChance { get; set; }
 
     /// <summary>
+    /// Whether the server may stamp a <b>giant ship wreck</b> (#3608) on a body of a new world (terrain generation 42+) — one
+    /// huge authored spaceship per planet at most, crashed long ago and abandoned (everyone got away). Never on a gas or void
+    /// world or the finale body. Only decides for bodies that have not decided yet; a wreck a world already has stays.
+    /// Deterministic from the world seed. The world option <c>WorldDescription.GiantWrecks</c> is the player's switch; this
+    /// one is the host's. #3614: off also keeps the giant wrecks in SPACE out of the galaxy — of an existing world too (a small
+    /// host): such a wreck is simply not there (no star-map body, no contact); everything stored for it (its pin, its changes,
+    /// its interior) is kept and it comes back as it was when the switch is on again.
+    /// </summary>
+    public bool PlaceGiantWrecks { get; set; } = true;
+
+    /// <summary>
+    /// The chance (0..1) that a planet which could carry one gets a giant ship wreck (#3608, terrain generation 42), scaled by
+    /// the world's structures frequency. Unset (null) takes the <c>giant_wreck</c> kind's chance from
+    /// <c>data/structure_types.json</c> (about every 20th planet, <see cref="Definitions.GiantShipRules.Chance"/>); a value
+    /// here overrides it. Unlike the older chances this key never held a written-out code default, so every stored value is
+    /// the operator's choice and is kept as it is. Tests pin 1.0 to get a wreck wherever one fits, 0.0 to keep a world free.
+    /// </summary>
+    public double? GiantWreckChance { get; set; }
+
+    /// <summary>
     /// Singleplayer/admin convenience: guarantee one data cube right next to the start world's landing pad, so
     /// a solo player can always reach a minigame near spawn. Set only by the bundled singleplayer launcher;
     /// left off on shared/dedicated servers (where the random scatter applies as normal).

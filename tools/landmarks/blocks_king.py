@@ -234,9 +234,22 @@ def furnish(d: Design) -> None:
             if not (abs(x - CX) <= 10 and z < CZ - 14):
                 d.put(x, y, z, "lantern")
     for a in range(0, 360, 60):                                       # wall lanterns in the dome hall
-        x = round(CX + 25.5 * math.sin(math.radians(a)))
-        z = round(CZ + 25.5 * math.cos(math.radians(a)))
-        d.put(x, DOME_Y + 2, z, "lantern")
+        d.put(*_against_wall(d, a, DOME_Y + 2, 25.5, 28.0), "lantern")
+
+
+def _against_wall(d: Design, a: int, y: int, r0: float, r1: float) -> tuple[int, int, int]:
+    """The cell at radius r0 on the ray at `a` degrees (from +z), moved out along the ray to the last free cell before
+    the wall (at most to r1) — so a wall lantern touches the wall that holds it (#3627)."""
+    s, c = math.sin(math.radians(a)), math.cos(math.radians(a))
+    cell = (round(CX + r0 * s), y, round(CZ + r0 * c))
+    r = r0
+    while r < r1:
+        r += 0.5
+        step = (round(CX + r * s), y, round(CZ + r * c))
+        if d.is_block(*step):
+            break
+        cell = step
+    return cell
 
 
 def stair_and_terrace(d: Design) -> None:

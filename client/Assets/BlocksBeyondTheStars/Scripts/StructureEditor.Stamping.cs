@@ -35,7 +35,8 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The design's target from the form.</summary>
         private StampTarget CurrentTarget()
-            => StructureStampRules.TargetFor(EditorMode == Mode.Station, _moduleMode, _landmarkMode, _entryMode, _underground, IsCityModule(), _entryPool);
+            => StructureStampRules.TargetFor(EditorMode == Mode.Station, _moduleMode, _landmarkMode, _entryMode, _underground, IsCityModule(), _entryPool,
+                _giantShipMode);
 
         /// <summary>A town module that goes into a district of the walled city: a city role, the metropolis tier or a city kit.</summary>
         private bool IsCityModule()
@@ -63,7 +64,7 @@ namespace BlocksBeyondTheStars.Client
             d.Function = _function ?? string.Empty;
             d.Ruin = _landmarkMode && _lmRuin;
             d.RuinProfile = _landmarkMode ? _lmProfile : string.Empty;
-            d.RuinStrength = _landmarkMode ? _lmStrength : 0.0;
+            d.RuinStrength = _landmarkMode ? _lmStrength : _giantShipMode ? _gsStrength : 0.0;
             d.GroundRow = _groundRow;
             d.Protection = _protection;
             d.Seat = _landmarkMode ? _lmSeat : _entryMode ? _entryExtras?.seat ?? string.Empty : string.Empty;
@@ -221,7 +222,8 @@ namespace BlocksBeyondTheStars.Client
             T(MaterialTokens.Path, new Color(0.7f, 0.65f, 0.5f)),
         };
 
-        /// <summary>The palette entries the target reads, in palette order.</summary>
+        /// <summary>The palette entries the target reads, in palette order — a marker labelled in the target's own word (#3615:
+        /// inside a giant ship the way in reads "Entrance", not the settlement's "Entrance (road side)").</summary>
         private EditorPaletteKit.Entry[] ShownPalette()
         {
             var list = new List<EditorPaletteKit.Entry>(_palette.Length);
@@ -229,7 +231,13 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (StructureStampRules.ShowsInPalette(_target, e.Kind, e.Id))
                 {
-                    list.Add(e);
+                    var shown = e;
+                    if (e.Kind == "marker")
+                    {
+                        shown.Label = L(StructureStampRules.MarkerLabelKey(_target, e.Id));
+                    }
+
+                    list.Add(shown);
                 }
             }
 

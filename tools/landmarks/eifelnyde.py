@@ -85,10 +85,10 @@ def entrance(d: Design) -> None:
         d.room(x0, 1, 16, x1, 6, 24, cavity=False)
         d.room(c0, 1, 19, c1, 4, 21, cavity=False)
         d.chest((x0 + x1) // 2, 1, 23, table="ruin_common")
-        d.put(x0, 1, 16, "torch")
-        d.put(x1, 1, 24, "torch")
+        d.put(x0, 2, 16, "torch")                                  # on the walls, a row above the floor (#3627)
+        d.put(x1, 2, 24, "torch")
     for x, z in ((61, 15), (79, 15), (61, 24), (79, 24)):
-        d.put(x, 1, z, "torch")
+        d.put(x, 2, z, "torch")
 
 
 def gallery(d: Design) -> None:
@@ -103,9 +103,9 @@ def gallery(d: Design) -> None:
         d.fill([(x, y - 1, z) for x in (67, 68, 72, 73)], Mat("travertine"))   # the side benches
         d.put(67, y, z, Mat("travertine", shape=sc.stairs(0, 1)))
         d.put(73, y, z, Mat("travertine", shape=sc.stairs(0, 1)))
-        if k % 6 == 3:
-            d.put(66, y + 2, z, "torch")
-            d.put(74, y + 2, z, "torch")
+        if k % 6 == 3:                                                          # in the gallery, on its walls
+            d.put(67, y + 2, z, "torch")
+            d.put(73, y + 2, z, "torch")
     d.stairs(68, 1, 25, 0, 1, CHAMBER, STAIR, width=5)
     # A hidden niche halfway up, behind the gallery's right wall: a chest under a loose stone.
     d.room(75, 15, 37, 78, 17, 40, cavity=False)

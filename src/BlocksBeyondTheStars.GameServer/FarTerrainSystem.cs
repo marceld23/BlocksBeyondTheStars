@@ -285,9 +285,10 @@ internal sealed class FarTerrainSystem
         int circumference = world.World.Circumference;
         foreach (var top in tops)
         {
-            if (world.Landmarks.Count > 0 && world.Landmarks.Exists(lm => lm.StandsAt(top.X, top.Y, top.Z, circumference)))
+            if ((world.Landmarks.Count > 0 && world.Landmarks.Exists(lm => lm.StandsAt(top.X, top.Y, top.Z, circumference)))
+                || (world.GiantWrecks.Count > 0 && world.GiantWrecks.Exists(lm => lm.StandsAt(top.X, top.Y, top.Z, circumference))))
             {
-                continue; // #3497: a landmark is drawn by its far silhouette — a height blob on top of it would hide its shape
+                continue; // #3497: a landmark (#3610: a giant wreck) is drawn by its far silhouette — a height blob on top would hide it
             }
 
             int cx = (top.X - minX) / FarTerrainTile.CellBlocks;

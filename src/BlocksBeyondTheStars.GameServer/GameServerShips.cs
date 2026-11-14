@@ -112,6 +112,11 @@ public sealed partial class GameServer
             return (false, refused); // #3520: a user ship only with its craft use AND the server's permission
         }
 
+        if (string.IsNullOrEmpty(def.RequiredBlueprint) && _content.UserShipByKey(shipType) is null)
+        {
+            return (false, "Blueprint not unlocked."); // #3606: a shipped hull without a blueprint (the starter) is never for sale
+        }
+
         var p = session.State;
         if (!string.IsNullOrEmpty(def.RequiredBlueprint) && !p.UnlockedBlueprints.Contains(def.RequiredBlueprint!))
         {

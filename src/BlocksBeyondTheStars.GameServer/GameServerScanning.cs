@@ -163,6 +163,14 @@ public sealed partial class GameServer
             value = KnowledgeMonument;
             ledgerKey = $"monument:{_world.LocationId}:{tablet.Key}";
         }
+        else if (subjectType == "block" && GiantWreckForScan(session, cell) is { } wreck)
+        {
+            // #3611: any block of a giant ship wreck reads as the wreck — the knowledge of a relic and a Codex discovery once
+            // per body and ship (GameServerGiantWrecksWorld.cs).
+            (readout.Kind, readout.SubjectKey, readout.Display, readout.InfoKey, ledgerKey) = GiantWreckScan(wreck, session.Locale);
+            readout.ThreatKey = "ui.scan.threat.inert";
+            value = KnowledgeMonument;
+        }
         else if (subjectType == "block" && LandmarkForScan(session, cell) is { } landmark)
         {
             // #3496: any block of a landmark points the scanner at the landmark — a readout, the knowledge of a relic and a
@@ -339,7 +347,7 @@ public sealed partial class GameServer
         // #2238: the ship scanner reaches as far as its tier, and a held trigger can't fire scans every frame.
         Serve(session);
         var scanner = ShipScanner(ShipOf(session));
-        if (target.Position.DistanceSquared(PilotPositionIn(instance, playerId)) > scanner.Range * scanner.Range)
+        if (ScanDistanceSq(target, PilotPositionIn(instance, playerId)) > scanner.Range * scanner.Range) // #3614: a giant wreck to its hull
         {
             return Rejected(session, entityId, "ui.scan.out_of_range", "Out of scanner range.");
         }

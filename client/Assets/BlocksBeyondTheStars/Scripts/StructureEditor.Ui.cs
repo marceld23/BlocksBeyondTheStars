@@ -115,6 +115,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 y = BuildLandmarkRows(body, y); // #3492
             }
+            else if (_giantShipMode)
+            {
+                y = BuildGiantShipRows(body, y); // #3616
+            }
 
             y = BuildPackRows(body, y);
             if (StructureStampRules.TakesProtection(_target))
@@ -267,7 +271,7 @@ namespace BlocksBeyondTheStars.Client
 
                 // #3333: a whole settlement may be UNDERGROUND — never rolled for the surface, only the underground stamper
                 // seats it. A module takes the flag from its kit (the kit panel's toggle).
-                if (!_moduleMode && !_landmarkMode && !_entryMode) // an entry's pool says whether it is underground (#3523)
+                if (!_moduleMode && !_landmarkMode && !_giantShipMode && !_entryMode) // an entry's pool says whether it is underground (#3523)
                 {
                     UiKit.AddFitButton(p, 16f, y, 348f, 34f, (_underground ? "☑ " : "☐ ") + L("ui.struct.underground"), () => { _underground = !_underground; RebuildUi(); });
                     y += 40f;

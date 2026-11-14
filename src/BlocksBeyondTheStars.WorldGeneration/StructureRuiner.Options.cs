@@ -68,6 +68,12 @@ internal sealed partial class StructureRuiner
             return;
         }
 
+        if (_giant)
+        {
+            GiantScorch(scorch); // revision 3: patches round the breaches, never a sprinkle (StructureRuiner.GiantDecay.cs)
+            return;
+        }
+
         for (int x = 0; x < _g.W; x++)
         {
             for (int y = 0; y < _g.H; y++)
@@ -148,6 +154,8 @@ internal sealed partial class StructureRuiner
         public int RubbleTotal;
         public List<(ushort From, ushort To, double Chance)> Weathering = new();
         public (ushort Block, int Tint, double Near, double Far)? Scorch;
+        public ushort FreezeFrom; // water, when the options freeze it (#3609); 0 = nothing freezes
+        public ushort FreezeTo;   // ice
 
         public static Tuning From(RuinOptions o, GameContent content, string surfaceBlock)
         {
@@ -159,6 +167,11 @@ internal sealed partial class StructureRuiner
                 ErodeShaped = o.ErodeShaped,
                 LightOff = B(o.LightOffBlock),
             };
+            if (o.FreezeWater && B(FrozenBlock) != 0)
+            {
+                (t.FreezeFrom, t.FreezeTo) = (B(WaterBlock), B(FrozenBlock));
+            }
+
             ushort fixedFlora = B(o.OvergrowthBlock);
             t.Flora = !o.Overgrowth ? (ushort)0 : fixedFlora != 0 ? fixedFlora : B(SettlementGenerator.BiomeFloraKey(surfaceBlock));
             foreach (var w in o.RubblePalette ?? Array.Empty<RuinWeightedBlock>())

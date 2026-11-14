@@ -3805,8 +3805,13 @@ the ruin verdict and the island wish.
 
 **The mask** (#3588, #3591). A baked plan carries `SettlementStructure.ColumnFloors` (−1 = unclaimed). The stamper
 (`StampPlannedBlocks`, seats `flat` / `slope` / `shelf`) clears, floors and skirts only claimed columns at their own floor
-(the skirt in the biome's sub-surface, down to the natural ground, at most 48), then the structure; the vegetation carve
-follows the claimed columns plus the crown margin. Every other kind that goes through the stamper passes no map. Reserved
+(the skirt in the biome's sub-surface, down to the natural ground, at most 48); the vegetation carve follows the claimed
+columns plus the crown margin. The order is the ground of every claimed column first, then the vegetation carve, then the
+structure's cells (`StampPlannedGround`, `CarvePlannedVegetation`, `StampPlannedCells`) — as in the classic stamper: the
+carve removes every `wood_log`, and the village modules' roofs, ridges, posts and fences are `wood_log`, so a carve after
+the cells left the planned villages roofless (#3605;
+`GrownSettlementServerTests.PlannedVillage_KeepsEveryBuiltBlock_LogRoofsIncluded`). Every other kind that goes through the
+stamper passes no map. Reserved
 ground: one site per lot (with its yard, radius 3) and one per road stretch (same-height rectangles of road, footpath,
 plaza and green merged greedily, radius 2), the kind's cut and fill limits (`ReservePlanGround`, `AddSiteFlats`).
 `SiteIndex` buckets the world's sites into 32-block cells (box plus reach, both seams wrapped) so `TryGradeTarget`,
@@ -3852,4 +3857,31 @@ frontage reaches the plaza over one road net, walkable steps of at most one and 
 village, every form, the bake carries the map / plaza / services / exits, farm markers, a ruin keeps its floors),
 `GrownSettlementServerTests` (a fresh world pins and replays its plans, the box is protected only where claimed, the town
 zone follows the claimed columns, a pen keeps its animals and lays into its crate, the field clock, the grown G.D.S. city
-with its suburbs, an older world never draws a planned kit).
+with its suburbs, an older world never draws a planned kit, a planned village keeps every built block — its log roofs
+included).
+
+## 57. Generation 42 — the giant ship wrecks (#3625: #3605–#3624, 2026-11-14)
+
+**Why.** Huge authored spaceships — a carrier, a cruise liner, a battleship, a terraforming ark and an alien crystal
+squid, up to 256 blocks a side — that nobody can build: they turn up only as wrecks, crashed on a planet or drifting in
+space, a little different in every world.
+
+**The gate.** `WorldDescription.GiantWrecksGeneration` = 42 = `CurrentTerrainGeneration`. A server-side stamp like the
+landmarks: every chunk of every generation stays bit-identical and no golden moves; the gate only keeps a planet wreck out
+of a world created before it. (The wrecks in space are a galaxy pass after the derelict stations and reach older saves
+too.)
+
+**What it adds to the pipeline.** One line in the structures stage, `StampGiantWrecks`, right after the landmarks: at
+most one wreck per planet (a hash roll, chance 0.05 — about every 20th — × the structures frequency × the world option
+*Giant ship wrecks*); never on a gas or void world or the finale body, but airless bodies and asteroids may carry one when
+they are at least four footprints around; on a type with a structure whitelist only when it names `giant_wrecks`. The ship
+is turned by a quarter turn and run through ruin revision 3 with the profile `crash` (its keel buried below the ground
+row, what falls lies as scrap — crystal for the alien ship —, plants only with air, water frozen without it), seated by the
+guaranteed search clear of pads, the crash site and the landmark (or partly in shallow water), pinned in one record and
+written once as one structure overlay. It is open to mining; its chests fill once.
+
+Everything else — the template, the toolkit, revision 3 step by step, discovery, the space wrecks, the client and the
+editor — is in [GIANT_SHIPS.md](GIANT_SHIPS.md).
+
+**Tests.** `GiantShipRulesTests`, `GiantShipTemplateTests`, `StructureRuinerCrashTests`, `GiantShipGeneratorTests`,
+`GiantWreckPlanetTests`, `GiantWreckWorldTests`, `GiantWreckPlacerTests`, `GiantDerelictTests`.

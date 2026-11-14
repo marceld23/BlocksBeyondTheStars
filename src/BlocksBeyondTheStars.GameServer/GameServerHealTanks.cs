@@ -152,7 +152,8 @@ public sealed partial class GameServer
 
         if (_boardedStation.TryGetValue(p.PlayerId, out var aboard) && IsDerelictId(aboard))
         {
-            Reject(session, "spawn_point", "@srv.derelict.no_home"); // #2632: a broken station is nobody's home
+            // #2632: a broken station is nobody's home; #3614: nor is a giant wreck
+            Reject(session, "spawn_point", Shared.Definitions.GiantShipRules.IsGiantWreckId(aboard) ? "@srv.giantwreck.no_home" : "@srv.derelict.no_home");
             return;
         }
 

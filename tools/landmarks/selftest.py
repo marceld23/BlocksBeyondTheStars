@@ -487,6 +487,136 @@ def preview_png():
     ok(line.startswith("pv: ") and "1 markers (chest 1)" in line and "1 ruin zones" in line, line)
 
 
+# --- the giant-ship toolkit (ships, shipgeom) ----------------------------------------------------------------------------
+shipgeom = importlib.import_module("shipgeom")
+ships = importlib.import_module("ships")
+
+
+def _small_hull(d=None, wall: int = 2):
+    """A 25 x 15 x 41 test hull (centre line x = 12) written into a ShipDesign."""
+    d = d or ships.ShipDesign("t_ship", "Test ship")
+    hull = d.loft([(0, shipgeom.ship_section(12, 1, 14, 17)), (10, shipgeom.ship_section(12, 0, 14, 25)),
+                   (30, shipgeom.ship_section(12, 0, 14, 25)), (40, shipgeom.ship_section(12, 3, 14, 11))],
+                  "titanium_block", wall=wall, bow=10, stern=3, anchor="deck")
+    return d, hull
+
+
+@test
+def ship_loft_closed_and_symmetric():
+    _, hull = _small_hull()
+    cells = hull.cells
+    ok(all((24 - x, y, z) in cells for x, y, z in cells), "the loft is symmetric about its centre line")
+    eq(hull.shell(2), cells - hull.interior(2), "shell = solid minus inside")
+    ok(all(hull.contains(p) for p in list(cells)[:500]) and not hull.contains((-5, 0, 0)), "span lookup = the cell set")
+    ok(all(hull.contains(p, 2) == (p in hull.interior(2)) for p in list(cells)[:2000]), "inside lookup = the set")
+    b = hull.bounds()
+    lo, hi = (b[0] - 1, b[1] - 1, b[2] - 1), (b[3] + 1, b[4] + 1, b[5] + 1)
+    outside = flood(hull.shell(2), lo, (lo, hi), solids.N6)
+    ok(not outside & hull.interior(2), "a 2-thick shell keeps the inside closed (6-connected)")
+    for z in range(12, 29):  # two equal stations: a straight midbody, no overshoot of the monotone curve
+        eq(hull.section(z), hull.section(20), f"slice {z} of the parallel midbody")
+    eq(hull.rows(20), (0, 14), "the midbody keeps its keel and deck rows")
+    ok(hull.rows(40)[1] == 14 and hull.rows(40)[0] > 3, "the bow tapers about the deck: top level, keel risen")
+
+
+@test
+def ship_tubes():
+    t = shipgeom.tube([(0, 0, 0), (0, 0, 20)], 2.5, hollow=1, kind="poly")
+    eq(sorted((x, y) for x, y, z in t.bore if z == 10), [(x, y) for x in (-1, 0, 1) for y in (-1, 0, 1)], "bore 3 x 3")
+    eq((min(c[2] for c in t.wall | t.bore), max(c[2] for c in t.wall | t.bore)), (0, 20), "flat ends")
+    ok({c[2] for c in t.bore} >= {0, 20}, "open ends: the bore runs through both caps")
+    closed = shipgeom.tube([(0, 0, 0), (0, 0, 20)], 2.5, hollow=1, kind="poly", open_ends=False)
+    ok(min(c[2] for c in closed.bore) >= 1 and max(c[2] for c in closed.bore) <= 19, "closed ends keep their caps")
+    curved = shipgeom.tube([(0, 0, 0), (10, 5, 20), (30, 0, 40)], (3, 1))
+    ok(not curved.bore and len(curved.wall) > 300, "a solid tapering tube along a curve")
+    path = shipgeom.curve([(0, 0, 0), (10, 5, 20), (30, 0, 40)])
+    ok(all(math.dist(a, b) < 0.6 for a, b in itertools.pairwise(path)), "the curve is dense")
+    ok(math.dist(path[-1], (30, 0, 40)) < 1e-6, "the curve ends on the last point")
+
+
+@test
+def ship_decks_rooms_doors():
+    d, hull = _small_hull()
+    deck = d.deck(hull, 3, "steel_floor", hatches=[(10, 20, 11, 21)])
+    ok(deck and all(p[1] == 3 and hull.contains(p, 2) for p in deck), "a deck fills the inside of one row")
+    ok((10, 3, 20) not in deck and (12, 3, 20) in deck, "a hatch stays open")
+    cor = d.corridor(hull, 4, 6, 34, width=3)
+    eq((cor.c0, cor.c1), (11, 13), "the corridor is centred on the centre line")
+    rooms = d.rooms(hull, cor, per_side=2, depth=6, a0=8, a1=32)
+    eq(len(rooms), 4, "two rooms on each side")
+    doors = [m for m in d.markers if m["id"] == "door_slide"]
+    eq(len(doors), 4, "one sliding door per room")
+    for m in doors:
+        x, y, z = m["x"], m["y"], m["z"]
+        eq(m.get("config"), "axis=x", "a door in a corridor wall along z names axis=x")
+        ok(not any(d.is_block(x, y + j, z + i) for i in (0, 1) for j in (0, 1, 2)), f"doorway {x},{y},{z} is clear")
+        ok(not d.is_block(x - 1, y, z) and not d.is_block(x + 1, y, z), f"door {x},{y},{z} opens on both sides")
+    ok(all(r.door is not None and r.centre in r.cells for r in rooms), "rooms know their door and their centre")
+    mark = d.hull_door(hull, "left", 4, 18)
+    ok(d.is_block(mark[0], mark[1] - 1, mark[2]) and hull.contains(mark, 2), "the entrance stands inside on the deck")
+    ok(not d.is_block(0, 4, 18) and not d.is_block(1, 4, 18), "the hull door cuts through the wall")
+    shaft = d.lift_shaft(12, 36, [4, 8], opening="-z", width=1)
+    ok(all(d.get(*p)[5] for p in shaft), "every cell of the ladder shaft is keep")
+    ok(d.get(12, 6, 36)[1] == "ladder" and not d.is_block(12, 4, 35), "a ladder inside, a doorway onto the deck")
+
+
+@test
+def ship_dome_windows_greebles():
+    d, hull = _small_hull()
+    win = d.window_band(hull, 8, 9, every=4, width=2, start=12, end=28)
+    ok(win and all(d.get(*p)[1] == "glass" for p in win), "windows are glass")
+    ok({p[2] for p in win} <= {z for z in range(12, 29) if (z - 12) % 4 < 2}, "windows follow the pattern")
+    dome = d.glass_dome(12, 20, 13, 5, ry=4, ribs=4, rings=1, frame="iron_block")
+    ok(dome and any(d.get(*p)[1] == "iron_block" for p in dome) and any(d.get(*p)[1] == "glass" for p in dome),
+       "a dome of glass with a frame")
+    ok(not d.is_block(12, 14, 20), "the dome's inside is cleared")
+    g1 = d.greebles(hull, seed=5, density=0.05)
+    d2, hull2 = _small_hull()
+    d2.window_band(hull2, 8, 9, every=4, width=2, start=12, end=28)
+    d2.glass_dome(12, 20, 13, 5, ry=4, ribs=4, rings=1, frame="iron_block")
+    eq(d2.greebles(hull2, seed=5, density=0.05), g1, "greebles are a function of the seed")
+    ok(g1 and not any(hull.contains(p) for p in g1), "greebles stand outside the hull")
+
+
+@test
+def ship_checks_and_header():
+    d, hull = _small_hull()
+    d.deck(hull, 3, "steel_floor")
+    errors, _ = d.problems()
+    ok(any("entrance" in e for e in errors), "a ship without an entrance is refused")
+    d.hull_door(hull, "left", 4, 18)
+    d.marker(12, 4, 12, "door_slide")
+    d.marker(12, 4, 200, "chest", "table=ruin_common")
+    d.put(12, 3, 22, "no_such_block")
+    errors, _ = d.problems()
+    ok(any("axis=x or axis=z" in e for e in errors), "a door without its axis is refused")
+    ok(any("outside the ship" in e for e in errors), "a marker outside the ship is refused")
+    ok(any("unknown block" in e for e in errors), "an unknown block is refused")
+    big = ships.ShipDesign("t_big", "Big")
+    big.box(0, 0, 0, 1, 1, 260, "iron_block")
+    ok(any("larger than 256" in e for e in big.problems()[0]), "a ship over 256 is refused")
+    t = ships.ShipDesign("t_hdr", "Header", weight=3, groundRow=2, style="alien").header
+    eq(list(t)[:8], ["key", "name", "giantShip", "nameKey", "weight", "minTerrainGeneration", "groundRow", "style"],
+       "header order")
+    ok(t["giantShip"] is True and "landmark" not in t and t["nameKey"] == "giantship.t_hdr.name"
+       and t["minTerrainGeneration"] == 42, "a giant ship header")
+
+
+@test
+def ship_demo_builds():
+    sys.path.insert(0, str(HERE.parent))
+    demo = importlib.import_module("giant_ships._demo_hull").build()
+    carved = demo.finish()
+    errors, _ = demo.problems()
+    eq(errors, [], "the demo hull has no errors")
+    ok(carved > 0 and all(v[0] == "cavity" for p, v in demo.plain.items() if p[1] < demo.header["groundRow"]
+                          and v[0] != "block"), "buried air below the ground row became cavity")
+    kinds = {m["id"] for m in demo.markers}
+    ok({"entrance", "door_slide", "chest", "sound"} <= kinds, "the demo shows every ship marker")
+    t = demo.template()
+    ok(max(t["width"], t["height"], t["length"]) <= 256 and t["giantShip"] is True, "a giant-ship template")
+
+
 def main() -> int:
     failed = 0
     for fn in TESTS:

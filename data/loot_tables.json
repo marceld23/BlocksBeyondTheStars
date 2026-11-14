@@ -95,5 +95,167 @@
         { "item": "silver_ingot", "min": 1, "max": 2, "weight": 1 }
       ] }
     ]
+  },
+  {
+    "key": "giant_carrier",
+    "rolls": [
+      { "picks": 3, "entries": [
+        { "item": "iron_plate", "min": 2, "max": 5, "weight": 4 },
+        { "item": "titanium_plate", "min": 1, "max": 3, "weight": 3 },
+        { "item": "cable", "min": 2, "max": 4, "weight": 3 },
+        { "item": "steel", "min": 1, "max": 3, "weight": 2 },
+        { "item": "copper_wire", "min": 2, "max": 5, "weight": 2 }
+      ] },
+      { "picks": 2, "chance": 0.6, "entries": [
+        { "item": "circuit_board", "min": 1, "max": 2, "weight": 3 },
+        { "item": "energy_cell_1", "min": 1, "max": 3, "weight": 3 },
+        { "item": "magnet", "min": 1, "max": 2, "weight": 2 },
+        { "item": "light_alloy", "min": 1, "max": 2, "weight": 2 },
+        { "item": "lubricant", "min": 1, "max": 2, "weight": 2 },
+        { "item": "polymer", "min": 1, "max": 3, "weight": 2 },
+        { "item": "bronze_gear", "min": 1, "max": 3, "weight": 1 },
+        { "item": "brass_fitting", "min": 1, "max": 3, "weight": 1 }
+      ] },
+      { "chance": 0.15, "entries": [
+        { "item": "power_cell", "min": 1, "max": 1, "weight": 2 },
+        { "item": "data_fragment", "min": 1, "max": 2, "weight": 2 },
+        { "item": "transport_crate", "min": 1, "max": 1, "weight": 1 }
+      ] }
+    ]
+  },
+  {
+    "key": "giant_battleship",
+    "rolls": [
+      { "picks": 3, "entries": [
+        { "item": "steel", "min": 1, "max": 4, "weight": 4 },
+        { "item": "titanium_plate", "min": 1, "max": 3, "weight": 3 },
+        { "item": "energy_cell_1", "min": 1, "max": 3, "weight": 3 },
+        { "item": "iron_plate", "min": 2, "max": 4, "weight": 2 },
+        { "item": "cable", "min": 1, "max": 3, "weight": 2 }
+      ] },
+      { "picks": 2, "chance": 0.6, "entries": [
+        { "item": "tungsten_ingot", "min": 1, "max": 2, "weight": 3 },
+        { "item": "cobalt_ingot", "min": 1, "max": 3, "weight": 3 },
+        { "item": "power_cell", "min": 1, "max": 1, "weight": 2 },
+        { "item": "magnet", "min": 1, "max": 2, "weight": 2 },
+        { "item": "circuit_board", "min": 1, "max": 2, "weight": 2 },
+        { "item": "lead_ingot", "min": 1, "max": 3, "weight": 2 },
+        { "item": "carbide", "min": 1, "max": 1, "weight": 1 }
+      ] },
+      { "chance": 0.15, "entries": [
+        { "item": "diamond", "min": 1, "max": 1, "weight": 2 },
+        { "item": "platinum_ingot", "min": 1, "max": 2, "weight": 2 },
+        { "item": "data_fragment", "min": 1, "max": 2, "weight": 2 },
+        { "item": "ai_memory_fragment", "min": 1, "max": 1, "weight": 1 }
+      ] }
+    ]
+  },
+  {
+    "key": "giant_liner",
+    "rolls": [
+      { "picks": 3, "entries": [
+        { "item": "emergency_ration", "min": 1, "max": 3, "weight": 4 },
+        { "item": "algae_ration", "min": 2, "max": 4, "weight": 3 },
+        { "item": "medpack", "min": 1, "max": 2, "weight": 3 },
+        { "item": "glass", "min": 2, "max": 6, "weight": 2 },
+        { "item": "wool", "min": 2, "max": 5, "weight": 2 },
+        { "item": "plant_fiber", "min": 4, "max": 10, "weight": 2 }
+      ] },
+      { "picks": 2, "chance": 0.6, "entries": [
+        { "item": "rug", "min": 1, "max": 2, "weight": 3 },
+        { "item": "lantern", "min": 1, "max": 3, "weight": 2 },
+        { "item": "paper_lantern", "min": 1, "max": 3, "weight": 2 },
+        { "item": "flower_pot", "min": 1, "max": 2, "weight": 2 },
+        { "item": "silver_ingot", "min": 1, "max": 2, "weight": 2 },
+        { "item": "gold_ingot", "min": 1, "max": 1, "weight": 1 }
+      ] },
+      { "chance": 0.15, "entries": [
+        { "item": "storage_bag", "min": 1, "max": 1, "weight": 1 },
+        { "item": "gold_ingot", "min": 1, "max": 2, "weight": 2 },
+        { "item": "energy_cell_1", "min": 1, "max": 2, "weight": 2 },
+        { "item": "data_fragment", "min": 1, "max": 1, "weight": 1 }
+      ] }
+    ]
+  },
+  {
+    "key": "giant_ark",
+    "rolls": [
+      { "picks": 3, "entries": [
+        { "item": "berry_seed", "min": 2, "max": 5, "weight": 3 },
+        { "item": "grain_seed", "min": 2, "max": 5, "weight": 3 },
+        { "item": "plant_fiber", "min": 4, "max": 10, "weight": 3 },
+        { "item": "sapling", "min": 1, "max": 3, "weight": 2 },
+        { "item": "shroom_seed", "min": 1, "max": 3, "weight": 2 },
+        { "item": "pumpkin_seed", "min": 1, "max": 3, "weight": 2 },
+        { "item": "algae_ration", "min": 2, "max": 4, "weight": 1 }
+      ] },
+      { "picks": 2, "chance": 0.6, "entries": [
+        { "item": "sapling_conifer", "min": 1, "max": 2, "weight": 2 },
+        { "item": "sapling_fruit_round", "min": 1, "max": 1, "weight": 2 },
+        { "item": "sapling_fruit_long", "min": 1, "max": 1, "weight": 1 },
+        { "item": "sapling_fruit_grape", "min": 1, "max": 1, "weight": 1 },
+        { "item": "sapling_fruit_banana", "min": 1, "max": 1, "weight": 1 },
+        { "item": "marigold_seed", "min": 1, "max": 3, "weight": 2 },
+        { "item": "crystal_seed", "min": 1, "max": 2, "weight": 1 },
+        { "item": "flower_pot", "min": 1, "max": 3, "weight": 1 },
+        { "item": "biofuel", "min": 1, "max": 3, "weight": 2 }
+      ] },
+      { "chance": 0.2, "entries": [
+        { "item": "hydro_tray", "min": 1, "max": 2, "weight": 3 },
+        { "item": "polymer", "min": 1, "max": 2, "weight": 1 },
+        { "item": "medpack", "min": 1, "max": 1, "weight": 1 }
+      ] }
+    ]
+  },
+  {
+    "key": "giant_squid",
+    "rolls": [
+      { "picks": 3, "entries": [
+        { "item": "crystal", "min": 2, "max": 5, "weight": 5 },
+        { "item": "glass", "min": 2, "max": 4, "weight": 2 },
+        { "item": "silicate", "min": 3, "max": 6, "weight": 2 },
+        { "item": "data_fragment", "min": 1, "max": 2, "weight": 2 },
+        { "item": "crystal_seed", "min": 1, "max": 2, "weight": 1 }
+      ] },
+      { "picks": 2, "chance": 0.6, "entries": [
+        { "item": "energy_cell_1", "min": 1, "max": 3, "weight": 3 },
+        { "item": "neodymium", "min": 1, "max": 2, "weight": 2 },
+        { "item": "lithium", "min": 1, "max": 2, "weight": 2 },
+        { "item": "platinum_ingot", "min": 1, "max": 2, "weight": 2 }
+      ] },
+      { "chance": 0.25, "entries": [
+        { "item": "ressaw_crystal", "min": 1, "max": 2, "weight": 3 },
+        { "item": "diamond", "min": 1, "max": 1, "weight": 2 },
+        { "item": "quantum_sensor", "min": 1, "max": 1, "weight": 1 }
+      ] }
+    ]
+  },
+  {
+    "key": "giant_cache",
+    "rolls": [
+      { "picks": 2, "entries": [
+        { "item": "titanium_plate", "min": 2, "max": 4, "weight": 3 },
+        { "item": "circuit_board", "min": 1, "max": 3, "weight": 3 },
+        { "item": "energy_cell_1", "min": 2, "max": 4, "weight": 3 },
+        { "item": "crystal", "min": 2, "max": 4, "weight": 2 },
+        { "item": "gold_ingot", "min": 1, "max": 3, "weight": 2 }
+      ] },
+      { "picks": 2, "entries": [
+        { "item": "data_fragment", "min": 1, "max": 3, "weight": 3 },
+        { "item": "power_cell", "min": 1, "max": 2, "weight": 2 },
+        { "item": "magnet", "min": 1, "max": 2, "weight": 2 },
+        { "item": "diamond", "min": 1, "max": 1, "weight": 2 },
+        { "item": "platinum_ingot", "min": 1, "max": 2, "weight": 1 },
+        { "item": "tungsten_ingot", "min": 1, "max": 2, "weight": 1 },
+        { "item": "carbide", "min": 1, "max": 1, "weight": 1 }
+      ] },
+      { "chance": 0.35, "entries": [
+        { "item": "ressaw_crystal", "min": 1, "max": 2, "weight": 2 },
+        { "item": "ai_memory_fragment", "min": 1, "max": 1, "weight": 2 },
+        { "item": "quantum_sensor", "min": 1, "max": 1, "weight": 1 },
+        { "item": "sensor_lens", "min": 1, "max": 1, "weight": 1 },
+        { "item": "access_code", "min": 1, "max": 1, "weight": 1 }
+      ] }
+    ]
   }
 ]

@@ -560,6 +560,7 @@ public sealed partial class GameServer
 
             TickAncientRuinHint(session); // #3334: a G.D.S. vent tower or the sealed hatch under the city
             TickLandmarkHint(session); // #3496: a giant ruin, or a house somebody keeps out in the open
+            TickGiantWreckHint(session); // #3611: the first giant ship wreck this player walks up to
 
             TickVegaMemory(session);
             TickVegaContextTips(session); // throttled situational tips (#1077): lamp, ore, places, space …

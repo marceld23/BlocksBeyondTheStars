@@ -171,6 +171,12 @@ namespace BlocksBeyondTheStars.Client
                 return true;
             }
 
+            if (_giantShipMode)
+            {
+                ExportGiantShip(key); // #3616: one compact file of its own, like a landmark
+                return true;
+            }
+
             return false;
         }
 
@@ -181,6 +187,11 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         private bool KeyHeldByOtherKind(string key)
         {
+            if (_giantShipMode)
+            {
+                return false; // #3616: the giant ships' folder holds no generator entries
+            }
+
             bool landmarkFolder = _entryMode ? CurrentTarget() == StampTarget.LandmarkEntry : _landmarkMode;
             string path = Path.Combine(landmarkFolder ? UserLandmarksRoot : UserTemplatesRoot, key + ".json");
             string existing;

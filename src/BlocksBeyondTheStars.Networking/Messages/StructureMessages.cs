@@ -108,6 +108,23 @@ public sealed class SpaceShipDesign
     /// The spacewalk's door preview shows only where the server lets the suit build (the owner and their allies).
     /// Contractless-additive: an older server sends none.</summary>
     public string OwnerId { get; set; } = string.Empty;
+
+    /// <summary>#3612: a big design travels in PARTS so every encoded message — MessagePack and the browser's JSON
+    /// envelope alike — stays well under the 1 MB packet cap (<c>NetCodec.MaxPacketBytes</c>). <see cref="Serial"/> numbers
+    /// one whole design (every part of it carries the same serial; a later design of the same structure carries a larger
+    /// one), <see cref="PartIndex"/> is this part's place (0 … <see cref="PartCount"/> − 1) and <see cref="PartCount"/> how
+    /// many parts the design has. The cell arrays (<see cref="X"/> … <see cref="Shape"/>) of the parts concatenate in part
+    /// order to the design's cells; part 0 carries the door and hatch lists, every part the rest of the header.
+    /// <see cref="PartCount"/> 0 or 1 = the whole design in this one message (what every older server sends, and what this
+    /// server sends whenever the design fits). <c>Client.Core.SpaceDesignAssembler</c> puts the parts back together.
+    /// Contractless-additive: an older peer leaves all three at 0.</summary>
+    public int Serial { get; set; }
+
+    /// <summary>This part's place in its design (see <see cref="Serial"/>).</summary>
+    public int PartIndex { get; set; }
+
+    /// <summary>How many parts the design has; 0 or 1 = the whole design (see <see cref="Serial"/>).</summary>
+    public int PartCount { get; set; }
 }
 
 /// <summary>Server → client: a player's ship parked on the current world as a placed voxel OBJECT
@@ -186,7 +203,11 @@ public sealed class DeployStationCoreIntent
 }
 
 /// <summary>Server → client: one cell of a voxel structure changed (item 20, S2) — the free-space analogue of
-/// <see cref="BlockChanged"/>. Broadcast to everyone in the space instance so they re-mesh the structure.</summary>
+/// <see cref="BlockChanged"/>. Broadcast to everyone in the space instance so they re-mesh the structure. #3612: a station
+/// structure (a player station, a derelict, a giant wreck) changes by these for the pilots outside, never by a whole
+/// <see cref="SpaceShipDesign"/> per mined or placed block — the full design only goes out on first contact, to a new
+/// pilot, or when the structure's cell box changed. For a structure sent as its visible shell, cells a change laid open
+/// (a hole into a hall) arrive as these too, with their block, dye, glow and shape.</summary>
 public sealed class StructureBlockChanged
 {
     public string StructureId { get; set; } = string.Empty;

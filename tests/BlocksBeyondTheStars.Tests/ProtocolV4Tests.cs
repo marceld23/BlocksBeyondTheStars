@@ -50,7 +50,7 @@ public sealed class ProtocolV4Tests : IDisposable
         };
 
     [Fact]
-    public void Version_IsEleven()
+    public void Version_IsTwelve()
     {
         // v4 = LZ4 + BlueprintsUnchanged (this file); v5 = the second LiteNetLib channel + WorldId (ProtocolV5Tests);
         // v6 = the far-terrain tile request/answer (#1821, FarTerrainTileTests); v7 = the Crystal Net lists, device
@@ -58,9 +58,10 @@ public sealed class ProtocolV4Tests : IDisposable
         // intents plus the moving frame on MoveIntent / PlayerPresence / PlayerStateUpdate (#2113, RailTests);
         // v9 = the bio lab's blocks and the content fingerprint in the join (#2222, ContentFingerprintTests);
         // v10 = Crystal Net 2: lifts, device deltas, ship frames, six device directions (#2251, CrystalNet2Tests);
-        // v11 = eleven suit slots, wearing from the hold, the glider flag (#2289/#2293/#2296, SuitGearTests).
-        Assert.Equal(11, Protocol.Version);
-        Assert.Equal(11, new JoinRequest().ProtocolVersion);
+        // v11 = eleven suit slots, wearing from the hold, the glider flag (#2289/#2293/#2296, SuitGearTests);
+        // v12 = structure designs in parts + styled single-cell station updates (#3612, DerivedStationTests).
+        Assert.Equal(12, Protocol.Version);
+        Assert.Equal(12, new JoinRequest().ProtocolVersion);
     }
 
     [Fact]

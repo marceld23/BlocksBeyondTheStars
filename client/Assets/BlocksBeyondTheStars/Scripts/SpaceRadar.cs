@@ -77,6 +77,11 @@ namespace BlocksBeyondTheStars.Client
                 : key == AnomalyHint.NameKey ? "Anomaly" : "Wormhole");
         }
 
+        /// <summary>#3615: how far a wreck is for the readout — to a giant wreck's hull box while the flight view holds its hull
+        /// (its centre lies up to 128 blocks inside), else <paramref name="centreDistance"/>.</summary>
+        private float WreckDistance(BlocksBeyondTheStars.Networking.Messages.NetCombatEntity e, Vector3 pilot, float centreDistance)
+            => SpaceView != null ? SpaceView.HullDistance(e, pilot, centreDistance) : centreDistance;
+
         private static readonly Color WaypointCol = new Color(1f, 0.85f, 0.3f);
 
         private void EnsureBuilt()
@@ -263,9 +268,9 @@ namespace BlocksBeyondTheStars.Client
                     nearestStation = e.Name;
                     nearestUp = dir.y;
                 }
-                else if (wreck && dir.magnitude < nearestWreckDist)
+                else if (wreck && WreckDistance(e, pilot, dir.magnitude) is var wreckDist && wreckDist < nearestWreckDist)
                 {
-                    nearestWreckDist = dir.magnitude;
+                    nearestWreckDist = wreckDist; // #3615: a giant wreck's readout counts to its hull, not its centre
                     nearestWreck = e.Name;
                     nearestWreckUp = dir.y;
                 }

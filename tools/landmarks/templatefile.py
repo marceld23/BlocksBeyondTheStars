@@ -14,6 +14,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 DATA = REPO / "data"
 LANDMARKS = DATA / "landmarks"
+GIANT_SHIPS = DATA / "giant_ships"
 
 Look = tuple  # (kind, id, tint, glow, shape, keep)
 MATERIAL_TOKENS = ("@wall", "@accent", "@roof", "@floor", "@path")
@@ -27,7 +28,8 @@ def loads_relaxed(text: str):
 
 
 def resolve(ref: str | Path) -> Path:
-    """A template file from a key (data/landmarks/<key>.json), a .json path or an editor export folder."""
+    """A template file from a key (data/landmarks/<key>.json, else data/giant_ships/<key>.json), a .json path or an
+    editor export folder."""
     p = Path(ref)
     if p.suffix.lower() == ".json" and p.exists():
         return p
@@ -36,7 +38,10 @@ def resolve(ref: str | Path) -> Path:
     q = LANDMARKS / f"{ref}.json"
     if q.exists():
         return q
-    raise FileNotFoundError(f"no landmark template '{ref}' (looked for {p} and {q})")
+    g = GIANT_SHIPS / f"{ref}.json"
+    if g.exists():
+        return g
+    raise FileNotFoundError(f"no landmark template '{ref}' (looked for {p}, {q} and {g})")
 
 
 def load(ref: str | Path) -> tuple[dict, Path]:

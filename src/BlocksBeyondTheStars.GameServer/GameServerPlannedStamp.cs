@@ -36,19 +36,29 @@ public sealed partial class GameServer
                 int f = s.FloorAt(x, z);
                 if (f >= 0)
                 {
-                    StampPlannedColumn(p, x, z, f, floorId, skirtId);
+                    StampPlannedGround(p, x, z, f, floorId, skirtId);
                 }
             }
         }
 
+        // The trees go BEFORE the structure is written (as in the classic stamper): the carve removes every wood_log, and the
+        // village modules' roofs, ridges, posts and fences are wood_log (#3605).
         CarvePlannedVegetation(p, crownRing);
+        for (int x = 0; x < s.Width; x++)
+        {
+            for (int z = 0; z < s.Length; z++)
+            {
+                if (s.FloorAt(x, z) >= 0)
+                {
+                    StampPlannedCells(p, x, z);
+                }
+            }
+        }
     }
 
-    /// <summary>One claimed column: the terrain above its floor cleared, the floor laid, a plinth down to the natural ground,
-    /// then the structure's own cells.</summary>
-    private void StampPlannedColumn(PlacedSettlement p, int x, int z, int f, BlockId floorId, BlockId skirtId)
+    /// <summary>One claimed column: the terrain above its floor cleared, the floor laid, a plinth down to the natural ground.</summary>
+    private void StampPlannedGround(PlacedSettlement p, int x, int z, int f, BlockId floorId, BlockId skirtId)
     {
-        var s = p.Structure;
         int wx = p.Origin.X + x, wz = p.Origin.Z + z, floorY = p.GroundY + f;
         int natural = _generator.SurfaceHeight(_world.Planet, wx, wz);
         int clearTop = System.Math.Min(System.Math.Max(floorY + 3, natural + 1), floorY + 96);
@@ -65,7 +75,13 @@ public sealed partial class GameServer
                 _world.SetBlock(new Vector3i(wx, y, wz), skirtId);
             }
         }
+    }
 
+    /// <summary>One claimed column's own structure cells.</summary>
+    private void StampPlannedCells(PlacedSettlement p, int x, int z)
+    {
+        var s = p.Structure;
+        int wx = p.Origin.X + x, wz = p.Origin.Z + z;
         for (int y = 0; y < s.Height; y++)
         {
             ushort b = s.Get(x, y, z);

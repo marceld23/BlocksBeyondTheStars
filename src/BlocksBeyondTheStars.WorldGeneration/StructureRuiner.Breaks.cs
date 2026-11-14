@@ -58,6 +58,12 @@ internal sealed partial class StructureRuiner
 
     private void Breaks()
     {
+        if (_giant)
+        {
+            HullBreaks(); // revision 3: a long giant hull breaks into sections (StructureRuiner.Giant.cs)
+            return;
+        }
+
         if (_revision < 2 || _hull || _profile != LandmarkRules.ProfileLattice || !TakeableBounds(out var b))
         {
             return;

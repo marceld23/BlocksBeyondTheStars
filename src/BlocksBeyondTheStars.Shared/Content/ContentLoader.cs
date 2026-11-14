@@ -133,6 +133,16 @@ public static class ContentLoader
 
         content.SetLootTables(lootTables);
         content.SetLandmarks(landmarks, warn);
+
+        // Giant ships (#3607): one file per ship under data/giant_ships, plus the editor's user-content folder — set after the
+        // loot tables, which their chests are checked against. Optional: no folder → no giant ships.
+        var giantShips = LoadGiantShips(Path.Combine(dataDir, GiantShipRules.DataFolder), warn);
+        if (!string.IsNullOrEmpty(userContentDir) && Directory.Exists(userContentDir))
+        {
+            giantShips.AddRange(LoadGiantShips(Path.Combine(userContentDir!, GiantShipRules.UserFolder), warn));
+        }
+
+        content.SetGiantShips(giantShips, warn);
         content.SetStories(stories);
         content.SetFailedStoryPacks(failedPacks);
 
@@ -286,6 +296,35 @@ public static class ContentLoader
     /// compact body (#3485), so a file without listed cells is fine as long as it has rows (or is a generator entry, #3518);
     /// an unreadable or empty file is reported and skipped.</summary>
     private static List<StructureTemplate> LoadLandmarks(string dir, Action<string>? warn = null)
+        => LoadTemplatePerFile(dir, "landmark", t =>
+        {
+            if (t.Cells.Count == 0 && t.Rows.Count == 0 && !t.IsSource)
+            {
+                return false;
+            }
+
+            t.Kind = "landmark";
+            t.Landmark = true;
+            return true;
+        }, warn);
+
+    /// <summary>Loads every giant ship of a folder (#3607): one <see cref="StructureTemplate"/> per file in ordinal file-name
+    /// order (the pool order), the key defaulting to the file name, flagged <see cref="StructureTemplate.GiantShip"/> — the
+    /// folder decides the kind. A file that says it is a landmark stays one and is refused by the pool's check (a landmark
+    /// never becomes a giant ship); a file without a body is kept for the check to report. Unreadable → reported, skipped.</summary>
+    private static List<StructureTemplate> LoadGiantShips(string dir, Action<string>? warn = null)
+        => LoadTemplatePerFile(dir, "giant ship", t =>
+        {
+            t.Kind = GiantShipRules.TemplateKind;
+            t.GiantShip = true;
+            return true;
+        }, warn);
+
+    /// <summary>One <see cref="StructureTemplate"/> per <c>*.json</c> file of <paramref name="dir"/>, in ordinal file-name
+    /// order, the key defaulting to the file name; <paramref name="accept"/> marks a template's kind and may refuse it. An
+    /// unreadable file is reported as an unreadable <paramref name="what"/> and skipped; no folder → none.</summary>
+    private static List<StructureTemplate> LoadTemplatePerFile(string dir, string what, Func<StructureTemplate, bool> accept,
+        Action<string>? warn)
     {
         var result = new List<StructureTemplate>();
         if (!Directory.Exists(dir))
@@ -300,7 +339,7 @@ public static class ContentLoader
             try
             {
                 var t = JsonSerializer.Deserialize<StructureTemplate>(File.ReadAllText(file), JsonOptions);
-                if (t == null || (t.Cells.Count == 0 && t.Rows.Count == 0 && !t.IsSource))
+                if (t == null)
                 {
                     continue;
                 }
@@ -310,13 +349,14 @@ public static class ContentLoader
                     t.Key = Path.GetFileNameWithoutExtension(file);
                 }
 
-                t.Kind = "landmark";
-                t.Landmark = true;
-                result.Add(t);
+                if (accept(t))
+                {
+                    result.Add(t);
+                }
             }
             catch (JsonException ex)
             {
-                warn?.Invoke($"Skipping unreadable landmark '{file}': {ex.Message}");
+                warn?.Invoke($"Skipping unreadable {what} '{file}': {ex.Message}");
             }
         }
 

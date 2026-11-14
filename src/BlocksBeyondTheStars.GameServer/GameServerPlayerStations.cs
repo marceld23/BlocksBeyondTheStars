@@ -301,6 +301,12 @@ public sealed partial class GameServer
     /// anchor (#1481) rides along from the boardable record once the interior has been materialised.</summary>
     private void PersistStation(string loc, SpaceStructure s)
     {
+        if (s.Derived)
+        {
+            PersistDerivedStation(s); // #3612: only the players' changes, never the cell list
+            return;
+        }
+
         _stationHostBody[s.Id] = loc; // remember the body it orbits (travel-screen badge + menu-board return)
         var stamped = _stationsById.TryGetValue(s.Id, out var boardable) && boardable.Materialised ? boardable : null;
         var row = new StoredSpaceStructure
@@ -490,6 +496,12 @@ public sealed partial class GameServer
     /// absorb pass never takes a block mined from outside back.</para></summary>
     private void StampPlayerStation(BoardableStation station, SpaceStructure src)
     {
+        if (src.Derived)
+        {
+            StampDerivedStation(station, src); // #3612: one structure overlay, no cell-by-cell stamp or top-up
+            return;
+        }
+
         bool refresh = station.Stamped;
         var (min, max) = CellBox(src);
 
@@ -691,24 +703,9 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>The cell-grid bounding box of a build (both corners inclusive; the origin cell for an empty build).</summary>
-    private static (Vector3i Min, Vector3i Max) CellBox(SpaceStructure src)
-    {
-        if (src.Cells.Count == 0)
-        {
-            return (new Vector3i(0, 0, 0), new Vector3i(0, 0, 0));
-        }
-
-        int minX = int.MaxValue, minY = int.MaxValue, minZ = int.MaxValue;
-        int maxX = int.MinValue, maxY = int.MinValue, maxZ = int.MinValue;
-        foreach (var c in src.Cells.Keys)
-        {
-            if (c.X < minX) minX = c.X; if (c.Y < minY) minY = c.Y; if (c.Z < minZ) minZ = c.Z;
-            if (c.X > maxX) maxX = c.X; if (c.Y > maxY) maxY = c.Y; if (c.Z > maxZ) maxZ = c.Z;
-        }
-
-        return (new Vector3i(minX, minY, minZ), new Vector3i(maxX, maxY, maxZ));
-    }
+    /// <summary>The cell-grid bounding box of a build (both corners inclusive; the origin cell for an empty build). #3612:
+    /// cached on the structure and kept by every cell write — it used to scan every cell, several times per edit.</summary>
+    private static (Vector3i Min, Vector3i Max) CellBox(SpaceStructure src) => src.CellBox();
 
     /// <summary>Where a boarder of a player station arrives (#2606), judged on EVERY boarding against what the interior
     /// world holds now: the standable cell (feet cell with two free cells above) nearest to the station core, a sealed
@@ -1026,7 +1023,8 @@ public sealed partial class GameServer
     /// no materialised player station or the grid already said so.</summary>
     private string? MirrorStationCell(Vector3i world, BlockId block, int tint = 0, int glow = 0, int shape = 0)
     {
-        if (!IsPlayerStationWorld(_world.LocationId) && !IsGeneratedDerelictWorld(_world.LocationId)) // #2634: a derelict's hull follows too
+        if (!IsPlayerStationWorld(_world.LocationId) && !IsGeneratedDerelictWorld(_world.LocationId) // #2634: a derelict's hull follows too
+            && !IsDerivedStationWorld(_world.LocationId)) // #3612: and a derived station's
         {
             return null;
         }
@@ -1046,14 +1044,18 @@ public sealed partial class GameServer
             return null; // nothing the grid doesn't already say
         }
 
+        var boxBefore = CellBox(s);
         s.Set(cell, block, tint, glow, shape); // #1493: dye + form ride along, so the hull seen from a spacewalk matches
         var (min, max) = CellBox(s);
+        NotePendingStationCell(stationId, cell, (min, max) != boxBefore); // #3612: the pilots get this cell, not the design
         RefreshStationBounds(station, min, max);
         return stationId;
     }
 
-    /// <summary>The publish half of the write-back: persists the station's row and re-sends its design to the
-    /// pilots floating beside the hull right now, so they see the rebuilt wall (or the grown tree) too.</summary>
+    /// <summary>The publish half of the write-back: persists the station's build and tells the pilots floating beside the
+    /// hull right now, so they see the rebuilt wall (or the grown tree) too. #3612: the changed cells one by one
+    /// (<see cref="PublishStationStructureChanges"/>) — the whole design only when the cell box moved; a derived station
+    /// writes its delta, never its cell list.</summary>
     private void PublishStationCells(string stationId)
     {
         if (!_playerStationCells.TryGetValue(stationId, out var s))
@@ -1068,16 +1070,7 @@ public sealed partial class GameServer
 
         // The instance is found by the structure it holds, not by key: a never-landed ship's instance is keyed by
         // the planet-type placeholder (#1493). #2634: a derelict floats in every orbit of its system — all of them.
-        foreach (var instance in _spaceInstances.Values.Where(i => i.Structures.ContainsKey(s.Id)))
-        {
-            foreach (var pid in instance.Players)
-            {
-                if (FindSessionByPlayerId(pid) is { } sess)
-                {
-                    SendShipDesign(sess, s);
-                }
-            }
-        }
+        PublishStationStructureChanges(s);
     }
 
     /// <summary>Test seam (#1480): the body id a player station orbits (empty when unknown).</summary>

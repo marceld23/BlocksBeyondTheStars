@@ -58,18 +58,19 @@ public sealed partial class GameServer
             Rng = RngFor(lm.Seed, "markers"),
         };
         var lootRng = RngFor(lm.Seed, "landmark-loot");
-        lm.RevealKey = $"{_world.LocationId}|landmark:{lm.Key}";
+        // #3610: a giant wreck runs through here too — with its own reveal key, chest lane and loot kind
+        lm.RevealKey = lm.GiantWreck ? GiantWreckRevealKey(lm) : $"{_world.LocationId}|landmark:{lm.Key}";
         bool doors = false;
         foreach (var marker in lm.Structure.Markers)
         {
             var cell = WorldConstants.CanonicalBlock(lm.Cell(marker.LocalPos), _world.Circumference);
             if (marker.Type == LandmarkRules.ChestMarker)
             {
-                SpawnLandmarkChest(cell, MarkerSettings.Parse(marker.Data));
+                SpawnLandmarkChest(lm, cell, MarkerSettings.Parse(marker.Data));
             }
             else if (LandmarkLootMarkers.Contains(marker.Type))
             {
-                SpawnStructureLoot(LandmarkLootKind, marker.Type, new Vector3f(cell.X, cell.Y, cell.Z), lootRng);
+                SpawnStructureLoot(lm.GiantWreck ? GiantShipRules.RecordKind : LandmarkLootKind, marker.Type, new Vector3f(cell.X, cell.Y, cell.Z), lootRng);
             }
             else if (DoorBlocks.IsDoorMarker(marker.Type))
             {
@@ -100,22 +101,23 @@ public sealed partial class GameServer
     }
 
     /// <summary>The one-time container of a chest (idempotent through <see cref="WorldMetadata.GeneratedLoot"/>: a looted
-    /// chest never refills).</summary>
-    private void SpawnLandmarkChest(Vector3i cell, MarkerSettings settings)
+    /// chest never refills). #3610: a giant wreck's chest takes its own lane and container prefix.</summary>
+    private void SpawnLandmarkChest(LandmarkInstance lm, Vector3i cell, MarkerSettings settings)
     {
-        string key = $"landmark:chest:{cell.X}:{cell.Y}:{cell.Z}";
+        string lane = LandmarkChestLaneOf(lm);
+        string key = $"{lane}:chest:{cell.X}:{cell.Y}:{cell.Z}";
         if (_meta.GeneratedLoot.Contains(key))
         {
             return;
         }
 
         _meta.GeneratedLoot.Add(key);
-        if (!LandmarkChestExists(cell, settings))
+        if (!MarkerChestExists(lane, cell, settings))
         {
             return;
         }
 
-        var items = LandmarkChestItems(cell, settings);
+        var items = MarkerChestItems(lane, cell, settings);
         if (items.Count == 0)
         {
             return;
@@ -123,7 +125,7 @@ public sealed partial class GameServer
 
         AddContainer(new StoredContainer
         {
-            Id = LandmarkChestContainerPrefix + $"{cell.X}_{cell.Y}_{cell.Z}",
+            Id = (lm.GiantWreck ? GiantWreckChestContainerPrefix : LandmarkChestContainerPrefix) + $"{cell.X}_{cell.Y}_{cell.Z}",
             Planet = _world.LocationId,
             Kind = "salvage",
             Position = cell,
