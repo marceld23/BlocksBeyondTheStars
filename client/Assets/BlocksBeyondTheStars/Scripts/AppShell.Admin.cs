@@ -26,8 +26,8 @@ namespace BlocksBeyondTheStars.Client
 
         private static bool AdminRowOffered(GameBootstrap boot) => boot?.Network != null && boot.Network.HasAdminView;
 
-        /// <summary>Every player in a world whose server files the call — except an admin, who has the Admin row instead (a
-        /// singleplayer world's player is its world admin: calling oneself would only file a report nobody else reads).</summary>
+        /// <summary>Every player in a world whose server files the call — except an admin, who has the Admin row instead.
+        /// Singleplayer gets neither row (#3638): its server files no calls and offers no admin view.</summary>
         private static bool CallAdminRowOffered(GameBootstrap boot) => boot?.Network != null && boot.Network.OffersCallAdmin;
 
         /// <summary>How many admin rows the pause menu gets.</summary>

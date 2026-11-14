@@ -28,16 +28,17 @@ namespace BlocksBeyondTheStars.Client
         /// menu's Admin button), 2 = the visible variant of an official hosted world's owner (show its note).</summary>
         public byte AdminModeAvailable { get; private set; }
 
-        /// <summary>Whether this player may open the admin view at all.</summary>
+        /// <summary>Whether this player may open the admin view at all — never in singleplayer (#3638): the server offers it
+        /// to nobody but a fleet admin on a server for one player.</summary>
         public bool HasAdminView => AdminModeAvailable != AdminModes.Off;
 
         /// <summary>#3508: the server files "Call an admin" (<see cref="Networking.Messages.JoinAccepted.AdminCallSupported"/>). False before the
-        /// join and against an older server, which would drop the call.</summary>
+        /// join, against an older server, which would drop the call, and in singleplayer (#3638), where nobody else would read it.</summary>
         public bool AdminCallSupported { get; private set; }
 
         /// <summary>Whether this client offers "Call an admin" — the pause menu's button and the chat's <c>/admin Text</c>: the
-        /// server must file it, and the player must not be an admin themselves (an admin has the admin view instead; a
-        /// singleplayer world's player is its admin, and a call would only reach themselves).</summary>
+        /// server must file it (never in singleplayer, #3638), and the player must not be an admin themselves (an admin has the
+        /// admin view instead).</summary>
         public bool OffersCallAdmin => AdminCallSupported && !HasAdminView;
 
         /// <summary>The Players tab: who plays where (#3505).</summary>

@@ -4280,7 +4280,7 @@ public sealed partial class GameServer
             TerrainGeneration = _meta.Description.TerrainGeneration, // #1644
             TerrainLavaCoreVolcanoes = _meta.Description.LavaCoreVolcanoes, // #2172: the planet map previews need it too
             ContentFingerprint = _content.BlockFingerprint, // #2222: the client checks it against its own
-            AdminCallSupported = true, // #3508: "Call an admin" is filed here — the client offers it only then
+            AdminCallSupported = !SinglePlayerServer, // #3508: the client offers "Call an admin" only then — never in singleplayer (#3638)
         });
         session.AnnouncedWorldId = WorldIdOf(state.CurrentLocationId); // #2117
         SendInventory(session);

@@ -10,9 +10,18 @@ every report filed in the world. This is the *how it fits together* reference; t
 | Who | Variant (`AdminModes`) | What it does |
 |---|---|---|
 | A player | — | nothing; F8 and the Admin button are hidden |
-| World admin (`Admin` / `WorldAdmin`) on a self-hosted, LAN or singleplayer world | **Invisible** (1) | panel + observer: invisible, no damage, free flight, jump, follow |
-| Fleet admin (`BBS_FLEET_ADMINS`) anywhere | **Invisible** (1) | the same, on every world of the fleet |
+| World admin (`Admin` / `WorldAdmin`) on a self-hosted or LAN world | **Invisible** (1) | panel + observer: invisible, no damage, free flight, jump, follow |
+| World admin in **singleplayer** — any server with `MaxPlayers` ≤ 1 | — | nothing (#3638): no F8, no Admin button, no admin-view line in the chat help, and no "Call an admin" either; the admin chat commands stay |
+| Fleet admin (`BBS_FLEET_ADMINS`) anywhere | **Invisible** (1) | the same, on every world of the fleet — also on a server for one player (a reserved slot) |
 | World owner on an **official hosted** world (`JoinTokenSecret` set) who is not a fleet admin | **Visible** (2) | the panel only — players, log, chat, reports; no invisibility, no god mode, no jump or follow |
+
+**Singleplayer** (#3638): the desktop launches the bundled server with `--max-players 1` (`AppShell.StartSingleplayerWorld`;
+hosting a LAN world opens 2–16 slots) and the browser runs it with `MaxPlayers = 1` (`BrowserLocalServer`). Its only
+player is the world's admin, with nobody to watch, write to or be called by, so `AdminModeAvailableFor` answers *Off*
+for anyone but a fleet admin on a server with `MaxPlayers` ≤ 1 (`SinglePlayerServer`), and `JoinAccepted.AdminCallSupported`
+is false there. Both matter: the client hides "Call an admin" for a player who *has* the admin view
+(`NetworkClient.OffersCallAdmin`), so taking the view away alone would have surfaced the call instead. A dedicated server
+set to one player is treated the same. Cheats or creative mode make no exception.
 
 The hosted rule is a child-safety decision (2026-11-12): on an official world the owner is any registered player, and
 invisible watching plus private messages to children are exactly what a stranger must not be able to do. The owner's
@@ -134,7 +143,8 @@ admin or an observer is staff-only. The mirror's name and note are control-strip
 is online or not. An empty text (`srv.admin.call_usage`) or a call from an admin (`srv.admin.call_is_admin`) files
 nothing. On an official hosted world the call also goes to the operators (`NotifyOperator` + `PostReportToInbox`,
 `reportType` `admin-call`). The client offers it only when `JoinAccepted.AdminCallSupported` is set and the player has no
-admin view (`NetworkClient.OffersCallAdmin`); against an older server `/admin` stays the admin help.
+admin view (`NetworkClient.OffersCallAdmin`); against an older server and in singleplayer (a server with `MaxPlayers` ≤ 1
+sets the flag false, #3638) `/admin` stays the admin help.
 
 Every route shares the report rate limit (`TakeReportSlot`, 3 per 10 minutes; quietly for feedback). Notes and feedback
 titles are screened before a world admin sees them. The server keeps at most **500** rows in RAM (the oldest done row goes

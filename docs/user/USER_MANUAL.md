@@ -5180,8 +5180,9 @@ with none at all that you need one.
 - For help without naming anybody: you are stuck, lost, or have a question. The call is saved for the admins of this
   world — whether one of them is online right now or not, the answer is the same — and they can answer you directly. On
   an official hosted world the team gets it too. A few in a row is plenty, like `/report`.
-- A bare `/admin` (or one without words) only shows how to use it; for an admin it lists the admin commands. On a
-  server too old to take calls, the pause menu has no **Call an admin** and `/admin` lists the admin commands.
+- A bare `/admin` (or one without words) only shows how to use it; for an admin it lists the admin commands. In
+  singleplayer and on a server too old to take calls, the pause menu has no **Call an admin** and `/admin` lists the
+  admin commands.
 
 ### `/r` — answer an admin
 - When an admin writes to you, the line shows highlighted in the chat (**Admin Name → you**) and a short notice pops
@@ -5193,6 +5194,10 @@ with none at all that you need one.
 Admins of a world (the world's creator, a name in the server's admin list, an operator) open their **admin view** with
 **F8** or **Admin** in the pause menu. While it is on, your character is **invisible** and takes **no damage**, and you
 fly freely through walls; leaving puts you back exactly where you started. No cheats are needed.
+
+**Not in singleplayer:** there you are alone in your world, with nobody to watch, write to or call — so there is no
+admin view (F8 does nothing, the pause menu has no **Admin** button) and no **Call an admin** either. The admin commands
+in the chat (`/tp`, `/landmark` …) are not affected. A world you host for friends has the admin view.
 
 | Tab | What you see | What you can do |
 |---|---|---|
