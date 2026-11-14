@@ -75,10 +75,13 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         // Re-pinned 2026-11-12 (the school club's landmarks): six more building blocks (travertine, blackened sandstone,
         // green copper, three burger layers) shifted the block ids and atlas slots again.
         // Geometry did not change (15838 / 12876 verts, 7580 + 306 / 6148 + 140 tris); sky unchanged.
+        // Re-pinned 2026-11-15 (the lost civilizations, #3644/#3645): fifteen more blocks (glyph stones, dark sandstone, the eye,
+        // the red fluid, eight mural tiles, two maze stones) shifted the block ids and atlas slots again.
+        // Geometry did not change (15838 / 12876 verts, 7580 + 306 / 6148 + 140 tris); sky unchanged.
         private static readonly Dictionary<string, ulong> Pinned = new Dictionary<string, ulong>
         {
-            ["deep (5,1,7)"] = 0x24b54736ffc4c0cdUL,
-            ["surface (5,2,7)"] = 0x3da9eb399291ef99UL,
+            ["deep (5,1,7)"] = 0xd854d6213d6c3061UL,
+            ["surface (5,2,7)"] = 0x5572ec9f39bfbe31UL,
             ["sky (5,3,7)"] = 0xd6a8cf1a27eab505UL,
         };
 
