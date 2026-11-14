@@ -203,7 +203,14 @@ public sealed class GiantWreckPlanetTests : IDisposable
             Assert.Single(server.LandmarksForTest);
             var wreck = Assert.Single(server.GiantWrecksForTest);
             Assert.Contains(server.FootprintsForTest, f => f.Kind == GiantShipRules.RecordKind);
-            Assert.Empty(server.FootprintCollisionsForTest());
+
+            // Since #3629/#3631 this world also has an intercity line: its stations and end spans touch the towns they join on
+            // purpose (StructureFootprintTests.ByDesign). Every other pair — the wreck against the line included — stays clear.
+            var collisions = server.FootprintCollisionsForTest()
+                .Where(c => !((c.A.Kind == StructureTypeRules.Intercity && c.B.Kind == StructureTypeRules.Settlement)
+                              || (c.A.Kind == StructureTypeRules.Settlement && c.B.Kind == StructureTypeRules.Intercity)))
+                .ToList();
+            Assert.True(collisions.Count == 0, "footprints overlap: " + string.Join("; ", collisions.Select(c => $"{c.A.Kind}@{c.A.Cx},{c.A.Cz} × {c.B.Kind}@{c.B.Cx},{c.B.Cz}")));
             Assert.True(server.OverlapsAnySettlement(wreck.Rect.Cx, wreck.Rect.Cz)); // the point checks see it too
         }
     }
