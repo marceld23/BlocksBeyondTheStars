@@ -613,7 +613,8 @@ The air and the weather leave their mark on the world (atmosphere package, Octob
 - **Mist in the valleys** gathers in the low ground around dawn and dusk and in fog weather, and burns off toward
   noon; looking toward a low sun, the haze glows golden. Caves and interiors stay clear. Every world has a mist of
   its own: how much of it there is, how often fog weather comes, how torn it is and its colour — many worlds have
-  white mist, others a yellow, green, blue, pink or violet one. Two worlds of the same kind can differ. **Gas
+  white mist, others a yellow, green, blue, pink or violet one, and **fog weather** takes that colour too (a pink-mist
+  world gets a pink fog). Two worlds of the same kind can differ. **Gas
   giants are never clear**: a dense amber, rose, lilac or teal haze hangs over the gas sea all day and in every weather,
   swelling and thinning slowly, and the view always stays short.
 - **Fog wisps drifting in the wind**: the mist is not one even blanket — it lies in banks with clear gaps between
@@ -4568,10 +4569,13 @@ look up: what a mix does follows from what goes in, and the same things always g
   and every wagon come back as items. A fall taken aboard is never a fall.
 - Other riders on the same train are placed inside the wagons exactly as your game draws them, so nobody slides
   through a wall on a curve or across the world seam.
-- **Intercity trains.** On some newer worlds, two towns or cities are joined by a monorail line. You'll find a
+- **Intercity trains.** On many newer worlds, two towns or cities are joined by a monorail line — on the newest worlds
+  even towns up to about 2000 blocks apart, and nearly every galaxy has at least one. You'll find a
   **station** at the edge of each town — look for the amber station marker on the world map ("… Station"). A
-  **public train** runs back and forth between the two stations on its own (up to 16 blocks per second) and waits
-  about **30 seconds** at each one.
+  **public train** runs back and forth between the two stations on its own (up to 16 blocks per second, 24 on a long
+  line) and waits about **30 seconds** at each one. A **departure board** hangs over the track in each station hall:
+  where the train goes and when the next one comes ("Next train in 1:20", "Train is here · departs in 12 s",
+  "Train arriving").
   Walk up to a wagon and press **E** to board (E beside a seat sits down — unless you are looking at a passenger: then
   **E** talks to them, as the prompt says; **F** leaves), then enjoy the ride. The train
   belongs to everyone: nobody needs a ticket, and nobody can drive, stop, pack up or add wagons to it. The stations and

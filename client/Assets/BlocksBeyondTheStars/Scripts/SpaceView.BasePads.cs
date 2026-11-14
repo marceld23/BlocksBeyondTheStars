@@ -180,6 +180,7 @@ namespace BlocksBeyondTheStars.Client
         {
             // As in LandOnPad: remember the destination before _choosePadBody is cleared — the descent reads it a frame later.
             _landDestBody = _choosePadBody;
+            NoteDescentPad(pad.X); // #3635
             Game.Network?.SendLeaveSpaceToBasePad(_choosePadBody, pad.CellX, pad.CellY, pad.CellZ);
             _confirmLand = false;
             _choosePadBody = null;

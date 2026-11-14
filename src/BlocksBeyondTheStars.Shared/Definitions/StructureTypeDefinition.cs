@@ -31,6 +31,11 @@ public sealed class StructureTypeDefinition
     /// ruin), before the world option's factor. A <c>ServerConfig</c> chance that is set overrides it.</summary>
     public double Chance { get; set; }
 
+    /// <summary>#3631: a different chance from a terrain generation on — generation → chance; a world reads the entry of the
+    /// highest generation at or below its own, and <see cref="Chance"/> below every entry (<see cref="ChanceFor"/>). Empty =
+    /// <see cref="Chance"/> on every generation. A <c>ServerConfig</c> chance that is set overrides it too.</summary>
+    public SortedDictionary<int, double> ChanceFrom { get; set; } = new();
+
     /// <summary>The expected count at hospitability 1 and world size 1 of a counted kind (settlements, lodges, outposts).</summary>
     public double Density { get; set; }
 
@@ -74,6 +79,24 @@ public sealed class StructureTypeDefinition
     /// <summary>Terrain generation 40 (#3563): how the kind reserves its ground (radius 0 = it reserves none).</summary>
     public StructureGradeRule Grade { get; set; } = new();
 
+    /// <summary>The chance a world of <paramref name="terrainGeneration"/> rolls with (#3631): the <see cref="ChanceFrom"/>
+    /// entry of the highest generation at or below it, else <see cref="Chance"/>.</summary>
+    public double ChanceFor(int terrainGeneration)
+    {
+        double chance = Chance;
+        foreach (var step in ChanceFrom)
+        {
+            if (step.Key > terrainGeneration)
+            {
+                break;
+            }
+
+            chance = step.Value;
+        }
+
+        return chance;
+    }
+
     /// <summary>The count of a cumulative roll: how many thresholds lie at or below <paramref name="roll"/> — with
     /// [0.55, 0.85] a roll under 0.55 is 0, under 0.85 is 1, else 2 (the old <c>r &lt; a ? 0 : r &lt; b ? 1 : 2</c>).</summary>
     public int CountBelow(double roll)
@@ -106,6 +129,7 @@ public sealed class StructureTypeDefinition
         Enabled = Enabled,
         MinGeneration = MinGeneration,
         Chance = Chance,
+        ChanceFrom = new SortedDictionary<int, double>(ChanceFrom),
         Density = Density,
         Thresholds = new List<double>(Thresholds),
         ThresholdCaps = new List<double>(ThresholdCaps),
@@ -123,7 +147,7 @@ public sealed class StructureTypeDefinition
     /// <summary>Whether two definitions hold the same rules (every field; the margins by kind, the conditions in order).</summary>
     public bool SameAs(StructureTypeDefinition other)
         => Kind == other.Kind && Enabled == other.Enabled && MinGeneration == other.MinGeneration
-           && Chance.Equals(other.Chance) && Density.Equals(other.Density)
+           && Chance.Equals(other.Chance) && ChanceFrom.SequenceEqual(other.ChanceFrom) && Density.Equals(other.Density)
            && Thresholds.SequenceEqual(other.Thresholds) && ThresholdCaps.SequenceEqual(other.ThresholdCaps)
            && MinCount == other.MinCount && Cap == other.Cap && SeatPolicy == other.SeatPolicy && KeepClear == other.KeepClear
            && KeepClearFrom.Count == other.KeepClearFrom.Count

@@ -95,7 +95,8 @@ renders in **linear colour space**, and the hand-written shaders are all dual-pi
     colour, mist in its colour, band in the lit cloud colour, mixed by their weights); the block, water, far-terrain and
     particle shaders and `BbtsApplyHaze` use it. `BbtsHazeColor` still works for shaders that ask separately (a noise-free,
     ALU-only estimate of the weights).
-  - *Weather colour (#3270):* fog (grey), a gale's or sandstorm's grit (the ground's colour), an ion storm (blue) and
+  - *Weather colour (#3270):* fog (the world's own mist colour since #3634 — `MistLook.FogColour`, the neutral grey only
+    on a world without one), a gale's or sandstorm's grit (the ground's colour), an ion storm (blue) and
     storms (ash, acid, white-out, rain grey) tint the sky — and with it the distance haze, the camera background and the
     legacy fog — and the mist toward their colour by intensity, keeping the sky's brightness (`MistLook.WeatherTint` /
     `ApplyTint`); ground fog tints only the mist. `WeatherFx3D` used to write these colours into `RenderSettings.fog`,

@@ -251,7 +251,7 @@ public sealed class WorldDescription
     /// landmarks, #3510 the structure pipeline, the school club's giant buildings with their overlay storage, #3555 the
     /// geography package: river valleys, site search with a map, sites that reserve their ground, #3602 the grown
     /// settlements: road-first villages, grown grids, terrain-following towns, a metropolis that grew, farms at the edge,
-    /// #3608 the giant ship wrecks on planets).</summary>
+    /// #3608 the giant ship wrecks on planets, #3629/#3631 the longer and more frequent intercity lines).</summary>
     public const int CurrentTerrainGeneration = GiantWrecksGeneration;
 
     /// <summary>The generation of the grown settlements (#3602): a body stamped for the first time in a world of this
@@ -267,6 +267,13 @@ public sealed class WorldDescription
     /// stored as a structure overlay. A server-side stamp: every chunk of every older generation stays bit-identical. (The
     /// giant wrecks in space are a galaxy pass of their own and reach older saves too, like the derelict stations.)</summary>
     public const int GiantWrecksGeneration = 42;
+
+    /// <summary>The generation of the longer intercity lines (#3629–#3631, the same generation as the giant wrecks): a body
+    /// stamped for the first time in a world of this generation or later may join two towns up to 2000 blocks apart (was 960),
+    /// rolls its line at 0.8 (was 0.6, <c>chanceFrom</c> in <c>data/structure_types.json</c>) and clears the trees of a long
+    /// corridor whole. A server-side stamp decided once and pinned in the placement records: every older line replays as it
+    /// was.</summary>
+    public const int LongIntercityGeneration = 42;
 
     /// <summary>The generation of the geography package (#3555): the surface height becomes three stages — the natural
     /// height (every older generation's whole answer), the river valleys (the ground eases down toward every surface river,

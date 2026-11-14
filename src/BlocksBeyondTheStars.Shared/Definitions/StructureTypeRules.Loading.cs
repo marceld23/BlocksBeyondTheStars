@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -27,6 +28,7 @@ public sealed partial class StructureTypeRules
         public bool? Enabled { get; set; }
         public int? MinGeneration { get; set; }
         public double? Chance { get; set; }
+        public Dictionary<string, double>? ChanceFrom { get; set; }
         public double? Density { get; set; }
         public List<double>? Thresholds { get; set; }
         public List<double>? ThresholdCaps { get; set; }
@@ -228,6 +230,7 @@ public sealed partial class StructureTypeRules
         // replays would change); it may only hold a kind back to a later generation.
         t.MinGeneration = Math.Max(defaults.MinGeneration, e.MinGeneration ?? t.MinGeneration);
         t.Chance = e.Chance ?? t.Chance;
+        t.ChanceFrom = e.ChanceFrom is { } chanceFrom ? ChanceTable(chanceFrom) : t.ChanceFrom;
         t.Density = e.Density ?? t.Density;
         t.Thresholds = e.Thresholds ?? t.Thresholds;
         t.ThresholdCaps = e.ThresholdCaps ?? t.ThresholdCaps;
@@ -241,5 +244,19 @@ public sealed partial class StructureTypeRules
         t.Site = MergeSite(t.Site, e.Site);
         t.Grade = MergeGrade(t.Grade, e.Grade);
         return t;
+    }
+
+    /// <summary>A <c>chanceFrom</c> object as the definition holds it (#3631): the keys are terrain generations; a key that is
+    /// not a whole number becomes -1, which <see cref="Problems"/> refuses with the entry.</summary>
+    private static SortedDictionary<int, double> ChanceTable(Dictionary<string, double> entry)
+    {
+        var table = new SortedDictionary<int, double>();
+        foreach (var step in entry)
+        {
+            bool whole = int.TryParse(step.Key, NumberStyles.None, CultureInfo.InvariantCulture, out int generation);
+            table[whole ? generation : -1] = step.Value;
+        }
+
+        return table;
     }
 }

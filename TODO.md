@@ -24,6 +24,28 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🚆 Rail & sky (terrain generation 42) — epic #3636 (#3629–#3635), ✅ 2026-11-14, PR pending (⚠ playtest open)
+
+The procedural intercity line worked on every world that got one, but only about one in eight worlds with two towns got
+one — the 960-block route cap. Marcel's decisions 2026-11-14 (no generation of its own: it rides on main's unreleased 42),
+plus two sky fixes. Details: MONORAIL.md (intercity line, departure board), STRUCTURE_PIPELINE.md (`chanceFrom`),
+SEAMLESS_TRANSITIONS.md (the cover's light), ADVANCED_GRAPHICS.md (fog colour).
+
+- **#3629 route cap 960 → 2000** from generation 42 (`IntercityMaxRouteFor`; probed: lines on two-town worlds roughly
+  double, 0 check failures, no line or other structure lost) · **#3630 fix**: the corridor's tree budget (12 000 cells)
+  sliced the last trees cell by cell on 4 of 21 lines — from 42 it is 24 000 + 20 per block of route ·
+  **#3631 chance 0.6 → 0.8** from 42 through a new data field `chanceFrom` (generation → chance) on every structure kind
+  (12 sampled galaxies: one had no line at 0.6, none at 0.8) · **#3632** the public train runs setting 3 (24 b/s) on a
+  line of 1200 blocks or more (1961 blocks in 88 s instead of 125 s).
+- **#3633 departure board** in each station hall (client only): the destination and "Next train in 1:20" / "Train is
+  here · departs in 12 s" / "Train arriving", forecast by `RailEta` from the replicated train (tested against the real
+  server's train: within 1.5 s); 4 new texts in 14 languages.
+- **#3634** fog weather takes the world's own mist colour (grey only without one) · **#3635** the landing and departure
+  clouds are lit like the planet's (night, storm, dusk, a quarter of the mist) — one rule (`CoverLook`) for the dome
+  clouds, the cloud sea and the cover.
+- ⚠ Playtest: a long line (river_lowlands seed 6, generation 42: 1908 blocks, `/tp city`), the board at both stations
+  while the train comes and goes, a landing at night and into a storm, fog weather on a coloured-mist world.
+
 ### 🚀 Giant ship wrecks (terrain generation 42) — epic #3625 (#3605–#3627), ✅ 2026-11-14, PR pending (⚠ playtest open)
 
 Huge spaceships (up to 256 blocks a side) that nobody can build — no blueprint, never a ship type — exist as wrecks derived

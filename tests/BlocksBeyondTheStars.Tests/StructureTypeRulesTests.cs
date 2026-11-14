@@ -4,6 +4,7 @@
 using System.Text.Json;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Tests;
@@ -21,7 +22,7 @@ public sealed class StructureTypeRulesTests
     /// <summary>The fields an entry may carry (the definition's properties in camelCase, the kind aside).</summary>
     private static readonly string[] Fields =
     {
-        "enabled", "minGeneration", "chance", "density", "thresholds", "thresholdCaps", "minCount", "cap", "seatPolicy", "keepClear",
+        "enabled", "minGeneration", "chance", "chanceFrom", "density", "thresholds", "thresholdCaps", "minCount", "cap", "seatPolicy", "keepClear",
         "keepClearFrom", "conditions", "whitelist", "site", "grade",
     };
 
@@ -156,6 +157,40 @@ public sealed class StructureTypeRulesTests
         Assert.Equal(StructureTypeRules.Defaults.Get(StructureTypeRules.Landmark).MinGeneration, rules.Get(StructureTypeRules.Landmark).MinGeneration);
         Assert.Equal(40, rules.Get(StructureTypeRules.Lodge).MinGeneration); // holding a kind back stays possible
         Assert.Contains(warnings, w => w.Contains("'landmark'", StringComparison.Ordinal) && w.Contains("generation", StringComparison.Ordinal));
+    }
+
+    /// <summary>#3631: the intercity line rolls 0.6 up to terrain generation 41 and 0.8 from 42 on — the entry of the highest
+    /// generation at or below the world's wins, the plain chance below every entry.</summary>
+    [Fact]
+    public void ChanceFor_ReadsTheEntryOfTheWorldsGeneration()
+    {
+        var intercity = StructureTypeRules.Defaults.Get(StructureTypeRules.Intercity);
+
+        Assert.Equal(0.6, intercity.ChanceFor(WorldDescription.IntercityRailGeneration));
+        Assert.Equal(0.6, intercity.ChanceFor(WorldDescription.GrownSettlementsGeneration));
+        Assert.Equal(0.8, intercity.ChanceFor(WorldDescription.LongIntercityGeneration));
+        Assert.Equal(0.8, intercity.ChanceFor(WorldDescription.LongIntercityGeneration + 5));
+
+        var stepped = StructureTypeRules.Parse("""{ "rail_ruin": { "chanceFrom": { "30": 0.5, "40": 0.1 } } }""").Get(StructureTypeRules.RailRuin);
+        Assert.Equal(0.35, stepped.ChanceFor(29));
+        Assert.Equal(0.5, stepped.ChanceFor(39));
+        Assert.Equal(0.1, stepped.ChanceFor(40));
+    }
+
+    /// <summary>#3631: a <c>chanceFrom</c> that names a generation before the kind's own (older worlds would change), a key that
+    /// is no whole generation or a chance outside 0..1 drops the entry like every other broken field.</summary>
+    [Theory]
+    [InlineData("""{ "intercity": { "chanceFrom": { "18": 0.9 } } }""")]
+    [InlineData("""{ "intercity": { "chanceFrom": { "forty": 0.9 } } }""")]
+    [InlineData("""{ "intercity": { "chanceFrom": { "42.5": 0.9 } } }""")]
+    [InlineData("""{ "intercity": { "chanceFrom": { "42": 1.5 } } }""")]
+    public void ABrokenChanceFrom_IsReportedAndDropped(string json)
+    {
+        var warnings = new List<string>();
+        var rules = StructureTypeRules.Parse(json, warnings.Add);
+
+        Assert.True(rules.Get(StructureTypeRules.Intercity).SameAs(StructureTypeRules.Defaults.Get(StructureTypeRules.Intercity)));
+        Assert.Single(warnings, w => w.Contains("'intercity'", StringComparison.Ordinal) && w.Contains("chanceFrom", StringComparison.Ordinal));
     }
 
     [Fact]

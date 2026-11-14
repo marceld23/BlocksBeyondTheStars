@@ -183,15 +183,10 @@ namespace BlocksBeyondTheStars.Client
             float tod = Sky != null ? Sky.DayFraction : Game.LocalTimeOfDay;
             float day = Mathf.Clamp01(Mathf.Sin((tod - 0.25f) * Mathf.PI * 2f) * 0.5f + 0.5f);
             day = NightSightRules.SeenDay(day, BioSenses.NightSight); // #3414: lit like the sky under night sight
-            Color baseColor = Rgb(env.CloudColor);
-            if (env.MistColor >= 0)
-            {
-                baseColor = Color.Lerp(baseColor, Rgb(env.MistColor), 0.25f);
-            }
-
-            float bright = (0.35f + 0.65f * day) * CloudDeck.Target(env.Weather, env.CloudDensity).Darken;
-            Color lit = baseColor * bright;
-            lit = Color.Lerp(lit, lit * Rgb(env.SunColor), 0.1f + 0.25f * (1f - day));
+            // #3635: the rule the landing cover shares (CoverLook) — a quarter of the mist, lit by the hour and the weather.
+            MistRgb litRgb = CoverLook.DeckColour(env.CloudColor, env.MistColor, CoverLook.MistShare, env.SunColor, day,
+                CloudDeck.Target(env.Weather, env.CloudDensity).Darken);
+            Color lit = new Color(litRgb.R, litRgb.G, litRgb.B, 1f);
             Color shade = lit * 0.62f;
             lit.a = 1f;
             shade.a = 1f;
@@ -256,8 +251,5 @@ namespace BlocksBeyondTheStars.Client
                 _renderer.enabled = false;
             }
         }
-
-        private static Color Rgb(int rgb)
-            => new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
     }
 }

@@ -27,6 +27,8 @@ namespace BlocksBeyondTheStars.Client
         private Color _descentSky, _descentCloud, _descentPlasma;
         private string _descentName = string.Empty, _descentSub = string.Empty;
         private float _descentHeat;
+        private double _descentPadTime = double.NaN; // #3635: the local time at the picked pad (NaN = not known)
+        private int _landMapCirc;                      // the circumference the pad chooser drew its body with
         private MeshRenderer _shock;
         private static Mesh _shockMesh;
 
@@ -212,9 +214,56 @@ namespace BlocksBeyondTheStars.Client
             // green-gold, a violet one magenta) — breathable air the classic salmon pink.
             var air = atm.Breathable ? new Color(1f, 0.5f, 0.42f) : Color.Lerp(_descentSky, new Color(1f, 0.45f, 0.2f), 0.45f);
             _descentPlasma = Color.Lerp(new Color(1f, 0.55f, 0.22f), air, 0.55f);
+            if (look != null && atm.HasAir)
+            {
+                LightDescentClouds(look); // #3635: the sky and the clouds as the landing point sees them now
+            }
+
             string type = look?.Planet?.Key;
             var loc = Game.Localizer;
             _descentSub = !string.IsNullOrEmpty(type) && loc != null && loc.Has($"planet.{type}.name") ? loc.Get($"planet.{type}.name") : string.Empty;
+        }
+
+        /// <summary>#3635: the destination's sky and clouds lit like its own (<see cref="CoverLook"/>) — the hour at the picked
+        /// pad (the pad list's arrival time plus the pad's longitude), else the body's clock at longitude 0, else noon; the
+        /// body's weather state; a quarter of the world's mist colour; the flight's star. The cover used to show the daytime
+        /// colour whatever the hour.</summary>
+        private void LightDescentClouds(OrbitBody look)
+        {
+            string id = string.IsNullOrEmpty(look.BodyId) ? Game?.StarMap?.ActiveLocationId ?? string.Empty : look.BodyId;
+            bool known = PlanetWeatherVisuals.TryBodyWeather(Game, id, out var weather) && weather != null;
+            double time = !double.IsNaN(_descentPadTime) ? _descentPadTime
+                : known ? PlanetWeatherVisuals.TimeOfDay(Game, weather, look.Planet) : 0.5;
+            int mist = BlocksBeyondTheStars.Shared.World.MistProfiles.For(Game != null ? Game.WorldSeed : 0L, look.Key, look.Planet, 1.0,
+                airless: false).ColorRgb; // the colour does not depend on the air's density
+            int sun = (Mathf.RoundToInt(Mathf.Clamp01(_sunColor.r) * 255f) << 16) | (Mathf.RoundToInt(Mathf.Clamp01(_sunColor.g) * 255f) << 8)
+                      | Mathf.RoundToInt(Mathf.Clamp01(_sunColor.b) * 255f);
+            var (cloud, sky) = CoverLook.For(look.Atmosphere, mist, sun, CoverLook.DayOf(time), known ? weather.State : null);
+            _descentCloud = new Color(cloud.R, cloud.G, cloud.B);
+            _descentSky = new Color(sky.R, sky.G, sky.B);
+        }
+
+        /// <summary>#3635: remembers the local time at the picked pad for the descent's light — the pad list's arrival time
+        /// (<c>LandingPadsTimeOfDay</c>, sent with the list of the body asked for) plus the pad's longitude.</summary>
+        private void NoteDescentPad(int padX)
+        {
+            bool sameBody = Game != null && _landMapCirc > 0 && Game.LandingPadsBody == (_choosePadBody ?? string.Empty);
+            _descentPadTime = sameBody ? CoverLook.LocalTime(Game.LandingPadsTimeOfDay, padX / (double)_landMapCirc) : double.NaN;
+        }
+
+        /// <summary>The world X of pad <paramref name="padIndex"/> in the last pad list (0, the home pad's longitude, when
+        /// it is not listed).</summary>
+        private int PadX(int padIndex)
+        {
+            foreach (var p in Game?.LandingPads ?? System.Array.Empty<BlocksBeyondTheStars.Networking.Messages.NetLandingPad>())
+            {
+                if (p != null && p.Index == padIndex)
+                {
+                    return p.X;
+                }
+            }
+
+            return 0;
         }
 
         private void UpdateDescent()

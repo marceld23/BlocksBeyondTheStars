@@ -183,6 +183,12 @@ public sealed partial class StructureTypeRules
             problems.Add("the chance must lie between 0 and 1 and the density must not be negative");
         }
 
+        // #3631: a generation before the kind's own (the code's) never takes a chance of its own — older worlds would change.
+        if (t.ChanceFrom.Any(s => s.Key < Defaults.Get(t.Kind).MinGeneration || s.Value < 0 || s.Value > 1 || double.IsNaN(s.Value)))
+        {
+            problems.Add("chanceFrom needs whole terrain generations from the kind's own on as keys and chances between 0 and 1");
+        }
+
         if (t.Thresholds.Any(v => v < 0 || v > 1 || double.IsNaN(v)) || t.ThresholdCaps.Any(v => v < 0 || v > 1 || double.IsNaN(v)))
         {
             problems.Add("every threshold and threshold cap must lie between 0 and 1");
@@ -223,7 +229,8 @@ public sealed partial class StructureTypeRules
 
     /// <summary>
     /// The defaults — the constants of the stampers as they were (#3517): the caps, densities and count thresholds of each
-    /// kind, the chances of <c>ServerConfig</c> (rail ruin 0.35, intercity 0.6), <c>LandmarkRules.Chance</c> (0.34) and the
+    /// kind, the chances of <c>ServerConfig</c> (rail ruin 0.35, intercity 0.6 — 0.8 from terrain generation 42, #3631, so
+    /// hardly a galaxy is left without a line), <c>LandmarkRules.Chance</c> (0.34) and the
     /// buried ruin's 0.04, the generations the kinds arrived with, the seat policies and the whitelist keys. The keep-clear
     /// margins restate what each stamper reserved (generation 38+ only): 6 everywhere, a hut 40 from towns and camps, 24 from
     /// ruins and other huts, 16 from pads and 14 from the crash site; a landmark 20 from pads and 8 from the crash site; a buried
@@ -240,7 +247,8 @@ public sealed partial class StructureTypeRules
             Def(SounderSite),
             Def(Settlement, density: 3.0, cap: 8, seat: "inhabited", conditions: new[] { ConditionAtmosphere }),
             Def(Intercity, minGeneration: WorldDescription.IntercityRailGeneration, chance: 0.6,
-                conditions: new[] { ConditionNotGas, ConditionNotCityWorld }),
+                conditions: new[] { ConditionNotGas, ConditionNotCityWorld },
+                chanceFrom: new[] { (WorldDescription.LongIntercityGeneration, 0.8) }),
             Def(Ruin, thresholds: new[] { 0.55, 0.85 }, cap: 3, seat: "ruin", conditions: new[] { ConditionAtmosphere }),
             Def(RailRuin, minGeneration: WorldDescription.RailRuinGeneration, chance: 0.35, seat: "factory",
                 conditions: new[] { ConditionNotVoid, ConditionAtmosphere, ConditionNotGas }),
@@ -346,12 +354,14 @@ public sealed partial class StructureTypeRules
 
     private static StructureTypeDefinition Def(string kind, int minGeneration = 0, double chance = 0, double density = 0,
         double[]? thresholds = null, double[]? thresholdCaps = null, int minCount = 0, int cap = 0, string seat = "",
-        int keepClear = DefaultKeepClear, Dictionary<string, int>? keepClearFrom = null, string[]? conditions = null, string whitelist = "")
+        int keepClear = DefaultKeepClear, Dictionary<string, int>? keepClearFrom = null, string[]? conditions = null, string whitelist = "",
+        (int Generation, double Chance)[]? chanceFrom = null)
         => new()
         {
             Kind = kind,
             MinGeneration = minGeneration,
             Chance = chance,
+            ChanceFrom = new SortedDictionary<int, double>((chanceFrom ?? Array.Empty<(int, double)>()).ToDictionary(s => s.Generation, s => s.Chance)),
             Density = density,
             Thresholds = new List<double>(thresholds ?? Array.Empty<double>()),
             ThresholdCaps = new List<double>(thresholdCaps ?? Array.Empty<double>()),

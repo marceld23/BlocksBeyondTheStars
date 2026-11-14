@@ -182,7 +182,8 @@ Lyxette builds long lines to far cities, and the old fixed speeds (4 / 8 / 12 bl
 walking) made them a chore. Modelled on the lift's `LiftMotion` (#3204, ADR 0014 amendment):
 
 - **The settings are top speeds**: 8 / 16 / 24 blocks/s (`RailRules.SpeedTable`, the one table; `RailMotion.TopSpeed`).
-  A new cab starts at setting 2 (`RailRules.NewCabSpeed`); the public intercity train keeps setting 2.
+  A new cab starts at setting 2 (`RailRules.NewCabSpeed`); the public intercity train keeps setting 2 — setting 3 on a
+  line of 1200 blocks or more (`RailRules.PublicTrainSpeedFor`, #3632).
 - **The profile** (`Shared/Definitions/RailMotion.cs`, pure). Every tick `v ← NextSpeed(v, limit, dt)`: up by
   `Acceleration` (4 blocks/s² — the lift's ease; 0 → 16 in 4 s) toward the limit, down toward a lower limit by at most
   `ServiceBrake` (8 blocks/s²), never below 0. The limit is the lowest of
@@ -490,8 +491,10 @@ abandoned stations followed a generation later as ruins — see the next section
 
 - **When.** Worlds of `WorldDescription.IntercityRailGeneration` (19) or newer, with at least two **eligible** settlements
   (inhabited, tier `town` or `city`, on the ground — villages, hamlets, ruins and sky-island towns do not count), roll
-  the `intercity` chance of `data/structure_types.json` (0.6; `ServerConfig.IntercityRailChance` overrides it when set,
-  #3517) once on a lane of their own (`seed ^ StableHash("intercity:" + body)`).
+  the `intercity` chance of `data/structure_types.json` (0.6; 0.8 from terrain generation 42 — its `chanceFrom`, #3631,
+  so hardly a galaxy is left without a line: in a sample of 12 galaxies one had none at 0.6, none at 0.8;
+  `ServerConfig.IntercityRailChance` overrides both when set, #3517) once on a lane of their own
+  (`seed ^ StableHash("intercity:" + body)`).
   `ServerConfig.PlaceIntercityRail` switches new decisions off. The city world (one composed city), restricted types
   (`RestrictStructures`: Titas, Valuma), gas giants and airless bodies never get one. The pairs are tried closest first
   (at most six); the first whose route fits wins, a world where none fits simply has no line.
@@ -502,7 +505,9 @@ abandoned stations followed a generation later as ruins — see the next section
   exit pylon at its far end, a straight 10-block lead, then straight to the partner's lead, a pylon every ≤ 18 blocks.
   Pylon tops stand 2 over the highest ground of their two spans (water at its surface with the ice on top, lava + 3),
   capped by a 1-in-4 grade from both stations and raised where a valley would be steeper. A route fails (the next pair
-  is tried) when its free part is longer than 960 blocks, a pylon would be taller than 36 or stand in lava, the corridor
+  is tried) when its free part is longer than 960 blocks (2000 from terrain generation 42, `IntercityMaxRouteFor`,
+  #3629 — fewer than one in eight worlds with two towns had a pair within 960; the median closest pair stands about 2080
+  blocks apart), a pylon would be taller than 36 or stand in lava, the corridor
   would cut more than 4000 terrain cells, a station or a span would touch another settlement, a landing pad or the wreck
   site, or — on a world that was already played on — somebody built there.
 - **Pinned.** `rail_line`/0 (placed or not; `Composition` = the pylon tops `x,y,z` in line order) and `rail_station`/0,1
@@ -511,9 +516,12 @@ abandoned stations followed a generation later as ruins — see the next section
   apron; the vegetation carve kept inside the hall so it never reaches into the town's timber), the pylon columns from
   the ground (or the sea bed) up, then the corridor: first exactly the cells `LinkClear` samples, then the wagon's whole
   box swept every half block — only cells that hold something are touched: a tree that reaches into it is cleared as a
-  whole (connected trunk, crown and fruit within 6 blocks, 600 per tree, 12 000 per line — then cell by cell), terrain
-  and props go cell by cell, fluids stay, a town's blocks are never touched. The boot log reports the pylons, the route,
-  the cells cleared and the milliseconds (0.4–2 s on the probed worlds).
+  whole (connected trunk, crown and fruit within 6 blocks, 600 per tree; per line 12 000 up to generation 41 — then
+  cell by cell, which left half-cut trees on 4 of 21 probed lines — and from generation 42 24 000 + 20 per block of route,
+  `IntercityVegetationCapFor`, #3630: the densest probed lines cleared 33 cells per block on 615 blocks, 28 on a
+  1126-block jungle line, each a third under it), terrain and props go cell by cell, fluids stay, a town's blocks are
+  never touched. The boot log reports the pylons, the route, the cells cleared and the milliseconds (0.4–2 s on the
+  probed worlds; a 2000-block jungle line may take about 2.5 s once).
 - **Protected.** `IsSettlementBlock` covers `IsIntercityRailBlock` (the station halls with their plinth, every
   generated pylon column), so mining (`@srv.protect.rail`), blasts, the pump, the drills and fire all leave it alone. The
   later stampers keep clear of the stations and of a box around every span (`AppendIntercityReservations`,
@@ -522,7 +530,9 @@ abandoned stations followed a generation later as ruins — see the next section
   `RailStop` device and writes the generated nodes and links when missing; after `RebuildRailLines`,
   `EnsureIntercityTrain` puts the **public train** on the line when it has none: `OwnerId` empty
   (`RailRules.PublicOwnerId` — no player id is ever empty, so no wire or save change), the cab and a `wagon_seats`,
-  speed 2 (top speed 16 blocks/s, #3444), autopilot, facing −1 (its passenger wagon toward the hall's exit), halted at the lower-arc
+  speed 2 (top speed 16 blocks/s, #3444; speed 3 — 24 blocks/s — on a line of 1200 blocks or more, #3632: a 1961-block
+  line rides in 88 s instead of 125 s; set once when the train is created, every released line is shorter), autopilot,
+  facing −1 (its passenger wagon toward the hall's exit), halted at the lower-arc
   station. It shuttles (the open line reverses at both ends — at each station it turns round while it stands, the stop
   being four blocks from the line's end; the cab leads into one station, the passenger wagon into the other) and
   halts at each stop for `RailRules.PublicStopHaltSeconds` (30 s; players' trains keep `StopHaltSeconds`). Anyone may
@@ -533,11 +543,25 @@ abandoned stations followed a generation later as ruins — see the next section
   nobody's pack). The graph and the train persist with every other line (`SaveRails` / `LoadRails`).
 - **The map.** Each station is a `rail_station` POI named `poi.rail_station` ("{0} Station" / "Bahnhof {0}"); the client
   draws it with the station icon in amber (`WorldMap.PoiLook`).
+- **The departure board** (#3633, client only — no wire, no save, no block). `StationBoardView` hangs a board over every
+  stop of a line a public train runs on, under the hall's roof above the track (4.25 over the line), turned to the
+  camera about the vertical, shown within 30 blocks and hidden with the HUD: `ui.train.board_title` ("Departures"), the
+  destination (the `rail_station` POI nearest the line's other stop — the server already names it in the player's
+  language) and `ui.train.board_next` "Next train in 1:20" / `ui.train.board_here` "Train is here · departs in 12 s" /
+  `ui.train.board_arriving` "Train arriving" (under 8 s). The forecast is `RailEta` (Client.Core): it runs the train
+  forward from its replicated `NetTrain` in 0.1 s steps with the shared rules — the speed profile with the leg, the
+  braking curve and the bend limit over the whole train (`RailMotion`, `RailCurveLimits`), the halt centred on each stop
+  (`RailRules.HaltMiddleArc`) for the public 30 s, the turn round at a stop near the line's end, the bounce at an open
+  end, and the stop it stands at or just left not catching it again — and the board counts down from the list's age.
 
 Tests: `IntercityRailTests` (the line between two towns with both stops on it, a clear corridor and both stations on
 the map; the public train shuttling and waiting 30 s at each station, a stranger riding it, every control refused, the
 pylons and the station protected; the same line for the same seed and everything back after a restart; no line on
-generation 18, at chance 0, on an airless, a restricted or the city world; the station layout).
+generation 18, at chance 0, on an airless, a restricted or the city world; the station layout; on generation 42 a
+1908-block forest line that only the 0.8 chance builds, its trees cleared within the new budget, its train at setting 3
+halting at the far station). `RailEtaTests` (Client.Tests: every forecast from a received train list meets the real
+server train's arrival and departure at both stations within 1.5 s; a manual train has none, a standing one counts down
+here). `StructureTypeRulesTests` (`chanceFrom` by generation, a broken one dropped).
 
 ## Abandoned stations (#2166, terrain generation 20)
 
