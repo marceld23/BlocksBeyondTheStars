@@ -24,6 +24,14 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🗿 Soundi statue without the SOUNDI letters — #3577, ✅ 2026-11-14, PR pending
+
+The Sounders raised the statue, and they write in sound, not in our letters — the crystal name plate on the pedestal's
+front broke the lore. `tools/landmarks/soundi_statue.py` no longer writes it; `data/landmarks/soundi_statue.json`
+regenerated (same 43 × 69 × 67 and 19 838 cells — the letters only overwrote pedestal stone, so the front stays plain
+carved obsidian between the crystal corner columns). No generation, save or locale change; a statue already stamped
+into a world keeps its letters (the overlay is written once) — #3550 was in no release yet, so only local test saves.
+
 ### 🦌 Creatures are native to their own biome again — #3575, ✅ 2026-11-13, PR pending (⚠ playtest open)
 
 A side finding of the geography analysis: a species' biome affinity counts in the planet **type's** biome pool, the
