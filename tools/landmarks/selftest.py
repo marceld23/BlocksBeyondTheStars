@@ -617,6 +617,67 @@ def ship_demo_builds():
     ok(max(t["width"], t["height"], t["length"]) <= 256 and t["giantShip"] is True, "a giant-ship template")
 
 
+@test
+def civ_bells_murals_orient():
+    civ = importlib.import_module("civ")
+
+    def design():
+        return civ.CivDesign("t_civ", "T", civilization="grosstechniker", pool="small", seat="seabed", ruin="always",
+                             ruinProfile="masonry", groundRow=0)
+
+    def bell(closed_floor: bool = False):
+        b = design()
+        b.box(0, 0, 0, 6, 0, 6, "dark_sandstone")
+        air = b.bell(1, 2, 1, 5, 4, 5, "glyph_stone", openings=[] if closed_floor else [(3, 3)])
+        b.fill(solids.box(1, 1, 1, 5, 1, 5) - (set() if closed_floor else {(3, 1, 3)}), "dark_sandstone")
+        return b, air
+    d, air = bell()
+    eq(len(air), 75, "a 5 x 3 x 5 bell")
+    eq(d.bell_problems(), [], "a closed bell with an opening below")
+    eq(d.problems()[0], [], "the bell design has no errors")
+    t = d.template()
+    ok({"kind": "air", "id": ""} in t["palette"] and "landmark" not in t and t["kind"] == "civilization"
+       and t["civPool"] == "small" and t["nameKey"] == "civ.grosstechniker.site.t_civ", "a civilization header")
+    leaky, _ = bell()
+    leaky.clear(0, 3, 3)                                              # a hole in the side
+    leaky.restyle([(3, 5, 3)], keep=False)                            # a roof cell the ruin pass may take
+    problems = " ".join(leaky.bell_problems())
+    ok("from the side or the top" in problems and "not keep" in problems, f"a leaky bell is caught: {problems}")
+    sealed, _ = bell(closed_floor=True)
+    ok("no opening" in " ".join(sealed.bell_problems()), "a bell nobody can reach is caught")
+    d.npc(3, 2, 3)
+    ok(any("nobody home" in e for e in d.problems()[0]), "a lost civilization has no residents")
+    m = design()
+    eq(len(m.mural(10, 5, 20, (0, 0, -1))), 8, "eight tiles")
+    eq(m.get(10, 6, 20)[1], "gt_mural_0", "seen from -Z the top-left tile is at the low x")
+    eq(m.get(13, 5, 20)[1], "gt_mural_7", "seen from -Z the bottom-right tile is at the high x")
+    eq(m.get(10, 6, 20)[4], sc.pack(sc.CUBE, 0, sc.UP_NZ), "a tile stores its front")
+    r = design()
+    r.mural(10, 5, 20, (1, 0, 0))
+    eq(r.get(10, 6, 20)[1], "gt_mural_0", "seen from +X the mural starts at the low z ...")
+    eq(r.get(10, 6, 23)[1], "gt_mural_3", "... and runs toward +Z")
+    part = Design.part()
+    part.box(0, 0, 0, 2, 2, 2, "glyph_stone")
+    part.put(1, 3, 1, "glyph_stone_band")                             # a knob on the lid
+    part.put(1, 1, -1, Mat("dark_sandstone", shape=sc.stairs(0, -1)))  # a step on the front
+    for name, lid in (("upright", (0, 1, 0)), ("upside_down", (0, -1, 0)), ("on_side_px", (1, 0, 0)),
+                      ("on_side_nx", (-1, 0, 0)), ("on_back", (0, 0, 1)), ("on_front", (0, 0, -1))):
+        o = design()
+        civ.orient(o, part, (0, 0, 0), name)
+        knob = next(p for p, v in o.plain.items() if v[1] == "glyph_stone_band")
+        body = [p for p, v in o.plain.items() if v[1] == "glyph_stone"]
+        centre = [sum(p[i] for p in body) / len(body) for i in range(3)]
+        eq(tuple(round(knob[i] - centre[i]) for i in range(3)), tuple(2 * k for k in lid), f"{name}: the lid")
+        step = next(v for v in o.plain.values() if v[1] == "dark_sandstone")
+        ok(sc.shape_of(step[4]) == sc.STAIRS, f"{name}: the step keeps its form")
+    eq(civ.oriented_size(part, "on_side_px"), (4, 3, 4), "a turned size")
+    p = design()
+    p.box(0, 0, 0, 4, 0, 4, "dark_sandstone")
+    p.prop(2, 1, 2, pool="remains")
+    eq(p.markers[-1]["config"], "pool=remains", "a prop marker")
+    eq(p.problems(), ([], []), "a prop marker of a known pool, room around it")
+
+
 def main() -> int:
     failed = 0
     for fn in TESTS:
