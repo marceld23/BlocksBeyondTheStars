@@ -81,6 +81,15 @@ public sealed class CivilizationFrameworkTests
     }
 
     [Fact]
+    public void NewWorlds_AreCreatedAtGeneration43_WithSaveVersion16()
+    {
+        Assert.Equal(43, WorldDescription.CivilizationsGeneration);
+        Assert.Equal(WorldDescription.CivilizationsGeneration, WorldDescription.CurrentTerrainGeneration);
+        Assert.True(WorldDescription.GiantWrecksGeneration < WorldDescription.CivilizationsGeneration);
+        Assert.Equal(16, BlocksBeyondTheStars.Shared.State.WorldMetadata.CurrentSaveVersion);
+    }
+
+    [Fact]
     public void EveryShippedCivilizationTemplate_Loads_WithoutAWarning_AndEveryPoolAndPropPoolIsFilled()
     {
         var warnings = new List<string>();

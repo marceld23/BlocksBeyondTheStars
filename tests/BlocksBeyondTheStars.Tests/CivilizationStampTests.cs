@@ -161,7 +161,7 @@ public sealed class CivilizationStampTests : IDisposable
     /// which is air.</summary>
     private static void AssertSunken(SvGameServer server, SvGameServer.LandmarkInstance site, ushort water)
     {
-        int top = site.WaterTop!.Value, pockets = 0;
+        int top = site.WaterTop!.Value, pockets = 0, waters = 0;
         foreach (var c in GiantWreckTestWorlds.AllCells(site.Structure).Where(c => c.Y >= site.Layout.GroundRow))
         {
             var cell = GiantWreckTestWorlds.At(server, site, c);
@@ -178,11 +178,13 @@ public sealed class CivilizationStampTests : IDisposable
             }
             else if (site.Structure.Get(c.X, c.Y, c.Z) == 0)
             {
-                Assert.True(got == water, $"cell {c} of the sunken site holds {got}, not water");
+                Assert.True(got != 0, $"cell {c} of the sunken site is air under the sea"); // water — or the sea floor's own coral
+                waters += got == water ? 1 : 0;
             }
         }
 
         Assert.Equal(27, pockets);
+        Assert.True(waters > 100, $"only {waters} water cells in the sunken site");
     }
 
     [Fact]

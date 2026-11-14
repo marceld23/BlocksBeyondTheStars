@@ -117,16 +117,20 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>A civilization site's name in a player's language: its pool's map name when the civilization gives one, else
-    /// the template's.</summary>
+    /// <summary>A civilization site's name in a player's language: its template's own name key when the template has one that
+    /// is translated ("Sunken Ring City"), else its pool's map name from the civilization file ("Sunken City"), else the
+    /// template's author name or key.</summary>
     private string CivilizationSiteName(LandmarkInstance site, string locale)
     {
-        if (site.SiteNameKey.Length > 0)
+        foreach (string key in new[] { site.Template.NameKey, site.SiteNameKey })
         {
-            string text = Localize(locale, site.SiteNameKey);
-            if (text != site.SiteNameKey && !text.StartsWith("[", System.StringComparison.Ordinal))
+            if (key.Length > 0)
             {
-                return text;
+                string text = Localize(locale, key);
+                if (text != key && !text.StartsWith("[", System.StringComparison.Ordinal))
+                {
+                    return text;
+                }
             }
         }
 

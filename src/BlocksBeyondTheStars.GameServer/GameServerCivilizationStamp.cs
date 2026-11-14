@@ -14,7 +14,7 @@ namespace BlocksBeyondTheStars.GameServer;
 /// written in the water mode instead of the landmark's air mode:
 /// <list type="bullet">
 /// <item><b>The seat</b>: a footprint whose every sampled column lies under liquid water, the one needing the least digging
-/// (then the flattest floor) among a fixed number of draws from the site's seed, clear of the pads and every footprint. The
+/// (then the flattest floor, then the one with the least water to spare — a site in a deep trench is never found) among a fixed number of draws from the site's seed, clear of the pads and every footprint. The
 /// ground row rests on the deepest floor of the footprint; when the sea is too shallow for the site plus
 /// <see cref="SunkenHeadroom"/> blocks of water over its top, the ground row sinks into the floor (at most
 /// <see cref="SunkenMaxDig"/> blocks) — the site lies in a basin.</item>
@@ -84,8 +84,9 @@ public sealed partial class GameServer
                 continue;
             }
 
-            int dig = System.Math.Max(0, above + SunkenHeadroom - (top - bedMin));
-            int score = -((dig * 2) + (bedMax - bedMin));
+            int need = above + SunkenHeadroom, depth = top - bedMin;
+            int dig = System.Math.Max(0, need - depth), excess = System.Math.Max(0, depth - need);
+            int score = -((dig * 2) + (bedMax - bedMin) + (excess / 4)); // just deep enough: a site in a deep trench is never found
             if (best is null || score > best.Value.Score)
             {
                 best = (score, ox, oz, top, bedMin);
