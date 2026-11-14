@@ -816,7 +816,10 @@ namespace BlocksBeyondTheStars.Client
                 LocalLine(L("ui.admin.help_adminview")); // #3509: F8 / the pause menu's Admin button — never in singleplayer (#3638)
             }
 
-            LocalLine(L("ui.admin.help_contact")); // #3507/#3508: /admin Text and /r Text
+            if (Game?.Network != null && Game.Network.AdminCallSupported)
+            {
+                LocalLine(L("ui.admin.help_contact")); // #3507/#3508: /admin Text and /r Text — nobody to call in singleplayer (#3638)
+            }
         }
 
         private static bool TryF(string s, out float v)
