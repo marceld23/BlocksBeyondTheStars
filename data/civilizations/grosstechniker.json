@@ -1,0 +1,41 @@
+{
+  "_comment": "The Vanished People and their machines, which science calls the Grand Technicians (#3644, docs/developer/CIVILIZATIONS.md). One random ocean world per galaxy, everything under water; its templates live in data/civilizations/grosstechniker/.",
+  "key": "grosstechniker",
+  "nameKey": "civ.grosstechniker.name",
+  "beingsKey": "civ.grosstechniker.beings",
+  "state": "lost",
+  "placement": "framework",
+  "minTerrainGeneration": 43,
+  "scope": {
+    "count": [1, 1],
+    "perSystem": 1,
+    "planetTypes": ["ocean", "rainbow_sea"],
+    "atmospheres": [],
+    "conditions": ["notAsteroid", "notGas", "notVoid"],
+    "startSystem": "allowed",
+    "underwater": true
+  },
+  "homeBody": { "suppress": ["landmark", "giant_wreck"] },
+  "guarantee": { "planetTypes": ["ocean"] },
+  "materials": {
+    "@wall": "dark_sandstone",
+    "@accent": "glyph_stone_band",
+    "@roof": "dark_sandstone",
+    "@floor": "dark_sandstone",
+    "@path": "glyph_stone"
+  },
+  "ruin": { "rubble": ["dark_sandstone", "glyph_stone"], "overgrowth": "flora_seagrass" },
+  "sites": [
+    { "pool": "giant", "count": [1, 1], "nameKey": "civ.grosstechniker.site.giant" },
+    { "pool": "city", "count": [2, 3], "nameKey": "civ.grosstechniker.site.city" },
+    { "pool": "small", "count": [4, 6], "nameKey": "civ.grosstechniker.site.small" }
+  ],
+  "vega": [
+    { "trigger": "first", "key": "vega.civ.grosstechniker.first" },
+    { "trigger": "block", "value": "gt_fluid", "key": "vega.civ.grosstechniker.fluid" },
+    { "trigger": "block", "value": "gt_mural_*", "key": "vega.civ.grosstechniker.mural" },
+    { "trigger": "air", "key": "vega.civ.grosstechniker.air" }
+  ],
+  "codex": { "titleKey": "civ.grosstechniker.codex.title", "textKey": "civ.grosstechniker.codex.text" },
+  "rumours": ["npc.rumour.civ.grosstechniker.1", "npc.rumour.civ.grosstechniker.2"]
+}

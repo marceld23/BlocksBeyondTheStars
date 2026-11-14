@@ -242,7 +242,7 @@ public static class BuiltConverters
     /// profile and strength and <paramref name="revision"/>, exactly as an authored landmark falls.
     /// </summary>
     public static LandmarkLayout ToLandmarkLayout(BuiltStructure b, StructureTemplate entry, long seed, GameContent content,
-        string surfaceBlock, int revision)
+        string surfaceBlock, int revision, RuinOptions? options = null, LayoutDress? dress = null)
     {
         if (b is null)
         {
@@ -263,7 +263,7 @@ public static class BuiltConverters
         }
 
         return LandmarkGenerator.Finish(entry, grid, markers, b.GroundRow, LandmarkRules.IsRuin(entry), seed, content, surfaceBlock,
-            revision, turns: 0);
+            revision, turns: 0, options, dress);
     }
 
     /// <summary>Copies the built cells from row <paramref name="y0"/> up into the grid's row 0 up.</summary>

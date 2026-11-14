@@ -24,8 +24,9 @@ public static class TemplateBody
     /// <summary>One plain cell as the readers see it.</summary>
     public readonly struct Plain
     {
-        public Plain(int x, int y, int z, bool cavity, string id, int tint, int glow, int shape, bool keep)
+        public Plain(int x, int y, int z, bool cavity, string id, int tint, int glow, int shape, bool keep, bool air = false)
         {
+            Air = air;
             X = x;
             Y = y;
             Z = z;
@@ -45,6 +46,10 @@ public static class TemplateBody
 
         public bool Cavity { get; }
 
+        /// <summary>#3640: an AIR POCKET (<see cref="CivilizationRules.AirKind"/>) — a cavity that stays air even under water.
+        /// Always a cavity too, so every reader that knows cavities treats it as one.</summary>
+        public bool Air { get; }
+
         public string Id { get; }
 
         public int Tint { get; }
@@ -58,7 +63,7 @@ public static class TemplateBody
 
     /// <summary>Whether a cell is PLAIN — a block or a cavity without settings — and so may live in the compact body.</summary>
     public static bool IsPlain(TemplateCell c)
-        => (c.Kind == "block" || c.Kind == LandmarkRules.CavityKind)
+        => (c.Kind == "block" || c.Kind == LandmarkRules.CavityKind || c.Kind == CivilizationRules.AirKind)
            && c.Port.Length == 0 && c.Mode == 0 && c.Config.Length == 0 && c.Label.Length == 0;
 
     /// <summary>Whether the template carries a compact body.</summary>
@@ -84,19 +89,21 @@ public static class TemplateBody
                 }
 
                 var e = palette[p];
-                bool cavity = e.Kind == LandmarkRules.CavityKind;
+                bool air = e.Kind == CivilizationRules.AirKind;
+                bool cavity = air || e.Kind == LandmarkRules.CavityKind;
                 for (int i = 0; i < count; i++)
                 {
-                    visit(new Plain(x + i, y, z, cavity, e.Id, e.Tint, e.Glow, e.Shape, e.Keep));
+                    visit(new Plain(x + i, y, z, cavity, e.Id, e.Tint, e.Glow, e.Shape, e.Keep, air));
                 }
             }
         }
 
         foreach (var c in t.Cells)
         {
-            if (c.Kind == "block" || c.Kind == LandmarkRules.CavityKind)
+            bool air = c.Kind == CivilizationRules.AirKind;
+            if (c.Kind == "block" || c.Kind == LandmarkRules.CavityKind || air)
             {
-                visit(new Plain(c.X, c.Y, c.Z, c.Kind == LandmarkRules.CavityKind, c.Id, c.Tint, c.Glow, c.Shape, c.Keep));
+                visit(new Plain(c.X, c.Y, c.Z, air || c.Kind == LandmarkRules.CavityKind, c.Id, c.Tint, c.Glow, c.Shape, c.Keep, air));
             }
         }
     }
@@ -127,7 +134,7 @@ public static class TemplateBody
     {
         var sorted = SortedPlainCells(t, out var kept);
         var palette = new List<TemplatePaletteEntry>();
-        var index = new Dictionary<(bool, string, int, int, int, bool), int>();
+        var index = new Dictionary<(bool, bool, string, int, int, int, bool), int>();
         var rows = new List<string>();
         var sb = new StringBuilder();
         int i = 0;
@@ -160,7 +167,7 @@ public static class TemplateBody
         t.Cells = kept;
     }
 
-    private static (bool, string, int, int, int, bool) LookOf(Plain p) => (p.Cavity, p.Id, p.Tint, p.Glow, p.Shape, p.Keep);
+    private static (bool, bool, string, int, int, int, bool) LookOf(Plain p) => (p.Cavity, p.Air, p.Id, p.Tint, p.Glow, p.Shape, p.Keep);
 
     /// <summary>Every plain cell of the template — an existing compact body folded in, so <see cref="Compact"/> is
     /// idempotent — one per place (the last one written wins, like the cell list itself), ordered by y, z, x.
@@ -221,7 +228,7 @@ public static class TemplateBody
     }
 
     /// <summary>The palette index of a cell's look, appended to the palette on its first use.</summary>
-    private static int PaletteIndex(Plain p, List<TemplatePaletteEntry> palette, Dictionary<(bool, string, int, int, int, bool), int> index)
+    private static int PaletteIndex(Plain p, List<TemplatePaletteEntry> palette, Dictionary<(bool, bool, string, int, int, int, bool), int> index)
     {
         var look = LookOf(p);
         if (index.TryGetValue(look, out int at))
@@ -233,7 +240,7 @@ public static class TemplateBody
         index[look] = at;
         palette.Add(new TemplatePaletteEntry
         {
-            Kind = p.Cavity ? LandmarkRules.CavityKind : "block",
+            Kind = KindOf(p),
             Id = p.Id,
             Tint = p.Tint,
             Glow = p.Glow,
@@ -242,6 +249,9 @@ public static class TemplateBody
         });
         return at;
     }
+
+    /// <summary>The cell kind of a plain cell: an air pocket, a cavity or a block.</summary>
+    private static string KindOf(Plain p) => p.Air ? CivilizationRules.AirKind : p.Cavity ? LandmarkRules.CavityKind : "block";
 
     /// <summary>The inverse of <see cref="Compact"/>: every plain cell becomes a <see cref="TemplateCell"/> again (the
     /// compact rows first, then the cells that were listed) and the compact body is cleared.</summary>
@@ -260,7 +270,7 @@ public static class TemplateBody
             X = p.X,
             Y = p.Y,
             Z = p.Z,
-            Kind = p.Cavity ? LandmarkRules.CavityKind : "block",
+            Kind = KindOf(p),
             Id = p.Id,
             Tint = p.Tint,
             Glow = p.Glow,

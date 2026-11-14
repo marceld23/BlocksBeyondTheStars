@@ -137,7 +137,7 @@ public sealed partial class GameServer
     private void TickLandmarks(double dt)
     {
         _ = dt;
-        if (_worlds.Active is null || (_landmarks.Count == 0 && _giantWrecks.Count == 0 && !HasStructureDens(_world.LocationId)))
+        if (_worlds.Active is null || (_landmarks.Count == 0 && _giantWrecks.Count == 0 && _civSites.Count == 0 && !HasStructureDens(_world.LocationId)))
         {
             return;
         }
@@ -170,6 +170,7 @@ public sealed partial class GameServer
         }
 
         RevealGiantWrecks(players); // #3610: a giant wreck found by a passing player (GameServerGiantWrecksWorld.cs)
+        RevealCivilizationSites(players); // #3642: a civilization site (GameServerCivilizationsWorld.cs)
         if (spawned)
         {
             BroadcastCreatures();
@@ -297,7 +298,7 @@ public sealed partial class GameServer
     // ---------------------------------------------------------------- the map, VEGA, the scanner
 
     /// <summary>A landmark's name in a player's language: its locale key when it has one, else the author's name.</summary>
-    private string LandmarkName(LandmarkInstance lm, string locale) => TemplateDisplayName(lm.Template, locale);
+    private string LandmarkName(LandmarkInstance lm, string locale) => lm.Civilization.Length > 0 ? CivilizationSiteName(lm, locale) : TemplateDisplayName(lm.Template, locale);
 
     /// <summary>A template's name in a player's language (a landmark's, #3610 a giant ship's): its locale key when it has one,
     /// else the author's name, else its key.</summary>
@@ -365,7 +366,7 @@ public sealed partial class GameServer
         return new NetLandmark
         {
             Key = lm.Key,
-            Kind = lm.GiantWreck ? GiantShipRules.MapType : LandmarkPoiType, // #3610: a giant wreck rides in the same list
+            Kind = lm.GiantWreck ? GiantShipRules.MapType : lm.Civilization.Length > 0 ? CivilizationMapType : LandmarkPoiType, // #3610, #3642
             Name = LandmarkName(lm, session.Locale),
             X = corner.X,
             Y = corner.Y,
@@ -384,8 +385,8 @@ public sealed partial class GameServer
     private LandmarkList LandmarkListFor(PlayerSession session) => new()
     {
         // #3610: the giant wrecks after the landmarks — their silhouettes and emitters, drawn and played the same way
-        Landmarks = _landmarks.Concat(_giantWrecks).Select(lm => ToNetLandmark(lm, session)).ToArray(),
-        Emitters = _landmarks.Concat(_giantWrecks).SelectMany(lm => lm.Emitters).Concat(StructureEmittersAt(_world.LocationId)).Select(e => new NetSoundEmitter
+        Landmarks = _landmarks.Concat(_giantWrecks).Concat(_civSites.Where(c => c.WaterTop is null)).Select(lm => ToNetLandmark(lm, session)).ToArray(), // #3642: no sunken silhouette
+        Emitters = _landmarks.Concat(_giantWrecks).Concat(_civSites).SelectMany(lm => lm.Emitters).Concat(StructureEmittersAt(_world.LocationId)).Select(e => new NetSoundEmitter
         {
             X = e.Position.X,
             Y = e.Position.Y,

@@ -59,7 +59,7 @@ public sealed partial class GameServer
         };
         var lootRng = RngFor(lm.Seed, "landmark-loot");
         // #3610: a giant wreck runs through here too — with its own reveal key, chest lane and loot kind
-        lm.RevealKey = lm.GiantWreck ? GiantWreckRevealKey(lm) : $"{_world.LocationId}|landmark:{lm.Key}";
+        lm.RevealKey = lm.GiantWreck ? GiantWreckRevealKey(lm) : lm.Civilization.Length > 0 ? CivilizationRevealKey(lm) : $"{_world.LocationId}|landmark:{lm.Key}";
         bool doors = false;
         foreach (var marker in lm.Structure.Markers)
         {
@@ -70,7 +70,7 @@ public sealed partial class GameServer
             }
             else if (LandmarkLootMarkers.Contains(marker.Type))
             {
-                SpawnStructureLoot(lm.GiantWreck ? GiantShipRules.RecordKind : LandmarkLootKind, marker.Type, new Vector3f(cell.X, cell.Y, cell.Z), lootRng);
+                SpawnStructureLoot(lm.GiantWreck ? GiantShipRules.RecordKind : lm.Civilization.Length > 0 ? CivilizationRules.RecordKind(lm.Civilization) : LandmarkLootKind, marker.Type, new Vector3f(cell.X, cell.Y, cell.Z), lootRng);
             }
             else if (DoorBlocks.IsDoorMarker(marker.Type))
             {
@@ -125,7 +125,7 @@ public sealed partial class GameServer
 
         AddContainer(new StoredContainer
         {
-            Id = (lm.GiantWreck ? GiantWreckChestContainerPrefix : LandmarkChestContainerPrefix) + $"{cell.X}_{cell.Y}_{cell.Z}",
+            Id = (lm.GiantWreck ? GiantWreckChestContainerPrefix : lm.Civilization.Length > 0 ? CivilizationChestContainerPrefix : LandmarkChestContainerPrefix) + $"{cell.X}_{cell.Y}_{cell.Z}",
             Planet = _world.LocationId,
             Kind = "salvage",
             Position = cell,

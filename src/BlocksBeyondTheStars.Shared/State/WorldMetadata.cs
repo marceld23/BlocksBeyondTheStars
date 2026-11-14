@@ -129,6 +129,15 @@ public sealed class WorldMetadata
     public System.Collections.Generic.Dictionary<string, string> GiantWreckSpots { get; set; } = new();
 
     /// <summary>
+    /// #3639: where each framework civilization lives — civilization key → its home body ids (an empty list = none in this
+    /// galaxy), picked once from the seed over the fixed systems (<c>CivilizationHomes.Pick</c>) the first time a world of
+    /// terrain generation 43 or later starts, and only read from then on: a changed civilization file or a grown galaxy never
+    /// moves a home. A civilization added to the content later is picked at the next start (never onto a body another one
+    /// holds). Additive: an older build ignores the field.
+    /// </summary>
+    public System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<string>> CivilizationHomes { get; set; } = new();
+
+    /// <summary>
     /// Player claims over spawned structures (factories): each maps a structure's stable per-world key to its
     /// owner. A claimed structure becomes an editable player base for the owner + their allies. Founded by
     /// consuming an access code at the structure. Persisted (the structures themselves re-derive from the seed).

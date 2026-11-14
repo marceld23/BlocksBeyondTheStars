@@ -86,6 +86,10 @@ public static class LandmarkRules
     /// <summary><see cref="StructureTemplate.Seat"/>: a span across water or a valley (a bridge).</summary>
     public const string SeatSpan = "span";
 
+    /// <summary>#3640: <see cref="StructureTemplate.Seat"/> of a civilization template under water: the footprint on the sea floor,
+    /// water over its top (a basin dug into the floor where the sea is too shallow). Only a civilization template may name it.</summary>
+    public const string SeatSeabed = "seabed";
+
     /// <summary>The seat words a landmark may name (empty = the guaranteed search).</summary>
     public static readonly string[] Seats = { SeatSpan };
 
@@ -188,6 +192,9 @@ public static class LandmarkRules
         return ProfileOf(t);
     }
 
+    /// <summary>#3640: whether the template sits on the sea floor (<see cref="SeatSeabed"/>).</summary>
+    public static bool IsSeabedSeat(StructureTemplate t) => string.Equals(t.Seat, SeatSeabed, StringComparison.OrdinalIgnoreCase);
+
     /// <summary>Whether the landmark is seated as a span (<see cref="SeatSpan"/>).</summary>
     public static bool IsSpanSeat(StructureTemplate t) => string.Equals(t.Seat, SeatSpan, StringComparison.OrdinalIgnoreCase);
 
@@ -270,9 +277,10 @@ public static class LandmarkRules
     /// <summary>What is wrong with a landmark's seat and protection words (the school club's fields, generation 39).</summary>
     private static void AddSeatAndProtectionProblems(StructureTemplate t, List<string> problems)
     {
-        if (!string.IsNullOrEmpty(t.Seat) && Array.FindIndex(Seats, s => string.Equals(s, t.Seat, StringComparison.OrdinalIgnoreCase)) < 0)
+        if (!string.IsNullOrEmpty(t.Seat) && Array.FindIndex(Seats, s => string.Equals(s, t.Seat, StringComparison.OrdinalIgnoreCase)) < 0
+            && !(IsSeabedSeat(t) && t.Civilization.Length > 0))
         {
-            problems.Add($"unknown seat '{t.Seat}' (span)");
+            problems.Add($"unknown seat '{t.Seat}' (span; seabed for a civilization template)");
         }
         else if (IsSpanSeat(t) && !t.IsSource && Math.Max(t.Width, t.Length) < SpanMinLength)
         {

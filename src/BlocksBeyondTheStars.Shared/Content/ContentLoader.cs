@@ -143,6 +143,11 @@ public static class ContentLoader
         }
 
         content.SetGiantShips(giantShips, warn);
+
+        // Civilizations (#3639): one file per civilization under data/civilizations, the templates of a framework civilization in
+        // its subfolder — set after the loot tables and the planets, which they are checked against. Optional: no folder → none.
+        var (civilizations, civilizationTemplates) = LoadCivilizations(Path.Combine(dataDir, CivilizationRules.DataFolder), warn);
+        content.SetCivilizations(civilizations, civilizationTemplates, warn);
         content.SetStories(stories);
         content.SetFailedStoryPacks(failedPacks);
 
@@ -319,6 +324,57 @@ public static class ContentLoader
             t.GiantShip = true;
             return true;
         }, warn);
+
+    /// <summary>#3639: every civilization of a folder (one file each, the key defaulting to the file name, file-name order) and
+    /// the templates of each in its subfolder <c>&lt;key&gt;/</c> (one per file, the civilization defaulting to the folder's, kind
+    /// <see cref="CivilizationRules.TemplateKind"/>). An unreadable file is reported and skipped; no folder → none.</summary>
+    private static (List<CivilizationDefinition>, List<StructureTemplate>) LoadCivilizations(string dir, Action<string>? warn)
+    {
+        var civilizations = new List<CivilizationDefinition>();
+        var templates = new List<StructureTemplate>();
+        if (!Directory.Exists(dir))
+        {
+            return (civilizations, templates);
+        }
+
+        var files = Directory.GetFiles(dir, "*.json");
+        Array.Sort(files, StringComparer.Ordinal);
+        foreach (var file in files)
+        {
+            try
+            {
+                var c = JsonSerializer.Deserialize<CivilizationDefinition>(File.ReadAllText(file), JsonOptions);
+                if (c is null)
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(c.Key))
+                {
+                    c.Key = Path.GetFileNameWithoutExtension(file);
+                }
+
+                civilizations.Add(c);
+                string key = c.Key;
+                templates.AddRange(LoadTemplatePerFile(Path.Combine(dir, key), "civilization template", t =>
+                {
+                    t.Kind = CivilizationRules.TemplateKind;
+                    if (string.IsNullOrWhiteSpace(t.Civilization))
+                    {
+                        t.Civilization = key;
+                    }
+
+                    return true;
+                }, warn));
+            }
+            catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException or NotSupportedException)
+            {
+                warn?.Invoke($"Skipping unreadable civilization file '{Path.GetFileName(file)}': {ex.Message}");
+            }
+        }
+
+        return (civilizations, templates);
+    }
 
     /// <summary>One <see cref="StructureTemplate"/> per <c>*.json</c> file of <paramref name="dir"/>, in ordinal file-name
     /// order, the key defaulting to the file name; <paramref name="accept"/> marks a template's kind and may refuse it. An

@@ -19,6 +19,7 @@ public static class RuinMarkerRules
     public static readonly string[] Kept =
     {
         LandmarkRules.ChestMarker, "loot", "data_terminal", "relic_cache", LandmarkRules.SoundMarker, LandmarkRules.DenMarker,
+        CivilizationRules.PropMarker, // #3641: a civilization's prop is placed after the pass, on what is left
     };
 
     /// <summary>Whether a ruin keeps a marker of this type (<see cref="Kept"/>).</summary>

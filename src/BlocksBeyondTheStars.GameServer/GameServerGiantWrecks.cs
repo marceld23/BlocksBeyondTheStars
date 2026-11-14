@@ -132,7 +132,7 @@ public sealed partial class GameServer
             return; // nothing decided: a world that switches them on later asks again (and a visited body then records a skip)
         }
 
-        var plan = loaded.VirginAtLoad ? PlanGiantWreck(planet, restricted) : null;
+        var plan = loaded.VirginAtLoad && !CivilizationSuppresses(StructureTypeRules.GiantWreck) ? PlanGiantWreck(planet, restricted) : null; // #3639
         if (plan is null)
         {
             RecordPlacementSkip(GiantShipRules.RecordKind, 0); // decided once: none here (no roll, no fit, or a visited body)

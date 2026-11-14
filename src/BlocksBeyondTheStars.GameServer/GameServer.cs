@@ -853,7 +853,7 @@ public sealed partial class GameServer
                     // #3358 (the Sounders pack): Soaniri's village Mirun, the ruin city Ornasa and the Choir Tower — on the
                     // sounder_world type only, right after the tablets and before the monuments (they reserve around them).
                     BootDetail("sounder world", StampSounderWorld);
-
+                    BootDetail("civilizations", StampCivilizations); // #3639 (generation 43): a lost civilization on its home body — before the settlements, which keep clear of it
                     if (_config.PlaceSettlements && Stamps(StructureTypeRules.Settlement))
                     {
                         BootDetail("settlements", StampSettlement);

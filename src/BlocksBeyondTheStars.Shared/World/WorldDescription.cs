@@ -251,8 +251,9 @@ public sealed class WorldDescription
     /// landmarks, #3510 the structure pipeline, the school club's giant buildings with their overlay storage, #3555 the
     /// geography package: river valleys, site search with a map, sites that reserve their ground, #3602 the grown
     /// settlements: road-first villages, grown grids, terrain-following towns, a metropolis that grew, farms at the edge,
-    /// #3608 the giant ship wrecks on planets, #3629/#3631 the longer and more frequent intercity lines).</summary>
-    public const int CurrentTerrainGeneration = GiantWrecksGeneration;
+    /// #3608 the giant ship wrecks on planets, #3629/#3631 the longer and more frequent intercity lines,
+    /// #3639 the lost civilizations: the Grand Technicians' sunken ruins, the Labyrinth Builders' mazes).</summary>
+    public const int CurrentTerrainGeneration = CivilizationsGeneration;
 
     /// <summary>The generation of the grown settlements (#3602): a body stamped for the first time in a world of this
     /// generation or later may draw the grown and grown-grid settlement kits (<c>StructureKit.MinTerrainGeneration</c>) — a

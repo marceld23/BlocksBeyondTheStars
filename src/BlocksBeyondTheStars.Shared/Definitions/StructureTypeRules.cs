@@ -57,6 +57,9 @@ public sealed partial class StructureTypeRules
 
     /// <summary>#3608: a giant ship wreck on a planet (<see cref="GiantShipRules"/>).</summary>
     public const string GiantWreck = "giant_wreck";
+
+    /// <summary>#3639: a civilization's site on one of its home bodies (<see cref="CivilizationDefinition"/>).</summary>
+    public const string Civilization = "civilization";
     public const string Underground = "underground";
     public const string Vault = "vault";
     public const string DataCube = "datacube";
@@ -274,6 +277,7 @@ public sealed partial class StructureTypeRules
             Def(GiantWreck, minGeneration: WorldDescription.GiantWrecksGeneration, chance: GiantShipRules.Chance,
                 whitelist: GiantShipRules.StructureKind, keepClearFrom: Margins((Pad, 24), (WreckSite, 10), (Landmark, 16)),
                 conditions: new[] { ConditionNotVoid, ConditionNotGas }),
+            Def(Civilization, minGeneration: WorldDescription.CivilizationsGeneration, keepClearFrom: Margins((Pad, 24), (WreckSite, 10))),
             Def(Underground, minGeneration: WorldDescription.AncientRuinsGeneration, chance: 0.04, whitelist: "gds_ruins", keepClear: 10,
                 keepClearFrom: Margins((Pad, 30), (WreckSite, 8)),
                 conditions: new[] { ConditionNotVoid, ConditionNotGas }),
@@ -308,7 +312,7 @@ public sealed partial class StructureTypeRules
                 Monument => (Site(prominence: "high", weights: new[] { ("prominence", 3.0) }), Grade(10, 16, 16)),
                 Outpost => (Site(prominence: "high", altitude: new[] { 0.6, 1.0 }, weights: new[] { ("prominence", 2.0) }), Grade(10, 12, 12)),
                 Factory => (Site(relief: "flat", altitude: new[] { 0.3, 0.7 }, weights: new[] { ("relief", 2.0) }), Grade(14, 24, 24)),
-                Landmark or GiantWreck => (Site(prominence: "high", relief: "flat", weights: new[] { ("relief", 2.0) }), Grade(16, 24, 24)),
+                Landmark or GiantWreck or Civilization => (Site(prominence: "high", relief: "flat", weights: new[] { ("relief", 2.0) }), Grade(16, 24, 24)),
                 Ruin or RailRuin => (new StructureSiteRule(), Grade(12, 16, 16)),
                 SpsLab => (new StructureSiteRule(), Grade(12, 16, 16)),
                 _ => (new StructureSiteRule(), new StructureGradeRule()),
