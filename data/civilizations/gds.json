@@ -1,0 +1,7 @@
+{
+  "_comment": "The G.D.S. (#3643, docs/developer/CIVILIZATIONS.md): the vanished city people of the hot desert worlds and their glowing Ressaw (docs/developer/LORE_STRUCTURE.md §C). A legacy civilization — a tag only: the desert city, the buried Ressaw ruins and their guardians keep their own stampers, seeds, records and loot; the blocks, items, kits and templates that name \"gds\" are grouped under it.",
+  "key": "gds",
+  "nameKey": "civ.gds.name",
+  "state": "lost",
+  "placement": "legacy"
+}

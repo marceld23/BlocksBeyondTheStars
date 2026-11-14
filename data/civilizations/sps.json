@@ -1,0 +1,7 @@
+{
+  "_comment": "The SPS, the Scout and Pioneer Service (#3643, docs/developer/CIVILIZATIONS.md): the human exploration service that was destroyed centuries ago (docs/developer/LORE_STRUCTURE.md §A1) — the giant ships of its survey fleet Meridian among its wrecks. A legacy civilization — a tag only: its wrecks keep their own stampers, seeds, records and loot; the items, templates and loot tables that name \"sps\" are grouped under it.",
+  "key": "sps",
+  "nameKey": "civ.sps.name",
+  "state": "lost",
+  "placement": "legacy"
+}

@@ -103,7 +103,10 @@ public sealed class CivilizationStampTests : IDisposable
     {
         var content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
         var warnings = new List<string>();
-        content.SetCivilizations(new[] { civ }, templates, warnings.Add);
+        // #3643: the shipped legacy civilizations (the G.D.S., the Sounders, the SPS — tags only) stay loaded beside the test's,
+        // so the content's tags still name a civilization and the loader has nothing to warn about.
+        var civs = content.Civilizations.Where(c => !c.IsFramework).Append(civ).ToArray();
+        content.SetCivilizations(civs, templates, warnings.Add);
         Assert.True(warnings.Count == 0, string.Join(" | ", warnings));
         return content;
     }

@@ -827,6 +827,7 @@
     "kind": "city",
     "tier": "metropolis",
     "pack": "default",
+    "civilization": "gds",
     "weight": 1,
     "pinOnly": true,
     "planetTypes": [
@@ -2832,6 +2833,7 @@
     "kind": "city",
     "tier": "metropolis",
     "pack": "default",
+    "civilization": "gds",
     "weight": 2,
     "planetTypes": [
       "gds_desert"
@@ -2933,6 +2935,7 @@
     "kind": "city",
     "tier": "metropolis",
     "pack": "default",
+    "civilization": "gds",
     "weight": 2,
     "underground": true,
     "planetTypes": [],
@@ -5555,6 +5558,7 @@
     "kind": "settlement",
     "tier": "town",
     "pack": "default",
+    "civilization": "gds",
     "weight": 1,
     "pinOnly": true,
     "planetTypes": [
@@ -5624,6 +5628,7 @@
     "kind": "city",
     "tier": "metropolis",
     "pack": "default",
+    "civilization": "gds",
     "weight": 6,
     "planetTypes": [
       "gds_desert"

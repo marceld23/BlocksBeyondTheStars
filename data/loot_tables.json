@@ -66,6 +66,7 @@
   },
   {
     "key": "soaniri_castle",
+    "civilization": "sounders",
     "rolls": [
       { "picks": 3, "entries": [
         { "item": "resonance_crystal", "min": 2, "max": 5, "weight": 4 },
@@ -83,6 +84,7 @@
   },
   {
     "key": "soaniri_castle_tower",
+    "civilization": "sounders",
     "rolls": [
       { "picks": 2, "entries": [
         { "item": "resonance_crystal", "min": 1, "max": 3, "weight": 3 },
@@ -98,6 +100,7 @@
   },
   {
     "key": "giant_carrier",
+    "civilization": "sps",
     "rolls": [
       { "picks": 3, "entries": [
         { "item": "iron_plate", "min": 2, "max": 5, "weight": 4 },
@@ -125,6 +128,7 @@
   },
   {
     "key": "giant_battleship",
+    "civilization": "sps",
     "rolls": [
       { "picks": 3, "entries": [
         { "item": "steel", "min": 1, "max": 4, "weight": 4 },
@@ -152,6 +156,7 @@
   },
   {
     "key": "giant_liner",
+    "civilization": "sps",
     "rolls": [
       { "picks": 3, "entries": [
         { "item": "emergency_ration", "min": 1, "max": 3, "weight": 4 },
@@ -179,6 +184,7 @@
   },
   {
     "key": "giant_ark",
+    "civilization": "sps",
     "rolls": [
       { "picks": 3, "entries": [
         { "item": "berry_seed", "min": 2, "max": 5, "weight": 3 },
