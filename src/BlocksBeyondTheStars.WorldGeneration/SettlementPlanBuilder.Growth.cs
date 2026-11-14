@@ -103,7 +103,9 @@ internal sealed partial class SettlementPlanBuilder
                         continue;
                     }
 
-                    int s = 1 + StableHashing.Index($"setback:{x}:{z}:{dir}", _r.Seed, _spacing);
+                    // At least two columns back: a door's lane (the doorway and two rows in front of it) then lies on the
+                    // house's own footpath, never on a road that may climb a block right there.
+                    int s = 2 + StableHashing.Index($"setback:{x}:{z}:{dir}", _r.Seed, System.Math.Max(1, _spacing - 1));
                     var shape = shapeFor(dir ^ 1);
                     var (ox, oz) = LotOrigin(x, z, dir, s, shape);
                     if (!Fits(ox, oz, shape.W, shape.L, x, z, dx, dz, s))
@@ -129,7 +131,13 @@ internal sealed partial class SettlementPlanBuilder
         Claim(best.Ox, best.Oz, best.Shape, best.X, best.Z, best.Dir, best.S, fill);
         Plan.Lots.Add(new PlanLot
         {
-            Module = module, Function = function, X = best.Ox, Z = best.Oz, Turns = best.Shape.Turns, W = best.Shape.W, L = best.Shape.L,
+            Module = module,
+            Function = function,
+            X = best.Ox,
+            Z = best.Oz,
+            Turns = best.Shape.Turns,
+            W = best.Shape.W,
+            L = best.Shape.L,
         });
         _frontage.Add((best.X, best.Z));
         return true;

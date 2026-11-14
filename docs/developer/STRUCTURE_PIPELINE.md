@@ -115,6 +115,11 @@ never move a monument's relic cache or a G.D.S. crate that is re-derived from th
   is pinned in `WorldMetadata.BodySites` and read back in the landing-pad stage of every later load. Only during the boot's
   structures stage of a body without edits (never an admin placement). The foundation, skirt and shelf fill come from the
   biome at the site. Details in [WORLD_GENERATION.md](WORLD_GENERATION.md) §55.
+- **Planned settlements** (generation 41): a planned kit (grid or grown) seats first and is planned into the site's ground
+  (`SettlementPlanner`); the plan is pinned in `StructurePlacementRecord.Plan` and baked on every replay
+  (`SettlementPlanBaker`). The structure carries a column map (`SettlementStructure.ColumnFloors`): the stamper, the
+  reserved ground (one site per lot and road stretch), the protection and the creature town zone follow the claimed
+  columns, not the box. Details in [WORLD_GENERATION.md](WORLD_GENERATION.md) §56.
 - **Protection** (generation 39): every whole template carries `protection` (`auto` / `protected` / `open`, settable in
   the editor's *Use as* form). A protected box rides on the structure's footprint entry (`GuardBox`) and one query,
   `IsProtectedStructureCell` (`GameServerStructureProtection.cs`), sits beside the station check at every protection

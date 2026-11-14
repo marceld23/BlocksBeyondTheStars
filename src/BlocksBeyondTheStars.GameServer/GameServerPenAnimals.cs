@@ -77,6 +77,25 @@ public sealed partial class GameServer
         return AdjustHabitatHeight(sp, new Vector3f(x + 0.5f, pen.FeetY, z + 0.5f));
     }
 
+    /// <summary>Moves a companion no player owns — the tamer's pet after its NPC, a pen's animal in its pen; false for a
+    /// player's companion.</summary>
+    private bool MoveNonPlayerCompanion(CombatEntity c, CreatureSpecies sp, double moveDt)
+    {
+        if (NpcPetOwner(c) is { } tamer)
+        {
+            MoveTamerPet(c, sp, tamer.Pos, moveDt);
+            return true;
+        }
+
+        if (IsPenAnimal(c))
+        {
+            MovePenAnimal(c, sp, moveDt);
+            return true;
+        }
+
+        return false;
+    }
+
     /// <summary>A pen's animal ambles about the middle of its pen; one that got out is put back in.</summary>
     private void MovePenAnimal(CombatEntity c, CreatureSpecies sp, double moveDt)
     {
@@ -104,7 +123,7 @@ public sealed partial class GameServer
     /// <summary>Lays one product into the pen's first crate with room, every <see cref="PenProductSeconds"/>, up to the cap.</summary>
     private void LayPenProduct(SettlementFarmArea pen)
     {
-        if (pen.NextProductAt <= 0)
+        if (double.IsNaN(pen.NextProductAt))
         {
             pen.NextProductAt = _uptime + PenProductSeconds;
             return;

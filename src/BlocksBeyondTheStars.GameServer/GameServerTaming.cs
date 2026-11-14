@@ -791,16 +791,9 @@ public sealed partial class GameServer
             return;
         }
 
-        if (NpcPetOwner(c) is { } tamer)
+        if (MoveNonPlayerCompanion(c, sp, moveDt))
         {
-            MoveTamerPet(c, sp, tamer.Pos, moveDt); // the tamer's pet (2026-09) trots after its NPC
-            return;
-        }
-
-        if (IsPenAnimal(c))
-        {
-            MovePenAnimal(c, sp, moveDt); // #3597: a pen's animal ambles about its pen
-            return;
+            return; // the tamer's pet (2026-09) trots after its NPC, a pen's animal (#3597) ambles about its pen
         }
 
         var owner = FindSessionByPlayerId(c.OwnerId);

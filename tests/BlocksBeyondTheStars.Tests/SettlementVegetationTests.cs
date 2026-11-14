@@ -9,6 +9,7 @@ using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -51,6 +52,7 @@ public sealed class SettlementVegetationTests : IDisposable
             PlaceStarterShip = false,
             PlaceSettlements = true,
             PlaceWrecks = false,
+            World = { TerrainGeneration = WorldDescription.GeographyGeneration }, // #3602: box-stamped settlements
         }, _content, st, repo);
         server.Start();
         return server;

@@ -50,6 +50,7 @@ public sealed class IntercityRailTests : IDisposable
             PlaceStarterShip = false,
             IntercityRailChance = 1.0, // a line wherever one fits
         };
+        config.World.TerrainGeneration = WorldDescription.GeographyGeneration; // #3602: the classic towns (box stations)
         configure?.Invoke(config);
         var server = new SvGameServer(config, _content, new LoopbackServerTransport(new LoopbackLink()), repo);
         server.Start();

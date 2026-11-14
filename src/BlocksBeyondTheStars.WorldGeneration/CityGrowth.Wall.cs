@@ -133,8 +133,14 @@ internal static partial class CityGrowth
             {
                 plan = SettlementPlanner.Plan(new SettlementPlanRequest
                 {
-                    Tier = kit.Tier, Seed = SuburbSeed(seed, g), Kit = kit, Pool = pool, Extent = b.Size, Form = "street",
-                    Axis = gates[g].Side is 2 or 3 ? "x" : "z", Straight = true,
+                    Tier = kit.Tier,
+                    Seed = SuburbSeed(seed, g),
+                    Kit = kit,
+                    Pool = pool,
+                    Extent = b.Size,
+                    Form = "street",
+                    Axis = gates[g].Side is 2 or 3 ? "x" : "z",
+                    Straight = true,
                 });
             }
 

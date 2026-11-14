@@ -26,6 +26,12 @@ namespace BlocksBeyondTheStars.Client
         public int grid, districtSize, street, height;
         public List<string> roleMap = new List<string>();
 
+        // #3600: the planned layouts (grown grid, grown) and the grown city
+        public string layout = string.Empty, suburbKit = string.Empty;
+        public List<string> forms = new List<string>();
+        public int mainStreet, spacing, extent, minTerrainGeneration;
+        public bool flat, grown;
+
         public static KitJson From(StructureKit k)
         {
             var j = new KitJson
@@ -37,6 +43,9 @@ namespace BlocksBeyondTheStars.Client
                 colsMin = k.ColsMin, colsMax = k.ColsMax, rowsMin = k.RowsMin, rowsMax = k.RowsMax, plotStride = k.PlotStride,
                 building = k.Building, storeys = k.Storeys, modulesOnly = k.ModulesOnly, underground = k.Underground,
                 grid = k.Grid, districtSize = k.DistrictSize, street = k.Street, height = k.Height, roleMap = new List<string>(k.RoleMap),
+                layout = k.Layout ?? string.Empty, forms = new List<string>(k.Forms), mainStreet = k.MainStreet, spacing = k.Spacing,
+                extent = k.Extent, flat = k.Flat, grown = k.Grown, suburbKit = k.SuburbKit ?? string.Empty,
+                minTerrainGeneration = k.MinTerrainGeneration,
             };
             foreach (var e in k.Entries)
             {
@@ -57,6 +66,8 @@ namespace BlocksBeyondTheStars.Client
                 ColsMin = colsMin, ColsMax = colsMax, RowsMin = rowsMin, RowsMax = rowsMax, PlotStride = plotStride,
                 Building = building, Storeys = storeys, ModulesOnly = modulesOnly, Underground = underground,
                 Grid = grid, DistrictSize = districtSize, Street = street, Height = height, RoleMap = new List<string>(roleMap ?? new List<string>()),
+                Layout = layout ?? string.Empty, Forms = new List<string>(forms ?? new List<string>()), MainStreet = mainStreet, Spacing = spacing,
+                Extent = extent, Flat = flat, Grown = grown, SuburbKit = suburbKit ?? string.Empty, MinTerrainGeneration = minTerrainGeneration,
             };
             foreach (var e in entries ?? new List<KitEntryJson>())
             {
@@ -81,7 +92,7 @@ namespace BlocksBeyondTheStars.Client
     /// required, weight, rotate) and the grid of a village or city. Save writes the user kit file the local server
     /// reads and the export bundle <c>tools/merge_structure.py</c> folds into <c>data/structure_kits.json</c>.
     /// </summary>
-    internal sealed class KitEditorPanel
+    internal sealed partial class KitEditorPanel
     {
         private const float W = 1100f, H = 900f;
         private readonly AppShell _shell;
@@ -366,21 +377,11 @@ namespace BlocksBeyondTheStars.Client
                 IntField(panel, x0 + (2f * IntStep), y, L("ui.kit.street"), k2.street, v => k2.street = v);
                 IntField(panel, x0 + (3f * IntStep), y, L("ui.kit.height"), k2.height, v => k2.height = v);
                 y += 40f;
-                Field(panel, x0, y, L("ui.kit.role_map"), string.Join(" ", k2.roleMap), v => k2.roleMap = SplitList(v, ' '));
-                y += 40f;
+                y = CityMapRows(panel, x0, y, k2); // #3600: the district map as a clickable grid, the grown city's rows
             }
             else
             {
-                IntField(panel, x0, y, L("ui.kit.cols_min"), k2.colsMin, v => k2.colsMin = v);
-                IntField(panel, x0 + IntStep, y, L("ui.kit.cols_max"), k2.colsMax, v => k2.colsMax = v);
-                IntField(panel, x0 + (2f * IntStep), y, L("ui.kit.rows_min"), k2.rowsMin, v => k2.rowsMin = v);
-                IntField(panel, x0 + (3f * IntStep), y, L("ui.kit.rows_max"), k2.rowsMax, v => k2.rowsMax = v);
-                y += 40f;
-                IntField(panel, x0, y, L("ui.kit.plot_stride"), k2.plotStride, v => k2.plotStride = v);
-                IntField(panel, x0 + IntStep, y, L("ui.kit.building"), k2.building, v => k2.building = v);
-                IntField(panel, x0 + (2f * IntStep), y, L("ui.kit.storeys"), k2.storeys, v => k2.storeys = v);
-                UiKit.AddFitButton(panel, x0 + (3f * IntStep), y, 192f, 30f, (k2.modulesOnly ? "☑ " : "☐ ") + L("ui.kit.modules_only"), () => { k2.modulesOnly = !k2.modulesOnly; Rebuild(); });
-                y += 40f;
+                y = SettlementLayoutRows(panel, x0, y, k2); // #3600: the layout stepper and the picked layout's rows
             }
 
             // The entries table.

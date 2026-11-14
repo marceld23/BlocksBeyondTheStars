@@ -347,7 +347,7 @@ public sealed class DoorLaneTests
     {
         var pool = Content.SettlementTemplates.Where(t => t.IsModule).ToList();
         var failures = new List<string>();
-        foreach (var kit in Content.KitsFor(StructureKit.KindSettlement, tier, null, null))
+        foreach (var kit in Content.KitsFor(StructureKit.KindSettlement, tier, null, null, WorldDescription.GeographyGeneration))
         {
             for (long seed = 1; seed <= 3; seed++)
             {
@@ -366,13 +366,49 @@ public sealed class DoorLaneTests
         Assert.True(failures.Count == 0, "door lanes blocked:\n" + string.Join("\n", failures));
     }
 
+    /// <summary>#3602: the planned kits keep every door lane walkable too — turned modules, lamps at the junctions, gardens
+    /// behind the houses, on flat and on rolling ground.</summary>
+    [Theory]
+    [InlineData("village")]
+    [InlineData("town")]
+    [InlineData("city")]
+    public void PlannedKitSettlements_KeepEveryDoorLaneWalkable(string tier)
+    {
+        var pool = Content.SettlementTemplates.Where(t => t.IsModule).ToList();
+        var failures = new List<string>();
+        foreach (var key in new[] { $"{tier}_grown_1", $"{tier}_grid_1" })
+        {
+            for (long seed = 1; seed <= 4; seed++)
+            {
+                var plan = SettlementPlanner.Plan(new SettlementPlanRequest
+                {
+                    Tier = tier,
+                    Seed = seed,
+                    Kit = Content.KitByKey(key)!,
+                    Pool = pool,
+                    Ground = seed % 2 == 0 ? SettlementPlannerTests.Hills : null,
+                });
+                var s = SettlementPlanBaker.Bake(plan, tier, false, seed, "grass", Content, pool);
+                var doors = DoorsOf(s.Markers.Select(m => (m.Type, m.LocalPos)));
+                Assert.NotEmpty(doors);
+                var blocked = RoomFurnisher.BlockedDoorLanes(s.Get, s.GetShape, s.Width, s.Height, s.Length, doors);
+                if (blocked.Count > 0)
+                {
+                    failures.Add($"{key} seed {seed} ({s.Width}×{s.Length}): {Describe(blocked, s.Get, s.GetShape)}");
+                }
+            }
+        }
+
+        Assert.True(failures.Count == 0, "door lanes blocked:\n" + string.Join("\n", failures));
+    }
+
     [Fact]
     public void TheGdsModularCity_KeepsEveryDoorLaneWalkable()
     {
         // (The legacy procedural houses of the Off option keep their own one-row door reservation — a 4 × 4 hut has no room
         // for two rows and its bed — so this invariant is held for the module-built places.)
         var pool = Content.SettlementTemplates.Where(t => t.IsModule).ToList();
-        var gds = Assert.Single(Content.KitsFor(StructureKit.KindCity, null, null, "gds_desert"));
+        var gds = Assert.Single(Content.KitsFor(StructureKit.KindCity, null, null, "gds_desert", WorldDescription.GeographyGeneration));
         var s = CityGenerator.Generate(20260915, Content, Array.Empty<CityGenerator.OpenZone>(), null, 0, new List<string>(), null, CityLayoutSpec.FromKit(gds), gds, pool);
         var doors = DoorsOf(s.Markers.Select(m => (m.Type, m.LocalPos)));
         Assert.True(doors.Count > 20, $"expected the districts' doors, found {doors.Count}");

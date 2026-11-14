@@ -3752,3 +3752,104 @@ seam, pads win, the sea is never raised, no tree or hole in the box, older world
 reserves nothing, the city, the landmarks, the search prefers what a kind likes), `FarTerrainSiteTests` (the client's far
 terrain equals the server's over sites and valleys), `StructureTypeRulesTests` (the objects merge and validate), golden groups
 `river_lowlands-gen40`, `highland-gen40`, `jungle-gen40`.
+
+## 56. Generation 41 — the grown settlements (#3602: #3583–#3601, 2026-11-14)
+
+Villages, towns and the G.D.S. metropolis used to have a rectangular ground plan: the stamper cleared, floored and skirted
+every column of the settlement's box, a path frame ran round its edge, every kit module sat centred on an even grid with
+its door facing −Z, the market stood in the grid's corner and everything stood on one plane. Generation 41
+(`WorldDescription.GrownSettlementsGeneration`) adds settlements that look grown and keeps the planned-looking ones.
+Server-side stamps only — every chunk of every older generation stays bit-identical, every settlement that stands replays
+unchanged.
+
+**Kits and the mix** (#3583, #3598). `StructureKit.MinTerrainGeneration` gates a kit for fresh draws
+(`KitsFor(..., generation)`); a pinned replay finds it by key as before. New fields: `Layout` (`""` = the classic plot grid,
+`grid` = grown grid, `grown` = road first), `Forms`, `MainStreet`, `Spacing`, `Extent`, `Flat`, and for city kits `Grown`
+and `SuburbKit`. `tools/gen_grown_settlement_modules.py` adds `<tier>_grown_1` (weight 8) and `<tier>_grid_1` (weight 4)
+next to the two classic modular kits (2 + 2): a fresh settlement is about 50 % grown, 25 % grown grid, 25 % classic.
+
+**The plan** (#3584). A planned kit produces a `SettlementPlan`: the lots (module, function, corner, floor row, quarter
+turns, size after turning) and a column map (`Unclaimed`, `Yard`, `Footpath`, `Lane`, `MainRoad`, `Plaza`, `LotColumn`,
+`Green` plus a floor row per column), the plaza's centre and the form. `Serialize` writes
+`plan|rev|layout|form|w|l|px|pz|lots|columns` (columns deflated + base64) into `StructurePlacementRecord.Plan`; a replay
+bakes it (`SettlementPlanBaker`) and never plans again — no terrain read, no growth, no pool lookup beyond the pinned keys
+(a missing module leaves its lot an empty yard, warned).
+
+**The planners** (`SettlementPlanner`, `SettlementPlanBuilder.*`). Modules are picked from the kit (required first, then
+weighted draws to a tier count; only the settlement's style and inhabitants — `IsAlien(seed)`) and sorted by
+`StructureRoles.Ring` (market, notice house, tavern → houses and workshops → fields, gardens, pens, greenhouse, stable,
+quarry). The skeleton: *grown grid* (#3586) — lanes along one axis with strides 18–23, cross lanes 22–31, the middle lane
+the main lane to both edges, the plaza at the centre; *road first* (#3587) — `street` (one bending main road, side lanes),
+`green` (the road splits round an elongated green that is the meeting place), `round` (a round plaza, a ring lane, one way
+in), `cluster` (wandering, forking lanes), `cross` (two main roads crossing at the plaza), `bank` (a road a quarter in from
+the side the nearest fresh water lies on; houses kept to the land side; without water a street village). Growth places
+each module on the best free frontage of a road column: turned so its door (or `entrance` marker, #3585) faces the road
+(`TurnsBetween`, `TemplateTransform.RotateY`), set back 2 to max(2, `Spacing`) columns (so a door's lane — the doorway and
+two rows in front of it — lies on its own footpath, never on a road that may climb right there), a footpath from the door
+to the road that touches no other way, a one-column gap to everything. The score wants the plaza for ring 0, a middle distance for ring 1, the edge for
+ring 2 (plus a seed hash; the grown grid thins its edge; the bank village penalises the water side). Full frontages grow a
+new lane (road first); a lane grown later stops before any building or footpath. A few 5 × 5 squares (a well or a bed)
+fill gaps near the plaza.
+
+**Heights** (#3590). With ground (`SettlementPlanRequest.Ground`, the site's surface heights), the road columns take the
+lower envelope of the ground along the road network (no road column more than one block above a neighbouring one), are
+clamped to ±`MaxRise / 2` (3) round the level plaza / green and shifted to start at 0 (`GroundBase` = the world row of
+floor 0); every lot takes the height of the road column in front of its door, its footpath and yard with it. Flat kits,
+stilts, lava and island seats plan on one level. Half steps: a lane or main-road column one block below a neighbour (and
+none lower) carries a stone slab; NPCs read it as a full block, so every step they take stays one block.
+
+**Site first** (#3589). A fresh planned settlement seats an empty box of the kit's extent (`SettlementStructure.Empty`)
+with the guaranteed search, samples the ground of the site it found, reads the box side the nearest fresh water lies
+beyond (`FreshWaterDistance` at four probes), plans, pins, reserves its ground and stamps. The instance stream still draws
+the ruin verdict and the island wish.
+
+**The mask** (#3588, #3591). A baked plan carries `SettlementStructure.ColumnFloors` (−1 = unclaimed). The stamper
+(`StampPlannedBlocks`, seats `flat` / `slope` / `shelf`) clears, floors and skirts only claimed columns at their own floor
+(the skirt in the biome's sub-surface, down to the natural ground, at most 48), then the structure; the vegetation carve
+follows the claimed columns plus the crown margin. Every other kind that goes through the stamper passes no map. Reserved
+ground: one site per lot (with its yard, radius 3) and one per road stretch (same-height rectangles of road, footpath,
+plaza and green merged greedily, radius 2), the kind's cut and fill limits (`ReservePlanGround`, `AddSiteFlats`).
+`SiteIndex` buckets the world's sites into 32-block cells (box plus reach, both seams wrapped) so `TryGradeTarget`,
+`TrySiteBoxAt` and `SiteClaims` only look at nearby sites — in list order, so every generation computes what the scan
+computed.
+
+**Rules by column** (#3592–#3594). `IntactSettlementAt` protects a planned settlement's claimed columns from their own
+floor down (48), `AboveSettlementFloor` reads the column's floor, an unclaimed corner is free ground. The creature town
+zone is the claimed columns grown by `TownWildMargin` with a breadth-first depth map (`TownDepthMap`). A ruin fills the
+columns under raised floors with kept support before the shared ruin pass (one built lot spared) and removes it after.
+`road_exit` markers (data `side=0..3`) dock the intercity station at the exit on its side, at the exit's height; the
+`plaza` marker is the festival's square.
+
+**Farms** (#3595–#3597). Functions `field`, `garden`, `pen` (`StructureRoles`, ring 2); modules `village_/town_field_1/2`
+(12 × 8, crop rows on dirt with a path between), `…_garden_1/2` (6 × 6), `…_pen_1/2` (9 × 9, closed fence, the product
+crate set into the −Z fence, an `entrance` marker above it, a trough, a lean-to), human and alien. The baker marks fields
+(`field`, `w=…;l=…`), pens (`pen`, the inner area) and every crate of a pen (`pen_box`). The server
+(`GameServerSettlementFarms.cs`, `GameServerPenAnimals.cs`) gives field crops `FieldRegrowSeconds` (240) instead of 30,
+keeps two or three animals of a passive land species of the world in every pen (owner `pen:<x>:<z>`, exempt from the town
+rule, put back in when they wander out) and lays one product every 180 s into the pen's crate, up to 12: `egg` (winged or
+two-legged), `milk` (size ≥ 1.1), `wool`. Recipes: `fried_egg` and `pancake` (campfire), `rug_wool`, `bed_wool`; the grocer
+sells eggs and milk.
+
+**The city that grew** (#3599, `CityGrowth`). A city kit with `grown` (`city_gds_grown_1`, weight 6 against the classic 2):
+the district map's `.` leaves a district to the land (`Role.None`); `CityLayoutSpec` gains a margin (`Shift` + `SuburbDepth`)
+round the core and shifts every row whose distance from the middle row is odd by half a district (T junctions); streets
+only where districts are, the band above the middle row and the gate roads in steel; the wall along the outline of the
+districts grown by a street, open where a gate road crosses, a 3 × 3 tower on every outer corner; west / east gates on the
+middle band, north / south on the street of the top / bottom row nearest the middle. Outside every gate whose 36 × 36 box
+stays clear of the city a suburb is planned (`city_gds_suburb_1`, a straight street on the gate road, flat, human), baked
+and merged into the city's one structure (so its houses are climate-controlled too); the suburb plans are pinned in the
+city record's `Plan` (one per gate, `~`-joined). Every landing pad inside the larger footprint stays open ground. The spec
+serializes a sixth field `grown:<suburb kit>`; five-field specs replay unchanged. The buried G.D.S. ruin keeps its composer.
+
+**Editor** (#3600). The kit panel's *Layout* stepper swaps the plot-grid rows for the planned layout's rows (main street,
+setback, extent, flat, forms); a city kit's district map is a clickable letter grid with the grown switch and the suburb
+kit; the module function is a pick list; the `entrance` marker is in the palette; the `settlement` source previews a
+planned kit on `relief` flat / slope / hills in a `form` of choice (`SettlementPlanBaker.Bake(..., plinths: true)` gives the
+terraces their plinths on the editor's flat ground).
+
+**Tests.** `SettlementPlannerTests` (deterministic and pinned losslessly, services present, no overlap, every lot's
+frontage reaches the plaza over one road net, walkable steps of at most one and the rise cap, flat ground, the bank
+village, every form, the bake carries the map / plaza / services / exits, farm markers, a ruin keeps its floors),
+`GrownSettlementServerTests` (a fresh world pins and replays its plans, the box is protected only where claimed, the town
+zone follows the claimed columns, a pen keeps its animals and lays into its crate, the field clock, the grown G.D.S. city
+with its suburbs, an older world never draws a planned kit).

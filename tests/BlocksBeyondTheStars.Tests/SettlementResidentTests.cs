@@ -22,7 +22,7 @@ public sealed class SettlementResidentTests : IDisposable
     private readonly string _root = Path.Combine(Path.GetTempPath(), "bbts_residents_" + Guid.NewGuid().ToString("N"));
     private static readonly GameContent Content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
 
-    private SvGameServer Start(long seed, string planet, out SqliteWorldRepository repo, Frequency templates = Frequency.Normal)
+    private SvGameServer Start(long seed, string planet, out SqliteWorldRepository repo, Frequency templates = Frequency.Normal, int generation = 0)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, planet + "_" + seed + "_" + templates));
         var config = new ServerConfig
@@ -36,6 +36,11 @@ public sealed class SettlementResidentTests : IDisposable
             PlaceWrecks = false,
         };
         config.World.SettlementTemplateUse = templates;
+        if (generation > 0)
+        {
+            config.World.TerrainGeneration = generation;
+        }
+
         var server = new SvGameServer(config, Content, new LoopbackServerTransport(new LoopbackLink()), repo);
         server.Start();
         return server;
@@ -181,7 +186,7 @@ public sealed class SettlementResidentTests : IDisposable
     [Fact]
     public void GdsCity_HousesAtMostEightyResidents_PlusItsGuardians()
     {
-        var server = Start(20260912, "gds_desert", out var repo);
+        var server = Start(20260912, "gds_desert", out var repo, generation: WorldDescription.GeographyGeneration); // the classic city
         using (repo)
         {
             var (_, tier, beds, residents) = Assert.Single(server.SettlementResidentsForTest);

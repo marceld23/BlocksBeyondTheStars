@@ -215,14 +215,7 @@ namespace BlocksBeyondTheStars.Client
         {
             RowLabel(p, y, L("ui.struct.function"));
             ValueLabel(p, y, FunctionLabel(_function));
-            UiKit.AddFitButton(p, ArrowX, y + 3f, ArrowW, RowH, "→", () =>
-            {
-                var list = Functions();
-                int i = System.Array.IndexOf(list, _function ?? string.Empty);
-                _function = list[(i + 1) % list.Length];
-                SyncRole();
-                RebuildUi(); // #3523: a city role makes it a city module — the palette and the stamping panel follow
-            });
+            UiKit.AddFitButton(p, ArrowX, y + 3f, ArrowW, RowH, "…", OpenFunctionPicker); // #3600: a pick list (23 functions)
             y += ValueRowStep;
             if (EditorMode == Mode.Station)
             {

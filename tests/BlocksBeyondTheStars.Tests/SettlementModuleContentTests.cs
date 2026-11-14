@@ -215,7 +215,7 @@ public sealed class SettlementModuleContentTests
     public void ModularKits_BuildSettlements_EntirelyFromModules(string tier)
     {
         var pool = Content.SettlementTemplates.Where(t => t.IsModule).ToList();
-        var kits = Content.KitsFor(StructureKit.KindSettlement, tier, null, null);
+        var kits = Content.KitsFor(StructureKit.KindSettlement, tier, null, null, WorldDescription.GeographyGeneration); // the classic kits (#3583: the planned ones have tests of their own)
         Assert.Equal(2, kits.Count);
         Assert.All(kits, k => Assert.StartsWith(tier + "_modular_", k.Key, StringComparison.Ordinal));
         var seen = new HashSet<string>();
@@ -276,7 +276,7 @@ public sealed class SettlementModuleContentTests
     [Fact]
     public void GdsModularKit_FillsEveryBuiltDistrict_WithADistrictModule()
     {
-        var kit = Assert.Single(Content.KitsFor(StructureKit.KindCity, null, null, "gds_desert"));
+        var kit = Assert.Single(Content.KitsFor(StructureKit.KindCity, null, null, "gds_desert", WorldDescription.GeographyGeneration));
         Assert.Equal("city_gds_modular_1", kit.Key);
         var pool = Content.SettlementTemplates.Where(t => t.IsModule).ToList();
         var spec = CityLayoutSpec.FromKit(kit);

@@ -52,7 +52,7 @@ public sealed partial class GameServer
         public int L { get; init; }
         public int FeetY { get; init; }
         public List<Vector3i> Boxes { get; } = new();
-        public double NextProductAt { get; set; }
+        public double NextProductAt { get; set; } = double.NaN; // not started: the first tick starts the clock
 
         public bool Contains(int x, int z, int circ, int grow = 0)
         {
@@ -62,6 +62,18 @@ public sealed partial class GameServer
     }
 
     private bool IsPenAnimal(CombatEntity c) => c.OwnerId.StartsWith(PenOwnerPrefix, System.StringComparison.Ordinal);
+
+    /// <summary>How long a harvested plant takes to grow back at a cell: a fruit its own while, a bred plant longer than a wild
+    /// one, a crop on a village field (#3596) <see cref="FieldRegrowSeconds"/>, everything else the flora's half minute.</summary>
+    private double RegrowSecondsAt(Vector3i pos, ushort floraId)
+        => _fruitIds.Contains(floraId) ? FruitRules.RegrowSeconds
+            : IsBredPlant(floraId) ? BredRegrowSeconds
+            : InSettlementField(pos) ? FieldRegrowSeconds
+            : FloraRegrowSeconds;
+
+    /// <summary>Test seam (#3596): the regrow time at a cell for a plant block.</summary>
+    internal double RegrowSecondsForTest(Vector3i pos, string floraKey)
+        => RegrowSecondsAt(pos, _content.GetBlock(floraKey)?.NumericId.Value ?? 0);
 
     /// <summary>Whether a cell lies on a field of an intact planned settlement.</summary>
     private bool InSettlementField(Vector3i pos)

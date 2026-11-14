@@ -269,6 +269,7 @@
   { "key": "market_tamer_forage_bait", "station": "market", "marketTheme": "tamer", "inputs": [ { "item": "plant_fiber", "count": 6 } ], "outputs": [ { "item": "forage_bait", "count": 2 } ] },
   { "key": "market_tamer_meat_bait", "station": "market", "marketTheme": "tamer", "inputs": [ { "item": "creature_meat", "count": 3 } ], "outputs": [ { "item": "meat_bait", "count": 2 } ] },
   { "key": "market_tamer_nectar_lure", "station": "market", "marketTheme": "tamer", "inputs": [ { "item": "berries", "count": 4 } ], "outputs": [ { "item": "nectar_lure", "count": 1 } ] },
+  { "key": "market_tamer_wool", "station": "market", "marketTheme": "tamer", "inputs": [ { "item": "iron_ore", "count": 2 } ], "outputs": [ { "item": "wool", "count": 3 } ] },
   { "key": "market_blocks_stone", "station": "market", "marketTheme": "blocks", "inputs": [ { "item": "iron_ore", "count": 1 } ], "outputs": [ { "item": "stone", "count": 16 } ] },
   { "key": "market_blocks_sand", "station": "market", "marketTheme": "blocks", "inputs": [ { "item": "iron_ore", "count": 1 } ], "outputs": [ { "item": "sand", "count": 16 } ] },
   { "key": "market_blocks_dirt", "station": "market", "marketTheme": "blocks", "inputs": [ { "item": "iron_ore", "count": 1 } ], "outputs": [ { "item": "dirt", "count": 16 } ] },

@@ -96,6 +96,27 @@ public sealed partial class GameServer
         return depth;
     }
 
+    /// <summary>Test seam (#3602): every intact planned settlement of the active world — its box corner, ground row and layout.</summary>
+    internal IReadOnlyList<(Vector3i Min, int GroundY, SettlementStructure Layout)> PlannedSettlementsForTest
+    {
+        get
+        {
+            var list = new List<(Vector3i, int, SettlementStructure)>();
+            foreach (var s in _settlements)
+            {
+                if (!s.Ruined && s.Layout is { HasColumnMap: true } layout)
+                {
+                    list.Add((s.Min, s.GroundY, layout));
+                }
+            }
+
+            return list;
+        }
+    }
+
+    /// <summary>Test seam (#3592): the town-zone depth at a feet cell.</summary>
+    internal int TownZoneDepthForTest(int x, int feetY, int z) => TownZoneDepth(x, feetY, z, out _);
+
     /// <summary>A settlement's plaza marker (#3594), feet level, or null when it has none.</summary>
     private static Vector3f? PlazaMarkerOf(SettlementInstance s)
     {

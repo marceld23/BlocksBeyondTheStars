@@ -43,7 +43,8 @@ public sealed partial class StructureGeneratorGoldenTests
 
     /// <summary>Every shipped kit of a kind and tier, pin-only ones included (an old record replays through them).</summary>
     private static IEnumerable<StructureKit> KitsOf(string kind, string tier)
-        => Content.StructureKits.Where(k => k.KindOrDefault == kind && k.Tier == tier).OrderBy(k => k.Key, StringComparer.Ordinal);
+        => Content.StructureKits.Where(k => k.KindOrDefault == kind && k.Tier == tier && k.MinTerrainGeneration == 0) // #3583: no planned kit
+            .OrderBy(k => k.Key, StringComparer.Ordinal);
 
     private static ulong Hash(SettlementStructure s) => StructureGoldens.Settlement(Content, s);
 

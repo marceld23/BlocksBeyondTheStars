@@ -142,7 +142,8 @@ internal sealed partial class PlanBake
         }
 
         return new SettlementStructure(_w, _h, _l, _tier, _ruined, _ruined ? string.Empty : _alien ? "alien" : "human", _blocks, _markers,
-            System.Math.Max(1, _buildings), _mods, _shapes) { ColumnFloors = _floors };
+            System.Math.Max(1, _buildings), _mods, _shapes)
+        { ColumnFloors = _floors };
     }
 
     /// <summary>Fills every claimed column from row 0 up to its floor with the surface (the editor's preview plinths); the

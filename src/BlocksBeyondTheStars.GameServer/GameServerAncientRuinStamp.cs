@@ -43,7 +43,9 @@ public sealed partial class GameServer
         for (int i = 1; i < city.Grid; i++)
             for (int j = 1; j < city.Grid; j++)
             {
-                int x = cityRec.X + i * stride + 1, z = cityRec.Z + j * stride + 1;
+                // #3599: a grown city's crossings lie inside its margin, each row's streets where that row is shifted to
+                // (Margin and RowShift are 0 for every classic city, so its hatch stays where it was).
+                int x = cityRec.X + city.Margin + city.RowShift(j) + i * stride + 1, z = cityRec.Z + city.Margin + j * stride + 1;
                 if (!NearPadOrWreck(x, z))
                 {
                     crossings.Add(((long)(x - centreX) * (x - centreX) + (long)(z - centreZ) * (z - centreZ), x, z));
