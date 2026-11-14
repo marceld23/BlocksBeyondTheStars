@@ -741,6 +741,7 @@ namespace BlocksBeyondTheStars.Client
             _visibilityDirty = true;
             FarView?.ResetWorld(); // #1820: the new world's info + tiles arrive after this reset
             World.Clear();
+            RetireAllChunkArrays(); // #3579: the old world's block arrays go back to the pool, not stay referenced until the menu
 
             ServerSpawn = null; // re-snap at the new spawn once the next PlayerState arrives
             WorldEpoch++;

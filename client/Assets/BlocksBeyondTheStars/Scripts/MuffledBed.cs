@@ -154,6 +154,43 @@ namespace BlocksBeyondTheStars.Client
             _baked.Clear();
         }
 
+        /// <summary>#3580: frees the baked copies of every loop but the current one — after a move to another place the old
+        /// place's beds are not coming back soon, and each copy is a few MB of decoded audio in the browser.</summary>
+        public void DropIdleCopies()
+        {
+            if (_baked.Count == 0)
+            {
+                return;
+            }
+
+            var idle = new List<AudioClip>();
+            foreach (var kv in _baked)
+            {
+                if (kv.Key != _dry.clip)
+                {
+                    idle.Add(kv.Key);
+                }
+            }
+
+            foreach (var clip in idle)
+            {
+                var copy = _baked[clip];
+                _baked.Remove(clip);
+                if (copy == null)
+                {
+                    continue;
+                }
+
+                if (_muffled != null && _muffled.clip == copy)
+                {
+                    _muffled.Stop();
+                    _muffled.clip = null;
+                }
+
+                UnityEngine.Object.Destroy(copy);
+            }
+        }
+
         private void Silence()
         {
             if (_dry.isPlaying)

@@ -114,6 +114,7 @@ namespace BlocksBeyondTheStars.Client
             foreach (var clip in Resources.LoadAll<AudioClip>("audio"))
             {
                 _clips[clip.name] = clip;
+                _bundled.Add(clip); // #3580: only file clips can drop their decoded data and decode again
             }
 
             // Fill any cue that has no bundled recording with a code-synthesized version, so the whole
@@ -253,9 +254,11 @@ namespace BlocksBeyondTheStars.Client
                 n.WorldEnvironmentReceived += OnEnvironment;
                 n.StationBoardedReceived += _ => Cue("station_board");
                 Game.HyperjumpStarted += () => Cue("hyperspace_jump");
+                n.WorldResetReceived += OnPlaceReset; // #3580: a move to another place releases long decoded clips (browser)
                 _subscribed = true;
             }
 
+            TickAudioRelease(Time.unscaledDeltaTime); // #3580
             float sfx = SfxVol();
             _duck = Mathf.MoveTowards(_duck, _duckTarget, Time.deltaTime / DuckFadeSeconds);
             float bed = sfx * _duck; // #2495: the ambience beds' level (ducked under a cutscene)
@@ -1163,6 +1166,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.ShipCombatStatusChanged -= OnShip;
                 Game.Network.PlayerStateUpdated -= OnPlayerHealth;
                 Game.Network.WorldEnvironmentReceived -= OnEnvironment;
+                Game.Network.WorldResetReceived -= OnPlaceReset;
             }
 
             _bed?.Dispose(); // the browser's baked muffled copies (#2805) — code-created clips are never collected

@@ -241,6 +241,10 @@ namespace BlocksBeyondTheStars.Client
             Directory.CreateDirectory(userContent);
 
             string viewArg = viewDistanceChunks > 0 ? $" --view-distance {viewDistanceChunks}" : string.Empty;
+            // #3581: chunk-generation workers follow the machine (2 up to 8 logical processors, at most 4) — nothing when the
+            // player chose a count in BBS_CHUNK_GEN_WORKERS, which this command line would otherwise override.
+            string workersArg = BlocksBeyondTheStars.Client.Core.BundledServerWorkers.Argument(SystemInfo.processorCount,
+                SystemInfo.systemMemorySize, Environment.GetEnvironmentVariable(BlocksBeyondTheStars.Client.Core.BundledServerWorkers.EnvironmentVariable));
             string seedArg = seed != 0 ? $" --seed {seed}" : string.Empty;
             // Singleplayer enables free space flight + PvE space combat so it's reachable solo.
             const string spaceArgs = " --free-flight true --space-combat PvE --space-npcs Normal";
@@ -292,7 +296,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 FileName = exe,
                 Arguments = $"--port {Port} --name \"{serverName}\" --world \"{worldName}\" " +
-                            $"--max-players {Mathf.Max(1, maxPlayers)} --saves \"{saves}\" --data \"{data}\" --usercontent \"{userContent}\" --stdin-stop true" + viewArg + seedArg + spaceArgs + voiceArg + startCubeArg + cheatsArg + noConfigArg + creativeArgs + optionArgs + festivalArgs + hostArgs,
+                            $"--max-players {Mathf.Max(1, maxPlayers)} --saves \"{saves}\" --data \"{data}\" --usercontent \"{userContent}\" --stdin-stop true" + viewArg + workersArg + seedArg + spaceArgs + voiceArg + startCubeArg + cheatsArg + noConfigArg + creativeArgs + optionArgs + festivalArgs + hostArgs,
                 WorkingDirectory = Path.GetDirectoryName(exe),
                 UseShellExecute = false,
                 CreateNoWindow = true,
