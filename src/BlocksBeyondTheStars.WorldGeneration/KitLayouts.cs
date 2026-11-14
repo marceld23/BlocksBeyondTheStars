@@ -88,13 +88,25 @@ public readonly struct CityLayoutSpec
     public readonly int Grid, DistrictSize, Street, Height;
     public readonly IReadOnlyList<string> RoleMap;
 
-    public CityLayoutSpec(int grid, int districtSize, int street, int height, IReadOnlyList<string>? roleMap)
+    /// <summary>#3599: the city that grew — every other district row shifted by half a district, the wall along the outline of
+    /// the districts, a suburb grown outside the gates from <see cref="SuburbKit"/>. False for every city before it.</summary>
+    public readonly bool Grown;
+
+    /// <summary>#3599: the settlement kit a grown city's suburb grows from ("" = none).</summary>
+    public readonly string SuburbKit;
+
+    /// <summary>How far outside the wall a grown city's suburb reaches.</summary>
+    public const int SuburbDepth = 36;
+
+    public CityLayoutSpec(int grid, int districtSize, int street, int height, IReadOnlyList<string>? roleMap, bool grown = false, string suburbKit = "")
     {
         Grid = grid;
         DistrictSize = districtSize;
         Street = street;
         Height = height;
         RoleMap = roleMap ?? System.Array.Empty<string>();
+        Grown = grown;
+        SuburbKit = suburbKit ?? string.Empty;
     }
 
     public static CityLayoutSpec Default => new(CityGenerator.Modules, CityGenerator.ModuleSize, CityGenerator.Street, CityGenerator.Height, null);
@@ -105,12 +117,35 @@ public readonly struct CityLayoutSpec
         int size = kit.DistrictSize > 0 ? System.Math.Clamp(kit.DistrictSize, 16, 48) : CityGenerator.ModuleSize;
         int street = kit.Street > 0 ? System.Math.Clamp(kit.Street, 2, 8) : CityGenerator.Street;
         int height = kit.Height > 0 ? System.Math.Clamp(kit.Height, 12, 40) : CityGenerator.Height;
-        return new CityLayoutSpec(grid, size, street, height, kit.RoleMap.Count > 0 ? new List<string>(kit.RoleMap) : null);
+        return new CityLayoutSpec(grid, size, street, height, kit.RoleMap.Count > 0 ? new List<string>(kit.RoleMap) : null,
+            kit.Grown, kit.SuburbKit);
     }
 
-    public int Footprint => Grid * DistrictSize + (Grid + 1) * Street;
+    /// <summary>The districts and their streets (the core a classic city is).</summary>
+    public int Core => Grid * DistrictSize + (Grid + 1) * Street;
 
-    public string Serialize() => string.Join(",", Grid, DistrictSize, Street, Height, string.Join("|", RoleMap));
+    /// <summary>Half a district and its street: how far a grown city shifts every other row.</summary>
+    public int Shift => (DistrictSize + Street) / 2;
+
+    /// <summary>A grown city's margin round its core on every side: the shift and the suburb (0 for a classic city).</summary>
+    public int Margin => Grown ? Shift + SuburbDepth : 0;
+
+    public int Footprint => Core + (2 * Margin);
+
+    /// <summary>The west / north corner of district (<paramref name="gx"/>, <paramref name="gz"/>): the classic grid, or — for a
+    /// grown city — inside its margin, every row whose distance from the middle row is odd shifted east by <see cref="Shift"/>.</summary>
+    public (int X, int Z) DistrictOrigin(int gx, int gz)
+    {
+        var (x, z) = CityGenerator.ModuleOriginFor(gx, gz, DistrictSize, Street);
+        return Grown ? (x + Margin + RowShift(gz), z + Margin) : (x, z);
+    }
+
+    /// <summary>How far a row is shifted east (#3599).</summary>
+    public int RowShift(int gz) => Grown && ((gz - (Grid / 2)) & 1) != 0 ? Shift : 0;
+
+    public string Serialize() => Grown
+        ? string.Join(",", Grid, DistrictSize, Street, Height, string.Join("|", RoleMap), "grown:" + SuburbKit)
+        : string.Join(",", Grid, DistrictSize, Street, Height, string.Join("|", RoleMap));
 
     public static bool TryParse(string? text, out CityLayoutSpec spec)
     {
@@ -121,7 +156,8 @@ public readonly struct CityLayoutSpec
         }
 
         var parts = text!.Split(',');
-        if (parts.Length != 5)
+        bool grown = parts.Length == 6 && parts[5].StartsWith("grown:", System.StringComparison.Ordinal);
+        if (parts.Length != 5 && !grown)
         {
             return false;
         }
@@ -136,7 +172,7 @@ public readonly struct CityLayoutSpec
         }
 
         var map = parts[4].Length == 0 ? null : new List<string>(parts[4].Split('|'));
-        spec = new CityLayoutSpec(n[0], n[1], n[2], n[3], map);
+        spec = new CityLayoutSpec(n[0], n[1], n[2], n[3], map, grown, grown ? parts[5].Substring("grown:".Length) : string.Empty);
         return true;
     }
 }

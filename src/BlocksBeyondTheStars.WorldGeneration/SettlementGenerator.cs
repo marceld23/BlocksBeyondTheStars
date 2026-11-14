@@ -115,6 +115,23 @@ public sealed class SettlementStructure
 
     public bool InBounds(int x, int y, int z)
         => x >= 0 && y >= 0 && z >= 0 && x < Width && y < Height && z < Length;
+
+    /// <summary>#3588: the column map of a settlement built from a plan — per column (<c>x * Length + z</c>) the floor row of
+    /// that column (its foundation, structure-local), or −1 for a column the settlement does not claim. Null for every other
+    /// structure: there the whole box stands on row 0.</summary>
+    public sbyte[]? ColumnFloors { get; internal set; }
+
+    /// <summary>Whether the structure carries a column map (#3588).</summary>
+    public bool HasColumnMap => ColumnFloors != null;
+
+    /// <summary>An empty box of the given size (#3589): what the site search seats for a planned settlement before it is
+    /// planned into the site it found.</summary>
+    public static SettlementStructure Empty(int w, int h, int l, string tier)
+        => new(w, h, l, tier, ruined: false, inhabitant: string.Empty, new ushort[w * h * l], new List<SettlementMarker>(), 0);
+
+    /// <summary>The floor row of a column (#3588): its own on a column map, −1 for an unclaimed column, 0 everywhere in a box.</summary>
+    public int FloorAt(int x, int z)
+        => x < 0 || z < 0 || x >= Width || z >= Length ? -1 : ColumnFloors is { } map ? map[(x * Length) + z] : 0;
 }
 
 /// <summary>
@@ -192,7 +209,7 @@ public static partial class SettlementGenerator
 
     /// <summary>A cell sink over a local voxel grid + its sparse tint/glow and shape tables (the shape a
     /// structure carries per cell, <see cref="SettlementStructure.GetShape"/>).</summary>
-    private static RoomFurnisher.CellSink SinkFor(ushort[] blocks, int w, int h, int l,
+    internal static RoomFurnisher.CellSink SinkFor(ushort[] blocks, int w, int h, int l,
         Dictionary<int, (int Tint, int Glow)> mods, Dictionary<int, int> shapes)
         => (x, y, z, b, shape, tint, glow) =>
         {

@@ -483,7 +483,8 @@ public sealed partial class GameServer
     /// <summary>The layout's centre (the plaza <c>SettlementGenerator.StampCentralFeature</c> paves there), else the box's —
     /// worked out without reading a block.</summary>
     private static Vector3f SettlementSquareCentre(SettlementInstance s)
-        => s.Layout is { } layout
+        => PlazaMarkerOf(s) is { } plaza ? plaza // #3594: a planned settlement's plaza (or green), at its own height
+            : s.Layout is { } layout
             ? new Vector3f(s.Min.X + layout.Width / 2 + 0.5f, s.GroundY + 1, s.Min.Z + layout.Length / 2 + 0.5f)
             : SettlementBoxCentre(s);
 

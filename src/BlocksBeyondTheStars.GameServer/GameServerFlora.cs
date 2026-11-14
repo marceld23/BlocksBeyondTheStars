@@ -361,7 +361,9 @@ public sealed partial class GameServer
         // rolled — the cell's tint, read by the harvest before the cell was cleared and persisted with the timer.
         // #2209: a bred plant grows back more slowly than a wild one — its samples must not come faster than a wild plant's.
         double seconds = _fruitIds.Contains(floraId) ? BlocksBeyondTheStars.WorldGeneration.FruitRules.RegrowSeconds
-            : IsBredPlant(floraId) ? BredRegrowSeconds : FloraRegrowSeconds;
+            : IsBredPlant(floraId) ? BredRegrowSeconds
+            : InSettlementField(pos) ? FieldRegrowSeconds // #3596: a village field grows back slower than a greenhouse bed
+            : FloraRegrowSeconds;
         _floraRegrow[pos] = (floraId, seconds, tint);
         _repo.SaveFloraRegrow(_world.LocationId, pos, floraId, seconds, tint);
 

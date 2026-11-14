@@ -643,7 +643,8 @@ public sealed partial class GameServer
         for (int i = _creatures.Count - 1; i >= 0; i--)
         {
             var c = _creatures[i];
-            if (c.IsCompanion && !valid.Contains(c.CompanionId) && !c.OwnerId.StartsWith(NpcPetOwnerPrefix, System.StringComparison.Ordinal))
+            if (c.IsCompanion && !valid.Contains(c.CompanionId) && !c.OwnerId.StartsWith(NpcPetOwnerPrefix, System.StringComparison.Ordinal)
+                && !IsPenAnimal(c)) // #3597: a pen's animals are kept by the farm tick
             {
                 _creatures.RemoveAt(i); // an NPC's pet (the tamer's, 2026-09) is kept by the professions tick instead
             }
@@ -793,6 +794,12 @@ public sealed partial class GameServer
         if (NpcPetOwner(c) is { } tamer)
         {
             MoveTamerPet(c, sp, tamer.Pos, moveDt); // the tamer's pet (2026-09) trots after its NPC
+            return;
+        }
+
+        if (IsPenAnimal(c))
+        {
+            MovePenAnimal(c, sp, moveDt); // #3597: a pen's animal ambles about its pen
             return;
         }
 

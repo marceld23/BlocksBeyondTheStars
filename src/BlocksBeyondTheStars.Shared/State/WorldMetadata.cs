@@ -641,6 +641,12 @@ public sealed class StructurePlacementRecord
 
     /// <inheritdoc cref="Width"/>
     public int Length { get; set; }
+
+    /// <summary>#3584: settlement records of a planned kit (grid or grown, terrain generation 41) — the whole layout as it was
+    /// planned into the site: the lots (module, place, floor height, turns) and the column map (road kinds and floor
+    /// heights), as <c>SettlementPlan.Serialize</c> writes it. A replay bakes it and never plans again. Empty for every
+    /// other record. Additive JSON field.</summary>
+    public string Plan { get; set; } = string.Empty;
 }
 
 /// <summary>A kit station's pinned composition (#1874) — see <see cref="WorldMetadata.StationKits"/>.</summary>

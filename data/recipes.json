@@ -249,6 +249,8 @@
   { "key": "market_doctor_bed", "station": "market", "marketTheme": "medics", "marketRotation": 2, "inputs": [ { "item": "wood_log", "group": "logs", "count": 4 }, { "item": "iron_ore", "count": 2 } ], "outputs": [ { "item": "bed", "count": 1 } ] },
   { "key": "market_doctor_stretcher", "station": "market", "marketTheme": "medics", "marketRotation": 2, "inputs": [ { "item": "iron_plate", "count": 2 }, { "item": "plant_fiber", "count": 4 } ], "outputs": [ { "item": "stretcher", "count": 1 } ] },
   { "key": "market_grocer_berries", "station": "market", "marketTheme": "grocer", "inputs": [ { "item": "iron_ore", "count": 2 } ], "outputs": [ { "item": "berries", "count": 6 } ] },
+  { "key": "market_grocer_eggs", "station": "market", "marketTheme": "grocer", "inputs": [ { "item": "iron_ore", "count": 2 } ], "outputs": [ { "item": "egg", "count": 3 } ] },
+  { "key": "market_grocer_milk", "station": "market", "marketTheme": "grocer", "inputs": [ { "item": "copper_ore", "count": 1 } ], "outputs": [ { "item": "milk", "count": 2 } ] },
   { "key": "market_grocer_stew", "station": "market", "marketTheme": "grocer", "inputs": [ { "item": "copper_ore", "count": 3 } ], "outputs": [ { "item": "hearty_stew", "count": 2 } ] },
   { "key": "market_grocer_skewer", "station": "market", "marketTheme": "grocer", "inputs": [ { "item": "silicate", "count": 3 } ], "outputs": [ { "item": "mushroom_skewer", "count": 3 } ] },
   { "key": "market_grocer_ration", "station": "market", "marketTheme": "grocer", "inputs": [ { "item": "iron_ore", "count": 4 } ], "outputs": [ { "item": "emergency_ration", "count": 2 } ] },
@@ -509,6 +511,11 @@
   { "key": "rug",         "station": "hand",     "inputs": [ { "item": "plant_fiber", "count": 6 } ],                                       "outputs": [ { "item": "rug", "count": 2 } ] },
   { "key": "flower_pot",  "station": "hand",     "inputs": [ { "item": "mud", "count": 2 }, { "item": "plant_fiber", "count": 1 } ],      "outputs": [ { "item": "flower_pot", "count": 1 } ] },
   { "key": "cooked_meat", "station": "campfire", "inputs": [ { "item": "creature_meat", "count": 1 } ],                                     "outputs": [ { "item": "cooked_meat", "count": 1 } ] },
+  // #3597: the pens' products — an egg fried over the fire, pancakes from egg, milk and grain, a warm rug and bed from wool.
+  { "key": "fried_egg", "station": "campfire", "inputs": [ { "item": "egg", "count": 1 } ], "outputs": [ { "item": "fried_egg", "count": 1 } ] },
+  { "key": "pancake", "station": "campfire", "inputs": [ { "item": "egg", "count": 1 }, { "item": "milk", "count": 1 }, { "item": "grain", "count": 2 } ], "outputs": [ { "item": "pancake", "count": 2 } ] },
+  { "key": "rug_wool", "station": "hand", "inputs": [ { "item": "wool", "count": 3 } ], "outputs": [ { "item": "rug", "count": 2 } ] },
+  { "key": "bed_wool", "station": "hand", "inputs": [ { "item": "wood_log", "group": "logs", "count": 6 }, { "item": "wool", "count": 4 } ], "outputs": [ { "item": "bed", "count": 1 } ] },
   // #1203 campfire kiln: the flame does the slow jobs — char, melt, boil — better than by hand (ice 1 → water,
   // one log → 6 torches), and with the field-kitchen blueprint it cooks the three meals.
   { "key": "char_wood", "station": "campfire", "inputs": [ { "item": "wood_log", "group": "logs", "count": 2 } ], "outputs": [ { "item": "carbon", "count": 1 } ] },

@@ -322,11 +322,17 @@ public sealed partial class StructureCatalog
     /// this order — never sort).
     /// </summary>
     public IReadOnlyList<StructureKit> KitsFor(string kind, string? tier, IReadOnlyCollection<string>? enabledPacks, string? planetType)
+        => KitsFor(kind, tier, enabledPacks, planetType, int.MaxValue);
+
+    /// <summary><see cref="KitsFor(string, string?, IReadOnlyCollection{string}?, string?)"/> for a world of terrain generation
+    /// <paramref name="generation"/> (#3583): a kit younger than the world (<see cref="StructureKit.MinTerrainGeneration"/>)
+    /// is left out, so an unvisited body of an older world never draws it.</summary>
+    public IReadOnlyList<StructureKit> KitsFor(string kind, string? tier, IReadOnlyCollection<string>? enabledPacks, string? planetType, int generation)
     {
         var list = new List<StructureKit>();
         foreach (var k in StructureKits)
         {
-            if (k.KindOrDefault != kind || k.PinOnly)
+            if (k.KindOrDefault != kind || k.PinOnly || k.MinTerrainGeneration > generation)
             {
                 continue; // #1885: a pin-only kit is never drawn for a new structure (KitByKey still finds it)
             }

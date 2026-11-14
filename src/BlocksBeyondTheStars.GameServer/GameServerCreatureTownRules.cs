@@ -61,10 +61,24 @@ public sealed partial class GameServer
         topY = int.MinValue;
         foreach (var s in _settlements)
         {
-            if (!s.Ruined)
+            if (s.Ruined)
             {
-                ZoneDepth(x, feetY, z, s.Min.X, s.Min.Z, s.Max.X, s.Max.Z, s.GroundY, s.Max.Y, circ, ref best, ref topY);
+                continue;
             }
+
+            if (s.Layout is { HasColumnMap: true })
+            {
+                int d = PlannedZoneDepth(s, x, feetY, z, circ); // #3592: the claimed columns, not the box
+                if (d > best)
+                {
+                    best = d;
+                    topY = s.Max.Y;
+                }
+
+                continue;
+            }
+
+            ZoneDepth(x, feetY, z, s.Min.X, s.Min.Z, s.Max.X, s.Max.Z, s.GroundY, s.Max.Y, circ, ref best, ref topY);
         }
 
         foreach (var l in _lodges)

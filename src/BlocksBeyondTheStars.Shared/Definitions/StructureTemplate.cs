@@ -273,14 +273,36 @@ public static class StructureRoles
     /// <summary>#2113: the rail dealer's depot — the monorail's parts, pylons to wagons. It takes a dwelling plot.</summary>
     public const string Depot = "depot";
 
-    public static readonly string[] PlotRoles = { House, Market, Board, Greenhouse, Tavern, Workshop, Clinic, Shop, Armory, Library, Stable, Quarry, Studio, Newsroom, Depot };
+    // --- the farm functions at a grown settlement's edge (#3595): each takes a dwelling plot in a classic grid ---
+
+    /// <summary>A field of tilled soil and rows of crops (#3595); its crops regrow slower than a greenhouse's (#3596).</summary>
+    public const string Field = "field";
+
+    /// <summary>A kitchen garden (#3595).</summary>
+    public const string Garden = "garden";
+
+    /// <summary>A fenced pen with tame animals and a product crate (#3597).</summary>
+    public const string Pen = "pen";
+
+    public static readonly string[] PlotRoles = { House, Market, Board, Greenhouse, Tavern, Workshop, Clinic, Shop, Armory, Library, Stable, Quarry, Studio, Newsroom, Depot, Field, Garden, Pen };
     public static readonly string[] CityRoles = { CityHousing, CityMarket, CityHall, CityGarden, CityTower };
 
-    /// <summary>Every role, in the order the editor's stepper walks them (whole first).</summary>
+    /// <summary>Every role, in the order the editor's pick list shows them (whole first).</summary>
     public static readonly string[] All =
     {
         string.Empty, House, Market, Board, Greenhouse, Tavern, Workshop, Clinic, Shop, Armory, Library, Stable, Quarry, Studio, Newsroom, Depot,
+        Field, Garden, Pen,
         CityHousing, CityMarket, CityHall, CityGarden, CityTower,
+    };
+
+    /// <summary>Where a planned settlement puts a function (#3586, #3587): 0 at the plaza (market, notice house, tavern), 2 at
+    /// the edge (the farm functions, the greenhouse, the stable and the quarry), 1 in between (houses, workshops, the other
+    /// professions and any free name).</summary>
+    public static int Ring(string? function) => function switch
+    {
+        Market or Board or Tavern => 0,
+        Field or Garden or Pen or Greenhouse or Stable or Quarry => 2,
+        _ => 1,
     };
 
     public static bool IsCityRole(string? role) => role != null && System.Array.IndexOf(CityRoles, role) >= 0;
