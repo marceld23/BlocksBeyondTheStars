@@ -1,0 +1,12 @@
+{
+  "key": "lb_maze_s",
+  "name": "Labyrinth Ruin (S)",
+  "civilization": "labyrinth_builders",
+  "civPool": "giant",
+  "weight": 1,
+  "source": "maze_ruin",
+  "sourceParams": "size=S;wall=maze_stone;accent=maze_stone_carved;floor=maze_stone",
+  "ruin": "always",
+  "ruinProfile": "masonry",
+  "ruinStrength": 0.45
+}

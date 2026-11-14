@@ -215,6 +215,30 @@ public sealed class CivilizationStampTests : IDisposable
     }
 
     [Fact]
+    public void AMazeEntry_IsBuiltByItsSource_AsARuinOnAToxicWorld_WithItsStatueMarkers()
+    {
+        var maze = Box("maze_s", "test_maze", CivilizationRules.PoolGiant, 0, 0, 0);
+        (maze.Width, maze.Height, maze.Length) = (0, 0, 0);
+        maze.Source = "maze_ruin";
+        maze.SourceParams = "size=S";
+        maze.Ruin = LandmarkRules.RuinAlways;
+        maze.RuinStrength = 0.45;
+        var content = Content(HomeCiv("test_maze", "rocky", underwater: false, ("giant", 1)), new List<StructureTemplate> { maze });
+        var server = Start(content, "civ_maze", out var repo, "rocky", WorldDescription.CivilizationsGeneration);
+        using (repo)
+        {
+            var site = Assert.Single(server.CivilizationSitesForTest);
+            Assert.True(site.Layout.Ruined);
+            Assert.Null(site.WaterTop);
+            Assert.InRange(site.Structure.Width, 60, 100);
+            Assert.Contains(site.Structure.Markers, m => m.Type == CivilizationRules.PropMarker && m.Data.Contains("statue_large", StringComparison.Ordinal));
+            var rec = Assert.Single(server.PlacementRecordsForTest, r => r.Kind == CivilizationRules.RecordKind("test_maze"));
+            Assert.Equal("maze_ruin", MarkerSettings.Parse(rec.KitLayout).Get(BlocksBeyondTheStars.WorldGeneration.Sources.SourceTemplates.PinKey));
+            GiantWreckTestWorlds.AssertStandsAsBuilt(server, site);
+        }
+    }
+
+    [Fact]
     public void AWorldBeforeGeneration43_HasNoHomes_AndNoSites()
     {
         var content = Content(HomeCiv("test_sea", "ocean", underwater: true, ("giant", 1)), SeaTemplates("test_sea"));
