@@ -11,6 +11,7 @@ using BlocksBeyondTheStars.Shared.Bio;
 using BlocksBeyondTheStars.Shared.Localization;
 using UnityEngine;
 using UnityEngine.UI;
+using GiantWreckText = BlocksBeyondTheStars.Client.Core.GiantWreckText;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -693,13 +694,14 @@ namespace BlocksBeyondTheStars.Client
             // A monument's key carries the body id too ("monument:<location>:<archetype>"), so the same relic
             // found on another planet lists as its own discovery — which is exactly what it is.
             // #3496: a landmark's key is "landmark:<location>:<key>" — one discovery per body and landmark, like a monument's.
-            foreach (var kind in new[] { "place", "creature", "microfauna", "tree", "flora", "block", "monument", "landmark", "asteroid" })
+            // #3611: the giant ship wrecks — on planets ("giantwreck:<location>:<ship>") and in space ("space:giantwreck:<id>").
+            foreach (var kind in new[] { "place", "creature", "microfauna", "tree", "flora", "block", "monument", "landmark", GiantWreckText.CodexGroup, "asteroid" })
             {
                 var names = new List<(string Name, string Where, string Desc)>();
                 foreach (var pair in log)
                 {
                     int colon = pair.Key.IndexOf(':');
-                    string entryKind = colon > 0 ? pair.Key.Substring(0, colon) : pair.Key;
+                    string entryKind = GiantWreckText.CodexKind(pair.Key) ?? (colon > 0 ? pair.Key.Substring(0, colon) : pair.Key);
                     if (entryKind != kind)
                     {
                         continue;
@@ -708,7 +710,8 @@ namespace BlocksBeyondTheStars.Client
                     string subject = string.IsNullOrEmpty(pair.Value)
                         ? (colon > 0 ? pair.Key.Substring(colon + 1) : pair.Key) // pre-#484 entry: raw key
                         : pair.Value;
-                    names.Add((SubjectName(subject), WhereFound(pair.Key, kind), kind == "landmark" ? LandmarkDesc(pair.Key) : string.Empty));
+                    names.Add(kind == GiantWreckText.CodexGroup ? GiantWreckDiscovery(pair.Key, pair.Value)
+                        : (SubjectName(subject), WhereFound(pair.Key, kind), kind == "landmark" ? LandmarkDesc(pair.Key) : string.Empty));
                 }
 
                 if (names.Count == 0)

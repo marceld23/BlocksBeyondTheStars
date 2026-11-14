@@ -86,6 +86,9 @@ public sealed partial class GameServer
                 ledger = "space:pod";
                 break;
 
+            case CombatEntityKind.SpaceStation when GiantShipRules.IsGiantWreckId(target.Id):
+                return ScanGiantWreck(session, target); // #3614: the giant wreck's own readout, knowledge per wreck
+
             case CombatEntityKind.SpaceStation:
                 bool playerOwned = IsPlayerStationId(target.Id);
                 bool derelict = IsDerelictId(target.Id); // #2632: a broken old station — no trading stop

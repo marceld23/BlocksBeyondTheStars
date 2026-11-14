@@ -302,6 +302,7 @@ public static class ServerConfigOptions
         Switch("wormholes", Choice<Frequency>((c, v) => c.World.Wormholes = v), "How many wormhole pairs the galaxy has (#2242)."),
         Switch("debris-fields", Choice<Frequency>((c, v) => c.World.DebrisFields = v), "How many systems hold a debris field (#2353)."),
         Switch("derelicts", Choice<Frequency>((c, v) => c.World.Derelicts = v), "How often a system holds broken old stations (#2632; Off removes them all)."),
+        Switch("giant-wrecks", Choice<Frequency>((c, v) => c.World.GiantWrecks = v), "How often a system holds a giant ship wreck (#3614; Off removes them all)."),
         Switch("exotic", Choice<Frequency>((c, v) => c.World.ExoticWorlds = v), "Exotic world frequency (world option)."),
         Switch("station-templates", Choice<Frequency>((c, v) => c.World.StationTemplateUse = v), "How often stations use hand-designed templates (world option)."),
         Switch("settlement-templates", Choice<Frequency>((c, v) => c.World.SettlementTemplateUse = v), "How often settlements use hand-designed templates (world option)."),

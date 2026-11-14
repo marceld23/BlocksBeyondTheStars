@@ -23,12 +23,13 @@ namespace BlocksBeyondTheStars.Client
     /// whole settlement template's fall on a world of terrain generation 38 (<c>SettlementGenerator.FromTemplate</c> with a
     /// <see cref="TemplateStamp"/>: masonry, the keep cells standing, only the markers a ruin keeps).</item>
     /// <item><b>Entry</b>: a generator entry's build (StructureEditor.Entry.cs).</item>
+    /// <item><b>Wreck</b> (#3616): a giant ship as the wreck it is on a planet or in space (StructureEditor.GiantShip.cs).</item>
     /// </list>
     /// While a preview shows, placing, removing and saving are refused.
     /// </summary>
     public sealed partial class StructureEditor
     {
-        private enum PreviewKind { None, Ruin, Turn, Materials, Entry }
+        private enum PreviewKind { None, Ruin, Turn, Materials, Entry, Wreck }
 
         private PreviewKind _previewKind;
         private int _turns;
@@ -82,8 +83,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Whether the target can stand as a ruin the editor previews: a landmark, a whole settlement template.</summary>
         private bool CanPreviewRuin() => _target is StampTarget.Landmark or StampTarget.SettlementWhole;
 
-        /// <summary>Quarter turn and materials for every design; the ruin with its seed where the target can fall; and the way
-        /// back while a preview shows.</summary>
+        /// <summary>Quarter turn and materials for every design; the ruin with its seed where the target can fall (a giant ship:
+        /// its wreck on a planet or in space); and the way back while a preview shows.</summary>
         private float BuildPreviewRows(Transform p, float y)
         {
             SectionTitle(p, y, L("ui.struct.preview_title"));
@@ -95,7 +96,11 @@ namespace BlocksBeyondTheStars.Client
             }
 
             y += 40f;
-            if (CanPreviewRuin())
+            if (_target == StampTarget.GiantShip)
+            {
+                y = BuildWreckPreviewRows(p, y); // #3616: the wreck on a planet or in space
+            }
+            else if (CanPreviewRuin())
             {
                 y = BuildRuinSeedRow(p, y);
                 UiKit.AddFitButton(p, 16f, y, 348f, 34f, L("ui.ed.landmark.preview_on"), ShowRuinPreview);
@@ -130,6 +135,10 @@ namespace BlocksBeyondTheStars.Client
                 if (_previewKind == PreviewKind.Ruin)
                 {
                     ShowRuinPreview(); // the next ruin straight away
+                }
+                else if (_previewKind == PreviewKind.Wreck)
+                {
+                    ShowWreckPreview(_wreckInSpace); // #3616: the next wreck straight away
                 }
             });
             return y + 36f;

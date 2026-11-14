@@ -16,6 +16,11 @@ A LANDMARK (#3492, town editor, "Use as: Landmark") is one file: landmark_export
 template (a palette plus run-length rows). It is written to data/landmarks/<key>.json — one file per landmark, the
 editor's defaults stripped; `pinOnly` of a file that already exists is kept (the editor does not know the field).
 
+A GIANT SHIP (#3616, town editor, "Use as: Giant ship") is one file too: giant_ship_exports/<key>/giant_ship.json, the
+compact template with `giantShip: true`. It is written to data/giant_ships/<key>.json — one line per file, the editor's
+defaults stripped; `pinOnly` of a file that already exists is kept, and so are its `ruinZones` and `minTerrainGeneration`
+when the bundle has none (the editor has no rows for them; a ship it loaded carries them through).
+
 A GENERATOR ENTRY (#3518, #3523, either editor, "Use as: Generator entry") is a template without cells — a structure
 source, its parameters, weight, pack and planet types: <kind>_exports/<key>/entry.json, or
 landmark_exports/<key>/entry.json for a landmark entry. It goes to the pool the editor saved it for —
@@ -30,8 +35,11 @@ hand-made template instead of the procedural generator (integration tracked in t
 Plain stdlib JSON (no deps). The dev reviews the resulting diff and commits it.
 
 Usage:
-    python tools/merge_structure.py <path-to-export-bundle-dir>
+    python tools/merge_structure.py <path-to-export-bundle-dir> [--data <data-dir>]
+
+`--data` merges into another data folder (a copy, for a dry run) instead of the repository's data/.
 """
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -45,6 +53,24 @@ POOL_FOR = {
 }
 
 
+def _use_data(data_dir):
+    """Points every pool and folder at another data folder (`--data`, e.g. a copy for a dry run)."""
+    global DATA, POOL_FOR, LANDMARK_DIR, GIANT_SHIP_DIR, KIT_PATH
+    DATA = Path(data_dir).resolve()
+    POOL_FOR = {"station": DATA / "station_templates.json", "settlement": DATA / "settlement_templates.json"}
+    LANDMARK_DIR = DATA / "landmarks"
+    GIANT_SHIP_DIR = DATA / "giant_ships"
+    KIT_PATH = DATA / "structure_kits.json"
+
+
+def _where(path):
+    """A path for the summary line: repository-relative when it lies in the repository."""
+    try:
+        return path.relative_to(REPO)
+    except ValueError:
+        return path
+
+
 def _load(p):
     return json.loads(Path(p).read_text(encoding="utf-8"))
 
@@ -54,13 +80,21 @@ def _dump(p, obj):
 
 
 def main():
-    if len(sys.argv) != 2:
-        sys.exit("usage: python tools/merge_structure.py <export-bundle-dir>")
+    parser = argparse.ArgumentParser(description="Merge an editor export bundle into the game data.")
+    parser.add_argument("bundle", help="the export bundle directory")
+    parser.add_argument("--data", help="the data folder to merge into (default: the repository's data/)")
+    args = parser.parse_args()
+    if args.data:
+        _use_data(args.data)
 
-    bundle = Path(sys.argv[1])
+    bundle = Path(args.bundle)
     merged = False
     if (bundle / "landmark.json").exists():
         merge_landmark(_load(bundle / "landmark.json"))
+        merged = True
+
+    if (bundle / "giant_ship.json").exists():
+        merge_giant_ship(_load(bundle / "giant_ship.json"))
         merged = True
 
     if (bundle / "kit.json").exists():
@@ -73,7 +107,7 @@ def main():
 
     if not (bundle / "structure.json").exists():
         if not merged:
-            sys.exit(f"no structure.json, kit.json, landmark.json or entry.json in {bundle}")
+            sys.exit(f"no structure.json, kit.json, landmark.json, giant_ship.json or entry.json in {bundle}")
         return
 
     meta = _load(bundle / "structure.json")
@@ -96,7 +130,7 @@ def main():
         pool.append(entry)
 
     _dump(pool_path, pool)
-    print(f"merged '{entry['key']}' ({len(entry['cells'])} cells) into {pool_path.relative_to(REPO)}")
+    print(f"merged '{entry['key']}' ({len(entry['cells'])} cells) into {_where(pool_path)}")
     print("review the diff and commit. World-gen template-pool selection is the next integration step.")
 
 
@@ -213,7 +247,53 @@ def merge_landmark(landmark):
     entry = landmark_entry(landmark, _load(path) if path.exists() else None)
     _dump_landmark(path, entry)
     print(f"merged landmark '{entry['key']}' ({len(entry['rows'])} rows, {len(entry['cells'])} cells with settings) "
-          f"into {path.relative_to(REPO)}")
+          f"into {_where(path)}")
+
+
+GIANT_SHIP_DIR = DATA / "giant_ships"
+GIANT_SHIP_KEEP = ("key", "name", "giantShip", "width", "height", "length", "palette", "rows", "cells")
+
+
+def giant_ship_entry(ship, existing):
+    """The data-file shape of a giant ship the editor saved (#3616): `key`, `name`, `giantShip: true` first, then every
+    field the editor set — weight 1, pack `default`, no planet types, no style, strength 0 and the like are dropped, `kind`
+    too (the folder says it is a giant ship); palette entries and cells lose their default fields. `pinOnly` — a field the
+    editor does not write — survives from the file that is already there, and so do its ruin zones and its minimum terrain
+    generation when the bundle has none."""
+    entry = {"key": ship["key"], "name": ship.get("name") or ship["key"], "giantShip": True}
+    for field, value in ship.items():
+        if field in entry or field == "kind":
+            continue
+        if field in GIANT_SHIP_KEEP or value not in (None, "", 0, 0.0, False, []):
+            entry[field] = value
+    if entry.get("pack") == "default":
+        entry.pop("pack")
+    if entry.get("weight") == 1:
+        entry.pop("weight")
+    entry["palette"] = [{k: v for k, v in p.items() if k in ("kind", "id") or v not in (None, "", 0, False)}
+                        for p in ship.get("palette", [])]
+    entry["cells"] = [{k: v for k, v in c.items() if k in ("x", "y", "z", "kind", "id") or v not in (None, "", 0, False)}
+                      for c in ship.get("cells", [])]
+    if entry.get("ruinZones"):
+        entry["ruinZones"] = [_clean_zone(z) for z in entry["ruinZones"]]
+    if existing:
+        if existing.get("pinOnly"):
+            entry["pinOnly"] = True
+        for field in ("ruinZones", "minTerrainGeneration"):
+            if existing.get(field) and not entry.get(field):
+                entry[field] = existing[field]
+    return entry
+
+
+def merge_giant_ship(ship):
+    if not ship.get("key"):
+        sys.exit("giant_ship.json has no key")
+    GIANT_SHIP_DIR.mkdir(parents=True, exist_ok=True)
+    path = GIANT_SHIP_DIR / f"{ship['key']}.json"
+    entry = giant_ship_entry(ship, _load(path) if path.exists() else None)
+    _dump_landmark(path, entry)
+    print(f"merged giant ship '{entry['key']}' ({len(entry['rows'])} rows, {len(entry['cells'])} cells with settings) "
+          f"into {_where(path)}")
 
 
 def _dump_landmark(path, entry):
@@ -300,7 +380,7 @@ def merge_generator_entry(entry):
             templates[index] = data
         _dump(path, templates)
     where = "underground " if data.get("underground") else ""
-    print(f"merged {where}generator entry '{data['key']}' (source '{data['source']}') into {path.relative_to(REPO)}")
+    print(f"merged {where}generator entry '{data['key']}' (source '{data['source']}') into {_where(path)}")
 
 
 KIT_PATH = DATA / "structure_kits.json"
@@ -359,7 +439,7 @@ def merge_kit(kit):
     else:
         kits[index] = entry
     _dump(KIT_PATH, kits)
-    print(f"merged kit '{entry['key']}' ({len(entry['entries'])} entries) into {KIT_PATH.relative_to(REPO)}")
+    print(f"merged kit '{entry['key']}' ({len(entry['entries'])} entries) into {_where(KIT_PATH)}")
 
 
 if __name__ == "__main__":

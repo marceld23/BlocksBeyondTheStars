@@ -178,6 +178,7 @@ public sealed partial class GameServer
         return new TickStep[]
         {
             TickStep.Plain("DerelictSpacewalks", TickDerelictSpacewalks), // #2636: boarders the void check found outside a derelict's hull step out (a world change, so after the loop)
+            TickStep.Dt("DerivedDeltas", TickDerivedDeltas), // #3613: the giant wrecks' changes, written coalesced (at most once a second)
             TickStep.Dt("TickPvp", TickPvp), // #2972: whom each player may hit, duel timeouts, spawn protection (1 Hz)
             TickStep.Dt("ShipVisits", TickShipVisits), // #2723: guests who walked out go home; the 1 Hz check of every docking visit
             TickStep.Dt("TickMelodyPuzzles", TickMelodyPuzzles), // #3346: the melody puzzles' prompts, reminders, time limits, leaving

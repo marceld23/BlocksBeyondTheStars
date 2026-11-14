@@ -35,6 +35,8 @@ namespace BlocksBeyondTheStars.Client
             // The school club's landmarks (terrain generation 39): the arena's wind, the mine's dripping water, the Soaniri castle
             // and the Sounders' choir at the singer statue.
             "amb_portasseum_wind", "amb_mine_drip", "amb_soaniri_castle", "amb_singer_choir",
+            // The giant ship wrecks (#3623): an empty hull's creaks, a crystal wreck's hum, an ark's overgrown greenhouse.
+            "amb_giant_hull", "amb_giant_crystal", "amb_giant_greenhouse",
         };
 
         private static readonly string[] CrateBlocks = { "wood_crate", "crate" };

@@ -24,6 +24,34 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🚀 Giant ship wrecks (terrain generation 42) — epic #3625 (#3605–#3627), ✅ 2026-11-14, PR pending (⚠ playtest open)
+
+Huge spaceships (up to 256 blocks a side) that nobody can build — no blueprint, never a ship type — exist as wrecks derived
+from the intact design with each instance's seed: crashed on about every 20th planet (generation 42, airless moons too) and
+drifting in space (one guaranteed in the start system, rarely more; a world option). Marcel's ships: a carrier with a launch
+tunnel, a spine-cannon battleship, a cruise liner with glass domes and pools, and (rarer) a terraforming ark and an alien
+crystal squid. Details: docs/developer/GIANT_SHIPS.md.
+
+- **#3605 fix**: planned hamlets/villages lost their wooden roofs, ceilings and fences — the planned stamp carved the trees
+  AFTER writing the buildings; now before (regression test). **#3606 fix**: a shipped ship type without a blueprint (the
+  starter) can no longer be crafted for free.
+- **#3607 template kind** (`giantShip`, `data/giant_ships/`, `GiantShipRules`, load check incl. no blueprint-locked device
+  blocks) · **#3608 generation 42**, rule `giant_wreck` (0.05), `GiantWreckChance`, `PlaceGiantWrecks`, option
+  `GiantWrecks` · **#3609 ruin revision 3** (`crash`/`hull`, bites, soot patches, hull breaks, pieces kept in space, water
+  freezes without air) · **#3610 planets** (landmark machinery, overlay storage) · **#3611 discovery** (map, VEGA, Codex,
+  scan, `/giantwreck`, `/tp giantwreck`).
+- **#3612 transport** (designs in parts under the 1 MB cap, single-block updates instead of full re-sends for every station
+  structure, shell only, ranges from the hull) · **#3613 storage** (derived structures: base + player delta, interior through
+  an overlay) · **#3614 space** (placement, ship-mode derelict decay, chests, guardian bay, VEGA, scanner, background
+  prebuild) · **#3615 client** (assembler, per-chunk re-mesh, far skin LOD, chart/radar/travel) · **#3616 editor** (Use as →
+  Giant ship, wreck previews, merge_structure).
+- **#3617 toolkit** (`tools/landmarks/ships.py`, `gen_giant_ships.py`, the Tools `giantship` check/dump) · **#3618–#3622 the
+  five ships** · **#3623 loot tables + three ambience loops** · **#3624 docs + 14 languages**.
+- **#3626 / #3627 fix**: the landmarks' torches (old mine, Eifelnyde, Porta Nigra, …) stood upright in the air — every
+  torch/lantern now carries the #2683 wall/ceiling/floor mount; a mounted light falls with its holder in a ruin.
+- ⚠ Playtest: each ship as a planet wreck and in space (`/giantwreck <key>`, the start system's wreck), boarding, chests,
+  falling out, the editor's Use as → Giant ship; listen to the three loops; the grown villages' roofs; the mine's torches.
+
 ### 🏘️ Grown settlements (terrain generation 41) — epic #3602 (#3583–#3601), ✅ 2026-11-14, PR pending (⚠ playtest open)
 
 Villages, towns and the G.D.S. metropolis no longer have to be rectangles (Marcel's decisions 2026-11-14: grown grid AND

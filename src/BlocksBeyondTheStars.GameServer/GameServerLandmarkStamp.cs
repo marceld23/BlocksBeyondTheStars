@@ -196,9 +196,9 @@ public sealed partial class GameServer
 
     // ---------------------------------------------------------------- chests
 
-    /// <summary>Whether a chest marker's chest exists (settings <c>chance</c>, default 1) — a hash of the world seed, the
-    /// body and the marker's cell, so the stamp and every later load agree.</summary>
-    private bool LandmarkChestExists(Vector3i cell, MarkerSettings settings) => MarkerChestExists(LandmarkChestLane, cell, settings);
+    /// <summary>The lane of a landmark chest's existence and content hashes — the shipped <see cref="LandmarkChestLane"/>, or
+    /// (#3610) a giant wreck's own — so the stamp's crate and every later load's container agree.</summary>
+    private static string LandmarkChestLaneOf(LandmarkInstance lm) => lm.GiantWreck ? GiantWreckChestLane : LandmarkChestLane;
 
     /// <summary>Whether a chest marker's chest exists (#3488; shared with the settlements and stations since #3519): the
     /// <c>chance</c> setting against a hash of the world seed, the body, the marker's cell and the owner's lane.</summary>
@@ -223,7 +223,7 @@ public sealed partial class GameServer
 
             var settings = MarkerSettings.Parse(m.Data);
             var cell = WorldConstants.CanonicalBlock(lm.Cell(m.LocalPos), _world.Circumference);
-            if (!LandmarkChestExists(cell, settings))
+            if (!MarkerChestExists(LandmarkChestLaneOf(lm), cell, settings)) // #3610: a giant wreck's chests draw on their own lane
             {
                 continue;
             }

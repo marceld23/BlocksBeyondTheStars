@@ -90,6 +90,10 @@ public sealed class StructureTemplate
     /// never a settlement, a module or an underground structure, and no settlement pool ever offers it.</summary>
     public bool Landmark { get; set; }
 
+    /// <summary>#3607: a GIANT SHIP (<see cref="GiantShipRules"/>) — a huge authored spaceship that exists only as a wreck
+    /// (on a planet and in space). It is never a ship type, never a landmark, and no other pool ever offers it.</summary>
+    public bool GiantShip { get; set; }
+
     /// <summary>#3484: whether the landmark stands as a ruin: <see cref="LandmarkRules.RuinNever"/> (or empty) = as
     /// built, <see cref="LandmarkRules.RuinAlways"/> = run through the shared ruin pass with the instance's seed.</summary>
     public string Ruin { get; set; } = string.Empty;

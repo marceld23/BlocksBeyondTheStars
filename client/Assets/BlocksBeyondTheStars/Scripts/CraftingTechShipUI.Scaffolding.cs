@@ -173,9 +173,15 @@ namespace BlocksBeyondTheStars.Client
                 ? id
                 : L(prefix + id.ToLowerInvariant());
 
-        /// <summary>The kind word of a station body: "Space Station", or "Derelict station" for a broken old one (#2632).</summary>
+        /// <summary>The kind word of a station body: "Space Station", or "Derelict station" for a broken old one (#2632), or
+        /// "Giant wreck" for a giant ship wreck drifting in space (#3615).</summary>
         private string StationKindLabel(string bodyId)
-            => L(BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsDerelictId(bodyId) ? "ui.map.kind_derelict" : "ui.map.kind_station");
+            => L(BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsDerelictId(bodyId)
+                ? BlocksBeyondTheStars.Client.Core.GiantWreckText.DerelictKind(bodyId)
+                : "ui.map.kind_station");
+
+        /// <summary>#3615: the height of the travel screen's giant wreck paragraph (600 wide, 18 px: seven lines).</summary>
+        private const float GiantWreckDetailH = 150f;
 
         // The shared display-name helper (#927) owns the base-key strip + modifier suffixes; the resolver
         // names player-designed forms after their creator's label instead of the generic "own form".

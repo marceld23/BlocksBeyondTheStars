@@ -473,7 +473,8 @@ public sealed partial class GameServer
     // ---------------------------------------------------------------- keeping clear
 
     /// <summary>Whether a point (or a small area around it) lies in a landmark's footprint — the stampers that ask
-    /// <see cref="OverlapsAnySettlement"/> (the vaults, the cubes, the chests, the unique sites) keep clear of it.</summary>
+    /// <see cref="OverlapsAnySettlement"/> (the vaults, the cubes, the chests, the unique sites) keep clear of it. #3610: a
+    /// giant wreck's footprint counts too (none stands on a world without one).</summary>
     private bool OverlapsLandmark(int x, int z, int halfExtent)
     {
         foreach (var lm in _landmarks)
@@ -486,7 +487,7 @@ public sealed partial class GameServer
             }
         }
 
-        return false;
+        return OverlapsGiantWreck(x, z, halfExtent);
     }
 
     /// <summary>The landmark whose box holds the cell, or null.</summary>

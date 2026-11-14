@@ -121,6 +121,7 @@ public static class LandmarkGenerator
 
             StructureRuiner.RunZoned(grid, content, seed, LandmarkRules.ProfileOf(t), t.RuinStrength, groundRow, cells, surfaceBlock,
                 revision, options: null, ZonesFor(t, turns));
+            LandmarkLights.DropUnheld(grid, groundRow, content); // #3626: a mounted light falls with its wall
             RuinMarkerRules.KeepOnly(markers);
             RuinMarkerRules.Seat(grid, markers, groundRow);
         }
@@ -128,6 +129,7 @@ public static class LandmarkGenerator
         {
             StructureRuiner.Run(grid, content, seed, LandmarkRules.ProfileOf(t), t.RuinStrength, groundRow, markers, surfaceBlock,
                 revision, options: null);
+            LandmarkLights.DropUnheld(grid, groundRow, content); // #3626: a mounted light falls with its wall
             RuinMarkerRules.KeepOnly(markers);
             RuinMarkerRules.Seat(grid, markers, groundRow);
         }
@@ -193,7 +195,7 @@ public static class LandmarkGenerator
         return shape;
     }
 
-    private static void FillBlocks(StructureTemplate t, int turns, VoxelGrid grid, GameContent content, ModuleMaterials materials)
+    internal static void FillBlocks(StructureTemplate t, int turns, VoxelGrid grid, GameContent content, ModuleMaterials materials)
     {
         var ids = new Dictionary<string, ushort>(System.StringComparer.Ordinal);
         TemplateBody.ForEachPlain(t, p =>
@@ -232,7 +234,7 @@ public static class LandmarkGenerator
 
     /// <summary>The template's marker cells, turned, with their settings line as the marker's data — plus a
     /// <see cref="TemplateDevices.Marker"/> for every pre-built Crystal Net device (#2260), like every other composer.</summary>
-    private static List<SettlementMarker> ReadMarkers(StructureTemplate t, int turns, VoxelGrid grid, GameContent content)
+    internal static List<SettlementMarker> ReadMarkers(StructureTemplate t, int turns, VoxelGrid grid, GameContent content)
     {
         var markers = new List<SettlementMarker>();
         foreach (var cell in t.Cells)

@@ -218,9 +218,10 @@ def build() -> Design:
     for tower, west, top in ((WEST, True, TOP_WEST), (EAST, False, TOP_EAST)):
         tower_stairs(d, tower, west, top)
         tower_lights_and_loot(d, tower, west, top)
-    # Lights in the galleries and the passages.
+    # Lights in the galleries — on the piers between the windows, where a wall holds them (#3627) — and the passages.
+    _, piers = Face("z", FIELD[0], -1, WEST[1] + 1, EAST[0] - 1).bays(5)
     for s in (1, 2):
-        lights(d, [(x, F[s] + 5, 17) for x in range(36, 75, 9)] + [(x, F[s] + 5, 61) for x in range(36, 75, 9)])
+        lights(d, [(x, F[s] + 5, z) for z in (17, 61) for x in piers[1:-1]])
     for p0, p1 in PASSAGES:
         lights(d, [(p0, 5, FIELD[0] + 2), (p1, 5, FIELD[0] + 2), (p0, 5, CITY[1] - 2), (p1, 5, CITY[1] - 2)])
     # Chests: the west tower's top hall, the east tower's second storey, the field gallery over the passages, the

@@ -65,6 +65,7 @@ public sealed partial class GameServer
     /// derelict and still clear of its hull (a death, a leave or a rejoin in between drops the request).</summary>
     private void TickDerelictSpacewalks()
     {
+        TickGiantDerelictPrebuilds(); // #3614: the giant wrecks of the systems the players are in are built ahead (1 Hz)
         if (_derelictSpacewalks.Count == 0)
         {
             return;

@@ -523,10 +523,14 @@ namespace BlocksBeyondTheStars.Client
                         continue;
                     }
 
+                    // #3615: a giant ship wreck is a derelict of its own family — the same amber disc, a size larger, and its own
+                    // kind word ("Wanderer Seven · Giant wreck").
                     var p = Clamp(ToChart(new Vector3(e.X, e.Y, e.Z)));
-                    Centered(_chart, p, new Vector2(20f, 20f), UiKit.DiscSprite, DiscCol);
-                    Centered(_chart, p, new Vector2(12f, 12f), UiKit.DiscSprite, WreckCol);
-                    Label(_chart, p + new Vector2(0f, -18f), $"{e.Name} · {L(derelict ? "ui.map.kind_derelict" : "ui.map.kind_wreck")}");
+                    float grow = BlocksBeyondTheStars.Client.Core.GiantWreckText.IsGiantWreck(e.Id) ? 6f : 0f;
+                    Centered(_chart, p, new Vector2(20f + grow, 20f + grow), UiKit.DiscSprite, DiscCol);
+                    Centered(_chart, p, new Vector2(12f + grow, 12f + grow), UiKit.DiscSprite, WreckCol);
+                    string kindKey = derelict ? BlocksBeyondTheStars.Client.Core.GiantWreckText.DerelictKind(e.Id) : "ui.map.kind_wreck";
+                    Label(_chart, p + new Vector2(0f, -18f - grow * 0.5f), $"{e.Name} · {L(kindKey)}");
                     _targets.Add((e.Id, p, e.Name));
                 }
             }

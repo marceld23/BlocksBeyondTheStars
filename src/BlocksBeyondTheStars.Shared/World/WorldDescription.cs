@@ -171,6 +171,14 @@ public sealed class WorldDescription
     /// change on a derelict is persisted (docs/developer/DERELICT_STATIONS.md).</summary>
     public Frequency Derelicts { get; set; } = Frequency.Normal;
 
+    /// <summary>How often a system holds a giant ship wreck in space (#3614, <c>GiantShipRules</c>) — besides the one every
+    /// world guarantees in its start system: a fixed system rolls <c>Probability() × GiantShipRules.SpaceOddsScale</c> for
+    /// one. Off removes them all, the guaranteed one included, and keeps the planets free of them too. Like
+    /// <see cref="Derelicts"/> a save from before the feature reads the default (Normal) and gains its wrecks in space: they
+    /// are placed after the generator with their own salt, so no existing body moves. The giant wrecks on planets come with
+    /// terrain generation 42 (<see cref="GiantWrecksGeneration"/>) and only to bodies stamped for the first time.</summary>
+    public Frequency GiantWrecks { get; set; } = Frequency.Normal;
+
     /// <summary>Planet-type key → frequency. Empty means "use all known planet types at Normal".</summary>
     public Dictionary<string, Frequency> PlanetTypeFrequencies { get; set; } = new();
 
@@ -242,8 +250,9 @@ public sealed class WorldDescription
     /// Schuppenhund on the dry worlds, #3334 the buried G.D.S. ruins flooded with Ressaw, #3416 the rune shrines, #3483 the
     /// landmarks, #3510 the structure pipeline, the school club's giant buildings with their overlay storage, #3555 the
     /// geography package: river valleys, site search with a map, sites that reserve their ground, #3602 the grown
-    /// settlements: road-first villages, grown grids, terrain-following towns, a metropolis that grew, farms at the edge).</summary>
-    public const int CurrentTerrainGeneration = GrownSettlementsGeneration;
+    /// settlements: road-first villages, grown grids, terrain-following towns, a metropolis that grew, farms at the edge,
+    /// #3608 the giant ship wrecks on planets).</summary>
+    public const int CurrentTerrainGeneration = GiantWrecksGeneration;
 
     /// <summary>The generation of the grown settlements (#3602): a body stamped for the first time in a world of this
     /// generation or later may draw the grown and grown-grid settlement kits (<c>StructureKit.MinTerrainGeneration</c>) — a
@@ -252,6 +261,12 @@ public sealed class WorldDescription
     /// its walls. Server-side stamps only: every chunk of every older generation stays bit-identical, and every settlement
     /// that already stands replays exactly as before.</summary>
     public const int GrownSettlementsGeneration = 41;
+
+    /// <summary>The generation of the giant ship wrecks (#3608): a body stamped for the first time in a world of this
+    /// generation or later may carry a giant wreck on its ground (<c>giant_wreck</c> in <c>data/structure_types.json</c>),
+    /// stored as a structure overlay. A server-side stamp: every chunk of every older generation stays bit-identical. (The
+    /// giant wrecks in space are a galaxy pass of their own and reach older saves too, like the derelict stations.)</summary>
+    public const int GiantWrecksGeneration = 42;
 
     /// <summary>The generation of the geography package (#3555): the surface height becomes three stages — the natural
     /// height (every older generation's whole answer), the river valleys (the ground eases down toward every surface river,

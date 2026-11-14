@@ -557,6 +557,42 @@ entry's pool) drives all of it.
   `weight: 1`, empty planet types and parameters; a landmark entry drops tier and kind). Fields the editor does not write
   (`pinOnly`, a landmark's `requires`) survive a re-merge; cells and module fields never do (the loader would drop the entry).
 
+## 3f. Giant ships — a fourth use (#3616, 2026-11-14)
+
+The town editor's **Use as** cycles whole structure → kit module → landmark → **giant ship** → generator entry: a huge
+spaceship (up to `GiantShipRules.MaxSize` = 256 a side, the landmark's room) that nobody can build — the game only shows it
+as a wreck, crashed on a planet or drifting in space ([GIANT_SHIPS.md](GIANT_SHIPS.md)). What the editor adds for it
+(`StructureEditor.GiantShip.cs`, `StructureStampRules` and `GiantShipEditorRules` in Client.Core):
+
+- **Form.** A short hint (nobody builds it; mark the way in with an *Entrance*, the doorways with *Slide doors*, what must
+  stand with *Keep*), the **style** (*Metal* / *Crystal (alien)* — an alien wreck breaks into crystal, not scrap), the
+  **strength** of the decay (auto = the ruin pass's own), the **ground row** (on a planet the rows below it are sunk into
+  the rock) and the name key; weight, pack and planet types are the rows every town template has. No protection picker —
+  a wreck is always open — no zones, ports or devices. A loaded file's ruin zones and minimum terrain generation, which the
+  form has no rows for, go back into the saved file unchanged.
+- **Palette** (`StructureStampRules.ShowsInPalette`): exactly the giant ship's markers (`GiantShipRules.Markers`: entrance —
+  labelled just *Entrance* here, a ship has no road side —, slide door, chest, sound, loot, data terminal, relic cache)
+  plus the keep, cavity and marker-settings tools. Material tokens are refused on save (a giant ship names concrete blocks).
+- **Show as a wreck: On a planet / In space** (the preview section, with the ruin seed and its reroll): builds the template
+  from the room and runs the server's own `GiantShipGenerator.BuildPlanet` (with air, not turned — profile `crash`) or
+  `BuildSpace` (profile `hull`) with the preview seed; the status line says how many of the cells are left. Read-only like
+  the landmark's ruin preview; nothing of it is ever saved.
+- **The *Stamping…* panel** describes a giant ship's steps: the seat (row N level with the ground on a planet, drifting
+  on its own in space), the turn (0–3 quarter turns on a planet, never in space), always a wreck with its strength and
+  kept cells, nobody aboard, open to players.
+- **Save.** A slide door without an `axis` gets the one its walls tell (`GiantShipEditorRules.DoorAxis`: `axis=x` when
+  the wall is a plane of constant x); a door whose walls tell none refuses the save and names its cell. Then the server's
+  own check (`GameContent.GiantShipProblems` — size, entrance on a floor with headroom, markers, known blocks, loot tables,
+  the device rule); the first problem is shown and nothing is written. A good ship goes as one compact file to
+  `usercontent/giant_ship_templates/<key>.json` — the content loader reads that folder, so the local server offers it to
+  the next new world — and to `giant_ship_exports/<key>/giant_ship.json` for `tools/merge_structure.py`. LOAD lists the
+  shipped giant ships (as copies) and the user's own. A giant ship is not submitted through the creation inbox yet (the
+  status line says so).
+- **Merge.** `python tools/merge_structure.py giant_ship_exports/<key> [--data <folder>]` writes
+  `data/giant_ships/<key>.json` (one line, the editor's defaults and `kind` stripped); `pinOnly` of a file already there is
+  kept, and so are its `ruinZones` and `minTerrainGeneration` when the bundle has none. `--data` merges into another data
+  folder (a copy, for a dry run) — it works for every bundle kind.
+
 ## 4. Open questions
 1. **Marker parity:** confirm the full marker vocabulary each editor must expose (vendor, mission board,
    medbay/heal-tank, hangar, quarters, npc spawn, loot) so authored structures are fully functional.

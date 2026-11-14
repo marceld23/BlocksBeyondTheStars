@@ -11,8 +11,11 @@ the result without Unity. Python 3.10+, standard library only.
 | `shapecode.py` | the per-cell shape descriptor, mirrored from `BlockShape.cs` (`pack`, ramps, beams, stalactites, turning and mirroring) |
 | `blockfont.py` | the 5 x 7 block font, mirrored from `MonumentFont.cs` (the stone text tablets' font) |
 | `templatefile.py` | reads template files (compact rows), the stats line, the block / loot-table lists |
+| `lightmount.py` | the light-mount pass `write()` runs (#3626): every unshaped torch / lantern gets the #2683 wall / floor / ceiling mount of the block that holds it (a torch on a wall first, never the ceiling; a lantern ceiling, floor, wall); an unheld light is printed as a warning |
 | `preview.py` | renders a template to a PNG: front / side / top views, an isometric view, cut-away sections |
-| `selftest.py` | checks every primitive, the C# mirrors, the samples' bytes and the PNG writer |
+| `selftest.py` | checks every primitive, the C# mirrors, the samples' bytes, the PNG writer and the ship helpers |
+| `ships.py` | `ShipDesign` — the GIANT SHIP toolkit (see [Giant ships](#giant-ships)): hull, decks, rooms, doors, domes ... |
+| `shipgeom.py` | pure ship geometry: cross-sections, the loft, `Hull` (inside / shell / surface queries), tubes along curves |
 | `<key>.py` | one script per landmark, with a `build()` that returns its `Design` |
 
 ```bash
@@ -20,7 +23,7 @@ uv run --no-project python tools/landmarks/leaning_tower.py          # build one
 uv run --no-project python tools/gen_landmarks.py                    # the three samples + every tools/landmarks/<key>.py
 uv run --no-project python tools/gen_landmarks.py leaning_tower      # only these keys
 uv run --no-project python tools/landmarks/preview.py leaning_tower --cut y=40 --cut z=12
-uv run --no-project python tools/landmarks/selftest.py               # 21 checks, exit code 1 on a failure
+uv run --no-project python tools/landmarks/selftest.py               # 27 checks, exit code 1 on a failure
 uvx ruff check tools/landmarks
 ```
 
@@ -291,10 +294,14 @@ function returns a new set (or an ordered list for lines), so they combine with 
 ```bash
 uv run --no-project python tools/landmarks/preview.py <key|file.json|export folder> [more ...]
     [--out FILE.png|FOLDER] [--scale N] [--iso-scale N] [--views front,side,top,iso]
-    [--cut y=N] [--cut z=N] [--cut x=N] [--no-cavity] [--no-overlay] [--stats-only]
+    [--cut y=N] [--cut z=N] [--cut x=N] [--cut auto] [--split] [--no-cavity] [--no-overlay] [--stats-only]
 ```
 
-Writes `artifacts/landmark-previews/<key>.png` (git-ignored) by default. Front looks from -Z (x right), side from +X
+Writes `artifacts/landmark-previews/<key>.png` (git-ignored) by default — a giant ship (`giantShip: true`, a key under
+`data/giant_ships` or any template file, also a wreck dumped as a template) `artifacts/giant-ship-previews/<key>.png`.
+A giant ship gets `--cut auto` unless cuts are given: a plan one row above each walk row that carries doors, entrances
+or chests (at most four), a cross-section at the middle of the length and a long section through the centre line.
+`--split` also writes every panel as `<key>.<n>-<view>.png` (front, side, top, iso, plan-y7, section-z63 ...). Front looks from -Z (x right), side from +X
 (z right), top from above (x right, z up), iso from the (-X, +Y, -Z) corner. `--cut y=40` adds a plan of everything at
 or below row 40; `--cut z=30` a front view of what lies at or behind z = 30; `--cut x=50` a side view of x <= 50 — the
 way to look into rooms, stairwells and tunnels. Colours come from `data/blocks.json` `color`, else the block texture's
@@ -303,5 +310,48 @@ average, else a hash; tint and glow as stored; shaped cells are drawn at sub-cel
 vendor yellow, door brown, other magenta) and cavity cells (dim violet where no block hides them; a ghost in the iso
 view). From Python: `preview.preview(ref, out=None, cuts=("y=40",))` or `preview.render(template_dict)`.
 
-Rendering a 250 x 250 x 120 landmark takes a few seconds. It shows the intact design; the ruin is the server's
+Rendering a 250 x 250 x 120 landmark takes a few seconds; a 103 x 90 x 256 ship with four decks (300,000 cells) about
+8 s, sheet and sections included. It shows the intact design; the ruin is the server's
 (the editor's *Show as a ruin* runs the real pass).
+
+## Giant ships
+
+`ships.ShipDesign` is a `Design` that writes a GIANT SHIP template (`data/giant_ships/<key>.json`, #3617): a huge
+authored spaceship (at most 256 per axis) the game shows only as a wreck. Ship scripts live in
+[tools/giant_ships/](../giant_ships/README.md) and are run by `tools/gen_giant_ships.py`;
+`tools/giant_ships/_demo_hull.py` uses every helper below, step by step.
+
+```bash
+uv run --no-project python tools/gen_giant_ships.py --only _demo_hull --out artifacts/gs/ships --preview
+```
+
+Orientation: x = across, y = up, z = along; the **bow points to +z**. Header (written in this order): `key, name,
+giantShip: true, nameKey: giantship.<key>.name, weight, minTerrainGeneration: 42, groundRow, style` (`alien` = a crystal
+wreck) plus `pinOnly`, `pack`, `planetTypes`, `ruinStrength`, `ruinZones` (profiles `crash`, `hull` or `lattice`). No
+`landmark` field, no material tokens, existing blocks only.
+
+| helper | what it does |
+|---|---|
+| `ShipDesign(key, name, weight=1, groundRow=0, style="", **header)` | the design; `groundRow` = the row on the ground of a planet (the rows below are buried) |
+| `loft(stations, m, wall=2, skin=None, bow=0, stern=0, tip=0.2, curve="ogive", anchor="centre", taper_axes="xy", smooth=True, symmetric=True)` -> `Hull` | a hull from `(z, Section)` stations, a monotone cubic between them (equal stations = a straight midbody), the last `bow` / first `stern` slices tapered to `tip` (`ogive`, `linear`, `blunt`) about `centre`, `keel` or `deck`; written as a closed shell `wall` thick (0 = solid), the outer layer in `skin` |
+| sections (`shipgeom`, re-exported) | `ship_section(cx, keel, deck, beam, bottom=None, bilge=0.35, flare=0)`, `ellipse(cx, cy, rx, ry)`, `superellipse(cx, cy, rx, ry, p=4)`, `rounded_rect(cx, cy, w, h, r)`, `polygon(points)`; `.moved(dx, dy)`, `.scaled(fx, fy, about)` |
+| `add_hull(hull, m, wall=2, skin=None)` | write any `Hull` (`Hull.from_cells(solids.capsule(...))`, `hull_a \| hull_b`) as a shell and register it |
+| `Hull` queries | `cells`, `interior(wall)`, `shell(wall)`, `outer()`, `contains(p, wall=0)`, `row(y, z, wall)`, `rows(z, wall)`, `column(x, z, wall)`, `section(z, wall)`, `row_cells(y, wall)`, `z_extent(x, y)`, `bounds()`, `axis_x`, `wall` |
+| `tube(points, m, radius, hollow=0, kind="catmull", ends="flat", open_ends=True, carve=True)` -> `Tube(wall, bore, path)` | a ball swept along a Catmull-Rom (`poly` = straight) path; `radius` = number, `(r0, r1)`, `[(t, r), ...]` or `f(t)`; hollow keeps a wall and clears the bore (bore radius >= 1.5 = a 3 x 3 walkway) |
+| `deck(hull, y, m, hatches=(), x0, x1, z0, z1)` | a floor plate on row y filling the hull's inside; `hatches` (x0, z0, x1, z1) stay open; people walk on y + 1 |
+| `window_band(hull, y0, y1, m="glass", every=4, width=2, side="both", start, end, depth)` | glass through the hull wall: `width` of every `every` cells along it, `side` left / right / both / front / back; skips where the wall is thicker than `depth` |
+| `glass_dome(cx, cz, y0, r, m="glass", frame="iron_block", ribs=8, rings=2, ry, rz, wall=1, clear_inside=True)` | a dome on row y0 with a frame (base row, meridian ribs, latitude rings); clears its inside and the roof under it |
+| `greebles(hull, seed, m="iron_block", density=0.02, faces=("up","left","right"), kinds=("box","antenna","pipe"), region, avoid, light="light_red")` | seeded boxes, masts (up faces, a `light` tip) and pipes on non-glass hull blocks; never over an existing cell |
+| `corridor(hull, y, a0, a1, axis="z", centre=None, width=3, height=3, floor, walls, ceiling, light, light_every)` -> `Corridor` | carve a corridor (walk row y) clipped to the hull's inside, on the centre line by default |
+| `rooms(hull, cor, per_side=3, depth=7, sides="both", walls="steel_wall", floor, ceiling, a0, a1, height, doors=True)` -> `[Room]` | rooms off a corridor sharing one-cell walls, clipped to the inside, each with a 2 x 3 `door_slide` doorway; `room.floor`, `room.centre`, `room.corner(k)`, `room.door` |
+| `slide_door(x, y, z, axis, width=2, height=3)` | a doorway with a `door_slide` marker, `axis=x` = the wall is a plane of constant x (opening along +z), `axis=z` = constant z (opening along +x) |
+| `entrance(x, y, z)` / `hull_door(hull, side, y, at, width=2, height=3, frame=None)` | the `entrance` marker (floor below, two cells of headroom) / a doorway cut through the hull wall with the marker just inside; the first entrance is the boarding arrival in space |
+| `chest(x, y, z, table=, items=, chance=, block=, hidden=)`, `sound(x, y, z, sound, radius, volume)` | the landmark markers (inherited); `hidden=True` = a stone on top |
+| `lift_shaft(x, z, decks, opening="-z", width=2, walls="steel_wall", ladder="ladder", landing=None)` / `ladder(x, z, y0, y1)` | a ladder shaft through `decks` (walk rows) with a doorway and a landing on each; every cell `keep`, so no deck is cut off by the ruin pass |
+| `turret(cx, y, cz, r=4, barrels=2, length=16, barrel_r=1, facing="+z")`, `nozzle(cx, cy, z, r, length, m, glow)` | a gun turret; an engine bell opening backwards with a glowing throat |
+| `finish()` | (the generator calls it) empty cells inside a registered hull below the ground row become cavity, so buried decks stay hollow |
+| `problems()`, `write(out)` | the giant-ship checks, mirroring `GiantShipRules.Problems` (size, an entrance on a solid floor with headroom, markers known and inside, door axes, blocks, style, zones); writes `data/giant_ships` unless `out` |
+
+Rules of thumb: build the hull, then decks, corridors and rooms, shafts, windows, domes, doors, markers, guns and
+engines, greebles last; `normalize()` at the end (hulls, markers and zones move along). A deck ends where the keel rises
+above it — check the plan sections. Mix only the skin; keep big inner volumes hollow (decks and walls, not solid fill).

@@ -125,6 +125,24 @@
    "peak": -3.5,
    "sha256": "afffe0cd5da4c743d893429a9d376600ba5d0f30cc4e2039a7dcfb7699631240"
   },
+  "amb_giant_crystal": {
+   "class": "bed",
+   "level": -20.5,
+   "peak": -8.9,
+   "sha256": "ac32f2add9dd52e257edac136b30eba8cc7134c5b8f72b1aa4e6b875a7e2db2c"
+  },
+  "amb_giant_greenhouse": {
+   "class": "bed",
+   "level": -20.1,
+   "peak": -0.1,
+   "sha256": "37fdb55b6c4e46045bc53ab91941af6f668e6f8b05f1daf93c57c6bc7df2d3a9"
+  },
+  "amb_giant_hull": {
+   "class": "bed",
+   "level": -20.4,
+   "peak": -1.5,
+   "sha256": "f90f0eb428c2bb949cdb960ed8672774009c5d4a6bd624431ec79b4380ad366e"
+  },
   "amb_ice": {
    "class": "bed",
    "level": -20.5,

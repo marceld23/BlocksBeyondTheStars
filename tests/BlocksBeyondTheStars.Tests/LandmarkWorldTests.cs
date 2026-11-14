@@ -69,6 +69,7 @@ public sealed class LandmarkWorldTests : IDisposable
             PlaceStarterShip = false,
             PlaceSettlements = false,
             LandmarkChance = chance,
+            GiantWreckChance = 0.0, // #3610: a giant wreck rides in the same client list — these worlds count landmarks only
             Rules = cheats ? new GameRules { AdminCheats = true, AllowCheatsInSurvival = true } : new GameRules(),
         };
         config.World.TerrainGeneration = generation;

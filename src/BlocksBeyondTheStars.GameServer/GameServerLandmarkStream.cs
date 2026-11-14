@@ -19,20 +19,23 @@ public sealed partial class GameServer
 {
     /// <summary>How far up (chunks, 3-D from the player's chunk) a landmark's columns stream for this player: one chunk
     /// inside the sent-set prune radius.</summary>
-    private int LandmarkLiftRadius(PlayerSession session) => _landmarks.Count == 0 ? 0 : SentSetPruneRadius(session) - 1;
+    private int LandmarkLiftRadius(PlayerSession session) => NoLandmarkStands ? 0 : SentSetPruneRadius(session) - 1;
 
-    /// <summary>The highest chunk Y a landmark reaches in chunk column (<paramref name="chunkX"/>, <paramref name="chunkZ"/>),
-    /// or <see cref="int.MinValue"/> when none stands in it.</summary>
+    /// <summary>Whether the active world holds neither a landmark nor (#3610) a giant wreck — the lift then costs nothing.</summary>
+    private bool NoLandmarkStands => _landmarks.Count == 0 && _giantWrecks.Count == 0;
+
+    /// <summary>The highest chunk Y a landmark (#3610: or a giant wreck) reaches in chunk column (<paramref name="chunkX"/>,
+    /// <paramref name="chunkZ"/>), or <see cref="int.MinValue"/> when none stands in it.</summary>
     private int LandmarkTopChunk(int chunkX, int chunkZ)
-    {
-        if (_landmarks.Count == 0)
-        {
-            return int.MinValue;
-        }
+        => NoLandmarkStands
+            ? int.MinValue
+            : System.Math.Max(LandmarkTopChunk(_landmarks, chunkX, chunkZ), LandmarkTopChunk(_giantWrecks, chunkX, chunkZ));
 
+    private int LandmarkTopChunk(List<LandmarkInstance> landmarks, int chunkX, int chunkZ)
+    {
         int x0 = chunkX * WorldConstants.ChunkSize, z0 = chunkZ * WorldConstants.ChunkSize, last = WorldConstants.ChunkSize - 1;
         int top = int.MinValue;
-        foreach (var lm in _landmarks)
+        foreach (var lm in landmarks)
         {
             int relX = WorldConstants.WrapDeltaX(x0 - lm.Origin.X, _world.Circumference), relZ = z0 - lm.Origin.Z;
             if (relX + last >= 0 && relX < lm.Structure.Width && relZ + last >= 0 && relZ < lm.Structure.Length)
@@ -51,7 +54,7 @@ public sealed partial class GameServer
     /// <summary>Test/util: the chunk-Y span column (dx, dz) streams around <paramref name="center"/> for a view radius.</summary>
     internal (int LoDy, int HiDy) StreamColumnSpanForTest(ChunkCoord center, int dx, int dz, int viewRadius)
         => StreamColumnSpan(center, dx, dz, NearFullColumnRadius, _generator.SeaLevel(_world.Planet),
-            _landmarks.Count == 0 ? 0 : System.Math.Min(viewRadius + 4, 20) - 1);
+            NoLandmarkStands ? 0 : System.Math.Min(viewRadius + 4, 20) - 1);
 
     internal sealed partial class LandmarkInstance
     {

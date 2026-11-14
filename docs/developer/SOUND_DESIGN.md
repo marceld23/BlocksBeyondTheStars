@@ -919,6 +919,20 @@ A log line `[Audio] Released N decoded clips (~X MiB) …` reports each release.
 `unityInstance.SendMessage("Game", "ReleaseIdleAudioNow", mode)` acts at once: `""` by the rule above, `"all"` with no size
 floor, `"decode"` asks every bundled clip to decode first, so a check can measure what a release frees.
 
+## 38. The giant ship wrecks' sound loops (#3623) — *ElevenLabs clips*
+
+A giant ship's `sound` marker ([GIANT_SHIPS.md](GIANT_SHIPS.md) §9) plays like a landmark's (§36): on a planet wreck through
+the landmark list's emitters, aboard a wreck in space through the station marker life of its interior world. Each loop is
+a `bed` (`amb_` prefix) for `tools/audio/level_clips.py` (levelled to about −20 LUFS), 14 s, mono, 80 kbit/s; made with
+`tools/ai-assets/gen_sound.py`, two takes mixed where the table names two. The structure editor's marker panel offers all
+three (`EditorMarkerPanel.KnownSounds`).
+
+| clip | class | length | prompt (prompt influence) |
+|---|---|---|---|
+| `amb_giant_hull` | bed | 14 s, seamless loop, two takes mixed | "seamless loop of the inside of a huge empty spaceship hull drifting quietly in space: slow soft metal creaks, gentle distant low groans of big metal plates settling, a faint hollow air hum, calm and peaceful, spacious reverb, no alarms, no voices, no music, not scary" (0.4) + "seamless loop inside a big empty metal spaceship hall: soft slow metallic creaks and gentle ticking of metal panels, an occasional quiet hollow clank far away, a faint airy hum, calm and peaceful, spacious echo, no alarms, no voices, no music, nothing scary" (0.5) — the metal ships (carrier, liner, battleship, ark; radius 56–72) |
+| `amb_giant_crystal` | bed | 14 s, seamless loop | "seamless loop of a soft resonant crystal hum: warm glassy tones gently ringing and slowly swelling, like a big crystal quietly humming inside a hall of glass, shimmering overtones, calm, mysterious and friendly, no voices, no drums, no melody" (0.4) — the crystal squid (three markers, radius 30–64) |
+| `amb_giant_greenhouse` | bed | 14 s, seamless loop, two takes mixed | "seamless loop inside a quiet spaceship greenhouse: a gentle trickle of water running in small channels, soft drips on leaves, a calm low air ventilation hum, peaceful and cozy, no birds, no voices, no music" (0.4, mixed at −3 dB) + "seamless loop of gentle water trickling and babbling through small channels between plant beds, soft drips falling on leaves, a quiet air hum in the background, peaceful and cozy greenhouse, no birds, no voices, no music" (0.5) — the ark's greenhouses (radius 56) and the liner's lido deck (radius 40) |
+
 ## Totals & rollout
 
 The planned rollout has largely landed. Current state:

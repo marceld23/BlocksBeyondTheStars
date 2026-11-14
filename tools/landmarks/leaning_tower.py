@@ -211,7 +211,7 @@ def build() -> Design:
     belfry(d)
     treads = stair(d)
     # The ground floor: a lantern by the door and one in the well, a chest in the well.
-    d.put(round(C) + 4, 5, round(C - 10.0), "lantern")
+    d.put(round(C) + 1, 5, round(C - 10.0), "lantern")              # on the doorway's jamb (it sat in the wall)
     d.put(round(C), STAIR_Y0, round(C) + 2, "lantern")
     d.chest(round(C), STAIR_Y0, round(C), table="ruin_common")
     # A chest on the third gallery behind the tower, one in the belfry.

@@ -395,6 +395,11 @@ internal sealed class LoadedWorld
     public bool LandmarksStamped { get; set; }
     public List<GameServer.LandmarkInstance> Landmarks { get; } = new();
 
+    // #3610 (generation 42): the giant ship wrecks of this body — 0 or 1 rolled (plus an admin's hand stamps), stamped with
+    // the landmark machinery and re-derived every load from their placement records (GameServerGiantWrecks.cs).
+    public bool GiantWrecksStamped { get; set; }
+    public List<GameServer.LandmarkInstance> GiantWrecks { get; } = new();
+
     // Fallen-city ruin stamp state — ruins are mineable, so they are stamped ONCE (guarded by this flag)
     // and then live on as persisted block edits; they are NOT re-stamped on reload (that would resurrect
     // blocks the player has cleared). Ruins are not tracked as structures (just terrain + loot).

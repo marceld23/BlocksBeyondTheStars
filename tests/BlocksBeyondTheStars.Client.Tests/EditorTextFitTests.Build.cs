@@ -35,19 +35,22 @@ public sealed partial class EditorTextFitTests
             "ui.marker.room", "ui.marker.sage", "ui.marker.spawn", "ui.marker.streamer", "ui.marker.tamer", "ui.marker.tavern",
             "ui.marker.vendor", "ui.marker.workshop", "ui.marker.device", "ui.marker.entrance",
             "ui.marker.sound", "ui.marker.den", "ui.marker.keep", "ui.marker.cavity", "ui.marker.settings", // #3492/#3493: the landmark tools
-            "ui.marker.zone"), // generation 39: the ruin zone tool
+            "ui.marker.zone", // generation 39: the ruin zone tool
+            "ui.marker.relic_cache", // #3616: a giant ship's loot marker
+            "ui.ed.giantship.entrance"), // #3615: a giant ship's way in (StructureStampRules.MarkerLabelKey)
         Lines("Palette rows: an airlock block (a 52 px row when it needs three lines)", 230f, 52f, 15, 13, 13, "ui.ed.airlock_block")
             with { Sample = "Hull Airlock", MaxLines = 3 },
         Label("StructureEditor title", 348f, 18, "ui.struct.title_station", "ui.struct.title_settlement"),
         FitLine("StructureEditor field labels (348)", 348f, 13, 15, "ui.struct.key", "ui.struct.name", "ui.struct.pack", "ui.struct.surface",
-            "ui.struct.planet_types", "ui.ed.landmark.name_key"),
+            "ui.struct.planet_types", "ui.ed.landmark.name_key", "ui.ed.giantship.show_wreck"),
         Lines("StructureEditor row labels (140×36)", 140f, 36f, 16, 13, 13, "ui.struct.tier", "ui.struct.role", "ui.struct.function",
             "ui.struct.port_door", "ui.struct.style", "ui.struct.weight", "ui.ed.landmark.profile", "ui.ed.landmark.strength",
-            "ui.ed.landmark.ground_row", "ui.ed.landmark.seat", "ui.ed.protection"),
+            "ui.ed.landmark.ground_row", "ui.ed.landmark.seat", "ui.ed.protection", "ui.ed.giantship.style"),
         Lines("StructureEditor values (150×36)", 150f, 36f, 16, 13, 13, TierValueKeys.Concat(new[]
         {
             "ui.use.whole", "ui.use.module", "ui.use.landmark", "ui.function.*", "ui.role_short.*", "ui.door_opt.*", "ui.style.human",
             "ui.style.alien", "ui.ed.landmark.profile.*", "ui.ed.landmark.seat.*", "ui.ed.protection.*", "ui.ed.zone.profile_own",
+            "ui.use.giant_ship", "ui.ed.giantship.style.*",
         }).ToArray()),
         // #3492 the landmark form (StructureEditor.Landmark.cs): three toggles, the number rows' "Auto", the preview button.
         Button("StructureEditor landmark toggles", 348f, 34f, "ui.ed.landmark.ruin", "ui.ed.landmark.atmosphere", "ui.ed.landmark.inhabited")
@@ -71,7 +74,11 @@ public sealed partial class EditorTextFitTests
         Button("StructureEditor Kits… (module row)", 124f, 30f, "ui.struct.kits"),
         Button("StructureEditor check seal / assemble / Kits… (whole)", 168f, 34f, "ui.struct.check_seal", "ui.struct.assemble", "ui.struct.kits"),
         Button("StructureEditor underground toggle (whole settlement, #3333)", 348f, 34f, "ui.struct.underground") with { Prefix = "☐ " },
-        FitLine("StructureEditor section titles", 348f, 13, 16, "ui.struct.generate_title", "ui.struct.brush", "ui.ed.landmark.title"),
+        FitLine("StructureEditor section titles", 348f, 13, 16, "ui.struct.generate_title", "ui.struct.brush", "ui.ed.landmark.title",
+            "ui.ed.giantship.title"),
+        // #3616 the giant ship form (StructureEditor.GiantShip.cs): what a giant ship is, and its two wreck previews.
+        Wrap("StructureEditor giant ship hint (measured)", 348f, 8, 13, "ui.ed.giantship.hint"),
+        Button("StructureEditor wreck preview: planet / space", 168f, 34f, "ui.ed.giantship.on_planet", "ui.ed.giantship.in_space"),
         FitLine("StructureEditor seed label", 60f, 13, 15, "ui.struct.seed"),
         Button("StructureEditor reroll", 168f, 30f, "ui.struct.reroll"),
         Button("StructureEditor generate", 348f, 34f, "ui.struct.generate"),
@@ -88,7 +95,8 @@ public sealed partial class EditorTextFitTests
             "ui.ed.not_found", "ui.ed.copy_hint", "ui.ed.loaded", "ui.ed.assemble_failed", "ui.ed.device.none", "ui.ed.device.saved",
             "ui.ed.skipped", "ui.ed.landmark.preview_locked", "ui.ed.landmark.preview_back", "ui.ed.landmark.preview_shown",
             "ui.ed.landmark.kept", "ui.ed.landmark.unkept", "ui.ed.landmark.problem", "ui.ed.landmark.saved", "ui.ed.landmark.no_submit",
-            "ui.ed.marker.none") with { Sample = "my_town" },
+            "ui.ed.marker.none", "ui.ed.giantship.preview_shown", "ui.ed.giantship.saved", "ui.ed.giantship.no_submit",
+            "ui.ed.giantship.door_unclear") with { Sample = "my_town" },
         Input("StructureEditor default name in the name field", 348f, 18, "ui.ed.default.station", "ui.ed.default.settlement"),
         Button("StructureEditor save / submit", 168f, 42f, "ui.struct.save", "ui.submit.button"),
         Button("StructureEditor load / back", 168f, 40f, "ui.struct.load", "ui.menu.back"),

@@ -1,10 +1,10 @@
 # The structure pipeline — how built structures get into a world
 
 Epic #3510 (#3511–#3524, terrain generation 38). Every built structure — a village, a station, a monument, a wreck, a
-vault, a landmark — goes the same way: a **source** builds it, **post passes** shape it, the **placement** seats, records and
+vault, a landmark, a giant ship wreck — goes the same way: a **source** builds it, **post passes** shape it, the **placement** seats, records and
 writes it, and on later loads it is **replayed** from its record. The editor runs the same sources, so it can show and start
 from every kind. This is the *how it fits together* reference; the kinds themselves are documented where they live
-([WORLD_GENERATION.md](WORLD_GENERATION.md), [LANDMARKS.md](LANDMARKS.md),
+([WORLD_GENERATION.md](WORLD_GENERATION.md), [LANDMARKS.md](LANDMARKS.md), [GIANT_SHIPS.md](GIANT_SHIPS.md),
 [STATION_SETTLEMENT_EDITOR.md](STATION_SETTLEMENT_EDITOR.md), [FACTORIES_RUINS_AND_CLAIMING.md](FACTORIES_RUINS_AND_CLAIMING.md),
 [DERELICT_STATIONS.md](DERELICT_STATIONS.md), [SHIP_TYPE_EDITOR.md](SHIP_TYPE_EDITOR.md)).
 
@@ -74,7 +74,10 @@ Authored `StructureTemplate`s (whole structures, kit modules, landmarks, undergr
 off / a fixed flora, a weighted rubble palette, `ErodeShaped`, a per-column strength map (`SpareBox`), protected rows, a fixed
 switched-off light, substitutions and scorch — plus the profile **`hull`** (no ground: settle anchors on keep cells and the
 largest piece; no crumble, rubble or overgrowth) for wrecks. Options are not part of the revision: every caller that sets
-them gates on generation 38. `StructureDecay` pins the revision the generation-38 decays use, so a later ruiner revision can
+them gates on generation 38. **Revision 3** (#3609) is the giant ship wrecks' ([GIANT_SHIPS.md](GIANT_SHIPS.md) §4): it
+changes only `hull` and adds the profile **`crash`** (the hull decay anchored on a buried keel, with rubble and — with
+air — overgrowth); every landmark profile builds what revision 2 builds, and revisions 1 and 2 stay byte-identical. The
+option `FreezeWater` turns water into ice (a wreck in space or on an airless body). `StructureDecay` pins the revision the generation-38 decays use, so a later ruiner revision can
 never move a monument's relic cache or a G.D.S. crate that is re-derived from the decayed shape on every load.
 
 | Decay | Generation 38 |
@@ -98,7 +101,13 @@ never move a monument's relic cache or a G.D.S. crate that is re-derived from th
   whitelist — the class summary of `StructureTypeRules` lists which. `Place*` world switches stay switches;
   `ServerConfig.IntercityRailChance` / `RailRuinChance` / `LandmarkChance` override the file when set — a stored value
   equal to the old code default (0.6 / 0.35 / 0.34, which every older `server.json` holds) reads as unset, and an
-  override that differs from the file is logged once.
+  override that differs from the file is logged once. `GiantWreckChance` (#3608) overrides the `giant_wreck` chance
+  (0.05) the same way but never held a written-out default, so every stored value counts.
+- **The giant wreck rule** (`giant_wreck`, generation 42, #3608): chance 0.05 × the structures frequency × the world
+  option `GiantWrecks`, conditions `notVoid` and `notGas` (airless bodies and asteroids allowed; the body must be four
+  footprints around), whitelist key `giant_wrecks`, keep-clear 6 (24 from pads, 10 from the crash site, 16 from a
+  landmark), the landmark's site (high prominence, flat relief) and grade (radius 16, cut and fill 24). Switched by
+  `ServerConfig.PlaceGiantWrecks` and the world option; stamped by `StampGiantWrecks` right after the landmarks.
 - **Counts and verdicts are pinned** (#3513): `WorldMetadata.StructureCounts["<location>|<kind>"]`, the record fields
   `Tier`, `Ruined` and `Design` — written the first time a stamper runs (also on the next load of an old save), read back
   from then on, after the original draws were consumed. Changing a number in the file therefore only affects bodies stamped
@@ -130,12 +139,15 @@ never move a monument's relic cache or a G.D.S. crate that is re-derived from th
   world reads that marker back). An older save gets its records backfilled on its next load from what stands; the
   Guardian core chamber, which every older load wrote, is marked as stamped without being written again
   (`StructureBookkeepingTests.OldSave`). The planet wreck's record keeps its hull's extent (`Width` / `Length`,
-  generation 38): later loads reserve that box as the crash site instead of sizing it by a fresh pick.
+  generation 38): later loads reserve that box as the crash site instead of sizing it by a fresh pick. A giant wreck
+  (kind `giant_wreck`) pins `turns`, `rev=3`, `seed`, `air`, `fp` (the template fingerprint) and `storage=overlay`; it is
+  replayed whatever the switches say, and a changed or missing ship keeps its blocks and re-derives nothing.
 
 ## 5. User content
 
-The local server reads `usercontent/` next to `data/`: station and settlement templates, kits, landmark templates, generator
-entries (template files without cells) and **ship types** (#3520): `usercontent/ship_types/<key>.json`, one file with the
+The local server reads `usercontent/` next to `data/`: station and settlement templates, kits, landmark templates, giant
+ships (`usercontent/giant_ship_templates/`, #3607 — checked like the shipped ones, a broken one dropped with a warning),
+generator entries (template files without cells) and **ship types** (#3520): `usercontent/ship_types/<key>.json`, one file with the
 definition and the embedded layout. User ships live in `GameContent.UserShips`, never in `Ships` (the wreck pools of old
 worlds and the creative grant enumerate it); `GetShip` / `GetShipLayout` resolve both. A key the game reserves (`custom`
 — the self-built ships' type — `starter`, any shipped ship or layout, case-insensitive) is refused by the loader, and the
@@ -155,6 +167,10 @@ terminal markers beside the station cells. The planet wreck's record carries the
 a changed or missing layout keeps the blocks and refuses repair and claim. Space wrecks pin their design in
 `WorldMetadata.SpaceWreckDesigns` and its layout's fingerprint in `WorldMetadata.SpaceWreckLayouts`; a layout changed since
 drifts as the box of that design (warned), a design that is gone as the box of the drawn one.
+
+The **giant ship wrecks** (#3625) are no ship layouts and never ship types: authored templates (`data/giant_ships/`) built
+with ruin revision 3 — on a planet stamped like a landmark, in space a derived station structure that stores only the
+players' changes ([GIANT_SHIPS.md](GIANT_SHIPS.md)).
 
 ## 7. The editor
 
@@ -182,4 +198,5 @@ design is stamped; quarter-turn and ruin previews run the server's own code. See
 | Templates | `Shared/Definitions/StructureTemplate.cs`, `Shared/Content/StructureCatalog*.cs`, `Sources/SourceTemplates.cs`, `SettlementGenerator.Templates.cs`, `GameServerSourceEntries.cs`, `GameServerStructureMarkerLife.cs` |
 | Placement | `data/structure_types.json`, `Shared/Definitions/StructureTypeRules*.cs`, `GameServer/StructureFootprints.cs`, `GameServerStructureFootprints.cs`, `GameServerStructureRecords.cs` |
 | Ships and wrecks | `Shared/Definitions/UserShip.cs`, `GameContent.UserShips.cs`, `GameServerUserShips.cs`, `ShipCellBlocks.cs`, `WreckGenerator.Layout*.cs`, `WreckLayoutHull.cs`, `GameServerWrecks.Layout.cs` |
+| Giant ship wrecks | `Shared/Definitions/GiantShipRules.cs`, `GameContent.GiantShips.cs`, `WorldGeneration/GiantShipGenerator*.cs`, `StructureRuiner.Giant*.cs`, `GiantWreckPlacer.cs`, `GameServerGiantWrecks*.cs`, `GameServerGiantDerelict*.cs` — see [GIANT_SHIPS.md](GIANT_SHIPS.md) §12 |
 | Tests | `StructureGoldens*`, `StructureSourceTests*`, `StructureBookkeepingTests*` (`.OldSave`: a simulated pre-pipeline save), `StructureRuinerTests*`, `StructureDecayTests*`, `TemplatePipeline*Tests`, `StationTemplatePinTests`, `StructureTypeRulesTests`, `StructureFootprintTests`, `UserShipTests`, `WreckLayout*Tests`, `SpaceWreckLayoutTests`; Client.Tests `UserShipFileRulesTests`, `UserTemplateFilesTests`, `StampStepsDescriberTests` |

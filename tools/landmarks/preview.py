@@ -7,8 +7,14 @@ optional cut-away sections, plus the stats line. Stdlib only (the PNG is written
     uv run --no-project python tools/landmarks/preview.py data/landmarks/sample_mine.json --out mine.png
     uv run --no-project python tools/landmarks/preview.py sample_tower --stats-only
 
-A key reads data/landmarks/<key>.json; a path may also be an editor export folder (landmark_exports/<key>). The PNG goes
-to artifacts/landmark-previews/<key>.png (git-ignored) unless --out says otherwise.
+A key reads data/landmarks/<key>.json (or data/giant_ships/<key>.json); a path may also be an editor export folder
+(landmark_exports/<key>) or any template file — a giant ship, or a wreck dumped as a template. The PNG goes to
+artifacts/landmark-previews/<key>.png (a giant ship: artifacts/giant-ship-previews/<key>.png; git-ignored) unless --out
+says otherwise.
+
+GIANT SHIPS (`giantShip: true`) get their sections without asking (`--cut auto`, any template may ask for it): a plan one
+row above each walk row that carries doors, entrances or chests (at most four), a cross-section at the middle of the
+length and a long section through the centre line. `--split` also writes every panel as a PNG of its own.
 
 Views: front looks from -Z (x to the right), side from +X (z to the right), top from above (x right, z up); `iso` from
 the (-X, +Y, -Z) corner. `--cut y=40` adds a plan of everything at or below row 40, `--cut z=30` a front view of what lies
@@ -44,7 +50,7 @@ GROUND = (90, 200, 110)
 CAVITY = (88, 64, 128)
 OUTLINE = 0.62
 MARKER_COLOURS = {"chest": (240, 150, 40), "sound": (60, 220, 240), "den": (235, 60, 60), "vendor": (250, 220, 50),
-                  "npc": (250, 180, 160)}
+                  "npc": (250, 180, 160), "entrance": (90, 255, 120)}
 ZONE_COLOURS = [(255, 120, 60), (80, 170, 255), (190, 110, 255), (255, 230, 90), (100, 240, 200), (255, 120, 190)]
 TOKENS = {"@wall": (150, 140, 125), "@accent": (110, 160, 200), "@roof": (150, 80, 60), "@floor": (130, 115, 95),
           "@path": (160, 150, 130)}
@@ -400,10 +406,35 @@ def _parse_cut(text: str) -> tuple[str, int]:
     return axis, int(value)
 
 
+WALK_MARKERS = ("door_slide", "door_hinge", "door_energy", "entrance", "chest")
+
+
+def auto_cuts(t: dict, markers: list[dict]) -> list[str]:
+    """Sections that show a ship's inside: a plan one row above every walk row that carries doors, entrances or chests
+    (at most four, spread over the height), a cross-section at the middle of the length and a long section through the
+    centre line."""
+    w, h, ln = t["width"], t["height"], t["length"]
+    rows = sorted({int(m["y"]) for m in markers if m.get("id") in WALK_MARKERS})
+    if len(rows) > 4:
+        rows = sorted({rows[round(i * (len(rows) - 1) / 3)] for i in range(4)})
+    if not rows:
+        rows = [h // 3, 2 * h // 3]
+    return [f"y={min(h - 1, y + 1)}" for y in rows] + [f"z={ln // 2}", f"x={(w - 1) // 2}"]
+
+
 def render(t: dict, scale: int | None = None, iso_scale: int | None = None, views: tuple[str, ...] = ("front", "side", "top", "iso"),
            cuts: tuple[str, ...] = (), show_cavity: bool = True, overlay: bool = True, nbytes: int | None = None) -> Image:
     """The preview sheet of a template: a title with the stats line and one labelled panel per view and cut."""
+    return sheet(t, panels(t, scale, iso_scale, views, cuts, show_cavity, overlay), nbytes)
+
+
+def panels(t: dict, scale: int | None = None, iso_scale: int | None = None,
+           views: tuple[str, ...] = ("front", "side", "top", "iso"), cuts: tuple[str, ...] = (), show_cavity: bool = True,
+           overlay: bool = True) -> list[tuple[str, Image]]:
+    """The labelled panels of a preview: one per view and per cut (`auto` = `auto_cuts`)."""
     cells, markers = templatefile.decode(t)
+    if "auto" in cuts:
+        cuts = tuple(c for c in cuts if c != "auto") + tuple(auto_cuts(t, markers))
     w, h, ln = t["width"], t["height"], t["length"]
     s = scale or max(1, min(10, 900 // max(w, h, ln, 1)))
     si = iso_scale or max(2, min(8, (1300 // max(1, w + ln)) // 2 * 2))
@@ -424,6 +455,11 @@ def render(t: dict, scale: int | None = None, iso_scale: int | None = None, view
             "x": ("side", lambda p, v=value: p[0] <= v, f"SECTION x <= {value} (from +X)"),
         }[axis]
         panels.append((label, ortho(cells, markers, t, view, s, keep, show_cavity, overlay)))
+    return panels
+
+
+def sheet(t: dict, panels: list[tuple[str, Image]], nbytes: int | None = None) -> Image:
+    """The panels laid out in rows under a title with the stats line."""
     pad, title_h, label_k = 12, 26, 2
     stats_line = templatefile.stats(t, nbytes)
     slots = [(label, p, max(p.w, blockfont.line_width(label) * label_k)) for label, p in panels]
@@ -447,13 +483,29 @@ def render(t: dict, scale: int | None = None, iso_scale: int | None = None, view
     return sheet
 
 
-def preview(ref: str | Path, out: str | Path | None = None, **opts) -> Path:
-    """Renders a template file (key or path) and saves the PNG; returns its path."""
+def _slug(label: str) -> str:
+    """A panel's file-name part: front, side, top, iso, plan-y40, section-z30, section-x50."""
+    words = label.split()
+    if words[0] in ("PLAN", "SECTION"):
+        return f"{words[0].lower()}-{words[1]}{words[3]}" if words[0] == "SECTION" else f"plan-y{words[4]}"
+    return words[0].lower()
+
+
+def preview(ref: str | Path, out: str | Path | None = None, split: bool = False, **opts) -> Path:
+    """Renders a template file (key or path) and saves the PNG; returns its path. A giant ship gets the `auto` sections
+    when no cuts are given. `split` also saves every panel as `<name>.<n>-<view>.png` next to it."""
     t, path = templatefile.load(ref)
-    target = Path(out) if out else templatefile.REPO / "artifacts" / "landmark-previews" / f"{t.get('key', path.stem)}.png"
+    folder = "giant-ship-previews" if t.get("giantShip") else "landmark-previews"
+    target = Path(out) if out else templatefile.REPO / "artifacts" / folder / f"{t.get('key', path.stem)}.png"
     if target.suffix.lower() != ".png":
         target = target / f"{t.get('key', path.stem)}.png"
-    render(t, nbytes=path.stat().st_size, **opts).save(target)
+    if t.get("giantShip") and not opts.get("cuts"):
+        opts["cuts"] = ("auto",)
+    parts = panels(t, **opts)
+    sheet(t, parts, path.stat().st_size).save(target)
+    if split:
+        for i, (label, img) in enumerate(parts):
+            img.save(target.with_name(f"{target.stem}.{i}-{_slug(label)}.png"))
     return target
 
 
@@ -464,7 +516,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--scale", type=int, help="pixels per cell in the orthographic views (default: fit ~900 px)")
     ap.add_argument("--iso-scale", type=int, help="pixels per cell in the isometric view (even; default: fit)")
     ap.add_argument("--views", default="front,side,top,iso", help="comma list of front, side, top, iso")
-    ap.add_argument("--cut", action="append", default=[], help="a section: y=N (plan), z=N or x=N; repeatable")
+    ap.add_argument("--cut", action="append", default=[], help="a section: y=N (plan), z=N or x=N, or auto (the "
+                    "decks of a ship + a cross and a long section; the default for giant ships); repeatable")
+    ap.add_argument("--split", action="store_true", help="also write every panel as a PNG of its own")
     ap.add_argument("--no-cavity", action="store_true", help="do not draw cavity cells")
     ap.add_argument("--no-overlay", action="store_true", help="no ground row, ruin zones or markers")
     ap.add_argument("--stats-only", action="store_true", help="print the stats line, write no PNG")
@@ -476,7 +530,7 @@ def main(argv: list[str] | None = None) -> int:
         print(templatefile.stats(t, path.stat().st_size))
         if args.stats_only:
             continue
-        target = preview(ref, args.out, scale=args.scale, iso_scale=args.iso_scale,
+        target = preview(ref, args.out, split=args.split, scale=args.scale, iso_scale=args.iso_scale,
                          views=tuple(v for v in args.views.split(",") if v), cuts=tuple(args.cut),
                          show_cavity=not args.no_cavity, overlay=not args.no_overlay)
         print(f"  -> {target}")

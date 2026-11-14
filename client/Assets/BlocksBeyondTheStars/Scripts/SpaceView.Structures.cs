@@ -152,21 +152,80 @@ namespace BlocksBeyondTheStars.Client
                 if (m.Block == 0) { _shipCells.Remove(key); }
                 else { _shipCells[key] = new BlockId(m.Block); }
 
-                RebuildShipVoxels();
+                SetCellLook(ref _shipMods, ref _shipShapes, key, m.Block == 0 ? 0 : m.Tint, m.Block == 0 ? 0 : m.Glow, m.Block == 0 ? 0 : m.Shape);
+                RebuildShipVoxels(); // the own ship is small: one rebuild
                 return;
             }
 
             if (_structs.TryGetValue(m.StructureId, out var vs) && vs.Cells != null)
             {
-                if (m.Block == 0) { vs.Cells.Remove(key); }
-                else { vs.Cells[key] = new BlockId(m.Block); }
+                ApplyStructCell(vs, key, m);
+            }
+        }
 
-                vs.MeshDirty = true;
+        /// <summary>#3615: one changed cell of a voxel structure — its block, dye, glow and shape (#3612: a player station's
+        /// dyed block, a giant's laid-open cell keep their look), then only the chunks it reaches are re-meshed: with a lamp
+        /// gained, lost or recoloured the lamp list is updated in place, with a change between light-stopping and open the
+        /// skylight below it is too. An air change of a cell the view never held (a structure sent as its shell) changes
+        /// nothing on screen.</summary>
+        private void ApplyStructCell(VoxStruct vs, Vector3i key, BlocksBeyondTheStars.Networking.Messages.StructureBlockChanged m)
+        {
+            vs.Cells.TryGetValue(key, out var old);
+            if (m.Block == 0 && old.IsAir)
+            {
+                return;
+            }
+
+            var before = vs.Mods != null && vs.Mods.TryGetValue(key, out var look) ? look : (0, 0);
+            var now = new BlockId(m.Block);
+            if (now.IsAir) { vs.Cells.Remove(key); }
+            else { vs.Cells[key] = now; }
+
+            SetCellLook(ref vs.Mods, ref vs.Shapes, key, now.IsAir ? 0 : m.Tint, now.IsAir ? 0 : m.Glow, now.IsAir ? 0 : m.Shape);
+            var content = Game.Content;
+            if (content == null)
+            {
+                MarkStructCellChanged(vs, key, lampChanged: false, skyChanged: false);
+                return;
+            }
+
+            int lampBefore = ChunkMesher.BlockLightColor(content, old, before.Item2, before.Item1);
+            int lampNow = now.IsAir ? 0 : ChunkMesher.BlockLightColor(content, now, m.Glow, m.Tint);
+            if (lampBefore != lampNow && vs.Lights != null)
+            {
+                BlocksBeyondTheStars.Client.Core.StructureChunkMath.UpdateLight(vs.Lights, key, lampNow); // the lamp list stays true — never gathered anew per edit
+            }
+
+            MarkStructCellChanged(vs, key, lampBefore != lampNow, ChunkMesher.StopsSky(content, old) != ChunkMesher.StopsSky(content, now));
+        }
+
+        /// <summary>Stores a cell's dye/glow and shape (0 = none — the entry goes), creating the maps on first use.</summary>
+        private static void SetCellLook(ref Dictionary<Vector3i, (int Tint, int Glow)> mods, ref Dictionary<Vector3i, int> shapes,
+            Vector3i key, int tint, int glow, int shape)
+        {
+            if (tint != 0 || glow != 0)
+            {
+                (mods ??= new Dictionary<Vector3i, (int Tint, int Glow)>())[key] = (tint, glow);
+            }
+            else
+            {
+                mods?.Remove(key);
+            }
+
+            if (shape != 0)
+            {
+                (shapes ??= new Dictionary<Vector3i, int>())[key] = shape;
+            }
+            else
+            {
+                shapes?.Remove(key);
             }
         }
 
         /// <summary>A voxel structure design arrived (item 20 S3 — asteroids). The own ship (Kind "ship") is
-        /// handled via Game.ShipDesign; other kinds become static voxel bodies at their world position.</summary>
+        /// handled via Game.ShipDesign; other kinds become static voxel bodies at their world position. #3612: it comes from
+        /// <see cref="GameBootstrap.SpaceDesigns"/> — whole, a giant's parts already joined. #3615: a structure already
+        /// drawn keeps its meshes until the new design's chunks replace them, and a big hull starts its far skin.</summary>
         private void OnStructureDesign(BlocksBeyondTheStars.Networking.Messages.SpaceShipDesign m)
         {
             // Whitelist, not blacklist (#954): "ship" is the own hull (Game.ShipDesign), "ship_remote"
@@ -179,11 +238,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var cells = CellsFromDesign(m, out var centre);
-            if (_structs.TryGetValue(m.Id, out var existing) && existing.Root != null)
-            {
-                Destroy(existing.Root); // a fresh design replaces the old mesh
-            }
-
+            _structs.TryGetValue(m.Id ?? string.Empty, out var existing);
             var vs = new VoxStruct
             {
                 Cells = cells, Centre = centre, Pos = new Vector3(m.PosX, m.PosY, m.PosZ), Root = null, MeshDirty = true, Kind = m.Kind,
@@ -194,8 +249,25 @@ namespace BlocksBeyondTheStars.Client
                 Instance = Game.Space?.InstanceId ?? string.Empty, // #3409: which flight it belongs to
             };
             vs.DoorCells = SpaceDoors.DoorwayCells(vs.Doors);
+            ReadDesignLook(vs, m);
+            vs.Half = DesignHalf(cells);
+            if (m.HasDock)
+            {
+                vs.HasDock = true;
+                vs.Dock = vs.Pos + new Vector3(m.DockX, m.DockY, m.DockZ) - centre;
+                vs.DockOut = new Vector3(m.DockOutX, 0f, m.DockOutZ);
+            }
 
-            // Authored dye/glow + shapes ride along, so a station's blue solar wings and its shaped cells mesh as designed.
+            vs.BigHull = IsBigHull(vs);
+            vs.Far = vs.BigHull; // the far skin until the distance says otherwise
+            AdoptStructMeshes(vs, existing);
+            StartHullLod(vs, m);
+            _structs[vs.Id] = vs;
+        }
+
+        /// <summary>Authored dye/glow + shapes ride along, so a station's blue solar wings and its shaped cells mesh as designed.</summary>
+        private static void ReadDesignLook(VoxStruct vs, BlocksBeyondTheStars.Networking.Messages.SpaceShipDesign m)
+        {
             bool hasTint = m.Tint != null && m.Tint.Length == m.Block.Length;
             bool hasGlow = m.Glow != null && m.Glow.Length == m.Block.Length;
             bool hasShape = m.Shape != null && m.Shape.Length == m.Block.Length;
@@ -211,27 +283,24 @@ namespace BlocksBeyondTheStars.Client
                     if (hasShape && m.Shape[i] != 0) vs.Shapes[key] = m.Shape[i];
                 }
             }
+        }
 
-            if (cells.Count > 0)
+        /// <summary>Half the cells' box (zero for an empty design).</summary>
+        private static Vector3 DesignHalf(Dictionary<Vector3i, BlockId> cells)
+        {
+            if (cells.Count == 0)
             {
-                int minX = int.MaxValue, minY = int.MaxValue, minZ = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue, maxZ = int.MinValue;
-                foreach (var c in cells.Keys)
-                {
-                    if (c.X < minX) minX = c.X; if (c.Y < minY) minY = c.Y; if (c.Z < minZ) minZ = c.Z;
-                    if (c.X > maxX) maxX = c.X; if (c.Y > maxY) maxY = c.Y; if (c.Z > maxZ) maxZ = c.Z;
-                }
-
-                vs.Half = new Vector3((maxX - minX + 1) * 0.5f, (maxY - minY + 1) * 0.5f, (maxZ - minZ + 1) * 0.5f);
+                return Vector3.zero;
             }
 
-            if (m.HasDock)
+            int minX = int.MaxValue, minY = int.MaxValue, minZ = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue, maxZ = int.MinValue;
+            foreach (var c in cells.Keys)
             {
-                vs.HasDock = true;
-                vs.Dock = vs.Pos + new Vector3(m.DockX, m.DockY, m.DockZ) - centre;
-                vs.DockOut = new Vector3(m.DockOutX, 0f, m.DockOutZ);
+                if (c.X < minX) minX = c.X; if (c.Y < minY) minY = c.Y; if (c.Z < minZ) minZ = c.Z;
+                if (c.X > maxX) maxX = c.X; if (c.Y > maxY) maxY = c.Y; if (c.Z > maxZ) maxZ = c.Z;
             }
 
-            _structs[m.Id] = vs;
+            return new Vector3((maxX - minX + 1) * 0.5f, (maxY - minY + 1) * 0.5f, (maxZ - minZ + 1) * 0.5f);
         }
 
         /// <summary>#1917: a station's distance from a root-local point — to its hull's box when the flight view holds its
@@ -336,8 +405,9 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Builds/updates/removes the asteroid voxel bodies' GameObjects (item 20 S3). Runs while the
-        /// flight view is active so designs that arrived before the scene existed get built once it does.</summary>
+        /// <summary>Builds/updates/removes the voxel bodies' GameObjects (item 20 S3). Runs while the flight view is active so
+        /// designs that arrived before the scene existed get built once it does. #3615: the meshes come from the chunk queue
+        /// under a per-frame budget (SpaceView.StructureMesh.cs), a big hull far away shows its skin instead.</summary>
         private void ReconcileStructs()
         {
             if (_root == null)
@@ -345,19 +415,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (_structRemove.Count > 0)
-            {
-                foreach (var id in _structRemove)
-                {
-                    if (_structs.TryGetValue(id, out var vs))
-                    {
-                        if (vs.Root != null) { Destroy(vs.Root); }
-                        _structs.Remove(id);
-                    }
-                }
-
-                _structRemove.Clear();
-            }
+            RemoveGoneStructs();
 
             // S5: unload far voxel bodies (keep their data; rebuild when you come back near) so dozens of
             // structures don't all carry live meshes. The reference is the suit on an EVA, else the ship.
@@ -367,13 +425,15 @@ namespace BlocksBeyondTheStars.Client
             foreach (var vs in _structs.Values)
             {
                 bool near;
+                float boxDistance = 0f;
                 if (vs.IsStation)
                 {
                     // #1917: a station hull is a landmark — kept across the whole flight zone, measured to its box, and
                     // the flight clamp grows so every hull (and the space around it) stays reachable.
                     Vector3 d = viewer - vs.Pos;
                     var outside = new Vector3(Mathf.Max(0f, Mathf.Abs(d.x) - vs.Half.x), Mathf.Max(0f, Mathf.Abs(d.y) - vs.Half.y), Mathf.Max(0f, Mathf.Abs(d.z) - vs.Half.z));
-                    near = outside.sqrMagnitude <= FarStationUnload * FarStationUnload;
+                    boxDistance = outside.magnitude;
+                    near = boxDistance <= FarStationUnload;
                     stationReach = Mathf.Max(stationReach, vs.Pos.magnitude + vs.Half.magnitude + StationReachMargin);
                 }
                 else
@@ -381,49 +441,55 @@ namespace BlocksBeyondTheStars.Client
                     near = (vs.Pos - viewer).sqrMagnitude <= farSq;
                 }
 
-                if (near && vs.Root == null)
+                if (!near)
                 {
-                    vs.MeshDirty = true; // came back into range → rebuild below
+                    if (vs.Root != null)
+                    {
+                        DropStructMeshes(vs); // out of range → free the meshes, keep the data
+                    }
+
+                    continue;
                 }
-                else if (!near && vs.Root != null)
+
+                EnsureStructRoot(vs);
+                if (vs.BigHull)
                 {
-                    Destroy(vs.Root);
-                    vs.Root = null; // out of range → drop the mesh, keep the data
+                    UpdateHullLod(vs, boxDistance);
+                }
+
+                if (vs.ExtrasDirty)
+                {
+                    BuildStructExtras(vs); // #2607 doors, #2676 a derelict's broken look
+                }
+
+                if (vs.MeshDirty && !vs.Far)
+                {
+                    QueueAllChunks(vs, viewer);
                 }
             }
 
             _stationReach = stationReach;
+            MeshQueuedChunks();
+        }
 
-            bool stationBuilt = false;
-            foreach (var vs in _structs.Values)
+        /// <summary>Drops the structures whose entity went (their meshes freed).</summary>
+        private void RemoveGoneStructs()
+        {
+            if (_structRemove.Count == 0)
             {
-                if (!vs.MeshDirty)
-                {
-                    continue;
-                }
-
-                if (vs.IsStation && stationBuilt)
-                {
-                    continue; // a station hull is thousands of cells — mesh one per frame so entering space doesn't stall
-                }
-
-                if (vs.Root == null)
-                {
-                    vs.Root = new GameObject(vs.IsStation ? "StationHull" : "Asteroid");
-                    vs.Root.transform.SetParent(_root.transform, false);
-                    vs.Root.transform.localPosition = vs.Pos;
-                }
-
-                BuildVoxChunks(vs.Root.transform, vs.Cells, vs.Centre, vs.Derelict ? DerelictGrime() : null, vs.Mods, vs.Shapes);
-                AddPlacedDoors(vs.Root.transform, vs.Doors, vs.Centre); // #2607 (the next rebuild clears them with the chunks)
-                if (vs.Derelict)
-                {
-                    AddDerelictDecor(vs); // #2676 (a child of the root — the next rebuild clears it with the chunks, then re-adds it)
-                }
-
-                vs.MeshDirty = false;
-                stationBuilt |= vs.IsStation;
+                return;
             }
+
+            foreach (var id in _structRemove)
+            {
+                if (_structs.TryGetValue(id, out var vs))
+                {
+                    DropStructMeshes(vs);
+                    _structs.Remove(id);
+                }
+            }
+
+            _structRemove.Clear();
         }
 
         /// <summary>#3409: takes the designs that arrived for flight instance <paramref name="instance"/> out of the store
@@ -440,13 +506,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 var vs = _structs[id];
-                if (vs.Root != null)
-                {
-                    Destroy(vs.Root);
-                    vs.Root = null;
-                }
-
-                vs.MeshDirty = true;
+                DropStructMeshes(vs); // the far skin's data stays: the new scene shows it again
                 _structs.Remove(id);
                 arrived.Add(vs);
             }
@@ -463,12 +523,12 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Tears down all asteroid voxel bodies (on leaving the flight view).</summary>
+        /// <summary>Tears down all voxel bodies and frees their meshes (on leaving the flight view).</summary>
         private void ClearStructs()
         {
             foreach (var vs in _structs.Values)
             {
-                if (vs.Root != null) { Destroy(vs.Root); }
+                DropStructMeshes(vs);
             }
 
             _structs.Clear();
@@ -476,8 +536,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Clears <paramref name="parent"/> and (re)builds voxel chunk meshes + colliders from a sparse
-        /// block grid, centred on <paramref name="centre"/> — shared by the ship (S1/S2, with the hull paint
-        /// resolver) and asteroids (S3, unpainted).</summary>
+        /// block grid, centred on <paramref name="centre"/> — the own ship (S1/S2, with the hull paint resolver; it is small,
+        /// so an edit rebuilds it whole). #3615: every other structure meshes chunk by chunk (SpaceView.StructureMesh.cs).</summary>
         private void BuildVoxChunks(Transform parent, Dictionary<Vector3i, BlockId> cells, Vector3 centre,
             System.Func<BlockId, Color> paint = null,
             Dictionary<Vector3i, (int Tint, int Glow)> mods = null, Dictionary<Vector3i, int> shapes = null)
@@ -537,6 +597,8 @@ namespace BlocksBeyondTheStars.Client
                 var (mesh, collider) = ChunkMesher.Build(chunk, Game.Content, WorldBlock, Game.Atlas, paintTint: paint, lights: lights, worldShape: WorldShape);
                 if (mesh.vertexCount == 0)
                 {
+                    Destroy(mesh); // an empty chunk keeps no meshes
+                    Destroy(collider);
                     continue;
                 }
 
@@ -613,8 +675,8 @@ namespace BlocksBeyondTheStars.Client
         /// (<see cref="BlocksBeyondTheStars.Client.Core.DerelictDecorPlan"/> — no protocol change) and then only animated
         /// (<see cref="DerelictDecor"/>): three to six small pieces tumbling slowly beside the hull (no collider), a small
         /// unlit cube on the dead beacon that flickers now and then (no real light) and a rare shower of sparks at a ragged
-        /// edge (the pooled FX). The voxel hull itself is never moved or rotated. The holder is a child of the hull root, so
-        /// the next hull rebuild (a mined block) clears it with the chunks and this adds it afresh.
+        /// edge (the pooled FX). The voxel hull itself is never moved or rotated. #3615: the holder is a child of the hull's
+        /// Extras, built once per design — a mined block re-meshes only its chunk and leaves the decor alone.
         /// </summary>
         private void AddDerelictDecor(VoxStruct vs)
         {
@@ -627,7 +689,7 @@ namespace BlocksBeyondTheStars.Client
             var plan = BlocksBeyondTheStars.Client.Core.DerelictDecorPlan.Build(vs.Cells, vs.Id,
                 id => content != null && content.BlockById(id)?.Key == "light_white_off"); // the beta wreck's dead beacon
             var holder = new GameObject("DerelictDecor");
-            holder.transform.SetParent(vs.Root.transform, false);
+            holder.transform.SetParent(vs.Extras != null ? vs.Extras : vs.Root.transform, false);
             Vector3 Local(Vector3i c) => new Vector3(c.X + 0.5f, c.Y + 0.5f, c.Z + 0.5f) - vs.Centre;
 
             GameObject beacon = null;

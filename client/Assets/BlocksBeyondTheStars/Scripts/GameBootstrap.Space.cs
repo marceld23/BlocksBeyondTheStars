@@ -34,6 +34,12 @@ namespace BlocksBeyondTheStars.Client
         public SpaceState Space { get; private set; }       // current space instance (null when not flying)
         public SpaceShipDesign ShipDesign { get; private set; } // item 20 S1: own ship as a voxel structure (flight view)
 
+        /// <summary>#3612: every voxel design of the flight — the own ship, the remote pilots' hulls, stations, wrecks and
+        /// asteroids — comes through this ONE feed, whole: a giant wreck's hull arrives in parts, and only a complete design
+        /// may be built. Subscribe to <see cref="BlocksBeyondTheStars.Client.Core.SpaceDesignFeed.DesignReady"/>, never to
+        /// the raw network event.</summary>
+        public BlocksBeyondTheStars.Client.Core.SpaceDesignFeed SpaceDesigns { get; private set; }
+
         // OTHER players' voxel ship designs (Kind "ship_remote", Id "ship:<playerId>"), cached per pilot —
         // the flight view + the landing/launch FX render their REAL ships instead of generic silhouettes.
         private readonly System.Collections.Generic.Dictionary<string, SpaceShipDesign> _remoteShipDesigns = new();
@@ -272,7 +278,8 @@ namespace BlocksBeyondTheStars.Client
             };
             // item 20 S1/S3: voxel structures for the flight view. Only the player's OWN ship drives the _ship
             // mesh (Game.ShipDesign); asteroid bodies (Kind != "ship") are handled directly by SpaceView.
-            Network.SpaceShipDesignReceived += m =>
+            SpaceDesigns = BlocksBeyondTheStars.Client.Core.SpaceDesignFeed.Attach(Network); // #3612: whole designs only
+            SpaceDesigns.DesignReady += m =>
             {
                 if (m.Kind == "ship" || string.IsNullOrEmpty(m.Kind))
                 {

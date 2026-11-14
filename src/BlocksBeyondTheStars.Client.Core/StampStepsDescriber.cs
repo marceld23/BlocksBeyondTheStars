@@ -150,6 +150,7 @@ namespace BlocksBeyondTheStars.Client
                 StampTarget.StationModule => "ui.stamp.seat.station_module",
                 StampTarget.StationWhole or StampTarget.StationEntry => "ui.stamp.seat.space",
                 StampTarget.Landmark when d.GroundRow > 0 => "ui.stamp.seat.landmark",
+                StampTarget.GiantShip => "ui.stamp.seat.giant_ship", // #3616: the keel sunk in on a planet, adrift in space
                 _ => "ui.stamp.seat.landmark_flat",
             };
             return new StampStep(TitleSeat, text, StampArg.Of(d.GroundRow));
@@ -223,6 +224,7 @@ namespace BlocksBeyondTheStars.Client
                         StampArg.Key("ui.function." + (string.IsNullOrEmpty(d.Function) ? StructureRoles.Room : d.Function)));
                 case StampTarget.StationWhole:
                 case StampTarget.Landmark:
+                case StampTarget.GiantShip:
                     return new StampStep(TitleFurnish, "ui.stamp.furnish.never");
                 default:
                     return null; // a generator entry furnishes as its generator does
@@ -250,6 +252,7 @@ namespace BlocksBeyondTheStars.Client
         {
             StampTarget.SettlementWhole or StampTarget.Landmark => "ui.stamp.turn.pinned",
             StampTarget.StationModule => "ui.stamp.turn.dock",
+            StampTarget.GiantShip => "ui.stamp.turn.giant_ship", // #3616: a quarter turn on a planet, never in space
             _ => "ui.stamp.turn.never",
         });
 
@@ -272,6 +275,14 @@ namespace BlocksBeyondTheStars.Client
                         var (profile, strength) = Profile(d);
                         return d.RuinZones.Count > 0 ? ZonedRuin(d, profile, strength)
                             : new StampStep(TitleRuin, "ui.stamp.ruin.always", StampArg.Key(profile), StampArg.Of(strength), StampArg.Of(d.KeepCells));
+                    }
+
+                case StampTarget.GiantShip:
+                    {
+                        // #3616: always a wreck — profile crash on a planet, hull in space; both default to 0.5 (the ruin pass's
+                        // DefaultStrength), and a template's strength runs both.
+                        double strength = d.RuinStrength > 0 ? Math.Min(1.0, d.RuinStrength) : DefaultStrength(LandmarkRules.ProfileCrash);
+                        return new StampStep(TitleRuin, "ui.stamp.ruin.giant_ship", StampArg.Of(Percent(strength)), StampArg.Of(d.KeepCells));
                     }
 
                 case StampTarget.SettlementEntry when d.Tier != StructureRoles.MetropolisTier:
@@ -350,7 +361,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>One line per chest (the first <see cref="ListedChests"/>): where, the chance, what it holds — and how many
-        /// chests without settings stay furniture (outside a landmark a chest needs settings to become a loot chest).</summary>
+        /// chests without settings stay furniture (outside a landmark and a giant ship a chest needs settings to become a loot
+        /// chest).</summary>
         private static StampStep ChestList(StampTarget t, List<StampMarker> chests)
         {
             var lines = new List<StampStep>();
@@ -358,7 +370,7 @@ namespace BlocksBeyondTheStars.Client
             foreach (var c in chests)
             {
                 var settings = MarkerSettings.Parse(c.Config);
-                if (settings.IsEmpty && t != StampTarget.Landmark)
+                if (settings.IsEmpty && t is not (StampTarget.Landmark or StampTarget.GiantShip))
                 {
                     inert++;
                     continue;
@@ -417,6 +429,7 @@ namespace BlocksBeyondTheStars.Client
                 // Generation 39: every intact landmark staffs its posts, whatever its protection; a ruin has nobody.
                 StampTarget.Landmark => d.Ruin ? "ui.stamp.residents.landmark_ruin" : "ui.stamp.residents.landmark_staffed",
                 StampTarget.StationEntry => "ui.stamp.residents.station_entry",
+                StampTarget.GiantShip => "ui.stamp.residents.giant_ship", // #3616: the crew got away long ago, safe and sound
                 _ => "ui.stamp.residents.entry",
             };
             return new StampStep(TitleResidents, text, StampArg.Of(vendors), StampArg.Of(residents), StampArg.Of(posts));
@@ -449,7 +462,8 @@ namespace BlocksBeyondTheStars.Client
         // ---------------------------------------------------------------- keep-clear
 
         /// <summary>How far other structures stay away (the placement rules' <c>keepClear</c>, generation 38): a whole settlement,
-        /// an underground structure, a landmark. A module goes with its settlement, a station hangs in space.</summary>
+        /// an underground structure, a landmark, a giant ship's wreck on a planet. A module goes with its settlement, a station
+        /// hangs in space.</summary>
         private static StampStep? KeepClear(StampTarget t, GameContent content)
         {
             string? kind = t switch
@@ -457,6 +471,7 @@ namespace BlocksBeyondTheStars.Client
                 StampTarget.SettlementWhole or StampTarget.SettlementEntry => StructureTypeRules.Settlement,
                 StampTarget.UndergroundWhole or StampTarget.UndergroundEntry => StructureTypeRules.Underground,
                 StampTarget.Landmark or StampTarget.LandmarkEntry => StructureTypeRules.Landmark,
+                StampTarget.GiantShip => StructureTypeRules.GiantWreck, // #3608: the wreck on a planet
                 _ => null,
             };
             return kind is null ? null

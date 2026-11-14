@@ -26,10 +26,11 @@ from pathlib import Path
 from typing import NamedTuple
 
 try:  # imported as the package `landmarks.geom`
-    from . import blockfont, solids, templatefile
+    from . import blockfont, lightmount, solids, templatefile
     from . import shapecode as sc
 except ImportError:  # imported from a script in tools/landmarks (the usual way: `from geom import Design`)
     import blockfont
+    import lightmount
     import shapecode as sc
     import solids
     import templatefile
@@ -155,6 +156,10 @@ def settings(**values) -> str:
 
 class Design:
     """A landmark under construction: plain cells (a block or a cavity) by position, plus marker cells."""
+
+    # #3626 / #3627: `write` hangs every unshaped torch and lantern on what holds it (`mount_lights`). Only the framework's
+    # three pinned samples (tools/gen_landmarks.py) switch it off: they are written byte for byte as they shipped.
+    light_mounts = True
 
     def __init__(self, key: str, name: str, **header) -> None:
         self.header = {"key": key, "name": name, "landmark": True, **header}
@@ -1087,19 +1092,40 @@ class Design:
             "cells": self.markers,
         }
 
+    def mount_lights(self) -> dict[Cell, int]:
+        """#3626 / #3627: gives every torch and lantern without a shape the wall / floor / ceiling mount of the block that
+        holds it (`lightmount.mount_lights`; `write` calls it). Prints a warning per light nothing holds or nobody can
+        see, and one line with the counts. Returns {cell: up-face} of the lights it mounted."""
+        key = self.header["key"]
+        space = bool(self.header.get("giantShip"))  # a giant ship also drifts in space: no rock outside its hull
+        mounted, problems = lightmount.mount_lights(self.plain, self.markers, int(self.header.get("groundRow", 0) or 0),
+                                                    space=space)
+        for problem in problems:
+            print(f"  warning: {key}: {problem}")
+        if mounted:
+            by = {"wall": 0, "floor": 0, "ceiling": 0}
+            for face in mounted.values():
+                by["floor" if face == sc.UP_PY else "ceiling" if face == sc.UP_NY else "wall"] += 1
+            print(f"  {key}: {len(mounted)} lights mounted ({by['wall']} on a wall, {by['floor']} standing, "
+                  f"{by['ceiling']} hanging)")
+        return mounted
+
     def stats(self) -> str:
         t = self.template()
         return templatefile.stats(t, len(_dump(t).encode("utf-8")))
 
     def write(self, out: Path | str | None = None, check: bool = True) -> Path:
         """Writes `<out>/<key>.json` (default data/landmarks) with LF line endings and prints the stats line.
-        With `check`, errors from `problems()` stop the write and warnings are printed."""
+        With `check`, errors from `problems()` stop the write and warnings are printed. Every unshaped torch and lantern
+        is mounted on what holds it first (`mount_lights`, unless `light_mounts` is off)."""
         if check:
             errors, warnings = self.problems()
             for w in warnings:
                 print(f"  warning: {self.header['key']}: {w}")
             if errors:
                 raise ValueError(f"{self.header['key']}: " + "; ".join(errors))
+        if self.light_mounts:
+            self.mount_lights()
         folder = OUT if out is None else Path(out)
         folder.mkdir(parents=True, exist_ok=True)
         t = self.template()

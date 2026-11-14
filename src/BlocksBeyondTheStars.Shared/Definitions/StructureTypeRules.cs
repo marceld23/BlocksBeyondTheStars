@@ -31,7 +31,7 @@ namespace BlocksBeyondTheStars.Shared.Definitions;
 /// <item><c>vault</c>: <c>thresholds</c> = the chance of a first and of a second vault, <c>thresholdCaps</c> their bounds after
 /// the Vaults option scales them (two each);</item>
 /// <item><c>spslab</c>: <c>minCount</c>..<c>cap</c>, <c>seatPolicy</c>; <c>rail_ruin</c>: <c>chance</c>, <c>seatPolicy</c>;
-/// <c>intercity</c>, <c>landmark</c>, <c>underground</c>: <c>chance</c>;</item>
+/// <c>intercity</c>, <c>landmark</c>, <c>giant_wreck</c>, <c>underground</c>: <c>chance</c>;</item>
 /// <item><c>wreck</c>, <c>unique_site</c>, <c>text_tablet</c>, <c>sounder_site</c>, <c>net_fragment</c>: nothing more.</item>
 /// </list>
 /// <para>Draw order and the number of draws never depend on these numbers, so the defaults reproduce the worlds stamped before
@@ -54,6 +54,9 @@ public sealed partial class StructureTypeRules
     public const string Factory = "factory";
     public const string Wreck = "wreck";
     public const string Landmark = "landmark";
+
+    /// <summary>#3608: a giant ship wreck on a planet (<see cref="GiantShipRules"/>).</summary>
+    public const string GiantWreck = "giant_wreck";
     public const string Underground = "underground";
     public const string Vault = "vault";
     public const string DataCube = "datacube";
@@ -224,7 +227,9 @@ public sealed partial class StructureTypeRules
     /// buried ruin's 0.04, the generations the kinds arrived with, the seat policies and the whitelist keys. The keep-clear
     /// margins restate what each stamper reserved (generation 38+ only): 6 everywhere, a hut 40 from towns and camps, 24 from
     /// ruins and other huts, 16 from pads and 14 from the crash site; a landmark 20 from pads and 8 from the crash site; a buried
-    /// ruin 10, 30 from pads; a unique site 10.
+    /// ruin 10, 30 from pads; a unique site 10. The giant wreck (#3608, generation 42) came later: 0.05 (about every 20th
+    /// planet, <c>GiantShipRules.Chance</c>), airless bodies and asteroids allowed (the body-size check is the stamper's), 24
+    /// from pads, 10 from the crash site, 16 from a landmark.
     /// </summary>
     private static List<StructureTypeDefinition> BuildDefaults()
     {
@@ -258,6 +263,9 @@ public sealed partial class StructureTypeRules
             Def(Landmark, minGeneration: WorldDescription.LandmarkGeneration, chance: LandmarkRules.Chance,
                 whitelist: LandmarkRules.StructureKind, keepClearFrom: Margins((Pad, 20), (WreckSite, 8)),
                 conditions: new[] { ConditionNotVoid, ConditionNotGas, ConditionAtmosphere, ConditionNotAsteroid }),
+            Def(GiantWreck, minGeneration: WorldDescription.GiantWrecksGeneration, chance: GiantShipRules.Chance,
+                whitelist: GiantShipRules.StructureKind, keepClearFrom: Margins((Pad, 24), (WreckSite, 10), (Landmark, 16)),
+                conditions: new[] { ConditionNotVoid, ConditionNotGas }),
             Def(Underground, minGeneration: WorldDescription.AncientRuinsGeneration, chance: 0.04, whitelist: "gds_ruins", keepClear: 10,
                 keepClearFrom: Margins((Pad, 30), (WreckSite, 8)),
                 conditions: new[] { ConditionNotVoid, ConditionNotGas }),
@@ -273,8 +281,9 @@ public sealed partial class StructureTypeRules
     /// The geography defaults (terrain generation 40, #3563) laid over the kinds: where each likes to stand and how it
     /// reserves its ground. Settlements by fresh water (20–120 blocks), low to middle ground, flat, on grass or dirt; lodges
     /// by water or the coast, low; bandit camps in a rugged hollow away from water; monuments on a hilltop; outposts on high
-    /// ground; factories flat at middle height; landmarks flat with some prominence; ruins, rail ruins and SPS labs neutral.
-    /// The grades: a settlement 16 around (cut and fill up to 24), a factory or a landmark likewise, the smaller sites 10–12.
+    /// ground; factories flat at middle height; landmarks and giant wrecks flat with some prominence (no altitude band); ruins,
+    /// rail ruins and SPS labs neutral. The grades: a settlement 16 around (cut and fill up to 24), a factory, a landmark or a
+    /// giant wreck likewise, the smaller sites 10–12.
     /// The wreck, the vaults, the tablets, the Sounder sites, the unique sites and the underground kinds reserve nothing.
     /// </summary>
     private static List<StructureTypeDefinition> WithGeography(List<StructureTypeDefinition> kinds)
@@ -291,7 +300,7 @@ public sealed partial class StructureTypeRules
                 Monument => (Site(prominence: "high", weights: new[] { ("prominence", 3.0) }), Grade(10, 16, 16)),
                 Outpost => (Site(prominence: "high", altitude: new[] { 0.6, 1.0 }, weights: new[] { ("prominence", 2.0) }), Grade(10, 12, 12)),
                 Factory => (Site(relief: "flat", altitude: new[] { 0.3, 0.7 }, weights: new[] { ("relief", 2.0) }), Grade(14, 24, 24)),
-                Landmark => (Site(prominence: "high", relief: "flat", weights: new[] { ("relief", 2.0) }), Grade(16, 24, 24)),
+                Landmark or GiantWreck => (Site(prominence: "high", relief: "flat", weights: new[] { ("relief", 2.0) }), Grade(16, 24, 24)),
                 Ruin or RailRuin => (new StructureSiteRule(), Grade(12, 16, 16)),
                 SpsLab => (new StructureSiteRule(), Grade(12, 16, 16)),
                 _ => (new StructureSiteRule(), new StructureGradeRule()),

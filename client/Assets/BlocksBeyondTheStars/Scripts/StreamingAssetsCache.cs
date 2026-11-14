@@ -50,6 +50,12 @@ namespace BlocksBeyondTheStars.Client
             "festival_calendars.json", // #3315
             "festivals.json", // #3001
             "gds_logs.json", // #3341
+            "giant_ships/ark.json", // #3607: the giant ships (one file per ship, the folder read whole)
+            "giant_ships/battleship.json",
+            "giant_ships/carrier.json",
+            "giant_ships/liner.json",
+            "giant_ships/sample_hulk.json",
+            "giant_ships/squid.json",
             "hud_frames.json", // #3317
             "items.json",
             "landmarks/blocks_king.json", // the school club's landmarks (terrain generation 39)

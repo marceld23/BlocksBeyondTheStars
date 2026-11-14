@@ -330,14 +330,9 @@ public sealed partial class GameServer
         }
         else if (_playerStationCells.TryGetValue(station.Id, out var build) && build.Cells.Count > 0)
         {
-            int minX = int.MaxValue, minY = int.MaxValue, minZ = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue, maxZ = int.MinValue;
-            foreach (var c in build.Cells.Keys)
-            {
-                minX = System.Math.Min(minX, c.X); minY = System.Math.Min(minY, c.Y); minZ = System.Math.Min(minZ, c.Z);
-                maxX = System.Math.Max(maxX, c.X); maxY = System.Math.Max(maxY, c.Y); maxZ = System.Math.Max(maxZ, c.Z);
-            }
-
-            half = new Vector3f((maxX - minX + 1) / 2f, (maxY - minY + 1) / 2f, (maxZ - minZ + 1) / 2f);
+            // #3614: the cached cell box — a giant wreck holds a few hundred thousand cells, and this runs on every boarding.
+            var (min, max) = build.CellBox();
+            half = new Vector3f((max.X - min.X + 1) / 2f, (max.Y - min.Y + 1) / 2f, (max.Z - min.Z + 1) / 2f);
         }
         else
         {
@@ -383,6 +378,7 @@ public sealed partial class GameServer
             .Where(b => b.Kind == CelestialKind.SpaceStation)
             .Where(b => hostFilter is null || !_stationHostBody.TryGetValue(b.Id, out var host) || host == hostFilter) // #1480
             .ToList() ?? new List<CelestialBody>();
+        bodies.RemoveAll(b => GiantWreckMissing(b.Id)); // #3614: a giant wreck that has to stay away is no contact (it is built here otherwise)
 
         // The synthesised fallback station used to appear in EVERY station-less system, which defeated the
         // generator's per-system station gate entirely. With system variance (#547) it survives only in the
@@ -674,6 +670,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (GiantWreckMissing(stationId))
+        {
+            Reject(session, "travel", "@srv.station.none"); // #3614: a giant wreck that has to stay away this run
+            return;
+        }
+
         // Ensure the station is registered (player stations load at start; an NPC station registers on demand).
         if (!_stationsById.TryGetValue(stationId, out var station))
         {
@@ -726,7 +728,7 @@ public sealed partial class GameServer
     /// them simply leaves them there, like before.</summary>
     private void RestoreStationOnJoin(PlayerSession session, string savedLocation, Vector3f savedPosition)
     {
-        if (SavedStationBody(savedLocation) is not { } body || !CanBoardStation(session, body.Id))
+        if (SavedStationBody(savedLocation) is not { } body || !CanBoardStation(session, body.Id) || GiantWreckMissing(body.Id)) // #3614
         {
             return;
         }

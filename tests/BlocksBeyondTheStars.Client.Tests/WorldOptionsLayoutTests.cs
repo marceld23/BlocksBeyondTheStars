@@ -207,6 +207,55 @@ public sealed class WorldOptionsLayoutTests
             $"The slider handle is {sliderH + handleExtra} px tall, but a row is {LabelH} px — stacked handles would touch.");
     }
 
+    /// <summary>The authored-structures page (#1114, #2353, #2632, #3614) is a fixed grid too: its left column — the two
+    /// template sliders, the galaxy header, the galaxy switches, the debris fields, the derelicts, the giant ship wrecks and the
+    /// read-only terrain-generation line — must end above the footer. Replayed from the source: the start <c>y</c>, every
+    /// literal <c>y += n f</c> step, then the 40 px terrain-generation line.</summary>
+    [Fact]
+    public void StructuresPage_LeftColumn_EndsAboveTheFooterButtons()
+    {
+        string source = Source();
+        float footerY = Constant(source, @"FooterY = ([0-9.]+)f;", "FooterY");
+        int start = source.IndexOf("private static void BuildStructures(", StringComparison.Ordinal);
+        int end = source.IndexOf("// Pack picker (right column)", start, StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start, "BuildStructures (or its pack picker) moved — this guard needs updating.");
+        string page = source.Substring(start, end - start);
+
+        float y = Constant(page, @"float y = ([0-9.]+)f;", "the structures page's start y");
+        int steps = 0;
+        foreach (Match m in Regex.Matches(page, @"\by \+= (?<n>[0-9.]+)f;", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(2)))
+        {
+            y += float.Parse(m.Groups["n"].Value, System.Globalization.CultureInfo.InvariantCulture);
+            steps++;
+        }
+
+        Assert.True(steps >= 8, $"Only {steps} steps parsed on the structures page — the guard lost track of the layout.");
+        Assert.Contains("UiKit.AddText(parent, 30f, y, 280f, 40f, shell.L(\"ui.worldopt.terrain_generation\")", page, StringComparison.Ordinal);
+        float bottom = y + LabelH; // the terrain-generation line closes the column
+        Assert.True(bottom + MinClearance <= footerY,
+            $"The structures page's left column ends at y={bottom}, under the footer buttons at y={footerY}.");
+    }
+
+    /// <summary>#3614: the giant ship wrecks have their slider on the structures page, and the choice reaches the server — the
+    /// creation options carry it, a preset copies it and only a non-default value becomes <c>--giant-wrecks</c>.</summary>
+    [Fact]
+    public void GiantWrecks_HaveASlider_AndReachTheServer()
+    {
+        string source = Source();
+        int start = source.IndexOf("private static void BuildStructures(", StringComparison.Ordinal);
+        Assert.True(start >= 0);
+        Assert.Contains("shell.L(\"ui.worldopt.giant_wrecks\"), freqSteps,", source.Substring(start), StringComparison.Ordinal);
+
+        string options = File.ReadAllText(Path.Combine(
+            ClientTestPaths.RepoRoot(), "client", "Assets", "BlocksBeyondTheStars", "Scripts", "WorldCreationOptions.cs"));
+        Assert.Contains("public int GiantWrecks = 3;", options, StringComparison.Ordinal);
+        Assert.Contains("GiantWrecks = other.GiantWrecks;", options, StringComparison.Ordinal);
+        Assert.Contains("if (GiantWrecks != 3) Arg(\"giant-wrecks\", Freq[GiantWrecks]);", options, StringComparison.Ordinal);
+        // The panel's default index 3 is "Normal" — the server's own default, so an untouched panel sends nothing.
+        Assert.Equal(BlocksBeyondTheStars.Shared.World.Frequency.Normal, new BlocksBeyondTheStars.Shared.World.WorldDescription().GiantWrecks);
+        Assert.Contains("Freq = { \"Off\", \"VeryRare\", \"Rare\", \"Normal\", \"Frequent\" }", options, StringComparison.Ordinal);
+    }
+
     /// <summary>#2970: each planet-type row is a slider row, a share column and an "Only this" button. The two columns must
     /// not overlap, and the second column's button must end inside the 1580 px viewport (the inline scrollbar sits on its
     /// right edge).</summary>

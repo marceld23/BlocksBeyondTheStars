@@ -143,6 +143,9 @@ public sealed partial class GameServer
         // #3486: "/landmark [list|<key>]" — stamp a landmark in front of the admin for a play test (GameServerLandmarkAdmin.cs)
         ["landmark"] = new(AdminCommandGate.Cheats, static (s, session, cmd) => s.AdminLandmark(session, cmd.StringArg)),
 
+        // #3610: "/giantwreck [list|<key>]" — lay a giant ship wreck in front of the admin for a play test (GameServerGiantWrecksAdmin.cs)
+        ["giantwreck"] = new(AdminCommandGate.Cheats, static (s, session, cmd) => s.AdminGiantWreck(session, cmd.StringArg)),
+
         // ---- The Sounders' Song QA (#3368): "/sounders status|start|chapter <n>|items|echo|song|soaniri|tower|soundi" ----
         ["sounders"] = new(AdminCommandGate.Cheats, static (s, session, cmd) => s.AdminSounders(session, cmd.StringArg)),
     };

@@ -228,6 +228,7 @@ internal sealed partial class StructureRuiner
             LightOffBlock = o.LightOffBlock,
             Substitutions = o.Substitutions,
             Scorch = o.Scorch,
+            FreezeWater = o.FreezeWater,
         };
     }
 }

@@ -58,6 +58,11 @@ public sealed partial class StructureCatalog
             SettlementTemplates = SettlementTemplates.Where(t => t == null || !t.Landmark).ToList();
         }
 
+        // #3607: a giant ship is never a settlement, a station or a module of either — the giant ship pool is filled by
+        // SetGiantShips.
+        StationTemplates = WithoutGiantShips(StationTemplates, "Station template", warn);
+        SettlementTemplates = WithoutGiantShips(SettlementTemplates, "Settlement template", warn);
+
         // #3518: a generator entry holds no cells and is never a module; #3519: a material token nobody knows is reported.
         StationTemplates = KeepWellFormedSources(StationTemplates, StructureKit.KindStation, warn);
         SettlementTemplates = KeepWellFormedSources(SettlementTemplates, StructureKit.KindSettlement, warn);
@@ -183,6 +188,7 @@ public sealed partial class StructureCatalog
         foreach (var t in SettlementTemplates) packs.Add(t.PackOrDefault);
         foreach (var k in StructureKits) packs.Add(k.PackOrDefault);
         foreach (var t in Landmarks) packs.Add(t.PackOrDefault);
+        foreach (var t in GiantShips) packs.Add(t.PackOrDefault); // #3607: a giant ship's pack is switched like any other
         StructurePacks = packs.ToList();
     }
 
@@ -212,6 +218,13 @@ public sealed partial class StructureCatalog
             if (!seen.Add(t.Key))
             {
                 warn?.Invoke($"Skipping landmark '{t.Key}': a landmark with that key is already loaded.");
+                continue;
+            }
+
+            if (t.GiantShip)
+            {
+                // #3607: a giant ship saved to the landmark folder stays out of the landmark pool (and never becomes one).
+                warn?.Invoke($"Skipping landmark '{t.Key}': it is a giant ship — it belongs in data/{GiantShipRules.DataFolder}.");
                 continue;
             }
 

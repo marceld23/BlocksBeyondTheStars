@@ -113,7 +113,8 @@ refreshed 2026-10-23.
 - [DERELICT_STATIONS.md](DERELICT_STATIONS.md) — derelict stations (#2632–#2636): one broken old station guaranteed in
   every start system, rarely 1–3 elsewhere; the decay pass (sealed and breached rooms, doors, broken trading posts),
   vacuum, mining with the hull seen from space following, seed + deltas persistence, the old supply crates with their
-  seeded logs, the guardian bay, and falling out into a real spacewalk.
+  seeded logs, the guardian bay, and falling out into a real spacewalk; the giant ship wrecks in space that ride on it,
+  and the single-cell updates every station structure now sends.
 - [NPC_TRADER_SHIPS.md](NPC_TRADER_SHIPS.md) — peaceful ambient NPC trader traffic.
 - [NPC_ROUTINES.md](NPC_ROUTINES.md) — living NPCs: base residents, the daily routine, pathfinding with doors,
   jobs with yield, and the station night.
@@ -139,6 +140,10 @@ refreshed 2026-10-23.
 - [LANDMARKS.md](LANDMARKS.md) — landmarks (#3483): giant authored buildings, one per planet at most, derived into ruins by
   one shared ruin pass; the compact template body, marker settings and loot tables, the underground part, sound emitters,
   dens, the streaming lift and the far silhouette, authoring in the editor and by script.
+- [GIANT_SHIPS.md](GIANT_SHIPS.md) — giant ships (#3625): huge authored spaceships (up to 256 a side) that nobody can
+  build and that exist only as wrecks — the template and its checks, the ship toolkit, ruin revision 3 (`crash`, `hull`),
+  the planet wrecks of generation 42, the wrecks in space (placement, ship-mode decay, derived storage, the design in parts
+  and single-cell updates), the client's far skin and chunk meshes, the editor, the five ships and their sounds.
 - [FACTORIES_RUINS_AND_CLAIMING.md](FACTORIES_RUINS_AND_CLAIMING.md) — factories with roster-limited
   production terminals, ruins/treasure chests, and access-code claiming.
 - [VOICE_CHAT.md](VOICE_CHAT.md) — push-to-talk voice chat + the tiered radio reach (planet/system/galaxy).

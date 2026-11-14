@@ -36,18 +36,22 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// crumbled patches and erosion bites, its collapse spots are balls cut out of the frame; <i>underground</i> adds the
 /// cave-ins; <i>hull</i> (#3515, a wreck) has no ground at all — no crumbled patches, no height grading, no rubble, no
 /// flora: erosion bites and collapse balls breach it anywhere, and what settles is what no longer hangs on a kept cell, a
-/// protected row or the largest piece that is left.</para>
+/// protected row or the largest piece that is left. <i>crash</i> (#3609, a giant wreck lying on a planet, revision 3) is the
+/// hull decay with a ground — see StructureRuiner.Giant.cs.</para>
 /// <para><b>Revisions</b>: revision 1 is the pass as it shipped with the landmarks. A placement pins the revision it was
 /// stamped with and replays through it, so a later change of the default output never moves a marker of a structure that
 /// already stands. Revision 2 (the school club's landmarks, terrain generation 39) adds the lattice breaks and lets a
-/// lattice's rubble lie only on something; every other profile builds exactly what revision 1 builds.
+/// lattice's rubble lie only on something; every other profile builds exactly what revision 1 builds. Revision 3 (the giant
+/// wrecks, #3609, StructureRuiner.Giant.cs) changes only the profiles <i>hull</i> and <i>crash</i>: the landmark profiles
+/// build exactly what revision 2 builds.
 /// <see cref="RuinOptions"/> (#3515) change what a caller builds; a fresh set of options is the revision's own output.</para>
 /// </summary>
 internal sealed partial class StructureRuiner
 {
-    /// <summary>The newest revision of the pass. Pinned with a placement (#3486): a stamped ruin is re-derived with the
-    /// revision it was stamped with, so a later change here never moves a marker of a landmark that already stands.
-    /// Revision 2 adds the lattice breaks (StructureRuiner.Breaks.cs).</summary>
+    /// <summary>The newest revision a LANDMARK is stamped with. Pinned with a placement (#3486): a stamped ruin is re-derived
+    /// with the revision it was stamped with, so a later change here never moves a marker of a landmark that already stands.
+    /// Revision 2 adds the lattice breaks (StructureRuiner.Breaks.cs). The giant wrecks' revision is
+    /// <see cref="GiantRevision"/>, the newest the pass knows — a landmark profile builds the same at both.</summary>
     public const int Revision = 2;
 
     private const long LaneCrumble = 0x11, LaneJitter = 0x12, LaneBite = 0x13, LaneSpeckle = 0x14, LaneSpot = 0x15,
@@ -66,14 +70,16 @@ internal sealed partial class StructureRuiner
     private readonly long _seed;
     private readonly string _profile;
     private readonly bool _hull;
+    private readonly bool _crash; // profile crash (#3609): the hull decay with a ground
+    private readonly bool _giant; // revision 3's giant-wreck steps: profile crash, or hull at revision 3
     private readonly double _s;
-    private readonly int _ground; // -1 for a hull: no ground
+    private readonly int _ground; // -1 for a hull (and a crash window above the ground): no ground
     private readonly int _above;  // rows above the ground row
     private readonly int _floor;  // the lowest row erosion and collapse balls reach
     private readonly Tuning _t;
-    private readonly int _revision; // 1 or 2 (any newer revision runs the newest one this build knows)
+    private readonly int _revision; // 1, 2 or 3 (any newer revision runs the newest one this build knows)
     private readonly BitArray _markerCell;
-    private readonly BitArray? _breach;     // cells the decay took out — only tracked for scorch marks
+    private readonly BitArray? _breach;     // cells the decay took out — tracked for scorch marks and a giant's glass
     private readonly int[] _fallen;         // per column: cells that came down
     private readonly ushort[] _fallenBlock; // per column: what came down (the rubble's material)
     private readonly ushort _rock;
@@ -83,22 +89,24 @@ internal sealed partial class StructureRuiner
     private StructureRuiner(VoxelGrid grid, GameContent content, long seed, string profile, double strength, int groundRow,
         IReadOnlyList<Vector3i> markerCells, string surfaceBlock, RuinOptions options, int revision)
     {
-        _revision = revision <= 1 ? 1 : Revision;
+        _revision = revision <= 1 ? 1 : revision == 2 ? 2 : GiantRevision;
         _g = grid;
         _content = content;
         _seed = seed;
         _profile = profile;
         _hull = profile == LandmarkRules.ProfileHull;
+        _crash = profile == LandmarkRules.ProfileCrash;
+        _giant = _crash || (_hull && _revision >= GiantRevision); // crash is new: it has no older output to keep
         _s = strength <= 0 ? DefaultStrength(profile) : System.Math.Min(1.0, strength);
-        _ground = _hull ? -1 : System.Math.Clamp(groundRow, 0, grid.H - 1);
+        _ground = _hull ? -1 : _crash ? System.Math.Clamp(groundRow, -1, grid.H - 1) : System.Math.Clamp(groundRow, 0, grid.H - 1);
         _above = System.Math.Max(1, grid.H - 1 - _ground);
-        _floor = _hull ? 0 : _ground + 2;
+        _floor = _hull ? 0 : _crash ? _ground + 1 : _ground + 2;
         _markerCell = new BitArray(grid.W * grid.H * grid.L);
         _fallen = new int[grid.W * grid.L];
         _fallenBlock = new ushort[grid.W * grid.L];
         _rock = content.GetBlock("stone")?.NumericId.Value ?? 0;
         _t = Tuning.From(options, content, surfaceBlock);
-        _breach = _t.Scorch is null ? null : new BitArray(grid.W * grid.H * grid.L);
+        _breach = _t.Scorch is null && !_giant ? null : new BitArray(grid.W * grid.H * grid.L);
         ProtectMarkers(markerCells);
     }
 
@@ -141,10 +149,11 @@ internal sealed partial class StructureRuiner
 
     /// <summary>The decay steps — everything before the settle (a ruin zone runs these on its own, StructureRuiner.Zones.cs):
     /// revision 1's as the landmarks shipped with it (#3487), plus the option steps of #3515, which draw nothing unless asked
-    /// for, plus revision 2's lattice breaks.</summary>
+    /// for, plus revision 2's lattice breaks, plus revision 3's giant-wreck steps (StructureRuiner.Giant.cs) and the frozen
+    /// water (an option).</summary>
     private void Decay()
     {
-        if (!_hull && _profile != LandmarkRules.ProfileLattice)
+        if (!_hull && !_crash && _profile != LandmarkRules.ProfileLattice)
         {
             Crumble();
         }
@@ -155,14 +164,16 @@ internal sealed partial class StructureRuiner
         Openings();
         Weather();
         ScorchMarks();
+        Freeze();
         CaveIns();
     }
 
-    /// <summary>The pass's end: the settle, then rubble and overgrowth where something fell (none for a hull).</summary>
+    /// <summary>The pass's end: the settle, then rubble and overgrowth where something fell (none for a hull, nor for a
+    /// crash with no ground).</summary>
     private void Finish()
     {
         Settle();
-        if (!_hull)
+        if (!_hull && _ground >= 0)
         {
             Rubble();
             Overgrowth();
@@ -305,9 +316,15 @@ internal sealed partial class StructureRuiner
 
     /// <summary>Bites out of the walls (3-D value noise, so a hole is a hole and not a speckle) plus a light speckle,
     /// both rising with height. The first course above the ground stays, so the footprint reads. A hull erodes alike
-    /// at every height.</summary>
+    /// at every height. A giant wreck (revision 3) is never eroded cell by cell — its bites are coherent shapes at the edges
+    /// of its breaches (<see cref="GiantBites"/>).</summary>
     private void Erode()
     {
+        if (_giant)
+        {
+            return;
+        }
+
         bool lattice = _profile == LandmarkRules.ProfileLattice;
         for (int x = 0; x < _g.W; x++)
         {
@@ -337,9 +354,16 @@ internal sealed partial class StructureRuiner
     // ---------------------------------------------------------------- 3. collapse spots
 
     /// <summary>A few holes: a ragged vertical shaft through roofs and floors (masonry) or a ball cut out of the frame
-    /// (lattice — the settle step then brings down the span that hung on it; a hull — a breach at any height).</summary>
+    /// (lattice — the settle step then brings down the span that hung on it; a hull — a breach at any height). A giant wreck
+    /// (revision 3) takes balls that scale with its volume instead (<see cref="GiantCollapse"/>).</summary>
     private void CollapseSpots()
     {
+        if (_giant)
+        {
+            GiantCollapse();
+            return;
+        }
+
         bool lattice = _profile == LandmarkRules.ProfileLattice;
         double area = _g.W * (double)_g.L / 4096.0;
         int spots = System.Math.Clamp((int)System.Math.Round(1 + ((1 + (5 * _s)) * area * (lattice ? 2 : 1))), 1, 14);
@@ -411,9 +435,16 @@ internal sealed partial class StructureRuiner
 
     /// <summary>Glass is smashed and lights are dead — everywhere, the cellar and the tunnels included (not in a kept
     /// cell or a protected row). A light becomes its switched-off twin (<c>&lt;key&gt;_off</c>) where the content has
-    /// one, else it is gone — or the options' fixed switched-off light.</summary>
+    /// one, else it is gone — or the options' fixed switched-off light. A giant wreck (revision 3) smashes its glass in
+    /// patches and switches every light off instead (<see cref="GiantOpenings"/>).</summary>
     private void Openings()
     {
+        if (_giant)
+        {
+            GiantOpenings();
+            return;
+        }
+
         for (int x = 0; x < _g.W; x++)
         {
             for (int y = 0; y < _g.H; y++)

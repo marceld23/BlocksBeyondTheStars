@@ -6,7 +6,10 @@ trading posts), 2026-10-15. Status: implemented (see [../../TODO.md](../../TODO.
 spacewalk — §5). The rework of 2026-10-16 (Layex on v2026.10.17, in orbit next to a derelict: "WRONG model — from the
 outside they should look like the old station models from the beta phase, only a bit more broken!"): #2674 (every new
 derelict is the wreck of a **beta station**, §3), #2675 (**no air inside and no residents** — dead life support, §5) and
-#2676 (sparks, tumbling pieces and a flickering beacon in the flight view, §9).
+#2676 (sparks, tumbling pieces and a flickering beacon in the flight view, §9). The **giant ship wrecks** in space
+(#3612–#3614, 2026-11-14) are derelicts of their own family (`derelict:giant-…`) built on this machinery — see
+[§ Giant ship wrecks](#giant-ship-wrecks-36123614) and [GIANT_SHIPS.md](GIANT_SHIPS.md); the transport they needed (single
+cells, the design in parts) changed §6 for every station structure.
 
 No terrain-generation bump and no save-version bump: placement is a pure pass after the galaxy generator with its own
 salt (like the [debris fields](DEBRIS_FIELDS.md)), the package adds no blocks, and the persisted state reuses the
@@ -224,12 +227,21 @@ A derelict rides the **player-station machinery**, not the NPC-station one:
 ## 6. Mining and the hull seen from space (#2634)
 
 - Inside: no protection (`IsStationBlock` only covers stamped NPC stations). A mined/placed block is written back into
-  the build (`WriteBackStationCell` → `MirrorStationCell`, now also for `station:derelict:` worlds) and the design is
-  re-sent to the pilots of EVERY orbit instance holding it (`PublishStationCells`). Door changes inside follow
-  (`SyncStationDoorRecordsFromWorld`, `RefreshStationBoundsAfterDoorChange`).
+  the build (`WriteBackStationCell` → `MirrorStationCell`, now also for `station:derelict:` worlds), which notes the cell,
+  and `PublishStationCells` tells the pilots of EVERY orbit instance holding it. Since #3612 that is the changed cell as
+  a `StructureBlockChanged` (with its dye, glow and shape) — for every station structure: a player station, a derelict, a
+  giant wreck; the whole design goes again only when the change moved the structure's cell box (the flight view centres
+  the hull on it), when nothing was noted, or when more than max(64, min(4096, cells / 4)) cells changed at once
+  (`PublishStationStructureChanges`, GameServerSpaceStructureDesign.cs) — and then it is built and encoded once for all
+  pilots. Parts and styled single cells are protocol version 12: a v11 client is refused at the join. Door changes inside
+  follow (`SyncStationDoorRecordsFromWorld`, `RefreshStationBoundsAfterDoorChange`).
 - Outside (spacewalk, `HandleStructureEdit`): a generated derelict is nobody's — anyone mines it like salvage (tool
   tier + hardness, like the same block aboard) and patches it (the station place rules); the interior gets the change at
-  once (`MirrorStationCellOutside`), other orbits get the block change (`PublishDerelictHullToOtherOrbits`).
+  once (`MirrorStationCellOutside`), other orbits get the block change (`PublishDerelictHullToOtherOrbits`). The edit
+  range is measured to the edited cell where the flight view draws it (`InStructureEditRange`, #3612), so a long hull is
+  worked along its whole length; a structure whose half box diagonal is within the 40-block range (an asteroid, a debris
+  piece, a small player station) keeps the old measure to its centre — a beta wreck (77 × 27 × 51) is measured to the cell. A door built or taken out on a spacewalk still re-sends
+  the design.
 - A broken trading post is a plain `station_vendor` block: mining it drops a working `station_vendor` item.
 
 ## 7. Persistence — seed + deltas
@@ -248,6 +260,9 @@ all made from one layout, so a restart must rebuild that same layout. `PersistDe
 exists without its marker. `UsesLegacyDerelictShape(id)` = a stored row **without** that marker: a derelict entered or
 edited before #2674, rebuilt with `GenerateLegacy` (§3.4). Everything else — no row (only seen, scanned or never met),
 or a row with the marker — is a beta wreck. No schema change, no save-version bump.
+
+A giant wreck never stores a row: it is a **derived** structure that stores only the players' changes as one delta blob
+(§ Giant ship wrecks; `PersistIfDerelict` sends a derived structure to `PersistDerivedStation` first).
 
 ## 8. Hooks for the later phases
 
@@ -268,8 +283,9 @@ named amber marker (`name · Derelict station`, a waypoint target) instead of a 
 like the wreck. The hull renders through the existing `station` design path.
 
 **Looking broken from outside (#2676).** For a `station` design whose id is a GENERATED derelict's (`VoxStruct.Derelict`,
-`SpaceTargeting.IsGeneratedDerelictId` — The Long Quiet keeps its own quiet look) the flight view adds, each time it
-(re)builds the hull mesh (`ReconcileStructs` → `AddDerelictDecor`):
+`SpaceTargeting.IsGeneratedDerelictId` — The Long Quiet keeps its own quiet look) the flight view adds, once per design
+(`BuildStructExtras` → `AddDerelictDecor`, under the hull's `Extras` child next to the doors — since #3615 a mined block
+re-meshes only the 16³ chunks it reaches and leaves the extras alone):
 
 - **Grime** — the hull's iron plating meshed a little darker and warmer through the mesher's hull-paint stream
   (`ShipMeshBuilder.HullPaint`, the ship-colour path): baked into the vertex data, so there is no material instance and
@@ -285,8 +301,8 @@ like the wreck. The hull renders through the existing `station` design path.
   (no collider, one shared lit material per flight view) that tumble slowly and drift to and fro around their homes;
   the beacon is a small unlit yellow cube that stays dark for 1–4 s and then stutters on and off a few times (no real
   `Light`); every 1.5–5 s a few weightless spark motes and a pop of glow fly at a random spark cell (the pooled `FxKit`
-  emitters). The holder is a child of the hull root, so a hull rebuild (a mined block) clears it with the chunks and it
-  is added afresh; a far hull (unloaded mesh) has none. Per frame: a handful of transforms and one toggled cube —
+  emitters). The holder lives under the hull root's `Extras` child: a new design of the hull rebuilds it, a single mined
+  block does not; a far hull (unloaded mesh) has none. Per frame: a handful of transforms and one toggled cube —
   nothing is meshed or lit; WebGL and weak laptops are not meant to notice it. The voxel hull is never moved or rotated.
 
 ## 10. Tests
@@ -471,3 +487,53 @@ starter drill, salvage drops, no item; the cadence — first at 60 s, then never
 three, always inside the hull, robots and drones, VEGA's warning, no release at the cap; none in Peaceful or Creative;
 mining stops it, also after a restart; a guardian dies to a laser pistol with its carbon and the next one waits a full
 interval; a guardian outside the hull is gone) and the save-version row in `SaveCompatibilityTests`.
+
+## Giant ship wrecks (#3612–#3614)
+
+A **giant ship wreck** is the wreck of a huge authored spaceship (up to 256 blocks a side, `data/giant_ships/`) drifting in
+space — the whole feature, the planet wrecks included, is in [GIANT_SHIPS.md](GIANT_SHIPS.md). Here: how it rides the
+derelict machinery, and what the derelict machinery gained for it.
+
+- **Placement** (`GiantWreckPlacer`, right after `DerelictPlacer` in `PlaceDerelicts`, its own salt `giantwreck:`): the
+  start system always holds one (`derelict:giant-<sys>-0`); any other fixed system rolls `Frequency.Probability() × 0.15`
+  (Normal ≈ one system in seventeen) for one. World option `WorldDescription.GiantWrecks` (CLI `giant-wrecks`, slider
+  *Giant ship wrecks* right below *Derelict stations*); *Off* removes them all — and keeps the planets free of them too.
+  An older save gains its wrecks at its next start without a body moving.
+- **One family of derelicts.** The id carries the derelict prefix, so every rule keyed on `derelict:` holds: boardable by
+  anyone, no air (`StationLifeSupport`; the warning is `@srv.giantwreck.no_air`), nobody home, no trade, no home spawn
+  (`@srv.giantwreck.no_home`), falling out is a spacewalk and a breach lets the suit back in, the guardian bay. Its own:
+  `RegisterDerelicts` leaves giant ids to `RegisterGiantDerelicts`, `EnsureDerelict` routes them to `EnsureGiantDerelict`,
+  `UsesLegacyDerelictShape` is never true for them (the shape key is `derelict-shape:giant:<id>`), and no old supply
+  crates or logs are placed — the template's chest markers are the chests (`giant-chest:<id>:<n>`, container
+  `loot_giantchest_<id>_<n>`, filled at the first boarding), its `sound` markers play aboard. VEGA has its own lines
+  (`vega.giantwreck.approach` within 150 of the hull box, `vega.giantwreck.boarded`), the scanner its own readout.
+- **Ship mode** (`DerelictGenerator.GenerateShip`, DerelictGenerator.Ship*.cs). The decay runs over the already ruined wreck
+  (ruin revision 3, profile `hull`): rooms from the template's `door_slide` markers (`axis=x` = a wall of constant x), each
+  walkable room but the arrival's breached with 50 % (at least one), sliding doors where a closed room is on a side,
+  emergency lights in closed rooms, soot and scrap on a metal hull, one guardian bay in the largest closed walkable room.
+  The station paths (`Generate`, `GenerateLegacy`) never run any of it — the legacy fingerprints stay.
+- **Derived storage** (#3613, GameServerSpaceStructureDerived*.cs). The build is template + seed, so a giant wreck never
+  writes a `StoredSpaceStructure` row: the players' changes are ONE delta blob (`structure_overlay`, location `space`, key
+  `delta:<id>`), written coalesced (the first change at once, then at most once a second — tick step `DerivedDeltas` — and
+  on every save and the clean stop); a small record (the named blob `derived-station:<id>`: origin, anchor = the base's
+  minimum, base hash), written with the first stored change or the first boarding, keeps the interior mapping from ever
+  moving; the interior world's base is ONE structure overlay (`derived:<id>`) laid at the first boarding; door records
+  stay structure edits. Restart = base + delta through the stored anchor. What the base was built from is pinned in
+  `WorldMetadata.GiantWreckDesigns` (`key|fingerprint|r<ruin rev>|d<ship-decay rev>|b<base hash>`); a changed ship,
+  recipe or base while the save holds changes of the wreck keeps it off the star map (warned, data kept) rather than lay
+  old changes over a new hull — an untouched one is simply rebuilt. The host's `PlaceGiantWrecks` off keeps the space
+  wrecks out of an existing world too (everything stored kept; they return when it is on again).
+- **Big-structure transport** (#3612). The design goes as the visible shell only (`SpaceStructure.ShellOnly`,
+  `HullShell` — the rule of `StationHull.VisibleCells`, kept up to date per edit: a hole lays open the walls of the hall
+  behind it), in parts of one `Serial` when it passes 600 000 JSON bytes (`SpaceShipDesign.PartIndex` / `PartCount`, joined
+  by `Client.Core/SpaceDesignAssembler`), and single cells afterwards (§6). `SpaceStructure.CellBox()` is cached and kept
+  per write, so the box questions — the board range `StationFlightDistance`, the spacewalk check, the flight spot — cost
+  nothing per call on a hull of a few hundred thousand cells.
+- **In flight** it is a contact of every orbit instance of its system (size tier `colossal`), behind the launch point at
+  x = 0, its near face past the system's derelicts, player stations and earlier giants (40 clear, at most −110), its floor
+  50 over the flight plane (`GiantWreckFlightPosition`) — pinned in `WorldMetadata.GiantWreckSpots` the first time, so a
+  station built later never moves it. The client draws it from afar as a coarse skin while its chunks are built and up
+  close as 16³ chunk meshes; the decor of §9 applies to it like to every generated derelict.
+
+Tests: `GiantWreckPlacerTests`, `GiantDerelictTests`, `DerivedStationTests`, `HullShellTests`; Client.Tests
+`SpaceDesignAssemblerTests`, `FlightStructureMeshTests`.

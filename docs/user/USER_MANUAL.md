@@ -1623,6 +1623,10 @@ players.
   workshop — and gives back **50 %** of its parts (per part, rounded down). A cargo expansion only comes out
   while the remaining hold still fits everything stored in it. Moving a module to another ship means removing
   it here and building it there.
+- **More ships** are crafted from their **ship blueprint** (hauler, scout, corvette, courier, thunderbolt, deathblock,
+  hammerhead). The **starter ship** has no blueprint: it is the ship everyone starts with and can never be crafted again
+  (the build menu never offered it, and the game refuses it). The **giant ships** you find as wrecks can never be built
+  at all (see *Giant ship wrecks*).
 - **A mission board in your own ship works** (#3087). Build one into the cabin and aim at it: **E** opens its jobs —
   **cargo orders** traders radio in (gather the goods, hand them in at the board), plus the board jobs every board
   offers (the *Cable Supply Run*). Take and hand them in standing at the board, landed or out in space with you inside;
@@ -2873,6 +2877,43 @@ with a game version that has generation 35 get them — an older world never cha
   caverns.
 - An admin can stand any of them in front of them with `/landmark <key>` (see the admin commands); the three small
   samples (`sample_tower`, `sample_mine`, `sample_store`) still exist for that.
+- The **torches and lanterns** of the giant buildings hang on their walls, stand on a floor or hang from a ceiling, like
+  the ones you place yourself — and when the wall that held one fell, the torch is gone with it.
+
+### Giant ship wrecks (planets: worlds created since generation 42; space: every world)
+- Somewhere out there lie the **wrecks of giant spaceships** — far bigger than any ship you can fly: a long **carrier**
+  with a flight deck and hangars, a **cruise liner** with pools under glass domes, a **battleship** whose huge cannon you
+  can walk through like a tunnel, a **terraforming ark** full of greenhouses, and — rarely — a strange **crystal squid**
+  that nobody knows the builders of. **Nobody can build one**: there is no blueprint and no way to craft it. They were
+  abandoned a very long time ago, and **everyone aboard got away safely**.
+- **On planets** (worlds created since generation 42): about **every 20th planet** has one, lying crashed on the ground,
+  its keel sunk into the rock — broken open, scorched in places, sometimes in two or three pieces, and no two wrecks are
+  alike. Also on moons and asteroids without air when they are big enough; never on a gas giant. Walk in through its
+  hull doors or hangars, or climb in through a hole. On a world with air plants grow through it; on one without air its
+  water is **ice** (the liner's pools become skating rinks). A wreck is **yours to mine** — what you take stays gone.
+- **Chests** stand inside, some hidden under a stone; each fills only once, for whoever opens it first. Some halls have
+  a **sound** of their own — soft creaks of the old hull, water trickling in a greenhouse, or a crystal hum.
+- A wreck goes on your **planet map** (✖, steel blue, legend *Giant wreck*) once you come within about 100 blocks of it on
+  foot, VEGA points out the first one, and **scanning any of its blocks** reads the wreck: knowledge once per planet and
+  ship, and its story in the Codex under **Discoveries → Giant ship wrecks**. From far away it shows as a **silhouette** on
+  the horizon.
+- **In space** (every world, also older ones): every world has **one giant wreck in its start system**; elsewhere a system
+  only rarely holds one. It floats above the flight plane behind the launch point, past the derelict stations, shows on
+  the radar and on the system chart as *name · Giant wreck* (**M**, click to set a waypoint), and VEGA speaks up the
+  first time you come close. Autopilot and waypoints stop in front of the hull, not inside it.
+  **Dock** like at a station (fly up and press **E**, or from a spacewalk) — you arrive at its way in. Like a derelict
+  station: **there is no air aboard** — your **suit tank is your air**, and your ship fills it up again; nobody lives
+  there, there is no trading, and it can never be your home spawn. Many halls are **open to space**: fall out through a
+  hole and you are on a **spacewalk** right outside it — float back in through a hole or a door and press **E**, or fly
+  back to your ship. The crew's old **chests** fill once, the first time anyone comes aboard. An old **Guardian Bay**
+  stands in one of the closed halls; on **survival** worlds with hostile machines on it wakes up and sends out guardian
+  machines, like a derelict station's (see *Derelict stations* below — mine the bay to stop it). You may **mine** the
+  wreck inside and from outside on a spacewalk; what you mine stays mined, and the hull seen from space shows every hole.
+  The **ship scanner** names the ship and how big it is.
+- How often they turn up is a world option: **Giant ship wrecks** (off · very rare · rare · normal (default) · frequent,
+  right below *Derelict stations*). It counts for space and for the planets; **off** removes them all, the start system's
+  one included.
+- An admin can lay one down with `/giantwreck <key>` and travel to one with `/tp giantwreck` (see the admin commands).
 
 ### Monuments & runes
 - Somebody was here long before you. **Monuments** are the relics they left: a half-collapsed
@@ -2996,10 +3037,12 @@ with a game version that has generation 35 get them — an older world never cha
   stays quiet. You cannot make a
   derelict your home spawn. How often systems hold one is a world option (**Derelict stations**, advanced page:
   off · very rare · rare · normal (default) · frequent; off also removes the start system's one).
+- **Giant ship wrecks** drift in space too — one in every start system, the wreck of a huge old ship you can board and
+  explore like a derelict station (see *Giant ship wrecks* above).
 - Every **asteroid** listed for a system stays a visible dot from anywhere in that system, and the green
   bearing blips on the radar's rim carry the body's name — the chart's waypoint is still the quickest way there.
 - Everything in this section appears under every preset and is peaceful — nothing here fights back, except a
-  derelict's guardian machines (above), which follow the hostile-machines setting like the machines on planets; the
+  derelict's (or a giant wreck's) guardian machines (above), which follow the hostile-machines setting like the machines on planets; the
   debris field's rubble only taps the shield.
 
 ### Bandits (robbers, camps, pirate space)
@@ -5198,6 +5241,7 @@ confirmation is the brief HUD toast.
 | `/ressaw` | Straight **into** the nearest buried G.D.S. ruin, on any planet: on dry floor beside the crate with the diving suit. If the body you stand on has none, the game works out from the world seed which planets have one, flies you to the nearest (no jump drive needed) and drops you inside — see *Testing an ancient ruin* below |
 | `/ressaw 2` · `/ressaw list` | The second-nearest ruin (`3`, `4` … the next ones) · list them all: number, planet, star system, under a city or under a vent tower |
 | `/landmark list` · `/landmark key` | List the landmarks of the game · stand one a few steps in front of you, whatever the planet's own roll said — a ruin comes out different every time (worlds of generation 37 or newer) |
+| `/giantwreck list` · `/giantwreck key` | List the giant ships of the game (with their size) · lay that ship's wreck six blocks in front of you, whatever the planet's own roll said — a new wreck every time, on any world's ground (not on a gas giant, not in space) |
 | `/settime day\|night\|noon\|midnight\|dawn\|dusk\|18:30\|6.5\|0.5` | Set the local time of day of the world you stand in: a word, a clock time, an hour from 1 to 24 or a part of the day below 1. Not out in space |
 | `/setweather clear\|clouds\|rain\|storm\|fog\|blizzard\|heatwave\|…` | Set the weather of the world you stand in (every weather key works; `cloudy` is accepted for `clouds`) |
 | `/giant colossus\|sandworm\|leviathan\|sky` | Summon this world's colossus, sandworm, leviathan or sky giant near you (a sandworm needs a sand sea, a leviathan a deep sea) — for testing |
@@ -5235,6 +5279,7 @@ and easy to mistype. The numbering is stable for a world: `village2` is the same
 | `vault` | A buried vault's surface pillar ring |
 | `ancient` | A buried ancient ruin ("Alte Städte") — beside the top of its shaft: the hatch in a G.D.S. city street, or the vent tower in the open land (`ancients`, `altstadt` also work) |
 | `landmark` | A landmark (a giant building) — on the ground right in front of it (`landmarks`, `bauwerk`, `wahrzeichen` also work) |
+| `giantwreck` | A giant ship wreck on this planet — on the ground right in front of it (`giantwrecks`, `giant_wreck`, `giantship`, `riesenschiff`, `riesenwrack` also work) |
 | `wreck` | The crashed ship — even before an NPC has pointed you at it |
 | `factory` | A factory's production terminal |
 | `camp` | A bandit camp (`bandit` also works) |

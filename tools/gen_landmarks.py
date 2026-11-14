@@ -34,13 +34,15 @@ Design = _geom.Design
 OUT = _geom.OUT
 
 # Modules of the toolkit itself — every other tools/landmarks/<key>.py is a landmark script.
-TOOLKIT = {"__init__", "geom", "solids", "shapecode", "blockfont", "templatefile", "preview", "selftest"}
+TOOLKIT = {"__init__", "geom", "solids", "shapecode", "blockfont", "templatefile", "preview", "selftest", "ships",
+           "shipgeom", "lightmount"}
 
 
 def sample_tower() -> Design:
     """A square watchtower, 16 x 41 x 16: brick walls, a floor every eight rows, windows, torches, a ladder."""
     d = Design("sample_tower", "Old Watchtower", nameKey="landmark.sample_tower.name", pinOnly=True, ruin="always",
                ruinProfile="masonry", requires=["atmosphere"])
+    d.light_mounts = False  # pinned byte for byte (StructureGeneratorGoldenTests): its lights stay as shipped
     size, height = 16, 41
     for y in range(height):
         if y % 8 == 0:
@@ -71,6 +73,7 @@ def sample_mine() -> Design:
     depth = 28
     d = Design("sample_mine", "Abandoned Mine", nameKey="landmark.sample_mine.name", pinOnly=True, ruin="always",
                ruinProfile="underground", groundRow=depth, requires=["atmosphere"])
+    d.light_mounts = False  # pinned byte for byte (StructureGeneratorGoldenTests): its lights stay as shipped
     # The hut: a plank floor on the ground row, walls, a roof, a doorway.
     d.box(0, depth, 0, 9, depth, 9, "wood_planks")
     d.shell(0, depth + 1, 0, 9, depth + 3, 9, "wood_planks")
@@ -109,6 +112,7 @@ def sample_store() -> Design:
     """An inhabited roadside store, 14 x 7 x 12: a keeper behind a counter who sells only inside."""
     d = Design("sample_store", "Roadside Store", nameKey="landmark.sample_store.name", pinOnly=True, ruin="never",
                protected=True, requires=["atmosphere", "inhabited"])
+    d.light_mounts = False  # pinned byte for byte (StructureGeneratorGoldenTests): its lights stay as shipped
     d.box(0, 0, 0, 13, 0, 11, "concrete")
     d.shell(0, 1, 0, 13, 4, 11, "wood_planks")
     d.box(0, 5, 0, 13, 5, 11, "wood_planks")

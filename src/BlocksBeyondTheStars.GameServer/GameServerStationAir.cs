@@ -102,7 +102,10 @@ public sealed partial class GameServer
                 _stationAirWarnedFor[p.PlayerId] = stationId; // re-armed on every boarding (OnDerelictBoarded)
                 if (FindSessionByPlayerId(p.PlayerId) is { } derelictSession)
                 {
-                    Send(derelictSession, new Networking.Messages.ServerMessage { Text = "@srv.derelict.no_air" });
+                    Send(derelictSession, new Networking.Messages.ServerMessage
+                    {
+                        Text = Shared.Definitions.GiantShipRules.IsGiantWreckId(stationId) ? "@srv.giantwreck.no_air" : "@srv.derelict.no_air", // #3614: a ship, not a station
+                    });
                 }
             }
 

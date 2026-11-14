@@ -205,7 +205,7 @@ namespace BlocksBeyondTheStars.Client
                     var pos = new Vector3(e.X, e.Y, e.Z);
                     Vector3 to = pos - shipPos;
                     float dist = to.magnitude;
-                    if (dist > scanner.Range || dist < 0.01f)
+                    if (ScanRangeDistance(e, shipPos, dist) > scanner.Range || dist < 0.01f) // #3615: a giant wreck to its hull
                     {
                         continue;
                     }
@@ -309,7 +309,7 @@ namespace BlocksBeyondTheStars.Client
                     Vector3 to = pos - shipPos;
                     float dist = to.magnitude;
                     float radius = TargetRadius(e);
-                    if (dist > scanner.Range || dist < 0.01f
+                    if (ScanRangeDistance(e, shipPos, dist) > scanner.Range || dist < 0.01f
                         || Vector3.Angle(fwd, to) > cone + Mathf.Atan2(radius, dist) * Mathf.Rad2Deg)
                     {
                         return false;
@@ -374,7 +374,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 case "Asteroid": return 4f * s;
                 case "Wreck": return 7f * s;
-                case "SpaceStation": return 12f * s;
+                case "SpaceStation": return GiantWreckRadius(e, 12f * s); // #3615: a giant wreck frames its hull
                 case "Wormhole": return 22f;
                 case "Anomaly": return 3.5f;
                 case "EscapePod": return 2.5f;

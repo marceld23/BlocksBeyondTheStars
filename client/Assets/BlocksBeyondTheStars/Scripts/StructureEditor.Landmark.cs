@@ -85,10 +85,11 @@ namespace BlocksBeyondTheStars.Client
         // ---------------------------------------------------------------- "use as"
 
         private string UseLabel()
-            => L(_entryMode ? "ui.use.entry" : _landmarkMode ? "ui.use.landmark" : _moduleMode ? "ui.use.module" : "ui.use.whole");
+            => L(_entryMode ? "ui.use.entry" : _landmarkMode ? "ui.use.landmark" : _giantShipMode ? "ui.use.giant_ship"
+                : _moduleMode ? "ui.use.module" : "ui.use.whole");
 
-        /// <summary>Whole structure → kit module → landmark (the town editor only) → generator entry (#3523) → whole structure.
-        /// A preview gives the design back first; a generator entry shows its source's build.</summary>
+        /// <summary>Whole structure → kit module → landmark → giant ship (the town editor only, #3616) → generator entry (#3523) →
+        /// whole structure. A preview gives the design back first; a generator entry shows its source's build.</summary>
         private void CycleUse()
         {
             EndPreview();
@@ -100,6 +101,11 @@ namespace BlocksBeyondTheStars.Client
             else if (_landmarkMode)
             {
                 _landmarkMode = false;
+                _giantShipMode = true; // #3616: only the town editor has landmarks, so only it has giant ships
+            }
+            else if (_giantShipMode)
+            {
+                _giantShipMode = false;
                 _entryMode = true;
             }
             else if (_moduleMode)

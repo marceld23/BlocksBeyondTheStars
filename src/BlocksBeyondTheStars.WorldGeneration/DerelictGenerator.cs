@@ -123,7 +123,7 @@ public sealed class DerelictLayout
 /// hull and a few loose debris blocks near it.</item>
 /// </list>
 /// </summary>
-public static class DerelictGenerator
+public static partial class DerelictGenerator
 {
     /// <summary>Share of derelicts built from a classic template instead of the module generator (legacy path).</summary>
     public const double TemplateShare = 0.2;
@@ -828,7 +828,7 @@ public static class DerelictGenerator
     }
 
     /// <summary>The working voxel grid of the decay pass.</summary>
-    private sealed class Grid
+    private sealed partial class Grid
     {
         private readonly ushort[] _b;
         private readonly Dictionary<int, (int Tint, int Glow)> _mods = new();

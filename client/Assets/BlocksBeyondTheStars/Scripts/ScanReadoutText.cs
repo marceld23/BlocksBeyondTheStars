@@ -107,6 +107,18 @@ namespace BlocksBeyondTheStars.Client
                 return WreckReadout.Title(loc.Get("ui.map.kind_wreck"), scan.Subject);
             }
 
+            // #3615: a giant ship wreck says what it is the same way — "Giant ship wreck · Wanderer Seven" in space (its coined
+            // name), "Giant wreck · Battleship" on a planet (its ship class).
+            if (GiantWreckText.IsSpaceReadout(scan.Kind, scan.SubjectKey))
+            {
+                return WreckReadout.Title(loc.Get(GiantWreckText.SpaceSubjectKey), scan.Subject);
+            }
+
+            if (scan.Kind == GiantWreckText.PlanetReadoutKind)
+            {
+                return WreckReadout.Title(loc.Get(GiantWreckText.KindKey), scan.Subject);
+            }
+
             // #2588: an anomaly is titled by its kind — a server before #2588 sends its entity name "???", which is what
             // an unknown wormhole's destination reads.
             if (scan.Kind == AnomalyHint.ReadoutKind)
