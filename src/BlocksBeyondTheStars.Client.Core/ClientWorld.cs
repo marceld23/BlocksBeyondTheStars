@@ -252,6 +252,17 @@ namespace BlocksBeyondTheStars.Client
             return true;
         }
 
+        /// <summary>#3579: copies the (canonical) coordinates of every stored chunk into <paramref name="into"/>, cleared first —
+        /// the client's unload sweep walks them without allocating, including the chunks that never got a GameObject.</summary>
+        public void CollectChunkCoords(List<ChunkCoord> into)
+        {
+            into.Clear();
+            foreach (var coord in _chunks.Keys)
+            {
+                into.Add(coord);
+            }
+        }
+
         public bool TryGetChunk(ChunkCoord coord, out ChunkData chunk)
             => _chunks.TryGetValue(WorldConstants.CanonicalChunk(coord, _circumference), out chunk);
 

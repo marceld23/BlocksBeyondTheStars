@@ -105,7 +105,9 @@ public sealed class ServerConfig
     /// <summary>Background threads that generate first-visit chunks (#1817). The tick only queues the missing
     /// chunks of a view and adopts finished ones (persisted edits are applied on the tick thread), so exploring no
     /// longer stretches the tick. 0 = the historical inline generation — the in-browser singleplayer has no C#
-    /// threads and always uses 0. Each worker owns its own generator (up to ~18 MB of column memos at view 8).
+    /// threads and always uses 0. Each worker owns its own generator and its column memos (about 20 MB at view distance 8,
+    /// 45 MB at 16; measured on terrain generation 40). The desktop client's bundled server passes a count that follows the
+    /// machine (<c>Client.Core.BundledServerWorkers</c>, #3581); this default stays 2 for every host it cannot see.
     /// Clamped to 0..<see cref="ChunkGenWorkersCeiling"/>. CLI <c>--chunk-gen-workers</c>, env
     /// <c>BBS_CHUNK_GEN_WORKERS</c>.</summary>
     public int ChunkGenWorkers

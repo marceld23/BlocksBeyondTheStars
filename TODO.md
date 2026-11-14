@@ -24,6 +24,29 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📉 Platform scaling: chunk memory, browser audio, bundled-server workers — #3579–#3582, ✅ 2026-11-14, PR pending (⚠ playtest open)
+
+From the 2026-11-14 analysis of the Raspberry-Pi goal, the VPS and weak tablets (Marcel's picks of its findings):
+
+- **#3579 client chunk memory (all platforms).** The client never unloaded chunks without a GameObject (all air, sealed
+  rock — #1515 gives them none): the unload loop only walked chunk objects, so they stayed in `ClientWorld`, the
+  block-array pool and the collider/connectivity books until the next world change (estimate 10–20 MB per km walked).
+  `SweepViewlessChunks` unloads them by the same distance rule every 2 s; the unload steps are one `UnloadChunk`. A world
+  change also kept the old world's block arrays referenced until the menu — `OnWorldReset` now retires them.
+- **#3580 browser audio.** No bundled clip preloads, a browser keeps every decoded clip outside the wasm heap, and Unity
+  6.6 decodes every clip on Chromium regardless of its load type; the router survives travel. After an arrival at another
+  place (not the own ship, not a respawn at the same place) the browser build releases every clip of 1 MiB or more
+  decoded that no audio source holds, 10 s after the world is ready (`ClientAudio.Release.cs`, `AudioReleaseRules`), plus
+  the beds' idle muffled copies. Short clips (steps, mining, voices) stay. Native builds unchanged.
+- **#3581 bundled-server workers.** The desktop launcher passes `--chunk-gen-workers` = clamp(⌊logical/2⌋ − 2, 2, 4), 2
+  below 12 GB RAM, nothing when the player set `BBS_CHUNK_GEN_WORKERS` (`BundledServerWorkers`). Server default, Docker,
+  fleet, Pi and browser unchanged. Measured: a chunk generates in ~1.5–2 ms (terrain generation 40), so for one player
+  generation is not the limit — extra workers mainly help hosting with several players.
+- **#3582 docs.** SELF_HOSTING's browser paragraph (the browser has had its own singleplayer since v0.8.0) and the memo
+  size per worker: measured 21 MB at view distance 8, 45 MB at 16 (was "~18 MB"); SOUND_DESIGN §37.
+- Playtest: walk/fly far on one planet and travel between planets on desktop (no holes, no missing chunks on return);
+  in the browser, travel between two planets and listen for missing or late ambience on arrival and on the way back.
+
 ### 🗿 Soundi statue without the SOUNDI letters — #3577, ✅ 2026-11-14, PR pending
 
 The Sounders raised the statue, and they write in sound, not in our letters — the crystal name plate on the pedestal's

@@ -894,6 +894,31 @@ swells as the player comes closer. Every loop is a `bed` (`amb_` prefix) for `to
 | `amb_portasseum_wind` | bed | 20 s, seamless loop | "seamless loop of wind blowing through the stone arches of a huge empty ancient amphitheatre, soft hollow whistling gusts, airy echoes rolling around the arena, faint distant reverberation, calm and a little mysterious, no voices, no music, no birds" (0.4) — the Portasseum's arena (radius 120) |
 | `amb_mine_drip` | bed | 16 s, seamless loop | "calm underground cave ambience: slow single water droplets dripping into a small still pool, soft natural echo, faint distant trickle, quiet and gentle, no music, no voices" (0.3) — the old mine's pool cavern (radius 56) and its deepest cavern (radius 44) |
 
+## 37. Browser memory: long clips are released after a move (#3580)
+
+No bundled clip preloads, so a browser decodes each one on its first play (`decodeAudioData`) and keeps the decoded
+buffer — outside the WebAssembly heap, where the heap telemetry never sees it but the operating system of a tablet counts
+it. Unity 6.6 decodes **every** clip on Chromium browsers (Chrome, Edge, Android Chrome) whatever its load type, and
+every clip under 128 KB everywhere, so "Compressed In Memory" saves nothing there. `ClientAudio` survives travel, so the
+decoded set used to grow with every place visited: the 480 clips come to about 350–380 MiB decoded, the 93 clips of 1 MiB
+and more (ambience beds, weather, the night layer, water, lava, festival jingles) to about 240 MiB of that.
+
+The browser build therefore releases them (`ClientAudio.Release.cs`, rules in `Client.Core/AudioReleaseRules.cs`):
+
+- **When:** after an arrival at another place — another planet, a station — once the new world has been ready for 10 s.
+  Never for the own ship's interior (entered and left all the time) or a respawn at the same place.
+- **What:** every bundled clip of 1 MiB or more decoded (samples × channels × 4) that is decoded and that no
+  `AudioSource` holds at that moment — playing, paused, a loop at volume 0 or a bed between fades all keep theirs.
+  `AudioClip.UnloadAudioData` drops the decoded data; the next play decodes again, the same path every first play takes.
+  The beds' baked muffled copies (`MuffledBed`) of anything but the current loop go too.
+- **What stays:** short clips — steps, mining, UI, creature and NPC voices; none of them reaches 1 MiB — so frequent sounds
+  never get a late first play, and the NPC voice preloads stay valid.
+- **Native builds** keep everything: memory is not their constraint.
+
+A log line `[Audio] Released N decoded clips (~X MiB) …` reports each release. For a check in the browser,
+`unityInstance.SendMessage("Game", "ReleaseIdleAudioNow", mode)` acts at once: `""` by the rule above, `"all"` with no size
+floor, `"decode"` asks every bundled clip to decode first, so a check can measure what a release frees.
+
 ## Totals & rollout
 
 The planned rollout has largely landed. Current state:

@@ -172,9 +172,14 @@ come from `data/structure_types.json`. A `server.json` written before that file 
 override, and the server logs once per kind when it differs from the data file.
 
 **Chunk generation workers** (`chunkGenWorkers`, CLI `--chunk-gen-workers`): first-visit chunks are generated on this
-many background threads, each with its own world generator (up to ~18 MB of terrain memos per thread at view distance
-8). A streaming pass still sends exactly the chunks it always sent; it just stops waiting on one core. On a small
-container with little RAM, `1` keeps most of the gain.
+many background threads, each with its own world generator and its terrain memos — about 20 MB per thread for one player
+at view distance 8, about 45 MB at view distance 16 (measured 2026-11-14 on terrain generation 40). A streaming pass still
+sends exactly the chunks it always sent; it just stops waiting on one core. On a small container with little RAM, `1`
+keeps most of the gain. A chunk takes about 1.5–2 ms to generate today, well inside the 240 chunks per second one player
+can be sent (16 per tick at 15 Hz), so extra workers mainly help when several players explore at once. The server the
+desktop game starts for singleplayer and "host a game" picks the count from the machine (#3581): 2 up to 8 logical
+processors, 3 at 10, 4 from 12 on, and 2 whenever the machine has less than 12 GB of memory. A `BBS_CHUNK_GEN_WORKERS` set
+in the player's environment wins over that.
 
 **Near full-column radius** (`nearColumnRadiusChunks`, CLI `--near-column-radius`; `nearColumnChunksUp`, CLI
 `--near-column-up`; #3208): within this many chunks of a player (16 blocks each) the server streams the whole vertical
@@ -484,8 +489,9 @@ The server can also serve the **WebGL browser client** at `http://<server>:<admi
 **Play in the browser** button deep-links to it with the server host/port pre-filled (`/play/?server_host=…&server_port=31415`;
 the slashless `/play` redirects there, keeping the query — the Unity page references its assets relatively, #218).
 No download, no install — players just open the link, pick a pilot name and press Play (the deep-linked
-menu hides the manual server picker, #221). Singleplayer/host are unavailable in the browser (it
-only joins a hosted server over WebSocket), so `BBS_ENABLE_WEBSOCKET=true` is required.
+menu hides the manual server picker, #221). Joining your server from the browser goes over WebSocket, so
+`BBS_ENABLE_WEBSOCKET=true` is required. (The browser build has its own singleplayer — the real server runs inside
+the tab and saves in the browser — but it cannot host a world for others.)
 
 The browser build is **not** baked into the server image (it needs Unity, which can't run in the image). You
 get it onto the server one of two ways:

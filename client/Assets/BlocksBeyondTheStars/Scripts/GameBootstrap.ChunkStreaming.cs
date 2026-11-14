@@ -278,6 +278,20 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>#3579: a world change — every block array of the old world goes back through the grace period (a mesh job
+        /// in flight may still read one). Before, they stayed referenced here until the next GameBootstrap start, unless the new
+        /// world happened to send a chunk with the same coordinate.</summary>
+        private void RetireAllChunkArrays()
+        {
+            float now = Time.unscaledTime;
+            foreach (var array in _chunkArrays.Values)
+            {
+                _retiredChunkArrays.Enqueue((array, now));
+            }
+
+            _chunkArrays.Clear();
+        }
+
         private void ReturnRetiredChunkArrays()
         {
             float now = Time.unscaledTime;
@@ -474,34 +488,77 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            // Process the far-chunk unloads collected above (after iterating, so the dictionary isn't mutated
-            // mid-loop). Drop every bit of per-chunk bookkeeping so nothing dangles, and the world data + its
-            // light sources, then destroy the GameObject. A re-stream rebuilds it from scratch.
+            // Process the far-chunk unloads collected above (after iterating, so the dictionary isn't mutated mid-loop).
             for (int i = 0; i < _unloadScratch.Count; i++)
             {
-                var coord = _unloadScratch[i];
-                if (_chunkObjects.TryGetValue(coord, out var view))
+                UnloadChunk(_unloadScratch[i]);
+            }
+
+            SweepViewlessChunks(pp, unloadSq); // #3579: the chunks the loop above never sees
+        }
+
+        /// <summary>Drops every bit of one chunk's client state so nothing dangles: its view and meshes, the mesh and collider
+        /// bookkeeping, a parked browser cook, the world data with its light sources, and its pooled block array. A re-stream
+        /// rebuilds it from scratch.</summary>
+        private void UnloadChunk(ChunkCoord coord)
+        {
+            if (_chunkObjects.TryGetValue(coord, out var view))
+            {
+                DestroyChunkView(view); // frees the chunk's meshes too, not just the GameObject
+            }
+
+            _chunkObjects.Remove(coord);
+            _dirty.Remove(coord);
+            _deferredDirty.Remove(coord);
+            _waterReachDirty.Remove(coord);
+            _colliderGen.Remove(coord);
+            _colliderAppliedGen.Remove(coord);
+            _meshGen.Remove(coord); // an in-flight build for it finds no generation and is dropped (DrainBuiltChunks)
+            _meshFailCounts.Remove(coord);
+            ForgetConnectivity(coord); // #1823
+            if (_syncCooks.TryGetValue(coord, out var parkedCook)) // #1819: a browser cook still waiting
+            {
+                Destroy(parkedCook.Collider);
+                _syncCooks.Remove(coord);
+            }
+
+            World.RemoveChunk(coord);
+            RetireChunkArray(WorldConstants.CanonicalChunk(coord, Circumference)); // #1555
+        }
+
+        /// <summary>#3579: seconds between two sweeps over the chunks without a GameObject. They cost memory, not frame time,
+        /// so the per-block reposition pass does not have to walk them every time.</summary>
+        private const float ViewlessSweepSeconds = 2f;
+        private float _lastViewlessSweep = float.NegativeInfinity;
+        private readonly List<ChunkCoord> _viewlessScratch = new List<ChunkCoord>();
+
+        /// <summary>#3579: unloads the far chunks that have no GameObject — all air or sealed rock (#1515 gives them none) — by
+        /// the same distance rule as the reposition loop, which only walks chunks WITH one. Without this sweep they stayed in
+        /// the world data, the block-array pool and the collider/connectivity books until the next world change, growing with
+        /// the distance travelled. The server forgets far chunks before the client unloads them, so a returning player gets
+        /// them re-sent like any other chunk.</summary>
+        private void SweepViewlessChunks(Vector3 pp, float unloadSq)
+        {
+            float now = Time.unscaledTime;
+            if (now - _lastViewlessSweep < ViewlessSweepSeconds)
+            {
+                return;
+            }
+
+            _lastViewlessSweep = now;
+            World.CollectChunkCoords(_viewlessScratch); // canonical, like the chunk-object keys
+            for (int i = 0; i < _viewlessScratch.Count; i++)
+            {
+                var coord = _viewlessScratch[i];
+                if (_chunkObjects.TryGetValue(coord, out var view) && view?.Go != null)
                 {
-                    DestroyChunkView(view); // frees the chunk's meshes too, not just the GameObject
+                    continue; // the reposition loop owns it
                 }
 
-                _chunkObjects.Remove(coord);
-                _dirty.Remove(coord);
-                _deferredDirty.Remove(coord);
-                _waterReachDirty.Remove(coord);
-                _colliderGen.Remove(coord);
-                _colliderAppliedGen.Remove(coord);
-                _meshGen.Remove(coord);
-                _meshFailCounts.Remove(coord);
-                ForgetConnectivity(coord); // #1823
-                if (_syncCooks.TryGetValue(coord, out var parkedCook)) // #1819: a browser cook still waiting
+                if (ChunkDistSqToPlayer(coord, pp) > unloadSq)
                 {
-                    Destroy(parkedCook.Collider);
-                    _syncCooks.Remove(coord);
+                    UnloadChunk(coord);
                 }
-
-                World.RemoveChunk(coord);
-                RetireChunkArray(WorldConstants.CanonicalChunk(coord, Circumference)); // #1555
             }
         }
 
