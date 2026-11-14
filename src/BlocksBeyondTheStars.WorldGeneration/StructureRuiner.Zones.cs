@@ -203,6 +203,7 @@ internal sealed partial class StructureRuiner
                     int tx = toWindow ? x : x + x0, ty = toWindow ? y : y + y0, tz = toWindow ? z : z + z0;
                     to.Set(tx, ty, tz, from.Blocks[fi], tint, glow, shape);
                     to.Cavity[ti] = from.Cavity[fi];
+                    to.Air[ti] = from.Air[fi]; // #3640: an air pocket stays one in a zone's window
                     if (toWindow)
                     {
                         sub.Keep[si] = grid.Keep[gi] || owner[gi] != k;
