@@ -73,6 +73,9 @@ public sealed partial class GameServer
     /// <summary>Test seam: the civilization sites of the active world.</summary>
     internal IReadOnlyList<LandmarkInstance> CivilizationSitesForTest => _civSites;
 
+    /// <summary>Test seam: the pinned civilization homes.</summary>
+    internal IReadOnlyDictionary<string, List<string>> CivilizationHomesForTest => _meta.CivilizationHomes;
+
     /// <summary>The framework civilizations whose home the active body is.</summary>
     private List<CivilizationDefinition> HomeCivilizations()
     {

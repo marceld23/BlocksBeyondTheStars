@@ -49,7 +49,8 @@ public sealed partial class UniverseGenerator
             }
         }
 
-        string type = types.Find(t => _content.GetPlanet(t) is not null) ?? string.Empty;
+        // only a type this world may roll at all: a type the player switched off is never forced in
+        string type = types.Find(t => _content.GetPlanet(t) is not null && _gen1Weights.Exists(w => w.key == t && w.weight > 0)) ?? string.Empty;
         if (type.Length == 0)
         {
             return;
