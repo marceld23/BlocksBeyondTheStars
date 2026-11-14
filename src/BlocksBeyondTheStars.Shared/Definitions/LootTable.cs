@@ -18,6 +18,9 @@ public sealed class LootTableDefinition
 {
     public string Key { get; set; } = string.Empty;
 
+    /// <summary>#3643: the civilization whose sites hold this table (<see cref="CivilizationDefinition"/>), empty = none (a tag).</summary>
+    public string Civilization { get; set; } = string.Empty;
+
     public List<LootRoll> Rolls { get; set; } = new();
 
     /// <summary>Rolls the table with <paramref name="seed"/>. Unknown items (per <paramref name="itemExists"/>) are skipped.</summary>

@@ -94,6 +94,19 @@ public sealed class StructureTemplate
     /// (on a planet and in space). It is never a ship type, never a landmark, and no other pool ever offers it.</summary>
     public bool GiantShip { get; set; }
 
+    /// <summary>#3639: the CIVILIZATION this template belongs to (<see cref="CivilizationDefinition"/>), empty = none. A template of
+    /// a framework civilization lives in <c>data/civilizations/&lt;key&gt;/</c>, is offered only by the civilization stage (no
+    /// settlement, station, landmark, giant ship or underground pool ever offers it) and draws from <see cref="CivPool"/>. On any
+    /// other template or kit it is a tag only (#3643: the G.D.S. kits).</summary>
+    public string Civilization { get; set; } = string.Empty;
+
+    /// <summary>#3639: the civilization pool a civilization template belongs to (<see cref="CivilizationRules.TemplatePools"/>:
+    /// giant, city, small, prop).</summary>
+    public string CivPool { get; set; } = string.Empty;
+
+    /// <summary>#3641: a prop's own pool name (<c>statue</c>, <c>remains</c> …) that a <c>prop pool=…</c> marker asks for.</summary>
+    public string PropPool { get; set; } = string.Empty;
+
     /// <summary>#3484: whether the landmark stands as a ruin: <see cref="LandmarkRules.RuinNever"/> (or empty) = as
     /// built, <see cref="LandmarkRules.RuinAlways"/> = run through the shared ruin pass with the instance's seed.</summary>
     public string Ruin { get; set; } = string.Empty;

@@ -23,6 +23,10 @@ public sealed class BlockDefinition
     /// live under <c>ui.cat.*</c> in the locale tables.</summary>
     public string Category { get; set; } = "building";
 
+    /// <summary>#3643: the civilization this block belongs to (<see cref="CivilizationDefinition"/>), empty = none — a tag the
+    /// scanner, VEGA, the Codex and the editor palette group by.</summary>
+    public string Civilization { get; set; } = string.Empty;
+
     /// <summary>Relative mining time multiplier; higher = slower to mine.</summary>
     public float Hardness { get; set; } = 1f;
 

@@ -275,6 +275,13 @@ public sealed class WorldDescription
     /// was.</summary>
     public const int LongIntercityGeneration = 42;
 
+    /// <summary>The generation of the lost civilizations (#3639, docs/developer/CIVILIZATIONS.md): a world of this generation or
+    /// later picks its civilizations' home bodies (pinned in <c>WorldMetadata.CivilizationHomes</c>), guarantees an ocean world for
+    /// the Grand Technicians, and stamps the civilization sites on a home body stamped for the first time — the Grand
+    /// Technicians' sunken ruins on one ocean world, the Labyrinth Builders' maze ruins on up to three toxic or airless bodies.
+    /// A server-side stamp stored as structure overlays: every chunk of every older generation stays bit-identical.</summary>
+    public const int CivilizationsGeneration = 43;
+
     /// <summary>The generation of the geography package (#3555): the surface height becomes three stages — the natural
     /// height (every older generation's whole answer), the river valleys (the ground eases down toward every surface river,
     /// #3558) and the site grade (a stamped structure's footprint is level in the generator itself and the land around it is

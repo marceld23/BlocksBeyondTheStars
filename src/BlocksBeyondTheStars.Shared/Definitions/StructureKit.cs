@@ -34,6 +34,9 @@ public sealed class StructureKit
 
     public string Pack { get; set; } = "default";
 
+    /// <summary>#3643: the civilization whose buildings this kit composes (<see cref="CivilizationDefinition"/>), empty = none (a tag).</summary>
+    public string Civilization { get; set; } = string.Empty;
+
     /// <summary>Weight in the joint random table of complete templates and kits of the tier (#1874).</summary>
     public int Weight { get; set; } = 1;
 
