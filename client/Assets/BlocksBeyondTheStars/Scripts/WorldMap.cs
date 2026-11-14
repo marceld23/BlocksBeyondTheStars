@@ -264,15 +264,14 @@ namespace BlocksBeyondTheStars.Client
                     ("map_ruin", "ui.map.kind_landmark", LandmarkCol), // #3496: a landmark
                     ("map_base", "ui.map.kind_outpost", OutpostCol), // #2681: a pioneer's outpost (an NPC's base — the base icon in khaki gold)
                     ("map_wreck", "ui.map.wreck", new Color(1f, 0.55f, 0.3f)),
-                    ("map_wreck", "ui.map.kind_giant_wreck", GiantWreckCol), // #3611: a giant ship wreck (the third row holds four)
+                    ("map_wreck", "ui.map.kind_giant_wreck", GiantWreckCol), // #3611: a giant ship wreck
+                    ("map_ruin", "ui.map.kind_civilization", CivilizationCol), // #3642: a lost civilization's site (WorldMap.Civilizations.cs)
                     ("map_station", "ui.map.other", new Color(0.8f, 0.8f, 0.9f)),
-                    (null, "poi.fragment", new Color(0.45f, 0.95f, 1f)), // glyph-only legend row (⦿)
-                    (null, "poi.guardian_core", GuardianCoreCol), // glyph-only legend row (◎), #1792
+                    (null, "poi.fragment", new Color(0.45f, 0.95f, 1f)), (null, "poi.guardian_core", GuardianCoreCol), // glyph-only rows (⦿, ◎ #1792)
                 };
-                // Six slots per row (was five at 168 px). 140 px still holds the longest label at 15 px ("Netzfragment-Signal"
-                // wraps nowhere). #2647: the thirteenth entry (the hut) starts a third row (y 863–893), so the buttons below
-                // moved down from y=880 to y=904 — still inside the panel (it ends at y=1000). #2681: the outpost is the
-                // seventh entry now; the third row holds two, nothing moves.
+                // Six slots per row of 140 px (the longest label at 15 px, "Netzfragment-Signal", wraps nowhere). #2647: the third
+                // row (y 863–893) put the buttons below at y=904, still inside the panel (it ends at y=1000); since #3642 it holds
+                // five entries — a nineteenth would need a fourth row.
                 const int perRow = 6;
                 const float slotW = 140f, rowH = 34f;
                 for (int li = 0; li < entries.Length; li++)
@@ -798,6 +797,7 @@ namespace BlocksBeyondTheStars.Client
             "lodge" => ("⌂", LodgeCol, "map_lodge"), // #2647: a wilderness hut ("Tilda's hut") — a log cabin in warm wood brown
             "landmark" => ("♜", LandmarkCol, "map_ruin"), // #3496: a giant building — the ruin icon in pale gold
             BlocksBeyondTheStars.Shared.Definitions.GiantShipRules.MapType => ("✖", GiantWreckCol, "map_wreck"), // #3611: a giant ship wreck — the wreck icon in hull steel blue
+            BlocksBeyondTheStars.Client.Core.CivilizationText.MapType => CivilizationLook, // #3642: a lost civilization's site — the ruin icon in verdigris
             "outpost" => ("⌂", OutpostCol, "map_base"), // #2681: a pioneer's outpost ("Mira's outpost") — an NPC's base, in sand
             _ => ("◆", new Color(0.8f, 0.8f, 0.9f), "map_station"),
         };

@@ -418,6 +418,13 @@ namespace BlocksBeyondTheStars.Client
                     {
                         DiscoveryWhere[entries[i]] = (bodyName, systemName);
                     }
+
+                    // #3642: a lost civilization found says so — the Codex has a new page.
+                    if (!m.Full && Localizer != null && BlocksBeyondTheStars.Client.Core.CivilizationText.NewDiscoveryLine(entries[i],
+                            Discoveries[entries[i]], Content, k => Localizer.Has(k) ? Localizer.Get(k) : null) is { } found)
+                    {
+                        LastMessage = found;
+                    }
                 }
             };
             Network.EnemyLogReceived += m =>

@@ -171,6 +171,16 @@ public sealed partial class GameServer
             readout.ThreatKey = "ui.scan.threat.inert";
             value = KnowledgeMonument;
         }
+        else if (subjectType == "block" && CivilizationSiteForScan(session, cell) is { } civSite)
+        {
+            // #3642: any block of a lost civilization's site reads as the site — the ledger is the civilization's discovery
+            // (a relic's knowledge once, named after the people; GameServerCivilizationsWorld.cs).
+            (readout.Kind, readout.SubjectKey, readout.Display, readout.InfoKey, ledgerKey, readout.LedgerName) = CivilizationScan(civSite, session.Locale);
+            readout.ThreatKey = "ui.scan.threat.inert";
+            readout.LegacyInfo = "The ruins of a lost civilization.";
+            readout.LegacyThreat = "Inert";
+            value = KnowledgeMonument;
+        }
         else if (subjectType == "block" && LandmarkForScan(session, cell) is { } landmark)
         {
             // #3496: any block of a landmark points the scanner at the landmark — a readout, the knowledge of a relic and a
@@ -284,7 +294,9 @@ public sealed partial class GameServer
         }
 
         // Ledger key tracks the first scan (per species/block, or shared per tree); the readout shows `Display`.
-        return Award(session, ledgerKey, readout, value);
+        var awarded = Award(session, ledgerKey, readout, value);
+        DiscoverCivilizationOfScannedBlock(session, subjectType, subjectKey); // #3642: a lost people's block names them in the Codex
+        return awarded;
     }
 
     /// <summary>The monument the scanning player is standing at, or null. The scan intent carries no position
@@ -303,6 +315,10 @@ public sealed partial class GameServer
         public string Kind = string.Empty;
         public string SubjectKey = string.Empty;
         public string Display = string.Empty;
+
+        /// <summary>#3642: the name the ledger records when it is not <see cref="Display"/> (a civilization site reads as the site,
+        /// its discovery is named after the people); empty = <see cref="Display"/>.</summary>
+        public string LedgerName = string.Empty;
         public string ThreatKey = string.Empty;
         public string InfoKey = string.Empty;
         public string[] TraitKeys = System.Array.Empty<string>();
@@ -456,7 +472,8 @@ public sealed partial class GameServer
         {
             // Remember the display name NOW: creature/tree/flora species are per-world, so this coined name
             // is unresolvable once the player leaves this planet (#484).
-            p.ScannedNames[ledgerKey] = readout.Display;
+            string ledgerName = readout.LedgerName.Length > 0 ? readout.LedgerName : readout.Display;
+            p.ScannedNames[ledgerKey] = ledgerName;
 
             // …and WHERE it was found (#1843): body + system by name, for the Codex line. Only the first
             // scan writes it — a re-scan elsewhere is not a discovery. Null when the galaxy cannot place the
@@ -468,7 +485,7 @@ public sealed partial class GameServer
             }
 
             // Append the new entry to the client's Codex discovery list.
-            Send(session, DiscoveryDelta(ledgerKey, readout.Display, site));
+            Send(session, DiscoveryDelta(ledgerKey, ledgerName, site));
 
             OnAchievementScan(session, readout.Kind); // "Scholar" / "Archaeologist" and friends (#1102)
             RaiseGameEvent(session, GameEventKeys.ScanAny, readout.Kind); // #2465: a discovery (first-time scan)

@@ -9089,5 +9089,10 @@
   "vega.civ.labyrinth_builders.statue": "Eine Statue. Zwei Arme, zwei Beine — und ein großer, viereckiger Kopf. Sahen so die Erbauer aus?",
   "vega.civ.labyrinth_builders.centre": "Die Mitte des Labyrinths! Eine riesige Statue … wer das alles gebaut hat, wollte, dass man sie findet.",
   "npc.rumour.civ.labyrinth_builders.1": "Ein Pilot hat mir mal von Mauern auf einem toten Mond erzählt — so hoch und so viele, dass man sich zwischen ihnen verirrt.",
-  "npc.rumour.civ.labyrinth_builders.2": "Es heißt, auf einer giftigen Welt steht irgendwo ein Labyrinth. Niemand weiß, wer es gebaut hat — oder warum."
+  "npc.rumour.civ.labyrinth_builders.2": "Es heißt, auf einer giftigen Welt steht irgendwo ein Labyrinth. Niemand weiß, wer es gebaut hat — oder warum.",
+  "ui.scan.civilization": "Die Ruinen eines Volkes, das vor langer Zeit verschwunden ist. Hier wohnt schon sehr, sehr lange niemand mehr.",
+  "ui.scan.civilization_block": "Gebaut von: {0}",
+  "ui.map.kind_civilization": "Uralte Ruine",
+  "ui.wiki.discoveries.civilization": "Verschwundene Völker",
+  "ui.wiki.civilization.new": "Entdeckt: {0} – steht im Kodex unter Verschwundene Völker"
 }

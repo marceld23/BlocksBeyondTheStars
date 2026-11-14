@@ -9089,5 +9089,10 @@
   "vega.civ.labyrinth_builders.statue": "A statue. Two arms, two legs — and a big square head. Is that what the builders looked like?",
   "vega.civ.labyrinth_builders.centre": "The middle of the labyrinth! A giant statue … whoever built all this wanted it to be found.",
   "npc.rumour.civ.labyrinth_builders.1": "A pilot once told me about walls on a dead moon — so high and so many that you get lost between them.",
-  "npc.rumour.civ.labyrinth_builders.2": "They say there is a labyrinth somewhere on a poisonous world. Nobody knows who built it, or why."
+  "npc.rumour.civ.labyrinth_builders.2": "They say there is a labyrinth somewhere on a poisonous world. Nobody knows who built it, or why.",
+  "ui.scan.civilization": "The ruins of a people that vanished long ago. Nobody has lived here for a very, very long time.",
+  "ui.scan.civilization_block": "Built by: {0}",
+  "ui.map.kind_civilization": "Ancient ruin",
+  "ui.wiki.discoveries.civilization": "Lost civilizations",
+  "ui.wiki.civilization.new": "Discovered: {0} — see the Codex, Lost civilizations"
 }
