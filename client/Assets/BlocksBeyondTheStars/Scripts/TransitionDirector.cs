@@ -316,8 +316,7 @@ namespace BlocksBeyondTheStars.Client
 
             var env = Game.Environment;
             bool airless = IsAirless(env);
-            var sky = env != null ? Rgb(env.SkyColor) : new Color(0.55f, 0.75f, 0.95f);
-            var cloud = env != null ? Rgb(env.CloudColor) : Color.white;
+            var (sky, cloud) = DepartureColours(env, airless);
             var style = airless ? TransitionCoverStyle.Glare : TransitionCoverStyle.Clouds;
             Cover.Close(style, airless ? new Color(1f, 0.93f, 0.82f) : cloud, sky, -1f, string.Empty, string.Empty, seconds);
             _emergence = new TransitionEmergence { Active = true, Airless = airless, Sky = sky, RoarPlayed = _emergence.RoarPlayed };
@@ -325,6 +324,28 @@ namespace BlocksBeyondTheStars.Client
             {
                 SetStage(Stage.DepartureCover);
             }
+        }
+
+        /// <summary>The departure cover's sky and clouds (#3635): lit like the cloud deck overhead — the hour where the ship
+        /// lifts off, the weather now, a quarter of the world's mist colour (<see cref="CoverLook"/>) — instead of the
+        /// daytime colours whatever the hour.</summary>
+        private (Color Sky, Color Cloud) DepartureColours(BlocksBeyondTheStars.Networking.Messages.WorldEnvironment env, bool airless)
+        {
+            if (env == null)
+            {
+                return (new Color(0.55f, 0.75f, 0.95f), Color.white);
+            }
+
+            if (airless)
+            {
+                return (Rgb(env.SkyColor), Rgb(env.CloudColor));
+            }
+
+            float day = CoverLook.DayOf(Game.LocalTimeOfDay);
+            float darken = CloudDeck.Target(env.Weather, env.CloudDensity).Darken;
+            MistRgb cloud = CoverLook.DeckColour(env.CloudColor, env.MistColor, CoverLook.MistShare, env.SunColor, day, darken);
+            MistRgb sky = CoverLook.SkyColour(env.SkyColor, day, darken);
+            return (new Color(sky.R, sky.G, sky.B), new Color(cloud.R, cloud.G, cloud.B));
         }
 
         // ---- shared --------------------------------------------------------------------------------------------------

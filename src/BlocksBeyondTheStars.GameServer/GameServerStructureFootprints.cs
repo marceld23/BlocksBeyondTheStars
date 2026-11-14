@@ -166,12 +166,12 @@ public sealed partial class GameServer
     private bool StructureKindDue(string kind)
         => StructureType(kind) is { Enabled: true } type && _generator.TerrainGeneration >= type.MinGeneration;
 
-    /// <summary>The chance of a single-roll kind: the server's override when it sets one, else the kind's. An override that
-    /// differs from <c>data/structure_types.json</c> is logged once per kind and server run, so an operator sees why a change
-    /// to the data file does not show.</summary>
+    /// <summary>The chance of a single-roll kind: the server's override when it sets one, else the kind's for the world's
+    /// terrain generation (<c>chanceFrom</c>, #3631). An override that differs from <c>data/structure_types.json</c> is logged
+    /// once per kind and server run, so an operator sees why a change to the data file does not show.</summary>
     private double StructureChance(string kind, double? configured)
     {
-        double data = StructureType(kind).Chance;
+        double data = StructureType(kind).ChanceFor(_generator.TerrainGeneration);
         if (configured is { } chance && chance != data && _loggedChanceOverrides.Add(kind))
         {
             _log.Info($"Structure kind '{kind}': server.json sets its chance to {chance.ToString(System.Globalization.CultureInfo.InvariantCulture)} — data/structure_types.json says {data.ToString(System.Globalization.CultureInfo.InvariantCulture)}; the server setting wins.");

@@ -78,6 +78,7 @@ namespace BlocksBeyondTheStars.Client
             _confirmLand = false;
             _choosePadBody = null;
             _landDestBody = null; // chooser cancelled — no committed landing destination
+            _descentPadTime = double.NaN;
             HideLandMap();
         }
 
@@ -88,6 +89,7 @@ namespace BlocksBeyondTheStars.Client
             // once since #3152, and again if the flight closes without the early start — and would otherwise read a
             // nulled _choosePadBody → "" → fly back to the home/launch body instead.
             _landDestBody = _choosePadBody;
+            NoteDescentPad(PadX(padIndex)); // #3635: before _choosePadBody is cleared
             Game.Network?.SendLeaveSpace(_choosePadBody, padIndex);
             _confirmLand = false;
             _choosePadBody = null;
@@ -149,6 +151,7 @@ namespace BlocksBeyondTheStars.Client
                 !string.IsNullOrEmpty(_choosePadBody) ? _choosePadBody : Game?.LocationName ?? "home", body?.Kind, typeKey,
                 padIsHere ? (Game?.Circumference ?? 0) : 0);
             int latP = WorldConstants.LatitudePeriodFor(circ);
+            _landMapCirc = circ; // #3635: the picked pad's longitude lights the descent's clouds
 
             var mapGo = new GameObject("PadMap", typeof(RectTransform));
             mapGo.transform.SetParent(panel.transform, false);

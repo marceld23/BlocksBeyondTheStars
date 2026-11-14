@@ -255,13 +255,12 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The deck's colour: the planet's cloud colour, darkened by night and storms, with a touch of the star's
-        /// colour by day (#3125) and more at low sun (sunset glow).</summary>
+        /// colour by day (#3125) and more at low sun (sunset glow) — the rule the cloud sea and the landing cover share
+        /// (<see cref="CoverLook.DeckColour"/>, #3635).</summary>
         private static Color CloudTint(BlocksBeyondTheStars.Networking.Messages.WorldEnvironment env, float day, float darken)
         {
-            Color baseColor = Rgb(env.CloudColor);
-            float bright = (0.35f + 0.65f * day) * darken;
-            Color tint = baseColor * bright;
-            return Color.Lerp(tint, tint * Rgb(env.SunColor), 0.1f + 0.25f * (1f - day));
+            MistRgb lit = CoverLook.DeckColour(env.CloudColor, -1, 0f, env.SunColor, day, darken);
+            return new Color(lit.R, lit.G, lit.B, 1f);
         }
 
         /// <summary>Positions, sizes and colours cloud <paramref name="i"/> for this frame — or hides it when the cover does
@@ -463,8 +462,5 @@ namespace BlocksBeyondTheStars.Client
                 return ((h ^ (h >> 16)) & 0xFFFF) / 65535f;
             }
         }
-
-        private static Color Rgb(int rgb)
-            => new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
     }
 }

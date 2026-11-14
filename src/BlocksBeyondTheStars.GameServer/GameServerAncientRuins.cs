@@ -192,7 +192,7 @@ public sealed partial class GameServer
         }
 
         return (!string.IsNullOrEmpty(planet.CityWorld),
-            AncientRuinRolls(_meta.Seed, locationId, _meta.Description.Vaults.StructureFactor(), StructureType(StructureTypeRules.Underground).Chance));
+            AncientRuinRolls(_meta.Seed, locationId, _meta.Description.Vaults.StructureFactor(), StructureType(StructureTypeRules.Underground).ChanceFor(_generator.TerrainGeneration)));
     }
 
     private bool AncientRuinsAllowed(PlanetType planet, bool restricted)

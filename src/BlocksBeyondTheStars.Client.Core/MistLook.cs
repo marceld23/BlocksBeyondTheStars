@@ -265,11 +265,13 @@ namespace BlocksBeyondTheStars.Client
             return lit.AtLeast(NightFloor);
         }
 
-        /// <summary>The colour a weather gives the haze (#3270) — what <c>WeatherFx3D</c> used to give Unity's fog: soft grey
-        /// murk in fog (the valley mist only in ground fog, so a hilltop still looks out over it), the ground's grit in a
-        /// gale or a sandstorm (<paramref name="grit"/>), a charged blue in an ion storm, and in a storm the colour of what
-        /// falls (smoky ash, acrid green acid, a white-out in snow, grey-blue rain). Scaled by the 0..1 intensity.</summary>
-        public static HazeTint WeatherTint(string? weather, string? precipitation, float intensity, MistRgb grit)
+        /// <summary>The colour a weather gives the haze (#3270) — what <c>WeatherFx3D</c> used to give Unity's fog: murk in
+        /// fog in the world's own mist colour (<paramref name="mistColor"/>, 0xRRGGBB — a pink-mist world gets a pink fog,
+        /// #3634; soft grey for −1, a world without a mist colour of its own; the valley mist only in ground fog, so a hilltop
+        /// still looks out over it), the ground's grit in a gale or a sandstorm (<paramref name="grit"/>), a charged blue in an
+        /// ion storm, and in a storm the colour of what falls (smoky ash, acrid green acid, a white-out in snow, grey-blue
+        /// rain). Scaled by the 0..1 intensity.</summary>
+        public static HazeTint WeatherTint(string? weather, string? precipitation, float intensity, MistRgb grit, int mistColor = -1)
         {
             float s = Clamp01(intensity);
             string precip = precipitation ?? string.Empty;
@@ -281,9 +283,9 @@ namespace BlocksBeyondTheStars.Client
             switch (weather ?? string.Empty)
             {
                 case "fog":
-                    return new HazeTint(FogGrey, 0.6f * s, 0.8f * s);
+                    return new HazeTint(FogColour(mistColor), 0.6f * s, 0.8f * s);
                 case "ground_fog":
-                    return new HazeTint(FogGrey, 0f, 0.6f * s);
+                    return new HazeTint(FogColour(mistColor), 0f, 0.6f * s);
                 case "ion_storm":
                     return new HazeTint(IonBlue, 0.45f * s, 0.5f * s);
                 case "storm":
@@ -295,6 +297,9 @@ namespace BlocksBeyondTheStars.Client
                     return HazeTint.None;
             }
         }
+
+        /// <summary>The colour fog weather pulls toward (#3634): the world's own mist colour, else the neutral fog grey.</summary>
+        public static MistRgb FogColour(int mistColor) => mistColor < 0 ? FogGrey : MistRgb.FromPacked(mistColor);
 
         private static MistRgb StormColor(string precip)
         {

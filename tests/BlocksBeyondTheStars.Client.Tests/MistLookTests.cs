@@ -317,6 +317,37 @@ public sealed class MistLookTests
         Assert.Equal(0f, MistLook.WeatherTint("fog", "none", 0f, grit).SkyWeight); // no episode yet: no tint
     }
 
+    /// <summary>#3634: fog weather takes the world's own mist colour — a pink-mist world gets a pink fog, by day and at night
+    /// (the brightness stays the sky's) — and the neutral grey only on a world without a mist colour of its own.</summary>
+    [Fact]
+    public void FogWeather_TakesTheWorldsMistColour_GreyOnlyWithoutOne()
+    {
+        var grit = new MistRgb(0.74f, 0.62f, 0.40f);
+        const int Pink = 0xF2C4D8;
+        foreach (string weather in new[] { "fog", "ground_fog" })
+        {
+            HazeTint pink = MistLook.WeatherTint(weather, "none", 1f, grit, Pink);
+            Assert.True(pink.Color.R > pink.Color.G + 0.1f && pink.Color.R > pink.Color.B, $"{weather}: pink fog");
+            Assert.Equal(MistLook.WeatherTint(weather, "none", 1f, grit).MistWeight, pink.MistWeight); // the weights stay
+            Assert.Equal(MistLook.WeatherTint(weather, "none", 1f, grit).SkyWeight, pink.SkyWeight);
+
+            HazeTint none = MistLook.WeatherTint(weather, "none", 1f, grit, -1);
+            Assert.Equal(new MistRgb(0.80f, 0.83f, 0.86f).R, none.Color.R, 4); // no mist colour: the neutral fog grey
+            Assert.Equal(new MistRgb(0.80f, 0.83f, 0.86f).B, none.Color.B, 4);
+        }
+
+        foreach (var sky in new[] { NoonSky, NightSky })
+        {
+            MistRgb tinted = MistLook.ApplyTint(sky, MistLook.FogColour(Pink), 0.8f);
+            Assert.Equal(sky.Luma, tinted.Luma, 3); // a pink fog at night stays as dark as the night
+            Assert.True(tinted.R > sky.R, "it leans pink");
+        }
+
+        // The other weathers never read the mist colour.
+        Assert.Equal(grit.R, MistLook.WeatherTint("gale", "dust", 1f, grit, Pink).Color.R);
+        Assert.Equal(MistLook.WeatherTint("ion_storm", "none", 1f, grit).Color.B, MistLook.WeatherTint("ion_storm", "none", 1f, grit, Pink).Color.B);
+    }
+
     [Fact]
     public void ATint_KeepsTheBrightness_SoTheNightNeverGlows()
     {

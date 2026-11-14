@@ -93,7 +93,10 @@ never move a monument's relic cache or a G.D.S. crate that is re-derived from th
 ## 4. Placement
 
 - **Rules as data** (#3517): `data/structure_types.json` (`StructureTypeRules`) — per kind `enabled`, `minGeneration`,
-  `chance`, `density`, count `thresholds` / `thresholdCaps` / `minCount` / `cap`, `seatPolicy`, `keepClear`,
+  `chance`, `chanceFrom` (#3631: generation → chance — a world reads the entry of the highest generation at or below its
+  own, `chance` below every entry, `StructureTypeDefinition.ChanceFor`; a key before the kind's own C# generation, a key
+  that is no whole number or a chance outside 0..1 drops the entry; the intercity line has `{ "42": 0.8 }`), `density`,
+  count `thresholds` / `thresholdCaps` / `minCount` / `cap`, `seatPolicy`, `keepClear`,
   `keepClearFrom`, `conditions` (`atmosphere`, `breathable`, `notGas`, `notVoid`, `notAsteroid`, `notRuinedOnly`,
   `notCityWorld`, `namedByType`) and the structure-whitelist key. The shipped values equal the old constants
   (`StructureTypeRulesTests`); a broken entry is reported and its kind keeps the defaults; `minGeneration` can be raised,

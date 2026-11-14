@@ -321,6 +321,9 @@ namespace BlocksBeyondTheStars.Client
             var trains = root.AddComponent<TrainView>();
             trains.Game = boot;
             trains.Rails = rails;
+            var boards = root.AddComponent<StationBoardView>(); // #3633: the intercity stations' departure boards
+            boards.Game = boot;
+            boards.Rails = rails;
 
             // #3139–#3142: the seamless transitions — the cover (clouds, glare, hangar doors) that replaces the loading veil
             // for landings and dockings, and the director that flies the touchdown and the lift-off on the surface.

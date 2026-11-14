@@ -37,6 +37,17 @@ touchdown snap and a settled player — however long the server takes to build t
 the server put it), flies a stand-in down from ~40 blocks, opens the cover on that shot, plays the touchdown (dust,
 thump, `ship_touchdown`, steam) and glides the camera into the player's eyes.
 
+**The cover's light (#3635).** The clouds and the sky wash are lit like the planet's own clouds, not drawn in the daytime
+base colour: `CoverLook` (Client.Core) shares one rule with the dome clouds (`Clouds.CloudTint`) and the cloud sea
+(`CloudSea`) — `DeckColour`: the cloud colour with a quarter of the world's mist colour (`MistProfiles`, computable for
+any body), 35 % bright at midnight up to full at noon, darkened by the weather's cloud deck (`CloudDeck.Target`), a
+touch of the star's colour, more at low sun — and `SkyColour`: the sky easing into the night's blue-grey. Landing
+(`SpaceView.LightDescentClouds`): the hour at the picked pad (the pad list's arrival time `LandingPadsTimeOfDay` plus the
+pad's longitude, noted in `LandOnPad` / `LandOnBasePad`), else the body's clock (`SystemWeatherState`), else noon; the
+body's weather state; the flight's star. The descent's sky fade takes the lit sky too; the plasma keeps the unlit air
+colour (heat glows whatever the hour). Departure (`TransitionDirector.DepartureColours`): the current local hour and
+weather. `CoverLookTests` hold the rule and that the cover over the joined world equals its cloud sea's colour.
+
 **Early start (#3152).** Since #3139 the server builds the destination world before it closes the flight, so waiting for
 `!Game.InSpace` left the ship hanging for that build. A pad picked in the chooser (`LandOnPad`, `LandOnBasePad`) starts
 the descent at once (`BeginEarlyDescent`): `_descentAwaitingServer` clamps the sequence at its end behind the shut cover

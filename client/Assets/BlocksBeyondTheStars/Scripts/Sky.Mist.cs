@@ -446,14 +446,14 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>#3270: a fog, dust, ion-storm or storm episode tints the sky — and with it the distance haze, the camera
-        /// background and Unity's legacy fog — toward its colour (<see cref="MistLook.WeatherTint"/>), keeping the sky's
-        /// brightness so the night never glows; the weights ease over ~2 s. Before, these colours went to Unity's fog only
-        /// (<c>WeatherFx3D</c>), which none of the project's shaders read.</summary>
+        /// background and Unity's legacy fog — toward its colour (<see cref="MistLook.WeatherTint"/>; fog in the world's own
+        /// mist colour, #3634), keeping the sky's brightness so the night never glows; the weights ease over ~2 s. Before,
+        /// these colours went to Unity's fog only (<c>WeatherFx3D</c>), which none of the project's shaders read.</summary>
         private Color WeatherHazeSky(Color sky, float weatherIntensity)
         {
             var env = Game?.Environment;
             HazeTint target = env != null
-                ? MistLook.WeatherTint(env.Weather, env.Precipitation, weatherIntensity, ToRgb(WeatherFx3D.GritWash))
+                ? MistLook.WeatherTint(env.Weather, env.Precipitation, weatherIntensity, ToRgb(WeatherFx3D.GritWash), env.MistColor)
                 : HazeTint.None;
             bool snap = Game != null && Game.CaptureEnvActive;
             float step = Time.deltaTime * 0.5f;

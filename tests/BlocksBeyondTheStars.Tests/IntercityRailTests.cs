@@ -38,7 +38,14 @@ public sealed class IntercityRailTests : IDisposable
     private const string Planet = "meadowlands";
     private const long KnownSeed = 5;
 
-    private SvGameServer Start(string save, long seed, out SqliteWorldRepository repo, string planet = Planet, Action<ServerConfig>? configure = null)
+    /// <summary>#3629–#3632: a river world whose two closest eligible towns stand 1908 blocks apart and whose line rolls
+    /// 0.722 — between the old chance (0.6) and the new one (0.8) — with about 19 000 tree cells in its corridor (probed on
+    /// generation 41 with no route cap and no tree budget, 2026-11-14).</summary>
+    private const string LongPlanet = "river_lowlands";
+    private const long LongSeed = 6;
+
+    private SvGameServer Start(string save, long seed, out SqliteWorldRepository repo, string planet = Planet, Action<ServerConfig>? configure = null,
+        CapturingLogger? log = null)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, save));
         var config = new ServerConfig
@@ -52,7 +59,7 @@ public sealed class IntercityRailTests : IDisposable
         };
         config.World.TerrainGeneration = WorldDescription.GeographyGeneration; // #3602: the classic towns (box stations)
         configure?.Invoke(config);
-        var server = new SvGameServer(config, _content, new LoopbackServerTransport(new LoopbackLink()), repo);
+        var server = new SvGameServer(config, _content, new LoopbackServerTransport(new LoopbackLink()), repo, log);
         server.Start();
         return server;
     }
@@ -438,6 +445,87 @@ public sealed class IntercityRailTests : IDisposable
             int below = Enumerable.Range(1, 4000).Count(s => SvGameServer.IntercityRollForTest(s, body) < 0.6);
             Assert.InRange(below / 4000.0, 0.56, 0.64);
             Assert.Equal(SvGameServer.IntercityRollForTest(7, body), SvGameServer.IntercityRollForTest(7, body));
+        }
+    }
+
+    /// <summary>
+    /// Terrain generation 42 (#3629–#3632): the route may run 2000 blocks (960 before), the line rolls at 0.8 (0.6 before —
+    /// this world's roll lies between, so the shipped chance alone builds it), the corridor's tree budget grows with the route
+    /// so the forest along it goes whole, and the public train of a line this long runs the fastest setting — and still halts
+    /// at the other station for the public halt.
+    /// </summary>
+    [Fact]
+    public void OnGeneration42_ALongLine_IsBuilt_ClearsItsTreesWhole_AndItsTrainRunsTheFastestSetting()
+    {
+        Assert.Equal(960, SvGameServer.IntercityMaxRouteFor(WorldDescription.GrownSettlementsGeneration));
+        Assert.Equal(2000, SvGameServer.IntercityMaxRouteFor(WorldDescription.LongIntercityGeneration));
+
+        var log = new CapturingLogger();
+        var server = Start("long", LongSeed, out var repo, LongPlanet, c =>
+        {
+            c.World.TerrainGeneration = WorldDescription.LongIntercityGeneration;
+            c.IntercityRailChance = null; // the shipped chance: 0.8 on this generation
+        }, log);
+        using (repo)
+        {
+            double roll = SvGameServer.IntercityRollForTest(LongSeed, server.ActiveLocationId);
+            Assert.InRange(roll, 0.6, 0.8); // at 0.6 this world would have no line
+
+            var ic = server.IntercityRailForTest();
+            Assert.NotNull(ic);
+            var line = Assert.Single(server.RailLinesForTest());
+            Assert.Equal(2, line.Stops);
+            Assert.True(line.TotalArc >= RailRules.PublicTrainLongLineArc, $"a long line ({line.TotalArc:F0} blocks of arc)");
+
+            // The stamp's own account: a route over the old cap, every tree of the corridor cleared within the new budget —
+            // more than the old budget held, which cut the last trees cell by cell.
+            string stamp = Assert.Single(log.Infos, l => l.StartsWith("Intercity line on ", StringComparison.Ordinal));
+            var m = System.Text.RegularExpressions.Regex.Match(stamp, @"route (?<route>\d+) blocks, \d+ corridor cells \+ (?<trees>\d+) tree cells",
+                System.Text.RegularExpressions.RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1));
+            Assert.True(m.Success, stamp);
+            int route = int.Parse(m.Groups["route"].Value, System.Globalization.CultureInfo.InvariantCulture);
+            int trees = int.Parse(m.Groups["trees"].Value, System.Globalization.CultureInfo.InvariantCulture);
+            Assert.InRange(route, 961, 2000);
+            Assert.True(trees > 12000, $"a forest line ({trees} tree cells)");
+            Assert.True(trees < SvGameServer.IntercityVegetationCapFor(WorldDescription.LongIntercityGeneration, route), "the budget held every tree");
+
+            // Every span passes the player's own clearance rule; both stations are on the map.
+            var pylons = ic!.Value.Pylons;
+            for (int j = 1; j < pylons.Count; j++)
+            {
+                Assert.True(server.RailLinkClearForTest(pylons[j - 1], pylons[j]), $"the corridor between pylons {j - 1} and {j} is clear");
+            }
+
+            var p = server.AddLocalPlayer("Mapper");
+            Assert.Equal(2, server.PlanetPoisForTest(p.State.PlayerId).Count(x => x.Type == "rail_station"));
+
+            // The public train runs the fastest setting and halts at the other station for the public halt.
+            var train = Assert.Single(server.TrainsForTest());
+            Assert.Equal(RailRules.PublicTrainLongLineSpeed, train.Speed);
+            var first = server.TrainHaltForTest(train.Id).Stop;
+            bool halted = true;
+            double now = 0, arrived = -1, departed = -1;
+            for (int step = 0; step < 4000 && departed < 0; step++)
+            {
+                server.TickForTest(0.1);
+                now += 0.1;
+                var h = server.TrainHaltForTest(train.Id);
+                if (h.Halted && !halted && arrived < 0)
+                {
+                    Assert.NotEqual(first, h.Stop); // the other station
+                    Assert.Contains(h.Stop!.Value, ic.Value.Stations.Select(s => s.Stop));
+                    arrived = now;
+                }
+                else if (!h.Halted && halted && arrived >= 0)
+                {
+                    departed = now;
+                }
+
+                halted = h.Halted;
+            }
+
+            Assert.True(arrived > 0, "the train reached the other station");
+            Assert.InRange(departed - arrived, RailRules.PublicStopHaltSeconds - 0.3, RailRules.PublicStopHaltSeconds + 0.3);
         }
     }
 

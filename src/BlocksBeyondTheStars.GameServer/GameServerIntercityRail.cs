@@ -18,10 +18,10 @@ namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
 /// The intercity monorail (#2125, Justus' idea; Marcel's rules 2026-09-28: no tickets, no ID cards, no vending machines).
-/// If a world (terrain generation 19+) has at least two inhabited towns or cities, then with a chance of 60 % one train line
-/// connects the closest pair of them whose route fits, and it works: a station at each town's edge on the side facing the
-/// other, pylons along the route, a corridor cleared for the wagons, and a <b>public</b> train that shuttles between the
-/// two stations and waits at each one long enough to board.
+/// If a world (terrain generation 19+) has two inhabited towns or more, then with a chance of 60 % (80 % from generation 42 —
+/// what changed with it: <see cref="IntercityMaxRouteFor"/>) one line joins the closest pair whose route fits, and it works:
+/// a station at each town's edge facing the other, pylons along the route, a corridor cleared for the wagons, and a
+/// <b>public</b> train that shuttles between the two stations and waits at each one long enough to board.
 /// <list type="bullet">
 /// <item><b>The plan.</b> Decided once, right after the settlements (<c>StampIntercityRail</c> in the stamp chain, before the
 /// ruins, camps, factories and every other structure — they all keep clear of the stations and the route), on a lane of its
@@ -52,8 +52,8 @@ public sealed partial class GameServer
     private const string IntercityStationKind = "rail_station";
     private const string IntercityFeature = "intercityrail";
 
-    /// <summary>The longest free route (horizontal blocks between the two stations' leads). At the public train's 8 blocks/s
-    /// that is a ride of two minutes at most; it also bounds the chunks the stamp reads.</summary>
+    /// <summary>The longest free route (horizontal blocks between the two stations' leads) before terrain generation 42; from
+    /// it on <see cref="IntercityMaxRouteFor"/> allows 2000 (#3629). It also bounds the chunks the stamp reads.</summary>
     private const int IntercityMaxRoute = 960;
 
     /// <summary>The shortest free route: two towns closer than this share no line (their stations would crowd each other).</summary>
@@ -81,7 +81,7 @@ public sealed partial class GameServer
     /// <summary>Pairs tried, closest first.</summary>
     private const int IntercityPairTries = 6;
 
-    /// <summary>The most tree cells one stamp clears out of the corridor (bounded boot time on a jungle world).</summary>
+    /// <summary>The corridor's tree budget before generation 42 (then <see cref="IntercityVegetationCapFor"/>, #3630).</summary>
     private const int IntercityVegetationCap = 12000;
 
     /// <summary>One station of the line, in world space.</summary>
@@ -392,7 +392,7 @@ public sealed partial class GameServer
         double rdx = leadB.X - leadA.X, rdz = leadB.Z - leadA.Z;
         double route = Math.Sqrt(rdx * rdx + rdz * rdz);
         plan.RouteLength = (float)route;
-        if (route > IntercityMaxRoute)
+        if (route > IntercityMaxRouteFor(_generator.TerrainGeneration))
         {
             why = $"the route is {route:F0} blocks long";
             return false;
@@ -830,7 +830,7 @@ public sealed partial class GameServer
             }
         }
 
-        int carved = 0, trees = 0;
+        int carved = 0, trees = 0, treeCap = IntercityVegetationCapFor(_generator.TerrainGeneration, plan.RouteLength);
         var veg = SettlementVegetationIds;
         var seen = new HashSet<Vector3i>();
         for (int j = 0; j < plan.Pylons.Count - 1; j++)
@@ -856,9 +856,9 @@ public sealed partial class GameServer
                     continue; // fluids stay (the line runs over them); the towns' blocks are never touched
                 }
 
-                if (veg.Contains(id.Value) && trees < IntercityVegetationCap)
+                if (veg.Contains(id.Value) && trees < treeCap)
                 {
-                    trees += ClearTreeAt(c, veg, IntercityVegetationCap - trees);
+                    trees += ClearTreeAt(c, veg, treeCap - trees);
                     continue;
                 }
 
@@ -1125,7 +1125,7 @@ public sealed partial class GameServer
             Id = "train-" + _world.LocationId + "-" + rails.NextTrainId++,
             OwnerId = RailRules.PublicOwnerId,
             LineId = line.Id,
-            Speed = RailRules.PublicTrainSpeed,
+            Speed = RailRules.PublicTrainSpeedFor(line.Spline.TotalArc), // #3632: a long line runs the fastest setting
             Direction = -1,
             Facing = -1, // #2741: the cab points down the line, its passenger wagon behind it toward the hall's exit
             Autopilot = true,

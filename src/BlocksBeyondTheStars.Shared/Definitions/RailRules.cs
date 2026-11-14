@@ -86,6 +86,19 @@ public static class RailRules
     /// blocks/s (#3444 — it runs the same speed profile as every train).</summary>
     public const int PublicTrainSpeed = 2;
 
+    /// <summary>The fastest setting (3, top speed 24 blocks/s), which the public train of a long line runs at (#3632).</summary>
+    public const int PublicTrainLongLineSpeed = 3;
+
+    /// <summary>From this many blocks of line the public train runs at <see cref="PublicTrainLongLineSpeed"/> (#3632). Every
+    /// line built before terrain generation 42 is shorter (route cap 960 plus the station leads ≈ 1010), so no released world
+    /// changes; the longer lines generation 42 allows (up to ~2000 blocks) ride in about 90 s instead of 125 s.</summary>
+    public const float PublicTrainLongLineArc = 1200f;
+
+    /// <summary>The public train's speed setting for a line of this arc length (#3632): the fastest on a long line, else
+    /// <see cref="PublicTrainSpeed"/>. Read once, when the train is created — a running train keeps its persisted setting.</summary>
+    public static int PublicTrainSpeedFor(float lineArc)
+        => lineArc >= PublicTrainLongLineArc ? PublicTrainLongLineSpeed : PublicTrainSpeed;
+
     /// <summary>The public train's wagons from the cab backwards (#2125): the cab and one passenger wagon with six seats.</summary>
     public static readonly string[] PublicTrainWagons = { CabItemKey, "wagon_seats" };
 
