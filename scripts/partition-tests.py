@@ -65,9 +65,9 @@ fast-tier CPU-seconds a PERFECTLY balanced gate still takes ~6 min over 4 runner
 (#1254 moved the matrix to 6). Below that the levers are cheaper tests, not packing.
 
 Usage:
-  partition-tests.py filter --shard 2 --shards 10 --tier fast   # shard 2's --filter expression
-  partition-tests.py verify --shards 10 --tier full --list-file listed.txt [--weight-drift-guard]
-  partition-tests.py show --shards 10 --tier full               # human-readable assignment + weights
+  partition-tests.py filter --shard 2 --shards 12 --tier fast   # shard 2's --filter expression
+  partition-tests.py verify --shards 12 --tier full --list-file listed.txt [--weight-drift-guard]
+  partition-tests.py show --shards 12 --tier full               # human-readable assignment + weights
   partition-tests.py weights --trx a.trx b.trx --slow-list slow.txt [--write]
 """
 
@@ -95,12 +95,14 @@ DEFAULT_WEIGHT = 10.0
 # ran 54 / 455 even though both were predicted at ~850 s.
 CLASS_FLOOR = 0.5
 
-# Shard 1 also restores, builds and runs the small Client.Tests suite plus the partition-
-# completeness check (see tests.yml), which shards 2..N skip entirely. Pre-loading its bin with
-# that fixed cost makes the packer hand it correspondingly less server work; otherwise shard 1
-# systematically finishes minutes before the tail shard. Expressed in the same unit as the
-# weights (summed per-test seconds ≈ 3.8× wall clock at maxParallelThreads 4): ~16 s wall.
-SHARD1_FIXED_COST = 60.0
+# Shard 1 also restores, builds and runs the Client.Tests suite plus the partition-completeness
+# check (see tests.yml), which shards 2..N skip entirely. Pre-loading its bin with that fixed cost
+# makes the packer hand it correspondingly less server work. Expressed in the same unit as the
+# weights (summed per-test seconds ≈ 3.7× wall clock at maxParallelThreads 4). Measured 2026-11-14
+# (PR #3637): Client.Tests 3 682 tests in 1.9 min wall plus ~0.7 min more build and the verify step
+# ≈ 160 s wall → 600. It was 60 (~16 s, the suite's size in October) — shard 1 then ran 17.5 min
+# while the lightest shard took 9: re-measure it whenever the weights are refreshed (clientcore.trx).
+SHARD1_FIXED_COST = 600.0
 
 # Share of the predicted load that may come from classes the weight files have never seen before
 # `verify --weight-drift-guard` fails. Weights go stale silently: a feature batch adds test classes,

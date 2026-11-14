@@ -10,7 +10,7 @@ keep it current when controls/features change. Last consolidated 2026-06-04.
 **Test:** `./scripts/run-tests.sh` — currently **2567 server (non-Slow tier) + 448 client passing** (2026-08-29). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
-The server suite is sharded across a 10-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~7–8 min (six shards sat at 10–12 min once the fast tier reached ~14 100 test-seconds; widened 2026-10-09). The weights decay as test classes are added, so
+The server suite is sharded across a 12-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~10–11 min (ten shards on stale weights ran 9–17.5 min once the fast tier reached ~21 300 test-seconds; widened and re-packed 2026-11-14). The weights decay as test classes are added, so
 shard 1's verify step fails a PR once >5 % of the predicted load is guesswork (`--weight-drift-guard`) — that is the cue to refresh them (see docs/developer/DEVELOPER.md).
 A PR touching nothing but `data/locales/*.json` runs a single narrow `locale-tests` job instead of the matrix (`scripts/locale-test-filter.py`, ~140 tests).
 **Conventions:** English docs/comments; in-game text localized via locale keys — EN+DE mandatory-complete,
@@ -24,7 +24,15 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🚆 Rail & sky (terrain generation 42) — epic #3636 (#3629–#3635), ✅ 2026-11-14, PR pending (⚠ playtest open)
+### ⚙️ CI: test matrix 10 → 12 shards, weights refreshed (2026-11-14) — ✅ PR pending
+
+PR runs had crept to 9–17.5 min per shard: the fast tier grew to ~21 300 test-seconds (terrain generations 40–42 made every
+world boot dearer) while the weights of 2026-11-10 still said 15 300, so the packing was off by 1.6× between shards, and
+shard 1 carried the Client.Tests suite (3 682 tests, ~2 min) on top of a full share because the packer still credited it
+16 s. Refreshed `scripts/test-shard-weights*.json` (Slow seconds from the full-tier main run, fast seconds from PR #3637's
+run), `SHARD1_FIXED_COST` 60 → 600, `tests.yml` matrix 10 → 12. Details: DEVELOPER.md (CI).
+
+### 🚆 Rail & sky (terrain generation 42) — epic #3636 (#3629–#3635), ✅ 2026-11-14, PR #3637 `0a2f9111` (⚠ playtest open)
 
 The procedural intercity line worked on every world that got one, but only about one in eight worlds with two towns got
 one — the 960-block route cap. Marcel's decisions 2026-11-14 (no generation of its own: it rides on main's unreleased 42),
