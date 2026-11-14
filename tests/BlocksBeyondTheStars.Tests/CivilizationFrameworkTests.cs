@@ -81,6 +81,30 @@ public sealed class CivilizationFrameworkTests
     }
 
     [Fact]
+    public void EveryShippedCivilizationTemplate_Loads_WithoutAWarning_AndEveryPoolAndPropPoolIsFilled()
+    {
+        var warnings = new List<string>();
+        var content = ContentLoader.LoadFromDirectory(TestPaths.DataDir(), warn: warnings.Add);
+        Assert.DoesNotContain(warnings, w => w.Contains("ivilization", System.StringComparison.Ordinal));
+        foreach (var civ in content.Civilizations.Where(c => c.IsFramework))
+        {
+            foreach (var site in civ.Sites)
+            {
+                Assert.NotEmpty(content.CivilizationTemplatesFor(civ.Key, site.Pool));
+            }
+        }
+
+        Assert.Equal(10, content.CivilizationTemplates.Count(t => t.Civilization == "grosstechniker"));
+        Assert.Equal(10, content.CivilizationTemplates.Count(t => t.Civilization == "labyrinth_builders"));
+        Assert.Equal(4, content.CivilizationPropsFor("grosstechniker", "remains").Count);
+        Assert.Equal(5, content.CivilizationPropsFor("labyrinth_builders", "statue").Count);
+        Assert.Equal(2, content.CivilizationPropsFor("labyrinth_builders", "statue_large").Count);
+        var dwelling = content.CivilizationTemplateByKey("gt_giant_dwelling")!;
+        Assert.Equal(LandmarkRules.SeatSeabed, dwelling.Seat);
+        Assert.Contains(dwelling.Palette, p => p.Kind == CivilizationRules.AirKind);
+    }
+
+    [Fact]
     public void ABrokenCivilization_IsDropped_NeverTheLoad()
     {
         var warnings = new List<string>();
