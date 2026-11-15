@@ -103,15 +103,4 @@ public sealed partial class GameServer
         BroadcastLandmarks(); // the silhouette and the emitters, for everyone already here
         return _giantWrecks[^1];
     }
-
-    /// <summary>The <c>/tp giantwreck [n]</c> targets: on the ground right in front of each wreck's footprint.</summary>
-    private void AppendGiantWreckTargets(List<TeleportTarget> list)
-    {
-        for (int i = 0; i < _giantWrecks.Count; i++)
-        {
-            var (cx, _, _, _) = _giantWrecks[i].Rect;
-            list.Add(new TeleportTarget("giantwreck", i + 1, FormattableString.Invariant($"giantwreck{i + 1}"),
-                SurfaceSpot(WorldConstants.WrapX(cx, _world.Circumference), _giantWrecks[i].Origin.Z - 3)));
-        }
-    }
 }

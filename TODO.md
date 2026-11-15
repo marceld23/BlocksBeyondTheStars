@@ -24,6 +24,17 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧭 Admin teleport targets: civilization sites + giant wrecks in space — #3654, #3655, ✅ 2026-11-15 (PR pending)
+
+- ✅ **`/tp civ [n]`** (#3654): every lost-civilization site of the current body, named like its map entry; the spot stands
+  in front of the footprint, on the **seabed** beside a sunken site (a liquid counts as passable). Aliases `civilization`,
+  `zivilisation`, `volk`, `grosstechniker`, `labyrinth`, `maze` …
+- ✅ **`/tp giantwreck [n]`** (#3655): the planet wrecks now carry their ship's name; after them the giant wrecks **in space**
+  of the current system ("in space" instead of a distance) — the teleport **boards** one (the travel menu's station path),
+  from a planet and from flight; in flight `/tp` offers only those.
+- ✅ Help lines + `srv.tp.no_surface_targets` reworded, new `srv.tp.in_space` — all 14 languages; USER_MANUAL, GIANT_SHIPS.md,
+  CIVILIZATIONS.md. Tests: `AdminTeleportSitesTests`.
+
 ### 🏛️ Lost civilizations (terrain generation 43) — epic #3649 (#3638–#3648), ✅ 2026-11-15, PR #3651 (`a6176b7f`), released in v2026.11.18 (⚠ playtest open)
 
 Peoples whose ruins exist only where they lived — one body, bodies of one kind, the bodies of one system — defined as data

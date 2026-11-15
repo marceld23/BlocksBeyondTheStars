@@ -2916,7 +2916,8 @@ with a game version that has generation 35 get them — an older world never cha
 - How often they turn up is a world option: **Giant ship wrecks** (off · very rare · rare · normal (default) · frequent,
   right below *Derelict stations*). It counts for space and for the planets; **off** removes them all, the start system's
   one included.
-- An admin can lay one down with `/giantwreck <key>` and travel to one with `/tp giantwreck` (see the admin commands).
+- An admin can lay one down with `/giantwreck <key>` and travel to one with `/tp giantwreck` — also to the ones in space
+  of the system, straight aboard (see the admin commands).
 
 ### Lost civilizations (worlds created since generation 43)
 Long before you, other peoples lived in this galaxy. They are gone — nobody is home any more — but their buildings are
@@ -2955,6 +2956,8 @@ worlds created with a game version that has generation 43 have them; an older wo
 - **VEGA** speaks up when you find a ruin and at a few special spots inside — each only once.
 - **Rumours:** settlers on other worlds sometimes tell you about these places — a sea world with a red light in the
   deep, walls so high you get lost between them. Each rumour you hear only once, and never on the world itself.
+- **Admins** standing on such a world get there with `/tp civ` (`/tp` on its own lists them with their names) — beside a
+  sunken city that is the sea floor, so mind your air.
 - **Building with their blocks:** the ruins are not protected — mine what you like, and what you take stays gone. Their
   blocks are **found only** (you need a drill): **Glyph Stone**, **Glyph Band** (set several side by side and the band
   runs on), **Technician Eye**, the eight **Mural Tiles** (put them together: tiles 1–4 in the top row from left to right,
@@ -5335,7 +5338,8 @@ and easy to mistype. The numbering is stable for a world: `village2` is the same
 | `vault` | A buried vault's surface pillar ring |
 | `ancient` | A buried ancient ruin ("Alte Städte") — beside the top of its shaft: the hatch in a G.D.S. city street, or the vent tower in the open land (`ancients`, `altstadt` also work) |
 | `landmark` | A landmark (a giant building) — on the ground right in front of it (`landmarks`, `bauwerk`, `wahrzeichen` also work) |
-| `giantwreck` | A giant ship wreck on this planet — on the ground right in front of it (`giantwrecks`, `giant_wreck`, `giantship`, `riesenschiff`, `riesenwrack` also work) |
+| `civ` | A ruin of a lost civilization — on the ground right in front of it; beside a sunken city of the Grand Technicians that is the **sea floor**, so you arrive under water (`civilization`, `zivilisation`, `volk`, `grosstechniker`, `labyrinth`, `maze` also work) |
+| `giantwreck` | A giant ship wreck: first the ones on this planet (on the ground right in front of it, listed with the ship's name), then the ones **in space** of this star system — those you go straight **aboard**, as if you had flown there; the list says *in space* instead of a distance (`giantwrecks`, `giant_wreck`, `giantship`, `riesenschiff`, `riesenwrack` also work) |
 | `wreck` | The crashed ship — even before an NPC has pointed you at it |
 | `factory` | A factory's production terminal |
 | `camp` | A bandit camp (`bandit` also works) |
@@ -5347,7 +5351,8 @@ and easy to mistype. The numbering is stable for a world: `village2` is the same
 
 Write the number straight after the word or separated by a space — `/tp village2` and `/tp village 2` are
 the same thing, and leaving it off means the first one. **`/tp` on its own lists everything on this body**
-with the exact word to type and how far away it is, so you never have to guess a number.
+with the exact word to type and how far away it is, so you never have to guess a number. While you fly in
+space, `/tp` only knows the giant wrecks of the system (`/tp giantwreck`); for everything else, land first.
 
 Two limits worth knowing: this only ever resolves on the body you are **currently standing on** (the
 cross-body jump is `/goto`, fleet admin only — the one exception is `/ressaw`, which flies you into a buried G.D.S.
