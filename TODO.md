@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🧱 Windows Firewall — no dialog for singleplayer and joining, an in-game permission for hosting — #3707, #3708, ✅ 2026-11-15 (PR pending) (⚠ playtest open)
+### 🧱 Windows Firewall — no dialog for singleplayer and joining, an in-game permission for hosting — #3707, #3708, ✅ 2026-11-15, PR #3709 (`ceda80a2`), released in v2026.11.19 (⚠ playtest open)
 
 Marcel 2026-11-15: "whenever I join a server or host a game, Windows asks about the port — is that really unavoidable?"
 Measured with a probe program on Windows 11 (fresh folders, so no rule existed): a loopback-bound server and client and an
@@ -41,7 +41,7 @@ server on every interface do. His rule list held 470 rules for the game, 252 of 
   Windows does not ask again. Not done: the MSI adding the rule at install; hosting without any rule (join codes through a
   rendezvous server) is undecided. How it works: [docs/developer/WINDOWS_FIREWALL.md](docs/developer/WINDOWS_FIREWALL.md).
 
-### 🤿 Underwater sight — a headlamp cone in the water, clearer seas, readable Grand Technician ruins — #3697–#3702, ✅ 2026-11-15 (PR pending) (⚠ playtest open)
+### 🤿 Underwater sight — a headlamp cone in the water, clearer seas, readable Grand Technician ruins — #3697–#3702, ✅ 2026-11-15, PR #3704 (`85b3917b`), released in v2026.11.19 (⚠ playtest open)
 
 Marcel's playtest 2026-11-15 at the Grand Technicians' giant ruin: "a tank under water, but no stone buildings around it,
 no small robots; and the helmet lamp needs a visible cone under water". Measured in his save: every block of all eight
@@ -61,7 +61,7 @@ taller than three blocks within 15.7 m of the tank.
 - **#3702 `/tp civ`:** a sunken site's target lies in the ruin on its floor (the bowl beside the eye), not on the sandbank.
 - Left out on purpose: a VEGA hint "debris lies around the eye" (optional in the analysis).
 
-### 🤖 Guardian giants, the Sounders' melodies and story scene timing — #3676–#3686, ✅ 2026-11-15, PR pending (⚠ playtest open)
+### 🤖 Guardian giants, the Sounders' melodies and story scene timing — #3676–#3686, ✅ 2026-11-15, PR #3703 (`6aa1797d`), released in v2026.11.19 (⚠ playtest open)
 
 Justus' report round of 2026-11-15 (v2026.11.18): his idea "Wächtergiganten", two Sounder-story reports and his
 note that story scenes play at the wrong place. Every design decision was Marcel's (four question rounds for the giants,
@@ -95,7 +95,7 @@ one each for the VEGA story, the Sounders and the scenes).
 - Open: playtest (a new world for the giants, `/giant guardian`; the Bridge Song; Soaniri scene timing); the generation
   number 44 is also planned by the unmerged UI-layout branch — whoever merges second renumbers.
 
-### 🚆 Playtest 2026-11-15: animals and trains, the wreck's target ring, a Sounder singer statue — #3656–#3660, ✅ 2026-11-15, PR #3675 (⚠ playtest open)
+### 🚆 Playtest 2026-11-15: animals and trains, the wreck's target ring, a Sounder singer statue — #3656–#3660, ✅ 2026-11-15, PR #3675 (`8d93bb83`), released in v2026.11.19 (⚠ playtest open)
 
 Marcel's own playtest on v2026.11.18 (an intercity train on a meadow world, a giant wreck in space) plus his wish for the
 Soaniri statue. Decisions 2026-11-15: wrecks lock as neutral "Wreck" with a capped frame; the statue a Sounder in a robe,
@@ -119,7 +119,7 @@ blue too; all train fixes in one go.
   light-blue pedestal and terrace, same 100 × 141 × 100 box; Codex text in 14 languages. A Soaniri that already stamped
   the old copper statue keeps it (landmarks are written once).
 
-### 🧩 UI layout overhaul: one menu template + a HUD zone plan — epic #3674 (#3662–#3673), ✅ 2026-11-15 (PR pending)
+### 🧩 UI layout overhaul: one menu template + a HUD zone plan — epic #3674 (#3662–#3673), ✅ 2026-11-15, PR #3710 (`f8305d28`), released in v2026.11.19
 
 From a UI/UX critique of 13 screenshots: the look was consistent, the layout grammar was not (Back in five places with the
 power icon, four title styles, collisions, VEGA at eye level, no "Continue"). Reference: [docs/developer/UI_LAYOUT.md](docs/developer/UI_LAYOUT.md).
@@ -176,7 +176,7 @@ power icon, four title styles, collisions, VEGA at eye level, no "Continue"). Re
   browser branch of the Multiplayer screen is gone.
 - ⚠ Playtest open: every screen at 16:9 / 16:10 / 21:9, gamepad walk-through of the new screens, the browser menu.
 
-### ✏️ Editors overhaul: one editor shell, drafts, undo, safe Esc — epic #3696 (#3687–#3695), ✅ 2026-11-15 (PR pending)
+### ✏️ Editors overhaul: one editor shell, drafts, undo, safe Esc — epic #3696 (#3687–#3695), ✅ 2026-11-15, PR #3710 (`f8305d28`), released in v2026.11.19
 
 From an analysis of every editor (kids lost work: Esc closed an editor, no undo in the ship / village editor, ~10
 unconfirmed deletes, ten words for "save", "Back" in eight places). Decided by Marcel (automatic drafts, "Advanced" for
@@ -204,7 +204,7 @@ the developer parts, desktop-only, "Save" + a subline, a header bar, the develop
 - ✅ **`-captureEditors`** (#3687): one PNG per editor (and main view) for before/after pictures.
 - ⚠ Playtest open: every editor with mouse and pad, drafts after a crash, the console's appearance screen.
 
-### 🌍 Menu backdrop, intro film and first impressions — #3705, #3706, ✅ 2026-11-15 (PR pending)
+### 🌍 Menu backdrop, intro film and first impressions — #3705, #3706, ✅ 2026-11-15, PR #3710 (`f8305d28`), released in v2026.11.19
 
 From an analysis of everything a player sees from launch to the menu (a hand-built fake ship in front of a June-2026
 planet; four title styles; a grey Unity splash; no Linux splash). Marcel decided: live scene from the real game parts,
@@ -232,7 +232,7 @@ one fixed motif, the intro film kept at its length, no AI images.
 - ⚠ Playtest open: framing of the motif at 16:9 / 21:9, the browser page, the Linux splash on a real desktop; a
   Latin-only WOFF2 of Rajdhani (≈ 20 KB instead of 375 KB) once the font tool may be used.
 
-### 🐞 Reports 2026-11-15 (Justus + browser crashes) — in the UI-layout PR, ✅ 2026-11-15 (PR pending)
+### 🐞 Reports 2026-11-15 (Justus + browser crashes) — in the UI-layout PR, ✅ 2026-11-15, PR #3710 (`f8305d28`), released in v2026.11.19
 
 - ✅ **Black screen after E at a station on a spacewalk** (Justus, giant wreck Raphae): a stale "hangar doors closing" flag
   from an earlier helm docking blocked the board intent for good (present since v2026.11.10). The docking hand-over is
@@ -254,7 +254,7 @@ one fixed motif, the intro film kept at its length, no AI images.
   the player's own ship, a relic cache keeps one disc. Tests: `StoryItemFullBackpackTests`.
 - ✅ **Guardian giants** (Justus' idea: fallen block-built hunter robots, one wakes as a boss) — #3676, shipped in its own PR #3703 (terrain generation 44; the abandoned beds above moved to 45).
 
-### 🧭 Admin teleport targets: civilization sites + giant wrecks in space — #3654, #3655, ✅ 2026-11-15 (PR pending)
+### 🧭 Admin teleport targets: civilization sites + giant wrecks in space — #3654, #3655, ✅ 2026-11-15, PR #3661 (`a8ba8c3f`), released in v2026.11.19
 
 - ✅ **`/tp civ [n]`** (#3654): every lost-civilization site of the current body, named like its map entry; the spot stands
   in front of the footprint, on the **seabed** beside a sunken site (a liquid counts as passable). Aliases `civilization`,
