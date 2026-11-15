@@ -9,7 +9,7 @@ using UnityEngine;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// The shell's one fixed motif in 3D (#3705): the corvette in front of a "varied" world with clouds
+    /// The shell's one fixed motif in 3D (#3705): the thunderbolt in front of a "varied" world with clouds
     /// (<see cref="ShowcaseMotif"/>), built from the game's real parts — the planet by the flight view's own renderer
     /// (<see cref="OrbitBodyBuilder"/>: the world map the client bakes itself, the data clouds shaded toward the star, the
     /// atmosphere limb), the ship from its shipped layout through the block mesher (<see cref="ShipMeshBuilder"/>) with the
@@ -49,7 +49,7 @@ namespace BlocksBeyondTheStars.Client
         private float _planetYaw;
 
         /// <param name="root">The scene root everything is built under (the caller's camera space).</param>
-        /// <param name="content">The game content (block atlas, planet types, the corvette's layout).</param>
+        /// <param name="content">The game content (block atlas, planet types, the thunderbolt's layout).</param>
         /// <param name="preset">The quality preset: Medium and up draw every detail.</param>
         /// <param name="reducedEffects">The comfort setting: thinner plumes, no bobbing (the caller reads <see cref="Calm"/>).</param>
         public ShowcaseScene(Transform root, GameContent content, QualityPreset preset, bool reducedEffects)
@@ -105,8 +105,8 @@ namespace BlocksBeyondTheStars.Client
             return _planet.Sphere;
         }
 
-        /// <summary>Builds the corvette, scaled so its longest side is <paramref name="length"/> units, painted with
-        /// <paramref name="hull"/>, with its engine plumes and the closed rear hatch. Null when the content, the corvette or the
+        /// <summary>Builds the thunderbolt, scaled so its longest side is <paramref name="length"/> units, painted with
+        /// <paramref name="hull"/>, with its engine plumes and the closed rear hatch. Null when the content, the thunderbolt or the
         /// block atlas is missing — the scene then simply shows no ship.</summary>
         public Transform BuildShip(float length, Color hull)
         {

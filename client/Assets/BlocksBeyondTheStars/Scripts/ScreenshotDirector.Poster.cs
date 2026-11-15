@@ -12,7 +12,7 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// The poster (#3706): launched with <c>-capturePoster</c> (plus <c>-shotOut &lt;dir&gt;</c>), the director waits for the
-    /// main menu, switches the backdrop to its poster framing (the corvette before the "varied" world, centred, full detail on
+    /// main menu, switches the backdrop to its poster framing (the thunderbolt before the "varied" world, centred, full detail on
     /// the High preset — never saved), hides every canvas, photographs the frame and stamps the official logo on it. No AI, no
     /// paint: the poster is the game's own picture of itself. It writes, into <c>&lt;out&gt;/</c>:
     /// <list type="bullet">

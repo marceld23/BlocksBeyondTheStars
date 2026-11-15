@@ -8,8 +8,8 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// The animated backdrop of the shell screens — behind the title splash, the main menu and the loading screen (#3705): the
-    /// one fixed motif, the corvette flying toward a "varied" world with clouds (<see cref="ShowcaseScene"/>, built from the
-    /// game's own parts: the flight view's planet renderer and the corvette's shipped layout), under the real twinkling
+    /// one fixed motif, the thunderbolt flying toward a "varied" world with clouds (<see cref="ShowcaseScene"/>, built from the
+    /// game's own parts: the flight view's planet renderer and the thunderbolt's shipped layout), under the real twinkling
     /// <see cref="Starfield"/> and a <see cref="NebulaField"/> dome, through the cinematic post stack
     /// (<see cref="UrpScenePost"/>). The star stands to the right, a little behind the camera, so the planet turns its day side
     /// to the viewer and the ship's flank catches the light; the motif fills the free middle of the menu (title and buttons on
@@ -81,7 +81,7 @@ namespace BlocksBeyondTheStars.Client
             bool calm = !PosterFraming && settings != null && settings.ReducedEffects;
             _scene = new ShowcaseScene(transform, Shell != null ? Shell.Content : null, preset, calm);
             _scene.BuildPlanet(PlanetPos, PlanetDiameter, SunDir);
-            _scene.BuildShip(ShipLength, default); // the corvette as shipped: one motif for everyone, no player paint
+            _scene.BuildShip(ShipLength, default); // the thunderbolt as shipped: one motif for everyone, no player paint
             PoseShip(0f);
             AddPost(settings, preset);
         }

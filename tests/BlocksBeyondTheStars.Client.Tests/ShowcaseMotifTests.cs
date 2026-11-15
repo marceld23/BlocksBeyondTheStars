@@ -11,7 +11,7 @@ using BlocksBeyondTheStars.WorldGeneration;
 namespace BlocksBeyondTheStars.Client.Tests;
 
 /// <summary>
-/// #3705: the shell's one fixed motif — the corvette from its shipped layout in front of a "varied" world with clouds. The
+/// #3705: the shell's one fixed motif — the thunderbolt from its shipped layout in front of a "varied" world with clouds. The
 /// menu, the intro film and the poster draw it from these numbers; the tests pin that the ship is the real corvette (the
 /// server's cell mapping, the floor guarantee, no doorway blocks) and that the planet is a world with air, clouds, land and
 /// sea — a generator change that turns it into an ocean or a desert shows up here, not first on the poster.
@@ -21,7 +21,7 @@ public sealed class ShowcaseMotifTests
     private static readonly GameContent Content = ContentLoader.LoadFromDirectory(ClientTestPaths.DataDir());
 
     [Fact]
-    public void ShipDesign_IsTheCorvetteLayout_MappedLikeTheServerHull()
+    public void ShipDesign_IsTheShippedLayout_MappedLikeTheServerHull()
     {
         var layout = Content.GetShipLayout(Content.Ships[ShowcaseMotif.ShipType].Layout)!;
         var design = ShowcaseMotif.ShipDesign(Content);

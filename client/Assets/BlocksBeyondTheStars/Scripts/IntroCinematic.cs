@@ -8,10 +8,10 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// The watchable generic intro (#759): a ~28 s real-time space cinematic between the title splash and
-    /// the main menu — starfield/nebula reveal, a slow pan past the sun while the corvette crosses the
+    /// the main menu — starfield/nebula reveal, a slow pan past the sun while the thunderbolt crosses the
     /// frame, a planet approach, and a white-flash hand-off into the menu. Rendered live with the same
     /// systems the game uses (<see cref="Starfield"/>/<see cref="NebulaField"/>/<see cref="UrpScenePost"/>) and, since
-    /// #3705, the menu's own motif (<see cref="ShowcaseScene"/>): the corvette from its shipped layout with its soft
+    /// #3705, the menu's own motif (<see cref="ShowcaseScene"/>): the thunderbolt from its shipped layout with its soft
     /// engine plumes, flying toward the "varied" world drawn by the flight view's planet renderer — its real map, its
     /// data clouds shaded toward the visible sun (no more milky white shell), its atmosphere rim. Same length, same
     /// beats, same captions; it always matches current art and works on WebGL. Plays once per install (<see cref="ClientSettings.IntroSeen"/>), is skippable
@@ -37,7 +37,7 @@ namespace BlocksBeyondTheStars.Client
 
         private static readonly Vector3 PlanetPos = new Vector3(46f, -12f, 143f); // yaw ≈ +18°, below eye line
         private const float PlanetDiameter = 52f;
-        private const float ShipLength = 4.5f; // the corvette's longest side at the start of its crossing
+        private const float ShipLength = 4.5f; // the thunderbolt's longest side at the start of its crossing
 
         private readonly AppShell _shell;
         private bool _replay;
@@ -77,7 +77,7 @@ namespace BlocksBeyondTheStars.Client
             EnsureBuilt();
 
             // The browser streams its content in, so the rig is usually built before the content exists — build the motif
-            // (planet + corvette) as soon as it lands instead of playing the cinematic without its centrepiece (#831). One
+            // (planet + thunderbolt) as soon as it lands instead of playing the cinematic without its centrepiece (#831). One
             // attempt per rig: content is either there by then or never. The first leg is stars only, so it is rarely seen.
             if (!_motifBuilt && _shell.Content != null)
             {
@@ -305,7 +305,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The menu's motif in the film's own framing (#3705): the "varied" world from the flight view's renderer, lit
         /// from the visible sun (its phase, the clouds' shading and the rim all agree with the star the pan sweeps past), and
-        /// the corvette with its plumes, hidden until its leg.</summary>
+        /// the thunderbolt with its plumes, hidden until its leg.</summary>
         private void BuildMotif()
         {
             var settings = _shell.Settings;

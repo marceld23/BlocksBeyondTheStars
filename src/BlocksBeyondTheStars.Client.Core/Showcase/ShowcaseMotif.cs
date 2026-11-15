@@ -11,19 +11,19 @@ using BlocksBeyondTheStars.WorldGeneration;
 namespace BlocksBeyondTheStars.Client.Showcase
 {
     /// <summary>
-    /// The one fixed motif of the shell (#3705, maintainer decision 2026-11-15): the corvette — its shipped design from
-    /// <c>data/ship_layouts/ship_corvette.json</c> — in front of a "varied" world with clouds. The menu backdrop, the title
+    /// The one fixed motif of the shell (#3705, maintainer decision 2026-11-15): the thunderbolt — its shipped design from
+    /// <c>data/ship_layouts/ship_thunderbolt.json</c> — in front of a "varied" world with clouds. The menu backdrop, the title
     /// splash, the loading screen, the first-start intro film and the poster capture all show it; nothing here needs a server
     /// or a world (the menu is up before either exists). The planet is a world the client generates itself from the constants
     /// below, through the same map bake and orbit look as the flight view; the ship is built cell by cell with the server's
-    /// own mapping (<see cref="ShipCellBlocks"/>), so it is the corvette a player flies.
+    /// own mapping (<see cref="ShipCellBlocks"/>), so it is the thunderbolt a player flies.
     /// <para>The seed and the body key are art-tunable: they pick which continents and seas the planet shows. Changing the
     /// terrain generator (a new generation) may redraw the planet — on purpose: the menu shows today's worlds.</para>
     /// </summary>
     public static class ShowcaseMotif
     {
         /// <summary>The ship type (<c>data/ships.json</c>) whose layout the motif shows.</summary>
-        public const string ShipType = "corvette";
+        public const string ShipType = "thunderbolt";
 
         /// <summary>The planet type (<c>data/planets.json</c>): a breathable world of grass, sand, swamp and stone biomes.</summary>
         public const string PlanetType = "varied";
@@ -47,7 +47,7 @@ namespace BlocksBeyondTheStars.Client.Showcase
         public static int Circumference
             => WorldConstants.CircumferenceFor(BodyId, WorldConstants.WorldSizeClass.Planet, 0f, WorldSeed, Generation);
 
-        /// <summary>The corvette as a ship design message, or null when the content has no corvette (or no hull block).</summary>
+        /// <summary>The thunderbolt as a ship design message, or null when the content has no thunderbolt (or no hull block).</summary>
         public static SpaceShipDesign? ShipDesign(GameContent content)
         {
             if (content == null || !content.Ships.TryGetValue(ShipType, out var ship))

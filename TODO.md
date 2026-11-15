@@ -210,7 +210,7 @@ From an analysis of everything a player sees from launch to the menu (a hand-bui
 planet; four title styles; a grey Unity splash; no Linux splash). Marcel decided: live scene from the real game parts,
 one fixed motif, the intro film kept at its length, no AI images.
 
-- ✅ **Backdrop** (#3705): the **corvette** (its shipped layout) in front of a **varied world with clouds** drawn by the
+- ✅ **Backdrop** (#3705): the **thunderbolt** (its shipped layout; Marcel picked it over the corvette) in front of a **varied world with clouds** drawn by the
   flight view's renderer (shared `OrbitBodyBuilder`: baked map, data clouds, atmosphere rim) — behind the title splash,
   the main menu and the loading screen; simpler on Potato/Low (no rim, fewer plume particles); still the auto-quality
   measuring scene. The **intro film** keeps its 28 s and beats with the same scene; the story's `space_vista` uses the

@@ -62,7 +62,7 @@ BLOCKS BEYOND THE STARS
   `GameServer`, no duplicated logic — same model as the loopback transport).
 - Background (M20): static colour + starfield placeholder; an animated orbiting blocky ship
   was deferred. **Superseded:** the live menu uses a real animated backdrop (`MenuBackground`)
-  — since #3705 the corvette before a real "varied" world, see the next section.
+  — since #3705 the thunderbolt before a real "varied" world, see the next section.
 - Input: **mouse + keyboard**. Controller support deferred.
 - Version is shown; a **client/server protocol-mismatch warning** reuses the existing
   `JoinRejected` "Protocol mismatch" reason (the server already sends it). Auto-update and
@@ -72,22 +72,22 @@ BLOCKS BEYOND THE STARS
 
 ## Menu backdrop and first impressions (#3705, #3706)
 
-Maintainer decisions of 2026-11-15: a live scene from the game's real parts, **one fixed motif** — the corvette in front of
+Maintainer decisions of 2026-11-15: a live scene from the game's real parts, **one fixed motif** — the thunderbolt (the corvette until the same evening) in front of
 a "varied" world with clouds — no AI pictures anywhere, the start chain and the music unchanged.
 
-**The motif.** `ShowcaseMotif` (Client.Core) names it: ship type `corvette`, planet type `varied`, world seed `32`, body
+**The motif.** `ShowcaseMotif` (Client.Core) names it: ship type `thunderbolt`, planet type `varied`, world seed `32`, body
 `showcase-p1`, continents on, today's terrain generation (seed and body are art-tunable — they pick the continents). The
 planet is drawn by the flight view's own renderer, `OrbitBodyBuilder` (extracted from `SpaceView.SpawnBody`; the flight
 view, the shell and the story stage share it): the pole-free globe, the world map the client bakes itself
 (`WorldMinimap`, a worker thread on desktop, 4 ms slices in the browser — the flat data colour shows until then), the data
-clouds shaded toward the star, the atmosphere limb. The ship is the corvette's shipped layout mapped cell by cell with the
+clouds shaded toward the star, the atmosphere limb. The ship is the thunderbolt's shipped layout mapped cell by cell with the
 server's `ShipCellBlocks`, meshed by `ShipMeshBuilder`, with the flight view's soft engine plumes and its closed rear hatch.
 Nothing needs a server or a world. `ShowcaseScene` builds both; its users frame them:
 
 | Moment | What it shows |
 |---|---|
-| Title splash, main menu, loading screen | `MenuBackground`: the corvette flying toward the planet in the free middle of the menu, the star to the right behind the camera (the day side faces the viewer), stars + nebula + URP post |
-| First-start intro film (`IntroCinematic`) | Same length and beats (28 s, captions unchanged); the corvette and the same world, lit by the sun the pan sweeps past — no more milky cloud shell |
+| Title splash, main menu, loading screen | `MenuBackground`: the thunderbolt flying toward the planet in the free middle of the menu, the star to the right behind the camera (the day side faces the viewer), stars + nebula + URP post |
+| First-start intro film (`IntroCinematic`) | Same length and beats (28 s, captions unchanged); the thunderbolt and the same world, lit by the sun the pan sweeps past — no more milky cloud shell |
 | Story `space_vista` (`CutsceneStage`) | The same renderer: the world the player is on when the star map names it (rings included), else the showcase world |
 
 **Small hardware.** Potato and Low drop the atmosphere limb (one transparent pass over the planet less) and halve the
