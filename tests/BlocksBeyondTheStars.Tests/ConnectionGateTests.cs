@@ -216,7 +216,7 @@ public sealed class ConnectionGateTests : IDisposable
     public void LiteNetLib_DisconnectClient_FreesTheSlot()
     {
         int port = FreeUdpPort();
-        using var server = new LiteNetLibServerTransport(maxConnections: 1);
+        using var server = new LiteNetLibServerTransport(maxConnections: 1, bindAddress: "127.0.0.1"); // loopback: no firewall dialog for the test host (#3707)
         using var first = new LiteNetLibClientTransport();
         using var second = new LiteNetLibClientTransport();
         var connected = new List<int>();

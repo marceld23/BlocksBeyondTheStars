@@ -27,6 +27,7 @@ refreshed 2026-10-23.
   and the CI traps (analyzers, the code-health ratchet). Start here for a first test contribution (open tasks
   carry the `good first issue` label).
 - [SELF_HOSTING.md](SELF_HOSTING.md) — run and host a dedicated server, config keys, the web portal & updates.
+- [WINDOWS_FIREWALL.md](WINDOWS_FIREWALL.md) — when Windows Firewall asks, which sockets the game binds so it does not, and the host screen's one-time allow rule.
 - [HOSTED_WORLDS.md](HOSTED_WORLDS.md) — the hosted-worlds ("Official Worlds") service: control plane
   (WorldHost), one container per world, routing, portal and operations.
 - [TRANSLATION_GUIDE.md](TRANSLATION_GUIDE.md) — contributing a translation: locale files, coverage

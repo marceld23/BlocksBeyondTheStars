@@ -75,6 +75,9 @@ What protects players there — these are built into the game, not promises:
 rent nothing at all — the game ships with everything needed. See
 [SELF_HOSTING](../developer/SELF_HOSTING.md), or simply play singleplayer. A private family world has
 exactly the players you invited, and you hold every switch (robots, bandits and other enemies, voice, chat filter, visitors).
+On Windows, singleplayer opens nothing to the network. Hosting a world for other computers needs a
+one-time firewall permission from an administrator account; the game asks for it before the world starts
+and says so in plain words, so a child is told to fetch a grown-up instead of clicking through a system dialog.
 
 ## Data
 

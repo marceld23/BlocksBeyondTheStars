@@ -64,6 +64,7 @@ Created on first run; editable directly or through the admin UI.
 | `seed` | World seed (0 = derive from world name) | `0` |
 | `startPlanet` | Starting planet type | `varied` |
 | `adminBindAddress` | Admin UI bind address | `127.0.0.1` |
+| `gameplayBindAddress` | Which interfaces the native UDP gameplay port binds: empty = every interface, `127.0.0.1` = this machine only, or one IPv4 address (`--bind`, `BBS_BIND`) | *(empty)* |
 | `enableWebSocket` | Enable browser/WebGL WebSocket gameplay transport | `false` |
 | `webSocketBindAddress` | WebSocket HTTP bind host (`+` for all interfaces/reverse proxies) | `localhost` |
 | `databaseProvider` | Save backend: `sqlite` or `postgresql` | `sqlite` |
@@ -148,6 +149,12 @@ command line**, so env vars override the file but the in-game host's CLI flags s
 | `BBS_BACKUP_INTERVAL_MINUTES` | `backupIntervalMinutes` | `BBS_BACKUP_KEEP` | `backupKeepCount` |
 | `BBS_NEAR_COLUMN_RADIUS` | `nearColumnRadiusChunks` (default 4, 2–8) | `BBS_NEAR_COLUMN_UP` | `nearColumnChunksUp` (default 3, 2–3) |
 | `BBS_MAX_ANCHORED_CHUNKS` | `maxAnchoredChunks` (default 512, 0 = off) | `BBS_ALLOW_USER_SHIP_CRAFTING` | `allowUserShipCrafting` (default off) |
+| `BBS_BIND` | `gameplayBindAddress` (default empty = every interface) | | |
+
+**Bind address of the gameplay port** (`gameplayBindAddress`, `--bind`, `BBS_BIND`): empty binds every interface (IPv4
+and IPv6) — what a server other machines join needs. `127.0.0.1` binds this machine only, and one IPv4 address binds
+that interface. The game's bundled singleplayer server is started with `--bind 127.0.0.1`, which is also why Windows
+Firewall has nothing to ask about there — see [WINDOWS_FIREWALL.md](WINDOWS_FIREWALL.md).
 
 The table lists the common ones. The complete list — every `BBS_*` variable and `--switch` with its aliases, fallback
 variables and a one-line description — is the option table `ServerConfigOptions.All` in
@@ -281,12 +288,17 @@ secret is stored in the save. The very first player ever to join a fresh world b
 
 > **In-game hosting:** the client's main-menu **Host Game** runs this same server as a
 > child process (any singleplayer save, "open to LAN" style) with `--max-players`,
-> an optional `--password`, and the host's name in `--admins`.
+> an optional `--password`, and the host's name in `--admins`. On Windows the host screen
+> first checks that the firewall lets other machines reach that server and offers to add
+> the one rule it needs ([WINDOWS_FIREWALL.md](WINDOWS_FIREWALL.md)).
 
 ## 4. Ports & networking
 
 - **Native gameplay**: UDP `gameplayPort` (default 31415). Forward this on your router for
-  desktop native clients.
+  desktop native clients. The port binds every interface unless `gameplayBindAddress` says
+  otherwise. On a Windows host, add an inbound allow rule for the server (UDP, that port):
+  Windows Firewall asks once when the server first starts, and an account without
+  administrator rights only gets block rules from that dialog.
 - **Browser/WebGL gameplay**: when `enableWebSocket=true`, the server also listens for HTTP/WebSocket
   upgrades on `gameplayPort`. Browsers connect with `ws://` or `wss://`; reverse proxies and managed
   hosts must allow WebSocket upgrade traffic to the game server. Azure Container Apps should use HTTP/auto
@@ -405,9 +417,12 @@ See §9 for distributing the client this way.
 ## 7. Singleplayer & in-game hosting
 
 Singleplayer launches the **same** dedicated server as a bundled child process bound to
-loopback, so there is no separate code path — what works solo works in multiplayer. The
-main menu's **Host Game** opens that exact path to friends: it raises the player cap, adds
-an optional join password, and announces the host's LAN address in-game.
+loopback (`--bind 127.0.0.1`), so there is no separate code path — what works solo works in
+multiplayer — and nothing but the local client can reach it. The main menu's **Host Game**
+opens that exact path to friends: it binds every interface, raises the player cap, adds an
+optional join password, and announces the host's LAN address in-game. Because friends dial
+in, hosting is the one case that needs a Windows Firewall rule; the host screen checks for
+it before the world starts (see [WINDOWS_FIREWALL.md](WINDOWS_FIREWALL.md)).
 
 ## 8. Optional AI backend (dynamic LLM text)
 
