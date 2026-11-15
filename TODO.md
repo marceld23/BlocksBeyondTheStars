@@ -252,7 +252,7 @@ one fixed motif, the intro film kept at its length, no AI images.
   the backpack or waits (VEGA asks for room), key items a running step needs (Song Spindle, disc 1, hearing disc) are
   handed again when the player has none, a dialog gift spills at the feet instead of vanishing, a hand-over aboard uses
   the player's own ship, a relic cache keeps one disc. Tests: `StoryItemFullBackpackTests`.
-- 📋 **Guardian giants** (Justus' idea: fallen block-built hunter robots, one wakes as a boss) — #3676, own PR after this one.
+- ✅ **Guardian giants** (Justus' idea: fallen block-built hunter robots, one wakes as a boss) — #3676, shipped in its own PR #3703 (terrain generation 44; the abandoned beds above moved to 45).
 
 ### 🧭 Admin teleport targets: civilization sites + giant wrecks in space — #3654, #3655, ✅ 2026-11-15 (PR pending)
 

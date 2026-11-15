@@ -138,12 +138,12 @@ namespace BlocksBeyondTheStars.Client
         protected override void OnDestroy()
         {
             base.OnDestroy();
-            Destroy(_previewTile);
-            Destroy(_previewMesh);
-            Destroy(_previewMaterial);
+            EditorSceneKit.Discard(_previewTile);
+            EditorSceneKit.Discard(_previewMesh);
+            EditorSceneKit.Discard(_previewMaterial);
             foreach (var row in _materialRows)
             {
-                Destroy(row.Icon); // cut out of the shared atlas for this list only
+                EditorSceneKit.Discard(row.Icon); // cut out of the shared atlas for this list only
             }
 
             _atlas?.Release();
@@ -419,7 +419,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (Tex != null)
             {
-                Destroy(Tex);
+                EditorSceneKit.Discard(Tex);
             }
 
             Tex = new Texture2D(_model.SizeX, _model.SizeZ, TextureFormat.RGBA32, false)
@@ -511,7 +511,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            Destroy(_previewTile);
+            EditorSceneKit.Discard(_previewTile);
             _previewTile = null;
             string label = "—";
             if (_materials.Count > 0)
@@ -554,7 +554,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            Destroy(_previewMesh);
+            EditorSceneKit.Discard(_previewMesh);
             _previewMesh = new Mesh { name = "FormEditorPreview" };
             _previewMesh.SetVertices(verts);
             _previewMesh.SetUVs(0, uvs);

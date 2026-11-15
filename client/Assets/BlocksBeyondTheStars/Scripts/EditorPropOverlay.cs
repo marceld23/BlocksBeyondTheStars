@@ -131,7 +131,7 @@ namespace BlocksBeyondTheStars.Client
             Clear();
             if (_material != null)
             {
-                UnityEngine.Object.Destroy(_material);
+                EditorSceneKit.Discard(_material);
             }
         }
 
@@ -164,12 +164,12 @@ namespace BlocksBeyondTheStars.Client
         {
             if (e.Mesh != null)
             {
-                UnityEngine.Object.Destroy(e.Mesh);
+                EditorSceneKit.Discard(e.Mesh);
             }
 
             if (e.Go != null)
             {
-                UnityEngine.Object.Destroy(e.Go);
+                EditorSceneKit.Discard(e.Go);
             }
         }
 
