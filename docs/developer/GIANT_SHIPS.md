@@ -384,7 +384,8 @@ wreck (ledger `space:giantwreck:<id>#<ship>` — the ship class after the `#`, s
   wreck as the derelicts' amber disc, a size larger, labelled `{name} · Giant wreck` (`ui.map.kind_giant_wreck`), a
   waypoint target; the travel screen uses the same kind word and `ui.map.giantwreck_detail`; the radar's nearest-wreck
   readout, the three client scan-range gates and the target brackets measure to the hull BOX (`Client.Core/HullApproach`),
-  like the server; the autopilot and a chart waypoint stop 24 blocks in front of the hull box instead of flying for its
+  like the server (the brackets are capped at `SpaceTargeting.LockFrameMaxHalf`, and a derelict locks as a **neutral**
+  "Wreck", never a friendly ring — #3659); the autopilot and a chart waypoint stop 24 blocks in front of the hull box instead of flying for its
   centre. The scan card reads "Giant ship wreck · {name}" in space and "Giant wreck · {class}" on a planet
   (`ScanReadoutText`).
 - **The Codex** (`WikiUI.GiantWrecks.cs`): one group *Discoveries → Giant ship wrecks* (`ui.wiki.discoveries.giantwreck`)

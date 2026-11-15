@@ -40,7 +40,7 @@ public sealed partial class GameServer
     private const double TrainTickBroadcast = RailRules.BroadcastSeconds;
 
     /// <summary>Per-world rail state (lives on <see cref="LoadedWorld"/>).</summary>
-    internal sealed class RailWorldState
+    internal sealed partial class RailWorldState
     {
         public Dictionary<Vector3i, RailNode> Nodes { get; } = new();
         public List<ServerTrain> Trains { get; } = new();
@@ -87,6 +87,7 @@ public sealed partial class GameServer
             Loaded = false;
             LinkerPending.Clear();
             LastPylon.Clear();
+            ClearWagonBoxes(); // #3656: the wagon boxes the wildlife rules cached (GameServerRailWildlife)
         }
     }
 
@@ -97,7 +98,7 @@ public sealed partial class GameServer
     }
 
     /// <summary>A line: its pylons in order, the spline through their tops, the stops on it.</summary>
-    internal sealed class RailLine
+    internal sealed partial class RailLine
     {
         public int Id;
         public List<Vector3i> Pylons { get; } = new();
@@ -110,7 +111,7 @@ public sealed partial class GameServer
         public RailCurveLimits? Curves;
     }
 
-    internal sealed class ServerTrain
+    internal sealed partial class ServerTrain
     {
         public string Id = string.Empty;
         public string OwnerId = string.Empty;
@@ -1240,7 +1241,7 @@ public sealed partial class GameServer
             }
             else
             {
-                t.Velocity = 0f; // standing: halted, or a manual train nobody drives
+                StandStill(t); // standing: halted, or a manual train nobody drives (#3658: held by no animal either)
             }
 
             // The riders ride: the server owns their world position while aboard.
@@ -1266,7 +1267,7 @@ public sealed partial class GameServer
         }
 
         // #3444: a train that just halted is told at once, so no client runs its drawing on past the stop for a list's length.
-        BroadcastTrains(force: arrived);
+        BroadcastTrains(force: arrived | rails.TakeCreatureSignal()); // #3658: so is a honk, and an animal's hold or let-go
     }
 
     /// <summary>The point of the train a stop catches, for a train arc (#3463: its middle — the autopilot centres the train
@@ -1392,6 +1393,7 @@ public sealed partial class GameServer
             Riders = t.Riders.Keys.ToArray(),
             Velocity = WireVelocity(t, LineOf(t)), // #3444
             TakesPassengers = RailRules.IsPublic(t.OwnerId) || t.TakesPassengers, // #3446
+            Horn = t.Horn, // #3658: one more each time it honks at an animal on the track
         }).ToArray(),
     };
 

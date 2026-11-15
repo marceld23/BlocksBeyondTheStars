@@ -408,8 +408,12 @@ tell you what it is, so you never need the colour alone:
 |---|---|---|---|
 | **Enemy** (drone, saucer, cruiser, a raider that fights) | red | a diamond with **!** over it | filled, double (») |
 | **Demands cargo** (a raider still talking) | orange | a hollow diamond | filled |
-| **Neutral** (wreck, asteroid, anomaly, wormhole, salvage, trader, planet) | white | square corners | hollow |
-| **Friendly** (station, life pod, another pilot) | cyan | a ring | hollow |
+| **Neutral** (wreck, derelict station, giant ship wreck, asteroid, anomaly, wormhole, salvage, trader, planet) | white | square corners | hollow |
+| **Friendly** (a station people live on, life pod, another pilot) | cyan | a ring | hollow |
+
+A derelict station or a giant ship wreck reads **Wreck** under its name. The frame grows with the target but stops at a
+modest size: a giant wreck or a station right in front of you keeps a frame round its middle instead of one across half
+the screen.
 
 When the target is **off screen — or behind you** — an **arrow** on a ring inside the screen points the
 way, with the distance next to it; it pulses gently while that enemy is shooting at you (just bright with
@@ -2867,7 +2871,7 @@ with a game version that has generation 35 get them — an older world never cha
   | **Suspension Bridge** — two towers and cables over water or a valley; walk from bank to bank | any planet with air, only where there is a gap to span | ruin |
   | **Soundi Statue** — a Soundi as tall as a tower on a crystal-cornered pedestal | any planet with air | **intact** |
   | **Castle of Soaniri** — eight towers, a curtain wall and a huge keep; **Soundis live in it** | **always on Soaniri** | ruin |
-  | **Singer Statue** — a green copper figure raising a microphone; the Sounders' choir grows louder as you come closer | **always on Soaniri** | **intact** |
+  | **Singer Statue** — a light-blue Sounder in a robe on a light-blue pedestal: four arms, one raising a golden microphone, one a tablet with a music note, the lower two spread in welcome; the Sounders' choir grows louder as you come closer (a Soaniri you visited before this statue changed keeps the old green copper figure) | **always on Soaniri** | **intact** |
   | **Blocks King** — a restaurant shaped like a giant burger, with a burger seller inside and a lettuce terrace | planets with at least one inhabited settlement | **intact** |
 
 - **Intact landmarks are protected:** you cannot mine or build on them (admins can). A ruin is open to everyone. A
@@ -4594,7 +4598,8 @@ look up: what a mix does follows from what goes in, and the same things always g
   so nobody aboard is thrown about — on the way back the cab pushes the train from behind. At a stop the train **halts
   centred on the stop post**, whichever way it runs: put the post in the middle of your platform and the whole train
   stands beside it (near the end of a line it stops just short of the end, so no wagon hangs past it). Each wagon looks
-  its part: the seat wagon has wooden benches along its walls (**8 seats**), the sleeper **4 berths** — a real bed
+  its part (all of them with thin glass windows, so there is head room over every bench): the seat wagon has wooden
+  benches along its walls (**8 seats**), the sleeper **4 berths** — a real bed
   with a glowing bunk above it, two on each side — and the bar wagon a wooden floor, its counter and a bench opposite
   (**4 seats**). On a bench you sit across the aisle; in a berth you **lie down** and look up along the bed, like in
   any bed. Getting up — **E**, jump, crouch or any movement key — puts you back on your feet in the aisle beside your
@@ -4617,6 +4622,14 @@ look up: what a mix does follows from what goes in, and the same things always g
   cannot move at all — the panel says **Halted**; build the line longer, or pack the train up and couple fewer wagons.
   Allies may ride your train. The owner **packs it up** from the cab panel or with the stow key beside it: the cab
   and every wagon come back as items. A fall taken aboard is never a fall.
+- **Animals on the track.** A train never runs through an animal. When one stands on the track ahead, the train brakes
+  (on autopilot and when you drive it yourself), stops about **three blocks short** of it and **honks** — a friendly
+  two-tone horn, at most every few seconds while it waits; the panel says **Halted**. The horn asks the animal to
+  **step aside**: it wakes up and hurries off the track, and the train sets off again as soon as the track is clear.
+  An animal that still won't move after about ten seconds (frozen by a stasis field, say) is gently set down beside the
+  track — no animal is ever hurt. Wild animals can't walk into a wagon (one that somehow got inside is put down
+  outside it), big animals that would bump into the wagons don't wander onto a line a train runs on, and **riders are
+  safe**: no animal hunts or bites a player who is in a train, seated or standing.
 - Other riders on the same train are placed inside the wagons exactly as your game draws them, so nobody slides
   through a wall on a curve or across the world seam.
 - **Intercity trains.** On many newer worlds, two towns or cities are joined by a monorail line — on the newest worlds
@@ -4629,7 +4642,8 @@ look up: what a mix does follows from what goes in, and the same things always g
   Walk up to a wagon and press **E** to board (E beside a seat sits down — unless you are looking at a passenger: then
   **E** talks to them, as the prompt says; **F** leaves), then enjoy the ride. The train
   belongs to everyone: nobody needs a ticket, and nobody can drive, stop, pack up or add wagons to it. The stations and
-  the line's pylons can't be mined.
+  the line's pylons can't be mined. A station is **safe ground** like the town beside it: no wild animal appears there
+  or walks in while you wait for the train (out on the open line between the towns the land stays wild).
 - **Villagers ride the train.** When a line has stops in (or right beside) two towns — the intercity line, or a line
   you built with a **rail stop** in each town — the villagers now and then **take the train**. By day one of them walks
   to the stop, waits on the platform, gets on when a train halts there (on a seat of a seat, sleeper or bar wagon —

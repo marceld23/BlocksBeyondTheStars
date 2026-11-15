@@ -706,7 +706,8 @@ namespace BlocksBeyondTheStars.Client
         private TargetDisposition LockDisposition()
         {
             bool trader = _lockSource == LockSource.Pilot && SpaceTargeting.IsTraderId(_lockId);
-            return SpaceTargeting.Classify(_lockKind, _lockHostile, isPilot: _lockSource == LockSource.Pilot && !trader, isTrader: trader);
+            return SpaceTargeting.Classify(_lockKind, _lockHostile, isPilot: _lockSource == LockSource.Pilot && !trader, isTrader: trader,
+                id: _lockSource == LockSource.Entity ? _lockId : null);
         }
 
         /// <summary>The locked object's smoothed scene position — the interpolated model, never the 5 Hz raw snapshot,
@@ -1049,7 +1050,7 @@ namespace BlocksBeyondTheStars.Client
                 RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, null, out var anchored);
                 float r = _lockRadius * _root.transform.lossyScale.x;
                 Vector3 edge = Camera.WorldToScreenPoint(world + Camera.transform.right * r);
-                float half = Mathf.Clamp(Vector2.Distance(screen, edge) / scale * 1.25f, 26f, 240f);
+                float half = SpaceTargeting.LockFrameHalf(Vector2.Distance(screen, edge) / scale); // #3659: capped, never screen-sized
                 float snap = FxKit.ReduceFlashes ? 1f : Mathf.Clamp01((Time.time - _lockSince) / 0.16f);
                 half *= Mathf.Lerp(1.8f, 1f, 1f - (1f - snap) * (1f - snap));
                 bool thin = ScannerBusyElsewhere();
@@ -1286,6 +1287,11 @@ namespace BlocksBeyondTheStars.Client
                 case TargetDisposition.Friendly:
                     return Loc("ui.space.target.friendly", "Friendly");
                 default:
+                    if (_lockSource == LockSource.Entity && SpaceTargeting.IsDerelictTarget(_lockKind, _lockId))
+                    {
+                        return Loc("ui.space.target.wreck", "Wreck"); // #3659: a derelict or a giant ship wreck
+                    }
+
                     return _lockSource == LockSource.Pilot && SpaceTargeting.IsTraderId(_lockId)
                         ? Loc("ui.space.target.trader", "Trader")
                         : Loc("ui.space.target.neutral", "Neutral");

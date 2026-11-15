@@ -165,4 +165,84 @@ public sealed class RailWagonLayoutTests
             }
         }
     }
+
+    [Theory]
+    [InlineData("wagon_seats")]
+    [InlineData("wagon_bar")]
+    public void NoFullCube_StandsOverABench_TheRoomAboveIsFreeUpToThePane(string item)
+    {
+        // #3657 (a playtest): the side windows were full glass cubes, so the seated eye sat inside the window block.
+        var cells = CellsOf(item);
+        foreach (var seat in RailRules.SeatOffsets(item))
+        {
+            var (x, y, z) = RailWagonLayout.CellOf(new Vector3f(seat.X, 0.5f, seat.Z));
+            for (int up = y + 1; up < RailWagonLayout.Height - 1; up++)
+            {
+                if (cells.TryGetValue((x, up, z), out var above))
+                {
+                    Assert.False(ShapeCode.IsCube(above.Shape), $"{item}: a full {above.Block} cube over the seat at {seat} (y {up})");
+                }
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("wagon_seats", false)]
+    [InlineData("wagon_sleeper", false)]
+    [InlineData("wagon_bar", false)]
+    [InlineData(RailRules.CabItemKey, true)]
+    public void EverySideWindow_IsAThinPane_OnTheWallsOuterFace(string item, bool cab)
+    {
+        var cells = RailWagonLayout.Cells(item, cab).ToDictionary(c => (c.X, c.Y, c.Z));
+        int windows = 0;
+        foreach (var c in cells.Values.Where(c => c.Block == RailWagonLayout.WindowBlock))
+        {
+            bool cabCorner = cab && c.Z == RailWagonLayout.Length - 1 && (c.X == 0 || c.X == RailWagonLayout.Width - 1);
+            if (cabCorner)
+            {
+                continue; // the cab's front corners close two faces at once: a full glass cube, nothing sits under it
+            }
+
+            Assert.Equal((int)BlockShape.Panel, ShapeCode.ShapeOf(c.Shape));
+            var (fx, fy, fz) = ShapeCode.FaceDirection(ShapeCode.UpFaceOf(c.Shape)); // the pane lies on the face OPPOSITE its up-face
+            Assert.Equal(0, fy);
+            if (cab && c.Z == RailWagonLayout.Length - 1)
+            {
+                Assert.Equal((0, -1), (fx, fz)); // the windscreen lies on the front (+Z) face
+                Assert.Equal(1, c.X);
+            }
+            else
+            {
+                Assert.True(c.Y is 2 or 3, $"{item}: a window at y {c.Y}");
+                Assert.Equal(c.X == 0 ? (1, 0) : (-1, 0), (fx, fz)); // the side pane lies on the column's outer face
+                Assert.True(c.X == 0 || c.X == RailWagonLayout.Width - 1, $"{item}: a window in the aisle at x {c.X}");
+            }
+
+            windows++;
+        }
+
+        Assert.True(windows >= 4, $"{item}: only {windows} window panes");
+    }
+
+    [Fact]
+    public void TheUpperWall_IsPanesAndLintels_OnlyTheSleepersBunksReplaceAPane_AndTheCabsDoorsStayOpen()
+    {
+        // The furnishing is laid over the panes: the sleeper's upper bunks replace one, nothing else does.
+        foreach (string item in PassengerWagons)
+        {
+            foreach (var c in RailWagonLayout.Cells(item, cab: false).Where(c => c.Y is 2 or 3 && c.X != 1))
+            {
+                bool furnishing = c.Block is "crew_bunk";
+                bool lintel = c.Block == "metal_panel" && c.Y == 3 && (c.Z == RailWagonLayout.DoorZ0 || c.Z == RailWagonLayout.DoorZ1);
+                Assert.True(furnishing || lintel || c.Block == RailWagonLayout.WindowBlock, $"{item}: {c.Block} in the wall at {c}");
+            }
+        }
+
+        var cab = RailWagonLayout.Cells(RailRules.CabItemKey, cab: true).ToDictionary(c => (c.X, c.Y, c.Z));
+        foreach (int x in new[] { 0, RailWagonLayout.Width - 1 })
+        {
+            Assert.False(cab.ContainsKey((x, 1, RailWagonLayout.DoorZ0)), "the cab's door is blocked");
+            Assert.False(cab.ContainsKey((x, 2, RailWagonLayout.DoorZ1)), "the cab's door is blocked");
+        }
+    }
 }

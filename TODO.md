@@ -24,6 +24,30 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🚆 Playtest 2026-11-15: animals and trains, the wreck's target ring, a Sounder singer statue — #3656–#3660, ✅ 2026-11-15, PR pending (⚠ playtest open)
+
+Marcel's own playtest on v2026.11.18 (an intercity train on a meadow world, a giant wreck in space) plus his wish for the
+Soaniri statue. Decisions 2026-11-15: wrecks lock as neutral "Wreck" with a capped frame; the statue a Sounder in a robe,
+no crown, the upper right arm with the microphone, the upper left with the tablet, the lower pair open, the pedestal light
+blue too; all train fixes in one go.
+
+- **#3656 animals in a halted wagon** — a seated rider was prey and creatures knew nothing of wagons: the intercity station
+  halls count as town ground (no spawns, the intruder sweep), wild animals cannot step into a wagon box and one found
+  inside is set down beside it, a rider is no reactor (nobody hunts the seat) and anchors no spawn
+  (`GameServerRailWildlife.cs`, `RailWildlifeTests`).
+- **#3657 benches under the glass** — every side window is a thin glass pane on the wall's outer face (the cab's
+  windscreen on its front face; its two corners stay full cubes), so the cell over a bench is free (`RailWagonLayout`).
+- **#3658 a train drove through a titan** — the train looks ahead on its line, stops 3 blocks short of an animal, honks
+  (`NetTrain.Horn`, new `train_horn` clip at the cab, at most every 3 s) and the animal flees sideways; after 10 s it is
+  set down beside the track (never hurt; a giant is waited for). Tall roamers keep off a line a train runs on
+  (`GameServerRailCreatureBrake.cs`).
+- **#3659 the screen-sized "Friendly" ring** — derelicts and giant wrecks were station contacts and every station a friend:
+  they now lock as **neutral** corner brackets labelled **Wreck** (`ui.space.target.wreck`, 14 languages), and the lock
+  frame is capped at 120 canvas units (was 240 → a 528-unit ring) (`SpaceTargeting`).
+- **#3660 the Singer Statue** — a light-blue four-armed Sounder in a robe (no eyes, hare ears, chest slot, woven sash) on a
+  light-blue pedestal and terrace, same 100 × 141 × 100 box; Codex text in 14 languages. A Soaniri that already stamped
+  the old copper statue keeps it (landmarks are written once).
+
 ### 🧭 Admin teleport targets: civilization sites + giant wrecks in space — #3654, #3655, ✅ 2026-11-15 (PR pending)
 
 - ✅ **`/tp civ [n]`** (#3654): every lost-civilization site of the current body, named like its map entry; the spot stands

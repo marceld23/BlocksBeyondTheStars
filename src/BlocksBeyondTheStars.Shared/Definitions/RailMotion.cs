@@ -107,6 +107,19 @@ public static class RailMotion
         return (float)Math.Sqrt((ArrivalSpeed * ArrivalSpeed) + (2f * Acceleration * Math.Max(0f, remaining)));
     }
 
+    /// <summary>#3658: the fastest a train may run with <paramref name="room"/> blocks left before the spot where it holds
+    /// short of an animal on the track: +∞ for none (no animal ahead, NaN), 0 once it is there (or past it), else the braking
+    /// curve (<see cref="BrakingSpeed"/>) — it comes in at a walking pace and stops on the spot.</summary>
+    public static float ObstacleSpeed(float room)
+    {
+        if (float.IsNaN(room) || float.IsPositiveInfinity(room))
+        {
+            return float.PositiveInfinity;
+        }
+
+        return room <= 0f ? 0f : BrakingSpeed(room);
+    }
+
     /// <summary>Whether a train running at <paramref name="speed"/> can still arrive at a stop <paramref name="remaining"/>
     /// blocks ahead at a walking pace, braking at <see cref="ServiceBrake"/>: v² ≤ <see cref="MaxHaltSpeed"/>² +
     /// 2·ServiceBrake·d. When it cannot (the autopilot switched on just before a stop at speed, a stop placed just ahead) the

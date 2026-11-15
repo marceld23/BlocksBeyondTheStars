@@ -43,7 +43,12 @@ namespace BlocksBeyondTheStars.Client
             public int DrawDirection = 1; // the drawing's own direction of travel (#2741: it bounces like the server's)
             public bool HasArc;
             public string Key = string.Empty; // the wagon list, to notice a coupling
+            public int Horn = -1; // #3658: the server's honk count last heard (−1 = not yet seen)
         }
+
+        /// <summary>#3658: the horn's clip and how loud it plays at the cab (positional, so it fades with distance).</summary>
+        private const string HornClip = "train_horn";
+        private const float HornVolume = 0.75f;
 
         private readonly Dictionary<string, Train> _trains = new Dictionary<string, Train>();
         private readonly HashSet<string> _live = new HashSet<string>();
@@ -165,6 +170,30 @@ namespace BlocksBeyondTheStars.Client
 
             Reconcile();
             Pose();
+            PlayHorns();
+        }
+
+        /// <summary>#3658: a train honks at an animal on its track — the server counts every honk up (<c>NetTrain.Horn</c>,
+        /// at most one every few seconds), and each time the count grows the horn plays once at the cab. A train seen for
+        /// the first time only remembers its count, so joining near a waiting train does not replay old honks.</summary>
+        private void PlayHorns()
+        {
+            foreach (var t in Game.Trains)
+            {
+                if (t == null || !_trains.TryGetValue(t.Id, out var view))
+                {
+                    continue;
+                }
+
+                int heard = view.Horn;
+                view.Horn = t.Horn;
+                if (heard < 0 || t.Horn <= heard || view.Wagons.Count == 0 || view.Wagons[0].Root == null)
+                {
+                    continue;
+                }
+
+                ClientAudio.Instance?.At(HornClip, view.Wagons[0].Root.transform.position, 1f, HornVolume);
+            }
         }
 
         private void Reconcile()

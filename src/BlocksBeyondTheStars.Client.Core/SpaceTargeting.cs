@@ -45,7 +45,7 @@ public readonly struct TargetCandidate
     public float Z { get; }
     public float Distance { get; }
 
-    public TargetDisposition Disposition => SpaceTargeting.Classify(Kind, Hostile, IsPilot, IsTrader);
+    public TargetDisposition Disposition => SpaceTargeting.Classify(Kind, Hostile, IsPilot, IsTrader, Id);
 
     public TargetCandidate WithDistance(float distance) => new TargetCandidate(Id, Kind, Hostile, IsPilot, IsTrader, X, Y, Z, distance);
 
@@ -211,8 +211,11 @@ public static class SpaceTargeting
 
     /// <summary>The one disposition table: a hostile is an enemy; a raider still talking (it demands cargo before it
     /// fights) is caution; stations, life pods and other pilots are friendly; NPC traders, wrecks, rocks, anomalies,
-    /// wormholes, drops and planets are neutral. If ship-vs-ship PvP ever arrives, this is the place to read the rule.</summary>
-    public static TargetDisposition Classify(string? kind, bool hostile, bool isPilot = false, bool isTrader = false)
+    /// wormholes, drops and planets are neutral. A derelict (#3659: its contact is a <see cref="SpaceStation"/> with a
+    /// <see cref="DerelictIdPrefix"/> id, giant ship wrecks included) is a wreck nobody lives on, so it is neutral too —
+    /// corner brackets labelled "Wreck", never a friend's ring. If ship-vs-ship PvP ever arrives, this is the place to
+    /// read the rule.</summary>
+    public static TargetDisposition Classify(string? kind, bool hostile, bool isPilot = false, bool isTrader = false, string? id = null)
     {
         if (isTrader || kind == TraderKind)
         {
@@ -234,7 +237,34 @@ public static class SpaceTargeting
             return TargetDisposition.Caution;
         }
 
+        if (IsDerelictTarget(kind, id))
+        {
+            return TargetDisposition.Neutral;
+        }
+
         return kind == SpaceStation || kind == EscapePod ? TargetDisposition.Friendly : TargetDisposition.Neutral;
+    }
+
+    /// <summary>#3659: whether a lockable object is a derelict station or a giant ship wreck — a station contact whose id
+    /// carries the derelict prefix. The lock label calls it "Wreck" instead of a disposition word.</summary>
+    public static bool IsDerelictTarget(string? kind, string? id) => kind == SpaceStation && IsDerelictId(id);
+
+    // ---- Frame size ------------------------------------------------------------------------------------
+
+    /// <summary>The lock frame's smallest half size in canvas units — a far speck still gets a frame you can see.</summary>
+    public const float LockFrameMinHalf = 26f;
+
+    /// <summary>The lock frame's largest half size in canvas units (#3659). It used to be 240 — with the ring drawn at 2.2 ×
+    /// the half size that was a 528-unit circle over half the screen round a giant ship wreck close by. A target bigger than
+    /// this on screen keeps a frame round its middle instead of one round its whole hull.</summary>
+    public const float LockFrameMaxHalf = 120f;
+
+    /// <summary>The lock frame's half size for a target whose radius covers <paramref name="projectedRadius"/> canvas units
+    /// on screen: a quarter of air round it, clamped to <see cref="LockFrameMinHalf"/>..<see cref="LockFrameMaxHalf"/>.</summary>
+    public static float LockFrameHalf(float projectedRadius)
+    {
+        float half = float.IsNaN(projectedRadius) ? 0f : projectedRadius * 1.25f;
+        return System.Math.Min(LockFrameMaxHalf, System.Math.Max(LockFrameMinHalf, half));
     }
 
     /// <summary>True while a hostile at <paramref name="distance"/> is attacking (inside the damage aura).</summary>

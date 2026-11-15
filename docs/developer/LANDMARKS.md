@@ -377,7 +377,7 @@ with the far view off it is drawn up to 512 blocks and only as far as the camera
   | `suspension_bridge` | rolled, air, `seat: span` | ruin (lattice) — the ground row lies under the trusses, so revision 2 drops a section of the main span |
   | `soundi_statue` | rolled, air | intact, protected |
   | `soaniri_castle` | fixed on `sounder_world` | ruin (zones: keep, rest); dens of Soundis |
-  | `singer_statue` | fixed on `sounder_world` | intact, protected; a choir loop, radius 120 |
+  | `singer_statue` | fixed on `sounder_world` | intact, protected; a choir loop, radius 120; since #3660 a light-blue four-armed Sounder in a robe (same 100 × 141 × 100 box — a body that already stamped the old copper figure keeps it, landmarks are written once) |
   | `blocks_king` | rolled, air + inhabited | intact, protected; burger keeper inside |
 
   Sizes stay within 256 a side; the largest overlay blob is in the tens of KB.

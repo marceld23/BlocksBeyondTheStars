@@ -4,6 +4,7 @@
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.World;
+using BlocksBeyondTheStars.WorldGeneration;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -14,12 +15,15 @@ namespace BlocksBeyondTheStars.GameServer;
 /// members run the same list, so a whole herd appeared on the rooftops). The step barriers (<see cref="StepBlocked"/>)
 /// knew hulls, fences, doors and terrain, so a roaming, fleeing, hunting or herding animal walked into the lanes from
 /// the open land round the town, and one dropped off a roof walked on in the streets.
-/// <para><b>The town zone.</b> Every intact settlement's box and every lodge's footprint (#2640), grown by
-/// <see cref="TownWildMargin"/> blocks on each side; vertically from <see cref="TownWildMargin"/> blocks under the
-/// foundation row to <see cref="TownWildMargin"/> above the box top (the 48-block plinth under a town is not part of it,
-/// so a cave well under a town stays wild). Ruins stay wild ground, as does the intercity line between the towns. X wraps
-/// on the world circumference. Read straight from the settlement and lodge lists — a handful of boxes per world, no cache
-/// to keep in sync — and a world without settlements or lodges leaves at the first check, so it behaves exactly as before.</para>
+/// <para><b>The town zone.</b> Every intact settlement's box, every lodge's footprint (#2640) and — since #3656 — every
+/// station hall of the intercity line, grown by <see cref="TownWildMargin"/> blocks on each side; vertically from
+/// <see cref="TownWildMargin"/> blocks under the foundation row to <see cref="TownWildMargin"/> above the box top (the
+/// 48-block plinth under a town is not part of it, so a cave well under a town stays wild). Ruins stay wild ground, as does
+/// the open intercity line between the towns — but not its stations: the public train stands there for half a minute with
+/// its doors open, and a station sits just outside its town's box (#3656: a hunter walked into the halted wagon and bit the
+/// seated rider). X wraps on the world circumference. Read straight from the settlement, lodge and station lists — a
+/// handful of boxes per world, no cache to keep in sync — and a world without any of them leaves at the first check, so it
+/// behaves exactly as before.</para>
 /// <list type="bullet">
 /// <item><b>Spawn</b> (<see cref="TownSpawnBlocked"/>, one line of <see cref="SpawnSpotClear"/>, so the ring leader, each
 /// herd member and every summon that asks the list obey it): no land animal, no amphibian ashore and no cave dweller in
@@ -49,7 +53,7 @@ public sealed partial class GameServer
     internal const double TownStayGraceSeconds = 30.0;
 
     /// <summary>Whether the active world has anything a town rule could speak for (ruins included — they are skipped later).</summary>
-    private bool AnyTownZones => _settlements.Count > 0 || _lodges.Count > 0;
+    private bool AnyTownZones => _settlements.Count > 0 || _lodges.Count > 0 || Intercity.Stations.Count > 0;
 
     /// <summary>How deep a feet cell lies in a town zone: 0 outside every zone, otherwise 1 + the whole columns between it
     /// and the zone's nearest side edge (the deepest zone counts where two overlap). <paramref name="topY"/> is that zone's
@@ -85,6 +89,13 @@ public sealed partial class GameServer
         {
             ZoneDepth(x, feetY, z, l.Origin.X, l.Origin.Z, l.Origin.X + l.Layout.Width - 1, l.Origin.Z + l.Layout.Length - 1,
                 l.GroundY, l.GroundY + l.Layout.Height - 1, circ, ref best, ref topY);
+        }
+
+        // #3656: the intercity line's stations — the hall a halted train stands in for half a minute.
+        foreach (var st in Intercity.Stations)
+        {
+            ZoneDepth(x, feetY, z, st.Origin.X, st.Origin.Z, st.Origin.X + st.W - 1, st.Origin.Z + st.L - 1,
+                st.Origin.Y, st.Origin.Y + RailStationGenerator.Height - 1, circ, ref best, ref topY);
         }
 
         return best;

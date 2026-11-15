@@ -32,8 +32,8 @@ Unity-free in `Shared`.
 
 `RailList` (every line: id, points, closed, stop arcs) on join and on every change; `TrainList` (id, owner, line, arc,
 speed, direction, facing — #2741, additive, 0 from an older server —, autopilot, halted + remaining, wagons, riders,
-velocity — #3444, additive, see *Speed*; takes passengers — #3446, additive, default true) at 5 Hz while a train moves
-and at once on every change; `EnterTrainIntent` (train, wagon, seat −1 = standing), `ExitTrainIntent`, `SetTrainIntent`
+velocity — #3444, additive, see *Speed*; takes passengers — #3446, additive, default true; horn — #3658, additive, the
+honk count, see *Wildlife and the wagons*) at 5 Hz while a train moves and at once on every change (a honk too); `EnterTrainIntent` (train, wagon, seat −1 = standing), `ExitTrainIntent`, `SetTrainIntent`
 (speed / halt / autopilot / passengers — #3446, additive —, −1 = unchanged), `StowTrainIntent`. Additive fields:
 `MoveIntent.FrameId` (set → X/Y/Z are the wagon-local offset), `PlayerPresence.FrameId/LocalX/Y/Z`,
 `PlayerStateUpdate.InTrain/TrainSeat`, `PlayerState.InTrain/TrainSeat/TrainLocalX/Y/Z` (never a persisted bond: a join
@@ -130,7 +130,10 @@ clears it), `NetNpc.FrameId/LocalX/Y/Z/LocalYaw` (#3445: an NPC passenger, see *
   mesh work). A stop is a short, wider amber section of the band. Caches one `RailSpline` per line by the server's list
   reference and hands it out (`SplineOf`).
 - `TrainView` — a wagon is a hand-authored voxel grid, shared data in `Shared/Definitions/RailWagonLayout.cs` (`Cells`:
-  floor, side sills with glass above, a door opening in the middle of each side, a roof, the cab's windscreen and
+  floor, side sills with thin glass panes above — #3657: the `Panel` form stood against each wall column's outer face
+  (up-face +X on column 0, −X on the last), the cab's windscreen one on its front face (up-face −Z) and full glass cubes
+  only in the cab's two front corners, where nothing sits below; the full window cubes before put a seated head inside
+  the glass —, a door opening in the middle of each side, a roof, the cab's windscreen and
   console, the furnishing — #3471/#3473: the seat wagon's benches and the bar's bench are the built-in **bench form**
   with the backrest to the wall, the sleeper's lower berths **two-cell beds** with a `crew_bunk` above, the bar's counter
   cubes) meshed by `ChunkMesher` like the speeder hull — with the shapes passed as `worldShape`, so the floor under a
@@ -608,6 +611,49 @@ no glowing or working rail block, two caches on standable cells; one station on 
 stamped, two caches with the station's lore voice, clear of the settlements, reachable with `/tp railruin`, mineable,
 the same for the same seed and back after a restart without a second stamp; none on generation 19, at chance 0, when
 switched off, on airless, gas or restricted worlds; the roll uniform and on its own lane; the texts in all 14 locales).
+
+## Wildlife and the wagons (#3656–#3658)
+
+A train exists on the server only as an arc and a wagon list — nothing knew that a wagon takes up room: a hunter walked
+into the halted public train and bit the seated rider, and a train drove straight through a herd on the line.
+
+- **Stations are town ground** (#3656, `GameServerCreatureTownRules`): `TownZoneDepth` counts every intercity station's
+  hall (its footprint, floor row to roof) grown by `TownWildMargin` like a settlement — no spawn, no walking in, the
+  intruder sweep removes a straggler unseen after its grace. The open line between the towns stays wild.
+- **The wagon box** (`GameServerRailWildlife`): every wagon's drawn grid (`RailWagonLayout`, ±1.5 across, the floor
+  block's underside to the roof's top, ±3 along) at its pose, cached per tick. An animal is a cylinder of its footprint
+  radius × `CreatureFootprint.SeparationFactor` and its collision height; it reaches a wagon only when it rises more than
+  half a block into the box (`ReachesWagonBand`), so a two-block animal walks under an elevated line (floor 3.7 over the
+  ground). `StepBlocked` refuses a wild animal's step into a box (a step from inside is free) and the move loop sets an
+  animal found inside one down beside it, next to the ship push-out. Companions and giants keep their own rules.
+- **The corridor** (#3658): per line a train runs on, the wagon box swept along the spline (`RailLine.Corridor`, columns
+  → lowest underside / highest roof, built once per line object). A *roaming* ground animal that reaches it does not step
+  in (seeking and fleeing still cross — the train brakes for them), and nothing spawns in it or in a wagon.
+- **Riders are nobody's prey** (#3656): a player with `InTrain` set stays in `_creatureTargets` (population, pruning, the
+  cap — the land along the line keeps living for the window view) but is no reactor (no hunt, bite, startle) and anchors
+  no spawn (`CreatureSpawnAnchor` skips riders: a moving rider would leave every spawn behind, a halted one would gather
+  a crowd at the door). The giants' "on foot" list skips riders too.
+- **The brake** (#3658, `GameServerRailCreatureBrake`): ahead of the train's front (the leading wagon's nose the way it
+  runs) the line is sampled every block for the braking distance (v² / 2a) + 3 + 8 blocks (at most 120); every animal
+  near the front is tested against the box (half a block wider each side) at each sample — a colossus by its four legs,
+  burrowing and flying giants not at all. The nearest body is a target: `RailMotion.ObstacleSpeed(room)` (the braking
+  curve, 0 at the spot) holds the train `TrainCreatureClearance` (3) short, by hand as on autopilot; it is sent as halted
+  with velocity 0 while it stands (`ServerTrain.HeldByCreature`) and sets off from rest once the track is clear.
+- **The horn.** From 12 blocks before the hold spot the train honks at most every 3 s: `ServerTrain.Horn` counts up and
+  goes out as the additive `NetTrain.Horn` (contractless, no protocol bump; an older server sends 0); `TrainView` plays
+  `train_horn` at the cab once each time the count grows (a train seen for the first time only remembers it). Each honk
+  asks the animal to **step aside** (`CombatEntity.TrackAsideUntil`/`TrackAsideFrom`): it wakes and flees from a point
+  across the track for 3.5 s, so it leaves on its own side. One that still holds the train after 10 s is set down
+  beside the track on free ground, or — with none — leaves unseen like a town intruder; it is never hurt. A giant is
+  waited for.
+
+Tests: `RailWildlifeTests` (the far platform of each station is town ground and refuses a land spawn, the line between
+stays wild; the step into a halted wagon is a wall, along it free, an animal found inside set down beside it unhurt; a
+seated rider is no reactor and is never bitten while the same spot on foot is, and anchors no spawn; a train holds about
+three blocks short of an animal held on the track, honks (on the wire too), honks again, and runs on once it is gone;
+one that stays is set down beside the track after the patience; a roamer keeps off the line, may leave it, a hunter
+crosses; `ObstacleSpeed`, `ReachesWagonBand`), `RailWagonLayoutTests` (#3657: no full cube over a bench, every window a
+pane on the outer face).
 
 ## Not in this package (honest scope)
 
