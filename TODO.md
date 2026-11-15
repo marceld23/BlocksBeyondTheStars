@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🏛️ Lost civilizations (terrain generation 43) — epic #3649 (#3638–#3648), ✅ 2026-11-15, PR pending (⚠ playtest open)
+### 🏛️ Lost civilizations (terrain generation 43) — epic #3649 (#3638–#3648), ✅ 2026-11-15, PR #3651 (`a6176b7f`), released in v2026.11.18 (⚠ playtest open)
 
 Peoples whose ruins exist only where they lived — one body, bodies of one kind, the bodies of one system — defined as data
 (`data/civilizations/<key>.json`, templates in `data/civilizations/<key>/`), so the next people needs no C#. Marcel's
@@ -87,7 +87,7 @@ one PR. Details: docs/developer/CIVILIZATIONS.md; lore (incl. the internal part)
   - VEGA's `block` triggers read the stamped layout, not the world — a mined block still triggers its line;
   - tune the maze ruins' ruin strength (0.45) after the playtest;
 
-### ⚙️ CI: test matrix 10 → 12 shards, weights refreshed (2026-11-14) — ✅ PR pending
+### ⚙️ CI: test matrix 10 → 12 shards, weights refreshed (2026-11-14) — ✅ PR #3650 (`116012df`), released in v2026.11.18
 
 PR runs had crept to 9–17.5 min per shard: the fast tier grew to ~21 300 test-seconds (terrain generations 40–42 made every
 world boot dearer) while the weights of 2026-11-10 still said 15 300, so the packing was off by 1.6× between shards, and
@@ -95,7 +95,7 @@ shard 1 carried the Client.Tests suite (3 682 tests, ~2 min) on top of a full sh
 16 s. Refreshed `scripts/test-shard-weights*.json` (Slow seconds from the full-tier main run, fast seconds from PR #3637's
 run), `SHARD1_FIXED_COST` 60 → 600, `tests.yml` matrix 10 → 12. Details: DEVELOPER.md (CI).
 
-### 🚆 Rail & sky (terrain generation 42) — epic #3636 (#3629–#3635), ✅ 2026-11-14, PR #3637 `0a2f9111` (⚠ playtest open)
+### 🚆 Rail & sky (terrain generation 42) — epic #3636 (#3629–#3635), ✅ 2026-11-14, PR #3637 (`0a2f9111`), released in v2026.11.18 (⚠ playtest open)
 
 The procedural intercity line worked on every world that got one, but only about one in eight worlds with two towns got
 one — the 960-block route cap. Marcel's decisions 2026-11-14 (no generation of its own: it rides on main's unreleased 42),
@@ -117,7 +117,7 @@ SEAMLESS_TRANSITIONS.md (the cover's light), ADVANCED_GRAPHICS.md (fog colour).
 - ⚠ Playtest: a long line (river_lowlands seed 6, generation 42: 1908 blocks, `/tp city`), the board at both stations
   while the train comes and goes, a landing at night and into a storm, fog weather on a coloured-mist world.
 
-### 🚀 Giant ship wrecks (terrain generation 42) — epic #3625 (#3605–#3627), ✅ 2026-11-14, PR pending (⚠ playtest open)
+### 🚀 Giant ship wrecks (terrain generation 42) — epic #3625 (#3605–#3627), ✅ 2026-11-14, PR #3628 (`b698274a`), released in v2026.11.18 (⚠ playtest open)
 
 Huge spaceships (up to 256 blocks a side) that nobody can build — no blueprint, never a ship type — exist as wrecks derived
 from the intact design with each instance's seed: crashed on about every 20th planet (generation 42, airless moons too) and
@@ -145,7 +145,7 @@ crystal squid. Details: docs/developer/GIANT_SHIPS.md.
 - ⚠ Playtest: each ship as a planet wreck and in space (`/giantwreck <key>`, the start system's wreck), boarding, chests,
   falling out, the editor's Use as → Giant ship; listen to the three loops; the grown villages' roofs; the mine's torches.
 
-### 🏘️ Grown settlements (terrain generation 41) — epic #3602 (#3583–#3601), ✅ 2026-11-14, PR pending (⚠ playtest open)
+### 🏘️ Grown settlements (terrain generation 41) — epic #3602 (#3583–#3601), ✅ 2026-11-14, PR #3604 (`3c567841`), released in v2026.11.18 (⚠ playtest open)
 
 Villages, towns and the G.D.S. metropolis no longer have to be rectangles (Marcel's decisions 2026-11-14: grown grid AND
 road first, a mix with the old grid kits, everything editable in the editor, the metropolis per E1, fields / gardens / pens /
@@ -173,7 +173,7 @@ greenhouses at the edge and harvestable, follow the terrain, protection by mask)
   an empty corner, harvest a field (4 min regrow), collect from a pen crate, cook pancakes; a G.D.S. world's city with its
   suburbs; the kit panel and the town editor's grown preview at every UI scale.
 
-### 📉 Platform scaling: chunk memory, browser audio, bundled-server workers — #3579–#3582, ✅ 2026-11-14, PR pending (⚠ playtest open)
+### 📉 Platform scaling: chunk memory, browser audio, bundled-server workers — #3579–#3582, ✅ 2026-11-14, PR #3603 (`555988d2`), released in v2026.11.18 (⚠ playtest open)
 
 From the 2026-11-14 analysis of the Raspberry-Pi goal, the VPS and weak tablets (Marcel's picks of its findings):
 
@@ -196,7 +196,7 @@ From the 2026-11-14 analysis of the Raspberry-Pi goal, the VPS and weak tablets 
 - Playtest: walk/fly far on one planet and travel between planets on desktop (no holes, no missing chunks on return);
   in the browser, travel between two planets and listen for missing or late ambience on arrival and on the way back.
 
-### 🗿 Soundi statue without the SOUNDI letters — #3577, ✅ 2026-11-14, PR pending
+### 🗿 Soundi statue without the SOUNDI letters — #3577, ✅ 2026-11-14, PR #3578 (`44424358`), released in v2026.11.18
 
 The Sounders raised the statue, and they write in sound, not in our letters — the crystal name plate on the pedestal's
 front broke the lore. `tools/landmarks/soundi_statue.py` no longer writes it; `data/landmarks/soundi_statue.json`
@@ -204,7 +204,7 @@ regenerated (same 43 × 69 × 67 and 19 838 cells — the letters only overwrote
 carved obsidian between the crystal corner columns). No generation, save or locale change; a statue already stamped
 into a world keeps its letters (the overlay is written once) — #3550 was in no release yet, so only local test saves.
 
-### 🦌 Creatures are native to their own biome again — #3575, ✅ 2026-11-13, PR pending (⚠ playtest open)
+### 🦌 Creatures are native to their own biome again — #3575, ✅ 2026-11-13, PR #3576 (`5d899d7f`), released in v2026.11.18 (⚠ playtest open)
 
 A side finding of the geography analysis: a species' biome affinity counts in the planet **type's** biome pool, the
 spawner's region index in the **world's** own shuffled subset (`ResolveBiomes`, #696) — measured over 300 bodies per
@@ -221,7 +221,7 @@ pool biome as the habitat, and Leni (snow and ice, exclusive) was preferred in r
 - Playtest: on a varied or boreal world, the animals of one colour family keep to one kind of ground; the bio lab's habitat
   matches where the animal was met; Leni turns up on the snow.
 
-### 🏞️ Geography package — river valleys, site search with a map, sites reserve their ground — #3555 (#3556–#3573), ✅ 2026-11-13, PR pending (⚠ playtest open)
+### 🏞️ Geography package — river valleys, site search with a map, sites reserve their ground — #3555 (#3556–#3573), ✅ 2026-11-13, PR #3574 (`26c6dae0`), released in v2026.11.18 (⚠ playtest open)
 
 Terrain generation 40 (`WorldDescription.GeographyGeneration`, new worlds only — every older world generates and places
 byte-identically). Details: [WORLD_GENERATION.md §55](docs/developer/WORLD_GENERATION.md).
@@ -249,7 +249,7 @@ byte-identically). Details: [WORLD_GENERATION.md §55](docs/developer/WORLD_GENE
   bandit camp in a hollow; a town on a slope without a plinth wall; the city world's rim and plaza; a landmark; a lava
   world's rivers; the far view of a town from a ridge; the in-browser singleplayer's first boot.
 
-### 🛬 "A bit impractical" — coming home lands on the reserved pad — #3554, ✅ 2026-11-13, PR pending (⚠ playtest open)
+### 🛬 "A bit impractical" — coming home lands on the reserved pad — #3554, ✅ 2026-11-13, PR #3562 (`fa8c73cf`), released in v2026.11.18 (⚠ playtest open)
 
 Lyxette (v2026.11.17): four pads at his HQ, pad 1 set to *Only me*, pads 2–4 to *Everyone*; flying home he landed on
 pad 2. At an outpost with two pads he would block the one public pad the merchants need.
@@ -265,7 +265,7 @@ pad 2. At an outpost with two pads he would block the one public pad the merchan
 - Not in this package: his "suburbs" wish (one base of several connected areas without extra base cores) — answered, not
   planned for now; as world admin he can raise *Bases per world* himself.
 
-### ♜ The school club's giant buildings — eleven landmarks, overlay storage, ruin zones, protection — #3529–#3549, ✅ 2026-11-12, PR #3550 (⚠ playtest open)
+### ♜ The school club's giant buildings — eleven landmarks, overlay storage, ruin zones, protection — #3529–#3549, ✅ 2026-11-12, PR #3550 (`b4f03a33`), released in v2026.11.18 (⚠ playtest open)
 
 The eleven giant buildings from the school club's list, built on the landmark framework (#3483) — new worlds only
 (terrain generation **39**, save version **15**); gen ≤ 38 stays byte-identical. How it works:
@@ -401,7 +401,7 @@ content, authored in the town editor. New worlds only (terrain generation 37, sa
   from far away); `sample_mine` (shaft, sealed tunnels, cave-in); `sample_store` on an inhabited planet (keeper sells
   burgers only inside, blocks protected); the editor's landmark mode with the ruin preview; the browser build.
 
-### 🐟 "The thing with the fish doesn't quite work yet" — water life stays in its water — #3551–#3552, ✅ 2026-11-12, PR pending (⚠ playtest open)
+### 🐟 "The thing with the fish doesn't quite work yet" — water life stays in its water — #3551–#3552, ✅ 2026-11-12, PR #3553 (`6a8f62ca`), released in v2026.11.18 (⚠ playtest open)
 
 Lyxette (v2026.11.17, after #3476): a fish of his world's water roster (legless, finned, nocturnal — a pure water
 species, not an amphibian) lay asleep on his sandstone walkway over the lake he had drained and filled. Spawning was
@@ -426,7 +426,7 @@ clean (water life spawns only in real water); three later paths put it on land a
 - Not in this package: his gardener-reach / outpost idea (answered: a second base core by the garden gives it its own
   gardener, #2996), NPCs using the Crystal Net drawbridge.
 
-### 🌫️ "I want my far view back" — one switch for the distance softness, no storm smear — #3480–#3481, ✅ 2026-11-11, PR pending (⚠ playtest open)
+### 🌫️ "I want my far view back" — one switch for the distance softness, no storm smear — #3480–#3481, ✅ 2026-11-11, PR #3482 (`bee260f5`), released in v2026.11.17 (⚠ playtest open)
 
 Lyxette (v2026.11.16, night storm with snow): his distant building had become "a soft hill". Both parts of the 11.16
 distance softness (#3461/#3462) followed the weather-shortened haze, and only the blur had a switch.
