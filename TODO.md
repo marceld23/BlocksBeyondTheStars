@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🚆 Playtest 2026-11-15: animals and trains, the wreck's target ring, a Sounder singer statue — #3656–#3660, ✅ 2026-11-15, PR pending (⚠ playtest open)
+### 🚆 Playtest 2026-11-15: animals and trains, the wreck's target ring, a Sounder singer statue — #3656–#3660, ✅ 2026-11-15, PR #3675 (⚠ playtest open)
 
 Marcel's own playtest on v2026.11.18 (an intercity train on a meadow world, a giant wreck in space) plus his wish for the
 Soaniri statue. Decisions 2026-11-15: wrecks lock as neutral "Wreck" with a capped frame; the statue a Sounder in a robe,
