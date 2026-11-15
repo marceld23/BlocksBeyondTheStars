@@ -231,6 +231,7 @@ namespace BlocksBeyondTheStars.Client
             t.Width = maxX + 1;
             t.Height = maxY + 1;
             t.Length = maxZ + 1;
+            MarkerCarves.WriteBack(t, _carves); // #3646: the cavity under a chest in a carved room
             return t;
         }
 
@@ -250,7 +251,7 @@ namespace BlocksBeyondTheStars.Client
 
             return new TemplateCell
             {
-                X = c.x, Y = c.y, Z = c.z, Kind = kind, Id = kind == LandmarkRules.CavityKind ? string.Empty : c.id ?? string.Empty,
+                X = c.x, Y = c.y, Z = c.z, Kind = kind, Id = CivilizationEditorRules.TemplateId(kind, c.id), // a cavity, an air pocket: ""
                 Tint = c.tint, Glow = c.glow, Shape = c.shape, Port = c.port ?? string.Empty, Mode = c.mode, Config = config,
                 Label = c.label ?? string.Empty, Keep = c.keep,
             };
@@ -433,18 +434,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Loads a giant ship into the room: its cells (the compact body expanded) and its form.</summary>
         private void LoadGiantShip(StructureTemplate source, bool copy)
         {
-            var cells = new List<CellJson>();
-            TemplateBody.ForEachPlain(new StructureTemplate { Palette = source.Palette, Rows = source.Rows }, p => cells.Add(new CellJson
-            {
-                x = p.X, y = p.Y, z = p.Z, kind = p.Cavity ? LandmarkRules.CavityKind : "block", id = p.Cavity ? LandmarkRules.CavityKind : p.Id,
-                tint = p.Tint, glow = p.Glow, shape = p.Shape, keep = p.Keep,
-            }));
-            foreach (var c in source.Cells)
-            {
-                cells.Add(ToCellJson(c));
-            }
-
+            var cells = TemplateDesignCells(source, out var carves); // #3646: air pockets, markers in a cavity (StructureEditor.Civilization.cs)
             ApplyTemplate(source.Key, source.Name, string.Empty, source.PackOrDefault, source.Weight, source.PlanetTypes, cells, copy);
+            _carves = carves;
             _moduleMode = false;
             _giantShipMode = true;
             _gsStyle = GiantShipGenerator.IsAlien(source) ? GiantShipRules.StyleAlien : string.Empty;

@@ -70,6 +70,14 @@ public static class CivilizationRules
     /// <c>pool=&lt;propPool&gt;</c>) on the ground after the ruin pass.</summary>
     public const string PropMarker = "prop";
 
+    // --- under water (#3640) ---
+
+    /// <summary>Blocks of water a sunken site keeps over its top; a sea too shallow for that gets a dug basin.</summary>
+    public const int SunkenHeadroom = 3;
+
+    /// <summary>How deep a sunken site may dig into the sea floor below the deepest natural floor of its footprint.</summary>
+    public const int SunkenMaxDig = 48;
+
     // --- home bodies ---
 
     public const string AtmosphereBreathable = "breathable";

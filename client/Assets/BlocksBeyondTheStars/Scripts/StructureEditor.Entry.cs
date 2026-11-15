@@ -187,9 +187,9 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         private bool KeyHeldByOtherKind(string key)
         {
-            if (_giantShipMode)
+            if (_giantShipMode || CivilizationMode)
             {
-                return false; // #3616: the giant ships' folder holds no generator entries
+                return false; // #3616: the giant ships' folder holds no generator entries; #3646: nor a civilization's export bundle
             }
 
             bool landmarkFolder = _entryMode ? CurrentTarget() == StampTarget.LandmarkEntry : _landmarkMode;

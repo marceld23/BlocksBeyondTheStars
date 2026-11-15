@@ -36,7 +36,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The design's target from the form.</summary>
         private StampTarget CurrentTarget()
             => StructureStampRules.TargetFor(EditorMode == Mode.Station, _moduleMode, _landmarkMode, _entryMode, _underground, IsCityModule(), _entryPool,
-                _giantShipMode);
+                _giantShipMode, civilization: _civ.IsSet); // #3646: a landmark that names a civilization
 
         /// <summary>A town module that goes into a district of the walled city: a city role, the metropolis tier or a city kit.</summary>
         private bool IsCityModule()
@@ -71,6 +71,13 @@ namespace BlocksBeyondTheStars.Client
             if (_landmarkMode)
             {
                 d.RuinZones.AddRange(_zones);
+            }
+
+            if (CivilizationMode)
+            {
+                d.Civilization = _civ.Civilization; // #3646: the stamping panel names civilization, pool and seat
+                d.CivPool = _civ.CivPool;
+                d.PropPool = _civ.PropPool;
             }
 
             d.Source = CurrentSource().Key;
@@ -125,6 +132,12 @@ namespace BlocksBeyondTheStars.Client
                 if (c.kind == LandmarkRules.CavityKind)
                 {
                     d.CavityCells++;
+                    continue;
+                }
+
+                if (c.kind == CivilizationRules.AirKind)
+                {
+                    d.AirCells++; // #3646: an air pocket
                     continue;
                 }
 

@@ -38,6 +38,7 @@ public sealed class StampStepsProtectionTests
     [InlineData(StampTarget.CityModule, false)]
     [InlineData(StampTarget.StationModule, false)]
     [InlineData(StampTarget.GiantShip, false)] // #3616: a wreck names none — it is always open
+    [InlineData(StampTarget.Civilization, false)] // #3646: the server never protects a civilization's site
     public void EveryWholeTemplateAndEntryTakesAProtection_AModuleFollowsItsStructure(StampTarget target, bool takes)
         => Assert.Equal(takes, StructureStampRules.TakesProtection(target));
 
@@ -71,6 +72,12 @@ public sealed class StampStepsProtectionTests
                 if (target == StampTarget.GiantShip)
                 {
                     Assert.Equal("ui.stamp.protection.giant_ship", key); // #3616: a wreck is open, whatever a file names
+                    continue;
+                }
+
+                if (target == StampTarget.Civilization)
+                {
+                    Assert.Equal("ui.stamp.protection.civilization", key); // #3646: a civilization's site is open, whatever a file names
                     continue;
                 }
 
@@ -158,11 +165,11 @@ public sealed class StampStepsProtectionTests
     }
 
     [Fact]
-    public void TheZoneTool_ShowsForALandmarkOnly()
+    public void TheZoneTool_ShowsForALandmarkAndACivilizationTemplateOnly()
     {
         foreach (var target in Enum.GetValues<StampTarget>())
         {
-            Assert.Equal(target == StampTarget.Landmark,
+            Assert.Equal(target is StampTarget.Landmark or StampTarget.Civilization, // #3646: built by the landmark's own pass
                 StructureStampRules.ShowsInPalette(target, StructureStampRules.KindZone, StructureStampRules.KindZone));
         }
     }

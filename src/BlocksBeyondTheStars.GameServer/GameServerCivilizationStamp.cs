@@ -27,11 +27,11 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    /// <summary>Water left over a sunken site's top (blocks).</summary>
-    internal const int SunkenHeadroom = 3;
+    /// <summary>Water left over a sunken site's top (blocks) — the shared value the editor's stamping panel names too.</summary>
+    internal const int SunkenHeadroom = CivilizationRules.SunkenHeadroom;
 
     /// <summary>How deep a sunken site may dig into the sea floor below its deepest natural point.</summary>
-    internal const int SunkenMaxDig = 48;
+    internal const int SunkenMaxDig = CivilizationRules.SunkenMaxDig;
 
     /// <summary>How many footprints a sunken site's seat search draws.</summary>
     private const int SunkenSeatDraws = 240;

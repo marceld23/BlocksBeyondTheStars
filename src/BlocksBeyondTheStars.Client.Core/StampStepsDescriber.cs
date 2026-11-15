@@ -62,11 +62,14 @@ namespace BlocksBeyondTheStars.Client
     /// and how far other structures stay away. The rules mirror the server's code paths on a new world: terrain generation 38,
     /// plus generation 39's span seat, ruin zones, protection and landmark residents (<see cref="StructureStampRules"/> for what
     /// each target reads); the values come from the design and the content (the token resolvers, the placement rules of
-    /// <c>data/structure_types.json</c>). Unity-free so the headless suite checks it; the editor only translates and draws.
+    /// <c>data/structure_types.json</c>). A civilization template (#3646) first names its civilization and pool; its seat says
+    /// whether it lies under water on the sea floor, as its civilization lives. Unity-free so the headless suite checks it; the
+    /// editor only translates and draws.
     /// </summary>
     public static class StampStepsDescriber
     {
         public const string TitleBuild = "ui.stamp.title.build";
+        public const string TitleCivilization = "ui.stamp.title.civilization";
         public const string TitleSeat = "ui.stamp.title.seat";
         public const string TitleTokens = "ui.stamp.title.tokens";
         public const string TitleFurnish = "ui.stamp.title.furnish";
@@ -108,16 +111,21 @@ namespace BlocksBeyondTheStars.Client
                     StampArg.Of(Math.Max(1, d.Weight))));
             }
 
-            steps.Add(Seat(d));
+            if (d.Target == StampTarget.Civilization)
+            {
+                steps.Add(CivilizationStep(d, content));
+            }
+
+            steps.Add(Seat(d, content));
             AddIfAny(steps, Tokens(d, content));
             AddIfAny(steps, Furnish(d));
-            steps.Add(Turn(d.Target));
+            steps.Add(Turn(d));
             steps.Add(Ruin(d));
             AddIfAny(steps, Chests(d));
             AddIfAny(steps, Life(d));
             steps.Add(Residents(d));
             steps.Add(new StampStep(TitleProtection, StructureStampRules.ProtectionKey(d)));
-            AddIfAny(steps, KeepClear(d.Target, content));
+            AddIfAny(steps, KeepClear(d, content));
             return steps;
         }
 
@@ -129,10 +137,58 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        // ---------------------------------------------------------------- civilization (#3646)
+
+        /// <summary>Whether the design is a civilization's prop (a small piece a prop marker places, never a site).</summary>
+        private static bool IsProp(StampDesign d)
+            => d.Target == StampTarget.Civilization && CivilizationEditorRules.IsPropPool(d.CivPool);
+
+        /// <summary>The civilization step: whose template it is and which pool it belongs to — a site of the giant, city or small
+        /// pool, or a prop with its prop pool — or that the civilization is unknown here (the loader would drop the template).</summary>
+        private static StampStep CivilizationStep(StampDesign d, GameContent content)
+        {
+            if (content.GetCivilization(d.Civilization) is not { } civ)
+            {
+                return new StampStep(TitleCivilization, "ui.stamp.civ.unknown", StampArg.Of(d.Civilization));
+            }
+
+            var name = StampArg.Key(civ.NameKey);
+            if (IsProp(d))
+            {
+                return new StampStep(TitleCivilization, "ui.stamp.civ.prop", name, StampArg.Of(d.PropPool));
+            }
+
+            string? known = Array.Find(CivilizationRules.SitePools, p => string.Equals(p, d.CivPool, StringComparison.OrdinalIgnoreCase));
+            var pool = known != null ? StampArg.Key("ui.stamp.civ.pool." + known) : StampArg.Of(d.CivPool);
+            return new StampStep(TitleCivilization, "ui.stamp.civ.site", name, pool);
+        }
+
+        /// <summary>Where a civilization's piece stands: a prop at its marker; a site on the sea floor when its civilization lives
+        /// under water (the server's seabed seat: <see cref="CivilizationRules.SunkenHeadroom"/> blocks of water over its top, a
+        /// basin dug at most <see cref="CivilizationRules.SunkenMaxDig"/> deep, its air pockets dry), else on land by the
+        /// guaranteed search.</summary>
+        private static StampStep CivilizationSeat(StampDesign d, GameContent content)
+        {
+            if (IsProp(d))
+            {
+                return new StampStep(TitleSeat, "ui.stamp.seat.prop", StampArg.Of(d.GroundRow));
+            }
+
+            return content.GetCivilization(d.Civilization) is { Scope.Underwater: true }
+                ? new StampStep(TitleSeat, "ui.stamp.seat.seabed", StampArg.Of(d.GroundRow), StampArg.Of(CivilizationRules.SunkenHeadroom),
+                    StampArg.Of(CivilizationRules.SunkenMaxDig), StampArg.Of(d.AirCells))
+                : new StampStep(TitleSeat, "ui.stamp.seat.civ_land", StampArg.Of(d.GroundRow));
+        }
+
         // ---------------------------------------------------------------- seat
 
-        private static StampStep Seat(StampDesign d)
+        private static StampStep Seat(StampDesign d, GameContent content)
         {
+            if (d.Target == StampTarget.Civilization)
+            {
+                return CivilizationSeat(d, content);
+            }
+
             if (d.Target is StampTarget.Landmark or StampTarget.LandmarkEntry
                 && string.Equals(d.Seat, LandmarkRules.SeatSpan, StringComparison.OrdinalIgnoreCase))
             {
@@ -190,9 +246,12 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The resolver the server uses for the target: the station hull, the G.D.S. city's materials, a landmark's
-        /// village style, else the settlement style of the tier (aliens for an alien module).</summary>
+        /// village style, a civilization's own materials over the village style (#3646), else the settlement style of the tier
+        /// (aliens for an alien module).</summary>
         public static ModuleMaterials MaterialsFor(StampDesign d, GameContent content) => d.Target switch
         {
+            StampTarget.Civilization when content.GetCivilization(d.Civilization) is { } civ => CivilizationLayouts.MaterialsOf(civ, d.Surface, content),
+            StampTarget.Civilization => ModuleMaterials.ForSettlement("village", d.Surface, alien: false, content),
             StampTarget.StationWhole => ModuleMaterials.ForStation(content),
             StampTarget.CityModule => ModuleMaterials.ForCity(content),
             StampTarget.Landmark => ModuleMaterials.ForSettlement("village", d.Surface, alien: false, content),
@@ -225,6 +284,7 @@ namespace BlocksBeyondTheStars.Client
                 case StampTarget.StationWhole:
                 case StampTarget.Landmark:
                 case StampTarget.GiantShip:
+                case StampTarget.Civilization:
                     return new StampStep(TitleFurnish, "ui.stamp.furnish.never");
                 default:
                     return null; // a generator entry furnishes as its generator does
@@ -248,9 +308,10 @@ namespace BlocksBeyondTheStars.Client
 
         // ---------------------------------------------------------------- the quarter turn
 
-        private static StampStep Turn(StampTarget t) => new StampStep(TitleTurn, t switch
+        private static StampStep Turn(StampDesign d) => new StampStep(TitleTurn, d.Target switch
         {
-            StampTarget.SettlementWhole or StampTarget.Landmark => "ui.stamp.turn.pinned",
+            StampTarget.Civilization when IsProp(d) => "ui.stamp.turn.prop", // #3646: by a hash of its marker's cell
+            StampTarget.SettlementWhole or StampTarget.Landmark or StampTarget.Civilization => "ui.stamp.turn.pinned",
             StampTarget.StationModule => "ui.stamp.turn.dock",
             StampTarget.GiantShip => "ui.stamp.turn.giant_ship", // #3616: a quarter turn on a planet, never in space
             _ => "ui.stamp.turn.never",
@@ -270,7 +331,7 @@ namespace BlocksBeyondTheStars.Client
 
                 case StampTarget.SettlementModule:
                     return new StampStep(TitleRuin, "ui.stamp.ruin.module", StampArg.Of(d.KeepCells));
-                case StampTarget.Landmark when d.Ruin:
+                case StampTarget.Landmark or StampTarget.Civilization when d.Ruin && !IsProp(d): // #3646: a prop is set down whole
                     {
                         var (profile, strength) = Profile(d);
                         return d.RuinZones.Count > 0 ? ZonedRuin(d, profile, strength)
@@ -361,8 +422,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>One line per chest (the first <see cref="ListedChests"/>): where, the chance, what it holds — and how many
-        /// chests without settings stay furniture (outside a landmark and a giant ship a chest needs settings to become a loot
-        /// chest).</summary>
+        /// chests without settings stay furniture (outside a landmark, a giant ship and a civilization's site a chest needs
+        /// settings to become a loot chest).</summary>
         private static StampStep ChestList(StampTarget t, List<StampMarker> chests)
         {
             var lines = new List<StampStep>();
@@ -370,7 +431,7 @@ namespace BlocksBeyondTheStars.Client
             foreach (var c in chests)
             {
                 var settings = MarkerSettings.Parse(c.Config);
-                if (settings.IsEmpty && t is not (StampTarget.Landmark or StampTarget.GiantShip))
+                if (settings.IsEmpty && t is not (StampTarget.Landmark or StampTarget.GiantShip or StampTarget.Civilization))
                 {
                     inert++;
                     continue;
@@ -430,6 +491,7 @@ namespace BlocksBeyondTheStars.Client
                 StampTarget.Landmark => d.Ruin ? "ui.stamp.residents.landmark_ruin" : "ui.stamp.residents.landmark_staffed",
                 StampTarget.StationEntry => "ui.stamp.residents.station_entry",
                 StampTarget.GiantShip => "ui.stamp.residents.giant_ship", // #3616: the crew got away long ago, safe and sound
+                StampTarget.Civilization => "ui.stamp.residents.civilization", // #3639: a lost civilization's site is never staffed
                 _ => "ui.stamp.residents.entry",
             };
             return new StampStep(TitleResidents, text, StampArg.Of(vendors), StampArg.Of(residents), StampArg.Of(posts));
@@ -462,12 +524,13 @@ namespace BlocksBeyondTheStars.Client
         // ---------------------------------------------------------------- keep-clear
 
         /// <summary>How far other structures stay away (the placement rules' <c>keepClear</c>, generation 38): a whole settlement,
-        /// an underground structure, a landmark, a giant ship's wreck on a planet. A module goes with its settlement, a station
-        /// hangs in space.</summary>
-        private static StampStep? KeepClear(StampTarget t, GameContent content)
+        /// an underground structure, a landmark, a giant ship's wreck on a planet, a civilization's site (not its props). A module
+        /// goes with its settlement, a station hangs in space.</summary>
+        private static StampStep? KeepClear(StampDesign d, GameContent content)
         {
-            string? kind = t switch
+            string? kind = d.Target switch
             {
+                StampTarget.Civilization => IsProp(d) ? null : StructureTypeRules.Civilization,
                 StampTarget.SettlementWhole or StampTarget.SettlementEntry => StructureTypeRules.Settlement,
                 StampTarget.UndergroundWhole or StampTarget.UndergroundEntry => StructureTypeRules.Underground,
                 StampTarget.Landmark or StampTarget.LandmarkEntry => StructureTypeRules.Landmark,

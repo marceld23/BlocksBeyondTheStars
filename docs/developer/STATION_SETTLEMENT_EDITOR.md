@@ -593,16 +593,44 @@ as a wreck, crashed on a planet or drifting in space ([GIANT_SHIPS.md](GIANT_SHI
   kept, and so are its `ruinZones` and `minTerrainGeneration` when the bundle has none. `--data` merges into another data
   folder (a copy, for a dry run) — it works for every bundle kind.
 
-## 3g. Lost civilizations — not an editor use (#3649, 2026-11-15)
+## 3g. Civilization templates (#3646, 2026-11-15)
 
-A civilization's templates ([CIVILIZATIONS.md](CIVILIZATIONS.md)) have no *Use as* target: they are written by the scripts in
-`tools/landmarks/` (`civ_grosstechniker.py`, `civ_labyrinth_statues.py`) straight into `data/civilizations/<key>/`, and
-the editor has no row for their fields (`civilization`, `civPool`, `propPool`, `seat: seabed`, the `air` cell kind, the
-`prop` marker); there is no user-content folder for them either. What the editor does see is the Labyrinth Builders'
-**`maze_ruin` source** — *Generate* builds it like any surface source (size, wall height, loops, halls, statues and the three
-blocks). Its bake loads the blocks, cavities and markers but not the source's kept wall rows (`BuiltStructure.Keep`, see
-[STRUCTURE_PIPELINE.md](STRUCTURE_PIPELINE.md) §1) — a design started from it falls without them in the ruin preview
-(backlog).
+A civilization's site or prop ([CIVILIZATIONS.md](CIVILIZATIONS.md)) is a landmark-style template that names a civilization,
+so the town editor's landmark form edits it (`StructureEditor.Civilization.cs`; Unity-free rules in `CivilizationEditorRules`,
+`CivilizationFields` and `MarkerCarves` in Client.Core, pinned by `UserTemplateFilesCivilizationTests`).
+
+- **Load.** LOAD lists the shipped civilization templates (as copies; generator entries such as the maze ruins are not
+  listed) and the user's own bundles from `civilization_exports/`, the civilization's name in the detail line. The fields the
+  form has no rows for — `civilization`, `civPool`, `propPool`, the file's `protection` (a civilization site is never protected,
+  so the form shows no protection picker) and the `seabed` seat (the server seats a site as its civilization lives, so the form
+  shows no seat picker and no air / inhabited conditions) — go from the loaded file to the saved one unchanged. The form's title
+  reads *Civilization building*.
+- **Cells.** An air pocket (cell or palette kind `air`) loads as a cell of the **Air pocket** brush (design id `air_pocket`) and
+  saves as `air` again — never as a block or a plain cavity; the giant ship load reads it the same way. The palette shows the air
+  brush and the **Prop** marker for a civilization template only, and only the markers a lost civilization may carry
+  (`CivilizationRules.LostMarkerAllowed`). The settings tool sets a prop marker's `pool=` or `template=` (`EditorMarkerPanel`).
+- **Markers in a carve.** The design holds one cell per place, a template may hold a marker *and* a cavity or air pocket there
+  (a chest in a carved tunnel or a diving bell). Loading used to give the place to the carve and skip the marker, so a save lost
+  it (the old mine, the carrier, the giant dwelling). Now the marker keeps its place and the carve under it is written back on
+  save — for landmarks and giant ships too.
+- **Previews and the Stamping… panel.** The ruin preview builds the civilization's own way (its materials, rubble, overgrowth
+  and props — `CivilizationLayouts`); the *Stamping…* panel (target `StampTarget.Civilization`) names the civilization and its
+  pool first, then the seat: under water on the sea floor (the basin rule, how many air-pocket cells stay air) or on land, or —
+  for a prop — at its marker; the civilization's materials, never staffed, never protected, its keep-clear distance.
+- **Save.** Checked as the content loader checks it (`GameContent.CivilizationTemplateProblems`: the landmark checks, the
+  civilization and pool, nobody home in a lost civilization, known blocks and loot tables); a good one goes as one compact file
+  to `civilization_exports/<key>/civilization.json` only — never to `usercontent/landmark_templates/`, whose pool would offer it
+  as a landmark. There is no user-content folder for civilization templates yet, so the local server does not offer it before
+  it is merged. Air pockets in any other target are named in the save's status line (`ui.ed.warn.air`).
+- **Merge.** `python tools/merge_structure.py civilization_exports/<key> [--data <folder>]` writes
+  `data/civilizations/<civilization>/<key>.json` (one line; `key`, `name`, `kind: civilization`, `civilization`, `civPool`,
+  `propPool` first, `landmark` and the editor's defaults stripped, `air` palette entries, `prop` markers and `seat: seabed` kept);
+  a civilization without its `data/civilizations/<key>.json` is refused. `pinOnly` of a file already there is kept, and so are
+  its `ruinZones`, `minTerrainGeneration` and `requires` when the bundle has none.
+- **The maze source.** The Labyrinth Builders' `maze_ruin` source is in the *Generate* picker like any surface source (size,
+  wall height, loops, halls, statues and the three blocks). Its bake loads the blocks, cavities and markers but not the
+  source's kept wall rows (`BuiltStructure.Keep`, see [STRUCTURE_PIPELINE.md](STRUCTURE_PIPELINE.md) §1) — a design started
+  from it falls without them in the ruin preview (backlog).
 
 ## 4. Open questions
 1. **Marker parity:** confirm the full marker vocabulary each editor must expose (vendor, mission board,

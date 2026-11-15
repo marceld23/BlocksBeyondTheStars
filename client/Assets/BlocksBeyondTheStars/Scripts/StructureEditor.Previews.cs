@@ -80,8 +80,9 @@ namespace BlocksBeyondTheStars.Client
 
         // ---------------------------------------------------------------- the form
 
-        /// <summary>Whether the target can stand as a ruin the editor previews: a landmark, a whole settlement template.</summary>
-        private bool CanPreviewRuin() => _target is StampTarget.Landmark or StampTarget.SettlementWhole;
+        /// <summary>Whether the target can stand as a ruin the editor previews: a landmark, a civilization template (#3646), a whole
+        /// settlement template.</summary>
+        private bool CanPreviewRuin() => _target is StampTarget.Landmark or StampTarget.Civilization or StampTarget.SettlementWhole;
 
         /// <summary>Quarter turn and materials for every design; the ruin with its seed where the target can fall (a giant ship:
         /// its wreck on a planet or in space); and the way back while a preview shows.</summary>
@@ -229,7 +230,8 @@ namespace BlocksBeyondTheStars.Client
             List<CellJson> cells;
             if (_landmarkMode)
             {
-                var layout = LandmarkGenerator.Build(BuildLandmarkTemplate("preview", design), _previewSeed, 0, Shell.Content, PreviewSurface(), ruin: true);
+                // #3646: a civilization template falls with its civilization's materials, rubble and props
+                var layout = CivilizationEditorRules.RuinPreview(BuildLandmarkTemplate("preview", design), Shell.Content, _previewSeed, PreviewSurface());
                 cells = RuinCells(layout);
             }
             else
@@ -253,10 +255,9 @@ namespace BlocksBeyondTheStars.Client
             int maxX = 0, maxY = 0, maxZ = 0;
             foreach (var c in cells)
             {
-                bool cavity = c.kind == LandmarkRules.CavityKind;
                 t.Cells.Add(new TemplateCell
                 {
-                    X = c.x, Y = c.y, Z = c.z, Kind = string.IsNullOrEmpty(c.kind) ? "block" : c.kind, Id = cavity ? string.Empty : c.id ?? string.Empty,
+                    X = c.x, Y = c.y, Z = c.z, Kind = string.IsNullOrEmpty(c.kind) ? "block" : c.kind, Id = CivilizationEditorRules.TemplateId(c.kind, c.id),
                     Tint = c.tint, Glow = c.glow, Shape = c.shape, Port = c.port ?? string.Empty, Mode = c.mode, Config = c.config ?? string.Empty,
                     Label = c.label ?? string.Empty, Keep = c.keep,
                 });

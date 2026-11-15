@@ -21,6 +21,7 @@ namespace BlocksBeyondTheStars.Client
     /// <item><b>Vendor</b> — the market theme of the recipes it sells, "only inside its room", a nameplate key.</item>
     /// <item><b>Sound</b> — the loop, how far it carries and how loud it is at the source.</item>
     /// <item><b>Den</b> — the species (<c>native</c> = the planet's own), the pack size and the radius.</item>
+    /// <item><b>Prop</b> (#3646, a civilization template's) — the prop pool to draw from, or one prop's template key.</item>
     /// </list>
     /// A modal like <see cref="EditorDevicePanel"/>.
     /// </summary>
@@ -62,9 +63,10 @@ namespace BlocksBeyondTheStars.Client
             _panel = panel;
         }
 
-        /// <summary>Whether a marker type has settings this panel edits.</summary>
+        /// <summary>Whether a marker type has settings this panel edits (#3646: a civilization template's prop marker too).</summary>
         public static bool Edits(string marker)
-            => marker == LandmarkRules.ChestMarker || marker == LandmarkRules.SoundMarker || marker == LandmarkRules.DenMarker || marker == "vendor";
+            => marker == LandmarkRules.ChestMarker || marker == LandmarkRules.SoundMarker || marker == LandmarkRules.DenMarker || marker == "vendor"
+               || marker == CivilizationRules.PropMarker;
 
         private string L(string key) => _shell != null ? _shell.L(key) : key;
 
@@ -116,6 +118,10 @@ namespace BlocksBeyondTheStars.Client
             else if (_marker == LandmarkRules.SoundMarker)
             {
                 y = BuildSound(body, y);
+            }
+            else if (_marker == CivilizationRules.PropMarker)
+            {
+                y = BuildProp(body, y);
             }
             else
             {
@@ -268,6 +274,14 @@ namespace BlocksBeyondTheStars.Client
             y = StepRow(body, y, "ui.ed.marker.species", "species", species, v => v == "native" ? L("ui.ed.marker.species_native") : v);
             y = NumberRow(body, y, "ui.ed.marker.count", "count", 3, 1, 1, 12);
             return NumberRow(body, y, "ui.ed.marker.radius", "radius", 12, 2, 4, 48);
+        }
+
+        /// <summary>#3646: a prop marker — which of the civilization's props stands here: one of a prop pool (a hash of the cell
+        /// picks it), or one prop by its template key (it wins over the pool).</summary>
+        private float BuildProp(Transform body, float y)
+        {
+            y = TextRow(body, y, "ui.ed.marker.prop_pool", "pool", "statue");
+            return TextRow(body, y, "ui.ed.marker.prop_template", "template", "lb_statue_kneeling");
         }
     }
 }

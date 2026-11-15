@@ -39,10 +39,12 @@ namespace BlocksBeyondTheStars.Client
     {
         [Serializable] private sealed class PaletteJson { public string kind = "block", id = string.Empty; public int tint, glow, shape; public bool keep; }
 
-        /// <summary>The landmark file (matches the server's StructureTemplate JSON, compact body included).</summary>
+        /// <summary>The landmark file (matches the server's StructureTemplate JSON, compact body included) — and a civilization
+        /// template's (#3646: kind <c>civilization</c>, <c>landmark</c> false, its civilization, pool and prop pool).</summary>
         [Serializable] private sealed class LandmarkJson
         {
             public string key, name, kind = "landmark", pack = "default", nameKey = string.Empty;
+            public string civilization = string.Empty, civPool = string.Empty, propPool = string.Empty;
             public int weight = 1;
             public List<string> planetTypes = new();
             public bool landmark = true;
@@ -135,7 +137,8 @@ namespace BlocksBeyondTheStars.Client
             Id = id, Label = L("ui.marker." + id), Kind = kind, Group = "markers", Color = c,
         };
 
-        /// <summary>The settlement palette plus what a landmark needs: the sound and den markers and the three tools.</summary>
+        /// <summary>The settlement palette plus what a landmark needs: the sound and den markers and the three tools — and what a
+        /// civilization template needs (#3646): the air-pocket brush and the prop marker.</summary>
         private EditorPaletteKit.Entry[] WithLandmarkTools(EditorPaletteKit.Entry[] markers)
         {
             var list = new List<EditorPaletteKit.Entry>(markers)
@@ -147,6 +150,7 @@ namespace BlocksBeyondTheStars.Client
                 Tool("settings", "settings", new Color(1f, 0.85f, 0.35f)),
                 Tool(StructureStampRules.KindZone, StructureStampRules.KindZone, ZoneColor(0)), // generation 39: ruin zones
             };
+            list.AddRange(CivilizationTools()); // StructureEditor.Civilization.cs
             return list.ToArray();
         }
 
@@ -237,7 +241,7 @@ namespace BlocksBeyondTheStars.Client
 
         private float BuildLandmarkRows(Transform p, float y)
         {
-            SectionTitle(p, y, L("ui.ed.landmark.title"));
+            SectionTitle(p, y, L(CivilizationMode ? "ui.ed.civ.title" : "ui.ed.landmark.title")); // #3646
             y += 30f;
             y = LandmarkToggle(p, y, "ui.ed.landmark.ruin", _lmRuin, () => _lmRuin = !_lmRuin);
             if (_lmRuin)
@@ -258,11 +262,20 @@ namespace BlocksBeyondTheStars.Client
                 y = BuildZoneRows(p, y); // generation 39: boxes that fall in their own way (StructureEditor.Zones.cs)
             }
 
-            y = BuildSeatRow(p, y); // generation 39: on the ground, or a span over water or a valley
+            // #3646: a civilization's site sits where its civilization lives (on the sea floor or on land) and on its home worlds
+            // only — no seat picker, no conditions; the loaded seat and conditions are written back as they were.
+            if (!CivilizationMode)
+            {
+                y = BuildSeatRow(p, y); // generation 39: on the ground, or a span over water or a valley
+            }
+
             y = LandmarkNumber(p, y, "ui.ed.landmark.ground_row", _groundRow.ToString(),
                 () => _groundRow = Mathf.Max(0, _groundRow - 1), () => _groundRow = Mathf.Min(RoomSize - 1, _groundRow + 1));
-            y = LandmarkToggle(p, y, "ui.ed.landmark.atmosphere", _lmAtmosphere, () => _lmAtmosphere = !_lmAtmosphere);
-            y = LandmarkToggle(p, y, "ui.ed.landmark.inhabited", _lmInhabited, () => _lmInhabited = !_lmInhabited);
+            if (!CivilizationMode)
+            {
+                y = LandmarkToggle(p, y, "ui.ed.landmark.atmosphere", _lmAtmosphere, () => _lmAtmosphere = !_lmAtmosphere);
+                y = LandmarkToggle(p, y, "ui.ed.landmark.inhabited", _lmInhabited, () => _lmInhabited = !_lmInhabited);
+            }
 
             // Generation 39: whether players may change it is the Protection row every whole template has (below the pack rows).
             FieldLabel(p, y, L("ui.ed.landmark.name_key"));
@@ -333,7 +346,7 @@ namespace BlocksBeyondTheStars.Client
                 // "protected" on an intact landmark, so an older world that rolls it keeps it read-only too.
                 Protection = ProtectionWord(),
                 Protected = !_lmRuin && LandmarkRules.ProtectionOf(_protection) == LandmarkRules.ProtectionProtected,
-                Seat = IsSpan(_lmSeat) ? LandmarkRules.SeatSpan : string.Empty,
+                Seat = CivilizationEditorRules.SeatToSave(_lmSeat, CivilizationMode), // a span; #3646: a civilization's sea floor
                 MinTerrainGeneration = _lmMinGeneration,
                 NameKey = (_lmNameKey ?? string.Empty).Trim(),
             };
@@ -352,7 +365,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 t.Cells.Add(new TemplateCell
                 {
-                    X = c.x, Y = c.y, Z = c.z, Kind = c.kind, Id = c.kind == LandmarkRules.CavityKind ? string.Empty : c.id,
+                    X = c.x, Y = c.y, Z = c.z, Kind = c.kind, Id = CivilizationEditorRules.TemplateId(c.kind, c.id), // a cavity, an air pocket: ""
                     Tint = c.tint, Glow = c.glow, Shape = c.shape, Port = c.port, Mode = c.mode, Config = c.config, Label = c.label, Keep = c.keep,
                 });
                 maxX = Mathf.Max(maxX, c.x);
@@ -364,12 +377,14 @@ namespace BlocksBeyondTheStars.Client
             t.Height = maxY + 1;
             t.Length = maxZ + 1;
             t.RuinZones = ClampedZones(t.Width, t.Height, t.Length, out _); // the ruin preview builds with them too
+            MarkerCarves.WriteBack(t, _carves); // #3646: the cavity or air pocket under a chest in a carved tunnel or a diving bell
+            _civ.ApplyTo(t); // #3646: a civilization template's fields, as loaded (nothing for a landmark)
             return t;
         }
 
         private static CellJson ToCellJson(TemplateCell c) => new CellJson
         {
-            x = c.X, y = c.Y, z = c.Z, kind = c.Kind, id = c.Kind == LandmarkRules.CavityKind ? LandmarkRules.CavityKind : c.Id,
+            x = c.X, y = c.Y, z = c.Z, kind = c.Kind, id = CivilizationEditorRules.DesignId(c.Kind, c.Id), // the cavity / air brush
             tint = c.Tint, glow = c.Glow, shape = c.Shape, port = c.Port ?? string.Empty,
             mode = c.Mode, config = c.Config ?? string.Empty, label = c.Label ?? string.Empty, keep = c.Keep,
         };
@@ -398,9 +413,10 @@ namespace BlocksBeyondTheStars.Client
                         ushort id = s.Get(x, y, z);
                         if (id == 0)
                         {
-                            if (layout.IsCavity(x, y, z))
+                            // A cavity, or (#3646) an air pocket — which is a cavity too, so it is asked first.
+                            if (CivilizationEditorRules.EmptyKind(layout.IsCavity(x, y, z), layout.IsAirPocket(x, y, z)) is { } empty)
                             {
-                                cells.Add(new CellJson { x = x, y = y, z = z, kind = LandmarkRules.CavityKind, id = LandmarkRules.CavityKind });
+                                cells.Add(new CellJson { x = x, y = y, z = z, kind = empty, id = CivilizationEditorRules.DesignId(empty, string.Empty) });
                             }
 
                             continue;
@@ -446,7 +462,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var problems = LandmarkRules.Problems(t);
+            var problems = CivilizationEditorRules.SaveProblems(t, Shell?.Content); // #3646: a civilization template as the loader checks it
             if (_design.Count == 0 || problems.Count > 0)
             {
                 SetStatus(_design.Count == 0 ? L("ui.submit.empty") : string.Format(L("ui.ed.landmark.problem"), problems[0]));
@@ -457,6 +473,12 @@ namespace BlocksBeyondTheStars.Client
             {
                 TemplateBody.Compact(t);
                 string json = JsonUtility.ToJson(ToLandmarkJson(t), false);
+                if (CivilizationMode)
+                {
+                    WriteCivilizationBundle(key, json); // #3646: the export bundle only — never offered as a landmark
+                    return;
+                }
+
                 Directory.CreateDirectory(UserLandmarksRoot);
                 File.WriteAllText(Path.Combine(UserLandmarksRoot, key + ".json"), json);
                 string dir = Path.Combine(LandmarkExportsRoot, key);
@@ -476,6 +498,8 @@ namespace BlocksBeyondTheStars.Client
             var json = new LandmarkJson
             {
                 key = t.Key, name = t.Name, pack = t.PackOrDefault, weight = t.Weight, planetTypes = new List<string>(t.PlanetTypes),
+                kind = string.IsNullOrEmpty(t.Kind) ? "landmark" : t.Kind, landmark = t.Landmark, // #3646: kind civilization, no landmark
+                civilization = t.Civilization ?? string.Empty, civPool = t.CivPool ?? string.Empty, propPool = t.PropPool ?? string.Empty,
                 ruin = t.Ruin, ruinProfile = t.RuinProfile, ruinStrength = (float)t.RuinStrength, requires = new List<string>(t.Requires),
                 groundRow = t.GroundRow, @protected = t.Protected, nameKey = t.NameKey,
                 protection = t.Protection ?? string.Empty, seat = t.Seat ?? string.Empty, ruinZones = ToZoneJsons(t.RuinZones),
@@ -497,9 +521,11 @@ namespace BlocksBeyondTheStars.Client
 
         private static StructureTemplate FromLandmarkJson(LandmarkJson j)
         {
+            bool civ = !string.IsNullOrWhiteSpace(j.civilization); // #3646: a civilization template is no landmark
             var t = new StructureTemplate
             {
-                Key = j.key ?? string.Empty, Name = j.name ?? string.Empty, Kind = "landmark", Landmark = true,
+                Key = j.key ?? string.Empty, Name = j.name ?? string.Empty, Kind = civ ? CivilizationRules.TemplateKind : "landmark", Landmark = !civ,
+                Civilization = j.civilization ?? string.Empty, CivPool = j.civPool ?? string.Empty, PropPool = j.propPool ?? string.Empty,
                 Pack = string.IsNullOrEmpty(j.pack) ? "default" : j.pack, Weight = Mathf.Max(1, j.weight),
                 PlanetTypes = j.planetTypes ?? new List<string>(), Ruin = j.ruin ?? string.Empty, RuinProfile = j.ruinProfile ?? string.Empty,
                 RuinStrength = j.ruinStrength, Requires = j.requires ?? new List<string>(), GroundRow = j.groundRow, Protected = j.@protected,
@@ -552,6 +578,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             AddUserLandmarkItems(user);
+            AddCivilizationItems(builtIn, user); // #3646: StructureEditor.Civilization.cs
         }
 
         /// <summary>The user's own landmarks of <c>usercontent/landmark_templates/</c>, in file-name order.</summary>
@@ -599,21 +626,12 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Loads a landmark into the room: its cells (the compact body expanded) and its form.</summary>
         private void LoadLandmark(StructureTemplate source, bool copy)
         {
-            var cells = new List<CellJson>();
-            TemplateBody.ForEachPlain(new StructureTemplate { Palette = source.Palette, Rows = source.Rows }, p => cells.Add(new CellJson
-            {
-                x = p.X, y = p.Y, z = p.Z, kind = p.Cavity ? LandmarkRules.CavityKind : "block", id = p.Cavity ? LandmarkRules.CavityKind : p.Id,
-                tint = p.Tint, glow = p.Glow, shape = p.Shape, keep = p.Keep,
-            }));
-            foreach (var c in source.Cells)
-            {
-                cells.Add(ToCellJson(c));
-            }
-
+            var cells = TemplateDesignCells(source, out var carves); // #3646: air pockets, markers in a cavity (StructureEditor.Civilization.cs)
             _previewOn = false;
             _previewBackup = null;
             ApplyTemplate(source.Key, source.Name, string.Empty, source.PackOrDefault, source.Weight, source.PlanetTypes, cells, copy,
                 protection: ProtectionOfLoaded(source.Protection, source.Protected, LandmarkRules.IsRuin(source)));
+            _carves = carves;
             _moduleMode = false;
             _landmarkMode = true;
             _lmRuin = LandmarkRules.IsRuin(source);
@@ -623,8 +641,9 @@ namespace BlocksBeyondTheStars.Client
             _lmInhabited = LandmarkRules.Requires(source, LandmarkRules.RequiresInhabited);
             _groundRow = source.GroundRow;
             _lmNameKey = source.NameKey ?? string.Empty;
-            _lmSeat = LandmarkRules.IsSpanSeat(source) ? LandmarkRules.SeatSpan : string.Empty; // generation 39
+            _lmSeat = CivilizationEditorRules.SeatOfLoaded(source); // generation 39: a span; #3646: a civilization's sea floor
             _lmMinGeneration = source.MinTerrainGeneration;
+            _civ = CivilizationFields.Of(source); // #3646: civilization, pool, prop pool, protection — written back as they were
             LoadZones(source.RuinZones);
             RebuildUi();
         }
