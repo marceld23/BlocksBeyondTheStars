@@ -11,6 +11,112 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.18] — 2026-11-15
+
+The wonders release. **The school club's giant buildings** are here — eleven of them, from a leaning tower and an old
+city gate to a castle the Soundis live in and a restaurant shaped like a burger. **Giant ship wrecks** lie crashed on
+planets and drift in space: a carrier, a battleship, a cruise liner, a terraforming ark and an alien crystal squid.
+**Lost civilizations** left their ruins behind: the Vanished People's Grand Technicians deep under the sea of one ocean
+world, and the Labyrinth Builders' mazes on toxic and airless moons. New worlds also get **river valleys**, **villages
+that grow along a road** with fields, gardens and animal pens, and **longer train lines** with departure boards. And
+Lyxette's fish and landing-pad reports are done.
+
+ℹ️ **Compatibility:** new blocks for the giant buildings and the lost civilizations — the **save version rises to 16**
+(worlds are upgraded on first open; older versions can no longer open them afterwards) and the **terrain generation
+rises to 43**: the new buildings, valleys and villages come with new worlds, existing worlds keep every building where it
+is. Every world gets the giant wreck in its start system, the departure boards, the new fog and cloud colours and the
+fixes. The **network protocol rises to version 12** — game and server must both be on 2026.11.18: the desktop game
+updates itself at start, the browser is always current, and the official worlds are already updated.
+
+### 🏛️ The school club's giant buildings (#3529–#3549, #3577)
+
+- **Eleven giant buildings** from the school club's list: the **Leaning Tower**, the **Porta Nigra**, the
+  **Portasseum**, the **Old Mine** with three levels of tunnels, the **Golden Bird Gate**, the **Eifelnyde** (an iron
+  lattice tower on a stepped pyramid) and the **Suspension Bridge** stand as ruins on planets with air; the **Soundi
+  Statue** and the **Blocks King** burger restaurant (with a burger keeper, on inhabited planets) stand intact.
+- **Soaniri** always carries the **Castle of Soaniri** — a ruin the Soundis live in — and the **Singer Statue**, whose
+  choir grows louder as you come closer.
+- **Ruins that break like the real thing:** lattice towers lose their top, the bridge loses a piece of its span; the
+  bridge only stands where it really spans water or a valley.
+- **Protected buildings:** the three intact giants (the two statues and the Blocks King) cannot be mined or built over;
+  every design now chooses **Auto**, **Protected** or **Open**, and admins may always build.
+- **New blocks:** travertine, blackened sandstone, green copper and the burger's lettuce, tomato and sesame bun — all
+  craftable at the workbench. Four new sound loops: the mine's drip, the arena's wind, the castle and the choir.
+- **Editor:** a **Protection** choice in every *Use as* form, ruin zones with their own strength, the seat option and
+  Codex descriptions.
+- The Soundi Statue carries no letters — the Sounders write in sound, not in our alphabet.
+
+### 🚀 Giant ship wrecks (#3605–#3627)
+
+- **Five giant ships nobody can build** — up to 256 blocks a side, each one a wreck that looks different in every world:
+  a **carrier** with a flight deck and hangars full of parked ships, a **battleship** built around one giant cannon you
+  can walk through, a **cruise liner** with glass domes, pools and cabins, and the rarer **terraforming ark** (greenhouses
+  with trees and a pond) and an alien **crystal squid**. Their crews got away safely long ago.
+- **On planets** (new worlds): crashed on about every twentieth planet, airless moons included — with chests, a far
+  silhouette, a map marker, a VEGA line, a Codex entry and a scan.
+- **In space** (every world, old ones too): one drifts in the start system, rarely more elsewhere (world option **Giant
+  ship wrecks**). Dock and board it like a derelict station — there is no air aboard, and falling out is a spacewalk.
+- **Editor:** *Use as → Giant ship* with planet and space wreck previews.
+- Also fixed: the free starter ship could be crafted.
+
+### 🗿 Lost civilizations (#3638–#3649)
+
+- **The Vanished People:** the **Grand Technicians** lived on one single ocean world in each galaxy — everything they
+  left lies **under water**: a giant dwelling with a white eye, sunken cities, small ruins, a glowing red liquid, a wall
+  picture and **air pockets** where you can catch your breath on the way down.
+- **The Labyrinth Builders:** one to three **mazes** per galaxy on toxic or airless bodies — walls twenty blocks high,
+  narrow and wide passages, a plaza in the middle and statues with big square heads.
+- **Discovery:** a map marker, a new Codex group **Lost civilizations**, a scanner readout, VEGA lines and rumours from
+  settlers on other worlds. 15 new blocks (glyph stones, dark sandstone, mural tiles, maze stones and more).
+- Civilizations are **data**: a new people needs no code, and the structure editor opens and saves their buildings.
+- **No admin view in singleplayer:** the pause menu's **Admin** button, **F8** and **Call an admin** are gone where you
+  play alone.
+
+### 🏘️ Grown settlements (#3583–#3602)
+
+- **Villages that grow:** about half of the new villages grow along a road — street, green, round, crossroads and
+  riverside villages; a quarter are ordered but lived in, a quarter keep the classic grid. Doors face the road, a path
+  leads to every house, the market and the tavern stand at the square.
+- **On slopes** every house gets its own terrace and the roads climb one block at a time — no more plinth walls.
+- **Farms at the edge:** fields that regrow in about four minutes, gardens, greenhouses and **pens** with two or three
+  tame animals that fill their crate with **eggs, milk or wool**. New: **fried egg**, **pancakes**, a **rug** and a bed
+  from wool; the grocer sells eggs and milk.
+- The corners between the houses keep their trees and are free to dig; houses, roads and farms stay protected.
+- **The G.D.S. city grew:** an irregular outline, shifted districts, a wall with corner towers along it and a suburb
+  outside every gate.
+
+### 🏞️ Land that fits together (#3555–#3573)
+
+- **River valleys:** the ground eases down toward every river — brooks, rivers and lakes get a floor and gentle slopes
+  instead of a cut in the plain; lava rivers carve half as deep.
+- **Better sites:** villages look for water, monuments for a hill, bandit camps for a hollow; every site's ground is
+  levelled by the world itself, and trees, rocks and caves keep out of it.
+
+### 🚆 Rail & sky (#3629–#3636)
+
+- **Longer and more train lines** in new worlds: up to 2000 blocks (was 960), on more worlds; no more half-cut trees
+  along the track. On a long line the public train runs faster.
+- **Departure boards** at every stop of a public line: the destination and "Next train in 1:20", "Train is here" or
+  "Train arriving".
+- **Fog** takes the colour of the world's own mist instead of plain grey, and the **clouds on landing and take-off** are
+  lit like the planet's sky — darker at night and in a storm.
+
+### 🐟 Lyxette's reports (#3551, #3552, #3554)
+
+- **"The thing with the fish doesn't quite work yet":** water life stays in its water — a fish under a walkway moves into
+  the open water, a fish in a raised pond stays there, and a stranded fish no longer sleeps or wanders on land. A grown
+  water clone is released into the water beside its bio tank.
+- **"A bit impractical":** flying home without picking a pad now lands on your **Only me** pad first, then **Me +
+  allies**, then **Everyone** — so the public pads stay free for the merchants.
+
+### 🦌 Animals and performance (#3575, #3579–#3582)
+
+- **Creatures live in their own biome again** in every world — before, more than half of them showed up in the wrong
+  one.
+- **Lighter on memory:** walking far on one planet no longer piles up memory; the browser frees long sounds after you
+  travel to another place; the bundled server uses more workers on strong computers.
+- Behind the scenes: the test matrix grew from 10 to 12 runners (#3650).
+
 ## [2026.11.17] — 2026-11-12
 
 The builder release. **Room for giant buildings:** the school club's list of giant buildings — a leaning tower, a city gate,
@@ -10802,7 +10908,9 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.16...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.18...HEAD
+[2026.11.18]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.17...v2026.11.18
+[2026.11.17]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.16...v2026.11.17
 [2026.11.16]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.15...v2026.11.16
 [2026.11.15]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.14...v2026.11.15
 [2026.11.14]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.13...v2026.11.14
