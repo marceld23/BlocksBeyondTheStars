@@ -53,6 +53,11 @@ public sealed partial class GameServer
     /// chests. Returns the cells written.</summary>
     private int WriteLandmarkCells(IStructureCellSink sink, LandmarkInstance lm, string seat)
     {
+        if (lm.WaterTop is int waterTop)
+        {
+            return WriteSunkenLandmark(sink, lm, waterTop) + WriteLandmarkChests(sink, lm); // #3640: a sunken civilization site
+        }
+
         bool span = seat == LandmarkRules.SeatSpan; // generation 39: a bridge (GameServerLandmarkSeats.cs)
         int cells = WriteLandmarkAboveGround(sink, lm, seat == "stilts", span);
         if (lm.Layout.GroundRow > 0)
@@ -198,7 +203,7 @@ public sealed partial class GameServer
 
     /// <summary>The lane of a landmark chest's existence and content hashes — the shipped <see cref="LandmarkChestLane"/>, or
     /// (#3610) a giant wreck's own — so the stamp's crate and every later load's container agree.</summary>
-    private static string LandmarkChestLaneOf(LandmarkInstance lm) => lm.GiantWreck ? GiantWreckChestLane : LandmarkChestLane;
+    private static string LandmarkChestLaneOf(LandmarkInstance lm) => lm.GiantWreck ? GiantWreckChestLane : lm.Civilization.Length > 0 ? CivilizationChestLane : LandmarkChestLane;
 
     /// <summary>Whether a chest marker's chest exists (#3488; shared with the settlements and stations since #3519): the
     /// <c>chance</c> setting against a hash of the world seed, the body, the marker's cell and the owner's lane.</summary>
@@ -228,7 +233,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            n += WriteMarkerChestBlock(sink, cell, settings);
+            n += WriteMarkerChestBlock(sink, cell, settings, sunken: lm.WaterTop is not null); // #3640: a sunken site's cover stone goes into water
         }
 
         return n;
@@ -241,7 +246,7 @@ public sealed partial class GameServer
         => WriteMarkerChestBlock(new WorldCellSink(_world, canonical: true), cell, settings);
 
     /// <summary><see cref="WriteMarkerChestBlock(Vector3i, MarkerSettings)"/> through a sink.</summary>
-    private int WriteMarkerChestBlock(IStructureCellSink sink, Vector3i cell, MarkerSettings settings)
+    private int WriteMarkerChestBlock(IStructureCellSink sink, Vector3i cell, MarkerSettings settings, bool sunken = false)
     {
         string key = settings.Get("block", LandmarkChestBlock);
         var block = _content.GetBlock(ContainerSystem.IsContainerBlock(key) ? key : LandmarkChestBlock) ?? _content.GetBlock("crate");
@@ -252,7 +257,8 @@ public sealed partial class GameServer
 
         sink.Put(cell.X, cell.Y, cell.Z, block.NumericId);
         var above = new Vector3i(cell.X, cell.Y + 1, cell.Z);
-        if (settings.GetBool("hidden") && sink.Get(above.X, above.Y, above.Z).IsAir)
+        var over = sink.Get(above.X, above.Y, above.Z);
+        if (settings.GetBool("hidden") && (over.IsAir || (sunken && over.Value == (_content.GetBlock("water")?.NumericId.Value ?? 0))))
         {
             sink.Put(above.X, above.Y, above.Z, AncientRuinBlock("stone"));
             return 2;

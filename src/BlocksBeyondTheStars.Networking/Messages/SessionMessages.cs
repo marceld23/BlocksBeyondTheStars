@@ -145,8 +145,9 @@ public sealed class JoinAccepted
     public string ContentFingerprint { get; set; } = string.Empty;
 
     /// <summary>#3508: the server files "Call an admin" (<see cref="CallAdminIntent"/>, the chat's <c>/admin Text</c>). An
-    /// older server leaves it false — the client then offers neither the pause menu's button nor the chat command, and a
-    /// typed <c>/admin</c> keeps its old meaning (the admin help). Appended contractless field.</summary>
+    /// older server leaves it false, and so does a server for one player (singleplayer, #3638) — the client then offers
+    /// neither the pause menu's button nor the chat command, and a typed <c>/admin</c> keeps its old meaning (the admin
+    /// help). Appended contractless field.</summary>
     public bool AdminCallSupported { get; set; }
 }
 

@@ -15,6 +15,7 @@ REPO = Path(__file__).resolve().parents[2]
 DATA = REPO / "data"
 LANDMARKS = DATA / "landmarks"
 GIANT_SHIPS = DATA / "giant_ships"
+CIVILIZATIONS = DATA / "civilizations"  # #3639: a civilization's templates, data/civilizations/<civilization>/<key>.json
 
 Look = tuple  # (kind, id, tint, glow, shape, keep)
 MATERIAL_TOKENS = ("@wall", "@accent", "@roof", "@floor", "@path")
@@ -28,8 +29,8 @@ def loads_relaxed(text: str):
 
 
 def resolve(ref: str | Path) -> Path:
-    """A template file from a key (data/landmarks/<key>.json, else data/giant_ships/<key>.json), a .json path or an
-    editor export folder."""
+    """A template file from a key (data/landmarks/<key>.json, else data/giant_ships/<key>.json, else
+    data/civilizations/<civilization>/<key>.json), a .json path or an editor export folder."""
     p = Path(ref)
     if p.suffix.lower() == ".json" and p.exists():
         return p
@@ -41,7 +42,9 @@ def resolve(ref: str | Path) -> Path:
     g = GIANT_SHIPS / f"{ref}.json"
     if g.exists():
         return g
-    raise FileNotFoundError(f"no landmark template '{ref}' (looked for {p}, {q} and {g})")
+    for c in sorted(CIVILIZATIONS.glob(f"*/{ref}.json")) if CIVILIZATIONS.is_dir() else ():
+        return c
+    raise FileNotFoundError(f"no landmark template '{ref}' (looked for {p}, {q}, {g} and {CIVILIZATIONS}/*/{ref}.json)")
 
 
 def load(ref: str | Path) -> tuple[dict, Path]:
@@ -79,6 +82,8 @@ def stats(t: dict, nbytes: int | None = None) -> str:
     cells, markers = decode(t)
     blocks = sum(1 for v in cells.values() if v[0] == "block")
     cavity = sum(1 for v in cells.values() if v[0] == "cavity")
+    air = sum(1 for v in cells.values() if v[0] == "air")
+    air_txt = f", {air:,} air" if air else ""  # #3640: air pockets (civilization templates)
     keep = sum(1 for v in cells.values() if v[5])
     shaped = sum(1 for v in cells.values() if v[0] == "block" and v[4])
     tinted = sum(1 for v in cells.values() if v[0] == "block" and v[2])
@@ -91,7 +96,7 @@ def stats(t: dict, nbytes: int | None = None) -> str:
     zones = len(t.get("ruinZones", []) or [])
     zone_txt = f", {zones} ruin zones" if zones else ""
     return (f"{t.get('key', '?')}: {t.get('width', 0)}x{t.get('height', 0)}x{t.get('length', 0)} | {len(cells):,} cells "
-            f"({blocks:,} blocks, {cavity:,} cavity, {keep:,} keep, {shaped:,} shaped, {tinted:,} tinted, {glowing:,} glowing) "
+            f"({blocks:,} blocks, {cavity:,} cavity{air_txt}, {keep:,} keep, {shaped:,} shaped, {tinted:,} tinted, {glowing:,} glowing) "
             f"| {len(markers)} markers ({marks}) | palette {len(t.get('palette', []) or [])}, rows {len(t.get('rows', []) or [])}"
             f"{zone_txt}{size}")
 

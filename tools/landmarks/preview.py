@@ -22,7 +22,11 @@ at or behind z = 30, `--cut x=50` a side view of what lies at or below x = 50 â€
 Colours: data/blocks.json `color`, else the average of the block's texture (client/Assets/Resources/textures), else a
 hash; tint and glow as stored. Shaped cells are drawn at 4 x 4 x 4 sub-cells in the orthographic views. Overlays:
 ground row (green dashes), ruin zones (coloured boxes), markers (squares: chest orange, sound cyan, den red, vendor yellow,
-door brown, other magenta); cavity cells (air carved underground) dim violet where no block hides them.
+door brown, prop white, other magenta); cavity cells (air carved underground) dim violet where no block hides them.
+CIVILIZATION templates (#3639, data/civilizations/<civilization>/<key>.json) go to artifacts/civ-previews/<key>.png; one
+seated on the sea floor (`seat: seabed`) is drawn against deep water instead of the sky, and its AIR POCKETS (cells of
+kind `air`, #3640) are drawn bright cyan â€” where no block hides them in the orthographic views, and as a dithered ghost
+over everything in the isometric view, so a diving bell inside a tank still shows.
 """
 from __future__ import annotations
 
@@ -48,9 +52,11 @@ SKY = (52, 60, 76)
 TEXT = (225, 228, 235)
 GROUND = (90, 200, 110)
 CAVITY = (88, 64, 128)
+AIR = (150, 245, 255)   # #3640: an air pocket
+SEA = (26, 52, 84)      # the background of a template seated on the sea floor
 OUTLINE = 0.62
 MARKER_COLOURS = {"chest": (240, 150, 40), "sound": (60, 220, 240), "den": (235, 60, 60), "vendor": (250, 220, 50),
-                  "npc": (250, 180, 160), "entrance": (90, 255, 120)}
+                  "npc": (250, 180, 160), "entrance": (90, 255, 120), "prop": (245, 245, 245)}
 ZONE_COLOURS = [(255, 120, 60), (80, 170, 255), (190, 110, 255), (255, 230, 90), (100, 240, 200), (255, 120, 190)]
 TOKENS = {"@wall": (150, 140, 125), "@accent": (110, 160, 200), "@roof": (150, 80, 60), "@floor": (130, 115, 95),
           "@path": (160, 150, 130)}
@@ -168,6 +174,8 @@ def look_colour(look: tuple) -> RGB:
     kind, key, tint, glow, _, _ = look
     if kind == "cavity":
         return CAVITY
+    if kind == "air":
+        return AIR
     r, g, b = block_colour(key)
     if tint:
         lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
@@ -210,6 +218,11 @@ def _projected(descriptor: int, view: str, sub) -> dict[tuple[int, int], int]:
     return hit
 
 
+def _underwater(t: dict) -> bool:
+    """Whether the template stands on the sea floor (`seat: seabed`): its empty cells are water."""
+    return str(t.get("seat", "") or "").lower() == "seabed"
+
+
 def ortho(cells: dict, markers: list[dict], t: dict, view: str, s: int, keep=None, show_cavity: bool = True,
           overlay: bool = True) -> Image:
     """One orthographic view at `s` pixels per cell; `keep` filters the cells (a section)."""
@@ -217,11 +230,16 @@ def ortho(cells: dict, markers: list[dict], t: dict, view: str, s: int, keep=Non
     uw, vh, dmax, cell_map, sub = _views(w, h, ln)[view]
     nearest: dict[tuple[int, int], tuple[int, tuple]] = {}
     hollow: dict[tuple[int, int], tuple[int, tuple]] = {}
+    pockets: dict[tuple[int, int], tuple[int, tuple]] = {}
     shaped: dict[tuple[int, int], list[tuple[int, tuple]]] = {}
     for pos, look in cells.items():
         if keep is not None and not keep(pos):
             continue
         u, v, d = cell_map(*pos)
+        if look[0] == "air":  # an air pocket: drawn wherever it lies in front of the nearest block (a section shows it)
+            if d < pockets.get((u, v), (dmax + 1,))[0]:
+                pockets[(u, v)] = (d, look)
+            continue
         if look[0] == "cavity":
             if show_cavity and d < hollow.get((u, v), (dmax + 1,))[0]:
                 hollow[(u, v)] = (d, look)
@@ -230,14 +248,14 @@ def ortho(cells: dict, markers: list[dict], t: dict, view: str, s: int, keep=Non
             shaped.setdefault((u, v), []).append((d, look))
         elif d < nearest.get((u, v), (dmax + 1,))[0]:
             nearest[(u, v)] = (d, look)
-    img = Image(uw * s, vh * s, SKY)
+    img = Image(uw * s, vh * s, SEA if _underwater(t) else SKY)
     depth_px: dict[tuple[int, int], float] = {}
 
     def lit(look: tuple, d: float) -> RGB:
         return shade(look_colour(look), 1.0 - 0.5 * min(1.0, d / max(1, dmax)))
     for (u, v), (d, look) in hollow.items():
         if (u, v) not in nearest:
-            img.rect(u * s, v * s, s, s, shade(CAVITY, 1.0 - 0.4 * min(1.0, d / max(1, dmax))))
+            img.rect(u * s, v * s, s, s, shade(look_colour(look), 1.0 - 0.4 * min(1.0, d / max(1, dmax))))
     for (u, v), (d, look) in nearest.items():
         img.rect(u * s, v * s, s, s, lit(look, d))
         depth_px[(u, v)] = d
@@ -254,6 +272,10 @@ def ortho(cells: dict, markers: list[dict], t: dict, view: str, s: int, keep=Non
                     if sd is not None:
                         img.px(u * s + px_, v * s + py, shade(col, 1.0 - 0.5 * min(1.0, (d + sd / sc.N) / max(1, dmax))))
             depth_px[(u, v)] = min(depth_px.get((u, v), d), d)
+    for (u, v), (d, look) in pockets.items():
+        if d < nearest.get((u, v), (dmax + 1,))[0]:
+            img.rect(u * s, v * s, s, s, shade(AIR, 1.0 - 0.3 * min(1.0, d / max(1, dmax))))
+            depth_px[(u, v)] = d
     if s >= 3:  # outlines where the depth jumps: the eye reads edges, not flat colour
         for (u, v), d in depth_px.items():
             for du, dv, edge in ((1, 0, "r"), (-1, 0, "l"), (0, 1, "b"), (0, -1, "t")):
@@ -350,21 +372,23 @@ def iso(cells: dict, t: dict, s: int, overlay: bool = True, show_cavity: bool = 
     hs = s / 2
     blocks = {p: v for p, v in cells.items() if v[0] == "block"}
     hollow = {p for p, v in cells.items() if v[0] == "cavity"} if show_cavity else set()
+    pockets = {p for p, v in cells.items() if v[0] == "air"}
 
     def exposed(p: tuple, solid) -> bool:
         return not (solid((p[0], p[1] + 1, p[2])) and solid((p[0] - 1, p[1], p[2])) and solid((p[0], p[1], p[2] - 1)))
     def order(p: tuple) -> int:  # far to near along the view direction (1, -1, 1)
         return -(p[0] + p[2] - p[1])
     ghosts = sorted((p for p in hollow if exposed(p, lambda q: q in hollow)), key=order)
+    bells = sorted((p for p in pockets if exposed(p, lambda q: q in pockets)), key=order)
     visible = sorted((p for p in blocks if exposed(p, lambda q: _is_full(blocks.get(q)))), key=order)
     ox = ln * s + 4
     oy = int((w + ln) * hs + h * s) + 4
-    img = Image(int((w + ln) * s) + 8, int((w + ln) * hs + h * s) + 8, SKY)
+    img = Image(int((w + ln) * s) + 8, int((w + ln) * hs + h * s) + 8, SEA if _underwater(t) else SKY)
     full_sprite = _sprite(s)
     sub_sprite = _sprite(s // 2) if s // 2 >= 1 else None
     light = (1.0, 0.78, 0.6)
 
-    def draw(sprite, ax: float, ay: float, col: RGB) -> None:
+    def draw(sprite, ax: float, ay: float, col: RGB, dither: bool = False) -> None:
         cols = [bytes(shade(col, f)) for f in light]
         bx, by = round(ax), round(ay)
         for dy, x0, x1, face in sprite:
@@ -372,9 +396,15 @@ def iso(cells: dict, t: dict, s: int, overlay: bool = True, show_cavity: bool = 
             if not 0 <= y < img.h:
                 continue
             a, b = max(0, bx + x0), min(img.w, bx + x1)
-            if b > a:
-                o = (y * img.w + a) * 3
-                img.buf[o:o + (b - a) * 3] = cols[face] * (b - a)
+            if b <= a:
+                continue
+            if dither:  # every other pixel: what lies behind still shows
+                for x in range(a + (a + y) % 2, b, 2):
+                    o = (y * img.w + x) * 3
+                    img.buf[o:o + 3] = cols[face]
+                continue
+            o = (y * img.w + a) * 3
+            img.buf[o:o + (b - a) * 3] = cols[face] * (b - a)
     for x, y, z in ghosts:
         draw(full_sprite, ox + (x - z) * s, oy - (x + z) * hs - y * s, shade(CAVITY, 0.7))
     if overlay:
@@ -395,6 +425,8 @@ def iso(cells: dict, t: dict, s: int, overlay: bool = True, show_cavity: bool = 
         for i, j, k in sorted(half, key=order):
             fx, fy, fz = x + i / 2, y + j / 2, z + k / 2
             draw(sub_sprite, ox + (fx - fz) * s, oy - (fx + fz) * hs - fy * s, col)
+    for x, y, z in bells:  # air pockets last, dithered: a diving bell inside a tank still shows
+        draw(full_sprite, ox + (x - z) * s, oy - (x + z) * hs - y * s, AIR, dither=True)
     return img
 
 
@@ -495,7 +527,7 @@ def preview(ref: str | Path, out: str | Path | None = None, split: bool = False,
     """Renders a template file (key or path) and saves the PNG; returns its path. A giant ship gets the `auto` sections
     when no cuts are given. `split` also saves every panel as `<name>.<n>-<view>.png` next to it."""
     t, path = templatefile.load(ref)
-    folder = "giant-ship-previews" if t.get("giantShip") else "landmark-previews"
+    folder = "giant-ship-previews" if t.get("giantShip") else "civ-previews" if t.get("civilization") else "landmark-previews"
     target = Path(out) if out else templatefile.REPO / "artifacts" / folder / f"{t.get('key', path.stem)}.png"
     if target.suffix.lower() != ".png":
         target = target / f"{t.get('key', path.stem)}.png"

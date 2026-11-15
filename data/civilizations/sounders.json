@@ -1,0 +1,7 @@
+{
+  "_comment": "The Sounders (#3643, docs/developer/CIVILIZATIONS.md): the singing people of Soaniri (docs/developer/STORY_SOUNDERS.md). A legacy civilization — a tag only: Soaniri, its castle, the Choir Tower and the story's sites keep their own stampers, seeds, records and loot; the blocks, items, templates and loot tables that name \"sounders\" are grouped under it. Most of the people went over in the Great Song and a few still hum in Mirun — \"lost\" is the closest state there is so far.",
+  "key": "sounders",
+  "nameKey": "civ.sounders.name",
+  "state": "lost",
+  "placement": "legacy"
+}

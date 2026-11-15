@@ -24,6 +24,69 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🏛️ Lost civilizations (terrain generation 43) — epic #3649 (#3638–#3648), ✅ 2026-11-15, PR pending (⚠ playtest open)
+
+Peoples whose ruins exist only where they lived — one body, bodies of one kind, the bodies of one system — defined as data
+(`data/civilizations/<key>.json`, templates in `data/civilizations/<key>/`), so the next people needs no C#. Marcel's
+decisions 2026-11-14: new worlds only; the Grand Technicians on one ocean world, everything under water, an air pocket to
+breathe, the red fluid decoration only; up to three labyrinths per galaxy on toxic or airless bodies with square-headed
+statues and a short, open lore text; on a home body no other landmark and no giant wreck (settlements, camps and the rest
+stay); tags for the G.D.S., the Sounders and the SPS now, metadata only; the admin view off in singleplayer; everything in
+one PR. Details: docs/developer/CIVILIZATIONS.md; lore (incl. the internal part): LORE_STRUCTURE.md §C, §C1.
+
+- **#3638 fix**: no admin view (ESC button, F8) and no "Call an admin" in singleplayer — any server with `MaxPlayers` ≤ 1,
+  fleet admins excepted; the admin chat commands stay (ADMIN_MODE.md, manual).
+- **#3639 framework** — generation 43, save version 16: the civilization file and its checks, the `civilization` field on
+  blocks, items, kits, templates and loot tables, homes picked from the seed over the fixed systems and pinned in
+  `WorldMetadata.CivilizationHomes`, the boot stage "civilizations" right after the Sounder world (records `civ:<key>`, one
+  structure overlay per site, replayed on every load), the kind `civilization` in `data/structure_types.json`, landmark and
+  giant wreck suppressed on a home body, a lost civilization never staffed.
+- **#3640 under water**: seat `seabed` (the footprint fully under water that needs the least digging, a basin up to 48
+  deep, 3 blocks of water over the top), the water write mode (water, never air, below the sea; no seals), **air pockets**
+  (cell kind `air`, built as diving bells; the ruin pass leaves them alone), a guaranteed ocean world in every new galaxy;
+  sunken sites cast no far silhouette.
+- **#3641 `prop` marker** — after the ruin pass a prop of the civilization's pool or a named template stands on the marker
+  (`CivilizationPropDress`).
+- **#3642 discovery**: map POI `civilization` at 80 blocks, Codex group *Lost civilizations* (ledger `civ:<key>`, a relic's
+  knowledge once), the scanner's "people · site" readout and "Built by: …" line, VEGA lines from the data (`first`,
+  `inside`, `block`, `prop`, `air` — each once per player), settlers' rumours on other worlds.
+- **#3643 legacy tags**: G.D.S., Sounders, SPS — metadata only, their placement unchanged.
+- **#3644 the Vanished People and the Grand Technicians**: one `ocean` / `rainbow_sea` body per galaxy, all under water —
+  the giant dwelling (the white eye, the tank with red fluid and the air pocket, tipped glyph cubes, the mural), two sunken
+  city templates (2–3 per world), three small sites (4–6), four remains props; blocks `glyph_stone`, `glyph_stone_band`,
+  `dark_sandstone` (workbench: 4 sandstone + 1 carbon → 4), `gt_eye`, `gt_fluid` (still, glowing, harmless), `gt_mural_0…7`
+  (one picture in 4 × 2 tiles); loot tables `civ_grosstechniker_*`; textures by script.
+- **#3645 the Labyrinth Builders**: the `maze_ruin` source (S / M / L ≈ 80 / 120 / 180 blocks, walls ~20 high, passages 2–3
+  / 4–6 / 8–10 wide, a plaza with a great statue and a chest, halls, 2–4 entrances, loops; the lowest three wall rows kept
+  through `BuiltStructure.Keep`) as three generator entries; 1–3 toxic or airless bodies per galaxy (20 / 30 / 50 %), each
+  in another system; seven statue props (square-headed bipeds); blocks `maze_stone`, `maze_stone_carved`; loot tables
+  `civ_labyrinth_builders_*`.
+- **#3646 authoring**: the template fields (`civilization`, `civPool`, `propPool`, `seat: seabed`), `air` cells, the `prop`
+  marker; `tools/landmarks/civ.py` (diving bells, props), `civ_grosstechniker.py`, `civ_labyrinth_statues.py`, previews; the
+  structure editor opens and saves a civilization template unchanged (target `StampTarget.Civilization`, the air-pocket
+  brush, the prop marker, exports to `civilization_exports/`, `tools/merge_structure.py`), and a marker in a cavity no longer
+  gets lost on save (old mine, carrier).
+- **#3647 texts**: en + de, the twelve community languages by hand (glossary of the issue) plus an independent review per
+  language (9 fixes, e.g. zh glyph stone ≠ rune stone); the editor's 20 keys in all 14.
+- **Independent code review** before the PR (9 findings, all fixed): graded land seats only (a maze on stilts kept its
+  passages full of rock), the sea floor's flora no longer floats over a dug basin, the browser's fallback file list, the
+  galaxy guarantees pinned per world (`WorldMetadata.CivilizationGuarantees`), props stay in their room and off the chests,
+  the kind switched off keeps a home's landmark, every record saved before any stamp, a crafted block discovers nothing,
+  hidden chests under water get their cover stone.
+- **#3648 docs**: CIVILIZATIONS.md (new), STRUCTURE_PIPELINE.md, LANDMARKS.md, WORLD_GENERATION.md §58, LORE_STRUCTURE.md
+  §C/§C1, GIANT_SHIPS.md, STATION_SETTLEMENT_EDITOR.md §3g, AGE_RATING_CHECKLIST.md, USER_MANUAL.md (*Lost civilizations*,
+  diving air), the docs index.
+- ⚠ **Playtest** both civilizations on a fresh world (generation 43): find the Grand Technicians' ocean world, dive to the
+  giant dwelling, reach the air pocket through the pedestal tunnels and the red glass tube, the mural, the sunken cities,
+  the chests; a labyrinth on a toxic and on an airless body (oxygen, getting lost, the plaza statue and chest, mining /
+  climbing / jetpacking over a wall); map, Codex, VEGA lines and a settler's rumour on another world.
+- **Open (backlog):**
+  - a **story lead** to a civilization's home (like the unique sites') — not done: `GameServerStoryLeads.cs` is at 999 lines
+    and needs a split first;
+  - the editor's *Generate* → bake does not carry a source's kept cells (`BuiltStructure.Keep`) yet;
+  - VEGA's `block` triggers read the stamped layout, not the world — a mined block still triggers its line;
+  - tune the maze ruins' ruin strength (0.45) after the playtest;
+
 ### ⚙️ CI: test matrix 10 → 12 shards, weights refreshed (2026-11-14) — ✅ PR pending
 
 PR runs had crept to 9–17.5 min per shard: the fast tier grew to ~21 300 test-seconds (terrain generations 40–42 made every

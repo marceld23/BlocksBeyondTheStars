@@ -675,6 +675,9 @@ public sealed partial class GameContent
         "mine_track", "mine_cart", "dripstone", "burger_bun", "burger_patty", "burger_cheese",
         // #3483: the school club landmarks' building materials — a rounded sesame bun is the restaurant's dome.
         "travertine", "blackened_sandstone", "verdigris_copper", "burger_lettuce", "burger_tomato", "burger_bun_sesame",
+        // #3644 / #3645: the lost civilizations' stone — a glyph stair keeps its carvings. Their eye and mural tiles are
+        // pictures and keep their cube.
+        "glyph_stone", "glyph_stone_band", "dark_sandstone", "maze_stone", "maze_stone_carved",
     };
 
     /// <summary>

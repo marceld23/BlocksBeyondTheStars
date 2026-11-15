@@ -77,6 +77,57 @@ public sealed class AdminModeTests
         Assert.Contains("@srv.admin.jump_invisible_only", w.Said(owner));
     }
 
+    /// <summary>#3638: singleplayer — the desktop and the browser both run it as a server for one player — has no admin view
+    /// and no "Call an admin": the first joiner is the world's admin (the admin chat commands stay), but the join tells the
+    /// client there is neither, and the admin-mode intent (F8, the pause menu's Admin button) is refused. Hosting a LAN
+    /// world (two players and up) keeps both.</summary>
+    [Theory]
+    [InlineData(1, false)]
+    [InlineData(2, true)]
+    [InlineData(16, true)]
+    public void TheWorldsAdmin_HasTheAdminViewAndTheCall_OnlyOnAServerForMoreThanOnePlayer(int maxPlayers, bool offered)
+    {
+        using var w = new AdminTestWorld(Content, configure: c => c.MaxPlayers = maxPlayers);
+        const int Conn = 77;
+        w.Server.HandlePayloadForTest(Conn, NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Justus" }));
+        var me = w.Server.Sessions[Conn];
+        Assert.Equal(PlayerRole.WorldAdmin, me.State.Role); // the first joiner owns the world …
+        Assert.True(me.State.IsAdmin); // … so /tp, /landmark and the other admin commands keep working
+
+        Assert.Equal(offered, w.To<JoinAccepted>(me).Single().AdminCallSupported);
+        byte available = offered ? AdminModes.Invisible : AdminModes.Off;
+        Assert.Equal(available, w.To<PlayerStateUpdate>(me).Last().AdminModeAvailable);
+        Assert.Equal(available, w.Server.AdminModeAvailableForTest(me));
+
+        me.State.AboardShip = false; // on foot, alive: only the access decides
+        me.State.Health = 100f;
+        w.Server.HandlePayloadForTest(Conn, NetCodec.Encode(new AdminModeIntent { On = true }));
+
+        Assert.Equal(available, me.Admin.Mode);
+        Assert.Equal(offered, me.Spectating);
+        Assert.Equal(!offered, w.Said(me).Contains("@srv.admin.mode_no_access"));
+    }
+
+    /// <summary>#3638: a fleet admin joins a server for one player on a reserved slot — and keeps the admin view there, while
+    /// the world's own admin has none.</summary>
+    [Fact]
+    public void OnAServerForOnePlayer_TheFleetAdminKeepsTheAdminView()
+    {
+        using var w = new AdminTestWorld(Content, configure: c => c.MaxPlayers = 1, fleetAdmins: "Operator");
+        var owner = w.Join("Owner", PlayerRole.WorldAdmin);
+        var op = w.Join("Operator");
+
+        w.Server.SetAdminModeForTest(owner, true);
+        w.Server.SetAdminModeForTest(op, true);
+
+        Assert.Equal(AdminModes.Off, w.Server.AdminModeAvailableForTest(owner));
+        Assert.Equal(AdminModes.Off, owner.Admin.Mode);
+        Assert.Contains("@srv.admin.mode_no_access", w.Said(owner));
+        Assert.Equal(AdminModes.Invisible, w.Server.AdminModeAvailableForTest(op));
+        Assert.Equal(AdminModes.Invisible, op.Admin.Mode);
+        Assert.True(op.Spectating);
+    }
+
     [Fact]
     public void LeavingAdminMode_PutsTheAdminBackWhereTheyEnteredIt()
     {

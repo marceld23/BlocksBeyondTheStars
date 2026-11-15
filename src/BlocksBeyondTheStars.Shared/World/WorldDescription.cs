@@ -251,8 +251,9 @@ public sealed class WorldDescription
     /// landmarks, #3510 the structure pipeline, the school club's giant buildings with their overlay storage, #3555 the
     /// geography package: river valleys, site search with a map, sites that reserve their ground, #3602 the grown
     /// settlements: road-first villages, grown grids, terrain-following towns, a metropolis that grew, farms at the edge,
-    /// #3608 the giant ship wrecks on planets, #3629/#3631 the longer and more frequent intercity lines).</summary>
-    public const int CurrentTerrainGeneration = GiantWrecksGeneration;
+    /// #3608 the giant ship wrecks on planets, #3629/#3631 the longer and more frequent intercity lines,
+    /// #3639 the lost civilizations: the Grand Technicians' sunken ruins, the Labyrinth Builders' mazes).</summary>
+    public const int CurrentTerrainGeneration = CivilizationsGeneration;
 
     /// <summary>The generation of the grown settlements (#3602): a body stamped for the first time in a world of this
     /// generation or later may draw the grown and grown-grid settlement kits (<c>StructureKit.MinTerrainGeneration</c>) — a
@@ -274,6 +275,13 @@ public sealed class WorldDescription
     /// corridor whole. A server-side stamp decided once and pinned in the placement records: every older line replays as it
     /// was.</summary>
     public const int LongIntercityGeneration = 42;
+
+    /// <summary>The generation of the lost civilizations (#3639, docs/developer/CIVILIZATIONS.md): a world of this generation or
+    /// later picks its civilizations' home bodies (pinned in <c>WorldMetadata.CivilizationHomes</c>), guarantees an ocean world for
+    /// the Grand Technicians, and stamps the civilization sites on a home body stamped for the first time — the Grand
+    /// Technicians' sunken ruins on one ocean world, the Labyrinth Builders' maze ruins on up to three toxic or airless bodies.
+    /// A server-side stamp stored as structure overlays: every chunk of every older generation stays bit-identical.</summary>
+    public const int CivilizationsGeneration = 43;
 
     /// <summary>The generation of the geography package (#3555): the surface height becomes three stages — the natural
     /// height (every older generation's whole answer), the river valleys (the ground eases down toward every surface river,

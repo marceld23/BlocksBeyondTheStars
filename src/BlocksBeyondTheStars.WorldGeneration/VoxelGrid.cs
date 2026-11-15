@@ -37,6 +37,7 @@ internal sealed class VoxelGrid
         Shapes = shapes;
         Keep = new BitArray(w * h * l);
         Cavity = new BitArray(w * h * l);
+        Air = new BitArray(w * h * l);
     }
 
     /// <summary>A grid that works right in the caller's block array and modifier dictionaries (index
@@ -83,6 +84,9 @@ internal sealed class VoxelGrid
 
     /// <summary>Cells that are explicitly air — the tunnels and caverns of an underground part (#3490).</summary>
     public BitArray Cavity { get; }
+
+    /// <summary>#3640: the cavity cells that are AIR POCKETS — they stay air even under water (always cavities too).</summary>
+    public BitArray Air { get; }
 
     public int Index(int x, int y, int z) => (((x * H) + y) * L) + z;
 

@@ -66,6 +66,7 @@
   },
   {
     "key": "soaniri_castle",
+    "civilization": "sounders",
     "rolls": [
       { "picks": 3, "entries": [
         { "item": "resonance_crystal", "min": 2, "max": 5, "weight": 4 },
@@ -83,6 +84,7 @@
   },
   {
     "key": "soaniri_castle_tower",
+    "civilization": "sounders",
     "rolls": [
       { "picks": 2, "entries": [
         { "item": "resonance_crystal", "min": 1, "max": 3, "weight": 3 },
@@ -98,6 +100,7 @@
   },
   {
     "key": "giant_carrier",
+    "civilization": "sps",
     "rolls": [
       { "picks": 3, "entries": [
         { "item": "iron_plate", "min": 2, "max": 5, "weight": 4 },
@@ -125,6 +128,7 @@
   },
   {
     "key": "giant_battleship",
+    "civilization": "sps",
     "rolls": [
       { "picks": 3, "entries": [
         { "item": "steel", "min": 1, "max": 4, "weight": 4 },
@@ -152,6 +156,7 @@
   },
   {
     "key": "giant_liner",
+    "civilization": "sps",
     "rolls": [
       { "picks": 3, "entries": [
         { "item": "emergency_ration", "min": 1, "max": 3, "weight": 4 },
@@ -179,6 +184,7 @@
   },
   {
     "key": "giant_ark",
+    "civilization": "sps",
     "rolls": [
       { "picks": 3, "entries": [
         { "item": "berry_seed", "min": 2, "max": 5, "weight": 3 },
@@ -255,6 +261,87 @@
         { "item": "quantum_sensor", "min": 1, "max": 1, "weight": 1 },
         { "item": "sensor_lens", "min": 1, "max": 1, "weight": 1 },
         { "item": "access_code", "min": 1, "max": 1, "weight": 1 }
+      ] }
+    ]
+  },
+  {
+    "key": "civ_grosstechniker_common",
+    "civilization": "grosstechniker",
+    "rolls": [
+      { "picks": 3, "entries": [
+        { "item": "dark_sandstone", "min": 4, "max": 10, "weight": 4 },
+        { "item": "glyph_stone", "min": 2, "max": 6, "weight": 3 },
+        { "item": "glyph_stone_band", "min": 1, "max": 4, "weight": 2 },
+        { "item": "sandstone", "min": 4, "max": 8, "weight": 2 },
+        { "item": "copper_ore", "min": 2, "max": 5, "weight": 2 }
+      ] },
+      { "chance": 0.3, "entries": [
+        { "item": "data_fragment", "min": 1, "max": 2, "weight": 3 },
+        { "item": "gt_eye", "min": 1, "max": 1, "weight": 2 },
+        { "item": "gold_ingot", "min": 1, "max": 1, "weight": 1 }
+      ] }
+    ]
+  },
+  {
+    "key": "civ_grosstechniker_rich",
+    "civilization": "grosstechniker",
+    "rolls": [
+      { "picks": 3, "entries": [
+        { "item": "glyph_stone", "min": 4, "max": 10, "weight": 3 },
+        { "item": "glyph_stone_band", "min": 2, "max": 6, "weight": 3 },
+        { "item": "dark_sandstone", "min": 6, "max": 12, "weight": 2 },
+        { "item": "gold_ingot", "min": 1, "max": 3, "weight": 2 },
+        { "item": "silver_ingot", "min": 1, "max": 3, "weight": 2 }
+      ] },
+      { "chance": 0.7, "entries": [
+        { "item": "gt_eye", "min": 1, "max": 2, "weight": 3 },
+        { "item": "data_fragment", "min": 1, "max": 3, "weight": 3 },
+        { "item": "rune_stone", "min": 1, "max": 2, "weight": 1 }
+      ] },
+      { "chance": 0.15, "entries": [
+        { "item": "diamond", "min": 1, "max": 1, "weight": 2 },
+        { "item": "platinum_ingot", "min": 1, "max": 1, "weight": 1 }
+      ] }
+    ]
+  },
+  {
+    "key": "civ_labyrinth_builders_common",
+    "civilization": "labyrinth_builders",
+    "rolls": [
+      { "picks": 3, "entries": [
+        { "item": "maze_stone", "min": 4, "max": 10, "weight": 4 },
+        { "item": "iron_ore", "min": 2, "max": 6, "weight": 3 },
+        { "item": "maze_stone_carved", "min": 1, "max": 4, "weight": 2 },
+        { "item": "copper_ore", "min": 2, "max": 6, "weight": 2 },
+        { "item": "carbon", "min": 2, "max": 5, "weight": 2 }
+      ] },
+      { "chance": 0.3, "entries": [
+        { "item": "data_fragment", "min": 1, "max": 2, "weight": 2 },
+        { "item": "silver_ingot", "min": 1, "max": 1, "weight": 1 },
+        { "item": "rune_stone", "min": 1, "max": 1, "weight": 1 }
+      ] }
+    ]
+  },
+  {
+    "key": "civ_labyrinth_builders_rich",
+    "civilization": "labyrinth_builders",
+    "rolls": [
+      { "picks": 3, "entries": [
+        { "item": "maze_stone_carved", "min": 2, "max": 6, "weight": 3 },
+        { "item": "maze_stone", "min": 6, "max": 12, "weight": 2 },
+        { "item": "iron_ore", "min": 4, "max": 8, "weight": 2 },
+        { "item": "gold_ore", "min": 2, "max": 5, "weight": 2 },
+        { "item": "nickel_ore", "min": 2, "max": 5, "weight": 2 }
+      ] },
+      { "picks": 2, "chance": 0.6, "entries": [
+        { "item": "gold_ingot", "min": 1, "max": 3, "weight": 2 },
+        { "item": "silver_ingot", "min": 1, "max": 3, "weight": 2 },
+        { "item": "data_fragment", "min": 1, "max": 3, "weight": 2 },
+        { "item": "rune_stone", "min": 1, "max": 2, "weight": 1 }
+      ] },
+      { "chance": 0.15, "entries": [
+        { "item": "diamond", "min": 1, "max": 1, "weight": 2 },
+        { "item": "platinum_ingot", "min": 1, "max": 1, "weight": 1 }
       ] }
     ]
   }

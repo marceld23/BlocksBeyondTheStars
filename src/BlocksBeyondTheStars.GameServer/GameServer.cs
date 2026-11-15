@@ -547,7 +547,7 @@ public sealed partial class GameServer
         // of (seed, N), so the grown systems come back byte-identical, in the same pass as the fixed ones.
         int systemCount = _meta.Description.StarSystemCount + Math.Max(0, _meta.GalaxyGrownSystems);
         // #2437: the generator is told the start type so its gas-giant pass never eats the planet the pick below lands on.
-        _galaxy = new UniverseGenerator(_meta.Seed, _meta.Description, _content, _meta.DefaultPlanetType).Generate(systemCount);
+        _galaxy = GenerateGalaxy(systemCount); // #3640: with the civilizations' pinned guarantees
         _padCache.Clear(); // pads are a function of the galaxy (#1618)
 
         // #2242: the wormholes — a pure pass over the FIXED systems after the generator, so the layout is untouched
@@ -853,7 +853,7 @@ public sealed partial class GameServer
                     // #3358 (the Sounders pack): Soaniri's village Mirun, the ruin city Ornasa and the Choir Tower — on the
                     // sounder_world type only, right after the tablets and before the monuments (they reserve around them).
                     BootDetail("sounder world", StampSounderWorld);
-
+                    BootDetail("civilizations", StampCivilizations); // #3639 (generation 43): a lost civilization on its home body — before the settlements, which keep clear of it
                     if (_config.PlaceSettlements && Stamps(StructureTypeRules.Settlement))
                     {
                         BootDetail("settlements", StampSettlement);
@@ -4280,7 +4280,7 @@ public sealed partial class GameServer
             TerrainGeneration = _meta.Description.TerrainGeneration, // #1644
             TerrainLavaCoreVolcanoes = _meta.Description.LavaCoreVolcanoes, // #2172: the planet map previews need it too
             ContentFingerprint = _content.BlockFingerprint, // #2222: the client checks it against its own
-            AdminCallSupported = true, // #3508: "Call an admin" is filed here — the client offers it only then
+            AdminCallSupported = !SinglePlayerServer, // #3508: the client offers "Call an admin" only then — never in singleplayer (#3638)
         });
         session.AnnouncedWorldId = WorldIdOf(state.CurrentLocationId); // #2117
         SendInventory(session);

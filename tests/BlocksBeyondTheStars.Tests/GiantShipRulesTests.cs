@@ -293,12 +293,12 @@ public sealed class GiantShipRulesTests
     // ---- terrain generation 42, the world option, the server config -------------------------------------------------
 
     [Fact]
-    public void NewWorlds_AreCreatedAtGeneration42()
+    public void NewWorlds_AreCreatedAtGeneration42OrLater()
     {
         Assert.Equal(42, WorldDescription.GiantWrecksGeneration);
-        Assert.Equal(WorldDescription.GiantWrecksGeneration, WorldDescription.CurrentTerrainGeneration);
+        Assert.True(WorldDescription.CurrentTerrainGeneration >= WorldDescription.GiantWrecksGeneration); // #3639: 43 since the civilizations
         Assert.True(WorldDescription.GrownSettlementsGeneration < WorldDescription.GiantWrecksGeneration);
-        Assert.Equal(WorldDescription.GiantWrecksGeneration, new ServerConfig().World.TerrainGeneration);
+        Assert.Equal(WorldDescription.CurrentTerrainGeneration, new ServerConfig().World.TerrainGeneration);
     }
 
     [Fact]

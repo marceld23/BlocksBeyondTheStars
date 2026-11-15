@@ -96,6 +96,12 @@
     "site": { "water": [], "coast": [], "prominence": "high", "relief": "flat", "altitude": [], "ground": [], "weights": { "relief": 2 } },
     "grade": { "radius": 16, "maxCut": 24, "maxFill": 24 }
   },
+  "civilization": {
+    "enabled": true, "minGeneration": 43, "chance": 0, "chanceFrom": {}, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
+    "seatPolicy": "", "keepClear": 6, "keepClearFrom": { "pad": 24, "wreck_site": 10 }, "conditions": [], "whitelist": "",
+    "site": { "water": [], "coast": [], "prominence": "high", "relief": "flat", "altitude": [], "ground": [], "weights": { "relief": 2 } },
+    "grade": { "radius": 16, "maxCut": 24, "maxFill": 24 }
+  },
   "underground": {
     "enabled": true, "minGeneration": 35, "chance": 0.04, "chanceFrom": {}, "density": 0, "thresholds": [], "thresholdCaps": [], "minCount": 0, "cap": 0,
     "seatPolicy": "", "keepClear": 10, "keepClearFrom": { "pad": 30, "wreck_site": 8 }, "conditions": ["notVoid", "notGas"], "whitelist": "gds_ruins",

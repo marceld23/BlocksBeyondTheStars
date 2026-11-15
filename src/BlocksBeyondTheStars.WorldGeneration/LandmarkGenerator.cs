@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Shared.Content;
@@ -17,9 +18,13 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 public sealed class LandmarkLayout
 {
     private readonly BitArray _cavity;
+    private readonly BitArray? _air;
 
-    internal LandmarkLayout(SettlementStructure structure, int groundRow, BitArray cavity, bool ruined, int turns, int cavityCount)
+    internal LandmarkLayout(SettlementStructure structure, int groundRow, BitArray cavity, bool ruined, int turns, int cavityCount,
+        BitArray? air = null)
     {
+        _air = air;
+        HasAirPockets = air != null && HasAny(air);
         Structure = structure;
         GroundRow = groundRow;
         _cavity = cavity;
@@ -44,6 +49,26 @@ public sealed class LandmarkLayout
     /// <summary>Whether the cell is carved to air (#3490) — a tunnel or a cavern of the underground part.</summary>
     public bool IsCavity(int x, int y, int z)
         => Structure.InBounds(x, y, z) && _cavity[(((x * Structure.Height) + y) * Structure.Length) + z];
+
+    /// <summary>#3640: whether the layout holds any air pocket.</summary>
+    public bool HasAirPockets { get; }
+
+    /// <summary>#3640: whether the cell is an AIR POCKET — a cavity that stays air even under water.</summary>
+    public bool IsAirPocket(int x, int y, int z)
+        => _air != null && Structure.InBounds(x, y, z) && _air[(((x * Structure.Height) + y) * Structure.Length) + z];
+
+    private static bool HasAny(BitArray bits)
+    {
+        foreach (bool b in bits)
+        {
+            if (b)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
 
 /// <summary>
@@ -86,6 +111,13 @@ public static class LandmarkGenerator
     /// </summary>
     public static LandmarkLayout Build(StructureTemplate t, long seed, int turns, GameContent content, string surfaceBlock,
         bool? ruin, int revision)
+        => Build(t, seed, turns, content, surfaceBlock, ruin, revision, materials: null, options: null, dress: null);
+
+    /// <summary>#3639: a civilization's site — the landmark build with the civilization's <paramref name="materials"/> for the
+    /// tokens (null = a village's), its ruin <paramref name="options"/> (null = the pass's defaults) and a <paramref name="dress"/>
+    /// step that runs on the grid after the ruin pass (the props, #3641).</summary>
+    public static LandmarkLayout Build(StructureTemplate t, long seed, int turns, GameContent content, string surfaceBlock,
+        bool? ruin, int revision, ModuleMaterials? materials, RuinOptions? options, LayoutDress? dress)
     {
         turns = ((turns % 4) + 4) % 4;
         bool swap = (turns & 1) == 1;
@@ -93,12 +125,12 @@ public static class LandmarkGenerator
         int h = System.Math.Max(1, t.Height);
         int l = System.Math.Max(1, swap ? t.Width : t.Length);
         var grid = new VoxelGrid(w, h, l);
-        var materials = ModuleMaterials.ForSettlement("village", surfaceBlock, alien: false, content);
+        materials ??= ModuleMaterials.ForSettlement("village", surfaceBlock, alien: false, content);
 
         FillBlocks(t, turns, grid, content, materials);
         var markers = ReadMarkers(t, turns, grid, content);
         int groundRow = System.Math.Clamp(t.GroundRow, 0, h - 1);
-        return Finish(t, grid, markers, groundRow, ruin ?? LandmarkRules.IsRuin(t), seed, content, surfaceBlock, revision, turns);
+        return Finish(t, grid, markers, groundRow, ruin ?? LandmarkRules.IsRuin(t), seed, content, surfaceBlock, revision, turns, options, dress);
     }
 
     /// <summary>
@@ -107,7 +139,8 @@ public static class LandmarkGenerator
     /// left; then the layout with its cavity count.
     /// </summary>
     internal static LandmarkLayout Finish(StructureTemplate t, VoxelGrid grid, List<SettlementMarker> markers, int groundRow, bool ruined,
-        long seed, GameContent content, string surfaceBlock, int revision, int turns)
+        long seed, GameContent content, string surfaceBlock, int revision, int turns, RuinOptions? options = null,
+        LayoutDress? dress = null)
     {
         if (ruined && t.RuinZones is { Count: > 0 })
         {
@@ -120,7 +153,7 @@ public static class LandmarkGenerator
             }
 
             StructureRuiner.RunZoned(grid, content, seed, LandmarkRules.ProfileOf(t), t.RuinStrength, groundRow, cells, surfaceBlock,
-                revision, options: null, ZonesFor(t, turns));
+                revision, options, ZonesFor(t, turns));
             LandmarkLights.DropUnheld(grid, groundRow, content); // #3626: a mounted light falls with its wall
             RuinMarkerRules.KeepOnly(markers);
             RuinMarkerRules.Seat(grid, markers, groundRow);
@@ -128,12 +161,13 @@ public static class LandmarkGenerator
         else if (ruined)
         {
             StructureRuiner.Run(grid, content, seed, LandmarkRules.ProfileOf(t), t.RuinStrength, groundRow, markers, surfaceBlock,
-                revision, options: null);
+                revision, options);
             LandmarkLights.DropUnheld(grid, groundRow, content); // #3626: a mounted light falls with its wall
             RuinMarkerRules.KeepOnly(markers);
             RuinMarkerRules.Seat(grid, markers, groundRow);
         }
 
+        dress?.Apply(grid, markers); // #3641: after the pass, on what is left
         int cavities = 0;
         foreach (bool c in grid.Cavity)
         {
@@ -142,7 +176,7 @@ public static class LandmarkGenerator
 
         var structure = new SettlementStructure(grid.W, grid.H, grid.L, Tier, ruined, inhabitant: string.Empty, grid.Blocks, markers,
             buildingCount: 1, grid.Mods, grid.Shapes);
-        return new LandmarkLayout(structure, groundRow, grid.Cavity, ruined, turns, cavities);
+        return new LandmarkLayout(structure, groundRow, grid.Cavity, ruined, turns, cavities, grid.Air);
     }
 
     /// <summary>The template's ruin zones in the grid's coordinates: each box turned with the structure (a generator entry, which
@@ -211,7 +245,8 @@ public static class LandmarkGenerator
             {
                 grid.Clear(x, p.Y, z);
                 grid.Cavity[i] = true;
-                grid.Keep[i] = false;
+                grid.Air[i] = p.Air;
+                grid.Keep[i] = p.Air; // #3640: the ruin pass never fills an air pocket
                 return;
             }
 
@@ -228,6 +263,7 @@ public static class LandmarkGenerator
 
             grid.Set(x, p.Y, z, id, p.Tint, p.Glow, TurnShape(p.Shape, turns));
             grid.Cavity[i] = false;
+            grid.Air[i] = false;
             grid.Keep[i] = p.Keep;
         });
     }

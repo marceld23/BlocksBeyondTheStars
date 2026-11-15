@@ -265,7 +265,8 @@ internal sealed partial class StructureRuiner
             for (int z = 0; z < _g.L; z++)
             {
                 if (_g.Solid(x, _ground, z) && !_g.Solid(x, _ground + 1, z)
-                    && !_markerCell[_g.Index(x, _ground + 1, z)] && U(LaneFlora, x, 0, z) < 0.04 + (0.08 * S(x, z)))
+                    && !_markerCell[_g.Index(x, _ground + 1, z)] && !_g.Air[_g.Index(x, _ground + 1, z)] // #3640: never into an air pocket
+                    && U(LaneFlora, x, 0, z) < 0.04 + (0.08 * S(x, z)))
                 {
                     _g.Set(x, _ground + 1, z, _t.Flora);
                 }

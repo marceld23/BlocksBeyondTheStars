@@ -89,5 +89,6 @@ public sealed partial class EditorTextFitTests
         // the planet map's legend slot (WorldMap.cs, 140 px slot − 36 for the icon, at 15).
         Wrap("Travel screen: giant wreck detail (600 × 150 at 18)", 600f, 7, 18, "ui.map.giantwreck_detail"),
         Label("Planet map legend: giant wreck (104 px at 15)", 104f, 15, "ui.map.kind_giant_wreck"),
+        Label("Planet map legend: lost civilization (104 px at 15, #3642)", 104f, 15, "ui.map.kind_civilization"),
     };
 }

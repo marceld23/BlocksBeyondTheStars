@@ -85,4 +85,32 @@ public sealed class AdminViewClientTests
         Assert.True(h.Client.TrySendCallAdmin("I am stuck"));
         Assert.True(h.PumpUntil(() => said.Contains("@srv.admin.call_sent")), "the call was never filed: " + string.Join(" / ", said));
     }
+
+    /// <summary>#3638: singleplayer (a server for one player, as the desktop and the browser launch it) offers neither the
+    /// admin view — no pause-menu Admin row, no F8, no admin-view line in the chat help — nor "Call an admin", although its
+    /// player is the world's admin; F8 sent anyway is refused.</summary>
+    [Fact]
+    public void InSingleplayer_TheWorldsAdmin_GetsNeitherTheAdminView_NorCallAnAdmin()
+    {
+        var content = ContentLoader.LoadFromDirectory(ClientTestPaths.DataDir());
+        using var h = new ClientServerHarness(content, c => { c.PlaceStarterShip = false; c.MaxPlayers = 1; }, passObjects: false);
+        var said = new System.Collections.Generic.List<string>();
+        h.Client.ServerMessageReceived += m => said.Add(m.Text);
+        h.Client.ActionRejected += m => said.Add(m.Reason);
+
+        h.Join("Justus"); // the first joiner owns the world
+        Assert.NotNull(h.JoinAccepted);
+        Assert.False(h.JoinAccepted!.AdminCallSupported);
+        Assert.True(h.PumpUntil(() => h.Client.Role == (byte)PlayerRole.WorldAdmin), "the client never learned its role");
+        Assert.False(h.Client.HasAdminView);
+        Assert.Equal(AdminModes.Off, h.Client.AdminModeAvailable);
+        Assert.False(h.Client.AdminCallSupported);
+        Assert.False(h.Client.OffersCallAdmin);
+        Assert.False(h.Client.TrySendCallAdmin("help")); // the chat shows the admin help instead
+
+        h.Server.Sessions.Values.Single(s => s.State.PlayerId == h.JoinAccepted.PlayerId).State.AboardShip = false;
+        h.Client.SendAdminMode(true);
+        Assert.True(h.PumpUntil(() => said.Contains("@srv.admin.mode_no_access")), "F8 was not refused: " + string.Join(" / ", said));
+        Assert.Equal(AdminModes.Off, h.Client.AdminMode);
+    }
 }

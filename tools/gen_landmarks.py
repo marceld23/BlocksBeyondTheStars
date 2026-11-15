@@ -15,7 +15,9 @@ It writes three small SAMPLES, all `pinOnly` — never rolled for a world, only 
   sample_store   an inhabited store with a keeper who only sells inside           (protected, as built)
 
 and then every landmark script in tools/landmarks/ — a `<key>.py` there that defines `build()` returning a
-`geom.Design` (see tools/landmarks/README.md for the toolkit: cylinders, domes, arches, trusses, stairs, text ...).
+`geom.Design` (see tools/landmarks/README.md for the toolkit: cylinders, domes, arches, trusses, stairs, text ...). The
+civilization scripts there (`civ_*.py`, #3639) return `civ.CivDesign`s, which write themselves to
+data/civilizations/<civilization>/<key>.json instead.
 
 Run it after editing (stdlib only):  uv run --no-project python tools/gen_landmarks.py [key ...]
 With keys it writes only those. It rewrites the files it owns and writes LF line endings.
@@ -35,7 +37,7 @@ OUT = _geom.OUT
 
 # Modules of the toolkit itself — every other tools/landmarks/<key>.py is a landmark script.
 TOOLKIT = {"__init__", "geom", "solids", "shapecode", "blockfont", "templatefile", "preview", "selftest", "ships",
-           "shipgeom", "lightmount"}
+           "shipgeom", "lightmount", "civ"}
 
 
 def sample_tower() -> Design:

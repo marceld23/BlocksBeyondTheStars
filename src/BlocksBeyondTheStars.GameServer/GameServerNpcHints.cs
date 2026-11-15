@@ -49,6 +49,13 @@ public sealed partial class GameServer
             return lodgeHint;
         }
 
+        // (a3) #3642: a settler tells a rumour of a lost civilization at home on another world — each once per player
+        // (GameServerCivilizationsWorld.cs). A story, not a secret: anyone hears it — sometimes, so the local hints still come.
+        if (npcKey.StartsWith("settle_", System.StringComparison.Ordinal) && TryEmitCivilizationRumour(session, forceRoll) is { Length: > 0 } rumour)
+        {
+            return rumour;
+        }
+
         // (b) A hidden chest — a secret kept for players this NPC already knows (tier "known"+).
         int rel = RelationshipValue(session.State, npcKey); // #2598: a villager without an own entry reads the floor
         if (RelationshipTier(rel) is not ("known" or "trusted"))

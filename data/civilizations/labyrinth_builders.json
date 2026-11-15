@@ -1,0 +1,38 @@
+{
+  "_comment": "The Labyrinth Builders (#3645, docs/developer/CIVILIZATIONS.md): procedural maze ruins with square-headed statues on up to three toxic or airless bodies per galaxy, each in another system; its templates live in data/civilizations/labyrinth_builders/.",
+  "key": "labyrinth_builders",
+  "nameKey": "civ.labyrinth_builders.name",
+  "state": "lost",
+  "placement": "framework",
+  "minTerrainGeneration": 43,
+  "scope": {
+    "count": [1, 3],
+    "countWeights": [0.2, 0.3, 0.5],
+    "perSystem": 1,
+    "planetTypes": [],
+    "atmospheres": ["toxic", "none"],
+    "conditions": ["notAsteroid", "notGas", "notVoid"],
+    "startSystem": "allowed",
+    "underwater": false
+  },
+  "homeBody": { "suppress": ["landmark", "giant_wreck"] },
+  "materials": {
+    "@wall": "maze_stone",
+    "@accent": "maze_stone_carved",
+    "@roof": "maze_stone",
+    "@floor": "maze_stone",
+    "@path": "maze_stone"
+  },
+  "ruin": { "rubble": ["maze_stone"], "overgrowth": "" },
+  "sites": [
+    { "pool": "giant", "count": [1, 1], "nameKey": "civ.labyrinth_builders.site.maze" }
+  ],
+  "vega": [
+    { "trigger": "first", "key": "vega.civ.labyrinth_builders.first" },
+    { "trigger": "inside", "key": "vega.civ.labyrinth_builders.inside" },
+    { "trigger": "prop", "value": "statue", "key": "vega.civ.labyrinth_builders.statue" },
+    { "trigger": "prop", "value": "statue_large", "key": "vega.civ.labyrinth_builders.centre" }
+  ],
+  "codex": { "titleKey": "civ.labyrinth_builders.codex.title", "textKey": "civ.labyrinth_builders.codex.text" },
+  "rumours": ["npc.rumour.civ.labyrinth_builders.1", "npc.rumour.civ.labyrinth_builders.2"]
+}

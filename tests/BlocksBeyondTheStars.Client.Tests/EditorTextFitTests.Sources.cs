@@ -13,7 +13,7 @@ public sealed partial class EditorTextFitTests
     {
         "ui.stamp.build.entry", "ui.stamp.seat.*", "ui.stamp.tokens.air", "ui.stamp.furnish.*", "ui.stamp.turn.*", "ui.stamp.ruin.*",
         "ui.stamp.chest.underground", "ui.stamp.chest.ignored", "ui.stamp.chest.summary", "ui.stamp.life.*", "ui.stamp.residents.*",
-        "ui.stamp.keep_clear", "ui.stamp.protection.*",
+        "ui.stamp.keep_clear", "ui.stamp.protection.*", "ui.stamp.civ.*",
     };
 
     private static IEnumerable<FitSite> StructureSourceSites() => new[]
@@ -54,7 +54,7 @@ public sealed partial class EditorTextFitTests
             "ui.ed.turn_shown", "ui.ed.materials_shown", "ui.ed.preview_locked", "ui.ed.refuse.tokens", "ui.ed.entry.key_taken_design",
             "ui.ed.entry.key_taken_entry", "ui.ed.entry.bad_source", "ui.ed.entry.pick_source", "ui.ed.entry.stale") with { Sample = "my_town" },
         Wrap("StructureEditor status: a save warning", 348f, 2, 13, "ui.ed.warn.keep", "ui.ed.warn.cavity", "ui.ed.warn.ports",
-            "ui.ed.warn.life", "ui.ed.warn.settings") with { Prefix = "⚠ ", Suffix = " (+8 more)" },
+            "ui.ed.warn.life", "ui.ed.warn.settings", "ui.ed.warn.air") with { Prefix = "⚠ ", Suffix = " (+8 more)" },
         Label("StructureEditor status: more warnings", 120f, 13, "ui.ed.warn.more"),
     };
 }

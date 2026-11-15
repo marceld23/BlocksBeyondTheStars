@@ -20,8 +20,21 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The description line: a space readout's sentence and traits, a creature's habitat/activity/temperament
         /// traits, a yield/resource list with localized item names, or a single remark key. Falls back to the legacy
-        /// English <see cref="ScanResult.Info"/> only when the server is older than the structured fields.</summary>
+        /// English <see cref="ScanResult.Info"/> only when the server is older than the structured fields. #3642: a block a
+        /// lost civilization built names its people on a line of its own ("Built by: …").</summary>
         public static string Info(GameContent content, Localizer loc, ScanResult scan)
+        {
+            string info = BaseInfo(content, loc, scan);
+            string builtBy = scan.Kind == "block" ? CivilizationText.BlockLine(content, scan.SubjectKey, key => loc.Has(key) ? loc.Get(key) : null) : null;
+            if (string.IsNullOrEmpty(builtBy))
+            {
+                return info;
+            }
+
+            return string.IsNullOrEmpty(info) ? builtBy : info + "\n" + builtBy;
+        }
+
+        private static string BaseInfo(GameContent content, Localizer loc, ScanResult scan)
         {
             // #2238: the ship scanner's space readouts carry a sentence AND a few traits — show both.
             if (IsSpaceReadout(scan.Kind) && !string.IsNullOrEmpty(scan.InfoKey))
@@ -117,6 +130,12 @@ namespace BlocksBeyondTheStars.Client
             if (scan.Kind == GiantWreckText.PlanetReadoutKind)
             {
                 return WreckReadout.Title(loc.Get(GiantWreckText.KindKey), scan.Subject);
+            }
+
+            // #3642: a lost civilization's site reads "the people · the site" — "The Vanished People · Sunken City".
+            if (CivilizationText.IsReadout(scan.Kind))
+            {
+                return CivilizationText.ReadoutTitle(scan.SubjectKey, scan.Subject, content, key => loc.Has(key) ? loc.Get(key) : null);
             }
 
             // #2588: an anomaly is titled by its kind — a server before #2588 sends its entity name "???", which is what

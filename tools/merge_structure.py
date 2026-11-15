@@ -21,6 +21,13 @@ compact template with `giantShip: true`. It is written to data/giant_ships/<key>
 defaults stripped; `pinOnly` of a file that already exists is kept, and so are its `ruinZones` and `minTerrainGeneration`
 when the bundle has none (the editor has no rows for them; a ship it loaded carries them through).
 
+A CIVILIZATION TEMPLATE (#3646, a civilization's site or prop opened in the town editor's landmark form) is one file too:
+civilization_exports/<key>/civilization.json, the compact template with `kind: civilization`, its `civilization`,
+`civPool` and (a prop) `propPool`. It is written to data/civilizations/<civilization>/<key>.json — one line per file,
+`landmark` and the editor's defaults stripped; the seat (`seabed`), the air pockets (palette and cell kind `air`) and the
+prop markers (`prop` with `pool=` / `template=`) are kept as they are. `pinOnly` of a file that already exists is kept, and
+so are its `ruinZones`, `minTerrainGeneration` and `requires` when the bundle has none.
+
 A GENERATOR ENTRY (#3518, #3523, either editor, "Use as: Generator entry") is a template without cells — a structure
 source, its parameters, weight, pack and planet types: <kind>_exports/<key>/entry.json, or
 landmark_exports/<key>/entry.json for a landmark entry. It goes to the pool the editor saved it for —
@@ -55,11 +62,12 @@ POOL_FOR = {
 
 def _use_data(data_dir):
     """Points every pool and folder at another data folder (`--data`, e.g. a copy for a dry run)."""
-    global DATA, POOL_FOR, LANDMARK_DIR, GIANT_SHIP_DIR, KIT_PATH
+    global DATA, POOL_FOR, LANDMARK_DIR, GIANT_SHIP_DIR, CIVILIZATION_DIR, KIT_PATH
     DATA = Path(data_dir).resolve()
     POOL_FOR = {"station": DATA / "station_templates.json", "settlement": DATA / "settlement_templates.json"}
     LANDMARK_DIR = DATA / "landmarks"
     GIANT_SHIP_DIR = DATA / "giant_ships"
+    CIVILIZATION_DIR = DATA / "civilizations"
     KIT_PATH = DATA / "structure_kits.json"
 
 
@@ -97,6 +105,10 @@ def main():
         merge_giant_ship(_load(bundle / "giant_ship.json"))
         merged = True
 
+    if (bundle / "civilization.json").exists():
+        merge_civilization(_load(bundle / "civilization.json"))
+        merged = True
+
     if (bundle / "kit.json").exists():
         merge_kit(_load(bundle / "kit.json"))
         merged = True
@@ -107,7 +119,7 @@ def main():
 
     if not (bundle / "structure.json").exists():
         if not merged:
-            sys.exit(f"no structure.json, kit.json, landmark.json, giant_ship.json or entry.json in {bundle}")
+            sys.exit(f"no structure.json, kit.json, landmark.json, giant_ship.json, civilization.json or entry.json in {bundle}")
         return
 
     meta = _load(bundle / "structure.json")
@@ -294,6 +306,66 @@ def merge_giant_ship(ship):
     _dump_landmark(path, entry)
     print(f"merged giant ship '{entry['key']}' ({len(entry['rows'])} rows, {len(entry['cells'])} cells with settings) "
           f"into {_where(path)}")
+
+
+CIVILIZATION_DIR = DATA / "civilizations"
+CIVILIZATION_KEEP = ("width", "height", "length", "palette", "rows", "cells")
+
+
+def civilization_entry(template, existing):
+    """The data-file shape of a civilization template the editor saved (#3646): `key`, `name`, `kind: civilization`,
+    `civilization`, `civPool` (and a prop's `propPool`) first, then every field the editor set — pack `default`, no planet
+    types or conditions, strength 0 and the like are dropped, `landmark` too (the folder says what it is); `weight`, the seat
+    and the protection word stay as written (`auto` is dropped). Palette entries and cells lose their default fields; an air
+    pocket keeps its kind `air`, a prop marker its settings. `pinOnly` — a field the editor does not write — survives from
+    the file that is already there, and so do its ruin zones, minimum terrain generation and conditions when the bundle has
+    none."""
+    entry = {"key": template["key"], "name": template.get("name") or template["key"], "kind": "civilization",
+             "civilization": template["civilization"], "civPool": template.get("civPool", "")}
+    if template.get("propPool"):
+        entry["propPool"] = template["propPool"]
+    for field, value in template.items():
+        if field in entry or field in ("kind", "landmark", "propPool", "protected"):
+            continue
+        if field in CIVILIZATION_KEEP or value not in (None, "", 0, 0.0, False, []):
+            entry[field] = value
+    if template.get("protected"):
+        entry["protected"] = True  # the legacy flag, only when set (worlds below terrain generation 39 read it)
+    if entry.get("pack") == "default":
+        entry.pop("pack")
+    entry["palette"] = [{k: v for k, v in p.items() if k in ("kind", "id") or v not in (None, "", 0, False)}
+                        for p in template.get("palette", [])]
+    entry["cells"] = [{k: v for k, v in c.items() if k in ("x", "y", "z", "kind", "id") or v not in (None, "", 0, False)}
+                      for c in template.get("cells", [])]
+    if entry.get("ruinZones"):
+        entry["ruinZones"] = [_clean_zone(z) for z in entry["ruinZones"]]
+    _set_protection(entry, entry.get("protection"))
+    if existing:
+        if existing.get("pinOnly"):
+            entry["pinOnly"] = True
+        for field in ("ruinZones", "minTerrainGeneration", "requires"):
+            if existing.get(field) and not entry.get(field):
+                entry[field] = existing[field]
+    return entry
+
+
+def merge_civilization(template):
+    if not template.get("key"):
+        sys.exit("civilization.json has no key")
+    civ = (template.get("civilization") or "").strip()
+    if not civ:
+        sys.exit(f"civilization.json '{template['key']}' names no civilization")
+    if not (CIVILIZATION_DIR / f"{civ}.json").exists():
+        sys.exit(f"civilization.json '{template['key']}' names the civilization '{civ}', but there is no "
+                 f"{_where(CIVILIZATION_DIR / (civ + '.json'))} (the loader reads a civilization's folder only with its file)")
+    template = dict(template, civilization=civ)
+    folder = CIVILIZATION_DIR / civ
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"{template['key']}.json"
+    entry = civilization_entry(template, _load(path) if path.exists() else None)
+    _dump_landmark(path, entry)
+    print(f"merged civilization template '{entry['key']}' of '{civ}' ({len(entry.get('rows', []))} rows, "
+          f"{len(entry['cells'])} cells with settings) into {_where(path)}")
 
 
 def _dump_landmark(path, entry):

@@ -32,6 +32,12 @@ family-adventure; no jump-scare design, no horror imagery. The buried G.D.S. rui
 blocky decoration — an empty diving helmet, a broken robot guardian head and, rarest, a cartoon *creature* skull (never a
 human one) — with no corpses, no blood and no story of anyone hurt (the G.D.S. logs: everyone got out).
 Their glowing liquid, Ressaw, hurts slowly like the toxic water and is shrugged off with the diving suit.
+The lost civilizations' ruins (terrain generation 43, #3644, #3645) are ruins without horror: nobody lives there and
+nothing of a person is left — the Grand Technicians' "remains" on the sea floor are **machine parts** (a switched-off
+white eye and a few carved stones), never bodies or bones, and their mural shows them flying about happily. Their
+glowing **red fluid is harmless** decoration (it never hurts, cannot be taken). The Labyrinth Builders leave only walls
+and statues; a labyrinth on an airless or toxic world asks the player to watch the suit tank, but nobody is trapped (walls
+can be mined, climbed or jetpacked over). No den, no creature and no enemy belongs to either people.
 
 **Language** — no profanity in shipped content (EN/DE + machine locales); chat is user content, see below.
 

@@ -60,6 +60,7 @@ namespace BlocksBeyondTheStars.Client
             _zoneCorner = null;
             _lmSeat = string.Empty;
             _lmMinGeneration = 0;
+            ResetCivilizationExtras(); // #3646: a civilization template's fields, the carves under markers (StructureEditor.Civilization.cs)
         }
 
         // ---------------------------------------------------------------- the seat

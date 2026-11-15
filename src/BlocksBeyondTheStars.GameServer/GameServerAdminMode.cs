@@ -12,7 +12,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <summary>
 /// Admin mode (#3503, epic #3502): the in-game admin view's way in and out.
 /// <list type="bullet">
-/// <item><b>Access</b>: a world admin (<c>IsAdmin</c>) or a fleet admin — without cheats (hosted worlds never have any).</item>
+/// <item><b>Access</b>: a world admin (<c>IsAdmin</c>) or a fleet admin — without cheats (hosted worlds never have any). Not
+/// in singleplayer (#3638): a server for one player gives its world admin no admin view.</item>
 /// <item><b>The invisible mode</b> (<see cref="AdminModes.Invisible"/>) IS the observer mode (<see cref="ObserverSystem"/>): no
 /// presence, no damage, free flight, no ship or pad, ignored by NPCs and the story. The entry point (body, position,
 /// facing) is remembered, and leaving puts the admin back there — admin mode is not a free teleport.</item>
@@ -29,14 +30,21 @@ public sealed partial class GameServer
     /// <summary>An official hosted world: the instance checks a join token (#3502 decision 1).</summary>
     private bool OfficialHostedWorld => !string.IsNullOrEmpty(_config.JoinTokenSecret);
 
+    /// <summary>#3638: a server for one player — the singleplayer world, which the desktop and the browser both run with
+    /// <c>MaxPlayers</c> 1 (hosting a LAN world opens 2 to 16 slots). Its player is the world's admin, but there is nobody to
+    /// watch, write to or be called by: such a server offers neither the admin view nor "Call an admin". A dedicated server
+    /// set to one player counts the same; a fleet admin (who joins on a reserved slot) keeps the view.</summary>
+    private bool SinglePlayerServer => _config.MaxPlayers <= 1;
+
     /// <summary>Who may open the admin view at all: a world admin or a fleet admin.</summary>
     private static bool MayUseAdminView(PlayerSession session) => session.State.IsAdmin || session.IsFleetAdmin;
 
-    /// <summary>The admin mode this session would get (<see cref="AdminModes"/>): none, the invisible one, or — for a world
-    /// owner on an official hosted world who is no fleet admin — the visible panel-only variant.</summary>
+    /// <summary>The admin mode this session would get (<see cref="AdminModes"/>): none (also for the world admin of a
+    /// <see cref="SinglePlayerServer"/>), the invisible one, or — for a world owner on an official hosted world who is no
+    /// fleet admin — the visible panel-only variant.</summary>
     private byte AdminModeAvailableFor(PlayerSession session)
     {
-        if (!MayUseAdminView(session))
+        if (!MayUseAdminView(session) || (SinglePlayerServer && !session.IsFleetAdmin))
         {
             return AdminModes.Off;
         }

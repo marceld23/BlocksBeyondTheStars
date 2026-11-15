@@ -9,7 +9,8 @@ Materials: wherever a method takes `m`, it accepts
 - a block key (`"travertine"`), a `Mat` (block + tint/glow/shape/keep), a `Mix` (weighted blocks picked per cell by a
   hash), or a callable (x, y, z) -> any of these or None (= leave the cell);
 - `CLEAR` (remove whatever the design has there — above the ground row an empty cell becomes air) or `CAVITY` (carve
-  to air — needed below the ground row, where an empty cell keeps the planet's rock).
+  to air — needed below the ground row, where an empty cell keeps the planet's rock), or `AIR` (#3640: an AIR POCKET —
+  stays air even under water, where an empty cell or a cavity fills with water; civilization templates, `civ.py`).
 Every shape method returns the set of cells it wrote, so the result can be reused (cut windows into a wall you made,
 mark a stair core as keep ...). The pure geometry lives in `solids`; the shape codes in `shapecode`.
 
@@ -49,6 +50,8 @@ class _Op:
 
 CLEAR = _Op("CLEAR")    # remove the cell from the design
 CAVITY = _Op("CAVITY")  # carve the cell to air (underground rooms, tunnels, caverns)
+AIR = _Op("AIR")        # #3640: an air pocket — stays air under water too (a diving bell; see civ.py)
+_AIR_LOOK = ("air", "", 0, 0, 0, False)
 
 
 class Mat(NamedTuple):
@@ -227,7 +230,7 @@ class Design:
     # --- materials -------------------------------------------------------------------------------------------------
     @staticmethod
     def _static(m) -> bool:
-        return m is CLEAR or m is CAVITY or isinstance(m, (str, Mat))
+        return m is CLEAR or m is CAVITY or m is AIR or isinstance(m, (str, Mat))
 
     @staticmethod
     def _look(m, x: int, y: int, z: int, kw: dict):
@@ -239,7 +242,7 @@ class Design:
                 m = m(x, y, z)
             else:
                 break
-        if m is None or m is CLEAR or m is CAVITY:
+        if m is None or m is CLEAR or m is CAVITY or m is AIR:
             return m
         if isinstance(m, str):
             m = Mat(m)
@@ -258,6 +261,8 @@ class Design:
             self.plain.pop((x, y, z), None)
         elif look is CAVITY:
             self.plain[(x, y, z)] = ("cavity", "", 0, 0, 0, False)
+        elif look is AIR:
+            self.plain[(x, y, z)] = _AIR_LOOK
         else:
             self.plain[(x, y, z)] = look
 
@@ -288,6 +293,8 @@ class Design:
                 self.plain.pop(pos, None)
             elif look is CAVITY:
                 self.plain[pos] = ("cavity", "", 0, 0, 0, False)
+            elif look is AIR:
+                self.plain[pos] = _AIR_LOOK
             else:
                 self.plain[pos] = look
             done.add(pos)
@@ -308,6 +315,10 @@ class Design:
 
     def cavity_cells(self) -> set[Cell]:
         return {p for p, v in self.plain.items() if v[0] == "cavity"}
+
+    def air_cells(self) -> set[Cell]:
+        """The air-pocket cells (#3640, `AIR`)."""
+        return {p for p, v in self.plain.items() if v[0] == "air"}
 
     def bounds(self) -> tuple[int, int, int, int, int, int] | None:
         return solids.bounds(list(self.plain) + [(m["x"], m["y"], m["z"]) for m in self.markers])

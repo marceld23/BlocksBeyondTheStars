@@ -12,7 +12,7 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// the layout is stable across runs — satisfying "generated once, then stable" without
 /// storing the whole universe (only generation status and player changes are persisted).
 /// </summary>
-public sealed class UniverseGenerator
+public sealed partial class UniverseGenerator
 {
     private static readonly string[] NamePrefixes =
         { "Vey", "Kor", "Ark", "Nyx", "Tor", "Zel", "Hal", "Lum", "Dra", "Cas", "Or", "Pyr", "Sol", "Vor", "Eri" };
@@ -190,7 +190,7 @@ public sealed class UniverseGenerator
         }
 
         ApplyGasGiants(galaxy, firstBreathable);
-        ApplyGuaranteedTypes(galaxy, firstBreathable, kept);
+        ApplyGuarantees(galaxy, firstBreathable, kept);
     }
 
     /// <summary>#2343: the first planet of every type the classic roll produced, in the server's start-pick order

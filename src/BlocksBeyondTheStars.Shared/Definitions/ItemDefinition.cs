@@ -109,6 +109,9 @@ public sealed class ItemDefinition
 
     public ItemCategory Category { get; set; } = ItemCategory.Material;
 
+    /// <summary>#3643: the civilization this item belongs to (<see cref="CivilizationDefinition"/>), empty = none (a tag).</summary>
+    public string Civilization { get; set; } = string.Empty;
+
     /// <summary>Crafting-menu tab override (#1273): <c>"machines"</c> lists the item under Machines instead
     /// of Blocks. Deliberately its own field — <c>BlockDefinition.Category == "machine"</c> already doubles
     /// as the airtightness and settler-machine-count rule and contains bed/campfire, so the UI taxonomy

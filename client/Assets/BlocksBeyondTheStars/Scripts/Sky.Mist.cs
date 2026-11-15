@@ -255,7 +255,8 @@ namespace BlocksBeyondTheStars.Client
         /// than murky swamps — the atmosphere density stands in for the water's clarity), independent of the player's haze
         /// switch: this is the water, not the weather. Eased over ~0.3 s so a dive does not snap. #3335: in Ressaw the murk is
         /// its own milky white — it glows, so neither the world's water colour nor the night dims it — and the view closes in
-        /// sooner (<see cref="RessawFogFar"/>): milky, you make out shapes, not detail.</summary>
+        /// sooner (<see cref="RessawFogFar"/>): milky, you make out shapes, not detail. #3644: the Grand Technicians' red fluid
+        /// closes in the same way, in its own glowing red.</summary>
         private void ApplyUnderwater(Color sky, float day, float airDensity, ref float fogStart, ref float far, ref float maxHaze)
         {
             bool under = UnderwaterEnabled && Camera != null && Game != null && !Game.SpaceViewActive
@@ -264,17 +265,18 @@ namespace BlocksBeyondTheStars.Client
             UnderwaterFog = _submerged;
             if (under)
             {
-                _murkIsRessaw = IsRessawAt(Camera.transform.position); // kept while the murk fades out after surfacing
+                _murkLook = LiquidLookAt(Camera.transform.position); // kept while the murk fades out after surfacing
             }
 
             if (_submerged > 0.001f)
             {
                 float clarity = 1f - Mathf.Clamp01(airDensity) * 0.6f;
-                float waterFar = _murkIsRessaw ? RessawFogFar : 5f + 18f * clarity;
+                bool glowing = LiquidLook.GlowsStill(_murkLook); // #3335/#3644: Ressaw, the red fluid
+                float waterFar = glowing ? RessawFogFar : 5f + 18f * clarity;
                 fogStart = Mathf.Lerp(fogStart, 0.5f, _submerged);
                 far = Mathf.Lerp(far, waterFar, _submerged);
                 maxHaze = Mathf.Lerp(maxHaze, 1f, _submerged);
-                Color water = _murkIsRessaw ? RessawMurk
+                Color water = glowing ? (_murkLook == LiquidLookKind.RedFluid ? RedFluidMurk : RessawMurk)
                     : WaterColours.Blend(new Color(0.08f, 0.26f, 0.42f), Game.Environment, 0.8f, Time.time) * Mathf.Lerp(0.6f, 1f, day);
                 Color deep = Color.Lerp(sky, water, _submerged);
                 deep.a = 1f;
@@ -291,16 +293,20 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#3335: the murk in Ressaw — a milky, faintly lilac white (the liquid glows: no day/night dimming).</summary>
         private static readonly Color RessawMurk = new Color(0.80f, 0.81f, 0.88f);
 
-        /// <summary>#3335: how far the view reaches in Ressaw, in metres (water: 5–23 by the world's clarity).</summary>
+        /// <summary>#3644: the murk in the Grand Technicians' red fluid — a glowing deep red (no day/night dimming either).</summary>
+        private static readonly Color RedFluidMurk = new Color(0.62f, 0.10f, 0.10f);
+
+        /// <summary>#3335: how far the view reaches in Ressaw (and, #3644, in the red fluid), in metres (water: 5–23 by the
+        /// world's clarity).</summary>
         private const float RessawFogFar = 7f;
 
-        private bool _murkIsRessaw; // #3335: the camera's liquid is Ressaw (latched while submerged)
+        private LiquidLookKind _murkLook; // #3335: the look of the camera's liquid (latched while submerged)
 
-        /// <summary>#3335: whether the cell holding <paramref name="p"/> is Ressaw (<see cref="LiquidLook"/>).</summary>
-        private bool IsRessawAt(Vector3 p)
+        /// <summary>#3335: the look of the liquid in the cell holding <paramref name="p"/> (<see cref="LiquidLook"/>).</summary>
+        private LiquidLookKind LiquidLookAt(Vector3 p)
             => Game.World != null && Game.Content != null
-               && LiquidLook.Of(Game.Content.BlockById(Game.World.GetBlock(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y), Mathf.FloorToInt(p.z)))?.Key)
-                  == LiquidLookKind.Ressaw;
+                ? LiquidLook.Of(Game.Content.BlockById(Game.World.GetBlock(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y), Mathf.FloorToInt(p.z)))?.Key)
+                : LiquidLookKind.Water;
 
         /// <summary>The world Y of the water surface above a submerged point: walk up through the water cells (the
         /// caustics only play on faces below it).</summary>

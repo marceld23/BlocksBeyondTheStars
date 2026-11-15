@@ -78,7 +78,7 @@ public sealed partial class GameServer
 
         /// <summary>Whether its posts are staffed (residents at every profession, vendor and npc marker): below generation 39 a
         /// protected landmark; from 39 every intact one, whatever its protection.</summary>
-        public bool Staffed => LegacyRules ? Protected : !Layout.Ruined;
+        public bool Staffed => Civilization.Length == 0 && (LegacyRules ? Protected : !Layout.Ruined); // #3639: a lost civilization is never staffed
 
         public (int Cx, int Cz, int Hw, int Hl) Rect
             => (Origin.X + (Structure.Width / 2), Origin.Z + (Structure.Length / 2), (Structure.Width / 2) + 1, (Structure.Length / 2) + 1);
@@ -91,7 +91,7 @@ public sealed partial class GameServer
     }
 
     /// <summary>What the stamp needs to know about one landmark: the pick, the seat and whether it is new.</summary>
-    private sealed class LandmarkPlan
+    private sealed partial class LandmarkPlan
     {
         public required StructureTemplate Template;
         public required long Seed;
@@ -178,7 +178,7 @@ public sealed partial class GameServer
             return;
         }
 
-        var plan = loaded.VirginAtLoad ? PlanLandmark(planet, restricted) : null;
+        var plan = loaded.VirginAtLoad && !CivilizationSuppresses(StructureTypeRules.Landmark) ? PlanLandmark(planet, restricted) : null; // #3639
         if (plan is null)
         {
             RecordPlacementSkip(LandmarkRules.RecordKind, 0); // decided once: none here (no roll, no fit, or a visited body)
@@ -487,7 +487,7 @@ public sealed partial class GameServer
             }
         }
 
-        return OverlapsGiantWreck(x, z, halfExtent);
+        return OverlapsGiantWreck(x, z, halfExtent) || OverlapsCivilizationSite(x, z, halfExtent);
     }
 
     /// <summary>The landmark whose box holds the cell, or null.</summary>

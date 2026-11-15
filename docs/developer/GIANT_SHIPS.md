@@ -170,7 +170,9 @@ writer, overlay storage, chests, emitters, streaming lift and far silhouette. A 
   or an asteroid may carry one —, a type with a structure whitelist only when it names `giant_wrecks` (and then only ships
   whose `planetTypes` name the type). Plus the host's `ServerConfig.PlaceGiantWrecks` and the world option
   `WorldDescription.GiantWrecks` not *Off*; never the finale body; only a body untouched at load (a visited body records a
-  skip).
+  skip). From terrain generation 43 never on a **civilization's home body** either: a civilization whose `homeBody.suppress`
+  names `giant_wreck` (both shipped ones do) keeps the planet wreck off its homes — the body records a skip
+  (`CivilizationSuppresses`, [CIVILIZATIONS.md](CIVILIZATIONS.md) §1, §4). The space wrecks are not affected.
 - **The roll.** `LaneRoll(seed, "giantwreck:roll:<body>")` below the kind's chance (`chance` 0.05 in the file;
   `ServerConfig.GiantWreckChance` overrides it when set) × the structures frequency (`StructureFactor`) × the world option
   (`GiantWrecks.Probability() / Normal.Probability()`: very rare 0.125, rare 0.375, normal 1, frequent 1.875) — about

@@ -16,19 +16,21 @@ the result without Unity. Python 3.10+, standard library only.
 | `selftest.py` | checks every primitive, the C# mirrors, the samples' bytes, the PNG writer and the ship helpers |
 | `ships.py` | `ShipDesign` — the GIANT SHIP toolkit (see [Giant ships](#giant-ships)): hull, decks, rooms, doors, domes ... |
 | `shipgeom.py` | pure ship geometry: cross-sections, the loft, `Hull` (inside / shell / surface queries), tubes along curves |
-| `<key>.py` | one script per landmark, with a `build()` that returns its `Design` |
+| `civ.py` | `CivDesign` — the CIVILIZATION template toolkit (see [Civilizations](#civilizations)): air pockets as diving bells, `prop` markers, murals, pieces in any of the 24 orientations |
+| `<key>.py` | one script per landmark, with a `build()` that returns its `Design` (or a list; `civ_*.py` return `CivDesign`s) |
 
 ```bash
 uv run --no-project python tools/landmarks/leaning_tower.py          # build one landmark -> data/landmarks/leaning_tower.json
 uv run --no-project python tools/gen_landmarks.py                    # the three samples + every tools/landmarks/<key>.py
 uv run --no-project python tools/gen_landmarks.py leaning_tower      # only these keys
 uv run --no-project python tools/landmarks/preview.py leaning_tower --cut y=40 --cut z=12
-uv run --no-project python tools/landmarks/selftest.py               # 27 checks, exit code 1 on a failure
+uv run --no-project python tools/landmarks/selftest.py               # 28 checks, exit code 1 on a failure
 uvx ruff check tools/landmarks
 ```
 
 `gen_landmarks.py` writes the three `pinOnly` samples with this same `Design` (byte for byte as before) and then runs
-the `build()` of every other `tools/landmarks/<key>.py` (the toolkit's own modules are skipped).
+the `build()` of every other `tools/landmarks/<key>.py` (the toolkit's own modules are skipped). Each design writes itself
+where it belongs: a landmark to `data/landmarks/`, a civilization template (`civ_*.py`) to `data/civilizations/<civ>/`.
 
 ## Writing a landmark script
 
@@ -297,7 +299,7 @@ uv run --no-project python tools/landmarks/preview.py <key|file.json|export fold
     [--cut y=N] [--cut z=N] [--cut x=N] [--cut auto] [--split] [--no-cavity] [--no-overlay] [--stats-only]
 ```
 
-Writes `artifacts/landmark-previews/<key>.png` (git-ignored) by default — a giant ship (`giantShip: true`, a key under
+Writes `artifacts/landmark-previews/<key>.png` (git-ignored) by default — a civilization template `artifacts/civ-previews/<key>.png` (drawn against deep water when `seat: seabed`, air pockets bright cyan), a giant ship (`giantShip: true`, a key under
 `data/giant_ships` or any template file, also a wreck dumped as a template) `artifacts/giant-ship-previews/<key>.png`.
 A giant ship gets `--cut auto` unless cuts are given: a plan one row above each walk row that carries doors, entrances
 or chests (at most four), a cross-section at the middle of the length and a long section through the centre line.
@@ -355,3 +357,39 @@ wreck) plus `pinOnly`, `pack`, `planetTypes`, `ruinStrength`, `ruinZones` (profi
 Rules of thumb: build the hull, then decks, corridors and rooms, shafts, windows, domes, doors, markers, guns and
 engines, greebles last; `normalize()` at the end (hulls, markers and zones move along). A deck ends where the keel rises
 above it — check the plan sections. Mix only the skin; keep big inner volumes hollow (decks and walls, not solid fill).
+
+## Civilizations
+
+`civ.CivDesign` is a `Design` that writes one template of a LOST CIVILIZATION (#3639,
+`data/civilizations/<civilization>/<key>.json`): found only through the civilization framework, never offered by a
+settlement, landmark or giant-ship pool. Scripts: `civ_grosstechniker.py` (the Grand Technicians' sunken buildings,
+#3644) and `civ_labyrinth_statues.py` (the Labyrinth Builders' statues, #3645); both run with `--preview` (PNGs in
+`artifacts/civ-previews/`) or through `gen_landmarks.py`.
+
+```bash
+uv run --no-project python tools/landmarks/civ_grosstechniker.py --preview   # -> data/civilizations/grosstechniker/
+uv run --no-project python tools/landmarks/civ_labyrinth_statues.py --preview
+```
+
+Header (in this order): `key, name, kind: civilization, civilization, civPool, propPool (a prop only), nameKey
+(civ.<civilization>.site.<key> or civ.<civilization>.prop.<key>), weight, minTerrainGeneration: 43` plus what the script
+passes (`seat`, `ruin`, `ruinProfile`, `ruinStrength`, `protection`, `groundRow`, `ruinZones`). `civPool` is `giant`,
+`city`, `small` or `prop`; a prop (`propPool` e.g. `remains`, `statue`, `statue_large`) is a small piece a `prop` marker
+places after the ruin pass, never a site of its own. `seat: seabed` = the template stands on the sea floor and the stamp
+fills its empty cells and cavities with water.
+
+| helper | what it does |
+|---|---|
+| `air(cells)` / `AIR` | AIR-POCKET cells (#3640, cell kind `air`): they stay air under water |
+| `bell(x0, y0, z0, x1, y1, z1, wall, roof=None, openings=())` | a DIVING BELL: the air box closed by `keep` walls and a roof, its floor row left for you, `openings` (x, z) cleared in it. Water flows down and sideways, never up, so a bell is closed everywhere but at the bottom, at least 3 x 3 x 3 |
+| `prop(x, y, z, pool=, template=)` | the `prop` marker (#3641): a random prop of the civilization's pool (or one template) stands on the ground here |
+| `mural(x, y, z, normal, prefix="gt_mural_", cols=4, rows=2)` | tiles `<prefix>0..` left to right, top row first, in the wall cells whose visible face looks along `normal`; (x, y, z) is the bottom-left tile as the viewer sees it; every tile stores that face as its front (CubeFacing) |
+| `orient(d, part, at, orientation, yaw)` / `oriented_size` | writes a `Design.part()` turned by one of `ORIENTATIONS` (`upright`, `upside_down`, `on_side_px`, `on_side_nx`, `on_back`, `on_front`) and a yaw — the 24 cube rotations; forms turn with it, a stored front stays only while it points sideways |
+| `expect(d, footprint, height_above, sunk, blocks, markers)` | the size and content asserts a generator makes before it writes |
+
+`problems()` mirrors the landmark rules and `CivilizationRules.TemplateProblems` (a known civilization, a pool, a prop's
+pool, nobody home: only chests, sounds, props, loot, terminals, relic caches, crystals and doors) and adds the
+DIVING-BELL check (`bell_problems`): every group of air cells is closed by solid, `keep` blocks on its four sides and on
+top, has an opening at the bottom and room for a player. The civilization blocks still being added to
+`data/blocks.json` (`glyph_stone`, `glyph_stone_band`, `dark_sandstone`, `gt_eye`, `gt_fluid`, `gt_mural_0..7`,
+`maze_stone`, `maze_stone_carved`) are known to the checks and get a preview colour until blocks.json has one.

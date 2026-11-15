@@ -57,6 +57,7 @@ namespace BlocksBeyondTheStars.Client
             ["giant_wrecks"] = "ruins", // #3610: the giant ship wrecks on planets
             ["text_monuments"] = "ruins", // #3310: KuBa-W's stone tablets
             ["sounder_world"] = "ruins", // #3358: Soaniri's village, ruin city and Choir Tower
+            ["civilizations"] = "ruins", // #3639: a lost civilization's sites on its home body
             ["factories"] = "ruins",
             ["wreck"] = "ruins",
             ["ancient_ruins"] = "ruins",
