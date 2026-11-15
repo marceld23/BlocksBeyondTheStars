@@ -182,7 +182,7 @@
     ]
   },
   {
-    "key": "ocean", "waterTint": "auto", "floraTheme": "temperate", "baseTemperature": 20, "nameKey": "planet.ocean.name", "atmosphereHeight": 230, "cloudColor": 13623026, "cloudDensity": 0.55, "mist": 0.5,
+    "key": "ocean", "waterTint": "auto", "waterView": 30, "floraTheme": "temperate", "baseTemperature": 20, "nameKey": "planet.ocean.name", "atmosphereHeight": 230, "cloudColor": 13623026, "cloudDensity": 0.55, "mist": 0.5,
     "terrainTags": ["wetland", "reef"],
     "baseHeight": 60, "amplitude": 20, "terrainScale": 60.0, "terrainStyle": "flats",
     "terrainStyles": ["flats", "archipelago"],
@@ -728,7 +728,7 @@
     ]
   },
   {
-    "key": "rainbow_sea", "authoredCreatures": ["mini_michi_paul"], "guaranteedFruit": "flora_fruit_banana", "minTerrainGeneration": 5, "floraTheme": "tropical", "exotic": true, "baseTemperature": 25, "nameKey": "planet.rainbow_sea.name", "atmosphereHeight": 220, "cloudColor": 16115455, "cloudDensity": 0.45, "mist": 0.6,
+    "key": "rainbow_sea", "waterView": 30, "authoredCreatures": ["mini_michi_paul"], "guaranteedFruit": "flora_fruit_banana", "minTerrainGeneration": 5, "floraTheme": "tropical", "exotic": true, "baseTemperature": 25, "nameKey": "planet.rainbow_sea.name", "atmosphereHeight": 220, "cloudColor": 16115455, "cloudDensity": 0.45, "mist": 0.6,
     "terrainTags": ["wetland", "reef"],
     "baseHeight": 56, "amplitude": 26, "terrainScale": 64.0, "terrainStyle": "hills",
     "terrainStyles": ["hills", "downs"],

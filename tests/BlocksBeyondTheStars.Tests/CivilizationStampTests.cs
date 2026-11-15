@@ -188,6 +188,81 @@ public sealed class CivilizationStampTests : IDisposable
     }
 
     [Fact]
+    public void ASunkenSiteDugIntoAShallowSea_SitsInACraterWithASlopedRim_NeverInAShaft()
+    {
+        // #3700: a tower 60 high needs 63 blocks of water — far more than this meadow world's seas hold (~30), so it is dug in.
+        var tower = Box("sea_tower", "test_rim", CivilizationRules.PoolGiant, 7, 60, 7, LandmarkRules.SeatSeabed);
+        Fill(tower, 0, 0, 0, 6, 0, 6, "block", "stone");
+        Fill(tower, 2, 1, 2, 4, 59, 4, "block", "stone");
+        var content = Content(HomeCiv("test_rim", "meadowlands", underwater: true, ("giant", 1)), new List<StructureTemplate> { tower });
+        var server = Start(content, "civ_rim", out var repo, "meadowlands", WorldDescription.CivilizationsGeneration);
+        using (repo)
+        {
+            var site = Assert.Single(server.CivilizationSitesForTest);
+            int waterTop = site.WaterTop!.Value;
+            Assert.True(site.SunkenRim > 0, "a sunken site has a rim");
+            var rec = Assert.Single(server.PlacementRecordsForTest, r => r.Kind == CivilizationRules.RecordKind("test_rim"));
+            Assert.Equal(site.SunkenRim, MarkerSettings.Parse(rec.KitLayout).GetInt(SvGameServer.CivilizationRimPin, -1)); // pinned
+
+            int x0 = site.Origin.X, z0 = site.Origin.Z, x1 = x0 + site.Structure.Width - 1, z1 = z0 + site.Structure.Length - 1;
+            int lowered = 0;
+            for (int wx = x0 - site.SunkenRim; wx <= x1 + site.SunkenRim; wx++)
+            {
+                for (int wz = z0 - site.SunkenRim; wz <= z1 + site.SunkenRim; wz++)
+                {
+                    int dx = Math.Max(Math.Max(x0 - wx, wx - x1), 0), dz = Math.Max(Math.Max(z0 - wz, wz - z1), 0);
+                    double d = Math.Sqrt((dx * dx) + (dz * dz));
+                    int x = WorldConstants.WrapX(wx, server.World.Circumference);
+                    if ((dx == 0 && dz == 0) || d > site.SunkenRim || server.NaturalSeabedForTest(x, wz) is not { } natural || natural >= waterTop)
+                    {
+                        continue; // the footprint, past the rim, or dry land (never carved)
+                    }
+
+                    int slope = site.GroundY + (int)Math.Ceiling(d) + 1; // the slope plus its one block of unevenness
+                    int top = TopSolid(server, content, x, natural, wz, site.GroundY - 8);
+                    Assert.True(top <= slope,
+                        $"column ({x}, {wz}) {d:F1} from the footprint: floor {top}, slope {slope} — a wall, not a rim");
+                    lowered += natural > slope ? 1 : 0;
+                }
+            }
+
+            Assert.True(lowered > 0, $"the rim lowered no column — the site was not dug in (ground {site.GroundY}, water {waterTop}, rim {site.SunkenRim}, " +
+                $"seabed at the edge {server.NaturalSeabedForTest(WorldConstants.WrapX(x0 - 1, server.World.Circumference), z0)})");
+            server.Stop();
+        }
+    }
+
+    [Theory]
+    [InlineData(4, 80, 12, 0)]   // a deep sea with a little bump beats a shallow cut of 12, however much water it spares
+    [InlineData(10, 0, 11, 0)]   // a cut of 10 is still preferred over 11
+    [InlineData(37, 0, 80, 0)]   // past the preferred cut, the shallower one wins: a sandbank dig beats a trench under a shelf
+    public void TheSeabedSearch_PrefersTheShallowestCut(int cutA, int excessA, int cutB, int excessB)
+        => Assert.True(SvGameServer.SeabedScore(cutA, excessA) > SvGameServer.SeabedScore(cutB, excessB));
+
+    [Fact]
+    public void TheRim_ReachesBackToTheHighestFloor_AndIsCapped()
+    {
+        Assert.Equal(59 - 23 + 4, SvGameServer.SunkenRimFor(bedMax: 59, groundY: 23)); // the sandbank around the giant ruin
+        Assert.Equal(SvGameServer.SunkenRimMax, SvGameServer.SunkenRimFor(bedMax: 120, groundY: 10));
+        Assert.Equal(3, SvGameServer.SunkenRimFor(bedMax: 40, groundY: 41)); // dug in nowhere: a small rim evens the edge
+    }
+
+    /// <summary>The highest solid, non-flora cell of a column at or below <paramref name="from"/>, down to <paramref name="floor"/>.</summary>
+    private static int TopSolid(SvGameServer server, GameContent content, int x, int from, int z, int floor)
+    {
+        for (int y = from; y > floor; y--)
+        {
+            var def = content.BlockById(server.World.GetBlock(new Vector3i(x, y, z)));
+            if (def is { Solid: true } && def.Category != "flora")
+            {
+                return y;
+            }
+        }
+
+        return floor;
+    }
+
+    [Fact]
     public void AHomeBodyOnLand_StampsItsSites_ApartAndUnstaffed_AndGivesUpItsLandmark()
     {
         var hall = Box("land_hall", "test_land", CivilizationRules.PoolGiant, 9, 5, 9);

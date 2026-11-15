@@ -20,7 +20,9 @@
 // you see its backscatter, so it stays faint in clear air and shows in fog, dust and rain, like real light. The own lamp
 // needs no occlusion (the view ray runs along its light and ends at the wall it hits); another player's lamp is checked
 // against the High occupancy volume with a few coarse taps. Torches, lanterns and lava are the baked flood-fill block
-// light (ADR 0003) and cast no beams.
+// light (ADR 0003) and cast no beams. #3697: under water the lamps' beams scatter in the water itself (_Sc_VolLamp.w, a
+// density per metre far above any air's), the water swallows them along the way (VOL_WATER_EXTINCTION) and tints them
+// toward the murk's colour (_Sc_FogSky, VOL_WATER_TINT); above water w is 0 and the beam is the air's, unchanged.
 // WebGL 2 / WebGPU rules: fixed loop counts; inside the loop only explicit-LOD texture reads (SAMPLE_TEXTURE2D_LOD,
 // SampleCmpLevelZero) — no implicit derivatives in non-uniform control flow.
 //
@@ -34,7 +36,8 @@
 //                 z = cap on the added light per pixel (keeps the bloom sane)
 //   _Sc_VolTexel  xy = 1 / half-res size, zw = half-res size
 //   _Sc_VolLamp   x = the headlamp beams' intensity (fade folded in, 0 = off), y = HG g of the lamp phase, z = the lamps'
-//                 reach (m: the march stops there when the sun part is off), w unused
+//                 reach (m: the march stops there when the sun part is off), w = #3697 the water's density per metre the
+//                 beams scatter in (0 above water)
 //   _Sc_Light     the sun's light (Sky.cs: star colour × day brightness × weather dim, linear; a > 0.5 = set)
 Shader "BlocksBeyondTheStars/VolumetricLight"
 {
@@ -100,6 +103,12 @@ Shader "BlocksBeyondTheStars/VolumetricLight"
             #include "Headlamp.hlsl" // #3232: the headlamps' beams (profile, falloff, the remote lamps, occupancy)
 
             #define VOL_STEPS 24
+            // #3697: the lamps' beams in the water. FULL = the density (per metre) at which the tint and the extinction are
+            // whole (VolumetricSunLight.WaterDensity); EXTINCTION = per metre at that density (WaterExtinction); TINT = the
+            // murk colour's share in the beam.
+            #define VOL_WATER_FULL 0.05
+            #define VOL_WATER_EXTINCTION 0.12
+            #define VOL_WATER_TINT 0.6
 
             float4 _Sc_Light;
             float4 _Sc_VolLamp;
@@ -238,6 +247,8 @@ Shader "BlocksBeyondTheStars/VolumetricLight"
                 float scatter = 0.0;
                 float lampScatter = 0.0;
                 float trans = 1.0;
+                float water = _Sc_VolLamp.w; // #3697: 0 above water
+                float waterTrans = 1.0;
                 UNITY_LOOP
                 for (int i = 0; i < VOL_STEPS; i++)
                 {
@@ -256,7 +267,8 @@ Shader "BlocksBeyondTheStars/VolumetricLight"
 
                     if (lampOn)
                     {
-                        lampScatter += VolLampAt(p, dir) * sigma * ds * trans;
+                        lampScatter += VolLampAt(p, dir) * (sigma + water) * ds * trans * waterTrans;
+                        waterTrans *= exp(-(water / VOL_WATER_FULL) * VOL_WATER_EXTINCTION * ds); // the water swallows the beam
                     }
 
                     trans *= exp(-sigma * ds * _Sc_VolMarch.w);
@@ -265,7 +277,9 @@ Shader "BlocksBeyondTheStars/VolumetricLight"
                 float3 sunDir = _Sc_FogSunDir.xyz * rsqrt(max(dot(_Sc_FogSunDir.xyz, _Sc_FogSunDir.xyz), 1e-6));
                 float phase = VolPhase(dot(dir, sunDir));
                 float3 light = VolBeamColor(dir) * (scatter * phase * _Sc_VolLight.x);
-                light += _Sc_LampColor.rgb * (lampScatter * _Sc_VolLamp.x); // #3232: the headlamp beams
+                float3 murk = _Sc_FogSky.rgb / max(max(_Sc_FogSky.r, max(_Sc_FogSky.g, _Sc_FogSky.b)), 1e-3);
+                float3 lampTint = lerp(float3(1.0, 1.0, 1.0), murk, VOL_WATER_TINT * saturate(water / VOL_WATER_FULL)); // #3697
+                light += _Sc_LampColor.rgb * lampTint * (lampScatter * _Sc_VolLamp.x); // #3232: the headlamp beams
                 return float4(clamp(light, 0.0, _Sc_VolLight.z), eye);
             }
             ENDHLSL

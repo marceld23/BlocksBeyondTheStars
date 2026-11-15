@@ -24,6 +24,26 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🤿 Underwater sight — a headlamp cone in the water, clearer seas, readable Grand Technician ruins — #3697–#3702, ✅ 2026-11-15 (PR pending) (⚠ playtest open)
+
+Marcel's playtest 2026-11-15 at the Grand Technicians' giant ruin: "a tank under water, but no stone buildings around it,
+no small robots; and the helmet lamp needs a visible cone under water". Measured in his save: every block of all eight
+sites was stamped — the ruin sat in a 35–37 m deep shaft dug into a 1–3 m sandbank, under 14–21 m of view, with nothing
+taller than three blocks within 15.7 m of the tank.
+- **#3697 lamp beam (High):** `VolumetricDust.Water` — under water the lamps' beams scatter in the water (0.05/m, swallowed
+  at 0.12/m, tinted 60 % toward the murk, ending at the water's view + 4 m); the sunbeams stay off.
+- **#3698 motes:** `AmbientMoteMode.Water` — dim marine snow around the visor under water on every preset, lit by the lamps;
+  no planet outdoor motes under water.
+- **#3699 clearer water:** planet field `waterView` (m, `UnderwaterView.FarFor`); `ocean` + `rainbow_sea` see 30 m.
+- **#3700 crater:** the seabed seat scores the CUT below the footprint's highest floor and prefers ≤ 10 (480 draws,
+  `SeabedScore`; a first try that scored only the dig below the DEEPEST floor sank the giant into an 80 m trench on one
+  measured world); a dug-in sunken site gets a sloped crater
+  rim instead of a shaft (`GameServerCivilizationRim.cs`, pinned `rim`, registered with the footprint). New sites only.
+- **#3701 remains:** eight `prop pool=remains` markers in the bowl around the giant's eye (4–10 m from the tank); a prop may
+  fill cavity cells when its marker stands in one (never an air pocket).
+- **#3702 `/tp civ`:** a sunken site's target lies in the ruin on its floor (the bowl beside the eye), not on the sandbank.
+- Left out on purpose: a VEGA hint "debris lies around the eye" (optional in the analysis).
+
 ### 🤖 Guardian giants, the Sounders' melodies and story scene timing — #3676–#3686, ✅ 2026-11-15, PR pending (⚠ playtest open)
 
 Justus' report round of 2026-11-15 (v2026.11.18): his idea "Wächtergiganten", two Sounder-story reports and his

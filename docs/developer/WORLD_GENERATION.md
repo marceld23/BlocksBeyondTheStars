@@ -1473,6 +1473,13 @@ yellow, violet, red). Rain follows the water (`WaterColours.cs`): the 3D drops o
 visor's beads, streaks and wet wash, and the underwater wash blend toward the world's colour (a rainbow world's
 rain cycles through the hues); snow, hail, ash, sand, acid, meteors and spores keep their own look.
 
+**Water view (#3699).** How far a diver sees is the reach at which the underwater murk closes in fully
+(`Client.Core/UnderwaterView.FarFor`, read by `Sky.Mist`). By default the world's air stands in for the water's
+clarity (5 m in the soupiest air … 23 m in the clearest); the optional type field `waterView` (metres, clamped to
+4–64) names the water's own view instead — `ocean` and `rainbow_sea` see 30 m, so the Grand Technicians' sunken
+ruins (CIVILIZATIONS.md) can be read from their tank. Ressaw and the red fluid keep their short 7 m. Purely visual
+and client-side: existing worlds see further at once.
+
 **Hanging flora (#1759).** `FloraCatalog.Species.Hanging` — the plant roots in the block ABOVE. The roster
 activates `flora_hangkelp` on generation-5 worlds only (`MinGeneration`), worldgen places it at
 `ColumnProfile.IslandBottom − 1` in patches, the server's `IsValidFloraHost` and regrow read the host above

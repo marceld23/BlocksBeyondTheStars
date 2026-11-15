@@ -257,6 +257,12 @@ public sealed class PlanetType
     /// fixed 0xRRGGBB written as "#rrggbb". Read by <c>FluidTints.ForWorld</c>.</summary>
     public string WaterTint { get; set; } = string.Empty;
 
+    /// <summary>#3699: how far a diver sees in this type's water, in metres (where the underwater murk closes in fully). 0
+    /// (the default) derives it from the world's air as before (5–23 m: clear air, clear water); the sea worlds set their
+    /// own, clearer water. The glowing liquids (Ressaw, the Grand Technicians' red fluid) keep their own short view.
+    /// Read by the client's <c>UnderwaterView</c>.</summary>
+    public double WaterView { get; set; }
+
     /// <summary>Multiplies the per-body ruins roll (#1761): 1.0 = the classic draw; the hard cap stays.</summary>
     public double RuinsBias { get; set; } = 1.0;
 
