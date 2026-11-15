@@ -9095,7 +9095,7 @@
   "npc.rumour.civ.labyrinth_builders.2": "Говорят, где-то на ядовитом мире стоит лабиринт. Никто не знает, кто его построил и зачем.",
   "ui.scan.civilization": "Руины народа, который исчез давным-давно. Здесь уже очень-очень давно никто не живёт.",
   "ui.scan.civilization_block": "Кем построено: {0}",
-  "ui.map.kind_civilization": "Руины",
+  "ui.map.kind_civilization": "Развалины",
   "ui.wiki.discoveries.civilization": "Исчезнувшие цивилизации",
   "ui.wiki.civilization.new": "Открыто: {0} — см. Кодекс, Исчезнувшие цивилизации"
 }
