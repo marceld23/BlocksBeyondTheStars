@@ -18,7 +18,7 @@ namespace BlocksBeyondTheStars.Tests;
 [Collection(ServerConfigEnvironmentCollection.Name)]
 public sealed class ServerConfigOptionsTests
 {
-    /// <summary>The 57 environment variables <see cref="ServerConfig.ApplyEnvironment"/> reads, in the order it applies and
+    /// <summary>The 58 environment variables <see cref="ServerConfig.ApplyEnvironment"/> reads, in the order it applies and
     /// reports them.</summary>
     private static readonly string[] HistoricalEnvironmentOrder =
     {
@@ -32,7 +32,7 @@ public sealed class ServerConfigOptionsTests
         "BBS_CRASH_REPORT_KEY", "BBS_NOTIFY_URL", "BBS_BLOCKED_WORDS", "BBS_WATCH_WORDS", "BBS_CHAT_FILTER", "BBS_FESTIVALS",
         "BBS_CHAT_BLOCKED_WORDS", "BBS_CHAT_MASKED_WORDS", "BBS_CHAT_WATCH_WORDS", "BBS_CHAT_ALLOW_WORDS", "BBS_VOICE",
         "BBS_IDLE_SHUTDOWN_MINUTES", "BBS_JOIN_TOKEN_SECRET", "BBS_WORLD_OWNER", "BBS_NO_PLAYER_ADMINS", "BBS_ANNOUNCE_TOKEN",
-        "BBS_ALLOW_USER_SHIP_CRAFTING",
+        "BBS_ALLOW_USER_SHIP_CRAFTING", "BBS_BIND",
     };
 
     /// <summary>The fallback variables, each consulted only while its canonical variable is unset or empty.</summary>
@@ -60,7 +60,7 @@ public sealed class ServerConfigOptionsTests
         "flora", "ore", "settlements", "planet-wrecks", "vaults", "stations", "wormholes", "debris-fields", "derelicts",
         "giant-wrecks", "exotic", "station-templates", "settlement-templates", "structure-packs", "systems", "planets-min", "planets-max",
         "moons-max", "variance", "belts", "continents", "terrain-generation", "galaxy-growth", "danger", "planet-types",
-        "allow-user-ship-crafting",
+        "allow-user-ship-crafting", "bind",
     };
 
     /// <summary>(switch, valid sample value, canonical name it reports) for every accepted spelling except the two no-op
@@ -169,6 +169,7 @@ public sealed class ServerConfigOptionsTests
         { "danger", "Rare", "danger" },
         { "planet-types", "ocean=Rare", "planet-types" },
         { "allow-user-ship-crafting", "true", "allow-user-ship-crafting" }, // #3520
+        { "bind", "127.0.0.1", "bind" }, // #3707
     };
 
     [Theory]
@@ -185,7 +186,7 @@ public sealed class ServerConfigOptionsTests
     {
         var covered = HistoricalSwitches().Select(row => (string)row[0]).ToList();
 
-        Assert.Equal(102, covered.Count); // #3347: --disable-stories, #3520: --allow-user-ship-crafting, #3614: --giant-wrecks
+        Assert.Equal(103, covered.Count); // #3347: --disable-stories, #3520: --allow-user-ship-crafting, #3614: --giant-wrecks, #3707: --bind
         Assert.Equal(HistoricalSwitchSpellings.Except(new[] { "no-config", "stdin-stop" }).OrderBy(s => s, StringComparer.Ordinal),
             covered.OrderBy(s => s, StringComparer.Ordinal));
     }
@@ -451,8 +452,8 @@ public sealed class ServerConfigOptionsTests
     [Fact]
     public void Environment_AppliesEveryHistoricalVariableInTheHistoricalOrder()
     {
-        Assert.Equal(57, HistoricalEnvironmentOrder.Length);
-        Assert.Equal(57, HistoricalEnvironmentOrder.Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(58, HistoricalEnvironmentOrder.Length);
+        Assert.Equal(58, HistoricalEnvironmentOrder.Distinct(StringComparer.Ordinal).Count());
 
         // Sample values: valid for each parser. Any non-empty value counts as applied, so the order assertion is
         // unaffected. The classes that reload the config through AdminService.LoadConfig (AdminServiceTests,
@@ -517,6 +518,7 @@ public sealed class ServerConfigOptionsTests
             ["BBS_NO_PLAYER_ADMINS"] = "1",
             ["BBS_ANNOUNCE_TOKEN"] = "x",
             ["BBS_ALLOW_USER_SHIP_CRAFTING"] = "yes",
+            ["BBS_BIND"] = "127.0.0.1",
         };
         Assert.Equal(HistoricalEnvironmentOrder.OrderBy(n => n, StringComparer.Ordinal), samples.Keys.OrderBy(n => n, StringComparer.Ordinal));
         foreach (string fallback in HistoricalFallbacks.Values)
@@ -539,6 +541,7 @@ public sealed class ServerConfigOptionsTests
             Assert.Equal(ChatFilterLevel.Off, config.ChatFilter);
             Assert.True(config.NoPlayerAdmins);
             Assert.True(config.AllowUserShipCrafting); // #3520
+            Assert.Equal("127.0.0.1", config.GameplayBindAddress); // #3707
             Assert.Equal(7, config.IdleShutdownMinutes);
             Assert.Contains("A", config.ChatBlockedWords);   // the word lists EXTEND the defaults ...
             Assert.Contains("hitler", config.ChatBlockedWords); // ... instead of replacing them
@@ -643,9 +646,9 @@ public sealed class ServerConfigOptionsTests
     // --- The option table itself (ServerConfigOptions.All) ---
 
     [Fact]
-    public void Table_HasExactly114Rows_EachWithANameAndHelp()
+    public void Table_HasExactly115Rows_EachWithANameAndHelp()
     {
-        Assert.Equal(114, ServerConfigOptions.All.Count); // #3347: --disable-stories, #3520: --allow-user-ship-crafting, #3614: --giant-wrecks
+        Assert.Equal(115, ServerConfigOptions.All.Count); // #3347: --disable-stories, #3520: --allow-user-ship-crafting, #3614: --giant-wrecks, #3707: --bind
         foreach (var option in ServerConfigOptions.All)
         {
             Assert.True(option.CommandLineName is not null || option.EnvironmentName is not null, "a row needs a switch or a variable");
@@ -673,12 +676,12 @@ public sealed class ServerConfigOptionsTests
             .SelectMany(option => option.CommandLineAliases.Prepend(option.CommandLineName!))
             .ToList();
 
-        Assert.Equal(104, HistoricalSwitchSpellings.Length); // #3347: --disable-stories, #3520, #3614
-        Assert.Equal(104, spellings.Count);
+        Assert.Equal(105, HistoricalSwitchSpellings.Length); // #3347: --disable-stories, #3520, #3614, #3707
+        Assert.Equal(105, spellings.Count);
         Assert.Equal(spellings.Count, spellings.Distinct(StringComparer.Ordinal).Count());
         Assert.All(spellings, name => Assert.Equal(name.ToLowerInvariant(), name));
         Assert.Equal(HistoricalSwitchSpellings.OrderBy(s => s, StringComparer.Ordinal), spellings.OrderBy(s => s, StringComparer.Ordinal));
-        Assert.Equal(91, ServerConfigOptions.All.Count(option => option.CommandLineName is not null)); // #3347, #3520, #3614
+        Assert.Equal(92, ServerConfigOptions.All.Count(option => option.CommandLineName is not null)); // #3347, #3520, #3614, #3707
     }
 
     [Fact]
@@ -687,7 +690,7 @@ public sealed class ServerConfigOptionsTests
         var rows = ServerConfigOptions.All.Where(option => option.EnvironmentName is not null).ToList();
 
         Assert.Equal(HistoricalEnvironmentOrder, rows.Select(option => option.EnvironmentName!));
-        // The 57 rows carrying a variable come first; the rest are command-line-only.
+        // The 58 rows carrying a variable come first; the rest are command-line-only.
         Assert.Equal(rows, ServerConfigOptions.All.Take(rows.Count));
 
         var fallbacks = rows
@@ -696,8 +699,8 @@ public sealed class ServerConfigOptionsTests
         Assert.Equal(HistoricalFallbacks.OrderBy(kv => kv.Key, StringComparer.Ordinal), fallbacks.OrderBy(kv => kv.Key, StringComparer.Ordinal));
         Assert.DoesNotContain(HistoricalFallbacks.Values, fallback => HistoricalEnvironmentOrder.Contains(fallback, StringComparer.Ordinal));
 
-        // 61 distinct variable names in all: 57 canonical + 4 fallbacks.
-        Assert.Equal(61, rows.SelectMany(option => option.EnvironmentFallbacks.Prepend(option.EnvironmentName!)).Distinct(StringComparer.Ordinal).Count());
+        // 62 distinct variable names in all: 58 canonical + 4 fallbacks.
+        Assert.Equal(62, rows.SelectMany(option => option.EnvironmentFallbacks.Prepend(option.EnvironmentName!)).Distinct(StringComparer.Ordinal).Count());
     }
 
     [Fact]

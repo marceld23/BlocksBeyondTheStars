@@ -28,6 +28,12 @@ public sealed class ServerConfig
     /// <summary>WebSocket bind host ("localhost"/LAN ip for safety, "+" for all interfaces).</summary>
     public string WebSocketBindAddress { get; set; } = "localhost";
 
+    /// <summary>Which interfaces the native UDP gameplay port binds (#3707): empty = every interface (a server other
+    /// machines join), <c>127.0.0.1</c> = this machine only, or one IPv4 address. The bundled singleplayer server is
+    /// started with <c>--bind 127.0.0.1</c>, so nothing but the local client reaches it and Windows Firewall has
+    /// nothing to ask about.</summary>
+    public string GameplayBindAddress { get; set; } = string.Empty;
+
     public int MaxPlayers { get; set; } = 12;
     public string ServerPassword { get; set; } = string.Empty;
     public bool WhitelistEnabled { get; set; }

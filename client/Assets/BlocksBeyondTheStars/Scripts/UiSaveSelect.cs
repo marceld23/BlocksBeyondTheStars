@@ -122,7 +122,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (host)
                 {
-                    shell.StartHostWorld(world, maxPlayers[0], hostPass[0], seed, unlockAll, allShips, kit, sandbox, options, flight);
+                    // #3708: friends dial in, so Windows Firewall has to allow the server — checked (and explained) first.
+                    HostThroughFirewall(shell, root, () => shell.StartHostWorld(world, maxPlayers[0], hostPass[0], seed, unlockAll, allShips, kit, sandbox, options, flight));
                 }
                 else
                 {

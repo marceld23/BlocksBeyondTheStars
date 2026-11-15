@@ -45,6 +45,11 @@ Last updated: 2026-10-04.
   name is additionally passed as a server admin). The same address is announced again in chat and as a
   HUD toast once you are in ("Hosting — friends can join at ip:port"). The session ends (and the world
   saves) when the host quits. Friends outside your LAN need a port forward of that UDP port.
+  **Windows Firewall:** singleplayer and joining a server need no permission. Hosting does, because your
+  friends connect to your computer — if Windows would not let them in, the game says so before the world
+  starts: **Allow now** asks Windows once (this takes an administrator account, so ask a grown-up) and adds
+  one rule for the game's server; **Host anyway** starts the world without it (friends can then join only if
+  Windows allows it some other way).
 - **Browser singleplayer (play.blocksbeyondthestars.de, glitch.fun and any `/play` page):** no account, no
   download — type a player name on the portal's start page and press **Play now**. One world per browser,
   saved in the browser itself (and in Glitch Cloud Save when you are logged in on Glitch — that is what

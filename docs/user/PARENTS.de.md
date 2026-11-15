@@ -69,6 +69,10 @@ Was Spieler dort schützt — eingebaut, nicht versprochen:
 hosten (LAN) — das Spiel bringt alles mit. Siehe [SELF_HOSTING](../developer/SELF_HOSTING.md), oder
 einfach Einzelspieler spielen. Eine private Familienwelt hat genau die Spieler, die Sie eingeladen
 haben, und Sie halten jeden Schalter (Roboter, Banditen und andere Gegner, Sprache, Chatfilter, Besucher).
+Unter Windows öffnet der Einzelspieler nichts zum Netzwerk. Eine Welt für andere Rechner zu hosten
+braucht einmalig eine Firewall-Freigabe von einem Administrator-Konto; das Spiel fragt vor dem Start der
+Welt danach und sagt das in einfachen Worten, sodass ein Kind einen Erwachsenen holt, statt sich durch
+einen Systemdialog zu klicken.
 
 ## Daten
 

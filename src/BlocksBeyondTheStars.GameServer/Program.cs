@@ -70,7 +70,20 @@ logger.Info($"Persistence backend: {WorldRepositoryFactory.DisplayName(config)}.
 // (same protocol, same authoritative server). Both share the gameplay port number.
 // Headroom on the native path too (#964): sized exactly at MaxPlayers, a crashed player's peer still held
 // its slot, so their own reconnect was refused at the TRANSPORT — before any join gate, and silently.
-var native = new LiteNetLibServerTransport(Math.Max(8, (config.MaxPlayers * 2) + 4));
+// #3707: the bind address decides who can reach the gameplay port. The bundled singleplayer server gets
+// --bind 127.0.0.1 from the client, so it is no network listener and Windows Firewall has nothing to ask about.
+if (!UdpBind.TryParseServerBind(config.GameplayBindAddress, out _, out _))
+{
+    logger.Error($"Not a bind address: '{config.GameplayBindAddress}' (--bind / BBS_BIND). Use 127.0.0.1, an IPv4 address of this machine, or leave it empty for every interface.");
+    return 1;
+}
+
+if (UdpBind.IsLoopbackBind(config.GameplayBindAddress))
+{
+    logger.Info("Gameplay port bound to this machine only (loopback): other machines cannot join.");
+}
+
+var native = new LiteNetLibServerTransport(Math.Max(8, (config.MaxPlayers * 2) + 4), config.GameplayBindAddress);
 native.ConnectionRejected += () => logger.Warn("Connection refused: every transport slot is in use.");
 // Connection cap (#424 S9): scaled off MaxPlayers with generous headroom for handshakes/reconnects,
 // but never below the default — a small world still tolerates a burst of browser tabs.

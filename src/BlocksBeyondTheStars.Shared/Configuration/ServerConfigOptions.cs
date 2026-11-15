@@ -259,6 +259,7 @@ public static class ServerConfigOptions
         Both("no-player-admins", "BBS_NO_PLAYER_ADMINS", Flag((c, v) => c.NoPlayerAdmins = v), "No saved player role grants admin on this instance (#2486; true/false, 1/0, yes/no, on/off)."),
         Variable("BBS_ANNOUNCE_TOKEN", Text((c, v) => c.AnnounceToken = v), "Shared secret for the WebSocket gateway's POST /announce; empty = off."),
         Both("allow-user-ship-crafting", "BBS_ALLOW_USER_SHIP_CRAFTING", Flag((c, v) => c.AllowUserShipCrafting = v), "Players may craft user ships whose uses list names \"craft\" (#3520; true/false, 1/0, yes/no, on/off; default off)."),
+        Both("bind", "BBS_BIND", Text((c, v) => c.GameplayBindAddress = v), "Gameplay UDP bind address (#3707): empty = every interface, 127.0.0.1 = this machine only, or one IPv4 address."),
 
         // --- Command-line-only switches ---
         Switch("no-config", Ignore, "Start from in-memory defaults without config/server.json; read from the raw args by ServerConfig.LoadForStartup, recognised here so its value token is consumed."),

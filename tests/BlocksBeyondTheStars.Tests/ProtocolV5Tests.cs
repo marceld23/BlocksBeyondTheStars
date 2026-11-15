@@ -27,7 +27,7 @@ public sealed class ProtocolV5Tests
     public void LiteNetLib_DeliversBulkAndOrdinaryPayloads_OnTwoChannels()
     {
         int port = 34000 + Random.Shared.Next(1000);
-        using var server = new LiteNetLibServerTransport(1);
+        using var server = new LiteNetLibServerTransport(1, "127.0.0.1"); // loopback: no firewall dialog for the test host (#3707)
         using var client = new LiteNetLibClientTransport();
         int? connectionId = null;
         var received = new List<byte>();

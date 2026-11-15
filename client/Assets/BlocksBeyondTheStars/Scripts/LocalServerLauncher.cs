@@ -13,8 +13,9 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// Singleplayer hosting (Option A — see docs/developer/CLIENT_COMPLETION.md). Launches the
-    /// bundled dedicated server as a child process bound to loopback, so "Singleplayer" runs
-    /// the exact same authoritative server as multiplayer. The server reads CLI overrides
+    /// bundled dedicated server as a child process, so "Singleplayer" runs the exact same
+    /// authoritative server as multiplayer. A world for one player is bound to loopback
+    /// (<c>--bind 127.0.0.1</c>, #3707); a hosted world binds every interface so friends can join. The server reads CLI overrides
     /// (<c>--port/--saves/--data/--world/--name</c>); we point it at the client's synced
     /// content and a private per-user saves folder. Always stopped when leaving or quitting.
     ///
@@ -183,6 +184,16 @@ namespace BlocksBeyondTheStars.Client
 
         private ProcessStartInfo _pendingPsi;
 
+        /// <summary>The bundled server executable. Main thread only (it reads <c>Application.streamingAssetsPath</c>).
+        /// Windows Firewall rules name this path, so the host screen checks it (<see cref="HostFirewall"/>, #3708).</summary>
+        public static string ServerExePath()
+        {
+            bool windows = Application.platform == RuntimePlatform.WindowsPlayer
+                           || Application.platform == RuntimePlatform.WindowsEditor;
+            return Path.Combine(Application.streamingAssetsPath, "server",
+                windows ? "BlocksBeyondTheStars.GameServer.exe" : "BlocksBeyondTheStars.GameServer");
+        }
+
         /// <summary>Main-thread step: validate the bundled server EXE + build the launch info. Must run on the
         /// Unity main thread (it reads <c>Application.*</c> paths). Returns false only if the EXE is missing.
         /// Pair with <see cref="LaunchPrepared"/> (which can run off the main thread).
@@ -217,13 +228,7 @@ namespace BlocksBeyondTheStars.Client
                 worldName = "singleplayer";
             }
 
-            bool windows = Application.platform == RuntimePlatform.WindowsPlayer
-                           || Application.platform == RuntimePlatform.WindowsEditor;
-            string exeName = windows
-                ? "BlocksBeyondTheStars.GameServer.exe"
-                : "BlocksBeyondTheStars.GameServer";
-            string exe = Path.Combine(Application.streamingAssetsPath, "server", exeName);
-
+            string exe = ServerExePath();
             if (!File.Exists(exe))
             {
                 Debug.LogError($"Local server executable not found at '{exe}'. " +
@@ -283,8 +288,10 @@ namespace BlocksBeyondTheStars.Client
             // #3001: the client's global "Festivals" setting rides as the OPERATOR override, never into the save — so it
             // applies to every world this client hosts, old saves included, and switching it back on needs no lift.
             string festivalArgs = festivalsOff ? " --festivals off" : string.Empty;
-            // Multiplayer hosting: a join password + the host's name as a server-side admin.
+            // Multiplayer hosting: a join password + the host's name as a server-side admin. A world for one player binds
+            // loopback (#3707): only this client reaches it, and Windows Firewall has nothing to ask about.
             string hostArgs =
+                (maxPlayers > 1 ? string.Empty : " --bind 127.0.0.1") +
                 (string.IsNullOrEmpty(password) ? string.Empty : $" --password \"{password}\"") +
                 (string.IsNullOrEmpty(adminName) ? string.Empty : $" --admins \"{adminName}\"");
             if (string.IsNullOrWhiteSpace(serverName))

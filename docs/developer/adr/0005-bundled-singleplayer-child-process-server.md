@@ -40,3 +40,11 @@ We must decide how bundled single-player actually hosts the authoritative server
 - The trade-off vs. ADR 0001's in-process ideal: an extra process to spawn, manage and shut down
   cleanly, plus the bundled exe inflates the client install. (A true in-process server retargeted
   to `netstandard2.1` — Option B — was left as a later optimization.)
+
+## Update 2026-11-15 (#3707, #3708)
+
+"Bound to loopback" described only the address the client dialed: the server itself bound every
+interface, so Windows Firewall asked about it even in single-player. Since #3707 the launcher passes
+`--bind 127.0.0.1` for a one-player world, and only "Host Game" binds every interface — where the
+host screen checks the firewall rule first (#3708). See
+[WINDOWS_FIREWALL.md](../WINDOWS_FIREWALL.md).

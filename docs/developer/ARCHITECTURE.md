@@ -263,8 +263,10 @@ the `Client.Core` assembly, see [CLIENT_TESTING.md](CLIENT_TESTING.md)):
   depth textures enabled for screen-space effects. See [UI_AND_RENDER_CONCEPT.md](UI_AND_RENDER_CONCEPT.md)
   and [ADVANCED_GRAPHICS.md](ADVANCED_GRAPHICS.md).
 - **Hosting (Option A)** — `LocalServerLauncher.cs` starts the bundled server exe from
-  `StreamingAssets/server/` as a child process bound to loopback, with the same CLI args used
-  in dedicated hosting. Singleplayer and multiplayer run the *exact same* authoritative server.
+  `StreamingAssets/server/` as a child process, with the same CLI args used in dedicated hosting:
+  bound to loopback (`--bind 127.0.0.1`) for one player, to every interface for a hosted world
+  ([WINDOWS_FIREWALL.md](WINDOWS_FIREWALL.md)). Singleplayer and multiplayer run the *exact same*
+  authoritative server.
 
 For the client packaging/shell + asset pipeline see
 [CLIENT_SHELL_AND_ASSETS.md](CLIENT_SHELL_AND_ASSETS.md) and [DEVELOPER.md](DEVELOPER.md).

@@ -348,14 +348,17 @@ the current signing status.
 > source, you can choose **"More info"** and then **"Run anyway"** to start it. If you do not trust
 > the download source, do not run the game.
 
-Blocks Beyond the Stars uses a local/server-based multiplayer architecture. On first launch,
-**Windows Defender Firewall** may ask for permission more than once — for example for the game
-client and for the local/server component. To play, host, or connect to multiplayer sessions, you
-may need to allow these components through the firewall.
+Singleplayer and joining a server need no firewall permission: the game's local server listens on
+this computer only, and joining is an outgoing connection. **Windows Defender Firewall** should not
+ask for either (one exception: a server that is reachable over IPv6 only).
 
-- **Recommended:** allow access for **private networks only**, unless you know you need public
-  network access.
+**Hosting a world** for other computers does need a permission, because your friends connect to
+your computer. The game checks this before the world starts and offers **Allow now**: Windows asks
+once for an administrator, and the game adds one rule — incoming UDP on the game port, for the
+game's server only. Without an administrator you can still host, but nobody else can join.
+
 - Please **do not disable your firewall**.
+- Details: [docs/developer/WINDOWS_FIREWALL.md](docs/developer/WINDOWS_FIREWALL.md).
 
 ## macOS security notice
 
@@ -372,9 +375,10 @@ to run it after unzipping:
   ```
 
 The bundle is **Intel x64**; on Apple Silicon (M-series) it runs through Rosetta 2. Singleplayer
-launches a bundled local server inside the app the same way the Windows/Linux builds do. As with the
-other platforms, macOS may ask you to allow the game/server through the firewall on first launch —
-allowing **private networks only** is recommended.
+launches a bundled local server inside the app the same way the Windows/Linux builds do. That
+server listens on this computer only, and joining a server is an outgoing connection, so neither
+should need a firewall permission. macOS may ask you to allow incoming connections when you **host
+a world** for other computers (the in-game firewall check exists on Windows only).
 
 ## Guiding principle
 

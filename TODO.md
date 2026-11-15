@@ -24,6 +24,23 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧱 Windows Firewall — no dialog for singleplayer and joining, an in-game permission for hosting — #3707, #3708, ✅ 2026-11-15 (PR pending) (⚠ playtest open)
+
+Marcel 2026-11-15: "whenever I join a server or host a game, Windows asks about the port — is that really unavoidable?"
+Measured with a probe program on Windows 11 (fresh folders, so no rule existed): a loopback-bound server and client and an
+IPv4-only client raise no dialog; LiteNetLib's default client (IPv4 dynamic port, then IPv6 on that same fixed port) and a
+server on every interface do. His rule list held 470 rules for the game, 252 of them block rules.
+- **#3707 no dialog where none is needed:** `UdpBind` — the client binds what its target needs (loopback for the local
+  server, IPv4 only for an IPv4 server; host names resolve IPv4 first); new server option `--bind` / `BBS_BIND`
+  (`gameplayBindAddress`), and the bundled launcher passes `--bind 127.0.0.1` for a one-player world, so singleplayer no
+  longer listens on the network. The socket tests bind loopback too. An IPv6-only server keeps the old client bind.
+- **#3708 hosting:** the host screen reads the firewall rules (registry, no elevation; `HostFirewallRules`, unit-tested)
+  before the world starts. No rule or only block rules → a dialog (8 texts × 14 languages) with *Allow now* (one UAC
+  prompt; replaces the server's rules by one inbound UDP rule on the game port), *Host anyway*, *Back*.
+- **Open:** playtest on a fresh build folder — no dialog on singleplayer / join; *Allow now* → UAC → friends can join and
+  Windows does not ask again. Not done: the MSI adding the rule at install; hosting without any rule (join codes through a
+  rendezvous server) is undecided. How it works: [docs/developer/WINDOWS_FIREWALL.md](docs/developer/WINDOWS_FIREWALL.md).
+
 ### 🤿 Underwater sight — a headlamp cone in the water, clearer seas, readable Grand Technician ruins — #3697–#3702, ✅ 2026-11-15 (PR pending) (⚠ playtest open)
 
 Marcel's playtest 2026-11-15 at the Grand Technicians' giant ruin: "a tank under water, but no stone buildings around it,
