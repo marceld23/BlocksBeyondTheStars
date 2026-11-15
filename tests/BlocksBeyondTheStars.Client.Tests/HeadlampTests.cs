@@ -67,12 +67,29 @@ public sealed class HeadlampTests
     [InlineData(true, true, true, false, true, false)]   // the flight view
     [InlineData(true, true, false, true, true, false)]   // a menu
     [InlineData(true, true, false, false, false, false)] // no air (space, an airless world)
-    [InlineData(true, true, false, false, true, true)]   // under water
+    [InlineData(false, true, false, false, true, true)]  // under water: still no lamp lit
+    [InlineData(true, false, false, false, true, true)]  // under water: the switch is off
+    [InlineData(true, true, true, false, true, true)]    // under water: the flight view
+    [InlineData(true, true, false, true, true, true)]    // under water: a menu
     public void TheLampBeam_IsOff(bool anyLamp, bool enabled, bool spaceView, bool menuOpen, bool air, bool underwater)
     {
         var t = VolumetricLightPolicy.LampTargetFor(enabled, anyLamp, spaceView, menuOpen, air, hazeOn: true, indoors: false,
             sheltered: true, underwater: underwater ? 1f : 0f);
         Assert.Equal(0f, t.Strength);
+    }
+
+    [Theory]
+    [InlineData(true, true)]   // a breathable sea
+    [InlineData(false, false)] // no air counted, the haze switched off: the water carries the beam all the same
+    public void UnderWater_TheWaterCarriesTheLampBeam(bool air, bool hazeOn)
+    {
+        var t = VolumetricLightPolicy.LampTargetFor(enabled: true, anyLamp: true, spaceView: false, menuOpen: false, air: air,
+            hazeOn: hazeOn, indoors: false, sheltered: false, underwater: 1f);
+        Assert.Equal(1f, t.Strength);
+        Assert.Equal(VolumetricDust.Water, t.Dust); // #3697
+
+        // The sun's beams stay off under water.
+        Assert.Equal(0f, VolumetricLightPolicy.TargetFor(true, false, false, true, true, false, false, sunUp: 1f, underwater: 1f, weather: 0f).Strength);
     }
 
     [Fact]
@@ -85,6 +102,21 @@ public sealed class HeadlampTests
         Assert.Equal(AmbientMoteMode.None, AmbientMotes.ModeFor(airless: true, aboard: false, atHome: false, openAir: false, reducedEffects: false, headlamp: true));  // no air, no dust
         Assert.Equal(AmbientMoteMode.None, AmbientMotes.ModeFor(airless: false, aboard: false, atHome: false, openAir: false, reducedEffects: true, headlamp: true));  // Reduced effects
         Assert.Equal(AmbientMoteMode.None, AmbientMotes.ModeFor(airless: false, aboard: false, atHome: false, openAir: false, reducedEffects: false, headlamp: false));
+    }
+
+    [Theory]
+    [InlineData(true, true)]   // the open sea, the lamp lit: the lamp lights the particles — its cone on every preset
+    [InlineData(true, false)]  // the open sea by day: the particles drift on their own
+    [InlineData(false, true)]  // a flooded cave
+    public void UnderWater_TheParticlesInTheWaterDrift_NeverThePlanetsOutdoorMotes(bool openAir, bool headlamp)
+    {
+        // #3698
+        Assert.Equal(AmbientMoteMode.Water, AmbientMotes.ModeFor(airless: false, aboard: false, atHome: false, openAir: openAir,
+            reducedEffects: false, headlamp: headlamp, underwater: true));
+        Assert.Equal(AmbientMoteMode.None, AmbientMotes.ModeFor(airless: false, aboard: false, atHome: false, openAir: openAir,
+            reducedEffects: true, headlamp: headlamp, underwater: true));
+        Assert.True(AmbientMotes.WaterMotes.Rise < 0f, "marine snow sinks");
+        Assert.True(AmbientMotes.WaterMotes.R < 0.3f && AmbientMotes.WaterMotes.G < 0.3f, "dim on its own: the lamp lights it");
     }
 
     [Theory]

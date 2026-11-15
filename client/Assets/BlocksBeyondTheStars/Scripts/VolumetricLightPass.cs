@@ -40,8 +40,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>_Sc_VolLight: intensity (fades folded in), the haze-hue share and the cap on the added light.</summary>
         public Vector4 Light;
 
-        /// <summary>#3232 _Sc_VolLamp: the headlamp beams' intensity (fade folded in, 0 = off), the lamp phase's HG g and the
-        /// lamps' reach.</summary>
+        /// <summary>#3232 _Sc_VolLamp: the headlamp beams' intensity (fade folded in, 0 = off), the lamp phase's HG g, the
+        /// lamps' reach and (#3697) the water's density per metre the beams scatter in (0 above water).</summary>
         public Vector4 Lamp;
 
         public VolumetricLightPass(Material mat, RenderPassEvent passEvent)

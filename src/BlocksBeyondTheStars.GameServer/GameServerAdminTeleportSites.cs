@@ -16,16 +16,70 @@ namespace BlocksBeyondTheStars.GameServer;
 public sealed partial class GameServer
 {
     /// <summary>#3654: every civilization site of the current body, in stamp order, named in the player's language — the
-    /// target stands in front of the footprint (like a landmark's), on the seabed for a site under water.</summary>
+    /// target stands in front of the footprint (like a landmark's). #3702: a site under water is the exception — its natural
+    /// surroundings can be a sandbank at the surface beside a sunken ruin, so the target lies in the ruin on its floor
+    /// (<see cref="SunkenStandSpot"/>), in front of the footprint only when the ruin has no such floor.</summary>
     private void AppendCivilizationTargets(List<TeleportTarget> list, PlayerSession session)
     {
         for (int i = 0; i < _civSites.Count; i++)
         {
             var site = _civSites[i];
             var (cx, _, _, _) = site.Rect;
-            list.Add(new TeleportTarget("civ", i + 1, Named("civ", i + 1, LandmarkName(site, session.Locale)),
-                StandSpot(WorldConstants.WrapX(cx, _world.Circumference), site.Origin.Z - 3)));
+            var spot = (site.WaterTop is not null ? SunkenStandSpot(site) : null)
+                       ?? StandSpot(WorldConstants.WrapX(cx, _world.Circumference), site.Origin.Z - 3);
+            list.Add(new TeleportTarget("civ", i + 1, Named("civ", i + 1, LandmarkName(site, session.Locale)), spot));
         }
+    }
+
+    /// <summary>#3702: how far under a sunken site's ground the search for its floor starts (the bowl around the Grand
+    /// Technicians' eye lies up to five blocks deep) and how far over it a floor may lie.</summary>
+    private const int SunkenStandBelow = 8;
+    private const int SunkenStandAbove = 3;
+
+    /// <summary>#3702: a spot on a sunken site's floor in the open water: from the footprint's centre outward along −Z (the
+    /// side the land target faces), the first column with a solid floor under two cells of WATER — never an air pocket or the
+    /// red fluid in a tank — between <see cref="SunkenStandBelow"/> under the site's ground and <see cref="SunkenStandAbove"/>
+    /// over it, and nothing above it up to the sea's surface (open to the sea: not a channel under a building — the giant
+    /// dwelling has one under its eye). For the giant dwelling that is the bowl beside the eye and its tank. Null when no
+    /// column qualifies.</summary>
+    private Vector3f? SunkenStandSpot(LandmarkInstance site)
+    {
+        var water = _content.GetBlock("water")?.NumericId;
+        if (water is not { } w)
+        {
+            return null;
+        }
+
+        var (cx, cz, _, hl) = site.Rect;
+        int x = WorldConstants.WrapX(cx, _world.Circumference), surface = site.WaterTop ?? site.Max.Y;
+        bool Water(int y, int z) => _world.GetBlock(new Vector3i(x, y, z)).Value == w.Value;
+        for (int dz = 0; dz <= hl; dz++)
+        {
+            int z = cz - dz;
+            for (int y = site.GroundY - SunkenStandBelow; y <= site.GroundY + SunkenStandAbove; y++)
+            {
+                if (IsBodyBlockingCell(x, y - 1, z) && Water(y, z) && Water(y + 1, z) && OpenAbove(x, y + 2, z, surface))
+                {
+                    return new Vector3f(x + 0.5f, y, z + 0.5f);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>#3702: whether no cell from <paramref name="fromY"/> up to <paramref name="toY"/> blocks a body.</summary>
+    private bool OpenAbove(int x, int fromY, int z, int toY)
+    {
+        for (int y = fromY; y <= toY; y++)
+        {
+            if (IsBodyBlockingCell(x, y, z))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>#3655: the giant wrecks on the current body (named after their ship) and then those in space of the player's

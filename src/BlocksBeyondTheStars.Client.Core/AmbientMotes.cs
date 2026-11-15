@@ -20,6 +20,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#3230: the suit headlamp is lit where no other motes drift (a cave, under a roof, a guest aboard): faint
         /// dust near the visor that shows only where the beam catches it.</summary>
         Beam,
+
+        /// <summary>#3698: under water — fine, slow particles suspended in the water, faint on their own, lit up wherever a
+        /// headlamp's beam passes (so the cone shows on every preset and in the browser). Never the planet's outdoor motes:
+        /// no pollen drifts in the sea.</summary>
+        Water,
     }
 
     /// <summary>
@@ -91,6 +96,14 @@ namespace BlocksBeyondTheStars.Client
         /// shows them.</summary>
         public const float BeamRate = 22f;
 
+        /// <summary>#3698: particles suspended in the water spawned per second around the visor at full effect density.</summary>
+        public const float WaterRate = 24f;
+
+        /// <summary>#3698: the particles suspended in the water — a dim grey-green, faint on their own (marine snow sinking
+        /// slowly); the headlamp's beam lights them.</summary>
+        public static readonly AmbientMoteStyle WaterMotes =
+            new AmbientMoteStyle("water_motes", 0.16f, 0.21f, 0.20f, 0.22f, 0.26f, 0.23f, rate: 1f, rise: -0.01f, size: 0.6f, life: 8f);
+
         /// <summary>#3230: the dust the headlamp beam catches — grey and nearly invisible on its own; the beam lights it.</summary>
         public static readonly AmbientMoteStyle BeamDust =
             new AmbientMoteStyle("beam_dust", 0.10f, 0.10f, 0.11f, 0.14f, 0.13f, 0.12f, rate: 1f, rise: -0.005f, size: 0.55f, life: 7f);
@@ -154,10 +167,16 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         /// <remarks>#3230: with the suit <paramref name="headlamp"/> lit where none of those motes drift — a cave, under a
         /// roof, a guest aboard — faint dust that only the beam shows (<see cref="AmbientMoteMode.Beam"/>), never in
-        /// airless places and never with Reduced effects.</remarks>
+        /// airless places and never with Reduced effects. #3698: <paramref name="underwater"/> wins over everything: the
+        /// particles suspended in the water (<see cref="AmbientMoteMode.Water"/>), lamp or not, off with Reduced effects.</remarks>
         public static AmbientMoteMode ModeFor(bool airless, bool aboard, bool atHome, bool openAir, bool reducedEffects,
-            bool headlamp = false)
+            bool headlamp = false, bool underwater = false)
         {
+            if (underwater)
+            {
+                return reducedEffects ? AmbientMoteMode.None : AmbientMoteMode.Water;
+            }
+
             if (atHome)
             {
                 return reducedEffects ? AmbientMoteMode.None : AmbientMoteMode.Lamplight;

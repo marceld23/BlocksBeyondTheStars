@@ -56,6 +56,9 @@ internal static class CivilizationTestWorlds
     /// (a breathable meadow world has sea enough — and starts far quicker than an ocean world).</summary>
     public static GameContent SeaContent(string planet) => With(new[] { SeaPeople(planet) }, new[] { SunkenHouse() });
 
+    /// <summary>#3702: the sea people with a bowl around a pillar instead of their house (<see cref="SunkenBowl"/>).</summary>
+    public static GameContent SeaBowlContent(string planet) => With(new[] { SeaPeople(planet) }, new[] { SunkenBowl() });
+
     private static GameContent With(CivilizationDefinition[] civilizations, StructureTemplate[] templates)
     {
         var content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
@@ -188,6 +191,55 @@ internal static class CivilizationTestWorlds
                     t.Cells.Add(shell
                         ? LandmarkShapes.Block(x, y, z, "stone")
                         : new TemplateCell { X = x, Y = y, Z = z, Kind = CivilizationRules.AirKind });
+                }
+            }
+        }
+
+        return t;
+    }
+
+    /// <summary>#3702: a sunken bowl, 15 × 9 × 15, ground row 3: a stone slab (row 0), a stone pillar 3 × 3 in the middle up to
+    /// the top with a flooded channel under it (rows 1–2, like the one under the Grand Technicians' eye), and around it a ring
+    /// of cavity (rows 1–3, 2–5 cells from the middle) — the bowl a diver stands in beside the pillar, two blocks under the
+    /// site's ground; the rest of rows 1–3 stone.</summary>
+    private static StructureTemplate SunkenBowl()
+    {
+        var t = new StructureTemplate
+        {
+            Key = "test_deep_bowl",
+            Name = "Test Bowl",
+            Kind = CivilizationRules.TemplateKind,
+            Civilization = Sea,
+            CivPool = CivilizationRules.PoolGiant,
+            Ruin = LandmarkRules.RuinNever,
+            GroundRow = 3,
+            Width = 15,
+            Height = 9,
+            Length = 15,
+        };
+        for (int x = 0; x < 15; x++)
+        {
+            for (int z = 0; z < 15; z++)
+            {
+                int r = System.Math.Max(System.Math.Abs(x - 7), System.Math.Abs(z - 7));
+                for (int y = 0; y < 9; y++)
+                {
+                    if (r <= 1 && y is 1 or 2)
+                    {
+                        t.Cells.Add(new TemplateCell { X = x, Y = y, Z = z, Kind = LandmarkRules.CavityKind }); // the channel under it
+                    }
+                    else if (r <= 1)
+                    {
+                        t.Cells.Add(LandmarkShapes.Block(x, y, z, "stone")); // the pillar
+                    }
+                    else if (y == 0 || (y <= 3 && r > 5))
+                    {
+                        t.Cells.Add(LandmarkShapes.Block(x, y, z, "stone")); // the slab and the rim
+                    }
+                    else if (y <= 3)
+                    {
+                        t.Cells.Add(new TemplateCell { X = x, Y = y, Z = z, Kind = LandmarkRules.CavityKind }); // the bowl
+                    }
                 }
             }
         }

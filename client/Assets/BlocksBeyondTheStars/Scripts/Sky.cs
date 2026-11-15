@@ -73,6 +73,10 @@ namespace BlocksBeyondTheStars.Client
         /// submerged wash while the shader-side haze carries the look.</summary>
         public static float UnderwaterFog { get; private set; }
 
+        /// <summary>#3697/#3699: how far the view reaches in the camera's liquid (m) while submerged — the headlamp's beam in
+        /// the water ends there (<see cref="VolumetricSunLight"/>).</summary>
+        public static float UnderwaterReach { get; private set; } = UnderwaterView.GlowingFar;
+
         /// <summary>The surroundings probe (fog floor, camera exposure) — wired by <see cref="WorldRig"/>.</summary>
         public AtmosphereProbe Probe;
 

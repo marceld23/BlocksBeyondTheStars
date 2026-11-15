@@ -255,8 +255,9 @@ namespace BlocksBeyondTheStars.Client
         /// than murky swamps — the atmosphere density stands in for the water's clarity), independent of the player's haze
         /// switch: this is the water, not the weather. Eased over ~0.3 s so a dive does not snap. #3335: in Ressaw the murk is
         /// its own milky white — it glows, so neither the world's water colour nor the night dims it — and the view closes in
-        /// sooner (<see cref="RessawFogFar"/>): milky, you make out shapes, not detail. #3644: the Grand Technicians' red fluid
-        /// closes in the same way, in its own glowing red.</summary>
+        /// sooner: milky, you make out shapes, not detail. #3644: the Grand Technicians' red fluid closes in the same way, in its
+        /// own glowing red. #3699: a planet type may name its water's own view (<c>waterView</c> — the sea worlds see ~30 m);
+        /// the reach comes from <see cref="UnderwaterView"/> and is published as <see cref="UnderwaterReach"/>.</summary>
         private void ApplyUnderwater(Color sky, float day, float airDensity, ref float fogStart, ref float far, ref float maxHaze)
         {
             bool under = UnderwaterEnabled && Camera != null && Game != null && !Game.SpaceViewActive
@@ -270,9 +271,9 @@ namespace BlocksBeyondTheStars.Client
 
             if (_submerged > 0.001f)
             {
-                float clarity = 1f - Mathf.Clamp01(airDensity) * 0.6f;
                 bool glowing = LiquidLook.GlowsStill(_murkLook); // #3335/#3644: Ressaw, the red fluid
-                float waterFar = glowing ? RessawFogFar : 5f + 18f * clarity;
+                float waterFar = UnderwaterView.FarFor(_murkLook, PlanetWaterView(), airDensity); // #3699
+                UnderwaterReach = waterFar;
                 fogStart = Mathf.Lerp(fogStart, 0.5f, _submerged);
                 far = Mathf.Lerp(far, waterFar, _submerged);
                 maxHaze = Mathf.Lerp(maxHaze, 1f, _submerged);
@@ -296,9 +297,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#3644: the murk in the Grand Technicians' red fluid — a glowing deep red (no day/night dimming either).</summary>
         private static readonly Color RedFluidMurk = new Color(0.62f, 0.10f, 0.10f);
 
-        /// <summary>#3335: how far the view reaches in Ressaw (and, #3644, in the red fluid), in metres (water: 5–23 by the
-        /// world's clarity).</summary>
-        private const float RessawFogFar = 7f;
+        /// <summary>#3699: the planet type's own water view (m), 0 = none (the world's air decides).</summary>
+        private double PlanetWaterView()
+            => Game?.Content != null && Game.Environment != null ? Game.Content.GetPlanet(Game.Environment.Biome ?? string.Empty)?.WaterView ?? 0.0 : 0.0;
 
         private LiquidLookKind _murkLook; // #3335: the look of the camera's liquid (latched while submerged)
 

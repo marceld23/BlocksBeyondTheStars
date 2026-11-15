@@ -19,6 +19,9 @@ namespace BlocksBeyondTheStars.Client
     /// <item><b>Lamplight</b> — at home (aboard the own ship, or under a roof in the own base's air) a few very slow,
     /// warm amber-cream motes drift in the light of the fixtures nearby (<see cref="NearbyLights"/>: the world's light
     /// index plus the parked ships' lamps). Off with Reduced effects.</item>
+    /// <item><b>Beam</b> (#3230) — faint dust near the visor where no other motes drift, shown only by the headlamp.</item>
+    /// <item><b>Water</b> (#3698) — under water, particles suspended in the water around the visor; the headlamp lights
+    /// them, so its cone shows on every preset. No outdoor motes under water; diving in or surfacing fades the old ones.</item>
     /// </list>
     /// Every rate follows the live effect density (<see cref="FxKit.Density"/>: quality preset × Reduced effects).
     /// </summary>
@@ -37,6 +40,7 @@ namespace BlocksBeyondTheStars.Client
         private const float MoteLampLight = 1.5f;   // #3230: how strongly the headlamps light every mote (Particle _LampLit)
         private static readonly Vector3 AirBox = new Vector3(26f, 12f, 26f);
         private static readonly Vector3 BeamBox = new Vector3(8f, 5f, 8f); // #3230: dense near the visor, where the beam is
+        private static readonly Vector3 WaterBox = new Vector3(14f, 8f, 14f); // #3698: the cone's first metres in the water
 
         private ParticleSystem _ps;
         private Transform _dust;     // the particle object (a child — moved independently of the shared root)
@@ -144,12 +148,13 @@ namespace BlocksBeyondTheStars.Client
             bool airless = Game.SpaceViewActive || !string.IsNullOrEmpty(Game.StationName)
                            || (Game.Environment != null && Game.Environment.SpaceSky) || Game.OnFootInSpace;
             bool home = Game.AtHome && !Game.SpaceViewActive;
-            var mode = AmbientMotes.ModeFor(airless, Game.Aboard, home, OpenAir(), FxKit.ReducedEffects, Headlamp.LocalLit); // #3230
+            var mode = AmbientMotes.ModeFor(airless, Game.Aboard, home, OpenAir(), FxKit.ReducedEffects, Headlamp.LocalLit, // #3230
+                underwater: Sky.UnderwaterFog > 0.5f); // #3698
             if (mode != _mode)
             {
-                if (_mode == AmbientMoteMode.Outdoor && (home || Game.Aboard))
+                if ((_mode == AmbientMoteMode.Outdoor && (home || Game.Aboard || mode == AmbientMoteMode.Water)) || _mode == AmbientMoteMode.Water)
                 {
-                    FadeOutLive(1f); // stepping aboard or indoors at home: no outdoor pollen drifting through the room
+                    FadeOutLive(1f); // stepping aboard or indoors at home: no outdoor pollen in the room; #3698: none in the sea, no sea motes in the air
                 }
 
                 _mode = mode;
@@ -164,6 +169,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 AmbientMoteMode.Outdoor => AmbientMotes.OutdoorRate * _style.Rate * FxKit.Density,
                 AmbientMoteMode.Beam => AmbientMotes.BeamRate * FxKit.Density, // #3230
+                AmbientMoteMode.Water => AmbientMotes.WaterRate * FxKit.Density, // #3698
                 _ => 0f,
             };
 
@@ -248,11 +254,13 @@ namespace BlocksBeyondTheStars.Client
             // #3004: a festival's motes (petals at Hanami, lamplight in the lights festivals …) replace the world's own outdoors.
             var festival = _mode == AmbientMoteMode.Lamplight ? null : AmbientMotes.ByName(FestivalMood.Effects(Game)?.Motes);
             _style = _mode == AmbientMoteMode.Beam ? AmbientMotes.BeamDust // #3230: no festival petals in a dark cave
+                : _mode == AmbientMoteMode.Water ? AmbientMotes.WaterMotes // #3698: nor in the sea
                 : festival ?? (_mode == AmbientMoteMode.Lamplight ? AmbientMotes.Lamplight : AmbientMotes.StyleFor(biome, theme));
 
-            float alpha = _mode == AmbientMoteMode.Lamplight ? LampAlpha : _mode == AmbientMoteMode.Beam ? BeamAlpha : OutdoorAlpha;
+            bool lampLit = _mode is AmbientMoteMode.Beam or AmbientMoteMode.Water; // their own colour is dim: the lamp lights them
+            float alpha = _mode == AmbientMoteMode.Lamplight ? LampAlpha : lampLit ? BeamAlpha : OutdoorAlpha;
             var shape = _ps.shape;
-            shape.scale = _mode == AmbientMoteMode.Beam ? BeamBox : AirBox;
+            shape.scale = _mode == AmbientMoteMode.Beam ? BeamBox : _mode == AmbientMoteMode.Water ? WaterBox : AirBox;
             _tintA = FxKit.Lin(new Color(_style.R, _style.G, _style.B, alpha));
             _tintB = FxKit.Lin(new Color(_style.R2, _style.G2, _style.B2, alpha));
 

@@ -17,7 +17,9 @@ namespace BlocksBeyondTheStars.Client
     /// cameras. #3232: the suit headlamps' beams ride the same pass, with their own target
     /// (<see cref="VolumetricLightPolicy.LampTargetFor"/>: at any hour, while a lamp is lit) and fade. Torches, lanterns and
     /// lava are the baked flood-fill light (ADR 0003) and get no beams. While the switch is on, the light-shaft cards stand down (<see cref="WorldRig.ShaftCardsFor"/>); the
-    /// SunRays sky billboard stays.
+    /// SunRays sky billboard stays. #3697: under water the lamps' beams run in the water itself — a dense medium of its own
+    /// (<see cref="WaterDensity"/>, absorbed along the beam by <see cref="WaterExtinction"/>), tinted toward the murk's colour
+    /// and ending at the water's view (<see cref="Sky.UnderwaterReach"/>).
     /// </summary>
     public sealed class VolumetricSunLight : MonoBehaviour
     {
@@ -75,6 +77,17 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#3232: the lamp phase's Henyey-Greenstein g (half of the phase scatters evenly in the shader).</summary>
         private const float LampPhaseG = 0.45f;
 
+        /// <summary>#3697: how much the water scatters the lamps' light per metre — twice a cave's dust, so the cone stands out
+        /// in the murk without washing the view out.</summary>
+        private const float WaterDensity = 0.05f;
+
+        /// <summary>#3697: how much of the lamps' light the water swallows per metre along the beam (the shader's own
+        /// constant; named here for the docs): the cone fades out within roughly ten metres.</summary>
+        public const float WaterExtinction = 0.12f;
+
+        /// <summary>#3697: metres the beam in the water reaches past the murk's far edge (the murk hides it there anyway).</summary>
+        private const float WaterReachPad = 4f;
+
         private static readonly int SunDirId = Shader.PropertyToID("_Sc_FogSunDir");
 
         public GameBootstrap Game;
@@ -86,6 +99,7 @@ namespace BlocksBeyondTheStars.Client
         private float _strength;       // eased 0..1
         private float _lampStrength;   // #3232: the headlamp beams, eased 0..1
         private float _dust;           // eased density per metre
+        private float _water;          // #3697: the eased water density per metre the lamps' beams scatter in (0 above water)
         private float _dustReach = IndoorDustReach;
 
         private void Awake()
@@ -150,6 +164,7 @@ namespace BlocksBeyondTheStars.Client
                 _strength = 0f; // switched off (or a lower preset): gone at once, Medium and below stay untouched
                 _lampStrength = 0f;
                 _dust = 0f;
+                _water = 0f;
                 return;
             }
 
@@ -180,27 +195,30 @@ namespace BlocksBeyondTheStars.Client
                 VolumetricDust.Shelter => ShelterDust,
                 _ => 0f,
             };
-            if (dust != VolumetricDust.None)
+            if (dust is VolumetricDust.Indoor or VolumetricDust.Shelter) // the water is no dust: its density rides _water
             {
                 _dustReach = dust == VolumetricDust.Indoor ? IndoorDustReach : ShelterDustReach;
             }
 
             _dust = Mathf.MoveTowards(_dust, dustTarget, IndoorDust * dt / DustFadeSeconds);
-            LogState(target);
+            bool inWater = lampTarget.Dust == VolumetricDust.Water; // #3697
+            _water = Mathf.MoveTowards(_water, inWater ? WaterDensity : 0f, WaterDensity * dt / FadeSeconds);
+            float lampReach = inWater ? Mathf.Min(Headlamp.Range, Sky.UnderwaterReach + WaterReachPad) : Headlamp.Range;
+            LogState(target, lampTarget);
 
             _pass.March = new Vector4(0f, HazeDensity, MistShare, Extinction); // x: the pass puts the camera's shadow distance
             _pass.Dust = new Vector4(_dust, _dustReach, PhaseG, PhaseShare);
             _pass.Light = new Vector4(Intensity * _strength, HazeTint, MaxAdd, 0f);
-            _pass.Lamp = new Vector4(LampIntensity * _lampStrength, LampPhaseG, Headlamp.Range, 0f);
+            _pass.Lamp = new Vector4(LampIntensity * _lampStrength, LampPhaseG, lampReach, _water);
         }
 
         private string _logged;
 
-        /// <summary>One log line whenever the beams' state changes (strength in tenths, the dust kind) — the capture and
-        /// bug-report logs show whether the effect ran at all.</summary>
-        private void LogState(VolumetricLightTarget target)
+        /// <summary>One log line whenever the beams' state changes (strength in tenths, the dust kind; #3697: the lamps'
+        /// medium while a lamp is lit) — the capture and bug-report logs show whether the effect ran at all.</summary>
+        private void LogState(VolumetricLightTarget target, VolumetricLightTarget lamp)
         {
-            string state = $"strength {target.Strength:0.0} dust {target.Dust}";
+            string state = $"strength {target.Strength:0.0} dust {target.Dust}" + (lamp.Strength > 0f ? $" lamp {lamp.Dust}" : string.Empty);
             if (state != _logged)
             {
                 _logged = state;

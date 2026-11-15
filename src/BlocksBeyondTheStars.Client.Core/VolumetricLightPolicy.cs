@@ -18,6 +18,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Aboard the ship or at home in the own base: the haze is off indoors, so the room's dust alone shows the
         /// sun coming through a window or an open door.</summary>
         Indoor,
+
+        /// <summary>#3697: under water the water itself carries the headlamps' beams (never the sun's) — a medium of its own,
+        /// far denser than any air.</summary>
+        Water,
     }
 
     /// <summary>What the volumetric sun light aims for this frame: its strength and the dust near the camera.</summary>
@@ -96,15 +100,21 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>
         /// #3232: the target for the suit headlamps' beams — the same air and dust as the sunbeams, but at any hour: a lamp
         /// shines at night. Off without a lit lamp (own or another player's), with the switch off, in the flight view,
-        /// behind a menu, where there is no air, in the open air with the haze off, and under water (the water's own fog
-        /// carries no beam model).
+        /// behind a menu, where there is no air and in the open air with the haze off. #3697: under water the beam runs in
+        /// the medium <see cref="VolumetricDust.Water"/> — air or not, the haze switch aside (the underwater murk ignores it
+        /// too: it is the water, not the weather).
         /// </summary>
         public static VolumetricLightTarget LampTargetFor(bool enabled, bool anyLamp, bool spaceView, bool menuOpen, bool air,
             bool hazeOn, bool indoors, bool sheltered, float underwater)
         {
-            if (!anyLamp || underwater > 0.5f)
+            if (!anyLamp)
             {
                 return VolumetricLightTarget.Off;
+            }
+
+            if (underwater > 0.5f)
+            {
+                return enabled && !spaceView && !menuOpen ? new VolumetricLightTarget(1f, VolumetricDust.Water) : VolumetricLightTarget.Off;
             }
 
             var target = TargetFor(enabled, spaceView, menuOpen, air, hazeOn, indoors, sheltered, sunUp: 1f, underwater: 0f, weather: 0f);

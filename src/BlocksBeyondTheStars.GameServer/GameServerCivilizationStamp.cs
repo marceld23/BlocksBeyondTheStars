@@ -14,10 +14,20 @@ namespace BlocksBeyondTheStars.GameServer;
 /// written in the water mode instead of the landmark's air mode:
 /// <list type="bullet">
 /// <item><b>The seat</b>: a footprint whose every sampled column lies under liquid water, the one needing the least digging
-/// (then the flattest floor, then the one with the least water to spare — a site in a deep trench is never found) among a fixed number of draws from the site's seed, clear of the pads and every footprint. The
+/// (then the one with the least water to spare — a site in a deep trench is never found) among a fixed number of draws from the site's seed, clear of the pads and every footprint, its crater rim inside the latitude band. #3700: "digging" is the
+/// CUT — how far the site's ground lies below the highest natural floor of the footprint, the wall the dig leaves (a deep
+/// sea over a flat floor cuts nothing; a sandbank or one trench under a bumpy floor cuts deep) — and a footprint cutting at
+/// most <see cref="SunkenPreferredCut"/> blocks always beats one cutting more (<see cref="SeabedScore"/>); among equals one
+/// whose crater rim keeps clear of every registered box wins. The
 /// ground row rests on the deepest floor of the footprint; when the sea is too shallow for the site plus
 /// <see cref="SunkenHeadroom"/> blocks of water over its top, the ground row sinks into the floor (at most
 /// <see cref="SunkenMaxDig"/> blocks) — the site lies in a basin.</item>
+/// <item><b>The crater rim</b> (#3700): a site dug in no longer stands in a shaft with sheer walls. Around its footprint the
+/// natural sea floor is lowered to a slope — one block down per block toward the footprint, from the site's ground up —
+/// out to <see cref="LandmarkInstance.SunkenRim"/> blocks (<see cref="SunkenRimFor"/>, pinned in the record). Only columns whose
+/// natural floor lies under the water are lowered (an island is never carved), never another structure's footprint or a
+/// pad; the rim's top keeps the floor's own surface block, the flora that stood on the old floor goes, and the rim's reach
+/// is registered with the footprint so what is placed later keeps clear of the slope.</item>
 /// <item><b>The cells</b>: every column of the footprint is written from the ground row up to the higher of its top and the
 /// natural sea floor (the basin is dug), the site's blocks as they are, every other cell WATER at and below the water top —
 /// never air, so no dry pocket opens in the sea — except the template's AIR POCKETS (<see cref="CivilizationRules.AirKind"/>),
@@ -33,8 +43,16 @@ public sealed partial class GameServer
     /// <summary>How deep a sunken site may dig into the sea floor below its deepest natural point.</summary>
     internal const int SunkenMaxDig = CivilizationRules.SunkenMaxDig;
 
-    /// <summary>How many footprints a sunken site's seat search draws.</summary>
-    private const int SunkenSeatDraws = 240;
+    /// <summary>How many footprints a sunken site's seat search draws (#3700: twice as many as before, so a deep enough spot
+    /// is found where the body has one).</summary>
+    private const int SunkenSeatDraws = 480;
+
+    /// <summary>#3700: a footprint whose cut (see the class summary) is at most this deep always beats a deeper one.</summary>
+    internal const int SunkenPreferredCut = 10;
+
+    /// <summary>#3700: how far past the highest sampled sea floor of the footprint the crater rim reaches, and its cap.</summary>
+    private const int SunkenRimPad = 4;
+    internal const int SunkenRimMax = 48;
 
     /// <summary>Seats a site of the civilization: the sea floor for an underwater one, else the guaranteed search with the
     /// footprint registry (like a landmark; one with an underground part needs dry, even ground).</summary>
@@ -68,10 +86,11 @@ public sealed partial class GameServer
     {
         var s = plan.Layout!.Structure;
         int w = s.Width, l = s.Length, above = s.Height - plan.Layout.GroundRow;
-        int latBand = System.Math.Max(8, (WorldConstants.LatitudePeriodFor(_world.Circumference) / 2) - (System.Math.Max(w, l) / 2) - 16);
+        // #3700: the band leaves room for a full crater rim, so the rim never reaches across the latitude seam.
+        int latBand = System.Math.Max(8, (WorldConstants.LatitudePeriodFor(_world.Circumference) / 2) - (System.Math.Max(w, l) / 2) - 16 - SunkenRimMax);
         var reserved = KeepClearFor(StructureTypeRules.Civilization, LandmarkReserved());
         var rng = RngFor(plan.Seed, "seabed");
-        (int Score, int Ox, int Oz, int Top, int Bed)? best = null;
+        (int Score, int Ox, int Oz, int Top, int Bed, int BedMax)? best = null;
         for (int draw = 0; draw < SunkenSeatDraws; draw++)
         {
             int cx = rng.Next(0, _world.Circumference), cz = rng.Next(-latBand, latBand + 1);
@@ -87,11 +106,13 @@ public sealed partial class GameServer
             }
 
             int need = above + SunkenHeadroom, depth = top - bedMin;
-            int dig = System.Math.Max(0, need - depth), excess = System.Math.Max(0, depth - need);
-            int score = -((dig * 2) + (bedMax - bedMin) + (excess / 4)); // just deep enough: a site in a deep trench is never found
+            int ground = SunkenGround(top, bedMin, above);
+            int cut = System.Math.Max(0, bedMax + 1 - ground), excess = System.Math.Max(0, depth - need), rim = SunkenRimFor(bedMax, ground);
+            bool rimClear = !OverlapsFootprint(cx, cz, (w / 2) + 1 + rim, (l / 2) + 1 + rim, reserved, 0);
+            int score = SeabedScore(cut, excess, rimClear);
             if (best is null || score > best.Value.Score)
             {
-                best = (score, ox, oz, top, bedMin);
+                best = (score, ox, oz, top, bedMin, bedMax);
             }
         }
 
@@ -100,11 +121,30 @@ public sealed partial class GameServer
             return false;
         }
 
-        int groundY = System.Math.Min(pick.Bed + 1, pick.Top - above - SunkenHeadroom + 1);
-        groundY = System.Math.Max(groundY, pick.Bed + 1 - SunkenMaxDig);
+        int groundY = SunkenGround(pick.Top, pick.Bed, above);
         (plan.OriginX, plan.OriginZ, plan.GroundY, plan.Seat, plan.WaterTop) = (pick.Ox, pick.Oz, groundY, LandmarkRules.SeatSeabed, pick.Top);
+        plan.SunkenRim = SunkenRimFor(pick.BedMax, groundY);
         return true;
     }
+
+    /// <summary>The ground row's world Y on a footprint with the water top <paramref name="top"/> and the deepest floor
+    /// <paramref name="bedMin"/>: on that floor, sunk further when the sea is too shallow for the site's
+    /// <paramref name="above"/> rows plus the headroom — at most <see cref="SunkenMaxDig"/> blocks.</summary>
+    private static int SunkenGround(int top, int bedMin, int above)
+        => System.Math.Max(System.Math.Min(bedMin + 1, top - above - SunkenHeadroom + 1), bedMin + 1 - SunkenMaxDig);
+
+    /// <summary>#3700: a sea-floor footprint's score (higher is better): the shallowest cut through the natural floor, then
+    /// the least water to spare (a site in a deep trench is never found) — a footprint cutting deeper than
+    /// <see cref="SunkenPreferredCut"/> below every one that cuts less, and within each of those a crater rim that reaches a
+    /// registered box (<paramref name="rimClear"/> false) below every rim that keeps clear.</summary>
+    internal static int SeabedScore(int cut, int excess, bool rimClear = true)
+        => (cut > SunkenPreferredCut ? -1_000_000 : 0) + (rimClear ? 0 : -500_000) - ((cut * 2) + (excess / 4));
+
+    /// <summary>#3700: how far the crater rim reaches around a sunken site whose ground lies at <paramref name="groundY"/>, the
+    /// highest sampled natural floor of its footprint being <paramref name="bedMax"/>: as far as the slope needs to climb back
+    /// to that floor, plus <see cref="SunkenRimPad"/>, at most <see cref="SunkenRimMax"/>.</summary>
+    internal static int SunkenRimFor(int bedMax, int groundY)
+        => System.Math.Clamp(bedMax - groundY + SunkenRimPad, 0, SunkenRimMax);
 
     /// <summary>Whether every sampled column of the footprint lies under liquid water: the lowest water top and the lowest and
     /// highest sea floor of the samples.</summary>
@@ -142,7 +182,7 @@ public sealed partial class GameServer
             }
         }
 
-        return n + WriteSunkenUnderground(sink, lm, water);
+        return n + WriteSunkenUnderground(sink, lm, water) + WriteSunkenRim(sink, lm, waterTop, water);
     }
 
     /// <summary>One column from the ground row up to the higher of its top and the natural sea floor (the basin), then the

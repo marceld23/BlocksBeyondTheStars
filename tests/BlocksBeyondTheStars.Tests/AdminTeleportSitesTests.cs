@@ -141,6 +141,29 @@ public sealed class AdminTeleportSitesTests : IDisposable
         Assert.True(Blocks(server, content, new Vector3i(feet.X, feet.Y - 1, feet.Z)), "the target stands on the seabed");
     }
 
+    [Fact]
+    public void TpCiv_ToASunkenRuin_LandsInItsBowl_BesideThePillar_NotOnTheRim()
+    {
+        // #3702: the target of a sunken site lies in the ruin on its floor, in the open water — here the bowl around the pillar,
+        // never the flooded channel under it (the giant dwelling has one under its eye).
+        var content = CivilizationTestWorlds.SeaBowlContent("meadowlands");
+        var transport = new RecordingTransport();
+        var server = Start(content, CivilizationTestWorlds.Config("tp_civ_bowl", "meadowlands"), transport);
+        var site = Assert.Single(server.CivilizationSitesForTest);
+        Assert.NotNull(site.WaterTop);
+        var admin = Admin(server);
+
+        Tp(server, transport, admin, "civ1");
+        var feet = Feet(admin.State.Position);
+        var water = content.GetBlock("water")!.NumericId;
+        var (cx, cz, _, _) = site.Rect;
+        Assert.Equal(WorldConstants.WrapX(cx, server.World.Circumference), WorldConstants.WrapX(feet.X, server.World.Circumference));
+        Assert.InRange(cz - feet.Z, 2, 5); // in the ring of the bowl, beside the pillar
+        Assert.Equal(site.GroundY - 2, feet.Y); // on the slab, two under the ground: in the bowl, not on its rim
+        Assert.Equal(water, server.World.GetBlock(WorldConstants.CanonicalBlock(feet, server.World.Circumference)));
+        Assert.True(Blocks(server, content, new Vector3i(feet.X, feet.Y - 1, feet.Z)), "the target stands on the floor");
+    }
+
     // ---------------- giant wrecks in space ----------------
 
     private (SvGameServer Server, RecordingTransport Transport, PlayerSession Admin, string WreckId) SpaceWreckWorld(string name)

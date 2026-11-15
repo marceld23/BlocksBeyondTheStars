@@ -107,8 +107,10 @@ public static class CivilizationLayouts
 /// <summary>
 /// #3641: places a civilization's props — every <see cref="CivilizationRules.PropMarker"/> marker, after the ruin pass and
 /// seated on what it left, becomes a small authored piece of the same civilization standing on that floor: centred on the
-/// marker, turned by a hash of the cell, written only into empty cells (never into a wall, a cavity or an air pocket). The
-/// prop markers stay in the layout (nothing materializes them) so VEGA knows where the props stand (#3642).
+/// marker, turned by a hash of the cell, written only into empty cells (never into a wall or an air pocket, and into a
+/// cavity only when the marker itself stands in one — #3701: the open bowl it was put in, like the flooded bowl around the
+/// Grand Technicians' eye; a filled cavity cell holds the prop's block from then on). The prop markers stay in the layout
+/// (nothing materializes them) so VEGA knows where the props stand (#3642).
 /// </summary>
 public sealed class CivilizationPropDress : LayoutDress
 {
@@ -178,6 +180,14 @@ public sealed class CivilizationPropDress : LayoutDress
         return reached;
     }
 
+    /// <summary>Whether a prop may take this empty cell: a plain one always, a cavity only from a marker standing in a cavity
+    /// (<paramref name="inCavity"/>), an air pocket never.</summary>
+    private static bool Open(VoxelGrid grid, int x, int y, int z, bool inCavity)
+    {
+        int i = grid.Index(x, y, z);
+        return !grid.Cavity[i] || (inCavity && !grid.Air[i]);
+    }
+
     private void Place(VoxelGrid grid, StructureTemplate prop, Vector3i at, HashSet<Vector3i> reserved)
     {
         int turns = StableHashing.Index(CivilizationLayouts.CellLane("turn", at), _seed, 4);
@@ -189,6 +199,7 @@ public sealed class CivilizationPropDress : LayoutDress
         LandmarkGenerator.FillBlocks(prop, turns, piece, _content, _materials);
         int x0 = at.X - (w / 2), y0 = at.Y - Math.Clamp(prop.GroundRow, 0, h - 1), z0 = at.Z - (l / 2);
         var room = RoomColumns(grid, at, x0, z0, w, l);
+        bool inCavity = grid.In(at.X, at.Y, at.Z) && grid.Cavity[grid.Index(at.X, at.Y, at.Z)]; // #3701
         for (int x = 0; x < w; x++)
         {
             for (int y = 0; y < h; y++)
@@ -197,7 +208,7 @@ public sealed class CivilizationPropDress : LayoutDress
                 {
                     ushort block = piece.Get(x, y, z);
                     int gx = x0 + x, gy = y0 + y, gz = z0 + z;
-                    if (block == 0 || !room[x, z] || !grid.In(gx, gy, gz) || grid.Get(gx, gy, gz) != 0 || grid.Cavity[grid.Index(gx, gy, gz)]
+                    if (block == 0 || !room[x, z] || !grid.In(gx, gy, gz) || grid.Get(gx, gy, gz) != 0 || !Open(grid, gx, gy, gz, inCavity)
                         || reserved.Contains(new Vector3i(gx, gy, gz)))
                     {
                         continue;
@@ -206,6 +217,7 @@ public sealed class CivilizationPropDress : LayoutDress
                     int i = piece.Index(x, y, z);
                     var (tint, glow) = piece.Mods.TryGetValue(i, out var mod) ? mod : (0, 0);
                     grid.Set(gx, gy, gz, block, tint, glow, piece.Shapes.TryGetValue(i, out int shape) ? shape : 0);
+                    grid.Cavity[grid.Index(gx, gy, gz)] = false; // a filled cavity cell holds the prop's block now
                 }
             }
         }

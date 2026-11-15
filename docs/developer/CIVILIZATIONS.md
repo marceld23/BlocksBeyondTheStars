@@ -80,8 +80,9 @@ never forced in. Older galaxies are untouched.
   **sea floor** under water (§5);
 - records every site of the body first and saves the records together, then stamps them: a crash mid-stamp replays all of
   them (each overlay is written once, `FeatureStamped`);
-- pins one record (`turns`, `rev`, `seed`, the source, `wt` = the water top of a sunken site, `name`, `storage=overlay`),
-  writes the cells once into one structure overlay (`civ:<key>:<index>`), registers the footprint, materializes the
+- pins one record (`turns`, `rev`, `seed`, the source, `wt` = the water top of a sunken site, `rim` = its crater rim,
+  `name`, `storage=overlay`), writes the cells once into one structure overlay (`civ:<key>:<index>`), registers the
+  footprint (and a sunken site's rim reach around it), materializes the
   markers (chests on their own lane `civ`, container prefix `loot_civ_chest_`, sounds);
 - the home body skips the `homeBody.suppress` kinds (`StampLandmarks`, `StampGiantWrecks` record a skip there).
 
@@ -91,15 +92,32 @@ template that left the content keeps its blocks and re-derives nothing.
 **Props** (`CivilizationPropDress`): after the ruin pass every `prop` marker (`pool=<propPool>` or `template=<key>`) places a
 prop of the same civilization standing on its cell — picked and turned by a hash of the seed and the cell, written only
 into empty cells of the marker's own room (the columns its floor reaches from the marker, never through a wall) and never
-into another marker's cell or the cell above it (a chest and its cover stone). The marker stays in the layout so VEGA knows where the props stand.
+into another marker's cell or the cell above it (a chest and its cover stone). A cavity cell is taken only from a marker that
+stands in a cavity itself (#3701: the flooded bowl around the Grand Technicians' eye), an air pocket never; a filled cavity
+cell stops being one. The marker stays in the layout so VEGA knows where the props stand.
 
 ## 5. Under water
 
-An `underwater` civilization's sites take the **seabed seat** (`GameServerCivilizationStamp.cs`): of 240 draws, the
-footprint fully under liquid water with the best score — least digging first, then the flattest floor, then the least
-water to spare above it (a site in a deep trench is never found); the ground row rests on the
-footprint's deepest floor, sunk further when the sea is too shallow for the site plus 3 blocks of water over its top (at
-most 48 blocks) — the site lies in a basin. The writer then fills every column from the ground row up to the higher of its
+An `underwater` civilization's sites take the **seabed seat** (`GameServerCivilizationStamp.cs`): of 480 draws, the
+footprint fully under liquid water with the best score (`SeabedScore`): the shallowest **cut** — how far the site's ground
+lies below the highest natural floor of the footprint, i.e. the wall the dig leaves (#3700: a footprint cutting at most 10
+blocks always beats a deeper one; a sandbank, and equally a single trench under a shelf, cut deep) — then the least water
+to spare above it (a site in a deep trench is never found); the ground row rests on the footprint's deepest floor, sunk further when the
+sea is too shallow for the site plus 3 blocks of water over its top (at most 48 blocks) — the site lies in a basin.
+
+**The crater rim** (#3700, `GameServerCivilizationRim.cs`): a basin dug into a shallow sea used to be a shaft with sheer
+walls — the Grand Technicians' giant ruin on a 1–3 m sandbank stood 35–37 m deep, its cubes invisible at the bottom. Now
+the natural seabed (`TryGetWaterSurface`, not `SurfaceHeight`, which over the sea is the water's surface) around the
+footprint is lowered to a slope, one block down per block toward the footprint from the site's ground up (0–1 block of
+unevenness), out to the rim pinned in the record (`SunkenRimFor`: the highest sampled floor of the footprint above the
+ground, +4, at most 48). Only columns under liquid water are lowered — an island or a shore never — and never another
+footprint or a pad; lowered cells become water, the new top keeps the floor's surface block (no cave below opens into the
+sea) and the flora on the old floor goes. The rim's reach is registered with the footprint, so what is placed later keeps
+clear of the slope (one owner for both boxes, the site's overlay key). The seat search prefers a footprint whose rim box
+keeps clear of every registered box, and its latitude band leaves room for the widest rim, so a rim never reaches across
+the seam. A site stamped before the rim has none (`rim` absent).
+
+The writer then fills every column from the ground row up to the higher of its
 top and the natural floor: the site's blocks as they are, every other cell **water** at and below the water top — never
 air — except the template's **air pockets**, which stay air. Air pockets are built as **diving bells**: closed by blocks on
 every side and on top, open only from below (water flows down and sideways, never up). A player whose head is in one
@@ -113,15 +131,19 @@ blocks; discovery, the Codex kind `civilization`, the scanner readout, VEGA's li
 
 Admin (#3654, GameServerAdminTeleportSites.cs): `/tp civ [n]` lists and reaches every site of the current body in stamp
 order, named like the map entry (`civilization`, `zivilisation`, `volk`, `grosstechniker`, `labyrinth`, `maze` and their
-plurals also work). The spot is three blocks in front of the footprint like a landmark's, but found by `StandSpot`: from the
-generated ground up to the first two cells a body fits in, a liquid counting as passable — so beside a sunken site it is
-the seabed, not the sea surface.
+plurals also work). On land the spot is three blocks in front of the footprint like a landmark's, found by `StandSpot`:
+from the generated ground up to the first two cells a body fits in, a liquid counting as passable. #3702: a sunken site's
+natural surroundings can be a sandbank at the surface, so its spot lies **in the ruin on its floor** (`SunkenStandSpot`):
+from the footprint's centre outward along −Z, the first column with a solid floor under two cells of water (never an air
+pocket, never the red fluid) between 8 blocks under the site's ground and 3 over it, open to the sea above (not the
+channel under the giant's eye) — for the giant dwelling the bowl
+beside the eye; the spot in front of the footprint only when no such floor exists.
 
 ## 7. The shipped civilizations
 
 | Civilization | Where | Sites |
 |---|---|---|
-| `grosstechniker` — the Vanished People; their machines are the Grand Technicians | one `ocean`/`rainbow_sea` body per galaxy (an ocean guaranteed), all under water; no landmark, no giant wreck there | the giant dwelling (eye, tank with red fluid and an air pocket, tipped glyph cubes, the mural), 2–3 sunken cities, 4–6 small sites, remains as props |
+| `grosstechniker` — the Vanished People; their machines are the Grand Technicians | one `ocean`/`rainbow_sea` body per galaxy (an ocean guaranteed), all under water (the sea worlds see 30 m under water, #3699); no landmark, no giant wreck there | the giant dwelling (eye, tank with red fluid and an air pocket, tipped glyph cubes, the mural, #3701: eight remains in the bowl around the eye 4–10 m from the tank), 2–3 sunken cities, 4–6 small sites, remains as props |
 | `labyrinth_builders` | 1–3 toxic or airless bodies per galaxy (weights 20/30/50 %), each in another system; no landmark, no giant wreck there | one `maze_ruin` (S/M/L ≈ 80/120/180 blocks, walls ~20 high, passages 2–3 to 8–10 wide, lowest wall rows kept), square-headed statues as props |
 | `gds`, `sounders`, `sps` | legacy tags — placement unchanged | — |
 

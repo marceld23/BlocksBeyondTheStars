@@ -48,6 +48,10 @@ public sealed partial class GameServer
 
         /// <summary>#3642: the map name key of the site (its pool's, or its template's).</summary>
         public string SiteNameKey { get; init; } = string.Empty;
+
+        /// <summary>#3700: how far around a sunken site's footprint the sea floor slopes down to its ground (the crater rim, in
+        /// blocks; 0 = none — a site stamped before the rim).</summary>
+        public int SunkenRim { get; init; }
     }
 
     private sealed partial class LandmarkPlan
@@ -57,10 +61,16 @@ public sealed partial class GameServer
 
         /// <summary>#3642: the map name key of the site.</summary>
         public string SiteNameKey = string.Empty;
+
+        /// <summary>#3700: the crater rim of a sunken site (blocks; 0 = none).</summary>
+        public int SunkenRim;
     }
 
     /// <summary>The pin key of a sunken site's water top.</summary>
     internal const string CivilizationWaterPin = "wt";
+
+    /// <summary>#3700: the pin key of a sunken site's crater rim (absent = none: a site stamped before the rim).</summary>
+    internal const string CivilizationRimPin = "rim";
 
     /// <summary>Container id prefix of a civilization site's chest (the landmark chest path, its own prefix).</summary>
     internal const string CivilizationChestContainerPrefix = "loot_civ_chest_";
@@ -338,6 +348,11 @@ public sealed partial class GameServer
             pin.Set(CivilizationWaterPin, top);
         }
 
+        if (plan.SunkenRim > 0)
+        {
+            pin.Set(CivilizationRimPin, plan.SunkenRim);
+        }
+
         if (plan.SiteNameKey.Length > 0)
         {
             pin.Set("name", plan.SiteNameKey);
@@ -375,6 +390,7 @@ public sealed partial class GameServer
             Index = rec.Index,
             WaterTop = pin.Get(CivilizationWaterPin).Length > 0 ? pin.GetInt(CivilizationWaterPin, 0) : null,
             SiteNameKey = pin.Get("name"),
+            SunkenRim = pin.GetInt(CivilizationRimPin, 0),
         };
         plan.Layout = BuildCivilizationLayout(civ, plan);
         return plan.Layout is null ? null : plan;
@@ -385,8 +401,21 @@ public sealed partial class GameServer
     private void CommitCivilizationSite(CivilizationDefinition civ, LandmarkPlan plan)
     {
         var site = CivilizationInstance(civ, plan);
-        RegisterFootprint(StructureTypeRules.Civilization, site.Rect);
+        RegisterCivilizationFootprint(site);
         StampCivilizationSite(civ, plan, site);
+    }
+
+    /// <summary>A site's footprint in the registry — and (#3700) the reach of a sunken site's crater rim around it, so what is
+    /// placed later keeps clear of the slope as well; both under the site's own owner (its overlay key), so the registry never
+    /// reports the site against its own rim.</summary>
+    private void RegisterCivilizationFootprint(LandmarkInstance site)
+    {
+        RegisterFootprint(StructureTypeRules.Civilization, site.Rect, site.OverlayKey);
+        if (site.SunkenRim > 0)
+        {
+            var (cx, cz, hw, hl) = site.Rect;
+            RegisterFootprint(StructureTypeRules.Civilization, (cx, cz, hw + site.SunkenRim, hl + site.SunkenRim), site.OverlayKey);
+        }
     }
 
     /// <summary>Pins a fresh site in memory (its record is saved with the body's other sites), reserves its ground on land and
@@ -402,7 +431,7 @@ public sealed partial class GameServer
             ReserveSiteGround(StructureTypeRules.Civilization, layout.Structure.Width, layout.Structure.Length, origin, plan.GroundY, plan.Seat);
         }
 
-        RegisterFootprint(StructureTypeRules.Civilization, site.Rect);
+        RegisterCivilizationFootprint(site);
     }
 
     /// <summary>The runtime instance of a planned or replayed site.</summary>
@@ -420,6 +449,7 @@ public sealed partial class GameServer
             CivilizationIndex = plan.Index,
             WaterTop = plan.WaterTop,
             SiteNameKey = plan.SiteNameKey,
+            SunkenRim = plan.SunkenRim,
             OverlayResolved = true,
             OverlayKey = CivilizationRules.FeatureKey(civ.Key, plan.Index), // always one structure overlay
         };
