@@ -258,7 +258,7 @@ public sealed class PlanetType
     public string WaterTint { get; set; } = string.Empty;
 
     /// <summary>#3699: how far a diver sees in this type's water, in metres (where the underwater murk closes in fully). 0
-    /// (the default) derives it from the world's air as before (5–23 m: clear air, clear water); the sea worlds set their
+    /// (the default) derives it from the world's air as before (12–23 m: clear air, clear water); the sea worlds set their
     /// own, clearer water. The glowing liquids (Ressaw, the Grand Technicians' red fluid) keep their own short view.
     /// Read by the client's <c>UnderwaterView</c>.</summary>
     public double WaterView { get; set; }

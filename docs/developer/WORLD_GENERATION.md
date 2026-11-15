@@ -1475,7 +1475,7 @@ rain cycles through the hues); snow, hail, ash, sand, acid, meteors and spores k
 
 **Water view (#3699).** How far a diver sees is the reach at which the underwater murk closes in fully
 (`Client.Core/UnderwaterView.FarFor`, read by `Sky.Mist`). By default the world's air stands in for the water's
-clarity (5 m in the soupiest air … 23 m in the clearest); the optional type field `waterView` (metres, clamped to
+clarity (about 12 m in the soupiest air … 23 m in the clearest); the optional type field `waterView` (metres, clamped to
 4–64) names the water's own view instead — `ocean` and `rainbow_sea` see 30 m, so the Grand Technicians' sunken
 ruins (CIVILIZATIONS.md) can be read from their tank. Ressaw and the red fluid keep their short 7 m. Purely visual
 and client-side: existing worlds see further at once.

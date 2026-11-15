@@ -406,14 +406,15 @@ public sealed partial class GameServer
     }
 
     /// <summary>A site's footprint in the registry — and (#3700) the reach of a sunken site's crater rim around it, so what is
-    /// placed later keeps clear of the slope as well.</summary>
+    /// placed later keeps clear of the slope as well; both under the site's own owner (its overlay key), so the registry never
+    /// reports the site against its own rim.</summary>
     private void RegisterCivilizationFootprint(LandmarkInstance site)
     {
-        RegisterFootprint(StructureTypeRules.Civilization, site.Rect);
+        RegisterFootprint(StructureTypeRules.Civilization, site.Rect, site.OverlayKey);
         if (site.SunkenRim > 0)
         {
             var (cx, cz, hw, hl) = site.Rect;
-            RegisterFootprint(StructureTypeRules.Civilization, (cx, cz, hw + site.SunkenRim, hl + site.SunkenRim));
+            RegisterFootprint(StructureTypeRules.Civilization, (cx, cz, hw + site.SunkenRim, hl + site.SunkenRim), site.OverlayKey);
         }
     }
 

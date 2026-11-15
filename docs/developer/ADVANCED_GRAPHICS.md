@@ -262,7 +262,8 @@ volumetric march); `Headlamp.cs` sets its globals, `HeadlampRules` (Client.Core)
   half-even phase (looking along your own beam is backscatter, so it stays faint in clear air).
 - **Water (#3697/#3698):** under water the beam runs in the water itself. `VolumetricLightPolicy.LampTargetFor` returns
   the medium `VolumetricDust.Water` (air or not, haze switch aside — the murk ignores it too); `VolumetricSunLight` eases
-  `_Sc_VolLamp.w` to 0.05 per metre and ends the march at the water's view + 4 m (`Sky.UnderwaterReach`); the march adds
+  `_Sc_VolLamp.w` to 0.05 per metre and ends the march at the water's view + 4 m (`Sky.UnderwaterReach`), at most the
+  lamp's 30 m reach; the march adds
   that density to the air's, swallows the beam along the way (`VOL_WATER_EXTINCTION` 0.12/m — gone after ~10 m) and tints
   it 60 % toward the murk colour (`_Sc_FogSky`: blue-green water, the red fluid red, Ressaw milky). On every preset the
   motes' `Water` mode puts dim marine snow around the visor under water (never the planet's outdoor motes), which the

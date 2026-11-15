@@ -240,6 +240,14 @@ public sealed class CivilizationStampTests : IDisposable
         => Assert.True(SvGameServer.SeabedScore(cutA, excessA) > SvGameServer.SeabedScore(cutB, excessB));
 
     [Fact]
+    public void TheSeabedSearch_PrefersARimThatKeepsClear_ButNeverOverAShallowerCut()
+    {
+        Assert.True(SvGameServer.SeabedScore(8, 0, rimClear: true) > SvGameServer.SeabedScore(4, 0, rimClear: false));
+        Assert.True(SvGameServer.SeabedScore(10, 0, rimClear: false) > SvGameServer.SeabedScore(11, 0, rimClear: true)); // the cut first
+        Assert.True(SvGameServer.SeabedScore(40, 0, rimClear: true) > SvGameServer.SeabedScore(20, 0, rimClear: false));
+    }
+
+    [Fact]
     public void TheRim_ReachesBackToTheHighestFloor_AndIsCapped()
     {
         Assert.Equal(59 - 23 + 4, SvGameServer.SunkenRimFor(bedMax: 59, groundY: 23)); // the sandbank around the giant ruin

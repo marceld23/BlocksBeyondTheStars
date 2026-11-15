@@ -14,10 +14,11 @@ namespace BlocksBeyondTheStars.GameServer;
 /// written in the water mode instead of the landmark's air mode:
 /// <list type="bullet">
 /// <item><b>The seat</b>: a footprint whose every sampled column lies under liquid water, the one needing the least digging
-/// (then the flattest floor, then the one with the least water to spare — a site in a deep trench is never found) among a fixed number of draws from the site's seed, clear of the pads and every footprint. #3700: "digging" is the
+/// (then the one with the least water to spare — a site in a deep trench is never found) among a fixed number of draws from the site's seed, clear of the pads and every footprint, its crater rim inside the latitude band. #3700: "digging" is the
 /// CUT — how far the site's ground lies below the highest natural floor of the footprint, the wall the dig leaves (a deep
 /// sea over a flat floor cuts nothing; a sandbank or one trench under a bumpy floor cuts deep) — and a footprint cutting at
-/// most <see cref="SunkenPreferredCut"/> blocks always beats one cutting more (<see cref="SeabedScore"/>). The
+/// most <see cref="SunkenPreferredCut"/> blocks always beats one cutting more (<see cref="SeabedScore"/>); among equals one
+/// whose crater rim keeps clear of every registered box wins. The
 /// ground row rests on the deepest floor of the footprint; when the sea is too shallow for the site plus
 /// <see cref="SunkenHeadroom"/> blocks of water over its top, the ground row sinks into the floor (at most
 /// <see cref="SunkenMaxDig"/> blocks) — the site lies in a basin.</item>
@@ -85,7 +86,8 @@ public sealed partial class GameServer
     {
         var s = plan.Layout!.Structure;
         int w = s.Width, l = s.Length, above = s.Height - plan.Layout.GroundRow;
-        int latBand = System.Math.Max(8, (WorldConstants.LatitudePeriodFor(_world.Circumference) / 2) - (System.Math.Max(w, l) / 2) - 16);
+        // #3700: the band leaves room for a full crater rim, so the rim never reaches across the latitude seam.
+        int latBand = System.Math.Max(8, (WorldConstants.LatitudePeriodFor(_world.Circumference) / 2) - (System.Math.Max(w, l) / 2) - 16 - SunkenRimMax);
         var reserved = KeepClearFor(StructureTypeRules.Civilization, LandmarkReserved());
         var rng = RngFor(plan.Seed, "seabed");
         (int Score, int Ox, int Oz, int Top, int Bed, int BedMax)? best = null;
@@ -105,8 +107,9 @@ public sealed partial class GameServer
 
             int need = above + SunkenHeadroom, depth = top - bedMin;
             int ground = SunkenGround(top, bedMin, above);
-            int cut = System.Math.Max(0, bedMax + 1 - ground), excess = System.Math.Max(0, depth - need);
-            int score = SeabedScore(cut, excess);
+            int cut = System.Math.Max(0, bedMax + 1 - ground), excess = System.Math.Max(0, depth - need), rim = SunkenRimFor(bedMax, ground);
+            bool rimClear = !OverlapsFootprint(cx, cz, (w / 2) + 1 + rim, (l / 2) + 1 + rim, reserved, 0);
+            int score = SeabedScore(cut, excess, rimClear);
             if (best is null || score > best.Value.Score)
             {
                 best = (score, ox, oz, top, bedMin, bedMax);
@@ -131,10 +134,11 @@ public sealed partial class GameServer
         => System.Math.Max(System.Math.Min(bedMin + 1, top - above - SunkenHeadroom + 1), bedMin + 1 - SunkenMaxDig);
 
     /// <summary>#3700: a sea-floor footprint's score (higher is better): the shallowest cut through the natural floor, then
-    /// the least water to spare (a site in a deep trench is never found) — and a footprint cutting deeper than
-    /// <see cref="SunkenPreferredCut"/> below every one that cuts less.</summary>
-    internal static int SeabedScore(int cut, int excess)
-        => (cut > SunkenPreferredCut ? -1_000_000 : 0) - ((cut * 2) + (excess / 4));
+    /// the least water to spare (a site in a deep trench is never found) — a footprint cutting deeper than
+    /// <see cref="SunkenPreferredCut"/> below every one that cuts less, and within each of those a crater rim that reaches a
+    /// registered box (<paramref name="rimClear"/> false) below every rim that keeps clear.</summary>
+    internal static int SeabedScore(int cut, int excess, bool rimClear = true)
+        => (cut > SunkenPreferredCut ? -1_000_000 : 0) + (rimClear ? 0 : -500_000) - ((cut * 2) + (excess / 4));
 
     /// <summary>#3700: how far the crater rim reaches around a sunken site whose ground lies at <paramref name="groundY"/>, the
     /// highest sampled natural floor of its footprint being <paramref name="bedMax"/>: as far as the slope needs to climb back

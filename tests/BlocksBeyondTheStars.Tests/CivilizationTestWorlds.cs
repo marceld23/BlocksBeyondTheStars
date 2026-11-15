@@ -199,8 +199,9 @@ internal static class CivilizationTestWorlds
     }
 
     /// <summary>#3702: a sunken bowl, 15 × 9 × 15, ground row 3: a stone slab (row 0), a stone pillar 3 × 3 in the middle up to
-    /// the top, and around it a ring of cavity (rows 1–3, 2–5 cells from the middle) — the bowl a diver stands in beside the
-    /// pillar, two blocks under the site's ground; the rest of rows 1–3 stone.</summary>
+    /// the top with a flooded channel under it (rows 1–2, like the one under the Grand Technicians' eye), and around it a ring
+    /// of cavity (rows 1–3, 2–5 cells from the middle) — the bowl a diver stands in beside the pillar, two blocks under the
+    /// site's ground; the rest of rows 1–3 stone.</summary>
     private static StructureTemplate SunkenBowl()
     {
         var t = new StructureTemplate
@@ -223,7 +224,11 @@ internal static class CivilizationTestWorlds
                 int r = System.Math.Max(System.Math.Abs(x - 7), System.Math.Abs(z - 7));
                 for (int y = 0; y < 9; y++)
                 {
-                    if (r <= 1)
+                    if (r <= 1 && y is 1 or 2)
+                    {
+                        t.Cells.Add(new TemplateCell { X = x, Y = y, Z = z, Kind = LandmarkRules.CavityKind }); // the channel under it
+                    }
+                    else if (r <= 1)
                     {
                         t.Cells.Add(LandmarkShapes.Block(x, y, z, "stone")); // the pillar
                     }

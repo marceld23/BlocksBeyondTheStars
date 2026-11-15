@@ -144,7 +144,8 @@ public sealed class AdminTeleportSitesTests : IDisposable
     [Fact]
     public void TpCiv_ToASunkenRuin_LandsInItsBowl_BesideThePillar_NotOnTheRim()
     {
-        // #3702: the target of a sunken site lies in the ruin on its floor, in the open water — here the bowl around the pillar.
+        // #3702: the target of a sunken site lies in the ruin on its floor, in the open water — here the bowl around the pillar,
+        // never the flooded channel under it (the giant dwelling has one under its eye).
         var content = CivilizationTestWorlds.SeaBowlContent("meadowlands");
         var transport = new RecordingTransport();
         var server = Start(content, CivilizationTestWorlds.Config("tp_civ_bowl", "meadowlands"), transport);

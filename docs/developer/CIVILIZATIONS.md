@@ -108,12 +108,14 @@ sea is too shallow for the site plus 3 blocks of water over its top (at most 48 
 **The crater rim** (#3700, `GameServerCivilizationRim.cs`): a basin dug into a shallow sea used to be a shaft with sheer
 walls — the Grand Technicians' giant ruin on a 1–3 m sandbank stood 35–37 m deep, its cubes invisible at the bottom. Now
 the natural seabed (`TryGetWaterSurface`, not `SurfaceHeight`, which over the sea is the water's surface) around the
-footprint is lowered to a slope, one block down per block toward the footprint from the site's ground up (±1 block of
+footprint is lowered to a slope, one block down per block toward the footprint from the site's ground up (0–1 block of
 unevenness), out to the rim pinned in the record (`SunkenRimFor`: the highest sampled floor of the footprint above the
 ground, +4, at most 48). Only columns under liquid water are lowered — an island or a shore never — and never another
 footprint or a pad; lowered cells become water, the new top keeps the floor's surface block (no cave below opens into the
 sea) and the flora on the old floor goes. The rim's reach is registered with the footprint, so what is placed later keeps
-clear of the slope. A site stamped before the rim has none (`rim` absent).
+clear of the slope (one owner for both boxes, the site's overlay key). The seat search prefers a footprint whose rim box
+keeps clear of every registered box, and its latitude band leaves room for the widest rim, so a rim never reaches across
+the seam. A site stamped before the rim has none (`rim` absent).
 
 The writer then fills every column from the ground row up to the higher of its
 top and the natural floor: the site's blocks as they are, every other cell **water** at and below the water top — never
@@ -133,7 +135,8 @@ plurals also work). On land the spot is three blocks in front of the footprint l
 from the generated ground up to the first two cells a body fits in, a liquid counting as passable. #3702: a sunken site's
 natural surroundings can be a sandbank at the surface, so its spot lies **in the ruin on its floor** (`SunkenStandSpot`):
 from the footprint's centre outward along −Z, the first column with a solid floor under two cells of water (never an air
-pocket, never the red fluid) between 8 blocks under the site's ground and 3 over it — for the giant dwelling the bowl
+pocket, never the red fluid) between 8 blocks under the site's ground and 3 over it, open to the sea above (not the
+channel under the giant's eye) — for the giant dwelling the bowl
 beside the eye; the spot in front of the footprint only when no such floor exists.
 
 ## 7. The shipped civilizations

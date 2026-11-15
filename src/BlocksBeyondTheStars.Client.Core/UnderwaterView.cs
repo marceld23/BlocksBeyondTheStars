@@ -12,7 +12,7 @@ namespace BlocksBeyondTheStars.Client
     /// <item>The still, glowing liquids (Ressaw, the Grand Technicians' red fluid) reach <see cref="GlowingFar"/>: milky, you
     /// make out shapes, not detail.</item>
     /// <item>A planet type that names its water's view (<c>waterView</c> in data/planets.json — the sea worlds) keeps it.</item>
-    /// <item>Everywhere else the world's air stands in for the water's clarity: 5 m in the soupiest air … 23 m in the
+    /// <item>Everywhere else the world's air stands in for the water's clarity: about 12 m in the soupiest air … 23 m in the
     /// clearest.</item>
     /// </list>
     /// </summary>
