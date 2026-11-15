@@ -78,7 +78,6 @@ one PR. Details: docs/developer/CIVILIZATIONS.md; lore (incl. the internal part)
   - the editor's *Generate* → bake does not carry a source's kept cells (`BuiltStructure.Keep`) yet;
   - VEGA's `block` triggers read the stamped layout, not the world — a mined block still triggers its line;
   - tune the maze ruins' ruin strength (0.45) after the playtest;
-  - LORE_STRUCTURE.md §C1: the owner's back-story paragraph is still to be filled in.
 
 ### ⚙️ CI: test matrix 10 → 12 shards, weights refreshed (2026-11-14) — ✅ PR pending
 

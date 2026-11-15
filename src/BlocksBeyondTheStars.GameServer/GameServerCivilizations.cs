@@ -23,7 +23,7 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <item><b>The sites</b>, in the order of the civilization's <c>sites</c>: per pool a count rolled from the seed, per site
 /// a weighted pick of the pool's templates (a generator entry builds through its source), a turn, the instance seed — each a
 /// hash of its own lane — and the seat: the guaranteed search on land, the sea floor for an underwater civilization
-/// (GameServerCivilizationSeats.cs). A pick without a seat gives way to another (up to four tries).</item>
+/// (GameServerCivilizationStamp.cs). A pick without a seat gives way to another (up to four tries).</item>
 /// <item><b>Pinned, stamped once</b>: one placement record per site (kind <c>civ:&lt;key&gt;</c>, the site's index) with the
 /// template key, the seat and, in its layout field, <c>turns</c>, <c>rev</c>, <c>seed</c>, the water top of a sunken site and
 /// <c>storage=overlay</c>; the cells go once into one structure overlay per site (an underwater site writes water, never
@@ -183,9 +183,10 @@ public sealed partial class GameServer
         }
 
         bool home = _meta.CivilizationHomes.TryGetValue(civ.Key, out var homes) && homes.Contains(_world.LocationId);
-        if (!home || _generator.TerrainGeneration < civ.MinTerrainGeneration)
+        if (!home || _generator.TerrainGeneration < civ.MinTerrainGeneration
+            || StructureType(StructureTypeRules.Civilization) is not { Enabled: true } kindRules || _generator.TerrainGeneration < kindRules.MinGeneration)
         {
-            return;
+            return; // nothing decided: the kind switched off in data/structure_types.json asks again once it is on
         }
 
         int placed = virgin ? PlanAndCommitCivilizationSites(civ) : 0;

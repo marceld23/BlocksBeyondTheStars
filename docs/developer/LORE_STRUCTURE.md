@@ -190,12 +190,14 @@ The red fluid gave them their energy, and their eye glowed red with it while the
 that went out. The owner's picture of a living Grand Technician (its *active* state, not built — it would need a living
 civilization or an opponent with a model of its own): its stones floating round a red eye, lasers, repairing.
 
-**The back-story** (the owner's text, 2026-11-14 — who switched the Grand Technicians off, the energy, and what was taken
-along): ⚠ *to be completed — the owner's own words are translated here faithfully; the writer of this revision did not
-have his text at hand.*
+**The back-story** (the owner's text, 2026-11-14, translated faithfully): the Vanished People themselves switched the
+Grand Technicians off. The red fluid held infinite energy — but it no longer passed that energy on to the androids. The
+people took the fluid with them; remains of it are still found in the ruins. Who switched the Grand Technicians off, who
+took the fluid along and that it held infinite energy stay part of the secret back-story: every in-game text keeps to what
+players can know (the §C entries above).
 
 **Deliberately open — never answer these in a text, and do not decide them without the owner:**
-- why the Grand Technicians were switched off;
+- why the Grand Technicians were switched off, and why the fluid was taken along;
 - where the Vanished People went;
 - whether a Grand Technician ever wakes again;
 - how the fluid came to withhold its energy.

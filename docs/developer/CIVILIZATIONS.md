@@ -35,8 +35,9 @@ One file per civilization: `data/civilizations/<key>.json` (`CivilizationDefinit
 ## 2. Tags and templates
 
 Every block, item, structure kit, template and loot table has a `civilization` field. On blocks, items, kits and loot
-tables it is a tag: the scanner, VEGA, the Codex and the editor group by it (`GameContent.CivilizationOfBlock`). A tag that
-names no loaded civilization is warned once.
+tables it is a tag: the scanner, VEGA, the Codex and the editor group by it (`GameContent.CivilizationOfBlock`). A block,
+item or loot table tag that names no loaded civilization is warned once at load (`LegacyCivilizationTagsTests` checks the
+kits and templates too).
 
 A framework civilization's **templates** live in `data/civilizations/<key>/*.json` (the civilization defaults to the
 folder). They are landmark-style templates (compact body, ruin mode/profile/strength/zones, ground row, markers) with:
@@ -47,8 +48,8 @@ folder). They are landmark-style templates (compact body, ruin mode/profile/stre
 - cell/palette kind `air`: an **air pocket** (§4);
 - generator entries (`source` + `sourceParams`, e.g. the `maze_ruin` source) are allowed in any site pool.
 
-No other pool ever offers a civilization template. A lost civilization's template may carry chests, loot, sounds, props,
-doors and circuits — never a resident, a vendor or a den (`CivilizationRules.LostMarkerAllowed`).
+No other pool ever offers a civilization template. A lost civilization's template may carry chests, loot (incl. data terminals and relic caches), sounds,
+props, doors and circuits — never a resident, a vendor or a den (`CivilizationRules.LostMarkerAllowed`).
 
 ## 3. Homes and the guarantee
 
@@ -91,7 +92,8 @@ into empty cells. The marker stays in the layout so VEGA knows where the props s
 ## 5. Under water
 
 An `underwater` civilization's sites take the **seabed seat** (`GameServerCivilizationStamp.cs`): of 240 draws, the
-footprint fully under liquid water that needs the least digging (then the flattest floor); the ground row rests on the
+footprint fully under liquid water with the best score — least digging first, then the flattest floor, then the least
+water to spare above it (a site in a deep trench is never found); the ground row rests on the
 footprint's deepest floor, sunk further when the sea is too shallow for the site plus 3 blocks of water over its top (at
 most 48 blocks) — the site lies in a basin. The writer then fills every column from the ground row up to the higher of its
 top and the natural floor: the site's blocks as they are, every other cell **water** at and below the water top — never

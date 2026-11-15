@@ -149,8 +149,8 @@ The prop markers stay in the layout.
   how many sites stand come from the civilization files (homes pinned in `WorldMetadata.CivilizationHomes`, a count per site
   pool; [CIVILIZATIONS.md](CIVILIZATIONS.md) §3–§4). The rule supplies the footprint registry kind, keep-clear 6 (24 from the
   pads, 10 from the crash site) and the landmark's site and grade (a land site reserves its ground; a sunken one, seated by
-  the `seabed` search, does not). The stage reads neither `enabled` nor `minGeneration` of the entry: it is gated by the
-  world's terrain generation and the pinned homes. Its place in the structures boot stage: text tablets → Sounder world →
+  the `seabed` search, does not). `enabled: false` (or a raised `minGeneration`) stops fresh sites — a home body then decides
+  nothing and asks again once the kind is on; standing sites replay from their records whatever the switch says. Its place in the structures boot stage: text tablets → Sounder world →
   **civilizations** → settlements (+ intercity line) → ruins → … → landmarks → giant wrecks → buried ruins → …, so every
   later stamper keeps clear of the sites (`OverlapsLandmark` includes them). On a home body the kinds its
   `homeBody.suppress` names (`landmark`, `giant_wreck`) record a skip instead of rolling.

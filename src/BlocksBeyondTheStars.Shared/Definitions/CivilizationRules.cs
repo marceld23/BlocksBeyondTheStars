@@ -309,9 +309,14 @@ public static class CivilizationRules
         }
 
         CheckWord(p, "civPool", t.CivPool, TemplatePools);
-        if (string.Equals(t.CivPool, PoolProp, StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(t.PropPool) && t.IsSource)
+        bool prop = string.Equals(t.CivPool, PoolProp, StringComparison.OrdinalIgnoreCase);
+        if (prop && t.IsSource)
         {
             p.Add("a prop is never a generator entry");
+        }
+        else if (prop && string.IsNullOrWhiteSpace(t.PropPool))
+        {
+            p.Add("a prop needs a propPool (the name a prop marker asks for)");
         }
 
         if (string.Equals(c.State, StateLost, StringComparison.OrdinalIgnoreCase))
