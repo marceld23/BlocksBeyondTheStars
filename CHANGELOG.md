@@ -11,6 +11,100 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.11.19] — 2026-11-16
+
+The fresh-look release. **Every menu, the HUD and every editor got a new layout**: one way to go back, one main
+button per screen, a **Continue** button on the main menu, *My worlds* with a picture of where you last played, and
+editors that keep your work — **automatic drafts, undo, and Esc never closes an editor by accident**. The menu now shows
+the **thunderbolt in front of a ringed planet with its moon**, sharp for the first time, under the game's official logo.
+**Guardian giants** lie fallen on rocky worlds — and some of them wake up. Under water the **helmet lamp casts a cone**,
+the seas are clearer, and Windows no longer asks about the firewall when you play alone.
+
+ℹ️ **Compatibility:** a new decor block for old beds — the **save version rises to 17** (worlds are upgraded on first
+open; older versions can no longer open them afterwards) and the **terrain generation rises to 45**: the guardian
+giants, the old beds in ruins and wrecks and the crater around the Grand Technicians' giant come with new worlds;
+existing worlds keep everything where it is. Every world gets the new menus, the HUD, the editors, the lamp under water
+and the fixes. The **network protocol stays at version 12**.
+
+### 🧭 One layout for every screen (#3662–#3674)
+
+- **Main menu:** a **Continue** button with your last world, its mode, when you played it and a small picture of it;
+  then Singleplayer, one **Multiplayer** entry and Editors. Settings, Credits and Quit sit in a smaller row, your
+  player name in a chip at the top right, and a "What's new?" card beside the festival card.
+- **Back is always the arrow at the top left.** The power icon now only means *Quit*, the bin means *Delete*.
+- **My worlds:** your worlds on the left, the chosen world on the right with a **picture of where you last played**,
+  its mode and playtime. A new world starts from mode cards that say what each mode does. **Open to friends** replaces
+  the separate host screen.
+- **Multiplayer:** one screen with three tabs — official worlds, join a server (with your **recently joined
+  servers**), and host on your network.
+- **Settings:** categories with icons, a description of every setting, "Reset this category", and a new choice for
+  the controls line at the bottom right (short, full or off).
+- **Console:** eight main tabs instead of sixteen; Missions, Journal and Achievements live under *Logbook*, Codex,
+  Creatures and DataQubes under *Knowledge*, Character, Photos and Alliances under *Me*.
+- **HUD:** VEGA speaks from the bottom left, and the opened chat docks in the same place instead of jumping across the
+  screen. Messages appear at the top centre; the cards on the right stack neatly and no longer slide under each other.
+  In space, hull and shield sit in the vitals panel.
+- **Gamepad:** every dialog keeps the focus, B closes one layer at a time, and the first button is never *Back* or
+  *Leave*. **Touch:** the touch controls and the HUD no longer cover each other, and every button is at least 44 px.
+
+### ✏️ Editors that keep your work (#3687–#3696)
+
+- **One frame for every editor:** Back, the title and "Not saved yet" at the top, undo and redo, load, new and one
+  **Save** button that says where your work goes.
+- **Automatic drafts:** leave an editor and the next time it asks *Continue your draft?*
+- **Esc and B never close an editor by accident** — they close the open field or window first. Every delete asks first.
+- **Undo everywhere:** the ship editor, the station and village editor, the texture, appearance, shape and tool
+  editors. The village editor hides its developer parts behind **Advanced** and works with a gamepad now.
+- The appearance editor looks the same in the menu and in the console.
+
+### 🌍 The first thing you see (#3705, #3706)
+
+- **A live scene from the game itself:** the **thunderbolt** in front of a varied world with clouds, a **ring** and a
+  small **ice moon** — behind the title, the main menu, the loading screen and the intro film. Small computers draw it
+  without the moon.
+- **Sharp at last:** a blur meant for the pause menu was switched on behind the main menu and the intro all along.
+- **The official logo** — the rocket and the lettering — on the title, the menu, the loading screen, the launcher, the
+  installer and the browser loading page. Linux gets a loading window too.
+
+### 🤖 Guardian giants (#3676–#3686)
+
+- **Fallen giants** lie on about every third rocky planet (new worlds) — hunter robots as tall as towers, built from
+  blocks. About one in four can **wake up**: its eye flickers, its lights come on, and it rises from its own blocks.
+- **A boss fight:** stomps, a jump attack with a red landing ring, a visor laser you can hide from, thrown rocks, two
+  Guardian robots it calls for help, and a rage phase. Leave, and it walks back and lies down again. Defeated, it gives
+  every fighter a crate with guardian plates, a missing guardian blueprint or its **memory core**.
+- **In VEGA's story:** the new chapter-4 mission **The Fallen Giant**, a Codex entry, the achievement **Guardian Giant
+  Slayer**, ten new sounds and its own fight music.
+- **The Sounders' Song:** the **Bridge Song** is played letter by letter with the next key glowing, a wrong tone no
+  longer clears your melody, and the chamber and spindle hints are clearer.
+- **Story scenes** play where they belong and no longer pile up: an overtaken scene is skipped (the Journal keeps it).
+
+### 🌊 Under water and on the trains (#3656–#3660, #3697–#3702)
+
+- **The helmet lamp casts a cone under water** (High preset), and drifting specks show its light on every preset.
+- **Clearer seas:** ocean and rainbow-sea worlds let you see 30 m under water — in existing worlds too.
+- **The Grand Technicians' giant** sits in a crater instead of a deep shaft, with remains of its robots around the tank.
+- **Trains:** animals no longer climb into a halted wagon, a train stops and honks before a creature on the track
+  (even a titan), and the benches are no longer under the window glass.
+- **Giant wrecks in space** are marked *Wreck* instead of a screen-sized "Friendly" ring.
+- The **Singer Statue** on Soaniri is now a light-blue Sounder with four arms, a golden microphone and the tablet with
+  the note.
+
+### 🐞 Fixes
+
+- **No firewall question for singleplayer and joining** (#3707): the game's own server only listens on your computer.
+  **Hosting** checks the firewall before the world starts and offers **Allow now** — it needs an administrator, so ask
+  a grown-up (#3708).
+- **Black screen after E at a station during a spacewalk** (Justus).
+- **A story step skipped with a full backpack lost its item** — the Sounders' story could no longer go on (Justus).
+- **Old beds in ruins and wrecks** look old and no longer work as a home or a place to rest (Justus' idea).
+- **Browser games on a self-hosted server** over plain `http://` loaded nothing — fixed (22 crash reports).
+- **Admin:** `/tp civ` finds the lost civilizations' sites (landing on the seabed), `/tp giantwreck` names the ships and
+  boards the wrecks in space, `/giant guardian` (#3654, #3655).
+
+Thanks to **Justus** for the guardian giants, the Sounders reports and the spacewalk bug, and to everyone who sent a
+browser crash report.
+
 ## [2026.11.18] — 2026-11-15
 
 The wonders release. **The school club's giant buildings** are here — eleven of them, from a leaning tower and an old
@@ -10908,7 +11002,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.18...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.19...HEAD
+[2026.11.19]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.18...v2026.11.19
 [2026.11.18]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.17...v2026.11.18
 [2026.11.17]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.16...v2026.11.17
 [2026.11.16]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.11.15...v2026.11.16
