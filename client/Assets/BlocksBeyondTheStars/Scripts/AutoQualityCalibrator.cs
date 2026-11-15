@@ -37,7 +37,7 @@ namespace BlocksBeyondTheStars.Client
 
         private static bool? _enabled;
 
-        /// <summary>False on an unattended run — PerfProbe, screenshot and clip captures — where the calibration would move
+        /// <summary>False on an unattended run — PerfProbe, screenshot, poster and clip captures — where the calibration would move
         /// a measured preset between runs and a hint toast would land in the frames. <c>-autoQuality</c> turns it back on
         /// to test the calibration itself (e.g. with <c>-perfProbe</c>, which then also records a world sample).</summary>
         public static bool Enabled => _enabled ??= ReadEnabled();
@@ -154,7 +154,7 @@ namespace BlocksBeyondTheStars.Client
         {
             string[] args = System.Environment.GetCommandLineArgs();
             bool Has(string flag) => System.Array.Exists(args, a => string.Equals(a, flag, System.StringComparison.OrdinalIgnoreCase));
-            return Has("-autoQuality") || !(Has("-perfProbe") || Has("-captureClip") || Has("-captureShots"));
+            return Has("-autoQuality") || !(Has("-perfProbe") || Has("-captureClip") || Has("-captureShots") || Has("-capturePoster"));
         }
     }
 }

@@ -344,7 +344,9 @@ as off, so their saved preset never moves. The rules are Unity-free in Client.Co
 
 - **Session start** (`AutoQualityCalibrator.SessionStart`, in `AppShell.Awake` before the first `Apply`): **Medium →
   High**, and only on a **world measurement** taken at Medium on the same GPU (`ClientSettings.AutoWorld*`). The menu
-  backdrop is a space scene without terrain, SSAO on ground, shadow cascades or grass, so it cannot vouch for High.
+  backdrop is a space scene without terrain, SSAO on ground, shadow cascades or grass, so it cannot vouch for High. (Since
+  #3705 it is the corvette before a real "varied" world, simpler on Potato/Low — see
+  [CLIENT_SHELL_AND_ASSETS.md](CLIENT_SHELL_AND_ASSETS.md) § "Menu backdrop and first impressions".)
 - **Shell sample** (`AutoQualityCalibrator`, 6 s warm-up + 15 s over studio logo, splash, intro and main menu): one
   notch per session — down when the wall-clock median is over 40 ms, up **at most to Medium** when there is headroom.
   A step down from High remembers the GPU (`AutoHighRejectedGpu`); High is not tried on it again.

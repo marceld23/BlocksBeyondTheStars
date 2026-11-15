@@ -392,7 +392,7 @@ A tier 1 or 2 scene never takes the camera: it may only use the types marked "no
 | `dolly` | yes | A straight, eased move between two points near the anchor (a slow push-in that slides a little sideways), the whole path checked against the terrain. |
 | `pan` | yes | Turning in place across an arc — from just above the player's head, or from a vantage point across the anchor; only where the view stays open. |
 | `flyover` | yes | A high arc over the anchor and its ground, rising in the middle, always looking at the anchor. |
-| `space_vista` | yes (synthetic stage) | A synthetic space panorama (stars, nebula, sun, a planet; with the `ship` anchor the player's own ship) — the same recipe as the menu's attract scene, independent of where the player is (on the ground or in space). |
+| `space_vista` | yes (synthetic stage) | A synthetic space panorama (stars, nebula, sun, a planet; with the `ship` anchor the player's own ship) — the menu's attract-scene recipe, independent of where the player is (on the ground or in space); the planet is drawn by the flight view's own renderer — the world the player is on, else the menu's showcase world (#3705). |
 | `diorama` | yes (synthetic stage) | A small synthetic stage showing what the anchor names: `core` the sleeping Guardian core (a red glowing column in an iron shell), `star_map` VEGA's memory of the star chart (the camera drifts to the rim). |
 
 A `diorama` shows one of these anchors: `core`, `star_map`.

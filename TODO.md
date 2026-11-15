@@ -176,6 +176,52 @@ power icon, four title styles, collisions, VEGA at eye level, no "Continue"). Re
   browser branch of the Multiplayer screen is gone.
 - ⚠ Playtest open: every screen at 16:9 / 16:10 / 21:9, gamepad walk-through of the new screens, the browser menu.
 
+### ✏️ Editors overhaul: one editor shell, drafts, undo, safe Esc — epic #3696 (#3687–#3695), ✅ 2026-11-15 (PR pending)
+
+From an analysis of every editor (kids lost work: Esc closed an editor, no undo in the ship / village editor, ~10
+unconfirmed deletes, ten words for "save", "Back" in eight places). Decided by Marcel (automatic drafts, "Advanced" for
+the developer parts, desktop-only, "Save" + a subline, a header bar, the developer editors too) and an approved HTML mock.
+
+- ✅ **Editor shell** (#3688): `EditorShell` — header bar (Back, title + work + "Not saved yet", undo/redo, load, new,
+  submit, one Primary **Save** with a subline), opaque cards, a status bar coloured by severity without file paths;
+  `IEditorDocument`; five new icons (save, load, undo, redo, submit). Reference: UI_LAYOUT.md §3.
+- ✅ **Drafts** (#3689): `EditorDraftStore` (atomic, debounced, broken drafts set aside) — "Continue your draft / Start
+  fresh" on the next opening; never written during `-captureEditors`.
+- ✅ **Esc / B** (#3690): one reader (AppShell for the menu editors, GameMenu in a world) → `EditorShell.HandleCancel`:
+  a typing field, the shell's dialog, the editor's top layer — never the editor. `UiKit.Confirm` / `ConfirmDelete` for
+  every permanent action.
+- ✅ **Ship editor** (#3691): on the shell, undo/redo per place/remove, Place | Remove (+ Delete / X), B in the build view
+  back to the cards, Advanced section; the eight `Close*Editor` copies are one.
+- ✅ **Station / Village editor** (#3692): on the shell, **Advanced** switch (remembered), undo/redo, drafts, gamepad
+  (new), centred kit window and function picker, 57 template checks as codes with locale keys (`TemplateProblem`,
+  server behaviour unchanged).
+- ✅ **Paint and shape editors** (#3693): texture, appearance + avatar designer (one tab bar, the same in the menu and
+  the console), block paint, forms, my tools, shape designer (now with undo, pad and drafts); Place | Remove (E);
+  swapped avatar arrows, paint-library overflow, "Apply" → "Saved" fixed; desktop-only functions hidden in the browser.
+- ✅ **Developer editors** (#3694): item & recipe, material on the shell, key check (a–z, 0–9, _), undo, drafts.
+- ✅ **Sizes, helpers, docs** (#3695): editor controls ≥ 44 px / text ≥ 16 px at Full HD, one undo history
+  (`UndoHistory<T>`), USER_MANUAL §6 "One frame for every editor".
+- ✅ **`-captureEditors`** (#3687): one PNG per editor (and main view) for before/after pictures.
+- ⚠ Playtest open: every editor with mouse and pad, drafts after a crash, the console's appearance screen.
+
+### 🌍 Menu backdrop, intro film and first impressions — #3705, #3706, ✅ 2026-11-15 (PR pending)
+
+From an analysis of everything a player sees from launch to the menu (a hand-built fake ship in front of a June-2026
+planet; four title styles; a grey Unity splash; no Linux splash). Marcel decided: live scene from the real game parts,
+one fixed motif, the intro film kept at its length, no AI images.
+
+- ✅ **Backdrop** (#3705): the **corvette** (its shipped layout) in front of a **varied world with clouds** drawn by the
+  flight view's renderer (shared `OrbitBodyBuilder`: baked map, data clouds, atmosphere rim) — behind the title splash,
+  the main menu and the loading screen; simpler on Potato/Low (no rim, fewer plume particles); still the auto-quality
+  measuring scene. The **intro film** keeps its 28 s and beats with the same scene; the story's `space_vista` uses the
+  real planet too. "PROTOTYPE / DEV BUILD" and "your name could be here" removed.
+- ✅ **First impressions** (#3706): one **logo from real block tiles** (`GameLogo`, `BlockLogo`); a **poster** the game
+  renders itself (`-capturePoster`, `scripts/capture-poster.ps1`) for the Windows launcher splash, a new **Linux splash
+  window** (X11), the installer image and the **browser loading page** (poster, logo, Rajdhani loaded); the Unity splash
+  on the game's navy.
+- ⚠ Playtest open: framing of the motif at 16:9 / 21:9, the browser page, the Linux splash on a real desktop; a
+  Latin-only WOFF2 of Rajdhani (≈ 20 KB instead of 375 KB) once the font tool may be used.
+
 ### 🐞 Reports 2026-11-15 (Justus + browser crashes) — in the UI-layout PR, ✅ 2026-11-15 (PR pending)
 
 - ✅ **Black screen after E at a station on a spacewalk** (Justus, giant wreck Raphae): a stale "hangar doors closing" flag

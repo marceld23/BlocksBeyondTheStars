@@ -96,11 +96,12 @@ namespace BlocksBeyondTheStars.Client
                 _root = root;
             }
 
-            // --- Title (top left, over the button column — one axis for the whole screen, #3663) + the tagline under it ---
+            // --- Title (top left, over the button column — one axis for the whole screen, #3663) + the tagline under it. The
+            // title is the game's block logo (#3706), the same everywhere; the 3D motif fills the free middle (#3705). ---
             public void BuildTitle()
             {
-                UiKit.AddLogo(_root, ColX, 40f, 1180f, 96f, "BLOCKS BEYOND THE STARS", 64);
-                UiKit.AddText(_root, ColX + 4f, 136f, 1100f, 30f, _shell.L("ui.splash.tagline"), 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UiKit.AddGameLogo(_root, ColX, 22f, ColW, 140f);
+                UiKit.AddText(_root, ColX + 4f, 164f, 1100f, 30f, _shell.L("ui.splash.tagline"), 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             }
 
             // --- One-shot notice (e.g. why the last join was refused) ---
@@ -116,7 +117,7 @@ namespace BlocksBeyondTheStars.Client
 
                 if (!string.IsNullOrEmpty(_shell.MenuNotice))
                 {
-                    UiKit.AddText(_root, ColX, 186f, 1180f, 28f, _shell.MenuNotice, 17,
+                    UiKit.AddText(_root, ColX, 198f, 1180f, 28f, _shell.MenuNotice, 17,
                         new Color(1f, 0.55f, 0.4f), TextAnchor.MiddleLeft, FontStyle.Bold);
                 }
             }

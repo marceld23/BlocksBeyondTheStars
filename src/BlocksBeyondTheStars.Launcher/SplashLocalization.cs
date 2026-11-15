@@ -12,7 +12,9 @@ namespace BlocksBeyondTheStars.Launcher;
 /// so it cannot ask the running game; instead it reads two on-disk artifacts the game itself owns:
 /// <list type="bullet">
 /// <item>the chosen language from <c>client_settings.json</c> (<c>Language</c> = "en"/"de"), under the Unity
-/// <c>persistentDataPath</c> (<c>%USERPROFILE%\AppData\LocalLow\{company}\{product}</c>);</item>
+/// <c>persistentDataPath</c> (<c>%USERPROFILE%\AppData\LocalLow\{company}\{product}</c> on Windows,
+/// <c>$XDG_CONFIG_HOME/unity3d/{company}/{product}</c> — by default <c>~/.config/unity3d/…</c> — on Linux, where the
+/// console launcher links this file in, #3706);</item>
 /// <item>the actual string from the game's own locale table shipped next to the exe at
 /// <c>{exeDir}/BlocksBeyondTheStars_Data/StreamingAssets/data/locales/{code}.json</c>, key
 /// <c>ui.loading.title</c> — the single source of truth, so new languages need no launcher change.</item>
@@ -48,10 +50,8 @@ internal static class SplashLocalization
     {
         try
         {
-            string settingsPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                "AppData", "LocalLow", CompanyName, ProductName, "client_settings.json");
-            if (File.Exists(settingsPath))
+            string? settingsPath = SettingsPath();
+            if (settingsPath != null && File.Exists(settingsPath))
             {
                 using var doc = JsonDocument.Parse(File.ReadAllText(settingsPath));
                 if (doc.RootElement.TryGetProperty("Language", out var langProp)
@@ -84,6 +84,20 @@ internal static class SplashLocalization
         }
 
         return "en";
+    }
+
+    /// <summary>Where the game keeps <c>client_settings.json</c> on this OS (Unity's persistentDataPath), or null.</summary>
+    private static string? SettingsPath()
+    {
+        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (OperatingSystem.IsWindows())
+        {
+            return Path.Combine(home, "AppData", "LocalLow", CompanyName, ProductName, "client_settings.json");
+        }
+
+        string? xdg = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
+        string config = !string.IsNullOrEmpty(xdg) ? xdg : Path.Combine(home, ".config");
+        return string.IsNullOrEmpty(config) ? null : Path.Combine(config, "unity3d", CompanyName, ProductName, "client_settings.json");
     }
 
     /// <summary>Reads <c>ui.loading.title</c> from the game's locale table for <paramref name="lang"/>, or

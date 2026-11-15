@@ -96,7 +96,7 @@ share one source of truth.
 
 ## 4. Editor mode (client)
 
-- **Launch:** AppShell gets a new phase `ShipEditor` (main menu button → enter; Esc → back to menu).
+- **Launch:** AppShell phase `ShipEditor` (main menu → Editors → enter; the header's Back leaves — since #3690 Esc / pad B only close a picker or the pad build view, see UI_LAYOUT.md §3 "The editor shell").
 - **Build room:** a small flat platform in an empty starfield (reuse `MenuBackground`/`Sky` ambiance);
   a bounded build volume (**48×32×48**, `ShipEditor.MaxW/MaxH/MaxL`) with a faint grid + origin marker.
 - **Movement:** reuse a trimmed `PlayerController` (walk + jump, or a free-fly toggle) with no vitals/

@@ -195,7 +195,8 @@ assets: they are drawn in code (`src/BlocksBeyondTheStars.Client.Core/Creatures/
 
 - `client/Assets/Resources/fonts/Rajdhani-Medium.ttf` — Rajdhani, by Indian Type Foundry —
   SIL Open Font License 1.1 (bundled as `Rajdhani-OFL.txt` next to the font) —
-  https://fonts.google.com/specimen/Rajdhani
+  https://fonts.google.com/specimen/Rajdhani. The same file, with the same licence text next to it, ships with the browser
+  loading page (`client/Assets/WebGLTemplates/BlocksBeyondTheStars/TemplateData/`, #3706).
 - `client/Assets/Resources/fonts/NotoSans-Medium.ttf` and `NotoSansJP-/KR-/SC-Medium.otf` — Noto Sans and
   Noto Sans CJK (the fallbacks for Cyrillic/Greek and the CJK locales), by the Noto Project Authors — SIL Open Font
   License 1.1 (bundled as `NotoSans-OFL.txt` / `NotoSansCJK-OFL.txt` next to the fonts) — https://notofonts.github.io

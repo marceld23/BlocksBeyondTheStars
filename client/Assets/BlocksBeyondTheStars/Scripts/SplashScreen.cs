@@ -8,14 +8,19 @@ using UnityEngine.UI;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// Splash screen (`anf_textures.md` §3): the animated menu space scene shows through behind an
-    /// extruded ("3D"-looking) BLOCKS BEYOND THE STARS title that fades/scales/slides in, with a tagline, build
-    /// badge and skip hint. Shown every start, skippable, and bridges content-load time. Modern uGUI
-    /// build on its own DPI-scaled overlay canvas (no bundled art needed); driven from AppShell.Update.
+    /// Splash screen: the animated menu space scene (the corvette before the "varied" world, #3705) shows through behind the
+    /// game's block logo (<see cref="GameLogo"/>, #3706) that fades/scales/slides in, with the tagline, the version, the
+    /// open-source line and the skip hint. Shown every start, skippable, and bridges content-load time. Modern uGUI on its own
+    /// DPI-scaled overlay canvas (no bundled art: the logo is rendered from the block tiles); driven from AppShell.Update. The
+    /// old "PROTOTYPE / DEV BUILD" badge is gone (#3705) — the version alone says which build this is.
     /// </summary>
     public sealed class SplashScreen
     {
         private const float Duration = 3.2f;
+
+        // The logo's box (virtual 1080p units), centred a little above the middle of the screen.
+        private const float TitleW = 1100f;
+        private const float TitleH = 270f;
 
         private readonly AppShell _shell;
         private float _elapsed;
@@ -77,7 +82,7 @@ namespace BlocksBeyondTheStars.Client
 
             _titleGroup.alpha = ease;
             _title.localScale = new Vector3(scale, scale, 1f);
-            _title.anchoredPosition = new Vector2(0f, 56f + 30f * ease); // slide up into place
+            _title.anchoredPosition = new Vector2(0f, 70f + 30f * ease); // slide up into place
 
             _lateGroup.alpha = Mathf.Clamp01((t - 0.8f) / 0.8f);
         }
@@ -106,26 +111,14 @@ namespace BlocksBeyondTheStars.Client
             ovImg.color = new Color(0.02f, 0.04f, 0.09f, 0.35f);
             ovImg.raycastTarget = false;
 
-            // Extruded animated title (scaled/faded/slid as a group).
+            // The block logo (#3706), animated as a group (scaled/faded/slid).
             var titleGo = new GameObject("Title", typeof(RectTransform));
             titleGo.transform.SetParent(root, false);
             _title = titleGo.GetComponent<RectTransform>();
             _title.anchorMin = _title.anchorMax = _title.pivot = new Vector2(0.5f, 0.5f);
-            _title.sizeDelta = new Vector2(1100f, 160f);
+            _title.sizeDelta = new Vector2(TitleW, TitleH);
             _titleGroup = titleGo.AddComponent<CanvasGroup>();
-
-            const string title = "BLOCKS BEYOND THE STARS";
-            var glow = new Color(0.22f, 0.75f, 0.95f, 0.3f);
-            Centered(_title, new Vector2(-5f, 0f), 72, glow, title, true);
-            Centered(_title, new Vector2(5f, 0f), 72, glow, title, true);
-            for (int d = 8; d >= 1; d--)
-            {
-                float k = d / 8f;
-                var c = new Color(0.05f, 0.12f * (1 - k) + 0.04f, 0.22f * (1 - k) + 0.05f, 1f);
-                Centered(_title, new Vector2(d * 1.4f, -d * 1.4f), 72, c, title, true);
-            }
-
-            Centered(_title, Vector2.zero, 72, new Color(0.85f, 0.95f, 1f), title, true);
+            UiKit.AddGameLogo(_title, 0f, 0f, TitleW, TitleH, centered: true);
 
             // Tagline + build badge + skip hint (fade in slightly later).
             var lateGo = new GameObject("Late", typeof(RectTransform));
@@ -136,9 +129,9 @@ namespace BlocksBeyondTheStars.Client
             lrt.offsetMin = lrt.offsetMax = Vector2.zero;
             _lateGroup = lateGo.AddComponent<CanvasGroup>();
 
-            LocalizedCentered(lateGo.transform, new Vector2(0f, -65f), 18, new Color(0.75f, 0.85f, 0.95f), "ui.splash.tagline", false);
-            LocalizedCentered(lateGo.transform, new Vector2(0f, -108f), 18, new Color(1f, 0.72f, 0.2f), "ui.splash.build", false, $"   v{AppShell.Version}");
-            LocalizedCentered(lateGo.transform, new Vector2(0f, -150f), 17, new Color(0.5f, 0.85f, 1f), "ui.splash.contribute", true);
+            LocalizedCentered(lateGo.transform, new Vector2(0f, -86f), 20, new Color(0.75f, 0.85f, 0.95f), "ui.splash.tagline", false);
+            Centered(lateGo.transform, new Vector2(0f, -124f), 16, new Color(0.55f, 0.68f, 0.82f), "v" + AppShell.Version, false);
+            LocalizedCentered(lateGo.transform, new Vector2(0f, -162f), 17, new Color(0.5f, 0.85f, 1f), "ui.splash.contribute", true);
             LocalizedCentered(lateGo.transform, new Vector2(0f, -432f), 18, new Color(0.7f, 0.8f, 0.9f, 0.6f), "ui.splash.skip", false);
 
             Animate(0f);

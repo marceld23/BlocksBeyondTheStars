@@ -21,10 +21,10 @@ namespace BlocksBeyondTheStars.Client
             var canvas = UiKit.CreateCanvas("LoadingUI");
             var root = canvas.transform;
 
-            // Chrome echoing the menu: the title top left on the menu's left line, the version top right (#2953). The decorative
-            // SYSTEM CHECK panel (five fixed "OK"s) is gone here as on the main menu (#3663).
+            // Chrome echoing the menu: the block logo top left on the menu's left line (#3706), the version top right (#2953). The
+            // decorative SYSTEM CHECK panel (five fixed "OK"s) is gone here as on the main menu (#3663).
             const float sx = UiKit.ShellColumnX;
-            UiKit.AddLogo(root, sx, 40f, 1200f, 96f, "BLOCKS BEYOND THE STARS", 64);
+            UiKit.AddGameLogo(root, sx, 22f, 560f, 140f);
             UiKit.AddText(root, 1700f, 44f, 180f, 24f, "VER. " + AppShell.Version, 16, UiKit.CyanDim, TextAnchor.MiddleRight);
 
             // Progress bar — on the same left line; its right edge stays at 1180, clear of the TIP panel.

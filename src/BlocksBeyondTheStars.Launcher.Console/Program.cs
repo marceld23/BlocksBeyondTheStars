@@ -1,8 +1,16 @@
+// Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Diagnostics;
 using Velopack;
 
 namespace BlocksBeyondTheStars.Launcher;
 
+/// <summary>
+/// The Linux launcher (the Velopack main exe of the Linux package): runs the Velopack hooks, starts the Unity player, shows
+/// the loading splash window until the player's window is up (<see cref="X11SplashWindow"/>, #3706) and waits for the game.
+/// <c>--render-splash &lt;out.png&gt; [w] [h]</c> renders the splash picture to a file instead (a visual check).
+/// </summary>
 internal static class Program
 {
     private const string GameExeName = "BlocksBeyondTheStars.x86_64";
@@ -53,6 +61,8 @@ internal static class Program
             return 1;
         }
 
+        // #3706: the poster splash window while the engine starts (an X11 window; without X it does nothing).
+        X11SplashWindow.Run(game);
         game.WaitForExit();
         return game.ExitCode;
     }

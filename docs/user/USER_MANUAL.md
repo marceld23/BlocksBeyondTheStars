@@ -19,8 +19,8 @@ Last updated: 2026-10-04.
 ## 1. Starting the game
 
 - Launch the client. **Windows:** `BlocksBeyondTheStars.Launcher.exe` (shows a loading splash then starts the game)
-  or `BlocksBeyondTheStars.exe` directly. **Linux:** `./BlocksBeyondTheStars.Launcher.Console` (prints "Loading..."
-  to the terminal then starts the game) or `./BlocksBeyondTheStars.x86_64` directly.
+  or `BlocksBeyondTheStars.exe` directly. **Linux:** `./BlocksBeyondTheStars.Launcher.Console` (shows a loading splash
+  window — on a desktop without X it prints "Loading..." to the terminal — then starts the game) or `./BlocksBeyondTheStars.x86_64` directly.
   **The main menu** (#3663): your **player name** sits in the box at the top right — every way into the game uses it,
   so type it once. On the left, the big **Continue** button starts the world you played last (it names the world, its
   mode and when you played it); under it **Singleplayer**, **Multiplayer** and **Editors**, and a small row with
@@ -286,13 +286,16 @@ keyboard opens instead; nothing changes there.)
 **Aiming carefully.** Holding **LB** or **RB** — the place and mine buttons — slows the right stick to half
 speed, so lining a block up is easier without changing your normal look speed.
 
-**Editors on a controller.** The Ship Editor and the pixel (face/paint) editor have two modes, and
+**Editors on a controller.** The Ship Editor, the Station / Village editor and the pixel (face/paint) editor have two
+modes, and
 **Menu (☰)** swaps between them: the side panels (stick walks them, **(A)** picks) and the work surface. In
-the Ship Editor's surface mode the left stick flies, the right stick looks, **LB/RB** drop and rise,
+the Ship and Station / Village editors' surface mode the left stick flies, the right stick looks, **LB/RB** drop and rise,
 **L3** flies faster, the d-pad steps through the palette, **(A)** places, **(X)** removes and **(Y)** turns
 the block — a crosshair in the middle of the screen shows where it will land. In the pixel editor the stick
 moves a cell cursor, **(A)** paints, **(X)** erases and **(Y)** picks up a colour. **(B)** returns to the
-panels; the hint line under the tools always says which controls are live.
+panels and never leaves the editor (that is the header's **Back**); the right end of the status bar always says which
+controls are live. The form, tool, shape, item & recipe and material editors are driven the same way; their `‹ value ›`
+fields change with left / right.
 
 **Crystal Net on a pad:** **(X)** on a crystal switch flips it, on a button presses it, on a lift stop calls the
 lift (where the platform already waits, and on the platform itself, it opens the floor picker), and on a device with
@@ -4841,15 +4844,20 @@ look up: what a mix does follows from what goes in, and the same things always g
   aboard ships and stations, where a self-made form becomes a plain cube as before.
 
 ### Appearance: colours, your pixel face and body paint
-- **Tab → Character → Appearance** opens one screen for how your figure looks. Along the top are tabs for
-  **Face · Torso · Arms · Legs · Helmet**; a slowly turning figure beside the canvas shows what you are doing,
-  including the back you just painted. Switching tabs saves the part you were on, **Apply** saves and closes,
-  **Back** leaves the part you are on unsaved. The same screen sits behind the **Appearance** button in the
-  main-menu **Avatar Designer**.
+- **Tab → Character → Appearance** opens one screen for how your figure looks, laid out like every editor (§6): a
+  header bar with **Back** (top left), **Undo / Redo**, **Submit** and **Save** ("on your character"), and below it
+  one row of tabs — **Face · Torso · Arms · Legs · Helmet · Figure · HUD frame**. On the left you paint, in the middle a
+  slowly turning figure shows what you are doing (including the back you just painted), on the right are your outfits.
+  In a world every change shows on your figure at once and **Save** keeps it; **Back** leaves — anything not saved yet
+  is kept as a **draft**, and the screen offers it again next time ("Continue your draft?"). The main-menu **Avatar
+  Designer** is the same screen; there your changes stay on the designer's figure until **Save** makes them yours.
+  The **Figure** tab holds the body colours (← and → step through them), the gear preview and, in the menu, your
+  figure's name and the export.
 - **Base colour** — every tab has the part's colour right beside the canvas: 30 swatches, or the **colour
   wheel** for any colour at all (skin and suit colours are not limited to the list). Unpainted pixels are drawn
   in that colour on the canvas, because that is what will show through. The helmet takes the torso colour.
-- **Painting** — left-click paints, right-click erases, **E** is the eraser swatch. **Fill area** floods the
+- **Painting** — one tool bar: **Pen · Fill · Pick colour · Eraser**. Left-click paints, right-click erases, **E** is
+  the eraser swatch. **Fill area** floods the
   area you click with the current colour (right-click fills it back to empty, **Shift** replaces that colour
   everywhere on the face you are on); an armed tool colours its own button and label, and the line under the
   buttons says what your next click will do. **Fill everything** needs no click on the canvas at all: it
@@ -4857,8 +4865,8 @@ look up: what a mix does follows from what goes in, and the same things always g
   under the cursor for one click — **Alt+click** or the **middle mouse button** do the same at any time. A brush
   stroke leaves **no gaps**, however fast you draw (the eraser too), every pixel — the outermost row included — is
   as easy to hit as the next, and a stroke that runs past the edge of the canvas keeps painting the edge row.
-- **Undo / Redo** — **32 steps**, forwards and backwards, with `Ctrl+Z` / `Ctrl+Shift+Z` / `Ctrl+Y` and **RB**
-  on the pad. The history covers the whole screen: it survives switching tabs, brings the tab back with the
+- **Undo / Redo** — **32 steps**, forwards and backwards, with the header's arrows, `Ctrl+Z` / `Ctrl+Shift+Z` /
+  `Ctrl+Y` and **RB** on the pad. The history covers the whole screen: it survives switching tabs, brings the tab back with the
   step, and it takes back a **base colour** you changed by accident as readily as a brush stroke (one sweep of
   the colour wheel is one step). Both buttons grey out when there is nothing left to take back or put back.
 - **Colours** — 32 paint colours plus the eraser, arranged so each hue has a lighter and a darker partner for
@@ -4877,11 +4885,12 @@ look up: what a mix does follows from what goes in, and the same things always g
   base-colour gaps; the cuff of your first-person hand takes a darker shade of the arm painting's main colour.
 - **Outfits** — the column on the right keeps up to **eight named looks** (the four body colours, your pixel
   face and all four paintings). Type a name and press **Save outfit** to store what you are wearing (a new
-  outfit, or an update of the one that already has that name); **click a row to put that outfit on** — every
-  part and every colour at once; **Rename selected** renames the highlighted one, ✕ deletes it. Deleting the
+  outfit, or an update of the one that already has that name); **Wear** puts that outfit on — every part and every
+  colour at once (over changes you have not saved yet it asks first); **Rename selected** renames the highlighted
+  one, ✕ deletes it after asking. Deleting the
   outfit you are wearing does not undress you: what you wear is a copy. The same shelf is in the main-menu
   **Avatar Designer**, over the same eight saved looks — there, loading one only puts it on the figure in the
-  designer and its **Apply** is still what makes it yours.
+  designer and its **Save** is still what makes it yours.
 - Everything here appears on **your figure** and **on your avatar for every other player** — it is
   server-persistent, so your look follows you to any world. When you put a whole outfit on in the game your own
   figure changes at once; the other players' screens catch up over the next few seconds, one part at a time.
@@ -4890,8 +4899,8 @@ look up: what a mix does follows from what goes in, and the same things always g
   white and gold with red buttons) appears there once door 6 of the **Advent calendar** is open in this world. A click
   puts it on — the four colours and all four paintings; your **face stays your own** — and you can paint on from there
   like on any outfit. A template cannot be deleted; save your changes as your own outfit.
-- **Submit** — the button beside the tools sends your skin (in **Character** mode) or your HUD frame (in **HUD frame**
-  mode) to the developers, in the menu and inside a world alike — the same dialog as the other editors (nickname, an
+- **Submit** — the header button sends your skin (from the figure tabs) or your HUD frame (from the **HUD frame** tab)
+  to the developers, in the menu and inside a world alike — the same dialog as the other editors (nickname, an
   optional note, three confirmations; no e-mail, no real name, no location). Good ones may become templates for
   everybody.
 
@@ -4901,15 +4910,15 @@ look up: what a mix does follows from what goes in, and the same things always g
   **behind** the hotbar, the vitals, the chat and the messages so it never hides them, and is left out of photos; it
   disappears in menus, cutscenes and while you look through the binoculars. It works on every graphics setting and in
   the browser.
-- **Designing it:** in **Appearance** (in a world) or the main menu's **Avatar Designer**, switch **Character | HUD
-  frame** at the top. A frame is painted as **four 32×32 tiles**: the **corner** (mirrored into all four corners), the
+- **Designing it:** in **Appearance** (in a world) or the main menu's **Avatar Designer**, open the **HUD frame**
+  tab. A frame is painted as **four 32×32 tiles**: the **corner** (mirrored into all four corners), the
   **top edge**, the **side edge** (mirrored to the right) and the **bottom edge** — the edges repeat along the screen,
   so the frame fits any screen shape. Same tools as for the figure (fill, undo/redo, colours); keep the bottom light,
   your hotbar lives there. A small screen beside the canvas shows the frame live.
-- **Settings** (in the HUD frame mode): **Frame: on/off**, **Size** (small, medium, large) and **Opacity** (60 / 80 /
+- **Settings** (in the HUD frame tab): **Frame: on/off**, **Size** (small, medium, large) and **Opacity** (60 / 80 /
   100 %). They apply at once and hold for every world.
 - **My frames:** the column on the right keeps up to **eight** of your own frames, separate from your outfits (save,
-  rename, delete, click to wear). **Templates**: **Visor rim** and **Starlight** for everybody, and the **Christmas
+  rename, delete after asking, wear). **Templates**: **Visor rim** and **Starlight** for everybody, and the **Christmas
   lights** — a fir garland with a twinkling string of lights — once door 12 of the **Advent calendar** is open in this
   world. A template is loaded as a copy you can paint on. When you unlock the Christmas lights and wear no frame yet, you
   get them straight away (a message says where to change or switch them off). The lights twinkle; with **Reduced
@@ -4924,12 +4933,34 @@ look up: what a mix does follows from what goes in, and the same things always g
 
 ## 6. Editors (main menu → Editors)
 
-All editors are menu tools that **export a JSON bundle**; a developer folds it into the game data with the
-matching Python merge tool (review the diff, translate locale placeholders, commit). Shared build-room
-controls (Ship/Station/Town/Material 3D editors): **hold Right-mouse** to look, **WASD** to fly, **Q/E**
-(or Space/Ctrl) up/down, **Mouse wheel** zoom (dolly along your view), **Shift** faster, **F** frame the
-build (or the floor centre when nothing is placed yet), **Left-click** place, **Middle-click** remove,
-**Esc** to exit. A translucent ghost shows where a click lands **and what it leaves there**: the block in the
+**One frame for every editor.** Every editor — ship, station, village, texture, appearance / avatar, forms, my
+tools, the shape designer, block paint, item & recipe, material — looks and works the same way:
+
+- **The header bar** at the top: **Back** top left (the only way out of an editor), the editor's name with the work
+  you have open, then **Undo / Redo**, **Load** and **New** where the editor has them, **Submit** where it can send to
+  the developers, and the one filled button **Save** with a small line under it that says what saving does here
+  ("for your new worlds", "on your character", "for this block in your worlds" …).
+- **Nothing gets lost.** What you have not saved yet is kept as a **draft** all the time; the next time you open the
+  editor it asks "Continue your draft?" (**Continue your draft** / **Start fresh**). The title line says "Not saved
+  yet" while there is unsaved work. Loading or starting something new over unsaved work asks first, and every
+  permanent action (deleting a kit, a form, an outfit, "back to the original") asks first too.
+- **Undo / Redo** in every editor (now also in the ship and the station / village editor): the header's arrows,
+  `Ctrl+Z` / `Ctrl+Y` (`Ctrl+S` saves).
+- **Esc / pad (B)** closes only what is open inside the editor — a picker, a dialog, a panel, the pad's build view —
+  never the editor itself.
+- **Removing without a middle click:** the tool switch **Place | Remove** at the top of the left card, or **Delete** /
+  **X** (the middle click still works; the form, tool and shape editors also toggle with **E**).
+- **The status bar** at the bottom colours its messages — blue for information, green when something worked, amber
+  for a warning, red for an error — and shows no file paths; on the right it names the keys for what you are doing.
+- **Cards:** tools and palettes on the left, the work area in the middle (nothing lies on it), the settings of what
+  you are making on the right.
+
+The ship, station / village, item & recipe and material editors **export a JSON bundle**; a developer folds it into the
+game data with the matching Python merge tool (review the diff, translate locale placeholders, commit) — the status
+bar names the tool after an export. Shared build-room controls (Ship/Station/Village 3D editors): **hold Right-mouse**
+to look, **WASD** to fly, **Q/E** (or Space/Ctrl) up/down, **Mouse wheel** zoom (dolly along your view), **Shift**
+faster, **F** frame the build (or the floor centre when nothing is placed yet), **Left-click** place (or remove, with
+the Remove tool), **Middle-click**, **Delete** or **X** remove, **R** turn. A translucent ghost shows where a click lands **and what it leaves there**: the block in the
 form it will take (a bed as head + foot), the **door** the game will hang (turned by the wall beside the cell,
 as wide as the gap), or a marker's silhouette (a figure on an NPC post, a board, a chest, a terminal, a plate on
 the floor for an area marker, the ship hatch's frame, a ship station's decor). Green = fine; red = occupied,
@@ -4957,9 +4988,9 @@ outer hull.
   mirror symmetry, flip / shift / brightness, undo and redo, up to eight **animation frames**, a 3-D preview on
   the real shape and a 3×3 view that shows how a tile repeats. The drawing tools sit under the canvas, three to a
   row (the frame buttons under the frames); undo / redo, flip, shift and the colour adjustments sit beside the
-  colour picker. **Use for me** puts the texture into *your*
+  colour picker. **Save** ("for this block in your worlds") puts the texture into *your*
   texture pack (a folder next to your settings; PNG files you can also edit in any paint program — *Open
-  folder* / *Reload folder*); **Remove mine** brings the shipped one back; **hold "Before"** to compare;
+  folder* / *Reload folder*); **Remove mine** brings the shipped one back (after asking); **hold "Before"** to compare;
   **Copy / Paste code** shares a texture as text. A block tile can never get a hole — the editor fills it, so
   nobody can paint themselves an X-ray view. The editor also opens **inside a world** (Character tab →
   *Textures*), where a **world admin** additionally gets **Publish for everyone** / **Take back**.
@@ -4977,7 +5008,8 @@ outer hull.
     answer — **no e-mail, no location**. The developers look at every submission by hand and answer you **in the
     game**; a submission that is not adopted is deleted after twelve months at the latest.
 - **Form Editor.** Design the forms your shaping tool places — with a large layer canvas, undo, mirror, shift,
-  a turntable preview in **any material and dye**, and a library that lists every form (duplicate, rename by
+  a turntable preview in **any material and dye**, and a library that lists every form (duplicate — saving under a new
+  name keeps the old one —, rename by
   saving under a new name, delete). The left column holds *My forms* above and the **material list** below —
   every material with its picture, with a **search field** on top; the material only dresses the preview (in
   the world a form takes the material you make it from), and the editor remembers it. The *Size in blocks* steppers make a form span **several blocks** (up to
@@ -4987,13 +5019,13 @@ outer hull.
 - **My Tools.** Give your drill, pistol, blade, scanner or gadget (binoculars, camera, medkit …) **a look of your own**: a small coloured voxel model
   from fifteen colours, each of which can glow. The look belongs to **you**, not to the tool — everyone sees
   it in your hand from the next time you enter a world, it changes nothing about what the tool does, and a
-  tool you hand over shows the new owner's look. Up to sixteen tools; *Back to the standard look* undoes it.
+  tool you hand over shows the new owner's look. Up to sixteen tools; *Back to the standard look* undoes it (after asking).
 
 All three work with a **gamepad**: the stick moves a cell cursor, **(A)** paints or adds, **(X)** erases,
 **(Y)** picks a colour, the **d-pad up / down** walks layers or frames, **RB** undoes, **Start** switches
 between the canvas and the buttons, **(B)** steps back.
 
-**LOAD — start from an existing design.** The LOAD button in the Ship, Station and Village editors opens a
+**Load — start from an existing design.** The **Load** button in the Ship, Station and Village editors opens a
 sectioned list: **Built-in ships** (every shipped ship type that has a layout — scout, corvette, courier,
 hauler, thunderbolt, deathblock, hammerhead; the starter is a code-built box and is not listed) or
 **Built-in templates** (the shipped stations / settlements), **Your templates** (what you already saved to the
@@ -5006,6 +5038,14 @@ status line instead of vanishing.
 **Ship editor — interior frame.** A translucent cyan box marks the **cabin**: the volume the game walks,
 floors and roofs. Set its width / length / height with the *Interior* steppers; wings, engines, nav lights
 and antennae may sit anywhere outside the box (that is how the shipped ships are built).
+
+**Station / Village editor — the Advanced switch.** The right card starts in the plain building view: name, size, where
+the village stands (surface / underground), *Show as a ruin*, and the block you hold. The developer parts — generator
+entry, ports, sources & previews, landmark, giant ship, civilization, stamping and brush colours — sit under **Advanced**
+(the switch at the top of the right card; the editor remembers it), and the palette hides the developer tools while it is
+off. A developer design (a module, a landmark, a giant ship, an entry, a civilization) always shows its sections. The
+editor's checks ("the entrance leads into a wall", port problems …) now speak your language, in the status bar. The
+**Kits…** window opens in the middle of the screen, and *Delete kit* asks first.
 
 **Station / Village editor — procedural starting point.** Pick a size tier (stations up to *Colossal*; the line
 under the stepper tells you how big the game's own generator builds that tier), set a **Seed** (or **Reroll**)
@@ -5024,7 +5064,7 @@ seed, so no two look the same. Pick the **Pool** it joins (the Village editor: *
 *Landmarks*; the Station editor: *Stations*); the room shows what the generator builds with the seed of the form
 (**Update the preview**, or **Reroll**). Changing a setting does not rebuild the preview — press **Update the preview**
 when you want to see it; the camera stays where you put it. A *Landmarks* entry also has the landmark switches (*needs
-air*, *inhabited worlds only*). LOAD lists the game's own entries and yours, marked ⚙. A generator entry and a design
+air*, *inhabited worlds only*). **Load** lists the game's own entries and yours, marked ⚙. A generator entry and a design
 can't share a name: if one of the other kind already uses the key, *Save* says so and saves nothing — pick another key.
 An entry whose generator this version doesn't know (or that doesn't fit its pool) says so when you load it; pick a
 generator with **…** before you save it.
@@ -5168,7 +5208,7 @@ connection the submission waits and goes out the next time you start the game.
 
 **Your ships in your worlds:** every ship you save in the Ship Editor also goes to your user-content folder. The next
 time you start a game, it can come by as a trader's ship or a pirate's ship. A ship wider than a landing pad (17 × 17)
-only flies past and never lands. **LOAD → Your ships** opens it again. A few names belong to the game (`custom`,
+only flies past and never lands. **Load → Your ships** opens it again. A few names belong to the game (`custom`,
 `starter` and the game's own ships such as `scout`): a ship saved under one of them goes to your worlds as `<name>_2`, and
 the status line tells you. Your ships don't appear in the build menu at a ship station in this version.
 

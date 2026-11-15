@@ -8,11 +8,13 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// The watchable generic intro (#759): a ~28 s real-time space cinematic between the title splash and
-    /// the main menu — starfield/nebula reveal, a slow pan past the sun while a voxel ship crosses the
+    /// the main menu — starfield/nebula reveal, a slow pan past the sun while the corvette crosses the
     /// frame, a planet approach, and a white-flash hand-off into the menu. Rendered live with the same
-    /// systems the game uses (<see cref="Starfield"/>/<see cref="NebulaField"/>/<see cref="ShipMeshBuilder"/>/
-    /// <see cref="UrpScenePost"/>, the <see cref="MenuBackground"/> recipes), so it always matches current
-    /// art and works on WebGL. Plays once per install (<see cref="ClientSettings.IntroSeen"/>), is skippable
+    /// systems the game uses (<see cref="Starfield"/>/<see cref="NebulaField"/>/<see cref="UrpScenePost"/>) and, since
+    /// #3705, the menu's own motif (<see cref="ShowcaseScene"/>): the corvette from its shipped layout with its soft
+    /// engine plumes, flying toward the "varied" world drawn by the flight view's planet renderer — its real map, its
+    /// data clouds shaded toward the visible sun (no more milky white shell), its atmosphere rim. Same length, same
+    /// beats, same captions; it always matches current art and works on WebGL. Plays once per install (<see cref="ClientSettings.IntroSeen"/>), is skippable
     /// any time on every device (Esc / the pad's cancel button / the on-screen skip button immediately, any key,
     /// pad button or tap after a grace period — #2461), and is re-watchable from the Credits
     /// screen. Driven from <see cref="AppShell.Update"/> like the splashes; captions are re-localized every
@@ -34,22 +36,20 @@ namespace BlocksBeyondTheStars.Client
         private const float SunDist = 260f;
 
         private static readonly Vector3 PlanetPos = new Vector3(46f, -12f, 143f); // yaw ≈ +18°, below eye line
+        private const float PlanetDiameter = 52f;
+        private const float ShipLength = 4.5f; // the corvette's longest side at the start of its crossing
 
         private readonly AppShell _shell;
         private bool _replay;
         private float _elapsed;
-        private bool _shipBuildAttempted;
+        private bool _motifBuilt;
 
         private GameObject _root;
         private Camera _cam;
+        private ShowcaseScene _scene;
         private Transform _ship;
         private float _shipBaseScale = 1f;
-        private Transform _planet, _clouds;
         private CinematicFrame _frame;
-
-        // Menu-style render context for the voxel ship (freed with the rig, see #423).
-        private BlockTextureAtlas _atlas;
-        private Material _chunkMat, _chunkMatT;
 
         private readonly System.Func<string, string> _localize; // the shell's L, cached for the per-frame skip label
 
@@ -76,15 +76,16 @@ namespace BlocksBeyondTheStars.Client
 
             EnsureBuilt();
 
-            // The browser streams its content in, so the rig is usually built before the ship design
-            // exists — pick it up as soon as it lands instead of playing the cinematic without its
-            // centrepiece (#831). One attempt per rig: content is either there by then or never.
-            if (!_shipBuildAttempted && _shell.Content != null)
+            // The browser streams its content in, so the rig is usually built before the content exists — build the motif
+            // (planet + corvette) as soon as it lands instead of playing the cinematic without its centrepiece (#831). One
+            // attempt per rig: content is either there by then or never. The first leg is stars only, so it is rarely seen.
+            if (!_motifBuilt && _shell.Content != null)
             {
-                _shipBuildAttempted = true;
-                BuildShip();
+                _motifBuilt = true;
+                BuildMotif();
             }
 
+            _scene?.Tick(Time.deltaTime); // the planet map bake, its slow turn and the cloud drift
             _elapsed += Time.deltaTime;
             Animate(_elapsed);
 
@@ -141,16 +142,6 @@ namespace BlocksBeyondTheStars.Client
                 : Vector3.zero;
 
             AnimateShip(leg, eased, t);
-
-            if (_planet != null)
-            {
-                _planet.localRotation = Quaternion.Euler(6f, t * 1.4f, 0f);
-            }
-
-            if (_clouds != null)
-            {
-                _clouds.localRotation = Quaternion.Euler(0f, t * 2.4f, 0f);
-            }
 
             // Chrome: fade from black, letterbox in/out, captions, skip hint, final flash.
             _frame.SetFade(Mathf.Clamp01(1f - t / 2f));
@@ -242,7 +233,7 @@ namespace BlocksBeyondTheStars.Client
             _cam.farClipPlane = 700f;
             _cam.depth = 5f; // above the (deactivated) menu backdrop camera, defensive
 
-            MenuBackground.ApplySpaceLighting();
+            MenuBackground.ApplySpaceLighting(SunDir); // the blocks lit from the visible sun, like the planet
 
             var stars = _root.AddComponent<Starfield>();
             stars.Camera = _cam;
@@ -253,30 +244,13 @@ namespace BlocksBeyondTheStars.Client
             nebula.MenuSeed = 271; // its own sky — the menu behind uses seed 142
 
             BuildSun();
-            BuildPlanet();
-            _shipBuildAttempted = _shell.Content != null; // else Update retries once the content lands
-            BuildShip();
-
-            if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null)
+            _motifBuilt = _shell.Content != null; // else Update builds it once the content lands
+            if (_motifBuilt)
             {
-                // Respect the player's preset (#1421): Medium+ keeps the full cinematic look (High post),
-                // but a device already downgraded to Low/Potato must not have the shell force it back up —
-                // the forced-High post stack + the default full-res-SSAO renderer made the intro the single
-                // heaviest scene on weak browsers. ApplyCameraLook picks the same renderer tier as in-game.
-                var settings = _shell.Settings;
-                var post = _root.AddComponent<UrpScenePost>();
-                post.Preset = settings.Preset >= QualityPreset.Medium ? QualityPreset.High : settings.Preset;
-                post.LensFlareEnabled = true;
-                post.MotionBlurEnabled = false;
-                post.ShellMode = true;
-
-                var camData = _cam.GetUniversalAdditionalCameraData();
-                if (camData != null)
-                {
-                    settings.ApplyCameraLook(camData);
-                }
+                BuildMotif();
             }
 
+            AddPost(_shell.Settings);
             _frame = CinematicFrame.Create("IntroFrame", 66);
             _frame.transform.SetParent(_root.transform, false);
             _frame.EnableSkipButton(); // tap or click to skip (#2461)
@@ -284,7 +258,32 @@ namespace BlocksBeyondTheStars.Client
             Animate(0f);
         }
 
-        /// <summary>The layered sun glow (corona → core → centre), the MenuBackground recipe.</summary>
+        /// <summary>Respect the player's preset (#1421): Medium+ keeps the full cinematic look (High post), but a device already
+        /// downgraded to Low/Potato must not have the shell force it back up — the forced-High post stack + the default
+        /// full-res-SSAO renderer made the intro the single heaviest scene on weak browsers. ApplyCameraLook picks the same
+        /// renderer tier as in-game.</summary>
+        private void AddPost(ClientSettings settings)
+        {
+            if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline == null || settings == null)
+            {
+                return;
+            }
+
+            var post = _root.AddComponent<UrpScenePost>();
+            post.Preset = settings.Preset >= QualityPreset.Medium ? QualityPreset.High : settings.Preset;
+            post.LensFlareEnabled = true;
+            post.MotionBlurEnabled = false;
+            post.ShellMode = true;
+
+            var camData = _cam.GetUniversalAdditionalCameraData();
+            if (camData != null)
+            {
+                settings.ApplyCameraLook(camData);
+            }
+        }
+
+        /// <summary>The layered sun glow (corona → core → centre), the flight view's recipe — the star the pan sweeps past and
+        /// the one that lights the planet and the ship.</summary>
         private void BuildSun()
         {
             Vector3 pos = SunDir * SunDist;
@@ -302,123 +301,24 @@ namespace BlocksBeyondTheStars.Client
             Quad("SunCorona", pos, billboard, SunDist * 0.34f, Layer(sun));
             Quad("SunCore", pos, billboard, SunDist * 0.18f, Layer(Color.Lerp(sun, Color.white, 0.85f)));
             Quad("SunCenter", pos, billboard, SunDist * 0.085f, Layer(Color.white));
-
-            var lightGo = new GameObject("SunLight");
-            lightGo.transform.SetParent(_root.transform, false);
-            lightGo.transform.localPosition = pos;
-            var lamp = lightGo.AddComponent<Light>();
-            lamp.type = LightType.Point;
-            lamp.color = sun;
-            lamp.range = 1400f;
-            lamp.intensity = 1.1f;
-            lamp.shadows = LightShadows.None;
         }
 
-        private void BuildPlanet()
+        /// <summary>The menu's motif in the film's own framing (#3705): the "varied" world from the flight view's renderer, lit
+        /// from the visible sun (its phase, the clouds' shading and the rim all agree with the star the pan sweeps past), and
+        /// the corvette with its plumes, hidden until its leg.</summary>
+        private void BuildMotif()
         {
-            Vector3 sunPos = SunDir * SunDist;
-
-            var planetGo = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            planetGo.name = "IntroPlanet";
-            Object.Destroy(planetGo.GetComponent<Collider>());
-            planetGo.transform.SetParent(_root.transform, false);
-            planetGo.transform.localPosition = PlanetPos;
-            planetGo.transform.localScale = Vector3.one * 52f;
-            planetGo.GetComponent<Renderer>().sharedMaterial =
-                LitPhase(new Color(0.28f, 0.52f, 0.68f), sunPos - PlanetPos);
-            _planet = planetGo.transform;
-
-            // Cloud + atmosphere shells, the MenuBackground look.
-            _clouds = Shell("CloudShell", 1.04f, new Color(0.95f, 0.97f, 1f, 0.7f), 3000);
-            Shell("Atmosphere", 1.06f, new Color(0.55f, 0.75f, 1f, 0.12f), 2999);
-        }
-
-        private Transform Shell(string name, float scale, Color tint, int queue)
-        {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            go.name = name;
-            Object.Destroy(go.GetComponent<Collider>());
-            go.transform.SetParent(_planet, false);
-            go.transform.localScale = Vector3.one * scale;
-
-            var shader = Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Transparent");
-            var mat = new Material(shader) { mainTexture = Texture2D.whiteTexture, renderQueue = queue };
-            mat.SetColor(Shader.PropertyToID("_Color"), ShaderColor.Srgb(tint));
-            var mr = go.GetComponent<Renderer>();
-            mr.sharedMaterial = mat;
-            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            mr.receiveShadows = false;
-            return go.transform;
-        }
-
-        /// <summary>The voxel fighter through the real atlas mesher (menu recipe), with a simple engine
-        /// glow; hidden until its leg. Content not ready yet (the browser streams it) → no ship for now;
-        /// <see cref="Update"/> calls this again the moment the content lands.</summary>
-        private void BuildShip()
-        {
-            var content = _shell.Content;
-            var atlasShader = Shader.Find("BlocksBeyondTheStars/BlockAtlas");
-            if (content == null || atlasShader == null)
+            var settings = _shell.Settings;
+            _scene = new ShowcaseScene(_root.transform, _shell.Content, settings != null ? settings.Preset : QualityPreset.Medium,
+                settings != null && settings.ReducedEffects);
+            Vector3 sunFromPlanet = SunDir * SunDist - PlanetPos;
+            _scene.BuildPlanet(PlanetPos, PlanetDiameter, sunFromPlanet);
+            _ship = _scene.BuildShip(ShipLength, default);
+            if (_ship != null)
             {
-                return;
+                _shipBaseScale = _ship.localScale.x;
+                _ship.gameObject.SetActive(false);
             }
-
-            var design = MenuBackground.BuildShipDesign(content);
-            if (design == null)
-            {
-                return;
-            }
-
-            _atlas = BlockTextureAtlas.Acquire(content); // shared per process (#1523)
-            _chunkMat = new Material(atlasShader) { mainTexture = _atlas.Texture };
-            _atlas.BindNormals(_chunkMat); // stays bound across an atlas repaint (#1952)
-            var transparentShader = Shader.Find("BlocksBeyondTheStars/BlockAtlasTransparent");
-            if (transparentShader != null)
-            {
-                _chunkMatT = new Material(transparentShader) { mainTexture = _atlas.Texture };
-            }
-
-            Color hull = _shell.Settings != null ? _shell.Settings.HullColor : new Color(0.82f, 0.84f, 0.88f);
-            var go = ShipMeshBuilder.BuildVoxelShip(content, _atlas, _chunkMat, _chunkMatT, _root.transform,
-                design, out float extent, hull);
-            if (go == null)
-            {
-                return;
-            }
-
-            _shipBaseScale = 4.5f / Mathf.Max(1f, extent);
-            go.transform.localScale = Vector3.one * _shipBaseScale;
-            _ship = go.transform;
-            _ship.gameObject.SetActive(false);
-
-            // Engine glow: two additive-ish cubes + a point light at the rear (menu recipe, simplified).
-            var glowMat = new Material(Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque"))
-            {
-                color = ShaderColor.Srgb(new Color(0.5f, 0.85f, 1f)),
-            };
-            EngineCube(new Vector3(-extent * 0.18f, 0f, -extent * 0.5f - 0.7f), glowMat);
-            EngineCube(new Vector3(extent * 0.18f, 0f, -extent * 0.5f - 0.7f), glowMat);
-
-            var lightGo = new GameObject("EngineLight");
-            lightGo.transform.SetParent(_ship, false);
-            lightGo.transform.localPosition = new Vector3(0f, 0f, -extent * 0.5f - 0.5f);
-            var engineLight = lightGo.AddComponent<Light>();
-            engineLight.type = LightType.Point;
-            engineLight.color = new Color(0.5f, 0.85f, 1f);
-            engineLight.range = 12f;
-            engineLight.intensity = 2f;
-            engineLight.shadows = LightShadows.None;
-        }
-
-        private void EngineCube(Vector3 localPos, Material mat)
-        {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "EngineGlow";
-            Object.Destroy(go.GetComponent<Collider>());
-            go.transform.SetParent(_ship, false);
-            go.transform.localPosition = localPos;
-            go.transform.localScale = new Vector3(0.5f, 0.5f, 1.6f);
-            go.GetComponent<Renderer>().sharedMaterial = mat;
         }
 
         private Transform Quad(string name, Vector3 pos, Quaternion rot, float scale, Material mat)
@@ -437,21 +337,6 @@ namespace BlocksBeyondTheStars.Client
             return quad.transform;
         }
 
-        private Material LitPhase(Color c, Vector3 sunDir)
-        {
-            var shader = Shader.Find("BlocksBeyondTheStars/SkyBodyPhase")
-                         ?? Shader.Find("BlocksBeyondTheStars/LitColor")
-                         ?? Shader.Find("Unlit/Color");
-            var m = new Material(shader) { color = ShaderColor.Srgb(c) };
-            if (m.HasProperty("_PhaseSunDir"))
-            {
-                m.SetVector("_PhaseSunDir",
-                    sunDir.sqrMagnitude > 1e-6f ? (Vector4)sunDir.normalized : new Vector4(0f, 0f, 1f, 0f));
-            }
-
-            return m;
-        }
-
         private void DestroyRig()
         {
             GameBootstrap.Cutscenes.End(CutsceneGate.Intro);
@@ -461,29 +346,14 @@ namespace BlocksBeyondTheStars.Client
                 _frame = null;
             }
 
+            // Free the motif's atlas lease, materials and textures (the #423 leak lesson from MenuBackground).
+            _scene?.Dispose();
+            _scene = null;
             Object.Destroy(_root);
             _root = null;
             _cam = null;
             _ship = null;
-            _shipBuildAttempted = false;
-            _planet = null;
-            _clouds = null;
-
-            // Free the intro's own atlas + materials (the #423 leak lesson from MenuBackground).
-            if (_chunkMat != null)
-            {
-                Object.Destroy(_chunkMat);
-                _chunkMat = null;
-            }
-
-            if (_chunkMatT != null)
-            {
-                Object.Destroy(_chunkMatT);
-                _chunkMatT = null;
-            }
-
-            _atlas?.Release();
-            _atlas = null;
+            _motifBuilt = false;
         }
     }
 }

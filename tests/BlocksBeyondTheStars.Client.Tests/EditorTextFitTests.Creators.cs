@@ -70,10 +70,8 @@ public sealed partial class EditorTextFitTests
         Button("Paint editor outfit row: wear", 140f, 44f, "ui.avatar.wear")));
 
     /// <summary>
-    /// Sites of keys #3693 adds through its locale fragment (<c>artifacts/locale-fragments/paint.json</c>): they are
-    /// checked from the moment the fragment is merged into <c>en.json</c>, and skipped before — so the catalogue can name
-    /// them already without failing <see cref="EveryCataloguedKey_Exists"/>. Once merged, inline them into the list above.
+    /// Sites of the keys the editor shell migration (#3693) added. They were skipped until their locale fragment was merged;
+    /// now merged, every one is checked — a missing key fails <see cref="EveryCataloguedKey_Exists"/> like any other.
     /// </summary>
-    private static IEnumerable<FitSite> WhenMerged(params FitSite[] sites)
-        => sites.Where(site => site.Keys.All(key => English.ContainsKey(key)));
+    private static IEnumerable<FitSite> WhenMerged(params FitSite[] sites) => sites;
 }

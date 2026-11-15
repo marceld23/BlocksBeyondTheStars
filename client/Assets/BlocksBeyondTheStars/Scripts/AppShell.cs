@@ -583,6 +583,13 @@ namespace BlocksBeyondTheStars.Client
 
         private int _menuBackgroundBuilds;
 
+        /// <summary>Builds the backdrop anew — the poster capture (#3706) after it switched the preset and the framing.</summary>
+        public void RebuildMenuBackground()
+        {
+            DestroyMenuBackground();
+            EnsureMenuBackground();
+        }
+
         private void DestroyMenuBackground()
         {
             if (_menuBackground != null)
@@ -757,7 +764,8 @@ namespace BlocksBeyondTheStars.Client
         {
             var args = System.Environment.GetCommandLineArgs();
             bool captureRun = System.Array.IndexOf(args, "-captureShots") >= 0
-                              || System.Array.IndexOf(args, "-captureClip") >= 0;
+                              || System.Array.IndexOf(args, "-captureClip") >= 0
+                              || System.Array.IndexOf(args, "-capturePoster") >= 0;
             GoTo(!captureRun && Settings != null && !Settings.IntroSeen ? ShellPhase.Intro : ShellPhase.MainMenu);
         }
 

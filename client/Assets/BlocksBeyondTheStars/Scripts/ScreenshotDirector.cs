@@ -30,6 +30,8 @@ namespace BlocksBeyondTheStars.Client
     /// <para>
     /// <c>-captureEditors</c> (#3687, <c>ScreenshotDirector.Editors.cs</c>) instead opens every creative editor in turn
     /// from the editors menu, writes <c>editors/NN-&lt;editor&gt;[-&lt;view&gt;].png</c> and quits — no world is started.
+    /// <c>-capturePoster</c> (#3706, <c>ScreenshotDirector.Poster.cs</c>) photographs the menu backdrop with the block logo for
+    /// the launchers, the installer and the browser page, and quits.
     /// </para>
     /// </summary>
     public sealed partial class ScreenshotDirector : MonoBehaviour
@@ -61,9 +63,16 @@ namespace BlocksBeyondTheStars.Client
         private static void AutoInstall()
         {
             bool editors = EditorCaptureRequested(); // ScreenshotDirector.Editors.cs
-            if (!CaptureRequested(out string lang, out string outDir, out long seed, out bool headless, out string planet, out bool credits) && !editors)
+            bool poster = PosterCaptureRequested();  // ScreenshotDirector.Poster.cs
+            if (!CaptureRequested(out string lang, out string outDir, out long seed, out bool headless, out string planet, out bool credits)
+                && !editors && !poster)
             {
                 return;
+            }
+
+            if (poster)
+            {
+                MenuBackground.PosterFraming = true; // before the backdrop's first Start: the poster framing from the first frame
             }
 
             var go = new GameObject("ScreenshotDirector");
@@ -72,10 +81,11 @@ namespace BlocksBeyondTheStars.Client
             d._lang = lang;
             d._outDir = outDir;
             d._seed = seed;
-            d._headless = headless || editors;
+            d._headless = headless || editors || poster;
             d._planet = planet;
             d._credits = credits;
             d._editors = editors;
+            d._poster = poster;
         }
 
         private static bool CaptureRequested(out string lang, out string outDir, out long seed, out bool headless, out string planet, out bool credits)
@@ -151,6 +161,13 @@ namespace BlocksBeyondTheStars.Client
             if (_editors)
             {
                 yield return CaptureEditors(shell);
+                yield break;
+            }
+
+            // Poster mode (-capturePoster, #3706): the menu backdrop with the block logo — no text, so no language; quits.
+            if (_poster)
+            {
+                yield return CapturePoster(shell);
                 yield break;
             }
 

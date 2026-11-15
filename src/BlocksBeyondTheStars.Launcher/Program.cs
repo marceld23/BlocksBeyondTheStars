@@ -30,16 +30,18 @@ internal static class Program
         //   --render-install-splash <out.png> [w] [h]   the static art for the Velopack installer splash
         //                                               (NO bar — Velopack draws its own live progress bar)
         // The install variant is invoked by scripts/publish-client-installer.ps1 so the installer matches
-        // this launcher's look exactly.
+        // this launcher's look exactly — since #3706 over the game's own poster (SplashArt) when the build has one.
         if (args.Length >= 2 && (args[0] == "--render-splash" || args[0] == "--render-install-splash"))
         {
             bool showBar = args[0] == "--render-splash";
             int rw = args.Length >= 3 ? int.Parse(args[2]) : 560;
             int rh = args.Length >= 4 ? int.Parse(args[3]) : 320;
             using var bmp = new Bitmap(rw, rh);
+            using var art = SplashArt.Load();
             using (var g = Graphics.FromImage(bmp))
             {
-                SplashForm.PaintSplash(g, rw, rh, 0.55f, SplashLocalization.LoadingText(AppContext.BaseDirectory), null, showBar);
+                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic; // the poster shrinks well
+                SplashForm.PaintSplash(g, rw, rh, 0.55f, SplashLocalization.LoadingText(AppContext.BaseDirectory), art, showBar);
             }
 
             bmp.Save(args[1], ImageFormat.Png);

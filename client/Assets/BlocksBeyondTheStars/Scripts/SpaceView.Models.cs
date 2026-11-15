@@ -285,62 +285,9 @@ namespace BlocksBeyondTheStars.Client
             private void Update() => transform.Rotate(_axis, _speed * Time.deltaTime, Space.Self);
         }
 
-        /// <summary>Maps a biome / planet-type key to a planet tint + a fitting block texture. Unknown
-        /// keys get a stable hash-derived colour so every world type still looks distinct.</summary>
-        private static (Color tint, string tex) PlanetLook(string key)
-        {
-            switch ((key ?? string.Empty).ToLowerInvariant())
-            {
-                case "jungle":
-                case "forest": return (new Color(0.32f, 0.55f, 0.30f), "grass");
-                case "desert": return (new Color(0.82f, 0.68f, 0.42f), "sand");
-                case "ice":
-                case "frozen": return (new Color(0.72f, 0.86f, 0.96f), "ice");
-                case "lava":
-                case "volcanic": return (new Color(0.78f, 0.32f, 0.18f), "lava");
-                case "swamp": return (new Color(0.40f, 0.45f, 0.30f), "mud");
-                case "crystal": return (new Color(0.55f, 0.65f, 0.92f), "crystal");
-                case "ocean":
-                case "water": return (new Color(0.24f, 0.46f, 0.72f), "water");
-                case "asteroid_icy": return (new Color(0.76f, 0.86f, 0.92f), "ice");
-                case "asteroid_crystal": return (new Color(0.55f, 0.65f, 0.92f), "crystal");
-                case "asteroid_metallic": return (new Color(0.44f, 0.43f, 0.46f), "stone");
-                case "asteroid_carbon": return (new Color(0.26f, 0.25f, 0.24f), "stone");
-                case "asteroid_kuba_w": return (new Color(0.40f, 0.62f, 0.36f), "grass"); // #3307: Jafar's green asteroid
-                case "barren":
-                case "asteroid":
-                case "rock": return (new Color(0.52f, 0.50f, 0.47f), "stone");
-                default:
-                    return (HashColor(key), "stone");
-            }
-        }
-
-        private static Color HashColor(string key)
-        {
-            int h = 0;
-            foreach (char c in key ?? string.Empty)
-            {
-                h = h * 31 + c;
-            }
-
-            var rng = new System.Random(h);
-            return new Color(
-                0.40f + 0.45f * (float)rng.NextDouble(),
-                0.40f + 0.45f * (float)rng.NextDouble(),
-                0.40f + 0.45f * (float)rng.NextDouble());
-        }
-
-        /// <summary>Stable per-body seed from its id/name so each planet's cloud shell pattern differs.</summary>
-        private static int CloudShellSeed(string key)
-        {
-            int h = 17;
-            foreach (char ch in key ?? string.Empty)
-            {
-                h = h * 31 + ch;
-            }
-
-            return h;
-        }
+        /// <summary>Stable per-body seed from its id/name so each planet's cloud shell pattern differs (#3705: shared with every
+        /// orbit body, <see cref="OrbitBodyBuilder.CloudSeed"/>).</summary>
+        private static int CloudShellSeed(string key) => OrbitBodyBuilder.CloudSeed(key);
 
         private static Color Rgb(int rgb)
             => new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);

@@ -29,10 +29,10 @@ documented folder layout so dropping in real assets needs no code change.
 | Question | Decision (MVP) |
 |---|---|
 | Name | **Blocks Beyond the Stars** (renamed 2026-06-12 from the former working title; solution/namespaces/binaries renamed to `BlocksBeyondTheStars` too). |
-| Logo | Text logo "BLOCKS BEYOND THE STARS" + a simple blocky-ship glyph placeholder. No commissioned art yet. |
+| Logo | Text logo "BLOCKS BEYOND THE STARS" + a simple blocky-ship glyph placeholder. No commissioned art yet. **Superseded (#3706):** one logo built from real blocks everywhere — see "Menu backdrop and first impressions" below. |
 | Style | **Clean, friendly sci-fi** — it's a father-and-son game; not dark/gritty. |
 | Colours | Primary deep space blue `#0B1E3B`, accent cyan `#39C0ED`, warning amber `#FFB300`. |
-| Build badge | Show **"PROTOTYPE / DEV BUILD"** + version on splash and main menu. |
+| Build badge | Show **"PROTOTYPE / DEV BUILD"** + version on splash and main menu. **Superseded (#3705):** the badge is gone; the splash and the menu show the version alone. |
 
 ## Splash screen (answers §3.2)
 
@@ -61,14 +61,63 @@ BLOCKS BEYOND THE STARS
 - **Singleplayer = local server in-process** (confirmed; reuses the same authoritative
   `GameServer`, no duplicated logic — same model as the loopback transport).
 - Background (M20): static colour + starfield placeholder; an animated orbiting blocky ship
-  was deferred. **Superseded:** the live menu uses a real animated backdrop (`MenuBackground`
-  — Starfield/NebulaField, sun + god-rays, a real voxel ship).
+  was deferred. **Superseded:** the live menu uses a real animated backdrop (`MenuBackground`)
+  — since #3705 the corvette before a real "varied" world, see the next section.
 - Input: **mouse + keyboard**. Controller support deferred.
 - Version is shown; a **client/server protocol-mismatch warning** reuses the existing
   `JoinRejected` "Protocol mismatch" reason (the server already sends it). Auto-update and
   server favourites/last-server are deferred.
 - **Web client parity:** the same shell structure is intended to run in the WebGL "Lite"
   client (see `WEBCLIENT_FEASIBILITY.md`); MVP targets the native Windows client first.
+
+## Menu backdrop and first impressions (#3705, #3706)
+
+Maintainer decisions of 2026-11-15: a live scene from the game's real parts, **one fixed motif** — the corvette in front of
+a "varied" world with clouds — no AI pictures anywhere, the start chain and the music unchanged.
+
+**The motif.** `ShowcaseMotif` (Client.Core) names it: ship type `corvette`, planet type `varied`, world seed `32`, body
+`showcase-p1`, continents on, today's terrain generation (seed and body are art-tunable — they pick the continents). The
+planet is drawn by the flight view's own renderer, `OrbitBodyBuilder` (extracted from `SpaceView.SpawnBody`; the flight
+view, the shell and the story stage share it): the pole-free globe, the world map the client bakes itself
+(`WorldMinimap`, a worker thread on desktop, 4 ms slices in the browser — the flat data colour shows until then), the data
+clouds shaded toward the star, the atmosphere limb. The ship is the corvette's shipped layout mapped cell by cell with the
+server's `ShipCellBlocks`, meshed by `ShipMeshBuilder`, with the flight view's soft engine plumes and its closed rear hatch.
+Nothing needs a server or a world. `ShowcaseScene` builds both; its users frame them:
+
+| Moment | What it shows |
+|---|---|
+| Title splash, main menu, loading screen | `MenuBackground`: the corvette flying toward the planet in the free middle of the menu, the star to the right behind the camera (the day side faces the viewer), stars + nebula + URP post |
+| First-start intro film (`IntroCinematic`) | Same length and beats (28 s, captions unchanged); the corvette and the same world, lit by the sun the pan sweeps past — no more milky cloud shell |
+| Story `space_vista` (`CutsceneStage`) | The same renderer: the world the player is on when the star map names it (rings included), else the showcase world |
+
+**Small hardware.** Potato and Low drop the atmosphere limb (one transparent pass over the planet less) and halve the
+plume particles; Reduced effects halves them again and keeps the ship still. The backdrop stays the scene the automatic
+preset calibration measures (`AutoQualityCalibrator`, studio/splash/intro/menu); per preset it costs about what the old
+backdrop did (the old one drew a cloud and a haze shell, a moon, seven asteroid cubes and two point lights; the new one has
+no point lights, no moon, no cubes). Re-measure Potato/Low in the browser once (they may step up a little more readily).
+
+**The logo.** `BlockLogo` (Client.Core) draws "BLOCKS BEYOND / THE STARS" in a 5×7 block font where every pixel is a real
+block wearing its shipped tile — crystal, silver, and gold for "STARS" — as little cubes with a navy halo. `GameLogo`
+renders it once per session from the shipped tiles (a texture pack never changes it, ~1.9 MB with mips);
+`UiKit.AddGameLogo` puts it where the title was (splash centre, menu and loading screen top left) and falls back to the
+old text title when it cannot be made.
+
+**The poster.** `-capturePoster` (`ScreenshotDirector.Poster.cs`; `scripts/capture-poster.ps1` runs it) frames the backdrop
+as a poster on the High preset (never saved), hides the UI, photographs it and stamps the logo on. Where the pictures go
+(`capture-poster.ps1 -Place` copies them; every one is optional — without it the old look stands in, no build breaks):
+
+| File (from `<out>/poster/`) | Goes to | Used by |
+|---|---|---|
+| `launcher-splash.jpg` (1120×640) | `client/Branding/launcher-splash.jpg` | compiled into the Windows launcher (`SplashArt`) and the Linux launcher (`SplashRenderer`) as the splash; the installer image is rendered from the Windows launcher (`--render-install-splash`) |
+| `bbs-poster.jpg` (1600×900, no logo) | `client/Assets/WebGLTemplates/BlocksBeyondTheStars/TemplateData/` | the browser loading page's background (on the canvas until the engine draws) |
+| `bbs-logo.png` | same `TemplateData/` folder | the browser loading page's title (the text title in Rajdhani when missing) |
+| `poster.jpg` (1920×1080) | `client/Branding/poster.jpg` | key art for the README, stores and the devblog |
+
+The browser page also loads the game's font now (`TemplateData/Rajdhani-Medium.ttf`, SIL OFL, licence next to it; a
+Latin-only WOFF2 subset would cut its 375 KB to ~20 KB). The Linux launcher has a splash window of its own now
+(`X11SplashWindow`: plain Xlib, closes when the player's window shows up; without X it stays a console line). Unity's own
+splash keeps the "Made with Unity" logo on the game's navy `#05070D` (`ProjectSettings.asset`, enforced by
+`BuildScript.EnsureSplashLook`); switching it off waits for a check of the Unity licence terms.
 
 ## Client settings (answers §6.3)
 

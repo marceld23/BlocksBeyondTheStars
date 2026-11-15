@@ -124,6 +124,7 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             EnsureShadersIncluded();
             EnsureRendererFeatures();
             EnsureAppIcon();
+            EnsureSplashLook();
             if (target == BuildTarget.WebGL)
             {
                 ConfigureWebGLPlayer();
@@ -630,6 +631,24 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             PlayerSettings.SetIcons(NamedBuildTarget.Standalone, icons, IconKind.Application);
             AssetDatabase.SaveAssets();
             Debug.Log($"App icon embedded ({icons.Length} sizes) from {IconAssetPath}.");
+        }
+
+        /// <summary>The game's navy (#05070D — the browser page, the menu's space) behind Unity's own splash (#3706).</summary>
+        private static readonly Color SplashNavy = new Color(5f / 255f, 7f / 255f, 13f / 255f, 1f);
+
+        /// <summary>
+        /// Unity's start-up splash in the game's colours (#3706): the light "Made with Unity" logo on the game's navy instead of
+        /// Unity's grey, so the first frames already match the launcher, the studio logo and the menu. The splash stays on
+        /// (switching it off waits for a check of the Unity licence terms). The same values are committed in
+        /// ProjectSettings.asset; this pass is the safety net should that asset regress.
+        /// </summary>
+        public static void EnsureSplashLook()
+        {
+            PlayerSettings.SplashScreen.show = true;
+            PlayerSettings.SplashScreen.showUnityLogo = true;
+            PlayerSettings.SplashScreen.backgroundColor = SplashNavy;
+            PlayerSettings.SplashScreen.unityLogoStyle = PlayerSettings.SplashScreen.UnityLogoStyle.LightOnDark;
+            PlayerSettings.SplashScreen.overlayOpacity = 1f;
         }
 
         /// <summary>Creates and saves the launcher scene (one AppShell object) if it doesn't exist.</summary>

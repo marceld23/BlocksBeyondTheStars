@@ -253,7 +253,8 @@ public static class CutsceneCameras
     public const string Flyover = "flyover";
 
     /// <summary>#2477: a synthetic space panorama (stars, nebula, sun, a planet; with the <c>ship</c> anchor the player's own
-    /// ship) — the same recipe as the menu's attract scene, independent of where the player is (on the ground or in space).</summary>
+    /// ship) — the menu's attract-scene recipe, independent of where the player is (on the ground or in space); the planet is
+    /// drawn by the flight view's own renderer — the world the player is on, else the menu's showcase world (#3705).</summary>
     public const string SpaceVista = "space_vista";
 
     /// <summary>#2477: a small synthetic stage showing what the anchor names: <c>core</c> the sleeping Guardian core (a red

@@ -18,6 +18,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- #3706: the game's own poster (corvette, planet, block logo — taken by the player with -capturePoster) as the splash
+         and installer background, compiled into the exe. Optional: without the file the launcher keeps its procedural look,
+         so a build never breaks. See docs/developer/CLIENT_SHELL_AND_ASSETS.md ("Menu backdrop and first impressions"). -->
+    <EmbeddedResource Include="../../client/Branding/launcher-splash.jpg" Condition="Exists('../../client/Branding/launcher-splash.jpg')" LogicalName="splash-art" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Keep in lockstep with the client's vendored Velopack (scripts/sync-velopack-libs.ps1) and the vpk
          CLI version so this launcher can serve as the Velopack main exe and handle install/update hooks. -->
     <PackageReference Include="Velopack" Version="1.2.0" />
