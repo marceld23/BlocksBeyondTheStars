@@ -593,6 +593,17 @@ as a wreck, crashed on a planet or drifting in space ([GIANT_SHIPS.md](GIANT_SHI
   kept, and so are its `ruinZones` and `minTerrainGeneration` when the bundle has none. `--data` merges into another data
   folder (a copy, for a dry run) — it works for every bundle kind.
 
+## 3g. Lost civilizations — not an editor use (#3649, 2026-11-15)
+
+A civilization's templates ([CIVILIZATIONS.md](CIVILIZATIONS.md)) have no *Use as* target: they are written by the scripts in
+`tools/landmarks/` (`civ_grosstechniker.py`, `civ_labyrinth_statues.py`) straight into `data/civilizations/<key>/`, and
+the editor has no row for their fields (`civilization`, `civPool`, `propPool`, `seat: seabed`, the `air` cell kind, the
+`prop` marker); there is no user-content folder for them either. What the editor does see is the Labyrinth Builders'
+**`maze_ruin` source** — *Generate* builds it like any surface source (size, wall height, loops, halls, statues and the three
+blocks). Its bake loads the blocks, cavities and markers but not the source's kept wall rows (`BuiltStructure.Keep`, see
+[STRUCTURE_PIPELINE.md](STRUCTURE_PIPELINE.md) §1) — a design started from it falls without them in the ruin preview
+(backlog).
+
 ## 4. Open questions
 1. **Marker parity:** confirm the full marker vocabulary each editor must expose (vendor, mission board,
    medbay/heal-tank, hangar, quarters, npc spawn, loot) so authored structures are fully functional.

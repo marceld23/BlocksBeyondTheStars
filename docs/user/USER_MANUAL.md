@@ -1162,8 +1162,10 @@ round.
 
 ### Swimming & diving
 - Water is not solid: you sink in with gentle buoyancy and **dive**; hold **Space** to swim up and
-  surface. Water **breaks falls**. Deep, swimmable water (lakes, ponds, seas) is common on wet worlds;
-  oxygen keeps draining while submerged on non-breathable worlds.
+  surface. Water **breaks falls**. Deep, swimmable water (lakes, ponds, seas) is common on wet worlds.
+  With your head under water your suit runs on its tank — on **every** world, even one with breathable air. On a world
+  with breathable air the tank fills up again as soon as your head is back in the air: at the surface, or in a trapped
+  **air pocket** (a sunken ruin may have one, see *Lost civilizations*).
 - Plants, ladders and shaped blocks standing in water are **under water too**: you swim through a kelp forest
   and your suit air drains inside it — a kelp stalk or a ladder is no hidden air pocket.
 - **You can fight in the water.** Water dims the view rather than ending it: a few blocks of it are
@@ -2915,6 +2917,51 @@ with a game version that has generation 35 get them — an older world never cha
   right below *Derelict stations*). It counts for space and for the planets; **off** removes them all, the start system's
   one included.
 - An admin can lay one down with `/giantwreck <key>` and travel to one with `/tp giantwreck` (see the admin commands).
+
+### Lost civilizations (worlds created since generation 43)
+Long before you, other peoples lived in this galaxy. They are gone — nobody is home any more — but their buildings are
+still there. Each people left its ruins **only on the worlds where it lived**, so you have to go looking for them. Only
+worlds created with a game version that has generation 43 have them; an older world never changes.
+
+- **The Vanished People and the Grand Technicians.** A people that vanished long ago built with **dark, sand-coloured
+  stone** and covered it with little pictures like an old script — nobody can read it any more. Scientists call their
+  machines the **Grand Technicians**: bodies of floating stone pieces around one big eye. All of it lies **deep under
+  water on one ocean world** of your galaxy (a new galaxy always has one, unless you set ocean worlds to *Off* in the
+  world options). Down there you find the
+  **dwelling of a giant Grand Technician** with its huge white eye, **sunken cities** and smaller ruins, and the remains of
+  Grand Technicians on the sea floor — a white eye and a few stones, nothing scary. Somewhere there is a big **wall
+  picture** of them flying about, happy.
+  - **Diving:** your suit tank is your air down there, so keep an eye on it and swim up in time. Inside the giant's
+    dwelling there is an **air pocket**: swim into the tunnels under the great eye and up the red glass tube, and you come
+    up in a bubble of air above the red fluid — catch your breath there before you dive on.
+  - **The red fluid** glows softly in tanks and basins. VEGA thinks it once gave the machines their energy. It is
+    **completely harmless** — you can swim through it, it never hurts you, and it cannot be mined or pumped. It is just
+    beautiful.
+- **The Labyrinth Builders.** On up to **three poisonous or airless worlds** of your galaxy (planets or moons, each in
+  another system) stands a **labyrinth**: walls of near-black stone about **twenty blocks high**, narrow alleys and wide
+  avenues, halls, dead ends and several ways in. In the middle is a square with a **great statue** and a chest; smaller
+  statues stand in the halls and some dead ends — figures with **big square heads**, two arms and two legs. Nobody knows
+  who the builders were or why they built labyrinths.
+  - **Keep an eye on your oxygen:** there is no air to breathe on those worlds, and a labyrinth takes a while. You are
+    never trapped — you can **mine** through a wall, **climb** it or fly over it with a **jetpack**, and parts of the walls
+    have already fallen.
+- **Treasure:** look for **chests** in the ruins — some are hidden. Each fills only once.
+- **Discovery:** the first time you come near one of their ruins (about 80 blocks — swimming counts), it goes on your
+  **planet map** (the ruin icon in sea green, legend *Ancient ruin*) and its builders are added to your **Codex** under
+  **Discoveries → Lost civilizations**, with what is known about them; you get knowledge for it once. **Scanning** any
+  block of a ruin names the people and the place (e.g. *The Vanished People · Sunken City*), and a loose block of theirs
+  says who built it (*Built by: …*) — scanning one also counts as finding them. Blocks of peoples you may know already,
+  the G.D.S. and the Sounders, say who built them too.
+- **VEGA** speaks up when you find a ruin and at a few special spots inside — each only once.
+- **Rumours:** settlers on other worlds sometimes tell you about these places — a sea world with a red light in the
+  deep, walls so high you get lost between them. Each rumour you hear only once, and never on the world itself.
+- **Building with their blocks:** the ruins are not protected — mine what you like, and what you take stays gone. Their
+  blocks are **found only** (you need a drill): **Glyph Stone**, **Glyph Band** (set several side by side and the band
+  runs on), **Technician Eye**, the eight **Mural Tiles** (put them together: tiles 1–4 in the top row from left to right,
+  5–8 below them), **Maze Stone** and **Carved Maze Stone**. **Dark Sandstone** you can also make at the **workbench**:
+  4 sandstone + 1 carbon → 4.
+- On those worlds there is no other giant building and no giant ship wreck; villages, camps and everything else can still
+  be there.
 
 ### Monuments & runes
 - Somebody was here long before you. **Monuments** are the relics they left: a half-collapsed

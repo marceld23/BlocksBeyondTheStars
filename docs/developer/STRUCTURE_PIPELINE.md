@@ -1,16 +1,18 @@
 # The structure pipeline — how built structures get into a world
 
 Epic #3510 (#3511–#3524, terrain generation 38). Every built structure — a village, a station, a monument, a wreck, a
-vault, a landmark, a giant ship wreck — goes the same way: a **source** builds it, **post passes** shape it, the **placement** seats, records and
+vault, a landmark, a giant ship wreck, a lost civilization's site — goes the same way: a **source** builds it, **post passes** shape it, the **placement** seats, records and
 writes it, and on later loads it is **replayed** from its record. The editor runs the same sources, so it can show and start
 from every kind. This is the *how it fits together* reference; the kinds themselves are documented where they live
 ([WORLD_GENERATION.md](WORLD_GENERATION.md), [LANDMARKS.md](LANDMARKS.md), [GIANT_SHIPS.md](GIANT_SHIPS.md),
+[CIVILIZATIONS.md](CIVILIZATIONS.md),
 [STATION_SETTLEMENT_EDITOR.md](STATION_SETTLEMENT_EDITOR.md), [FACTORIES_RUINS_AND_CLAIMING.md](FACTORIES_RUINS_AND_CLAIMING.md),
 [DERELICT_STATIONS.md](DERELICT_STATIONS.md), [SHIP_TYPE_EDITOR.md](SHIP_TYPE_EDITOR.md)).
 
 ```
  source (template | kit | generator entry | generator)      → BuiltStructure / the stamper's structure type
    └─ post passes: material tokens → quarter turn → furnishing → ruin pass (StructureRuiner) → marker filter
+                   → dress (a civilization's props, #3641)
  placement: structure_types.json rule → roll (count pinned) → seat (guaranteed search + SeatPolicy)
    → StructureFootprints (keep-clear, register) → StructurePlacementRecord → writer (once, FeatureStamped)
  replay (every load): record → same source + params + seed → markers, loot, residents (blocks are never rewritten)
@@ -30,10 +32,18 @@ ground row, `ContentHash`). `StructureSources.All` is the one registration list,
 | Camps and sites | `bandit_camp`, `lodge`, `pioneer_outpost`, `sps_lab`, `factory`, `rail_station`, `rail_ruin`, `monument`, `text_tablet`, `wreck` |
 | Space | `station`, `station_kit`, `derelict` |
 | Builders (formerly direct writers, #3522) | `vault`, `singing_shrine`, `sealed_observatory`, `mirun`, `ornasa`, `choir_tower`, `guardian_core`, `hunter_camp` |
+| Lost civilizations (#3645) | `maze_ruin` — the Labyrinth Builders' maze (`MazeRuinPlan` + `MazeRuinGenerator`): `size` S / M / L (≈ 80 / 120 / 180 blocks across), `height` (walls above the floor, default 20), `braid` (% of dead ends opened into loops), `halls`, `statues` (% of roomy dead ends with a statue), the blocks `wall` / `accent` / `floor` by key (a source builds block ids, so the civilization's materials travel as parameters). Built intact; it falls through the ruin pass as a landmark-style entry with `ruin: always` ([CIVILIZATIONS.md](CIVILIZATIONS.md) §7) |
 
 Every wrapper calls its generator exactly like the server does and changes nothing (`StructureSourceTests.Identity`).
 `StructureBuildRequest.Generation` selects the generation-38 behaviour (decay passes, the layout wreck), `AsInWorld` the
 generator's own decay where an intact form exists (`wreck`, `landmark`).
+
+**Kept cells from a source** (#3645). A source may name cells the shared ruin pass must leave standing —
+`BuiltStructure.Keep`, the keep brush of an authored template (the maze ruin keeps its lowest three wall rows, so its plan
+stays readable whatever falls). Both converters that feed a ruin pass, `BuiltConverters.ToSettlement` and
+`ToLandmarkLayout`, copy them into the working grid's keep bits. `ContentHash` mixes them in only when there are any, so every
+source that keeps nothing hashes exactly as before. The editor's bake of a source does not carry them yet (it loads blocks,
+cavities and markers only).
 
 The **builders** (`VaultBuilder`, `UniqueSiteBuilder`, `SoaniriBuilder`, `GuardianCoreBuilder`, `HunterCampBuilder`) emit
 cells through `IStructureCellSink` in exactly the order the server wrote them before; the server's `WorldCellSink` writes
@@ -66,6 +76,19 @@ Authored `StructureTemplate`s (whole structures, kit modules, landmarks, undergr
   record — on every path that stamps one, the legacy re-derive of settlements switched on after a first visit included);
   station templates resolve material tokens (`ModuleMaterials.ForStation`). A station pinned to a complete template replays
   it even when the template coin says no (older worlds keep their old replay exactly).
+- **Civilization templates** (#3639, generation 43) — landmark-style templates in `data/civilizations/<key>/`, offered by
+  no pool but the civilization stage (`civilization`, `civPool` giant / city / small / prop, `propPool`; a generator entry
+  is allowed in a site pool, never as a prop). Their material tokens resolve to the civilization's `materials`
+  (`CivilizationLayouts.MaterialsOf`: a village's set with each named token replaced). Two additions any landmark-style
+  reader now knows:
+  - the cell / palette kind **`air`** (#3640) — an **air pocket**: a cavity that stays air even under water. The compact
+    body keeps it apart from `cavity` (`TemplateBody.Plain.Air`, always a cavity too, so every reader that knows cavities
+    treats it as one); `LandmarkLayout.IsAirPocket` carries it to the writer;
+  - the marker **`prop`** (#3641, `pool=<propPool>` or `template=<key>`) — kept by the ruin marker filter
+    (`RuinMarkerRules.Kept`) and dressed after the pass (§3).
+
+  Only a civilization template may name the seat `seabed`, and a lost civilization's template carries no resident, vendor
+  or den marker. Details: [CIVILIZATIONS.md](CIVILIZATIONS.md) §2.
 
 ## 3. Post passes and the ruin pass
 
@@ -79,6 +102,17 @@ changes only `hull` and adds the profile **`crash`** (the hull decay anchored on
 air — overgrowth); every landmark profile builds what revision 2 builds, and revisions 1 and 2 stay byte-identical. The
 option `FreezeWater` turns water into ice (a wreck in space or on an airless body). `StructureDecay` pins the revision the generation-38 decays use, so a later ruiner revision can
 never move a monument's relic cache or a G.D.S. crate that is re-derived from the decayed shape on every load.
+
+A civilization site (#3639) runs the landmark pass at the revision a fresh landmark takes, with its civilization's
+`RuinOptions` (`CivilizationLayouts.RuinOptionsOf`: its rubble palette, its overgrowth block — none on an airless body,
+and under water only an explicit one such as `flora_seagrass`). Two steps are new and leave every older caller
+byte-identical: an **air pocket** is a cavity and a keep cell, so no cave-in fills it and no rubble lands in it, the
+overgrowth never grows into it (`StructureRuiner.Settle.cs`) and a ruin zone's window keeps it one
+(`StructureRuiner.Zones.cs`); and an optional
+**`LayoutDress`** step runs on the grid after the pass and the marker filter (`LandmarkGenerator.Finish`) — the
+civilizations' `CivilizationPropDress` stands a prop of the marker's pool or template on every `prop` marker, picked and
+turned by a hash of the seed and the cell, written only into empty cells (never into a wall, a cavity or an air pocket).
+The prop markers stay in the layout.
 
 | Decay | Generation 38 |
 |---|---|
@@ -111,6 +145,15 @@ never move a monument's relic cache or a G.D.S. crate that is re-derived from th
   footprints around), whitelist key `giant_wrecks`, keep-clear 6 (24 from pads, 10 from the crash site, 16 from a
   landmark), the landmark's site (high prominence, flat relief) and grade (radius 16, cut and fill 24). Switched by
   `ServerConfig.PlaceGiantWrecks` and the world option; stamped by `StampGiantWrecks` right after the landmarks.
+- **The civilization kind** (`civilization`, generation 43, #3639): no roll — `chance` and `density` are 0, because where and
+  how many sites stand come from the civilization files (homes pinned in `WorldMetadata.CivilizationHomes`, a count per site
+  pool; [CIVILIZATIONS.md](CIVILIZATIONS.md) §3–§4). The rule supplies the footprint registry kind, keep-clear 6 (24 from the
+  pads, 10 from the crash site) and the landmark's site and grade (a land site reserves its ground; a sunken one, seated by
+  the `seabed` search, does not). The stage reads neither `enabled` nor `minGeneration` of the entry: it is gated by the
+  world's terrain generation and the pinned homes. Its place in the structures boot stage: text tablets → Sounder world →
+  **civilizations** → settlements (+ intercity line) → ruins → … → landmarks → giant wrecks → buried ruins → …, so every
+  later stamper keeps clear of the sites (`OverlapsLandmark` includes them). On a home body the kinds its
+  `homeBody.suppress` names (`landmark`, `giant_wreck`) record a skip instead of rolling.
 - **Counts and verdicts are pinned** (#3513): `WorldMetadata.StructureCounts["<location>|<kind>"]`, the record fields
   `Tier`, `Ruined` and `Design` — written the first time a stamper runs (also on the next load of an old save), read back
   from then on, after the original draws were consumed. Changing a number in the file therefore only affects bodies stamped
@@ -144,7 +187,11 @@ never move a monument's relic cache or a G.D.S. crate that is re-derived from th
   (`StructureBookkeepingTests.OldSave`). The planet wreck's record keeps its hull's extent (`Width` / `Length`,
   generation 38): later loads reserve that box as the crash site instead of sizing it by a fresh pick. A giant wreck
   (kind `giant_wreck`) pins `turns`, `rev=3`, `seed`, `air`, `fp` (the template fingerprint) and `storage=overlay`; it is
-  replayed whatever the switches say, and a changed or missing ship keeps its blocks and re-derives nothing.
+  replayed whatever the switches say, and a changed or missing ship keeps its blocks and re-derives nothing. A
+  civilization site (kind `civ:<key>`, index = the site on its body) pins `turns`, `rev`, `seed`, `src` (a generator
+  entry's source), `wt` (the water top of a sunken site), `name` (the pool's map name) and `storage=overlay`; its cells are
+  one structure overlay `civ:<key>:<index>`. It is replayed whatever the content says now; a template that left the content
+  (or changed between authored and entry) keeps its blocks and re-derives nothing.
 
 ## 5. User content
 
@@ -202,4 +249,5 @@ design is stamped; quarter-turn and ruin previews run the server's own code. See
 | Placement | `data/structure_types.json`, `Shared/Definitions/StructureTypeRules*.cs`, `GameServer/StructureFootprints.cs`, `GameServerStructureFootprints.cs`, `GameServerStructureRecords.cs` |
 | Ships and wrecks | `Shared/Definitions/UserShip.cs`, `GameContent.UserShips.cs`, `GameServerUserShips.cs`, `ShipCellBlocks.cs`, `WreckGenerator.Layout*.cs`, `WreckLayoutHull.cs`, `GameServerWrecks.Layout.cs` |
 | Giant ship wrecks | `Shared/Definitions/GiantShipRules.cs`, `GameContent.GiantShips.cs`, `WorldGeneration/GiantShipGenerator*.cs`, `StructureRuiner.Giant*.cs`, `GiantWreckPlacer.cs`, `GameServerGiantWrecks*.cs`, `GameServerGiantDerelict*.cs` — see [GIANT_SHIPS.md](GIANT_SHIPS.md) §12 |
-| Tests | `StructureGoldens*`, `StructureSourceTests*`, `StructureBookkeepingTests*` (`.OldSave`: a simulated pre-pipeline save), `StructureRuinerTests*`, `StructureDecayTests*`, `TemplatePipeline*Tests`, `StationTemplatePinTests`, `StructureTypeRulesTests`, `StructureFootprintTests`, `UserShipTests`, `WreckLayout*Tests`, `SpaceWreckLayoutTests`; Client.Tests `UserShipFileRulesTests`, `UserTemplateFilesTests`, `StampStepsDescriberTests` |
+| Lost civilizations | `Shared/Definitions/CivilizationDefinition.cs`, `CivilizationRules.cs`, `GameContent.Civilizations.cs`, `WorldGeneration/CivilizationHomes.cs`, `CivilizationLayouts.cs` (materials, ruin options, `CivilizationPropDress`), `UniverseGenerator.Civilizations.cs`, `MazeRuinPlan.cs`, `MazeRuinGenerator.cs`, `Sources/MazeRuinSource.cs`, `GameServerCivilizations.cs` (stage, record), `GameServerCivilizationStamp.cs` (seats, water write mode), `GameServerCivilizationsWorld.cs` — see [CIVILIZATIONS.md](CIVILIZATIONS.md) |
+| Tests | `StructureGoldens*`, `StructureSourceTests*`, `StructureBookkeepingTests*` (`.OldSave`: a simulated pre-pipeline save), `StructureRuinerTests*`, `StructureDecayTests*`, `TemplatePipeline*Tests`, `StationTemplatePinTests`, `StructureTypeRulesTests`, `StructureFootprintTests`, `UserShipTests`, `WreckLayout*Tests`, `SpaceWreckLayoutTests`, `CivilizationFrameworkTests`, `CivilizationStampTests`, `MazeRuinSourceTests*`; Client.Tests `UserShipFileRulesTests`, `UserTemplateFilesTests`, `StampStepsDescriberTests` |

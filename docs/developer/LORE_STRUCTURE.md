@@ -34,8 +34,11 @@ data-driven pipeline.
 > [STORY_VEGA_PROTOCOL_CONCEPT.md](STORY_VEGA_PROTOCOL_CONCEPT.md) §13 in sync. Every generated
 > `data/stories/vega_protocol/lore.json` row must trace back to a canon fact here.
 >
-> Last updated: 2026-11-07 (rev. 6 — the G.D.S. and Ressaw in the §C catalogue, #3341: a world-flavour faction outside
-> the `vega_protocol` arc, no change to §A/§B).
+> Last updated: 2026-11-15 (rev. 7 — the lost civilizations in the §C catalogue, #3644/#3645/#3648: the Vanished People,
+> the Grand Technicians, the red fluid, the Labyrinth Builders — world-flavour peoples outside the `vega_protocol` arc —
+> and §C1, the Grand Technicians' internal lore, which never reaches an in-game text; no change to §A/§B).
+> Rev. 6 (2026-11-07) — the G.D.S. and Ressaw in the §C catalogue, #3341: a world-flavour faction outside
+> the `vega_protocol` arc, no change to §A/§B.
 > Rev. 5 (2026-10-11) — canon pass #2463: B1 location-neutral, `mem_the_order` without a chosen
 > one, VEGA's older memory arc `vega.mem.*` and `vega.relay.first` reconciled, see §D note; runtime notes in §E/§I).
 > Rev. 4 (2026-06-19) — corpus integration: first `story.json` slice shipped; runtime-format
@@ -170,6 +173,38 @@ cleanly restored; the machines are alive; one player is the unique chosen one.
 | **Dataqubes** | knowledge find [exists] | mini-games → knowledge; **separate** from net fragments |
 | **The G.D.S.** | a vanished city people of the hot desert worlds [exists — Justus' faction, #1793; the buried city #3333–#3343] | the letters are **never explained**, by anyone. Up top their friendly purple-and-red guardian machines still keep the cool desert city (`gds_desert`) and say only "Go. Don't dig." Below it lies their **old city, flooded with Ressaw**: they pumped more and more of it up from the deep because it lit and powered everything, did not listen to their own engineers, the Ressaw blocks cracked and the city flooded; they made diving suits, got **everyone** out, sealed the city and moved up into the desert city. They were **reckless, never evil** — no experiments, no war, nobody hurt. Outside the SPS / Guardian canon: their guardians are their own peaceful machines, not the Guardian core's units (C6), and they never fight. Told through the G.D.S. logs (`gds_log`, `data/gds_logs.json`; [DERELICT_STATIONS.md](DERELICT_STATIONS.md) "The G.D.S. logs"), the ruins and the guardians' few words |
 | **Ressaw** | the G.D.S.'s glowing liquid [exists, #3335] | "Wasser" backwards: milky, see-through, softly glowing, corrosive, standing still in its pools. It lit the old city; what a cracked Ressaw block lets out flows (#3433). Wonder, not threat — it stings, it never kills on the page |
+| **The Vanished People** | a lost civilization [exists, #3644 — civilization `grosstechniker`, [CIVILIZATIONS.md](CIVILIZATIONS.md)] | What players can know: a people that vanished long ago; their **buildings and their technology stayed behind**. They built with **dark, sand-toned stone** (dark sandstone) and covered it with a **hieroglyph-like script nobody can read** (the glyph stones). Their ruins — a giant dwelling, sunken cities, small sites — lie **under water on one ocean world** per galaxy. The people stay **nameless**; nobody is home, and nothing of the people themselves is left — only their machines. Outside the SPS / Guardian canon, like the G.D.S. Told through the Codex entry (`civ.grosstechniker.codex.*`), VEGA's four lines (`vega.civ.grosstechniker.*`: first sight, the red fluid, the mural, the air pocket), two settlers' rumours on other worlds and the block texts. Internal lore: §C1 |
+| **The Grand Technicians** | the Vanished People's machines [exists, #3644] | The name **science** gives them (de *Großtechniker*; never the people's own word). **Androids with feelings and memories**: a body of **floating stone pieces around one single eye** — red while they lived, **white now** (`gt_eye`, "its light went out long ago"). **Giant ones lived in dwellings** (the giant dwelling ruin: the huge white eye in its stone cup on a tank of red fluid). Their remains — an eye with a few glyph pieces — lie scattered on the sea floor; they are machine parts, never bodies. A **mural** (eight tiles, `gt_mural_0…7`) shows them **flying about happily**. Their own peaceful machines, not the Guardian core's units (C6): the §B guardrail "the machines are alive" is about the Guardian's units and does not bind them. The shipped texts say only part of this so far (the Codex: floating stone pieces around one eye, every eye gone white, the happy mural) |
+| **The red fluid** | the Grand Technicians' glowing liquid [exists, #3644 — block `gt_fluid`] | A red liquid that **glows softly** and stands still in the tanks and basins of their ruins. **VEGA thinks it was their energy** — "the machines down here must have run on it" — but nothing flows from it any more. In play it is **harmless decoration**: you swim through it like water, it never stings (unlike Ressaw), it cannot be mined or pumped and there is no item of it. Wonder, not threat. Writers: see the rule in §C1 |
+| **The Labyrinth Builders** | a lost civilization [exists, #3645 — civilization `labyrinth_builders`] | **Deliberately short and open:** "Nobody knows who they were or why they built labyrinths. What is left are their walls — and their statues." The statues show **square-headed bipeds with two arms and two legs**. Their maze ruins of near-black stone stand on up to three toxic or airless bodies per galaxy. There is **no background** and no internal lore — none may be invented without the owner |
+
+### C1. Internal — never in in-game texts: the Grand Technicians
+
+> **Internal — never in in-game texts.** Everything in this subsection is background for writers and designers. It must
+> never reach a locale file, a VEGA line, a Codex text, a rumour, a log, a mission, an item or block description, or any
+> other text a player can read — and no mechanic may give it away. The owner allowed it into the repository (2026-11-14)
+> like the rest of the lore; players learn only the "what players can know" part of the §C entries above.
+
+**The machines.** The Grand Technicians were the Vanished People's androids, with feelings and with memories.
+The red fluid gave them their energy, and their eye glowed red with it while they lived; the white eyes of today are eyes
+that went out. The owner's picture of a living Grand Technician (its *active* state, not built — it would need a living
+civilization or an opponent with a model of its own): its stones floating round a red eye, lasers, repairing.
+
+**The back-story** (the owner's text, 2026-11-14 — who switched the Grand Technicians off, the energy, and what was taken
+along): ⚠ *to be completed — the owner's own words are translated here faithfully; the writer of this revision did not
+have his text at hand.*
+
+**Deliberately open — never answer these in a text, and do not decide them without the owner:**
+- why the Grand Technicians were switched off;
+- where the Vanished People went;
+- whether a Grand Technician ever wakes again;
+- how the fluid came to withhold its energy.
+
+**Rules for later writers.**
+- **In the game the red fluid never behaves like an infinite energy source** — no power, no fuel, no endless supply: today
+  it is decoration only (no damage, no function, cannot be pumped, no item), and any later mechanic must keep it that way.
+- The remains are machine parts; nothing of a person is left, and a ruin is a place of wonder, not of horror (the
+  fluid is wonder, not danger).
 
 ## D. The reveal agenda (ordered VEGA beats)
 

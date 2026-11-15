@@ -144,6 +144,10 @@ refreshed 2026-10-23.
   build and that exist only as wrecks — the template and its checks, the ship toolkit, ruin revision 3 (`crash`, `hull`),
   the planet wrecks of generation 42, the wrecks in space (placement, ship-mode decay, derived storage, the design in parts
   and single-cell updates), the client's far skin and chunk meshes, the editor, the five ships and their sounds.
+- [CIVILIZATIONS.md](CIVILIZATIONS.md) — lost civilizations (#3649, terrain generation 43): peoples defined as data whose
+  ruins exist only on their home bodies — the civilization file and the `civilization` tag, homes pinned from the seed and
+  the ocean guarantee, the stamp stage, underwater sites (the `seabed` seat, the water write mode, air pockets), `prop`
+  markers, discovery, Codex, VEGA and rumours, the Grand Technicians and the Labyrinth Builders, adding a civilization.
 - [FACTORIES_RUINS_AND_CLAIMING.md](FACTORIES_RUINS_AND_CLAIMING.md) — factories with roster-limited
   production terminals, ruins/treasure chests, and access-code claiming.
 - [VOICE_CHAT.md](VOICE_CHAT.md) — push-to-talk voice chat + the tiered radio reach (planet/system/galaxy).

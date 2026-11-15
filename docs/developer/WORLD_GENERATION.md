@@ -2667,7 +2667,8 @@ pure function of the cell hash, memoised in a `CellCache<T>` (the #712 lesson of
   for a guarantee, so "the first planet of the start type" — the server's start pick — stays the body the classic
   layout rolled instead of being wiped from one galaxy in four (the server would then force the start type onto the
   galaxy's first planet). The gas giant pass predates the rule and still takes its lone-giant and outer-orbit bodies.
-  An older description keeps 18 %, no guarantee and no keep rule.
+  An older description keeps 18 %, no guarantee and no keep rule. From generation 43 the civilizations' guarantees
+  (an ocean world for the Grand Technicians) run right after this pass by the same rules (§58).
 
 Tests: `Spectacle*Tests` (one class per family, each proving the form by its defining property over seeds, absent
 below generation 21), golden groups `arch_lands-gen21`, `pillar_world-gen21`, `hollow_world-gen21`,
@@ -3885,3 +3886,39 @@ editor — is in [GIANT_SHIPS.md](GIANT_SHIPS.md).
 
 **Tests.** `GiantShipRulesTests`, `GiantShipTemplateTests`, `StructureRuinerCrashTests`, `GiantShipGeneratorTests`,
 `GiantWreckPlanetTests`, `GiantWreckWorldTests`, `GiantWreckPlacerTests`, `GiantDerelictTests`.
+
+## 58. Generation 43 — the lost civilizations (#3649: #3638–#3648, 2026-11-15)
+
+**Why.** Peoples whose ruins exist only where they lived — one body, bodies of one kind, the bodies of one system — defined
+as data, so the next people needs no C#. The first two: **the Vanished People and the Grand Technicians** (their sunken
+ruins on one ocean world per galaxy) and **the Labyrinth Builders** (maze ruins on up to three toxic or airless bodies).
+
+**The gate.** `WorldDescription.CivilizationsGeneration` = 43 = `CurrentTerrainGeneration` (save version 16 for the 15 new
+blocks). A server-side stamp stored as structure overlays like the landmarks: every chunk of every older generation stays
+bit-identical and no chunk golden moves; a generation-42 world gets no homes, no guarantee and no stage.
+
+**What it adds.**
+- **Homes, pinned.** The first time a generation-43 world starts, `CivilizationHomes.Pick` (WorldGeneration) chooses each
+  framework civilization's home bodies — a pure function of the seed over the galaxy's **fixed** systems, so a growing
+  frontier never moves one — and the server pins them in `WorldMetadata.CivilizationHomes` (an empty list = none in this
+  galaxy). Never a type that keeps only its own structures, never a body another civilization took.
+- **The ocean guarantee** (`UniverseGenerator.Civilizations.cs`, after `ApplyGuaranteedTypes` and by its rules, #2343
+  above): a galaxy whose original systems hold no planet of a civilization's `guarantee.planetTypes` — the Grand
+  Technicians name `ocean` — gets one: the eligible planet with the smallest hash (outside the start system, not the first
+  breathable planet, not a type's first planet, never a landmark type, another guaranteed type, the gas giant or a world that
+  keeps only its own structures) is retyped. A type the player switched off is never forced in; appended frontier systems
+  are never looked at.
+- **One boot line**, `StampCivilizations`, in the structures stage right after the Sounder world and before the settlements:
+  on a home body untouched at load the civilization's sites (per pool a count from the seed, a weighted pick, a quarter turn,
+  the seat — the guaranteed search on land, the sea floor under water, a basin dug where the sea is too shallow), pinned one
+  record per site and written once as one overlay; every later load replays the records. On a home body the landmark and
+  the giant wreck are suppressed; settlements, camps and the rest stay and keep clear of the sites.
+- **Under water**: sunken sites are written in a water mode (water, never air, below the sea; no seals) except their air
+  pockets, which stay air and refill a diver's tank.
+
+Everything else — the civilization file, the tags, the templates, the stage step by step, the underwater seat and writer,
+discovery, Codex, VEGA, rumours and adding a civilization — is in [CIVILIZATIONS.md](CIVILIZATIONS.md); the pipeline view in
+[STRUCTURE_PIPELINE.md](STRUCTURE_PIPELINE.md) §4.
+
+**Tests.** `CivilizationFrameworkTests`, `CivilizationStampTests`, `CivilizationWorldTests`, `LegacyCivilizationTagsTests`,
+`MazeRuinSourceTests`, `SaveCompatibilityTests`; Client.Tests `CivilizationClientTests`.

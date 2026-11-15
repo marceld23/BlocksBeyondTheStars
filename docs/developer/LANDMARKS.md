@@ -7,6 +7,10 @@
 > `tools/landmarks/<key>.py`, run by `tools/gen_landmarks.py`; `tools/landmarks/preview.py <key>` renders a PNG. The
 > **giant ship wrecks** (#3625, terrain generation 42) reuse this machinery — the compact body, the ruin pass (revision 3,
 > §3), the stamp with overlay storage, chests, emitters, the lift and the silhouette — see [GIANT_SHIPS.md](GIANT_SHIPS.md).
+> So do the **lost civilizations' sites** (#3649, terrain generation 43): landmark-style templates in
+> `data/civilizations/<key>/`, stamped by their own stage with several sites per home body, their civilization's materials
+> and ruin look, `prop` markers, the `seabed` seat and air pockets under water (§2, §3) — see
+> [CIVILIZATIONS.md](CIVILIZATIONS.md).
 
 A **landmark** is one giant building that stands on a planet on its own: a leaning tower, a city gate, a mine, a
 statue. It is authored (and stays editable) in the structure editor, and most of them stand only as **ruins** that the
@@ -40,7 +44,7 @@ left out with a warning: it belongs in `data/giant_ships/` ([GIANT_SHIPS.md](GIA
 | `protected` | worlds below generation 39: an inhabited landmark — read-only like a lodge, its posts staffed (ignored on a ruin) |
 | `protection` | generation 39 (every whole template, not only landmarks): `auto` (default) = the kind's rule — a landmark is protected while intact, open as a ruin; `protected`; `open` (§5) |
 | `ruinZones` | generation 39: `[{ "x0", "y0", "z0", "x1", "y1", "z1", "profile", "strength" }]` — boxes (template coordinates, inclusive) that decay with their own profile / strength (§3) |
-| `seat` | generation 39: empty = the guaranteed search, `span` = across water or a valley, a bridge (§4) |
+| `seat` | generation 39: empty = the guaranteed search, `span` = across water or a valley, a bridge (§4); `seabed` (#3640) = on the sea floor with water over the top — **only a civilization template** may name it (`LandmarkRules.SeatSeabed`; a landmark that names it is dropped as an unknown seat), see [CIVILIZATIONS.md](CIVILIZATIONS.md) §5 |
 | `minTerrainGeneration` | the oldest world generation that ROLLS it (the school club's landmarks: 39); 0 = every world. Records, fixed landmarks and `/landmark` do not ask |
 | `nameKey` | the locale key of its display name (map, VEGA); empty = `name` |
 | `planetTypes`, `pack`, `weight`, `pinOnly` | as for every template |
@@ -53,7 +57,8 @@ its kind's rule.
 ### The compact body (#3485)
 
 One JSON object per cell costs about 120 bytes and an object in memory; a giant has 50 000 to 600 000 cells. A
-template may therefore carry its plain cells — a block or a cavity with tint, glow, shape and the *keep* flag — as a
+template may therefore carry its plain cells — a block, a cavity or an air pocket (kind `air`, #3640, a civilization
+template's; §3) with tint, glow, shape and the *keep* flag — as a
 `palette` plus run-length `rows`, one string per (y, z) row: `"y,z:x.count.palette x.count.palette"`. Cells with
 settings (markers, ports, Crystal Net devices) stay in `cells`. `TemplateBody` compacts, expands and — what the
 readers use — walks the plain cells of either form without ever building cell objects. A hollow 256 × 128 × 256 hall
@@ -107,8 +112,15 @@ eroded either — but the settle keeps a cell while any neighbour stands, so aft
 row, the planet's rock): a wall torch falls with its wall, as the server's support rule (#2532) pops it in the living
 world. A template without mounted lights is ruined byte for byte as before. A marker's
 cell is never filled, and a marker whose floor fell comes down with it and rests on what is left. A ruin keeps only
-the markers a visitor finds — chests, the classic loot markers, sounds and dens; residents, vendors, doors, rooms and
-pre-built circuits are gone.
+the markers a visitor finds — chests, the classic loot markers, sounds and dens (and a civilization's `prop` markers,
+#3641, whose props are placed after the pass); residents, vendors, doors, rooms and pre-built circuits are gone.
+
+**Air pockets** (#3640, civilization templates only). A cell of kind `air` is a cavity that stays air even under water —
+a diving bell a player can breathe in (the writer's water mode, [CIVILIZATIONS.md](CIVILIZATIONS.md) §5). The pass leaves it
+alone: it is a cavity and `LandmarkGenerator` marks it a keep cell, so no cave-in fills it and no rubble lands in it, the
+overgrowth never grows into it (`StructureRuiner.Settle.cs`), a ruin zone's window keeps it an air pocket
+(`StructureRuiner.Zones.cs`), and a prop is never placed into it. The blocks around it are the author's to keep — a diving
+bell's walls and lid are `keep` cells in the shipped dwelling. A template without air cells is ruined byte for byte as before.
 
 `StructureRuiner.Revision` is pinned with every placement: a stamped ruin is re-derived on later loads for its
 markers, so a change of the pass needs a new revision that old records do not take. Since #3515 the record's `rev` is
@@ -221,7 +233,10 @@ generation 38+ the footprint registry, #3514, which also replaces the landmark's
     the ground row to its top and seated on a plinth (a pile every fourth column in water);
   - *below it* only the template's blocks and its **cavity** cells carved to air; an empty cell keeps the planet's
     rock. Beside every cavity that touches air, a liquid or loose ground a stone seals it (the buried ruin's rule);
-  - a crate block in every chest marker's cell that exists by its chance.
+  - a crate block in every chest marker's cell that exists by its chance;
+  - *a sunken civilization site* (`seat: seabed`, #3640, `WriteSunkenLandmark`) is written in the **water mode** instead:
+    every empty cell at and below the water top is water, never air, its cavities are flooded, no stone seals them — only
+    its air pockets stay air ([CIVILIZATIONS.md](CIVILIZATIONS.md) §5).
 
 ### Overlay storage (terrain generation 39)
 
