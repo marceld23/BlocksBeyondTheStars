@@ -121,6 +121,14 @@ public static class GameEventKeys
     /// (planet) or <c>space_machine</c>, <c>raider</c> (space).</summary>
     public const string DefeatAny = "defeat:any";
 
+    /// <summary>#3676: a guardian giant fell — raised once for every player who fought it (hit it or was hit by it within its
+    /// fight range). Arg: the giant's site id (<c>&lt;body&gt;#&lt;index&gt;</c>).</summary>
+    public const string GuardianGiantDefeated = "guardian_giant:defeated";
+
+    /// <summary>#3685: the player came within the found range of a guardian giant on their body (lying, awake or fallen) —
+    /// once per approach, measured only while a step listens. Arg: the giant's site id.</summary>
+    public const string GuardianGiantFound = "guardian_giant:found";
+
     /// <summary>The player flew through a wormhole. Arg: the destination system id.</summary>
     public const string WormholeAny = "wormhole:any";
 
@@ -579,7 +587,7 @@ public static class GameEventKeys
             ScanTree, HarvestAny,
             ResearchAny, SpaceEnter, StationBoarded, TradeBarter, TradePlayer, MissionAccepted, MissionTurnedIn,
             TravelLanded, VisitBody, VisitSystem, HyperjumpAny, ModuleBuilt, ShipCommissioned, StationCommissioned,
-            BaseFounded, TameAny, LootAny, DefeatAny, WormholeAny, RelayCommissioned, LaneLinked, StoryFragment,
+            BaseFounded, TameAny, LootAny, DefeatAny, GuardianGiantDefeated, GuardianGiantFound, WormholeAny, RelayCommissioned, LaneLinked, StoryFragment,
             LoreRead,
             InsightCompanionWard, InsightShapeNoncube,
             MoveWalked, MoveJump, HotbarSelect, ItemGained, ItemMoved, GearEquipped, CargoStowed, InventoryFull,

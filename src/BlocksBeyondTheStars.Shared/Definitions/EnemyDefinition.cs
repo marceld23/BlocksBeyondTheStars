@@ -86,6 +86,7 @@ public static class EnemyCatalog
     public const string GuardianRobot = "guardian_robot";
     public const string Hunter = "hunter";
     public const string TankSpider = "tank_spider"; // #3096
+    public const string GuardianGiant = GuardianGiantRules.EnemyKey; // #3676: the boss — its hull and the base of each loot crate
     public const string Bandit = "bandit";
     public const string BanditGunner = "bandit_gunner";
 
@@ -108,6 +109,7 @@ public static class EnemyCatalog
         Make(GuardianRobot, EnemyWhere.Planet, ("normal", 30f, 0f, 4f, Loot(("carbon", 2), (GuardianPlate, 2)))),
         Make(Hunter, EnemyWhere.Planet, ("normal", 60f, 0f, 6f, Loot(("carbon", 2), (GuardianPlate, 2)))),
         Bursting(Make(TankSpider, EnemyWhere.Planet, ("normal", 20f, 0f, 0f, Loot(("carbon", 2), (GuardianPlate, 1)))), 30f), // #3096
+        Make(GuardianGiant, EnemyWhere.Planet, ("normal", GuardianGiantRules.DefaultHull, 0f, 0f, Loot(("carbon", 6), (GuardianPlate, 14)))), // #3676
         Make(Bandit, EnemyWhere.Planet, ("normal", 35f, 0f, 5f, Loot(("iron_plate", 2), (RobberCloth, 1))), ("camp", 35f, 0f, 5f, Loot(("iron_plate", 2), ("carbon", 2), (RobberCloth, 2)))), // #3291
         Make(BanditGunner, EnemyWhere.Planet, ("normal", 35f, 0f, 3f, Loot(("iron_plate", 2), (RobberCloth, 1))), ("camp", 35f, 0f, 3f, Loot(("iron_plate", 2), ("carbon", 2), (RobberCloth, 2)))),
     };

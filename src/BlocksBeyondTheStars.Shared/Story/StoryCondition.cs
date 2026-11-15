@@ -895,6 +895,14 @@ public static class StoryWorldPredicates
     /// hand over to the ring of rune stones without it.</summary>
     public const string ShrineReachable = "shrine_reachable";
 
+    /// <summary>#3685: this world can hold guardian giants — a giant lies on a body already, or the world is of the giants'
+    /// terrain generation (<c>WorldDescription.GuardianGiantsGeneration</c>) and the structure is not switched off. Without
+    /// them VEGA's mission "The Fallen Giant" gives way to its stand-in.</summary>
+    public const string GuardianGiants = "guardian_giants";
+
+    /// <summary>#3685: a guardian giant (lying, awake or fallen) is within its found range of the player on their body.</summary>
+    public const string GuardianGiantNear = "guardian_giant_near";
+
     /// <summary>Every known predicate, in documentation order.</summary>
     public static readonly IReadOnlyList<string> All = new[]
     {
@@ -913,5 +921,6 @@ public static class StoryWorldPredicates
         FestivalAny, FestivalHarvest, FestivalLights, FestivalNewYear, FestivalBlossoms, FestivalColours, FestivalStars,
         FestivalMidsummer, FestivalChildren, FestivalHalloween, FestivalChristmas,
         Monuments, Shrine, ShrineReachable,
+        GuardianGiants, GuardianGiantNear,
     };
 }

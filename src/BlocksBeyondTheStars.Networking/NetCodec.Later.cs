@@ -88,5 +88,6 @@ public static partial class NetCodec
         Register(345, typeof(AdminReportAction));            // Client -> Server (#3508 done / open again)
         Register(346, typeof(CallAdminIntent));              // Client -> Server (#3508 "Call an admin")
         Register(347, typeof(PlayerReportIntent));           // Client -> Server (#3508 a player report, also the portal mirror)
+        Register(348, typeof(GuardianGiantStatus));          // Server -> Client (#3676 a guardian giant fight: move, aim, boss bar)
     }
 }

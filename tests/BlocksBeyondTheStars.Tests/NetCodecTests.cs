@@ -392,6 +392,7 @@ public sealed class NetCodecTests
         [345] = typeof(AdminReportAction),       // #3508
         [346] = typeof(CallAdminIntent),         // #3508
         [347] = typeof(PlayerReportIntent),      // #3508
+        [348] = typeof(GuardianGiantStatus),     // #3676
 
     };
 

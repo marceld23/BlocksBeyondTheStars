@@ -32,6 +32,8 @@ namespace BlocksBeyondTheStars.Shared.Definitions;
 /// the Vaults option scales them (two each);</item>
 /// <item><c>spslab</c>: <c>minCount</c>..<c>cap</c>, <c>seatPolicy</c>; <c>rail_ruin</c>: <c>chance</c>, <c>seatPolicy</c>;
 /// <c>intercity</c>, <c>landmark</c>, <c>giant_wreck</c>, <c>underground</c>: <c>chance</c>;</item>
+/// <item><c>guardian_giant</c>: <c>chance</c> = the chance of a first giant (scaled by the structures frequency),
+/// <c>thresholds</c> = the chance of each further one on a body that has the one before (the second: 0.3), <c>cap</c>;</item>
 /// <item><c>wreck</c>, <c>unique_site</c>, <c>text_tablet</c>, <c>sounder_site</c>, <c>net_fragment</c>: nothing more.</item>
 /// </list>
 /// <para>Draw order and the number of draws never depend on these numbers, so the defaults reproduce the worlds stamped before
@@ -60,6 +62,9 @@ public sealed partial class StructureTypeRules
 
     /// <summary>#3639: a civilization's site on one of its home bodies (<see cref="CivilizationDefinition"/>).</summary>
     public const string Civilization = "civilization";
+
+    /// <summary>#3680: a fallen guardian giant lying on a planet (<see cref="GuardianGiantBody"/>, <see cref="GuardianGiantRules"/>).</summary>
+    public const string GuardianGiant = GuardianGiantRules.StructureKind;
     public const string Underground = "underground";
     public const string Vault = "vault";
     public const string DataCube = "datacube";
@@ -239,7 +244,10 @@ public sealed partial class StructureTypeRules
     /// ruins and other huts, 16 from pads and 14 from the crash site; a landmark 20 from pads and 8 from the crash site; a buried
     /// ruin 10, 30 from pads; a unique site 10. The giant wreck (#3608, generation 42) came later: 0.05 (about every 20th
     /// planet, <c>GiantShipRules.Chance</c>), airless bodies and asteroids allowed (the body-size check is the stamper's), 24
-    /// from pads, 10 from the crash site, 16 from a landmark.
+    /// from pads, 10 from the crash site, 16 from a landmark. The guardian giant (#3680, generation 44): a first one on about
+    /// every third rocky body (0.34), a second one on 0.3 of those (two at most); never void, gas, an asteroid or a city
+    /// world; 40 from pads, 30 from the crash site and the wreck, 60 from towns, camps, huts and outposts, 24 from fallen
+    /// towns, factories, landmarks, giant wrecks and civilization sites, 48 from another giant.
     /// </summary>
     private static List<StructureTypeDefinition> BuildDefaults()
     {
@@ -278,6 +286,11 @@ public sealed partial class StructureTypeRules
                 whitelist: GiantShipRules.StructureKind, keepClearFrom: Margins((Pad, 24), (WreckSite, 10), (Landmark, 16)),
                 conditions: new[] { ConditionNotVoid, ConditionNotGas }),
             Def(Civilization, minGeneration: WorldDescription.CivilizationsGeneration, keepClearFrom: Margins((Pad, 24), (WreckSite, 10))),
+            Def(GuardianGiant, minGeneration: WorldDescription.GuardianGiantsGeneration, chance: 0.34, thresholds: new[] { 0.3 }, cap: 2,
+                whitelist: "guardian_giants",
+                keepClearFrom: Margins((Pad, 40), (WreckSite, 30), (Wreck, 30), (Settlement, 60), (BanditCamp, 60), (Lodge, 60),
+                    (Outpost, 60), (Ruin, 24), (Factory, 24), (Landmark, 24), (GiantWreck, 24), (Civilization, 24), (GuardianGiant, 48)),
+                conditions: new[] { ConditionNotVoid, ConditionNotGas, ConditionNotAsteroid, ConditionNotCityWorld }),
             Def(Underground, minGeneration: WorldDescription.AncientRuinsGeneration, chance: 0.04, whitelist: "gds_ruins", keepClear: 10,
                 keepClearFrom: Margins((Pad, 30), (WreckSite, 8)),
                 conditions: new[] { ConditionNotVoid, ConditionNotGas }),
@@ -294,8 +307,8 @@ public sealed partial class StructureTypeRules
     /// reserves its ground. Settlements by fresh water (20–120 blocks), low to middle ground, flat, on grass or dirt; lodges
     /// by water or the coast, low; bandit camps in a rugged hollow away from water; monuments on a hilltop; outposts on high
     /// ground; factories flat at middle height; landmarks and giant wrecks flat with some prominence (no altitude band); ruins,
-    /// rail ruins and SPS labs neutral. The grades: a settlement 16 around (cut and fill up to 24), a factory, a landmark or a
-    /// giant wreck likewise, the smaller sites 10–12.
+    /// rail ruins and SPS labs neutral; a guardian giant (#3680) flat. The grades: a settlement 16 around (cut and fill up to
+    /// 24), a factory, a landmark or a giant wreck likewise, the smaller sites 10–12, a guardian giant 6 (its bed only).
     /// The wreck, the vaults, the tablets, the Sounder sites, the unique sites and the underground kinds reserve nothing.
     /// </summary>
     private static List<StructureTypeDefinition> WithGeography(List<StructureTypeDefinition> kinds)
@@ -315,6 +328,7 @@ public sealed partial class StructureTypeRules
                 Landmark or GiantWreck or Civilization => (Site(prominence: "high", relief: "flat", weights: new[] { ("relief", 2.0) }), Grade(16, 24, 24)),
                 Ruin or RailRuin => (new StructureSiteRule(), Grade(12, 16, 16)),
                 SpsLab => (new StructureSiteRule(), Grade(12, 16, 16)),
+                GuardianGiant => (Site(relief: "flat", weights: new[] { ("relief", 2.0) }), Grade(6, 6, 6)),
                 _ => (new StructureSiteRule(), new StructureGradeRule()),
             };
         }

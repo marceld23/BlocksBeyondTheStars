@@ -162,6 +162,9 @@ public static class StructureSources
 
         // The lost civilizations (#3645)
         new MazeRuinSource(),
+
+        // The fallen guardian giants (#3680)
+        new GuardianGiantSource(),
     };
 
     private static IEnumerable<string> KeysOf(string? settingsLine)

@@ -148,6 +148,10 @@ public sealed partial class GameServer
         [StoryWorldPredicates.Monuments] = s => _worlds.Find(s.CurrentLocationId)?.Monuments.Count > 0,
         [StoryWorldPredicates.Shrine] = _ => UniqueSiteTarget("shrine") is { } shrine && UniqueSiteExists("shrine", shrine),
         [StoryWorldPredicates.ShrineReachable] = s => UniqueSiteFollowable(s, "shrine"), // #3415: the lead's rule
+
+        // #3685: VEGA's mission "The Fallen Giant" (GameServerGuardianGiantStory.cs).
+        [StoryWorldPredicates.GuardianGiants] = _ => GuardianGiantsInWorld(),
+        [StoryWorldPredicates.GuardianGiantNear] = s => NearestGuardianGiantInFoundRange(s) is not null,
     };
 
     /// <summary><c>world:forge_ready</c> (#2479): the player can refine — they crafted a forge before (the achievement

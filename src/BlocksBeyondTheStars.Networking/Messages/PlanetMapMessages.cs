@@ -22,6 +22,10 @@ public sealed class NetPoi
     public string Name { get; set; } = string.Empty;
     public float X { get; set; }
     public float Z { get; set; }
+
+    /// <summary>#3676: the state of a marker whose type has several looks — a guardian giant is <c>lying</c>, <c>awake</c> or
+    /// <c>defeated</c> (<c>GuardianGiantRules.Poi*</c>). Empty for every other type. Additive: an older client ignores it.</summary>
+    public string State { get; set; } = string.Empty;
 }
 
 /// <summary>The known points of interest on the current planet, sent on join + world switch.</summary>

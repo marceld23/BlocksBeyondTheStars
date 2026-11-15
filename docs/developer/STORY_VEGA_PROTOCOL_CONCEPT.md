@@ -178,7 +178,10 @@ under "Missions in this chapter" (✔ done, ● now, ○ next) and the chip show
 What a world cannot offer is skipped and a stand-in takes its place, so there is no dead end. Finishing a mission counts as
 following a lead for the chapter bonus (still once per save and chapter); there is no other reward. In multiplayer every
 player does their own. The texts reuse the canon — the beats, the call, the lore the world already carries (the
-observatory's last log, the vault plaque, the derelict's manifest); no new lore.
+observatory's last log, the vault plaque, the derelict's manifest); no new lore — with one deliberate exception since
+#3685: chapter 4's second mission, *The Fallen Giant*, ends on VEGA's memory of the guardian giants (canon C18 in
+[LORE_STRUCTURE.md](LORE_STRUCTURE.md): the Service's own construction giants, taken by the Guardian in the cull) as a beat
+card the Journal keeps among her notes. It is handed out after *The Long Quiet* (one mission at a time), never in its place.
 
 | Chapter | Mission | Steps (stand-in) |
 |---|---|---|
@@ -186,6 +189,7 @@ observatory's last log, the vault plaque, the derelict's manifest); no new lore.
 | 2 The Service | **The Sealed Observatory** | visit it → read the survey post's last log (**The Deep Archive**: read the notes in a buried vault, when the observatory cannot be reached) |
 | 3 The Guardian | **What the Stones Remember** | read a monument's runes → help a settlement |
 | 4 The Verdict | **The Long Quiet** | board the derelict → find her cargo manifest (**Ships That Remember**: scan a drifting wreck) |
+| 4 The Verdict | **The Fallen Giant** (after it, #3685) | find a lying guardian giant → scan it → VEGA remembers the Service's builders (**Echo of the Builders**, on a world without giants: scan an old wreck, or stop a Guardian machine — the same memory at its end) |
 | 5 What You Are | **Eyes on Far Stars** | research the radar array → build it into the ship |
 | 6 It Still Sleeps | **The Jump Generator** | research the jump generator → build it into the ship |
 | 7 The Guardian Core | — | the finale is this chapter's mission |
@@ -407,6 +411,10 @@ canon fact, entity, or a reveal/ordering change — **update LORE_STRUCTURE.md i
 - **Doc upkeep:** keep [LORE_STRUCTURE.md](LORE_STRUCTURE.md) current with every content/canon change.
 - **The G.D.S.** (#1793, #3341) are world flavour outside this arc — a reckless, never evil city people whose flooded
   city lies under the desert; their guardians are not the Guardian core's units (LORE_STRUCTURE.md §C).
+- **The guardian giants** (#3676, #3685) belong to this arc: the Service's construction giants, the Guardian's heaviest units
+  (canon C18). A defeated giant counts as five machine kills for the score (inside the kill cap) and always releases each
+  fighter's next personal memory; VEGA's lines about them follow what the player's own story knows; they still wake after
+  the finale (cut off from the core).
 
 **Resolved during implementation (were open):**
 - Hack form: **channel-and-defend** chosen and built (`GameServerStoryFinale.HandleCoreHack` — a

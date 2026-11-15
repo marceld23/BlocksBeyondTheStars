@@ -164,6 +164,29 @@ namespace BlocksBeyondTheStars.Client
             Game.Network.SendFx(kind, itemKey ?? string.Empty, from, to, hit);
         }
 
+        /// <summary>The planet machines and bandits under the ray: a generous sphere at each one's feet. #3676: a guardian giant
+        /// (its colliders are registered) is hit on its body's colliders instead, by the giants' ray in <see cref="AimEnemy"/>.</summary>
+        private void AimPlanetEnemies(Vector3 o, Vector3 dir, ref float best, ref string id, ref Vector3 pos)
+        {
+            foreach (var e in Game.PlanetEnemies)
+            {
+                if (CreatureView.GiantCollidersFor(e.Id).Length > 0)
+                {
+                    continue;
+                }
+
+                var basePos = Game.ScenePos(e.X, e.Y, e.Z); // seam-aware (longitude wraps)
+                var center = basePos + Vector3.up * 0.9f;
+                float r = 1.1f * Mathf.Max(1f, e.Scale);
+                if (RayHitsSphere(o, dir, center, r, out float d) && d < best)
+                {
+                    best = d;
+                    id = e.Id;
+                    pos = basePos;
+                }
+            }
+        }
+
         /// <summary>Finds the enemy/creature under the crosshair (#693): an analytic ray-vs-sphere sweep over
         /// the replicated entities — their meshes deliberately carry no colliders — occluded by terrain via a
         /// voxel march (the weapon trace: leaves, grass and torches are no cover, #2533). Hitboxes are deliberately
@@ -184,18 +207,7 @@ namespace BlocksBeyondTheStars.Client
             terrainDist = TerrainDistance(o, dir, maxRange);
 
             float best = terrainDist + 0.5f; // a body right at the wall still counts
-            foreach (var e in Game.PlanetEnemies)
-            {
-                var basePos = Game.ScenePos(e.X, e.Y, e.Z); // seam-aware (longitude wraps)
-                var center = basePos + Vector3.up * 0.9f;
-                float r = 1.1f * Mathf.Max(1f, e.Scale);
-                if (RayHitsSphere(o, dir, center, r, out float d) && d < best)
-                {
-                    best = d;
-                    id = e.Id;
-                    pos = basePos;
-                }
-            }
+            AimPlanetEnemies(o, dir, ref best, ref id, ref pos);
 
             // #1998: a giant is hit where the ray meets its body — its colliders, not a sphere at its feet.
             if (Physics.Raycast(o, dir, out var giantHit, best, 1 << CreatureView.GiantLayer, QueryTriggerInteraction.Ignore)
@@ -270,6 +282,13 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (var e in Game.PlanetEnemies)
             {
+                // #3676: a guardian giant counts from the nearest point of its body, like a creature giant.
+                if (CreatureView.GiantNearestPoint(e.Id, eye, out var giantNear))
+                {
+                    Consider(e.Id, giantNear - Vector3.up * 0.9f, giantNear);
+                    continue;
+                }
+
                 var ep = Game.ScenePos(e.X, e.Y, e.Z);
                 Consider(e.Id, ep, ep + Vector3.up * 1.5f);
             }

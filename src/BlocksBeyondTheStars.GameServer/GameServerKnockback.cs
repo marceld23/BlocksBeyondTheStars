@@ -52,9 +52,9 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (isCreature && (ProtectedFromPlayers(target) || target.IsGiant))
+        if ((isCreature && (ProtectedFromPlayers(target) || target.IsGiant)) || target.Kind == CombatEntityKind.GuardianGiant)
         {
-            return false; // a pet is never shoved (#2281), a giant is far too big
+            return false; // a pet is never shoved (#2281), a giant is far too big (#3676: a guardian giant too)
         }
 
         float mass = MassFactor(target, isCreature);

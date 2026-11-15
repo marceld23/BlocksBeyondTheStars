@@ -239,6 +239,14 @@ public static partial class StoryPackValidator
             CheckChainReference(run, cut, $"{cp}.options.chainNext[{ni}]", next);
         }
 
+        // #3686: the step that overtakes the scene must be one of the pack's steps.
+        string staleAfter = options.StaleAfterStep ?? string.Empty;
+        if (staleAfter.Length > 0
+            && !(run.Def.Chapters ?? new List<StoryChapter>()).Any(c => (c.Steps ?? new List<StoryStep>()).Any(s => s.Id == staleAfter)))
+        {
+            run.Error($"{cp}.options.staleAfterStep", $"'{staleAfter}' is not a step of the pack");
+        }
+
         // #2474: a line given back on a skip must be one the scene takes out of the panel in the first place.
         foreach (var (line, li) in (options.ReturnOnSkip ?? new List<string>()).Select((k, i) => (k, i)))
         {

@@ -109,6 +109,7 @@ public sealed partial class GameServer
             TickStep.Dt("TickEnvironment", TickEnvironment),
             TickStep.Dt("TickEnemies", TickEnemies),
             TickStep.Dt("TickHunterSites", TickHunterSites), // #3097: a landed hunter shuttle's camp — stamp, guard, robot docks (1 Hz)
+            TickStep.Dt("TickGuardianGiants", TickGuardianGiants), // #3676: found, stir, wake (1–4 Hz); an awake giant's fight at full rate
             TickStep.Dt("TickBandits", TickBandits),
             TickStep.Plain("TickEnemyEncounters", TickEnemyEncounters), // #2971: the Codex's enemies met on the ground (1 Hz)
             TickStep.Dt("TickPresence", TickPresence),

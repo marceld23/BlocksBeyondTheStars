@@ -204,6 +204,7 @@ public sealed partial class GameServer
         AppendSounderWorldPois(session, pois); // #3358: Soaniri's Mirun, Ornasa and the Choir Tower
         AppendLandedTraderPoi(session, pois); // #1904: a trader ship parked here right now (live, never persisted)
         AppendHunterSitePoi(session, pois); // #3097: a hunter shuttle's robot camp, until its docks are gone
+        AppendGuardianGiantPois(session, pois); // #3676: the guardian giants somebody found — lying, awake or defeated
 
         return pois;
     }

@@ -98,10 +98,10 @@ namespace BlocksBeyondTheStars.Client
                 sb.Append(" (").Append(l("ui.wiki.enemies.elite")).Append(": ").Append(Health(elite)).Append(')');
             }
 
-            sb.Append("  ·  ").Append(l("ui.wiki.enemies.damage")).Append(": ").Append(Damage(normal, l));
+            sb.Append("  ·  ").Append(l("ui.wiki.enemies.damage")).Append(": ").Append(Damage(e, normal, l));
             if (elite is not null)
             {
-                sb.Append(" (").Append(l("ui.wiki.enemies.elite")).Append(": ").Append(Damage(elite, l)).Append(')');
+                sb.Append(" (").Append(l("ui.wiki.enemies.elite")).Append(": ").Append(Damage(e, elite, l)).Append(')');
             }
 
             sb.Append('\n');
@@ -137,11 +137,35 @@ namespace BlocksBeyondTheStars.Client
                 : Number(tier.Hull);
 
         /// <summary>A tier's damage: per second for a biter or a shooter, or — for one that bursts (#3096, the tank spider) —
-        /// the burst at its centre, named as one.</summary>
-        private static string Damage(EnemyTier tier, Func<string, string> l)
-            => tier.BurstDamage > 0f && tier.DamagePerSecond <= 0f
+        /// the burst at its centre, named as one; the guardian giant (#3676, no damage per second by design) shows the range
+        /// of its blows (<see cref="GiantBlows"/>).</summary>
+        private static string Damage(EnemyDefinition e, EnemyTier tier, Func<string, string> l)
+        {
+            if (e.Key == GuardianGiantRules.EnemyKey && tier.DamagePerSecond <= 0f)
+            {
+                return GiantBlows(l);
+            }
+
+            return tier.BurstDamage > 0f && tier.DamagePerSecond <= 0f
                 ? Number(tier.BurstDamage) + " (" + l("ui.wiki.enemies.burst") + ")"
                 : Dps(tier.DamagePerSecond);
+        }
+
+        /// <summary>#3676: the guardian giant hurts only with its blows — the stomp, the leap's landing, the visor laser and the
+        /// thrown rock (<see cref="GuardianGiantRules"/>' numbers, each at full strength): "15–22 (per blow)".</summary>
+        public static string GiantBlows(Func<string, string> l)
+        {
+            float[] blows = { GuardianGiantRules.StompDamage, GuardianGiantRules.JumpDamage, GuardianGiantRules.LaserDamage, GuardianGiantRules.ThrowDamage };
+            float min = float.MaxValue, max = 0f;
+            foreach (float b in blows)
+            {
+                min = Math.Min(min, b);
+                max = Math.Max(max, b);
+            }
+
+            string range = max > min ? Number(min) + "–" + Number(max) : Number(max);
+            return range + " (" + l("ui.wiki.enemies.per_blow") + ")";
+        }
 
         private static string Dps(float dps) => Number(dps) + "/s";
 

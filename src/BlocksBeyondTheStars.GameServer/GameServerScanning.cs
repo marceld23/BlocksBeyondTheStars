@@ -163,6 +163,14 @@ public sealed partial class GameServer
             value = KnowledgeMonument;
             ledgerKey = $"monument:{_world.LocationId}:{tablet.Key}";
         }
+        else if ((subjectType == "block" ? GuardianGiantForScan(session, cell)
+                     : subjectType == GuardianGiantScanKind ? AwakeGuardianGiantForScan(session) : null) is { } guardianGiant)
+        {
+            // #3685: any block of a lying or fallen guardian giant — or the awake giant itself — reads as the giant: a relic's
+            // knowledge and a Codex discovery once per giant, and VEGA remembers the builders (GameServerGuardianGiantStory.cs).
+            ledgerKey = FillGuardianGiantReadout(readout, guardianGiant, session.Locale);
+            value = KnowledgeMonument;
+        }
         else if (subjectType == "block" && GiantWreckForScan(session, cell) is { } wreck)
         {
             // #3611: any block of a giant ship wreck reads as the wreck — the knowledge of a relic and a Codex discovery once
@@ -296,6 +304,11 @@ public sealed partial class GameServer
         // Ledger key tracks the first scan (per species/block, or shared per tree); the readout shows `Display`.
         var awarded = Award(session, ledgerKey, readout, value);
         DiscoverCivilizationOfScannedBlock(session, subjectType, subjectKey); // #3642: a lost people's block names them in the Codex
+        if (readout.Kind == GuardianGiantScanKind)
+        {
+            OnGuardianGiantScanned(session); // #3685: after the scan's events — a mission's memory card is queued first
+        }
+
         return awarded;
     }
 

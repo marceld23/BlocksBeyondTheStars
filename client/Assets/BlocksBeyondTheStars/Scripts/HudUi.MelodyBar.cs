@@ -15,19 +15,27 @@ namespace BlocksBeyondTheStars.Client
     /// (a melody puzzle — <see cref="GameBootstrap.MelodyBar"/>) and closes it; while it is open the number keys 1–8 play the
     /// tones instead of switching the hotbar, the pad's d-pad plays 1–4 and the same with a shoulder held 5–8
     /// (<see cref="MelodyBarInput"/>), and touch taps the tones. The prompt's tones light up one after the other as the
-    /// server sings it; a played tone flashes; a line says "Again!", "Next round!", "Well done!". The player keeps walking
-    /// and looking — the bar takes no cursor, so the use key still strikes a shrine's pillars.
+    /// server sings it; a played tone flashes; a line says "Nearly!", "Next round!", "Well done!". For the Bridge Song the
+    /// key to press next glows (#3677: a pulsing warm ring, steady with reduced motion). In free play (the Resonance
+    /// Blaster in hand) the line names the current Sounders task (#3679). The player keeps walking and looking — the bar
+    /// takes no cursor, so the use key still strikes a shrine's pillars.
     /// </summary>
     public sealed partial class HudUi
     {
         private const float MelodyToneSize = 66f, MelodyTonePitch = 74f, MelodyBarW = 620f, MelodyBarH = 132f;
+
+        /// <summary>#3677: the ring around the key to press next — how far it stands out around the key, and its pulse.</summary>
+        private const float MelodyGlowPad = 4f, MelodyGlowPulseHz = 1.3f;
+
+        /// <summary>#3677: the glow ring's colour — the warm chip yellow of the spelling line's mark.</summary>
+        private static readonly Color MelodyGlowColor = new Color(1f, 0.82f, 0.48f, 1f);
 
         /// <summary>#3426: how the spelling line marks the letter the player is at (TMP rich text — the warm chip yellow).</summary>
         private const string MelodySpellMarkOpen = "<color=#ffd27a><b>", MelodySpellMarkClose = "</b></color>";
 
         private GameObject _melodyPanel;
         private TMP_Text _melodyTitle, _melodyProgress, _melodyLine;
-        private Image[] _melodyTones;
+        private Image[] _melodyTones, _melodyGlows;
         private Text[] _melodyCaptions;
         private Button _melodyStop;
         private readonly MelodyPadReader _melodyPad = new MelodyPadReader();
@@ -52,11 +60,13 @@ namespace BlocksBeyondTheStars.Client
             _melodyStop = UiKit.AddButton(t, MelodyBarW - 110f, 3f, 96f, 26f, string.Empty, () => Game?.LeaveMelodyBar());
 
             _melodyTones = new Image[MelodyBarInput.Tones];
+            _melodyGlows = new Image[MelodyBarInput.Tones];
             _melodyCaptions = new Text[MelodyBarInput.Tones];
             float x0 = (MelodyBarW - ((MelodyBarInput.Tones - 1) * MelodyTonePitch) - MelodyToneSize) / 2f;
             for (int i = 0; i < MelodyBarInput.Tones; i++)
             {
                 int tone = i;
+                _melodyGlows[i] = MelodyGlowRing(t, x0 + (i * MelodyTonePitch), 34f); // before the key: drawn behind it
                 var button = UiKit.AddButton(t, x0 + (i * MelodyTonePitch), 34f, MelodyToneSize, MelodyToneSize, string.Empty,
                     () => Game?.PlayMelodyTone(tone)); // touch and a free cursor tap the tones
                 _melodyTones[i] = button.targetGraphic as Image;
@@ -71,6 +81,26 @@ namespace BlocksBeyondTheStars.Client
 
             _melodyLine = UiText.Add(t, 14, 104, MelodyBarW - 28f, 24, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleCenter, FontStyle.Normal, UiText.Look.Outline);
             _melodyPanel.SetActive(false);
+        }
+
+        /// <summary>#3677: the ring that marks a key as the next one to press — a bright warm edge with a faint fill just
+        /// around the key (holo chrome; the bitmap panel when the shader is unavailable), hidden until needed.</summary>
+        private static Image MelodyGlowRing(Transform parent, float x, float y)
+        {
+            float size = MelodyToneSize + (2f * MelodyGlowPad);
+            Image ring;
+            if (UiHolo.Available)
+            {
+                var fill = new Color(MelodyGlowColor.r, MelodyGlowColor.g, MelodyGlowColor.b, 0.18f);
+                ring = UiHolo.AddPanel(parent, x - MelodyGlowPad, y - MelodyGlowPad, size, size, fill, 12f, 3f, 2.4f);
+            }
+            else
+            {
+                ring = UiKit.AddImage(parent, x - MelodyGlowPad, y - MelodyGlowPad, size, size, UiKit.PanelSprite, MelodyGlowColor, Image.Type.Sliced);
+            }
+
+            ring.enabled = false;
+            return ring;
         }
 
         /// <summary>Per frame (keys must not wait for the throttled refresh): shows or hides the bar, lights the prompt and the
@@ -133,12 +163,26 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>The prompt's lit tone and a flashing tone grow and glow; the others rest.</summary>
+        /// <summary>The prompt's lit tone and a flashing tone grow and glow; the key to press next (#3677, the Bridge Song)
+        /// is bright inside a pulsing warm ring — a different look from the prompt's, steady with reduced motion; the
+        /// others rest.</summary>
         private void AnimateMelodyTones(MelodyBarModel bar, double now)
         {
-            int lit = bar.LitTone(now);
+            int lit = bar.LitTone(now), glow = bar.GlowTone(now);
+            float wave = (float)System.Math.Sin(now * MelodyGlowPulseHz * 2.0 * System.Math.PI);
+            float pulse = UiKit.ReducedMotion ? 1f : 0.55f + (0.45f * (0.5f + (0.5f * wave)));
             for (int i = 0; i < _melodyTones.Length; i++)
             {
+                var ring = _melodyGlows != null ? _melodyGlows[i] : null;
+                if (ring != null)
+                {
+                    ring.enabled = i == glow;
+                    if (i == glow)
+                    {
+                        ring.color = new Color(MelodyGlowColor.r, MelodyGlowColor.g, MelodyGlowColor.b, pulse);
+                    }
+                }
+
                 var image = _melodyTones[i];
                 if (image == null)
                 {
@@ -146,7 +190,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 bool on = i == lit || bar.Flashing(i, now);
-                image.color = ToneColor(i, on ? 1f : 0.62f);
+                image.color = ToneColor(i, on || i == glow ? 1f : 0.62f);
                 float scale = on && !UiKit.ReducedMotion ? 1.14f : 1f;
                 image.transform.localScale = new Vector3(scale, scale, 1f);
             }
@@ -171,7 +215,7 @@ namespace BlocksBeyondTheStars.Client
             string spelling = bar.SpellingLine(MelodyNoteNames(loc), MelodySpellMarkOpen, MelodySpellMarkClose);
             bool spells = spelling.Length > 0;
             string title = spells && result != null ? result : loc.Get(bar.TitleKey);
-            string line = spells ? spelling : result ?? loc.Get(MelodyHintKey(device));
+            string line = spells ? spelling : result ?? (bar.FreePlay ? MelodyTaskLine(loc) : null) ?? loc.Get(MelodyHintKey(device));
             string shown = title + "\n" + line;
             if (bar.Version == _melodyShownVersion && device == _melodyShownDevice && shown == _melodyShownLine)
             {
@@ -192,6 +236,17 @@ namespace BlocksBeyondTheStars.Client
             {
                 _melodyCaptions[i].text = MelodyCaption(loc, i, device);
             }
+        }
+
+        /// <summary>#3679: free play (the Resonance Blaster in hand — at a rune stone, say) names the player's current Sounders
+        /// task (<see cref="SoundersPackProgress.CurrentTaskKey"/>, the chip line) instead of only the key legend — the panel
+        /// asks for nothing itself, so it should say what the story wants. Null without a running Sounders task.</summary>
+        private string MelodyTaskLine(Localizer loc)
+        {
+            string key = SoundersPackProgress.CurrentTaskKey(Game.StoryPackStates);
+            return key != null && loc.Has(key)
+                ? string.Format(CultureInfo.InvariantCulture, loc.Get("ui.melody.task"), ExpandKeyTokens(loc, loc.Get(key)))
+                : null;
         }
 
         /// <summary>The eight note names C … C' in the player's language (<c>ui.note.names</c>: German says H where English says

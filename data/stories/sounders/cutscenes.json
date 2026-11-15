@@ -14,6 +14,10 @@
   // snd.elder          T3: the Eldest's request (s7.3). snd.choir_tower T3: the Young Voices begin (server, on approach).
   // snd.bridge_song    T4: the Bridge Song — the Qualis grow calm, the Echoes thank, the Eldest hears her people (s8.2).
   // snd.soundi_joins   T3: the Soundi chooses the player (s8.4). snd.epilogue T2 + credits, closes chapter 8.
+  //
+  // #3686: every T3/T4 scene plays where its moment happens ("playInPlace": no wait for the player to be back at the ship) —
+  // the arrival is "now or never" anyway. A scene no step binds names the step that overtakes it ("staleAfterStep"): once
+  // the player is past that step, the server drops the scene instead of sending it late.
   "cutscenes": [
     {
       "id": "snd.part", "tier": 2, "template": true,
@@ -32,7 +36,7 @@
           ],
           "sfx": [ { "cue": "plant_chime_reed_loop", "at": 0 } ] }
       ],
-      "options": { "minDisplay": 2 }
+      "options": { "minDisplay": 2, "playInPlace": true, "staleAfterStep": "s2.1" }
     },
     {
       "id": "snd.shrine_answers", "tier": 3, "chapter": "s2",
@@ -43,7 +47,8 @@
             { "style": "speaker", "speaker": "elora", "key": "story.sounders.cut.shrine.elora", "at": 4.5 }
           ],
           "sfx": [ { "cue": "chamber_open", "at": 3.0 } ] }
-      ]
+      ],
+      "options": { "playInPlace": true }
     },
     {
       "id": "snd.decoded", "tier": 1, "chapter": "s3",
@@ -77,7 +82,8 @@
             { "style": "speaker", "key": "story.sounders.cut.echo.vega", "at": 5.0 }
           ],
           "sfx": [ { "cue": "echo_hum_1", "at": 0.3 } ] }
-      ]
+      ],
+      "options": { "playInPlace": true, "staleAfterStep": "s5.2" }
     },
     {
       "id": "snd.great_song", "tier": 3, "chapter": "s5", "music": "sounders_great_song",
@@ -89,7 +95,7 @@
             { "style": "reading_frame", "kickerKey": "story.sounders.cut.great.kicker", "key": "story.sounders.cut.great.3", "at": 14.0 }
           ] }
       ],
-      "options": { "minDisplay": 3 }
+      "options": { "minDisplay": 3, "playInPlace": true }
     },
     {
       "id": "snd.song_of_return", "tier": 3, "chapter": "s6",
@@ -99,7 +105,8 @@
             { "style": "title_card", "kickerKey": "story.sounders.cut.return.kicker", "key": "story.sounders.cut.return.title", "at": 0.5, "hold": 4 },
             { "style": "speaker", "key": "story.sounders.cut.return.vega", "at": 4.8 }
           ] }
-      ]
+      ],
+      "options": { "playInPlace": true }
     },
     {
       "id": "snd.arrival", "tier": 3, "chapter": "s7", "music": "sounders_soaniri",
@@ -123,7 +130,7 @@
           ],
           "sfx": [ { "cue": "soundi_call_02", "at": 3.0 } ] }
       ],
-      "options": { "chainNext": [ "snd.elder" ] }
+      "options": { "chainNext": [ "snd.elder" ], "playInPlace": true }
     },
     {
       "id": "snd.elder", "tier": 3, "chapter": "s7",
@@ -133,7 +140,8 @@
             { "style": "speaker", "speaker": "eldest", "key": "story.sounders.cut.elder.1", "at": 0.5 },
             { "style": "speaker", "speaker": "eldest", "key": "story.sounders.cut.elder.2", "at": 4.8 }
           ] }
-      ]
+      ],
+      "options": { "playInPlace": true }
     },
     {
       "id": "snd.choir_tower", "tier": 3, "chapter": "s8",
@@ -144,7 +152,8 @@
             { "style": "speaker", "key": "story.sounders.cut.tower.vega", "at": 5.0 }
           ],
           "sfx": [ { "cue": "quali_song_2", "at": 2.0 } ] }
-      ]
+      ],
+      "options": { "playInPlace": true, "staleAfterStep": "s8.2" }
     },
     {
       "id": "snd.bridge_song", "tier": 4, "chapter": "s8", "music": "sounders_bridge_song",
@@ -163,7 +172,7 @@
             { "style": "speaker", "key": "story.sounders.cut.bridge.vega", "at": 4.2 }
           ] }
       ],
-      "options": { "minDisplay": 3 }
+      "options": { "minDisplay": 3, "playInPlace": true }
     },
     {
       "id": "snd.soundi_joins", "tier": 3, "chapter": "s8",
@@ -171,7 +180,8 @@
         { "camera": { "type": "orbit", "anchor": "player" }, "duration": 7,
           "captions": [ { "style": "title_card", "kickerKey": "story.sounders.cut.soundi.kicker", "key": "story.sounders.cut.soundi.title", "at": 0.8 } ],
           "sfx": [ { "cue": "soundi_call_09", "at": 0.3 } ] }
-      ]
+      ],
+      "options": { "playInPlace": true }
     },
     {
       "id": "snd.epilogue", "tier": 2, "chapter": "s8", "music": "sounders_bridge_song",

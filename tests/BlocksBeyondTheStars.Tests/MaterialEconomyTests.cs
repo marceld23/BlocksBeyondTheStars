@@ -207,6 +207,8 @@ public sealed class MaterialEconomyTests
             "bio_sample", "mineral_sample", "prep_coating",
             // #2633/#3341: an old station log and a G.D.S. log are read (inventory, Codex), never used up.
             "derelict_log", "gds_log",
+            // #3685: a guardian giant's memory core is read into the Journal and kept, never used up.
+            "guardian_giant_core",
             // #3035: a name tag is used up on a companion, which no recipe lists.
             "name_tag",
             // #3099: the storage bag is carried and opened, never used up.

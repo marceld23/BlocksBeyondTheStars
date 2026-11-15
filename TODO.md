@@ -24,6 +24,40 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🤖 Guardian giants, the Sounders' melodies and story scene timing — #3676–#3686, ✅ 2026-11-15, PR pending (⚠ playtest open)
+
+Justus' report round of 2026-11-15 (v2026.11.18): his idea "Wächtergiganten", two Sounder-story reports and his
+note that story scenes play at the wrong place. Every design decision was Marcel's (four question rounds for the giants,
+one each for the VEGA story, the Sounders and the scenes).
+
+- **#3680 fallen guardian giants** (terrain generation 44, new worlds only) — the Guardian's hunter robot as a 14-block
+  block body (`GuardianGiantBody`, only existing blocks, no save-version bump) lying on about every third rocky planet,
+  one or two, far from pads and settlements; about one in four can wake (`GuardianGiantBuilder`, structure kind
+  `guardian_giant`, `WorldMetadata.GuardianGiants`).
+- **#3681 the waking boss** — stir at 40 (a flickering eye, VEGA), lights at 20, it rises from its own blocks; 600 hull,
+  telegraphed stomp, jump attack, visor laser, rock throw, two summoned robots and a rage phase from half hull; leash 40,
+  heals and lies down lit when everyone left; once defeated it lies where it fell for good; a loot crate per fighter
+  (guardian plates + a missing guardian blueprint, or a finished piece); only in Survival with machines on, still after
+  the finale; `/giant guardian`, `/tp giant [n]` (`GameServerGuardianGiants*.cs`, `GuardianGiantStatus`, NetCodec 348).
+- **#3682 the block-limb model** — six limbs meshed from the same body with the block atlas, a procedural motion set
+  (rise, walk, hop, stomp, jump attack, laser, throw, summon, search, rage, flinch, collapse, lie down), warning rings,
+  camera shake (off with reduced motion) (`GuardianGiantView*.cs`, `Client.Core/GuardianGiants`).
+- **#3683** the boss bar (`HudUi.BossBar.cs`), map marker by state, Codex entry and portrait, the achievement "Guardian
+  Giant Slayer", VEGA lines; **#3684** eleven new ElevenLabs sounds (`giant_*.mp3`), fight music `music_boss_gauntlet`.
+- **#3685 the VEGA story** — canon C18 (the giants were the Service's construction and terraforming giants, taken over
+  in the cull, fallen at the severing); chapter-4 mission "The Fallen Giant" (find → scan → VEGA remembers; stand-in
+  "Echo of the Builders" on worlds without giants); a defeated giant counts five machine kills inside the cap and unlocks
+  the next personal memory; the memory core `guardian_giant_core` in the crate; VEGA's giant lines follow what the
+  player's story knows.
+- **#3677/#3678 the Bridge Song** — seven rounds of one letter each, the next key glows; in every story melody a wrong
+  tone no longer resets the input. **#3679** clearer chamber/spindle texts, a new `s4.5` hint, the free melody bar shows
+  the current Sounders task.
+- **#3686 story scene timing** — place-bound Sounders and tutorial scenes play in place (`playInPlace`), an overtaken
+  scene is dropped (stamped seen, Journal and Story tab keep it; `staleAfterStep`), 15 s between scenes of one story
+  (90 s between stories), an overtaken VEGA chapter opener is dropped.
+- Open: playtest (a new world for the giants, `/giant guardian`; the Bridge Song; Soaniri scene timing); the generation
+  number 44 is also planned by the unmerged UI-layout branch — whoever merges second renumbers.
+
 ### 🚆 Playtest 2026-11-15: animals and trains, the wreck's target ring, a Sounder singer statue — #3656–#3660, ✅ 2026-11-15, PR #3675 (⚠ playtest open)
 
 Marcel's own playtest on v2026.11.18 (an intercity train on a meadow world, a giant wreck in space) plus his wish for the

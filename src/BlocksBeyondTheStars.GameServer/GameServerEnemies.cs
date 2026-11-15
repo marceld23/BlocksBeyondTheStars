@@ -135,7 +135,7 @@ public sealed partial class GameServer
         }
 
         int cap = PlanetEnemyCap(targets.Count);
-        if (_planetEnemies.Count >= cap)
+        if (_planetEnemies.Count - GuardianGiantsInEnemyList() >= cap) // #3676: an awake guardian giant takes no machine's slot
         {
             // At the cap the timer must not bank time (#740): it used to keep accumulating here, so the
             // moment a machine died its replacement spawned on the very next tick — fighting back turned
@@ -203,7 +203,7 @@ public sealed partial class GameServer
                 }
             }
 
-            if (!near)
+            if (!near && e.Kind != CombatEntityKind.GuardianGiant) // #3676: a giant leaves by its own leash (it lies down)
             {
                 _planetEnemies.RemoveAt(i);
                 _enemyWander.Remove(e.Id);
@@ -248,6 +248,11 @@ public sealed partial class GameServer
         bool moved = false;
         foreach (var enemy in _planetEnemies)
         {
+            if (enemy.Kind == CombatEntityKind.GuardianGiant)
+            {
+                continue; // #3676: the guardian giant walks and strikes by its own rules (GameServerGuardianGiantsFight.cs)
+            }
+
             moved |= MovePlanetEnemy(enemy, targets, warded, dt);
 
             if (StaggerJustEnded(enemy))
@@ -1302,6 +1307,10 @@ public sealed partial class GameServer
 
             aimAt = GiantAimPoint(target, p.Position);
         }
+        else if (target.Kind == CombatEntityKind.GuardianGiant)
+        {
+            aimAt = GuardianGiantAimPoint(target, p.Position, aimDir); // #3676: its body, fourteen blocks tall
+        }
 
         if (WrapDistSq(p.Position, aimAt) > reach * reach)
         {
@@ -1321,6 +1330,10 @@ public sealed partial class GameServer
 
         target.Hull -= SwingDamage(p, tool, isWeapon);
         NoteCombat(session); // #2286: a blow landed — "Back to my ship" waits out the fight
+        if (!isCreature && OnGuardianGiantDamaged(target, p.PlayerId))
+        {
+            return; // #3676: no push, no loot here — a guardian giant collapses at zero by its own rules
+        }
 
         // 2026-09 (Valuma): a hit turns the shapeshifter on its attacker; at zero its disguise breaks instead of it dying.
         if (isCreature && IsSreekmakra(target) && OnSreekmakraHit(session, target))

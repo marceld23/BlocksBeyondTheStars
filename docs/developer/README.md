@@ -148,6 +148,10 @@ refreshed 2026-10-23.
   ruins exist only on their home bodies — the civilization file and the `civilization` tag, homes pinned from the seed and
   the ocean guarantee, the stamp stage, underwater sites (the `seabed` seat, the water write mode, air pockets), `prop`
   markers, discovery, Codex, VEGA and rumours, the Grand Technicians and the Labyrinth Builders, adding a civilization.
+- [GUARDIAN_GIANTS.md](GUARDIAN_GIANTS.md) — guardian giants (#3676): fallen fourteen-block machines as block bodies, a few
+  of which wake as a boss — the record and its states, the tick (found, stir, wake), the rise, the fight's moves and their
+  timed blows, taking damage, lying down lit, the corpse and a loot crate per fighter, the status message, the map, VEGA's
+  one seam, `/giant guardian` and `/tp giant`.
 - [FACTORIES_RUINS_AND_CLAIMING.md](FACTORIES_RUINS_AND_CLAIMING.md) — factories with roster-limited
   production terminals, ruins/treasure chests, and access-code claiming.
 - [VOICE_CHAT.md](VOICE_CHAT.md) — push-to-talk voice chat + the tiered radio reach (planet/system/galaxy).

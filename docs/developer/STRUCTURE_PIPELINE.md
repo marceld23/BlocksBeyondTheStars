@@ -1,7 +1,7 @@
 # The structure pipeline — how built structures get into a world
 
 Epic #3510 (#3511–#3524, terrain generation 38). Every built structure — a village, a station, a monument, a wreck, a
-vault, a landmark, a giant ship wreck, a lost civilization's site — goes the same way: a **source** builds it, **post passes** shape it, the **placement** seats, records and
+vault, a landmark, a giant ship wreck, a lost civilization's site, a fallen guardian giant — goes the same way: a **source** builds it, **post passes** shape it, the **placement** seats, records and
 writes it, and on later loads it is **replayed** from its record. The editor runs the same sources, so it can show and start
 from every kind. This is the *how it fits together* reference; the kinds themselves are documented where they live
 ([WORLD_GENERATION.md](WORLD_GENERATION.md), [LANDMARKS.md](LANDMARKS.md), [GIANT_SHIPS.md](GIANT_SHIPS.md),
@@ -33,6 +33,7 @@ ground row, `ContentHash`). `StructureSources.All` is the one registration list,
 | Space | `station`, `station_kit`, `derelict` |
 | Builders (formerly direct writers, #3522) | `vault`, `singing_shrine`, `sealed_observatory`, `mirun`, `ornasa`, `choir_tower`, `guardian_core`, `hunter_camp` |
 | Lost civilizations (#3645) | `maze_ruin` — the Labyrinth Builders' maze (`MazeRuinPlan` + `MazeRuinGenerator`): `size` S / M / L (≈ 80 / 120 / 180 blocks across), `height` (walls above the floor, default 20), `braid` (% of dead ends opened into loops), `halls`, `statues` (% of roomy dead ends with a statue), the blocks `wall` / `accent` / `floor` by key (a source builds block ids, so the civilization's materials travel as parameters). Built intact; it falls through the ruin pass as a landmark-style entry with `ruin: always` ([CIVILIZATIONS.md](CIVILIZATIONS.md) §7) |
+| Fallen guardian giants (#3680) | `guardian_giant` — the lying body of `GuardianGiantBody` through `GuardianGiantBuilder` on flat ground (its back sunk one row into the ground, lights out), `turns` its quarter turn, the seed its rusted plates. The server stamps it with the same builder ([WORLD_GENERATION.md](WORLD_GENERATION.md) §59) |
 
 Every wrapper calls its generator exactly like the server does and changes nothing (`StructureSourceTests.Identity`).
 `StructureBuildRequest.Generation` selects the generation-38 behaviour (decay passes, the layout wreck), `AsInWorld` the
@@ -48,7 +49,7 @@ cavities and markers only).
 The **builders** (`VaultBuilder`, `UniqueSiteBuilder`, `SoaniriBuilder`, `GuardianCoreBuilder`, `HunterCampBuilder`) emit
 cells through `IStructureCellSink` in exactly the order the server wrote them before; the server's `WorldCellSink` writes
 them into the world, the editor's `FlatGroundSink` collects them on flat ground. Write traces before and after the move are
-byte-identical.
+byte-identical. `GuardianGiantBuilder` (#3680) was born a builder: the server and the editor run it the same way.
 
 ## 2. Templates, kits and generator entries
 
@@ -139,19 +140,27 @@ The prop markers stay in the layout.
   `ServerConfig.IntercityRailChance` / `RailRuinChance` / `LandmarkChance` override the file when set — a stored value
   equal to the old code default (0.6 / 0.35 / 0.34, which every older `server.json` holds) reads as unset, and an
   override that differs from the file is logged once. `GiantWreckChance` (#3608) overrides the `giant_wreck` chance
-  (0.05) the same way but never held a written-out default, so every stored value counts.
+  (0.05) the same way but never held a written-out default, so every stored value counts; so does `GuardianGiantChance`
+  (#3680, the first giant's 0.34).
 - **The giant wreck rule** (`giant_wreck`, generation 42, #3608): chance 0.05 × the structures frequency × the world
   option `GiantWrecks`, conditions `notVoid` and `notGas` (airless bodies and asteroids allowed; the body must be four
   footprints around), whitelist key `giant_wrecks`, keep-clear 6 (24 from pads, 10 from the crash site, 16 from a
   landmark), the landmark's site (high prominence, flat relief) and grade (radius 16, cut and fill 24). Switched by
   `ServerConfig.PlaceGiantWrecks` and the world option; stamped by `StampGiantWrecks` right after the landmarks.
+- **The guardian giant rule** (`guardian_giant`, generation 44, #3680): `chance` 0.34 for a first giant × the structures
+  frequency (`ServerConfig.GuardianGiantChance` overrides it), `thresholds` [0.3] for a second one, `cap` 2; conditions
+  `notVoid`, `notGas`, `notAsteroid`, `notCityWorld`, whitelist key `guardian_giants`; keep-clear 6 (40 from pads, 30 from
+  the crash site and the wreck, 60 from settlements, bandit camps, lodges and outposts, 24 from ruins, factories,
+  landmarks, giant wrecks and civilization sites, 48 from another giant); site flat, grade radius 6 (cut and fill 6). Only a
+  `flat` seat counts. Switched by `ServerConfig.PlaceGuardianGiants`; stamped by `StampGuardianGiants` right after the giant
+  wrecks ([WORLD_GENERATION.md](WORLD_GENERATION.md) §59).
 - **The civilization kind** (`civilization`, generation 43, #3639): no roll — `chance` and `density` are 0, because where and
   how many sites stand come from the civilization files (homes pinned in `WorldMetadata.CivilizationHomes`, a count per site
   pool; [CIVILIZATIONS.md](CIVILIZATIONS.md) §3–§4). The rule supplies the footprint registry kind, keep-clear 6 (24 from the
   pads, 10 from the crash site) and the landmark's site and grade (a land site reserves its ground; a sunken one, seated by
   the `seabed` search, does not). `enabled: false` (or a raised `minGeneration`) stops fresh sites — a home body then decides
   nothing and asks again once the kind is on; standing sites replay from their records whatever the switch says. Its place in the structures boot stage: text tablets → Sounder world →
-  **civilizations** → settlements (+ intercity line) → ruins → … → landmarks → giant wrecks → buried ruins → …, so every
+  **civilizations** → settlements (+ intercity line) → ruins → … → landmarks → giant wrecks → guardian giants → buried ruins → …, so every
   later stamper keeps clear of the sites (`OverlapsLandmark` includes them). On a home body the kinds its
   `homeBody.suppress` names (`landmark`, `giant_wreck`) record a skip instead of rolling.
 - **Counts and verdicts are pinned** (#3513): `WorldMetadata.StructureCounts["<location>|<kind>"]`, the record fields
@@ -191,7 +200,12 @@ The prop markers stay in the layout.
   civilization site (kind `civ:<key>`, index = the site on its body) pins `turns`, `rev`, `seed`, `src` (a generator
   entry's source), `wt` (the water top of a sunken site), `name` (the pool's map name) and `storage=overlay`; its cells are
   one structure overlay `civ:<key>:<index>`. It is replayed whatever the content says now; a template that left the content
-  (or changed between authored and entry) keeps its blocks and re-derives nothing.
+  (or changed between authored and entry) keeps its blocks and re-derives nothing. A guardian giant (kind `guardian_giant`,
+  index = its place in the body's roll, generation 44) records its bed (corner, floor row, `Width` / `Length`) and pins
+  `facing`, `seed`, `wake` and its anchor `ax` / `ay` / `az`; beside it lives its `GuardianGiantRecord`
+  (`WorldMetadata.GuardianGiants`, `<location>#<index>`), whose state the boss logic keeps. Its body is ordinary block edits,
+  written once (feature `guardian_giant:<index>`); a replay registers the footprint and writes nothing, and never touches
+  the record's state (a record that went missing comes back dormant from the pin).
 
 ## 5. User content
 
@@ -250,4 +264,5 @@ design is stamped; quarter-turn and ruin previews run the server's own code. See
 | Ships and wrecks | `Shared/Definitions/UserShip.cs`, `GameContent.UserShips.cs`, `GameServerUserShips.cs`, `ShipCellBlocks.cs`, `WreckGenerator.Layout*.cs`, `WreckLayoutHull.cs`, `GameServerWrecks.Layout.cs` |
 | Giant ship wrecks | `Shared/Definitions/GiantShipRules.cs`, `GameContent.GiantShips.cs`, `WorldGeneration/GiantShipGenerator*.cs`, `StructureRuiner.Giant*.cs`, `GiantWreckPlacer.cs`, `GameServerGiantWrecks*.cs`, `GameServerGiantDerelict*.cs` — see [GIANT_SHIPS.md](GIANT_SHIPS.md) §12 |
 | Lost civilizations | `Shared/Definitions/CivilizationDefinition.cs`, `CivilizationRules.cs`, `GameContent.Civilizations.cs`, `WorldGeneration/CivilizationHomes.cs`, `CivilizationLayouts.cs` (materials, ruin options, `CivilizationPropDress`), `UniverseGenerator.Civilizations.cs`, `MazeRuinPlan.cs`, `MazeRuinGenerator.cs`, `Sources/MazeRuinSource.cs`, `GameServerCivilizations.cs` (stage, record), `GameServerCivilizationStamp.cs` (seats, water write mode), `GameServerCivilizationsWorld.cs` — see [CIVILIZATIONS.md](CIVILIZATIONS.md) |
-| Tests | `StructureGoldens*`, `StructureSourceTests*`, `StructureBookkeepingTests*` (`.OldSave`: a simulated pre-pipeline save), `StructureRuinerTests*`, `StructureDecayTests*`, `TemplatePipeline*Tests`, `StationTemplatePinTests`, `StructureTypeRulesTests`, `StructureFootprintTests`, `UserShipTests`, `WreckLayout*Tests`, `SpaceWreckLayoutTests`, `CivilizationFrameworkTests`, `CivilizationStampTests`, `MazeRuinSourceTests*`; Client.Tests `UserShipFileRulesTests`, `UserTemplateFilesTests`, `StampStepsDescriberTests` |
+| Fallen guardian giants | `Shared/Definitions/GuardianGiantBody.cs`, `GuardianGiantRules.cs`, `Shared/State/GuardianGiantRecord.cs`, `WorldGeneration/GuardianGiantBuilder.cs` (`GuardianGiantBuilder`, `GuardianGiantSites`), `Sources/BuilderSources.cs` (`GuardianGiantSource`), `GameServerGuardianGiantStamp.cs` — see [WORLD_GENERATION.md](WORLD_GENERATION.md) §59 |
+| Tests | `GuardianGiantStampTests`, `StructureGoldens*`, `StructureSourceTests*`, `StructureBookkeepingTests*` (`.OldSave`: a simulated pre-pipeline save), `StructureRuinerTests*`, `StructureDecayTests*`, `TemplatePipeline*Tests`, `StationTemplatePinTests`, `StructureTypeRulesTests`, `StructureFootprintTests`, `UserShipTests`, `WreckLayout*Tests`, `SpaceWreckLayoutTests`, `CivilizationFrameworkTests`, `CivilizationStampTests`, `MazeRuinSourceTests*`; Client.Tests `UserShipFileRulesTests`, `UserTemplateFilesTests`, `StampStepsDescriberTests` |

@@ -61,6 +61,9 @@ namespace BlocksBeyondTheStars.Client
         public event Action<StationBoarded>? StationBoardedReceived;
         public event Action<PlanetEnemyList>? PlanetEnemiesReceived;
         public event Action<PlanetEnemyDefeated>? PlanetEnemyDefeated;
+
+        /// <summary>#3676: a guardian giant fight's state (move, aim, boss bar, lying pose).</summary>
+        public event Action<GuardianGiantStatus>? GuardianGiantStatusReceived;
         public event Action<SentryShot>? SentryShotReceived; // #1214: cosmetic base-turret tracer
         public event Action<CreatureList>? CreaturesReceived;
 

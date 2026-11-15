@@ -21,8 +21,9 @@ public enum MelodyStep
     /// <summary>The right tone, and it finished the last round.</summary>
     Solved = 3,
 
-    /// <summary>Not the tone asked for. Never a punishment: the round restarts (Repeat, CallAndResponse) or the input resets
-    /// (Compose, Harmony). <see cref="MelodyPuzzle.Mistakes"/> counts it, nothing else does.</summary>
+    /// <summary>Not the tone asked for. Never a punishment, in every mode (#3678): it simply does not count — the input stays
+    /// where it was, nothing restarts, and the player tries that tone again. <see cref="MelodyPuzzle.Mistakes"/> counts it
+    /// (for a gentle "nearly!"), nothing else does.</summary>
     Wrong = 4,
 }
 
@@ -34,11 +35,14 @@ public enum MelodyStep
 /// <item><b>Repeat</b> — round <c>i</c> of <c>R</c> asks for the first <c>ceil((i+1)·n/R)</c> tones of the melody, so the
 /// prompt grows every round and the last round is the whole melody.</item>
 /// <item><b>Compose</b> — one round: the whole target, no prompt.</item>
-/// <item><b>Harmony</b> — one round: the prompt is the melody, the answer its counter-voice (<see cref="Counter"/>).</item>
+/// <item><b>Harmony</b> — one round: the prompt is the melody, the answer its counter-voice (<see cref="Counter"/>). With
+/// <see cref="MelodyPuzzleSpec.RoundPerLetter"/> (#3677, the Bridge Song) one round per letter instead: the prompt is the
+/// letter's tones, the answer their counter-voice.</item>
 /// <item><b>CallAndResponse</b> — one round per call: the prompt is the call, the answer its answer phrase (or the call
 /// itself when the answer is empty).</item>
 /// </list>
-/// Rounds without a single tone to play (a call of rests only) are dropped.
+/// Rounds without a single tone to play (a call of rests only) are dropped. A wrong tone never resets anything (#3678):
+/// it only counts as a <see cref="Mistakes"/>, the round and the right tones played so far stay.
 /// </summary>
 public sealed class MelodyPuzzle
 {
@@ -55,6 +59,9 @@ public sealed class MelodyPuzzle
                 break;
             case MelodyPuzzleMode.Compose:
                 AddRound(Array.Empty<int>(), SounderAlphabet.TonesOnly(spec.Target ?? Array.Empty<int>()));
+                break;
+            case MelodyPuzzleMode.Harmony when spec.RoundPerLetter:
+                BuildHarmonyLetters(spec.Target ?? Array.Empty<int>(), spec.HarmonyOffset);
                 break;
             case MelodyPuzzleMode.Harmony:
                 var melody = spec.Target ?? Array.Empty<int>();
@@ -94,7 +101,36 @@ public sealed class MelodyPuzzle
     /// <summary>Whether a round's prompt plays (everything but Compose).</summary>
     public bool HasPrompt => Spec.Mode != MelodyPuzzleMode.Compose;
 
-    /// <summary>The player played <paramref name="tone"/> (0–7).</summary>
+    /// <summary>#3677: the tone the player must play next (0–7), or -1 once solved (or for no puzzle). The melody bar makes
+    /// it glow when the spec asks for it (<see cref="MelodyPuzzleSpec.ShowNextTone"/>).</summary>
+    public int NextTone => Solved || !IsValid ? -1 : Expected[Math.Min(Entered, Expected.Count - 1)];
+
+    /// <summary>
+    /// #3426/#3677: the right tones played so far through the whole target — where the spelling line stands (two tones per
+    /// letter). Rounds that split the target (Harmony by letter, the Bridge Song) add up; Repeat starts every round at the
+    /// melody's beginning, so there it is <see cref="Entered"/>.
+    /// </summary>
+    public int WordEntered
+    {
+        get
+        {
+            if (Spec.Mode == MelodyPuzzleMode.Repeat)
+            {
+                return Entered;
+            }
+
+            int done = Entered;
+            for (int i = 0; i < Round && i < _expected.Count; i++)
+            {
+                done += _expected[i].Length;
+            }
+
+            return done;
+        }
+    }
+
+    /// <summary>The player played <paramref name="tone"/> (0–7). A wrong tone only counts as a mistake (#3678): the input
+    /// stays, so the player simply tries that tone again.</summary>
     public MelodyStep Play(int tone)
     {
         if (Solved || !IsValid || tone < 0 || tone >= SounderAlphabet.ToneCount)
@@ -103,32 +139,27 @@ public sealed class MelodyPuzzle
         }
 
         var expected = Expected;
-        if (tone == expected[Entered])
+        if (tone != expected[Entered])
         {
-            Entered++;
-            if (Entered < expected.Count)
-            {
-                return MelodyStep.Correct;
-            }
-
-            Entered = 0;
-            if (Round + 1 >= RoundCount)
-            {
-                Solved = true;
-                return MelodyStep.Solved;
-            }
-
-            Round++;
-            return MelodyStep.RoundDone;
+            Mistakes++;
+            return MelodyStep.Wrong;
         }
 
-        Mistakes++;
-        bool restartsRound = Spec.Mode is MelodyPuzzleMode.Repeat or MelodyPuzzleMode.CallAndResponse;
+        Entered++;
+        if (Entered < expected.Count)
+        {
+            return MelodyStep.Correct;
+        }
 
-        // Compose / Harmony: the input resets — but a wrong tone that is the first tone of the sequence is the start of a
-        // new try (a player who lost the thread simply begins again; no extra "wrong" in between).
-        Entered = !restartsRound && tone == expected[0] ? 1 : 0;
-        return MelodyStep.Wrong;
+        Entered = 0;
+        if (Round + 1 >= RoundCount)
+        {
+            Solved = true;
+            return MelodyStep.Solved;
+        }
+
+        Round++;
+        return MelodyStep.RoundDone;
     }
 
     /// <summary>Starts the current round again (a reminder after a long pause, or a replayed prompt).</summary>
@@ -195,6 +226,34 @@ public sealed class MelodyPuzzle
             var expected = new int[length];
             Array.Copy(tones, expected, length);
             AddRound(PrefixWithTones(melody, length), expected);
+        }
+    }
+
+    /// <summary>Harmony by letter (#3677): the melody split at its rests (the note alphabet's letter breaks), one round per
+    /// letter — the prompt is the letter's tones, the answer their counter-voice. A melody with a tone off the bar makes no
+    /// puzzle at all, as in one round.</summary>
+    private void BuildHarmonyLetters(int[] melody, int offset)
+    {
+        if (!SounderAlphabet.IsValidSequence(melody))
+        {
+            return;
+        }
+
+        var letter = new List<int>();
+        for (int i = 0; i <= melody.Length; i++)
+        {
+            if (i < melody.Length && melody[i] != SounderAlphabet.Rest)
+            {
+                letter.Add(melody[i]);
+                continue;
+            }
+
+            if (letter.Count > 0)
+            {
+                int[] tones = letter.ToArray();
+                AddRound(tones, Counter(tones, offset));
+                letter.Clear();
+            }
         }
     }
 

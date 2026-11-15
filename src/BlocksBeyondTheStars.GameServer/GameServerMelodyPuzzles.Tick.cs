@@ -8,8 +8,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <summary>
 /// The melody puzzles' clock (#3346): once per tick, after the worlds (a puzzle belongs to its player, wherever they are).
 /// It ends the runs whose player logged out, changed the world, flew off or walked away, runs the time limits, plays the
-/// prompts that wait after a finished round or a wrong note, and replays a round's prompt as a reminder after a long
-/// pause. A held (paused) world stops this clock with everything else.
+/// prompt that waits after a finished round, and replays a round's prompt as a reminder after a long pause (a wrong note
+/// never replays anything, #3678). A held (paused) world stops this clock with everything else.
 /// </summary>
 public sealed partial class GameServer
 {

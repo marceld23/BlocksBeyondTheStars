@@ -56,7 +56,8 @@ public class CommunityLocaleTests
     /// TRANSLATION_GUIDE.md. (fr and it keep the English name "AI Core" on purpose — their names say so too.)</summary>
     private static readonly (string Codes, Regex Term, string Use)[] ForbiddenTerms =
     [
-        ("*", Term(@"(?i)\bguardian\b"), "the language's own name for the Guardian (Koruyucu, Strażnik, Bewaker, Guardiano, ガーディアン …)"),
+        // #3681: "/giant guardian" is a command word the player types, not the Guardian's name — never translated.
+        ("*", Term(@"(?i)(?<!/giant )\bguardian\b"), "the language's own name for the Guardian (Koruyucu, Strażnik, Bewaker, Guardiano, ガーディアン …)"),
         ("es,ja,ko,nl,pl,pt,ru,tr,uk,zh", Term(@"\bAI Core\b"), "the language's own name of the AI core, as in module.ai_core_mk3.name"),
         ("*", Term(@"(?i)\bship (?:keel|helm|engine)\b|\bkeel\b|\bshipwright\b|\bself-built ship\b|\bstarter ship\b"),
             "the language's own ship-part names (item.ship_core/ship_helm/ship_engine.name, blueprint.ship_builder.name, ship.*.name)"),

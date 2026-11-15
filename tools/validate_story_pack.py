@@ -169,7 +169,7 @@ KNOWN_FIELDS = {
     "sfx": {"cue", "at"},
     "cutscene_options": {
         "holdWorld", "hideHud", "lockInput", "skippable", "minDisplay", "chainNext", "cooldownExempt", "replayable",
-        "returnOnSkip",
+        "returnOnSkip", "playInPlace", "waitHint", "staleAfterStep",
     },
 }
 
@@ -1095,7 +1095,11 @@ class Validator:
             check_steps(cp, "chapter", cid, steps, line_budget, False)
             check_missions(cp, chapter)
 
-        self.validate_cutscenes(pid, cutscene_defs, chapter_ids, key, speaker_ids)
+        chapter_step_ids = {
+            s.get("id") for c in (pack.get("chapters") or []) if isinstance(c, dict)
+            for s in (c.get("steps") or []) if isinstance(s, dict)
+        }
+        self.validate_cutscenes(pid, cutscene_defs, chapter_ids, key, speaker_ids, chapter_step_ids)
 
         # #2469: the graduation (a player pack finished by playing).
         graduation = pack.get("graduation") or {}
@@ -1207,7 +1211,8 @@ class Validator:
             return None
         return {c.get("id") for c in self.load_cutscenes(folders[0]) if isinstance(c, dict) and c.get("id")}
 
-    def validate_cutscenes(self, pid: str, defs: list, chapter_ids: set[str], key, speaker_ids: set | None = None) -> None:
+    def validate_cutscenes(self, pid: str, defs: list, chapter_ids: set[str], key, speaker_ids: set | None = None,
+                           step_ids: set | None = None) -> None:
         """The cutscene rules of the C# StoryPackValidator (synthesis 6.2/6.3): ids, tiers, cameras, anchors, caption styles,
         grades, shot lengths, caption/cue times, caption keys and budgets, the tier rules (a T1/T2 never takes the camera;
         only a T3/T4 that takes it may hold the world or freeze the controls), chains, chapters, music and sounds; #2478 the
@@ -1338,6 +1343,10 @@ class Validator:
                 r.error(pid, f"{cp}.options.minDisplay", "minDisplay must not be negative")
             for ni, ref in enumerate(options.get("chainNext") or []):
                 self.check_chain(pid, f"{cp}.options.chainNext[{ni}]", cid, ref, ids)
+            # #3686: the step that overtakes the scene must be one of the pack's steps.
+            stale_after = options.get("staleAfterStep") or ""
+            if stale_after and step_ids is not None and stale_after not in step_ids:
+                r.error(pid, f"{cp}.options.staleAfterStep", f"'{stale_after}' is not a step of the pack")
             # #2474: a line given back on a skip must be one the scene takes out of the panel in the first place.
             replaced = cut.get("replaceLineKeys") or []
             for li, line in enumerate(options.get("returnOnSkip") or []):

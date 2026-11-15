@@ -47,6 +47,7 @@
   { "key": "derelict_manifest","site": "derelict",      "textKey": "lore.site.derelict_manifest","minKnowledge": 0, "weight": 1 },
   { "key": "anomaly_echo",     "site": "anomaly",       "textKey": "lore.site.anomaly_echo",     "minKnowledge": 0, "weight": 2 },
   { "key": "anomaly_choir",    "site": "anomaly",       "textKey": "lore.site.anomaly_choir",    "minKnowledge": 2, "weight": 1 },
+  { "key": "giant_core_order", "site": "guardian_giant_core", "textKey": "lore.site.giant_core_order", "minKnowledge": 0, "weight": 1 },
 
   { "key": "debris_freighter_log", "site": "debris_freighter", "textKey": "lore.site.debris_freighter_log", "minKnowledge": 0, "weight": 1 },
   { "key": "debris_shipyard_tag",  "site": "debris_shipyard",  "textKey": "lore.site.debris_shipyard_tag",  "minKnowledge": 0, "weight": 1 },

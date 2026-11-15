@@ -13,7 +13,7 @@ using BlocksBeyondTheStars.Shared.Story;
 namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>One cutscene committed to a player and waiting to be sent (#2467): the client is not in the world yet, or the
-/// 90 s cooldown still runs.</summary>
+/// cooldown still runs.</summary>
 public sealed class PendingCutscene
 {
     public PendingCutscene(string packId, string id, int tier, string arg, Vector3f? anchor, bool cooldownExempt)
@@ -47,6 +47,11 @@ public sealed class PendingCutscene
     /// <summary>A "now or never" scene — it never waits for the cooldown.</summary>
     public bool CooldownExempt { get; }
 
+    /// <summary>#3686: whether the step rules may drop the scene as overtaken while it waits. False for a scene whose
+    /// overtaking step was through already when it was committed (an open extra finished after the steps behind it): that
+    /// moment is the player's now, and the scene plays. A re-offer at the join is always checked.</summary>
+    public bool MayBeOvertaken { get; set; } = true;
+
     /// <summary>#2473: narrator lines the scene shows itself (its <c>replaceLineKeys</c>) that came up while it waited here —
     /// they go out right after the scene, so the client knows to keep them out of the VEGA panel.</summary>
     public List<ShipAiLine> HeldLines { get; } = new();
@@ -65,9 +70,12 @@ public sealed class PendingCutscene
 /// line carries the moment — and the scene is stamped seen at once, so it is never owed.</item>
 /// <item>At the join every committed but unconfirmed scene is offered again (a world story's backlog of three or more
 /// chapter scenes collapses into ONE built-in <c>__recap</c> card).</item>
-/// <item>At most one unrequested T2+ scene per <see cref="CutsceneCooldownSeconds"/>, except a scene the previous one
+/// <item>At most one unrequested T2+ scene per <see cref="CutsceneCooldownSeconds"/> — per
+/// <see cref="CutsceneSamePackCooldownSeconds"/> after a scene of the same story (#3686) — except a scene the previous one
 /// chains to (<c>chainNext</c>) or a "now or never" one; banners never wait. Nothing goes out before the client is in the
 /// world. Observers (<c>/spectate</c>) never get a scene.</item>
+/// <item>#3686: a queued scene the player's story has moved past is dropped unsent and stamped seen
+/// (<see cref="IsOvertakenCutscene"/>).</item>
 /// </list>
 /// Replays (Story tab, <see cref="StoryPackActions.ReplayCutscene"/>) re-send a seen scene with <c>Replay = true</c> and
 /// change nothing.
@@ -175,7 +183,9 @@ public sealed partial class GameServer
         }
 
         _repo.SavePlayer(session.State);
-        EnqueueCutscene(session, new PendingCutscene(pack.Id, cutsceneId, def!.Tier, arg, anchor, def.Options?.CooldownExempt ?? false));
+        var item = new PendingCutscene(pack.Id, cutsceneId, def!.Tier, arg, anchor, def.Options?.CooldownExempt ?? false);
+        item.MayBeOvertaken = !IsOvertakenByStep(session, item); // #3686: a moment the story is past already plays anyway
+        EnqueueCutscene(session, item);
         FlushCutscenes(session);
         return true;
     }
@@ -317,10 +327,12 @@ public sealed partial class GameServer
                     continue; // #2506: its story was switched off while it waited — it goes out when the story comes back
                 }
 
-                if (IsStaleChapterOpener(session, item))
+                if (IsOvertakenCutscene(session, item))
                 {
                     // #2473: a part card that waited behind the cooldown while its part went by is pointless now — it is
                     // dropped and stamped seen (as the client does with a scene that found no moment); lines it held go out.
+                    // #3686: so is any story scene the player's story has moved past (a step's scene once the next step is
+                    // through, a VEGA chapter opening once a later chapter has begun).
                     session.Story.CutsceneQueue.RemoveAt(i--);
                     dropped |= MarkCutsceneSeen(session, item.PackId, item.Id);
                     ReleaseHeldLines(session, item);
@@ -377,7 +389,7 @@ public sealed partial class GameServer
            || session.Story.CutsceneChain.Contains(item.PackId + StoryCutsceneIds.PackSeparator + item.DefinitionId)
            || (item.DefinitionId == StoryCutsceneIds.Recap && session.Story.CutsceneChain.Contains(StoryCutsceneIds.Recap))
            || (session.Story.CutsceneChain.Contains(StoryCutsceneIds.AnyOfPack(item.PackId)) && IsChapterScene(item))
-           || _uptime - session.Story.CutsceneLastSentAt >= CutsceneCooldownSeconds;
+           || _uptime - session.Story.CutsceneLastSentAt >= CutsceneCooldownFor(session, item);
 
     /// <summary>A queued scene bound to a chapter of its pack (an opening, a beat card) that is not the pack's intro — what
     /// the recap card leads into at once (#2470).</summary>
@@ -398,6 +410,7 @@ public sealed partial class GameServer
         }
 
         session.Story.CutsceneLastSentAt = _uptime;
+        session.Story.CutsceneLastSentPack = item.PackId; // #3686: the same story's next scene follows sooner
         session.Story.CutsceneChain.Clear();
         if (item.DefinitionId == StoryCutsceneIds.Recap)
         {

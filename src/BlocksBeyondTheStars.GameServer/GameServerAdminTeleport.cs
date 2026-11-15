@@ -43,7 +43,7 @@ public sealed partial class GameServer
     /// <summary>Target words in the order they are offered to the admin, worldgen first, player-built last.</summary>
     private static readonly string[] TeleportKinds =
     {
-        "ship", "pad", "city", "village", "ruin", "railruin", "vault", "ancient", "landmark", "civ", "giantwreck", "wreck", "factory", "camp", "lodge",
+        "ship", "pad", "city", "village", "ruin", "railruin", "vault", "ancient", "landmark", "civ", "giantwreck", "giant", "wreck", "factory", "camp", "lodge",
         "outpost", "monument", "treasure", "base", "beacon", "beam", "station",
     };
 
@@ -69,6 +69,9 @@ public sealed partial class GameServer
             or "mazes" => "civ",
         // #3610: the giant ship wrecks on planets
         "giantwrecks" or "giant_wreck" or "giantship" or "riesenschiff" or "riesenwrack" or "riesenwracks" => "giantwreck",
+        // #3676: the guardian giants of this body (lying, awake or defeated)
+        "giants" or "guardiangiant" or "guardiangiants" or "guardian_giant" or "gigant" or "giganten" or "wächtergigant"
+            or "waechtergigant" or "wächtergiganten" or "waechtergiganten" => "giant",
         "wrecks" => "wreck",
         "factories" => "factory",
         "camps" or "bandit" or "bandits" or "banditcamp" => "camp",
@@ -151,6 +154,7 @@ public sealed partial class GameServer
 
         AppendCivilizationTargets(list, session); // #3654 (GameServerAdminTeleportSites.cs)
         AppendGiantWreckTargets(list, session); // #3610, #3655: on this body, then in space of this system
+        AppendGuardianGiantTargets(list, session); // #3676 (GameServerGuardianGiantsAdmin.cs)
         if (_wreckStamped && !_wreckClaimed)
         {
             // No reveal check here, unlike the map POI: an admin looking for the wreck is doing support, not
@@ -302,8 +306,8 @@ public sealed partial class GameServer
         int available = targets.Count(t => t.Kind == kind);
         if (available == 0)
         {
-            // A body without a city says where the settlements are instead (#1923).
-            Reject(session, "admin", kind == "city" ? "@srv.tp.no_city" : "@srv.tp.none_of_kind:" + kind);
+            // A body without a city says where the settlements are instead (#1923); #3676: no guardian giant has its own line.
+            Reject(session, "admin", kind == "city" ? "@srv.tp.no_city" : kind == "giant" ? "@srv.tp.no_giant" : "@srv.tp.none_of_kind:" + kind);
             return;
         }
 

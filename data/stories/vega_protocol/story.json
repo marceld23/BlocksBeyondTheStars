@@ -102,7 +102,32 @@
           "feasibleIf": [ "world:free_flight", "world:space_wrecks" ], "steps": [
           { "id": "m_wrecks.1", "tier": "core", "objective": { "event": "scan:any", "arg": "wreck" },
             "explain": { "startKey": "story.vega.m.wrecks.1.start", "chipKey": "story.vega.m.wrecks.1.obj",
-                         "hintKey": "story.vega.m.wrecks.1.hint", "doneKey": "story.vega.m.wrecks.1.done" } } ] } ] },
+                         "hintKey": "story.vega.m.wrecks.1.hint", "doneKey": "story.vega.m.wrecks.1.done" } } ] },
+        // #3685: the guardian giants (canon C18) — find a lying giant, scan it, and VEGA remembers the Service's builders (the
+        // beat card giant.remembers; its line is the insight guardian_giant, kept in the Journal's VEGA notes). It comes after
+        // The Long Quiet (one mission at a time, in this order), never in its place. A world without giants (terrain generation
+        // below 44) gets the stand-in: scan an old wreck, or stop a Guardian machine — and the same memory at its end.
+        { "id": "m_fallen_giant", "titleKey": "story.vega.m.fallen_giant.title",
+          "feasibleIf": [ "world:guardian_giants" ], "alternative": "m_giant_echo", "steps": [
+          { "id": "m_fallen_giant.1", "tier": "core", "objective": { "event": "guardian_giant:found" },
+            "alreadyDoneIf": [ "world:guardian_giant_near" ],
+            "explain": { "startKey": "story.vega.m.fallen_giant.1.start", "chipKey": "story.vega.m.fallen_giant.1.obj",
+                         "hintKey": "story.vega.m.fallen_giant.1.hint", "doneKey": "story.vega.m.fallen_giant.1.done" } },
+          { "id": "m_fallen_giant.2", "tier": "core", "objective": { "event": "scan:performed", "arg": "guardian_giant" },
+            "onComplete": { "cutscene": "giant.remembers" },
+            "explain": { "startKey": "story.vega.m.fallen_giant.2.start", "chipKey": "story.vega.m.fallen_giant.2.obj",
+                         "hintKey": "story.vega.m.fallen_giant.2.hint", "doneKey": "story.vega.m.fallen_giant.2.done" } } ] },
+        { "id": "m_giant_echo", "titleKey": "story.vega.m.giant_echo.title", "steps": [
+          { "id": "m_giant_echo.1", "tier": "core", "objective": { "event": "scan:performed", "arg": "wreck|giant_wreck" },
+            "feasibleIf": [ "world:free_flight", "world:space_wrecks" ], "alternative": "m_giant_echo.1a",
+            "onComplete": { "cutscene": "giant.remembers" },
+            "explain": { "startKey": "story.vega.m.giant_echo.1.start", "chipKey": "story.vega.m.giant_echo.1.obj",
+                         "hintKey": "story.vega.m.giant_echo.1.hint", "doneKey": "story.vega.m.giant_echo.1.done" } },
+          { "id": "m_giant_echo.1a", "tier": "core", "objective": { "type": "Lead", "target": "machines" },
+            "feasibleIf": [ "world:enemies" ],
+            "onComplete": { "cutscene": "giant.remembers" },
+            "explain": { "startKey": "story.vega.m.giant_echo.1a.start", "chipKey": "story.vega.m.giant_echo.1a.obj",
+                         "hintKey": "story.vega.m.giant_echo.1a.hint", "doneKey": "story.vega.m.giant_echo.1a.done" } } ] } ] },
     { "id": "what_you_are", "titleKey": "story.vega.ch.what_you_are", "fromBeat": 9, "openCutscene": "ch5.open",
       "leads": [ { "type": "research:radar_array" }, { "type": "settlement_help" } ],
       "missions": [
@@ -145,7 +170,11 @@
   "memoryTriggers": [ "lead", "monument" ],
   "insights": [
     { "event": "companion_ward", "minBeat": 5, "textKey": "story.vega.insight.companion_ward", "onceKey": "story:insight:companion-ward" },
-    { "event": "shape_noncube",  "minBeat": 5, "textKey": "story.vega.insight.shape_anomaly",  "onceKey": "story:insight:shape-anomaly" }
+    { "event": "shape_noncube",  "minBeat": 5, "textKey": "story.vega.insight.shape_anomaly",  "onceKey": "story:insight:shape-anomaly" },
+    // #3685: VEGA remembers the guardian giants — at a scanned giant, or when the giant mission's stand-in is done
+    // (mission:<id> = a story mission finished by playing); one line, one once-key.
+    { "event": "guardian_giant", "minBeat": 5, "textKey": "story.vega.insight.guardian_giant", "onceKey": "story:insight:guardian-giant" },
+    { "event": "mission:m_giant_echo", "minBeat": 5, "textKey": "story.vega.insight.guardian_giant", "onceKey": "story:insight:guardian-giant" }
   ],
   "fragmentWeight": 3,
   "killWeight": 1,

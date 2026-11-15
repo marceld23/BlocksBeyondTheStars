@@ -2970,6 +2970,41 @@ worlds created with a game version that has generation 43 have them; an older wo
 - On those worlds there is no other giant building and no giant ship wreck; villages, camps and everything else can still
   be there.
 
+### Guardian giants (the boss)
+- Out in the wild lie **fallen giant machines**, fourteen blocks tall when they stood: plated legs, broad shoulders, a wide
+  visor. Long ago giants like these built and shaped whole worlds. Most of them are **dead for good** — but about **one in
+  four** still holds a little power.
+- **Finding one:** come within about 48 blocks and it goes on your **planet map** (*Guardian giant*: lying, awake or
+  defeated); VEGA tells you about the first one you find. Its blocks are ordinary blocks — you may mine a dead giant.
+- **Waking one** — only on **survival** worlds with hostile machines on (never in Peaceful or Creative; even after the end of
+  the story they still wake): walk within about **40 blocks** on foot and, if it can wake, **one of its eyes flickers** and
+  VEGA warns you. Come within about **20 blocks** — or start digging at its body — and **all its lights switch on**; a
+  moment later it **stands up**. A boss bar shows its armour.
+- **Fighting it:** it **always warns you before a blow**:
+  - **It lifts a foot** → a **stomp**: a shock wave around its feet — step back.
+  - **It crouches and a red shadow lies on the ground** → it **leaps** and lands there with a shock wave — run out of the
+    shadow.
+  - **Its visor glows** → a **laser** along its gaze — get behind a wall or a block; cover stops it.
+  - **It tears a rock out of the ground** → it **throws** it at where you stood — keep moving.
+  - At **half its armour** it gets angry: it is faster, attacks more often and calls **two Guardian robots** (twice at most).
+  - If you hide, it stands still and **searches** with its eye. It never breaks a block, and it never walks into deep
+    water, into lava or down a cliff — and never far from where it lay. Hit it between its attacks: melee, guns, your
+    base's sentry posts and your hunter robot all hurt it.
+- **If everyone runs away** (or is knocked out), after a few seconds it walks back to its place, **lies down again** with its
+  lights still on and **repairs itself** — next time you come close it stands up at once.
+- **Defeating it** (only once — it never wakes again): it sinks to its knees and falls; its body stays where it fell, lights
+  out. **Everyone who fought it** — who hit it or was hit by it — finds their **own locked crate** beside it: plenty of
+  **guardian plates**, carbon, and the giant's memory teaches you **one guardian blueprint you do not know yet** (guardian
+  gear, sword or drill). If you know all three already, a **finished guardian piece** waits in your crate instead. Your
+  first defeated giant earns the achievement **Giant Slayer**.
+- **In VEGA's story:** point your **scanner** at any block of a giant to read it (a discovery for your Codex, once per
+  giant) — VEGA then remembers who built them. A defeated giant moves the story on like several machines at once and
+  always brings back one of **your personal memories**. Your crate also holds the giant's **memory core**: carry it, and
+  VEGA reads its **last order** into your Journal (*Story* page, field records). What VEGA says about the giants changes
+  with how far your story has come. In chapter 4 she even sends you to find one (*The Fallen Giant*).
+- **Admins** can lay a giant that can wake in front of them with `/giant guardian` and travel to the giants of a world with
+  `/tp giant` (see the admin commands).
+
 ### Monuments & runes
 - Somebody was here long before you. **Monuments** are the relics they left: a half-collapsed
   **arcade** of arches, a free-standing **gate** that leads nowhere, a ring of standing stones
@@ -3546,7 +3581,9 @@ called **stories**:
 - **Story missions.** In each chapter VEGA also gives you a short **story mission** — right after the chapter's scene
   (never during the basic training), with a few words from her: *Follow the Signal* (find a net fragment), *The Sealed
   Observatory* (fly there and read the survey post's last log), *What the Stones Remember* (read a monument's runes, then
-  help a settlement), *The Long Quiet* (board the old derelict and find her cargo manifest), *Eyes on Far Stars* and *The
+  help a settlement), *The Long Quiet* (board the old derelict and find her cargo manifest) and after it *The Fallen
+  Giant* (find one of the huge fallen machines and scan it — then VEGA remembers who built them; on a world without them she
+  asks you to scan an old wreck or stop a Guardian machine instead), *Eyes on Far Stars* and *The
   Jump Generator* (research them, then build them into your ship) and, after the finale, *Survey Orders* from a station
   board. While a mission runs, the chip shows its current step instead of the lead ("VEGA: Read the observatory's last
   log"), and the Journal lists it under **Missions in this chapter** with **Skip mission** if you would rather not. If a
@@ -3650,7 +3687,7 @@ VEGA tells it; the Echoes, the Eldest and Roll speak in the scenes. It has eight
    not; with the story running every new word goes into the **Song Archive** (your Journal's page of this story).
 2. **The shrine of eight voices.** The **Singing Shrine** has eight pillars — eight tones. Strike one: the shrine sings a
    short tune, you play it back on the pillars (or on the **melody bar**, see below). Three rounds, each a little longer.
-   Wrong notes never hurt — the round just starts again. As a reward the shrine gives you a **Song Spindle** and the first
+   Wrong notes never hurt — a wrong note simply doesn't count, just try that note again. As a reward the shrine gives you a **Song Spindle** and the first
    **Song Disc**. Any complete **rune shrine** works — when one stands near you on your world, VEGA marks its altar. The
    Singing Shrine — the Shrine of the Eight Voices, the oldest and biggest singing shrine — stands on just **one world of
    the galaxy**: without a rune shrine near you, VEGA names that world and its star system (open the star map), sets it as
@@ -3670,7 +3707,12 @@ VEGA tells it; the Echoes, the Eldest and Roll speak in the scenes. It has eight
    without hurting them, calms Soundraks, and — used on a monument's rune stone — opens a hidden **sound chamber** once;
    on Soaniri it also opens two sealed chambers of the ruin city Ornasa) and the **obsidian
    armour** (quiet steps; its chest piece has a **disc slot**: the *hearing disc* lets you hear the Echoes, the *calm
-   disc* keeps Soundraks calm, the *light disc* glows softly).
+   disc* keeps Soundraks calm, the *light disc* glows softly). **Opening a sound chamber:** VEGA marks the nearest
+   monument. Hold the Resonance Blaster, walk right up to one of the monument's rune stones, aim at it and press the
+   right mouse button — the ground opens and stairs lead down into a chamber under the monument (a monument opens only
+   once; if one won't open, try another). The chamber's relic cache holds the next disc. Take it to your Song Spindle —
+   the spindle only works when it stands as a **placed block** — hold the disc and **[Use]** the spindle. While you
+   hold the Resonance Blaster, the melody bar shows your current task of this story.
 5. **The Echoes.** Wearing the hearing disc, you meet the **Echoes** at rune stones — the Sounders who sang the Great
    Song long ago. They are not ghosts; they live "on the other side". You ask them with **melodies** (a question is a short
    tune you choose). Elora, Kamo, Feya and Tini each give you letters of the way home. Any group of three or more rune
@@ -3689,8 +3731,9 @@ VEGA tells it; the Echoes, the Eldest and Roll speak in the scenes. It has eight
    charges and bites. It is slow, so you can always walk away, and it gives up after a short chase. The *calm disc* in the
    obsidian chest or a pulse of the Resonance Blaster calms it. In **Peaceful** it only screams.
 8. **The Bridge Song.** At the **Choir Tower** the Young Voices want to sing the Final Song again. Talk to **Roll** — the
-   things the Echoes told you are your best answers — then play the **second voice** on the tower's eight pipes while
-   they sing. Afterwards a little **Soundi** that followed you through Mirun asks for a **sing duel**: it sings, you
+   things the Echoes told you are your best answers — then climb the tower and strike one of its eight pipes: the choir
+   sings the song **one letter at a time**, and you answer each letter with the **second voice** — the key to press next
+   **glows** on the melody bar, two keys per letter. A wrong note doesn't count; just press the glowing key. Afterwards a little **Soundi** that followed you through Mirun asks for a **sing duel**: it sings, you
    answer. Win, give it a name (it suggests "Muffin") — and it travels with you to every world.
 
 **Skipping a part.** You can skip a step or a whole chapter in the **Journal** — you never get stuck for it. VEGA hands
@@ -3701,9 +3744,11 @@ part yourself, and the Soundi only joins you if you win the sing duel.
 
 **The melody bar.** Whenever you play a tune (a shrine, a spindle, an Echo, the tower, a Soundi) the melody bar opens at
 the bottom of the screen: eight tones, each with its own colour and sign. Play them with the number keys **1–8** (the
-quick bar does not switch while it is open), the gamepad's d-pad and shoulder buttons, or by touch. Holding the
-Resonance Blaster opens it too, so you can play freely. When the tune spells a word (the Song of Return, the Bridge
-Song), the bar shows each letter with its two notes and lights up the letter you are at. While the bar is open, VEGA's
+quick bar does not switch while it is open), the gamepad's d-pad and shoulder buttons, or by touch. A wrong note never
+sends you back: it simply doesn't count ("Nearly!"), and you try that note again. Holding the Resonance Blaster opens
+the bar too, so you can play freely — then it also shows your current task in the Sounders' story. When the tune spells
+a word (the Song of Return, the Bridge Song), the bar shows each letter with its two notes and lights up the letter you
+are at; in the Bridge Song the key to press next glows as well. While the bar is open, VEGA's
 objective strip and her message tab step aside so nothing covers it — they come back the moment the bar closes — and the
 controls line at the bottom leaves out the quick-bar keys.
 
@@ -5318,6 +5363,7 @@ confirmation is the brief HUD toast.
 | `/settime day\|night\|noon\|midnight\|dawn\|dusk\|18:30\|6.5\|0.5` | Set the local time of day of the world you stand in: a word, a clock time, an hour from 1 to 24 or a part of the day below 1. Not out in space |
 | `/setweather clear\|clouds\|rain\|storm\|fog\|blizzard\|heatwave\|…` | Set the weather of the world you stand in (every weather key works; `cloudy` is accepted for `clouds`) |
 | `/giant colossus\|sandworm\|leviathan\|sky` | Summon this world's colossus, sandworm, leviathan or sky giant near you (a sandworm needs a sand sea, a leviathan a deep sea) — for testing |
+| `/giant guardian` | Lay a **guardian giant that can wake** about 30 blocks in front of you (its feet toward you) on fairly flat, dry ground — a new one each time, for testing the boss fight; `/tp giant` takes you to the giants of this world |
 | `/arachnid` | Summon this world's arachnid near you (rolls one into the world's fauna first if it has none) — for testing |
 | `/biped` | Summon a begging herd of this world's bipeds near you (Mini-Michi-Paul on a tropical world; rolls a begging biped into the world's fauna first if it has none) — for testing |
 | `/hound` | Summon this world's Schuppenhund near you (rolls this world's one into the fauna first if it has none) — for testing |
@@ -5354,6 +5400,7 @@ and easy to mistype. The numbering is stable for a world: `village2` is the same
 | `landmark` | A landmark (a giant building) — on the ground right in front of it (`landmarks`, `bauwerk`, `wahrzeichen` also work) |
 | `civ` | A ruin of a lost civilization — on the ground right in front of it; beside a sunken city of the Grand Technicians that is the **sea floor**, so you arrive under water (`civilization`, `zivilisation`, `volk`, `grosstechniker`, `labyrinth`, `maze` also work) |
 | `giantwreck` | A giant ship wreck: first the ones on this planet (on the ground right in front of it, listed with the ship's name), then the ones **in space** of this star system — those you go straight **aboard**, as if you had flown there; the list says *in space* instead of a distance (`giantwrecks`, `giant_wreck`, `giantship`, `riesenschiff`, `riesenwrack` also work) |
+| `giant` | A guardian giant of this world, listed with its state (*lying*, *awake* or *defeated*) — you land 12 to 16 blocks from it, by its feet (in front of an awake one), never inside it; a world without one says so (`giants`, `guardiangiant`, `gigant` also work) |
 | `wreck` | The crashed ship — even before an NPC has pointed you at it |
 | `factory` | A factory's production terminal |
 | `camp` | A bandit camp (`bandit` also works) |

@@ -81,10 +81,10 @@ public sealed class CivilizationFrameworkTests
     }
 
     [Fact]
-    public void NewWorlds_AreCreatedAtGeneration43_WithSaveVersion16()
+    public void NewWorlds_AreCreatedAtGeneration43OrLater_WithSaveVersion16()
     {
         Assert.Equal(43, WorldDescription.CivilizationsGeneration);
-        Assert.Equal(WorldDescription.CivilizationsGeneration, WorldDescription.CurrentTerrainGeneration);
+        Assert.True(WorldDescription.CivilizationsGeneration <= WorldDescription.CurrentTerrainGeneration); // #3680: 44 since the guardian giants
         Assert.True(WorldDescription.GiantWrecksGeneration < WorldDescription.CivilizationsGeneration);
         Assert.Equal(16, BlocksBeyondTheStars.Shared.State.WorldMetadata.CurrentSaveVersion);
     }

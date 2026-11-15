@@ -76,4 +76,20 @@ public sealed class EnemyCodexTextTests
         Assert.DoesNotContain("/s", entry, StringComparison.Ordinal);
         Assert.Equal(EnemyWhere.Planet, spider.Where);
     }
+
+    [Fact]
+    public void TheGuardianGiant_ShowsItsBlows_NotZeroDamagePerSecond()
+    {
+        // #3676: the boss has no damage per second by design — it hurts with its stomp, leap, laser and rock.
+        var giant = EnemyCatalog.Defaults().First(e => e.Key == GuardianGiantRules.EnemyKey);
+        Assert.Equal(0f, giant.Tier(EnemyTiers.Normal).DamagePerSecond);
+        string entry = EnemyCodexText.Entry(giant, met: false, L, item => item);
+
+        float min = Math.Min(Math.Min(GuardianGiantRules.StompDamage, GuardianGiantRules.JumpDamage), Math.Min(GuardianGiantRules.LaserDamage, GuardianGiantRules.ThrowDamage));
+        float max = Math.Max(Math.Max(GuardianGiantRules.StompDamage, GuardianGiantRules.JumpDamage), Math.Max(GuardianGiantRules.LaserDamage, GuardianGiantRules.ThrowDamage));
+        string expected = string.Create(System.Globalization.CultureInfo.InvariantCulture, $"ui.wiki.enemies.damage: {min:0.#}–{max:0.#} (ui.wiki.enemies.per_blow)");
+        Assert.Contains(expected, entry, StringComparison.Ordinal);
+        Assert.DoesNotContain("/s", entry, StringComparison.Ordinal);
+        Assert.Equal(EnemyWhere.Planet, giant.Where);
+    }
 }

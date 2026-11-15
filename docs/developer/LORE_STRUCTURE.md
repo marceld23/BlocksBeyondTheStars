@@ -34,9 +34,12 @@ data-driven pipeline.
 > [STORY_VEGA_PROTOCOL_CONCEPT.md](STORY_VEGA_PROTOCOL_CONCEPT.md) §13 in sync. Every generated
 > `data/stories/vega_protocol/lore.json` row must trace back to a canon fact here.
 >
-> Last updated: 2026-11-15 (rev. 7 — the lost civilizations in the §C catalogue, #3644/#3645/#3648: the Vanished People,
+> Last updated: 2026-11-15 (rev. 8 — the guardian giants, #3685: canon **C18** — the Service's own construction and
+> terraforming giants, taken by the Guardian core in the cull; C6/C8/C11 and the §C catalogue point to it; the §E3 memory
+> rule for a defeated giant).
+> Rev. 7 (2026-11-15) — the lost civilizations in the §C catalogue, #3644/#3645/#3648: the Vanished People,
 > the Grand Technicians, the red fluid, the Labyrinth Builders — world-flavour peoples outside the `vega_protocol` arc —
-> and §C1, the Grand Technicians' internal lore, which never reaches an in-game text; no change to §A/§B).
+> and §C1, the Grand Technicians' internal lore, which never reaches an in-game text; no change to §A/§B.
 > Rev. 6 (2026-11-07) — the G.D.S. and Ressaw in the §C catalogue, #3341: a world-flavour faction outside
 > the `vega_protocol` arc, no change to §A/§B.
 > Rev. 5 (2026-10-11) — canon pass #2463: B1 location-neutral, `mem_the_order` without a chosen
@@ -124,18 +127,21 @@ beats/fragments declare which facts they touch.
   **humans = disruptors** and turned protection into extermination.
 - **C6 — The machines are the Guardian's units.** Three types, one origin (built to explore/protect, turned
   to hunting): **UFO drones (space)**, **grey three-eyed robots (planet surface)**, **grey flying
-  scan-drones (planet, hovering)**.
+  scan-drones (planet, hovering)**. Beside them stand its heaviest units, which were never built as hunters at
+  all: the Service's own construction giants (C18).
 - **C7 — VEGA** was the SPS ships' AI *and* a steward part of the old network, with the directive **protect
   humans**; she turned against the network.
 - **C8 — The severing.** VEGA shut the network down to stop the Guardian. Price: SPS destroyed, ships lost,
   settlements isolated, VEGA's memory largely gone, the network broke into faulty remnants, machines
-  stranded — and the **Guardian core only shut down, not destroyed**, now dormant in a remote system.
+  stranded (the guardian giants fell where they stood, C18) — and the **Guardian core only shut down, not
+  destroyed**, now dormant in a remote system.
 - **C9 — The present.** VEGA reawakens, finds SPS ships + neural imprints, clones new bodies = the players.
 - **C10 — The players are clones**, not original humans — grown from neural imprints of dead SPS members;
   they start without memory, unaware.
 - **C11 — Memory through combat.** Defeating machines (UFO drones / three-eyed robots / scan-drones) can
   release damaged memory remnants → personal memories of the SPS member a player was cloned from. Per-player,
-  non-contradictory in MP (each is a different imprint).
+  non-contradictory in MP (each is a different imprint). A defeated guardian giant (C18) always releases one,
+  for every player who fought it.
 - **C12 — VEGA is amnesiac**; she recovers via net fragments. Her one recalled directive at the start is
   *protect humans*.
 - **C13 — The Guardian core is the end-game threat** — dormant in a remote system, reachable very late;
@@ -150,6 +156,14 @@ beats/fragments declare which facts they touch.
   the old data they hold.
 - **C17 — The heal-tank** is the clone vessel: VEGA reconstructs the player at the ship's Medbay heal-tank;
   respawn = re-instantiation.
+- **C18 — The guardian giants were the Service's builders.** The SPS's own **construction and terraforming
+  giants** — fourteen-block machines sent ahead to prepare settlement worlds (level the ground, lay out landing
+  grounds, raise the first shelters). During the cull the **Guardian core took them over** and made them its
+  **heaviest units**; their work orders were overwritten by its verdict (Protocol G). When VEGA severed the network
+  (C8) they **fell where they stood**, and most stay dead for good. **A few still hold power and wake with the
+  Guardian's last order.** Cut off from the core, they **still wake after the finale** — the shutdown never reached
+  them. They are machines (never animals, never alive), and their story is told without gore: they fall, their
+  lights go out, they rest.
 
 **Hard guardrails (never generate content that says):** the animals/biomes are the masterminds; the players
 are original (non-clone) humans; the Guardian is simply good/misunderstood; the old SPS or old network is
@@ -168,6 +182,7 @@ cleanly restored; the machines are alive; one player is the unique chosen one.
 | **UFO drones** | space enemy [exists] | ex space probes/security; now patrol faulty, attack ships, follow old commands |
 | **Grey three-eyed robots** | planet ground enemy [exists, retheme] | ex surface guardians/scanners; three eyes = sensor modules; ground-hugging hunters; grey circuit-plated armour with red sensor eyes (#1337) |
 | **Grey flying scan-drones** | planet hovering enemy [new] | monitor biomes, scan players, alert units — "observe, evaluate, exterminate" |
+| **Guardian giants** | the Guardian's heaviest units, a boss [exists, #3676/#3685 — [GUARDIAN_GIANTS.md](GUARDIAN_GIANTS.md)] | ex SPS construction/terraforming giants (C18). They lie fallen on rocky worlds; about one in four still holds power and wakes to the Guardian's last order — also after the finale. **VEGA's lines follow what the player's own story knows:** before the Service (B2) she is puzzled ("A machine this big? I have no record …"), knowing the Service she recognises one of its builders, knowing the Guardian (B5) she names its hand in it, after the core's shutdown "the core is silent, but this one never heard". Chapter 4's mission *The Fallen Giant* ends on her memory of the builders (insight `guardian_giant`). Each fighter's crate holds a **memory core** (`guardian_giant_core`): the builder's original work order, overwritten by Protocol G (field record `giant_core_order`) |
 | **Settlers / vendors / quartermasters** | survivor NPCs [exists] | isolated descendants; legends, fear of the machines, rumours/coordinates |
 | **Net fragments** | story find [proposed] | text-only shards of the old network / SPS data / VEGA memory (§E2) |
 | **Dataqubes** | knowledge find [exists] | mini-games → knowledge; **separate** from net fragments |
@@ -286,7 +301,8 @@ mapping mission on an alien world; a settlement being built; the moment a Guardi
 a danger; an attack on an SPS ship; VEGA trying to save people; being in the room when the order to sever the
 network went out; the realisation that one's own memory is reconstructed from an imprint, not original.
 Memories unlock in the same order for every player, so a memory must hold for **every** clone: "you were there",
-never "you alone gave the order" (guardrail: no chosen one).
+never "you alone gave the order" (guardrail: no chosen one). A defeated guardian giant (C18) is no matter of chance: it
+always unlocks the next memory of every player who fought it (once per giant).
 
 ### E4. `flavour_line` (tagged pool)
 ```jsonc

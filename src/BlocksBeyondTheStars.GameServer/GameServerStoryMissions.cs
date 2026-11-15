@@ -289,7 +289,13 @@ public sealed partial class GameServer
 
         _log.Info($"Story mission '{mission.Id}' done by '{s.State.Name}'.");
         PayLeadBonus(mission.StoryChapterId);
+        RevealStoryInsight(s, MissionInsightEvent(mission.Id)); // #3685: a mission may end on a memory of VEGA's (pack data)
     }
+
+    /// <summary>The insight event of a story mission finished by playing (#3685): an insight of the pack whose event is
+    /// <c>mission:&lt;mission id&gt;</c> is spoken then (once, by its once-key, after its <c>minBeat</c>) and kept in the Journal's
+    /// VEGA notes like every insight.</summary>
+    internal static string MissionInsightEvent(string missionId) => "mission:" + missionId;
 
     // ---------------------------------------------------------------------------------------------
     // The chip, lead bridges, events.

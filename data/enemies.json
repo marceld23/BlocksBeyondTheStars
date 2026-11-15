@@ -43,6 +43,12 @@
     "tiers": {
       "normal": { "hull": 20, "damagePerSecond": 0, "burstDamage": 30, "loot": [ { "item": "carbon", "count": 2 }, { "item": "guardian_plate", "count": 1 } ] }
     } },
+  // #3676: the guardian giant — a boss that hits with telegraphed blows (stomp, leap, visor laser, thrown rock), never by
+  // touch, so damagePerSecond stays 0. Its loot is the base of the crate EACH fighter gets (plus a guardian blueprint).
+  { "key": "guardian_giant", "nameKey": "enemy.guardian_giant.name", "descriptionKey": "enemy.guardian_giant.desc", "tipKey": "enemy.guardian_giant.tip", "where": "planet",
+    "tiers": {
+      "normal": { "hull": 600, "damagePerSecond": 0, "loot": [ { "item": "carbon", "count": 6 }, { "item": "guardian_plate", "count": 14 } ] }
+    } },
   { "key": "bandit", "nameKey": "enemy.bandit.name", "descriptionKey": "enemy.bandit.desc", "tipKey": "enemy.bandit.tip", "where": "planet",
     "tiers": {
       "normal": { "hull": 35, "damagePerSecond": 5, "loot": [ { "item": "iron_plate", "count": 2 }, { "item": "robber_cloth", "count": 1 } ] },

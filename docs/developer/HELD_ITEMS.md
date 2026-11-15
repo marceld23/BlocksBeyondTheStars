@@ -244,6 +244,7 @@ The Sounders story pack adds one held gadget and a handful of items the hand sho
   the fist — `HeldGadgetModelTests` lists it). Its fx style is the shock gloves' `shock_push` ring in violet.
   **While it is held the melody bar is open for free play** (Sounder voice): `PlayerController.RefreshHeldItem` tells
   `GameBootstrap.OnHeldItemChangedForSounders`, which opens `MelodyBar.OpenFreePlay(4)` and closes only the bar it opened.
+  Its hint row names the current Sounders task (#3679, `ui.melody.task` + the pack's chip line) while one runs.
   What the pulse does is the server's (`GameServerResonanceBlaster.cs`): a cone that pushes and dazes hostile creatures and
   machines for 3 s without harm, calms a Soundrak, and on a monument's rune stone opens its sound chamber
   (`GameServerSoundChambers.cs`).

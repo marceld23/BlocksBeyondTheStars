@@ -161,7 +161,7 @@ public sealed class VegaStoryMissionsTests : IDisposable
             ["signature"] = new[] { "m_signal" },
             ["service"] = new[] { "m_observatory", "m_archive" },
             ["guardian"] = new[] { "m_runes" },
-            ["verdict"] = new[] { "m_long_quiet", "m_wrecks" },
+            ["verdict"] = new[] { "m_long_quiet", "m_wrecks", "m_fallen_giant", "m_giant_echo" }, // #3685: the giant after the derelict
             ["what_you_are"] = new[] { "m_radar" },
             ["sleeps"] = new[] { "m_jump" },
             ["core"] = Array.Empty<string>(), // the finale is chapter 7's mission (never muted, its own set pieces)
@@ -175,6 +175,7 @@ public sealed class VegaStoryMissionsTests : IDisposable
         var missions = Vega.Chapters.SelectMany(c => c.Missions).ToList();
         Assert.Equal("m_archive", missions.Single(m => m.Id == "m_observatory").Alternative);
         Assert.Equal("m_wrecks", missions.Single(m => m.Id == "m_long_quiet").Alternative);
+        Assert.Equal("m_giant_echo", missions.Single(m => m.Id == "m_fallen_giant").Alternative);
         Assert.All(missions, m => Assert.InRange(m.Steps.Count(s => !m.Steps.Any(o => o.Alternative == s.Id)), 1, 4)); // stand-ins aside
         Assert.All(missions.SelectMany(m => m.Steps), s => Assert.False(string.IsNullOrEmpty(s.Explain.ChipKey), s.Id));
 
@@ -212,7 +213,7 @@ public sealed class VegaStoryMissionsTests : IDisposable
         Assert.All(StoryRegistry.Default.Chapters, c => Assert.Empty(c.Missions));
 
         var (server, _) = World("m_data", TutorialOff);
-        Assert.Equal(new[] { "m_signal", "m_observatory", "m_archive", "m_runes", "m_long_quiet", "m_wrecks", "m_radar", "m_jump", "m_survey" },
+        Assert.Equal(new[] { "m_signal", "m_observatory", "m_archive", "m_runes", "m_long_quiet", "m_wrecks", "m_fallen_giant", "m_giant_echo", "m_radar", "m_jump", "m_survey" },
             server.StoryMissionIdsForTest);
     }
 

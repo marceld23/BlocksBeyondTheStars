@@ -1577,9 +1577,16 @@ public sealed partial class GameServer
     // Admin (testing) and test seams
     // =====================================================================================================
 
-    /// <summary>/giant colossus|sandworm|leviathan — summons this world's giant of that kind (or a fresh one) near the admin.</summary>
+    /// <summary>/giant colossus|sandworm|leviathan — summons this world's giant of that kind (or a fresh one) near the admin;
+    /// #3676: /giant guardian lays a guardian giant that can wake in front of the admin (GameServerGuardianGiantsAdmin.cs).</summary>
     private void AdminSummonGiant(PlayerSession session, string? kind)
     {
+        if (IsGuardianGiantWord(kind))
+        {
+            AdminGuardianGiant(session);
+            return;
+        }
+
         var plan = (kind ?? string.Empty).ToLowerInvariant() switch
         {
             "sandworm" or "worm" => CreatureBodyPlan.Sandworm,

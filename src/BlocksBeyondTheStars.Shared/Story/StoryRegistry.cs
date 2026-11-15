@@ -221,6 +221,10 @@ public static class StoryRegistry
         {
             new() { Event = "companion_ward", MinBeat = 5, TextKey = "story.vega.insight.companion_ward", OnceKey = "story:insight:companion-ward" },
             new() { Event = "shape_noncube", MinBeat = 5, TextKey = "story.vega.insight.shape_anomaly", OnceKey = "story:insight:shape-anomaly" },
+            // #3685: VEGA remembers the guardian giants (the Service's builders) — at a scanned giant, or at the end of the
+            // giant mission's stand-in on a world without giants; one line, one once-key.
+            new() { Event = "guardian_giant", MinBeat = 5, TextKey = "story.vega.insight.guardian_giant", OnceKey = "story:insight:guardian-giant" },
+            new() { Event = "mission:m_giant_echo", MinBeat = 5, TextKey = "story.vega.insight.guardian_giant", OnceKey = "story:insight:guardian-giant" },
         },
     };
 

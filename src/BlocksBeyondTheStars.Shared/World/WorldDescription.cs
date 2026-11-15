@@ -252,8 +252,9 @@ public sealed class WorldDescription
     /// geography package: river valleys, site search with a map, sites that reserve their ground, #3602 the grown
     /// settlements: road-first villages, grown grids, terrain-following towns, a metropolis that grew, farms at the edge,
     /// #3608 the giant ship wrecks on planets, #3629/#3631 the longer and more frequent intercity lines,
-    /// #3639 the lost civilizations: the Grand Technicians' sunken ruins, the Labyrinth Builders' mazes).</summary>
-    public const int CurrentTerrainGeneration = CivilizationsGeneration;
+    /// #3639 the lost civilizations: the Grand Technicians' sunken ruins, the Labyrinth Builders' mazes,
+    /// #3680 the fallen guardian giants).</summary>
+    public const int CurrentTerrainGeneration = GuardianGiantsGeneration;
 
     /// <summary>The generation of the grown settlements (#3602): a body stamped for the first time in a world of this
     /// generation or later may draw the grown and grown-grid settlement kits (<c>StructureKit.MinTerrainGeneration</c>) — a
@@ -282,6 +283,13 @@ public sealed class WorldDescription
     /// Technicians' sunken ruins on one ocean world, the Labyrinth Builders' maze ruins on up to three toxic or airless bodies.
     /// A server-side stamp stored as structure overlays: every chunk of every older generation stays bit-identical.</summary>
     public const int CivilizationsGeneration = 43;
+
+    /// <summary>The generation of the fallen guardian giants (#3680, #3676): a body stamped for the first time in a world of
+    /// this generation or later may carry one or two huge block-built hunter robots lying on dry, flat ground
+    /// (<c>guardian_giant</c> in <c>data/structure_types.json</c>), each with its <c>WorldMetadata.GuardianGiants</c> record —
+    /// about one in four of them can still wake. A server-side stamp of ordinary block edits on reserved ground: every chunk of
+    /// every older generation stays bit-identical.</summary>
+    public const int GuardianGiantsGeneration = 44;
 
     /// <summary>The generation of the geography package (#3555): the surface height becomes three stages — the natural
     /// height (every older generation's whole answer), the river valleys (the ground eases down toward every surface river,

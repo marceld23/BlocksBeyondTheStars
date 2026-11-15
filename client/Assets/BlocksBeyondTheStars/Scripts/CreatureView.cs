@@ -1083,7 +1083,10 @@ namespace BlocksBeyondTheStars.Client
             return null;
         }
 
-        private static void RegisterGiant(string id, GameObject root, string plan)
+        /// <summary>Puts a giant's colliders into the aim/scan/ride lookup under <paramref name="id"/> — the creature giants, and
+        /// since #3676 the guardian giant (a planet enemy: <see cref="GuardianGiantView"/>, plan
+        /// <see cref="GiantRideRules.GuardianGiantPlan"/>).</summary>
+        internal static void RegisterGiant(string id, GameObject root, string plan)
         {
             UnregisterGiant(id);
             var set = root.GetComponentsInChildren<Collider>(true);
@@ -1095,7 +1098,7 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private static void UnregisterGiant(string id)
+        internal static void UnregisterGiant(string id)
         {
             if (id == null || !GiantColliderSets.TryGetValue(id, out var set))
             {

@@ -74,4 +74,14 @@ public sealed class MelodyPuzzleState
     /// <summary>#3426: the two tones the player plays for each letter of <see cref="Word"/>, in order — the alphabet's own for
     /// the Song of Return, the counter-voice for the Bridge Song. Empty without a word.</summary>
     public int[] WordTones { get; set; } = System.Array.Empty<int>();
+
+    /// <summary>#3677: the right tones played so far through the whole <see cref="Word"/> — where the spelling line stands
+    /// (letter = <see cref="WordEntered"/> / 2). Unlike <see cref="Entered"/> it counts across rounds: the Bridge Song sings
+    /// one letter per round. A new map key: -1 (an older server sends none) — the client reads <see cref="Entered"/>.</summary>
+    public int WordEntered { get; set; } = -1;
+
+    /// <summary>#3677: the key the player plays next (0–7) — the bar makes it glow once the prompt has played. -1: none —
+    /// the puzzle does not show it (only the Bridge Song does), the next round's prompt is about to play, or the bar
+    /// closes. A new map key: an older client skips it, an older server sends none (no glow).</summary>
+    public int NextTone { get; set; } = -1;
 }

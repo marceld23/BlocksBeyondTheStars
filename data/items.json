@@ -459,6 +459,9 @@
   { "key": "derelict_log",         "nameKey": "item.derelict_log.name",         "category": "component",  "maxStack": 1,    "descriptionKey": "item.derelict_log.desc" },
   // #3341: a note from the crates of a buried G.D.S. ruin (gds_log#x<seed>; the text is written from data/gds_logs.json).
   { "key": "gds_log",              "nameKey": "item.gds_log.name", "civilization": "gds",              "category": "component",  "maxStack": 1,    "descriptionKey": "item.gds_log.desc" },
+  // #3685: the memory core a defeated guardian giant leaves in each fighter's loot crate; carried, VEGA reads its last order
+  // from the cull into the Journal (a field record of the VEGA story — GameServerGuardianGiantStory.cs).
+  { "key": "guardian_giant_core",  "nameKey": "item.guardian_giant_core.name",                                   "category": "component",  "maxStack": 4,    "descriptionKey": "item.guardian_giant_core.desc" },
   // #2067: the decontaminator station block — placed at a base, the planetside counterpart of its ship module.
   { "key": "decontaminator", "craftTab": "machines", "nameKey": "item.decontaminator.name", "category": "block", "maxStack": 16, "placesBlock": "decontaminator", "descriptionKey": "item.decontaminator.desc" },
   { "key": "device_eye", "craftTab": "machines", "nameKey": "item.device_eye.name", "category": "block", "maxStack": 16, "placesBlock": "device_eye", "descriptionKey": "item.device_eye.desc" },

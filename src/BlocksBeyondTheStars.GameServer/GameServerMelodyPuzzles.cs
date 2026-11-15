@@ -18,9 +18,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// and the per-puzzle handlers of <see cref="RegisterMelodySolvedHandler"/>. Notes come from the melody bar
 /// (<see cref="MelodyNoteIntent"/>) and from the pillars of the puzzle's melody site (the use key, see
 /// <see cref="TryStrikeMelodyPillar"/>); the server judges them and answers with <see cref="MelodyPuzzleState"/>, which
-/// opens, updates and closes the client's bar. Wrong notes never punish — the round (or the input) simply starts again.
-/// A puzzle ends when it is solved, when the player walks away (<see cref="MelodyPuzzleSpec.LeaveDistance"/>), changes the
-/// world, flies off, logs out, leaves it on the bar (tone -1), its time limit runs out, or other code cancels it.
+/// opens, updates and closes the client's bar. Wrong notes never punish (#3678): a wrong note simply does not count — the
+/// player tries that tone again, nothing restarts and no prompt replays because of it. A puzzle ends when it is solved,
+/// when the player walks away (<see cref="MelodyPuzzleSpec.LeaveDistance"/>), changes the world, flies off, logs out,
+/// leaves it on the bar (tone -1), its time limit runs out, or other code cancels it.
 /// <para><b>Together:</b> players who run the SAME puzzle id within <see cref="MelodyCoopRange"/> of each other solve it
 /// together — when one of them plays the last note, everyone of them nearby is solved with them (event and handlers for
 /// each). Everyone near the site hears the prompts and every played tone.</para>
@@ -32,9 +33,6 @@ public sealed partial class GameServer
 
     /// <summary>Seconds between a finished round and the next round's prompt.</summary>
     internal const double MelodyRoundPause = 0.9;
-
-    /// <summary>Seconds after a wrong note before the round's prompt plays again.</summary>
-    internal const double MelodyRetryPause = 1.1;
 
     /// <summary>Seconds per note of the chorus that answers a solved puzzle.</summary>
     private const float MelodyChorusNoteSeconds = 0.3f;
@@ -83,12 +81,8 @@ public sealed partial class GameServer
         /// <summary>Seconds the current prompt still plays.</summary>
         public double PromptLeft;
 
-        /// <summary>Seconds until the round's prompt plays (again); negative: none pending.</summary>
+        /// <summary>Seconds until the next round's prompt plays; negative: none pending.</summary>
         public double PromptIn = -1;
-
-        /// <summary>The pending prompt is a retry after a wrong note — a right note before it plays means the player simply
-        /// carried on (a new try), so the replay is dropped instead of wiping that progress.</summary>
-        public bool RetryPending;
 
         public string Id => Puzzle.Spec.Id;
     }
@@ -233,10 +227,9 @@ public sealed partial class GameServer
         }
 
         var step = run.Puzzle.Play(tone);
-        if (step != MelodyStep.Wrong && run.RetryPending)
+        if (step == MelodyStep.Correct && run.PromptIn >= 0)
         {
-            run.RetryPending = false; // they carried on right away: no replay over their new try
-            run.PromptIn = -1;
+            run.PromptIn = -1; // they played on into the next round before its prompt, which would only wipe that progress
         }
 
         switch (step)
@@ -249,12 +242,7 @@ public sealed partial class GameServer
                 SendMelodyState(session, run, MelodyPuzzleResult.RoundDone, open: true, Array.Empty<int>(), tone);
                 break;
             case MelodyStep.Wrong:
-                if (run.Puzzle.HasPrompt)
-                {
-                    run.PromptIn = MelodyRetryPause; // the round starts again with its prompt
-                    run.RetryPending = true;
-                }
-
+                // #3678: it simply does not count — the input stays, nothing restarts, no prompt replays.
                 SendMelodyState(session, run, MelodyPuzzleResult.TryAgain, open: true, Array.Empty<int>(), tone);
                 break;
             case MelodyStep.Solved:
@@ -273,7 +261,6 @@ public sealed partial class GameServer
         var spec = run.Puzzle.Spec;
         run.Puzzle.RestartRound();
         run.PromptIn = -1;
-        run.RetryPending = false;
         run.Idle = 0;
         var prompt = run.Puzzle.HasPrompt ? ToArray(run.Puzzle.Prompt) : Array.Empty<int>();
         run.PromptLeft = prompt.Length * (double)spec.NoteSeconds;
@@ -395,6 +382,8 @@ public sealed partial class GameServer
             LastTone = lastTone,
             Word = open ? p.Spec.Word : string.Empty, // #3426: the bar spells it letter by letter
             WordTones = open ? MelodySpelling.PlayedTones(p.Spec) : Array.Empty<int>(),
+            WordEntered = p.WordEntered, // #3677: across the rounds (the Bridge Song sings a letter per round)
+            NextTone = open && p.Spec.ShowNextTone && run.PromptIn < 0 ? p.NextTone : -1, // #3677: the key that glows
         });
     }
 
