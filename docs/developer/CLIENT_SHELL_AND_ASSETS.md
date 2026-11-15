@@ -73,14 +73,19 @@ BLOCKS BEYOND THE STARS
 ## Menu backdrop and first impressions (#3705, #3706)
 
 Maintainer decisions of 2026-11-15: a live scene from the game's real parts, **one fixed motif** — the thunderbolt (the corvette until the same evening) in front of
-a "varied" world with clouds — no AI pictures anywhere, the start chain and the music unchanged.
+a ringed "varied" world with clouds and a small moon — no AI pictures anywhere, the start chain and the music unchanged.
 
 **The motif.** `ShowcaseMotif` (Client.Core) names it: ship type `thunderbolt`, planet type `varied`, world seed `32`, body
 `showcase-p1`, continents on, today's terrain generation (seed and body are art-tunable — they pick the continents). The
 planet is drawn by the flight view's own renderer, `OrbitBodyBuilder` (extracted from `SpaceView.SpawnBody`; the flight
 view, the shell and the story stage share it): the pole-free globe, the world map the client bakes itself
 (`WorldMinimap`, a worker thread on desktop, 4 ms slices in the browser — the flat data colour shows until then), the data
-clouds shaded toward the star, the atmosphere limb. The ship is the thunderbolt's shipped layout mapped cell by cell with the
+clouds shaded toward the star, the atmosphere limb, and the flight view's seeded ring (`ShowcaseMotif.RingSeed` 211:
+pale ice, held flat at 14° toward the camera, drawn at 85 % of the flight size and a bit fainter so it fits the menu; it keeps its tilt while the
+planet turns). The planet's map is baked at 384 × 192 on desktop Medium+ and 192 × 96 otherwise (the flight view's 96 × 48
+read as a blurred mosaic at a third of the screen; the bigger bake costs ~0.9 s on a worker thread). On Medium+ a small
+icy moon (planet type `ice`, kind Moon — moons roll any type on the star map) circles clear of the ring on an orbit inclined 35° (its near half passes below the frame), one turn in 2.5
+minutes — the poster holds it up to the planet's right; Potato and Low skip it (one sphere and one map bake less). The ship is the thunderbolt's shipped layout mapped cell by cell with the
 server's `ShipCellBlocks`, meshed by `ShipMeshBuilder`, with the flight view's soft engine plumes and its closed rear hatch.
 Nothing needs a server or a world. `ShowcaseScene` builds both; its users frame them:
 

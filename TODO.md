@@ -210,11 +210,15 @@ From an analysis of everything a player sees from launch to the menu (a hand-bui
 planet; four title styles; a grey Unity splash; no Linux splash). Marcel decided: live scene from the real game parts,
 one fixed motif, the intro film kept at its length, no AI images.
 
-- ✅ **Backdrop** (#3705): the **thunderbolt** (its shipped layout; Marcel picked it over the corvette) in front of a **varied world with clouds** drawn by the
-  flight view's renderer (shared `OrbitBodyBuilder`: baked map, data clouds, atmosphere rim) — behind the title splash,
-  the main menu and the loading screen; simpler on Potato/Low (no rim, fewer plume particles); still the auto-quality
+- ✅ **Backdrop** (#3705): the **thunderbolt** (its shipped layout; Marcel picked it over the corvette) in front of a **ringed varied world with clouds and a small orbiting moon** drawn by the
+  flight view's renderer (shared `OrbitBodyBuilder`: baked map — 4× sharper on desktop Medium+, 2× elsewhere — data
+  clouds, atmosphere rim, the seeded ring) — behind the title splash, the main menu and the loading screen; simpler on
+  Potato/Low (no rim, no moon, half-size map, fewer plume particles); still the auto-quality
   measuring scene. The **intro film** keeps its 28 s and beats with the same scene; the story's `space_vista` uses the
-  real planet too. "PROTOTYPE / DEV BUILD" and "your name could be here" removed.
+  real planet too. "PROTOTYPE / DEV BUILD" and "your name could be here" removed. **Fix:** the in-game menu blur (a
+  gaussian DoF in `UrpScenePost`) started active and was only switched off in a world, so the shell backdrop and the intro
+  film were blurred past 6 m all along; the poster now renders the menu camera at 3840×2160 (ScreenCapture super-size only
+  upscales under URP).
 - ✅ **First impressions** (#3706): the **official logo** (rocket icon + wordmark, `GameLogo`, `Resources/branding/bbts-logo.bytes`) on the splash, menu,
   loading screen, poster and browser page; a **poster** the game
   renders itself (`-capturePoster`, `scripts/capture-poster.ps1`) for the Windows launcher splash, a new **Linux splash

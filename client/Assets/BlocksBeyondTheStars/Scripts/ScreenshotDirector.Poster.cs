@@ -119,9 +119,19 @@ namespace BlocksBeyondTheStars.Client
             return hidden;
         }
 
-        /// <summary>The composited frame as an image (rows bottom-up), at the poster size; null when the read-back failed.</summary>
+        /// <summary>The composited frame as an image (rows bottom-up), at the poster size; null when the read-back failed.
+        /// Renders the backdrop camera itself at twice the poster size and box-filters it down — sharp whatever the window
+        /// is; the screen grab is only the fallback (its super-size factor merely upscales under URP — the first posters
+        /// came out soft for that reason).</summary>
         private static RgbaImage GrabFrame()
         {
+            var cam = MenuBackground.Active != null ? MenuBackground.Active.Camera : null;
+            var rendered = cam != null ? RenderCamera(cam, PosterWidth * 2, PosterHeight * 2) : null;
+            if (rendered != null)
+            {
+                return rendered.Resize(PosterWidth, PosterHeight);
+            }
+
             Texture2D tex = null;
             try
             {
@@ -156,6 +166,48 @@ namespace BlocksBeyondTheStars.Client
                 {
                     Destroy(tex);
                 }
+            }
+        }
+
+        /// <summary>One frame of <paramref name="cam"/> (with its post-processing) rendered into a <paramref name="width"/> ×
+        /// <paramref name="height"/> texture and read back (rows bottom-up); null when that failed.</summary>
+        private static RgbaImage RenderCamera(Camera cam, int width, int height)
+        {
+            var rt = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+            var tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            var targetBefore = cam.targetTexture;
+            var activeBefore = RenderTexture.active;
+            try
+            {
+                cam.targetTexture = rt;
+                cam.Render();
+                RenderTexture.active = rt;
+                tex.ReadPixels(new Rect(0, 0, width, height), 0, 0, false);
+                tex.Apply(false);
+                var px = tex.GetPixels32();
+                var rgba = new byte[px.Length * 4];
+                for (int i = 0; i < px.Length; i++)
+                {
+                    rgba[i * 4] = px[i].r;
+                    rgba[i * 4 + 1] = px[i].g;
+                    rgba[i * 4 + 2] = px[i].b;
+                    rgba[i * 4 + 3] = 255;
+                }
+
+                return new RgbaImage(width, height, rgba);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[Capture] Rendering the poster camera failed ({e.Message}) — grabbing the screen instead.");
+                return null;
+            }
+            finally
+            {
+                cam.targetTexture = targetBefore;
+                RenderTexture.active = activeBefore;
+                rt.Release();
+                Destroy(rt);
+                Destroy(tex);
             }
         }
 

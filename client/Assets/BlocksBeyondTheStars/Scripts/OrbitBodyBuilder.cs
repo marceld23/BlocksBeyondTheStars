@@ -42,6 +42,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Queue order of the map bake (higher first).</summary>
         public int MapPriority = 1;
 
+        /// <summary>The baked map's size: the flight view's small orbit map by default; the shell's showcase planet fills a
+        /// third of the screen and asks for more (a 96 × 48 map read as a blurred mosaic on the poster).</summary>
+        public int MapWidth = OrbitBodyBuilder.MapWidth;
+        public int MapHeight = OrbitBodyBuilder.MapHeight;
+
         /// <summary>Detail switches: the shell backdrop drops the rim on Potato/Low (#3705); the flight view draws all.</summary>
         public bool Clouds = true;
         public bool Limb = true;
@@ -197,7 +202,7 @@ namespace BlocksBeyondTheStars.Client
             // Airless moons carry craters, as the server generates them (#2170).
             bool cratered = spec.Kind == "Moon" && body.Planet.IsAirless;
             var request = WorldMinimap.MakeRequest(spec.Content, spec.Atlas, spec.WorldSeed, spec.FloraKey, spec.PlanetType,
-                spec.Circumference, MapWidth, MapHeight, spec.Key, spec.Continents, spec.Generation, cratered, spec.LavaCoreVolcanoes);
+                spec.Circumference, spec.MapWidth, spec.MapHeight, spec.Key, spec.Continents, spec.Generation, cratered, spec.LavaCoreVolcanoes);
             Color washTint = Color.Lerp(Color.white, spec.SunHue, 0.35f);
             var sphere = body.Sphere;
             WorldMinimap.RequestGlobe(request, (tex, data) => // #3128: the map with polar caps; data stays the raw map

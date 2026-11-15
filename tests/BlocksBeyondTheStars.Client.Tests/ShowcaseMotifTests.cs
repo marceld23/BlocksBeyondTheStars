@@ -90,6 +90,18 @@ public sealed class ShowcaseMotifTests
     }
 
     [Fact]
+    public void Planet_HasARing_AndAMoonOfAnotherKind()
+    {
+        Assert.NotEqual(0, ShowcaseMotif.RingSeed);
+
+        var moon = Content.GetPlanet(ShowcaseMotif.MoonPlanetType);
+        Assert.NotNull(moon);
+        Assert.NotEqual(ShowcaseMotif.PlanetType, ShowcaseMotif.MoonPlanetType); // it must read apart from the planet
+        Assert.False(moon!.SpaceSky); // a real world, not a rock of the asteroid belts (their map reads as a see-through ghost)
+        Assert.InRange(ShowcaseMotif.MoonCircumference, 2000, 6000);
+    }
+
+    [Fact]
     public void Planet_Map_ShowsLandAndSea()
     {
         var colors = new Dictionary<ushort, int>();

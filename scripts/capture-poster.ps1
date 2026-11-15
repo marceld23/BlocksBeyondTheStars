@@ -3,9 +3,9 @@
   Takes the game's poster (#3706) with the built player and, with -Place, puts each picture where it is used.
 
 .DESCRIPTION
-  Runs the player once with -capturePoster: it waits for the main menu, frames the menu backdrop as a poster (the corvette
-  before the "varied" world, full detail on the High preset — the player's saved settings are not touched), hides the UI,
-  photographs the frame and stamps the block logo on it, then quits. No AI anywhere: the poster is the game's own picture.
+  Runs the player once with -capturePoster: it waits for the main menu, frames the menu backdrop as a poster (the thunderbolt
+  before the ringed "varied" world and its moon, full detail on the High preset — the player's saved settings are not touched), hides the UI,
+  photographs the frame and stamps the official logo on it, then quits. No AI anywhere: the poster is the game's own picture.
 
   Written to <OutDir> (default artifacts/poster):
       poster.jpg           1920×1080, logo   — key art (README, stores, devblog)

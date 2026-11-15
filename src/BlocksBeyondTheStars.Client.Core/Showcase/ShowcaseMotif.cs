@@ -40,6 +40,21 @@ namespace BlocksBeyondTheStars.Client.Showcase
         /// <summary>Continents on (the save option): large land masses and open seas read best from far away.</summary>
         public const bool Continents = true;
 
+        /// <summary>The planet's ring style (<c>PlanetRings</c>, #596; art-tunable): seed 211 rolls a pale water-ice ring with
+        /// its band pattern (the showcase holds it at its own flat tilt, see <c>ShowcaseScene</c>).</summary>
+        public const int RingSeed = 211;
+
+        /// <summary>The moon's planet type (moons roll any type, as on the star map): an ice world — white and pale blue, it reads
+        /// at a glance beside the green-blue planet.</summary>
+        public const string MoonPlanetType = "ice";
+
+        /// <summary>The moon's body id — salts its terrain and its clouds.</summary>
+        public const string MoonBodyId = "showcase-m1";
+
+        /// <summary>The moon's walkable circumference, sized like any moon of today's generation.</summary>
+        public static int MoonCircumference
+            => WorldConstants.CircumferenceFor(MoonBodyId, WorldConstants.WorldSizeClass.Moon, 0f, WorldSeed, Generation);
+
         /// <summary>The terrain generation the planet is generated with — always today's.</summary>
         public static int Generation => WorldDescription.CurrentTerrainGeneration;
 

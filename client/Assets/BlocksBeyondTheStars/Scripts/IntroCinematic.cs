@@ -313,6 +313,8 @@ namespace BlocksBeyondTheStars.Client
                 settings != null && settings.ReducedEffects);
             Vector3 sunFromPlanet = SunDir * SunDist - PlanetPos;
             _scene.BuildPlanet(PlanetPos, PlanetDiameter, sunFromPlanet);
+            _scene.MoonPhase = 150f; // left of the planet, behind it: in frame from the sun pan on
+            _scene.BuildMoon(sunFromPlanet);
             _ship = _scene.BuildShip(ShipLength, default);
             if (_ship != null)
             {

@@ -188,6 +188,8 @@ namespace BlocksBeyondTheStars.Client
             _menuBlur.gaussianStart.Override(0.4f);
             _menuBlur.gaussianEnd.Override(6f);
             _menuBlur.gaussianMaxRadius.Override(1.2f);
+            _menuBlur.active = false; // a new volume component starts active, and Update only drives it in a world: without
+                                      // this the shell's backdrop (no Game) blurred everything past 6 m — ship, planet, stars
 
             var volume = gameObject.AddComponent<Volume>();
             volume.isGlobal = true;

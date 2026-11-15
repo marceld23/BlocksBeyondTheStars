@@ -39,8 +39,12 @@ namespace BlocksBeyondTheStars.Client
         private static readonly Vector3 PlanetPos = new Vector3(10f, 0.5f, 48f); // right of centre, clear of the button column
         private const float PlanetDiameter = 32f;
         private static readonly Vector3 ShipPos = new Vector3(0.4f, -1.5f, 11f); // in front of the planet's night side
-        private static readonly Vector3 ShipAngles = new Vector3(-4f, 40f, -6f); // nose toward the planet, flank to the light
+        private static readonly Vector3 ShipAngles = new Vector3(-4f, 62f, -6f); // nose toward the planet, the windowed flank to the camera
         private const float ShipLength = 5.6f;
+
+        /// <summary>Where the moon starts (and where the poster holds it): behind the planet, up to its right, clear of the
+        /// ship and the logo.</summary>
+        private const float MoonStartPhase = 25f;
 
         /// <summary>The poster's camera turn: up and to the right, so the motif sits in the middle below the logo.</summary>
         private static readonly Vector3 PosterCameraAngles = new Vector3(-6f, 6f, 0f);
@@ -51,6 +55,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>True once the planet wears its world map and the ship is built — the poster capture waits for it.</summary>
         public bool Ready => _scene != null && _scene.MapReady && _scene.Ship != null;
+
+        /// <summary>The backdrop's camera (the poster capture renders it straight into a texture).</summary>
+        public Camera Camera => _cam;
 
         private void Start()
         {
@@ -81,6 +88,8 @@ namespace BlocksBeyondTheStars.Client
             bool calm = !PosterFraming && settings != null && settings.ReducedEffects;
             _scene = new ShowcaseScene(transform, Shell != null ? Shell.Content : null, preset, calm);
             _scene.BuildPlanet(PlanetPos, PlanetDiameter, SunDir);
+            _scene.MoonPhase = MoonStartPhase;
+            _scene.BuildMoon(SunDir);
             _scene.BuildShip(ShipLength, default); // the thunderbolt as shipped: one motif for everyone, no player paint
             PoseShip(0f);
             AddPost(settings, preset);
@@ -89,6 +98,11 @@ namespace BlocksBeyondTheStars.Client
         private void Update()
         {
             _t += Time.deltaTime;
+            if (PosterFraming && _scene != null)
+            {
+                _scene.MoonPhase = MoonStartPhase; // the poster waits for the maps: the moon holds its place meanwhile
+            }
+
             _scene?.Tick(Time.deltaTime);
             PoseShip(_t);
         }
