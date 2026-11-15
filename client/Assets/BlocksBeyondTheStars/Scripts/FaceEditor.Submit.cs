@@ -9,11 +9,12 @@ using UnityEngine;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// The character editor's Submit button (#3319), in the main menu AND in a world: in the character mode it sends the
-    /// look being worn as a skin (<c>skin.json</c> + a picture of the figure — the same file the Avatar Designer's own
-    /// Submit sends, <see cref="AppearanceSubmit"/>), in the HUD mode the frame (<c>hud.json</c>: the four tiles, the
-    /// twinkle, the size + a picture of the frame). The canvas is committed first, so what the player sees is what is sent;
-    /// the dialog then asks for the three consents and the nickname as for every other submission.
+    /// The character editor's Submit (#3319; the shell's header button since #3693), in the main menu AND in a world: in
+    /// the character mode it sends the look being worn as a skin (<c>skin.json</c> + a picture of the figure,
+    /// <see cref="AppearanceSubmit"/> — the Avatar Designer submits through it too), in the HUD mode the frame
+    /// (<c>hud.json</c>: the four tiles, the twinkle, the size + a picture of the frame). The canvas is committed first, so
+    /// what the player sees is what is sent; the dialog then asks for the three consents and the nickname as for every
+    /// other submission.
     /// </summary>
     public sealed partial class FaceEditor
     {
@@ -27,16 +28,8 @@ namespace BlocksBeyondTheStars.Client
         private CreationSubmitDialog _submitDialog;
         private bool _capturing;
 
-        /// <summary>Right of Back on the button row — only in a host that can send (both avatar hosts).</summary>
-        private void BuildSubmitButton(Transform panel, float buttonsY)
-        {
-            if (SubmitSettings == null || PreviewState == null)
-            {
-                return;
-            }
-
-            UiKit.AddFitButton(panel, 692f, buttonsY, 180f, 56f, L("ui.submit.button"), SubmitPressed);
-        }
+        /// <summary>The shell's Submit button exists only in a host that can send (both avatar hosts).</summary>
+        private bool HasSubmit => SubmitSettings != null && PreviewState != null;
 
         private void SubmitPressed()
         {
@@ -76,7 +69,7 @@ namespace BlocksBeyondTheStars.Client
             var design = HudFrameDesign.Parse(HudHost?.Design);
             if (design.IsEmpty)
             {
-                SetShelfStatus(_hudShelf, L("ui.hudframe.empty"));
+                ShowStatus(L("ui.hudframe.empty"), EditorStatusSeverity.Warning);
                 return;
             }
 
@@ -108,7 +101,7 @@ namespace BlocksBeyondTheStars.Client
                 _submitDialog = gameObject.AddComponent<CreationSubmitDialog>();
                 _submitDialog.Localize = L;
                 _submitDialog.Settings = SubmitSettings;
-                _submitDialog.OnOutcome = (message, _) => SetShelfStatus(_hudMode ? _hudShelf : _outfitShelf, message);
+                _submitDialog.OnOutcome = (message, _) => ShowStatus(message, EditorStatusSeverity.Info);
             }
 
             _submitDialog.Open(new CreationSubmitRequest

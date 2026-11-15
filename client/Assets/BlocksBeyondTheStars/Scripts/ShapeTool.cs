@@ -75,23 +75,16 @@ namespace BlocksBeyondTheStars.Client
             _editor.InitialVoxels = voxels;
             _editor.InitialName = name;
             _editor.Localizer = key => Game.Localizer?.Get(key) ?? key;
-            // Opened from the TOOL the player is holding the tool, not a material — so "apply" here means
-            // "keep it": the form lands in the library and is crafted later in the menu, where a material is
-            // selected. (The crafting tab's own editor host does craft directly; see CraftingTechShipUI.)
-            _editor.ApplyLabelKey = "ui.shape.custom.keep";
-            _editor.OnApply = SaveAndTell;
+            // Opened from the TOOL the player is holding the tool, not a material — so this host only KEEPS forms (no
+            // "Craft it" button; any ApplyLabelKey but ShapeEditor.CraftLabelKey says so): the editor's Save puts the form
+            // into the library and says in its status bar that it is crafted under "My forms", the only place a material
+            // is actually selected. (The crafting tab's own host does craft directly; see CraftingTechShipUI.)
+            _editor.ApplyLabelKey = string.Empty;
+            _editor.OnApply = CustomShapeLibrary.Save;
             _editor.OnSaveDesign = CustomShapeLibrary.Save;
             _editor.LibraryProvider = CustomShapeLibrary.List;
             _editor.OnClosed = () => { _editor = null; Game?.SetMenuOwner(this, false); };
             Game.SetMenuOwner(this, true); // freezes player control + frees the cursor via the arbiter (#413)
-        }
-
-        /// <summary>Keeps the drawn form in the local library and points the player at where it becomes real
-        /// material — the crafting menu, which is the only place a material is actually selected.</summary>
-        private void SaveAndTell(string voxels, string name)
-        {
-            CustomShapeLibrary.Save(voxels, name);
-            Game?.ShowMessage(Game.Localizer?.Get("ui.shape.custom.saved") ?? "Form saved — craft it under \"My forms\".");
         }
 
         /// <summary>Right-clicking a stencil that carries a form (#846): the form goes into the receiver's

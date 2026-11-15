@@ -91,10 +91,23 @@ namespace BlocksBeyondTheStars.Client
     /// the user's own from <c>usercontent/structure_kits</c>), their fields, the entries table (module, min, max,
     /// required, weight, rotate) and the grid of a village or city. Save writes the user kit file the local server
     /// reads and the export bundle <c>tools/merge_structure.py</c> folds into <c>data/structure_kits.json</c>.
+    /// <para>
+    /// On the menu template (#3692): centred on the screen (it opened at the top left corner, as did its module picker), Close
+    /// as the ✕ of an in-game screen, Save kit the one primary button, Delete kit red and set apart — and it asks first
+    /// (<see cref="EditorShell.ConfirmDelete"/>: "Delete “…” for good?"; it deleted the file at once). Messages are green when
+    /// something was saved and red when it failed. Esc / pad B close the module picker, then the panel
+    /// (<see cref="CloseTopLayer"/>).
+    /// </para>
     /// </summary>
     internal sealed partial class KitEditorPanel
     {
         private const float W = 1100f, H = 900f;
+
+        /// <summary>The panel's top-left corner: centred in the 1920 × 1080 reference.</summary>
+        internal const float X = (1920f - W) / 2f, Y = (1080f - H) / 2f;
+
+        /// <summary>The template's control height (Close, New, Use, the footer).</summary>
+        internal const float ControlH = 44f;
         private readonly AppShell _shell;
         private readonly Transform _canvas;
         private readonly string _editorKind;       // "station" | "settlement" (settlement mode also edits city kits)
@@ -107,9 +120,12 @@ namespace BlocksBeyondTheStars.Client
         private int _current = -1;
         private GameObject _overlay;
         private string _status = string.Empty;
+        private bool _statusFailed;
+        private readonly Action<string, Action> _confirmDelete; // the editor shell's "Delete … for good?"
+        private UiKit.ConfirmDialog _ownConfirm;               // the fallback question without a shell
 
         private KitEditorPanel(AppShell shell, Transform canvas, string editorKind, Action<string> useKit, Action onClosed,
-            Func<string, List<StructureTemplate>> modules)
+            Func<string, List<StructureTemplate>> modules, Action<string, Action> confirmDelete)
         {
             _shell = shell;
             _canvas = canvas;
@@ -117,6 +133,7 @@ namespace BlocksBeyondTheStars.Client
             _useKit = useKit;
             _onClosed = onClosed;
             _modules = modules;
+            _confirmDelete = confirmDelete;
         }
 
         public static string UserKitsRoot => Path.Combine(AppPaths.Root, "usercontent", "structure_kits");
@@ -184,10 +201,12 @@ namespace BlocksBeyondTheStars.Client
         private static bool KindMatches(string editorKind, string kitKind)
             => editorKind == StructureKit.KindStation ? kitKind == StructureKit.KindStation : kitKind != StructureKit.KindStation;
 
+        /// <param name="confirmDelete">Asks before a kit file is deleted (the editor shell's <see cref="EditorShell.ConfirmDelete"/>:
+        /// the kit's name and the deletion); null asks with <see cref="UiKit.ConfirmDanger"/> on the canvas.</param>
         public static KitEditorPanel Show(AppShell shell, Transform canvas, string editorKind, string currentKey, Action<string> useKit, Action onClosed,
-            Func<string, List<StructureTemplate>> modules = null)
+            Func<string, List<StructureTemplate>> modules = null, Action<string, Action> confirmDelete = null)
         {
-            var panel = new KitEditorPanel(shell, canvas, editorKind, useKit, onClosed, modules);
+            var panel = new KitEditorPanel(shell, canvas, editorKind, useKit, onClosed, modules, confirmDelete);
             panel._kits.AddRange(KnownKits(shell, editorKind));
             panel._current = panel._kits.FindIndex(k => k.key == currentKey);
             if (panel._current < 0 && panel._kits.Count > 0)
@@ -202,13 +221,49 @@ namespace BlocksBeyondTheStars.Client
         public void Close()
         {
             ClosePicker();
+            _ownConfirm?.Close();
+            _ownConfirm = null;
             if (_overlay != null)
             {
-                UnityEngine.Object.Destroy(_overlay);
+                Kill(_overlay);
                 _overlay = null;
             }
 
             _onClosed?.Invoke();
+        }
+
+        /// <summary>Esc / pad B: the panel's own question, then the module picker, then the panel. Always closes something.</summary>
+        public bool CloseTopLayer()
+        {
+            if (_ownConfirm != null && _ownConfirm.IsOpen)
+            {
+                _ownConfirm.Escape();
+                return true;
+            }
+
+            if (_picker != null)
+            {
+                ClosePicker();
+                return true;
+            }
+
+            Close();
+            return true;
+        }
+
+        /// <summary>The panel is open (for the editor's tests).</summary>
+        internal GameObject Overlay => _overlay;
+
+        private static void Kill(GameObject go)
+        {
+            if (Application.isPlaying)
+            {
+                UnityEngine.Object.Destroy(go);
+            }
+            else
+            {
+                UnityEngine.Object.DestroyImmediate(go);
+            }
         }
 
         private string L(string key) => _shell?.L(key) ?? key;
@@ -242,19 +297,20 @@ namespace BlocksBeyondTheStars.Client
             pool.Sort((a, b) => string.CompareOrdinal(a.Key, b.Key));
 
             const float PW = 720f, PH = 760f;
-            var (overlay, panel) = UiKit.AddModalOverlay(_canvas, 0f, 0f, PW, PH);
+            var (overlay, panel) = UiKit.AddModalOverlay(_canvas, (1920f - PW) / 2f, (1080f - PH) / 2f, PW, PH); // centred (#3692)
             _picker = overlay;
-            UiKit.AddText(panel, 20f, 12f, 500f, 30f, L("ui.kit.pick_module"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddFitButton(panel, PW - 120f, 12f, 100f, 30f, L("ui.kit.close"), ClosePicker);
-            var list = UiKit.ScrollList(panel, 20f, 92f, PW - 40f, PH - 112f);
-            UiKit.AddText(panel, 20f, 52f, 80f, 30f, L("ui.kit.filter"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiKit.AddText(panel, 20f, 12f, 500f, ControlH, L("ui.kit.pick_module"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            var list = UiKit.ScrollList(panel, 20f, 112f, PW - 40f, PH - 132f);
+            UiKit.AddText(panel, 20f, 64f, 80f, 40f, L("ui.kit.filter"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
             // The field stays while typing; only the rows below are rebuilt (rebuilding the field would drop its focus).
-            UiKit.AddInput(panel, 100f, 52f, PW - 120f, 30f, _pickerFilter, v =>
+            UiKit.AddInput(panel, 100f, 64f, PW - 120f, 40f, _pickerFilter, v =>
             {
                 _pickerFilter = v ?? string.Empty;
                 FillPicker(list, pool, pick, PW - 60f);
             });
             FillPicker(list, pool, pick, PW - 60f);
+            // Last: the pad starts in the filter, never on Close.
+            UiKit.AddTierButton(panel, PW - 170f, 12f, 150f, ControlH, L("ui.kit.close"), ClosePicker, ButtonTier.Quiet, "btn_close");
         }
 
         private void FillPicker(Transform list, List<StructureTemplate> pool, Action<string> pick, float width)
@@ -283,7 +339,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_picker != null)
             {
-                UnityEngine.Object.Destroy(_picker);
+                Kill(_picker);
                 _picker = null;
             }
         }
@@ -294,7 +350,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_overlay != null)
             {
-                UnityEngine.Object.Destroy(_overlay);
+                Kill(_overlay);
                 _overlay = null;
             }
 
@@ -303,14 +359,31 @@ namespace BlocksBeyondTheStars.Client
 
         private void Build()
         {
-            var (overlay, panel) = UiKit.AddModalOverlay(_canvas, 0f, 0f, W, H);
+            var (overlay, panel) = UiKit.AddModalOverlay(_canvas, X, Y, W, H);
             _overlay = overlay;
-            UiKit.AddText(panel, 20f, 12f, 600f, 30f, L("ui.kit.title"), 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddFitButton(panel, W - 120f, 12f, 100f, 30f, L("ui.kit.close"), Close);
+            UiKit.AddText(panel, 20f, 12f, 600f, ControlH, L("ui.kit.title"), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            BuildKitList(panel);
 
-            // Left: the kit list.
-            UiKit.AddText(panel, 20f, 50f, 240f, 24f, L("ui.kit.list"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            var list = UiKit.ScrollList(panel, 20f, 78f, 250f, H - 170f);
+            // Right: the fields + the entries.
+            var k2 = Kit;
+            if (k2 != null)
+            {
+                BuildFields(panel, k2);
+            }
+            else
+            {
+                UiKit.AddText(panel, 300f, 78f, 700f, 30f, L("ui.ed.none"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+            }
+
+            // Last in the panel: the pad's first focus is a kit, never Close.
+            UiKit.AddTierButton(panel, W - 170f, 12f, 150f, ControlH, L("ui.kit.close"), Close, ButtonTier.Quiet, "btn_close");
+        }
+
+        /// <summary>The left column: the known kits, New and Use.</summary>
+        private void BuildKitList(Transform panel)
+        {
+            UiKit.AddText(panel, 20f, 60f, 240f, 24f, L("ui.kit.list"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            var list = UiKit.ScrollList(panel, 20f, 88f, 250f, H - 88f - 132f);
             for (int i = 0; i < _kits.Count; i++)
             {
                 int idx = i;
@@ -320,21 +393,18 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // One above the other, the list column wide: "Использовать" did not fit 120 px (#3263).
-            UiKit.AddFitButton(panel, 20f, H - 88f, 250f, 34f, L("ui.kit.new"), NewKit);
+            UiKit.AddTierButton(panel, 20f, H - 120f, 250f, ControlH, L("ui.kit.new"), NewKit, ButtonTier.Secondary, "btn_new");
             if (Kit != null)
             {
-                UiKit.AddFitButton(panel, 20f, H - 50f, 250f, 34f, L("ui.kit.use"), () => { _useKit?.Invoke(Kit.key); Close(); });
+                UiKit.AddTierButton(panel, 20f, H - 64f, 250f, ControlH, L("ui.kit.use"), () => { _useKit?.Invoke(Kit.key); Close(); },
+                    ButtonTier.Secondary, "btn_continue");
             }
+        }
 
-            // Right: the fields + the entries.
-            var k2 = Kit;
-            if (k2 == null)
-            {
-                UiKit.AddText(panel, 300f, 78f, 700f, 30f, L("ui.ed.none"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-                return;
-            }
-
-            float x0 = FieldsX, y = 50f;
+        /// <summary>The kit's fields, its layout rows, the entries table and the footer.</summary>
+        private void BuildFields(Transform panel, KitJson k2)
+        {
+            float x0 = FieldsX, y = 64f;
             Field(panel, x0, y, L("ui.kit.key"), k2.key, v => k2.key = EditorSceneKit.Slug(v));
             Field(panel, x0 + ColumnStep, y, L("ui.kit.name"), k2.name, v => k2.name = v);
             y += 40f;
@@ -384,7 +454,13 @@ namespace BlocksBeyondTheStars.Client
                 y = SettlementLayoutRows(panel, x0, y, k2); // #3600: the layout stepper and the picked layout's rows
             }
 
-            // The entries table.
+            BuildEntries(panel, k2, x0, y);
+            BuildFooter(panel, k2, x0);
+        }
+
+        /// <summary>The entries table: module (typed or picked), min, max, required, weight, rotate, remove.</summary>
+        private void BuildEntries(Transform panel, KitJson k2, float x0, float y)
+        {
             UiKit.AddText(panel, x0, y, 220f, 24f, L("ui.kit.col_module"), 13, UiKit.CyanDim, TextAnchor.MiddleLeft);
             UiKit.AddText(panel, x0 + 230f, y, 50f, 24f, L("ui.kit.col_min"), 13, UiKit.CyanDim, TextAnchor.MiddleCenter);
             UiKit.AddText(panel, x0 + 290f, y, 50f, 24f, L("ui.kit.col_max"), 13, UiKit.CyanDim, TextAnchor.MiddleCenter);
@@ -392,7 +468,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(panel, x0 + 450f, y, 60f, 24f, L("ui.kit.col_weight"), 13, UiKit.CyanDim, TextAnchor.MiddleCenter);
             UiKit.AddText(panel, x0 + 520f, y, 80f, 24f, L("ui.kit.col_rotate"), 13, UiKit.CyanDim, TextAnchor.MiddleCenter);
             y += 26f;
-            var rows = UiKit.ScrollList(panel, x0, y, 760f, H - y - 100f);
+            var rows = UiKit.ScrollList(panel, x0, y, 760f, H - y - 132f);
             for (int i = 0; i < k2.entries.Count; i++)
             {
                 var e = k2.entries[i];
@@ -413,14 +489,21 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddFitButton(row, 520f, 2f, 80f, 30f, e.rotate ? "☑" : "☐", () => { e.rotate = !e.rotate; Rebuild(); });
                 UiKit.AddFitButton(row, 610f, 2f, 110f, 30f, L("ui.kit.remove"), () => { k2.entries.RemoveAt(idx); Rebuild(); });
             }
-
-            UiKit.AddFitButton(panel, x0, H - 84f, 160f, 34f, L("ui.kit.add_entry"), () => { k2.entries.Add(new KitEntryJson()); Rebuild(); });
-            UiKit.AddFitButton(panel, x0 + 180f, H - 84f, 160f, 34f, L("ui.kit.save"), Save);
-            UiKit.AddFitButton(panel, x0 + 360f, H - 84f, 160f, 34f, L("ui.kit.delete"), Delete);
-            // Two lines inside the panel — it ran 280 px past the panel's right edge (#3263).
-            var status = UiKit.AddText(panel, x0 + 540f, H - 96f, W - 20f - (x0 + 540f), 54f, _status, 13, UiKit.Ok, TextAnchor.MiddleLeft);
-            status.horizontalOverflow = HorizontalWrapMode.Wrap;
         }
+
+        /// <summary>The message line (green: saved, red: failed), then + Entry, the primary Save kit and — set apart, red — Delete kit.</summary>
+        private void BuildFooter(Transform panel, KitJson k2, float x0)
+        {
+            var status = UiKit.AddText(panel, x0, H - 116f, W - 20f - x0, 44f, _status, 14, _statusFailed ? UiKit.DangerCol : UiKit.Ok, TextAnchor.MiddleLeft);
+            status.horizontalOverflow = HorizontalWrapMode.Wrap;
+            UiKit.AddTierButton(panel, x0, H - 64f, FooterW, ControlH, L("ui.kit.add_entry"), () => { k2.entries.Add(new KitEntryJson()); Rebuild(); },
+                ButtonTier.Secondary, "btn_new");
+            UiKit.AddTierButton(panel, x0 + FooterW + 16f, H - 64f, FooterW, ControlH, L("ui.kit.save"), Save, ButtonTier.Primary, "btn_save");
+            UiKit.AddTierButton(panel, W - 20f - FooterW, H - 64f, FooterW, ControlH, L("ui.kit.delete"), Delete, ButtonTier.Danger, "btn_delete");
+        }
+
+        /// <summary>The footer buttons' width.</summary>
+        internal const float FooterW = 220f;
 
         /// <summary>The field grid (#3263): a 140 px label column (it was 110–130, and "Plot stride", "Solar wings" and
         /// the long pack label ran into their inputs), two text columns, four number columns.</summary>
@@ -480,7 +563,7 @@ namespace BlocksBeyondTheStars.Client
             var k = Kit;
             if (k == null || string.IsNullOrEmpty(k.key))
             {
-                _status = L("ui.ed.need_key");
+                SetStatus(L("ui.ed.need_key"), failed: true);
                 Rebuild();
                 return;
             }
@@ -498,19 +581,47 @@ namespace BlocksBeyondTheStars.Client
                 string dir = Path.Combine(AppPaths.Root, _editorKind + "_exports", k.key);
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, "kit.json"), json);
-                _status = string.Format(L("ui.kit.saved"), k.key, k.entries.Count);
+                SetStatus(string.Format(L("ui.kit.saved"), k.key, k.entries.Count), failed: false);
             }
             catch (Exception e)
             {
                 Debug.LogWarning($"[KitEditorPanel] Saving kit '{k.key}' failed: {e}");
-                _status = L("ui.ed.export_failed_hint"); // a friendly line; the exception goes to the log (#3263)
+                SetStatus(L("ui.ed.export_failed_hint"), failed: true); // a friendly line; the exception goes to the log (#3263)
             }
 
             Rebuild();
         }
 
+        private void SetStatus(string text, bool failed)
+        {
+            _status = text ?? string.Empty;
+            _statusFailed = failed;
+        }
+
+        /// <summary>Delete kit: asks first ("Delete “…” for good?") — it deleted the file at once (#3692).</summary>
         private void Delete()
         {
+            var k = Kit;
+            if (k == null)
+            {
+                return;
+            }
+
+            string name = string.IsNullOrEmpty(k.name) ? k.key : k.name;
+            if (_confirmDelete != null)
+            {
+                _confirmDelete(name, DeleteNow);
+                return;
+            }
+
+            _ownConfirm = UiKit.ConfirmDanger(_canvas, L("ui.editor.confirm_delete").Replace("{name}", name), L("ui.editor.delete"), DeleteNow,
+                L("ui.action.cancel"));
+        }
+
+        /// <summary>Deletes the current kit's user file (a shipped kit has none — it leaves the list until the panel reopens).</summary>
+        private void DeleteNow()
+        {
+            _ownConfirm = null;
             var k = Kit;
             if (k == null)
             {
@@ -528,7 +639,7 @@ namespace BlocksBeyondTheStars.Client
             catch (Exception e)
             {
                 Debug.LogWarning($"[KitEditorPanel] Deleting kit '{k.key}' failed: {e}");
-                _status = L("ui.ed.delete_failed_hint");
+                SetStatus(L("ui.ed.delete_failed_hint"), failed: true);
             }
 
             _kits.RemoveAt(_current);

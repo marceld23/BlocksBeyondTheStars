@@ -20,16 +20,22 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public sealed class PlanetOverviewCard : MonoBehaviour
     {
-        private const float CardWidth = 400f;
+        /// <summary>The card's width (the right column's second card column keeps left of it in space).</summary>
+        public const float CardWidth = TouchHudLayout.PlanetCardW;
         private const float RowHeight = 28f;
         private const float ShowSeconds = 18f;
         private const float NoticeSeconds = 6f;
+
+        /// <summary>On a touch device: the least of a tall card that stays visible above the action buttons, and how its
+        /// content scrolls through that view — a pause at the top, a reading pace, a pause at the end.</summary>
+        private const float MinTouchViewH = 200f, ScrollHold = 3f, ScrollSpeed = 20f, ScrollEndHold = 4f;
 
         private static PlanetOverviewCard _instance;
 
         private GameBootstrap _game;
         private Canvas _canvas;
-        private RectTransform _root;
+        private RectTransform _root;    // the card on the canvas: a clipping view, as tall as the content unless capped
+        private RectTransform _content; // what the builders draw into
         private CanvasGroup _group;
         private float _age;
         private float _showFor = ShowSeconds;
@@ -113,18 +119,29 @@ namespace BlocksBeyondTheStars.Client
                 Destroy(_root.gameObject);
             }
 
-            var rootGo = new GameObject("Card", typeof(RectTransform));
+            var rootGo = new GameObject("Card", typeof(RectTransform), typeof(RectMask2D));
             rootGo.transform.SetParent(_canvas.transform, false);
             _root = rootGo.GetComponent<RectTransform>();
-            _root.anchorMin = _root.anchorMax = _root.pivot = new Vector2(1f, 1f);
-            _root.anchoredPosition = new Vector2(-24f, -150f);
-            return _root;
+            // The right column of the HUD's 1536-wide frame (#3668), like the objectives and context cards above it.
+            _root.anchorMin = _root.anchorMax = new Vector2(0f, 1f);
+            _root.pivot = new Vector2(1f, 1f);
+
+            // The content in a clipping view: on a touch device the card may not run under the action buttons, so a tall one
+            // shows part of itself and scrolls the rest through (PlaceCard). Elsewhere the view is the content's own size.
+            var contentGo = new GameObject("Content", typeof(RectTransform));
+            contentGo.transform.SetParent(_root, false);
+            _content = contentGo.GetComponent<RectTransform>();
+            _content.anchorMin = _content.anchorMax = _content.pivot = new Vector2(0f, 1f);
+            _content.anchoredPosition = Vector2.zero;
+            PlaceCard();
+            return _content;
         }
 
         private void Reveal()
         {
             _canvas.enabled = true;
             _group.alpha = 1f;
+            PlaceCard(); // the builder has sized the content by now — the view and its place follow before the first frame
         }
 
         private static string L(GameBootstrap game, string key, string fallback)
@@ -282,6 +299,67 @@ namespace BlocksBeyondTheStars.Client
             Reveal();
         }
 
+        /// <summary>
+        /// #3670: the card is the context card of the right column (HudZones E) — under the radar, the playtime and VEGA's
+        /// objectives, wherever those end this frame. It used to sit at a fixed (-24, -150), and the playtime tile lay on it.
+        /// On a touch device it also stops above the action buttons (TARGET, SHIP, LAND …): a card taller than that room is
+        /// capped and scrolls its content (<see cref="TouchHudLayout.FitTallCard"/>).
+        /// </summary>
+        private void PlaceCard()
+        {
+            if (_root == null || _content == null)
+            {
+                return;
+            }
+
+            // Never past the screen's bottom edge: a tall card under a long objective list moves up (over the objectives'
+            // last rows) rather than losing its own last lines. The canvas grows with the aspect and the UI scale.
+            float canvasH = ((RectTransform)_canvas.transform).rect.height;
+            float contentH = _content.sizeDelta.y, top, viewH = contentH;
+            if (HudZones.Touch.Any)
+            {
+                // A tablet: not under the action buttons either. A card taller than the room keeps at least MinTouchViewH in
+                // view (rising over the objectives if it must) and scrolls the rest through it.
+                float limit = Mathf.Min(HudZones.StackLimit(HudZones.RightEdge - CardWidth, HudZones.RightEdge), canvasH - HudZones.Gap);
+                (top, viewH) = TouchHudLayout.FitTallCard(HudZones.FreeContextTop, contentH, limit, HudZones.RightStackBottom + HudZones.Gap,
+                    MinTouchViewH);
+            }
+            else
+            {
+                top = Mathf.Max(HudZones.Gap, Mathf.Min(HudZones.FreeContextTop, canvasH - contentH - HudZones.Gap));
+            }
+
+            var at = new Vector2(HudZones.RightEdge, -top);
+            if ((_root.anchoredPosition - at).sqrMagnitude > 0.25f)
+            {
+                _root.anchoredPosition = at;
+            }
+
+            if (!Mathf.Approximately(_root.sizeDelta.y, viewH) || !Mathf.Approximately(_root.sizeDelta.x, CardWidth))
+            {
+                _root.sizeDelta = new Vector2(CardWidth, viewH);
+            }
+
+            ScrollContent(contentH - viewH);
+        }
+
+        /// <summary>Scrolls a capped card's content (<paramref name="overflow"/> units more than its view): a pause on the
+        /// title, then down at a reading pace to the end, which stays a moment — the card's time on screen grows to fit.</summary>
+        private void ScrollContent(float overflow)
+        {
+            float offset = 0f;
+            if (overflow > 0.5f)
+            {
+                _showFor = Mathf.Max(_showFor, ScrollHold + (overflow / ScrollSpeed) + ScrollEndHold);
+                offset = Mathf.Clamp((_age - ScrollHold) * ScrollSpeed, 0f, overflow);
+            }
+
+            if (!Mathf.Approximately(_content.anchoredPosition.y, offset))
+            {
+                _content.anchoredPosition = new Vector2(0f, offset);
+            }
+        }
+
         private void Update()
         {
             if (_canvas == null || !_canvas.enabled)
@@ -290,9 +368,14 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _age += Time.unscaledDeltaTime;
+            PlaceCard();
             bool hide = _game == null || !_game.SpaceViewActive || _game.MenuOpen;
             float fade = _age > _showFor ? 1f - (_age - _showFor) / 1.2f : 1f;
             _group.alpha = hide ? 0f : Mathf.Clamp01(fade);
+            if (_group.alpha > 0f)
+            {
+                HudZones.MarkPlanetCard(); // on a tablet the HUD's own cards make room in the first column
+            }
             if (_age > _showFor + 1.2f || (_game != null && !_game.SpaceViewActive && _age > 1f))
             {
                 _canvas.enabled = false;

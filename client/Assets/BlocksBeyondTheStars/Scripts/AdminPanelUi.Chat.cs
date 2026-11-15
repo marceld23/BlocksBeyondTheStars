@@ -73,7 +73,8 @@ namespace BlocksBeyondTheStars.Client
             _chatInput = UiKit.AddInput(_tabRoot, ChatRight, ContentH - InputH, rightW - SendW - 12f, InputH, string.Empty, null,
                 L("ui.admin.chat_placeholder"), 200);
             _chatInput.onEndEdit.AddListener(OnChatEndEdit);
-            UiKit.AddFitButton(_tabRoot, ContentW - SendW, ContentH - InputH, SendW, InputH, L("ui.admin.send"), SendChatLine);
+            // Send is the one obvious next step of this tab: its primary button (#3672).
+            AddTierFitButton(_tabRoot, ContentW - SendW, ContentH - InputH, SendW, InputH, L("ui.admin.send"), SendChatLine, ButtonTier.Primary);
         }
 
         /// <summary>Enter in the field sends (a click elsewhere only leaves it).</summary>

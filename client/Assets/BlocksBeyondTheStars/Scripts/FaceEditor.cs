@@ -35,8 +35,9 @@ namespace BlocksBeyondTheStars.Client
         public sealed class Subject
         {
             public string LabelKey;                 // tab label
-            public string TitleKey;                 // panel title (falls back to LabelKey)
-            public string HintKey = "ui.face.hint";
+            public string TitleKey;                 // the single-subject screen's title (multi-subject: the tab says it)
+            public string ColorLabelKey;            // its base colour's row on the Figure tab (null: no row of its own)
+            public string AboutKey;                 // a note on this subject, shown in the status bar when its tab opens
             public int GridW, GridH;                // 0 = square, GridSize a side
             public string Pixels = string.Empty;    // current payload (kept up to date on commit)
             public Func<string, int[]> Decode;      // null = the plain FacePalette grid codec
@@ -92,7 +93,7 @@ namespace BlocksBeyondTheStars.Client
         public int GridW;                       // grid cells wide (0 = square GridSize)
         public int GridH;                       // grid cells high (0 = square GridSize)
         public string TitleKey = "ui.face.title";
-        public string HintKey = "ui.face.hint";
+        public string AboutKey;                 // single-subject hosts: a note shown in the status bar on opening
         public Func<string, int[]> DecodeGrid;  // payload → grid (length GridW×GridH)
         public Func<int[], string> EncodeGrid;  // grid → payload
         public string[] ColumnLabelKeys;        // one label per 32-cell column block (region face names)
@@ -142,30 +143,23 @@ namespace BlocksBeyondTheStars.Client
         private RawImage _canvas;
 
         private Canvas _ui;
-        private Text _title, _hint;
         private RectTransform _subjectArea; // canvas + region tiles + region label (rebuilt per subject)
-        private Image[] _tabFrames;
         private Image _activeSwatch;
-        private readonly Image[] _swatches = new Image[FacePalette.Colors.Length]; // index 0 reused as eraser
-        private RectTransform _libList; // library column entries (rebuilt after a save)
+        private readonly Image[] _swatches = new Image[FacePalette.Colors.Length]; // index 0 (transparent) has none: the eraser is a tool
 
-        // Tools. Painting is the default; fill and the eyedropper are armed modes with a highlighted button,
-        // and both can also be reached by modifier so they feel like a paint program (#899).
+        // Tools (#3693: one segmented bar — pen, fill, pick colour, eraser). Painting is the default; fill and the
+        // eyedropper are armed modes, and both can also be reached by modifier so they feel like a paint program (#899).
         private bool _picking;          // eyedropper armed: the next canvas click takes a colour, not paints one
         private bool _filling;          // fill armed: the next canvas click floods an area
-        private Image _pickButton, _fillButton;
-        private Text _pickLabel, _fillLabel; // armed tools also recolour their LABEL: a cyan frame alone is
-                                             // easy to miss, and then the next click does something other
-                                             // than what the player expects
         private bool _stroking;         // a drag is in progress (so the undo snapshot is taken once per stroke)
 
         // Undo/redo. It used to be ONE snapshot that Undo swapped in and out — a fine trick for the last
         // brush stroke and useless for the five before it. The stack itself lives in PixelEditHistory,
         // which also knows that a colour-wheel drag is one step and that the history spans the part tabs.
+        // The shell's Undo / Redo buttons and Ctrl+Z / Ctrl+Y drive it (FaceEditor.Document.cs).
         private PixelEditHistory _history = new PixelEditHistory(); // swapped per mode (FaceEditor.HudMode.cs, #3318)
         private byte[] _pendingBefore;  // grid before the edit in progress (BeginGridEdit → CommitGridEdit)
         private int _pendingSubject = -1;
-        private Button _undoButton, _redoButton;
 
         private RectTransform _wheelRt;  // hue/saturation ring
         private RectTransform _wheelDot; // the draggable marker on it
@@ -181,9 +175,21 @@ namespace BlocksBeyondTheStars.Client
 
         private Subject Current => _subjects.Count > 0 ? _subjects[_active] : null;
 
-        private void Start()
+        private void Start() => Begin();
+
+        /// <summary>Builds the editor now instead of on its first frame — the Avatar Designer opens it inside its own Start
+        /// and must be able to talk to it at once (<see cref="AvatarEditor.CaptureOpenAppearance"/>). Idempotent: Start
+        /// does nothing after an early Begin.</summary>
+        internal void Begin()
         {
+            if (_begun)
+            {
+                return;
+            }
+
+            _begun = true;
             BuildSubjects();
+            _charCount = _subjects.Count;
             _size = Mathf.Clamp(GridSize, 8, 64);
             _name = InitialName ?? string.Empty;
             LoadSubject(0);
@@ -204,7 +210,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 LabelKey = TitleKey,
                 TitleKey = TitleKey,
-                HintKey = HintKey,
+                AboutKey = AboutKey,
                 GridW = GridW,
                 GridH = GridH,
                 Pixels = InitialFace ?? string.Empty,
@@ -218,7 +224,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Points the editor at a subject: grid, display texture and region geometry. The UI around
-        /// it is rebuilt separately (<see cref="RebuildSubjectArea"/>), so switching tabs keeps the panel.</summary>
+        /// it is rebuilt separately (<see cref="BuildSubjectArea"/>), so switching tabs keeps the panel.</summary>
         private void LoadSubject(int index)
         {
             _active = Mathf.Clamp(index, 0, _subjects.Count - 1);
@@ -260,7 +266,8 @@ namespace BlocksBeyondTheStars.Client
 
         private void Update()
         {
-            if (_canvasRt == null || CreationSubmitDialog.IsAnyOpen) return; // #3319: never paint through the submit dialog
+            // #3319: never paint through the submit dialog — nor through the shell's questions or behind the Figure tab.
+            if (_canvasRt == null || _figureShown || CreationSubmitDialog.IsAnyOpen || (_shell != null && _shell.IsDialogOpen)) return;
 
             if (!Input.GetMouseButton(0))
             {
@@ -268,7 +275,6 @@ namespace BlocksBeyondTheStars.Client
             }
 
             if (!_stroking) UpdateColorWheel(); // #3179: a stroke running off the canvas onto the ring paints on, it does not re-pick
-            HandleHistoryKeys();
 
             // Which device is painting decides where the "cursor" is: the mouse pointer, or the pad's cell
             // cursor (#1198). Everything after the split — eyedropper, fill, stroke — is shared, so a tool
@@ -278,7 +284,8 @@ namespace BlocksBeyondTheStars.Client
             bool padCanvas = UpdatePadFocus(pad);
             if (pad && InputMap.PadDown(PadButton.Rb))
             {
-                Undo(); // RB is free while this editor is up: the tab screen behind stands its shoulders down
+                EndStroke();
+                _shell?.Undo(); // RB is free while this editor is up: the tab screen behind stands its shoulders down
             }
 
             bool left, right, leftDown, rightDown, middleDown, altHeld, fillAll;
@@ -330,13 +337,7 @@ namespace BlocksBeyondTheStars.Client
             // so it is there when a hand reaches for it without a trip to the toolbar. On a pad that is Y.
             if (middleDown || (leftDown && (altHeld || _picking)))
             {
-                int picked = _grid[gy * _w + gx];
-                SetBrush(picked, _swatches[picked]);
-                if (_picking && !altHeld && !middleDown)
-                {
-                    SetPicking(false); // the ARMED tool is one-shot, like every paint program: pick, carry on
-                }
-
+                PickColour(_grid[gy * _w + gx]); // the ARMED tool is one-shot, like every paint program: pick, carry on
                 return;
             }
 
@@ -359,7 +360,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (_stroking)
             {
-                StrokeTo(cellX, cellY, right ? 0 : _brush); // #3179: a gap-free line from the last cell, the eraser too
+                StrokeTo(cellX, cellY, right || _tool == DrawTool.Eraser ? 0 : _brush); // #3179: a gap-free line, the eraser too
             }
         }
 
@@ -413,24 +414,21 @@ namespace BlocksBeyondTheStars.Client
             _padFocus.EnsureCanvas(_canvasRt); // the subject area may have been rebuilt since the last frame
             _padFocus.SetCells(CellsX, CellsY);
             bool canvas = _padFocus.Tick(pad);
-            SetHint(!pad ? HintKeyNow() : (canvas ? "ui.face.hint_pad" : "ui.face.hint_pad_panel"));
+            SetHint(!pad ? HintKeyNow() : (canvas ? "ui.face.hint_pad_short" : "ui.face.hint_pad_panel"));
             return canvas;
         }
 
-        /// <summary>Swaps the hint line under the tools, which tells the player which controls are live right
-        /// now — the mouse wording, or one of the two pad modes.</summary>
+        /// <summary>The shell's controls line (right of the status bar): the mouse wording, an armed tool's, or one of the
+        /// two pad modes — set only when it changes.</summary>
         private void SetHint(string key)
         {
-            if (_hint == null)
+            if (_shell == null || key == _hintKey)
             {
                 return;
             }
 
-            string text = L(key);
-            if (_hint.text != text)
-            {
-                _hint.text = text;
-            }
+            _hintKey = key;
+            _shell.SetHint(L(key));
         }
 
         /// <summary>
@@ -566,7 +564,7 @@ namespace BlocksBeyondTheStars.Client
             if (_pendingSubject == _active)
             {
                 _history.PushGrid(_active, _pendingBefore, GridToBytes());
-                RefreshHistoryButtons();
+                Changed();
             }
 
             _pendingBefore = null;
@@ -579,93 +577,81 @@ namespace BlocksBeyondTheStars.Client
         private void NoteColorEdit(Color before, Color after, bool fromDrag)
         {
             _history.PushColor(_active, before, after, fromDrag);
-            RefreshHistoryButtons();
+            AfterHostApplied(); // a base colour reaches the host at once
+            Changed();
         }
 
+        /// <summary>Takes the newest step back (the shell's Undo, Ctrl+Z, pad RB). The tab the step happened on comes
+        /// first — BEFORE the history moves, so leaving the current tab commits it at the right point of the history.</summary>
         private void Undo()
         {
+            EndStroke();
+            if (_history.PeekUndo() is not { } next)
+            {
+                return;
+            }
+
+            ShowEditTarget(next);
             if (_history.Undo() is { } edit)
             {
                 ApplyEdit(edit, toBefore: true);
             }
         }
 
+        /// <summary>Puts the newest undone step back; the mirror of <see cref="Undo"/>.</summary>
         private void Redo()
         {
+            EndStroke();
+            if (_history.PeekRedo() is not { } next)
+            {
+                return;
+            }
+
+            ShowEditTarget(next);
             if (_history.Redo() is { } edit)
             {
                 ApplyEdit(edit, toBefore: false);
             }
         }
 
-        /// <summary>Puts one edit back (or forward). If it belongs to another part the tab comes along: a
-        /// change the player cannot see happening does not read as an undo at all.</summary>
-        private void ApplyEdit(PixelEditHistory.Edit edit, bool toBefore)
+        /// <summary>Brings the tab an edit belongs to on screen (and the paint view back from the Figure tab): a change the
+        /// player cannot see happening does not read as an undo at all. A colour step taken back on the Figure tab stays
+        /// there — its colour rows show it.</summary>
+        private void ShowEditTarget(PixelEditHistory.Edit edit)
         {
+            if (_figureShown && edit.IsColor)
+            {
+                return;
+            }
+
+            HideFigure();
             if (edit.Subject != _active)
             {
                 SwitchSubject(edit.Subject);
             }
+        }
 
+        /// <summary>Puts one edit back (or forward): a canvas step on the active subject, a colour step on its own part.</summary>
+        private void ApplyEdit(PixelEditHistory.Edit edit, bool toBefore)
+        {
+            var colorOf = edit.Subject >= 0 && edit.Subject < _subjects.Count ? _subjects[edit.Subject] : null;
             if (!edit.IsColor)
             {
                 BytesToGrid(toBefore ? edit.GridBefore : edit.GridAfter);
                 _dirty = true;
             }
-            else if (Current?.SetBaseColor != null)
+            else if (colorOf?.SetBaseColor != null)
             {
                 _history.EndColorRun();
-                Current.SetBaseColor(toBefore ? edit.ColorBefore : edit.ColorAfter);
+                colorOf.SetBaseColor(toBefore ? edit.ColorBefore : edit.ColorAfter);
                 UpdateBaseSwatch();
+                RefreshFigureSwatches();
+                AfterHostApplied();
                 OnChanged?.Invoke();
             }
 
             RenderAll(); // both kinds re-tint the canvas: transparent pixels show the base colour
             RefreshPreview();
-            RefreshHistoryButtons();
-        }
-
-        /// <summary>Greys the two buttons out at the ends of the history, so "nothing happens" is something
-        /// the player can see before pressing rather than after.</summary>
-        private void RefreshHistoryButtons()
-        {
-            if (_undoButton != null)
-            {
-                _undoButton.interactable = _history.CanUndo;
-            }
-
-            if (_redoButton != null)
-            {
-                _redoButton.interactable = _history.CanRedo;
-            }
-        }
-
-        /// <summary>Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y — the shortcuts a hand reaches for without being told.
-        /// Read every frame, not only while a paint button is down.</summary>
-        private void HandleHistoryKeys()
-        {
-            bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)
-                || Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand);
-            if (!ctrl)
-            {
-                return;
-            }
-
-            if (Input.GetKeyDown(KeyCode.Z))
-            {
-                if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
-                {
-                    Redo();
-                }
-                else
-                {
-                    Undo();
-                }
-            }
-            else if (Input.GetKeyDown(KeyCode.Y))
-            {
-                Redo();
-            }
         }
 
         /// <summary>The grid as one byte per cell — the palette holds 32 entries, so an int per cell would
@@ -734,272 +720,6 @@ namespace BlocksBeyondTheStars.Client
             RenderAll();
         }
 
-        // ── UI ───────────────────────────────────────────────────────────────────────────────────
-
-        /// <summary>The hint line under the buttons: room for three lines at 13 px — the narrow host is 700 px wide (#3263).</summary>
-        internal const float HintH = 52f;
-
-        private void BuildUi()
-        {
-            bool hasLibrary = OnSaveDesign != null || LibraryProvider != null;
-            bool multi = _subjects.Count > 1;
-            bool anyRegion = _subjects.Exists(s => s.ColumnLabelKeys != null && s.ColumnLabelKeys.Length > 0);
-            bool wide = multi || anyRegion; // the appearance screen: tabs, region tiles, base colour, preview
-
-            _ui = UiKit.CreateCanvas("Face Editor UI");
-            _ui.sortingOrder = 60; // above the in-game menu (CraftingTechShipUI is sortingOrder 50)
-            UiNav.Enable(_ui.gameObject, padHints: false); // pad: walk the tools/palette; Start hands the sticks to the canvas (#1198); own hint line
-            var root = _ui.transform;
-
-            // Shared scrim + opaque panel (#588). The old backdrop was an AddPanel, whose raycastTarget is
-            // false, so it never actually blocked clicks reaching the menu behind — AddModalDim does.
-            // 992 tall at y=48 (bottom 1040 of the 1080 design height, which ScreenMatchMode.Expand always
-            // fits): the second tool row needs the extra 32 px, and the hint line under the buttons is the
-            // last thing that may be clipped — it is where the controls are explained.
-            bool hasOutfits = OutfitNames != null;
-            float panelW = wide ? (hasOutfits ? 1500f : 1240f) : (hasLibrary ? 950f : 700f);
-            var (_, panel) = UiKit.AddModalOverlay(root, (1920f - panelW) / 2f, 48f, panelW, 992f);
-            _title = UiKit.AddText(panel, 24f, 18f, panelW - 48f, 30f, L(Current.TitleKey ?? Current.LabelKey), 22,
-                UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-
-            // Part tabs (#899): face / torso / arms / legs / helmet in ONE screen, instead of five menu cards
-            // that each tore the editor down and built it again.
-            if (multi)
-            {
-                BuildTabs(CharacterLayer(panel));
-            }
-
-            float canvasX = wide ? 24f : 94f;
-            float canvasY = multi ? 100f : 64f;
-            var areaGo = new GameObject("SubjectArea", typeof(RectTransform));
-            areaGo.transform.SetParent(panel, false);
-            _subjectArea = UiKit.Place(areaGo, 0f, 0f, panelW, 900f);
-            BuildSubjectArea(canvasX, canvasY);
-
-            // Palette: colours 1..N then an eraser (index 0). 32 colours (#899) at 12 per row — the widened
-            // palette is mostly shading partners, so keeping each hue's tones near each other matters more
-            // than the exact row length.
-            float paletteLabelY = canvasY + 528f;
-            UiKit.AddText(panel, 24f, paletteLabelY, 400f, 24f, L("ui.face.palette"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
-            float px = 24f, py = paletteLabelY + 32f;
-            const float swatch = 32f, pitch = 36f;
-            int col = 0;
-            for (int i = 1; i < FacePalette.Colors.Length; i++)
-            {
-                int idx = i;
-                _swatches[i] = MakeSwatch(panel, px + col * pitch, py, swatch, FacePalette.ColorOf(i), () => SetBrush(idx, _swatches[idx]));
-                if (++col >= 12) { col = 0; py += pitch; }
-            }
-
-            // Eraser swatch (transparent → shown as the editor background colour, labelled "E").
-            var eraser = MakeSwatch(panel, px + col * pitch, py, swatch, FacePalette.EditorBackground, () => SetBrush(0, _swatches[0]));
-            _swatches[0] = eraser;
-            UiKit.AddText(eraser.transform, 0f, 0f, swatch, swatch, "E", 15, UiKit.TextCol, TextAnchor.MiddleCenter, FontStyle.Bold);
-
-            // Tool box: fill, fill-the-lot, eyedropper, undo, redo — under the palette, in TWO rows since
-            // five tools no longer fit across one.
-            // The right edge is whatever stands beside the tools in this host: the region-tile column at
-            // x=580 (the helmet's fifth tile reaches down to the first row's top edge) or, in the single-
-            // subject hosts, the colour wheel at x=470 — which is BUILT AFTER this row and so drew over the
-            // right end of it, swallowing the clicks meant for the undo button.
-            // The labels get real width on purpose ("Farbe aufnehmen" in German, longer still in Polish and
-            // Turkish): a label only auto-shrinks so far before it stops being readable at arm's length (#918).
-            float toolsY = paletteLabelY + 32f + 3f * pitch + 4f;
-            const float toolH = 40f, row2 = 46f, gap = 8f;
-            float toolW = (wide ? 580f : 470f) - 24f - gap;
-            float halfW = (toolW - gap) / 2f;
-            float quarterW = (toolW - halfW - 2f * gap) / 2f;
-
-            var fillBtn = UiKit.AddFitButton(panel, 24f, toolsY, halfW, toolH, L("ui.face.fill"), () => SetFilling(!_filling));
-            _fillButton = fillBtn.image;
-            _fillLabel = fillBtn.GetComponentInChildren<Text>();
-            UiKit.AddFitButton(panel, 24f + halfW + gap, toolsY, halfW, toolH, L("ui.face.fill_all"), FillWholeRegion);
-
-            var pickBtn = UiKit.AddFitButton(panel, 24f, toolsY + row2, halfW, toolH, L("ui.face.pick"), () => SetPicking(!_picking));
-            _pickButton = pickBtn.image;
-            _pickLabel = pickBtn.GetComponentInChildren<Text>();
-            _undoButton = UiKit.AddFitButton(panel, 24f + halfW + gap, toolsY + row2, quarterW, toolH, L("ui.face.undo"), Undo);
-            _redoButton = UiKit.AddFitButton(panel, 24f + halfW + quarterW + 2f * gap, toolsY + row2, quarterW, toolH, L("ui.face.redo"), Redo);
-            RefreshHistoryButtons();
-
-            BuildColorWheel(panel, wide ? 900f : 470f, wide ? 300f : paletteLabelY + 8f);
-            if (wide)
-            {
-                BuildBaseColorPicker(CharacterLayer(panel), 900f, 100f);
-                BuildPreview(CharacterLayer(panel), 900f, 500f);
-            }
-
-            // Buttons.
-            float buttonsY = toolsY + 104f; // clears the second tool row
-            UiKit.AddFitButton(panel, 24f, buttonsY, 220f, 56f, L("ui.face.apply"), Apply);
-            UiKit.AddFitButton(panel, 260f, buttonsY, 180f, 56f, L("ui.face.clear"), ClearCanvas);
-            UiKit.AddFitButton(panel, 456f, buttonsY, 220f, 56f, L("ui.menu.back"), Close);
-            BuildModeExtras(panel, panelW, buttonsY); // #3318/#3319: Character | HUD frame, the HUD mode, Submit
-
-            // An instruction: normal colour; 14 px down to 13 on one line, else up to three lines at 13 — the narrow host's
-            // panel is 700 px and the hints are up to 1100 (#3263).
-            _hint = UiKit.AddText(panel, 24f, buttonsY + 58f, panelW - 48f, HintH, L(HintKeyNow()), 14, UiKit.TextCol, TextAnchor.UpperLeft);
-            UiKit.FitLabelLines(_hint, 14, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize, 3);
-
-            // Design library column (paint host only): name + save the current canvas, reload saved designs,
-            // and share one as a code (#846) — the same set of moves the form library offers.
-            if (hasLibrary)
-            {
-                UiKit.AddText(panel, 700f, 64f, 226f, 24f, L("ui.paint.library"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
-                UiKit.AddInput(panel, 700f, 92f, 226f, 42f, _name, v => _name = v, L("ui.paint.name"), 24, 16);
-                if (OnSaveDesign != null)
-                {
-                    UiKit.AddFitButton(panel, 700f, 140f, 226f, 44f, L("ui.paint.save"), () =>
-                    {
-                        OnSaveDesign(FacePalette.Encode(_grid, _grid.Length), _name);
-                        RebuildLibraryList();
-                    });
-                }
-
-                if (OnShare != null)
-                {
-                    // Full column width, one under the other: "Code kopieren" took two 15 px lines in 110 px (#3263).
-                    UiKit.AddFitButton(panel, 700f, 190f, 226f, 40f, L("ui.shape.custom.export"),
-                        () => OnShare(FacePalette.Encode(_grid, _grid.Length), _name));
-                    UiKit.AddFitButton(panel, 700f, 236f, 226f, 40f, L("ui.shape.custom.import"), () =>
-                    {
-                        if (OnImport?.Invoke() is { } imported)
-                        {
-                            _name = imported.Name;
-                            BeginGridEdit();
-                            LoadFrom(imported.Pixels);
-                            _dirty = true;
-                            CommitGridEdit();
-                            RebuildLibraryList();
-                        }
-                    });
-                }
-
-                var listGo = new GameObject("PaintLibraryList", typeof(RectTransform));
-                listGo.transform.SetParent(panel, false);
-                _libList = UiKit.Place(listGo, 700f, 286f, 226f, 534f);
-                RebuildLibraryList();
-            }
-
-            if (hasOutfits)
-            {
-                BuildOutfitColumn(CharacterLayer(panel), panelW - 250f);
-            }
-
-            SetBrush(_brush, _swatches[_brush]);
-            RefreshPreview();
-        }
-
-        /// <summary>The part tabs across the top of the appearance screen. Switching commits what is on the
-        /// canvas first — five parts in one screen means "Apply" can no longer be the only commit point.</summary>
-        private void BuildTabs(Transform panel)
-        {
-            _tabFrames = new Image[_subjects.Count];
-            const float tabW = 168f, gap = 8f;
-            for (int i = 0; i < _subjects.Count; i++)
-            {
-                int which = i;
-                var btn = UiKit.AddFitButton(panel, 24f + i * (tabW + gap), 50f, tabW, 36f, L(_subjects[i].LabelKey),
-                    () => SwitchSubject(which));
-                _tabFrames[i] = btn.image;
-            }
-
-            HighlightTabs();
-        }
-
-        private void HighlightTabs()
-        {
-            if (_tabFrames == null) return;
-            for (int i = 0; i < _tabFrames.Length; i++)
-            {
-                if (_tabFrames[i] != null)
-                {
-                    _tabFrames[i].color = i == _active ? UiKit.Cyan : UiKit.PanelFill;
-                }
-            }
-        }
-
-        /// <summary>Commits the current canvas and points the editor at another part, keeping the panel (the
-        /// pre-#899 flow destroyed the whole editor per part).</summary>
-        private void SwitchSubject(int index)
-        {
-            if (index == _active)
-            {
-                return;
-            }
-
-            CommitActive();
-            float canvasX = 24f, canvasY = 100f;
-            LoadSubject(index);
-            BuildSubjectArea(canvasX, canvasY);
-            _title.text = L(Current.TitleKey ?? Current.LabelKey);
-            SetHint(HintKeyNow());
-            HighlightTabs();
-            UpdateBaseSwatch();
-            RefreshPreview();
-        }
-
-        /// <summary>(Re)builds the canvas + region tiles for the active subject.</summary>
-        private void BuildSubjectArea(float canvasX, float canvasY)
-        {
-            for (int i = _subjectArea.childCount - 1; i >= 0; i--)
-            {
-                Destroy(_subjectArea.GetChild(i).gameObject);
-            }
-
-            _regionFrames = null;
-            _activeRegionLabel = null;
-            // The pad cursor lived under the old canvas rect; PadCanvasFocus.EnsureCanvas re-homes it next frame (#1954).
-
-            // Paint surface (point-filtered → crisp big pixels), always the full 512×512 — in region mode
-            // it crops the shared texture to the active 32×32 face via uvRect, so every face paints at the
-            // same 16 px cell size as the classic face editor.
-            var canvasGo = new GameObject("FaceCanvas", typeof(RectTransform));
-            canvasGo.transform.SetParent(_subjectArea, false);
-            _canvasRt = UiKit.Place(canvasGo, canvasX, canvasY, 512f, 512f);
-            _canvas = canvasGo.AddComponent<RawImage>();
-            _canvas.texture = _tex;
-
-            if (RegionMode)
-            {
-                _activeRegionLabel = UiKit.AddText(_subjectArea, canvasX, canvasY + 516f, 512f, 22f, string.Empty, 15,
-                    UiKit.CyanDim, TextAnchor.MiddleCenter, FontStyle.Bold);
-                BuildRegionColumn(_subjectArea, canvasY);
-                SetActiveRegion(0);
-            }
-        }
-
-        /// <summary>(Re)fills the library column with one load-button per saved design (newest saves appear
-        /// as the provider returns them; capped to what fits the column).</summary>
-        private void RebuildLibraryList()
-        {
-            if (_libList == null || LibraryProvider == null)
-            {
-                return;
-            }
-
-            for (int i = _libList.childCount - 1; i >= 0; i--)
-            {
-                Destroy(_libList.GetChild(i).gameObject);
-            }
-
-            var entries = LibraryProvider() ?? new List<(string, string)>();
-            const int maxShown = 13;
-            float y = 0f;
-            for (int i = 0; i < entries.Count && i < maxShown; i++)
-            {
-                string pixels = entries[i].Pixels;
-                UiKit.AddFitButton(_libList, 0f, y, 226f, 42f, entries[i].Name, () =>
-                {
-                    BeginGridEdit();
-                    LoadFrom(pixels);
-                    _dirty = true;
-                    CommitGridEdit();
-                });
-                y += 50f;
-            }
-        }
-
         /// <summary>Re-reads every tab's payload and colour from the host after it swapped the whole look
         /// under the editor. The history goes with it: the steps that led here belong to a look that is no
         /// longer on the figure, and undoing into it would mix two outfits together.</summary>
@@ -1013,14 +733,24 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            _history.Clear();
-            RefreshHistoryButtons();
+            _history.Clear(); // keeps "unsaved" as it was: the swap itself is not a step
 
             int active = _active;
             LoadSubject(active);
-            BuildSubjectArea(24f, _subjects.Count > 1 ? 100f : 64f);
+            BuildSubjectArea();
             UpdateBaseSwatch();
+            RefreshFigureSwatches();
             RefreshPreview();
+            if (KeepsScratch && !_hudMode)
+            {
+                _hostChanged = true; // the designer's scratch look changed — Save makes it the player's
+            }
+            else
+            {
+                _history.MarkSaved(); // a live host already wears what it just put on
+            }
+
+            Changed();
             OnChanged?.Invoke();
         }
 
@@ -1073,8 +803,9 @@ namespace BlocksBeyondTheStars.Client
             _wheelRt = UiKit.Place(go, wheelX, wheelY, wheelPx, wheelPx);
             _wheelImg = go.AddComponent<RawImage>();
             _wheelImg.texture = tex;
-            _wheelTargetLabel = UiKit.AddText(panel, wheelX, wheelY + wheelPx + 4f, wheelPx + 60f, 22f,
-                L("ui.face.wheel"), 13, UiKit.CyanDim, TextAnchor.MiddleCenter);
+            _wheelTargetLabel = UiKit.AddText(panel, wheelX, wheelY + wheelPx + 4f, wheelPx + 60f, 24f,
+                L("ui.face.wheel"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiKit.FitLabelSingleLine(_wheelTargetLabel, wheelPx + 60f, UiKit.EditorMinFontSize, 16);
 
             var dot = new GameObject("WheelDot", typeof(RectTransform));
             dot.transform.SetParent(go.transform, false);
@@ -1208,17 +939,17 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         private void BuildBaseColorPicker(Transform panel, float x, float y)
         {
-            UiKit.AddText(panel, x, y, 220f, 24f, L("ui.paint.base_color"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddKicker(panel, x, y, BaseKickerW, L("ui.paint.base_color"));
 
             var swGo = new GameObject("BaseSwatch", typeof(RectTransform));
             swGo.transform.SetParent(panel, false);
-            UiKit.Place(swGo, x + 230f, y - 6f, 48f, 36f);
+            UiKit.Place(swGo, x + BaseKickerW + 12f, y - 6f, 48f, 36f);
             _baseSwatch = swGo.AddComponent<Image>();
             _baseSwatch.sprite = UiKit.SolidSprite;
             _baseSwatch.raycastTarget = false;
 
-            float gy = y + 40f;
-            const float cell = 26f, pitch = 30f;
+            float gy = y + 36f;
+            const float cell = 36f, pitch = 40f; // #3693: no control smaller than the palette's own swatches
             for (int i = 0; i < AppearancePalette.Colors.Length; i++)
             {
                 Color c = AppearancePalette.Colors[i];
@@ -1334,34 +1065,8 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        // Fill and the eyedropper are mutually exclusive armed modes — arming one disarms the other, so the
-        // highlighted button always tells the truth about what the next click will do.
-        private void SetPicking(bool on)
-        {
-            _picking = on;
-            Arm(_pickButton, _pickLabel, on);
-            if (on)
-            {
-                SetFilling(false);
-            }
-
-            SetHint(HintKeyNow());
-        }
-
-        private void SetFilling(bool on)
-        {
-            _filling = on;
-            Arm(_fillButton, _fillLabel, on);
-            if (on)
-            {
-                SetPicking(false);
-            }
-
-            SetHint(HintKeyNow());
-        }
-
-        /// <summary>Paints an armed tool's button: cyan frame AND a dark label on it, so the state survives
-        /// a glance rather than needing a comparison with the button next to it.</summary>
+        /// <summary>Paints an armed toggle's button: cyan frame AND a dark label on it, so the state survives
+        /// a glance rather than needing a comparison with the button next to it (the HUD mode's size / opacity).</summary>
         private static void Arm(Image button, Text label, bool on)
         {
             if (button != null)
@@ -1375,12 +1080,12 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Which hint the line under the buttons should carry right now: an armed tool says what the
-        /// next click will do, otherwise the subject's own hint.</summary>
+        /// <summary>Which controls line the shell's hint should carry right now: an armed tool says what the next click
+        /// will do, otherwise the mouse controls.</summary>
         private string HintKeyNow()
-            => _filling ? "ui.face.hint_fill_armed"
-             : _picking ? "ui.face.hint_pick_armed"
-             : Current?.HintKey ?? HintKey;
+            => _filling ? "ui.face.hint_fill_short"
+             : _picking ? "ui.face.hint_pick_short"
+             : "ui.face.hint_short";
 
         private Image MakeSwatch(Transform parent, float x, float y, float size, Color color, Action onClick)
         {
@@ -1397,6 +1102,8 @@ namespace BlocksBeyondTheStars.Client
             return img;
         }
 
+        /// <summary>Takes a paint colour (a swatch, the wheel, the eyedropper). A colour means painting: the eraser and the
+        /// one-shot eyedropper hand over to the pen; an armed fill stays armed with the new colour.</summary>
         private void SetBrush(int index, Image swatch)
         {
             _brush = index;
@@ -1404,7 +1111,23 @@ namespace BlocksBeyondTheStars.Client
             UpdateBaseSwatch();
             if (_activeSwatch != null) _activeSwatch.transform.localScale = Vector3.one;
             _activeSwatch = swatch;
-            if (_activeSwatch != null) _activeSwatch.transform.localScale = Vector3.one * 1.18f;
+            if (_activeSwatch != null) _activeSwatch.transform.localScale = Vector3.one * 1.12f;
+            if (index != 0 && (_tool == DrawTool.Eraser || _tool == DrawTool.Pick))
+            {
+                SelectTool(DrawTool.Pen);
+            }
+        }
+
+        /// <summary>The eyedropper's result: a colour goes to the brush, a transparent pixel arms the eraser.</summary>
+        private void PickColour(int picked)
+        {
+            if (picked == 0)
+            {
+                SelectTool(DrawTool.Eraser);
+                return;
+            }
+
+            SetBrush(picked, _swatches[picked]);
         }
 
         // ── region mode (body-paint subjects, #874) ──────────────────────────────────────────────
@@ -1548,7 +1271,7 @@ namespace BlocksBeyondTheStars.Client
             return encode != null ? encode(_grid) : FacePalette.Encode(_grid, _grid.Length);
         }
 
-        /// <summary>Hands the active subject's canvas to its host. Called on Apply and whenever the player
+        /// <summary>Hands the active subject's canvas to its host. Called on Save and whenever the player
         /// switches to another part, since one screen holding five paintings can't wait for a single OK.</summary>
         private void CommitActive(bool force = false)
         {
@@ -1561,15 +1284,12 @@ namespace BlocksBeyondTheStars.Client
             Current.Pixels = pixels;
             _dirty = false;
             Current.OnApply?.Invoke(pixels);
+            AfterHostApplied();
             OnChanged?.Invoke();
         }
 
-        private void Apply()
-        {
-            CommitActive(force: true);
-            Close();
-        }
-
+        /// <summary>Leaves the editor the way the hosts without an own Back did: it goes away (the shell's Back has already
+        /// written the draft).</summary>
         private void Close() => Destroy(gameObject);
 
         private string L(string key) => Localizer?.Invoke(key) ?? key;

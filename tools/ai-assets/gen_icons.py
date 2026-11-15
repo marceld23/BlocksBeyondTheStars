@@ -72,13 +72,42 @@ ICONS = [
     ("map_station", "an orbital space station hub with a ring"),
     # VEGA ship-AI avatar chip for the companion panel.
     ("icon_vega", "a friendly artificial intelligence core, one glowing ring eye in a rounded housing"),
+    # UI layout overhaul (#3662): fixed icon meanings for the menu template, settings categories and editor cards.
+    ("btn_back", "a left pointing arrow"),
+    ("btn_delete", "a trash bin with a lid"),
+    ("btn_continue", "a play triangle inside a circle"),
+    ("btn_multiplayer", "three person figures standing together"),
+    ("btn_editors", "a pencil crossed with a ruler"),
+    ("btn_close", "an X cross mark"),
+    ("btn_pause", "two vertical pause bars"),
+    ("btn_new", "a plus sign inside a circle"),
+    ("btn_dice", "a six sided dice cube showing dots"),
+    ("ed_texture", "a paint palette with a brush"),
+    ("ed_shape", "a wedge shaped slope block in 3d"),
+    ("set_graphics", "a computer monitor showing a mountain landscape"),
+    ("set_display", "a screen with four corner brackets of a heads up display"),
+    ("set_audio", "a loudspeaker with sound waves"),
+    ("set_controls", "a computer keyboard"),
+    ("set_pad", "a game controller gamepad"),
+    ("set_voice", "a microphone"),
+    ("set_access", "a person figure with open arms inside a circle"),
+    ("set_language", "a globe with a speech bubble"),
+    # Editor shell (#3688): the header actions every editor shares. btn_redo is btn_undo mirrored (no prompt of its own).
+    ("btn_save", "a floppy disk save symbol"),
+    ("btn_load", "an open folder"),
+    ("btn_undo", "a curved arrow that turns back to the left, the undo symbol"),
+    ("btn_submit", "a paper plane flying"),
 ]
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Generate the M27 UI icon set (approved batch).")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--only", default="", help="comma-separated icon ids to generate (default: all)")
     args = ap.parse_args()
+    if args.only:
+        wanted = {x.strip() for x in args.only.split(",") if x.strip()}
+        ICONS[:] = [icon for icon in ICONS if icon[0] in wanted]
 
     print(f"[icons] {len(ICONS)} icons")
     if args.dry_run:

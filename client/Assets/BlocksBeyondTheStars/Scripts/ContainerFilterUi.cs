@@ -153,21 +153,22 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddText(panel, 32f, y0 + 40f, 936f, 60f, L("ui.container_filter.empty"), 20, UiKit.TextCol, TextAnchor.MiddleCenter);
             }
 
-            UiKit.AddButton(panel, 32f, 802f, 300f, 48f, L("ui.container_filter.save"), () =>
+            // #3662: Save is the one primary action, Cancel steps back quietly (the arrow, as the other dialogs' Cancel).
+            UiKit.AddTierButton(panel, 32f, 802f, 300f, 48f, L("ui.container_filter.save"), () =>
             {
                 Game.Network?.SendSetContainerFilter(_containerId, _selected.ToArray());
                 Close();
-            });
-            UiKit.AddButton(panel, 350f, 802f, 300f, 48f, L("ui.container_filter.allow_all"), () =>
+            }, ButtonTier.Primary);
+            UiKit.AddTierButton(panel, 350f, 802f, 300f, 48f, L("ui.container_filter.allow_all"), () =>
             {
                 Game.Network?.SendSetContainerFilter(_containerId, System.Array.Empty<string>());
                 Close();
-            });
-            UiKit.AddButton(panel, 788f, 802f, 180f, 48f, L("ui.container_filter.cancel"), () =>
+            }, ButtonTier.Secondary);
+            UiKit.AddTierButton(panel, 748f, 802f, 220f, 48f, L("ui.container_filter.cancel"), () =>
             {
                 Game?.MarkMenuInputHandled();
                 Close();
-            });
+            }, ButtonTier.Quiet, "btn_back");
         }
 
         private void Rebuild()

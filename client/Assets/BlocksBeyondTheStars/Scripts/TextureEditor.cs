@@ -3,10 +3,8 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
 using System.Collections.Generic;
-using System.IO;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Textures;
-using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -15,13 +13,16 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// The texture editor (#1955): opens EVERY texture of the running game — block tiles, the picture tiles of the
     /// bed and the campfire, plants, creature hides, avatar fabrics — on a true-colour canvas, shows it the way the
-    /// game does (cube, built-in form with its face slots, cutout cards, tiled 3×3), and saves it three ways:
+    /// game does (cube, built-in form with its face slots, cutout cards, tiled 3×3), and keeps it three ways:
     /// <list type="bullet">
-    /// <item><b>Use for me</b> — into the local texture pack (<see cref="TexturePackFolder"/>); visible at once, on
-    /// this install only.</item>
-    /// <item><b>Export for the game</b> — a bundle for <c>tools/merge_texture.py</c>.</item>
-    /// <item><b>Publish to this world</b> — only with a world host and the right to do so (#1959).</item>
+    /// <item><b>Save</b> (the editor shell's primary button, #3693) — into the local texture pack
+    /// (<see cref="TexturePackFolder"/>); visible at once, on this install only.</item>
+    /// <item><b>Export for the game</b> — a bundle for <c>tools/merge_texture.py</c> (desktop only).</item>
+    /// <item><b>For this world</b> — only with a world host and the right to do so (#1959).</item>
     /// </list>
+    /// It sits on the shared <see cref="EditorShell"/> (#3688–#3690): Back, the texture's name, Undo / Redo, Submit and
+    /// Save in the header, a status bar coloured by severity, an automatic draft (<c>TextureEditor.Document.cs</c>), and
+    /// Esc / pad B that never close it — the menu (AppShell) and the world (GameMenu) hand the key to the shell.
     /// Everything it reads comes from the build and the loaded content, never from a developer's folders, so it works
     /// on any install. The tools themselves are <see cref="PixelCanvasModel"/> (engine-free, pinned by the headless
     /// suite); this class is the uGUI around it. Mouse and gamepad (<see cref="PadCanvasFocus"/>).
@@ -45,35 +46,18 @@ namespace BlocksBeyondTheStars.Client
         private GameContent _content;
         private BlockTextureAtlas _atlas;
         private List<TextureEntry> _entries;
-        private readonly List<EditorPaletteKit.Entry> _rows = new List<EditorPaletteKit.Entry>();
-        private PaletteListUi _list;
-        private RectTransform _listContent;
         private TextureEntry _entry;
         private PixelCanvasModel _model;
 
         private Canvas _ui;
         private Texture2D _tex;          // the active frame, drawn on the canvas, the tiled view and the 3-D preview
-        private RectTransform _canvasRt;
-        private RawImage _canvasImg;
-        private RectTransform _slotLayer;
         private readonly Texture2D[] _thumbs = new Texture2D[TextureTiles.MaxFrames];
-        private readonly RawImage[] _thumbImgs = new RawImage[TextureTiles.MaxFrames];
-        private readonly Image[] _thumbFrames = new Image[TextureTiles.MaxFrames];
         private TexturePreviewRig _preview;
-        private PadCanvasFocus _pad;
 
         private Tool _tool = Tool.Brush;
         private int _brushSize = 1;
         private TexelColor _primary = new TexelColor(255, 255, 255);
         private TexelColor _secondary = new TexelColor(0, 0, 0);
-        private float _h, _s = 0f, _v = 1f;
-        private Texture2D _svTex, _hueTex;
-        private RectTransform _svRt, _hueRt, _alphaRt;
-        private Image _primarySwatch, _secondarySwatch;
-        private InputField _hexField;
-        private readonly List<Image> _tileSwatches = new List<Image>();
-        private readonly List<TexelColor> _tileColors = new List<TexelColor>();
-        private readonly Dictionary<Tool, Image> _toolButtons = new Dictionary<Tool, Image>();
 
         private bool _stroking;
         private int _lastX = -1, _lastY = -1;
@@ -84,11 +68,8 @@ namespace BlocksBeyondTheStars.Client
         private bool _playing;
         private float _playClock;
         private int _playFrame;
-        private int _dragPicker;          // 0 none, 1 SV square, 2 hue bar, 3 alpha bar
-        private string _search = string.Empty;
-
-        private Text _title, _status, _hint, _frameLabel, _sizeLabel, _layerLabel;
-        private Button _publishButton, _unpublishButton;
+        private bool _lastButtonWasSecondary;
+        private CreationSubmitDialog _submit;
 
         private static string L(string key) => UiKit.L(key);
 
@@ -111,6 +92,7 @@ namespace BlocksBeyondTheStars.Client
             BuildUi();
             Open(_entries.Count > 0 ? _entries[0] : null);
             GameTextures.Changed += OnTexturesChanged;
+            CanvasEditorDrafts.Offer(_shell); // last: "Continue your draft?" when one is left (#3689)
         }
 
         private static Texture2D NewTileTexture()
@@ -128,18 +110,18 @@ namespace BlocksBeyondTheStars.Client
             _atlas?.Release();
             if (_ui != null)
             {
-                Destroy(_ui.gameObject);
+                EditorSceneKit.Discard(_ui.gameObject);
             }
 
-            Destroy(_tex);
+            EditorSceneKit.Discard(_tex);
             foreach (var t in _thumbs)
             {
-                Destroy(t);
+                EditorSceneKit.Discard(t);
             }
 
-            Destroy(_svTex);
-            Destroy(_hueTex);
-            Destroy(_checker);
+            EditorSceneKit.Discard(_svTex);
+            EditorSceneKit.Discard(_hueTex);
+            EditorSceneKit.Discard(_checker);
         }
 
         private void OnTexturesChanged(IReadOnlyCollection<string> keys)
@@ -161,26 +143,7 @@ namespace BlocksBeyondTheStars.Client
             var current = entry.IsIcon ? null : GameTextures.Resolve(entry.Key);
             if (entry.IsIcon)
             {
-                // The player's own icon if there is one, else the shipped one — read back through the GPU, because the
-                // build's icons are not CPU-readable and come in every size. The read lands inline on a synchronous-
-                // read API and a frame or two later on WebGPU (#2390), so the model starts blank and fills in; the
-                // shipped icon is cached for "reset to official".
-                var official = Resources.Load<Texture2D>("icons/" + entry.IconName);
-                var source = TexturePackFolder.IconOverride(entry.IconName) ?? official;
-                string iconName = entry.IconName;
-                _model.Load(null, 0, mode);
-                ReadIcon(official, raw => _iconCache[iconName] = raw);
-                ReadIcon(source, raw =>
-                {
-                    if (!ReferenceEquals(_entry, entry) || _model == null)
-                    {
-                        return;
-                    }
-
-                    _model.Load(new[] { raw }, 0, mode);
-                    RefreshTileColors();
-                    RefreshAll();
-                });
+                OpenIcon(entry, mode);
             }
             else if (current != null)
             {
@@ -207,10 +170,39 @@ namespace BlocksBeyondTheStars.Client
             RebuildSlotOverlay();
             RefreshTileColors();
             RefreshAll();
-            SetStatus(string.Empty, UiKit.Ok);
+            _shell?.ClearStatus();
+            if (!entry.IsIcon)
+            {
+                ApplyPendingDraft(entry); // a restored draft lands on the freshly opened texture (#3689)
+            }
         }
 
-        /// <summary>Shipped icons already read back this session (icon name → 64×64 frame), so "reset to official"
+        /// <summary>The player's own icon if there is one, else the shipped one — read back through the GPU, because the
+        /// build's icons are not CPU-readable and come in every size. The read lands inline on a synchronous-read API and a
+        /// frame or two later on WebGPU (#2390), so the model starts blank and fills in; the shipped icon is cached for
+        /// "back to the original".</summary>
+        private void OpenIcon(TextureEntry entry, TextureAlphaMode mode)
+        {
+            var official = Resources.Load<Texture2D>("icons/" + entry.IconName);
+            var source = TexturePackFolder.IconOverride(entry.IconName) ?? official;
+            string iconName = entry.IconName;
+            _model.Load(null, 0, mode);
+            ReadIcon(official, raw => _iconCache[iconName] = raw);
+            ReadIcon(source, raw =>
+            {
+                if (!ReferenceEquals(_entry, entry) || _model == null)
+                {
+                    return;
+                }
+
+                _model.Load(new[] { raw }, 0, mode);
+                RefreshTileColors();
+                RefreshAll();
+                ApplyPendingDraft(entry);
+            });
+        }
+
+        /// <summary>Shipped icons already read back this session (icon name → 64×64 frame), so "back to the original"
         /// has the pixels at hand even where the read is asynchronous.</summary>
         private readonly Dictionary<string, byte[]> _iconCache = new Dictionary<string, byte[]>();
 
@@ -243,7 +235,7 @@ namespace BlocksBeyondTheStars.Client
                         data.CopyTo(raw);
                     }
 
-                    Destroy(copy);
+                    EditorSceneKit.Discard(copy);
                 }
 
                 done(raw);
@@ -289,29 +281,36 @@ namespace BlocksBeyondTheStars.Client
 
         // ---------------------------------------------------------------- per-frame input
 
+        /// <summary>What the mouse or the pad does to the canvas this frame.</summary>
+        private struct CanvasInput
+        {
+            public bool PrimaryHeld, SecondaryHeld, PrimaryDown, SecondaryDown, PickDown, Modifier;
+            public int X, Y;
+        }
+
         private void Update()
         {
-            if (_canvasRt == null || _model == null)
+            if (_canvasRt == null || _model == null || _shell == null)
             {
                 return;
             }
 
-            if (_submit != null && _submit.IsOpen)
+            if ((_submit != null && _submit.IsOpen) || _shell.IsDialogOpen)
             {
-                return; // the submit dialog is modal: no strokes, no shortcuts underneath
+                return; // a dialog is modal: no strokes, no shortcuts underneath
             }
 
-            _preview.Tick(Time.unscaledDeltaTime, InputMap.ActiveDevice == InputDeviceKind.Gamepad ? InputMap.PadLookX() * 0.6f : 0f);
+            bool pad = InputMap.ActiveDevice == InputDeviceKind.Gamepad;
+            _preview.Tick(Time.unscaledDeltaTime, pad ? InputMap.PadLookX() * 0.6f : 0f);
             TickPlayback();
             HandleKeys();
 
-            bool pad = InputMap.ActiveDevice == InputDeviceKind.Gamepad;
             _pad.SetCells(Tile, Tile);
             bool padCanvas = _pad.Tick(pad);
             SetHint(!pad ? "ui.tex.hint" : (padCanvas ? "ui.tex.hint_pad" : "ui.tex.hint_pad_panel"));
             if (pad && InputMap.PadDown(PadButton.Rb))
             {
-                DoUndo();
+                _shell.Undo(); // the pad's undo goes through the shell, as its button and Ctrl+Z do
             }
 
             if (!pad && UpdateColorPicker())
@@ -319,47 +318,61 @@ namespace BlocksBeyondTheStars.Client
                 return; // the mouse is dragging a colour control — not a stroke
             }
 
-            bool primaryHeld, secondaryHeld, primaryDown, secondaryDown, pickDown, modifier;
-            int x, y;
+            if (ReadInput(padCanvas, out var input))
+            {
+                ApplyInput(input);
+            }
+        }
+
+        /// <summary>The canvas input of this frame; false when the mouse is off the canvas (a stroke without a held
+        /// button is closed then).</summary>
+        private bool ReadInput(bool padCanvas, out CanvasInput input)
+        {
+            input = default;
             if (padCanvas)
             {
-                primaryHeld = InputMap.PadHeld(PadButton.A);
-                secondaryHeld = InputMap.PadHeld(PadButton.X);
-                primaryDown = InputMap.PadDown(PadButton.A);
-                secondaryDown = InputMap.PadDown(PadButton.X);
-                pickDown = InputMap.PadDown(PadButton.Y);
-                modifier = InputMap.PadHeld(PadButton.Lb);
-                x = _pad.CellX;
-                y = _pad.CellY;
-            }
-            else
-            {
-                primaryHeld = Input.GetMouseButton(0);
-                secondaryHeld = Input.GetMouseButton(1);
-                primaryDown = Input.GetMouseButtonDown(0);
-                secondaryDown = Input.GetMouseButtonDown(1);
-                pickDown = Input.GetMouseButtonDown(2);
-                modifier = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                if (!CanvasCell(out x, out y))
-                {
-                    if (!primaryHeld && !secondaryHeld)
-                    {
-                        EndStroke(-1, -1, false);
-                    }
-
-                    return;
-                }
-
-                if (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt))
-                {
-                    pickDown |= primaryDown;
-                }
+                input.PrimaryHeld = InputMap.PadHeld(PadButton.A);
+                input.SecondaryHeld = InputMap.PadHeld(PadButton.X);
+                input.PrimaryDown = InputMap.PadDown(PadButton.A);
+                input.SecondaryDown = InputMap.PadDown(PadButton.X);
+                input.PickDown = InputMap.PadDown(PadButton.Y);
+                input.Modifier = InputMap.PadHeld(PadButton.Lb);
+                input.X = _pad.CellX;
+                input.Y = _pad.CellY;
+                return true;
             }
 
-            if (pickDown || (_tool == Tool.Pipette && (primaryDown || secondaryDown)))
+            input.PrimaryHeld = Input.GetMouseButton(0);
+            input.SecondaryHeld = Input.GetMouseButton(1);
+            input.PrimaryDown = Input.GetMouseButtonDown(0);
+            input.SecondaryDown = Input.GetMouseButtonDown(1);
+            input.PickDown = Input.GetMouseButtonDown(2);
+            input.Modifier = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            if (!CanvasCell(out input.X, out input.Y))
             {
-                var picked = _model.Get(x, y);
-                if (secondaryDown && !pickDown)
+                if (!input.PrimaryHeld && !input.SecondaryHeld)
+                {
+                    EndStroke(-1, -1, false);
+                }
+
+                return false;
+            }
+
+            if (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt))
+            {
+                input.PickDown |= input.PrimaryDown;
+            }
+
+            return true;
+        }
+
+        /// <summary>Picks a colour, closes a stroke, or paints with the current tool.</summary>
+        private void ApplyInput(CanvasInput input)
+        {
+            if (input.PickDown || (_tool == Tool.Pipette && (input.PrimaryDown || input.SecondaryDown)))
+            {
+                var picked = _model.Get(input.X, input.Y);
+                if (input.SecondaryDown && !input.PickDown)
                 {
                     SetSecondary(picked);
                 }
@@ -371,21 +384,22 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (!primaryHeld && !secondaryHeld)
+            if (!input.PrimaryHeld && !input.SecondaryHeld)
             {
-                EndStroke(x, y, modifier);
+                EndStroke(input.X, input.Y, input.Modifier);
                 return;
             }
 
             // The right button (pad: X) always erases; the eraser tool erases with either button.
-            bool erase = _tool == Tool.Eraser || (secondaryHeld && !primaryHeld);
+            bool erase = _tool == Tool.Eraser || (input.SecondaryHeld && !input.PrimaryHeld);
             var color = erase ? EraseColor() : _primary;
+            bool down = input.PrimaryDown || input.SecondaryDown;
             switch (_tool)
             {
                 case Tool.Fill:
-                    if (primaryDown || secondaryDown)
+                    if (down)
                     {
-                        _model.Fill(x, y, color, modifier);
+                        _model.Fill(input.X, input.Y, color, input.Modifier);
                         AfterChange();
                     }
 
@@ -393,33 +407,38 @@ namespace BlocksBeyondTheStars.Client
 
                 case Tool.Line:
                 case Tool.Rectangle:
-                    if (primaryDown || secondaryDown)
+                    if (down)
                     {
                         _dragShape = true;
-                        _shapeX = x;
-                        _shapeY = y;
+                        _shapeX = input.X;
+                        _shapeY = input.Y;
                     }
 
-                    _lastX = x;
-                    _lastY = y;
+                    _lastX = input.X;
+                    _lastY = input.Y;
                     break;
 
                 default: // brush / eraser
-                    if (primaryDown || secondaryDown || !_stroking)
-                    {
-                        _model.BeginEdit();
-                        _stroking = true;
-                        _lastX = x;
-                        _lastY = y;
-                    }
-
-                    _model.StrokeTo(_lastX, _lastY, x, y, color, _brushSize); // a gap-free run, erasing included
-
-                    _lastX = x;
-                    _lastY = y;
-                    UploadActiveFrame();
+                    StrokeTo(input.X, input.Y, color, down);
                     break;
             }
+        }
+
+        /// <summary>The brush and the eraser: a gap-free run from the last cell, ONE undo step per stroke.</summary>
+        private void StrokeTo(int x, int y, TexelColor color, bool down)
+        {
+            if (down || !_stroking)
+            {
+                _model.BeginEdit();
+                _stroking = true;
+                _lastX = x;
+                _lastY = y;
+            }
+
+            _model.StrokeTo(_lastX, _lastY, x, y, color, _brushSize); // a gap-free run, erasing included
+            _lastX = x;
+            _lastY = y;
+            UploadActiveFrame();
         }
 
         private void EndStroke(int x, int y, bool modifier)
@@ -448,9 +467,6 @@ namespace BlocksBeyondTheStars.Client
                 AfterChange();
             }
         }
-
-        private bool _lastButtonWasSecondary;
-        private CreationSubmitDialog _submit;
 
         /// <summary>What erasing writes: see-through where the tile may have holes, the secondary colour where it may
         /// not (a block tile is opaque by rule).</summary>
@@ -486,36 +502,11 @@ namespace BlocksBeyondTheStars.Client
             return true;
         }
 
+        /// <summary>The tool keys (B / E / G / I / L / R, X swaps the colours, [ ] the brush size) — never while a text
+        /// field has the keyboard or Ctrl is down. Ctrl+Z / Ctrl+Y / Ctrl+S belong to the editor shell (#3688).</summary>
         private void HandleKeys()
         {
-            if (UiKit.TextFieldFocused())
-            {
-                return;
-            }
-
-            bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
-            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-            if (ctrl && Input.GetKeyDown(KeyCode.Z))
-            {
-                if (shift)
-                {
-                    DoRedo();
-                }
-                else
-                {
-                    DoUndo();
-                }
-
-                return;
-            }
-
-            if (ctrl && Input.GetKeyDown(KeyCode.Y))
-            {
-                DoRedo();
-                return;
-            }
-
-            if (ctrl)
+            if (UiKit.TextFieldFocused() || Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl))
             {
                 return;
             }
@@ -552,10 +543,12 @@ namespace BlocksBeyondTheStars.Client
 
         // ---------------------------------------------------------------- model → textures
 
+        /// <summary>After an edit: redraw, refresh the tile's colours and tell the shell (draft timer, header).</summary>
         private void AfterChange()
         {
             RefreshAll();
             RefreshTileColors();
+            _shell?.NotifyChanged();
         }
 
         private void RefreshAll()
@@ -599,25 +592,23 @@ namespace BlocksBeyondTheStars.Client
             tex.Apply(false);
         }
 
+        /// <summary>The line above the canvas: which layer the open texture comes from and whether it may have holes. The
+        /// texture's name and "Not saved yet" are the shell header's job now.</summary>
         private void RefreshBadges()
         {
-            if (_title == null || _entry == null)
+            if (_layerLabel == null || _entry == null)
             {
                 return;
             }
 
-            _title.text = _entry.Label + "  ·  " + _entry.Key + (_model != null && _model.Dirty ? "  *" : string.Empty);
-            if (_layerLabel != null)
-            {
-                string layer = _entry.IsIcon ? (TexturePackFolder.IconOverride(_entry.IconName) != null ? "ui.tex.layer_local" : "ui.tex.layer_official")
-                    : GameTextures.HasWorld(_entry.Key) ? "ui.tex.layer_world"
-                    : GameTextures.HasLocal(_entry.Key) ? "ui.tex.layer_local"
-                    : GameTextures.Official(_entry.Key) != null ? "ui.tex.layer_official"
-                    : "ui.tex.layer_code";
-                string alpha = _model.AlphaMode == TextureAlphaMode.Opaque ? "ui.tex.alpha_opaque" : "ui.tex.alpha_cutout";
-                string owner = GameTextures.WorldOwner(_entry.Key);
-                _layerLabel.text = L(layer) + (owner.Length > 0 ? " (" + owner + ")" : string.Empty) + "  ·  " + L(alpha);
-            }
+            string layer = _entry.IsIcon ? (TexturePackFolder.IconOverride(_entry.IconName) != null ? "ui.tex.layer_local" : "ui.tex.layer_official")
+                : GameTextures.HasWorld(_entry.Key) ? "ui.tex.layer_world"
+                : GameTextures.HasLocal(_entry.Key) ? "ui.tex.layer_local"
+                : GameTextures.Official(_entry.Key) != null ? "ui.tex.layer_official"
+                : "ui.tex.layer_code";
+            string alpha = _model.AlphaMode == TextureAlphaMode.Opaque ? "ui.tex.alpha_opaque" : "ui.tex.alpha_cutout";
+            string owner = GameTextures.WorldOwner(_entry.Key);
+            _layerLabel.text = L(layer) + (owner.Length > 0 ? " (" + owner + ")" : string.Empty) + "  ·  " + L(alpha);
 
             bool canPublish = WorldHost != null && WorldHost.CanPublish && !_entry.IsIcon; // an icon is never a world texture
             if (_publishButton != null)
@@ -627,36 +618,17 @@ namespace BlocksBeyondTheStars.Client
 
             if (_unpublishButton != null)
             {
-                _unpublishButton.gameObject.SetActive(canPublish && _entry != null && GameTextures.HasWorld(_entry.Key));
+                _unpublishButton.gameObject.SetActive(canPublish && GameTextures.HasWorld(_entry.Key));
             }
         }
 
-        // ---------------------------------------------------------------- commands
-
-        private void DoUndo()
-        {
-            if (_model.Undo())
-            {
-                AfterChange();
-            }
-        }
-
-        private void DoRedo()
-        {
-            if (_model.Redo())
-            {
-                AfterChange();
-            }
-        }
+        // ---------------------------------------------------------------- tools and frames
 
         private void SetTool(Tool tool)
         {
             _tool = tool;
             _dragShape = false;
-            foreach (var kv in _toolButtons)
-            {
-                kv.Value.color = kv.Key == tool ? new Color(0.45f, 0.82f, 1f, 1f) : Color.white;
-            }
+            _toolBar?.Select(Array.IndexOf(BarTools, tool));
         }
 
         private void SetBrushSize(int size)
@@ -666,13 +638,6 @@ namespace BlocksBeyondTheStars.Client
             {
                 _sizeLabel.text = string.Format(L("ui.tex.brush_size"), _brushSize);
             }
-        }
-
-        private void SwapColors()
-        {
-            var p = _primary;
-            SetPrimary(_secondary);
-            SetSecondary(p);
         }
 
         private void SelectFrame(int index)
@@ -695,427 +660,33 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _model.SetFps(speeds[(at + 1) % speeds.Count]);
-            RefreshAll();
-        }
-
-        private void ResetToOfficial()
-        {
-            var official = OfficialFrames();
-            if (official == null)
-            {
-                SetStatus(L("ui.tex.no_official"), UiKit.Warn);
-                return;
-            }
-
-            _model.ReplaceAll(official.Frames, official.Fps);
             AfterChange();
-            SetStatus(L("ui.tex.reset_done"), UiKit.Ok);
         }
 
-        private void ShowOfficial(bool show)
-        {
-            if (_showOfficial == show)
-            {
-                return;
-            }
-
-            _showOfficial = show;
-            var official = show ? OfficialFrames() : null;
-            if (show && official != null)
-            {
-                Upload(_tex, official.Frames[0]);
-            }
-            else
-            {
-                _showOfficial = false;
-                UploadActiveFrame();
-            }
-        }
-
-        private void SaveForMe()
-        {
-            if (_entry == null)
-            {
-                return;
-            }
-
-            if (_entry.IsIcon)
-            {
-                var icon = new Texture2D(Tile, Tile, TextureFormat.RGBA32, false);
-                Upload(icon, _model.Frames[0]);
-                bool ok = TexturePackFolder.SaveIcon(_entry.IconName, icon);
-                Destroy(icon);
-                if (ok)
-                {
-                    _model.MarkSaved();
-                }
-
-                SetStatus(L(ok ? "ui.tex.saved_local" : "ui.tex.save_failed"), ok ? UiKit.Ok : UiKit.Warn);
-                RefreshBadges();
-                return;
-            }
-
-            if (TexturePackFolder.Save(_entry.Key, _model.CopyFrames(), _model.Fps))
-            {
-                _model.MarkSaved();
-                // The world wins over the local pack (decision 2026-09-20) — say so, or "it did not work" is what
-                // the player concludes when nothing changes around them.
-                bool hidden = GameTextures.HasWorld(_entry.Key) && GameTextures.ShowWorldTextures;
-                SetStatus(L(hidden ? "ui.tex.saved_local_world_wins" : "ui.tex.saved_local"), hidden ? UiKit.Warn : UiKit.Ok);
-            }
-            else
-            {
-                SetStatus(L("ui.tex.save_failed"), UiKit.Warn);
-            }
-
-            RefreshBadges();
-        }
-
-        private void RemoveMine()
+        private void AddFrame()
         {
             if (_entry != null && _entry.IsIcon)
             {
-                if (TexturePackFolder.IconOverride(_entry.IconName) == null)
-                {
-                    SetStatus(L("ui.tex.none_local"), UiKit.Warn);
-                    return;
-                }
-
-                TexturePackFolder.RemoveIcon(_entry.IconName);
-                SetStatus(L("ui.tex.removed_local"), UiKit.Ok);
-                Open(_entry); // back to the shipped icon on the canvas
+                SetStatus(L("ui.tex.icon_one_frame"), EditorStatusSeverity.Warning);
                 return;
             }
 
-            if (_entry == null || !GameTextures.HasLocal(_entry.Key))
+            if (!_model.DuplicateFrame())
             {
-                SetStatus(L("ui.tex.none_local"), UiKit.Warn);
-                return;
+                SetStatus(L("ui.tex.frame_limit"), EditorStatusSeverity.Warning);
             }
 
-            TexturePackFolder.Remove(_entry.Key);
-            SetStatus(L("ui.tex.removed_local"), UiKit.Ok);
-            RefreshBadges();
-        }
-
-        [Serializable]
-        private sealed class ExportMeta
-        {
-            public string key;
-            public string kind = "tile";
-            public int frames;
-            public int fps;
-            public string author;
-        }
-
-        private void OpenSubmit()
-        {
-            if (_entry == null)
-            {
-                return;
-            }
-
-            if (_submit == null)
-            {
-                _submit = gameObject.AddComponent<CreationSubmitDialog>();
-                _submit.Localize = L;
-                _submit.Settings = Shell != null ? Shell.Settings : null;
-                _submit.OnOutcome = SetStatus;
-            }
-
-            _submit.Open(_entry.Key, _entry.Label, _model.CopyFrames(), _model.Fps, _entry.IsIcon);
-        }
-
-        private void ExportForGame()
-        {
-            if (_entry == null)
-            {
-                return;
-            }
-
-            try
-            {
-                var frames = _model.CopyFrames();
-                string dir = Path.Combine(AppPaths.Root, "texture_exports", _entry.Key);
-                Directory.CreateDirectory(dir);
-                var meta = new ExportMeta
-                {
-                    kind = _entry.IsIcon ? "icon" : "tile",
-                    key = _entry.Key,
-                    frames = frames.Length,
-                    fps = _model.Fps,
-                    author = Shell != null && Shell.Settings != null ? Shell.Settings.PlayerName : string.Empty,
-                };
-                File.WriteAllText(Path.Combine(dir, "texture.json"), JsonUtility.ToJson(meta, true));
-                using (var raw = new FileStream(Path.Combine(dir, "texture.bytes"), FileMode.Create, FileAccess.Write))
-                {
-                    foreach (var f in frames)
-                    {
-                        raw.Write(f, 0, f.Length); // back to back, in the layout the game loads — merge_texture.py only copies
-                    }
-                }
-
-                File.WriteAllBytes(Path.Combine(dir, "texture.png"), TexturePackFolder.EncodeStrip(frames));
-                SetStatus(L("ui.tex.exported") + "\n" + dir, UiKit.Ok);
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning($"[TextureEditor] Export of '{_entry.Key}' failed: {e}");
-                SetStatus(L("ui.ed.export_failed_hint"), UiKit.Warn); // a friendly line; the exception goes to the log (#3263)
-            }
-        }
-
-        private void CopyCode()
-        {
-            if (_entry == null)
-            {
-                return;
-            }
-
-            string code = ShareCode.EncodeTexture(_entry.Key, _model.CopyFrames(), _model.Fps);
-            GUIUtility.systemCopyBuffer = code;
-            SetStatus(L("ui.tex.code_copied"), UiKit.Ok);
-        }
-
-        private void PasteCode()
-        {
-            if (!ShareCode.TryDecodeTexture(GUIUtility.systemCopyBuffer, out string key, out var frames, out int fps))
-            {
-                SetStatus(L("ui.tex.code_bad"), UiKit.Warn);
-                return;
-            }
-
-            // The pixels land on the OPEN texture — a code is a picture, not an instruction where to put it. Only a
-            // block animates, and the alpha rule of the open key is applied by the model.
-            if (frames.Length > 1 && (_entry == null || _entry.Block == null))
-            {
-                frames = new[] { frames[0] };
-                fps = 0;
-            }
-
-            _model.ReplaceAll(frames, fps);
             AfterChange();
-            SetStatus(string.Format(L("ui.tex.code_pasted"), key), UiKit.Ok);
         }
 
-        private void OpenFolder()
+        /// <summary>Plays the animation on the canvas, the tiled view and the 3-D preview; returns whether it plays now.</summary>
+        private bool TogglePlay()
         {
-            try
-            {
-                Directory.CreateDirectory(TexturePackFolder.Root);
-                Application.OpenURL("file:///" + TexturePackFolder.Root.Replace('\\', '/'));
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning($"[TextureEditor] Could not open the texture folder: {e}");
-                SetStatus(L("ui.ed.open_folder_failed"), UiKit.Warn);
-            }
-        }
-
-        private void ReloadFolder()
-        {
-            int n = TexturePackFolder.Reload();
-            SetStatus(string.Format(L("ui.tex.reloaded"), n), UiKit.Ok);
-            Open(_entry); // what is on the canvas may just have been replaced from the folder
-        }
-
-        private void Publish()
-        {
-            if (_entry == null || WorldHost == null || !WorldHost.CanPublish)
-            {
-                return;
-            }
-
-            var frames = _model.CopyFrames();
-            if (frames.Length > 1 && _entry.Block == null)
-            {
-                frames = new[] { frames[0] }; // only blocks animate
-            }
-
-            WorldHost.Publish(_entry.Key, frames, frames.Length > 1 ? _model.Fps : 0);
-            SetStatus(L("ui.tex.publish_sent"), UiKit.Ok);
-        }
-
-        private void Unpublish()
-        {
-            if (_entry != null && WorldHost != null && WorldHost.CanPublish)
-            {
-                WorldHost.Unpublish(_entry.Key);
-            }
-        }
-
-        private void Close()
-        {
-            if (OnClose != null)
-            {
-                OnClose();
-            }
-            else if (Shell != null)
-            {
-                Shell.CloseTextureEditor();
-            }
-        }
-
-        private void SetStatus(string text, Color color)
-        {
-            if (_status != null)
-            {
-                _status.text = text;
-                _status.color = color;
-            }
-        }
-
-        private void SetHint(string key)
-        {
-            if (_hint != null)
-            {
-                string text = L(key);
-                if (_hint.text != text)
-                {
-                    _hint.text = text;
-                }
-            }
-        }
-
-        // ---------------------------------------------------------------- colours
-
-        private static Color ToColor(TexelColor c) => new Color32(c.R, c.G, c.B, c.A);
-
-        private static TexelColor FromColor(Color c)
-        {
-            Color32 b = c;
-            return new TexelColor(b.r, b.g, b.b, b.a);
-        }
-
-        private void SetPrimary(TexelColor c)
-        {
-            _primary = c;
-            Color.RGBToHSV(ToColor(c), out _h, out _s, out _v);
-            RefreshColorUi();
-        }
-
-        private void SetSecondary(TexelColor c)
-        {
-            _secondary = c;
-            RefreshColorUi();
-        }
-
-        private void RefreshColorUi()
-        {
-            if (_primarySwatch != null)
-            {
-                _primarySwatch.color = ToColor(new TexelColor(_primary.R, _primary.G, _primary.B));
-            }
-
-            if (_secondarySwatch != null)
-            {
-                _secondarySwatch.color = ToColor(new TexelColor(_secondary.R, _secondary.G, _secondary.B));
-            }
-
-            if (_hexField != null && !_hexField.isFocused)
-            {
-                _hexField.SetTextWithoutNotify($"{_primary.R:x2}{_primary.G:x2}{_primary.B:x2}{(_primary.A < 255 ? _primary.A.ToString("x2") : string.Empty)}");
-            }
-
-            RepaintSvSquare();
-        }
-
-        private void OnHexEntered(string text)
-        {
-            string hex = (text ?? string.Empty).Trim().TrimStart('#');
-            if ((hex.Length == 6 || hex.Length == 8)
-                && uint.TryParse(hex, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out uint v))
-            {
-                if (hex.Length == 6)
-                {
-                    v = (v << 8) | 0xFF;
-                }
-
-                SetPrimary(new TexelColor((byte)(v >> 24), (byte)(v >> 16), (byte)(v >> 8), (byte)v));
-            }
-        }
-
-        private void RepaintSvSquare()
-        {
-            if (_svTex == null)
-            {
-                return;
-            }
-
-            int n = _svTex.width;
-            var px = new Color32[n * n];
-            for (int y = 0; y < n; y++)
-            {
-                for (int x = 0; x < n; x++)
-                {
-                    px[(y * n) + x] = Color.HSVToRGB(_h, x / (float)(n - 1), y / (float)(n - 1));
-                }
-            }
-
-            _svTex.SetPixels32(px);
-            _svTex.Apply(false);
-        }
-
-        /// <summary>Mouse on the colour controls: the saturation/value square, the hue bar, the alpha bar. Returns true
-        /// while it owns the mouse, so a drag that leaves the control does not start painting.</summary>
-        private bool UpdateColorPicker()
-        {
-            if (!Input.GetMouseButton(0))
-            {
-                _dragPicker = 0;
-                return false;
-            }
-
-            if (Input.GetMouseButtonDown(0))
-            {
-                _dragPicker = Over(_svRt) ? 1 : Over(_hueRt) ? 2 : Over(_alphaRt) ? 3 : 0;
-            }
-
-            if (_dragPicker == 0)
-            {
-                return false;
-            }
-
-            var rt = _dragPicker == 1 ? _svRt : _dragPicker == 2 ? _hueRt : _alphaRt;
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(rt, Input.mousePosition, null, out var lp);
-            float u = Mathf.Clamp01(lp.x / rt.rect.width), t = Mathf.Clamp01(1f + (lp.y / rt.rect.height)); // t: 0 bottom … 1 top
-            byte a = _primary.A;
-            if (_dragPicker == 1)
-            {
-                _s = u;
-                _v = t;
-            }
-            else if (_dragPicker == 2)
-            {
-                _h = u;
-            }
-            else
-            {
-                a = (byte)Mathf.RoundToInt(u * 255f);
-            }
-
-            Color32 rgb = Color.HSVToRGB(_h, _s, _v);
-            _primary = new TexelColor(rgb.r, rgb.g, rgb.b, a);
-            RefreshColorUi();
-            return true;
-        }
-
-        private static bool Over(RectTransform rt)
-            => rt != null && RectTransformUtility.RectangleContainsScreenPoint(rt, Input.mousePosition, null);
-
-        private void RefreshTileColors()
-        {
-            _tileColors.Clear();
-            _tileColors.AddRange(_model.DominantColors(_tileSwatches.Count));
-            for (int i = 0; i < _tileSwatches.Count; i++)
-            {
-                bool used = i < _tileColors.Count;
-                _tileSwatches[i].gameObject.SetActive(used);
-                if (used)
-                {
-                    _tileSwatches[i].color = ToColor(_tileColors[i]);
-                }
-            }
+            _playing = !_playing && _model.FrameCount > 1;
+            _playFrame = _model.ActiveFrame;
+            _playClock = 0f;
+            UploadActiveFrame();
+            return _playing;
         }
 
         // ---------------------------------------------------------------- slot overlay (picture blocks)
@@ -1132,7 +703,7 @@ namespace BlocksBeyondTheStars.Client
 
             for (int i = _slotLayer.childCount - 1; i >= 0; i--)
             {
-                Destroy(_slotLayer.GetChild(i).gameObject);
+                EditorSceneKit.Discard(_slotLayer.GetChild(i).gameObject);
             }
 
             var faces = _entry?.Block?.Faces;

@@ -12,11 +12,28 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>One singleplayer save as the world picker lists it (#3259).</summary>
     public sealed class SavedWorld
     {
+        /// <summary>The sidecar's <see cref="Mode"/> of a normal world (the server's <c>WorldSaveSummary.ModeExplorer</c>).</summary>
+        public const string ModeExplorer = "explorer";
+
+        /// <summary>The sidecar's <see cref="Mode"/> of a head-start world — a Creative world option is set
+        /// (<c>WorldSaveSummary.ModeCreative</c>).</summary>
+        public const string ModeCreative = "creative";
+
+        /// <summary>The sidecar's <see cref="Mode"/> of a sandbox world — its rules run in Creative mode
+        /// (<c>WorldSaveSummary.ModeSandbox</c>).</summary>
+        public const string ModeSandbox = "sandbox";
+
         public SavedWorld(string name, DateTime lastWriteUtc, long playtimeSeconds)
+            : this(name, lastWriteUtc, playtimeSeconds, string.Empty)
+        {
+        }
+
+        public SavedWorld(string name, DateTime lastWriteUtc, long playtimeSeconds, string? mode)
         {
             Name = name;
             LastWriteUtc = lastWriteUtc;
             PlaytimeSeconds = playtimeSeconds;
+            Mode = mode ?? string.Empty;
         }
 
         /// <summary>The save folder's name — the world's name.</summary>
@@ -28,6 +45,32 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Seconds played, from the <c>world.meta.json</c> sidecar; -1 when the world has no readable sidecar
         /// (a save from before playtime tracking, a locked or broken file) — the picker then shows no figure.</summary>
         public long PlaytimeSeconds { get; }
+
+        /// <summary>The world's game mode from the sidecar (#3664): <see cref="ModeExplorer"/>, <see cref="ModeCreative"/> or
+        /// <see cref="ModeSandbox"/>, as the server wrote it; empty when the sidecar names none (a save not played since
+        /// #3664) or cannot be read — the picker then shows no mode.</summary>
+        public string Mode { get; }
+
+        /// <summary>The locale key naming <see cref="Mode"/> (<see cref="ModeKeyOf"/>); empty when the mode is unknown.</summary>
+        public string ModeKey => ModeKeyOf(Mode);
+
+        /// <summary>The locale key naming a sidecar mode (#3664): <c>ui.save.mode_explorer</c>, <c>ui.save.mode_creative</c> or
+        /// <c>ui.save.mode_sandbox</c> — the labels of the new-world mode choice; matched case-blind. Empty for an empty or
+        /// unknown mode, so the caller shows nothing rather than a raw key.</summary>
+        public static string ModeKeyOf(string? mode)
+        {
+            if (string.Equals(mode, ModeExplorer, StringComparison.OrdinalIgnoreCase))
+            {
+                return "ui.save.mode_explorer";
+            }
+
+            if (string.Equals(mode, ModeCreative, StringComparison.OrdinalIgnoreCase))
+            {
+                return "ui.save.mode_creative";
+            }
+
+            return string.Equals(mode, ModeSandbox, StringComparison.OrdinalIgnoreCase) ? "ui.save.mode_sandbox" : string.Empty;
+        }
     }
 
     /// <summary>
@@ -46,6 +89,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The headline-stats sidecar the server writes beside <see cref="WorldFile"/> (WorldSaveSummary).</summary>
         public const string SidecarFile = "world.meta.json";
+
+        /// <summary>What a world without a readable sidecar shows: no playtime (-1), no mode.</summary>
+        private static readonly (long PlaytimeSeconds, string Mode) NoSidecar = (-1, string.Empty);
 
         private readonly object _gate = new object();
         private readonly Func<string, IReadOnlyList<SavedWorld>> _scan;
@@ -178,11 +224,11 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Scans <paramref name="savesRoot"/> now, on the calling thread: every subfolder holding a
-        /// <see cref="WorldFile"/>, with its timestamp and playtime, newest first.</summary>
+        /// <see cref="WorldFile"/>, with its timestamp, playtime and mode, newest first.</summary>
         public static IReadOnlyList<SavedWorld> Scan(string savesRoot) => Scan(savesRoot, withPlaytime: true);
 
-        /// <summary>As <see cref="Scan(string)"/>; <paramref name="withPlaytime"/> false skips the sidecars (callers that
-        /// only need the names and their order).</summary>
+        /// <summary>As <see cref="Scan(string)"/>; <paramref name="withPlaytime"/> false skips the sidecars — no playtime,
+        /// no mode (callers that only need the names and their order).</summary>
         public static IReadOnlyList<SavedWorld> Scan(string savesRoot, bool withPlaytime)
         {
             var worlds = new List<SavedWorld>();
@@ -211,8 +257,8 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
-                long played = withPlaytime ? ReadPlaytimeSeconds(dir) : -1;
-                worlds.Add(new SavedWorld(Path.GetFileName(dir), db.LastWriteTimeUtc, played));
+                var (played, mode) = withPlaytime ? ReadSidecar(dir) : NoSidecar;
+                worlds.Add(new SavedWorld(Path.GetFileName(dir), db.LastWriteTimeUtc, played, mode));
             }
 
             worlds.Sort(NewestFirst);
@@ -229,38 +275,50 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The playtime (seconds) in a world folder's <see cref="SidecarFile"/>; -1 when there is none, it is
         /// locked or it does not parse.</summary>
-        public static long ReadPlaytimeSeconds(string worldDirectory)
+        public static long ReadPlaytimeSeconds(string worldDirectory) => ReadSidecar(worldDirectory).PlaytimeSeconds;
+
+        /// <summary>What the picker reads from a world folder's <see cref="SidecarFile"/>, in ONE parse: the playtime in
+        /// seconds (-1 when the sidecar has none) and the game mode (#3664: <see cref="SavedWorld.Mode"/>, empty when the
+        /// sidecar has none). (-1, "") when there is no sidecar, it is locked or it does not parse.</summary>
+        public static (long PlaytimeSeconds, string Mode) ReadSidecar(string worldDirectory)
         {
             try
             {
                 string path = Path.Combine(worldDirectory, SidecarFile);
                 if (!File.Exists(path))
                 {
-                    return -1;
+                    return NoSidecar;
                 }
 
                 using var doc = JsonDocument.Parse(File.ReadAllText(path));
                 if (doc.RootElement.ValueKind != JsonValueKind.Object)
                 {
-                    return -1;
+                    return NoSidecar;
                 }
 
+                long seconds = -1;
+                string mode = string.Empty;
                 foreach (var property in doc.RootElement.EnumerateObject())
                 {
                     // PascalCase from the server (WorldSaveSummary), read case-blind like any sidecar reader should.
                     if (string.Equals(property.Name, "PlaytimeSeconds", StringComparison.OrdinalIgnoreCase)
                         && property.Value.ValueKind == JsonValueKind.Number
-                        && property.Value.TryGetInt64(out long seconds))
+                        && property.Value.TryGetInt64(out long played))
                     {
-                        return seconds;
+                        seconds = played;
+                    }
+                    else if (string.Equals(property.Name, "Mode", StringComparison.OrdinalIgnoreCase)
+                             && property.Value.ValueKind == JsonValueKind.String)
+                    {
+                        mode = property.Value.GetString() ?? string.Empty;
                     }
                 }
 
-                return -1;
+                return (seconds, mode);
             }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is JsonException)
             {
-                return -1;
+                return NoSidecar;
             }
         }
     }

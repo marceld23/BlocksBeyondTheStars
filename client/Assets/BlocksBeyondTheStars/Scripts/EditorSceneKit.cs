@@ -18,7 +18,7 @@ namespace BlocksBeyondTheStars.Client
     /// rays, the room bounds test, the form-icon brush tile, the right-hand panel and bottom hint line,
     /// and the hex-colour / key-slug text helpers.
     /// </summary>
-    internal static class EditorSceneKit
+    internal static partial class EditorSceneKit
     {
         /// <summary>Cells per grid-texture tile: a brighter MAJOR line every this many cells.</summary>
         private const int MajorEvery = 8;
@@ -334,7 +334,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             _go.name = "PlacementGhost";
-            Object.Destroy(_go.GetComponent<Collider>()); // must never block the picking ray
+            EditorSceneKit.Discard(_go.GetComponent<Collider>()); // must never block the picking ray
             _go.transform.SetParent(parent, false);
             _renderer = _go.GetComponent<Renderer>();
 
@@ -429,16 +429,16 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_go != null)
             {
-                Object.Destroy(_go);
+                EditorSceneKit.Discard(_go);
             }
 
             if (_meshGo != null)
             {
-                Object.Destroy(_meshGo);
+                EditorSceneKit.Discard(_meshGo);
             }
 
-            Object.Destroy(_valid);
-            Object.Destroy(_invalid);
+            EditorSceneKit.Discard(_valid);
+            EditorSceneKit.Discard(_invalid);
         }
     }
 
@@ -470,7 +470,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_root != null)
             {
-                Object.Destroy(_root);
+                EditorSceneKit.Discard(_root);
             }
 
             _root = new GameObject("InteriorFrame");
@@ -509,7 +509,7 @@ namespace BlocksBeyondTheStars.Client
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = "Frame";
-            Object.Destroy(go.GetComponent<Collider>()); // never blocks the picking ray
+            EditorSceneKit.Discard(go.GetComponent<Collider>()); // never blocks the picking ray
             go.transform.SetParent(_root.transform, false);
             go.transform.position = centre;
             go.transform.localScale = size;
@@ -520,11 +520,11 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_root != null)
             {
-                Object.Destroy(_root);
+                EditorSceneKit.Discard(_root);
             }
 
-            Object.Destroy(_fill);
-            Object.Destroy(_edge);
+            EditorSceneKit.Discard(_fill);
+            EditorSceneKit.Discard(_edge);
         }
     }
 }

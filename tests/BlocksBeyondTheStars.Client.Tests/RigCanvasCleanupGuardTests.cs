@@ -85,7 +85,10 @@ public sealed class RigCanvasCleanupGuardTests
                 }
 
                 string esc = Regex.Escape(holder);
-                bool destroyed = Regex.IsMatch(teardown, $@"Destroy\(\s*{esc}(?:\.gameObject)?\s*\)", RegexOptions.None, RegexTimeout);
+                // The editors route their teardown through EditorSceneKit.Discard (Destroy in play mode, DestroyImmediate in the
+                // EditMode tests that build them) — the same cleanup.
+                bool destroyed = Regex.IsMatch(teardown, $@"(?:Destroy|EditorSceneKit\.Discard)\(\s*{esc}(?:\.gameObject)?\s*\)",
+                    RegexOptions.None, RegexTimeout);
                 if (!destroyed)
                 {
                     failures.Add($"{type}: the canvas in '{holder}' is a scene root and is not destroyed in OnDestroy — add `if ({holder} != null) Destroy({holder}…);` after the unsubscribes");

@@ -170,6 +170,10 @@ validators report unknown fields (the C# tests read every pack strictly).
   says "I marked it" needs the marker first: set `escalate.markerAfter` to a few seconds (the Sounders pack does it for all
   its "where" steps). A `unique_site:<kind>` marker also names the site's world (and its system) when the player is
   elsewhere (#3415).
+- **A step can wait** for a moment the player can do it in: `waitWhile` (#3673) holds it while its conditions hold — a
+  step not started yet does not start (the chapter waits there), a started one leaves the chip and VEGA stays quiet about
+  it; once the wait ends it goes on and is said again. The basic training's walk and jump lessons wait with
+  `"waitWhile": [ "not:world:on_foot" ]` while the player flies the ship.
 - **Missions, not steps, pay.** A step pays nothing. A job someone gives the player with a reward is a mission in
   `data/missions.json`; a step may bridge onto it (`"objective": { "type": "Mission", "target": "<mission id>" }` — the
   step completes when the mission is turned in, and the mission keeps its own rewards).
@@ -205,8 +209,8 @@ Recommendations:
 
 ## 7. Conditions
 
-One grammar everywhere — `requires`, `feasibleIf`, `alreadyDoneIf`, `visibleIf`, `offerWhen`, `autoCompleteIf`,
-`start.after`, `gates` and `variants[].when`; a JSON list means "all of them":
+One grammar everywhere — `requires`, `feasibleIf`, `alreadyDoneIf`, `waitWhile`, `visibleIf`, `offerWhen`,
+`autoCompleteIf`, `start.after`, `gates` and `variants[].when`; a JSON list means "all of them":
 
 ```
 condition := atom | all:[c, c, …] | any:[c, c, …] | not:c

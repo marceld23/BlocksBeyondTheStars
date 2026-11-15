@@ -61,14 +61,6 @@ namespace BlocksBeyondTheStars.Client
         private CreationSubmitDialog _submitDialog;
         private bool _capturingPreview;
 
-        /// <summary>Save and Submit side by side on the footer row Save had alone — each well over 140 px, so the label
-        /// fits in every language.</summary>
-        private void AddSaveAndSubmit(Transform meta, float y)
-        {
-            const float gap = 12f, width = (348f - gap) / 2f;
-            UiKit.AddFitButton(meta, 16f, y, width, 42f, L("ui.struct.save"), Export);
-            UiKit.AddFitButton(meta, 16f + width + gap, y, width, 42f, L("ui.submit.button"), Submit);
-        }
 
         /// <summary>The structure as its export files: every authored cell with its device settings (#2260), the
         /// bounding size, and the template facts (kind, tier, pack, role, kit, function, style, underground, protection).</summary>
@@ -139,39 +131,39 @@ namespace BlocksBeyondTheStars.Client
             if (_entryMode || _previewOn)
             {
                 // #3523: a generator entry is a file of a few lines (share it); a preview is never the design.
-                SetStatus(L(_entryMode ? "ui.ed.entry.no_submit" : PreviewLockedKey()));
+                SetStatus(L(_entryMode ? "ui.ed.entry.no_submit" : PreviewLockedKey()), EditorStatusSeverity.Warning);
                 return;
             }
 
             if (_landmarkMode)
             {
-                SetStatus(L("ui.ed.landmark.no_submit")); // #3492: a landmark's compact file is not a submission bundle yet
+                SetStatus(L("ui.ed.landmark.no_submit"), EditorStatusSeverity.Warning); // #3492: a landmark's compact file is no submission bundle yet
                 return;
             }
 
             if (_giantShipMode)
             {
-                SetStatus(L("ui.ed.giantship.no_submit")); // #3616: nor is a giant ship's
+                SetStatus(L("ui.ed.giantship.no_submit"), EditorStatusSeverity.Warning); // #3616: nor is a giant ship's
                 return;
             }
 
             string key = Slug(_key);
             if (string.IsNullOrEmpty(key))
             {
-                SetStatus(L("ui.ed.need_key"));
+                SetStatus(L("ui.ed.need_key"), EditorStatusSeverity.Warning);
                 return;
             }
 
             if (_design.Count == 0)
             {
-                SetStatus(L("ui.submit.empty"));
+                SetStatus(L("ui.submit.empty"), EditorStatusSeverity.Warning);
                 return;
             }
 
             int maxCells = CreationSubmission.MaxCells(CreationSubmission.KindStructure);
             if (_design.Count > maxCells)
             {
-                SetStatus(string.Format(L("ui.submit.too_many_cells"), _design.Count, maxCells));
+                SetStatus(string.Format(L("ui.submit.too_many_cells"), _design.Count, maxCells), EditorStatusSeverity.Error);
                 return;
             }
 
@@ -257,7 +249,7 @@ namespace BlocksBeyondTheStars.Client
                 _submitDialog = gameObject.AddComponent<CreationSubmitDialog>();
                 _submitDialog.Localize = L;
                 _submitDialog.Settings = Shell != null ? Shell.Settings : null;
-                _submitDialog.OnOutcome = (message, _) => SetStatus(message);
+                _submitDialog.OnOutcome = (message, _) => SetStatus(message, EditorStatusSeverity.Success); // it reports a sent submission
             }
 
             _submitDialog.Open(new CreationSubmitRequest

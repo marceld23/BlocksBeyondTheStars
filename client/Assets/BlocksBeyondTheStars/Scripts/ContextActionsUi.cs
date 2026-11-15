@@ -250,7 +250,7 @@ namespace BlocksBeyondTheStars.Client
                 y += h + gap;
             }
 
-            UiKit.AddButton(t, cx - w * 0.5f, y, w, h, L("ui.action.close"), Close);
+            UiKit.AddTierButton(t, cx - w * 0.5f, y, w, h, L("ui.action.close"), Close, ButtonTier.Quiet, "btn_close"); // #3662, last
         }
 
         /// <summary>Whether an entry for <paramref name="action"/> is already in the list being built.</summary>

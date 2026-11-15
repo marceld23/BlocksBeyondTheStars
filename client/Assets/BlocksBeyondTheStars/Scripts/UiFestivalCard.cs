@@ -22,7 +22,7 @@ namespace BlocksBeyondTheStars.Client
     /// the menu's bottom bar draws over the open list or stays clickable through its scrim (#3017).</remarks>
     public static class UiFestivalCard
     {
-        private const float X = 1290f, Y = 200f, W = 590f;
+        private const float X = 1300f, Y = 556f, W = 530f; // the right column, under the What's-new card (#3663)
         private const float LineH = 100f;
         private static readonly Color Amber = new Color(1f, 0.82f, 0.45f);
 
@@ -40,7 +40,7 @@ namespace BlocksBeyondTheStars.Client
             var active = FestivalCard.Active(shell.Content, now, celebrated);
             var lines = active.Count > 0 ? active : (IReadOnlyList<FestivalCard.Line>)new[] { FestivalCard.Next(shell.Content, now, celebrated)!.Value };
             float h = 50f + lines.Count * LineH + 60f;
-            UiHolo.AddPanel(root, X, Y, W, h, UiKit.Panel, 18f, 1.5f, 1f);
+            UiKit.AddCard(root, X, Y, W, h); // opaque: the menu ship must not shine through the text (#3663)
             string title = shell.L(lines.Count > 1 ? "ui.festival.card_title_plural" : "ui.festival.card_title");
             UiKit.AddText(root, X + 24f, Y + 14f, W - 48f, 24f, title, 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
 
@@ -50,14 +50,16 @@ namespace BlocksBeyondTheStars.Client
                 AddLine(root, shell, line, X + 24f, ref y, W - 48f);
             }
 
-            UiKit.AddButton(root, X + 24f, y + 4f, 280f, 46f, shell.L("ui.festival.more"),
-                () => UiFestivalPicker.Open(shell, root, shell.RefreshMainMenu)); // built last on the canvas: over the bottom bar (#3017)
+            UiKit.AddTierButton(root, X + 24f, y + 4f, 280f, 46f, shell.L("ui.festival.more"),
+                () => UiFestivalPicker.Open(shell, root, shell.RefreshMainMenu), ButtonTier.Quiet, "btn_credits"); // built last on the canvas: over the bottom bar (#3017)
         }
 
         private static void AddLine(Transform root, AppShell shell, FestivalCard.Line line, float x, ref float y, float w)
         {
             UiKit.AddText(root, x, y, w, 28f, FestivalCard.Headline(line, shell.L), 20, Amber, TextAnchor.MiddleLeft, FontStyle.Bold);
-            var body = UiKit.AddText(root, x, y + 30f, w, 64f, shell.L(line.Festival.ExplainKey), 14, UiKit.TextCol, TextAnchor.UpperLeft);
+            // #3663: shortened at a word with "…" — it used to stop mid-sentence with no sign that more follows.
+            string explain = UiKit.Ellipsize(shell.L(line.Festival.ExplainKey), w, 64f, 14);
+            var body = UiKit.AddText(root, x, y + 30f, w, 64f, explain, 14, UiKit.TextCol, TextAnchor.UpperLeft);
             body.horizontalOverflow = HorizontalWrapMode.Wrap;
             body.verticalOverflow = VerticalWrapMode.Truncate;
             y += LineH;

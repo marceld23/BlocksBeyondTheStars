@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using BlocksBeyondTheStars.Client;
 using NUnit.Framework;
@@ -41,8 +40,6 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
 
         // The canvas root's last three children, in build order: the connect dialog, the Official-worlds overlay and
         // the participate ("Mach mit") overlay — all hidden until their button opens them.
-        private const int ConnectFromEnd = 3;
-        private const int OfficialFromEnd = 2;
         private const int ParticipateFromEnd = 1;
 
         private readonly List<GameObject> _spawned = new();
@@ -87,7 +84,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         private Transform BuildMenu()
         {
             var shell = Track(new GameObject("ShellUnderTest").AddComponent<AppShell>());
-            shell.SetSettingsForTest(new ClientSettings());
+            shell.SetSettingsForTest(NoLastWorld());
             return Track(UiMainMenu.Build(shell)).transform;
         }
 
@@ -124,27 +121,58 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             var root = BuildMenu();
 
             Assert.AreEqual("MainMenuUI", root.name);
-            Assert.Greater(root.childCount, ConnectFromEnd);
-            foreach (int fromEnd in new[] { ConnectFromEnd, OfficialFromEnd, ParticipateFromEnd })
-            {
-                Assert.IsFalse(Overlay(root, fromEnd).activeSelf, $"root child {root.childCount - fromEnd} is a hidden overlay");
-            }
+            Assert.Greater(root.childCount, ParticipateFromEnd);
+            Assert.IsFalse(Overlay(root, ParticipateFromEnd).activeSelf, "the participate overlay starts hidden");
+        }
+
+        [Test]
+        public void Decoration_IsGone()
+        {
+            // #3663: the SYSTEM CHECK panel (five fixed "OK"s) and the static "world / server info" panel (always "Mode:
+            // Survival", a mode the game does not offer) made room for real content.
+            var root = BuildMenu();
+            Assert.IsNull(TextShowing(root, "ui.menu.system_check"));
+            Assert.IsNull(TextShowing(root, "ui.sys.ok"));
+            Assert.IsNull(TextShowing(root, "ui.info.mode_title"));
+        }
+
+        [Test]
+        public void ProfileChip_HoldsTheOnlyNameField()
+        {
+            var shell = Track(new GameObject("ShellUnderTest").AddComponent<AppShell>());
+            shell.SetSettingsForTest(NoLastWorld());
+            shell.PlayerName = "Nova";
+            var root = Track(UiMainMenu.Build(shell)).transform;
+
+            var field = root.GetComponentsInChildren<InputField>(true).Single();
+            Assert.AreEqual("Nova", field.text, "the chip shows the shell's player name");
+        }
+
+        [Test]
+        public void MultiplayerIsOneEntry()
+        {
+            // #3663: Host game, Join server and Official worlds were three top-level buttons; one Multiplayer entry now.
+            var root = BuildMenu();
+            ButtonIn(root, "ui.menu.multiplayer");
+            Assert.IsNull(TextShowing(root, "ui.menu.host"));
+            Assert.IsNull(TextShowing(root, "ui.menu.join"));
+            Assert.IsNull(TextShowing(root, "ui.menu.official"));
         }
 
         [TestCase("ui.menu.singleplayer")]
-        [TestCase("ui.menu.host")]
-        [TestCase("ui.menu.join")]
-        [TestCase("ui.menu.official")]
+        [TestCase("ui.menu.multiplayer")]
         public void PlayButtons_WithoutAName_WarnAndOpenNothing(string label)
         {
-            var root = BuildMenu();
+            var shell = Track(new GameObject("ShellUnderTest").AddComponent<AppShell>());
+            shell.SetSettingsForTest(NoLastWorld());
+            var root = Track(UiMainMenu.Build(shell)).transform;
+            var before = shell.Phase;
             Assert.IsNull(TextShowing(root, NeedName), "no warning before the click");
 
             Click(ButtonIn(root, label));
 
             Assert.IsNotNull(TextShowing(root, NeedName), $"'{label}' without a name shows the name warning");
-            Assert.IsFalse(Overlay(root, ConnectFromEnd).activeSelf, "the connect dialog stays shut");
-            Assert.IsFalse(Overlay(root, OfficialFromEnd).activeSelf, "the Official-worlds overlay stays shut");
+            Assert.AreEqual(before, shell.Phase, "no screen opens without a name");
         }
 
         [Test]
@@ -160,54 +188,9 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             Assert.IsFalse(participate.activeSelf, "its Back button closes it again");
         }
 
-        [Test]
-        public void ConnectDialog_BackButtonClosesIt()
-        {
-            var connect = Overlay(BuildMenu(), ConnectFromEnd);
-            connect.SetActive(true);
-
-            Click(ButtonIn(connect.transform, "ui.menu.back"));
-
-            Assert.IsFalse(connect.activeSelf);
-        }
-
-        [Test]
-        public void OfficialWorlds_BackButtonClosesIt()
-        {
-            var official = Overlay(BuildMenu(), OfficialFromEnd);
-            official.SetActive(true);
-
-            Click(ButtonIn(official.transform, "ui.menu.back"));
-
-            Assert.IsFalse(official.activeSelf);
-        }
-
-        [Test]
-        public void NameReservedRetry_ShowsTheReplacementNameInTheMenuField()
-        {
-            // The Official-worlds join retry after "name reserved/blocked" hands its new name to the menu's write-back,
-            // which must update the visible field too, not only the value CommitName reads (#2926). The retry itself
-            // needs a portal answer, so this drives the write-back the overlay is given — on a Builder of its own,
-            // reached by reflection (both are private to UiMainMenu).
-            var shell = Track(new GameObject("ShellUnderTest").AddComponent<AppShell>());
-            shell.SetSettingsForTest(new ClientSettings());
-            shell.PlayerName = "Refused";
-            var canvas = Track(UiKit.CreateCanvas("BuilderUnderTest"));
-            var builderType = typeof(UiMainMenu).GetNestedType("Builder", BindingFlags.NonPublic);
-            Assert.IsNotNull(builderType, "UiMainMenu.Builder");
-            object builder = System.Activator.CreateInstance(builderType, shell, canvas.transform);
-            builderType.GetMethod("BuildNativeMenu").Invoke(builder, null);
-            var nameField = canvas.GetComponentsInChildren<InputField>(true).Single();
-            Assert.AreEqual("Refused", nameField.text, "the menu field starts with the shell's name");
-
-            var writeBack = builderType.GetMethod("SetMenuName", BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.IsNotNull(writeBack, "the menu's name write-back the Official-worlds overlay is given");
-            writeBack.Invoke(builder, new object[] { "Nova" });
-
-            Assert.AreEqual("Nova", nameField.text, "the visible name field shows the replacement name");
-            Assert.AreEqual("Nova", builderType.GetField("_natName", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(builder),
-                "the value CommitName reads is the replacement name");
-        }
+        /// <summary>Settings without a last world: whether a save of that name exists on this machine must not change the
+        /// menu under test (Continue shows only for an existing save, #3663).</summary>
+        private static ClientSettings NoLastWorld() => new ClientSettings { LastWorld = "" };
 
         private static GameObject Overlay(Transform root, int fromEnd) => root.GetChild(root.childCount - fromEnd).gameObject;
 

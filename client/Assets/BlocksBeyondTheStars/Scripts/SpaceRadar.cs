@@ -26,6 +26,8 @@ namespace BlocksBeyondTheStars.Client
         private const float DefaultRange = 130f; // world units mapped to the radar edge (no radar module)
 
         private Canvas _canvas;
+        private RectTransform _face;
+        private float _faceTop = HudZones.RadarTop; // where the face sits now — HudZones.MapTop moves it down on a tablet
         private RectTransform _center;
         private TMPro.TMP_Text _stationLabel;
         private Image _wpBlip;    // the nav waypoint (#597), amber — distinct from every entity colour
@@ -54,6 +56,10 @@ namespace BlocksBeyondTheStars.Client
         // arrows that "only the nearest one" got a name for). Pooled parallel to _blips; the source string is
         // cached per label so the truncated text is rebuilt only when the blip changes identity.
         private readonly List<TMPro.TMP_Text> _rimLabels = new List<TMPro.TMP_Text>();
+        private readonly List<Vector2> _rimSpots = new List<Vector2>(8); // #3670: where this frame's rim labels sit
+
+        /// <summary>How close two rim blips may be before the later one's label stays off (#3670): a label's width and height.</summary>
+        private const float RimLabelClearX = 60f, RimLabelClearY = 14f;
         private readonly List<string> _rimLabelSource = new List<string>();
         private const int RimLabelChars = 12;
         private static readonly Color WreckCol = new Color(1f, 0.75f, 0.35f); // scorched amber — salvage, not a threat
@@ -99,14 +105,17 @@ namespace BlocksBeyondTheStars.Client
             _canvas.sortingOrder = 10; // HUD level
             var root = _canvas.transform;
 
-            // Round radar face, top-centre.
+            // Round radar face, top right (#3670: where the compass is on foot — HudZones C; it used to sit top-centre).
             var faceGo = new GameObject("Face", typeof(RectTransform));
             faceGo.transform.SetParent(root, false);
             var face = faceGo.GetComponent<RectTransform>();
-            face.anchorMin = face.anchorMax = new Vector2(0.5f, 1f);
-            face.pivot = new Vector2(0.5f, 1f);
+            // In the HUD's 1536-wide frame like the rest of the right column (the objectives, the playtime tile and the context
+            // cards under it) — anchored to the real right edge, a window wider than 16:9 stepped the column (#3668).
+            face.anchorMin = face.anchorMax = new Vector2(0f, 1f);
+            face.pivot = new Vector2(1f, 1f);
             face.sizeDelta = new Vector2((Radius + 8f) * 2f, (Radius + 8f) * 2f);
-            face.anchoredPosition = new Vector2(0f, -16f);
+            face.anchoredPosition = new Vector2(HudZones.RightEdge, -HudZones.RadarTop);
+            _face = face;
             // Holo ring face (crisp at any DPI, slow border sweep) — the bitmap disc when the shader is out.
             if (UiHolo.Available)
             {
@@ -136,15 +145,15 @@ namespace BlocksBeyondTheStars.Client
             var labelGo = new GameObject("StationLabel", typeof(RectTransform));
             labelGo.transform.SetParent(root, false);
             var lrt = labelGo.GetComponent<RectTransform>();
-            lrt.anchorMin = lrt.anchorMax = new Vector2(0.5f, 1f);
-            lrt.pivot = new Vector2(0.5f, 1f);
-            lrt.sizeDelta = new Vector2(280f, 22f);
-            lrt.anchoredPosition = new Vector2(0f, -(16f + (Radius + 8f) * 2f + 4f));
+            lrt.anchorMin = lrt.anchorMax = new Vector2(0f, 1f);
+            lrt.pivot = new Vector2(1f, 1f);
+            lrt.sizeDelta = new Vector2(HudZones.RightW, 22f);
+            lrt.anchoredPosition = new Vector2(HudZones.RightEdge, -(HudZones.RadarTop + (Radius + 8f) * 2f + 4f));
             var station = labelGo.AddComponent<TMPro.TextMeshProUGUI>();
             station.font = UiText.Font;
             station.fontSize = 15;
             station.color = new Color(0.4f, 0.85f, 1f);
-            station.alignment = TMPro.TextAlignmentOptions.Center;
+            station.alignment = TMPro.TextAlignmentOptions.Right;
             station.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
             station.overflowMode = TMPro.TextOverflowModes.Overflow;
             station.raycastTarget = false;
@@ -165,10 +174,10 @@ namespace BlocksBeyondTheStars.Client
             var wpGo = new GameObject("WaypointLabel", typeof(RectTransform));
             wpGo.transform.SetParent(root, false);
             var wrt = wpGo.GetComponent<RectTransform>();
-            wrt.anchorMin = wrt.anchorMax = new Vector2(0.5f, 1f);
-            wrt.pivot = new Vector2(0.5f, 1f);
-            wrt.sizeDelta = new Vector2(280f, 20f);
-            wrt.anchoredPosition = new Vector2(0f, -(16f + (Radius + 8f) * 2f + 26f));
+            wrt.anchorMin = wrt.anchorMax = new Vector2(0f, 1f);
+            wrt.pivot = new Vector2(1f, 1f);
+            wrt.sizeDelta = new Vector2(HudZones.RightW, 20f);
+            wrt.anchoredPosition = new Vector2(HudZones.RightEdge, -(HudZones.RadarTop + (Radius + 8f) * 2f + 26f));
             var wp = wpGo.AddComponent<TMPro.TextMeshProUGUI>();
             wp.font = UiText.Font;
             wp.fontSize = 14;
@@ -180,6 +189,24 @@ namespace BlocksBeyondTheStars.Client
             UiText.Style(wp, UiText.Look.Outline);
             _wpLabel = wp;
             _wpLabel.gameObject.SetActive(false);
+        }
+
+        /// <summary>The face and its two lines start at <see cref="HudZones.MapTop"/>: on a tablet under the touch row along the
+        /// top — ≡ lay on the face and the flight VIEW on its left edge — and the objectives and cards move down with it
+        /// (<see cref="HudZones.SpaceRadarBottom"/>).</summary>
+        private void FollowMapTop()
+        {
+            float top = HudZones.MapTop;
+            if (Mathf.Approximately(top, _faceTop))
+            {
+                return;
+            }
+
+            _faceTop = top;
+            float below = top + ((Radius + 8f) * 2f);
+            _face.anchoredPosition = new Vector2(HudZones.RightEdge, -top);
+            _stationLabel.rectTransform.anchoredPosition = new Vector2(HudZones.RightEdge, -(below + 4f));
+            _wpLabel.rectTransform.anchoredPosition = new Vector2(HudZones.RightEdge, -(below + 26f));
         }
 
         private static Image Dot(Transform parent, Vector2 pos, Vector2 size, Color color)
@@ -212,6 +239,8 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            FollowMapTop();
+
             // The flight camera is parented to the (unrotated) space scene root, so its world forward is also its
             // scene-local forward. #1880: the disc is a top-down map turned with the HEADING — that forward
             // flattened onto the flight plane. Projecting onto the tilted chase camera itself (≈17° nose-down)
@@ -233,6 +262,7 @@ namespace BlocksBeyondTheStars.Client
             string nearestWreck = null; // #1880: the derelict takes the readout when it is nearer than any planet
             float nearestWreckDist = float.MaxValue;
             float nearestWreckUp = 0f;
+            _rimSpots.Clear(); // #3670: the rim labels shown this frame — a new one may not land on an earlier one
 
             int i = 0;
             foreach (var e in Game.Space.Entities)
@@ -581,6 +611,18 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // #3670: blips bunch up on the rim — "Vai's Expan…" three times over itself read as noise. A label that would land
+            // on one already shown this frame stays off; the blip (and the first label) still say which way it is.
+            foreach (var spot in _rimSpots)
+            {
+                if (Mathf.Abs(spot.x - blipPos.x) < RimLabelClearX && Mathf.Abs(spot.y - blipPos.y) < RimLabelClearY)
+                {
+                    SetRimLabel(index, null, color, blipPos);
+                    return;
+                }
+            }
+
+            _rimSpots.Add(blipPos);
             while (index >= _rimLabels.Count)
             {
                 _rimLabels.Add(MakeRimLabel());

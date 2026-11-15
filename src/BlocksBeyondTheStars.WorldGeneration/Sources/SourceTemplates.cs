@@ -60,7 +60,11 @@ public static class SourceTemplates
     /// metropolis tier only <see cref="CityEntrySource"/>) and take the parameters (<see cref="StructureSources.TryParseParams"/>)
     /// — a settlement or city entry with an empty <c>kit</c>.
     /// </summary>
-    public static string? Problem(StructureTemplate entry, string pool, GameContent content)
+    public static string? Problem(StructureTemplate entry, string pool, GameContent content) => ProblemOf(entry, pool, content)?.English;
+
+    /// <summary><see cref="Problem"/> as a code the structure editor translates (#3692): the same check, the same sentence. A
+    /// parameter line the source cannot read keeps the registry's English details as its argument.</summary>
+    public static TemplateProblem? ProblemOf(StructureTemplate entry, string pool, GameContent content)
     {
         if (entry is null)
         {
@@ -70,33 +74,37 @@ public static class SourceTemplates
         var source = StructureSources.Get(entry.Source.Trim());
         if (source is null)
         {
-            return $"unknown source '{entry.Source}'";
+            return new TemplateProblem("source.unknown", $"unknown source '{entry.Source}'", entry.Source);
         }
 
         if (!CanBeEntry(source.Key))
         {
-            return $"the source '{source.Key}' composes from the live kit pool — a generator entry must build from its seed and parameters alone";
+            return new TemplateProblem("source.not_entry",
+                $"the source '{source.Key}' composes from the live kit pool — a generator entry must build from its seed and parameters alone", source.Key);
         }
 
         if (!KindFits(source.Kind, pool, entry.Underground))
         {
-            return $"the source '{source.Key}' builds {source.Kind.ToString().ToLowerInvariant()} structures, which the {pool} pool does not take"
-                   + (entry.Underground ? " underground" : string.Empty);
+            return new TemplateProblem("source.wrong_pool",
+                $"the source '{source.Key}' builds {source.Kind.ToString().ToLowerInvariant()} structures, which the {pool} pool does not take"
+                + (entry.Underground ? " underground" : string.Empty), source.Key);
         }
 
         if (pool == StructureKit.KindSettlement && !entry.Underground && entry.Tier == CityGenerator.Tier && source.Key != CityEntrySource)
         {
             // The metropolis tier is a city world's city, seated on the landing pads: only the city source keeps them open.
-            return $"a {CityGenerator.Tier} entry stands on a city world's landing pads — only the '{CityEntrySource}' source keeps them open";
+            return new TemplateProblem("source.city_only",
+                $"a {CityGenerator.Tier} entry stands on a city world's landing pads — only the '{CityEntrySource}' source keeps them open", CityEntrySource);
         }
 
         if (!StructureSources.TryParseParams(source, content, entry.SourceParams, out var values, out string error))
         {
-            return error;
+            return new TemplateProblem("source.params", error, error);
         }
 
         return Array.IndexOf(ProceduralEntrySources, source.Key) >= 0 && values.TryGetValue("kit", out var kit) && kit.Length > 0
-            ? $"a '{source.Key}' generator entry builds procedurally — leave its kit empty (the pools draw kits themselves)"
+            ? new TemplateProblem("source.kit_set", $"a '{source.Key}' generator entry builds procedurally — leave its kit empty (the pools draw kits themselves)",
+                source.Key)
             : null;
     }
 

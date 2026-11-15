@@ -7,16 +7,16 @@ using UnityEngine.UI;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// Shared base of the main menu's layer-canvas editors (<see cref="FormEditor"/>, <see cref="ToolLookEditor"/>):
+    /// Shared base of the layer-canvas editors — the form editor and "My tools" of the main menu
+    /// (<see cref="FormEditor"/>, <see cref="ToolLookEditor"/>) and the in-game shape designer (<see cref="ShapeEditor"/>):
     /// a small voxel model painted one horizontal layer at a time on a flat canvas, with a turning 3-D preview beside
     /// it. The base owns the frame loop (mouse or gamepad onto the canvas, a stroke as one undo step, the preview
-    /// rebuilt once per stroke), the keys (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z, PageUp/PageDown or W/S for the layer),
-    /// layer stepping, undo/redo, the status and hint lines, the preview stage and the screen shell (title, columns,
-    /// hint line, gamepad focus on the canvas). A derived editor supplies its Unity-free model
-    /// (<see cref="ILayerCanvas"/>), what painting one cell means, how the layer, the labels and the preview are drawn,
-    /// and its few extras (<see cref="OnPadCanvasFrame"/>, <see cref="OnCellPainted"/>, <see cref="OnStrokeEnded"/>).
+    /// rebuilt once per stroke), the Place | Remove switch, the layer keys, layer stepping, the preview stage and — since
+    /// #3693 — the editor shell around it all (<c>LayerCanvasEditor.Shell.cs</c>: header, cards, status bar, drafts,
+    /// undo / redo through the shell). A derived editor supplies its Unity-free model (<see cref="ILayerCanvas"/>), what
+    /// painting one cell means, how the layer, the labels and the preview are drawn, its cards and its draft payload.
     /// </summary>
-    public abstract class LayerCanvasEditor : MonoBehaviour
+    public abstract partial class LayerCanvasEditor : MonoBehaviour
     {
         public AppShell Shell;
 
@@ -24,8 +24,6 @@ namespace BlocksBeyondTheStars.Client
         protected Texture2D Tex;               // the layer canvas, one pixel per cell
         protected RectTransform CanvasRt;
         protected PadCanvasFocus Pad;
-        protected Text StatusLabel;
-        protected Text HintLabel;
         protected bool Stroking;
         protected bool PreviewDirty = true;
 
@@ -35,6 +33,8 @@ namespace BlocksBeyondTheStars.Client
         protected Camera PreviewCamera;
         protected RawImage PreviewView;
 
+        private string _hintKey;
+
         /// <summary>The model the canvas paints.</summary>
         protected abstract ILayerCanvas Layers { get; }
 
@@ -43,6 +43,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Canvas cells up the canvas (Z, the far edge at the top).</summary>
         protected abstract int CellsZ { get; }
+
+        /// <summary>Layers of the volume (Y) — the layer strip's buttons.</summary>
+        protected abstract int LayerCount { get; }
 
         /// <summary>How fast the preview turns on its own (degrees per second) while no gamepad steers it.</summary>
         protected abstract float SpinDegreesPerSecond { get; }
@@ -56,7 +59,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Hint line key while the gamepad is on the panels.</summary>
         protected abstract string HintKeyPadPanel { get; }
 
-        protected static string L(string key) => UiKit.L(key);
+        /// <summary>A text of the editor's language. The menu editors read the menu's table; the in-game shape designer
+        /// overrides it with its host's localizer.</summary>
+        protected virtual string Localize(string key) => UiKit.L(key);
+
+        protected string L(string key) => Localize(key);
 
         /// <summary>Draws the current layer into <see cref="Tex"/>.</summary>
         protected abstract void RenderLayer();
@@ -70,8 +77,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>After an undo, a redo or a helper action (<see cref="Do"/>).</summary>
         protected abstract void AfterCanvasEdit();
 
-        /// <summary>Paints one cell of the current layer: <paramref name="primary"/> is the left mouse button or A
-        /// (paint), <paramref name="secondary"/> the right mouse button or X (erase). True when something changed.</summary>
+        /// <summary>Paints one cell of the current layer: <paramref name="primary"/> places (the left mouse button or A in
+        /// the Place tool), <paramref name="secondary"/> removes (the right mouse button, X, or the left button / A in the
+        /// Remove tool). True when something changed.</summary>
         protected abstract bool PaintCell(int x, int z, bool primary, bool secondary);
 
         /// <summary>Once per frame while the gamepad is on the canvas, after the layer step and the undo button and
@@ -98,16 +106,16 @@ namespace BlocksBeyondTheStars.Client
             Pad?.Release();
             if (Ui != null)
             {
-                Destroy(Ui.gameObject);
+                EditorSceneKit.Discard(Ui.gameObject);
             }
 
+            ReleasePreviewTarget(); // the target goes before the stage that renders into it
             if (Stage != null)
             {
-                Destroy(Stage);
+                EditorSceneKit.Discard(Stage);
             }
 
-            ReleasePreviewTarget();
-            Destroy(Tex);
+            EditorSceneKit.Discard(Tex);
         }
 
         protected void ReleasePreviewTarget()
@@ -122,7 +130,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void Update()
         {
-            if (CanvasRt == null)
+            if (CanvasRt == null || Pad == null)
             {
                 return;
             }
@@ -130,13 +138,28 @@ namespace BlocksBeyondTheStars.Client
             bool pad = InputMap.ActiveDevice == InputDeviceKind.Gamepad;
             Spin?.Rotate(0f, (pad ? InputMap.PadLookX() * 90f : SpinDegreesPerSecond) * Time.unscaledDeltaTime, 0f, Space.Self);
 
-            HandleKeys();
-            Pad.SetCells(CellsX, CellsZ);
-            bool padCanvas = Pad.Tick(pad);
-            SetHint(!pad ? HintKeyMouse : padCanvas ? HintKeyPadCanvas : HintKeyPadPanel);
+            bool blocked = InputBlocked;
+            if (!blocked)
+            {
+                HandleKeys();
+            }
 
-            bool primary, secondary;
-            int x, z;
+            Pad.SetCells(CellsX, CellsZ);
+            bool padCanvas = Pad.Tick(pad && !blocked);
+            SetHint(!pad ? HintKeyMouse : padCanvas ? HintKeyPadCanvas : HintKeyPadPanel);
+            ReadCanvasButtons(padCanvas, blocked, out bool primary, out bool secondary, out int x, out int z);
+            ApplyStroke(primary, secondary, x, z);
+            if (PreviewDirty && !Stroking)
+            {
+                RebuildPreview(); // once per stroke, not once per cell — merging eight blocks is not free
+            }
+        }
+
+        /// <summary>Which buttons paint which cell this frame — none while a dialog of the shell (or the submit dialog)
+        /// covers the canvas: the canvas is hit-tested by its rectangle, not by a raycast, so a click on a confirmation
+        /// must not also paint the cell under it.</summary>
+        private void ReadCanvasButtons(bool padCanvas, bool blocked, out bool primary, out bool secondary, out int x, out int z)
+        {
             if (padCanvas)
             {
                 if (Pad.LayerStep != 0)
@@ -146,7 +169,7 @@ namespace BlocksBeyondTheStars.Client
 
                 if (InputMap.PadDown(PadButton.Rb))
                 {
-                    DoUndo();
+                    Frame?.Undo(); // RB on the canvas — through the shell, so its buttons and the draft follow
                 }
 
                 OnPadCanvasFrame();
@@ -165,10 +188,14 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            ApplyStroke(primary, secondary, x, z);
-            if (PreviewDirty && !Stroking)
+            if (blocked)
             {
-                RebuildPreview(); // once per stroke, not once per cell — merging eight blocks is not free
+                primary = secondary = false;
+            }
+            else if (Removing && primary)
+            {
+                primary = false; // the Remove tool: the left button / A removes (#3693 — no middle click needed)
+                secondary = true;
             }
         }
 
@@ -196,40 +223,30 @@ namespace BlocksBeyondTheStars.Client
                 Stroking = false;
                 Layers.EndStroke();
                 OnStrokeEnded();
+                Changed();
             }
         }
 
+        /// <summary>The editor's keys (never while a text field has the keyboard or Ctrl is held — Ctrl+Z / Ctrl+Y /
+        /// Ctrl+S are the shell's): W / S or Page Up / Page Down step the layer, E switches Place / Remove.</summary>
         private void HandleKeys()
         {
-            if (UiKit.TextFieldFocused())
+            if (UiKit.TextFieldFocused() || Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl))
             {
                 return;
             }
 
-            bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
-            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-            if (ctrl && Input.GetKeyDown(KeyCode.Z))
-            {
-                if (shift)
-                {
-                    DoRedo();
-                }
-                else
-                {
-                    DoUndo();
-                }
-            }
-            else if (ctrl && Input.GetKeyDown(KeyCode.Y))
-            {
-                DoRedo();
-            }
-            else if (Input.GetKeyDown(KeyCode.PageUp) || Input.GetKeyDown(KeyCode.W))
+            if (Input.GetKeyDown(KeyCode.PageUp) || Input.GetKeyDown(KeyCode.W))
             {
                 StepLayer(1);
             }
             else if (Input.GetKeyDown(KeyCode.PageDown) || Input.GetKeyDown(KeyCode.S))
             {
                 StepLayer(-1);
+            }
+            else if (Input.GetKeyDown(KeyCode.E))
+            {
+                SetRemoving(!Removing);
             }
         }
 
@@ -252,11 +269,15 @@ namespace BlocksBeyondTheStars.Client
 
         // ---------------------------------------------------------------- commands
 
-        protected void StepLayer(int delta)
+        protected void StepLayer(int delta) => ShowLayer(Layers.Layer + delta);
+
+        /// <summary>Shows a layer (the layer strip, ▲ / ▼, the keys).</summary>
+        protected void ShowLayer(int layer)
         {
-            Layers.SetLayer(Layers.Layer + delta);
+            Layers.SetLayer(layer);
             RenderLayer();
             RefreshLabels();
+            RefreshLayerStrip();
         }
 
         protected void DoUndo()
@@ -275,10 +296,12 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>A helper action (mirror, clear, copy the layer below …): one undo step of the model.</summary>
         protected void Do(System.Action change)
         {
             change();
             AfterCanvasEdit();
+            Changed();
         }
 
         // ---------------------------------------------------------------- labels
@@ -288,22 +311,18 @@ namespace BlocksBeyondTheStars.Client
             RenderLayer();
             PreviewDirty = true;
             RefreshLabels();
+            RefreshLayerStrip();
         }
 
-        protected void SetStatus(string text, Color color)
-        {
-            if (StatusLabel != null)
-            {
-                StatusLabel.text = text;
-                StatusLabel.color = color;
-            }
-        }
+        /// <summary>A message in the shell's status bar, coloured by how serious it is (never green for an error).</summary>
+        protected void SetStatus(string text, EditorStatusSeverity severity) => Frame?.SetStatus(text, severity);
 
         private void SetHint(string key)
         {
-            if (HintLabel != null)
+            if (Frame != null && key != _hintKey)
             {
-                HintLabel.text = L(key);
+                _hintKey = key;
+                Frame.SetHint(L(key));
             }
         }
 
@@ -340,39 +359,13 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        // ---------------------------------------------------------------- screen shell
-
-        /// <summary>The editor's screen canvas with its title line; returns the root the columns go into.
-        /// <see cref="EndShell"/> closes it.</summary>
-        protected Transform BeginShell(string canvasName, string titleKey)
-        {
-            Ui = UiKit.CreateCanvas(canvasName);
-            Ui.sortingOrder = 5;
-            var root = Ui.transform;
-            UiKit.AddText(root, 16f, 2f, 1400f, 26f, L(titleKey), 17, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            return root;
-        }
-
-        /// <summary>The hint line at the bottom, menu navigation and the gamepad focus on the layer canvas — so
-        /// <see cref="CanvasRt"/> must exist by now.</summary>
-        protected void EndShell(Transform root, string hintKey)
-        {
-            HintLabel = UiKit.AddText(root, 16f, 1080f - 30f, 1880f, 24f, L(hintKey), 14, UiKit.TextCol, TextAnchor.MiddleLeft); // an instruction (#3263)
-            UiNav.Enable(Ui.gameObject, padHints: false); // this editor draws its own hint line
-            Pad = new PadCanvasFocus(Ui.gameObject, CanvasRt);
-        }
-
-        /// <summary>One of the three full-height columns of the screen.</summary>
-        protected static Transform AddColumn(Transform root, float x, float w)
-            => UiKit.AddPanel(root, x, 32f, w, 1010f, UiKit.PanelFill).transform;
-
-        /// <summary>A row of a scrolling list (the form library, the tool list): 316 × 44.</summary>
-        protected static RectTransform AddListRow(Transform parent)
+        /// <summary>A row of a scrolling list (the form library, the tool list): <paramref name="width"/> × 44.</summary>
+        protected static RectTransform AddListRow(Transform parent, float width = 312f)
         {
             var row = new GameObject("Row", typeof(RectTransform));
             row.transform.SetParent(parent, false);
             var rt = row.GetComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(316f, 44f);
+            rt.sizeDelta = new Vector2(width, 44f);
             row.AddComponent<LayoutElement>().preferredHeight = 44f;
             return rt;
         }

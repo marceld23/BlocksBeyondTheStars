@@ -327,118 +327,65 @@ namespace BlocksBeyondTheStars.Client
             float sm = Mathf.Max(_sunColor.r, Mathf.Max(_sunColor.g, _sunColor.b));
             Color sunHue = sm > 0.001f ? new Color(_sunColor.r / sm, _sunColor.g / sm, _sunColor.b / sm) : Color.white;
 
-            var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            sphere.name = name;
-            sphere.GetComponent<MeshFilter>().sharedMesh = FxKit.GlobeMesh; // #3127: no wedges at the poles
-            StripCollider(sphere);
-            sphere.transform.SetParent(_root.transform, false);
-            sphere.transform.localPosition = pos;
-            if (!string.IsNullOrEmpty(bodyId))
-            {
-                _bodySpheres[bodyId] = sphere.transform; // #2153: the planet scanner sweeps this sphere
-            }
-            sphere.transform.localScale = Vector3.one * diameter;
-
             // World-space direction from this body to the system star → its sun-lit phase. The star sits at
             // _starLocal in the scene; without a star map fall back to the stylised fixed sun direction.
             Vector3 sunLocal = _hasStar ? _starLocal - pos : SunDir;
             Vector3 sunDir = _root.transform.TransformDirection(sunLocal);
 
-            var planet = Game?.Content?.GetPlanet(planetType ?? string.Empty);
             string key = string.IsNullOrEmpty(bodyId) ? (locationName ?? "home") : bodyId;
             var ob = new OrbitBody
             {
                 BodyId = bodyId ?? string.Empty,
                 Key = key,
-                Planet = planet,
-                Sphere = sphere.transform,
                 Pos = pos,
                 Diameter = diameter,
                 SunLocal = sunLocal,
             };
 
-            // The flat data-driven look first (ground + this world's flora + water/lava) — the real map swaps in once
-            // its bake finishes off the main thread, so building a whole system no longer freezes the frame.
-            var look = PlanetLookFor(planetType, locationName);
-            Color bodyTint = Color.Lerp(look.tint, look.tint * sunHue, 0.35f);
-            var flatTex = LoadTex(look.tex);
-            var mat = LitPhase(bodyTint, sunDir, flatTex, new Vector2(3f, 2f));
-            sphere.GetComponent<Renderer>().sharedMaterial = mat;
-            _orbitOwned.Add(mat);
-            if (flatTex != null)
+            // #3705: the body itself — globe, flat look then the baked map, data clouds, limb, rings — comes from the shared
+            // orbit renderer (the shell backdrop, the intro film and the story's space vista draw the same planets).
+            var spec = new OrbitBodySpec
             {
-                _orbitOwned.Add(flatTex); // replaced by the baked map later — destroyed with the scene, not leaked
-            }
-            if (planet != null && Game != null)
+                Content = Game?.Content,
+                Atlas = Game?.Atlas,
+                WorldSeed = Game?.WorldSeed ?? 0L,
+                Key = key,
+                FloraKey = locationName,
+                PlanetType = planetType,
+                Kind = kind,
+                Circumference = circumference,
+                Continents = Game?.TerrainContinents ?? false,
+                Generation = Game?.TerrainGeneration ?? 0, // #2692: the save's generation
+                LavaCoreVolcanoes = Game?.TerrainLavaCoreVolcanoes ?? false,
+                RingSeed = ringSeed,
+                SunHue = sunHue,
+                MapPriority = name == "HomePlanet" ? 10 : 1,
+            };
+            var body = OrbitBodyBuilder.Build(spec, _root.transform, name, pos, diameter, sunDir, _orbitOwned, b =>
             {
-                // Airless moons carry craters, as the server generates them (#2170).
-                bool cratered = kind == "Moon" && planet.IsAirless;
-                var request = WorldMinimap.MakeRequest(Game.Content, Game.Atlas, Game.WorldSeed, locationName, planetType, circumference, 96, 48,
-                    key, Game.TerrainContinents, Game.TerrainGeneration, cratered, Game.TerrainLavaCoreVolcanoes);
-                Color washTint = Color.Lerp(Color.white, sunHue, 0.35f);
-                WorldMinimap.RequestGlobe(request, (tex, data) => // #3128: the map with polar caps; data stays the raw map
-                {
-                    if (mat == null || ob.Sphere == null)
-                    {
-                        return; // the scene was torn down while the map baked
-                    }
-
-                    mat.mainTexture = tex;
-                    mat.mainTextureScale = Vector2.one;
-                    mat.color = ShaderColor.Srgb(washTint);
-                    ob.Map = data;
-                    ob.SeenVersion = -1; // project the weather onto the fresh map
-                }, priority: name == "HomePlanet" ? 10 : 1);
+                ob.Map = b.Map;
+                ob.SeenVersion = -1; // project the weather onto the fresh map
+            });
+            if (!string.IsNullOrEmpty(bodyId))
+            {
+                _bodySpheres[bodyId] = body.Sphere; // #2153: the planet scanner sweeps this sphere
             }
 
-            // Atmosphere from DATA (#2170): no clouds on airless bodies, the type's cloud cover otherwise, the world's
-            // own cloud and sky tints — the hard-coded table left 33 of 51 types cloudless from orbit.
-            ob.Atmosphere = OrbitLook.For(planet, Game?.WorldSeed ?? 0L, key, Game?.TerrainGeneration ?? 0); // #2692: the save's generation
-            if (ob.Atmosphere.HasClouds)
-            {
-                AddCloudShell(ob, sunHue, sunDir, CloudShellSeed(key));
-            }
-
-            // Atmosphere limb (#2400): a thin shell whose glow sits on the rim and the sun-facing side, warm along the
-            // terminator, dark on the night side (PlanetLimb.shader) — a breathable atmosphere reads as a denser glow
-            // than a toxic one; airless bodies stay crisp bare rock.
-            if (ob.Atmosphere.HasAir)
-            {
-                float atm = ob.Atmosphere.Breathable ? 1f : 0.7f;
-                var haze = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                haze.name = "Atmosphere";
-                haze.GetComponent<MeshFilter>().sharedMesh = FxKit.GlobeMesh; // #3127: a round rim, no 24-segment facets
-                StripCollider(haze);
-                haze.transform.SetParent(sphere.transform, false);
-                haze.transform.localScale = Vector3.one * 1.06f;
-                var hShader = Shader.Find("BlocksBeyondTheStars/PlanetLimb") ?? Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Transparent");
-                var sky = PlanetWeatherVisuals.Rgb(ob.Atmosphere.SkyRgb);
-                var hCol = Color.Lerp(Color.Lerp(sky, Color.white, 0.25f), sunHue, 0.25f);
-                hCol.a = 0.35f + 0.35f * atm;
-                var hMat = new Material(hShader) { mainTexture = Texture2D.whiteTexture, renderQueue = 2999 };
-                hMat.SetColor("_Color", ShaderColor.Srgb(hCol));
-                hMat.SetVector("_SunDir", sunDir);
-                hMat.SetColor("_Warm", ShaderColor.Srgb(Color.Lerp(new Color(1f, 0.6f, 0.3f), sunHue, 0.4f)));
-                var hMr = haze.GetComponent<Renderer>();
-                hMr.sharedMaterial = hMat;
-                hMr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                hMr.receiveShadows = false;
-                ob.HazeMat = hMat;
-                ob.HazeColor = hCol;
-                _orbitOwned.Add(hMat);
-            }
-
-            // Planetary rings (#596): a seeded, tilted band disc — queue 3001 so it draws after the
-            // haze (2999) and cloud shell (3000); the opaque planet sphere occludes the far half.
-            if (ringSeed != 0)
-            {
-                var ring = PlanetRings.Attach(sphere.transform, ringSeed, sunHue, 0.55f, 3001, out _);
-                ob.Ring = ring != null ? ring.transform : null;
-                ob.RingBase = ring != null ? ring.transform.localRotation : Quaternion.identity;
-            }
-
+            ob.Planet = body.Planet;
+            ob.Sphere = body.Sphere;
+            ob.Atmosphere = body.Atmosphere;
+            ob.Shell = body.Shell;
+            ob.ShellMat = body.ShellMat;
+            ob.ShellTex = body.ShellTex;
+            ob.ShellBuffer = body.ShellBuffer;
+            ob.Noise = body.Noise;
+            ob.ShellPhaseDeg = body.ShellPhaseDeg;
+            ob.HazeMat = body.HazeMat;
+            ob.HazeColor = body.HazeColor;
+            ob.Ring = body.Ring;
+            ob.RingBase = body.RingBase;
             _orbitBodies.Add(ob);
-            return sphere;
+            return body.Sphere.gameObject;
         }
 
         private GameObject BuildShip(Transform parent)
@@ -668,74 +615,6 @@ namespace BlocksBeyondTheStars.Client
             _sun.localPosition = Camera.transform.localPosition + dir.normalized * 1500f;
             _sun.rotation = Quaternion.LookRotation(_sun.position - Camera.transform.position, Vector3.up);
             _sun.localScale = Vector3.one;
-        }
-
-        /// <summary>Data-driven orbital look: sphere texture = the type's REAL surface block, tinted with a
-        /// partial cast of the mixed orbit colour (ground + this world's own flora hue + water/lava) — so a
-        /// mud flat reads brown and a lush world reads in ITS vegetation colour. Falls back to the legacy
-        /// palette when the type is unknown (the old hardcoded map mis-coloured every newer planet type).</summary>
-        private (Color tint, string tex) PlanetLookFor(string key, string locationName)
-        {
-            var legacy = PlanetLook(key);
-            var planet = Game?.Content?.GetPlanet(key ?? string.Empty);
-            if (planet == null)
-            {
-                return legacy;
-            }
-
-            if (planet.IsGasWorld)
-            {
-                return (new Color(0.96f, 0.9f, 0.84f), "gas"); // #2112: the banded cloud tops are the whole face of a gas giant
-            }
-
-            Color ground = PlanetOrbitLook.GroundColor(
-                Game.Content, Game.Atlas, Game.WorldSeed, locationName, key, legacy.tint);
-            // Partial cast only: the surface texture already carries the ground colour — full
-            // multiplication would double-saturate and darken the sphere.
-            return (Color.Lerp(Color.white, ground, 0.55f), planet.SurfaceBlock);
-        }
-
-        /// <summary>Adds a semi-transparent cloud shell over a planet sphere (#2170/#2175). It starts at the planet's base
-        /// cover and takes the live weather once the map and the system's weather are known; its texture's colour channel
-        /// carries the weather tint (storm-dark, snow-white, acid, ash, sand, spores), the material only the star's light
-        /// and the night-side shade, so the day/night terminator matches the planet's own.</summary>
-        private void AddCloudShell(OrbitBody ob, Color sunHue, Vector3 sunDir, int seed)
-        {
-            var shell = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            shell.name = "CloudShell";
-            shell.GetComponent<MeshFilter>().sharedMesh = FxKit.GlobeMesh; // #3127: the planet's own mapping
-            StripCollider(shell);
-            shell.transform.SetParent(ob.Sphere, false);
-            shell.transform.localPosition = Vector3.zero;
-            shell.transform.localScale = Vector3.one * 1.035f; // just above the surface
-
-            var tex = PlanetWeatherVisuals.NewShellTexture("CloudShell_" + ob.Key);
-            var shader = Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Transparent");
-            var mat = new Material(shader) { mainTexture = tex, renderQueue = 3000 };
-            var lit = Color.Lerp(Color.white, sunHue, 0.35f);
-            lit.a = 0.9f;
-            mat.SetColor(Shader.PropertyToID("_Color"), ShaderColor.Srgb(lit));
-            var shade = new Color(0.22f, 0.23f, 0.27f, lit.a);
-            mat.SetColor(Shader.PropertyToID("_ShadeColor"), ShaderColor.Srgb(shade));
-            mat.SetVector(Shader.PropertyToID("_CloudSunDir"), sunDir.sqrMagnitude > 1e-4f ? sunDir.normalized : Vector3.up);
-            mat.SetFloat(Shader.PropertyToID("_SunShade"), 1f);
-            mat.SetFloat(Shader.PropertyToID("_Bulge"), 0f);
-
-            var mr = shell.GetComponent<Renderer>();
-            mr.sharedMaterial = mat;
-            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            mr.receiveShadows = false;
-
-            ob.Shell = shell.transform;
-            ob.ShellMat = mat;
-            ob.ShellTex = tex;
-            ob.ShellBuffer = new Color32[PlanetWeatherVisuals.ShellW * PlanetWeatherVisuals.ShellH];
-            ob.Noise = PlanetWeatherVisuals.Noise(seed);
-            ob.ShellPhaseDeg = Mathf.Repeat(seed * 0.37f, 360f); // every planet's pattern starts elsewhere
-            _orbitOwned.Add(mat);
-            _orbitOwned.Add(tex);
-            PlanetWeatherVisuals.ComposeShell(tex, ob.ShellBuffer, ob.Noise, null, null, ob.Atmosphere.CloudDensity,
-                ob.Atmosphere.CloudRgb, ob.Atmosphere.CloudRgb, ob.Atmosphere.CloudRgb, 0f);
         }
 
         /// <summary>Per-frame upkeep of the scene's bodies (#2175/#2177). Cheap per frame (a rotation each); the weather

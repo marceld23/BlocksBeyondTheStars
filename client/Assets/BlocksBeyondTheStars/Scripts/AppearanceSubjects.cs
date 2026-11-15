@@ -29,6 +29,16 @@ namespace BlocksBeyondTheStars.Client
             _ => 1, // torso AND helmet — the helmet shell is suit-coloured
         };
 
+        /// <summary>The row a part's base colour gets on the editor's Figure tab (#3693) — null for the helmet, which
+        /// shares the torso's colour and so has no row of its own.</summary>
+        private static string ColorRowKey(int part) => part switch
+        {
+            BodyPaint.Torso => "ui.settings.torso",
+            BodyPaint.Arms => "ui.settings.arms",
+            BodyPaint.Legs => "ui.settings.legs",
+            _ => null,
+        };
+
         private static string TabKey(int part) => part switch
         {
             BodyPaint.Torso => "ui.paint.tab.torso",
@@ -49,7 +59,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     LabelKey = "ui.paint.tab.face",
                     TitleKey = "ui.face.title",
-                    HintKey = "ui.face.hint",
+                    ColorLabelKey = "ui.settings.skin", // the Figure tab's colour row (#3693)
                     Pixels = getFace() ?? string.Empty,
                     OnApply = setFace,
                     Fetch = getFace,
@@ -67,7 +77,8 @@ namespace BlocksBeyondTheStars.Client
                 {
                     LabelKey = TabKey(part),
                     TitleKey = BodyPaintKit.PartKey(part),
-                    HintKey = part == BodyPaint.Helmet ? "ui.paint.body.helmet_hint" : "ui.face.hint",
+                    AboutKey = part == BodyPaint.Helmet ? "ui.paint.body.helmet_about" : null, // the helmet's note in the status bar
+                    ColorLabelKey = ColorRowKey(part),
                     GridW = BodyPaintKit.CanvasW(part),
                     GridH = BodyPaintKit.CanvasH(part),
                     Pixels = getPaint(part) ?? string.Empty,

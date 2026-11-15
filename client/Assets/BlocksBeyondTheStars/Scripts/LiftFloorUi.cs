@@ -135,6 +135,7 @@ namespace BlocksBeyondTheStars.Client
             var panel = AddModal((1920f - W) * 0.5f, (1080f - H) * 0.5f, W, H);
             var head = UiKit.AddText(panel, 32f, 24f, W - 64f, 40f, LiftName(lift), 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddOutline(head);
+            UiKit.FitLabelSingleLine(head, W - 64f, 16, 26); // a lift named by its owner (#3172) stays on the title row
             UiKit.AddText(panel, 32f, 66f, W - 64f, 26f, L("ui.lift.choose"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
 
             var list = UiKit.ScrollList(panel, 24f, 104f, W - 48f, H - 104f - 90f, 6f);
@@ -152,11 +153,11 @@ namespace BlocksBeyondTheStars.Client
                 Row(list, 64f, go => FloorRow(go.transform, lift, floor, mayName));
             }
 
-            UiKit.AddButton(panel, W - 32f - 220f, H - 72f, 220f, 48f, L("ui.crystal.close"), () =>
+            UiKit.AddTierButton(panel, W - 32f - 220f, H - 72f, 220f, 48f, L("ui.crystal.close"), () =>
             {
                 ConsumeMenuInput();
                 Close();
-            });
+            }, ButtonTier.Quiet, "btn_close"); // #3662: Close = the cross, built last (the pad lands on a floor)
         }
 
         /// <summary>One floor: its name and where the platform is, Go (lit where the platform waits), and Name for a floor a

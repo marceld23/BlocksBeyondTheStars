@@ -157,7 +157,9 @@ namespace BlocksBeyondTheStars.Client
         {
             EnsureCanvas();
             _title.text = title;
+            UiKit.FitLabelSingleLine(_title, 512f, 16, 26);
             _info.text = info;
+            _keysHint.gameObject.SetActive(InputMap.ActiveDevice == InputDeviceKind.KeyboardMouse); // names keyboard keys
             _inputGo.SetActive(input);
             _input.text = string.Empty;
             _confirmLabel.text = confirmLabel;
@@ -220,29 +222,32 @@ namespace BlocksBeyondTheStars.Client
 
         protected override void BuildChrome(Transform root)
         {
-            UiKit.AddPanel(root, 0, 0, 1920, 1080, new Color(0f, 0f, 0f, 0.45f));
+            // #3662: the in-world dialog look — a modal scrim (the pad stays inside it) and an opaque card; everything hangs
+            // off the full-screen scrim, at the canvas's own coordinates.
+            root = UiKit.AddModalDim(root, 0.45f).transform;
 
             const float w = 560f, h = 320f;
             float x = (1920f - w) * 0.5f, y = (1080f - h) * 0.5f;
-            UiKit.AddPanel(root, x, y, w, h, UiKit.Panel);
+            UiKit.AddDialogPanel(root, x, y, w, h);
 
-            _title = UiKit.AddText(root, x + 24, y + 22, w - 48, 30, string.Empty, 24, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _title.fontStyle = FontStyle.Bold;
+            _title = UiKit.AddText(root, x + 24, y + 22, w - 48, 30, string.Empty, 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddOutline(_title);
 
             _info = UiKit.AddText(root, x + 24, y + 62, w - 48, 60, string.Empty, 18, UiKit.CyanDim, TextAnchor.UpperLeft);
             _info.horizontalOverflow = HorizontalWrapMode.Wrap;
 
-            _input = UiKit.AddInput(root, x + 24, y + 132, w - 48, 40, string.Empty, null, L("ui.blueprint.name_placeholder"));
+            _input = UiKit.AddInput(root, x + 24, y + 130, w - 48, 44, string.Empty, null, L("ui.blueprint.name_placeholder"));
             _input.characterLimit = 24;
             _input.lineType = InputField.LineType.SingleLine;
             _inputGo = _input.gameObject;
 
             // Same touch etiquette as the beacon dialog (#408): no onEndEdit auto-confirm, on-screen buttons.
-            UiKit.AddText(root, x + 24, y + 180, w - 48, 24, L("ui.beacon.confirm") + " — Enter   ·   " + L("ui.beacon.cancel") + " — Esc",
+            _keysHint = UiKit.AddText(root, x + 24, y + 182, w - 48, 24, L("ui.beacon.confirm") + " — Enter   ·   " + L("ui.beacon.cancel") + " — Esc",
                 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
 
+            // #3662: Confirm is the one primary action (and the pad's first stop — the field is skipped); Cancel is quiet.
             float bw = (w - 72f) / 3f;
-            var confirm = UiKit.AddButton(root, x + 24, y + 232, bw, 52, string.Empty, Confirm);
+            var confirm = UiKit.AddTierButton(root, x + 24, y + 232, bw, 52, string.Empty, Confirm, ButtonTier.Primary);
             _confirmLabel = confirm.GetComponentInChildren<Text>();
             var alt = UiKit.AddButton(root, x + 36 + bw, y + 232, bw, 52, string.Empty, () =>
             {
@@ -251,11 +256,14 @@ namespace BlocksBeyondTheStars.Client
                 cb?.Invoke();
             });
             _altLabel = alt.GetComponentInChildren<Text>();
-            UiKit.AddButton(root, x + 48 + bw * 2f, y + 232, bw, 52, L("ui.beacon.cancel"), () =>
+            UiKit.AddTierButton(root, x + 48 + bw * 2f, y + 232, bw, 52, L("ui.beacon.cancel"), () =>
             {
                 ConsumeMenuInput();
                 Close();
-            });
+            }, ButtonTier.Quiet, "btn_back");
         }
+
+        /// <summary>"Confirm — Enter · Cancel — Esc": keyboard keys, shown only with a keyboard in hand.</summary>
+        private Text _keysHint;
     }
 }

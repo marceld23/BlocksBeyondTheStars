@@ -11,7 +11,7 @@ using UnityEngine.UI;
 
 namespace BlocksBeyondTheStars.Client
 {
-    // The Official-worlds overlay's account dialogs: signup, feedback, account deletion, rescue codes and password change.
+    // The Official-worlds tab's account dialogs: signup, feedback, account deletion, rescue codes and password change.
     internal sealed partial class UiOfficialWorlds
     {
         private async void DoSignup(string accName, string password, int termsVersion, Text warn)
@@ -20,7 +20,7 @@ namespace BlocksBeyondTheStars.Client
             warn.text = _shell.L("ui.portal.working");
             var portal = new PortalClient(PortalBase());
             var r = await Task.Run(() => portal.Signup(accName, password, termsVersion));
-            if (_overlay == null || warn == null) { return; } // overlay/dialog closed while the request ran
+            if (_pane == null || warn == null) { return; } // screen/dialog closed while the request ran
             if (!r.Ok)
             {
                 warn.text = PortalErr(r.Code, r.Error);
@@ -69,18 +69,18 @@ namespace BlocksBeyondTheStars.Client
             // Consent is deliberate: the rules must be OPENED to accept them (the accept button lives
             // on the rules screen itself), mirroring the portal's required signup checkbox.
             var rulesState = UiKit.AddText(sDlg, 40f, 282f, 360f, 44f, _shell.L("ui.portal.rules_state_open"), 14, WarnCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddButton(sDlg, 420f, 280f, 340f, 46f, _shell.L("ui.portal.rules_read"), () => ShowRules(terms =>
+            UiKit.AddTierButton(sDlg, 420f, 280f, 340f, 46f, _shell.L("ui.portal.rules_read"), () => ShowRules(terms =>
             {
                 accepted[0] = true;
                 termsVersion[0] = terms.Version;
                 CloseRules();
                 rulesState.text = _shell.L("ui.portal.rules_state_ok");
                 rulesState.color = UiKit.Ok;
-            }), "btn_credits");
+            }), ButtonTier.Secondary, "cat_mission");
 
             var sWarn = UiKit.AddText(sDlg, 40f, 344f, 720f, 44f, "", 14, WarnCol, TextAnchor.UpperLeft, FontStyle.Bold);
             sWarn.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddButton(sDlg, 40f, 406f, 340f, 54f, _shell.L("ui.portal.signup"), () =>
+            UiKit.AddTierButton(sDlg, 40f, 406f, 340f, 54f, _shell.L("ui.portal.signup"), () =>
             {
                 // Client-side pre-checks mirror the server's cheap rules, so typos don't burn the
                 // 5/hour signup rate limit; everything else (blocked/reserved/taken) is the server's call.
@@ -89,8 +89,8 @@ namespace BlocksBeyondTheStars.Client
                 if (pw1[0].Length < 8) { sWarn.text = _shell.L("ui.portal.err_password_short"); return; }
                 if (!accepted[0]) { sWarn.text = _shell.L("ui.portal.err_accept_rules"); return; }
                 DoSignup(accName[0].Trim(), pw1[0], termsVersion[0], sWarn);
-            }, "btn_join");
-            UiKit.AddButton(sDlg, 420f, 406f, 340f, 54f, _shell.L("ui.menu.back"), CloseModal, "btn_exit");
+            }, ButtonTier.Primary, "btn_new");
+            UiKit.AddTierButton(sDlg, 420f, 406f, 340f, 54f, _shell.L("ui.menu.back"), CloseModal, ButtonTier.Quiet, "btn_back");
         }
 
         private async void DoFeedbackSend(string message, Text warn)
@@ -100,7 +100,7 @@ namespace BlocksBeyondTheStars.Client
             var portal = new PortalClient(PortalBase());
             string session = _shell.Settings.PortalSessionToken;
             var r = await Task.Run(() => portal.Report(session, "", "feedback", message));
-            if (_overlay == null || warn == null) { return; }
+            if (_pane == null || warn == null) { return; }
             if (!r.Ok)
             {
                 warn.text = PortalErr(r.Code, r.Error);
@@ -123,12 +123,12 @@ namespace BlocksBeyondTheStars.Client
             msgInput.textComponent.alignment = TextAnchor.UpperLeft;
             var fWarn = UiKit.AddText(fDlg, 40f, 302f, 720f, 40f, "", 14, WarnCol, TextAnchor.UpperLeft, FontStyle.Bold);
             fWarn.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddButton(fDlg, 40f, 356f, 340f, 54f, _shell.L("ui.portal.send"), () =>
+            UiKit.AddTierButton(fDlg, 40f, 356f, 340f, 54f, _shell.L("ui.portal.send"), () =>
             {
                 if (string.IsNullOrWhiteSpace(msg[0])) { fWarn.color = WarnCol; fWarn.text = _shell.L("ui.portal.feedback_hint"); return; }
                 DoFeedbackSend(msg[0].Trim(), fWarn);
-            }, "btn_join");
-            UiKit.AddButton(fDlg, 420f, 356f, 340f, 54f, _shell.L("ui.menu.back"), CloseModal, "btn_exit");
+            }, ButtonTier.Primary, "btn_feedback");
+            UiKit.AddTierButton(fDlg, 420f, 356f, 340f, 54f, _shell.L("ui.menu.back"), CloseModal, ButtonTier.Quiet, "btn_back");
         }
 
         private async void DoDeleteAccount(Text warn)
@@ -138,7 +138,7 @@ namespace BlocksBeyondTheStars.Client
             var portal = new PortalClient(PortalBase());
             string session = _shell.Settings.PortalSessionToken;
             var r = await Task.Run(() => portal.DeleteAccount(session));
-            if (_overlay == null || warn == null) { return; }
+            if (_pane == null || warn == null) { return; }
             if (!r.Ok)
             {
                 warn.text = PortalErr(r.Code, r.Error);
@@ -163,7 +163,8 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddText(cDlg, 40f, 196f + i * 66f, 720f, 56f, codes[i], 34, UiKit.Ok, TextAnchor.MiddleCenter, FontStyle.Bold);
             }
 
-            UiKit.AddButton(cDlg, 230f, 430f, 340f, 54f, _shell.L("ui.portal.codes_written"), CloseModal, "btn_join");
+            UiKit.AddTierButton(cDlg, 230f, 430f, 340f, 54f, _shell.L("ui.portal.codes_written"), CloseModal, ButtonTier.Primary, "btn_continue");
+            _stickyModal = _portalModal; // Esc leaves it open (CloseTopDialog)
         }
 
         private async void DoRecover(string accName, string code, string newPw, Text warn)
@@ -172,7 +173,7 @@ namespace BlocksBeyondTheStars.Client
             warn.text = _shell.L("ui.portal.working");
             var portal = new PortalClient(PortalBase());
             var r = await Task.Run(() => portal.Recover(accName, code, newPw));
-            if (_overlay == null || warn == null) { return; }
+            if (_pane == null || warn == null) { return; }
             if (!r.Ok)
             {
                 warn.color = WarnCol;
@@ -212,14 +213,14 @@ namespace BlocksBeyondTheStars.Client
             rp2.contentType = InputField.ContentType.Password;
             var rWarn = UiKit.AddText(rDlg, 40f, 300f, 720f, 44f, "", 14, WarnCol, TextAnchor.UpperLeft, FontStyle.Bold);
             rWarn.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddButton(rDlg, 40f, 362f, 340f, 54f, _shell.L("ui.portal.recovery_submit"), () =>
+            UiKit.AddTierButton(rDlg, 40f, 362f, 340f, 54f, _shell.L("ui.portal.recovery_submit"), () =>
             {
                 if (string.IsNullOrWhiteSpace(accName[0]) || string.IsNullOrWhiteSpace(code[0])) { rWarn.text = _shell.L("ui.portal.err_recover_failed"); return; }
                 if (pw1[0] != pw2[0]) { rWarn.text = _shell.L("ui.portal.err_password_mismatch"); return; }
                 if (pw1[0].Length < 8) { rWarn.text = _shell.L("ui.portal.err_password_short"); return; }
                 DoRecover(accName[0].Trim(), code[0].Trim(), pw1[0], rWarn);
-            }, "btn_join");
-            UiKit.AddButton(rDlg, 420f, 362f, 340f, 54f, _shell.L("ui.menu.back"), CloseModal, "btn_exit");
+            }, ButtonTier.Primary, "btn_continue");
+            UiKit.AddTierButton(rDlg, 420f, 362f, 340f, 54f, _shell.L("ui.menu.back"), CloseModal, ButtonTier.Quiet, "btn_back");
         }
 
         private async void DoRegenCodes(string password, Text warn)
@@ -229,7 +230,7 @@ namespace BlocksBeyondTheStars.Client
             var portal = new PortalClient(PortalBase());
             string session = _shell.Settings.PortalSessionToken;
             var r = await Task.Run(() => portal.RegenerateRecoveryCodes(session, password));
-            if (_overlay == null || warn == null) { return; }
+            if (_pane == null || warn == null) { return; }
             if (!r.Ok)
             {
                 warn.color = WarnCol;
@@ -247,7 +248,7 @@ namespace BlocksBeyondTheStars.Client
             var portal = new PortalClient(PortalBase());
             string session = _shell.Settings.PortalSessionToken;
             var r = await Task.Run(() => portal.ChangePassword(session, oldPw, newPw));
-            if (_overlay == null || warn == null) { return; }
+            if (_pane == null || warn == null) { return; }
             if (!r.Ok)
             {
                 warn.color = WarnCol;
@@ -288,21 +289,21 @@ namespace BlocksBeyondTheStars.Client
                 pwWarn.text = notice; // e.g. "your password was reset — pick your own now" (login flow)
             }
 
-            UiKit.AddButton(aDlg, 40f, 262f, 340f, 46f, _shell.L("ui.portal.change_password"), () =>
+            UiKit.AddTierButton(aDlg, 40f, 262f, 340f, 46f, _shell.L("ui.portal.change_password"), () =>
             {
                 // Same cheap pre-checks as signup, so typos don't burn the shared attempt budget.
                 if (newPw1[0] != newPw2[0]) { pwWarn.color = WarnCol; pwWarn.text = _shell.L("ui.portal.err_password_mismatch"); return; }
                 if (newPw1[0].Length < 8) { pwWarn.color = WarnCol; pwWarn.text = _shell.L("ui.portal.err_password_short"); return; }
                 DoChangePassword(oldPw[0], newPw1[0], pwWarn);
-            }, "btn_join");
+            }, ButtonTier.Primary, "btn_settings");
 
             // Rescue codes are re-issuable, gated on the SAME "current password" field as the change
             // button — the one secret a stolen session does not have.
-            UiKit.AddButton(aDlg, 420f, 262f, 340f, 46f, _shell.L("ui.portal.codes_regen"), () =>
+            UiKit.AddTierButton(aDlg, 420f, 262f, 340f, 46f, _shell.L("ui.portal.codes_regen"), () =>
             {
                 if (oldPw[0].Length == 0) { pwWarn.color = WarnCol; pwWarn.text = _shell.L("ui.portal.codes_need_password"); return; }
                 DoRegenCodes(oldPw[0], pwWarn);
-            }, "btn_credits");
+            }, ButtonTier.Secondary, "btn_new");
 
             var delWarn = UiKit.AddText(aDlg, 40f, 336f, 820f, 110f, _shell.L("ui.portal.delete_account_warn"), 14, UiKit.Warn, TextAnchor.UpperLeft);
             delWarn.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -311,7 +312,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddInput(aDlg, 40f, 484f, 480f, 38f, typed[0], v => typed[0] = v, _shell.Settings.PortalAccountName);
             var aWarn = UiKit.AddText(aDlg, 40f, 542f, 820f, 44f, "", 14, WarnCol, TextAnchor.UpperLeft, FontStyle.Bold);
             aWarn.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddButton(aDlg, 40f, 604f, 480f, 50f, _shell.L("ui.portal.delete_account"), () =>
+            UiKit.AddTierButton(aDlg, 40f, 604f, 480f, 50f, _shell.L("ui.portal.delete_account"), () =>
             {
                 if (typed[0].Trim() != _shell.Settings.PortalAccountName)
                 {
@@ -321,8 +322,8 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 DoDeleteAccount(aWarn);
-            }, "btn_exit");
-            UiKit.AddButton(aDlg, 540f, 604f, 320f, 50f, _shell.L("ui.menu.back"), CloseModal, "btn_exit");
+            }, ButtonTier.Danger, "btn_delete");
+            UiKit.AddTierButton(aDlg, 540f, 604f, 320f, 50f, _shell.L("ui.menu.back"), CloseModal, ButtonTier.Quiet, "btn_back");
         }
     }
 }

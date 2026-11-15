@@ -95,7 +95,21 @@ star map). s8.1: `snd:roll_convinced`; s8.2: `snd:bridge_done` (the sing duel ca
 milestones and never gets a second item. The catch-up runs only while a chapter of the story is still ahead, so "Skip all"
 hands out nothing and the sing duel's Soundi (the last step) stays the prize of playing it. VEGA says what came
 (`srv.sounders.catch_up_items`, the item and blueprint names in the player's language) or that the gaps were filled
-(`srv.sounders.catch_up`). A disc that is no story disc (a socket disc, a collectible) sung on a spindle while a decode step
+(`srv.sounders.catch_up`). **A full backpack never costs a handed item** (Justus, v2026.11.18: he skipped s3.4 with a
+full pack, the two discs went past it and he never found them — and since the skip had decoded them, nothing handed them out
+again): a catch-up item goes into the backpack only, never the hold or the ground. Without room it waits — its once-milestone
+is not written, and a disc still to come is not decoded meanwhile (a decoded disc counts as had) — VEGA asks for room
+(`srv.sounders.catch_up_room`, at once, then at most once a minute) and the next pass packs it (`HandSoundersItems`). A catch-up
+is no event in the world, so the drop-at-the-feet rule of mining overflow does not fit it; it follows the deferred rewards
+(achievements, calendar doors). **Needed items come again** (`SoundersNeeds`) — the key items nothing else hands out
+twice: while s3.1 runs the Song Spindle (no recipe before disc 1 is decoded; the shrine's own reward, an event in the world,
+still drops at the feet when the backpack is full), while s3.2 runs disc 1 (the relic caches never bring it), while s4.7 (the
+hearing disc into the chest's socket) or chapter 5 (the Echoes come only to a wearer of the hearing disc) runs the hearing disc.
+When the player has none at hand — backpack, worn, or in a Song Spindle of their world — VEGA packs a replacement
+(`srv.sounders.need_item`; it waits for room like the catch-up), which also heals a save whose skipped disc is lying
+somewhere. A spare is harmless. The Great Song disc is not on the list: the next sound chamber brings it while it is not
+decoded. And a relic cache tried with a full backpack keeps the one
+story disc it got, instead of one more per try. A disc that is no story disc (a socket disc, a collectible) sung on a spindle while a decode step
 runs only sings its tune — the server names the disc the story waits for: `srv.sounders.wrong_disc` when the player carries
 it, `srv.sounders.wrong_disc_find` (the relic caches) when not (`HintStoryDisc`, `WantedStoryDisc`).
 

@@ -361,11 +361,12 @@ namespace BlocksBeyondTheStars.Client
                 or CrystalDeviceKind.DrillLaser or CrystalDeviceKind.LiftMotor or CrystalDeviceKind.LiftStop;
             if (machine)
             {
-                UiKit.AddButton(panel, 32f, h - 72f, 300f, 48f, L(kind == CrystalDeviceKind.LiftStop ? "ui.crystal.prompt.call" : "ui.crystal.start").Replace("{0}: ", string.Empty), () =>
+                // #3662: a machine's one primary action (the mode grid and the rows apply at once and need no button).
+                UiKit.AddTierButton(panel, 32f, h - 72f, 300f, 48f, L(kind == CrystalDeviceKind.LiftStop ? "ui.crystal.prompt.call" : "ui.crystal.start").Replace("{0}: ", string.Empty), () =>
                 {
                     Game?.SendCrystalDevice(_dev.X, _dev.Y, _dev.Z, 1);
                     ClientAudio.Instance?.Cue("ui_confirm");
-                });
+                }, ButtonTier.Primary, "btn_continue");
             }
 
             if (CrystalNetRules.IsDirectional(kind))
@@ -378,11 +379,11 @@ namespace BlocksBeyondTheStars.Client
                 });
             }
 
-            UiKit.AddButton(panel, W - 32f - 220f, h - 72f, 220f, 48f, L("ui.crystal.close"), () =>
+            UiKit.AddTierButton(panel, W - 32f - 220f, h - 72f, 220f, 48f, L("ui.crystal.close"), () =>
             {
                 ConsumeMenuInput();
                 Close();
-            });
+            }, ButtonTier.Quiet, "btn_close"); // #3662: Close = the cross, built last (never the pad's first stop)
         }
 
         /// <summary>One button per mode, four to a row, the current mode lit cyan. A click is sent at once.</summary>

@@ -72,9 +72,14 @@ namespace BlocksBeyondTheStars.Client
             _open = true;
             _openedFrame = Time.frameCount; // so the same E press that opened it doesn't close it this frame
             _canvas.enabled = true;
+            _keysHint.gameObject.SetActive(InputMap.ActiveDevice == InputDeviceKind.KeyboardMouse); // "Esc — close": keys only
             Game?.SetMenuOwner(this, true); // the cursor arbiter frees/locks from the owner set (#413)
             Rebuild();
         }
+
+        /// <summary>The "Esc — close" line — a keyboard hint, so only shown with a keyboard in hand (a pad has its hint
+        /// strip, a tablet the Close button).</summary>
+        private Text _keysHint;
 
         public void Close()
         {
@@ -103,9 +108,10 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Close on Esc/Tab (not E — the same E press that opens it via the controller could otherwise toggle
-            // it shut; the frame guard + the close button cover the rest).
+            // it shut; the frame guard + the close button cover the rest). #3662: and on pad B (the menu verb, which the
+            // pad's hint strip names "back") — the trade screen was the one panel B did not close.
             if (_open && Time.frameCount > _openedFrame
-                && (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.Tab)))
+                && (InputMap.Down(InputAction.UiCancel) || Input.GetKeyDown(KeyCode.Tab)))
             {
                 Game?.MarkMenuInputHandled(); // this Esc/Tab is consumed — no quit prompt / menu toggle on top (#413 N1)
                 Close();
@@ -214,15 +220,17 @@ namespace BlocksBeyondTheStars.Client
 
             _canvas = UiKit.CreateCanvas("VendorTradeUI");
             _canvas.sortingOrder = 60; // above the crafting menu (50)
-            _root = _canvas.transform;
             UiNav.Enable(_canvas.gameObject); // gamepad can drive the trade screen (inert on KB/mouse)
 
-            UiKit.AddImage(_root, 0, 0, W, H, UiKit.SolidSprite, new Color(0.02f, 0.04f, 0.08f, 0.72f)); // dim backdrop
+            // #3662: the dim backdrop is the standard modal scrim (the pad's focus stays inside it) and the panel is opaque —
+            // the world shone through the trade rows. Everything hangs off the full-screen scrim, at the canvas's coordinates.
+            _root = UiKit.AddModalDim(_canvas.transform, 0.72f).transform;
 
             float px = (W - PanelW) * 0.5f, py = (H - PanelH) * 0.5f;
-            UiKit.AddPanel(_root, px, py, PanelW, PanelH, UiKit.Panel);
+            UiKit.AddDialogPanel(_root, px, py, PanelW, PanelH);
 
-            _title = UiKit.AddText(_root, px + 40, py + 26, PanelW - 80, 40, string.Empty, 32, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _title = UiKit.AddText(_root, px + 40, py + 26, PanelW - 80, 40, string.Empty, 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddOutline(_title);
             _subtitle = UiKit.AddText(_root, px + 40, py + 78, PanelW - 80, 26, L("ui.vendor.subtitle"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
             UiKit.AddText(_root, px + 40, py + 116, 380, 22, L("ui.vendor.give"), 15, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddText(_root, px + 470, py + 116, 320, 22, L("ui.vendor.get"), 15, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
@@ -251,8 +259,8 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddInlineScrollbar(scroll);
             _rows = content;
 
-            UiKit.AddText(_root, px + 40, py + PanelH - 50, PanelW - 320, 26, L("ui.vendor.hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            UiKit.AddButton(_root, px + PanelW - 220, py + PanelH - 64, 180, 46, L("ui.action.close"), Close);
+            _keysHint = UiKit.AddText(_root, px + 40, py + PanelH - 50, PanelW - 320, 26, L("ui.vendor.hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiKit.AddTierButton(_root, px + PanelW - 240, py + PanelH - 64, 200, 46, L("ui.action.close"), Close, ButtonTier.Quiet, "btn_close");
 
             _built = true;
         }
@@ -279,6 +287,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _title.text = _vendorTitle.Length > 0 ? _vendorTitle : L("ui.vendor.title");
+            UiKit.FitLabelSingleLine(_title, PanelW - 80, 18, 26); // "Name, Profession" in every language stays on its row
             string headerKey = vendor != null ? VendorReach.ThemeHeaderKey(vendor.Theme) : string.Empty;
             _subtitle.text = headerKey.Length > 0 && Game.Localizer != null && Game.Localizer.Has(headerKey)
                 ? L(headerKey)

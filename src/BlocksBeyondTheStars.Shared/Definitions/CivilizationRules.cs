@@ -303,28 +303,37 @@ public static class CivilizationRules
     /// <summary>The problems of a template of civilization <paramref name="c"/> (beside the landmark checks): its pool, a
     /// prop's prop pool, and — for a lost civilization — no residents and no dens.</summary>
     public static List<string> TemplateProblems(StructureTemplate t, CivilizationDefinition? c)
+        => TemplateProblem.Sentences(TemplateProblemList(t, c));
+
+    /// <summary><see cref="TemplateProblems"/> as codes the structure editor translates (#3692): the same checks, the same
+    /// sentences.</summary>
+    public static List<TemplateProblem> TemplateProblemList(StructureTemplate t, CivilizationDefinition? c)
     {
-        var p = new List<string>();
+        var p = new List<TemplateProblem>();
         if (c is null)
         {
-            p.Add($"names the unknown civilization '{t.Civilization}'");
+            p.Add(new TemplateProblem("civ.unknown", $"names the unknown civilization '{t.Civilization}'", t.Civilization ?? string.Empty));
             return p;
         }
 
         if (!c.IsFramework)
         {
-            p.Add($"civilization '{c.Key}' is a legacy tag — it stamps no templates of its own");
+            p.Add(new TemplateProblem("civ.legacy", $"civilization '{c.Key}' is a legacy tag — it stamps no templates of its own", c.Key));
         }
 
-        CheckWord(p, "civPool", t.CivPool, TemplatePools);
+        if (!IsOneOf(t.CivPool, TemplatePools))
+        {
+            p.Add(new TemplateProblem("civ.pool", $"civPool '{t.CivPool}' is unknown ({string.Join(" | ", TemplatePools)})", t.CivPool ?? string.Empty));
+        }
+
         bool prop = string.Equals(t.CivPool, PoolProp, StringComparison.OrdinalIgnoreCase);
         if (prop && t.IsSource)
         {
-            p.Add("a prop is never a generator entry");
+            p.Add(new TemplateProblem("civ.prop_entry", "a prop is never a generator entry"));
         }
         else if (prop && string.IsNullOrWhiteSpace(t.PropPool))
         {
-            p.Add("a prop needs a propPool (the name a prop marker asks for)");
+            p.Add(new TemplateProblem("civ.prop_pool", "a prop needs a propPool (the name a prop marker asks for)"));
         }
 
         if (string.Equals(c.State, StateLost, StringComparison.OrdinalIgnoreCase))
@@ -333,7 +342,9 @@ public static class CivilizationRules
             {
                 if (cell.Kind == "marker" && !LostMarkerAllowed(cell.Id))
                 {
-                    p.Add($"a lost civilization has nobody home — the marker '{cell.Id}' at {cell.X},{cell.Y},{cell.Z} is not allowed");
+                    p.Add(new TemplateProblem("civ.lost_marker",
+                        $"a lost civilization has nobody home — the marker '{cell.Id}' at {cell.X},{cell.Y},{cell.Z} is not allowed",
+                        cell.Id ?? string.Empty, TemplateProblem.At(cell.X, cell.Y, cell.Z)));
                     break;
                 }
             }

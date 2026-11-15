@@ -213,7 +213,8 @@ public sealed partial class GameServer
     /// #3352: hands <paramref name="count"/> of a Sounders item to the player — the backpack first, aboard the hold, the rest
     /// on the ground at their feet (never lost). A story disc is recorded as handed out (<see cref="SongDiscs.GotMilestone"/>),
     /// so the story loot never gives it twice. The story (the Singing Shrine's reward: disc 1 and the first Song Spindle) calls
-    /// this.
+    /// this. The hold is THIS player's ship's, never the ship cursor's: the 1 Hz story pass calls this without serving the
+    /// player, and there the cursor may point at another player's ship (the rule VEGA's memory parts follow too).
     /// </summary>
     internal void GiveSoundersItem(PlayerSession session, string itemKey, int count)
     {
@@ -222,7 +223,7 @@ public sealed partial class GameServer
             return;
         }
 
-        var pool = new MaterialPool(_content, session.State, _ship);
+        var pool = new MaterialPool(_content, session.State, ShipOf(session));
         pool.Add(itemKey, count);
         if (SongDiscs.IsStoryDisc(itemKey))
         {

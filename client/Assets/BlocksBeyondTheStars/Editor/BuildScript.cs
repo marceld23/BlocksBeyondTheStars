@@ -124,6 +124,7 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             EnsureShadersIncluded();
             EnsureRendererFeatures();
             EnsureAppIcon();
+            EnsureSplashLook();
             if (target == BuildTarget.WebGL)
             {
                 ConfigureWebGLPlayer();
@@ -166,6 +167,9 @@ namespace BlocksBeyondTheStars.Client.EditorTools
                 // Managed stripping stays Disabled on desktop: Low already removes the generic Serialize overloads that
                 // MessagePack's non-generic path looks up by reflection (NetCodec.Encode → "Sequence contains no matching element").
                 PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Standalone, ManagedStrippingLevel.Disabled);
+                // Plain-HTTP downloads stay off on desktop (every URL there is https or file://); only the WebGL player
+                // allows them (ConfigureWebGLPlayer), and an editor session that built WebGL first must not carry it over.
+                PlayerSettings.insecureHttpOption = InsecureHttpOption.NotAllowed;
             }
 
             // #1537: BBS_DEV_BUILD=1 → a Development player, so PerfProbe -perfProfile
@@ -206,6 +210,9 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             {
                 RemoveAutoFullscreen(outDir);
                 StripBundledServerFromWebGLOutput(outDir);
+                // Baked into the player above; back to the committed value so a local WebGL build leaves
+                // ProjectSettings.asset unchanged.
+                PlayerSettings.insecureHttpOption = InsecureHttpOption.NotAllowed;
             }
 
             File.WriteAllText(Path.Combine(outDir, "version.txt"), PlayerSettings.bundleVersion);
@@ -269,6 +276,14 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.WebGL, false);
             PlayerSettings.SetGraphicsAPIs(BuildTarget.WebGL, apis);
             Debug.Log("WebGL graphics APIs: " + string.Join(" → ", apis));
+
+            // A self-hosted server serves this player at http://<lan-address>:<port>/play/ (#121). With "Allow downloads
+            // over HTTP" off, every UnityWebRequest to the page's own origin — the StreamingAssets data with the locale
+            // files, the music — threw "Insecure connection not allowed": the menu showed raw locale keys and each try
+            // filed a crash report (2026-11-15, 22 of them from one player). Unity exempts only localhost. In a browser the
+            // browser itself guards https pages against plain-http requests (mixed content), so the player allows HTTP;
+            // desktop builds keep it off (BuildPlayer resets it).
+            PlayerSettings.insecureHttpOption = InsecureHttpOption.AlwaysAllowed;
 
             SetWebGLProperty("memorySize", 512);
             SetWebGLProperty("compressionFormat", fastLocal ? "Disabled" : "Brotli");
@@ -616,6 +631,24 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             PlayerSettings.SetIcons(NamedBuildTarget.Standalone, icons, IconKind.Application);
             AssetDatabase.SaveAssets();
             Debug.Log($"App icon embedded ({icons.Length} sizes) from {IconAssetPath}.");
+        }
+
+        /// <summary>The game's navy (#05070D — the browser page, the menu's space) behind Unity's own splash (#3706).</summary>
+        private static readonly Color SplashNavy = new Color(5f / 255f, 7f / 255f, 13f / 255f, 1f);
+
+        /// <summary>
+        /// Unity's start-up splash in the game's colours (#3706): the light "Made with Unity" logo on the game's navy instead of
+        /// Unity's grey, so the first frames already match the launcher, the studio logo and the menu. The splash stays on
+        /// (switching it off waits for a check of the Unity licence terms). The same values are committed in
+        /// ProjectSettings.asset; this pass is the safety net should that asset regress.
+        /// </summary>
+        public static void EnsureSplashLook()
+        {
+            PlayerSettings.SplashScreen.show = true;
+            PlayerSettings.SplashScreen.showUnityLogo = true;
+            PlayerSettings.SplashScreen.backgroundColor = SplashNavy;
+            PlayerSettings.SplashScreen.unityLogoStyle = PlayerSettings.SplashScreen.UnityLogoStyle.LightOnDark;
+            PlayerSettings.SplashScreen.overlayOpacity = 1f;
         }
 
         /// <summary>Creates and saves the launcher scene (one AppShell object) if it doesn't exist.</summary>

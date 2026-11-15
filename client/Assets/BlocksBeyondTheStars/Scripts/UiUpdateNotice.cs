@@ -98,7 +98,7 @@ namespace BlocksBeyondTheStars.Client
             laterBtn = UiKit.AddButton(dlg, 380f, 330f, 280f, 54f, shell.L("ui.update.later"), () =>
             {
                 ClientUpdater.NoticeDismissed = true; // AppShell.Update tears the dialog down
-            }, "btn_exit");
+            }, "btn_close");
 
             return canvas.gameObject;
         }

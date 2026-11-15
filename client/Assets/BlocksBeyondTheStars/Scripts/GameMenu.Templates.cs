@@ -29,6 +29,28 @@ namespace BlocksBeyondTheStars.Client
             };
         }
 
+        /// <summary>
+        /// The appearance screen on the editor shell (#3693), looking and working like the main menu's Avatar Designer: Back
+        /// top left, Undo / Redo, Submit, Save ("on your character" — a commit reaches the figure, the settings and, paced,
+        /// the server; colours apply at once), the tab bar with the Figure tab (colour rows, gear preview, the figure; no
+        /// skin name or Export — that is the designer's) and the HUD frame. Its own canvas sits above the console, which
+        /// steps aside while it is up (see Update), and Esc / pad B reach it through <see cref="HandleEditorCancel"/>.
+        /// </summary>
+        private void ConfigureAppearanceFrame(FaceEditor editor)
+        {
+            editor.EditorKey = "appearance";
+            editor.ShellTitleKey = "ui.appearance.title";
+            editor.SaveSublineKey = "ui.editor.save_sub.appearance";
+            editor.FigureTabKey = "ui.avatar.figure_tab";
+            editor.OnClosed = () =>
+            {
+                if (ReferenceEquals(_faceEditor, editor))
+                {
+                    _faceEditor = null; // Back destroys the editor; the console comes back next frame
+                }
+            };
+        }
+
         /// <summary>Whether this world unlocked the cosmetic <paramref name="key"/> (<c>skin:christmas</c>).</summary>
         private bool Unlocked(string key) => Game?.Network != null && Game.Network.HasCosmetic(key);
 

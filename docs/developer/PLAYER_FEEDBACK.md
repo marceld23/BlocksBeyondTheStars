@@ -220,7 +220,7 @@ looked clickable and did nothing. Consent is never remembered between textures.
 
 ### Ships, stations/towns and avatar skins (#3262)
 
-The Ship Designer, the Station/Town editor (station and settlement mode) and the Avatar Designer have a **Submit**
+The Ship Designer, the Station/Village editor (station and settlement mode) and the Avatar Designer have a **Submit**
 button next to Save / Export skin. They share the texture's dialog — renamed `CreationSubmitDialog`, one dialog for
 all four kinds — and its flow (consents, nickname or "no name", spool, `SentReportsLog`, reply thread). Per kind the
 dialog has its own title, intro, name label, the first two consent sentences, "what is sent" and the thank-you

@@ -3,47 +3,10 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 namespace BlocksBeyondTheStars.Client.Tests;
 
-/// <summary>The catalogue: the developer tools (material, item &amp; recipe), the "Submit to the developers" dialog, and the
-/// new texts of the same release elsewhere (world list, loading screen, chat window, settings) in their real boxes.</summary>
+/// <summary>The catalogue: the "Submit to the developers" dialog and the new texts of the same release elsewhere (world list,
+/// loading screen, chat window, settings) in their real boxes; the developer tools are in <c>EditorTextFitTests.DevTools.cs</c>.</summary>
 public sealed partial class EditorTextFitTests
 {
-    private static IEnumerable<FitSite> DeveloperToolSites() => new[]
-    {
-        Label("Developer tools banner", 1400f, 15, "ui.editors.devbanner"),
-        Label("MaterialEditor texture title", 500f, 18, "ui.material.texture"),
-        Label("MaterialEditor palette labels", 210f, 15, "ui.material.brush", "ui.material.base_color"),
-        Button("MaterialEditor fill / flat", 150f, 34f, "ui.material.fill", "ui.material.flat"),
-        Button("MaterialEditor clear", 160f, 34f, "ui.material.clear"),
-        Label("Material / content panel titles", 440f, 18, "ui.material.material", "ui.content.item", "ui.content.recipe"),
-        Label("Material / content section headers", 440f, 16, "ui.material.mechanics", "ui.material.look", "ui.material.world",
-            "ui.content.tool_stats", "ui.content.effects"),
-        FitLine("Material / content field labels (180)", 180f, 13, 15, "ui.content.key", "ui.content.name", "ui.content.desc",
-            "ui.content.places_block", "ui.content.market_theme", "ui.material.tool", "ui.material.category",
-            "ui.material.world_type", "ui.material.tintable", "ui.content.category", "ui.content.tool_kind", "ui.content.station"),
-        FitLine("Material / content stepper labels (248)", 248f, 13, 15, "ui.material.hardness", "ui.material.min_tier", "ui.material.gloss",
-            "ui.material.metal", "ui.material.emission", "ui.material.frequency", "ui.material.min_depth", "ui.material.max_depth",
-            "ui.content.max_stack", "ui.content.tier", "ui.content.mining_power", "ui.content.mining_radius", "ui.content.damage",
-            "ui.content.range", "ui.content.cooldown", "ui.content.energy", "ui.content.consume_health", "ui.content.consume_hunger",
-            "ui.content.armor", "ui.content.oxygen", "ui.content.scan", "ui.content.output_count", "ui.content.knowledge"),
-        Lines("Material / content picked values (180×36)", 180f, 36f, 15, 13, 13, "ui.opt.*.*", "ui.cat.*"),
-        Button("Material / content on/off", 154f, 30f, "ui.avatar.on", "ui.avatar.off"),
-        Input("Material / content default name / description", 256f, 15, "ui.ed.default.material", "ui.ed.default.material_desc",
-            "ui.ed.default.item", "ui.ed.default.item_desc"),
-        FitLine("MaterialEditor source image label (stacked, 440)", 440f, 13, 15, "ui.material.source_png"),
-        Label("MaterialEditor spawn estimate", 440f, 13, "ui.material.spawn_estimate") with { Sample = "0.5" },
-        Wrap("MaterialEditor status (446×78)", 446f, 4, 13, "ui.material.exported", "ui.content.need_key", "ui.ed.export_failed_hint"),
-        Button("Material / content save", 260f, 40f, "ui.material.save", "ui.content.save"),
-        Button("Material / content back", 168f, 40f, "ui.menu.back"),
-        Lines("Material / content hint", 1888f, 36f, 15, 13, 13, "ui.material.hint", "ui.content.hint"),
-        Label("ContentEditor list titles", 314f, 16, "ui.content.inputs"),
-        Label("ContentEditor unlock cost", 314f, 15, "ui.content.unlock_cost"),
-        Label("ContentEditor blueprint title", 284f, 16, "ui.content.blueprint"),
-        Button("ContentEditor add", 124f, 30f, "ui.content.add"),
-        Input("ContentEditor item key", 280f, 15, "ui.content.item_key"),
-        Wrap("ContentEditor status (446×70)", 446f, 4, 13, "ui.content.exported", "ui.content.need_key", "ui.content.unknown_keys",
-            "ui.ed.export_failed_hint"),
-    };
-
     /// <summary>Every kind's own wording of the Submit dialog — the texture keeps its approved <c>ui.tex.submit.*</c> keys.</summary>
     private static string[] SubmitKeys(string part) => new[]
     {
@@ -82,9 +45,14 @@ public sealed partial class EditorTextFitTests
         FitLine("Chat window title (ChatUi.WindowView.cs, narrowest window)", 400f, 13, 20, "ui.chat.window_title"),
         FitLine("Chat window hint (480 px window − 2 × 14 padding)", 452f, 13, 14, "ui.chat.window_hint"),
         FitLine("Chat window new-messages pill (220 px)", 220f, 13, 15, "ui.chat.new_messages"),
-        Label("Settings: dark visibility label (330 px at 20)", 330f, 20, "ui.settings.dark_visibility"),
-        Wrap("Settings: dark visibility hint (495 wide at 14, measured height)", 495f, 4, 14, "ui.settings.dark_visibility_hint"),
-        Label("Settings: soft distance label (330 px at 20, #3462)", 330f, 20, "ui.settings.distance_softness"),
+        // #3666: the settings rows' labels get 390 px (UiSettings.Rows.cs; a longer translation shrinks towards 14), and the
+        // explanations moved out of the list into the description card (UiSettings.Info.cs: 388 px wide at 19).
+        Label("Settings: dark visibility label (390 px at 20)", 390f, 20, "ui.settings.dark_visibility"),
+        Wrap("Settings: description card body (388 wide at 19)", 388f, 12, 19, "ui.settings.dark_visibility_hint", "ui.settings.cosiness_hint",
+            "ui.settings.festivals_hint", "ui.settings.fov_hint", "ui.settings.pad_triggers_hint", "ui.settings.pad_vibration_hint",
+            "ui.settings.reduce_flashes_hint", "ui.settings.reduced_effects_hint", "ui.settings.story_text_wait_hint",
+            "ui.settings.show_all_objectives_hint"),
+        Label("Settings: soft distance label (390 px at 20, #3462)", 390f, 20, "ui.settings.distance_softness"),
         // #3615: the giant wrecks — the travel screen's paragraph (CraftingTechShipUI.Map.cs, 600 × 150 at 18: seven lines) and
         // the planet map's legend slot (WorldMap.cs, 140 px slot − 36 for the icon, at 15).
         Wrap("Travel screen: giant wreck detail (600 × 150 at 18)", 600f, 7, 18, "ui.map.giantwreck_detail"),

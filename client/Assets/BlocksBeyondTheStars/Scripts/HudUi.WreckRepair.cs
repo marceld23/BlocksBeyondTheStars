@@ -50,13 +50,14 @@ namespace BlocksBeyondTheStars.Client
         {
             var wreck = Game.Wreck;
             bool show = wreck != null;
+            bool appeared = show && !_wreckPanel.activeSelf;
             if (_wreckPanel.activeSelf != show)
             {
                 _wreckPanel.SetActive(show);
-                if (show) { UiKit.TransitionIn(_wreckPanel); }
             }
 
             if (!show) return;
+            StackContextCard(_wreckPanel, appeared); // #3668: a context card under the objectives, not over the clock
             _wreckName.text = wreck.WreckName;
             int done = wreck.Total - wreck.Remaining;
             UiHolo.SetBar(_wreckBar, wreck.Total > 0 ? done / (float)wreck.Total : 0f, 230f);
@@ -95,14 +96,15 @@ namespace BlocksBeyondTheStars.Client
             // #2725: not while visiting a docked friend's ship — the panel is about OUR ship, and its "at the helm: R" would
             // point at the host's helm, which a guest cannot use. It returns with us.
             bool show = sr != null && sr.NeedsRepair && !Game.Visiting;
+            bool appeared = show && !_shipRepairPanel.activeSelf;
             if (_shipRepairPanel.activeSelf != show)
             {
                 _shipRepairPanel.SetActive(show);
-                if (show) { UiKit.TransitionIn(_shipRepairPanel); }
             }
 
             if (!show) return;
 
+            StackContextCard(_shipRepairPanel, appeared); // #3668: under the scan and wreck cards when they show
             _shipRepairTitle.text = loc.Get("ui.shiprepair.title");
 
             // #1313: a full hull with missing design cells used to sit under a FULL hull bar — a "repair" panel
@@ -188,6 +190,30 @@ namespace BlocksBeyondTheStars.Client
             var t = _shipRepairBtn.GetComponentInChildren<Text>();
             if (t != null) { t.text = loc.Get("ui.shiprepair.repair"); }
             _shipRepairBtn.interactable = sr.CanAfford;
+        }
+
+        /// <summary>A tap the touch layer's full-screen look pad caught first (its canvas lies above the HUD, so the HUD's own
+        /// buttons never see a tap): presses the wreck card's Claim or the ship-repair card's Repair button when it lands on
+        /// one. Returns whether it did.</summary>
+        public bool TapAt(Vector2 screenPos) => TapButton(_wreckClaim, screenPos) || TapButton(_shipRepairBtn, screenPos);
+
+        private bool TapButton(Button button, Vector2 screenPos)
+        {
+            if (button == null || !button.gameObject.activeInHierarchy || !button.interactable || _canvas == null || !_canvas.enabled
+                || (_rootGroup != null && _rootGroup.alpha < 0.05f))
+            {
+                return false;
+            }
+
+            // Same camera the canvas's own GraphicRaycaster uses: none for an overlay, the visor HUD camera otherwise.
+            var cam = _canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : _canvas.worldCamera;
+            if (!RectTransformUtility.RectangleContainsScreenPoint((RectTransform)button.transform, screenPos, cam))
+            {
+                return false;
+            }
+
+            button.onClick.Invoke();
+            return true;
         }
 
         /// <summary>How the player triggers an action on the active device, for a hint sentence: "press R" on the

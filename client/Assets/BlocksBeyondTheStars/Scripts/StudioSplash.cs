@@ -8,7 +8,7 @@ using UnityEngine.UI;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// Developer-studio splash — shown for ~5 s right after the mandatory "Made with Unity" screen and
+    /// Developer-studio splash — shown for ~5 s right after Unity's own splash (in the game's navy since #3706) and
     /// before the game's own BLOCKS BEYOND THE STARS title splash. A dark stage with an assembling block-cluster emblem
     /// inside a sweeping orbit ring (a little rocket circling it + twinkling stars), the gradient "JuMaVe
     /// Games" wordmark (Ju=cyan · Ma=white · Ve=orange) and the slogan "Built from imagination.". A
@@ -258,9 +258,7 @@ namespace BlocksBeyondTheStars.Client
             slrt.sizeDelta = new Vector2(900f, 40f);
             _sloganGroup = slGo.AddComponent<CanvasGroup>();
             LocalizedPart(slrt, Vector2.zero, 24, new Color(0.8f, 0.88f, 0.96f), "ui.studio.slogan");
-
-            // Open-source invite: "Contributors: your name could be here" — fades in with the slogan group.
-            LocalizedPart(slrt, new Vector2(0f, -46f), 18, new Color(0.55f, 0.80f, 1f), "ui.studio.contributors");
+            // #3705: the "Contributors: your name could be here" line is gone — there are real contributors (Credits).
 
             // Full-screen reveal flash (on top).
             _flash = Full(root, "Flash", new Color(1f, 1f, 1f, 0f));

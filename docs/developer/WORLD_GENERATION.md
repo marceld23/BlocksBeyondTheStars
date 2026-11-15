@@ -3287,7 +3287,7 @@ square with a pool, a broken statue and kiosks), the **pump hall** (`city_hall`:
 galleries, a vat), the **labs** (`city_market`: glass vats of Ressaw, benches, a burst vat), the **housing** (`city_housing`:
 emptied G.D.S. flats, one fallen in) and the **collapsed corridors** (`city_tower`). Their conventions: Ressaw authored at
 y = 0 is a pool the stamper sinks into a basin; Ressaw above the floor only inside a closed glass vat; `ressaw_block` set into
-walls; `loot` markers for the crates; no living markers. They stay editable in the structure editor (Town editor, a city
+walls; `loot` markers for the crates; no living markers. They stay editable in the structure editor (Village editor, a city
 district of kit `ruin_gds_1`, the Underground toggle on).
 
 **The G.D.S. composition (`WorldGeneration/AncientRuinGenerator.cs`, `AncientRuinBuilder*.cs`).** `CityGenerator.Generate` with
@@ -3974,3 +3974,35 @@ The editor shows the body as the source `guardian_giant` (parameter `turns`). Pi
 
 **Tests.** `GuardianGiantStampTests` (the rule, the seeded decisions, the stamp on a real server: record, cells, bed, margins,
 determinism, the replay), `StructureSourceTests.GuardianGiant`, `StructureTypeRulesTests`, `StructureSourceTests`.
+
+## 60. Generation 45 — the abandoned beds (2026-11-15, Justus' "Komische alte Betten")
+
+**Why.** The beds in a giant wreck looked like the old one-cell bed (the ship templates place a plain `bed` cube), and they
+worked: E set the home spawn (planet wrecks), the rest heal ran beside them, and a ruin's bed in the block-edit store (a fallen
+settlement) counted for a base built around it — a ruin drew settlers. Marcel: a bed in a ruin must not draw settlers.
+
+**The gate.** `WorldDescription.AbandonedBedsGeneration` = 45 = `CurrentTerrainGeneration`; save version 17 for the new block.
+Every older world builds its ruins and wrecks exactly as before — no chunk golden, no structure golden, no giant wreck pin or
+base hash moves (a boarded space wreck of an older save would otherwise stay away, GIANT_SHIPS.md §6).
+
+**What it adds.** One block, `bed_abandoned` (`FurnitureShapes.AbandonedBedKey`): the bed's faces (every slot names the
+`bed` tile over the bed's own region, so a texture pack's bed dresses both), category `building` (never a founding machine),
+not airtight, no item — mined, it yields a plain `bed`, both halves at once like the bed. Every bed rule goes by the `bed`
+block id (home spawn, rest heal, base index, founding, station crew and NPC bed search, settlement residents), so none sees
+it. `AbandonedBeds` (WorldGeneration) turns a structure's beds into it where it is built:
+
+- the giant wrecks, on a planet and in space (`GiantShipGenerator.BuildPlanet` / `BuildSpace`, `abandonBeds`), after the ruin
+  pass and before the markers settle: two one-cell beds in a row become one two-cell bed, a lone one gets its foot on a free
+  floor cell beside it (+Z first; never a kept cell, never within one column of a marker, below the ground row only into the
+  hull's cavity) or stays a head alone. The markers come out exactly as without the pass. The space build cache keys it.
+- every ruined structure the settlement stamp writes (`StampSettlementBlocks` with `Ruined`: the fallen settlements among the
+  villages, the standalone ruins, the abandoned monorail station, the SPS labs): two-cell beds keep their halves, a one-cell bed is joined with the one beside it
+  along its yaw axis or becomes a head alone — it never grows into a free cell (a cramped room kept the short bed because
+  the long one did not fit, and the cell may be a door lane).
+- the buried G.D.S. ruins (`AncientRuinGenerator.Compose`), the same rule.
+
+Not touched: the crash-site wrecks (`WreckGenerator`, claimable and repairable into a ship, so their quarters stay a bed), the
+derelict stations (no beds), the landmarks and civilization sites (their templates carry no bed — an author who wants one
+in a ruin writes `bed_abandoned`).
+
+**Tests.** `AbandonedBedTests`, `SaveCompatibilityTests`.

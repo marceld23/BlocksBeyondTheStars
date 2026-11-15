@@ -61,14 +61,18 @@
       "openCutscene": "tut.welcome",
       "closeCutscene": "tut.done",
       "steps": [
+        // #3673: the walk and jump lessons wait while the player flies the ship (or rides a vehicle or a train) — VEGA
+        // stays quiet about them and says them once the player is on foot again.
         {
           "id": "b1.1", "kind": "do", "tier": "must",
           "objective": { "event": "move:walked", "required": 8 },
+          "waitWhile": [ "not:world:on_foot" ],
           "explain": { "startKey": "story.tutorial.b1.walk.start", "chipKey": "story.tutorial.b1.walk.chip", "hintKey": "story.tutorial.b1.walk.hint" }
         },
         {
           "id": "b1.2", "kind": "do", "tier": "core",
           "objective": { "event": "move:jump" },
+          "waitWhile": [ "not:world:on_foot" ],
           "variants": [
             { "when": "world:creative_flight", "startKey": "story.tutorial.b1.jump.start_fly" }
           ],

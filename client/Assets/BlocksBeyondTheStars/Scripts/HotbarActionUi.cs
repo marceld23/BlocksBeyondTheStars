@@ -99,10 +99,18 @@ namespace BlocksBeyondTheStars.Client
                 // The opening key toggles, Esc always closes, and pad B backs out (#940) — the pie is
                 // stick-navigable, so the pad needs an exit besides re-clicking R3. Marking the frame keeps
                 // the app shell / pause menu from ALSO acting on the same press (#413).
-                if (InputMap.Down(InputAction.HotbarAction) || CancelPressed(skipOpenFrame: false))
+                bool cancel = CancelPressed(skipOpenFrame: false);
+                if (InputMap.Down(InputAction.HotbarAction) || cancel)
                 {
                     ConsumeMenuInput();
-                    Close();
+                    if (cancel && _detailShown)
+                    {
+                        BackToRing(); // #3662: B / Esc step out of a detail panel first, as its Back button does
+                    }
+                    else
+                    {
+                        Close();
+                    }
                 }
 
                 return;
@@ -121,6 +129,7 @@ namespace BlocksBeyondTheStars.Client
             _slot = slot;
             _item = Game.ItemInSlot(slot);
             _glowMode = false;
+            _detailShown = false;
             CreateCanvasNow(); // pad: auto-focus so the stick walks wedges/buttons, A clicks (#940)
             SetMenuOwned(true); // freezes player control + frees the cursor via the arbiter (#413)
             // Drop whatever the mouse left selected on the HUD, so the pie's UiNavFocus claims the first
@@ -588,10 +597,22 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddOutline(head);
         }
 
+        /// <summary>The detail panels' footer (#3662: the arrow for Back, the cross for Close, both quiet). Every detail panel
+        /// ends with it, so it also marks that one is showing: Esc / pad B then step back to the ring first.</summary>
         private void BackClose(Transform panel, float w, float h)
         {
-            UiKit.AddButton(panel, 32f, h - 78f, 180f, 48f, L("ui.hotbar_action.back"), () => Rebuild(BuildRing));
-            UiKit.AddButton(panel, w - 212f, h - 78f, 180f, 48f, L("ui.hotbar_action.close"), Close);
+            _detailShown = true;
+            UiKit.AddTierButton(panel, 32f, h - 78f, 200f, 48f, L("ui.hotbar_action.back"), BackToRing, ButtonTier.Quiet, "btn_back");
+            UiKit.AddTierButton(panel, w - 232f, h - 78f, 200f, 48f, L("ui.hotbar_action.close"), Close, ButtonTier.Quiet, "btn_close");
+        }
+
+        /// <summary>True while a detail panel (swap, colour, form) is up instead of the ring.</summary>
+        private bool _detailShown;
+
+        private void BackToRing()
+        {
+            _detailShown = false;
+            Rebuild(BuildRing);
         }
 
         private static void Highlight(Button b)

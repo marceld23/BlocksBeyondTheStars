@@ -124,12 +124,12 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (slot.Filter != null && slot.Filter.sharedMesh != null)
                 {
-                    Object.Destroy(slot.Filter.sharedMesh);
+                    EditorSceneKit.Discard(slot.Filter.sharedMesh);
                 }
 
                 if (slot.Go != null)
                 {
-                    Object.Destroy(slot.Go);
+                    EditorSceneKit.Discard(slot.Go);
                 }
             }
 
@@ -143,7 +143,7 @@ namespace BlocksBeyondTheStars.Client
             Clear();
             if (_material != null)
             {
-                Object.Destroy(_material);
+                EditorSceneKit.Discard(_material);
             }
         }
 

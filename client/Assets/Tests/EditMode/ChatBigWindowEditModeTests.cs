@@ -25,14 +25,19 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             new[] { 1536f, 1152f }, // 4:3
         };
 
-        private static readonly ChatRect VegaSpeech = new ChatRect(24f, VegaPanel.SpeechY, 640f, VegaPanel.SpeechH);
+        private static readonly ChatRect VegaSpeech = new ChatRect(VegaPanel.SpeechX, VegaPanel.SpeechY, VegaPanel.SpeechW, VegaPanel.SpeechH);
 
         [Test]
         public void LayoutConstants_MatchTheClientsOwn()
         {
+            Assert.That(ChatWindowLayout.VegaSpeechX, Is.EqualTo(VegaPanel.SpeechX));
+            Assert.That(ChatWindowLayout.VegaSpeechW, Is.EqualTo(VegaPanel.SpeechW));
             Assert.That(ChatWindowLayout.VegaSpeechY, Is.EqualTo(VegaPanel.SpeechY));
             Assert.That(ChatWindowLayout.VegaSpeechH, Is.EqualTo(VegaPanel.SpeechH));
-            Assert.That(ChatWindowLayout.MaxBottom, Is.LessThan(VegaPanel.ChipY), "the window ends above VEGA's objective chip");
+            Assert.That(ChatWindowLayout.CommsX, Is.EqualTo(HudZones.CommsX));
+            Assert.That(ChatWindowLayout.CommsW, Is.EqualTo(HudZones.CommsW));
+            Assert.That(ChatWindowLayout.RightColumnX, Is.LessThanOrEqualTo(HudZones.RightX + 1f), "clear of the objectives column");
+            Assert.That(ChatWindowLayout.MaxBottom, Is.LessThan(VegaPanel.ChipY), "the window ends above VEGA's folded tab");
             Assert.That(ChatWindowLayout.HudRefW, Is.EqualTo(UiKit.HudRefW));
             Assert.That(ChatWindowLayout.HudRefH, Is.EqualTo(UiKit.HudRefH));
         }
@@ -45,16 +50,17 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         }
 
         [Test]
-        public void Default_IsCentredInTheHudFrame_AtEveryAspect()
+        public void Default_DocksInTheCommsZone_AtEveryAspect()
         {
+            // #3669: the opened chat stays where its lane is (bottom left, above VEGA) — no centred window any more.
             foreach (var a in Aspects)
             {
                 var r = ChatUi.ResolveBigWindow(false, false, false, a[0], a[1]);
                 string tag = $"{a[0]}×{a[1]}";
-                Assert.That(r.X, Is.EqualTo(384f).Within(Eps), tag);
-                Assert.That(r.Y, Is.EqualTo(64f).Within(Eps), tag);
-                Assert.That(r.W, Is.EqualTo(768f).Within(Eps), tag);
-                Assert.That(r.H, Is.EqualTo(520f).Within(Eps), tag);
+                Assert.That(r.X, Is.EqualTo(HudZones.CommsX).Within(Eps), tag);
+                Assert.That(r.W, Is.EqualTo(HudZones.CommsW).Within(Eps), tag);
+                Assert.That(r.Bottom, Is.EqualTo(ChatWindowLayout.MaxBottom).Within(Eps), tag);
+                Assert.That(r.H, Is.GreaterThan(300f), tag);
             }
         }
 
@@ -73,8 +79,8 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
                     Assert.That(r.H, Is.GreaterThan(0f), tag);
                     if (scale <= 1f)
                     {
-                        Assert.That(r.X, Is.GreaterThanOrEqualTo(680f), "slides right of the panel " + tag);
-                        Assert.That(r.H, Is.EqualTo(520f).Within(Eps), "keeps its full height " + tag);
+                        Assert.That(r.X, Is.EqualTo(HudZones.CommsX).Within(Eps), "stays in the comms zone " + tag);
+                        Assert.That(r.Bottom, Is.LessThanOrEqualTo(VegaPanel.SpeechY), "ends above the panel " + tag);
                     }
                 }
             }

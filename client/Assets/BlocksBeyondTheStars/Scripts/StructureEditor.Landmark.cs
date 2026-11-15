@@ -127,6 +127,7 @@ namespace BlocksBeyondTheStars.Client
 
             SyncRole();
             ShowEntryPreview(); // nothing outside an entry
+            OpenActiveSection(); // the new mode's rows (StructureEditor.Advanced.cs)
             RebuildUi();
         }
 
@@ -160,7 +161,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_previewOn)
             {
-                SetStatus(L(PreviewLockedKey())); // #3523: a turn, the materials, a ruin or an entry's build
+                SetStatus(L(PreviewLockedKey()), EditorStatusSeverity.Warning); // #3523: a turn, the materials, a ruin or an entry's build
                 return true;
             }
 
@@ -213,7 +214,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             d.Keep = !d.Keep;
-            PlaceCellData(cell, FindPalette(d.Id, d.Kind), d);
+            PlaceCellData(cell, FindPalette(d.Id, d.Kind), d); // inside the click's edit: one undo step (StructureEditor.Undo.cs)
             SetStatus(L(d.Keep ? "ui.ed.landmark.kept" : "ui.ed.landmark.unkept"));
         }
 
@@ -221,7 +222,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (!TryGetHitCell(out var cell) || !_design.TryGetValue(cell, out var d) || !ToolFits("settings", d))
             {
-                SetStatus(L("ui.ed.marker.none"));
+                SetStatus(L("ui.ed.marker.none"), EditorStatusSeverity.Warning);
                 return;
             }
 
@@ -231,8 +232,8 @@ namespace BlocksBeyondTheStars.Client
                 if (_design.TryGetValue(cell, out var now) && now.Id == d.Id)
                 {
                     now.Config = settings;
-                    _design[cell] = now;
-                    SetStatus(L("ui.ed.device.saved"));
+                    Edit(() => PlaceCellData(cell, FindPalette(now.Id, now.Kind), now)); // one undo step (#3692)
+                    SetStatus(L("ui.ed.marker.applied")); // set, not saved — Save writes the build (V9)
                 }
             }, () => _markerPanel = null);
         }
@@ -450,7 +451,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_previewOn)
             {
-                SetStatus(L("ui.ed.landmark.preview_locked"));
+                SetStatus(L("ui.ed.landmark.preview_locked"), EditorStatusSeverity.Warning);
                 return;
             }
 
@@ -458,14 +459,15 @@ namespace BlocksBeyondTheStars.Client
             ClampedZones(t.Width, t.Height, t.Length, out int outside);
             if (_lmRuin && outside > 0 && _design.Count > 0)
             {
-                SetStatus(string.Format(L("ui.ed.zone.outside"), outside)); // a ruin zone that would be left out: say so instead
+                SetStatus(string.Format(L("ui.ed.zone.outside"), outside), EditorStatusSeverity.Error); // a ruin zone that would be left out
                 return;
             }
 
-            var problems = CivilizationEditorRules.SaveProblems(t, Shell?.Content); // #3646: a civilization template as the loader checks it
+            var problems = CivilizationEditorRules.SaveProblemList(t, Shell?.Content); // #3646: a civilization template as the loader checks it
             if (_design.Count == 0 || problems.Count > 0)
             {
-                SetStatus(_design.Count == 0 ? L("ui.submit.empty") : string.Format(L("ui.ed.landmark.problem"), problems[0]));
+                SetStatus(_design.Count == 0 ? L("ui.submit.empty") : string.Format(L("ui.ed.landmark.problem"), Problem(problems[0])),
+                    EditorStatusSeverity.Error); // #3692: the problem in the player's language
                 return;
             }
 
@@ -484,12 +486,12 @@ namespace BlocksBeyondTheStars.Client
                 string dir = Path.Combine(LandmarkExportsRoot, key);
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, "landmark.json"), json);
-                SetStatus(string.Format(L("ui.ed.landmark.saved"), key, _design.Count, json.Length / 1024) + SaveWarnings()); // #3523
+                Saved(string.Format(L("ui.ed.landmark.saved"), key, _design.Count, json.Length / 1024)); // #3523: with the save warnings
             }
             catch (Exception e)
             {
                 Debug.LogWarning($"[StructureEditor] Landmark export failed: {e}");
-                SetStatus(L("ui.ed.export_failed_hint"));
+                SetStatus(L("ui.ed.export_failed_hint"), EditorStatusSeverity.Error);
             }
         }
 
@@ -645,6 +647,8 @@ namespace BlocksBeyondTheStars.Client
             _lmMinGeneration = source.MinTerrainGeneration;
             _civ = CivilizationFields.Of(source); // #3646: civilization, pool, prop pool, protection — written back as they were
             LoadZones(source.RuinZones);
+            _loadedFrom = (_civ.IsSet ? "civilization:" : "landmark:") + (copy ? "copy:" : string.Empty) + source.Key;
+            OpenActiveSection();
             RebuildUi();
         }
 

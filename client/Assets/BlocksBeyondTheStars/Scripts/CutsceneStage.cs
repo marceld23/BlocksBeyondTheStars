@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Client.Cutscenes;
+using BlocksBeyondTheStars.Client.Showcase;
 using BlocksBeyondTheStars.Networking.Messages;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
@@ -12,8 +13,10 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// The cutscene director's synthetic stages (#2477, synthesis §6.3/§6.5, d4 §3.2): a <c>space_vista</c> — the menu's
     /// attract-scene recipe in-game (the real <see cref="Starfield"/> and <see cref="NebulaField"/> in menu mode, the layered
-    /// sun glow, a phase-lit planet with its cloud shell from <see cref="MenuBackground"/>'s recipes, and with the <c>ship</c>
-    /// anchor the player's own voxel ship through <see cref="ShipMeshBuilder"/>) — and the small dioramas: the sleeping
+    /// sun glow, the planet drawn by the flight view's own renderer (<see cref="OrbitBodyBuilder"/>, #3705: the world the
+    /// player is on when the star map names it, with its real map, data clouds, rim and rings — else the menu's showcase
+    /// world), and with the <c>ship</c> anchor the player's own voxel ship through <see cref="ShipMeshBuilder"/>) — and the
+    /// small dioramas: the sleeping
     /// Guardian core (a voxel column of red light in an iron shell, meshed by the same ship mesher, with a breathing glow)
     /// and VEGA's memory of the star chart (the star map's systems as soft glows on a disc, the camera drifting out to a faint
     /// red pulse beyond the rim). Independent of where the player is: the stage stands far above the world
@@ -22,7 +25,7 @@ namespace BlocksBeyondTheStars.Client
     /// Unity-free <see cref="SyntheticStages"/>; this class only builds and flies them.
     /// <list type="bullet">
     /// <item><b>Small hardware / WebGL:</b> existing, always-included shaders only (Starfield, Nebula, SunGlow, SkyBodyPhase,
-    /// Cloud, Particle, the block atlas) — no new shader, no keyword, no texture asset, no light; the backdrop is built once
+    /// Cloud, PlanetLimb, Particle, the block atlas) — no new shader, no keyword, no texture asset, no light; the backdrop is built once
     /// per world and kept inactive between shots; a set is destroyed when its shot ends. The director never asks for it on
     /// the Potato/Low presets (<see cref="CutsceneRules.SyntheticStagesAllowed"/>), and a stage that cannot be built (a
     /// stripped shader, content not there) reports false so the shot falls back to the sky or the player's view.</item>
@@ -54,7 +57,6 @@ namespace BlocksBeyondTheStars.Client
         private static readonly Color SpaceLight = Color.white;                       // full-bright, like the flight view
         private static readonly Color CoreLight = new Color(0.30f, 0.30f, 0.36f, 1f); // dim: the column's red light carries it
         private static readonly Color CoreRed = new Color(1f, 0.22f, 0.16f, 1f);
-        private static readonly Color PlanetColor = new Color(0.30f, 0.52f, 0.66f);  // a living world
         private static readonly Color SunColor = new Color(1f, 0.95f, 0.86f);
 
         private readonly GameBootstrap _game;
@@ -68,7 +70,6 @@ namespace BlocksBeyondTheStars.Client
         private NebulaField _nebula;
         private GameObject _sun;
         private Texture2D _glowTex;
-        private Texture2D _cloudTex;
         private Shader _particle;
         private Vector3 _sunDir;
 
@@ -77,6 +78,8 @@ namespace BlocksBeyondTheStars.Client
         private MemoryChart _chart;
         private Transform _planet;
         private Transform _clouds;
+        private Transform _ring;
+        private Quaternion _ringBase = Quaternion.identity;
         private Transform _ship;
         private Transform _shipGlow;
         private float _shipRear;
@@ -174,6 +177,10 @@ namespace BlocksBeyondTheStars.Client
                         if (_planet != null)
                         {
                             _planet.localRotation = Quaternion.Euler(8f, seconds * 1.6f, 0f);
+                            if (_ring != null)
+                            {
+                                _ring.localRotation = Quaternion.Inverse(_planet.localRotation) * _ringBase; // rings don't spin with the day
+                            }
                         }
 
                         if (_clouds != null)
@@ -325,32 +332,18 @@ namespace BlocksBeyondTheStars.Client
         // The sets.
         // ------------------------------------------------------------------------------------------
 
-        /// <summary>The space vista: a phase-lit planet with clouds and a thin atmosphere; with the <c>ship</c> anchor the
-        /// player's own ship drifting by in front of it.</summary>
+        /// <summary>The space vista: a real orbit planet (#3705 — map, data clouds shaded toward the stage's sun, atmosphere rim)
+        /// lit from the visible sun; with the <c>ship</c> anchor the player's own ship drifting by in front of it.</summary>
         private bool BuildVista(SyntheticSet set)
         {
             SyntheticStages.VistaPlanet(set, out float px, out float py, out float pz, out float size);
             var pos = new Vector3(px, py, pz);
-            var mat = ModelKit.LitPhase(PlanetColor, _sunDir * SyntheticStages.SunDistance - pos);
-            _setOwned.Add(mat);
-            var planet = Primitive(PrimitiveType.Sphere, "Planet", _set.transform, mat);
-            planet.transform.localPosition = pos;
-            planet.transform.localScale = Vector3.one * size;
-            _planet = planet.transform;
-
-            var cloudShader = Shader.Find("BlocksBeyondTheStars/Cloud");
-            if (cloudShader != null)
-            {
-                if (_cloudTex == null)
-                {
-                    _cloudTex = MenuBackground.CloudTexture();
-                    _owned.Add(_cloudTex);
-                }
-
-                _clouds = Shell(cloudShader, "Clouds", 1.04f, _cloudTex, new Color(0.95f, 0.97f, 1f, 0.7f), 3000);
-                Shell(cloudShader, "Atmosphere", 1.06f, Texture2D.whiteTexture, new Color(0.55f, 0.75f, 1f, 0.12f), 2999);
-            }
-
+            var body = OrbitBodyBuilder.Build(VistaWorld(), _set.transform, "Planet", pos, size,
+                _sunDir * SyntheticStages.SunDistance - pos, _setOwned);
+            _planet = body.Sphere;
+            _clouds = body.Shell;
+            _ring = body.Ring;
+            _ringBase = body.RingBase;
             if (set == SyntheticSet.VistaShip)
             {
                 BuildShip();
@@ -359,14 +352,60 @@ namespace BlocksBeyondTheStars.Client
             return true;
         }
 
-        private Transform Shell(Shader shader, string name, float scale, Texture tex, Color tint, int queue)
+        /// <summary>The vista's world: the one the player is on when the star map knows its type (seed, body, size and terrain
+        /// options as the flight view draws it), else the menu's showcase world (<see cref="ShowcaseMotif"/>).</summary>
+        private OrbitBodySpec VistaWorld()
         {
-            var mat = new Material(shader) { mainTexture = tex, renderQueue = queue };
-            mat.SetColor(ColorId, ShaderColor.Srgb(tint));
-            _setOwned.Add(mat);
-            var go = Primitive(PrimitiveType.Sphere, name, _planet, mat);
-            go.transform.localScale = Vector3.one * scale;
-            return go.transform;
+            var spec = new OrbitBodySpec { Content = _game?.Content, Atlas = _game?.Atlas, MapPriority = 10 };
+            var (current, systemName) = ActiveBody();
+            if (current != null && !string.IsNullOrEmpty(current.PlanetType) && spec.Content?.GetPlanet(current.PlanetType) != null)
+            {
+                spec.WorldSeed = _game.WorldSeed;
+                spec.Key = current.Id ?? string.Empty;
+                spec.FloraKey = PlanetOrbitLook.LocationKeyFor(systemName, current.Name);
+                spec.PlanetType = current.PlanetType;
+                spec.Kind = current.Kind;
+                spec.Circumference = BodySize.CircumferenceOf(current, current.Id ?? string.Empty, current.Kind, current.PlanetType,
+                    _game.Circumference);
+                spec.Continents = _game.TerrainContinents;
+                spec.Generation = _game.TerrainGeneration;
+                spec.LavaCoreVolcanoes = _game.TerrainLavaCoreVolcanoes;
+                spec.RingSeed = current.RingSeed;
+                return spec;
+            }
+
+            spec.WorldSeed = ShowcaseMotif.WorldSeed;
+            spec.Key = ShowcaseMotif.BodyId;
+            spec.FloraKey = ShowcaseMotif.FloraKey;
+            spec.PlanetType = ShowcaseMotif.PlanetType;
+            spec.Kind = "Planet";
+            spec.Circumference = ShowcaseMotif.Circumference;
+            spec.Continents = ShowcaseMotif.Continents;
+            spec.Generation = ShowcaseMotif.Generation;
+            return spec;
+        }
+
+        /// <summary>The star map's body the player is on and its system's name, or (null, null).</summary>
+        private (NetBody Body, string SystemName) ActiveBody()
+        {
+            var map = _game != null ? _game.StarMap : null;
+            if (map?.Systems == null || string.IsNullOrEmpty(map.ActiveLocationId))
+            {
+                return (null, null);
+            }
+
+            foreach (var sys in map.Systems)
+            {
+                foreach (var b in sys.Bodies ?? System.Array.Empty<NetBody>())
+                {
+                    if (b.Id == map.ActiveLocationId)
+                    {
+                        return (b, sys.Name);
+                    }
+                }
+            }
+
+            return (null, null);
         }
 
         /// <summary>The player's own voxel ship (its design and hull colour), framed to ~6 units with a soft engine glow. A
@@ -553,6 +592,7 @@ namespace BlocksBeyondTheStars.Client
             _setOwned.Clear();
             _planet = null;
             _clouds = null;
+            _ring = null;
             _ship = null;
             _shipGlow = null;
             _pulseMat = null;

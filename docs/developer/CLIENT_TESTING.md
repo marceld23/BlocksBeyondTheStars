@@ -66,7 +66,7 @@ Some tests here are **source guards**: the Unity scripts cannot be compiled into
 so a guard reads a script's text and asserts that a wiring is there. A large client class is split into partial files
 (`HudUi.cs` + `HudUi.<Widget>.cs`, `CraftingTechShipUI.cs` + `CraftingTechShipUI.<Part>.cs`, `SpaceView.cs` +
 `SpaceView.<Concern>.cs`, `PlayerController.cs` + `PlayerController.<Concern>.cs`, `GameBootstrap.cs` +
-`GameBootstrap.<Concern>.cs`, `UiMainMenu.cs` + the `UiOfficialWorlds*.cs` overlay), so a guard over such a class reads
+`GameBootstrap.<Concern>.cs`, `UiMainMenu.cs` + `UiMainMenu.Cards.cs`, `UiOfficialWorlds*.cs`), so a guard over such a class reads
 all of its files, not one by name: `ClientTestPaths.ScriptParts("HudUi")` returns `HudUi.cs` and every `HudUi.*.cs`
 part in a stable order, and `ScriptPartsText("HudUi")` joins them into one text — the guard then keeps finding a member
 whichever part it moves to (`SeamWiringTests`, `RumbleMixerTests`; `CraftDetailLayoutTests` reads every

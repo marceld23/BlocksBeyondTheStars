@@ -5,8 +5,13 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <title>{{{ PRODUCT_NAME }}}</title>
     <style>
-      /* Space-themed shell (#220): black page, subtle starfield, branded loading UI. Fully
-         self-contained — no TemplateData images, so the template is a single file. */
+      /* Space-themed shell (#220): black page, subtle starfield, branded loading UI. #3706: the game's own poster
+         (TemplateData/bbs-poster.jpg — the corvette before the "varied" world, taken with -capturePoster) behind the
+         loading bar, the official logo (TemplateData/bbs-logo.png) as the title, and the game's font Rajdhani
+         (TemplateData/Rajdhani-Medium.ttf, SIL OFL — Rajdhani-OFL.txt next to it). Every one of them is optional: a
+         missing picture leaves the old dark page and the text title, a missing font the system font. */
+      @font-face { font-family: 'Rajdhani'; src: url('TemplateData/Rajdhani-Medium.ttf') format('truetype');
+        font-weight: 400 700; font-style: normal; font-display: swap }
       html, body { padding: 0; margin: 0; width: 100%; height: 100%; background: #05070d; overflow: hidden }
       #bbs-sky { position: fixed; inset: 0; pointer-events: none;
         background:
@@ -17,13 +22,18 @@
           radial-gradient(1.3px 1.3px at 88% 62%, #bfe7ff66, transparent),
           radial-gradient(1100px 640px at 50% -12%, #15243f 0%, #05070d 58%) }
       #unity-container { position: fixed; inset: 0 }
-      #unity-canvas { width: 100%; height: 100%; display: block; background: #05070d }
+      /* The poster shows on the canvas element until the engine draws its first frame over it. */
+      #unity-canvas { width: 100%; height: 100%; display: block;
+        background: linear-gradient(rgba(5, 7, 13, .30), rgba(5, 7, 13, .78)),
+          url('TemplateData/bbs-poster.jpg') center / cover no-repeat, #05070d }
       #unity-loading-bar { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
         display: none; text-align: center; font-family: 'Rajdhani', system-ui, 'Segoe UI', sans-serif }
       #bbs-title { color: #eaf6ff; font-size: 28px; font-weight: 700; letter-spacing: .18em;
         text-transform: uppercase; text-shadow: 0 0 20px rgba(95,215,255,.5), 0 0 3px rgba(95,215,255,.85);
         margin-bottom: 26px; white-space: nowrap }
       #bbs-title b { color: #5fd7ff; font-weight: 700 }
+      #bbs-logo { display: block; width: min(520px, 82vw); height: auto; margin: 0 auto }
+      #bbs-title-text { display: none }
       #unity-progress-bar-empty { width: 280px; height: 10px; margin: 0 auto; border: 1px solid #21304c;
         border-radius: 6px; background: rgba(95,215,255,.06) }
       #unity-progress-bar-full { width: 0%; height: 100%; border-radius: 5px;
@@ -52,7 +62,9 @@
     <div id="unity-container">
       <canvas id="unity-canvas" tabindex="-1"></canvas>
       <div id="unity-loading-bar">
-        <div id="bbs-title"><b>Blocks</b> Beyond the Stars</div>
+        <div id="bbs-title"><img id="bbs-logo" src="TemplateData/bbs-logo.png" alt="Blocks Beyond the Stars"
+            onerror="this.remove(); document.getElementById('bbs-title-text').style.display = 'inline'"><span
+            id="bbs-title-text"><b>Blocks</b> Beyond the Stars</span></div>
         <div id="unity-progress-bar-empty">
           <div id="unity-progress-bar-full"></div>
         </div>

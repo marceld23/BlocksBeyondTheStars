@@ -56,9 +56,11 @@ public sealed class WorldMetadata
     /// landmarks' building materials (#3483: <c>travertine</c>, <c>blackened_sandstone</c>, <c>verdigris_copper</c>,
     /// <c>burger_lettuce</c>, <c>burger_tomato</c>, <c>burger_bun_sesame</c>). 16 = the lost civilizations' blocks (#3644: the
     /// Grand Technicians' <c>glyph_stone</c>, <c>glyph_stone_band</c>, <c>dark_sandstone</c>, <c>gt_eye</c>, <c>gt_fluid</c>,
-    /// <c>gt_mural_0</c> … <c>gt_mural_7</c>; #3645: the Labyrinth Builders' <c>maze_stone</c>, <c>maze_stone_carved</c>).</para>
+    /// <c>gt_mural_0</c> … <c>gt_mural_7</c>; #3645: the Labyrinth Builders' <c>maze_stone</c>, <c>maze_stone_carved</c>).
+    /// 17 = the abandoned bed (<c>bed_abandoned</c>, terrain generation 44: a ruin's or a wreck's bed that looks like the bed and
+    /// works as none).</para>
     /// </summary>
-    public const int CurrentSaveVersion = 16;
+    public const int CurrentSaveVersion = 17;
 
     /// <summary>The save version of the build that last opened this world — see <see cref="CurrentSaveVersion"/>.
     /// Absent in the JSON ⇒ 1, the version every save carried before the check existed.</summary>

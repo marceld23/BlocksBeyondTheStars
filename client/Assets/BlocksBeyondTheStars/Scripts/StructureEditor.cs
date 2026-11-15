@@ -92,8 +92,8 @@ namespace BlocksBeyondTheStars.Client
         private string _planetTypes = string.Empty; // settlements only: comma-separated planet-type keys (#1115); blank = every world
         private int _seed = 1;              // procedural starting point (#1401): seed fed to the world-gen generator
         private string _surface = "grass";  // settlements only: the biome surface block the generator builds villages from
-        private string _status = string.Empty;
         private bool _mouseOverUi;
+        private bool _removeTool;           // #3692: the Remove tool — a click takes the cell under the cursor away (V8)
 
         private void Start()
         {
@@ -115,7 +115,11 @@ namespace BlocksBeyondTheStars.Client
             _overlay = new EditorPropOverlay(transform); // placed doors + marker silhouettes (#1975)
             _ghostMeshes = new EditorGhostMeshes();
             BuildRoom();
-            BuildUi();
+            // #3692: the remembered Advanced switch — the screenshots show the children's view
+            _advanced = !ScreenshotDirector.CapturingEditors && LoadAdvancedPref();
+            NewDocument();
+            OpenActiveSection();
+            BuildUi(); // StructureEditor.Shell.cs: the editor shell, the cards, the draft question
         }
 
         /// <summary>A marker palette entry: localized via <c>ui.marker.*</c>, grouped under "markers".</summary>
@@ -210,7 +214,7 @@ namespace BlocksBeyondTheStars.Client
             var kind = DeviceKindOf(d);
             if (!CarriesDeviceSettings(kind))
             {
-                SetStatus(L("ui.ed.device.none"));
+                SetStatus(L("ui.ed.device.none"), EditorStatusSeverity.Warning);
                 return;
             }
 
@@ -227,8 +231,8 @@ namespace BlocksBeyondTheStars.Client
                     now.Config = config;
                     now.Label = label;
                     _deviceBrush[d.Id] = (mode, config, label);
-                    PlaceCellData(cell, FindPalette(now.Id, now.Kind), now);
-                    SetStatus(L("ui.ed.device.saved"));
+                    Edit(() => PlaceCellData(cell, FindPalette(now.Id, now.Kind), now)); // one undo step (#3692)
+                    SetStatus(L("ui.ed.device.saved")); // "set" — the build is written by Save (V9)
                 },
                 () => _devicePanel = null);
         }
@@ -288,66 +292,99 @@ namespace BlocksBeyondTheStars.Client
                 return; // the submit dialog (#3262) owns the keys and the mouse while it is open
             }
 
+            bool pad = InputMap.ActiveDevice == InputDeviceKind.Gamepad;
+            UpdatePadFocus(pad); // StructureEditor.Pad.cs: Menu swaps the cards and the build view
+            bool padViewport = pad && _padViewport;
+            bool flying = MouseLook(padViewport);
+
+            // Keystrokes belong to a focused text field (the palette search, the key/name inputs) —
+            // typing "sand" must not fly the camera away or turn the brush (#1388).
+            bool typing = UiKit.TextFieldFocused();
+            bool fast = Input.GetKey(KeyCode.LeftShift) || (padViewport && InputMap.PadHeld(PadButton.L3));
+            var move = typing || ShortcutHeld() ? Vector3.zero : KeyMove(); // Ctrl+Z / Ctrl+Y / Ctrl+S are the shell's
+            _cam.transform.position += (move + (padViewport ? PadMove() : Vector3.zero)) * ((fast ? 55f : 22f) * Time.deltaTime);
+            if (!typing && Input.GetKeyDown(KeyCode.F))
+            {
+                EditorSceneKit.Frame(_cam.transform, ref _pitch, _yaw, _design.Keys, MaxW, MaxL);
+            }
+
+            // The pad has no pointer: in the build view the panels are never "under" the aim.
+            _mouseOverUi = !padViewport && EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+            if (!_mouseOverUi)
+            {
+                EditorSceneKit.WheelDolly(_cam.transform, fast); // wheel over a panel scrolls the panel
+            }
+
+            UpdateCounts();
+            UpdateGhost(flying || _mouseOverUi);
+            if (padViewport)
+            {
+                PadActions();
+            }
+            else if (!flying && !_mouseOverUi && !_shell.IsDialogOpen)
+            {
+                if (Input.GetMouseButtonDown(0)) UseTool(); // the Place | Remove tool (#3692)
+                else if (Input.GetMouseButtonDown(2) || EditorPaletteKit.RemoveKeyDown()) TryRemove(); // Delete / X as in the ship editor
+            }
+
+            // Rotate the shape brush (matches the in-game place-orientation control).
+            if (!typing && !_mouseOverUi && Input.GetKeyDown(KeyCode.R))
+            {
+                TurnBrush();
+            }
+
+            RefreshHint(pad, padViewport);
+            TrackFormChanges(); // StructureEditor.Undo.cs: a changed field makes the work unsaved
+            _view.Flush(); // upload any chunk meshes touched by this frame's edits
+        }
+
+        /// <summary>Held right mouse looks around (the cursor locked); otherwise the pad's right stick while it flies. True
+        /// while the mouse looks.</summary>
+        private bool MouseLook(bool padViewport)
+        {
             bool flying = Input.GetMouseButton(1);
             Cursor.lockState = flying ? CursorLockMode.Locked : CursorLockMode.None;
             Cursor.visible = !flying;
-
             if (flying)
             {
                 _yaw += Input.GetAxis("Mouse X") * 2.6f;
                 _pitch = Mathf.Clamp(_pitch - Input.GetAxis("Mouse Y") * 2.6f, -89f, 89f);
                 _cam.transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
             }
-
-            // Keystrokes belong to a focused text field (the palette search, the key/name inputs) —
-            // typing "sand" must not fly the camera away or turn the brush (#1388).
-            bool typing = UiKit.TextFieldFocused();
-            bool fast = Input.GetKey(KeyCode.LeftShift);
-            if (!typing)
+            else if (padViewport)
             {
-                float speed = (fast ? 55f : 22f) * Time.deltaTime;
-                var move = Vector3.zero;
-                if (Input.GetKey(KeyCode.W)) move += _cam.transform.forward;
-                if (Input.GetKey(KeyCode.S)) move -= _cam.transform.forward;
-                if (Input.GetKey(KeyCode.D)) move += _cam.transform.right;
-                if (Input.GetKey(KeyCode.A)) move -= _cam.transform.right;
-                if (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.Space)) move += Vector3.up;
-                if (Input.GetKey(KeyCode.Q) || Input.GetKey(KeyCode.LeftControl)) move += Vector3.down;
-                _cam.transform.position += move * speed;
-
-                if (Input.GetKeyDown(KeyCode.F))
-                {
-                    EditorSceneKit.Frame(_cam.transform, ref _pitch, _yaw, _design.Keys, MaxW, MaxL);
-                }
+                PadLook(); // StructureEditor.Pad.cs
             }
 
-            _mouseOverUi = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
-            if (!_mouseOverUi)
-            {
-                EditorSceneKit.WheelDolly(_cam.transform, fast); // wheel over a panel scrolls the panel
-            }
+            return flying;
+        }
 
+        /// <summary>WASD + Q/E (Space / Ctrl) as a flight direction.</summary>
+        private Vector3 KeyMove()
+        {
+            var move = Vector3.zero;
+            if (Input.GetKey(KeyCode.W)) move += _cam.transform.forward;
+            if (Input.GetKey(KeyCode.S)) move -= _cam.transform.forward;
+            if (Input.GetKey(KeyCode.D)) move += _cam.transform.right;
+            if (Input.GetKey(KeyCode.A)) move -= _cam.transform.right;
+            if (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.Space)) move += Vector3.up;
+            if (Input.GetKey(KeyCode.Q) || Input.GetKey(KeyCode.LeftControl)) move += Vector3.down;
+            return move;
+        }
+
+        /// <summary>Ctrl with Z, Y or S held: the shell's undo / redo / save, not a flight down and back.</summary>
+        private static bool ShortcutHeld()
+            => (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl))
+               && (Input.GetKey(KeyCode.Z) || Input.GetKey(KeyCode.Y) || Input.GetKey(KeyCode.S));
+
+        /// <summary>The placed-cells line follows the design.</summary>
+        private void UpdateCounts()
+        {
             if (_blocksLabel != null && _lastPlaced != _design.Count)
             {
                 _lastPlaced = _design.Count;
                 _blocksLabel.text = string.Format(L("ui.ed.placed"), _design.Count);
             }
-
-            UpdateGhost(flying || _mouseOverUi);
-            if (!flying && !_mouseOverUi)
-            {
-                if (Input.GetMouseButtonDown(0)) TryPlace();
-                else if (Input.GetMouseButtonDown(2)) TryRemove();
-            }
-
-            // Rotate the shape brush (matches the in-game place-orientation control).
-            if (!typing && !_mouseOverUi && Input.GetKeyDown(KeyCode.R))
-            {
-                _brushOrient = (_brushOrient + 1) & 3;
-                if (_orientLabel != null) _orientLabel.text = (_brushOrient * 90) + "°";
-            }
-
-            _view.Flush(); // upload any chunk meshes touched by this frame's edits
         }
 
         private EditorPlacementGhost _ghost;
@@ -424,7 +461,10 @@ namespace BlocksBeyondTheStars.Client
             Hint(null);
         }
 
-        private void TryPlace()
+        /// <summary>A click with the Place tool — one undo step whatever it changes (StructureEditor.Undo.cs).</summary>
+        private void TryPlace() => Edit(PlaceAtCursor);
+
+        private void PlaceAtCursor()
         {
             var pal = _palette[_selected];
             if (ToolClick(pal))
@@ -441,7 +481,7 @@ namespace BlocksBeyondTheStars.Client
             if (pal.Kind == "marker" && DoorBlocks.IsDoorMarker(pal.Id)
                 && !EditorPlacementRules.DoorValid(IsSolidCell, Occupied, InBounds, cell.X, cell.Y, cell.Z, out _, out string why))
             {
-                SetStatus(L(why));
+                SetStatus(L(why), EditorStatusSeverity.Warning);
                 return;
             }
 
@@ -452,7 +492,7 @@ namespace BlocksBeyondTheStars.Client
                 if (!EditorPlacementRules.TryPlaceBlock(pal.Id, _brushShape, _brushOrient, cell.X, cell.Y, cell.Z, hitFace,
                         Occupied, InBounds, IsSolidCell, out var writes, out string refusal, Shell?.Content?.GetBlock(pal.Id)?.Facing))
                 {
-                    SetStatus(L(refusal));
+                    SetStatus(L(refusal), EditorStatusSeverity.Warning);
                     return;
                 }
 
@@ -471,7 +511,10 @@ namespace BlocksBeyondTheStars.Client
             PlaceCell(cell, pal);
         }
 
-        private void TryRemove()
+        /// <summary>A click with the Remove tool (or the middle button, pad X) — one undo step.</summary>
+        private void TryRemove() => Edit(RemoveAtCursor);
+
+        private void RemoveAtCursor()
         {
             if (_previewOn || !TryGetHitCell(out var cell) || !_design.ContainsKey(cell))
             {
@@ -561,12 +604,12 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>… and the face of the target cell the click came through (the hit normal; -1 for none): what a
         /// ladder hugs (#1975).</summary>
         private bool TryGetTargetCell(out Vector3i cell, out int hitFace)
-            => EditorSceneKit.PickTargetCell(_cam, Input.mousePosition, RaycastDist, _floor, out cell, out hitFace);
+            => EditorSceneKit.PickTargetCell(_cam, PickPoint(), RaycastDist, _floor, out cell, out hitFace); // the mouse, or the pad's crosshair
 
         /// <summary>Resolves the actual occupied cell under the cursor (for removal); false on a miss or a
         /// floor-only hit.</summary>
         private bool TryGetHitCell(out Vector3i cell)
-            => EditorSceneKit.PickHitCell(_cam, Input.mousePosition, RaycastDist, _floor, out cell);
+            => EditorSceneKit.PickHitCell(_cam, PickPoint(), RaycastDist, _floor, out cell);
 
         private void PlaceCell(Vector3i cell, EditorPaletteKit.Entry pal)
         {
@@ -584,6 +627,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void PlaceCellData(Vector3i cell, EditorPaletteKit.Entry pal, CellData data)
         {
+            TrackCell(cell); // an open edit records the cell as it was (StructureEditor.Undo.cs)
             // Real blocks show their atlas tile (#1400); dye/glow tint the texture like in-game. Markers keep
             // the palette swatch. The chunked view bakes directional shading + face culling; markers render
             // as small inset cubes.
@@ -645,6 +689,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void RemoveCell(Vector3i cell)
         {
+            TrackCell(cell);
             _design.Remove(cell);
             _view.Remove(cell);
             _overlay?.Remove(cell);
@@ -661,7 +706,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _hintShown = key;
-            SetStatus(key != null ? L(key) : string.Empty);
+            SetStatus(key != null ? L(key) : string.Empty, key != null ? EditorStatusSeverity.Warning : EditorStatusSeverity.Info);
         }
 
         /// <summary>The tile the form icons are drawn on: the selected block's, else stone.</summary>
@@ -712,12 +757,14 @@ namespace BlocksBeyondTheStars.Client
             return list;
         }
 
+        /// <summary>Save: the checks, then the files. <see cref="_savedNow"/> says whether it wrote them (the shell then removes
+        /// the draft and the work counts as saved).</summary>
         private void Export()
         {
             string key = Slug(_key);
             if (string.IsNullOrEmpty(key))
             {
-                SetStatus(L("ui.ed.need_key"));
+                SetStatus(L("ui.ed.need_key"), EditorStatusSeverity.Warning);
                 return;
             }
 
@@ -752,14 +799,21 @@ namespace BlocksBeyondTheStars.Client
                 string userDir = Path.Combine(AppPaths.Root, "usercontent", meta.kind + "_templates");
                 Directory.CreateDirectory(userDir);
                 File.WriteAllText(Path.Combine(userDir, key + ".json"), JsonUtility.ToJson(tpl, true));
-
-                SetStatus(string.Format(L("ui.ed.saved_structure"), key, _design.Count, meta.pack) + SaveWarnings()); // #3523
+                Saved(string.Format(L("ui.ed.saved_structure"), key, _design.Count, meta.pack)); // #3523
             }
             catch (Exception e)
             {
                 Debug.LogWarning($"[StructureEditor] Export failed: {e}");
-                SetStatus(L("ui.ed.export_failed_hint")); // a friendly line; the exception goes to the log (#3263)
+                SetStatus(L("ui.ed.export_failed_hint"), EditorStatusSeverity.Error); // a friendly line; the exception goes to the log (#3263)
             }
+        }
+
+        /// <summary>A save wrote its files: green — amber when the target will not read something of the design (#3523).</summary>
+        private void Saved(string message)
+        {
+            _savedNow = true;
+            string warnings = SaveWarnings();
+            SetStatus(message + warnings, warnings.Length > 0 ? EditorStatusSeverity.Warning : EditorStatusSeverity.Success);
         }
 
         private EditorLoadPicker _loadPicker;
@@ -769,97 +823,6 @@ namespace BlocksBeyondTheStars.Client
         private string ExportsRoot => Path.Combine(AppPaths.Root, ModeName + "_exports");
 
         private string UserTemplatesRoot => Path.Combine(AppPaths.Root, "usercontent", ModeName + "_templates");
-
-        /// <summary>The LOAD dialog (#1395): the shipped templates of this mode (from the loaded content),
-        /// the templates already in the user-content folder, then the user's export bundles.</summary>
-        private void OpenLoadPicker()
-        {
-            _loadPicker?.Close();
-
-            var builtIn = new EditorLoadPicker.Section { Title = L("ui.ed.sec_builtin_templates") };
-            if (Shell?.Content != null)
-            {
-                var pool = EditorMode == Mode.Station ? Shell.Content.StationTemplates : Shell.Content.SettlementTemplates;
-                var sorted = new List<StructureTemplate>(pool);
-                sorted.Sort((a, b) => string.CompareOrdinal(a.Key, b.Key));
-                foreach (var t in sorted)
-                {
-                    if (t.IsSource)
-                    {
-                        continue; // a generator entry has no cells (#3523: AddEntryItems lists it)
-                    }
-
-                    var tpl = t;
-                    builtIn.Items.Add(new EditorLoadPicker.Item
-                    {
-                        Label = string.IsNullOrEmpty(t.Name) ? t.Key : t.Name,
-                        Detail = Detail(t.Tier, t.Width, t.Length, t.Height, t.Cells.Count),
-                        Load = () => LoadBuiltIn(tpl),
-                    });
-                }
-            }
-
-            var user = new EditorLoadPicker.Section { Title = L("ui.ed.sec_user_templates") };
-            if (Directory.Exists(UserTemplatesRoot))
-            {
-                var files = Directory.GetFiles(UserTemplatesRoot, "*.json");
-                System.Array.Sort(files, string.CompareOrdinal);
-                foreach (var file in files)
-                {
-                    TemplateJson tpl;
-                    try
-                    {
-                        tpl = JsonUtility.FromJson<TemplateJson>(File.ReadAllText(file));
-                    }
-                    catch (Exception)
-                    {
-                        continue; // one unreadable file must not hide the rest (the server skips it the same way)
-                    }
-
-                    if (tpl == null || tpl.cells == null || tpl.cells.Count == 0)
-                    {
-                        continue;
-                    }
-
-                    string fileKey = Path.GetFileNameWithoutExtension(file);
-                    if (string.IsNullOrEmpty(tpl.key))
-                    {
-                        tpl.key = fileKey;
-                    }
-
-                    var t = tpl;
-                    user.Items.Add(new EditorLoadPicker.Item
-                    {
-                        Label = string.IsNullOrEmpty(t.name) ? t.key : t.name,
-                        Detail = Detail(t.tier, t.width, t.length, t.height, t.cells.Count),
-                        Load = () => ApplyTemplate(t.key, t.name, t.tier, t.pack, t.weight, t.planetTypes, t.cells, copy: false, role: t.role, kit: t.kit, function: t.function, style: t.style, underground: t.underground,
-                            protection: t.protection),
-                    });
-                }
-            }
-
-            var mine = new EditorLoadPicker.Section { Title = L("ui.ed.sec_exports") };
-            if (Directory.Exists(ExportsRoot))
-            {
-                var dirs = Directory.GetDirectories(ExportsRoot);
-                System.Array.Sort(dirs, string.CompareOrdinal);
-                foreach (var d in dirs)
-                {
-                    if (!File.Exists(Path.Combine(d, "layout.json")))
-                    {
-                        continue;
-                    }
-
-                    string k = Path.GetFileName(d);
-                    mine.Items.Add(new EditorLoadPicker.Item { Label = k, Load = () => LoadDesign(k) });
-                }
-            }
-
-            AddLandmarkItems(builtIn, user); // #3492
-            AddGiantShipItems(builtIn, user); // #3616
-            AddEntryItems(builtIn, user); // #3523
-            _loadPicker = EditorLoadPicker.Show(Shell, _canvas.transform, new[] { builtIn, user, mine }, _design.Count, () => _loadPicker = null);
-        }
 
         private string Detail(string tier, int w, int l, int h, int cells)
         {
@@ -1002,6 +965,9 @@ namespace BlocksBeyondTheStars.Client
             int ti = System.Array.IndexOf(_tiers, tier);
             if (ti >= 0) _tier = ti;
 
+            _loadedFrom = (copy ? "copy:" : string.Empty) + key; // the draft names what the work was opened from (#3692)
+            NewDocument(); // a new piece of work: no undo steps, nothing unsaved (StructureEditor.Undo.cs)
+            OpenActiveSection();
             FinishLoad(_name, skipped, skippedIds, copy ? key : null);
         }
 
@@ -1019,6 +985,7 @@ namespace BlocksBeyondTheStars.Client
                 _status += "\n" + string.Format(L("ui.ed.copy_hint"), copiedFrom);
             }
 
+            _statusSeverity = skipped > 0 ? EditorStatusSeverity.Warning : EditorStatusSeverity.Info;
             RebuildUi();
         }
 
@@ -1061,7 +1028,7 @@ namespace BlocksBeyondTheStars.Client
             string layoutPath = Path.Combine(dir, "layout.json");
             if (!File.Exists(layoutPath))
             {
-                SetStatus(L("ui.ed.not_found"));
+                SetStatus(L("ui.ed.not_found"), EditorStatusSeverity.Error);
                 return;
             }
 
@@ -1089,7 +1056,7 @@ namespace BlocksBeyondTheStars.Client
             catch (Exception e)
             {
                 Debug.LogWarning($"[StructureEditor] Load failed: {e}");
-                SetStatus(L("ui.ed.load_failed_hint")); // a friendly line; the exception goes to the log (#3263)
+                SetStatus(L("ui.ed.load_failed_hint"), EditorStatusSeverity.Error); // a friendly line; the exception goes to the log (#3263)
             }
         }
 
@@ -1166,10 +1133,10 @@ namespace BlocksBeyondTheStars.Client
         private bool ValidateForExport()
         {
             var t = BuildTemplate();
-            var errors = StructurePorts.Validate(t);
+            var errors = StructurePorts.ValidateProblems(t);
             if (errors.Count > 0)
             {
-                SetStatus(string.Format(L("ui.ed.port_errors"), errors.Count, errors[0]));
+                SetStatus(string.Format(L("ui.ed.port_errors"), errors.Count, Problem(errors[0])), EditorStatusSeverity.Error);
                 return false;
             }
 
@@ -1179,7 +1146,7 @@ namespace BlocksBeyondTheStars.Client
                 if (leaks.Count > 0)
                 {
                     PaintLeaks(leaks);
-                    SetStatus(string.Format(L("ui.ed.seal_leaks"), leaks.Count));
+                    SetStatus(string.Format(L("ui.ed.seal_leaks"), leaks.Count), EditorStatusSeverity.Error);
                     return false;
                 }
             }
@@ -1188,7 +1155,7 @@ namespace BlocksBeyondTheStars.Client
             if (blockedLanes.Count > 0)
             {
                 PaintLeaks(blockedLanes);
-                SetStatus(string.Format(L("ui.ed.door_lanes_blocked"), blockedLanes.Count));
+                SetStatus(string.Format(L("ui.ed.door_lanes_blocked"), blockedLanes.Count), EditorStatusSeverity.Error);
                 return false;
             }
 
@@ -1200,21 +1167,42 @@ namespace BlocksBeyondTheStars.Client
         private void CheckSeal()
         {
             var t = BuildTemplate();
-            var errors = StructurePorts.Validate(t);
+            var errors = StructurePorts.ValidateProblems(t);
             var leaks = StructureSeal.FindLeaks(t);
             var blockedLanes = leaks.Count > 0 ? new List<Vector3i>() : RoomFurnisher.BlockedDoorLanes(t);
             PaintLeaks(leaks.Count > 0 ? leaks : blockedLanes);
+            bool fine = errors.Count == 0 && leaks.Count == 0 && blockedLanes.Count == 0;
             SetStatus(errors.Count > 0
-                ? string.Format(L("ui.ed.port_errors"), errors.Count, errors[0])
+                ? string.Format(L("ui.ed.port_errors"), errors.Count, Problem(errors[0]))
                 : leaks.Count > 0 ? string.Format(L("ui.ed.seal_leaks"), leaks.Count)
-                : blockedLanes.Count > 0 ? string.Format(L("ui.ed.door_lanes_blocked"), blockedLanes.Count) : L("ui.ed.seal_ok"));
+                : blockedLanes.Count > 0 ? string.Format(L("ui.ed.door_lanes_blocked"), blockedLanes.Count) : L("ui.ed.seal_ok"),
+                fine ? EditorStatusSeverity.Success : EditorStatusSeverity.Warning);
         }
+
+        /// <summary>The problem a template check found, in the player's language (#3692: they were English sentences).</summary>
+        private string Problem(TemplateProblem problem) => TemplateProblemText.Format(problem, L);
 
         private void OpenKitPanel()
         {
             _kitPanel?.Close();
             _kitPanel = KitEditorPanel.Show(Shell, _canvas.transform, ModeName, Slug(_kit), key => { _kit = key; RebuildUi(); }, () => _kitPanel = null,
-                kind => ModulePool(kind).FindAll(t => t.IsModule));
+                kind => ModulePool(kind).FindAll(t => t.IsModule), (name, delete) => _shell.ConfirmDelete(name, delete));
+        }
+
+        // Unattended editor screenshots (-captureEditors, ScreenshotDirector.Editors.cs, #3687): a shipped template on the table,
+        // the load dialog and the kit window, without clicks. Nothing is saved. Keep these three working when the editor is restyled.
+        internal void CaptureLoadBuiltIn(StructureTemplate template) => LoadBuiltIn(template);
+
+        internal EditorLoadPicker CaptureOpenLoadPicker()
+        {
+            OpenLoadPicker();
+            return _loadPicker;
+        }
+
+        internal KitEditorPanel CaptureOpenKitPanel()
+        {
+            OpenKitPanel();
+            return _kitPanel;
         }
 
         /// <summary>The kit named in the kit field: a shipped one, or the user's own file.</summary>
@@ -1298,7 +1286,7 @@ namespace BlocksBeyondTheStars.Client
             var kit = FindKit(Slug(_kit));
             if (kit == null)
             {
-                SetStatus(L("ui.ed.need_kit"));
+                SetStatus(L("ui.ed.need_kit"), EditorStatusSeverity.Warning);
                 return;
             }
 
@@ -1316,10 +1304,10 @@ namespace BlocksBeyondTheStars.Client
                 if (kit.KindOrDefault == StructureKit.KindStation)
                 {
                     var pool = ModulePool(StructureKit.KindStation);
-                    var s = StationKitComposer.Compose(kit, key => pool.Find(t => t.Key == key), _seed, Shell.Content, out _, out string failure);
+                    var s = StationKitComposer.ComposeExplained(kit, key => pool.Find(t => t.Key == key), _seed, Shell.Content, out _, out var failure);
                     if (s == null)
                     {
-                        SetStatus(string.Format(L("ui.ed.assemble_failed"), failure));
+                        SetStatus(string.Format(L("ui.ed.assemble_failed"), Problem(failure)), EditorStatusSeverity.Error);
                         return;
                     }
 
@@ -1388,7 +1376,7 @@ namespace BlocksBeyondTheStars.Client
             catch (Exception e)
             {
                 Debug.LogWarning($"[StructureEditor] Assembling the kit failed: {e}");
-                SetStatus(L("ui.ed.assemble_failed_hint")); // a friendly line; the exception goes to the log (#3263)
+                SetStatus(L("ui.ed.assemble_failed_hint"), EditorStatusSeverity.Error); // a friendly line; the exception goes to the log (#3263)
                 return;
             }
 
@@ -1397,28 +1385,8 @@ namespace BlocksBeyondTheStars.Client
             string kitKey = kit.Key;
             ApplyTemplate($"{kitKey}_{_seed}", $"{kit.Name} #{_seed}", tier, "default", 1, null, cells, copy: false);
             _kit = kitKey;
-            SetStatus(string.Format(L("ui.ed.assembled"), kitKey, _design.Count, _seed) + "\n" + _status);
-        }
-
-        /// <summary>Rebuilds the editor UI so the key/name/tier fields reflect a freshly loaded design (the
-        /// placed cells live under the editor transform, not the canvas, so they survive the rebuild).</summary>
-        private void RebuildUi()
-        {
-            _loadPicker?.Close(); // (also destroyed along with the old canvas)
-            _loadPicker = null;
-            _kitPanel?.Close();
-            _kitPanel = null;
-            _formPicker?.Close();
-            _formPicker = null;
-            _sourcePicker?.Close(); // #3523
-            _sourcePicker = null;
-            if (_canvas != null)
-            {
-                Destroy(_canvas.gameObject);
-            }
-
-            BuildUi();
-            SetStatus(_status);
+            _loadedFrom = "kit:" + kitKey; // the draft names what the work was made from
+            SetStatus(string.Format(L("ui.ed.assembled"), kitKey, _design.Count, _seed) + "\n" + _status, EditorStatusSeverity.Success);
         }
 
         private static string Slug(string s) => EditorSceneKit.Slug(s);

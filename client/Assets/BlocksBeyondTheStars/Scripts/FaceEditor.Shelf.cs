@@ -9,11 +9,15 @@ using UnityEngine.UI;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// The library column beside the canvas — the outfit shelf of the character mode (#1047) and the frame library of the
-    /// HUD mode (#3318) are the same column: a name field, Save, Rename, one row per saved entry with a ✕ to drop it, the
-    /// status line, and under it the read-only template rows (skin templates #3321, frame templates #3320) — templates can
-    /// be put on, never deleted or renamed. Clicking a row PUTS IT ON, which is why the column lives in the editor rather
-    /// than on a menu card: this is where a player finds out whether they like it.
+    /// The library card beside the canvas — the outfit shelf of the character mode (#1047) and the frame library of the
+    /// HUD mode (#3318) are the same card: a name field, "Save outfit" and Rename, one row per saved entry with "Wear" and a
+    /// red ✕ to drop it, and under it the read-only template rows (skin templates #3321, frame templates #3320) —
+    /// templates can be put on, never deleted or renamed. Wearing PUTS IT ON, which is why the card lives in the editor
+    /// rather than on a menu card: this is where a player finds out whether they like it.
+    /// <para>
+    /// #3693: deleting an entry asks first (it is gone for good); putting an outfit on over unsaved paint asks too (the
+    /// look is swapped under the editor, which cannot be undone); the column's messages go to the shell's status bar.
+    /// </para>
     /// </summary>
     public sealed partial class FaceEditor
     {
@@ -34,22 +38,31 @@ namespace BlocksBeyondTheStars.Client
             public Action AfterWear;            // re-read the editor's subjects after the host swapped the look
 
             public RectTransform List, TemplateList;
-            public Text Status, Empty, TemplatesTitle;
+            public Text Empty, TemplatesTitle;
             public InputField NameField;
             public string Typed = string.Empty;
             public int Selected = -1;
             public readonly List<Text> Labels = new List<Text>();
         }
 
-        private const float ShelfW = 226f;
+        // Inside the outfits card (440 wide): one column 392 wide; eight rows of 52 (MaxOutfits / MaxHudFrameDesigns).
+        private const float ShelfColX = 24f, ShelfW = 392f, ShelfRowH = 44f, ShelfRowPitch = 52f, ShelfListY = 160f;
+        private const float ShelfNameW = 196f, ShelfWearW = 140f;
 
-        /// <summary>Template rows fit between the status line (636–726) and the hint line (934).</summary>
+        /// <summary>Template rows fit under the eight entry rows, inside the card.</summary>
         private const int MaxTemplateRows = 3;
+
+        /// <summary>Status lines of the hosts that mean "look here" (amber), not news — the rest is neutral information.</summary>
+        private static readonly string[] ShelfWarningKeys =
+        {
+            "ui.avatar.need_name", "ui.avatar.outfit_limit", "ui.avatar.outfit_select_first", "ui.avatar.outfit_name_taken",
+            "ui.hudframe.need_name", "ui.hudframe.limit", "ui.hudframe.select_first", "ui.hudframe.name_taken", "ui.hudframe.empty",
+        };
 
         private Shelf _outfitShelf;
 
         /// <summary>The outfit shelf (the character mode's column).</summary>
-        private void BuildOutfitColumn(Transform panel, float x)
+        private void BuildOutfitColumn(Transform card)
         {
             _outfitShelf = new Shelf
             {
@@ -69,28 +82,27 @@ namespace BlocksBeyondTheStars.Client
                 OnWearTemplate = OnWearSkinTemplate,
                 AfterWear = ReloadSubjects,
             };
-            BuildShelf(panel, x, _outfitShelf);
+            BuildShelf(card, _outfitShelf);
         }
 
-        private void BuildShelf(Transform panel, float x, Shelf shelf)
+        private void BuildShelf(Transform card, Shelf shelf)
         {
-            UiKit.AddText(panel, x, 64f, ShelfW, 24f, L(shelf.TitleKey), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
-            shelf.NameField = UiKit.AddInput(panel, x, 92f, ShelfW, 42f, shelf.Typed, v => shelf.Typed = v, L(shelf.NameKey), 24, 16);
-            UiKit.AddFitButton(panel, x, 142f, ShelfW, 44f, L(shelf.SaveKey), () => SaveShelfPressed(shelf));
-            UiKit.AddFitButton(panel, x, 194f, ShelfW, 40f, L(shelf.RenameKey), () => RenameShelfPressed(shelf));
-            shelf.List = AddArea(panel, shelf.ListName, x, 246f, ShelfW, 380f);
+            const float x = ShelfColX, w = ShelfW, half = (ShelfW - 8f) / 2f;
+            UiKit.AddKicker(card, x, 20f, w, L(shelf.TitleKey));
+            shelf.NameField = UiKit.AddInput(card, x, 52f, w, 44f, shelf.Typed, v => shelf.Typed = v, L(shelf.NameKey), 24, 18);
+            UiKit.AddTierButton(card, x, 104f, half, 44f, L(shelf.SaveKey), () => SaveShelfPressed(shelf), ButtonTier.Secondary);
+            UiKit.AddTierButton(card, x + half + 8f, 104f, half, 44f, L(shelf.RenameKey), () => RenameShelfPressed(shelf), ButtonTier.Quiet);
+            shelf.List = AddArea(card, shelf.ListName, x, ShelfListY, w, 8f * ShelfRowPitch);
 
-            shelf.Empty = UiKit.AddText(panel, x, 252f, ShelfW, 90f, L(shelf.EmptyKey), 13, UiKit.TextCol, TextAnchor.UpperLeft); // an instruction (#3263)
+            // An instruction (#3263): normal colour, as many lines as the language needs.
+            shelf.Empty = UiKit.AddText(card, x, ShelfListY + 6f, w, 120f, L(shelf.EmptyKey), 16, UiKit.TextCol, TextAnchor.UpperLeft);
             shelf.Empty.horizontalOverflow = HorizontalWrapMode.Wrap;
-
-            shelf.Status = UiKit.AddText(panel, x, 636f, ShelfW, 90f, string.Empty, 13, UiKit.Ok, TextAnchor.UpperLeft);
-            shelf.Status.horizontalOverflow = HorizontalWrapMode.Wrap;
 
             if (shelf.TemplateNames != null)
             {
-                shelf.TemplatesTitle = UiKit.AddText(panel, x, 734f, ShelfW, 22f, L(shelf.TemplatesKey), 15, UiKit.CyanDim,
-                    TextAnchor.MiddleLeft, FontStyle.Bold);
-                shelf.TemplateList = AddArea(panel, shelf.ListName + "Templates", x, 760f, ShelfW, MaxTemplateRows * 46f);
+                float ty = ShelfListY + (8f * ShelfRowPitch) + 16f;
+                shelf.TemplatesTitle = UiKit.AddKicker(card, x, ty, w, L(shelf.TemplatesKey));
+                shelf.TemplateList = AddArea(card, shelf.ListName + "Templates", x, ty + 30f, w, MaxTemplateRows * ShelfRowPitch);
             }
 
             RebuildShelf(shelf);
@@ -112,8 +124,8 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>(Re)fills the rows from the host. Cheap — the list is capped at a handful of rows and only rebuilt
-        /// when one of them changes.</summary>
+        /// <summary>(Re)fills the rows from the host: the name, "Wear", a red ✕. Cheap — the list is capped at eight rows
+        /// and only rebuilt when one of them changes.</summary>
         private void RebuildShelf(Shelf shelf)
         {
             if (shelf?.List == null)
@@ -134,17 +146,19 @@ namespace BlocksBeyondTheStars.Client
                 shelf.Empty.gameObject.SetActive(names.Count == 0);
             }
 
-            float y = 0f;
-            for (int i = 0; i < names.Count; i++)
+            for (int i = 0; i < names.Count && i < 8; i++)
             {
                 int idx = i;
+                float y = i * ShelfRowPitch;
                 string name = string.IsNullOrEmpty(names[i]) ? "?" : names[i];
-                var wear = UiKit.AddFitButton(shelf.List, 0f, y, 170f, 40f, name, () => WearShelfPressed(shelf, idx));
-                var label = wear.GetComponentInChildren<Text>();
-                label.color = idx == shelf.Selected ? UiKit.Cyan : UiKit.TextCol;
+                var label = UiKit.AddText(shelf.List, 4f, y, ShelfNameW - 8f, ShelfRowH, name, 18, idx == shelf.Selected ? UiKit.Cyan : UiKit.TextCol,
+                    TextAnchor.MiddleLeft);
+                UiKit.FitLabelSingleLine(label, ShelfNameW - 8f, UiKit.EditorMinFontSize, 18);
                 shelf.Labels.Add(label);
-                UiKit.AddFitButton(shelf.List, 178f, y, 48f, 40f, "✕", () => DeleteShelfPressed(shelf, idx));
-                y += 46f;
+                UiKit.AddTierButton(shelf.List, ShelfNameW, y, ShelfWearW, ShelfRowH, L("ui.avatar.wear"), () => WearShelfPressed(shelf, idx),
+                    ButtonTier.Quiet);
+                UiKit.AddTierButton(shelf.List, ShelfW - ShelfRowH, y, ShelfRowH, ShelfRowH, "✕", () => DeleteShelfPressed(shelf, idx),
+                    ButtonTier.Danger);
             }
 
             RebuildShelfTemplates(shelf);
@@ -168,7 +182,8 @@ namespace BlocksBeyondTheStars.Client
             for (int i = 0; i < names.Count && i < MaxTemplateRows; i++)
             {
                 int idx = i;
-                UiKit.AddFitButton(shelf.TemplateList, 0f, i * 46f, ShelfW, 40f, names[i], () => WearTemplatePressed(shelf, idx));
+                UiKit.AddTierButton(shelf.TemplateList, 0f, i * ShelfRowPitch, ShelfW, ShelfRowH, names[i], () => WearTemplatePressed(shelf, idx),
+                    ButtonTier.Quiet);
             }
         }
 
@@ -184,16 +199,35 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private static void SetShelfStatus(Shelf shelf, string text)
+        /// <summary>A host's line in the status bar: amber when it asks the player to do something, else neutral.</summary>
+        private void SetShelfStatus(string text)
         {
-            if (shelf?.Status != null)
+            if (!string.IsNullOrEmpty(text))
             {
-                shelf.Status.text = text ?? string.Empty;
+                ShowStatus(text, ShelfSeverity(text));
             }
         }
 
-        /// <summary>Puts a saved entry on. The host swaps everything under the editor, so the subjects are re-read from it
-        /// afterwards — otherwise the canvas would still hold the old paint and write it straight back on the next switch.</summary>
+        /// <summary>The hosts return their lines already localized; a line that starts like one of the warning texts (up to
+        /// its first placeholder) is a warning.</summary>
+        private EditorStatusSeverity ShelfSeverity(string text)
+        {
+            foreach (string key in ShelfWarningKeys)
+            {
+                string pattern = L(key);
+                int brace = pattern.IndexOf('{');
+                string head = brace >= 0 ? pattern.Substring(0, brace) : pattern;
+                if (head.Length >= 4 && text.StartsWith(head, StringComparison.Ordinal))
+                {
+                    return EditorStatusSeverity.Warning;
+                }
+            }
+
+            return EditorStatusSeverity.Info;
+        }
+
+        /// <summary>Puts a saved entry on. An outfit swaps the whole look under the editor (not undoable), so over unsaved
+        /// paint it asks first; a frame lands on the canvas as one undoable step and needs no question.</summary>
         private void WearShelfPressed(Shelf shelf, int index)
         {
             if (shelf.OnWear == null)
@@ -201,6 +235,21 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            if (shelf.AfterWear != null)
+            {
+                _shell.ConfirmDiscard(() => WearShelfEntry(shelf, index));
+            }
+            else
+            {
+                WearShelfEntry(shelf, index);
+            }
+        }
+
+        /// <summary>The host swaps everything under the editor, so the subjects are re-read from it afterwards — otherwise the
+        /// canvas would still hold the old paint and write it straight back on the next switch.</summary>
+        private void WearShelfEntry(Shelf shelf, int index)
+        {
+            EndStroke();
             string status = shelf.OnWear(index);
             shelf.AfterWear?.Invoke();
             SelectShelfRow(shelf, index);
@@ -211,7 +260,7 @@ namespace BlocksBeyondTheStars.Client
                 shelf.NameField.text = shelf.Typed; // so Rename acts on a name the player can see and edit
             }
 
-            SetShelfStatus(shelf, status);
+            SetShelfStatus(status);
         }
 
         /// <summary>Puts a template on — a starting point copied into the player's own look, never a saved row.</summary>
@@ -222,12 +271,27 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            string status = shelf.OnWearTemplate(index);
-            shelf.AfterWear?.Invoke();
-            SelectShelfRow(shelf, -1);
-            SetShelfStatus(shelf, status);
+            void Wear()
+            {
+                EndStroke();
+                string status = shelf.OnWearTemplate(index);
+                shelf.AfterWear?.Invoke();
+                SelectShelfRow(shelf, -1);
+                SetShelfStatus(status);
+            }
+
+            if (shelf.AfterWear != null)
+            {
+                _shell.ConfirmDiscard(Wear);
+            }
+            else
+            {
+                Wear();
+            }
         }
 
+        /// <summary>Keeps the look under the typed name. The canvas is committed first, so the outfit holds what is on
+        /// screen.</summary>
         private void SaveShelfPressed(Shelf shelf)
         {
             if (shelf.OnSave == null)
@@ -235,7 +299,9 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            SetShelfStatus(shelf, shelf.OnSave(shelf.Typed ?? string.Empty));
+            EndStroke();
+            CommitActive();
+            SetShelfStatus(shelf.OnSave(shelf.Typed ?? string.Empty));
             RebuildShelf(shelf);
         }
 
@@ -246,10 +312,11 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            SetShelfStatus(shelf, shelf.OnRename(shelf.Selected, shelf.Typed ?? string.Empty));
+            SetShelfStatus(shelf.OnRename(shelf.Selected, shelf.Typed ?? string.Empty));
             RebuildShelf(shelf);
         }
 
+        /// <summary>The red ✕: a saved entry is gone for good, so it asks first (#3690).</summary>
         private void DeleteShelfPressed(Shelf shelf, int index)
         {
             if (shelf.OnDelete == null)
@@ -257,7 +324,14 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            SetShelfStatus(shelf, shelf.OnDelete(index));
+            var names = shelf.Names?.Invoke();
+            string name = names != null && index >= 0 && index < names.Count ? names[index] : string.Empty;
+            _shell.ConfirmDelete(name, () => DeleteShelfEntry(shelf, index));
+        }
+
+        private void DeleteShelfEntry(Shelf shelf, int index)
+        {
+            SetShelfStatus(shelf.OnDelete(index));
             if (shelf.Selected == index)
             {
                 shelf.Selected = -1;

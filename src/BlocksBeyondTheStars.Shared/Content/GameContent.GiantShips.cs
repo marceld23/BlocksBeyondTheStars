@@ -32,9 +32,13 @@ public sealed partial class GameContent
     /// plus every chest's <c>table</c> naming a loot table the content has. The load drops a template with any problem; the
     /// builders' check (the Tools command) prints them.
     /// </summary>
-    public List<string> GiantShipProblems(StructureTemplate t)
+    public List<string> GiantShipProblems(StructureTemplate t) => TemplateProblem.Sentences(GiantShipProblemList(t));
+
+    /// <summary><see cref="GiantShipProblems"/> as codes the structure editor translates (#3692): the same checks, the same
+    /// sentences.</summary>
+    public List<TemplateProblem> GiantShipProblemList(StructureTemplate t)
     {
-        var problems = GiantShipRules.Problems(t, _blocks.ContainsKey,
+        var problems = GiantShipRules.ProblemList(t, _blocks.ContainsKey,
             id => !_blocks.TryGetValue(id, out var b) || (b.Solid && !b.Liquid));
         var unknownTables = new SortedSet<string>(StringComparer.Ordinal);
         foreach (var c in t.Cells)
@@ -48,13 +52,15 @@ public sealed partial class GameContent
 
         if (unknownTables.Count > 0)
         {
-            problems.Add("a chest names unknown loot table(s) " + string.Join(", ", unknownTables));
+            problems.Add(new TemplateProblem("chest.unknown_tables", "a chest names unknown loot table(s) " + string.Join(", ", unknownTables),
+                string.Join(", ", unknownTables)));
         }
 
         if (BlueprintLockedDrops(t) is { Count: > 0 } locked)
         {
-            problems.Add("blocks that drop a blueprint-locked item (a wreck is minable and would hand it out for free): "
-                         + string.Join(", ", locked));
+            problems.Add(new TemplateProblem("giant_ship.blueprint_drops",
+                "blocks that drop a blueprint-locked item (a wreck is minable and would hand it out for free): " + string.Join(", ", locked),
+                string.Join(", ", locked)));
         }
 
         return problems;

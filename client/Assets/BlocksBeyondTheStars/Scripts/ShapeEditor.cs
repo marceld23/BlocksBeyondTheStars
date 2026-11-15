@@ -7,526 +7,286 @@ using System.IO;
 using System.Linq;
 using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// The in-game form designer (#845) — the 3-D sibling of <see cref="FaceEditor"/>. Where the face/paint
-    /// editor paints one grid of pixels, this one sculpts a block out of micro cubes, ONE LAYER AT A TIME:
-    /// the canvas is a single horizontal slice you paint exactly like a pixel grid, and the layer selector
-    /// walks up and down the block. A live 3-D preview to the right shows what the finished form looks like.
-    ///
-    /// It deliberately does NOT reuse FaceEditor: the two share a look, not a model (pixels vs. layers), and
-    /// folding a third dimension into that class would have made the simple paint host harder to read. What
-    /// they do share is the shell — the modal overlay, the library column, the host hooks — so the two feel
-    /// like the same tool to a player.
+    /// The in-game form designer (#845): sculpt a block out of micro cubes, ONE LAYER AT A TIME — the canvas is a single
+    /// horizontal slice painted like a pixel grid, the layer strip walks up and down the block, and a turning 3-D preview
+    /// shows the finished form. It is opened by the shape tool (<see cref="ShapeToolUi"/>) and by the crafting tab, which
+    /// crafts the form out of the selected material.
+    /// <para>
+    /// Since #3693 it is a <see cref="LayerCanvasEditor"/> over the main menu form editor's model
+    /// (<see cref="FormCanvasModel"/>, one block only) on the editor shell — the same frame as the form editor and "My
+    /// tools": header with Back, Undo / Redo and the primary Save (keep the form in "My forms"), the library on the left,
+    /// the canvas with the Place | Remove switch in the centre, the preview and the name on the right, and a gamepad. "Clear
+    /// all" and "clear layer" became undoable, a library row over unsaved work asks first, and unsaved work is kept as a
+    /// draft. A form over several blocks belongs to the menu's form editor and is not opened here.
+    /// </para>
     /// </summary>
-    public sealed class ShapeEditor : MonoBehaviour
+    public sealed partial class ShapeEditor : LayerCanvasEditor
     {
-        // Host-supplied hooks, mirroring FaceEditor's.
+        /// <summary>The crafting tab's <see cref="ApplyLabelKey"/>: that host crafts the form (a "Craft it" button beside
+        /// Save); any other value is a host that only keeps forms.</summary>
+        public const string CraftLabelKey = "ui.shape.custom.craft";
+
+        // Host-supplied hooks (the shape tool, the crafting tab, the editor screenshots set them).
         public string InitialVoxels;                     // form to preload (empty = start from scratch)
         public string InitialName;                       // its name, when editing/copying an existing form
         public Func<string, string> Localizer;
         public Action<string, string> OnApply;           // (voxels, name) — the host crafts or keeps it
-        public string ApplyLabelKey = "ui.shape.custom.craft"; // hosts differ: craft from the menu, keep from the tool
+        public string ApplyLabelKey = CraftLabelKey;     // hosts differ: craft from the menu, keep from the tool
         public Action<string, string> OnSaveDesign;      // (voxels, name) — save to the local library
         public Func<List<(string Name, string Voxels)>> LibraryProvider;
         public Action OnClosed;
-        public GameBootstrap Game;                       // for the 3-D preview material/atlas (may be null)
+        public GameBootstrap Game;                       // the host world (may be null — the editor screenshots)
 
-        private int _grid = CustomShape.GridLarge;
-        private char[] _cells;                           // _grid³ micro cells, '0' = empty
-        private int _layer;                              // current Y slice
+        private readonly FormCanvasModel _model = new FormCanvasModel();
         private string _name = string.Empty;
+        private string _savedName = string.Empty;
+        private Mesh _previewMesh;
+        private bool _openedMulti;
 
-        private Texture2D _tex;
-        private RectTransform _canvasRt;
-        private Canvas _ui;
-        private Text _layerLabel, _budgetLabel;
-        private RectTransform _libList;
-        private GameObject _previewRoot;
-        private Transform _previewSpin;
+        /// <summary>True when the host crafts the form (the crafting tab).</summary>
+        private bool HostCrafts => ApplyLabelKey == CraftLabelKey;
+
+        protected override ILayerCanvas Layers => _model;
+
+        protected override int CellsX => _model.SizeX;
+
+        protected override int CellsZ => _model.SizeZ;
+
+        protected override int LayerCount => _model.SizeY;
+
+        protected override float SpinDegreesPerSecond => 28f;
+
+        protected override string HintKeyMouse => "ui.shape.custom.hint";
+
+        protected override string HintKeyPadCanvas => "ui.form.hint_pad";
+
+        protected override string HintKeyPadPanel => "ui.form.hint_pad_panel";
+
+        protected override string DraftKind => "shape";
+
+        public override string DocumentName => (_name ?? string.Empty).Trim();
+
+        protected override bool ExtraDirty => !string.Equals(DocumentName, _savedName, StringComparison.Ordinal);
+
+        protected override string Localize(string key) => Localizer != null ? Localizer(key) : UiKit.L(key);
+
+        protected override bool PaintCell(int x, int z, bool primary, bool secondary) => _model.Paint(x, z, primary && !secondary);
+
+        protected override void OnCellPainted() => RefreshLabels();
+
+        protected override void AfterCanvasEdit() => AfterStructuralChange();
+
+        // ---------------------------------------------------------------- life cycle
 
         private void Start()
         {
-            LoadFrom(InitialVoxels, InitialName);
-            BuildUi();
+            LoadInitial(InitialVoxels, InitialName);
+            var firstFocus = BuildUi();
+            BuildStage();
+            AfterStructuralChange();
+            FinishFrame(firstFocus, "ui.form.tip_remove");
+            if (_openedMulti)
+            {
+                SetStatus(L("ui.shape.custom.multi_in_menu"), EditorStatusSeverity.Warning);
+            }
         }
 
-        private void OnDestroy()
+        protected override void OnDestroy()
         {
-            if (_ui != null) Destroy(_ui.gameObject);
-            if (_tex != null) Destroy(_tex);
-            if (_previewRoot != null) Destroy(_previewRoot);
+            base.OnDestroy();
+            Destroy(_previewMesh);
             OnClosed?.Invoke();
         }
 
-        // ── model ────────────────────────────────────────────────────────────────────────────────
-
-        private int Index(int x, int y, int z) => CustomShape.IndexOf(x, y, z, _grid);
-
-        private bool Filled(int x, int y, int z) => _cells[Index(x, y, z)] != '0';
-
-        private string Encode() => new string(_cells);
-
-        private void LoadFrom(string voxels, string name)
+        /// <summary>The form the host opened the editor on — a form over several blocks cannot be edited here (it opens
+        /// empty and says where it can be).</summary>
+        private void LoadInitial(string voxels, string name)
         {
-            if (CustomShape.IsMulti(voxels))
+            _openedMulti = CustomShape.IsMulti(voxels);
+            if (_openedMulti || string.IsNullOrEmpty(voxels) || !_model.Load(voxels))
             {
-                if (_cells == null)
-                {
-                    LoadFrom(null, string.Empty); // opened ON such a form: start from an empty grid, never from garbage
-                }
-
-                Game?.ShowMessage(L("ui.shape.custom.multi_in_menu"));
-                return;
+                _model.New();
             }
 
-            int grid = CustomShape.GridOf(voxels);
-            _grid = grid == 0 ? CustomShape.GridLarge : grid;
-            _cells = new char[_grid * _grid * _grid];
-            for (int i = 0; i < _cells.Length; i++)
-            {
-                _cells[i] = grid == 0 ? '0' : voxels[i];
-            }
-
-            _layer = 0;
-            _name = name ?? string.Empty;
-            RebuildTexture();
-            RenderLayer();
-            RefreshPreview();
+            _name = _savedName = _openedMulti ? string.Empty : name ?? string.Empty;
         }
 
-        /// <summary>Switches the grid resolution, re-sampling what is already drawn so a form sketched at 4³
-        /// can be refined at 8³ (and the other way round, coarsely) instead of starting over.</summary>
-        private void SetGrid(int grid)
+        private void AfterStructuralChange()
         {
-            if (grid == _grid)
-            {
-                return;
-            }
-
-            var old = _cells;
-            int oldGrid = _grid;
-            var next = new char[grid * grid * grid];
-            for (int y = 0; y < grid; y++)
-            {
-                for (int z = 0; z < grid; z++)
-                {
-                    for (int x = 0; x < grid; x++)
-                    {
-                        int sx = x * oldGrid / grid, sy = y * oldGrid / grid, sz = z * oldGrid / grid;
-                        next[CustomShape.IndexOf(x, y, z, grid)] = old[CustomShape.IndexOf(sx, sy, sz, oldGrid)];
-                    }
-                }
-            }
-
-            _grid = grid;
-            _cells = next;
-            _layer = Mathf.Clamp(_layer, 0, _grid - 1);
-            RebuildTexture();
-            RenderLayer();
-            RefreshPreview();
-            UpdateLabels();
+            RebuildCanvasTexture();
+            RefreshAll();
         }
 
-        // ── painting ─────────────────────────────────────────────────────────────────────────────
-
-        private void Update()
+        private void ToggleGrid()
         {
-            if (_canvasRt == null) return;
-
-            bool left = Input.GetMouseButton(0), right = Input.GetMouseButton(1);
-            if (!left && !right) return;
-            if (!RectTransformUtility.RectangleContainsScreenPoint(_canvasRt, Input.mousePosition, null)) return;
-            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(_canvasRt, Input.mousePosition, null, out var lp)) return;
-
-            // Place() anchors the rect top-left with pivot (0,1): local x∈[0,w], y∈[-h,0]. The canvas shows the
-            // layer from ABOVE, so the top row is +Z (away from the player) — the same as looking down at it.
-            float w = _canvasRt.rect.width, h = _canvasRt.rect.height;
-            int gx = Mathf.Clamp(Mathf.FloorToInt(Mathf.Clamp01(lp.x / w) * _grid), 0, _grid - 1);
-            int fromTop = Mathf.Clamp(Mathf.FloorToInt(Mathf.Clamp01(-lp.y / h) * _grid), 0, _grid - 1);
-            int gz = _grid - 1 - fromTop;
-
-            Paint(gx, gz, right ? '0' : '1');
-        }
-
-        private void Paint(int x, int z, char value)
-        {
-            int cell = Index(x, _layer, z);
-            if (_cells[cell] == value)
+            if (_model.SetGrid(_model.Grid == CustomShape.GridLarge ? CustomShape.GridSmall : CustomShape.GridLarge))
             {
-                return;
-            }
-
-            _cells[cell] = value;
-            RenderLayer();
-            RefreshPreview();
-            UpdateLabels();
-        }
-
-        // ── canvas rendering ─────────────────────────────────────────────────────────────────────
-
-        private void RebuildTexture()
-        {
-            if (_tex != null)
-            {
-                Destroy(_tex);
-            }
-
-            _tex = new Texture2D(_grid, _grid, TextureFormat.RGBA32, false)
-            {
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Point,
-            };
-        }
-
-        /// <summary>Draws the current layer, with the layer BELOW showing through dimly — that ghost is what
-        /// makes stacking layers into a shape possible without constantly flipping back and forth.</summary>
-        private void RenderLayer()
-        {
-            for (int z = 0; z < _grid; z++)
-            {
-                for (int x = 0; x < _grid; x++)
-                {
-                    Color c;
-                    if (Filled(x, _layer, z))
-                    {
-                        c = UiKit.Cyan;
-                    }
-                    else if (_layer > 0 && Filled(x, _layer - 1, z))
-                    {
-                        c = new Color(UiKit.Cyan.r * 0.32f, UiKit.Cyan.g * 0.32f, UiKit.Cyan.b * 0.32f, 1f);
-                    }
-                    else
-                    {
-                        c = FacePalette.EditorBackground;
-                    }
-
-                    // Texture row 0 is the BOTTOM; grid z 0 is the near edge, drawn at the bottom of the canvas.
-                    _tex.SetPixel(x, z, c);
-                }
-            }
-
-            _tex.Apply();
-        }
-
-        // ── 3-D preview ──────────────────────────────────────────────────────────────────────────
-
-        /// <summary>Rebuilds the little rotating preview from the SAME geometry the world mesher would emit,
-        /// so what the player sees here is what they will place.</summary>
-        private void RefreshPreview()
-        {
-            if (_previewSpin == null)
-            {
-                return;
-            }
-
-            for (int i = _previewSpin.childCount - 1; i >= 0; i--)
-            {
-                Destroy(_previewSpin.GetChild(i).gameObject);
-            }
-
-            string voxels = Encode();
-            if (!CustomShape.IsValidVoxels(voxels))
-            {
-                return;
-            }
-
-            var mesh = EditorVoxelPreview.CustomShapeMesh(voxels);
-            var material = EditorVoxelPreview.PreviewMaterial();
-            if (mesh == null || material == null)
-            {
-                return;
-            }
-
-            var go = new GameObject("FormPreview", typeof(MeshFilter), typeof(MeshRenderer));
-            go.transform.SetParent(_previewSpin, false);
-            go.transform.localPosition = new Vector3(-0.5f, -0.5f, -0.5f); // centre the unit cell on the pivot
-            go.GetComponent<MeshFilter>().sharedMesh = mesh;
-            go.GetComponent<MeshRenderer>().sharedMaterial = material;
-            go.layer = _previewSpin.gameObject.layer;
-        }
-
-        private void UpdateLabels()
-        {
-            if (_layerLabel != null)
-            {
-                _layerLabel.text = string.Format(L("ui.shape.custom.layer"), _layer + 1, _grid);
-            }
-
-            if (_budgetLabel != null)
-            {
-                int boxes = CustomShape.Merge(Encode()).Count;
-                _budgetLabel.text = string.Format(L("ui.shape.custom.budget"), boxes, CustomShape.MaxBoxes);
-                _budgetLabel.color = boxes > CustomShape.MaxBoxes ? new Color(1f, 0.45f, 0.35f) : UiKit.CyanDim;
+                AfterStructuralChange();
+                Changed();
             }
         }
 
-        // ── UI ───────────────────────────────────────────────────────────────────────────────────
+        // ---------------------------------------------------------------- save, craft, library
 
-        private void BuildUi()
+        /// <summary>The form as the game stores it, or null with the reason in the status bar.</summary>
+        private string ValidForm()
         {
-            _ui = UiKit.CreateCanvas("Shape Editor UI");
-            _ui.sortingOrder = 60; // above the in-game menu, like the paint editor
-            var root = _ui.transform;
-
-            const float panelW = 1180f;
-            var (_, panel) = UiKit.AddModalOverlay(root, 370f, 40f, panelW, 990f);
-            UiKit.AddText(panel, 24f, 18f, panelW - 48f, 30f, L("ui.shape.custom.title"), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-
-            // Layer canvas.
-            var canvasGo = new GameObject("LayerCanvas", typeof(RectTransform));
-            canvasGo.transform.SetParent(panel, false);
-            _canvasRt = UiKit.Place(canvasGo, 24f, 100f, 480f, 480f);
-            canvasGo.AddComponent<RawImage>().texture = _tex;
-
-            _layerLabel = UiKit.AddText(panel, 24f, 60f, 300f, 30f, string.Empty, 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            UiKit.AddFitButton(panel, 330f, 56f, 80f, 38f, "▲", () => StepLayer(1));
-            UiKit.AddFitButton(panel, 420f, 56f, 80f, 38f, "▼", () => StepLayer(-1));
-
-            // Authoring helpers — the difference between "possible" and "pleasant".
-            float hx = 24f, hy = 596f;
-            UiKit.AddFitButton(panel, hx, hy, 232f, 44f, L("ui.shape.custom.copy_below"), CopyLayerBelow);
-            UiKit.AddFitButton(panel, hx + 248f, hy, 232f, 44f, L("ui.shape.custom.mirror_x"), () => Mirror(mirrorX: true));
-            UiKit.AddFitButton(panel, hx, hy + 52f, 232f, 44f, L("ui.shape.custom.mirror_z"), () => Mirror(mirrorX: false));
-            UiKit.AddFitButton(panel, hx + 248f, hy + 52f, 232f, 44f, L("ui.shape.custom.clear_layer"), ClearLayer);
-            UiKit.AddFitButton(panel, hx, hy + 104f, 232f, 44f, L("ui.shape.custom.clear_all"), ClearAll);
-            UiKit.AddFitButton(panel, hx + 248f, hy + 104f, 232f, 44f, L("ui.shape.custom.grid_toggle"),
-                () => SetGrid(_grid == CustomShape.GridLarge ? CustomShape.GridSmall : CustomShape.GridLarge));
-
-            _budgetLabel = UiKit.AddText(panel, 24f, 760f, 480f, 26f, string.Empty, 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
-
-            // Name + actions.
-            UiKit.AddText(panel, 24f, 800f, 480f, 24f, L("ui.shape.custom.name"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddInput(panel, 24f, 828f, 480f, 46f, _name, v => _name = v, L("ui.shape.custom.name_hint"), 24);
-
-            UiKit.AddFitButton(panel, 24f, 890f, 232f, 56f, L(ApplyLabelKey), Apply);
-            UiKit.AddFitButton(panel, 272f, 890f, 232f, 56f, L("ui.menu.back"), Close);
-
-            // 3-D preview.
-            UiKit.AddText(panel, 530f, 76f, 380f, 24f, L("ui.shape.custom.preview"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
-            BuildPreview(panel);
-
-            // Library column — the same idea as the paint editor's "my designs".
-            UiKit.AddText(panel, 930f, 76f, 226f, 24f, L("ui.shape.custom.library"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
-            if (OnSaveDesign != null)
+            string voxels = _model.Encode();
+            if (voxels.Length > 0)
             {
-                UiKit.AddFitButton(panel, 930f, 104f, 226f, 48f, L("ui.shape.custom.save"), () =>
-                {
-                    OnSaveDesign(Encode(), _name);
-                    RebuildLibraryList();
-                });
+                return voxels;
             }
 
-            // Sharing (#846): a form travels as a short code the player can paste anywhere — the library
-            // files are local, this is what crosses machines.
-            // Full column width, one under the other: "Code kopieren" took two lines in 110 px (#3263).
-            UiKit.AddFitButton(panel, 930f, 158f, 226f, 40f, L("ui.shape.custom.export"), ExportCode);
-            UiKit.AddFitButton(panel, 930f, 204f, 226f, 40f, L("ui.shape.custom.import"), ImportCode);
-
-            var listGo = new GameObject("FormLibraryList", typeof(RectTransform));
-            listGo.transform.SetParent(panel, false);
-            _libList = UiKit.Place(listGo, 930f, 252f, 226f, 650f);
-            RebuildLibraryList();
-
-            UiKit.AddText(panel, 24f, 952f, panelW - 48f, 24f, L("ui.shape.custom.hint"), 14, UiKit.TextCol, TextAnchor.MiddleLeft); // an instruction (#3263)
-            UpdateLabels();
+            SetStatus(ProblemText(), EditorStatusSeverity.Warning);
+            return null;
         }
 
-        /// <summary>A tiny render-texture stage: an orthographic camera on its own layer looking at the form,
-        /// so the preview cannot pick up the world behind the menu.</summary>
-        private void BuildPreview(Transform panel)
+        /// <summary>Save (the shell's primary button): keeps the form in "My forms" — through the shape tool's keep hook,
+        /// else the host's library save.</summary>
+        private bool Save()
         {
-            var rt = new RenderTexture(360, 360, 16) { name = "FormPreviewRT" };
-            _previewRoot = new GameObject("FormPreviewStage");
-            _previewRoot.transform.position = new Vector3(0f, -5000f, 0f); // parked far from the world
-            _previewSpin = new GameObject("Spin").transform;
-            _previewSpin.SetParent(_previewRoot.transform, false);
-
-            var camGo = new GameObject("FormPreviewCam", typeof(Camera));
-            camGo.transform.SetParent(_previewRoot.transform, false);
-            var cam = camGo.GetComponent<Camera>();
-            cam.orthographic = true;
-            cam.orthographicSize = 0.95f;
-            cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = new Color(0.03f, 0.07f, 0.14f, 1f);
-            cam.targetTexture = rt;
-            camGo.transform.localPosition = new Vector3(2.2f, 1.7f, -2.2f);
-            camGo.transform.LookAt(_previewRoot.transform.position);
-
-            var viewGo = new GameObject("FormPreviewView", typeof(RectTransform));
-            viewGo.transform.SetParent(panel, false);
-            UiKit.Place(viewGo, 530f, 104f, 360f, 360f);
-            viewGo.AddComponent<RawImage>().texture = rt;
-
-            RefreshPreview();
-        }
-
-        private void Update_SpinPreview()
-        {
-            if (_previewSpin != null)
+            string voxels = ValidForm();
+            if (voxels == null)
             {
-                _previewSpin.Rotate(Vector3.up, 28f * Time.unscaledDeltaTime, Space.Self);
-            }
-        }
-
-        private void LateUpdate() => Update_SpinPreview();
-
-        private void StepLayer(int delta)
-        {
-            _layer = Mathf.Clamp(_layer + delta, 0, _grid - 1);
-            RenderLayer();
-            UpdateLabels();
-        }
-
-        private void CopyLayerBelow()
-        {
-            if (_layer == 0)
-            {
-                return;
+                return false;
             }
 
-            for (int z = 0; z < _grid; z++)
+            if (!HostCrafts && OnApply != null)
             {
-                for (int x = 0; x < _grid; x++)
-                {
-                    _cells[Index(x, _layer, z)] = _cells[Index(x, _layer - 1, z)];
-                }
+                OnApply(voxels, DocumentName);
             }
-
-            RenderLayer();
-            RefreshPreview();
-            UpdateLabels();
-        }
-
-        /// <summary>Mirrors the WHOLE form (not just this layer) — symmetry is what most hand-built forms want,
-        /// and doing it per layer would leave the other layers behind.</summary>
-        private void Mirror(bool mirrorX)
-        {
-            var next = (char[])_cells.Clone();
-            for (int y = 0; y < _grid; y++)
+            else if (OnSaveDesign != null)
             {
-                for (int z = 0; z < _grid; z++)
-                {
-                    for (int x = 0; x < _grid; x++)
-                    {
-                        int sx = mirrorX ? _grid - 1 - x : x;
-                        int sz = mirrorX ? z : _grid - 1 - z;
-                        if (_cells[Index(sx, y, sz)] != '0')
-                        {
-                            next[Index(x, y, z)] = _cells[Index(sx, y, sz)];
-                        }
-                    }
-                }
-            }
-
-            _cells = next;
-            RenderLayer();
-            RefreshPreview();
-            UpdateLabels();
-        }
-
-        private void ClearLayer()
-        {
-            for (int z = 0; z < _grid; z++)
-            {
-                for (int x = 0; x < _grid; x++)
-                {
-                    _cells[Index(x, _layer, z)] = '0';
-                }
-            }
-
-            RenderLayer();
-            RefreshPreview();
-            UpdateLabels();
-        }
-
-        private void ClearAll()
-        {
-            for (int i = 0; i < _cells.Length; i++)
-            {
-                _cells[i] = '0';
-            }
-
-            RenderLayer();
-            RefreshPreview();
-            UpdateLabels();
-        }
-
-        private void RebuildLibraryList()
-        {
-            if (_libList == null || LibraryProvider == null)
-            {
-                return;
-            }
-
-            for (int i = _libList.childCount - 1; i >= 0; i--)
-            {
-                Destroy(_libList.GetChild(i).gameObject);
-            }
-
-            var entries = LibraryProvider() ?? new List<(string, string)>();
-            const int maxShown = 13; // 13 rows of 50 px under the stacked export/import buttons (#3263)
-            float y = 0f;
-            for (int i = 0; i < entries.Count && i < maxShown; i++)
-            {
-                var entry = entries[i];
-                int blocks = CustomShape.CellCount(entry.Voxels);
-                string label = blocks > 1 ? entry.Name + " ×" + blocks : entry.Name; // a form over several blocks (#1961)
-                UiKit.AddFitButton(_libList, 0f, y, 226f, 42f, label, () => LoadFrom(entry.Voxels, entry.Name));
-                y += 50f;
-            }
-        }
-
-        /// <summary>Puts the current form on the clipboard as a share code (#846).</summary>
-        private void ExportCode()
-        {
-            string voxels = Encode();
-            if (!CustomShape.IsValidVoxels(voxels))
-            {
-                return;
-            }
-
-            GUIUtility.systemCopyBuffer = ShareCode.EncodeForm(voxels, _name);
-            Game?.ShowMessage(L("ui.shape.custom.exported"));
-        }
-
-        /// <summary>Loads a share code off the clipboard onto the canvas — validated exactly like the server
-        /// validates a form, so a mistyped or hostile string can never reach the registry.</summary>
-        private void ImportCode()
-        {
-            if (ShareCode.TryDecodeForm(GUIUtility.systemCopyBuffer, out string voxels, out string name))
-            {
-                LoadFrom(voxels, name);
-                CustomShapeLibrary.Save(voxels, name);
-                Game?.ShowMessage(L("ui.shape.custom.imported"));
-                RebuildLibraryList();
-                UpdateLabels();
+                OnSaveDesign(voxels, DocumentName);
             }
             else
             {
-                Game?.ShowMessage(L("ui.shape.custom.import_failed"));
+                CustomShapeLibrary.Save(voxels, DocumentName);
             }
+
+            _savedName = DocumentName;
+            _model.MarkSaved();
+            RebuildLibraryList();
+            SetStatus(L("ui.shape.custom.saved"), EditorStatusSeverity.Success);
+            return true;
         }
 
-        private void Apply()
+        /// <summary>"Craft it" (the crafting tab only): the host crafts the form out of the selected material and keeps it
+        /// in the library; the designer closes, as before.</summary>
+        private void Craft()
         {
-            string voxels = Encode();
-            if (!CustomShape.IsValidVoxels(voxels) || !CustomShape.FitsBudget(voxels))
+            string voxels = ValidForm();
+            if (voxels == null || OnApply == null)
             {
-                UpdateLabels(); // the budget line turns red / the form is empty — nothing to craft
                 return;
             }
 
-            OnApply?.Invoke(voxels, _name);
+            OnApply(voxels, DocumentName);
+            _savedName = DocumentName;
+            _model.MarkSaved(); // crafting keeps it in the library: nothing is left unsaved
             Close();
+        }
+
+        private void LoadEntry(string name, string voxels)
+        {
+            bool multi = CustomShape.IsMulti(voxels);
+            if (multi || !_model.Load(voxels))
+            {
+                SetStatus(L(multi ? "ui.shape.custom.multi_in_menu" : "ui.form.load_failed"), EditorStatusSeverity.Warning);
+                return;
+            }
+
+            _name = _savedName = name ?? string.Empty;
+            _nameInput?.SetTextWithoutNotify(_name);
+            AfterStructuralChange();
+            Frame?.ClearStatus();
+        }
+
+        /// <summary>A library row over unsaved work: the shell asks first.</summary>
+        private void PickEntry(string name, string voxels) => Frame?.ConfirmDiscard(() => LoadEntry(name, voxels));
+
+        /// <summary>Puts the current form on the clipboard as a share code (#846) — desktop only.</summary>
+        private void ExportCode()
+        {
+            string voxels = ValidForm();
+            if (voxels == null)
+            {
+                return;
+            }
+
+            GUIUtility.systemCopyBuffer = ShareCode.EncodeForm(voxels, DocumentName);
+            SetStatus(L("ui.shape.custom.exported"), EditorStatusSeverity.Success);
+        }
+
+        /// <summary>Takes a share code off the clipboard — validated exactly like the server validates a form — into the
+        /// library and, for a one-block form, onto the canvas as ONE undoable step.</summary>
+        private void ImportCode()
+        {
+            if (!ShareCode.TryDecodeForm(GUIUtility.systemCopyBuffer, out string voxels, out string name))
+            {
+                SetStatus(L("ui.shape.custom.import_failed"), EditorStatusSeverity.Warning);
+                return;
+            }
+
+            CustomShapeLibrary.Save(voxels, name);
+            if (!CustomShape.IsMulti(voxels) && _model.Replace(voxels))
+            {
+                _name = name ?? string.Empty;
+                _nameInput?.SetTextWithoutNotify(_name);
+                AfterStructuralChange();
+                Changed();
+            }
+
+            RebuildLibraryList();
+            SetStatus(L("ui.shape.custom.imported"), EditorStatusSeverity.Success);
         }
 
         private void Close() => Destroy(gameObject);
 
-        private string L(string key) => Localizer?.Invoke(key) ?? key;
+        private string ProblemText()
+        {
+            switch (_model.Problem(out _))
+            {
+                case FormProblem.Empty: return L("ui.form.problem_empty");
+                case FormProblem.SolidCubes: return L("ui.form.problem_solid");
+                case FormProblem.TooDetailed: return string.Format(L("ui.form.problem_detailed"), 1, CustomShape.MaxBoxes);
+                default: return string.Empty;
+            }
+        }
+
+        // ---------------------------------------------------------------- drafts (#3689)
+
+        [Serializable]
+        private sealed class ShapeDraft
+        {
+            public string name;
+            public string raw;
+        }
+
+        protected override string WriteDraftPayload()
+            => _model.Problem(out _) == FormProblem.Empty ? null : JsonUtility.ToJson(new ShapeDraft { name = _name ?? string.Empty, raw = _model.Raw() });
+
+        protected override bool ReadDraftPayload(string payload)
+        {
+            var draft = JsonUtility.FromJson<ShapeDraft>(payload);
+            _model.New();
+            if (draft == null || !_model.ReplaceRaw(draft.raw) || _model.Cells != 1)
+            {
+                _model.New();
+                AfterStructuralChange();
+                return false;
+            }
+
+            _name = draft.name ?? string.Empty;
+            _savedName = string.Empty;
+            _nameInput?.SetTextWithoutNotify(_name);
+            AfterStructuralChange();
+            return true;
+        }
     }
 
     /// <summary>

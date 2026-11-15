@@ -74,7 +74,7 @@ namespace BlocksBeyondTheStars.Client
                 long id = r.Id;
                 string count = r.Evidence.Length.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 string label = evidenceOpen ? L("ui.admin.evidence_hide") : AdminPanelText.Fill(L("ui.admin.evidence"), count);
-                UiKit.AddFitButton(_list, 14f, cy + 4f, 300f, 40f, label, () => ToggleEvidence(id));
+                AddTierFitButton(_list, 14f, cy + 4f, 300f, 40f, label, () => ToggleEvidence(id), ButtonTier.Quiet);
                 cy += 48f;
                 if (evidenceOpen)
                 {
@@ -124,7 +124,8 @@ namespace BlocksBeyondTheStars.Client
             long id = r.Id;
             bool done = r.Done;
             float x = ReportButtonsX, by = y + 10f;
-            UiKit.AddFitButton(_list, x, by, DoneW, 46f, L(done ? "ui.admin.reopen" : "ui.admin.done"), () => net.SendAdminReportAction(id, !done));
+            AddTierFitButton(_list, x, by, DoneW, 46f, L(done ? "ui.admin.reopen" : "ui.admin.done"), () => net.SendAdminReportAction(id, !done),
+                ButtonTier.Secondary);
             x += DoneW + ReportGap;
 
             if (Invisible)
@@ -132,13 +133,14 @@ namespace BlocksBeyondTheStars.Client
                 string targetId = r.TargetId;
                 if (!string.IsNullOrEmpty(targetId) && net.AdminPlayers.Find(targetId) != null)
                 {
-                    UiKit.AddFitButton(_list, x, by, ReportJumpW, 46f, L("ui.admin.jump"), () => JumpToPlayer(targetId));
+                    AddTierFitButton(_list, x, by, ReportJumpW, 46f, L("ui.admin.jump"), () => JumpToPlayer(targetId), ButtonTier.Secondary);
                 }
                 else if (r.HasPosition)
                 {
                     string location = r.LocationId;
                     float px = r.X, py = r.Y, pz = r.Z;
-                    UiKit.AddFitButton(_list, x, by, ReportJumpW, 46f, L("ui.admin.jump_there"), () => JumpToPlace(location, px, py, pz));
+                    AddTierFitButton(_list, x, by, ReportJumpW, 46f, L("ui.admin.jump_there"), () => JumpToPlace(location, px, py, pz),
+                        ButtonTier.Secondary);
                 }
             }
 
@@ -146,7 +148,8 @@ namespace BlocksBeyondTheStars.Client
             if (!string.IsNullOrEmpty(r.ReporterId) && net.AdminPlayers.Find(r.ReporterId) != null)
             {
                 string reporterId = r.ReporterId, reporterName = r.ReporterName;
-                UiKit.AddFitButton(_list, x, by, ReporterChatW, 46f, L("ui.admin.chat_reporter"), () => OpenConversation(reporterId, reporterName));
+                AddTierFitButton(_list, x, by, ReporterChatW, 46f, L("ui.admin.chat_reporter"), () => OpenConversation(reporterId, reporterName),
+                    ButtonTier.Secondary);
             }
         }
     }

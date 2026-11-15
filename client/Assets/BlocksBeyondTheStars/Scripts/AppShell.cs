@@ -11,7 +11,7 @@ using UnityEngine;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>The shell phases: splash, main menu, settings, credits, loading, in-game.</summary>
-    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor, AvatarEditor, StructureEditor, ContentEditor, MaterialEditor, Editors, SaveSelect, Studio, Intro, TextureEditor, FormEditor, ToolLookEditor }
+    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor, AvatarEditor, StructureEditor, ContentEditor, MaterialEditor, Editors, SaveSelect, Studio, Intro, TextureEditor, FormEditor, ToolLookEditor, Multiplayer }
 
     /// <summary>
     /// Client front-end state machine (M20 / `anf_textures.md`): drives splash → main menu →
@@ -583,6 +583,13 @@ namespace BlocksBeyondTheStars.Client
 
         private int _menuBackgroundBuilds;
 
+        /// <summary>Builds the backdrop anew — the poster capture (#3706) after it switched the preset and the framing.</summary>
+        public void RebuildMenuBackground()
+        {
+            DestroyMenuBackground();
+            EnsureMenuBackground();
+        }
+
         private void DestroyMenuBackground()
         {
             if (_menuBackground != null)
@@ -757,7 +764,8 @@ namespace BlocksBeyondTheStars.Client
         {
             var args = System.Environment.GetCommandLineArgs();
             bool captureRun = System.Array.IndexOf(args, "-captureShots") >= 0
-                              || System.Array.IndexOf(args, "-captureClip") >= 0;
+                              || System.Array.IndexOf(args, "-captureClip") >= 0
+                              || System.Array.IndexOf(args, "-capturePoster") >= 0;
             GoTo(!captureRun && Settings != null && !Settings.IntroSeen ? ShellPhase.Intro : ShellPhase.MainMenu);
         }
 
@@ -791,6 +799,37 @@ namespace BlocksBeyondTheStars.Client
                 _uiSaveSelect = null;
             }
         }
+
+        /// <summary>
+        /// Builds a shell screen when its phase starts and destroys it when the phase ends — the same four lines every
+        /// uGUI shell screen (settings, credits, editors, world picker, multiplayer) needed, now in one place (#3665).
+        /// </summary>
+        private void SyncShellScreen(ShellPhase phase, ref GameObject screen, System.Func<AppShell, GameObject> build)
+        {
+            if (Phase == phase && screen == null)
+            {
+                screen = build(this);
+                UiKit.BootScreen(screen);
+            }
+            else if (Phase != phase && screen != null)
+            {
+                Destroy(screen);
+                screen = null;
+            }
+        }
+
+        /// <summary>Opens the Multiplayer screen (#3665): official worlds, joining a server, hosting on the network.</summary>
+        public void OpenMultiplayer(int tab = 0)
+        {
+            MultiplayerTab = tab;
+            Phase = ShellPhase.Multiplayer;
+        }
+
+        /// <summary>The tab the Multiplayer screen opens on: 0 official worlds, 1 join a server, 2 host on your network.</summary>
+        public int MultiplayerTab { get; set; }
+
+        /// <summary>Opens My worlds with the "Open to friends" switch already on — the Multiplayer screen's host tab (#3664).</summary>
+        public void OpenMyWorldsForHosting() => StartHost();
 
         // Where CloseSettings returns to. Settings is opened both from the main menu and from the in-game pause
         // menu; it must go back to whichever it came from, so the player can change the volume mid-game without
@@ -1342,6 +1381,7 @@ namespace BlocksBeyondTheStars.Client
         private GameObject _uiCredits;
         private GameObject _uiEditors;
         private GameObject _uiSaveSelect;
+        private GameObject _uiMultiplayer;
         private GameObject _uiContentError;
 
         /// <summary>Blocking "content failed to load" overlay with a Retry button (#422 M8/M9). Texts are
@@ -1459,8 +1499,16 @@ namespace BlocksBeyondTheStars.Client
             Phase = ShellPhase.ShipEditor;
         }
 
-        /// <summary>Closes the ship editor and returns to the main menu.</summary>
-        public void CloseShipEditor()
+        /// <summary>Closes the ship editor and returns to the editors submenu.</summary>
+        public void CloseShipEditor() => CloseMenuEditor();
+
+        /// <summary>
+        /// Closes whichever menu editor is open and returns to the editors submenu (#3696) — the one body behind the eight
+        /// public <c>Close*Editor</c> methods (each editor's Back, <c>ScreenshotDirector</c>), which used to be eight copies:
+        /// the editor's root goes (its <c>OnDestroy</c> takes the canvas, the shell writes a draft of unsaved work), the menu
+        /// backdrop comes back and the cursor is freed (a 3D editor may have locked it for right-mouse look).
+        /// </summary>
+        private void CloseMenuEditor()
         {
             if (_editorRoot != null)
             {
@@ -1472,6 +1520,33 @@ namespace BlocksBeyondTheStars.Client
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
             Phase = ShellPhase.Editors; // back to the editors submenu
+        }
+
+        /// <summary>True for the phases of the menu editors (the cards of the editors submenu).</summary>
+        private static bool IsMenuEditor(ShellPhase phase) => phase is ShellPhase.ShipEditor or ShellPhase.AvatarEditor
+            or ShellPhase.StructureEditor or ShellPhase.ContentEditor or ShellPhase.MaterialEditor or ShellPhase.TextureEditor
+            or ShellPhase.FormEditor or ShellPhase.ToolLookEditor;
+
+        /// <summary>
+        /// Esc / pad B in a menu editor (#3690) — the ONE reader of the key there. An editor on the <see cref="EditorShell"/>
+        /// gets it through <see cref="EditorShell.HandleCancel"/>: a text field that just took the key, then the shell's own
+        /// dialog, then the editor's topmost picker / panel / pad mode (<see cref="IEditorDocument.CloseTopLayer"/>) — never the
+        /// editor itself; it is left only through Back, its draft keeps the work. An editor not on the shell yet keeps its
+        /// old rule (the press closes it) — except while the press only left a text field, or a layer that reads its own
+        /// cancel had it (the submit dialog, the pad's canvas mode).
+        /// </summary>
+        private void CancelInMenuEditor(bool fieldTypingRecent)
+        {
+            if (EditorShell.Current != null)
+            {
+                EditorShell.Current.HandleCancel(fieldTypingRecent);
+                return;
+            }
+
+            if (!fieldTypingRecent && !CreationSubmitDialog.OwnsCancel && !PadCanvasFocus.OwnsCancel)
+            {
+                CloseMenuEditor();
+            }
         }
 
         /// <summary>Opens the avatar skin designer (edit per-part colours + export a skin).</summary>
@@ -1483,20 +1558,8 @@ namespace BlocksBeyondTheStars.Client
             Phase = ShellPhase.AvatarEditor;
         }
 
-        /// <summary>Closes the avatar editor and returns to the main menu.</summary>
-        public void CloseAvatarEditor()
-        {
-            if (_editorRoot != null)
-            {
-                Destroy(_editorRoot);
-                _editorRoot = null;
-            }
-
-            EnsureMenuBackground();
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-            Phase = ShellPhase.Editors; // back to the editors submenu
-        }
+        /// <summary>Closes the avatar editor and returns to the editors submenu.</summary>
+        public void CloseAvatarEditor() => CloseMenuEditor();
 
         /// <summary>Opens the station / settlement structure editor (build a template + save it).</summary>
         public void OpenStructureEditor(StructureEditor.Mode mode)
@@ -1522,19 +1585,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Closes the item + recipe designer and returns to the editors submenu.</summary>
-        public void CloseContentEditor()
-        {
-            if (_editorRoot != null)
-            {
-                Destroy(_editorRoot);
-                _editorRoot = null;
-            }
-
-            EnsureMenuBackground();
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-            Phase = ShellPhase.Editors;
-        }
+        public void CloseContentEditor() => CloseMenuEditor();
 
         /// <summary>Opens the material designer (paint/load a texture, set frequency + world type, mechanics).</summary>
         public void OpenMaterialEditor()
@@ -1564,19 +1615,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Closes the form editor and returns to the editors submenu.</summary>
-        public void CloseFormEditor()
-        {
-            if (_editorRoot != null)
-            {
-                Destroy(_editorRoot);
-                _editorRoot = null;
-            }
-
-            EnsureMenuBackground();
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-            Phase = ShellPhase.Editors;
-        }
+        public void CloseFormEditor() => CloseMenuEditor();
 
         /// <summary>Opens "My tools" (#1963): the player's own looks for drills, guns, blades and scanners.</summary>
         public void OpenToolLookEditor()
@@ -1588,64 +1627,16 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Closes "My tools" and returns to the editors submenu.</summary>
-        public void CloseToolLookEditor()
-        {
-            if (_editorRoot != null)
-            {
-                Destroy(_editorRoot);
-                _editorRoot = null;
-            }
-
-            EnsureMenuBackground();
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-            Phase = ShellPhase.Editors;
-        }
+        public void CloseToolLookEditor() => CloseMenuEditor();
 
         /// <summary>Closes the texture editor and returns to the editors submenu.</summary>
-        public void CloseTextureEditor()
-        {
-            if (_editorRoot != null)
-            {
-                Destroy(_editorRoot);
-                _editorRoot = null;
-            }
-
-            EnsureMenuBackground();
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-            Phase = ShellPhase.Editors;
-        }
+        public void CloseTextureEditor() => CloseMenuEditor();
 
         /// <summary>Closes the material designer and returns to the editors submenu.</summary>
-        public void CloseMaterialEditor()
-        {
-            if (_editorRoot != null)
-            {
-                Destroy(_editorRoot);
-                _editorRoot = null;
-            }
+        public void CloseMaterialEditor() => CloseMenuEditor();
 
-            EnsureMenuBackground();
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-            Phase = ShellPhase.Editors;
-        }
-
-        /// <summary>Closes the structure editor and returns to the main menu.</summary>
-        public void CloseStructureEditor()
-        {
-            if (_editorRoot != null)
-            {
-                Destroy(_editorRoot);
-                _editorRoot = null;
-            }
-
-            EnsureMenuBackground();
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-            Phase = ShellPhase.Editors; // back to the editors submenu
-        }
+        /// <summary>Closes the structure editor and returns to the editors submenu.</summary>
+        public void CloseStructureEditor() => CloseMenuEditor();
 
         /// <summary>Time-based loading progress (0..1) for the uGUI loading bar.</summary>
         public float LoadingProgress => _loading.Progress;
@@ -1834,6 +1825,7 @@ namespace BlocksBeyondTheStars.Client
             UiNav.SetSuspended(_uiSettings, feedbackModal);
             UiNav.SetSuspended(_uiCredits, feedbackModal);
             UiNav.SetSuspended(_uiEditors, feedbackModal);
+            UiNav.SetSuspended(_uiMultiplayer, feedbackModal);
 
             if (Phase == ShellPhase.Loading && _uiLoading == null)
             {
@@ -1882,49 +1874,11 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Settings + credits are uGUI now too (the whole shell is one design).
-            if (Phase == ShellPhase.Settings && _uiSettings == null)
-            {
-                _uiSettings = UiSettings.Build(this);
-                UiKit.BootScreen(_uiSettings);
-            }
-            else if (Phase != ShellPhase.Settings && _uiSettings != null)
-            {
-                Destroy(_uiSettings);
-                _uiSettings = null;
-            }
-
-            if (Phase == ShellPhase.Credits && _uiCredits == null)
-            {
-                _uiCredits = UiCredits.Build(this);
-                UiKit.BootScreen(_uiCredits);
-            }
-            else if (Phase != ShellPhase.Credits && _uiCredits != null)
-            {
-                Destroy(_uiCredits);
-                _uiCredits = null;
-            }
-
-            if (Phase == ShellPhase.Editors && _uiEditors == null)
-            {
-                _uiEditors = UiEditors.Build(this);
-                UiKit.BootScreen(_uiEditors);
-            }
-            else if (Phase != ShellPhase.Editors && _uiEditors != null)
-            {
-                Destroy(_uiEditors);
-                _uiEditors = null;
-            }
-
-            if (Phase == ShellPhase.SaveSelect && _uiSaveSelect == null)
-            {
-                _uiSaveSelect = UiSaveSelect.Build(this);
-                UiKit.BootScreen(_uiSaveSelect);
-            }
-            else if (Phase != ShellPhase.SaveSelect && _uiSaveSelect != null)
-            {
-                Destroy(_uiSaveSelect);
-                _uiSaveSelect = null;
-            }
+            SyncShellScreen(ShellPhase.Settings, ref _uiSettings, UiSettings.Build);
+            SyncShellScreen(ShellPhase.Credits, ref _uiCredits, UiCredits.Build);
+            SyncShellScreen(ShellPhase.Editors, ref _uiEditors, UiEditors.Build);
+            SyncShellScreen(ShellPhase.SaveSelect, ref _uiSaveSelect, UiSaveSelect.Build);
+            SyncShellScreen(ShellPhase.Multiplayer, ref _uiMultiplayer, UiMultiplayer.Build);
 
             // The open pause menu keeps its own status line in step with who else has (not) paused yet (#973). The
             // keep-alive that tells the server it is still there runs in the world's hold arbiter (#2461).
@@ -2020,7 +1974,12 @@ namespace BlocksBeyondTheStars.Client
                 }
                 else if (Phase == ShellPhase.Settings)
                 {
-                    CloseSettings();
+                    // A capture owns the press (B may be the button being bound, Esc cancels the capture), and the screen's
+                    // reset question or festival list closes before the screen does.
+                    if (!UiSettings.CapturingKey && !UiSettings.CloseTopLayer())
+                    {
+                        CloseSettings();
+                    }
                 }
                 else if (Phase == ShellPhase.Credits)
                 {
@@ -2030,44 +1989,26 @@ namespace BlocksBeyondTheStars.Client
                 {
                     Phase = ShellPhase.MainMenu;
                 }
-                else if (Phase == ShellPhase.SaveSelect)
+                else if (Phase == ShellPhase.SaveSelect || Phase == ShellPhase.Multiplayer)
                 {
-                    if (!fieldTypingRecent)
+                    // My worlds: the delete question, the world options and the New-world form close first, one per press —
+                    // but not while the Esc only left a text field.
+                    bool dialogClosed = !fieldTypingRecent && Phase == ShellPhase.SaveSelect && UiSaveSelect.CloseTopLayer();
+#if !UNITY_WEBGL || UNITY_EDITOR
+                    // #3665: a portal dialog first — but not while the Esc only left a dialog's text field.
+                    dialogClosed = dialogClosed
+                        || (!fieldTypingRecent && Phase == ShellPhase.Multiplayer && UiOfficialWorlds.CloseTopDialog());
+#endif
+                    if (!dialogClosed && !fieldTypingRecent)
                     {
                         Phase = ShellPhase.MainMenu;
                     }
                 }
-                else if (Phase == ShellPhase.ShipEditor && !CreationSubmitDialog.OwnsCancel)
+                else if (IsMenuEditor(Phase))
                 {
-                    CloseShipEditor(); // the submit dialog (#3262) takes its own cancel first, as in the texture editor
-                }
-                else if (Phase == ShellPhase.AvatarEditor && !CreationSubmitDialog.OwnsCancel)
-                {
-                    CloseAvatarEditor();
-                }
-                else if (Phase == ShellPhase.StructureEditor && !CreationSubmitDialog.OwnsCancel)
-                {
-                    CloseStructureEditor();
-                }
-                else if (Phase == ShellPhase.ContentEditor)
-                {
-                    CloseContentEditor();
-                }
-                else if (Phase == ShellPhase.MaterialEditor)
-                {
-                    CloseMaterialEditor();
-                }
-                else if (Phase == ShellPhase.TextureEditor && !CreationSubmitDialog.OwnsCancel && !PadCanvasFocus.OwnsCancel)
-                {
-                    CloseTextureEditor(); // the submit dialog (#1965) and the pad's canvas mode take their own cancel first
-                }
-                else if (Phase == ShellPhase.FormEditor && !PadCanvasFocus.OwnsCancel)
-                {
-                    CloseFormEditor();
-                }
-                else if (Phase == ShellPhase.ToolLookEditor && !PadCanvasFocus.OwnsCancel)
-                {
-                    CloseToolLookEditor();
+                    // One branch for every menu editor (#3690): on the editor shell the press closes the topmost layer and
+                    // never the editor (B in the ship editor's build view only leaves the view); see CancelInMenuEditor.
+                    CancelInMenuEditor(fieldTypingRecent);
                 }
             }
         }
@@ -2122,6 +2063,9 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // A local world's "last played" picture (My worlds) — taken now, before the menu and its blur show.
+            WorldPreviewCapture.PauseMenuOpening();
+
             // Ask before leaving the game (rather than quitting instantly) — and actually hold the
             // world while the menu is up, which is what the dialog has always claimed to do.
             _confirmQuit = true;
@@ -2145,19 +2089,21 @@ namespace BlocksBeyondTheStars.Client
             const float ReasonH = 48f;
             // #3509: the Admin row (players the server lets into the admin view) and "Call an admin" (everyone in a world).
             int extraRows = (returnShip ? 1 : 0) + PauseAdminRowCount(boot);
-            float panelH = 340f + (extraRows * PauseRow) + (returnShip ? ReasonH : 0f);
+            float panelH = 340f + PauseQuitGap + (extraRows * PauseRow) + (returnShip ? ReasonH : 0f);
             var (pauseOverlay, panel) = UiKit.AddModalOverlay(canvas.transform, 720f, (1080f - panelH) / 2f, 480f, panelH);
             _pauseOverlay = pauseOverlay;
             UiKit.AddText(panel.transform, 24f, 24f, 432f, 44f,
                 L("ui.pause.title"), 26, UiKit.TextCol, TextAnchor.MiddleCenter);
             float y = 88f;
-            UiKit.AddButton(panel.transform, 90f, y, 300f, 56f, L("ui.pause.resume"), CancelQuit);
+            // #3672: Resume is the one primary action; Leave sits apart at the bottom, every row with its icon.
+            UiKit.AddTierButton(panel.transform, PauseRowX, y, PauseRowW, 56f, L("ui.pause.resume"), CancelQuit, ButtonTier.Primary, "btn_continue");
             y += PauseRow;
-            UiKit.AddButton(panel.transform, 90f, y, 300f, 56f, L("ui.menu.settings"), OpenSettings);
+            UiKit.AddTierButton(panel.transform, PauseRowX, y, PauseRowW, 56f, L("ui.menu.settings"), OpenSettings, ButtonTier.Secondary, "btn_settings");
             y += PauseRow;
             y = AddPauseAdminRows(panel.transform, y, boot);
             y = AddReturnShipRow(panel.transform, y, returnShip);
-            UiKit.AddButton(panel.transform, 90f, y, 300f, 56f, L("ui.pause.quit"), ReturnToMenu);
+            y += PauseQuitGap;
+            UiKit.AddTierButton(panel.transform, PauseRowX, y, PauseRowW, 56f, L("ui.pause.quit"), ReturnToMenu, ButtonTier.Quiet, "btn_exit");
             y += PauseRow;
 
             // In multiplayer the world only stops once everybody is in their menu (#973), so the dialog has to
@@ -2180,6 +2126,12 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The pause menu's row height.</summary>
         private const float PauseRow = 64f;
 
+        /// <summary>The pause menu's rows: x and width inside the 480-wide panel (#3672: wider, with icons).</summary>
+        private const float PauseRowX = 50f, PauseRowW = 380f;
+
+        /// <summary>The gap that sets "Leave the game" apart from the rows above it (#3672).</summary>
+        private const float PauseQuitGap = 14f;
+
         /// <summary>"Back to my ship" (#2286) — the row and its state, fresh for a fresh menu; returns the next row's y.</summary>
         private float AddReturnShipRow(Transform panel, float y, bool returnShip)
         {
@@ -2194,7 +2146,7 @@ namespace BlocksBeyondTheStars.Client
                 return y;
             }
 
-            _returnShipButton = UiKit.AddButton(panel, 90f, y, 300f, 56f, L("ui.pause.return_ship"), ReturnToShip);
+            _returnShipButton = UiKit.AddTierButton(panel, PauseRowX, y, PauseRowW, 56f, L("ui.pause.return_ship"), ReturnToShip, ButtonTier.Secondary, "map_ship");
             _returnShipLabel = _returnShipButton.GetComponentInChildren<UnityEngine.UI.Text>();
             RefreshReturnShipButton();
             return y + PauseRow;

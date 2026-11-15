@@ -332,7 +332,7 @@ with the far view off it is drawn up to 512 blocks and only as far as the camera
 
 ## 7. Authoring
 
-- **In the editor** (town editor, *Use as → Landmark*): the room is 256 blocks a side; the form sets ruin, profile,
+- **In the editor** (village editor, *Use as → Landmark*): the room is 256 blocks a side; the form sets ruin, profile,
   strength, conditions, the ground row, the seat (on the ground / a span), the ruin zones (a list with corners, profile
   and strength, drawn as wire boxes, set by two clicks with the palette's *Ruin zone* tool — `StructureEditor.Zones.cs`)
   and the **protection** picker (auto / protected / open — in every *Use as* form of a whole structure, not only

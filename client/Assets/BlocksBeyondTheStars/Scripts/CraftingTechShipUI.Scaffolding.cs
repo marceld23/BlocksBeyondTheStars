@@ -37,7 +37,7 @@ namespace BlocksBeyondTheStars.Client
         private void AddCard(float y, string title, string icon, string status, Color statusCol, string key, System.Action onClick, float indent = 0f, string contentKey = null,
             float trimRight = 0f)
         {
-            float cw = 780f - indent - trimRight;
+            float cw = CardW - indent - trimRight; // 780 beside the sidebar; the wide Inventory list takes its width (#3671)
             var card = UiKit.AddButton(_listContent, indent, y, cw, 78, string.Empty, onClick);
             if (_selected == key)
             {

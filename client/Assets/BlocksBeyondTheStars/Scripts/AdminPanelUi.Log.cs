@@ -88,7 +88,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 string location = ev.LocationId;
                 float x = ev.X, py = ev.Y, z = ev.Z;
-                UiKit.AddFitButton(_list, width - 150f, y + 4f, 140f, LogRowH - 8f, L("ui.admin.jump"), () => JumpToPlace(location, x, py, z));
+                AddTierFitButton(_list, width - 150f, y + 4f, 140f, LogRowH - 8f, L("ui.admin.jump"), () => JumpToPlace(location, x, py, z),
+                    ButtonTier.Secondary);
             }
         }
 

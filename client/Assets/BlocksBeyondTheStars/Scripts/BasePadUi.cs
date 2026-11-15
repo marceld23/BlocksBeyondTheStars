@@ -131,7 +131,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 var note = UiKit.AddText(panel, 32f, 76f, W - 64f, 80f, L("ui.basepad.not_registered"), 18, UiKit.TextCol, TextAnchor.UpperLeft);
                 note.horizontalOverflow = HorizontalWrapMode.Wrap;
-                UiKit.AddButton(panel, (W - 200f) * 0.5f, h - 66f, 200f, 44f, L("ui.action.close"), Close);
+                UiKit.AddTierButton(panel, (W - 220f) * 0.5f, h - 66f, 220f, 44f, L("ui.action.close"), Close, ButtonTier.Quiet, "btn_close");
                 return;
             }
 
@@ -144,7 +144,8 @@ namespace BlocksBeyondTheStars.Client
                 BuildOwnerControls(panel, 170f, h);
             }
 
-            UiKit.AddButton(panel, W - 32f - 200f, h - 66f, 200f, 44f, L("ui.action.close"), Close);
+            // #3662: Close = the cross, quiet, built last (the pad lands on the pad's own controls first).
+            UiKit.AddTierButton(panel, W - 32f - 200f, h - 66f, 200f, 44f, L("ui.action.close"), Close, ButtonTier.Quiet, "btn_close");
         }
 
         /// <summary>The owner's part: the name field, the three "who may land" choices and Save.</summary>
@@ -169,7 +170,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             MarkChoices();
-            UiKit.AddButton(panel, 32f, h - 66f, 200f, 44f, L("ui.basepad.save"), Save);
+            UiKit.AddTierButton(panel, 32f, h - 66f, 200f, 44f, L("ui.basepad.save"), Save, ButtonTier.Primary); // the one primary action
             _saved = UiKit.AddText(panel, 244f, h - 66f, W - 64f - 2f * 212f, 44f, string.Empty, 16, UiKit.Ok, TextAnchor.MiddleCenter);
         }
 
@@ -179,6 +180,7 @@ namespace BlocksBeyondTheStars.Client
             if (_head != null)
             {
                 _head.text = L("ui.basepad.title") + " — " + BasePadText.Name(pad, Game.CurrentBodyPads, L);
+                UiKit.FitLabelSingleLine(_head, W - 64f, 16, 26); // a long pad name stays on the title row
             }
 
             if (_info != null)

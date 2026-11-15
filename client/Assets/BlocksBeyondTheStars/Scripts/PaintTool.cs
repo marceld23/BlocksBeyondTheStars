@@ -12,9 +12,11 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// The block-paint tool host (#818): right-clicking with the held <c>paint_tool</c> on a placed block
     /// opens the shared <see cref="FaceEditor"/> at 32×32, pre-loaded with the block's current design, plus
-    /// the local design library column (save + reuse, #820). Apply sends a <c>PaintBlockIntent</c>; the
-    /// server registers/dedups the bitmap and answers through the ordinary block-change path. Player control
-    /// freezes + the cursor frees via the same menu-owner arbiter the beacon naming overlay uses.
+    /// the local design library card (keep + reuse, #820). Since the editor shell (#3693) it is a full editor frame:
+    /// Back top left, Undo / Redo, and Save ("on this block") sends a <c>PaintBlockIntent</c>; the server
+    /// registers/dedups the bitmap and answers through the ordinary block-change path. Esc / pad B go through
+    /// <c>GameMenu</c> to the shell (#3690), which closes an armed tool, never the editor. Player control freezes + the
+    /// cursor frees via the same menu-owner arbiter the beacon naming overlay uses.
     /// </summary>
     public sealed class PaintToolUi : MonoBehaviour
     {
@@ -51,8 +53,7 @@ namespace BlocksBeyondTheStars.Client
                 string owner = Game.PaintAtlas.OwnerOf(designId);
                 if (!string.IsNullOrEmpty(owner))
                 {
-                    currentName = string.Format(Game.Localizer?.Get("ui.paint.copied_from") ?? "{0} (by {1})",
-                        Game.Localizer?.Get("ui.paint.title") ?? "Design", owner);
+                    currentName = string.Format(L("ui.paint.copied_from"), L("ui.paint.title"), owner);
                 }
             }
 
@@ -64,43 +65,60 @@ namespace BlocksBeyondTheStars.Client
             // Unpainted pixels become the design's paper canvas on the block, not the editor's dark grey —
             // so the canvas shows what the block will look like (#899).
             _editor.BaseColor = PaintDesignAtlas.Canvas;
-            // The shared editor asks for the face keys; remap title/hint to the paint texts, everything
-            // else (palette/apply/clear/back) reads the same in both hosts.
-            _editor.Localizer = key => Game.Localizer?.Get(key switch
+            ConfigureFrame(_editor, cell);
+            _editor.OnSaveDesign = PaintLibrary.Save;
+            _editor.LibraryProvider = PaintLibrary.List;
+            if (EditorShell.DesktopFeatures)
             {
-                "ui.face.title" => "ui.paint.title",
-                "ui.face.hint" => "ui.paint.hint",
-                _ => key,
-            }) ?? key;
-            _editor.OnApply = encoded =>
+                // The share code lives on the clipboard, which the browser build cannot reach — there the buttons go.
+                _editor.OnShare = CopyCode;
+                _editor.OnImport = PasteCode;
+            }
+
+            _editor.OnClosed = () => { _editor = null; Game?.SetMenuOwner(this, false); };
+            Game.SetMenuOwner(this, true); // freezes player control + frees the cursor via the arbiter (#413)
+        }
+
+        /// <summary>The shell frame: the paint texts, the draft slot, Save = paint the block.</summary>
+        private void ConfigureFrame(FaceEditor editor, Vector3Int cell)
+        {
+            // The shared editor names the face's title; the paint tool reads its own.
+            editor.Localizer = key => Game.Localizer?.Get(key == "ui.face.title" ? "ui.paint.title" : key) ?? key;
+            editor.EditorKey = "paint";
+            editor.ShellTitleKey = "ui.paint.title";
+            editor.SaveSublineKey = "ui.editor.save_sub.paint";
+            editor.AboutKey = "ui.paint.about";
+            editor.OnApply = encoded =>
             {
                 // An all-empty canvas clears the paint (the server treats empty as "remove the design").
                 string send = FacePalette.IsEmpty(encoded) ? string.Empty : encoded;
                 Game.Network?.SendPaintBlock(cell.x, cell.y, cell.z, send);
             };
-            _editor.OnSaveDesign = PaintLibrary.Save;
-            _editor.LibraryProvider = PaintLibrary.List;
-            _editor.OnShare = (px, nm) =>
-            {
-                GUIUtility.systemCopyBuffer = ShareCode.EncodeDesign(px, nm);
-                Game.ShowMessage(Game.Localizer?.Get("ui.shape.custom.exported") ?? "Code copied.");
-            };
-            _editor.OnImport = () =>
-            {
-                if (!ShareCode.TryDecodeDesign(GUIUtility.systemCopyBuffer, PaintDesignAtlas.PixelChars,
-                        out string px, out string nm))
-                {
-                    Game.ShowMessage(Game.Localizer?.Get("ui.shape.custom.import_failed") ?? "Not a valid code.");
-                    return null;
-                }
-
-                PaintLibrary.Save(px, nm);
-                Game.ShowMessage(Game.Localizer?.Get("ui.shape.custom.imported") ?? "Added to your library.");
-                return (px, nm);
-            };
-            _editor.OnClosed = () => { _editor = null; Game?.SetMenuOwner(this, false); };
-            Game.SetMenuOwner(this, true); // freezes player control + frees the cursor via the arbiter (#413)
         }
+
+        /// <summary>Copy code: the design as a share code on the clipboard.</summary>
+        private void CopyCode(string pixels, string name)
+        {
+            GUIUtility.systemCopyBuffer = ShareCode.EncodeDesign(pixels, name);
+            _editor?.ShowStatus(L("ui.paint.code_copied"), EditorStatusSeverity.Success);
+        }
+
+        /// <summary>Paste code: a share code from the clipboard goes into the library (the editor then puts it on the
+        /// canvas). Null when the clipboard holds none.</summary>
+        private (string Pixels, string Name)? PasteCode()
+        {
+            if (!ShareCode.TryDecodeDesign(GUIUtility.systemCopyBuffer, PaintDesignAtlas.PixelChars, out string px, out string nm))
+            {
+                _editor?.ShowStatus(L("ui.paint.import_failed"), EditorStatusSeverity.Warning);
+                return null;
+            }
+
+            PaintLibrary.Save(px, nm);
+            _editor?.ShowStatus(L("ui.paint.imported"), EditorStatusSeverity.Info);
+            return (px, nm);
+        }
+
+        private string L(string key) => Game?.Localizer?.Get(key) ?? key;
     }
 
     /// <summary>

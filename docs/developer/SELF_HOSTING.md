@@ -286,7 +286,8 @@ secret is stored in the save. The very first player ever to join a fresh world b
 **WorldAdmin** (unless a hosted owner or `noPlayerAdmins` is configured, see above); names listed in
 `adminPlayers` get the Admin role on join.
 
-> **In-game hosting:** the client's main-menu **Host Game** runs this same server as a
+> **In-game hosting:** the client's **Open to friends** switch in *My worlds* (#3664; it was the main menu's **Host
+> Game**) runs this same server as a
 > child process (any singleplayer save, "open to LAN" style) with `--max-players`,
 > an optional `--password`, and the host's name in `--admins`. On Windows the host screen
 > first checks that the firewall lets other machines reach that server and offers to add
@@ -418,11 +419,12 @@ See §9 for distributing the client this way.
 
 Singleplayer launches the **same** dedicated server as a bundled child process bound to
 loopback (`--bind 127.0.0.1`), so there is no separate code path — what works solo works in
-multiplayer — and nothing but the local client can reach it. The main menu's **Host Game**
-opens that exact path to friends: it binds every interface, raises the player cap, adds an
-optional join password, and announces the host's LAN address in-game. Because friends dial
-in, hosting is the one case that needs a Windows Firewall rule; the host screen checks for
-it before the world starts (see [WINDOWS_FIREWALL.md](WINDOWS_FIREWALL.md)).
+multiplayer — and nothing but the local client can reach it. The **Open to friends** switch in
+*My worlds* (formerly the main menu's **Host Game**) opens that exact path to friends: it binds
+every interface, raises the player cap, adds an optional join password, and announces the host's
+LAN address in-game. Because friends dial in, hosting is the one case that needs a Windows
+Firewall rule; the host screen checks for it before the world starts (see
+[WINDOWS_FIREWALL.md](WINDOWS_FIREWALL.md)).
 
 ## 8. Optional AI backend (dynamic LLM text)
 
@@ -526,6 +528,11 @@ No download, no install — players just open the link, pick a pilot name and pr
 menu hides the manual server picker, #221). Joining your server from the browser goes over WebSocket, so
 `BBS_ENABLE_WEBSOCKET=true` is required. (The browser build has its own singleplayer — the real server runs inside
 the tab and saves in the browser — but it cannot host a world for others.)
+
+Plain `http://` is fine for this page: the WebGL player allows HTTP downloads from its own origin (its data, locale
+files and music load from the page's address). Builds up to v2026.11.18 did not — opened from a LAN or Internet
+address over plain HTTP they showed a menu of raw text keys and reported "Insecure connection not allowed" crashes
+(only `localhost` worked); use a build from after that release, or HTTPS.
 
 The browser build is **not** baked into the server image (it needs Unity, which can't run in the image). You
 get it onto the server one of two ways:

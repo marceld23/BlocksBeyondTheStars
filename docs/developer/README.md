@@ -52,6 +52,7 @@ refreshed 2026-10-23.
 - [CLIENT_COMPLETION.md](CLIENT_COMPLETION.md) — how the client is wired (AppShell/WorldRig, mesher/atlas,
   hosting model, SpaceView, presence, audio).
 - [CLIENT_SHELL_AND_ASSETS.md](CLIENT_SHELL_AND_ASSETS.md) — branding, splash, menu, settings and asset strategy.
+- [UI_LAYOUT.md](UI_LAYOUT.md) — where windows go: the menu template (header, button tiers, icon meanings) and the HUD zone plan.
 - [INPUT_AND_CONTROLLER.md](INPUT_AND_CONTROLLER.md) — the input abstraction (`IInputSource`): keyboard/mouse,
   gamepad (bindings + glyphs), on-screen touch controls and WebGL text entry.
 - [URP_MIGRATION.md](URP_MIGRATION.md) — the URP rendering setup (custom unlit voxel shaders, post, shadows).

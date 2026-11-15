@@ -11,7 +11,7 @@ using UnityEngine.UI;
 
 namespace BlocksBeyondTheStars.Client
 {
-    // The Official-worlds overlay's community-rules screen: loading the rules, showing them, and (re-)accepting them.
+    // The Official-worlds tab's community-rules screen: loading the rules, showing them, and (re-)accepting them.
     internal sealed partial class UiOfficialWorlds
     {
         private async void LoadTerms(System.Action<PortalTermsResult> done)
@@ -25,7 +25,7 @@ namespace BlocksBeyondTheStars.Client
 
             var portal = new PortalClient(PortalBase());
             var r = await Task.Run(() => portal.GetTerms(lang));
-            if (_overlay == null) { return; }
+            if (_pane == null) { return; }
             _cachedTerms = r;
             _cachedTermsLang = lang;
             done(r);
@@ -37,7 +37,7 @@ namespace BlocksBeyondTheStars.Client
         private void ShowRules(System.Action<PortalTermsResult> onAccept)
         {
             CloseRules();
-            var rDim = UiKit.AddModalDim(_overlay.transform);
+            var rDim = UiKit.AddModalDim(_modalRoot);
             _rulesModal = rDim.gameObject;
             var rDlg = UiKit.AddDialogPanel(_rulesModal.transform, 160f, 80f, 1600f, 920f);
             var rTitle = UiKit.AddText(rDlg, 40f, 22f, 1520f, 32f, _shell.L("ui.portal.rules_title"), 24, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -70,7 +70,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (onAccept != null)
             {
-                UiKit.AddButton(rDlg, 430f, 836f, 380f, 54f, _shell.L("ui.portal.rules_accept"), () =>
+                UiKit.AddTierButton(rDlg, 430f, 836f, 380f, 54f, _shell.L("ui.portal.rules_accept"), () =>
                 {
                     if (_cachedTerms != null && _cachedTerms.Ok)
                     {
@@ -80,10 +80,10 @@ namespace BlocksBeyondTheStars.Client
                     {
                         ApplyTerms(); // nothing loaded to consent to — retry instead of ignoring the click
                     }
-                }, "btn_join");
+                }, ButtonTier.Primary, "btn_continue");
             }
 
-            UiKit.AddButton(rDlg, 830f, 836f, 340f, 54f, _shell.L("ui.menu.back"), CloseRules, "btn_exit");
+            UiKit.AddTierButton(rDlg, 830f, 836f, 340f, 54f, _shell.L("ui.menu.back"), CloseRules, ButtonTier.Quiet, "btn_back");
             ApplyTerms();
         }
 
@@ -93,7 +93,7 @@ namespace BlocksBeyondTheStars.Client
             var portal = new PortalClient(PortalBase());
             string session = _shell.Settings.PortalSessionToken;
             var r = await Task.Run(() => portal.AcceptTerms(session));
-            if (_overlay == null) { return; }
+            if (_pane == null) { return; }
             CloseRules();
             if (!r.Ok)
             {

@@ -14,7 +14,8 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
     /// </summary>
     public sealed class ChatWindowEditModeTests
     {
-        private const float LaneTop = 280f, LaneBottom = 590f, InputH = 44f, Pad = 10f, Gap = 6f;
+        private const float LaneTop = 272f, InputH = 44f, Pad = 10f, Gap = 6f;
+        private const float InputRowY = VegaPanel.ChipY - Gap - InputH, LaneBottom = InputRowY - Gap; // #3668: the comms zone
 
         private static float Bottom(ChatUi.ChatWindow w) => w.Y + w.H;
 
@@ -40,7 +41,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         public void Typing_InputRowIsTheWindowsBottomRow()
         {
             var w = ChatUi.ResolveWindow(typing: true, speechVisible: false, chipVisible: false, contentH: 66f);
-            Assert.That(Bottom(w), Is.EqualTo(596f + InputH), "window ends under the input row");
+            Assert.That(Bottom(w), Is.EqualTo(InputRowY + InputH), "window ends under the input row");
             Assert.That(w.H, Is.EqualTo(66f + 2f * Pad + InputH));
             Assert.That(w.InputY, Is.EqualTo(66f + 2f * Pad), "input row sits directly under the text block");
             Assert.That(w.InputY + InputH, Is.EqualTo(w.H), "…and is flush with the window's bottom edge");
@@ -63,11 +64,11 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             Assert.That(w.TextH, Is.EqualTo(w.Capacity));
             Assert.That(w.Capacity, Is.EqualTo(LaneBottom - LaneTop - 2f * Pad));
 
-            // With VEGA quiet the input row sits BELOW the lane (y 596), so the window reaches down to it and
+            // With VEGA quiet the input row sits BELOW the lane (InputRowY), so the window reaches down to it and
             // the text block gains that room rather than losing rows to the row.
             var typing = ChatUi.ResolveWindow(typing: true, speechVisible: false, chipVisible: false, contentH: 5000f);
             Assert.That(typing.Y, Is.EqualTo(LaneTop));
-            Assert.That(typing.Capacity, Is.EqualTo(596f + InputH - LaneTop - InputH - 2f * Pad));
+            Assert.That(typing.Capacity, Is.EqualTo(InputRowY + InputH - LaneTop - InputH - 2f * Pad));
             Assert.That(typing.Capacity, Is.GreaterThan(w.Capacity), "the window spans lane + input row");
 
             // With VEGA's chip up the row stacks inside the lane instead, and there it does cost text rows.
@@ -107,7 +108,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
                             if (w.H > 0f)
                             {
                                 Assert.That(w.Y, Is.GreaterThanOrEqualTo(LaneTop), "never over the toast " + tag);
-                                Assert.That(Bottom(w), Is.LessThanOrEqualTo(596f + InputH), "never over the scan panel " + tag);
+                                Assert.That(Bottom(w), Is.LessThanOrEqualTo(InputRowY + InputH), "never over the scan panel " + tag);
                             }
 
                             if (speech)

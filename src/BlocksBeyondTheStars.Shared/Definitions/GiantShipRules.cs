@@ -117,113 +117,123 @@ public static class GiantShipRules
     /// A giant ship is never a module, an underground structure, a generator entry or a landmark.
     /// </summary>
     public static List<string> Problems(StructureTemplate t, Func<string, bool> blockExists, Func<string, bool>? isSolid = null)
+        => TemplateProblem.Sentences(ProblemList(t, blockExists, isSolid));
+
+    /// <summary><see cref="Problems"/> as codes the structure editor translates (#3692): the same checks, the same sentences.</summary>
+    public static List<TemplateProblem> ProblemList(StructureTemplate t, Func<string, bool> blockExists, Func<string, bool>? isSolid = null)
     {
-        var problems = new List<string>();
+        var problems = new List<TemplateProblem>();
         AddShapeProblems(t, problems);
         AddWordProblems(t, problems);
-        problems.AddRange(ZoneProblems(t));
+        problems.AddRange(ZoneProblemList(t));
         AddBodyAndMarkerProblems(t, blockExists, isSolid ?? (_ => true), problems);
         return problems;
     }
 
     /// <summary>The size, the ground row and the flags of another kind.</summary>
-    private static void AddShapeProblems(StructureTemplate t, List<string> problems)
+    private static void AddShapeProblems(StructureTemplate t, List<TemplateProblem> problems)
     {
         if (t.Width <= 0 || t.Height <= 0 || t.Length <= 0)
         {
-            problems.Add("it has no size");
+            problems.Add(new TemplateProblem("size.none", "it has no size"));
         }
         else if (t.Width > MaxSize || t.Height > MaxSize || t.Length > MaxSize)
         {
-            problems.Add($"it is larger than {MaxSize} blocks on an axis");
+            problems.Add(new TemplateProblem("size.too_large", $"it is larger than {MaxSize} blocks on an axis", TemplateProblem.Num(MaxSize)));
         }
 
         if (t.GroundRow < 0 || (t.Height > 0 && t.GroundRow >= t.Height))
         {
-            problems.Add("the ground row lies outside the structure");
+            problems.Add(new TemplateProblem("ground_row.outside", "the ground row lies outside the structure"));
         }
 
         if (t.IsModule)
         {
-            problems.Add("a giant ship cannot also be a kit module");
+            problems.Add(new TemplateProblem("giant_ship.module", "a giant ship cannot also be a kit module"));
         }
 
         if (t.Underground)
         {
-            problems.Add("a giant ship cannot also be an underground structure (use the ground row)");
+            problems.Add(new TemplateProblem("giant_ship.underground", "a giant ship cannot also be an underground structure (use the ground row)"));
         }
 
         if (t.IsSource)
         {
-            problems.Add("a giant ship cannot be a generator entry (it is authored block by block)");
+            problems.Add(new TemplateProblem("giant_ship.entry", "a giant ship cannot be a generator entry (it is authored block by block)"));
         }
 
         if (t.Landmark)
         {
-            problems.Add("a giant ship cannot also be a landmark");
+            problems.Add(new TemplateProblem("giant_ship.landmark", "a giant ship cannot also be a landmark"));
         }
     }
 
     /// <summary>The words and numbers of the template: ruin strength, style, protection, minimum generation.</summary>
-    private static void AddWordProblems(StructureTemplate t, List<string> problems)
+    private static void AddWordProblems(StructureTemplate t, List<TemplateProblem> problems)
     {
         if (t.RuinStrength < 0 || t.RuinStrength > 1 || double.IsNaN(t.RuinStrength))
         {
-            problems.Add("the ruin strength must lie between 0 and 1");
+            problems.Add(new TemplateProblem("ruin.strength", "the ruin strength must lie between 0 and 1"));
         }
 
         if (!string.IsNullOrEmpty(t.Style) && !string.Equals(t.Style, StyleAlien, StringComparison.OrdinalIgnoreCase))
         {
-            problems.Add($"unknown style '{t.Style}' (empty | {StyleAlien})");
+            problems.Add(new TemplateProblem("giant_ship.style", $"unknown style '{t.Style}' (empty | {StyleAlien})", t.Style));
         }
 
-        if (LandmarkRules.ProtectionProblem(t) is { } protection)
+        if (LandmarkRules.ProtectionProblemOf(t) is { } protection)
         {
             problems.Add(protection);
         }
 
         if (t.MinTerrainGeneration < 0)
         {
-            problems.Add("the minimum terrain generation cannot be negative");
+            problems.Add(new TemplateProblem("generation.negative", "the minimum terrain generation cannot be negative"));
         }
     }
 
     /// <summary>What is wrong with a giant ship's ruin zones, one sentence each: too many
     /// (<see cref="LandmarkRules.MaxRuinZones"/>), a box outside the structure, a profile other than
     /// <see cref="ZoneProfiles"/>, a strength outside 0..1.</summary>
-    public static List<string> ZoneProblems(StructureTemplate t)
+    public static List<string> ZoneProblems(StructureTemplate t) => TemplateProblem.Sentences(ZoneProblemList(t));
+
+    /// <summary><see cref="ZoneProblems"/> as codes the structure editor translates (#3692).</summary>
+    public static List<TemplateProblem> ZoneProblemList(StructureTemplate t)
     {
-        var problems = new List<string>();
+        var problems = new List<TemplateProblem>();
         var zones = t.RuinZones ?? new List<RuinZone>();
         if (zones.Count > LandmarkRules.MaxRuinZones)
         {
-            problems.Add($"it has more than {LandmarkRules.MaxRuinZones} ruin zones");
+            problems.Add(new TemplateProblem("zone.too_many", $"it has more than {LandmarkRules.MaxRuinZones} ruin zones",
+                TemplateProblem.Num(LandmarkRules.MaxRuinZones)));
         }
 
         for (int i = 0; i < zones.Count; i++)
         {
             var z = zones[i];
-            string at = "ruin zone " + (i + 1).ToString(CultureInfo.InvariantCulture);
+            string n = TemplateProblem.Num(i + 1);
+            string at = "ruin zone " + n;
             if (z is null)
             {
-                problems.Add(at + " is empty");
+                problems.Add(new TemplateProblem("zone.empty", at + " is empty", n));
                 continue;
             }
 
             if (Math.Min(z.X0, z.X1) < 0 || Math.Min(z.Y0, z.Y1) < 0 || Math.Min(z.Z0, z.Z1) < 0
                 || Math.Max(z.X0, z.X1) >= t.Width || Math.Max(z.Y0, z.Y1) >= t.Height || Math.Max(z.Z0, z.Z1) >= t.Length)
             {
-                problems.Add(at + " reaches outside the structure");
+                problems.Add(new TemplateProblem("zone.outside", at + " reaches outside the structure", n));
             }
 
             if (!string.IsNullOrEmpty(z.Profile) && !ZoneProfiles.Contains(z.Profile, StringComparer.OrdinalIgnoreCase))
             {
-                problems.Add($"{at} names ruin profile '{z.Profile}' — a giant ship's zones take {string.Join(" | ", ZoneProfiles)}");
+                problems.Add(new TemplateProblem("zone.profile_ship",
+                    $"{at} names ruin profile '{z.Profile}' — a giant ship's zones take {string.Join(" | ", ZoneProfiles)}", n, z.Profile));
             }
 
             if (z.Strength < 0 || z.Strength > 1 || double.IsNaN(z.Strength))
             {
-                problems.Add(at + ": the strength must lie between 0 and 1");
+                problems.Add(new TemplateProblem("zone.strength", at + ": the strength must lie between 0 and 1", n));
             }
         }
 
@@ -233,7 +243,7 @@ public static class GiantShipRules
     /// <summary>One walk over the body (a giant ship can hold millions of cells, so it is read once): the blocks it names,
     /// where they lie, and what stands under and above every entrance. Then the markers.</summary>
     private static void AddBodyAndMarkerProblems(StructureTemplate t, Func<string, bool> blockExists, Func<string, bool> isSolid,
-        List<string> problems)
+        List<TemplateProblem> problems)
     {
         var entrances = t.Cells.Where(c => c != null && c.Kind == "marker" && c.Id == EntranceMarker).ToList();
         var watched = new Dictionary<(int, int, int), string?>();
@@ -274,17 +284,19 @@ public static class GiantShipRules
 
         if (blocks == 0)
         {
-            problems.Add("it has no body (no block at all)");
+            problems.Add(new TemplateProblem("giant_ship.no_body", "it has no body (no block at all)"));
         }
 
         if (unknown.Count > 0)
         {
-            problems.Add("unknown block(s) " + string.Join(", ", unknown) + " (a giant ship names concrete blocks, no material tokens)");
+            problems.Add(new TemplateProblem("blocks.unknown_ship",
+                "unknown block(s) " + string.Join(", ", unknown) + " (a giant ship names concrete blocks, no material tokens)", string.Join(", ", unknown)));
         }
 
         if (outside > 0)
         {
-            problems.Add(outside.ToString(CultureInfo.InvariantCulture) + " block cell(s) lie outside the structure's box");
+            problems.Add(new TemplateProblem("blocks.outside", outside.ToString(CultureInfo.InvariantCulture) + " block cell(s) lie outside the structure's box",
+                TemplateProblem.Num(outside)));
         }
 
         AddMarkerProblems(t, entrances, watched, isSolid, problems);
@@ -293,7 +305,7 @@ public static class GiantShipRules
     /// <summary>The markers: each known and inside the box, a doorway with its axis, and at least one entrance that stands on
     /// a solid floor with two passable cells above it (<paramref name="watched"/> holds what the body puts there).</summary>
     private static void AddMarkerProblems(StructureTemplate t, List<TemplateCell> entrances, Dictionary<(int, int, int), string?> watched,
-        Func<string, bool> isSolid, List<string> problems)
+        Func<string, bool> isSolid, List<TemplateProblem> problems)
     {
         foreach (var c in t.Cells)
         {
@@ -302,26 +314,27 @@ public static class GiantShipRules
                 continue;
             }
 
-            string at = $"marker '{c.Id}' at ({c.X},{c.Y},{c.Z})";
+            string at = $"marker '{c.Id}' at ({c.X},{c.Y},{c.Z})", id = c.Id ?? string.Empty, where = TemplateProblem.At(c.X, c.Y, c.Z);
             if (Array.IndexOf(Markers, c.Id) < 0)
             {
-                problems.Add($"{at} is not a giant ship marker ({string.Join(" | ", Markers)})");
+                problems.Add(new TemplateProblem("marker.not_ship", $"{at} is not a giant ship marker ({string.Join(" | ", Markers)})", id, where));
             }
 
             if (!Inside(t, c.X, c.Y, c.Z))
             {
-                problems.Add(at + " lies outside the structure");
+                problems.Add(new TemplateProblem("marker.outside", at + " lies outside the structure", id, where));
             }
 
             if (c.Id == DoorMarker && MarkerSettings.Parse(c.Config).Get(AxisSetting) is not ("x" or "z"))
             {
-                problems.Add(at + " needs axis=x (its wall is a plane of constant x) or axis=z (a plane of constant z)");
+                problems.Add(new TemplateProblem("marker.door_axis",
+                    at + " needs axis=x (its wall is a plane of constant x) or axis=z (a plane of constant z)", id, where));
             }
         }
 
         if (entrances.Count == 0)
         {
-            problems.Add($"it has no '{EntranceMarker}' marker (the way in)");
+            problems.Add(new TemplateProblem("giant_ship.no_entrance", $"it has no '{EntranceMarker}' marker (the way in)"));
         }
 
         foreach (var e in entrances)
@@ -330,7 +343,8 @@ public static class GiantShipRules
             bool Free(int dy) => !watched.TryGetValue((e.X, e.Y + dy, e.Z), out var id) || id == null || !isSolid(id);
             if (!floor || !Free(0) || !Free(1))
             {
-                problems.Add($"the entrance at ({e.X},{e.Y},{e.Z}) needs a solid floor below it and two free cells of headroom");
+                problems.Add(new TemplateProblem("giant_ship.entrance_room",
+                    $"the entrance at ({e.X},{e.Y},{e.Z}) needs a solid floor below it and two free cells of headroom", TemplateProblem.At(e.X, e.Y, e.Z)));
             }
         }
     }

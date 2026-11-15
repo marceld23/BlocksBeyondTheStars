@@ -838,6 +838,113 @@ public sealed class TutorialPackTests : IDisposable
         Assert.True(Has(kid, StoryPackKeys.StepDone(Tutorial, "b3.3")));
     }
 
+    // ---------------- #3673: the movement lessons wait while the player flies the ship ----------------
+
+    /// <summary>A local player (the one the flight seams drive) whose basic training has just started: b1.1 on the chip.</summary>
+    private (SvGameServer Server, RecordingTransport Transport, PlayerSession Player) FlightTrainee(string world)
+    {
+        var transport = new RecordingTransport();
+        var server = Boot(world, transport, c => c.Rules.FreeSpaceFlight = true);
+        var p = server.AddLocalPlayer("Pilot");
+        server.TickStoryPacksForTest(p);
+        Assert.Equal("b1.1", server.ChipStepForTest(p, Tutorial));
+        return (server, transport, p);
+    }
+
+    private static void Launch(SvGameServer server, PlayerSession p)
+    {
+        p.State.AboardShip = true; // a launch starts aboard
+        server.EnterSpace(p.State.PlayerId);
+        Assert.True(server.InSpace(p.State.PlayerId));
+    }
+
+    private static int Said(RecordingTransport transport, PlayerSession p, string key) => transport.LineKeys(p).Count(k => k == key);
+
+    private static bool Active(PlayerSession p, string step) => p.State.StepProgress.ContainsKey(StoryPackKeys.ProgressKey(Tutorial, step));
+
+    [Fact]
+    public void TheJumpLesson_DoesNotStartWhileThePlayerFliesTheShip_AndStartsOnFoot()
+    {
+        var (server, transport, p) = FlightTrainee("fly_wait_start");
+        string jumpLine = server.EvaluateStoryConditionForTest("world:creative_flight", p)
+            ? "story.tutorial.b1.jump.start_fly"
+            : "story.tutorial.b1.jump.start";
+        Assert.True(server.EvaluateStoryConditionForTest("world:on_foot", p));
+        Launch(server, p);
+        Assert.False(server.EvaluateStoryConditionForTest("world:on_foot", p));
+
+        // "I know this" on the walk lesson while flying: the jump lesson is next, but it waits — no line, no chip.
+        Deliver(server, p, new StoryPackIntent { PackId = Tutorial, Action = StoryPackActions.SkipStep, StepId = "b1.1" });
+        server.TickStoryPacksForTest(p, 240); // past the lesson's hint time (180 s): nothing moves on meanwhile
+        Assert.False(Active(p, "b1.2"));
+        Assert.False(Active(p, "b1.4"));
+        Assert.Null(server.ChipStepForTest(p, Tutorial));
+        Assert.Equal(0, Said(transport, p, jumpLine));
+
+        server.LeaveSpace(p.State.PlayerId); // landed: on foot again
+        Assert.True(server.EvaluateStoryConditionForTest("world:on_foot", p));
+        server.TickStoryPacksForTest(p);
+        Assert.Equal("b1.2", server.ChipStepForTest(p, Tutorial));
+        Assert.Equal(1, Said(transport, p, jumpLine));
+
+        server.RaiseGameEventForTest(p, GameEventKeys.MoveJump, GameEventKeys.MoveJumpArg);
+        Assert.True(Has(p, StoryPackKeys.StepDone(Tutorial, "b1.2")));
+    }
+
+    [Fact]
+    public void AnActiveWalkLesson_FallsQuietInFlight_AndVegaSaysItAgainOnFoot()
+    {
+        var (server, transport, p) = FlightTrainee("fly_wait_active");
+        const string walkLine = "story.tutorial.b1.walk.start";
+        const string walkHint = "story.tutorial.b1.walk.hint";
+        Assert.Equal(1, Said(transport, p, walkLine));
+
+        Launch(server, p);
+        server.TickStoryPacksForTest(p, 400); // longer than the lesson's hint time (180 s)
+        Assert.True(Active(p, "b1.1")); // still the task…
+        Assert.Null(server.ChipStepForTest(p, Tutorial)); // …but off the chip
+        Assert.Equal(1, Said(transport, p, walkLine));
+        Assert.Equal(0, Said(transport, p, walkHint)); // the help clock stood still
+
+        server.LeaveSpace(p.State.PlayerId);
+        server.TickStoryPacksForTest(p);
+        Assert.Equal("b1.1", server.ChipStepForTest(p, Tutorial));
+        Assert.Equal(2, Said(transport, p, walkLine)); // VEGA says it again, once
+        server.TickStoryPacksForTest(p, 5);
+        Assert.Equal(2, Said(transport, p, walkLine));
+        Assert.Equal(0, Said(transport, p, walkHint)); // a fresh help clock, not the flight's 400 s
+
+        server.RaiseGameEventForTest(p, GameEventKeys.MoveWalked, string.Empty, 8);
+        Assert.True(Has(p, StoryPackKeys.StepDone(Tutorial, "b1.1")));
+        Assert.Equal("b1.2", server.ChipStepForTest(p, Tutorial)); // on foot: the jump lesson starts right away
+    }
+
+    [Fact]
+    public void ARejoinInFlight_KeepsTheWaitingLessonQuiet_UntilThePlayerIsOnFoot()
+    {
+        var (server, transport, p) = FlightTrainee("fly_wait_rejoin");
+        const string walkLine = "story.tutorial.b1.walk.start";
+        Launch(server, p);
+
+        server.StoryPacksOnJoinForTest(p); // the join hook re-speaks the chip's step — not one that waits
+        Assert.Equal(1, Said(transport, p, walkLine));
+        Assert.Null(server.ChipStepForTest(p, Tutorial));
+
+        server.LeaveSpace(p.State.PlayerId);
+        server.TickStoryPacksForTest(p);
+        Assert.Equal(2, Said(transport, p, walkLine));
+        Assert.Equal("b1.1", server.ChipStepForTest(p, Tutorial));
+    }
+
+    [Fact]
+    public void TheWalkAndJumpLessons_WaitForThePlayerOnFoot()
+    {
+        foreach (string id in new[] { "b1.1", "b1.2" })
+        {
+            Assert.Equal(new[] { "not:world:on_foot" }, StepDef(id).WaitWhile);
+        }
+    }
+
     // ---------------- UI teaching flags (tag 298) ----------------
 
     [Fact]

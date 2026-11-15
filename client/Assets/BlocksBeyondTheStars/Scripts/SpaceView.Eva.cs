@@ -629,21 +629,10 @@ namespace BlocksBeyondTheStars.Client
             ClientAudio.Instance?.Cue("scan_ping");
         }
 
-        /// <summary>Docks the nearby station directly from an EVA: ends the spacewalk and reuses the normal
-        /// station-board teardown (the dock-approach is already "done" since you floated over on foot).</summary>
-        private void DockStationFromEva()
-        {
-            // Keep InEva set on the server until BoardStation runs, so it knows the ship stayed floating
-            // (undocking returns you to the float). The server clears InEva as it docks you.
-            _eva = false;
-            _phase = Phase.Boarding;
-            _boardPath.Clear();
-            _boardDuration = BoardDuration;
-            _seq = BoardDuration;     // skip the fly-in: you're already at the hull on foot
-            _boardSent = false;
-            _boardWait = 0f;
-            _boardTargetId = _nearStationId;
-            _boardStartPos = _ship.transform.localPosition;
-        }
+        /// <summary>Docks the nearby station directly from an EVA: the normal station-board hand-over (the doors, the board
+        /// intent, the give-up), with the dock approach already "done" since you floated over on foot. Keep InEva set on the
+        /// server until BoardStation runs, so it knows the ship stayed floating (undocking returns you to the float); the
+        /// server clears InEva as it docks you, and a refused docking hands the spacewalk back where the suit floats.</summary>
+        private void DockStationFromEva() => BeginDocking(fromSpacewalk: true);
     }
 }

@@ -77,10 +77,12 @@ public sealed partial class GameServer
     }
 
     /// <summary>The pure part of a giant wreck's build. Thread-safe: it reads only the template and the content, and the
-    /// structure it makes is its own until it is taken. <paramref name="useCache"/>: through the process cache.</summary>
-    private static GiantBuildParts BuildGiantWreckParts(StructureTemplate t, long seed, GameContent content, string name, bool useCache)
+    /// structure it makes is its own until it is taken. <paramref name="useCache"/>: through the process cache.
+    /// <paramref name="abandonBeds"/>: the world's generation builds the wreck's beds as the abandoned twin (44).</summary>
+    private static GiantBuildParts BuildGiantWreckParts(StructureTemplate t, long seed, GameContent content, string name, bool useCache,
+        bool abandonBeds)
     {
-        var wreck = GiantWreckBuildCache.Build(t, seed, content, useCache);
+        var wreck = GiantWreckBuildCache.Build(t, seed, content, useCache, abandonBeds);
         var build = GiantBaseBuild(name, wreck.Layout);
         var (min, max) = build.CellBox();
         var shell = HullShell.Build(min, max, build.Cells.Select(kv => new KeyValuePair<Vector3i, ushort>(kv.Key, kv.Value.Value)),
@@ -137,13 +139,14 @@ public sealed partial class GameServer
         long seed = GiantWreckPlacer.BuildSeed(_meta.Seed, site.Id);
         var content = _content;
         string name = site.Body.Name;
+        bool abandonBeds = GiantWreckBedsAbandoned;
         try
         {
             var thread = new Thread(() =>
             {
                 try
                 {
-                    job.Parts = BuildGiantWreckParts(template, seed, content, name, useCache: true);
+                    job.Parts = BuildGiantWreckParts(template, seed, content, name, useCache: true, abandonBeds);
                 }
                 catch (System.Exception e)
                 {
@@ -186,8 +189,13 @@ public sealed partial class GameServer
 
         how = "built inline";
         return BuildGiantWreckParts(site.Template, GiantWreckPlacer.BuildSeed(_meta.Seed, site.Id), _content, site.Body.Name,
-            useCache: GiantBuildThreads);
+            useCache: GiantBuildThreads, GiantWreckBedsAbandoned);
     }
+
+    /// <summary>Whether this world builds a giant wreck's beds as the abandoned twin: a save of terrain generation 44 or later.
+    /// The galaxy pass reaches older saves too — their wrecks keep the beds they were built with, so a stored wreck's base never
+    /// changes under its changes.</summary>
+    private bool GiantWreckBedsAbandoned => AbandonedBeds.Applies(_meta.Description.TerrainGeneration);
 
     /// <summary>Hands the prebuilt shell to a freshly registered giant wreck and replays the stored changes over it (the
     /// players' crates, holes, patches — the shell only ever grows, as it does live), so the first design send builds no
@@ -290,14 +298,15 @@ internal static class GiantWreckBuildCache
 
     /// <summary>The decayed wreck of <paramref name="t"/> for <paramref name="seed"/> — from the cache when it holds it (and
     /// <paramref name="useCache"/>), else built (and kept, with <paramref name="useCache"/>).</summary>
-    internal static GiantDerelictLayout Build(StructureTemplate t, long seed, GameContent content, bool useCache = true)
+    internal static GiantDerelictLayout Build(StructureTemplate t, long seed, GameContent content, bool useCache = true,
+        bool abandonBeds = false)
     {
         if (!useCache)
         {
-            return BuildFresh(t, seed, content);
+            return BuildFresh(t, seed, content, abandonBeds);
         }
 
-        string key = KeyFor(t, seed, content);
+        string key = KeyFor(t, seed, content, abandonBeds);
         lock (Gate)
         {
             for (var node = Entries.First; node is not null; node = node.Next)
@@ -313,7 +322,7 @@ internal static class GiantWreckBuildCache
         }
 
         Interlocked.Increment(ref s_misses);
-        var wreck = BuildFresh(t, seed, content);
+        var wreck = BuildFresh(t, seed, content, abandonBeds);
         lock (Gate)
         {
             Entries.AddFirst(new KeyValuePair<string, GiantDerelictLayout>(key, wreck));
@@ -326,15 +335,16 @@ internal static class GiantWreckBuildCache
         return wreck;
     }
 
-    private static GiantDerelictLayout BuildFresh(StructureTemplate t, long seed, GameContent content)
+    private static GiantDerelictLayout BuildFresh(StructureTemplate t, long seed, GameContent content, bool abandonBeds)
     {
-        var space = GiantShipGenerator.BuildSpace(t, seed, content);
+        var space = GiantShipGenerator.BuildSpace(t, seed, content, abandonBeds);
         return DerelictGenerator.GenerateShip(space, seed, content, GiantShipGenerator.IsAlien(t));
     }
 
     /// <summary>The cache key: what the build is a pure function of.</summary>
-    internal static string KeyFor(StructureTemplate t, long seed, GameContent content)
+    internal static string KeyFor(StructureTemplate t, long seed, GameContent content, bool abandonBeds = false)
         => GiantShipGenerator.Fingerprint(t) + "|" + seed.ToString(System.Globalization.CultureInfo.InvariantCulture)
+           + (abandonBeds ? "|beds" : string.Empty)
            + "|r" + GiantShipGenerator.RuinRevision.ToString(System.Globalization.CultureInfo.InvariantCulture)
            + "|d" + DerelictGenerator.ShipDecayRevision.ToString(System.Globalization.CultureInfo.InvariantCulture)
            + "|" + Signature(content);

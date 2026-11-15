@@ -334,6 +334,13 @@ public sealed class StoryStep
     /// Ignored while the chapter is replayed.</summary>
     public List<string> AlreadyDoneIf { get; set; } = new();
 
+    /// <summary>#3673: conditions under which the step waits — for a moment the player cannot do it in (the jump lesson while
+    /// they fly the ship: <c>not:world:on_foot</c>). While they hold (all of them), a step not active yet does not activate
+    /// (the chapter waits there, no line, no card), and an active do step leaves the chip: VEGA stays quiet about it and its
+    /// help clock stands still. When the wait ends the step goes on — an active step that is back on the chip gets its start
+    /// line again and a fresh help clock. Not for react steps (their <see cref="Requires"/> arms them). Empty = never waits.</summary>
+    public List<string> WaitWhile { get; set; } = new();
+
     /// <summary>Whole-line text variants per world rule; the first match wins.</summary>
     public List<StoryStepVariant> Variants { get; set; } = new();
 

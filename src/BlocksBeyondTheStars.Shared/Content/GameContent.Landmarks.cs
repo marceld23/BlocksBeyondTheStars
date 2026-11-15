@@ -60,7 +60,10 @@ public sealed partial class GameContent
     }
 
     /// <summary>The block keys a landmark names that the content does not have (material tokens are fine).</summary>
-    private IEnumerable<string> UnknownLandmarkBlocks(StructureTemplate t)
+    private IEnumerable<string> UnknownLandmarkBlocks(StructureTemplate t) => TemplateProblem.Sentences(UnknownLandmarkBlockProblems(t));
+
+    /// <summary><see cref="UnknownLandmarkBlocks"/> as a code the structure editor translates (#3692).</summary>
+    private List<TemplateProblem> UnknownLandmarkBlockProblems(StructureTemplate t)
     {
         var unknown = new SortedSet<string>(StringComparer.Ordinal);
         void Check(string kind, string id)
@@ -82,8 +85,8 @@ public sealed partial class GameContent
         }
 
         return unknown.Count == 0
-            ? Array.Empty<string>()
-            : new[] { "unknown block(s) " + string.Join(", ", unknown) };
+            ? new List<TemplateProblem>()
+            : new List<TemplateProblem> { new TemplateProblem("blocks.unknown", "unknown block(s) " + string.Join(", ", unknown), string.Join(", ", unknown)) };
     }
 
     /// <summary>#3488: the loot tables by key (<c>data/loot_tables.json</c>).</summary>

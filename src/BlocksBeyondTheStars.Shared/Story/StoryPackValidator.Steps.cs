@@ -67,6 +67,12 @@ public static partial class StoryPackValidator
         run.CheckConditions($"{sp}.requires", step.Requires);
         run.CheckConditions($"{sp}.feasibleIf", step.FeasibleIf);
         run.CheckConditions($"{sp}.alreadyDoneIf", step.AlreadyDoneIf);
+        run.CheckConditions($"{sp}.waitWhile", step.WaitWhile); // #3673
+        if (stepKind == StoryStepKinds.React && step.WaitWhile is { Count: > 0 })
+        {
+            run.Error($"{sp}.waitWhile", "a react step never waits — its 'requires' arms it");
+        }
+
         if (!string.IsNullOrEmpty(step.Alternative)
             && (step.Alternative == step.Id || !owner.Steps.Any(s => s.Id == step.Alternative)))
         {

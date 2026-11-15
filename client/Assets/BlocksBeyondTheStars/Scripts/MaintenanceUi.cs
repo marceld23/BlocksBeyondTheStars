@@ -9,7 +9,7 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// Maintenance announcements from the server (issue #249). Two shapes:
-    /// - Restart countdown: a persistent full-width top banner with a live mm:ss timer. It has NO dismiss
+    /// - Restart countdown: a persistent top-centre banner with a live mm:ss timer. It has NO dismiss
     ///   path at all — a planned restart must stay in the player's face until it happens or is cancelled.
     /// - Info message: a modal (RespawnPrompt pattern: opaque click-swallowing dim, single button) whose OK
     ///   button only unlocks after a short delay so it cannot be clicked away by reflex; after confirming,
@@ -186,15 +186,33 @@ namespace BlocksBeyondTheStars.Client
                 bool urgent = _restartingNow || remaining <= UrgentSeconds;
                 _bannerBg.color = urgent ? BannerUrgentBg : BannerCalmBg;
                 _bannerText.color = urgent ? BannerUrgentText : BannerCalmText;
-                _bannerText.text = line;
+                SetBannerText(line);
             }
             else
             {
                 _bannerBg.color = BannerCalmBg;
                 _bannerText.color = BannerCalmText;
-                _bannerText.text = _lingerText;
+                SetBannerText(_lingerText);
             }
         }
+
+        /// <summary>The banner's line, kept on its one row (an admin's free text after the countdown can be long) — measured
+        /// only when it changes (the countdown: once a second).</summary>
+        private void SetBannerText(string line)
+        {
+            if (_bannerText.text == line)
+            {
+                return;
+            }
+
+            _bannerText.text = line;
+            UiKit.FitLabelSingleLine(_bannerText, BannerW - 24f, 16, 30);
+        }
+
+        /// <summary>#3668: the banner spans the top CENTRE, not the full width — the full-width bar lay over the map part of
+        /// the HUD's right column (the compass and clock, in space the radar: HUD x 1366… ≈ 1707… here) and the left
+        /// column's top. 1440 wide, centred: x 240…1680 of the 1920 reference, above the toast lane (B).</summary>
+        private const float BannerW = 1440f, BannerX = (1920f - BannerW) / 2f;
 
         private void EnsureUi()
         {
@@ -207,11 +225,11 @@ namespace BlocksBeyondTheStars.Client
             _canvas.sortingOrder = 110; // above menus (50-60), loading (75), respawn (85) AND touch controls (100)
             UiNav.Enable(_canvas.gameObject);
 
-            // Top banner: full reference width, no dismiss controls by design.
+            // Top banner: the top centre (BannerW), no dismiss controls by design.
             _banner = UiKit.AddStretchChild(_canvas.transform, "MaintenanceBanner");
-            _bannerBg = UiKit.AddImage(_banner.transform, 0, 0, 1920, 64, UiKit.SolidSprite, BannerCalmBg);
+            _bannerBg = UiKit.AddImage(_banner.transform, BannerX, 0, BannerW, 64, UiKit.SolidSprite, BannerCalmBg);
             _bannerBg.raycastTarget = false; // the banner informs; it must not eat gameplay clicks
-            _bannerText = UiKit.AddText(_banner.transform, 0, 0, 1920, 64, string.Empty, 30,
+            _bannerText = UiKit.AddText(_banner.transform, BannerX + 12f, 0, BannerW - 24f, 64, string.Empty, 30,
                 BannerCalmText, TextAnchor.MiddleCenter, FontStyle.Bold);
             _bannerText.raycastTarget = false;
             _banner.SetActive(false);
@@ -223,7 +241,8 @@ namespace BlocksBeyondTheStars.Client
                 new Color(1f, 0.82f, 0.3f), TextAnchor.MiddleCenter, FontStyle.Bold);
             _modalText = UiKit.AddText(_modal.transform, 360, 440, 1200, 220, string.Empty, 34,
                 new Color(0.96f, 0.97f, 1f), TextAnchor.MiddleCenter);
-            _modalOk = UiKit.AddButton(_modal.transform, (1920f - 300f) / 2f, 700, 300, 80, Tr("ui.maint.ok"), OnInfoAck);
+            _modalText.horizontalOverflow = HorizontalWrapMode.Wrap; // an admin's announcement is free text of any length
+            _modalOk = UiKit.AddTierButton(_modal.transform, (1920f - 300f) / 2f, 700, 300, 80, Tr("ui.maint.ok"), OnInfoAck, ButtonTier.Primary);
             _modal.SetActive(false);
         }
 

@@ -2,26 +2,45 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using System.Collections.Generic;
 using System.IO;
+using BlocksBeyondTheStars.Shared.Textures;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// Material designer (menu tool, sibling of the ship/avatar/structure/content editors). You paint a
-    /// 64×64 block texture directly on a live canvas (or point at a source PNG the merge tool decodes),
-    /// set its mining mechanics (hardness, tool, drops), its look (gloss/metal/emission/base colour) and
-    /// where it spawns in the world (frequency + depth band + which kind of planet — airless, with
-    /// atmosphere, single- or multi-biome). <b>Save</b> writes a material bundle (material.json +
-    /// texture.bytes) a developer folds into the game with tools/merge_material.py (→ data/blocks.json,
-    /// items.json, planets.json, the bundled Resources texture + locale placeholders). Modern uGUI.
+    /// Material designer — a developer tool of the Editors menu. You paint a 64×64 block texture on a live canvas (or point
+    /// at a source PNG the merge tool decodes), set its mining mechanics (hardness, tool), its look (gloss / metal / glow /
+    /// base colour) and where it spawns (frequency + depth band + which kind of planet). <b>Save</b> writes a material
+    /// bundle (<c>material_exports/&lt;key&gt;/material.json</c> + <c>texture.bytes</c>) a developer folds into the game with
+    /// <c>tools/merge_material.py</c> (→ data/blocks.json, items.json, planets.json, the bundled texture + locale
+    /// placeholders). Client-only; nothing reaches the current game.
+    /// <para>
+    /// On the <see cref="EditorShell"/> since #3694 (epic #3696), as the approved mock draws it: Back, the title with a
+    /// "DEVELOPER" badge, Undo / Redo, New and the primary Save ("export for the game") in the header; a texture card with the
+    /// texture editor's paint tools (brush, fill, pick a colour, eraser — <see cref="PixelCanvasModel"/>) and a properties
+    /// card of <c>‹ value ›</c> cycles; errors in red in the status bar with what to do. Undo covers strokes, fills and every
+    /// property: the snapshot (and the draft) is the definition's JSON with the pixels in it.
+    /// </para>
     /// </summary>
-    public sealed class MaterialEditor : MonoBehaviour
+    public sealed partial class MaterialEditor : MonoBehaviour, IEditorDocument
     {
         public AppShell Shell;
 
-        private const int Tile = 64; // matches BlockTextureAtlas tile size
+        /// <summary>Tests: the drafts folder (null = the player's, or the capture run's throwaway one).</summary>
+        public string DraftRoot;
+
+        /// <summary>Tests: where <c>material_exports</c> goes (null = <see cref="AppPaths.Root"/>).</summary>
+        public string ExportRoot;
+
+        /// <summary>The draft slot and the draft header's kind.</summary>
+        public const string EditorKey = "material";
+
+        /// <summary>The draft layout this build writes and reads (<see cref="CanvasDraftFormat"/>).</summary>
+        public const int DraftVersion = 1;
+
+        private const int Tile = PixelCanvasModel.Size; // 64, the block atlas's tile size
 
         // What a block can require to be MINED. data/blocks.json only ever uses these two — a scanner cannot
         // break anything, so offering it produced a block nobody could mine (#511).
@@ -32,252 +51,358 @@ namespace BlocksBeyondTheStars.Client
         // atmosphere, only single-biome worlds or only multi-biome worlds.
         private static readonly string[] WorldTypes = { "any", "airless", "atmosphere", "single_biome", "multi_biome" };
 
-        // A small preset palette to paint with (plus the live base colour).
-        private static readonly Color[] Swatches =
-        {
-            new Color(0.55f, 0.55f, 0.57f), new Color(0.32f, 0.22f, 0.14f), new Color(0.16f, 0.16f, 0.18f),
-            new Color(0.70f, 0.50f, 0.35f), new Color(0.45f, 0.62f, 0.45f), new Color(0.40f, 0.70f, 0.90f),
-            new Color(0.85f, 0.78f, 0.45f), new Color(0.80f, 0.30f, 0.25f), new Color(0.55f, 0.35f, 0.75f),
-            new Color(0.95f, 0.95f, 0.92f), new Color(0.10f, 0.10f, 0.12f), new Color(0.30f, 0.85f, 0.60f),
-        };
-
-        // --- material ---
-        private string _key = "my_material", _name = string.Empty, _desc = string.Empty; // localized defaults: Start (#3263)
-        private float _hardness = 3f;
-        private int _tool;            // index into Tools
-        private int _minTier;
-        private int _category;        // index into BlockCategories
-        private bool _tintable = true; // may the player dye/re-shape it (plain materials should)
-        private float _gloss = 0.1f, _metal, _emission;
-        private int _baseR = 140, _baseG = 140, _baseB = 145;
-        // --- world placement ---
-        private float _frequency = 0.06f;
-        // The shipped veins all run to 2048 — the world is that deep since the worldgen overhaul, and a band
-        // that stops at 256 would leave the material out of most of the crust (#509).
-        private int _minDepth = 4, _maxDepth = 2048;
-        private int _worldType;       // index into WorldTypes
-        private string _sourceImage = string.Empty; // optional PNG path the merge tool decodes
-        private Text _spawnEstimate;
-
-        // --- paint state ---
-        private Texture2D _tex;
-        private RawImage _canvas;
-        private RectTransform _canvasRt;
-        private Color _paint = new Color(0.55f, 0.55f, 0.57f);
-        private Image _baseSwatch, _activeSwatch;
-
+        private readonly UndoHistory<string> _history = new UndoHistory<string>();
+        private readonly HashSet<string> _exportedKeys = new HashSet<string>(StringComparer.Ordinal);
+        private readonly PixelCanvasModel _model = new PixelCanvasModel(TextureAlphaMode.Opaque);
+        private MaterialBundle _b;
         private Canvas _ui;
-        private Text _status;
+        private EditorShell _shell;
+        private DevEditorForm _form;
+        private UnityEngine.UI.InputField _keyField;
+        private bool _overwriteConfirmed;
+        private string _shownCheck;
+
+        /// <summary>The shell this editor is built on — for tests.</summary>
+        public EditorShell EditorShellForTests => _shell;
+
+        /// <summary>The key field (the pad's first focus) — for tests.</summary>
+        public UnityEngine.UI.InputField KeyFieldForTests => _keyField;
+
+        /// <summary>The painted tile (raw RGBA32, rows bottom-up) — for tests.</summary>
+        public byte[] PixelsForTests => _model.Frames[0];
 
         private void Start()
         {
-            _tex = new Texture2D(Tile, Tile, TextureFormat.RGBA32, false)
-            {
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Point,
-            };
-            FillBase(true);
-            _name = L("ui.ed.default.material");
-            _desc = L("ui.ed.default.material_desc");
+            _b = Defaults();
+            _model.Load(new[] { BaseFrame(true) }, 0);
+            _history.Reset();
             BuildUi();
         }
 
         private void OnDestroy()
         {
-            if (_ui != null) Destroy(_ui.gameObject);
-            if (_tex != null) Destroy(_tex);
-        }
-
-        // ── live painting ────────────────────────────────────────────────────────────────────────
-
-        // #3179: the texel the drag in progress stamped last (-1 = no drag), so a fast drag paints a gap-free line.
-        private int _lastTx = -1, _lastTy = -1;
-
-        private void Update()
-        {
-            if (_canvasRt == null) return;
-
-            bool left = Input.GetMouseButton(0), right = Input.GetMouseButton(1);
-            if (!left && !right)
+            EndStroke();
+            _pad?.Release();
+            if (_ui != null)
             {
-                _lastTx = -1; // the drag is over
-                return;
+                DevEditorForm.Discard(_ui.gameObject); // the shell on it keeps unsaved work as a draft
             }
 
-            bool dragging = _lastTx >= 0; // a drag that started on the canvas runs on along its edge (#3179)
-            if (!dragging && !RectTransformUtility.RectangleContainsScreenPoint(_canvasRt, Input.mousePosition, null)) return;
-            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(_canvasRt, Input.mousePosition, null, out var lp)) return;
-
-            // Place() anchors the rect top-left with pivot (0,1): local x∈[0,w], y∈[-h,0]. Every texel the same hit area.
-            int tx = PixelStroke.CellOf(lp.x / _canvasRt.rect.width, Tile);
-            int ty = Tile - 1 - PixelStroke.CellOf(-lp.y / _canvasRt.rect.height, Tile); // top row = ty 63
-
-            var c = right ? new Color(_baseR / 255f, _baseG / 255f, _baseB / 255f) : _paint;
-            foreach (var (sx, sy) in PixelStroke.Line(dragging ? _lastTx : tx, dragging ? _lastTy : ty, tx, ty))
-            {
-                Stamp(sx, sy, c);
-            }
-
-            _lastTx = tx;
-            _lastTy = ty;
-            _tex.Apply();
+            DevEditorForm.Discard(_tex);
         }
-
-        /// <summary>The 3×3 brush at one texel (clipped to the tile).</summary>
-        private void Stamp(int tx, int ty, Color c)
-        {
-            for (int dx = -1; dx <= 1; dx++)
-            for (int dy = -1; dy <= 1; dy++)
-            {
-                int px = tx + dx, py = ty + dy;
-                if (px >= 0 && px < Tile && py >= 0 && py < Tile) _tex.SetPixel(px, py, c);
-            }
-        }
-
-        /// <summary>Fills the whole tile with the base colour; <paramref name="grain"/> adds per-pixel noise.</summary>
-        private void FillBase(bool grain)
-        {
-            var baseCol = new Color(_baseR / 255f, _baseG / 255f, _baseB / 255f);
-            var rng = new System.Random(12345);
-            for (int x = 0; x < Tile; x++)
-            for (int y = 0; y < Tile; y++)
-            {
-                float n = grain ? 0.86f + 0.28f * (float)rng.NextDouble() : 1f;
-                var c = new Color(baseCol.r * n, baseCol.g * n, baseCol.b * n, 1f);
-                if (grain && (x == 0 || y == 0 || x == Tile - 1 || y == Tile - 1)) c *= 0.7f; // tiled edge
-                _tex.SetPixel(x, y, c);
-            }
-
-            _tex.Apply();
-        }
-
-        // ── UI ───────────────────────────────────────────────────────────────────────────────────
 
         private void BuildUi()
         {
             _ui = UiKit.CreateCanvas("Material Editor UI");
             _ui.sortingOrder = 5;
-            var root = _ui.transform;
-
-            // Developer-tool banner: its output needs a merge + rebuild and does not affect the current game.
-            // Sits ABOVE the panels' top edge — the panels are later siblings, so any overlap would cut the
-            // bottom off this very warning (#513).
-            UiKit.AddText(root, 16f, 0f, 1400f, 26f, L("ui.editors.devbanner"), 15, UiKit.Warn, TextAnchor.MiddleLeft, FontStyle.Bold);
-
-            // ── Left: paint canvas + palette + base colour ───────────────────────────────────────
-            var left = UiKit.AddPanel(root, 16f, 30f, 540f, 1010f, UiKit.PanelFill).transform;
-            UiKit.AddText(left, 16f, 12f, 500f, 26f, L("ui.material.texture"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-
-            // Live paint surface (RawImage showing the 64×64 texture, point-filtered).
-            var canvasGo = new GameObject("PaintCanvas", typeof(RectTransform));
-            canvasGo.transform.SetParent(left, false);
-            _canvasRt = UiKit.Place(canvasGo, 20f, 50f, 480f, 480f);
-            _canvas = canvasGo.AddComponent<RawImage>();
-            _canvas.texture = _tex;
-
-            // Palette swatches.
-            UiKit.AddText(left, 20f, 540f, 200f, 24f, L("ui.material.brush"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
-            for (int i = 0; i < Swatches.Length; i++)
+            _shell = EditorShell.Build(_ui, this, new EditorShellOptions
             {
-                int idx = i;
-                float sx = 20f + (i % 6) * 44f, sy = 568f + (i / 6) * 44f;
-                var sw = MakeSwatch(left, sx, sy, Swatches[i], () => SetPaint(Swatches[idx], _swatchImgs[idx]));
-                _swatchImgs[i] = sw;
+                EditorKey = EditorKey,
+                TitleKey = "ui.menu.material_editor",
+                SaveSublineKey = "ui.editor.save_sub.material",
+                OnBack = () => Shell?.CloseMaterialEditor(),
+                OnSave = Save,
+                OnNew = StartNew,
+                HasUndo = true,
+                DraftRoot = DraftRoot ?? CanvasEditorDrafts.DraftRoot,
+                Localize = L,
+            });
+            DevEditorForm.AddBadge(_shell, L("ui.editor.badge_dev"));
+            _form = new DevEditorForm(_history.EndMerge);
+            BuildTextureCard();
+            BuildPropsCard();
+            _form.OnRefresh(RefreshPaintUi);
+            _shell.PreferFocus(_keyField);
+            _pad = new PadCanvasFocus(_ui.gameObject, _canvasRt);
+            RunChecks();
+            CanvasEditorDrafts.Offer(_shell);
+        }
+
+        private string L(string key) => Shell?.L(key) ?? key;
+
+        // ---- the edited definition ---------------------------------------------------------------------------------------
+
+        private MaterialBundle Defaults() => new MaterialBundle
+        {
+            key = "my_material",
+            name = L("ui.ed.default.material"),
+            desc = L("ui.ed.default.material_desc"),
+            requiredTool = Tools[0],
+            worldType = WorldTypes[0],
+            category = BlockCategories[0],
+            sourceImage = string.Empty,
+            hardness = 3f,
+            gloss = 0.1f,
+            frequency = 0.06f,
+            // The shipped veins all run to 2048 — the world is that deep since the worldgen overhaul, and a band
+            // that stops at 256 would leave the material out of most of the crust (#509).
+            minDepth = 4,
+            maxDepth = 2048,
+            colorRgb = (140 << 16) | (140 << 8) | 145,
+            tintable = true, // may the player dye/re-shape it (plain materials should)
+        };
+
+        /// <summary>The definition with its pixels as JSON — one undo step's state, and the draft's payload.</summary>
+        private string Snapshot() => JsonUtility.ToJson(new MaterialState { material = _b, pixels = Convert.ToBase64String(_model.Frames[0]) });
+
+        /// <summary>Reads a snapshot back; false when it is not one (a broken draft).</summary>
+        private static bool TryParse(string json, out MaterialBundle bundle, out byte[] pixels)
+        {
+            bundle = null;
+            pixels = null;
+            try
+            {
+                var state = string.IsNullOrWhiteSpace(json) ? null : JsonUtility.FromJson<MaterialState>(json);
+                if (state?.material == null || string.IsNullOrEmpty(state.pixels))
+                {
+                    return false;
+                }
+
+                pixels = Convert.FromBase64String(state.pixels);
+                bundle = state.material;
+            }
+            catch (Exception)
+            {
+                return false; // not JSON / not base64: a broken draft, never thrown at the shell
             }
 
-            // Base colour (drives Fill, the data-driven tint + the right-click eraser).
-            float by = 660f;
-            UiKit.AddText(left, 20f, by, 200f, 24f, L("ui.material.base_color"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _baseSwatch = MakeSwatch(left, 230f, by - 2f, BaseColor(), () => SetPaint(BaseColor(), _baseSwatch));
-            by += 30f;
-            Stepper(left, ref by, "R", () => _baseR, v => { _baseR = (int)v; RefreshBase(); }, 0, 255, 15, "0");
-            Stepper(left, ref by, "G", () => _baseG, v => { _baseG = (int)v; RefreshBase(); }, 0, 255, 15, "0");
-            Stepper(left, ref by, "B", () => _baseB, v => { _baseB = (int)v; RefreshBase(); }, 0, 255, 15, "0");
+            if (pixels.Length != TextureTiles.BytesPerFrame)
+            {
+                return false;
+            }
 
-            by += 6f;
-            UiKit.AddFitButton(left, 20f, by, 150f, 34f, L("ui.material.fill"), () => FillBase(true));
-            UiKit.AddFitButton(left, 180f, by, 150f, 34f, L("ui.material.flat"), () => FillBase(false));
-            UiKit.AddFitButton(left, 340f, by, 160f, 34f, L("ui.material.clear"), () => { _baseR = _baseG = _baseB = 20; RefreshBase(); FillBase(false); });
-
-            // ── Right: mechanics + look + world placement + footer ───────────────────────────────
-            var right = UiKit.AddPanel(root, 572f, 30f, 470f, 1010f, UiKit.PanelFill).transform;
-            UiKit.AddText(right, 16f, 12f, 440f, 26f, L("ui.material.material"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            float y = 50f;
-            InputRow(right, ref y, L("ui.content.key"), _key, v => _key = v, KeyLimit);
-            InputRow(right, ref y, L("ui.content.name"), _name, v => _name = v, NameLimit);
-            TextAreaRow(right, ref y, L("ui.content.desc"), _desc, v => _desc = v);
-
-            Header(right, ref y, L("ui.material.mechanics"));
-            Stepper(right, ref y, L("ui.material.hardness"), () => _hardness, v => _hardness = v, 0.2f, 12f, 0.2f, "0.0");
-            CycleRow(right, ref y, L("ui.material.tool"), Display("blocktool", Tools), () => _tool, i => _tool = i);
-            Stepper(right, ref y, L("ui.material.min_tier"), () => _minTier, v => _minTier = (int)v, 0, 3, 1, "0");
-            CycleRow(right, ref y, L("ui.material.category"), CategoryLabels(), () => _category, i => _category = i);
-            ToggleRow(right, ref y, L("ui.material.tintable"), () => _tintable, v => _tintable = v);
-
-            Header(right, ref y, L("ui.material.look"));
-            Stepper(right, ref y, L("ui.material.gloss"), () => _gloss, v => _gloss = v, 0, 1, 0.05f, "0.00");
-            Stepper(right, ref y, L("ui.material.metal"), () => _metal, v => _metal = v, 0, 1, 0.05f, "0.00");
-            Stepper(right, ref y, L("ui.material.emission"), () => _emission, v => _emission = v, 0, 1, 0.05f, "0.00");
-
-            Header(right, ref y, L("ui.material.world"));
-            CycleRow(right, ref y, L("ui.material.world_type"), Display("worldtype", WorldTypes), () => _worldType, i => _worldType = i);
-            Stepper(right, ref y, L("ui.material.frequency"), () => _frequency, v => _frequency = v, 0, 0.5f, 0.01f, "0.00", RefreshSpawnEstimate);
-            // What the generator actually does with that number — the raw value saturates, so show the share
-            // of deep rock this vein ends up claiming (#509).
-            _spawnEstimate = UiKit.AddText(right, 16f, y, 440f, 22f, string.Empty, 13, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            y += 26f;
-            Stepper(right, ref y, L("ui.material.min_depth"), () => _minDepth, v => _minDepth = (int)v, 0, 256, 2, "0", RefreshSpawnEstimate);
-            Stepper(right, ref y, L("ui.material.max_depth"), () => _maxDepth, v => _maxDepth = (int)v, 8, 2048, 64, "0");
-            StackedInputRow(right, ref y, L("ui.material.source_png"), _sourceImage, v => _sourceImage = v, PathLimit);
-            RefreshSpawnEstimate();
-
-            // Footer.
-            _status = UiKit.AddText(right, 16f, 1010f - 152f, 446f, 78f, string.Empty, 13, UiKit.Ok, TextAnchor.UpperLeft);
-            _status.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddFitButton(right, 16f, 1010f - 70f, 260f, 40f, L("ui.material.save"), Export);
-            UiKit.AddFitButton(right, 286f, 1010f - 70f, 168f, 40f, L("ui.menu.back"), () => Shell?.CloseMaterialEditor());
-
-            // Controls hint: an instruction — normal colour, and two lines at 13 px rather than running off the screen (#3263).
-            var hint = UiKit.AddText(root, 16f, 1043f, HintW, EditorSceneKit.BottomHintHeight, L("ui.material.hint"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.FitLabelLines(hint, 15, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize);
-
-            SetPaint(_paint, _swatchImgs[0]);
+            bundle.key ??= string.Empty;
+            bundle.name ??= string.Empty;
+            bundle.desc ??= string.Empty;
+            bundle.sourceImage ??= string.Empty;
+            return true;
         }
 
-        private readonly Image[] _swatchImgs = new Image[12];
-
-        private Color BaseColor() => new Color(_baseR / 255f, _baseG / 255f, _baseB / 255f);
-
-        private void RefreshBase()
+        /// <summary>One change as ONE undo step (see <see cref="ContentEditor"/>); a <paramref name="mergeKey"/> joins the
+        /// letters typed into one field.</summary>
+        private void Change(Action apply, string mergeKey = null)
         {
-            if (_baseSwatch != null) _baseSwatch.color = BaseColor();
+            string before = Snapshot();
+            apply();
+            string after = Snapshot();
+            bool step = mergeKey == null ? _history.Record(before, after) : _history.Merge(before, after, mergeKey);
+            if (step)
+            {
+                AfterChange();
+            }
         }
 
-        private void SetPaint(Color c, Image swatch)
+        private void AfterChange()
         {
-            _paint = c;
-            if (_activeSwatch != null) _activeSwatch.transform.localScale = Vector3.one;
-            _activeSwatch = swatch;
-            if (_activeSwatch != null) _activeSwatch.transform.localScale = Vector3.one * 1.18f;
+            Upload();
+            _form.Refresh();
+            _shell.NotifyChanged();
+            RunChecks();
         }
 
-        private Image MakeSwatch(Transform parent, float x, float y, Color color, Action onClick)
+        /// <summary>Shows a state everywhere (undo, redo, a draft, New).</summary>
+        private void Show(MaterialBundle bundle, byte[] pixels)
         {
-            var go = new GameObject("Swatch", typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            UiKit.Place(go, x, y, 38f, 38f);
-            var img = go.AddComponent<Image>();
-            img.sprite = UiKit.SolidSprite;
-            img.color = color;
-            var btn = go.AddComponent<Button>();
-            btn.transition = Selectable.Transition.None;
-            btn.targetGraphic = img;
-            btn.onClick.AddListener(() => onClick());
-            return img;
+            _b = bundle;
+            _model.Load(new[] { pixels }, 0);
+            Upload();
+            _form.Refresh();
+            RunChecks();
         }
 
-        // ── export ───────────────────────────────────────────────────────────────────────────────
+        private void ShowSnapshot(string state)
+        {
+            if (TryParse(state, out var bundle, out var pixels))
+            {
+                Show(bundle, pixels);
+            }
+        }
 
+        // ---- IEditorDocument ---------------------------------------------------------------------------------------------
+
+        public string DocumentName => ContentKeyRules.Clean(_b?.key);
+
+        public bool IsDirty => _history.IsDirty;
+
+        public bool CanUndo => _history.CanUndo;
+
+        public bool CanRedo => _history.CanRedo;
+
+        public void Undo()
+        {
+            EndStroke();
+            if (_history.TryUndo(Snapshot(), out string state))
+            {
+                ShowSnapshot(state);
+            }
+        }
+
+        public void Redo()
+        {
+            EndStroke();
+            if (_history.TryRedo(Snapshot(), out string state))
+            {
+                ShowSnapshot(state);
+            }
+        }
+
+        public string SaveDraft() => CanvasDraftFormat.Wrap(EditorKey, DraftVersion, Snapshot());
+
+        public bool LoadDraft(string draft)
+        {
+            if (!CanvasDraftFormat.TryUnwrap(draft, EditorKey, DraftVersion, out _, out string payload)
+                || !TryParse(payload, out var bundle, out var pixels))
+            {
+                return false;
+            }
+
+            string before = Snapshot();
+            _history.Reset();
+            _history.Record(before); // a restored draft is unsaved work; Undo goes back to the fresh material
+            Show(bundle, pixels);
+            return true;
+        }
+
+        /// <summary>Esc / pad B: the pad's painting mode is this editor's only layer — it closes first; the editor never.</summary>
+        public bool CloseTopLayer()
+        {
+            if (_pad != null && _pad.CanvasMode)
+            {
+                _pad.Release();
+                return true;
+            }
+
+            return false;
+        }
+
+        // ---- header actions ----------------------------------------------------------------------------------------------
+
+        /// <summary>New: a fresh material (the shell asks first over unsaved work).</summary>
+        private void StartNew()
+        {
+            EndStroke();
+            _history.Reset();
+            _b = Defaults(); // BaseFrame reads the base colour
+            Show(_b, BaseFrame(true));
+            _shell.ClearStatus();
+            RunChecks();
+        }
+
+        private string ExportDir(string key) => Path.Combine(ExportRoot ?? AppPaths.Root, "material_exports", key);
+
+        /// <summary>Save: checks, then writes the bundle; an export of the same key from an earlier session is replaced only
+        /// after a question.</summary>
+        private bool Save()
+        {
+            EndStroke();
+            var (error, _) = FirstProblem();
+            if (error != null)
+            {
+                _shell.SetStatus(error, EditorStatusSeverity.Error);
+                return false;
+            }
+
+            string key = ContentKeyRules.Clean(_b.key);
+            string dir = ExportDir(key);
+            if (!_overwriteConfirmed && !_exportedKeys.Contains(key) && Directory.Exists(dir))
+            {
+                string question = L("ui.ed.confirm_overwrite_export").Replace("{key}", key);
+                _shell.Confirm(question, L("ui.editor.confirm_replace_yes"), SaveOverExport, "btn_save");
+                _shell.SetStatus(question, EditorStatusSeverity.Warning);
+                return false;
+            }
+
+            return Export(key, dir);
+        }
+
+        private void SaveOverExport()
+        {
+            _overwriteConfirmed = true;
+            try
+            {
+                _shell.Save(); // through the shell, so a written export also removes the draft
+            }
+            finally
+            {
+                _overwriteConfirmed = false;
+            }
+        }
+
+        private bool Export(string key, string dir)
+        {
+            var b = JsonUtility.FromJson<MaterialBundle>(JsonUtility.ToJson(_b));
+            b.key = key;
+            b.sourceImage = string.IsNullOrWhiteSpace(_b.sourceImage) ? null : _b.sourceImage.Trim();
+            b.maxDepth = Mathf.Max(_b.minDepth, _b.maxDepth);
+            try
+            {
+                Directory.CreateDirectory(dir);
+                File.WriteAllText(Path.Combine(dir, "material.json"), JsonUtility.ToJson(b, true));
+                // Raw RGBA32 tile in the exact layout BlockTextureAtlas.LoadRawTextureData expects.
+                File.WriteAllBytes(Path.Combine(dir, "texture.bytes"), _model.Frames[0]);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[MaterialEditor] Export failed: {e}");
+                _shell.SetStatus(L("ui.ed.export_failed_hint"), EditorStatusSeverity.Error); // the exception goes to the log
+                return false;
+            }
+
+            _exportedKeys.Add(key);
+            _history.MarkSaved();
+            _shell.SetStatus(L("ui.material.exported").Replace("{key}", key), EditorStatusSeverity.Success);
+            return true;
+        }
+
+        // ---- checks ------------------------------------------------------------------------------------------------------
+
+        /// <summary>The first error (key, name) or else the first warning (the block exists already: the merge only changes
+        /// its look) — the material editor has no check card, so both go to the status bar.</summary>
+        private (string Error, string Warning) FirstProblem()
+        {
+            string error = ContentEditor.KeyProblemText(L, _b.key);
+            if (error == null && string.IsNullOrWhiteSpace(_b.name))
+            {
+                error = L("ui.ed.check.need_name");
+            }
+
+            string key = ContentKeyRules.Clean(_b.key);
+            var content = Shell != null ? Shell.Content : null;
+            string warning = error == null && content != null && content.GetBlock(key) != null
+                ? L("ui.material.check.key_taken").Replace("{key}", key)
+                : null;
+            return (error, warning);
+        }
+
+        /// <summary>A problem stands in the status bar (red error, else amber warning); once it is fixed, the line it left
+        /// there goes again — a message of something else ("Exported") stays.</summary>
+        private void RunChecks()
+        {
+            if (_shell == null || _b == null)
+            {
+                return;
+            }
+
+            var (error, warning) = FirstProblem();
+            bool ours = _shownCheck != null && _shell.StatusText.text == _shownCheck;
+            if (error != null || warning != null)
+            {
+                _shell.SetStatus(error ?? warning, error != null ? EditorStatusSeverity.Error : EditorStatusSeverity.Warning);
+                _shownCheck = _shell.StatusText.text;
+            }
+            else if (ours)
+            {
+                _shell.ClearStatus();
+                _shownCheck = null;
+            }
+        }
+
+        /// <summary>The current problem's text and severity — for tests.</summary>
+        public (string Error, string Warning) ProblemForTests => FirstProblem();
+
+        // ---- the bundle ----------------------------------------------------------------------------------------------------
+
+        /// <summary>The material as merge_material.py reads it — also the editor's state.</summary>
         [Serializable]
         private sealed class MaterialBundle
         {
@@ -287,206 +412,12 @@ namespace BlocksBeyondTheStars.Client
             public bool tintable;
         }
 
-        private void Export()
+        /// <summary>A snapshot / draft: the bundle and the tile's pixels (base64 of the raw RGBA32 rows).</summary>
+        [Serializable]
+        private sealed class MaterialState
         {
-            string key = Slug(_key);
-            if (string.IsNullOrEmpty(key))
-            {
-                SetStatus(L("ui.content.need_key"));
-                return;
-            }
-
-            var b = new MaterialBundle
-            {
-                key = key, name = _name, desc = _desc, category = BlockCategories[_category], tintable = _tintable,
-                requiredTool = Tools[_tool], worldType = WorldTypes[_worldType],
-                sourceImage = string.IsNullOrWhiteSpace(_sourceImage) ? null : _sourceImage.Trim(),
-                hardness = _hardness, gloss = _gloss, metal = _metal, emission = _emission, frequency = _frequency,
-                minToolTier = _minTier, minDepth = _minDepth, maxDepth = Mathf.Max(_minDepth, _maxDepth),
-                colorRgb = (_baseR << 16) | (_baseG << 8) | _baseB,
-            };
-
-            try
-            {
-                string dir = Path.Combine(AppPaths.Root, "material_exports", key);
-                Directory.CreateDirectory(dir);
-                File.WriteAllText(Path.Combine(dir, "material.json"), JsonUtility.ToJson(b, true));
-                // Raw RGBA32 tile in the exact layout BlockTextureAtlas.LoadRawTextureData expects.
-                File.WriteAllBytes(Path.Combine(dir, "texture.bytes"), _tex.GetRawTextureData());
-                SetStatus($"{L("ui.material.exported")}\n{dir}");
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning($"[MaterialEditor] Export failed: {e}");
-                SetStatus(L("ui.ed.export_failed_hint")); // a friendly line; the exception goes to the log (#3263)
-            }
+            public MaterialBundle material;
+            public string pixels;
         }
-
-        private void SetStatus(string s) { if (_status != null) _status.text = s; }
-
-        // ── small uGUI form helpers (mirrors ContentEditor) ────────────────────────────────────────
-
-        private static void Header(Transform p, ref float y, string text)
-        {
-            y += 6f;
-            UiKit.AddText(p, 16f, y, 440f, 24f, text, 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            y += 28f;
-        }
-
-        /// <summary>Character limits sized so the typed text always FITS its field instead of scrolling out
-        /// of sight (#514); a source path may be longer — it scrolls while you type it.</summary>
-        private const int KeyLimit = 28, NameLimit = 32, DescLimit = 160, PathLimit = 120;
-
-        /// <summary>The bottom hint line: the screen's width less the margins.</summary>
-        internal const float HintW = 1888f;
-
-        /// <summary>The label column of the form rows (#3263).</summary>
-        internal const float InputLabelW = 180f, StepperLabelW = 248f;
-
-        /// <summary>A row label that shrinks to 13 px on one line rather than run into its field (#3263).</summary>
-        private static void RowLabel(Transform p, float y, float width, string label)
-        {
-            var text = UiKit.AddText(p, 16f, y, width, 30f, label, 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.FitLabelSingleLine(text, width, UiKit.EditorMinFontSize, 15);
-        }
-
-
-        /// <summary>Form-field text size — smaller than the UiKit default so a full key/name fits the box.</summary>
-        private const int FieldFont = 15;
-
-        /// <summary>Localized label for a raw option value (<c>ui.opt.&lt;set&gt;.&lt;value&gt;</c>), falling
-        /// back to the identifier itself so a newly added option still shows something (#516).</summary>
-        private string Opt(string set, string value)
-        {
-            string key = "ui.opt." + set + "." + value;
-            return Shell != null && Shell.Localizer != null && Shell.Localizer.Has(key) ? Shell.L(key) : value;
-        }
-
-        /// <summary>The display labels for a whole option set; the exported value stays the raw identifier.</summary>
-        private string[] Display(string set, string[] values)
-        {
-            var labels = new string[values.Length];
-            for (int i = 0; i < values.Length; i++)
-            {
-                labels[i] = Opt(set, values[i]);
-            }
-
-            return labels;
-        }
-
-        /// <summary>Block-category labels reusing the palette section titles (<c>ui.cat.*</c>), so the editor
-        /// names a category exactly like the build palettes it will show up in.</summary>
-        private string[] CategoryLabels()
-        {
-            var labels = new string[BlockCategories.Length];
-            for (int i = 0; i < labels.Length; i++)
-            {
-                string key = "ui.cat." + BlockCategories[i];
-                labels[i] = Shell != null && Shell.Localizer != null && Shell.Localizer.Has(key) ? Shell.L(key) : BlockCategories[i];
-            }
-
-            return labels;
-        }
-
-        /// <summary>Restates the frequency slider as the share of deep rock the vein will actually claim:
-        /// <c>WorldGenerator.SelectOre</c> scales and caps the raw rarity (0.30/0.08 for a shallow band,
-        /// 0.15/0.05 deeper), so the number on the slider is not the number in the world.</summary>
-        private void RefreshSpawnEstimate()
-        {
-            if (_spawnEstimate == null)
-            {
-                return;
-            }
-
-            bool shallow = _minDepth <= 8;
-            float scale = shallow ? 0.30f : 0.15f, cap = shallow ? 0.08f : 0.05f;
-            float frac = Mathf.Clamp(_frequency * scale, 0f, cap);
-            _spawnEstimate.text = string.Format(L("ui.material.spawn_estimate"), (frac * 100f).ToString("0.0"));
-        }
-
-        private static void InputRow(Transform p, ref float y, string label, string value, Action<string> onChange, int maxLength)
-        {
-            RowLabel(p, y, InputLabelW, label);
-            UiKit.AddInput(p, 200f, y, 256f, 30f, value, onChange, string.Empty, maxLength, FieldFont);
-            y += 38f;
-        }
-
-        /// <summary>A label over a full-width field — for a label longer than the 180 px column ("Исходный PNG
-        /// (необязательно)", #3263).</summary>
-        private static void StackedInputRow(Transform p, ref float y, string label, string value, Action<string> onChange, int maxLength)
-        {
-            var text = UiKit.AddText(p, 16f, y, 440f, 22f, label, 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.FitLabelSingleLine(text, 440f, UiKit.EditorMinFontSize, 15);
-            UiKit.AddInput(p, 16f, y + 24f, 440f, 30f, value, onChange, string.Empty, maxLength, FieldFont);
-            y += 62f;
-        }
-
-        /// <summary>A wrapping multi-line field for sentence-length text (see ContentEditor).</summary>
-        private static void TextAreaRow(Transform p, ref float y, string label, string value, Action<string> onChange)
-        {
-            RowLabel(p, y, InputLabelW, label);
-            UiKit.AddInput(p, 200f, y, 256f, 64f, value, onChange, string.Empty, DescLimit, FieldFont, multiline: true);
-            y += 72f;
-        }
-
-        /// <param name="onChanged">Optional extra callback for rows whose value feeds a live readout.</param>
-        private static void Stepper(Transform p, ref float y, string label, Func<float> get, Action<float> set,
-            float min, float max, float step, string fmt, Action onChanged = null)
-        {
-            RowLabel(p, y, StepperLabelW, label);
-            var val = UiKit.AddText(p, 300f, y, 80f, 30f, get().ToString(fmt), 15, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            void Apply(float delta)
-            {
-                set(Mathf.Clamp(get() + delta, min, max));
-                val.text = get().ToString(fmt);
-                onChanged?.Invoke();
-            }
-
-            UiKit.AddFitButton(p, 268f, y + 1f, 28f, 28f, "−", () => Apply(-step));
-            UiKit.AddFitButton(p, 384f, y + 1f, 28f, 28f, "+", () => Apply(step));
-            y += 38f;
-        }
-
-        /// <param name="labels">Localized display labels, one per option — the stored value stays the index
-        /// into the raw identifier list.</param>
-        private static void CycleRow(Transform p, ref float y, string label, string[] labels, Func<int> get, Action<int> set)
-        {
-            RowLabel(p, y, InputLabelW, label); // 180 px, not 150 — "Required tool" ran into its value (#3263)
-            // Two 13 px lines at the most ("Трансмутационная установка"): 36 px tall inside the 38 px row pitch.
-            var val = UiKit.AddText(p, 200f, y - 3f, 180f, 36f, labels[get()], 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.FitLabelLines(val, 15, UiKit.EditorMinFontSize, UiKit.EditorMinFontSize);
-            UiKit.AddFitButton(p, 384f, y + 1f, 28f, 28f, "→", () => { set((get() + 1) % labels.Length); val.text = labels[get()]; });
-            y += 38f;
-        }
-
-        private void ToggleRow(Transform p, ref float y, string label, Func<bool> get, Action<bool> set)
-        {
-            RowLabel(p, y, InputLabelW, label);
-            var btn = UiKit.AddFitButton(p, 200f, y, 154f, 30f, OffOn(get()), null);
-            var caption = btn.GetComponentInChildren<Text>();
-            btn.onClick.AddListener(() =>
-            {
-                set(!get());
-                caption.text = OffOn(get());
-            });
-            y += 38f;
-        }
-
-        private string OffOn(bool on) => on ? L("ui.avatar.on") : L("ui.avatar.off");
-
-        private static string Slug(string s)
-        {
-            if (string.IsNullOrWhiteSpace(s)) return string.Empty;
-            var sb = new System.Text.StringBuilder();
-            foreach (char c in s.Trim().ToLowerInvariant())
-            {
-                if (char.IsLetterOrDigit(c)) sb.Append(c);
-                else if (c == ' ' || c == '-' || c == '_') sb.Append('_');
-            }
-
-            return sb.ToString();
-        }
-
-        private string L(string key) => Shell?.L(key) ?? key;
     }
 }

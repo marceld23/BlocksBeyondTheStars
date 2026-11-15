@@ -233,9 +233,9 @@ condition, never paid, never stored.
 
 ## Conditions
 
-One grammar for `requires`, `feasibleIf`, `alreadyDoneIf`, `visibleIf`, `offerWhen`, `autoCompleteIf`, `start.after`,
-`gates` and `variants[].when` (`StoryConditionParser`); a JSON list of conditions means all of them. Nesting is
-limited to 16 levels.
+One grammar for `requires`, `feasibleIf`, `alreadyDoneIf`, `waitWhile`, `visibleIf`, `offerWhen`, `autoCompleteIf`,
+`start.after`, `gates` and `variants[].when` (`StoryConditionParser`); a JSON list of conditions means all of them.
+Nesting is limited to 16 levels.
 
 ```
 condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
@@ -267,7 +267,7 @@ condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 
 ### World predicates (`world:<predicate>`)
 
-91 predicates (`StoryWorldPredicates.All`, held equal to the server's registry by
+92 predicates (`StoryWorldPredicates.All`, held equal to the server's registry by
 `StoryConditionTests`). A predicate reads the player's own body and system, never another player's.
 
 | Predicate | Holds when |
@@ -331,6 +331,7 @@ condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 | `world:new_world_in_system` | The player's system has a planet, moon or asteroid they have never landed on — the landing lesson. |
 | `world:night_outside` | The player is out on foot on a world's surface while the local sun is down. |
 | `world:observatory_reachable` | The Sealed Observatory exists in this save (a world stamped before the unique sites skipped it) and the player can get there (same system, a jump generator, a landing there before, instant travel) — the lead's rule. |
+| `world:on_foot` | The player is on foot where the movement lessons count — on a world's surface or walking inside their ship; not flying (at the helm in space or on a spacewalk), not aboard a station, not in a vehicle or on a train. The walk and jump lessons wait for it (`waitWhile: not:world:on_foot`). |
 | `world:oxygen` | Oxygen drains (air matters). |
 | `world:planet_wrecks` | The world generates crashed wrecks on planets (the world option is not off). |
 | `world:player_near` | Another (visible) player is within 32 blocks on the same body. |
@@ -391,7 +392,7 @@ A tier 1 or 2 scene never takes the camera: it may only use the types marked "no
 | `dolly` | yes | A straight, eased move between two points near the anchor (a slow push-in that slides a little sideways), the whole path checked against the terrain. |
 | `pan` | yes | Turning in place across an arc — from just above the player's head, or from a vantage point across the anchor; only where the view stays open. |
 | `flyover` | yes | A high arc over the anchor and its ground, rising in the middle, always looking at the anchor. |
-| `space_vista` | yes (synthetic stage) | A synthetic space panorama (stars, nebula, sun, a planet; with the `ship` anchor the player's own ship) — the same recipe as the menu's attract scene, independent of where the player is (on the ground or in space). |
+| `space_vista` | yes (synthetic stage) | A synthetic space panorama (stars, nebula, sun, a planet; with the `ship` anchor the player's own ship) — the menu's attract-scene recipe, independent of where the player is (on the ground or in space); the planet is drawn by the flight view's own renderer — the world the player is on, else the menu's showcase world (#3705). |
 | `diorama` | yes (synthetic stage) | A small synthetic stage showing what the anchor names: `core` the sleeping Guardian core (a red glowing column in an iron shell), `star_map` VEGA's memory of the star chart (the camera drifts to the rim). |
 
 A `diorama` shows one of these anchors: `core`, `star_map`.

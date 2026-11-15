@@ -194,8 +194,10 @@ namespace BlocksBeyondTheStars.Client
             float half = (innerW - 28f) / 2f;
             _submitBtn = UiKit.AddFitButton(panel, m, ph - 76f, half, 52f, T("send"), OnSubmitClicked, "btn_feedback");
             _submitBtn.gameObject.name = SubmitName;
-            _cancelBtn = UiKit.AddFitButton(panel, m + half + 28f, ph - 76f, half, 52f, T("cancel"), Close, "btn_exit");
+            UiKit.StyleTier(_submitBtn, ButtonTier.Primary); // #3662: Send is the dialog's one primary action
+            _cancelBtn = UiKit.AddFitButton(panel, m + half + 28f, ph - 76f, half, 52f, T("cancel"), Close, "btn_back");
             _cancelBtn.gameObject.name = CancelName;
+            UiKit.StyleTier(_cancelBtn, ButtonTier.Quiet);
 
             RefreshLabels();
         }
@@ -218,6 +220,10 @@ namespace BlocksBeyondTheStars.Client
             y += 22f;
             _nickInput = UiKit.AddInput(panel, m, y, innerW - 230f, 38f, _lastNickname, null, T("nick_placeholder"), CreationSubmission.MaxNicknameLength);
             _noNameBtn = UiKit.AddFitButton(panel, m + innerW - 220f, y, 220f, 38f, string.Empty, ToggleNoName);
+            // #3662: a finger's target (44) around the 38-high rows — invisible, the form keeps its rhythm.
+            UiKit.AddHitArea(_nameInput);
+            UiKit.AddHitArea(_nickInput);
+            UiKit.AddHitArea(_noNameBtn);
             y += 48f;
 
             Wrapped(panel, m, y, innerW, 40f, T("note_label"), 15, UiKit.TextCol);

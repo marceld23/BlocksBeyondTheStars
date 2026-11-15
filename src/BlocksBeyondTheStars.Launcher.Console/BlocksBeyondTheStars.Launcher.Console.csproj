@@ -13,6 +13,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- #3706: the same poster as the Windows launcher (optional — the procedural look stands in without it), and the
+         Windows launcher's "Loading…" localization, which reads the game's own settings and locale tables. -->
+    <EmbeddedResource Include="../../client/Branding/launcher-splash.jpg" Condition="Exists('../../client/Branding/launcher-splash.jpg')" LogicalName="splash-art" />
+    <Compile Include="../BlocksBeyondTheStars.Launcher/SplashLocalization.cs" Link="SplashLocalization.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="SkiaSharp" Version="3.116.1" />
     <!-- Native libSkiaSharp.so for Linux (the base SkiaSharp package only ships Windows/macOS natives).
          Needed both for the CI splash render and for the shipped self-contained Linux launcher. The

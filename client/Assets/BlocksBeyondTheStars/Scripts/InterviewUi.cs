@@ -91,7 +91,8 @@ namespace BlocksBeyondTheStars.Client
             const float w = 760f, h = 470f, m = 36f, innerW = w - 2f * m;
             var panel = AddModal((1920f - w) / 2f, (1080f - h) / 2f, w, h);
 
-            UiKit.AddText(panel, m, 22, innerW, 34, L("ui.interview.title"), 26, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            // #3662: the in-world panels' title — left, cyan, outlined (the crate, the lab, the lift …).
+            UiKit.AddOutline(UiKit.AddText(panel, m, 22, innerW, 34, L("ui.interview.title"), 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold));
             var prompt = UiKit.AddText(panel, m, 66, innerW, 56, L("ui.interview.prompt"), 16, UiKit.TextCol, TextAnchor.UpperLeft);
             prompt.horizontalOverflow = HorizontalWrapMode.Wrap;
 
@@ -100,8 +101,9 @@ namespace BlocksBeyondTheStars.Client
             _freeText.transform.SetParent(panel, false);
             UiKit.Place(_freeText, 0, 0, w, h);
             _input = UiKit.AddInput(_freeText.transform, m, 130, innerW, 190, string.Empty, null, L("ui.interview.placeholder"), MaxLength, 18, multiline: true);
-            UiKit.AddButton(_freeText.transform, m, 350, 330, 56, L("ui.interview.send"), () => Send(_input.text), "btn_feedback");
-            UiKit.AddButton(_freeText.transform, m + 358, 350, 330, 56, L("ui.interview.cancel"), Close, "btn_exit");
+            // #3662: Send is the one primary action; "Not now" steps back quietly (and comes after Send for the pad).
+            UiKit.AddTierButton(_freeText.transform, m, 350, 330, 56, L("ui.interview.send"), () => Send(_input.text), ButtonTier.Primary, "btn_feedback");
+            UiKit.AddTierButton(_freeText.transform, m + 358, 350, 330, 56, L("ui.interview.cancel"), Close, ButtonTier.Quiet, "btn_back");
 
             // Ready answers (Safe chat mode): the server stores the key and every reader sees it in their own language.
             _presetRow = new GameObject("Presets", typeof(RectTransform));
@@ -114,7 +116,7 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddButton(_presetRow.transform, m, 154 + i * 52, innerW, 44, L(key), () => Send("@" + key));
             }
 
-            UiKit.AddButton(_presetRow.transform, m, 380, 330, 56, L("ui.interview.cancel"), Close, "btn_exit");
+            UiKit.AddTierButton(_presetRow.transform, m, 380, 330, 56, L("ui.interview.cancel"), Close, ButtonTier.Quiet, "btn_back");
             Overlay.SetActive(false);
         }
     }

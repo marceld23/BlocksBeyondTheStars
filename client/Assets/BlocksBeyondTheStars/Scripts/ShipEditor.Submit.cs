@@ -8,9 +8,9 @@ using UnityEngine;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// The Ship Designer's export bundle and its Submit button (#3262): the same <c>ship.json</c> + <c>layout.json</c>
-    /// Save writes, sent to the developers through <see cref="CreationSubmitDialog"/> with a picture from the editor's
-    /// own camera. The reviewer adopts it with <c>tools/pull_submissions.py --kind ship</c> and <c>tools/merge_ship.py</c>
+    /// The Ship Designer's export bundle and its Submit button (#3262, in the shell's header since #3691): the same
+    /// <c>ship.json</c> + <c>layout.json</c> Save writes, sent to the developers through <see cref="CreationSubmitDialog"/>
+    /// with a picture from the editor's own camera. The reviewer adopts it with <c>tools/pull_submissions.py --kind ship</c> and <c>tools/merge_ship.py</c>
     /// (stats are re-balanced by hand there).
     /// </summary>
     public sealed partial class ShipEditor
@@ -20,15 +20,6 @@ namespace BlocksBeyondTheStars.Client
 
         private CreationSubmitDialog _submitDialog;
         private bool _capturingPreview;
-
-        /// <summary>Save and Submit side by side on the footer row Save had alone — each well over 140 px, so the label
-        /// fits in every language.</summary>
-        private void AddSaveAndSubmit(Transform meta, float y)
-        {
-            const float gap = 12f, width = (356f - gap) / 2f;
-            UiKit.AddFitButton(meta, 12f, y, width, 42f, L("ui.struct.save"), Export);
-            UiKit.AddFitButton(meta, 12f + width + gap, y, width, 42f, L("ui.submit.button"), Submit);
-        }
 
         /// <summary>The ship as its export files: cells in layout coordinates (room minus the interior origin, #1397);
         /// the interior size is the explicit cabin frame, not the bounding box of everything placed (#1396).</summary>
@@ -80,16 +71,17 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            string key = Slug(_key);
+            string key = SaveKey();
             if (string.IsNullOrEmpty(key))
             {
-                _status = L("ui.ed.need_key");
+                Status(L("ui.ed.need_key"), EditorStatusSeverity.Warning);
+                ShowAdvanced(true); // the key field lives there
                 return;
             }
 
             if (_design.Count == 0)
             {
-                _status = L("ui.submit.empty");
+                Status(L("ui.submit.empty"), EditorStatusSeverity.Warning);
                 return;
             }
 
@@ -128,7 +120,7 @@ namespace BlocksBeyondTheStars.Client
                 _submitDialog = gameObject.AddComponent<CreationSubmitDialog>();
                 _submitDialog.Localize = L;
                 _submitDialog.Settings = Shell != null ? Shell.Settings : null;
-                _submitDialog.OnOutcome = (message, _) => _status = message;
+                _submitDialog.OnOutcome = (message, color) => Status(message, SeverityOf(color));
             }
 
             _submitDialog.Open(new CreationSubmitRequest

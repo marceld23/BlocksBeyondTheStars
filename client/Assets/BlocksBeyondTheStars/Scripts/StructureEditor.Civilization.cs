@@ -176,7 +176,7 @@ namespace BlocksBeyondTheStars.Client
             string dir = Path.Combine(CivilizationExportsRoot, key);
             Directory.CreateDirectory(dir);
             File.WriteAllText(Path.Combine(dir, CivilizationEditorRules.BundleFile), json);
-            SetStatus(string.Format(L("ui.ed.civ.saved"), key, _design.Count, json.Length / 1024) + SaveWarnings());
+            Saved(string.Format(L("ui.ed.civ.saved"), key, _design.Count, json.Length / 1024)); // with the save warnings
         }
     }
 }

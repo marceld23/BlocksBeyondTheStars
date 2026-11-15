@@ -24,7 +24,8 @@ namespace BlocksBeyondTheStars.Client
         private enum Tab { Inventory, Crafting, Tech, Ship, Map, Missions, Character, Alliances, Story, Companions, Photos, Achievements }
 
         /// <summary>Which full-screen browser sub-screen (if any) replaces the tab view while the menu is open.
-        /// The Wiki ("Codex") and Arcade are reached from buttons in the menu header.</summary>
+        /// The Wiki ("Codex") and the Arcade ("DataQubes") are sub-tabs of the console's Knowledge tab (#3671; header
+        /// buttons before); their "Back to menu" returns to the tab the menu was on — the Knowledge tab's Creatures page.</summary>
         private enum BrowserScreen { None, Wiki, Arcade }
 
         private Tab _tab = Tab.Inventory;
@@ -63,6 +64,10 @@ namespace BlocksBeyondTheStars.Client
                 bool typing = UiKit.TextFieldFocused();
                 bool typingRecent = typing || _typingPrev;
                 _typingPrev = typing;
+                if (HandleEditorCancel(typingRecent))
+                {
+                    return; // an in-world editor on the editor shell had the press (#3690)
+                }
 
                 // Full-screen menu/browser panes must be escapable before the app shell sees Esc
                 // as "leave game", otherwise the player can get trapped behind overlapping modals.
@@ -85,6 +90,12 @@ namespace BlocksBeyondTheStars.Client
                     if (_textureEditor != null)
                     {
                         CloseTextureEditor(); // back to the settings list, not out of the menu (#1959)
+                        return;
+                    }
+
+                    if (_browser != BrowserScreen.None)
+                    {
+                        CloseBrowser(); // the Codex / DataQubes go back to the console, as their header's Back does
                         return;
                     }
 
@@ -116,6 +127,14 @@ namespace BlocksBeyondTheStars.Client
                 _ui?.Hide();
                 _wikiUi?.Hide();
                 _arcadeUi?.Hide();
+                return;
+            }
+
+            if (InWorldEditorUp)
+            {
+                // #3693: an editor on the shell (appearance, texture, the crafting tab's shape designer) covers the console —
+                // its pad focus, tabs and shortcuts stand down until the editor's Back.
+                _ui?.Hide();
                 return;
             }
 
@@ -244,7 +263,7 @@ namespace BlocksBeyondTheStars.Client
             if (_open)
             {
                 // No UiNav here (#1198): this GameObject holds no uGUI controls at all. Every screen the menu
-                // shows — CraftingTechShipUI's 11 tabs, the Codex, the Arcade, the vendor trade — builds its
+                // shows — CraftingTechShipUI's tabs, the Codex, the Arcade, the vendor trade — builds its
                 // own UiKit.CreateCanvas SCENE-ROOT canvas and enables UiNav on that. The call that used to
                 // sit here claimed it "covers every tab" while in fact it walked an empty subtree, which is
                 // exactly why the pad could not reach the menu.
@@ -261,6 +280,31 @@ namespace BlocksBeyondTheStars.Client
                 _wikiUi?.Hide();
                 _arcadeUi?.Hide();
             }
+        }
+
+        /// <summary>True while an editor on the <see cref="EditorShell"/> is up over the world or the console.</summary>
+        private bool InWorldEditorUp => _faceEditor != null || _textureEditor != null
+                                        || (EditorShell.Current != null && EditorShell.Current.isActiveAndEnabled);
+
+        /// <summary>
+        /// Esc / pad B while an in-world editor on the <see cref="EditorShell"/> is up (#3690): the texture and appearance
+        /// screens over the console, the paint tool's and the shape tool's editors over the world. This is the ONE reader of
+        /// the press for them: the shell closes the topmost layer (its dialog, the editor's picker or panel, the pad's canvas
+        /// mode) and never the editor, which is left through its Back. A press that only left a text field does nothing.
+        /// Returns false while no shell is up, so the menu's own Esc handling below stays the fallback.
+        /// </summary>
+        private bool HandleEditorCancel(bool typingRecent)
+        {
+            var shell = EditorShell.Current;
+            if (shell == null || !shell.isActiveAndEnabled || Game.ChatTyping || Game.MenuInputHandledThisFrame
+                || !InputMap.Down(InputAction.UiCancel))
+            {
+                return false;
+            }
+
+            Game.MarkMenuInputHandled();
+            shell.HandleCancel(typingRecent);
+            return true;
         }
 
         /// <summary>Switches tab and (re)requests server data for data-driven tabs.</summary>
@@ -339,11 +383,11 @@ namespace BlocksBeyondTheStars.Client
             _ui.Menu = this;
         }
 
-        /// <summary>Switches the active tab from the uGUI screen (Crafting/Tech/Ship bar). Also leaves any open
+        /// <summary>Switches the active tab from the uGUI screen (a main tab, a sub-tab, LB/RB, a jump). Also leaves any open
         /// browser sub-screen so a tab click always returns to the tab view.</summary>
         public void SwitchFromUi(int tab) { _browser = BrowserScreen.None; SwitchTo((Tab)tab); }
 
-        /// <summary>Closes the whole menu from the uGUI screen's X button.</summary>
+        /// <summary>Closes the whole menu from the uGUI screen's Close button.</summary>
         public void CloseFromUi() => SetOpen(false);
 
         /// <summary>Closes the menu (if open) when a launch/landing/hyperjump animation starts.</summary>
@@ -462,6 +506,7 @@ namespace BlocksBeyondTheStars.Client
             _faceEditor.OnRenameOutfit = RenameOutfit;
             _faceEditor.OnDeleteOutfit = DeleteOutfit;
             ConfigureTemplatesAndHud(_faceEditor); // #3318/#3319/#3321: unlocked skins, the HUD mode, the Submit button
+            ConfigureAppearanceFrame(_faceEditor); // #3693: the shell frame and the Figure tab, as the menu's Avatar Designer
         }
 
         // ── outfits ──────────────────────────────────────────────────────────────────────────────

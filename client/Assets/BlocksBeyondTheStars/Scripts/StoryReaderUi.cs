@@ -91,6 +91,7 @@ namespace BlocksBeyondTheStars.Client
         private void Fill(string title, string label, string body)
         {
             _title.text = title;
+            UiKit.FitLabelSingleLine(_title, 652f, 16, 26); // a long find's name stays on the title row
             _label.text = label ?? string.Empty;
             _label.gameObject.SetActive(!string.IsNullOrEmpty(label));
 
@@ -114,19 +115,22 @@ namespace BlocksBeyondTheStars.Client
 
         protected override void BuildChrome(Transform root)
         {
-            UiKit.AddPanel(root, 0, 0, 1920, 1080, new Color(0f, 0f, 0f, 0.45f));
+            // #3662: a modal scrim and an OPAQUE page — a text to read must not have the world shining through it. Everything
+            // hangs off the full-screen scrim, at the canvas's own coordinates.
+            root = UiKit.AddModalDim(root, 0.45f).transform;
 
             const float w = 700f, h = 560f;
             float x = (1920f - w) * 0.5f, y = (1080f - h) * 0.5f;
-            UiKit.AddPanel(root, x, y, w, h, UiKit.Panel);
+            UiKit.AddDialogPanel(root, x, y, w, h);
 
-            _title = UiKit.AddText(root, x + 24, y + 20, w - 48, 32, string.Empty, 24, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _title.fontStyle = FontStyle.Bold;
+            _title = UiKit.AddText(root, x + 24, y + 20, w - 48, 32, string.Empty, 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddOutline(_title);
             _label = UiKit.AddText(root, x + 24, y + 56, w - 48, 24, string.Empty, 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
 
             _list = UiKit.ScrollList(root, x + 16, y + 88, w - 32, h - 166, 6f);
 
-            UiKit.AddButton(root, x + w - 24 - 220, y + h - 60, 220, 44, L("ui.reader.close"), Close);
+            // The reader's one control (the pad's A and B both close it; the stick scrolls): the cross, quiet (#3662).
+            UiKit.AddTierButton(root, x + w - 24 - 220, y + h - 60, 220, 44, L("ui.reader.close"), Close, ButtonTier.Quiet, "btn_close");
         }
     }
 }

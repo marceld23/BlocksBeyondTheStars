@@ -4,15 +4,28 @@
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// What the layer-canvas editors of the main menu share (the form editor over <see cref="FormCanvasModel"/>, "My
-    /// tools" over <see cref="ToolLookCanvasModel"/>): a voxel volume painted one horizontal layer at a time, with
-    /// strokes as undo steps. The client's editor base drives either model through this surface; what a cell holds and
-    /// how it is painted stays with each model.
+    /// What the layer-canvas editors share (the form editor and the in-game shape designer over
+    /// <see cref="FormCanvasModel"/>, "My tools" over <see cref="ToolLookCanvasModel"/>): a voxel volume painted one
+    /// horizontal layer at a time, with strokes as undo steps. The client's editor base drives either model through this
+    /// surface — and answers the editor shell's undo / unsaved questions from it (#3693); what a cell holds and how it is
+    /// painted stays with each model.
     /// </summary>
     public interface ILayerCanvas
     {
         /// <summary>The layer (Y slice) the canvas shows.</summary>
         int Layer { get; }
+
+        /// <summary>True when the work differs from the state loaded or last marked saved.</summary>
+        bool Dirty { get; }
+
+        /// <summary>True when there is a step to take back.</summary>
+        bool CanUndo { get; }
+
+        /// <summary>True when there is an undone step to put back.</summary>
+        bool CanRedo { get; }
+
+        /// <summary>The current state is the saved one now.</summary>
+        void MarkSaved();
 
         /// <summary>Shows another layer, clamped to the volume.</summary>
         void SetLayer(int layer);

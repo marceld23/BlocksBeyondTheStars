@@ -14,6 +14,11 @@ internal sealed partial class AncientRuinBuilder
     /// <summary>The strength a buried ruin decays with (the masonry default of the ruin pass).</summary>
     internal const double RuinStrength = 0.5;
 
+    /// <summary>Terrain generation 44 (<see cref="AbandonedBeds"/>): the buried city's beds become the abandoned twin — the
+    /// same look, no bed to any rule. A short bed is joined with the short bed beside it or stays a head alone; none reaches into
+    /// a free cell.</summary>
+    public void AbandonBeds() => AbandonedBeds.Apply(VoxelGrid.Over(_w, _h, _l, _blocks, _mods, _shapes), _content, footAllowed: null);
+
     /// <summary>
     /// The shared ruin pass (<see cref="StructureRuiner"/>, profile masonry, the floor as the ground row) over the composed city:
     /// crumbled wall tops, bites, shafts through the roofs, smashed glass, dead lights (the switched-off warm strip), a settle

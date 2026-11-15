@@ -280,6 +280,9 @@ public sealed partial class GameServer
 
         public StoryCondition? AlreadyDoneIf { get; set; }
 
+        /// <summary>#3673: while this holds the step waits (<see cref="StoryStep.WaitWhile"/>); null = never.</summary>
+        public StoryCondition? WaitWhile { get; set; }
+
         public List<(StoryCondition When, StoryStepVariant Variant)> Variants { get; } = new();
 
         public bool IsDo => Kind == StoryStepKinds.Do;
@@ -428,6 +431,7 @@ public sealed partial class GameServer
                 Requires = StoryConditionParser.ParseList(stepDef.Requires, predicates),
                 FeasibleIf = StoryConditionParser.ParseList(stepDef.FeasibleIf, predicates),
                 AlreadyDoneIf = StoryConditionParser.ParseList(stepDef.AlreadyDoneIf, predicates),
+                WaitWhile = StoryConditionParser.ParseList(stepDef.WaitWhile, predicates),
             };
             if (!StoryStepKinds.All.Contains(step.Kind) || !StoryStepTiers.All.Contains(step.Tier))
             {
@@ -856,7 +860,18 @@ public sealed partial class GameServer
             }
         }
 
-        s.Story.AskSkipDuePack = string.Empty; // #2499: asked with the first lesson, or there was none to ask before
+        DropAskSkipOnceThePackEnded(s, pack); // #2499
+    }
+
+    /// <summary>#2499: the first-start question goes out with the first lesson's line (AskSkipBeforeFirstStep spends it).
+    /// While that lesson has not come — its waitWhile holds (#3673: the player is not on foot) — it stays due; it goes when
+    /// the pack ended without a lesson to ask before (a silent completion, a skip).</summary>
+    private static void DropAskSkipOnceThePackEnded(PlayerSession s, CompiledPack pack)
+    {
+        if (PackDone(s, pack))
+        {
+            s.Story.AskSkipDuePack = string.Empty;
+        }
     }
 
     /// <summary>Starts a pack for a player: the started key, and for a tutorial the legacy intro key (older builds read it
@@ -945,9 +960,9 @@ public sealed partial class GameServer
 
             if (!StepActive(s, step))
             {
-                if (!EvaluateStoryCondition(step.Requires, s))
+                if (!EvaluateStoryCondition(step.Requires, s) || StepWaits(s, step))
                 {
-                    break; // the chapter waits here
+                    break; // the chapter waits here (#3673: also while the step's waitWhile holds — no line, no card yet)
                 }
 
                 if (!EvaluateStoryCondition(step.FeasibleIf, s))
@@ -992,6 +1007,10 @@ public sealed partial class GameServer
                     continue;
                 }
             }
+            else
+            {
+                NoteStepWait(s, step); // #3673: an active step falls quiet while it waits and speaks again after
+            }
 
             if (step.IsRead)
             {
@@ -1018,6 +1037,44 @@ public sealed partial class GameServer
     private bool StepAlreadyDone(PlayerSession s, CompiledStep step)
         => (step.AlreadyDoneIf is not null && EvaluateStoryCondition(step.AlreadyDoneIf, s))
            || (step.IsLeadBridge && LeadBridgeEvidence(s, step));
+
+    /// <summary>#3673: whether the step's <c>waitWhile</c> holds for the player now (the jump lesson while they fly the ship).
+    /// A step that waits does not activate, and an active one is off the chip (<see cref="ChipStepOf"/>).</summary>
+    private bool StepWaits(PlayerSession s, CompiledStep step)
+        => step.WaitWhile is not null && EvaluateStoryCondition(step.WaitWhile, s);
+
+    /// <summary>#3673: follows an active step's <c>waitWhile</c> from walk to walk. While it holds the step is quiet: off the
+    /// chip, so no help escalation either (<see cref="PlayerSessionStory.WaitingSteps"/> remembers it). When the wait ends the
+    /// help clock starts afresh and, if the step is back on the chip, VEGA says its start line again (the moment it can be
+    /// done — like the re-spoken chip step of a rejoin).</summary>
+    private void NoteStepWait(PlayerSession s, CompiledStep step)
+    {
+        if (step.WaitWhile is null)
+        {
+            return;
+        }
+
+        if (StepWaits(s, step))
+        {
+            s.Story.WaitingSteps.Add(step.ProgressKey);
+            return;
+        }
+
+        if (!s.Story.WaitingSteps.Remove(step.ProgressKey))
+        {
+            return;
+        }
+
+        if (s.Story.StepEscalation.TryGetValue(step.ProgressKey, out var esc))
+        {
+            esc.Since = s.Story.StoryPackPlaySeconds;
+        }
+
+        if (ChipStepOf(s, step.Pack) == step)
+        {
+            SpeakStepStart(s, step);
+        }
+    }
 
     /// <summary>#2459: a step a replay cannot ask for again — research when every blueprint it names is known already (the
     /// tech tree never researches a blueprint twice). A replay walks every step anew and ignores <c>alreadyDoneIf</c>, so such
@@ -1131,7 +1188,16 @@ public sealed partial class GameServer
         }
 
         AskSkipBeforeFirstStep(s, step); // #2499: "Want me to show you the basics?" — once, before the first lesson's line
-        SpeakStepStart(s, step);
+        s.Story.WaitingSteps.Remove(step.ProgressKey); // #3673: a fresh activation (a replay) starts with no wait behind it
+        if (StepWaits(s, step))
+        {
+            s.Story.WaitingSteps.Add(step.ProgressKey); // #3673: a stand-in that waits at once says its line when the wait ends
+        }
+        else
+        {
+            SpeakStepStart(s, step);
+        }
+
         _repo.SavePlayer(s.State);
         return false;
     }
@@ -1577,7 +1643,8 @@ public sealed partial class GameServer
     private readonly record struct PackObjective(string PackId, string Key, int Progress, int Target, string Source, string StepId = "");
 
     /// <summary>The step of a pack that owns the chip: the first active blocking do step of the first running chapter
-    /// (non-optional chapters in order first, then optional ones), or null.</summary>
+    /// (non-optional chapters in order first, then optional ones), or null — also while that step waits (#3673,
+    /// <c>waitWhile</c>): the pack then shows nothing until the player can do it again.</summary>
     private CompiledStep? ChipStepOf(PlayerSession s, CompiledPack pack, bool? optional = null)
     {
         if (!PackRunsFor(s, pack))
@@ -1603,7 +1670,7 @@ public sealed partial class GameServer
                 {
                     if (step.IsDo && StepActive(s, step) && !StepComplete(s, step) && StepBlocks(s, step) && StepRunsForClient(s, step))
                     {
-                        return step;
+                        return StepWaits(s, step) ? null : step; // #3673: a step that waits leaves the chip empty
                     }
                 }
             }

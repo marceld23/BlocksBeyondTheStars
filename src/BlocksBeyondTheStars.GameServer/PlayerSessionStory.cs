@@ -81,4 +81,9 @@ public sealed class PlayerSessionStory
     /// activated with its line, or one was running at the join. A chapter's close cutscene plays only for these, so a
     /// chapter completed silently by evidence (a veteran) gets none. RAM only.</summary>
     public HashSet<string> PresentedPackChapters { get; } = new(System.StringComparer.Ordinal);
+
+    /// <summary>#3673: the active story-pack steps (<c>&lt;pack&gt;:&lt;step&gt;</c>) whose <c>waitWhile</c> held at their last
+    /// walk — when it stops holding, the step's help clock restarts and VEGA says its start line again. RAM only: a rejoin
+    /// finds the wait anew.</summary>
+    public HashSet<string> WaitingSteps { get; } = new(System.StringComparer.Ordinal);
 }

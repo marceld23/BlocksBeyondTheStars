@@ -27,6 +27,7 @@ namespace BlocksBeyondTheStars.Client
         private readonly GameObject _overlay;
         private readonly Transform _panel;
         private readonly Action _onClosed;
+        private bool _closed;
 
         private EditorFormPicker(AppShell shell, Transform canvas, Action onClosed)
         {
@@ -50,11 +51,23 @@ namespace BlocksBeyondTheStars.Client
             return picker;
         }
 
+        /// <summary>True until <see cref="Close"/> ran.</summary>
+        public bool IsOpen => !_closed && _overlay != null;
+
+        /// <summary>Closes the picker (once; later calls do nothing) — its Back button, Esc / pad B through the editor's
+        /// <see cref="IEditorDocument.CloseTopLayer"/>, or a pick.</summary>
         public void Close()
         {
+            if (_closed)
+            {
+                return;
+            }
+
+            _closed = true;
             if (_overlay != null)
             {
-                UnityEngine.Object.Destroy(_overlay);
+                _overlay.SetActive(false); // gone this frame for the pad's modal scope, destroyed at its end
+                EditorSceneKit.Discard(_overlay);
             }
 
             _onClosed?.Invoke();
@@ -105,7 +118,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            UiKit.AddFitButton(_panel, 20f, H - 54f, W - 40f, 40f, L("ui.menu.back"), Close);
+            UiKit.AddFitButton(_panel, 20f, H - 58f, W - 40f, 44f, L("ui.menu.back"), Close); // a tap target (#3695)
         }
 
         /// <summary>The Automatic cell's caption: "Automatic (the block's own form)" where it fits two lines of the cell,

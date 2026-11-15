@@ -546,6 +546,7 @@ public sealed partial class SqliteWorldRepository : IWorldRepository
                 WorldName = metadata.WorldName,
                 PlaytimeSeconds = metadata.CumulativePlaytimeSeconds,
                 LastPlayedUtc = DateTime.UtcNow.ToString("o"),
+                Mode = WorldSaveSummary.ModeOf(metadata), // #3664: the picker shows each world's mode
             };
             File.WriteAllText(_paths.MetaSidecarFile, JsonSerializer.Serialize(summary, JsonOptions));
         }

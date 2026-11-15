@@ -100,7 +100,7 @@ public sealed class GroundScatterRulesTests
     {
         Assert.Contains("public bool GroundDetails = true;", Script("ClientSettings.cs"));
         Assert.Contains("GroundScatter.Enabled = GroundDetails;", Script("ClientSettings.cs"));
-        Assert.Contains("L(\"ui.settings.ground_details\"), S.GroundDetails", Script("UiSettings.cs"));
+        Assert.Contains("L(\"ui.settings.ground_details\"), S.GroundDetails", ClientTestPaths.ScriptPartsText("UiSettings"));
         Assert.Contains("\"ui.settings.ground_details\":", Read("data", "locales", "en.json"));
         Assert.Contains("\"ui.settings.ground_details\":", Read("data", "locales", "de.json"));
     }

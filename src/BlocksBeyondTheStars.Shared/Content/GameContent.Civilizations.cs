@@ -152,17 +152,21 @@ public sealed partial class GameContent
     /// the landmark checks (<see cref="LandmarkRules.Problems"/>), the civilization's own (<see cref="CivilizationRules.TemplateProblems"/>:
     /// its civilization and pool, nobody home in a lost civilization), every block known, every chest's table a loot table.
     /// </summary>
-    public List<string> CivilizationTemplateProblems(StructureTemplate t)
+    public List<string> CivilizationTemplateProblems(StructureTemplate t) => TemplateProblem.Sentences(CivilizationTemplateProblemList(t));
+
+    /// <summary><see cref="CivilizationTemplateProblems"/> as codes the structure editor translates (#3692): the same checks, the
+    /// same sentences.</summary>
+    public List<TemplateProblem> CivilizationTemplateProblemList(StructureTemplate t)
     {
-        var problems = LandmarkRules.Problems(t);
-        problems.AddRange(CivilizationRules.TemplateProblems(t, GetCivilization(t.Civilization)));
-        problems.AddRange(UnknownLandmarkBlocks(t));
+        var problems = LandmarkRules.ProblemList(t);
+        problems.AddRange(CivilizationRules.TemplateProblemList(t, GetCivilization(t.Civilization)));
+        problems.AddRange(UnknownLandmarkBlockProblems(t));
         foreach (var c in t.Cells)
         {
             if (c != null && c.Kind == "marker" && c.Id == LandmarkRules.ChestMarker
                 && MarkerSettings.Parse(c.Config).Get("table") is { Length: > 0 } table && LootTable(table) is null)
             {
-                problems.Add($"a chest names the unknown loot table '{table}'");
+                problems.Add(new TemplateProblem("chest.unknown_table", $"a chest names the unknown loot table '{table}'", table));
                 break;
             }
         }

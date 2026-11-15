@@ -242,6 +242,11 @@ namespace BlocksBeyondTheStars.Client
             var list = new List<EditorPaletteKit.Entry>(_palette.Length);
             foreach (var e in _palette)
             {
+                if (!ShowAdvanced && IsDeveloperTool(e))
+                {
+                    continue; // #3692: the children's view builds with blocks and markers
+                }
+
                 if (StructureStampRules.ShowsInPalette(_target, e.Kind, e.Id))
                 {
                     var shown = e;
@@ -256,6 +261,11 @@ namespace BlocksBeyondTheStars.Client
 
             return list.ToArray();
         }
+
+        /// <summary>A palette entry only the Advanced view offers: a tool (port, device, keep, cavity, settings, zone, air pocket)
+        /// or a material token.</summary>
+        private static bool IsDeveloperTool(EditorPaletteKit.Entry e)
+            => e.Group == "tokens" || (e.Kind != "block" && e.Kind != "marker");
 
         /// <summary>Recomputes the target and the shown palette; a selection the target hides moves to the first shown entry.
         /// Returns the selection's index in the shown palette.</summary>
@@ -308,7 +318,7 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
-            SetStatus(string.Format(L(refusal.Key), refusal.Count));
+            SetStatus(string.Format(L(refusal.Key), refusal.Count), EditorStatusSeverity.Error);
             return true;
         }
     }

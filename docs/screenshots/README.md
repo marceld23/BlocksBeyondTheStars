@@ -222,6 +222,50 @@ The wait timings and the flight heading are constants at the top of `ScreenshotD
 (`MenuSettle`, `ChunkSettle`, `PoseSettle`, `FlightHeading`, `DefaultSeed`). Adjust them if a shot
 is mis-timed or you want a different framing, then rebuild and re-run.
 
+## Editor screenshots (`-captureEditors`)
+
+Before/after pictures of the creative editors (#3687) — one run per language, no world, about a minute:
+
+```powershell
+BlocksBeyondTheStars.exe -captureEditors -lang de -shotOut <dir> -screen-width 1920 -screen-height 1080 -screen-fullscreen 0
+```
+
+The director goes from the main menu straight to the editors menu, opens every editor in turn with something on its
+table, writes `<dir>/editors/NN-<editor>[-<view>].png` and quits. Without `-shotOut` the folder is
+`<repo>/docs/screenshots/<lang>/editors/` in an Editor run and `<AppPaths.Root>/docs/screenshots/<lang>/editors/` in a
+player. `-lang` takes `de` or `en`, like the HUD set; the files are numbered in the order of the editors menu's cards.
+
+| File | What it shows |
+|------|---------------|
+| `00-editors` | The editors menu |
+| `01-ship`, `-load`, `-form` | Ship editor with the shipped corvette loaded; the load dialog; the form picker |
+| `02-avatar`, `-appearance`, `-hudframe` | Avatar designer (the player's current look); the appearance screen over it; its HUD frame mode |
+| `03-station`, `-load`, `-kits` | Station editor with a shipped station (twin-dock bazaar) loaded as a copy; the load dialog; the kit window |
+| `04-village`, `-load`, `-kits` | Village editor with a shipped village (riverside longhouse) loaded as a copy; the load dialog; the kit window |
+| `05-texture` | Texture editor on the first texture of the list |
+| `06-shapes` | Form editor with an in-memory three-step stair |
+| `07-tools` | My tools on the first tool |
+| `08-content`, `09-material` | The developer editors (item & recipe, material) in their opening state |
+| `10-shape-designer` | The in-game shape designer (shape tool settings) with the stair, opened over the editors menu |
+| `11-paint` | The in-game block-paint editor (paint tool settings) with an in-memory planet design, over the editors menu |
+
+How it works (`ScreenshotDirector.Editors.cs`):
+
+- Each editor is opened through the `AppShell.Open*Editor` method its menu card calls and closed through the
+  `Close*Editor` method its Back button calls; the two in-game editors have no menu entry and are built with their host's
+  settings (`ShapeTool`, `PaintToolUi`) and destroyed the way their own Back destroys them.
+- The samples and secondary views use tiny `Capture*` hooks, each a one-line call of the editor's own method:
+  `ShipEditor.CaptureLoadBuiltIn` / `CaptureOpenLoadPicker` / `CaptureOpenFormPicker`, `StructureEditor.CaptureLoadBuiltIn` /
+  `CaptureOpenLoadPicker` / `CaptureOpenKitPanel`, `AvatarEditor.CaptureOpenAppearance`, `FaceEditor.CaptureEnterHudMode`,
+  `FormEditor.CaptureLoadSample`. Keep them when an editor is restyled — the compiler flags a hook whose target moved.
+- **Nothing is saved.** Samples load like a row of the load dialog; no Save, Apply, Export or Submit is pressed; the
+  in-game editors get no-op apply/save callbacks. `ScreenshotDirector.CapturingEditors` is true for the whole run — an
+  editor that writes on its own (a draft autosave) must skip that while it is set. The capture language is set only on the
+  way out of the main menu, so the menu-phase quality calibration can never save it into the player's settings.
+- Not shot: the views that need a click on placed content (marker and device windows, the module function picker) and the
+  submit dialog. Timings: `EditorSettle` / `ViewSettle` at the top of the file; a watchdog quits after
+  `EditorCaptureTimeout`. Desktop only — the switch is inert in the browser build, which has no editors in its menu.
+
 ## Video clips (`-captureClip`) — and look checks without a playtest
 
 The moving-picture sibling is `ClipDirector` (`-captureClip`): one run records ONE clip from a JSON

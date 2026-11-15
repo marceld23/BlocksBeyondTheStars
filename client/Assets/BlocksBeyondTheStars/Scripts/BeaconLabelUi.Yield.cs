@@ -28,11 +28,11 @@ namespace BlocksBeyondTheStars.Client
         private void BuildYieldStrip(Transform root, float cardY)
         {
             const float w = 760f, h = 96f;
-            var panel = UiKit.AddPanel(root, (1920f - w) * 0.5f, cardY - h - 12f, w, h, UiKit.Panel);
+            var panel = UiKit.AddDialogPanel(root, (1920f - w) * 0.5f, cardY - h - 12f, w, h); // opaque, as the card (#3662)
             _yieldPanel = panel.gameObject;
-            _yieldText = UiKit.AddText(panel.transform, 16f, 8f, w - 220f, h - 16f, string.Empty, 17, UiKit.TextCol, TextAnchor.MiddleLeft);
+            _yieldText = UiKit.AddText(panel, 16f, 8f, w - 220f, h - 16f, string.Empty, 17, UiKit.TextCol, TextAnchor.MiddleLeft);
             _yieldText.horizontalOverflow = HorizontalWrapMode.Wrap;
-            _yieldCollect = UiKit.AddButton(panel.transform, w - 196f, 22f, 180f, 52f, L("ui.yield.collect"), Collect);
+            _yieldCollect = UiKit.AddButton(panel, w - 196f, 22f, 180f, 52f, L("ui.yield.collect"), Collect);
             _yieldPanel.SetActive(false);
             BuildFocusRow(root, cardY - h - 12f); // #3036: the base's focus, above the strip
         }

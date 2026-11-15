@@ -47,6 +47,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Main-thread budget per frame for time-sliced bakes (browser).</summary>
         private const double SliceBudgetMs = 4.0;
 
+        private static int _pumpedFrame = -1; // the frame Pump last ran in (one drive per frame, whoever calls)
+
 #if UNITY_WEBGL && !UNITY_EDITOR
         private static readonly bool Threaded = false;
 #else
@@ -174,15 +176,17 @@ namespace BlocksBeyondTheStars.Client
             }, priority);
         }
 
-        /// <summary>Drives the queue — call once per frame (GameBootstrap does). Starts worker bakes on desktop,
-        /// time-slices them in the browser, and turns finished maps into textures.</summary>
+        /// <summary>Drives the queue — call once per frame (GameBootstrap does; in the shell the backdrop and the intro film do,
+        /// #3705). Starts worker bakes on desktop, time-slices them in the browser, and turns finished maps into textures. A
+        /// second call in the same frame is a no-op, so two drivers never double the browser's slice budget.</summary>
         public static void Pump()
         {
-            if (_pending.Count == 0)
+            if (_pending.Count == 0 || _pumpedFrame == Time.frameCount)
             {
                 return;
             }
 
+            _pumpedFrame = Time.frameCount;
             _pending.Sort((a, b) => b.Priority.CompareTo(a.Priority));
             if (Threaded)
             {

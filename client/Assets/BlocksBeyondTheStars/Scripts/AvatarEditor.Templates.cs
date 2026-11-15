@@ -10,7 +10,7 @@ namespace BlocksBeyondTheStars.Client
     /// What the main-menu designer adds to the shared character editor beyond the outfits: the FREE skin templates in the
     /// outfit column (#3321 — a calendar skin belongs to a world, and the menu has none), the HUD mode with the free frame
     /// templates (#3318) and the editor's own Submit button (#3319). A worn skin template lands in the scratch look like a
-    /// loaded outfit — the designer's Apply is still what makes it the player's look.
+    /// loaded outfit — the designer's Save is still what makes it the player's look.
     /// </summary>
     public sealed partial class AvatarEditor
     {
@@ -47,41 +47,21 @@ namespace BlocksBeyondTheStars.Client
             var look = CaptureScratch(_name);
             AppearanceTemplates.ApplySkin(skins[index], look);
             PutOnScratch(look);
-            string status = L("ui.avatar.outfit_loaded").Replace("{name}", L(skins[index].NameKey));
-            SetStatus(status);
-            return status;
+            return L("ui.avatar.outfit_loaded").Replace("{name}", L(skins[index].NameKey));
         }
 
-        /// <summary>Makes <paramref name="o"/> the scratch look: colours, swatches, face, paintings and the figure behind the
-        /// panel (the name field is the caller's business).</summary>
+        /// <summary>Makes <paramref name="o"/> the scratch look: colours, face and paintings (the name field is the caller's
+        /// business; the editor re-reads the tabs and its figure afterwards).</summary>
         private void PutOnScratch(AvatarOutfit o)
         {
             _col[0] = o.SkinColor;
             _col[1] = o.TorsoColor;
             _col[2] = o.ArmColor;
             _col[3] = o.LegColor;
-            for (int i = 0; i < _swatch.Length; i++)
-            {
-                if (_swatch[i] != null)
-                {
-                    _swatch[i].color = _col[i];
-                }
-            }
-
             _face = o.FacePixels ?? string.Empty;
             for (int part = 0; part < _bodyPaint.Length; part++)
             {
                 _bodyPaint[part] = o.GetBodyPaint(part);
-            }
-
-            if (_avatar != null)
-            {
-                _avatar.ApplyColors(_col[0], _col[1], _col[2], _col[3]);
-                _avatar.SetFace(_face);
-                for (int part = 0; part < _bodyPaint.Length; part++)
-                {
-                    _avatar.SetBodyPaint(part, _bodyPaint[part]);
-                }
             }
         }
     }

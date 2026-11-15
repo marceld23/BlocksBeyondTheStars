@@ -106,7 +106,11 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Root folder holding the singleplayer save worlds (one subfolder per world).</summary>
-        public static string SavesRoot => Path.Combine(AppPaths.Root, "singleplayer-saves");
+        public static string SavesRoot => SavesRootOverrideForTest ?? Path.Combine(AppPaths.Root, "singleplayer-saves");
+
+        /// <summary>Test seam: a folder that stands in for <see cref="SavesRoot"/> — EditMode tests build "My worlds" and the
+        /// main menu on a temp folder instead of the player's saves. Null (always, outside a test) means the real one.</summary>
+        public static string SavesRootOverrideForTest { get; set; }
 
         private static WorldListCache _worldList;
 

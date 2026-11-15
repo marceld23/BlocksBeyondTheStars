@@ -23,98 +23,22 @@ public sealed partial class EditorTextFitTests
         "ui.tier.town", "ui.tier.city", "ui.tier_short.metropolis",
     };
 
-    private static IEnumerable<FitSite> StructureSites() => new[]
+    /// <summary>The Station/Village editor's own sites (EditorTextFitTests.Structure.cs, #3692), then the panels both build editors
+    /// share (form picker, load picker, device panel, marker panel).</summary>
+    private static IEnumerable<FitSite> StructureSites() => StructureEditorSites().Concat(new[]
     {
-        Label("Palette title", 268f, 18, "ui.struct.palette", "ui.ship.palette"),
-        Input("Palette search", 276f, 18, "ui.pal.search"),
-        Label("Palette section headers", 250f, 13, "ui.cat.*", "ui.pal.parts", "ui.pal.markers"),
-        Lines("Palette rows (230×36, two lines at 13)", 230f, 36f, 15, 13, 13, "block.*.name", "ui.marker.arms_dealer", "ui.marker.blockfarmer", "ui.marker.cabin",
-            "ui.marker.chest", "ui.marker.console", "ui.marker.data_terminal", "ui.marker.doctor", "ui.marker.door_energy", "ui.marker.door_hinge",
-            "ui.marker.door_slide", "ui.marker.greenhouse", "ui.marker.grocer", "ui.marker.guard_post", "ui.marker.hangar", "ui.marker.heal_tank",
-            "ui.marker.loot", "ui.marker.lounge", "ui.marker.mission_board", "ui.marker.npc", "ui.marker.quarters", "ui.marker.reporter",
-            "ui.marker.room", "ui.marker.sage", "ui.marker.spawn", "ui.marker.streamer", "ui.marker.tamer", "ui.marker.tavern",
-            "ui.marker.vendor", "ui.marker.workshop", "ui.marker.device", "ui.marker.entrance",
-            "ui.marker.sound", "ui.marker.den", "ui.marker.keep", "ui.marker.cavity", "ui.marker.settings", // #3492/#3493: the landmark tools
-            "ui.marker.zone", // generation 39: the ruin zone tool
-            "ui.marker.relic_cache", // #3616: a giant ship's loot marker
-            "ui.marker.air_pocket", "ui.marker.prop", // #3646: a civilization template's air brush and prop marker
-            "ui.ed.giantship.entrance"), // #3615: a giant ship's way in (StructureStampRules.MarkerLabelKey)
-        Lines("Palette rows: an airlock block (a 52 px row when it needs three lines)", 230f, 52f, 15, 13, 13, "ui.ed.airlock_block")
-            with { Sample = "Hull Airlock", MaxLines = 3 },
-        Label("StructureEditor title", 348f, 18, "ui.struct.title_station", "ui.struct.title_settlement"),
-        FitLine("StructureEditor field labels (348)", 348f, 13, 15, "ui.struct.key", "ui.struct.name", "ui.struct.pack", "ui.struct.surface",
-            "ui.struct.planet_types", "ui.ed.landmark.name_key", "ui.ed.giantship.show_wreck"),
-        Lines("StructureEditor row labels (140×36)", 140f, 36f, 16, 13, 13, "ui.struct.tier", "ui.struct.role", "ui.struct.function",
-            "ui.struct.port_door", "ui.struct.style", "ui.struct.weight", "ui.ed.landmark.profile", "ui.ed.landmark.strength",
-            "ui.ed.landmark.ground_row", "ui.ed.landmark.seat", "ui.ed.protection", "ui.ed.giantship.style"),
-        Lines("StructureEditor values (150×36)", 150f, 36f, 16, 13, 13, TierValueKeys.Concat(new[]
-        {
-            "ui.use.whole", "ui.use.module", "ui.use.landmark", "ui.function.*", "ui.role_short.*", "ui.door_opt.*", "ui.style.human",
-            "ui.style.alien", "ui.ed.landmark.profile.*", "ui.ed.landmark.seat.*", "ui.ed.protection.*", "ui.ed.zone.profile_own",
-            "ui.use.giant_ship", "ui.ed.giantship.style.*",
-        }).ToArray()),
-        // #3492 the landmark form (StructureEditor.Landmark.cs): three toggles, the number rows' "Auto", the preview button.
-        Button("StructureEditor landmark toggles", 348f, 34f, "ui.ed.landmark.ruin", "ui.ed.landmark.atmosphere", "ui.ed.landmark.inhabited")
-            with { Prefix = "☐ " },
-        // Generation 39 (StructureEditor.Stamping.cs): the line under the Protection picker of every whole template and entry.
-        Wrap("StructureEditor protection line (measured, 348)", 348f, 3, 13, "ui.stamp.protection.*"),
-        // Generation 39 (StructureEditor.Zones.cs): a landmark's ruin zones.
-        FitLine("StructureEditor ruin zones title", 348f, 13, 16, "ui.ed.zone.title"),
-        Button("StructureEditor add a ruin zone", 348f, 34f, "ui.ed.zone.add"),
-        Wrap("StructureEditor ruin zone hint (measured)", 348f, 8, 13, "ui.ed.zone.hint"),
-        FitLine("StructureEditor ruin zone name (200)", 200f, 13, 16, "ui.ed.zone.name"),
-        Button("StructureEditor ruin zone remove", 120f, 30f, "ui.ed.zone.remove"),
-        FitLine("StructureEditor ruin zone corner labels (60)", 60f, 13, 15, "ui.ed.zone.from", "ui.ed.zone.to"),
-        Button("StructureEditor ruin zone: two clicks set it", 348f, 34f, "ui.ed.zone.select") with { Prefix = "○ " },
-        Wrap("StructureEditor status: ruin zones", 348f, 5, 13, "ui.ed.zone.corner", "ui.ed.zone.set", "ui.ed.zone.full",
-            "ui.ed.zone.not_ruin", "ui.ed.zone.outside") with { Sample = "255, 255, 255" },
-        Label("StructureEditor landmark number value (90)", 90f, 16, "ui.ed.landmark.strength_auto"),
-        Button("StructureEditor ruin preview on / off", 348f, 34f, "ui.ed.landmark.preview_on", "ui.ed.landmark.preview_off"),
-        Wrap("StructureEditor size hint (2 lines)", 348f, 2, 13, "ui.struct.size_station", "ui.struct.size_settlement", "ui.struct.size_module"),
-        FitLine("StructureEditor kit label", 70f, 13, 15, "ui.struct.kit"),
-        Button("StructureEditor Kits… (module row)", 124f, 30f, "ui.struct.kits"),
-        Button("StructureEditor check seal / assemble / Kits… (whole)", 168f, 34f, "ui.struct.check_seal", "ui.struct.assemble", "ui.struct.kits"),
-        Button("StructureEditor underground toggle (whole settlement, #3333)", 348f, 34f, "ui.struct.underground") with { Prefix = "☐ " },
-        FitLine("StructureEditor section titles", 348f, 13, 16, "ui.struct.generate_title", "ui.struct.brush", "ui.ed.landmark.title",
-            "ui.ed.giantship.title", "ui.ed.civ.title"),
-        // #3616 the giant ship form (StructureEditor.GiantShip.cs): what a giant ship is, and its two wreck previews.
-        Wrap("StructureEditor giant ship hint (measured)", 348f, 8, 13, "ui.ed.giantship.hint"),
-        Button("StructureEditor wreck preview: planet / space", 168f, 34f, "ui.ed.giantship.on_planet", "ui.ed.giantship.in_space"),
-        FitLine("StructureEditor seed label", 60f, 13, 15, "ui.struct.seed"),
-        Button("StructureEditor reroll", 168f, 30f, "ui.struct.reroll"),
-        Button("StructureEditor generate", 348f, 34f, "ui.struct.generate"),
-        FitLine("StructureEditor dye/glow labels", 70f, 13, 15, "ui.struct.dye", "ui.struct.glow"),
-        Button("StructureEditor brush None", 114f, 30f, "ui.struct.brush_none"),
-        FitLine("StructureEditor shape label", 80f, 13, 15, "ui.struct.shape"),
-        Lines("StructureEditor form value (112×36)", 112f, 36f, 15, 13, 13, FormKeys.Append("ui.ed.form_auto_short").ToArray()),
-        Button("StructureEditor form pick", 114f, 30f, "ui.ed.form_pick"),
-        FitLine("StructureEditor orientation label", 120f, 13, 15, "ui.struct.orient"),
-        Label("StructureEditor placed", 348f, 15, "ui.ed.placed") with { Sample = "88888" },
-        Wrap("StructureEditor status (348×84, 5 lines)", 348f, 5, 13, "ui.ed.saved_structure", "ui.ed.need_key", "ui.ed.export_failed_hint",
-            "ui.ed.load_failed_hint", "ui.ed.assemble_failed_hint", "ui.ed.seal_ok", "ui.ed.seal_leaks", "ui.ed.port_errors",
-            "ui.ed.door_lanes_blocked", "ui.ed.door_needs_wall", "ui.ed.bed_needs_room", "ui.ed.need_kit", "ui.ed.assembled", "ui.ed.generated",
-            "ui.ed.not_found", "ui.ed.copy_hint", "ui.ed.loaded", "ui.ed.assemble_failed", "ui.ed.device.none", "ui.ed.device.saved",
-            "ui.ed.skipped", "ui.ed.landmark.preview_locked", "ui.ed.landmark.preview_back", "ui.ed.landmark.preview_shown",
-            "ui.ed.landmark.kept", "ui.ed.landmark.unkept", "ui.ed.landmark.problem", "ui.ed.landmark.saved", "ui.ed.landmark.no_submit",
-            "ui.ed.marker.none", "ui.ed.giantship.preview_shown", "ui.ed.giantship.saved", "ui.ed.giantship.no_submit",
-            "ui.ed.giantship.door_unclear", "ui.ed.civ.saved") with { Sample = "my_town" },
-        Input("StructureEditor default name in the name field", 348f, 18, "ui.ed.default.station", "ui.ed.default.settlement"),
-        Button("StructureEditor save / submit", 168f, 42f, "ui.struct.save", "ui.submit.button"),
-        Button("StructureEditor load / back", 168f, 40f, "ui.struct.load", "ui.menu.back"),
-        Lines("Build editors' bottom hint (between the panels)", 1104f, 36f, 16, 13, 13, "ui.struct.hint", "ui.struct.hint_pad",
-            "ui.struct.hint_pad_panel"),
-
         Label("Form picker title", 600f, 18, "ui.ed.form_title"),
         // "Automatic (the block's own form)" where it fits, else "Auto" (EditorFormPicker.AutoCaption) — the short one must fit.
         Lines("Form picker captions", 136f, 34f, 15, 13, 13, FormKeys.Append("ui.ed.form_auto_short").ToArray()),
-        Button("Form / load picker back", 600f, 40f, "ui.menu.back"),
-        Label("Load picker title", 600f, 18, "ui.struct.load"),
+        Button("Form / load picker back", 600f, 44f, "ui.menu.back"),
+        Label("Load picker title", 600f, 18, "ui.editor.load"),
         Label("Load picker empty", 560f, 15, "ui.ed.none"),
         Label("Load picker sections", 560f, 13, "ui.ed.sec_builtin_ships", "ui.ed.sec_builtin_templates", "ui.ed.sec_user_templates",
             "ui.ed.sec_user_ships", "ui.ed.sec_exports"),
         Label("Load picker cell count", 252f, 13, "ui.ed.cells") with { Sample = "88888" },
-        Wrap("Load picker confirmation", 600f, 5, 18, "ui.ed.confirm_replace") with { Sample = "Hammerhead 2" },
-        Button("Load picker confirm buttons", 294f, 42f, "ui.ed.confirm_load", "ui.menu.back"),
+        // A picker without an editor shell asks itself, in the shell's words (an editor on the shell asks through it).
+        Wrap("Load picker confirmation", 600f, 5, 16, "ui.editor.confirm_replace"),
+        Button("Load picker confirm buttons", 294f, 44f, "ui.editor.confirm_replace_yes", "ui.menu.back"),
 
         Label("Device panel title", 916f, 22, "ui.ed.device.title") with { Sample = "Crystal Lamp" },
         Button("Device panel mode cells", 220f, 48f, "ui.crystal.mode.*.*", "ui.crystal.output_on", "ui.crystal.output_off"),
@@ -134,64 +58,6 @@ public sealed partial class EditorTextFitTests
         Button("Marker panel toggles", 888f, 48f, "ui.ed.marker.hidden", "ui.ed.marker.inside") with { Prefix = "☐ " },
         Label("Marker panel settings line", 916f, 14, "ui.ed.marker.defaults"),
         Button("Marker panel apply", 300f, 48f, "ui.ed.device.apply"),
-    };
-
-    private static IEnumerable<FitSite> KitPanelSites() => new[]
-    {
-        Label("Kit panel title", 600f, 20, "ui.kit.title"),
-        Button("Kit panel close", 100f, 30f, "ui.kit.close"),
-        Label("Kit panel list title", 240f, 15, "ui.kit.list"),
-        Button("Kit panel new / use", 250f, 34f, "ui.kit.new", "ui.kit.use"),
-        Input("Kit panel default name in the name field", 228f, 14, "ui.ed.default.kit") with { Sample = "8" },
-        Button("Kit panel list rows", 240f, 36f, "ui.ed.default.kit") with { Prefix = "▶ ", Suffix = "  ·  Station / Huge", Sample = "8" },
-        FitLine("Kit panel field labels (140)", 140f, 13, 14, "ui.kit.key", "ui.kit.name", "ui.kit.kind", "ui.kit.tier", "ui.kit.pack",
-            "ui.kit.weight", "ui.kit.planet_types", "ui.kit.modules_min", "ui.kit.modules_max", "ui.kit.start", "ui.kit.max_extent",
-            "ui.kit.solar_wings", "ui.kit.antennas", "ui.kit.domes", "ui.kit.grid", "ui.kit.district", "ui.kit.street", "ui.kit.height",
-            "ui.kit.role_map", "ui.kit.cols_min", "ui.kit.cols_max", "ui.kit.rows_min", "ui.kit.rows_max", "ui.kit.plot_stride",
-            "ui.kit.building", "ui.kit.storeys"),
-        Lines("Kit panel kind / tier values", 166f, 30f, 14, 13, 13, TierValueKeys.Append("ui.kit.kind.*").ToArray()),
-        Button("Kit panel modules only / underground (#3333)", 192f, 30f, "ui.kit.modules_only", "ui.kit.underground") with { Prefix = "☐ " },
-        FitLine("Kit panel layout field labels (140, #3600)", 140f, 13, 14, "ui.kit.layout", "ui.kit.main_street", "ui.kit.spacing",
-            "ui.kit.extent", "ui.kit.forms", "ui.kit.suburb_kit"),
-        Lines("Kit panel layout values (166×30, #3600)", 166f, 30f, 14, 13, 13, "ui.kit.layout.*"),
-        Button("Kit panel flat / grown city (#3600)", 192f, 30f, "ui.kit.flat", "ui.kit.grown_city") with { Prefix = "☐ " },
-        Button("Kit panel village forms (#3600)", 192f, 30f, "ui.kit.form.*") with { Prefix = "☐ " },
-        Wrap("Kit panel district map legend (390, #3600)", 390f, 12, 13, "ui.kit.map_legend"),
-        Label("Function picker title (#3600)", 280f, 18, "ui.struct.function"),
-        Button("Function picker rows (#3600)", 360f, 32f, "ui.role_short.*", "ui.function.*") with { Prefix = "▶ " },
-        Label("Kit panel column: module", 220f, 13, "ui.kit.col_module"),
-        Label("Kit panel columns: min / max", 50f, 13, "ui.kit.col_min", "ui.kit.col_max"),
-        Label("Kit panel column: required", 90f, 13, "ui.kit.col_required"),
-        Label("Kit panel column: weight", 60f, 13, "ui.kit.col_weight"),
-        Label("Kit panel column: rotate", 80f, 13, "ui.kit.col_rotate"),
-        Button("Kit panel remove", 110f, 30f, "ui.kit.remove"),
-        Button("Kit panel add / save / delete", 160f, 34f, "ui.kit.add_entry", "ui.kit.save", "ui.kit.delete"),
-        Wrap("Kit panel status (256×54, 3 lines)", 256f, 3, 13, "ui.kit.saved", "ui.ed.need_key", "ui.ed.export_failed_hint",
-            "ui.ed.delete_failed_hint") with { Sample = "my_kit_8" },
-        Label("Kit picker title", 500f, 18, "ui.kit.pick_module"),
-        Label("Kit picker filter", 80f, 14, "ui.kit.filter"),
-    };
-
-    private static IEnumerable<FitSite> ShipSites() => new[]
-    {
-        Label("ShipEditor title", 348f, 18, "ui.ship.title"),
-        Label("ShipEditor form labels", 352f, 15, "ui.struct.key", "ui.struct.name", "ui.ship.desc", "ui.ship.blueprint", "ui.ship.dye_hex",
-            "ui.ship.glow_hex"),
-        Label("ShipEditor placed", 352f, 15, "ui.ed.placed") with { Sample = "88888" },
-        Label("ShipEditor form headers", 352f, 16, "ui.ship.stats", "ui.ship.interior", "ui.ship.brush"),
-        FitLine("ShipEditor stepper labels (204)", 204f, 13, 15, "ui.ship.hull", "ui.ship.shield", "ui.ship.speed", "ui.ship.handling",
-            "ui.ship.cargo", "ui.ship.int_w", "ui.ship.int_l", "ui.ship.int_h", "ui.struct.orient"),
-        Wrap("ShipEditor interior hint (measured row)", 352f, 6, 13, "ui.ship.interior_hint"),
-        FitLine("ShipEditor shape label", 86f, 13, 15, "ui.struct.shape"),
-        Lines("ShipEditor form value (114×36)", 114f, 36f, 15, 13, 13, FormKeys.Append("ui.ed.form_auto_short").ToArray()),
-        Button("ShipEditor form pick", 112f, 28f, "ui.ed.form_pick"),
-        FitLine("ShipEditor cost title", 216f, 13, 16, "ui.ship.cost"),
-        Button("ShipEditor cost add", 132f, 28f, "ui.ship.cost_add"),
-        Input("ShipEditor cost item", 200f, 18, "ui.ship.cost_item"),
-        Wrap("ShipEditor status (356×86, 5 lines)", 356f, 5, 13, "ui.ed.saved_ship", "ui.ed.need_key", "ui.ed.export_failed_hint",
-            "ui.ed.load_failed_hint", "ui.ed.loaded", "ui.ed.not_found", "ui.ed.skipped", "ui.ed.user_ship_renamed") with { Sample = "my_ship" },
-        Input("ShipEditor default name / description in their fields", 352f, 18, "ui.ed.default.ship", "ui.ed.default.ship_desc"),
-        Button("ShipEditor save / submit", 172f, 42f, "ui.struct.save", "ui.submit.button"),
-        Button("ShipEditor load / back", 172f, 38f, "ui.struct.load", "ui.menu.back"),
-    };
+        Button("Device / marker panel close (icon)", 220f, 48f, "ui.crystal.close") with { TextX = 56f },
+    });
 }

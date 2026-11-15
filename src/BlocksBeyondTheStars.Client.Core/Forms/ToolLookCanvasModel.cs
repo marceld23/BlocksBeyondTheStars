@@ -10,16 +10,15 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// The model behind the tool-look editor (#1963): the coloured voxel grid of a <see cref="ToolLook"/>, painted
     /// one horizontal layer at a time like a form — but with a colour per voxel and a glow switch per colour.
-    /// Unity-free and unit-tested: what it encodes is exactly what the server accepts.
+    /// Unity-free and unit-tested: what it encodes is exactly what the server accepts. Undo runs on the editors' shared
+    /// <see cref="UndoHistory{T}"/> (#3695).
     /// </summary>
     public sealed class ToolLookCanvasModel : ILayerCanvas
     {
-        public const int MaxUndo = 48;
+        public const int MaxUndo = UndoHistory<byte[]>.DefaultCapacity;
 
-        private readonly List<(byte[] Voxels, int Glow)> _undo = new List<(byte[], int)>();
-        private readonly List<(byte[] Voxels, int Glow)> _redo = new List<(byte[], int)>();
+        private readonly UndoHistory<Snapshot> _history = new UndoHistory<Snapshot>(MaxUndo, SnapshotComparer.Instance);
         private byte[] _v = new byte[ToolLook.VoxelCount];
-        private (byte[] Voxels, int Glow)? _strokeStart;
 
         /// <summary>The layer (Y slice) the canvas shows: 0 = the bottom of the grip.</summary>
         public int Layer { get; private set; } = 3;
@@ -27,13 +26,15 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Bit mask of the palette colours that glow.</summary>
         public int GlowMask { get; private set; }
 
-        public bool Dirty { get; private set; }
+        /// <summary>True when the look differs from the one loaded or last marked saved — undoing back to that state
+        /// makes it false again.</summary>
+        public bool Dirty => _history.IsDirty;
 
-        public bool CanUndo => _undo.Count > 0;
+        public bool CanUndo => _history.CanUndo;
 
-        public bool CanRedo => _redo.Count > 0;
+        public bool CanRedo => _history.CanRedo;
 
-        public void MarkSaved() => Dirty = false;
+        public void MarkSaved() => _history.MarkSaved();
 
         /// <summary>Palette index at a voxel (0 = empty); out of range reads as empty.</summary>
         public int Get(int x, int y, int z)
@@ -75,13 +76,14 @@ namespace BlocksBeyondTheStars.Client
             return model.Length == 0 ? new List<ToolLook.Box>() : ToolLook.Merge(model);
         }
 
-        private string ComposeUnchecked()
-        {
-            if (IsEmpty)
-            {
-                return string.Empty;
-            }
+        private string ComposeUnchecked() => IsEmpty ? string.Empty : Raw();
 
+        /// <summary>
+        /// The canvas as it stands, valid or not (also empty or over the part budget): the <see cref="ToolLook"/> payload
+        /// layout without its checks — what a draft must bring back (#3689). <see cref="ReplaceRaw"/> reads it.
+        /// </summary>
+        public string Raw()
+        {
             var chars = new char[8 + ToolLook.VoxelCount];
             ("t1:" + (GlowMask & 0xFFFE).ToString("x4", System.Globalization.CultureInfo.InvariantCulture) + ":").CopyTo(0, chars, 0, 8);
             for (int i = 0; i < _v.Length; i++)
@@ -103,7 +105,32 @@ namespace BlocksBeyondTheStars.Client
 
             _v = voxels;
             GlowMask = glow;
-            ResetHistory();
+            _history.Reset();
+            return true;
+        }
+
+        /// <summary>Puts a <see cref="Raw"/> canvas (a draft) or a pasted look on the canvas as ONE undoable step. False —
+        /// and nothing changes — when it is not a look (a colour outside the palette, a broken payload).</summary>
+        public bool ReplaceRaw(string? raw)
+        {
+            if (!ToolLook.TryRead(raw, out byte[] voxels, out int glow))
+            {
+                return false;
+            }
+
+            foreach (byte v in voxels)
+            {
+                if (v >= ToolLook.Palette.Count)
+                {
+                    return false;
+                }
+            }
+
+            EndStroke();
+            var before = Take();
+            _v = voxels;
+            GlowMask = glow & 0xFFFE;
+            _history.Record(before, Take());
             return true;
         }
 
@@ -111,30 +138,24 @@ namespace BlocksBeyondTheStars.Client
         {
             _v = new byte[ToolLook.VoxelCount];
             GlowMask = 0;
-            ResetHistory();
-        }
-
-        private void ResetHistory()
-        {
-            _undo.Clear();
-            _redo.Clear();
-            _strokeStart = null;
-            Dirty = false;
+            _history.Reset();
         }
 
         public void SetLayer(int layer) => Layer = Math.Max(0, Math.Min(ToolLook.SizeY - 1, layer));
 
-        public void BeginStroke() => _strokeStart ??= Take();
+        public void BeginStroke()
+        {
+            if (!_history.InGesture)
+            {
+                _history.Begin(Take());
+            }
+        }
 
         public void EndStroke()
         {
-            if (_strokeStart is { } start)
+            if (_history.InGesture)
             {
-                _strokeStart = null;
-                if (!Same(start.Voxels, _v))
-                {
-                    Push(start);
-                }
+                _history.Commit(Take());
             }
         }
 
@@ -152,13 +173,13 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
-            if (_strokeStart == null)
+            var before = _history.InGesture ? null : Take(); // inside a stroke the stroke's start is the step
+            _v[i] = (byte)color;
+            if (before != null)
             {
-                Push(Take());
+                _history.Record(before);
             }
 
-            _v[i] = (byte)color;
-            Dirty = true;
             return true;
         }
 
@@ -171,9 +192,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             EndStroke();
-            Push(Take());
+            var before = Take();
             GlowMask ^= 1 << color;
-            Dirty = true;
+            _history.Record(before);
         }
 
         public bool Glows(int color) => (GlowMask & (1 << color)) != 0;
@@ -230,25 +251,34 @@ namespace BlocksBeyondTheStars.Client
             }
         });
 
-        public bool Undo() => Step(_undo, _redo);
-
-        public bool Redo() => Step(_redo, _undo);
-
-        private bool Step(List<(byte[] Voxels, int Glow)> from, List<(byte[] Voxels, int Glow)> to)
+        public bool Undo()
         {
             EndStroke();
-            if (from.Count == 0)
+            if (!_history.TryUndo(Take(), out var snapshot))
             {
                 return false;
             }
 
-            to.Add(Take());
-            var snapshot = from[from.Count - 1];
-            from.RemoveAt(from.Count - 1);
+            Restore(snapshot);
+            return true;
+        }
+
+        public bool Redo()
+        {
+            EndStroke();
+            if (!_history.TryRedo(Take(), out var snapshot))
+            {
+                return false;
+            }
+
+            Restore(snapshot);
+            return true;
+        }
+
+        private void Restore(Snapshot snapshot)
+        {
             _v = (byte[])snapshot.Voxels.Clone();
             GlowMask = snapshot.Glow;
-            Dirty = true;
-            return true;
         }
 
         private void Edit(Action change)
@@ -256,37 +286,34 @@ namespace BlocksBeyondTheStars.Client
             EndStroke();
             var before = Take();
             change();
-            if (!Same(before.Voxels, _v))
-            {
-                Push(before);
-                Dirty = true;
-            }
+            _history.Record(before, Take());
         }
 
-        private void Push((byte[] Voxels, int Glow) snapshot)
+        private Snapshot Take() => new Snapshot((byte[])_v.Clone(), GlowMask);
+
+        /// <summary>One state of the look: the voxels and the glow mask.</summary>
+        private sealed class Snapshot
         {
-            _undo.Add(snapshot);
-            if (_undo.Count > MaxUndo)
+            public Snapshot(byte[] voxels, int glow)
             {
-                _undo.RemoveAt(0);
+                Voxels = voxels;
+                Glow = glow;
             }
 
-            _redo.Clear();
+            public byte[] Voxels { get; }
+
+            public int Glow { get; }
         }
 
-        private (byte[] Voxels, int Glow) Take() => ((byte[])_v.Clone(), GlowMask);
-
-        private static bool Same(byte[] a, byte[] b)
+        /// <summary>Two snapshots are the same state when the glow mask and every voxel agree.</summary>
+        private sealed class SnapshotComparer : IEqualityComparer<Snapshot>
         {
-            for (int i = 0; i < a.Length; i++)
-            {
-                if (a[i] != b[i])
-                {
-                    return false;
-                }
-            }
+            public static readonly SnapshotComparer Instance = new SnapshotComparer();
 
-            return true;
+            public bool Equals(Snapshot? a, Snapshot? b)
+                => ReferenceEquals(a, b) || (a != null && b != null && a.Glow == b.Glow && UndoSnapshots.Bytes.Equals(a.Voxels, b.Voxels));
+
+            public int GetHashCode(Snapshot s) => UndoSnapshots.Bytes.GetHashCode(s.Voxels) ^ s.Glow;
         }
     }
 }

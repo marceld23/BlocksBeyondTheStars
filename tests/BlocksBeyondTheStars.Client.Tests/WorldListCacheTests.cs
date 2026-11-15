@@ -2,13 +2,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Client;
+using BlocksBeyondTheStars.Persistence;
+using BlocksBeyondTheStars.Shared.Configuration;
+using BlocksBeyondTheStars.Shared.State;
 
 namespace BlocksBeyondTheStars.Client.Tests;
 
 /// <summary>
 /// #3259: the singleplayer world list is read off the main thread — one timestamp per world, the playtime sidecar,
 /// newest first — and dropped when a world is created, played or deleted. Clicking "Singleplayer" used to read all of
-/// it inside one frame (5.8 s on a cold file cache with 264 worlds).
+/// it inside one frame (5.8 s on a cold file cache with 264 worlds). #3664: the sidecar also carries the world's mode
+/// (explorer, creative, sandbox), read in the same single parse, for the picker to show.
 /// </summary>
 public sealed class WorldListCacheTests : IDisposable
 {
@@ -65,8 +69,133 @@ public sealed class WorldListCacheTests : IDisposable
     public void Scan_WithoutPlaytime_SkipsTheSidecars()
     {
         World("w", Base, playtime: 99);
+        File.WriteAllText(Path.Combine(_root, "w", WorldListCache.SidecarFile), "{\"PlaytimeSeconds\":99,\"Mode\":\"sandbox\"}");
 
-        Assert.Equal(-1, WorldListCache.Scan(_root, withPlaytime: false)[0].PlaytimeSeconds);
+        var world = WorldListCache.Scan(_root, withPlaytime: false)[0];
+        Assert.Equal(-1, world.PlaytimeSeconds);
+        Assert.Equal(string.Empty, world.Mode);
+    }
+
+    // ---------------- #3664: the world's mode in the sidecar ----------------
+
+    [Fact]
+    public void Scan_ReadsEachWorldsMode_AndAnOldSidecarHasNone()
+    {
+        Sidecar(World("explorer", Base.AddHours(3)), "{\"WorldName\":\"explorer\",\"PlaytimeSeconds\":10,\"LastPlayedUtc\":\"\",\"Mode\":\"explorer\"}");
+        Sidecar(World("creative", Base.AddHours(2)), "{\"WorldName\":\"creative\",\"PlaytimeSeconds\":20,\"LastPlayedUtc\":\"\",\"Mode\":\"creative\"}");
+        Sidecar(World("sandbox", Base.AddHours(1)), "{\"WorldName\":\"sandbox\",\"PlaytimeSeconds\":30,\"LastPlayedUtc\":\"\",\"Mode\":\"sandbox\"}");
+        World("old", Base, playtime: 40); // a sidecar from before #3664: no Mode field
+        World("bare", Base.AddMinutes(-5)); // no sidecar at all
+
+        var worlds = WorldListCache.Scan(_root);
+
+        Assert.Equal(new[] { "explorer", "creative", "sandbox", "old", "bare" }, worlds.Select(w => w.Name));
+        Assert.Equal(new[] { "explorer", "creative", "sandbox", string.Empty, string.Empty }, worlds.Select(w => w.Mode));
+        Assert.Equal(new[] { 10L, 20L, 30L, 40L, -1L }, worlds.Select(w => w.PlaytimeSeconds)); // the same single read
+        Assert.Equal(
+            new[] { "ui.save.mode_explorer", "ui.save.mode_creative", "ui.save.mode_sandbox", string.Empty, string.Empty },
+            worlds.Select(w => w.ModeKey));
+    }
+
+    [Theory]
+    [InlineData("{\"PlaytimeSeconds\":5,\"Mode\":\"creative\"}", 5, "creative")]
+    [InlineData("{\"mode\":\"sandbox\",\"playtimeseconds\":6}", 6, "sandbox")] // read case-blind, in any order
+    [InlineData("{\"PlaytimeSeconds\":7}", 7, "")] // an old sidecar
+    [InlineData("{\"Mode\":3}", -1, "")] // not a string
+    [InlineData("{ not json", -1, "")]
+    [InlineData("[\"sandbox\"]", -1, "")]
+    public void ReadSidecar_ReadsPlaytimeAndModeInOneParse_AndShrugsOffABrokenOne(string json, long seconds, string mode)
+    {
+        string dir = Sidecar(World("w", Base), json);
+
+        var read = WorldListCache.ReadSidecar(dir);
+
+        Assert.Equal(seconds, read.PlaytimeSeconds);
+        Assert.Equal(mode, read.Mode);
+        Assert.Equal(seconds, WorldListCache.ReadPlaytimeSeconds(dir));
+    }
+
+    [Fact]
+    public void ReadSidecar_OfAFolderWithoutOne_IsNothing()
+    {
+        var read = WorldListCache.ReadSidecar(World("w", Base));
+
+        Assert.Equal(-1, read.PlaytimeSeconds);
+        Assert.Equal(string.Empty, read.Mode);
+    }
+
+    [Theory]
+    [InlineData("explorer", "ui.save.mode_explorer")]
+    [InlineData("creative", "ui.save.mode_creative")]
+    [InlineData("sandbox", "ui.save.mode_sandbox")]
+    [InlineData("SANDBOX", "ui.save.mode_sandbox")] // case-blind
+    [InlineData("survival", "")] // unknown: the picker shows no mode rather than a raw key
+    [InlineData("", "")]
+    [InlineData(null, "")]
+    public void ModeKeyOf_NamesTheThreeModes_AndNothingElse(string? mode, string key)
+    {
+        Assert.Equal(key, SavedWorld.ModeKeyOf(mode));
+        Assert.Equal(key, new SavedWorld("w", Base, -1, mode).ModeKey);
+    }
+
+    [Fact]
+    public void TheOldConstructor_StillWorks_WithoutAMode()
+    {
+        var world = new SavedWorld("w", Base, 12);
+
+        Assert.Equal(12, world.PlaytimeSeconds);
+        Assert.Equal(string.Empty, world.Mode);
+        Assert.Equal(string.Empty, world.ModeKey);
+    }
+
+    [Fact]
+    public void TheClientsModeWords_AreTheServersSidecarWords()
+    {
+        Assert.Equal(WorldSaveSummary.ModeExplorer, SavedWorld.ModeExplorer);
+        Assert.Equal(WorldSaveSummary.ModeCreative, SavedWorld.ModeCreative);
+        Assert.Equal(WorldSaveSummary.ModeSandbox, SavedWorld.ModeSandbox);
+    }
+
+    [Theory]
+    [InlineData(false, false, false, false, "explorer")]
+    [InlineData(false, true, false, false, "creative")] // all blueprints
+    [InlineData(false, false, true, false, "creative")] // all ships
+    [InlineData(false, false, false, true, "creative")] // the starter kit
+    [InlineData(true, false, false, false, "sandbox")]
+    [InlineData(true, true, true, true, "sandbox")] // the rules in Creative beat the head-start options
+    public void TheRepository_WritesTheWorldsMode_AndThePickerReadsIt(bool creativeRules, bool unlockAll, bool allShips, bool kit, string mode)
+    {
+        var meta = new WorldMetadata
+        {
+            WorldName = "moded",
+            CreativeUnlockAllBlueprints = unlockAll,
+            CreativeStartAllShips = allShips,
+            CreativeStarterKit = kit,
+            RulesOverride = creativeRules ? new GameRules { GameMode = GameMode.Creative } : null,
+        };
+        Assert.Equal(mode, WorldSaveSummary.ModeOf(meta));
+
+        using (var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "moded")))
+        {
+            repo.Initialize();
+            repo.SaveMetadata(meta);
+        }
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools(); // let the temp folder go on Windows
+
+        var world = Assert.Single(WorldListCache.Scan(_root));
+        Assert.Equal(mode, world.Mode);
+        Assert.Equal("ui.save.mode_" + mode, world.ModeKey);
+    }
+
+    [Fact]
+    public void ARulesOverrideInSurvival_IsAnExplorerWorld()
+        => Assert.Equal(WorldSaveSummary.ModeExplorer, WorldSaveSummary.ModeOf(new WorldMetadata { RulesOverride = new GameRules() }));
+
+    private static string Sidecar(string dir, string json)
+    {
+        File.WriteAllText(Path.Combine(dir, WorldListCache.SidecarFile), json);
+        return dir;
     }
 
     [Theory]

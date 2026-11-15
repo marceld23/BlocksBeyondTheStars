@@ -100,6 +100,7 @@ namespace BlocksBeyondTheStars.Client
         private void BuildFrame()
         {
             var (overlay, panel) = UiKit.AddModalOverlay(_canvas.transform, (W - DlgW) / 2f, (H - DlgH) / 2f, DlgW, DlgH);
+            _panel = (RectTransform)panel;
             UiKit.OpenModal(overlay);
             UiKit.AddText(panel, 0f, 18f, DlgW, 44f, L("minigame.note_key.story_title"), 28, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.AddText(panel, 40f, 60f, DlgW - 80f, 30f, L("minigame.note_key.story_hint"), 16, UiKit.CyanDim, TextAnchor.MiddleCenter);
@@ -107,8 +108,12 @@ namespace BlocksBeyondTheStars.Client
             _status.horizontalOverflow = HorizontalWrapMode.Wrap;
             _skip = UiKit.AddButton(panel, DlgW - 470f, DlgH - 80f, 220f, 54f, L("minigame.note_key.skip"), Skip);
             _skip.gameObject.SetActive(false);
-            UiKit.AddButton(panel, DlgW - 240f, DlgH - 80f, 200f, 54f, L("ui.action.close"), Close, "btn_exit");
+            _close = UiKit.AddTierButton(panel, DlgW - 240f, DlgH - 80f, 200f, 54f, L("ui.action.close"), Close, ButtonTier.Quiet, "btn_close");
         }
+
+        /// <summary>The dialog panel the host is mounted in, and its Close button.</summary>
+        private RectTransform _panel;
+        private Button _close;
 
         private void BuildHost(StoryMinigameStart m)
         {
@@ -118,7 +123,12 @@ namespace BlocksBeyondTheStars.Client
             _host.StoryMode = true;
             _host.OnReport = OnReport;
             _host.OnClose = Close;
-            _host.Mount((RectTransform)_canvas.transform, HostX, HostY, HostW, HostH);
+            // #3662: the host lives INSIDE the dialog panel (at the same place: the region in the panel's own coordinates),
+            // and Skip and Close move behind it — the pad's first stop is the game's Start, not the window's Close. The host
+            // used to hang off the canvas after the dialog, so the dialog's Close was the first control a pad found.
+            _host.Mount(_panel, HostX - (W - DlgW) / 2f, HostY - (H - DlgH) / 2f, HostW, HostH);
+            _skip.transform.SetAsLastSibling();
+            _close.transform.SetAsLastSibling();
             _noteKey = new NoteKeyGame(m.Words ?? System.Array.Empty<string>(), m.KnownLetters, m.Instrument);
             _host.Play(_noteKey, 0, L);
         }

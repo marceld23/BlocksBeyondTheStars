@@ -1,8 +1,6 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
-using UnityEngine;
-
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>The "Details (High)" group of the graphics settings (#3061).</summary>
@@ -18,11 +16,10 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            Head(ref y, L("ui.settings.high_details"));
+            Kicker(ref y, L("ui.settings.high_details"));
             if (S.Preset != QualityPreset.High)
             {
-                UiKit.AddText(_content, _x, y, _rowW, 24, L("ui.settings.high_details.hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
-                y += 28f;
+                Note(ref y, L("ui.settings.high_details.hint"));
                 return;
             }
 

@@ -6,9 +6,10 @@ using Xunit;
 namespace BlocksBeyondTheStars.Client.Tests;
 
 /// <summary>
-/// #3264: the opened chat is a big centred window that never covers its neighbours — VEGA's speech panel, the objective
-/// chip, the HUD's right column, the pad's on-screen keyboard and a touch device's system keyboard — at every aspect
-/// ratio and UI-scale step. These pin <see cref="ChatWindowLayout.Resolve"/>.
+/// #3264, #3669: the opened chat docks in the HUD's bottom-left comms zone — above VEGA's speech panel while she speaks,
+/// never sliding sideways — and only the two keyboard layouts (the pad's on-screen keyboard, a touch device's system
+/// keyboard) centre it above the keyboard. It never covers its neighbours at any aspect ratio or UI-scale step. These pin
+/// <see cref="ChatWindowLayout.Resolve"/>.
 /// </summary>
 public sealed class ChatWindowLayoutTests
 {
@@ -43,50 +44,68 @@ public sealed class ChatWindowLayoutTests
     }
 
     [Fact]
-    public void Default_IsTheCentred768By520Window()
+    public void Default_DocksInTheCommsZone()
     {
         var r = ChatWindowLayout.Resolve(vegaSpeech: false, osk: false, touchKeyboard: false, 1536f, 864f, OskTop);
-        Assert.Equal(384f, r.X, Eps);
-        Assert.Equal(64f, r.Y, Eps);
-        Assert.Equal(768f, r.W, Eps);
-        Assert.Equal(520f, r.H, Eps);
-        Assert.Equal(1152f, r.Right, Eps);
-        Assert.Equal(584f, r.Bottom, Eps);
+        Assert.Equal(ChatWindowLayout.CommsX, r.X, Eps);
+        Assert.Equal(ChatWindowLayout.CommsW, r.W, Eps);
+        Assert.Equal(ChatWindowLayout.CommsTop, r.Y, Eps);
+        Assert.Equal(ChatWindowLayout.MaxBottom, r.Bottom, Eps);
+    }
+
+    [Fact]
+    public void TallStatusPanel_PushesTheTopDown_ButKeepsAUsableWindow()
+    {
+        // An exposure meter and running effects grow the status panel past y 260: the window starts under it.
+        var r = ChatWindowLayout.Resolve(false, false, false, 1536f, 864f, OskTop, commsTop: 360f);
+        Assert.Equal(360f, r.Y, Eps);
+        Assert.Equal(ChatWindowLayout.MaxBottom, r.Bottom, Eps);
+
+        // A status panel reaching far down: the window keeps its least height and overlaps the panel a little instead.
+        var speaking = ChatWindowLayout.Resolve(true, false, false, 1536f, 864f, OskTop, commsTop: 500f);
+        Assert.Equal(ChatWindowLayout.MinDockH, speaking.H, Eps);
+        Assert.Equal(ChatWindowLayout.VegaSpeechY - ChatWindowLayout.Gap, speaking.Bottom, Eps);
+
+        // A short status panel never lifts the window above the comms zone's top.
+        var low = ChatWindowLayout.Resolve(false, false, false, 1536f, 864f, OskTop, commsTop: 120f);
+        Assert.Equal(ChatWindowLayout.CommsTop, low.Y, Eps);
     }
 
     [Theory]
     [MemberData(nameof(Aspects))]
-    public void EveryAspect_KeepsTheWindowInTheHudFramesCentreLane(float canvasW, float canvasH)
+    public void EveryAspect_KeepsTheWindowInTheCommsZone(float canvasW, float canvasH)
     {
-        // The HUD's columns are anchored top-left in its 1536-wide frame, so the window centres in that frame: on a
-        // 21:9 screen it stays between the left lane and the right column instead of drifting under the compass.
+        // The HUD's columns are anchored top-left in its 1536-wide frame, so the comms zone is the same on every aspect.
         var r = ChatWindowLayout.Resolve(false, false, false, canvasW, canvasH, OskTop);
-        Assert.Equal(384f, r.X, Eps);
-        Assert.Equal(64f, r.Y, Eps);
-        Assert.Equal(768f, r.W, Eps);
-        Assert.Equal(520f, r.H, Eps);
+        Assert.Equal(ChatWindowLayout.CommsX, r.X, Eps);
+        Assert.Equal(ChatWindowLayout.CommsW, r.W, Eps);
+        Assert.Equal(ChatWindowLayout.CommsTop, r.Y, Eps);
+        Assert.Equal(ChatWindowLayout.MaxBottom, r.Bottom, Eps);
         Assert.True(r.Right <= ChatWindowLayout.RightColumnX, "clear of the right column");
     }
 
     [Fact]
-    public void VegaSpeaking_WindowSlidesRightOfThePanel_AndStopsBeforeTheRightColumn()
+    public void VegaSpeaking_WindowEndsAboveThePanel_InTheSamePlace()
     {
+        // #3669: the window used to jump right of the panel; now it stays in the comms zone and only gets shorter.
         var r = ChatWindowLayout.Resolve(vegaSpeech: true, osk: false, touchKeyboard: false, 1536f, 864f, OskTop);
-        Assert.Equal(ChatWindowLayout.VegaClearX, r.X, Eps);
-        Assert.Equal(1310f, r.Right, Eps);
-        Assert.Equal(64f, r.Y, Eps);
-        Assert.Equal(520f, r.H, Eps);
+        var quiet = ChatWindowLayout.Resolve(vegaSpeech: false, osk: false, touchKeyboard: false, 1536f, 864f, OskTop);
+        Assert.Equal(quiet.X, r.X, Eps);
+        Assert.Equal(quiet.Y, r.Y, Eps);
+        Assert.Equal(quiet.W, r.W, Eps);
+        Assert.Equal(ChatWindowLayout.VegaSpeechY - ChatWindowLayout.Gap, r.Bottom, Eps);
+        Assert.True(r.H > 200f, "room for a title, several lines and the input row");
         Assert.False(r.Overlaps(ChatWindowLayout.VegaSpeech));
     }
 
     [Fact]
-    public void VegaSpeaking_AtABigUiScale_TheWindowRisesAboveThePanelInstead()
+    public void VegaSpeaking_AtABigUiScale_TheWindowStaysClearAndUsable()
     {
-        // UI scale 160 %: the canvas is 960 × 540 HUD units, so a window right of VEGA would be a 264-wide strip.
+        // UI scale 160 %: the canvas is 960 × 540 HUD units.
         var r = ChatWindowLayout.Resolve(vegaSpeech: true, osk: false, touchKeyboard: false, 960f, 540f, OskTop);
-        Assert.Equal(96f, r.X, Eps);
-        Assert.Equal(768f, r.W, Eps);
-        Assert.Equal(ChatWindowLayout.VegaSpeechY - ChatWindowLayout.Gap, r.Bottom, Eps);
+        Assert.Equal(ChatWindowLayout.CommsX, r.X, Eps);
+        Assert.Equal(540f - ChatWindowLayout.EdgeMargin, r.Bottom, Eps);
+        Assert.True(r.H > 150f, "room for a title and several lines");
         Assert.False(r.Overlaps(ChatWindowLayout.VegaSpeech));
     }
 
@@ -121,11 +140,11 @@ public sealed class ChatWindowLayoutTests
     }
 
     [Fact]
-    public void TouchKeyboard_AndVega_TheUpperHalfWindowStillSlidesRight()
+    public void TouchKeyboard_AndVega_TheUpperHalfWindowIsAlreadyClear()
     {
-        // The upper-half window ends at y 424, inside the speech panel's band (396…586), so it still yields to VEGA.
+        // The upper-half window ends at y 424, above the speech panel (546…736) in the comms zone, so it stays centred.
         var r = ChatWindowLayout.Resolve(vegaSpeech: true, osk: false, touchKeyboard: true, 1536f, 864f, OskTop);
-        Assert.Equal(ChatWindowLayout.VegaClearX, r.X, Eps);
+        Assert.Equal(384f, r.X, Eps);
         Assert.False(r.Overlaps(ChatWindowLayout.VegaSpeech));
         Assert.True(r.Bottom <= 864f / 2f - ChatWindowLayout.Gap + Eps);
     }

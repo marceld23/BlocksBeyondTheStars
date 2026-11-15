@@ -39,6 +39,32 @@ namespace BlocksBeyondTheStars.Client
         private int _gearWorn, _gearBuiltFor = -1; // bit i = ActiveGear[i] worn; the set the cells were built for
         private bool _gearTouchLayout;
         private object _gearLoc;
+        private TouchReservation _gearTouch; // the touch layer's controls the strip was laid out against
+        private HudRect _gearRect;           // the strip's cells and key labels, HUD units
+
+        /// <summary>
+        /// What the HUD draws in the bottom band that VEGA's touch spot keeps clear of (VegaPanel.Layout.cs), in HUD units: the
+        /// gear strip while it shows (its canvas lies above the touch layer — a tap on VEGA's continue pill under it toggled
+        /// the lamp), the melody bar while it is open (its tones are tapped), and the quick-bar while it shows.
+        /// </summary>
+        internal void CollectBottomBand(System.Collections.Generic.List<HudRect> into)
+        {
+            if (_gearCanvas != null && _gearCanvas.enabled && _gearCells.Count > 0)
+            {
+                into.Add(_gearRect);
+            }
+
+            if (MelodyBarShown)
+            {
+                into.Add(new HudRect((W - MelodyBarW) / 2f, MelodyBarTop, MelodyBarW, MelodyBarH));
+            }
+
+            if (_hotbarRoot != null && _hotbarRoot.activeSelf)
+            {
+                // The quick-bar's backplate (HudUi.Hotbar: 12 left of cell 0, 10 above the cells, to the pickup feed's edge).
+                into.Add(new HudRect(_hotbarX0 - 12f, _hotbarY - 10f, _pickupRightX - _hotbarX0 + 12f, 92f));
+            }
+        }
 
         private void CreateGearCanvas()
         {
@@ -92,7 +118,8 @@ namespace BlocksBeyondTheStars.Client
 
             var touchUi = TouchControlsUi.Active;
             bool touch = touchUi != null && touchUi.Visible;
-            if (_gearWorn != _gearBuiltFor || touch != _gearTouchLayout || !ReferenceEquals(loc, _gearLoc))
+            if (_gearWorn != _gearBuiltFor || touch != _gearTouchLayout || !ReferenceEquals(loc, _gearLoc)
+                || (touch && !ReferenceEquals(HudZones.Touch, _gearTouch)))
             {
                 BuildGearStrip(loc, touch);
             }
@@ -140,9 +167,24 @@ namespace BlocksBeyondTheStars.Client
             _gearCanvas.sortingOrder = touch ? 101 : 11;
 
             // Desktop / pad: past the quick-bar backplate's right end, level with its cells. Touch: above the bar's left
-            // end, right of the ◄ button — the bar's right is the thumb zone there.
+            // end, right of the ◄ button — the bar's right is the thumb zone there. The ◄ / ACT buttons follow the screen's
+            // centre, the bar the HUD's 1536 frame: on a wide phone they move under the strip, which then rises clear of them.
             float x = touch ? _hotbarX0 + 112f : _pickupRightX + 12f;
             float y = touch ? _hotbarY - 82f : _hotbarY + 4f;
+            int cells = 0;
+            for (int i = 0; i < ActiveGear.Length; i++)
+            {
+                cells += (_gearWorn >> i) & 1;
+            }
+
+            _gearTouch = HudZones.Touch;
+            _gearRect = new HudRect(x, y, ((cells - 1) * GearPitch) + GearCellSize, GearCellSize + 16f);
+            if (touch)
+            {
+                _gearRect = _gearTouch.LiftClear(_gearRect, HudZones.Gap);
+                y = _gearRect.Y;
+            }
+
             for (int i = 0; i < ActiveGear.Length; i++)
             {
                 if ((_gearWorn & (1 << i)) != 0)
@@ -188,11 +230,12 @@ namespace BlocksBeyondTheStars.Client
                     TextAnchor.UpperLeft, FontStyle.Bold, UiText.Look.Outline);
             }
 
-            var label = UiText.Add(go.transform, -5f, GearCellSize + 1f, GearCellSize + 10f, 14f, string.Empty, 11, UiKit.CyanDim,
+            // #3668: the key reads like the hotbar's slot numbers (it was a dim 11 px line) — the strip is part of the bar.
+            var label = UiText.Add(go.transform, -5f, GearCellSize + 1f, GearCellSize + 10f, 16f, string.Empty, 14, UiKit.Cyan,
                 TextAnchor.MiddleCenter, FontStyle.Bold, UiText.Look.Outline);
             label.enableAutoSizing = true; // "Leertaste" / "(Cross)" must fit under a 48 px cell
             label.fontSizeMin = 7f;
-            label.fontSizeMax = 11f;
+            label.fontSizeMax = 14f;
             return new GearCell { Key = key, Go = go, Frame = frame, Icon = icon, Label = label, EnergyFill = energy };
         }
 

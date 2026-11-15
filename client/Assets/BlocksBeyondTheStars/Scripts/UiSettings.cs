@@ -1,17 +1,24 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
-using BlocksBeyondTheStars.Shared.Localization;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// The settings screen in the new uGUI design (replacing the legacy IMGUI settings screen):
-    /// graphics / audio / controls / appearance / language, bound to the local <see cref="ClientSettings"/>.
-    /// Built in code on a DPI-independent canvas (UiKit) and rebuilt on each change. Numeric options use
-    /// −/+ steppers with a fill bar (robust, no Slider component); booleans toggle; preset/language cycle.
+    /// The settings screen, bound to the local <see cref="ClientSettings"/>. A full menu screen on the template of
+    /// <see cref="UiKit.AddScreenHeader"/> (#3666): the categories on the left (the chosen one drawn as the screen's
+    /// primary button), the chosen category's rows in the middle, and on the right a description card that explains
+    /// the row under the pointer or the pad's focus. Every change applies at once and the screen is rebuilt — the
+    /// category and the scroll position stay. Numbers use −/+ steppers with a fill bar, yes/no settings are switches,
+    /// choices are <c>‹ value ›</c> cycles; the footer resets the shown category to its defaults.
+    /// <para>
+    /// Until #3666 the screen was one long scrolling list in a 900-px dialog: only Graphics showed at first, and Audio,
+    /// the key bindings, the controller, voice and the comfort switches could only be reached by scrolling.
+    /// </para>
+    /// The parts: the categories (<c>UiSettings.Categories.cs</c>), the graphics rows (<c>.Graphics.cs</c>,
+    /// <c>.HighDetails.cs</c>), the row controls (<c>.Rows.cs</c>), the description card (<c>.Info.cs</c>) and the
+    /// category reset (<c>.Reset.cs</c>).
     /// </summary>
     public sealed partial class UiSettings : MonoBehaviour
     {
@@ -23,17 +30,30 @@ namespace BlocksBeyondTheStars.Client
             new Color(0.92f, 0.92f, 0.95f),
         };
 
+        // Geometry in the menus' 1920×1080 reference space: the category column, the rows' card and the description card
+        // share the content band of the menu template (MenuContentTop..MenuContentBottom).
+        private const float NavX = UiKit.MenuLeft, NavW = 300f, NavH = 62f, NavGap = 10f;
+        private const float CardX = 420f, CardW = 940f;
+        private const float CardY = UiKit.MenuContentTop, CardH = UiKit.MenuContentBottom - UiKit.MenuContentTop;
+        private const float ViewInset = 14f;
+        private const float InfoX = CardX + CardW + 30f, InfoW = UiKit.MenuRight - InfoX;
+
         private AppShell _shell;
-        private Transform _root;        // the canvas (holds the dimmer + the fixed panel frame + the scroll area)
-        private Transform _content;     // scroll content the rows live in (taller than the panel → it scrolls)
-        private float _px, _pw, _x, _rowW;
+        private Transform _root;            // the canvas
+        private RectTransform _content;     // the scroll content the rows of the shown category live in
+        private Category? _contentCategory; // the category _content was built for (keeps the scroll position on a rebuild)
+        private float _x, _rowW;            // the rows' left edge and width inside _content
         private InputAction? _rebinding;    // the control row currently capturing a new KEYBOARD key (else null)
         private InputAction? _rebindingPad; // the control row currently capturing a new GAMEPAD button (else null)
 
-        /// <summary>True while a control row waits for "press a key" (#2523): the shell's F1 feedback form must not
-        /// open on the very key the player is binding. Sampled at the top of <see cref="Update"/>, so it still reads
-        /// true for the rest of the frame the capture consumes the key in.</summary>
+        /// <summary>True while a control row waits for "press a key" / "press a pad button" (#2523): the shell's F1
+        /// feedback form must not open on the very key the player is binding, and the shell's Esc / pad B must not close
+        /// the screen — B is a button a pad player may bind, and Esc cancels the capture. Sampled at the top of
+        /// <see cref="Update"/>, so it still reads true for the rest of the frame the capture consumes the key in.</summary>
         public static bool CapturingKey { get; private set; }
+
+        /// <summary>The settings screen on show, or null.</summary>
+        private static UiSettings s_open;
 
         public static GameObject Build(AppShell shell)
         {
@@ -42,6 +62,7 @@ namespace BlocksBeyondTheStars.Client
             var ui = canvas.gameObject.AddComponent<UiSettings>();
             ui._shell = shell;
             ui._root = canvas.transform;
+            s_open = ui;
             ui.Rebuild();
             return canvas.gameObject;
         }
@@ -49,408 +70,84 @@ namespace BlocksBeyondTheStars.Client
         private ClientSettings S => _shell.Settings;
         private string L(string k) => _shell.L(k);
 
+        /// <summary>Builds the whole screen anew — after every change, so each label shows the current value.</summary>
         private void Rebuild()
         {
+            // A switch near the bottom of a long category must not throw the list back to its top; a new category starts
+            // at the top. Read before the old content is destroyed (Destroy only takes effect at the end of the frame).
+            float keepScroll = _content != null && _contentCategory == s_category ? _content.anchoredPosition.y : 0f;
             for (int i = _root.childCount - 1; i >= 0; i--)
             {
                 Destroy(_root.GetChild(i).gameObject);
             }
 
-            UiKit.AddModalDim(_root); // shared menu-dialog scrim (#588)
-            _px = 510f; _pw = 900f; // widened from 600 — labels stopped truncating and the rows breathe (Severin playtest)
-            UiKit.AddDialogPanel(_root, _px, 80, _pw, 920); // opaque: the menu/game behind must not mix into the rows
-
-            // The settings list is taller than the panel, so host it in a scroll viewport (mouse wheel / drag)
-            // clipped to the panel — previously everything was placed straight on the canvas, so the lower rows
-            // (updates / language / back) ran off the bottom of the screen with no way to reach them.
-            _content = BuildScrollViewport();
-
-            // Rows are now positioned relative to the scroll content (the panel's top-left), not the whole canvas.
-            _x = 30f; _rowW = _pw - 60f;
-
-            float y = 24f;
-            UiKit.AddLogo(_content, _x, y, 420, 40, L("ui.settings.title"), 26);
-            y += 64f;
-
-            Head(ref y, L("ui.settings.graphics"));
-            // Graphics rows apply immediately (like the window-mode row always did) so changes made from the
-            // in-game pause menu are visible right away instead of only when the settings screen closes.
-            // A hand-picked preset ends auto-calibration (#1423): PresetAuto off means the shell
-            // frame-time calibrator never overrides the player's explicit choice again.
-            Cycle(ref y, L("ui.settings.preset"), L("ui.settings.preset." + S.Preset.ToString().ToLowerInvariant()), () => { S.Preset = (QualityPreset)(((int)S.Preset + 1) % 4); S.PresetAuto = false; S.Apply(); ApplyLiveWorld(); Rebuild(); });
-            // Brightness sits right under the preset (#1457): "the world is too dark" is the first thing a player
-            // looks for here, and it used to hide six rows down in the scroll viewport.
-            Stepper(ref y, L("ui.settings.brightness"), (S.Brightness - 0.7f) / 0.8f, 0.7f, 1.5f,
-                () => { S.Brightness = Mathf.Clamp(S.Brightness - 0.05f, 0.7f, 1.5f); UrpScenePost.Instance?.SetBrightness(S.Brightness); Rebuild(); },
-                () => { S.Brightness = Mathf.Clamp(S.Brightness + 0.05f, 0.7f, 1.5f); UrpScenePost.Instance?.SetBrightness(S.Brightness); Rebuild(); },
-                Mathf.RoundToInt(S.Brightness * 100f) + "%");
-            // Cosiness (#2820): one slider, 0–100 % in steps of 10, applied live like the brightness above.
-            Stepper(ref y, L("ui.settings.cosiness"), S.Cosiness, 0f, 1f,
-                () => { S.Cosiness = Mathf.Clamp01(Mathf.Round((S.Cosiness - 0.1f) * 10f) / 10f); UrpScenePost.Instance?.SetCosiness(S.Cosiness); Rebuild(); },
-                () => { S.Cosiness = Mathf.Clamp01(Mathf.Round((S.Cosiness + 0.1f) * 10f) / 10f); UrpScenePost.Instance?.SetCosiness(S.Cosiness); Rebuild(); },
-                Mathf.RoundToInt(S.Cosiness * 100f) + "%");
-            // Two lines: the hint is longer than the control column in every language (AddText does not wrap by itself).
-            var cosinessHint = UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 40, L("ui.settings.cosiness_hint"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
-            cosinessHint.horizontalOverflow = HorizontalWrapMode.Wrap;
-            y += 44f;
-            // #3265: caves and moonless nights are dark on purpose; this lifts the dark for players who find it too much —
-            // 0–100 % in steps of 25, applied live (the dark floor, the eye adaptation underground, the creatures' light).
-            Stepper(ref y, L("ui.settings.dark_visibility"), S.DarkVisibility, 0f, 1f,
-                () => { S.DarkVisibility = Mathf.Clamp01(Mathf.Round((S.DarkVisibility - 0.25f) * 4f) / 4f); ApplyLiveWorld(); Rebuild(); },
-                () => { S.DarkVisibility = Mathf.Clamp01(Mathf.Round((S.DarkVisibility + 0.25f) * 4f) / 4f); ApplyLiveWorld(); Rebuild(); },
-                Mathf.RoundToInt(S.DarkVisibility * 100f) + "%");
-            // As tall as its lines: Russian and Japanese need three (#3263).
-            UiKit.AddMeasuredText(_content, _x + CtrlX, y, _rowW - CtrlX, L("ui.settings.dark_visibility_hint"), 14, UiKit.CyanDim, out float darkHintH);
-            y += Mathf.Max(40f, darkHintH) + 4f;
-            // Window mode cycles Windowed → Borderless → Exclusive and applies immediately so the player sees
-            // the window change without leaving the menu (resolution/mode changes are pushed via Apply()).
-            Cycle(ref y, L("ui.settings.window_mode"), L(WindowModeKey(S.Window)),
-                () => { S.Window = (WindowMode)(((int)S.Window + 1) % 3); S.Apply(); Rebuild(); });
-            // 1–16 chunks; the server clamps a join request to the same range (GameServer.MaxClientViewDistanceChunks).
-            Stepper(ref y, L("ui.settings.view_distance"), (S.ViewDistanceChunks - 1) / 15f, 1, 16,
-                () => { S.ViewDistanceChunks = Mathf.Clamp(S.ViewDistanceChunks - 1, 1, 16); Rebuild(); },
-                () => { S.ViewDistanceChunks = Mathf.Clamp(S.ViewDistanceChunks + 1, 1, 16); Rebuild(); },
-                S.ViewDistanceChunks.ToString());
-            if (_shell.CurrentBoot != null)
+            _resetConfirm = null; // destroyed with the rest
+            UiKit.AddModalDim(_root); // the menu backdrop or the paused world stays behind the screen (#588)
+            // The categories first: the pad's first focus lands on them — on the one the screen reopened on — and a rebuild
+            // restores the focus by position.
+            UiNav.Prefer(_root.gameObject, BuildNav());
+            UiKit.AddScreenHeader(_root, L("ui.settings.title"), L("ui.settings.subtitle"), () => _shell.CloseSettings(), L("ui.menu.back"));
+            BuildRows(keepScroll);
+            BuildInfoCard();
+            if (s_category != Category.Language)
             {
-                // The (local) server streams the radius it was STARTED with, so this one honestly can't
-                // change mid-session — say so instead of looking broken when opened from the pause menu.
-                UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.view_distance_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
-                y += 28f;
+                UiKit.AddLinkButton(_root, CardX + 4f, UiKit.MenuFooterY, 560f, UiKit.MenuFooterH, L("ui.settings.reset_category"), AskResetCategory);
             }
-
-            // #1820: the far terrain beyond the streamed chunks — Off / 512 / 1024 blocks (+ 2048 on desktop High, #3059;
-            // the label shows the range in effect), applied live.
-            int farViewInEffect = BlocksBeyondTheStars.Client.FarTerrain.FarViewRange.Effective(S.FarViewBlocks, HighDetails.Active);
-            Cycle(ref y, L("ui.settings.far_view"), FarViewLabel(farViewInEffect), () =>
-            {
-                S.FarViewBlocks = BlocksBeyondTheStars.Client.FarTerrain.FarViewRange.Next(S.FarViewBlocks, HighDetails.Active);
-                var boot = _shell.CurrentBoot;
-                if (boot != null)
-                {
-                    boot.FarViewBlocks = S.FarViewBlocks;
-                    boot.FarView?.SetRange(S.FarViewBlocks);
-                }
-
-                Rebuild();
-            });
-            // UI scale (#483): drives UiKit.UserScale, which divides the HUD canvases' reference resolution.
-            // Applies live via S.Apply() so the player can size the HUD while looking at it from the pause
-            // menu. Menus are deliberately unaffected (absolute 1920 layout).
-            Stepper(ref y, L("ui.settings.ui_scale"),
-                (S.UiScale - UiKit.UserScaleMin) / (UiKit.UserScaleMax - UiKit.UserScaleMin), UiKit.UserScaleMin, UiKit.UserScaleMax,
-                () => { S.UiScale = Mathf.Clamp(S.UiScale - 0.1f, UiKit.UserScaleMin, UiKit.UserScaleMax); S.Apply(); Rebuild(); },
-                () => { S.UiScale = Mathf.Clamp(S.UiScale + 0.1f, UiKit.UserScaleMin, UiKit.UserScaleMax); S.Apply(); Rebuild(); },
-                Mathf.RoundToInt(S.UiScale * 100f) + "%");
-            // Frame pacing. VSync off (+ optional fps cap) is the recommended fix when the game runs sluggish
-            // on the Linux/Proton client, where VSync can lock to a hard 30 fps.
-            Toggle(ref y, L("ui.settings.vsync"), S.VSync, () => { S.VSync = !S.VSync; S.Apply(); Rebuild(); });
-            if (!S.VSync)
-            {
-                Cycle(ref y, L("ui.settings.fps_cap"), FpsCapLabel(S.FrameRateCap),
-                    () => { S.FrameRateCap = NextFpsCap(S.FrameRateCap); S.Apply(); Rebuild(); });
-            }
-
-            Toggle(ref y, L("ui.settings.smaa"), S.Smaa, () => { S.Smaa = !S.Smaa; S.ApplyCameraLook(); Rebuild(); });
-            Toggle(ref y, L("ui.settings.lens_flare"), S.LensFlare, () => { S.LensFlare = !S.LensFlare; ApplyLiveWorld(); Rebuild(); });
-            Toggle(ref y, L("ui.settings.motion_blur"), S.MotionBlur, () => { S.MotionBlur = !S.MotionBlur; ApplyLiveWorld(); Rebuild(); });
-            Toggle(ref y, L("ui.settings.distance_haze"), S.DistanceHaze, () => { S.DistanceHaze = !S.DistanceHaze; ApplyLiveWorld(); Rebuild(); });
-            // #3462: the soft distance on worlds with air — Medium+ on a desktop client; the browser never runs it, so no row.
-            if (!ClientSettings.FarViewLightDevice)
-            {
-                Toggle(ref y, L("ui.settings.distance_softness"), S.DistanceSoftness, () => { S.DistanceSoftness = !S.DistanceSoftness; ApplyLiveWorld(); Rebuild(); });
-            }
-
-            // #3121: the grass tufts on natural ground — a builder keeping a garden or a field tidy switches them off.
-            Toggle(ref y, L("ui.settings.ground_details"), S.GroundDetails, () => { S.GroundDetails = !S.GroundDetails; S.Apply(); Rebuild(); });
-
-            // Atmosphere package (#2404): one row — Off / Some (the cheap set) / All / Custom — and, on Custom, the
-            // per-effect switches. The presets still gate the expensive ones (Medium+), whatever the switch says.
-            Cycle(ref y, L("ui.settings.atmosphere"), L("ui.settings.atmosphere." + S.Atmosphere.ToString().ToLowerInvariant()), () =>
-            {
-                S.ApplyAtmosphereMode(S.Atmosphere switch
-                {
-                    AtmosphereMode.Off => AtmosphereMode.Some,
-                    AtmosphereMode.Some => AtmosphereMode.All,
-                    AtmosphereMode.All => AtmosphereMode.Custom,
-                    _ => AtmosphereMode.Off,
-                });
-                S.Apply();
-                ApplyLiveWorld();
-                Rebuild();
-            });
-            if (S.Atmosphere == AtmosphereMode.Custom)
-            {
-                AtmoToggle(ref y, "height_fog", S.HeightFog, v => S.HeightFog = v);
-                AtmoToggle(ref y, "cloud_shadows", S.CloudShadows, v => S.CloudShadows = v);
-                AtmoToggle(ref y, "eye_adaptation", S.EyeAdaptation, v => S.EyeAdaptation = v);
-                AtmoToggle(ref y, "torch_flicker", S.TorchFlicker, v => S.TorchFlicker = v);
-                AtmoToggle(ref y, "wind_sway", S.WindSway, v => S.WindSway = v);
-                AtmoToggle(ref y, "wet_surfaces", S.WetSurfaces, v => S.WetSurfaces = v);
-                AtmoToggle(ref y, "weather_particles", S.WeatherParticles, v => S.WeatherParticles = v);
-                AtmoToggle(ref y, "shooting_stars", S.ShootingStars, v => S.ShootingStars = v);
-                AtmoToggle(ref y, "underwater", S.Underwater, v => S.Underwater = v);
-                AtmoToggle(ref y, "light_shafts", S.LightShafts, v => S.LightShafts = v);
-                AtmoToggle(ref y, "emitter_light", S.EmitterLight, v => S.EmitterLight = v);
-                AtmoToggle(ref y, "soft_particles", S.SoftParticles, v => S.SoftParticles = v);
-                AtmoToggle(ref y, "fog_wisps", S.FogWisps, v => S.FogWisps = v);    // #3271
-                AtmoToggle(ref y, "cloud_fog", S.CloudFog, v => S.CloudFog = v);    // #3272
-                AtmoToggle(ref y, "fog_banks", S.FogBanks, v => S.FogBanks = v);    // #3273
-            }
-
-            HighDetailRows(ref y); // #3061: the desktop-class extras of the High preset
-            Head(ref y, L("ui.settings.audio"));
-            VolRow(ref y, L("ui.settings.master_volume"), () => S.MasterVolume, v => S.MasterVolume = v);
-            VolRow(ref y, L("ui.settings.music_volume"), () => S.MusicVolume, v => S.MusicVolume = v);
-            VolRow(ref y, L("ui.settings.sfx_volume"), () => S.SfxVolume, v => S.SfxVolume = v);
-            Cycle(ref y, L("ui.settings.music_style"),
-                L(S.MusicMode == MusicMode.Tracks ? "ui.settings.music_style.tracks" : "ui.settings.music_style.synth"),
-                () => { S.MusicMode = S.MusicMode == MusicMode.Tracks ? MusicMode.Synth : MusicMode.Tracks; Rebuild(); });
-
-            // Voice chat (on by default; only carries on a server that also enabled voice). The master toggle
-            // turns the whole feature off; the rows below tune it.
-            Toggle(ref y, L("ui.settings.mute_alarms"), S.MuteAlarms, () => { S.MuteAlarms = !S.MuteAlarms; ClientAudio.Instance?.ApplyAlarmMute(); Rebuild(); }); // #2052
-            Toggle(ref y, L("ui.settings.voice"), S.VoiceEnabled, () => { S.VoiceEnabled = !S.VoiceEnabled; Rebuild(); });
-            if (S.VoiceEnabled)
-            {
-                VolRow(ref y, L("ui.settings.voice_volume"), () => S.VoiceVolume, v => S.VoiceVolume = v);
-                Toggle(ref y, L("ui.settings.voice_input"), S.VoiceInputEnabled, () => { S.VoiceInputEnabled = !S.VoiceInputEnabled; Rebuild(); });
-                Cycle(ref y, L("ui.settings.push_to_talk"), PttLabel(S.PushToTalkKey), () => { S.PushToTalkKey = NextPttKey(S.PushToTalkKey); Rebuild(); });
-            }
-
-            // Muted players (#1209) — one row each with an Unmute button, so the list is never a dead end a
-            // player can only leave by editing a file. It sits under Voice because that is where the setting
-            // used to (not) live, but it hides text chat too.
-            Head(ref y, L("ui.mute.muted_players"));
-            if (S.MutedPlayers.Count == 0)
-            {
-                UiKit.AddText(_content, _x, y, _rowW, 44, L("ui.mute.none"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
-                y += 52f;
-            }
-            else
-            {
-                foreach (var who in S.MutedPlayers.ToArray()) // copy: the button mutates the list
-                {
-                    UiKit.AddText(_content, _x, y, LabelW, 44, who, 20, UiKit.TextCol, TextAnchor.MiddleLeft);
-                    UiKit.AddButton(_content, _x + CtrlX, y, _rowW - CtrlX, 44, L("ui.mute.unmute"),
-                        () => { S.Unmute(who); S.Save(); Rebuild(); });
-                    y += 52f;
-                }
-            }
-
-            Head(ref y, L("ui.settings.controls"));
-            Stepper(ref y, L("ui.settings.mouse_sensitivity"), (S.MouseSensitivity - 0.5f) / 5.5f, 0, 1,
-                () => { S.MouseSensitivity = Mathf.Clamp(S.MouseSensitivity - 0.5f, 0.5f, 6f); ApplyLiveWorld(); Rebuild(); },
-                () => { S.MouseSensitivity = Mathf.Clamp(S.MouseSensitivity + 0.5f, 0.5f, 6f); ApplyLiveWorld(); Rebuild(); },
-                S.MouseSensitivity.ToString("0.0"));
-            // Field of view (#1590): 50–100° in 5° steps, live from the pause menu (ApplyLiveWorld → SetBaseFov).
-            // The hint says what the trade-off is — a wider view renders more chunks.
-            Stepper(ref y, L("ui.settings.fov"),
-                (S.ClampedFieldOfView - ClientSettings.FieldOfViewMin) / (ClientSettings.FieldOfViewMax - ClientSettings.FieldOfViewMin),
-                ClientSettings.FieldOfViewMin, ClientSettings.FieldOfViewMax,
-                () => { S.FieldOfView = Mathf.Clamp(S.ClampedFieldOfView - ClientSettings.FieldOfViewStep, ClientSettings.FieldOfViewMin, ClientSettings.FieldOfViewMax); ApplyLiveWorld(); Rebuild(); },
-                () => { S.FieldOfView = Mathf.Clamp(S.ClampedFieldOfView + ClientSettings.FieldOfViewStep, ClientSettings.FieldOfViewMin, ClientSettings.FieldOfViewMax); ApplyLiveWorld(); Rebuild(); },
-                Mathf.RoundToInt(S.ClampedFieldOfView) + "°");
-            UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.fov_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            y += 28f;
-            Toggle(ref y, L("ui.settings.invert_y"), S.InvertY, () => { S.InvertY = !S.InvertY; ApplyLiveWorld(); Rebuild(); });
-
-            // Rebindable key controls (Stream C): one row per remappable action; click to capture a new key.
-            Head(ref y, L("ui.settings.controls_keys"));
-            foreach (var action in InputMap.Remappable)
-            {
-                KeyRow(ref y, action);
-            }
-
-            Head(ref y, L("ui.settings.controls_flight"));
-            foreach (var action in InputMap.FlightRemappable)
-            {
-                KeyRow(ref y, action);
-            }
-
-            Head(ref y, L("ui.settings.controls_vehicle"));
-            foreach (var action in InputMap.VehicleRemappable)
-            {
-                KeyRow(ref y, action);
-            }
-
-            Head(ref y, L("ui.settings.controls_menu"));
-            foreach (var action in InputMap.MenuRemappable)
-            {
-                KeyRow(ref y, action);
-            }
-
-            UiKit.AddButton(_content, _x, y, _rowW, 44, L("ui.settings.reset_controls"),
-                () => { S.ResetBindings(); S.Save(); _rebinding = null; _rebindingPad = null; Rebuild(); });
-            y += 52f;
-
-            // Controller (#1219). Everything here is pad-only, so say plainly when there is no pad to tune
-            // rather than letting a player wonder why the sliders do nothing.
-            Head(ref y, L("ui.settings.controller"));
-            if (!InputMap.GamepadConnected)
-            {
-                UiKit.AddText(_content, _x, y, _rowW, 40, L("ui.settings.controller_none"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
-                y += 44f;
-            }
-
-            Stepper(ref y, L("ui.settings.pad_deadzone"),
-                (S.PadDeadzone - ClientSettings.PadDeadzoneMin) / (ClientSettings.PadDeadzoneMax - ClientSettings.PadDeadzoneMin),
-                ClientSettings.PadDeadzoneMin, ClientSettings.PadDeadzoneMax,
-                () => { S.PadDeadzone = Mathf.Clamp(S.PadDeadzone - 0.05f, ClientSettings.PadDeadzoneMin, ClientSettings.PadDeadzoneMax); Rebuild(); },
-                () => { S.PadDeadzone = Mathf.Clamp(S.PadDeadzone + 0.05f, ClientSettings.PadDeadzoneMin, ClientSettings.PadDeadzoneMax); Rebuild(); },
-                Mathf.RoundToInt(S.PadDeadzone * 100f) + "%");
-            Stepper(ref y, L("ui.settings.pad_look_x"),
-                (S.PadLookX - ClientSettings.PadLookMin) / (ClientSettings.PadLookMax - ClientSettings.PadLookMin),
-                ClientSettings.PadLookMin, ClientSettings.PadLookMax,
-                () => { S.PadLookX = Mathf.Clamp(S.PadLookX - 0.25f, ClientSettings.PadLookMin, ClientSettings.PadLookMax); Rebuild(); },
-                () => { S.PadLookX = Mathf.Clamp(S.PadLookX + 0.25f, ClientSettings.PadLookMin, ClientSettings.PadLookMax); Rebuild(); },
-                S.PadLookX.ToString("0.00") + "×");
-            Stepper(ref y, L("ui.settings.pad_look_y"),
-                (S.PadLookY - ClientSettings.PadLookMin) / (ClientSettings.PadLookMax - ClientSettings.PadLookMin),
-                ClientSettings.PadLookMin, ClientSettings.PadLookMax,
-                () => { S.PadLookY = Mathf.Clamp(S.PadLookY - 0.25f, ClientSettings.PadLookMin, ClientSettings.PadLookMax); Rebuild(); },
-                () => { S.PadLookY = Mathf.Clamp(S.PadLookY + 0.25f, ClientSettings.PadLookMin, ClientSettings.PadLookMax); Rebuild(); },
-                S.PadLookY.ToString("0.00") + "×");
-            Toggle(ref y, L("ui.settings.pad_invert_y"), S.PadInvertY, () => { S.PadInvertY = !S.PadInvertY; Rebuild(); });
-            Toggle(ref y, L("ui.settings.pad_triggers"), S.PadTriggersMinePlace,
-                () => { S.PadTriggersMinePlace = !S.PadTriggersMinePlace; Rebuild(); });
-            UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.pad_triggers_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            y += 28f;
-            Cycle(ref y, L("ui.settings.pad_glyphs"), L("ui.settings.pad_glyphs." + S.PadGlyphs.ToString().ToLowerInvariant()),
-                () => { S.PadGlyphs = (PadGlyphSet)(((int)S.PadGlyphs + 1) % 3); Rebuild(); });
-            Toggle(ref y, L("ui.settings.pad_vibration"), S.PadVibration, () => { S.PadVibration = !S.PadVibration; Rebuild(); });
-            // #2746: the hint says what rumbles — or, where no backend exists (WebGL, the native Linux build), that
-            // vibration is not available here (the choice is still remembered).
-            UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24,
-                L(PadRumble.Supported ? "ui.settings.pad_vibration_hint" : "ui.settings.pad_vibration_unsupported"),
-                14, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            y += 28f;
-
-            Head(ref y, L("ui.settings.comfort"));
-            // #2518: the view's motion lives with the other comfort switches, where players look for it (it sat under
-            // Controls). Same settings keys and saved values as before — only the row moved.
-            Toggle(ref y, L("ui.settings.camera_motion"), S.CameraMotion, () => { S.CameraMotion = !S.CameraMotion; ApplyLiveWorld(); Rebuild(); });
-            // #3021 "My festivals": which festivals of the real-world calendar this player celebrates — a preset (the row cycles
-            // big + my language → all → my language → none) or the own list of "Choose festivals…". Sent to a joined game's
-            // server at once; the menu card follows. #3004: the cosmetic mood they bring on this client.
-            Cycle(ref y, L("ui.settings.festivals"), L("ui.festival.preset." + (int)FestivalMood.Preset(S)), () =>
-            {
-                S.FestivalPreset = ((int)FestivalMood.Preset(S) + 1) % 4; // the own list is chosen in the picker, not here
-                FestivalMood.SendPrefs(S);
-                _shell.RefreshMainMenu();
-                Rebuild();
-            });
-            UiKit.AddButton(_content, _x + CtrlX, y, _rowW - CtrlX, 44, L("ui.settings.festival_choose"),
-                () => UiFestivalPicker.Open(_shell, _root, () => { _shell.RefreshMainMenu(); Rebuild(); }));
-            y += 52f;
-            UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 44, L("ui.settings.festivals_hint"), 14, UiKit.CyanDim, TextAnchor.UpperLeft)
-                .horizontalOverflow = HorizontalWrapMode.Wrap;
-            y += 50f;
-            Toggle(ref y, L("ui.settings.festival_mood"), S.FestivalMood, () => { S.FestivalMood = !S.FestivalMood; FestivalMood.Enabled = S.FestivalMood; Rebuild(); });
-            // #2152: how hard hits, weapon kicks and explosions rattle the view (0–100 %, 10 % steps).
-            Stepper(ref y, L("ui.settings.screen_shake"), Mathf.Clamp01(S.ScreenShake), 0, 1,
-                () => { S.ScreenShake = Mathf.Clamp01(Mathf.Round((S.ScreenShake - 0.1f) * 10f) / 10f); ApplyLiveWorld(); Rebuild(); },
-                () => { S.ScreenShake = Mathf.Clamp01(Mathf.Round((S.ScreenShake + 0.1f) * 10f) / 10f); ApplyLiveWorld(); Rebuild(); },
-                Mathf.RoundToInt(Mathf.Clamp01(S.ScreenShake) * 100f) + "%");
-            // #2152: photosensitivity — big full-screen flashes become a soft wash.
-            Toggle(ref y, L("ui.settings.reduce_flashes"), S.ReduceFlashes, () => { S.ReduceFlashes = !S.ReduceFlashes; ApplyLiveWorld(); Rebuild(); });
-            UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.reduce_flashes_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            y += 28f;
-            // Fewer particles and calmer screen effects (the existing ReducedEffects flag, now on screen).
-            Toggle(ref y, L("ui.settings.reduced_effects"), S.ReducedEffects, () => { S.ReducedEffects = !S.ReducedEffects; S.Apply(); ApplyLiveWorld(); Rebuild(); });
-            UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.reduced_effects_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            y += 28f;
-            // #2468: story-pack cutscene captions wait for the reader (default) or turn the page by themselves.
-            Toggle(ref y, L("ui.settings.story_text_wait"), S.StoryTextWaitForMe, () => { S.StoryTextWaitForMe = !S.StoryTextWaitForMe; Rebuild(); });
-            UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.story_text_wait_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            y += 28f;
-            // #2471: up to three objectives under VEGA's chip (one per story), hidden while the chat is open.
-            Toggle(ref y, L("ui.settings.show_all_objectives"), S.ShowAllObjectives, () => { S.ShowAllObjectives = !S.ShowAllObjectives; Rebuild(); });
-            UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.show_all_objectives_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            y += 28f;
-            Toggle(ref y, L("ui.settings.auto_stow"), S.AutoStowOnBoard, () => { S.AutoStowOnBoard = !S.AutoStowOnBoard; Rebuild(); });
-            Toggle(ref y, L("ui.settings.show_enemy_health"), S.ShowEnemyHealthBars, () => { S.ShowEnemyHealthBars = !S.ShowEnemyHealthBars; Rebuild(); });
-            Toggle(ref y, L("ui.settings.show_session_time"), S.ShowSessionTime, () => { S.ShowSessionTime = !S.ShowSessionTime; Rebuild(); });
-            Toggle(ref y, L("ui.settings.show_coordinates"), S.ShowCoordinates, () => { S.ShowCoordinates = !S.ShowCoordinates; Rebuild(); }); // #2993
-            // Chat overlay: fade out on its own (default), stay up, or never show unprompted (#636). The
-            // in-game toggle key does the same thing for one session without opening this menu.
-            Cycle(ref y, L("ui.settings.chat_visibility"), L(ChatVisibilityLabel(S.ChatVisibility)),
-                () => { S.ChatVisibility = NextChatVisibility(S.ChatVisibility); Rebuild(); });
-            // NPC radio calls (#1119): the server initiates them, so a change is pushed to it right away
-            // (and again on every join — see GameBootstrap's join sequence).
-            Cycle(ref y, L("ui.settings.npc_calls"), L(NpcCallsLabel(S.NpcCalls)), () =>
-            {
-                S.NpcCalls = (S.NpcCalls + 1) % 3;
-                FindAnyObjectByType<GameBootstrap>()?.Network?.SendSetNpcCalls(S.NpcCalls, !S.VegaHints); // + the hints mute (#2462)
-                Rebuild();
-            });
-            Toggle(ref y, L("ui.settings.playtime_reminder"), S.PlaytimeReminder, () => { S.PlaytimeReminder = !S.PlaytimeReminder; Rebuild(); });
-            // Reminder interval: 15-minute steps from 15 min up to 4 hours; greyed in effect when the toggle is off.
-            Stepper(ref y, L("ui.settings.reminder_interval"), (S.ReminderMinutes - 15) / 225f, 15, 240,
-                () => { S.ReminderMinutes = Mathf.Clamp(S.ReminderMinutes - 15, 15, 240); Rebuild(); },
-                () => { S.ReminderMinutes = Mathf.Clamp(S.ReminderMinutes + 15, 15, 240); Rebuild(); },
-                S.ReminderMinutes + " min");
-
-            Head(ref y, L("ui.settings.character"));
-            ColorRow(ref y, L("ui.settings.skin"), S.SkinColor, () => { S.SkinColor = Next(S.SkinColor); Rebuild(); });
-            ColorRow(ref y, L("ui.settings.torso"), S.TorsoColor, () => { S.TorsoColor = Next(S.TorsoColor); Rebuild(); });
-            ColorRow(ref y, L("ui.settings.arms"), S.ArmColor, () => { S.ArmColor = Next(S.ArmColor); Rebuild(); });
-            ColorRow(ref y, L("ui.settings.legs"), S.LegColor, () => { S.LegColor = Next(S.LegColor); Rebuild(); });
-
-            Head(ref y, L("ui.settings.updates"));
-            UiKit.AddText(_content, _x, y, LabelW, 38, L("ui.settings.update_url"), 18, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.AddInput(_content, _x + CtrlX, y, _rowW - CtrlX, 38, S.UpdateFeedUrl, v => S.UpdateFeedUrl = (v ?? string.Empty).Trim());
-            y += 46f;
-            Toggle(ref y, L("ui.settings.update_on_start"), S.UpdateCheckOnStart,
-                () => { S.UpdateCheckOnStart = !S.UpdateCheckOnStart; Rebuild(); });
-            UiKit.AddButton(_content, _x, y, 250, 44,
-                ClientUpdater.Busy ? L("ui.settings.update_checking") : L("ui.settings.update_check"),
-                () => { if (!ClientUpdater.Busy) ClientUpdater.CheckForUpdates(S.UpdateFeedUrl, () => { if (this != null) Rebuild(); }); });
-            var updateStatus = UiKit.AddText(_content, _x + 270, y, _rowW - 270, 44, UpdateStatusText(), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            // Download progress ticks up to 100 times — refresh this one label in place rather than
-            // rebuilding the whole screen per percent (state changes still come through onChanged → Rebuild).
-            int shownProgress = ClientUpdater.Progress;
-            UiKit.EveryFrame(updateStatus.gameObject, () =>
-            {
-                if (ClientUpdater.Progress != shownProgress)
-                {
-                    shownProgress = ClientUpdater.Progress;
-                    updateStatus.text = UpdateStatusText();
-                }
-            });
-            y += 52f;
-
-            // Size the scroll content to the rows so the viewport can scroll to the very bottom.
-            ((RectTransform)_content).sizeDelta = new Vector2(0f, y + 24f);
-
-            // Fixed footer on the panel, OUTSIDE the scroll viewport: language + back used to be the
-            // last scroll rows, so leaving the screen meant scrolling the whole list first. Rebuild()
-            // recreates them with everything else, so the language label stays current.
-            // A real picker: each click advances through every selectable language. EN/DE are always
-            // offered; community languages join the cycle once their locale coverage clears the bar
-            // (GameContent.SelectableLocales). A hand-set language below the bar still shows its own
-            // name here — the next click just leaves for the official cycle.
-            var activeLocale = GameLocaleExtensions.Parse(S.Language);
-            UiKit.AddButton(_root, _px + 30f, 922f, 250, 50, $"{L("ui.settings.language")}: {activeLocale.NativeName()}",
-                () => { S.Language = NextLocale(activeLocale).Code(); _shell.LoadLocalizer(); Rebuild(); });
-            UiKit.AddButton(_root, _px + _pw - 280f, 922f, 250, 50, L("ui.menu.back"), () => _shell.CloseSettings(), "btn_exit");
         }
 
-        /// <summary>Creates a vertical ScrollRect clipped to the settings panel and returns its content transform.
-        /// Rows are placed absolutely (top-left, like the rest of the screen) onto the returned content, whose
-        /// height is set by <see cref="Rebuild"/> once all rows are laid out.</summary>
-        private Transform BuildScrollViewport()
+        /// <summary>The category column: one button per category, the shown one drawn as the screen's primary button.
+        /// Returns the shown one's button.</summary>
+        private UnityEngine.UI.Button BuildNav()
         {
-            // Stops above the fixed language/back footer (panel spans 80..1000; footer row sits at 922). The
-            // viewport's near-transparent hit graphic lets the wheel/drag work over empty areas (clicks on the
-            // buttons still work); the visible frame is the AddPanel drawn behind it.
-            var content = UiKit.AddScrollViewport(_root, "SettingsScroll", _px, 80, _pw, 830, out var scroll);
-            content.sizeDelta = new Vector2(0f, 920f); // replaced with the real height at the end of Rebuild
+            UnityEngine.UI.Button shown = null;
+            for (int i = 0; i < CategoryCount; i++)
+            {
+                var category = (Category)i;
+                var button = UiKit.AddTierButton(_root, NavX, CardY + i * (NavH + NavGap), NavW, NavH, CategoryLabel(category),
+                    () => SelectCategory(category), category == s_category ? ButtonTier.Primary : ButtonTier.Quiet, CategoryIcons[i]);
+                if (category == s_category)
+                {
+                    shown = button;
+                }
+            }
 
-            // Visible scrollbar along the panel's right edge: shows the position in the long list and
-            // lets the player jump anywhere by dragging (the wheel alone gave no overview).
-            UiKit.AddVerticalScrollbar(_root, scroll, _px + _pw - 18f, 84f, 12f, 822f);
-            return content;
+            return shown;
+        }
+
+        private void SelectCategory(Category category)
+        {
+            if (category == s_category)
+            {
+                return;
+            }
+
+            s_category = category;
+            _rebinding = null; // a capture armed in another category would wait for a key the player cannot see
+            _rebindingPad = null;
+            _infoTitle = null; // the description card starts on the new category's own line
+            Rebuild();
+        }
+
+        /// <summary>The rows' card: an opaque card with a clipped scroll viewport over it. The shown category's rows go
+        /// onto the viewport's content; a scrollbar only appears when they are taller than the card.</summary>
+        private void BuildRows(float keepScroll)
+        {
+            UiKit.AddCard(_root, CardX, CardY, CardW, CardH);
+            float viewX = CardX + ViewInset, viewY = CardY + ViewInset, viewW = CardW - 2f * ViewInset, viewH = CardH - 2f * ViewInset;
+            _content = UiKit.AddScrollViewport(_root, "SettingsScroll", viewX, viewY, viewW, viewH, out var scroll);
+            _contentCategory = s_category;
+            _x = 14f;
+            _rowW = viewW - _x - 30f; // room on the right for the scrollbar
+
+            float y = 10f;
+            BuildCategoryRows(ref y);
+            float height = y + 12f;
+            _content.sizeDelta = new Vector2(0f, height);
+            if (height > viewH)
+            {
+                UiKit.AddVerticalScrollbar(_root, scroll, viewX + viewW - 16f, viewY + 4f, 12f, viewH - 8f);
+                _content.anchoredPosition = new Vector2(0f, Mathf.Clamp(keepScroll, 0f, height - viewH));
+            }
         }
 
         /// <summary>The Velopack update status as a localized line (+ version/error detail when present).</summary>
@@ -471,120 +168,7 @@ namespace BlocksBeyondTheStars.Client
             return string.IsNullOrEmpty(detail) ? s : $"{s} ({detail})";
         }
 
-        // Two-column row layout shared by every row so labels and controls line up throughout the
-        // screen: labels get LabelW, every control column starts at CtrlX (relative to _x).
-        private const float LabelW = 330f;
-        private const float CtrlX = 345f;
-
-        private void Head(ref float y, string text)
-        {
-            // Section header: extra air above, bold title + a divider line, so the groups scan clearly
-            // in the long list (Severin playtest: settings were hard to skim).
-            y += 14f;
-            UiKit.AddText(_content, _x, y, _rowW, 28, text.ToUpperInvariant(), 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            y += 32f;
-            UiKit.AddImage(_content, _x, y, _rowW, 2, UiKit.SolidSprite, new Color(0.12f, 0.35f, 0.5f, 0.9f));
-            y += 12f;
-        }
-
-        private void Cycle(ref float y, string label, string value, System.Action onClick)
-        {
-            UiKit.AddText(_content, _x, y, LabelW, 44, label, 20, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.AddButton(_content, _x + CtrlX, y, _rowW - CtrlX, 44, value, onClick);
-            y += 52f;
-        }
-
-        /// <summary>One per-effect switch of the atmosphere group (#2404): indented under the mode row; a change applies
-        /// live and keeps the mode on Custom.</summary>
-        private void AtmoToggle(ref float y, string key, bool on, System.Action<bool> set)
-        {
-            Toggle(ref y, "    " + L("ui.settings.atmo." + key), on, () =>
-            {
-                set(!on);
-                S.Atmosphere = AtmosphereMode.Custom;
-                S.Apply();
-                ApplyLiveWorld();
-                Rebuild();
-            });
-        }
-
-        private void Toggle(ref float y, string label, bool on, System.Action onClick)
-        {
-            UiKit.AddText(_content, _x, y, LabelW, 44, label, 20, UiKit.TextCol, TextAnchor.MiddleLeft);
-            var b = UiKit.AddButton(_content, _x + CtrlX, y, _rowW - CtrlX, 44, on ? L("ui.toggle.on") : L("ui.toggle.off"), onClick);
-            if (on)
-            {
-                b.GetComponent<Image>().color = UiKit.Cyan;
-            }
-
-            y += 52f;
-        }
-
-        /// <summary>A control-rebind row: the action label + a button showing its current keyboard key + a
-        /// second button showing its gamepad button ("—" when the action has none). Clicking either arms
-        /// capture for that device (<see cref="Update"/> binds the next key / pad button pressed).</summary>
-        private void KeyRow(ref float y, InputAction action)
-        {
-            UiKit.AddText(_content, _x, y, LabelW, 44, L(KeyLabel(action)), 20, UiKit.TextCol, TextAnchor.MiddleLeft);
-
-            float keyW = _rowW - CtrlX - 130f; // leave a 120-wide pad column + a 10 gap on the right
-            string val = _rebinding == action ? L("ui.settings.press_key") : InputMap.Key(action).ToString();
-
-            // Menu verbs show their key but cannot rebind it (#1198): Escape closes every screen and Tab
-            // opens the menu, so a player who bound either away could be stuck inside a modal. Their PAD
-            // button stays freely rebindable, which is the column a pad player actually cares about.
-            bool locked = InputMap.KeyboardLocked(action);
-            System.Action rebindKey = locked ? null : () => { _rebinding = action; _rebindingPad = null; Rebuild(); };
-            var b = UiKit.AddButton(_content, _x + CtrlX, y, keyW, 44, val, rebindKey);
-            if (locked)
-            {
-                b.interactable = false;
-            }
-            else if (_rebinding == action)
-            {
-                b.GetComponent<Image>().color = UiKit.Cyan;
-            }
-
-            // Gamepad column: the action's current pad button (rebindable even with no pad plugged in yet).
-            string padVal = _rebindingPad == action
-                ? L("ui.settings.press_pad")
-                : InputMap.PadGlyph(GamepadInputSource.ButtonFor(action)) ?? "—";
-            var pb = UiKit.AddButton(_content, _x + CtrlX + keyW + 10f, y, 120f, 44, padVal,
-                () => { _rebindingPad = action; _rebinding = null; Rebuild(); });
-            if (_rebindingPad == action)
-            {
-                pb.GetComponent<Image>().color = UiKit.Cyan;
-            }
-
-            y += 52f;
-        }
-
-        /// <summary>The next language in the picker cycle after <paramref name="current"/>. The cycle is
-        /// <see cref="BlocksBeyondTheStars.Shared.Content.GameContent.SelectableLocales"/> (EN/DE always,
-        /// community languages once their coverage clears the bar). A hand-set language outside the cycle
-        /// advances to its first entry.</summary>
-        private GameLocale NextLocale(GameLocale current)
-        {
-            var cycle = _shell.Content?.SelectableLocales();
-            if (cycle == null || cycle.Count == 0)
-            {
-                return current == GameLocale.German ? GameLocale.English : GameLocale.German;
-            }
-
-            int index = -1;
-            for (int i = 0; i < cycle.Count; i++)
-            {
-                if (cycle[i] == current)
-                {
-                    index = i;
-                    break;
-                }
-            }
-
-            return cycle[index < 0 ? 0 : (index + 1) % cycle.Count];
-        }
-
-        /// <summary>Locale key for a chat-visibility mode's button caption.</summary>
+        /// <summary>Locale key for an NPC-radio-calls mode's caption.</summary>
         private static string NpcCallsLabel(int mode) => mode switch
         {
             1 => "ui.settings.npc_calls.missions",
@@ -592,6 +176,7 @@ namespace BlocksBeyondTheStars.Client
             _ => "ui.settings.npc_calls.all",
         };
 
+        /// <summary>Locale key for a chat-visibility mode's caption.</summary>
         private static string ChatVisibilityLabel(ChatVisibility mode) => mode switch
         {
             ChatVisibility.Always => "ui.settings.chat_visibility.always",
@@ -599,58 +184,71 @@ namespace BlocksBeyondTheStars.Client
             _ => "ui.settings.chat_visibility.auto",
         };
 
-        /// <summary>Cycles the chat-visibility setting: auto → always → off → auto.</summary>
-        private static ChatVisibility NextChatVisibility(ChatVisibility mode) => mode switch
+        /// <summary>Locale key for a controls-line mode's caption (#3668).</summary>
+        private static string ControlsLineLabel(int mode) => mode switch
         {
-            ChatVisibility.Auto => ChatVisibility.Always,
-            ChatVisibility.Always => ChatVisibility.Off,
-            _ => ChatVisibility.Auto,
+            ClientSettings.ControlsHintFull => "ui.settings.controls_line.full",
+            ClientSettings.ControlsHintOff => "ui.toggle.off",
+            _ => "ui.settings.controls_line.short",
         };
 
         // The action → locale-key table lives in InputMap.LabelKey (shared with the context-actions list, #1042).
         private static string KeyLabel(InputAction action) => InputMap.LabelKey(action);
 
         /// <summary>The screen is torn down with every phase change — a capture left open must not keep blocking F1.</summary>
-        private void OnDestroy() => CapturingKey = false;
+        private void OnDestroy()
+        {
+            CapturingKey = false;
+            if (s_open == this)
+            {
+                s_open = null;
+            }
+        }
 
-        /// <summary>While a control row is capturing, bind the next key / pad button pressed (Escape cancels).
-        /// Returns immediately when not rebinding, so it costs nothing in normal use.</summary>
+        /// <summary>Follows the pad's focus with the description card, and while a control row is capturing, binds the
+        /// next key / pad button pressed (Escape cancels). Costs one selection lookup per frame in normal use.</summary>
         private void Update()
         {
             CapturingKey = _rebinding != null || _rebindingPad != null;
+            TrackFocus();
 
             // Gamepad capture: only joystick buttons count, so stray keyboard presses can't land here.
             if (_rebindingPad is { } padAction)
             {
-                if (Input.GetKeyDown(KeyCode.Escape))
+                CapturePadButton(padAction);
+            }
+            else if (_rebinding is { } action)
+            {
+                CaptureKey(action);
+            }
+        }
+
+        private void CapturePadButton(InputAction padAction)
+        {
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                _rebindingPad = null;
+                Rebuild();
+                return;
+            }
+
+            for (var kc = KeyCode.JoystickButton0; kc <= KeyCode.JoystickButton19; kc++)
+            {
+                if (Input.GetKeyDown(kc))
                 {
+                    // Store the override — or clear it when the chosen button is already this action's default.
+                    S.SetBoundPad(padAction.ToString(),
+                        kc == GamepadInputSource.DefaultButtonFor(padAction) ? string.Empty : kc.ToString());
+                    S.Save();
                     _rebindingPad = null;
                     Rebuild();
                     return;
                 }
-
-                for (var kc = KeyCode.JoystickButton0; kc <= KeyCode.JoystickButton19; kc++)
-                {
-                    if (Input.GetKeyDown(kc))
-                    {
-                        // Store the override — or clear it when the chosen button is already this action's default.
-                        S.SetBoundPad(padAction.ToString(),
-                            kc == GamepadInputSource.DefaultButtonFor(padAction) ? string.Empty : kc.ToString());
-                        S.Save();
-                        _rebindingPad = null;
-                        Rebuild();
-                        return;
-                    }
-                }
-
-                return;
             }
+        }
 
-            if (_rebinding is not { } action)
-            {
-                return;
-            }
-
+        private void CaptureKey(InputAction action)
+        {
             if (Input.GetKeyDown(KeyCode.Escape))
             {
                 _rebinding = null;
@@ -676,19 +274,6 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
             }
-        }
-
-        private void Stepper(ref float y, string label, float frac01, float min, float max, System.Action minus, System.Action plus, string value)
-        {
-            UiKit.AddText(_content, _x, y, LabelW, 44, label, 20, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.AddButton(_content, _x + CtrlX, y, 50, 44, "−", minus);
-            UiKit.AddText(_content, _x + CtrlX + 54, y, _rowW - CtrlX - 50 - 50 - 8, 44, value, 20, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddButton(_content, _x + _rowW - 50, y, 50, 44, "+", plus);
-            // fill bar
-            float fw = _rowW - CtrlX;
-            UiKit.AddImage(_content, _x + CtrlX, y + 40, fw, 4, UiKit.SolidSprite, new Color(0.1f, 0.18f, 0.3f));
-            UiKit.AddImage(_content, _x + CtrlX, y + 40, fw * Mathf.Clamp01(frac01), 4, UiKit.SolidSprite, UiKit.Cyan);
-            y += 56f;
         }
 
         /// <summary>Pushes the settings that <see cref="WorldRig"/> snapshots at world build to the LIVE world
@@ -779,26 +364,7 @@ namespace BlocksBeyondTheStars.Client
             FxKit.Configure(S.Preset, S.ReducedEffects, S.ScreenShake, S.ReduceFlashes, S.CameraMotion); // #2152, live
         }
 
-        private void VolRow(ref float y, string label, System.Func<float> get, System.Action<float> set)
-        {
-            float v = get();
-            // Apply() right away so the change is audible immediately — important when adjusting the volume from
-            // the in-game pause menu, where waiting until you close settings to hear it feels broken (Severin playtest).
-            Stepper(ref y, label, v, 0, 1,
-                () => { set(Mathf.Clamp01(get() - 0.1f)); S.Apply(); Rebuild(); },
-                () => { set(Mathf.Clamp01(get() + 0.1f)); S.Apply(); Rebuild(); },
-                Mathf.RoundToInt(v * 100f) + "%");
-        }
-
-        private void ColorRow(ref float y, string label, Color color, System.Action onNext)
-        {
-            UiKit.AddText(_content, _x, y, LabelW, 44, label, 20, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.AddButton(_content, _x + CtrlX, y, _rowW - CtrlX - 70, 44, L("ui.settings.next_color"), onNext);
-            UiKit.AddImage(_content, _x + _rowW - 56, y + 6, 56, 32, UiKit.SolidSprite, color);
-            y += 52f;
-        }
-
-        /// <summary>Localizer key for a window-presentation mode (label shown on the cycle button).</summary>
+        /// <summary>Localizer key for a window-presentation mode (label shown on the cycle).</summary>
         private static string WindowModeKey(WindowMode m) => m switch
         {
             WindowMode.Borderless => "ui.settings.window_mode.borderless",
@@ -817,10 +383,17 @@ namespace BlocksBeyondTheStars.Client
             ? L("ui.settings.far_view.off")
             : L("ui.settings.far_view.blocks").Replace("{n}", blocks.ToString());
 
-        private static int NextFpsCap(int current)
+        /// <summary>The frame-rate cap one step forward (<paramref name="dir"/> +1) or back (-1); a value outside the list
+        /// steps onto its first (forward) or last (back) entry.</summary>
+        private static int StepFpsCap(int current, int dir)
         {
             int idx = System.Array.IndexOf(FpsCaps, current);
-            return FpsCaps[(idx + 1) % FpsCaps.Length];
+            if (idx < 0)
+            {
+                return dir > 0 ? FpsCaps[0] : FpsCaps[FpsCaps.Length - 1];
+            }
+
+            return FpsCaps[Wrap(idx + dir, FpsCaps.Length)];
         }
 
         /// <summary>#2568: the next push-to-talk key — from a curated list (<see cref="PushToTalkKeys.Candidates"/>), minus
@@ -844,7 +417,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The push-to-talk key's on-screen name ("Caps Lock" / "Feststelltaste" instead of "CapsLock").</summary>
         private string PttLabel(string keyName) => PushToTalkKeys.LabelKey(keyName) is { } labelKey ? L(labelKey) : keyName;
 
-        private static Color Next(Color current)
+        /// <summary>The palette colour one step forward (<paramref name="dir"/> +1) or back (-1) from
+        /// <paramref name="current"/>; a colour outside the palette steps onto its first (forward) or last (back) entry.</summary>
+        private static Color StepColor(Color current, int dir)
         {
             int idx = -1;
             for (int i = 0; i < Palette.Length; i++)
@@ -856,7 +431,35 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            return Palette[(idx + 1) % Palette.Length];
+            if (idx < 0)
+            {
+                return dir > 0 ? Palette[0] : Palette[Palette.Length - 1];
+            }
+
+            return Palette[Wrap(idx + dir, Palette.Length)];
+        }
+
+        /// <summary><paramref name="value"/> wrapped into 0..<paramref name="count"/>-1 — a cycle's step past either end.</summary>
+        private static int Wrap(int value, int count) => ((value % count) + count) % count;
+
+        /// <summary>The value BEFORE <paramref name="current"/> in a cycle that only knows its next step: walks the cycle
+        /// until it comes back round. A value outside the cycle (it never comes back) steps forward instead.</summary>
+        private static T Previous<T>(T current, System.Func<T, T> next)
+        {
+            var same = System.Collections.Generic.EqualityComparer<T>.Default;
+            T at = current;
+            for (int i = 0; i < 32; i++)
+            {
+                T after = next(at);
+                if (same.Equals(after, current))
+                {
+                    return at;
+                }
+
+                at = after;
+            }
+
+            return next(current);
         }
     }
 }

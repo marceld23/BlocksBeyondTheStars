@@ -54,6 +54,10 @@ namespace BlocksBeyondTheStars.Client
         /// closed. The music director waits a while on the crafting / tech tabs before switching beds.</summary>
         public string MenuTabKey { get; set; }
 
+        /// <summary>True while the console (the Tab menu) is open — <see cref="MenuTabKey"/> names its tab then. Unlike
+        /// <see cref="MenuOpen"/> not for trade, a dialogue or another panel.</summary>
+        public bool ConsoleOpen => MenuTabKey != null;
+
         /// <summary>Squared distance (world units) to the nearest hostile planet creature this frame, or
         /// <see cref="float.MaxValue"/> when none is near / the player is aboard. Written by <see cref="WorldEntities"/>.</summary>
         public float NearestHostileSqr { get; set; } = float.MaxValue;

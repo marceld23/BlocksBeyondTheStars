@@ -49,8 +49,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The big window's rectangle in HUD units for this frame's neighbours and the live canvas size — the
         /// on-screen keyboard's real panel top filled in. Pure for the EditMode test.</summary>
-        public static ChatRect ResolveBigWindow(bool vegaSpeech, bool osk, bool touchKeyboard, float canvasW, float canvasH)
-            => ChatWindowLayout.Resolve(vegaSpeech, osk, touchKeyboard, canvasW, canvasH, OnScreenKeyboardUi.PanelTop);
+        public static ChatRect ResolveBigWindow(bool vegaSpeech, bool osk, bool touchKeyboard, float canvasW, float canvasH,
+            float commsTop = ChatWindowLayout.CommsTop)
+            => ChatWindowLayout.Resolve(vegaSpeech, osk, touchKeyboard, canvasW, canvasH, OnScreenKeyboardUi.PanelTop, commsTop);
 
         private ChatRect ResolveBigRect()
         {
@@ -59,7 +60,11 @@ namespace BlocksBeyondTheStars.Client
             bool osk = _mode == ChatWindowMode.Pad && OnScreenKeyboardUi.IsOpen;
             bool touch = _mode == ChatWindowMode.Prompt || (_mode == ChatWindowMode.Keyboard && TouchControlsUi.ShouldShow());
             var size = ((RectTransform)_canvas.transform).rect.size;
-            return ResolveBigWindow(speech, osk, touch, size.x, size.y);
+            // Under the status panel, which grows with an exposure meter or running effects (its usual end is y 260 → top 272).
+            var r = ResolveBigWindow(speech, osk, touch, size.x, size.y, HudUi.VitalsBottomY + 12f);
+            // On a touch device the centred window keeps off the touch row along the top and the buttons under it (at a large
+            // UI scale the MAP button reaches its top edge).
+            return touch ? TouchHudLayout.ClearOfTouch(r, HudZones.Touch) : r;
         }
 
         /// <summary>Re-places the window when VEGA starts or stops talking, the keyboard comes or goes, or the canvas

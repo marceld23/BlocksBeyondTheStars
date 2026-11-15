@@ -420,7 +420,7 @@ material token (`@wall @accent @roof @floor @path`, `MaterialTokens`) instead of
 2-wide × 3-tall doorways with a door marker, storeys of four joined by a staircase along the west wall, a `room` marker in
 every room and a bed in every building people live in; interior doorways carry door markers (they separate rooms for the
 furnisher). The editor's town palette has the token section, the *Built for* stepper replaces the port-door stepper in
-the town editor, *Kits…* sits on the *Use as* row and the kit panel's module rows have a picker (`OpenPicker`, fed with
+the village editor, *Kits…* sits on the *Use as* row and the kit panel's module rows have a picker (`OpenPicker`, fed with
 the editor's module pool).
 
 **Editor (#1877)** (`StructureEditor.cs`, `KitEditorPanel.cs`): *Use as* toggles whole structure / kit module in both
@@ -442,7 +442,7 @@ stripped) and keeps `kit`, `function` and non-empty `port` fields.
 
 *Underground toggles (#3333):* the kit panel shows **☐ Underground** (`ui.kit.underground`) beside the planet types of a
 settlement or city kit (a station kit has none; Save clears the flag on a station kit), stored as `underground` in
-`KitJson` → the user kit file and `kit.json`. The town editor's whole-structure form shows **☐ Underground (never on the
+`KitJson` → the user kit file and `kit.json`. The village editor's whole-structure form shows **☐ Underground (never on the
 surface)** (`ui.struct.underground`) under the planet types — not in module mode (a module follows its kit) and not in
 the station editor (stations hang in space); `MetaJson` / `TemplateJson` carry it into `structure.json`, the user
 template file and the submission, and LOAD reads it back from all three sources (built-in, user file, export bundle).
@@ -475,11 +475,11 @@ beside the arrival hall's door, conduits up the wall and along the ceiling edge 
 
 ## 3d. Landmarks — a third use (#3491–#3493, 2026-11-11)
 
-The town editor's **Use as** has a third value beside *Whole structure* and *Kit module*: **Landmark** — one giant building
+The village editor's **Use as** has a third value beside *Whole structure* and *Kit module*: **Landmark** — one giant building
 that the landmark stamper seats on a planet on its own ([LANDMARKS.md](LANDMARKS.md)). What the editor adds for it
 (`StructureEditor.Landmark.cs`, `EditorMarkerPanel.cs`):
 
-- **Room.** The town editor's room is `LandmarkRules.MaxSize` = 256 blocks a side (a station keeps 128).
+- **Room.** The village editor's room is `LandmarkRules.MaxSize` = 256 blocks a side (a station keeps 128).
 - **Form.** Ruin or as built, the ruin profile and strength, the conditions (*only on planets with air*, *only on
   inhabited planets*), the ground row, *inhabited* (protected, only when it is no ruin) and the name's locale key.
 - **Ruin preview.** *Show as a ruin* builds the template from the room and runs `LandmarkGenerator.Build(…, ruin: true)`
@@ -505,14 +505,14 @@ entry's pool) drives all of it.
 - **Generate from any source** (`StructureEditor.Sources.cs`). *Generate* runs any source of `StructureSources` — the very
   build the server runs for a fresh instance — instead of the two fixed generators. The source picker lists them by where
   they stand (surface, underground, space); one the editor cannot bake says which editor it belongs in (the station editor
-  bakes space sources, the town editor surface and underground ones; a ship source is never offered). The form shows the
+  bakes space sources, the village editor surface and underground ones; a ship source is never offered). The form shows the
   source's parameters (`IStructureSource.GetParams`: a number with − / +, a choice, a switch or a text; a `tier` parameter
   starts at the form's size), the **seed** with its reroll and, where the source has an intact form, **as in the world**
   (the generator's own decay at the current terrain generation) against intact. The result loads as editable cells:
   blocks by key with dye, glow and form, markers on the marker palette (a chest's or sound's settings kept), pre-built
   devices on their blocks, cavity cells as cavity. The classic Generate is the `settlement` / `station` source.
 - **Generator entries** (`StructureEditor.Entry.cs`). *Use as → Generator entry* turns the form into an entry: the pool
-  (the town editor: settlement, underground or landmark; the station editor: station), the source with its parameters and
+  (the village editor: settlement, underground or landmark; the station editor: station), the source with its parameters and
   the seed. The room shows the source's build with that seed, read-only like a preview; a changed parameter does not
   rebuild it (stepping a number through − / + would rebuild the source and re-frame the camera on every click) — *Update
   the preview* does, and keeps the camera where it is. A landmark entry also shows the landmark conditions (*needs air*,
@@ -559,7 +559,7 @@ entry's pool) drives all of it.
 
 ## 3f. Giant ships — a fourth use (#3616, 2026-11-14)
 
-The town editor's **Use as** cycles whole structure → kit module → landmark → **giant ship** → generator entry: a huge
+The village editor's **Use as** cycles whole structure → kit module → landmark → **giant ship** → generator entry: a huge
 spaceship (up to `GiantShipRules.MaxSize` = 256 a side, the landmark's room) that nobody can build — the game only shows it
 as a wreck, crashed on a planet or drifting in space ([GIANT_SHIPS.md](GIANT_SHIPS.md)). What the editor adds for it
 (`StructureEditor.GiantShip.cs`, `StructureStampRules` and `GiantShipEditorRules` in Client.Core):
@@ -596,7 +596,7 @@ as a wreck, crashed on a planet or drifting in space ([GIANT_SHIPS.md](GIANT_SHI
 ## 3g. Civilization templates (#3646, 2026-11-15)
 
 A civilization's site or prop ([CIVILIZATIONS.md](CIVILIZATIONS.md)) is a landmark-style template that names a civilization,
-so the town editor's landmark form edits it (`StructureEditor.Civilization.cs`; Unity-free rules in `CivilizationEditorRules`,
+so the village editor's landmark form edits it (`StructureEditor.Civilization.cs`; Unity-free rules in `CivilizationEditorRules`,
 `CivilizationFields` and `MarkerCarves` in Client.Core, pinned by `UserTemplateFilesCivilizationTests`).
 
 - **Load.** LOAD lists the shipped civilization templates (as copies; generator entries such as the maze ruins are not

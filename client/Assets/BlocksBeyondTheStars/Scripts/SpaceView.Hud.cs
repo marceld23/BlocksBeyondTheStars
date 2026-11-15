@@ -142,28 +142,28 @@ namespace BlocksBeyondTheStars.Client
             _cargo.horizontalOverflow = HorizontalWrapMode.Overflow;
             _cargo.raycastTarget = false;
 
-            // Hull + shield as BARS, directly under the suit's own bars and in the same column — a pilot
-            // reads "how much is left" off a fill, not off a number. The flight view owns them while
-            // piloting, because the vitals panel's hull/shield rows step aside then (#915). Hidden on an
-            // EVA, where that panel shows them again.
-            _hullBar = MakeStatusBar(_shipStatus, 30f, "HULL", HullBarCol);
-            _shieldBar = MakeStatusBar(_shipStatus, 56f, "SHD", ShieldBarCol);
+            // Hull + shield: the vitals panel's own rows show them in flight too (#3670) — these flight-view bars were a
+            // second copy in another style with hard-coded English captions. They stay built (the alarm reads their
+            // state) but never show.
+            _hullBar = MakeStatusBar(_shipStatus, 30f, string.Empty, HullBarCol);
+            _shieldBar = MakeStatusBar(_shipStatus, 56f, string.Empty, ShieldBarCol);
 
             // Flight instruments (bottom-left): smoothed speed, throttle, heading — and above them the altitude
             // over the flight plane (#1881), on a line of its own because the controls hint starts right after HDG.
             // Avionics-style abbreviations (SPD/THR/HDG/ALT) — identical in DE and EN cockpits.
+            // #3670: a strip right above the systems bar (HudZones H) — near the eye, not in the far bottom-left corner.
             var instGo = new GameObject("Instruments", typeof(RectTransform));
             instGo.transform.SetParent(_ui.transform, false);
             var insRt = instGo.GetComponent<RectTransform>();
-            insRt.anchorMin = insRt.anchorMax = new Vector2(0f, 0f);
-            insRt.pivot = new Vector2(0f, 0f);
-            insRt.sizeDelta = new Vector2(620f, 52f);
-            insRt.anchoredPosition = new Vector2(20f, 20f);
+            insRt.anchorMin = insRt.anchorMax = new Vector2(0.5f, 0f);
+            insRt.pivot = new Vector2(0.5f, 0f);
+            insRt.sizeDelta = new Vector2(540f, 52f);
+            insRt.anchoredPosition = new Vector2(0f, 130f);
             _instruments = instGo.AddComponent<Text>();
             _instruments.font = UiKit.Font;
             _instruments.fontSize = 19;
             _instruments.color = UiKit.Cyan;
-            _instruments.alignment = TextAnchor.LowerLeft; // the SPD line stays where it always was
+            _instruments.alignment = TextAnchor.LowerCenter; // the SPD line right above the systems bar
             _instruments.horizontalOverflow = HorizontalWrapMode.Overflow;
             _instruments.verticalOverflow = VerticalWrapMode.Overflow;
             _instruments.raycastTarget = false;
@@ -428,14 +428,18 @@ namespace BlocksBeyondTheStars.Client
                 var device = InputMap.ActiveDevice;
                 bool autopilot = Game.AiCoreTier >= 2;
                 var stamp = HudUi.GlyphStamp; // #2502: a rebind or another pad glyph set re-expands the {key:Action} tokens
+                int hintMode = Game != null && Game.Settings != null ? Game.Settings.ControlsHintMode : ClientSettings.ControlsHintShort; // #3668
+                PlaceFlightHint(hintMode == ClientSettings.ControlsHintShort);
                 if (_flightHint == null || device != _flightHintDevice || autopilot != _flightHintAutopilot || !ReferenceEquals(loc, _flightHintLoc)
-                    || !stamp.Equals(_flightHintStamp))
+                    || !stamp.Equals(_flightHintStamp) || hintMode != _flightHintMode)
                 {
                     _flightHintDevice = device;
                     _flightHintAutopilot = autopilot;
                     _flightHintLoc = loc;
                     _flightHintStamp = stamp;
-                    string hint = device switch
+                    _flightHintMode = hintMode;
+                    string hint = hintMode == ClientSettings.ControlsHintOff ? string.Empty
+                        : hintMode == ClientSettings.ControlsHintShort ? ShortFlightHint(loc, device) : device switch
                     {
                         InputDeviceKind.Touch => string.Empty,
                         InputDeviceKind.Gamepad => loc != null ? HudUi.PadLine(loc, "ui.space.controls_pad")
@@ -445,12 +449,14 @@ namespace BlocksBeyondTheStars.Client
                     };
                     // #2502: the autopilot and chart hints name the bound key / the pad's Actions list — the pad line used to
                     // read the keyboard's "[P] Autopilot · [M] Chart".
-                    if (autopilot && device != InputDeviceKind.Touch)
+                    // #3668: the short line keeps its four flight keys — the autopilot is a standing capability (AI core tier 2+),
+                    // not a moment's hint, and would push "enter ship" out for good; F1 and the full line list it.
+                    if (autopilot && device != InputDeviceKind.Touch && hintMode == ClientSettings.ControlsHintFull)
                     {
                         hint += " · " + HudUi.ExpandKeyTokens(loc, Loc("ui.vega.autopilot.hint", "{key:FlightAutopilot} autopilot"));
                     }
 
-                    if (device != InputDeviceKind.Touch)
+                    if (device != InputDeviceKind.Touch && hintMode == ClientSettings.ControlsHintFull)
                     {
                         hint += " · " + HudUi.ExpandKeyTokens(loc, Loc("ui.spacemap.key_hint", "{key:FlightMap} chart")); // system chart (#597)
                     }
@@ -783,10 +789,11 @@ namespace BlocksBeyondTheStars.Client
         {
             var combat = Game?.ShipCombat;
             bool show = _phase == Phase.Cruise && !_eva && combat != null;
-            if (_hullBar.Go != null && _hullBar.Go.activeSelf != show)
+            if (_hullBar.Go != null && _hullBar.Go.activeSelf)
             {
-                _hullBar.Go.SetActive(show);
-                _shieldBar.Go.SetActive(show);
+                // #3670: the vitals panel shows hull and shield in flight now; these stay hidden, the alarm below still runs.
+                _hullBar.Go.SetActive(false);
+                _shieldBar.Go.SetActive(false);
             }
 
             if (!show)
@@ -857,6 +864,44 @@ namespace BlocksBeyondTheStars.Client
         // #1516: last-formatted flight overlay state (hint, cargo line, instruments).
         private string _flightHint;
         private InputDeviceKind _flightHintDevice;
+        private int _flightHintMode = -1;
+        private int _flightHintPlaced = -1;
+        private float _flightHintInset; // the short line's distance from the right edge as placed
+
+        /// <summary>#3668: the short flight line — four keys, bottom right — for the device in hand (none on touch).</summary>
+        private static string ShortFlightHint(BlocksBeyondTheStars.Shared.Localization.Localizer loc, InputDeviceKind device)
+        {
+            if (loc == null || device == InputDeviceKind.Touch)
+            {
+                return string.Empty;
+            }
+
+            return device == InputDeviceKind.Gamepad
+                ? HudUi.PadLine(loc, "ui.space.controls_short_pad")
+                : HudUi.ExpandKeyTokens(loc, loc.Get("ui.space.controls_short"));
+        }
+
+        /// <summary>#3668: the short line sits bottom right (HudZones G), the full one keeps the bottom-centre spot. In a browser
+        /// the short line keeps clear of the page's fullscreen button over that corner (TouchHudLayout.BrowserButtonInset).</summary>
+        private void PlaceFlightHint(bool shortHint)
+        {
+            int placed = shortHint ? 1 : 0;
+            float inset = shortHint && Application.platform == RuntimePlatform.WebGLPlayer && _ui != null
+                ? TouchHudLayout.BrowserButtonInset(_ui.scaleFactor, Screen.dpi / 96f) : 12f;
+            if (_hint == null || (placed == _flightHintPlaced && Mathf.Approximately(inset, _flightHintInset)))
+            {
+                return;
+            }
+
+            _flightHintPlaced = placed;
+            _flightHintInset = inset;
+            var rt = _hint.rectTransform;
+            rt.anchorMin = rt.anchorMax = rt.pivot = shortHint ? new Vector2(1f, 0f) : new Vector2(0.5f, 0f);
+            rt.anchoredPosition = shortHint ? new Vector2(-inset, 10f) : new Vector2(0f, 20f);
+            rt.sizeDelta = new Vector2(shortHint ? 620f : 560f, 24f);
+            _hint.alignment = shortHint ? TextAnchor.MiddleRight : TextAnchor.MiddleCenter;
+            _hint.fontSize = shortHint ? 17 : 18;
+        }
         private bool _flightHintAutopilot;
         private object _flightHintLoc;
         private (ClientSettings, int, PadGlyphSet, bool) _flightHintStamp;

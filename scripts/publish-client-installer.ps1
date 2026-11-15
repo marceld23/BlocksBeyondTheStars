@@ -94,8 +94,10 @@ if (-not (Test-Path $iconPath)) {
 }
 
 # Render the installer splash from the launcher itself, so the install window matches the loading splash the
-# player sees at startup (same procedural space art). We render WITHOUT the launcher's indeterminate bar —
-# Velopack overlays its own live progress bar, which we tint to the game's cyan (#7DDEEC) below.
+# player sees at startup. #3706: that is the game's own poster (the corvette before the "varied" world with the block
+# logo) when the launcher was built with client/Branding/launcher-splash.jpg compiled in, else the procedural space art.
+# We render WITHOUT the launcher's indeterminate bar — Velopack overlays its own live progress bar, which we tint to the
+# game's cyan (#7DDEEC) below.
 $splashImage = Join-Path $repo 'artifacts/installer-splash.png'
 $splashColor = '#7DDEEC'
 New-Item -ItemType Directory -Force (Split-Path -Parent $splashImage) | Out-Null

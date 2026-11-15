@@ -52,10 +52,10 @@ public sealed class GuardianGiantStampTests : IDisposable
     // ---- the kind ------------------------------------------------------------------------------------------------------
 
     [Fact]
-    public void TheKind_IsGatedByGeneration44_TheCurrentOne_AndShippedAsItsDefaults()
+    public void TheKind_IsGatedByGeneration44_AndShippedAsItsDefaults()
     {
         Assert.Equal(44, WorldDescription.GuardianGiantsGeneration);
-        Assert.Equal(WorldDescription.GuardianGiantsGeneration, WorldDescription.CurrentTerrainGeneration);
+        Assert.True(WorldDescription.GuardianGiantsGeneration < WorldDescription.CurrentTerrainGeneration); // 45: the abandoned beds
         Assert.Equal(WorldDescription.CurrentTerrainGeneration, new ServerConfig().World.TerrainGeneration);
 
         var rule = StructureTypeRules.Defaults.Get(StructureTypeRules.GuardianGiant);

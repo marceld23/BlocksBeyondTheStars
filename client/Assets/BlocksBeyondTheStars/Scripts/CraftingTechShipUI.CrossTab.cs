@@ -69,7 +69,7 @@ namespace BlocksBeyondTheStars.Client
             y += 36f;
             foreach (var (tab, hits) in groups)
             {
-                string tabName = L(Tabs.First(t => t.Mode == tab).Loc);
+                string tabName = L(ModeLoc(tab));
                 foreach (var (name, category, selected) in hits.Take(CrossTabEntries))
                 {
                     var b = UiKit.AddButton(_listContent, 0, y, 780, 52, string.Empty, () => OpenTabWithSearch(tab, category, selected, search));

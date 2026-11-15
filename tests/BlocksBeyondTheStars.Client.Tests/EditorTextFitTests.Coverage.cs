@@ -24,7 +24,6 @@ public sealed partial class EditorTextFitTests
     private static readonly Dictionary<string, string> NotLaidOut = new(StringComparer.Ordinal)
     {
         ["ui.ed.form_auto"] = "the form picker shows it only where it fits two lines, else ui.ed.form_auto_short (EditorFormPicker.AutoCaption)",
-        ["ui.shape.custom.multi_in_menu"] = "a HUD message (Game.ShowMessage), not a text of the editor's own screen",
     };
 
     private static readonly Regex KeyLiteral = new("\"(?<key>ui\\.[a-z0-9_.]+[a-z0-9_])\"", RegexOptions.Compiled | RegexOptions.ExplicitCapture,

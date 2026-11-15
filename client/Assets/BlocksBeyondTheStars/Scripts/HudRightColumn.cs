@@ -17,8 +17,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Side of the (square) compass dial.</summary>
         public const float CompassSize = 120f;
 
-        /// <summary>Top of the first caption row ("Ship 114 m") inside the compass rect — the rows hang below the dial.</summary>
-        public const float CaptionTop = 100f;
+        /// <summary>Top of the first caption row ("Ship 114 m") inside the compass rect — the rows hang below the dial (#3668:
+        /// at 100 the first row ran over the dial's lower rim).</summary>
+        public const float CaptionTop = CompassSize + 2f;
 
         /// <summary>Height of one compass caption row.</summary>
         public const float CaptionRowH = 18f;
@@ -53,7 +54,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The clock panel's height with or without its chip row.</summary>
         public static float ClockHeight(bool chipRow) => ClockH + (chipRow ? ClockChipRowH : 0f);
 
-        /// <summary>Top of the playtime panel: under the clock panel, whose height depends on the chip row.</summary>
-        public static float PlaytimeY(bool chipRow) => ClockY + ClockHeight(chipRow) + Gap;
+        /// <summary>Top of the playtime panel: right under the clock panel, whose height depends on the chip row — no gap, so
+        /// the two read as one tile (#3668: the playtime used to be a tile of its own).</summary>
+        public static float PlaytimeY(bool chipRow) => ClockY + ClockHeight(chipRow);
     }
 }

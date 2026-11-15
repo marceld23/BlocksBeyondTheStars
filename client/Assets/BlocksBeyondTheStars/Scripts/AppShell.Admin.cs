@@ -38,13 +38,13 @@ namespace BlocksBeyondTheStars.Client
         {
             if (AdminRowOffered(boot))
             {
-                UiKit.AddFitButton(panel, 90f, y, 300f, 56f, L("ui.pause.admin"), OpenAdminView);
+                UiKit.StyleTier(UiKit.AddFitButton(panel, PauseRowX, y, PauseRowW, 56f, L("ui.pause.admin"), OpenAdminView, "btn_host"), ButtonTier.Secondary);
                 y += PauseRow;
             }
 
             if (CallAdminRowOffered(boot))
             {
-                UiKit.AddFitButton(panel, 90f, y, 300f, 56f, L("ui.pause.call_admin"), OpenCallAdminDialog);
+                UiKit.StyleTier(UiKit.AddFitButton(panel, PauseRowX, y, PauseRowW, 56f, L("ui.pause.call_admin"), OpenCallAdminDialog, "btn_feedback"), ButtonTier.Secondary);
                 y += PauseRow;
             }
 
@@ -84,8 +84,8 @@ namespace BlocksBeyondTheStars.Client
             float y = 76f + hintH + 16f;
             _callAdminInput = UiKit.AddInput(panel, 28f, y, CallBoxW - 56f, 52f, string.Empty, null, L("ui.pause.call_admin_placeholder"), 200);
             y += 52f + 22f;
-            UiKit.AddFitButton(panel, 28f, y, 300f, 52f, L("ui.pause.call_admin_send"), SendCallAdmin);
-            UiKit.AddFitButton(panel, CallBoxW - 28f - 240f, y, 240f, 52f, L("ui.pause.call_admin_cancel"), CloseCallAdminDialog);
+            UiKit.StyleTier(UiKit.AddFitButton(panel, 28f, y, 300f, 52f, L("ui.pause.call_admin_send"), SendCallAdmin, "btn_feedback"), ButtonTier.Primary);
+            UiKit.StyleTier(UiKit.AddFitButton(panel, CallBoxW - 28f - 240f, y, 240f, 52f, L("ui.pause.call_admin_cancel"), CloseCallAdminDialog, "btn_back"), ButtonTier.Quiet);
             UiKit.OpenModal(overlay);
             if (InputMap.ActiveDevice == InputDeviceKind.KeyboardMouse)
             {
