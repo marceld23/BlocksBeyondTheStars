@@ -547,7 +547,7 @@ public sealed partial class GameServer
         // of (seed, N), so the grown systems come back byte-identical, in the same pass as the fixed ones.
         int systemCount = _meta.Description.StarSystemCount + Math.Max(0, _meta.GalaxyGrownSystems);
         // #2437: the generator is told the start type so its gas-giant pass never eats the planet the pick below lands on.
-        _galaxy = new UniverseGenerator(_meta.Seed, _meta.Description, _content, _meta.DefaultPlanetType).Generate(systemCount);
+        _galaxy = GenerateGalaxy(systemCount); // #3640: with the civilizations' pinned guarantees
         _padCache.Clear(); // pads are a function of the galaxy (#1618)
 
         // #2242: the wormholes — a pure pass over the FIXED systems after the generator, so the layout is untouched

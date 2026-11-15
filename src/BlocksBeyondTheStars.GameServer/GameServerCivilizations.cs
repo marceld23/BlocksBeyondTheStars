@@ -95,6 +95,11 @@ public sealed partial class GameServer
     /// generation 43 or later; an older one has no homes).</summary>
     private bool CivilizationSuppresses(string kind)
     {
+        if (!CivilizationKindOn())
+        {
+            return false; // the kind switched off stamps no site, so a home body keeps its landmark and its giant wreck
+        }
+
         foreach (var civ in HomeCivilizations())
         {
             if (civ.HomeBody.Suppress.Contains(kind, System.StringComparer.OrdinalIgnoreCase))
@@ -104,6 +109,29 @@ public sealed partial class GameServer
         }
 
         return false;
+    }
+
+    /// <summary>Whether the <c>civilization</c> kind of data/structure_types.json stamps on the active body (switched on, the
+    /// body's terrain generation at least its <c>minGeneration</c>).</summary>
+    private bool CivilizationKindOn()
+        => StructureType(StructureTypeRules.Civilization) is { Enabled: true } rules && _generator.TerrainGeneration >= rules.MinGeneration;
+
+    /// <summary>#3640: the galaxy of the world from its seed — with the civilizations' guarantees the world pinned on its first
+    /// start (<c>WorldMetadata.CivilizationGuarantees</c>), or, on that first start of a generation-43 world, the ones the
+    /// generator applied, pinned now (saved with the metadata).</summary>
+    private Galaxy GenerateGalaxy(int systemCount)
+    {
+        var generator = new UniverseGenerator(_meta.Seed, _meta.Description, _content, _meta.DefaultPlanetType)
+        {
+            PinnedCivilizationGuarantees = _meta.CivilizationGuarantees,
+        };
+        var galaxy = generator.Generate(systemCount);
+        if (_meta.CivilizationGuarantees is null && _meta.Description.TerrainGeneration >= WorldDescription.CivilizationsGeneration)
+        {
+            _meta.CivilizationGuarantees = new Dictionary<string, string>(generator.AppliedCivilizationGuarantees, System.StringComparer.Ordinal);
+        }
+
+        return galaxy;
     }
 
     /// <summary>Picks and pins the homes of every framework civilization that has none pinned yet (a world of terrain
@@ -184,7 +212,7 @@ public sealed partial class GameServer
 
         bool home = _meta.CivilizationHomes.TryGetValue(civ.Key, out var homes) && homes.Contains(_world.LocationId);
         if (!home || _generator.TerrainGeneration < civ.MinTerrainGeneration
-            || StructureType(StructureTypeRules.Civilization) is not { Enabled: true } kindRules || _generator.TerrainGeneration < kindRules.MinGeneration)
+            || !CivilizationKindOn())
         {
             return; // nothing decided: the kind switched off in data/structure_types.json asks again once it is on
         }
@@ -201,24 +229,36 @@ public sealed partial class GameServer
     /// committed site reserves its footprint before the next one is seated. Returns how many stand.</summary>
     private int PlanAndCommitCivilizationSites(CivilizationDefinition civ)
     {
-        int index = 0, placed = 0;
+        int index = 0;
         string body = _world.LocationId;
-        foreach (var site in civ.Sites)
+        var fresh = new List<(LandmarkPlan Plan, LandmarkInstance Site)>();
+        foreach (var pool in civ.Sites)
         {
-            var (min, max) = CivilizationRules.RangeOf(site.Count);
-            int count = min + StableHashing.Index($"civ:{civ.Key}:{site.Pool}:count:{body}", _meta.Seed, max - min + 1);
+            var (min, max) = CivilizationRules.RangeOf(pool.Count);
+            int count = min + StableHashing.Index($"civ:{civ.Key}:{pool.Pool}:count:{body}", _meta.Seed, max - min + 1);
             for (int k = 0; k < count; k++, index++)
             {
-                if (PlanCivilizationSite(civ, site, index) is { } plan)
+                if (PlanCivilizationSite(civ, pool, index) is { } plan)
                 {
-                    CommitCivilizationSite(civ, plan);
-                    placed++;
+                    var site = CivilizationInstance(civ, plan);
+                    RecordFreshCivilizationSite(civ, plan, site);
+                    fresh.Add((plan, site));
                 }
             }
         }
 
-        _log.Info($"Civilization '{civ.Key}' on '{body}': {placed} of {index} sites stand.");
-        return placed;
+        if (fresh.Count > 0)
+        {
+            SavePlacementRecords(); // every record before any cell: a crash mid-stamp replays them all, none is lost
+        }
+
+        foreach (var (plan, site) in fresh)
+        {
+            StampCivilizationSite(civ, plan, site);
+        }
+
+        _log.Info($"Civilization '{civ.Key}' on '{body}': {fresh.Count} of {index} sites stand.");
+        return fresh.Count;
     }
 
     /// <summary>A fresh plan for one site: a weighted pick of the pool's templates, its turn, seed, layout and seat — null when
@@ -340,26 +380,36 @@ public sealed partial class GameServer
         return plan.Layout is null ? null : plan;
     }
 
-    /// <summary>Pins a fresh site, stamps its cells once as its structure overlay, then builds the runtime instance and what its
-    /// markers become (the chests, the sound emitters). A ruin is open: what players mine stays mined.</summary>
+    /// <summary>A placed record's site (a replay): its footprint, then its stamp — the overlay is written only when a crash left
+    /// it unwritten.</summary>
     private void CommitCivilizationSite(CivilizationDefinition civ, LandmarkPlan plan)
     {
+        var site = CivilizationInstance(civ, plan);
+        RegisterFootprint(StructureTypeRules.Civilization, site.Rect);
+        StampCivilizationSite(civ, plan, site);
+    }
+
+    /// <summary>Pins a fresh site in memory (its record is saved with the body's other sites), reserves its ground on land and
+    /// its footprint, so the next site of the body keeps clear of it.</summary>
+    private void RecordFreshCivilizationSite(CivilizationDefinition civ, LandmarkPlan plan, LandmarkInstance site)
+    {
         var layout = plan.Layout!;
-        string kind = CivilizationRules.RecordKind(civ.Key);
-        string feature = CivilizationRules.FeatureKey(civ.Key, plan.Index);
         var origin = new Vector3i(plan.OriginX, plan.GroundY, plan.OriginZ);
-        if (plan.Fresh)
+        RecordPlacement(CivilizationRules.RecordKind(civ.Key), plan.Index, origin, plan.GroundY, false, plan.Seat, plan.Template.Name,
+            plan.Template.Key, kitLayout: CivilizationPin(plan), hashRevision: StructurePlacementRecord.MixedHashRevision);
+        if (plan.WaterTop is null)
         {
-            RecordPlacement(kind, plan.Index, origin, plan.GroundY, false, plan.Seat, plan.Template.Name, plan.Template.Key,
-                kitLayout: CivilizationPin(plan), hashRevision: StructurePlacementRecord.MixedHashRevision);
-            SavePlacementRecords();
-            if (plan.WaterTop is null)
-            {
-                ReserveSiteGround(StructureTypeRules.Civilization, layout.Structure.Width, layout.Structure.Length, origin, plan.GroundY, plan.Seat);
-            }
+            ReserveSiteGround(StructureTypeRules.Civilization, layout.Structure.Width, layout.Structure.Length, origin, plan.GroundY, plan.Seat);
         }
 
-        var instance = new LandmarkInstance
+        RegisterFootprint(StructureTypeRules.Civilization, site.Rect);
+    }
+
+    /// <summary>The runtime instance of a planned or replayed site.</summary>
+    private static LandmarkInstance CivilizationInstance(CivilizationDefinition civ, LandmarkPlan plan)
+    {
+        var layout = plan.Layout!;
+        return new LandmarkInstance
         {
             Template = plan.Template,
             Layout = layout,
@@ -371,25 +421,31 @@ public sealed partial class GameServer
             WaterTop = plan.WaterTop,
             SiteNameKey = plan.SiteNameKey,
             OverlayResolved = true,
-            OverlayKey = feature, // always one structure overlay
+            OverlayKey = CivilizationRules.FeatureKey(civ.Key, plan.Index), // always one structure overlay
         };
+    }
 
+    /// <summary>Stamps a site's cells once as its structure overlay, then what its markers become (the chests, the sound
+    /// emitters). A ruin is open: what players mine stays mined.</summary>
+    private void StampCivilizationSite(CivilizationDefinition civ, LandmarkPlan plan, LandmarkInstance site)
+    {
+        string feature = site.OverlayKey!;
         if (!FeatureStamped(feature))
         {
+            var s = site.Structure;
             var clock = System.Diagnostics.Stopwatch.StartNew();
             int cells = 0;
-            _repo.RunInTransaction(() => cells = WriteLandmark(instance, plan.Seat));
+            _repo.RunInTransaction(() => cells = WriteLandmark(site, plan.Seat));
             MarkFeatureStamped(feature); // after the commit: a crash mid-stamp re-stamps, never half-marks
-            _log.Info($"Stamped civilization site '{instance.Key}' of '{civ.Key}' ({layout.Structure.Width}×{layout.Structure.Height}×" +
-                      $"{layout.Structure.Length}, seat {plan.Seat}) on '{_world.LocationId}': {cells} cells in {clock.ElapsedMilliseconds} ms.");
+            _log.Info($"Stamped civilization site '{site.Key}' of '{civ.Key}' ({s.Width}×{s.Height}×{s.Length}, seat {plan.Seat}) " +
+                      $"on '{_world.LocationId}': {cells} cells in {clock.ElapsedMilliseconds} ms.");
         }
 
-        _civSites.Add(instance);
-        RegisterFootprint(StructureTypeRules.Civilization, instance.Rect);
-        MaterializeLandmark(instance); // the chests (once ever), the loot markers, the sound emitters, the reveal key
+        _civSites.Add(site);
+        MaterializeLandmark(site); // the chests (once ever), the loot markers, the sound emitters, the reveal key
         if (plan.Fresh)
         {
-            ReportStamp(kind, 1, 1);
+            ReportStamp(CivilizationRules.RecordKind(civ.Key), 1, 1);
         }
     }
 

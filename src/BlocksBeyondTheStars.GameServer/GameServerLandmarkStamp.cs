@@ -233,7 +233,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            n += WriteMarkerChestBlock(sink, cell, settings);
+            n += WriteMarkerChestBlock(sink, cell, settings, sunken: lm.WaterTop is not null); // #3640: a sunken site's cover stone goes into water
         }
 
         return n;
@@ -246,7 +246,7 @@ public sealed partial class GameServer
         => WriteMarkerChestBlock(new WorldCellSink(_world, canonical: true), cell, settings);
 
     /// <summary><see cref="WriteMarkerChestBlock(Vector3i, MarkerSettings)"/> through a sink.</summary>
-    private int WriteMarkerChestBlock(IStructureCellSink sink, Vector3i cell, MarkerSettings settings)
+    private int WriteMarkerChestBlock(IStructureCellSink sink, Vector3i cell, MarkerSettings settings, bool sunken = false)
     {
         string key = settings.Get("block", LandmarkChestBlock);
         var block = _content.GetBlock(ContainerSystem.IsContainerBlock(key) ? key : LandmarkChestBlock) ?? _content.GetBlock("crate");
@@ -257,7 +257,8 @@ public sealed partial class GameServer
 
         sink.Put(cell.X, cell.Y, cell.Z, block.NumericId);
         var above = new Vector3i(cell.X, cell.Y + 1, cell.Z);
-        if (settings.GetBool("hidden") && sink.Get(above.X, above.Y, above.Z).IsAir)
+        var over = sink.Get(above.X, above.Y, above.Z);
+        if (settings.GetBool("hidden") && (over.IsAir || (sunken && over.Value == (_content.GetBlock("water")?.NumericId.Value ?? 0))))
         {
             sink.Put(above.X, above.Y, above.Z, AncientRuinBlock("stone"));
             return 2;

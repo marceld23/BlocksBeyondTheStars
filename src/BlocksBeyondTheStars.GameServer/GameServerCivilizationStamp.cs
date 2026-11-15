@@ -48,7 +48,9 @@ public sealed partial class GameServer
         var layout = plan.Layout!;
         bool buried = layout.GroundRow > 0;
         var policy = new SeatPolicy(AllowStilts: false, AllowLava: false, PreferRugged: false);
-        bool SeatOk(Vector3i origin, string seat) => !buried || seat is "flat" or "slope";
+        // Only a graded seat: on stilts (over water) the site grade levels nothing, and the writer clears a column only up to
+        // its top block — a maze's passages (their top is the paving) would stay full of the land under them.
+        bool SeatOk(Vector3i origin, string seat) => buried ? seat is "flat" or "slope" : seat is "flat" or "slope" or "shelf";
         if (!TryPlaceStructureGuaranteed(layout.Structure, RngFor(plan.Seed, "search"),
                 KeepClearFor(StructureTypeRules.Civilization, LandmarkReserved()), wantIsland: false, policy,
                 avoidPlayerEdits: false, out var origin, out int groundY, out _, out string seatStyle, seatOk: SeatOk,
@@ -176,9 +178,30 @@ public sealed partial class GameServer
             }
         }
 
+        n += highest >= lm.Origin.Y + g ? FloodFloatingFlora(sink, wx, highest + 1, wz, waterTop, water) : 0;
         if (s.Get(x, g, z) != 0)
         {
             n += WriteLandmarkPlinth(sink, lm, x, z, LandmarkPlinthDepth);
+        }
+
+        return n;
+    }
+
+    /// <summary>The sea floor's own flora (coral, kelp) that stood on the floor the column just dug away or covered would float
+    /// in the water above it: from <paramref name="fromY"/> up, every cell that is neither water nor air nor solid becomes
+    /// water, until the first water or air cell (or the water top). Returns the cells written.</summary>
+    private int FloodFloatingFlora(IStructureCellSink sink, int wx, int fromY, int wz, int waterTop, BlockId water)
+    {
+        int n = 0;
+        for (int wy = fromY; wy <= waterTop; wy++, n++)
+        {
+            var here = sink.Get(wx, wy, wz);
+            if (here.Value == 0 || here.Value == water.Value || _content.BlockById(here) is not { Solid: false })
+            {
+                break; // the open water above, or something that stands on its own
+            }
+
+            sink.Put(wx, wy, wz, water);
         }
 
         return n;

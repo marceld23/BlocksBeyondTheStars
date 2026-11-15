@@ -17,12 +17,36 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// </summary>
 public sealed partial class UniverseGenerator
 {
+    /// <summary>The civilizations' guarantees a world pinned (body id → planet type, <c>WorldMetadata.CivilizationGuarantees</c>):
+    /// when set, exactly these are applied and nothing is computed from the content — a civilization file that changed or
+    /// failed to load since never turns a guaranteed body back. Null = compute them (a world's first start).</summary>
+    public Dictionary<string, string>? PinnedCivilizationGuarantees { get; set; }
+
+    /// <summary>The civilizations' guarantees the last <see cref="Generate()"/> applied (body id → planet type) — what a world
+    /// pins on its first start.</summary>
+    public Dictionary<string, string> AppliedCivilizationGuarantees { get; } = new(System.StringComparer.Ordinal);
+
     /// <summary>The guaranteed planet types, then (generation 43+) the civilizations' guarantees.</summary>
     private void ApplyGuarantees(Galaxy galaxy, CelestialBody? firstBreathable, HashSet<CelestialBody>? kept)
     {
         ApplyGuaranteedTypes(galaxy, firstBreathable, kept);
+        AppliedCivilizationGuarantees.Clear();
         if (_desc.TerrainGeneration < WorldDescription.CivilizationsGeneration)
         {
+            return;
+        }
+
+        if (PinnedCivilizationGuarantees is { } pinned)
+        {
+            foreach (var kv in pinned)
+            {
+                if (galaxy.FindBody(kv.Key) is { } body && _content.GetPlanet(kv.Value) is not null)
+                {
+                    body.PlanetType = kv.Value;
+                    AppliedCivilizationGuarantees[kv.Key] = kv.Value;
+                }
+            }
+
             return;
         }
 
@@ -42,7 +66,7 @@ public sealed partial class UniverseGenerator
         {
             foreach (var body in galaxy.Systems[si].Bodies)
             {
-                if ((body.Kind == CelestialKind.Planet || body.Kind == CelestialKind.Moon) && body.PlanetType is { } t && types.Contains(t))
+                if ((body.Kind == CelestialKind.Planet || body.Kind == CelestialKind.Moon) && body.PlanetType is { } t && types.Exists(x => string.Equals(x, t, System.StringComparison.OrdinalIgnoreCase)))
                 {
                     return; // the galaxy has one already
                 }
@@ -88,6 +112,7 @@ public sealed partial class UniverseGenerator
         if (best is not null)
         {
             best.PlanetType = type;
+            AppliedCivilizationGuarantees[best.Id] = type;
         }
     }
 }

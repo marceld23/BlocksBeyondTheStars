@@ -168,7 +168,7 @@ public sealed class CivilizationWorldTests : IDisposable
     }
 
     [Fact]
-    public void AScan_ReadsTheSite_AsTheCivilizationsDiscovery_AndATaggedBlockElsewhereDiscoversItToo()
+    public void AScan_ReadsTheSite_AsTheCivilizationsDiscovery_AndATaggedBlockElsewhereDiscoversNothing()
     {
         var content = CivilizationTestWorlds.Content(tagGlass: true);
         var server = Start(content, "civ_scan", "meadowlands", out _);
@@ -196,7 +196,8 @@ public sealed class CivilizationWorldTests : IDisposable
         // A block next to the site is just a block.
         Assert.Equal("block", server.ScanSubject("Cid", "block", "stone", cell: new Vector3i(cell.X, cell.Y + 4, cell.Z)).Kind);
 
-        // Far from every site, a block the people built (the glass is tagged here) discovers them — only where it really stands.
+        // Far from every site, a block of the people (the glass is tagged here) is only a block: one a player crafted or carried off
+        // discovers nothing (#3642 review) — not even where it really stands.
         var dan = Walker(server, "Dan");
         dan.State.Position = new Vector3f(WorldConstants.WrapX(site.Origin.X - 300, server.World.Circumference) + 0.5f, 200f, site.Origin.Z + 0.5f);
         var beside = new Vector3i((int)Math.Floor(dan.State.Position.X) + 1, 201, (int)Math.Floor(dan.State.Position.Z));
@@ -208,8 +209,8 @@ public sealed class CivilizationWorldTests : IDisposable
         knowledge = dan.State.KnowledgePoints;
         var tagged = server.ScanSubject("Dan", "block", "glass", cell: beside);
         Assert.Equal(("block", "glass"), (tagged.Kind, tagged.SubjectKey)); // the readout stays the block's (its yield, its ledger)
-        Assert.Contains(discovery, dan.State.Scanned);
-        Assert.Equal(8 + tagged.KnowledgeGained, dan.State.KnowledgePoints - knowledge);
+        Assert.DoesNotContain(discovery, dan.State.Scanned);
+        Assert.Equal(tagged.KnowledgeGained, dan.State.KnowledgePoints - knowledge);
     }
 
     [Fact]

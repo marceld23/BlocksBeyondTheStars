@@ -140,6 +140,14 @@ public sealed class WorldMetadata
     public System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<string>> CivilizationHomes { get; set; } = new();
 
     /// <summary>
+    /// #3640: the bodies the civilizations' guarantees retyped — body id → planet type (an empty map = none was needed), pinned
+    /// the first time a world of terrain generation 43 or later generates its galaxy and applied as they are on every later
+    /// start, so a civilization file that changes or fails to load later never turns a guaranteed ocean world back. Null =
+    /// not pinned yet (an older world never pins one). Additive: an older build ignores the field.
+    /// </summary>
+    public System.Collections.Generic.Dictionary<string, string>? CivilizationGuarantees { get; set; }
+
+    /// <summary>
     /// Player claims over spawned structures (factories): each maps a structure's stable per-world key to its
     /// owner. A claimed structure becomes an editable player base for the owner + their allies. Founded by
     /// consuming an access code at the structure. Persisted (the structures themselves re-derive from the seed).

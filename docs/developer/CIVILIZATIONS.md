@@ -75,8 +75,11 @@ never forced in. Older galaxies are untouched.
   different template when one finds no seat), the instance seed and the turn from their own hash lanes;
 - builds the layout with the civilization's materials, ruin options and props (`CivilizationLayouts`), a generator entry
   through its source and the same ruin pass;
-- seats it: the guaranteed search with the footprint registry (kind `civilization`, site rules like a landmark) on land,
-  the **sea floor** under water (§5);
+- seats it: the guaranteed search with the footprint registry (kind `civilization`, site rules like a landmark) on land —
+  only a graded seat (flat, slope, shelf; never stilts over water, where nothing would clear a maze's passages) — and the
+  **sea floor** under water (§5);
+- records every site of the body first and saves the records together, then stamps them: a crash mid-stamp replays all of
+  them (each overlay is written once, `FeatureStamped`);
 - pins one record (`turns`, `rev`, `seed`, the source, `wt` = the water top of a sunken site, `name`, `storage=overlay`),
   writes the cells once into one structure overlay (`civ:<key>:<index>`), registers the footprint, materializes the
   markers (chests on their own lane `civ`, container prefix `loot_civ_chest_`, sounds);
@@ -87,7 +90,8 @@ template that left the content keeps its blocks and re-derives nothing.
 
 **Props** (`CivilizationPropDress`): after the ruin pass every `prop` marker (`pool=<propPool>` or `template=<key>`) places a
 prop of the same civilization standing on its cell — picked and turned by a hash of the seed and the cell, written only
-into empty cells. The marker stays in the layout so VEGA knows where the props stand.
+into empty cells of the marker's own room (the columns its floor reaches from the marker, never through a wall) and never
+into another marker's cell or the cell above it (a chest and its cover stone). The marker stays in the layout so VEGA knows where the props stand.
 
 ## 5. Under water
 
@@ -119,6 +123,12 @@ Scripts: `tools/landmarks/civ_grosstechniker.py`, `tools/landmarks/civ_labyrinth
 `tools/landmarks/civ.py`; previews with `tools/landmarks/preview.py`). Lore: [LORE_STRUCTURE.md](LORE_STRUCTURE.md).
 
 ## 8. Adding a civilization
+
+A standing site is re-derived on every load from its record AND the civilization file (materials, ruin look, props): change
+those only with a new `minTerrainGeneration`, or the re-derived chests and VEGA's prop positions of existing sites may move
+(the stamped blocks stay). The galaxy guarantee is pinned per world (`WorldMetadata.CivilizationGuarantees`), so a
+changed or broken file never retypes a guaranteed body back.
+
 
 1. Write `data/civilizations/<key>.json` (§1) with a new `minTerrainGeneration` if any world already exists at the current
    one; raise `WorldDescription.CurrentTerrainGeneration` with it.

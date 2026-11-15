@@ -174,12 +174,14 @@ public sealed partial class GameServer
     }
 
     /// <summary>A scan of a block tagged with a civilization (<see cref="BlockDefinition.Civilization"/>) discovers that
-    /// civilization — only when the aimed cell really holds the block and lies within reach, like every counted scan.</summary>
+    /// civilization — only when the aimed cell really holds the block, lies within reach, like every counted scan, and lies in one
+    /// of that civilization's sites: a block a player crafted or carried off discovers nothing (its readout still names the
+    /// people).</summary>
     private void DiscoverCivilizationOfScannedBlock(PlayerSession session, string subjectType, string blockKey)
     {
         if (subjectType != "block" || _scanCell is not { } cell || _content.CivilizationOfBlock(blockKey) is not { } civ
             || _content.GetBlock(blockKey) is not { } def || _world.GetBlockIfLoaded(cell).Value != def.NumericId.Value
-            || !WithinReach(session.State, cell))
+            || !WithinReach(session.State, cell) || CivilizationSiteAt(cell) is not { } site || site.Civilization != civ.Key)
         {
             return;
         }
@@ -393,6 +395,7 @@ public sealed partial class GameServer
 
         string pick = untold[_hintRng.Next(untold.Count)];
         p.Milestones.Add(CivilizationRumourPrefix + pick);
+        _repo.SavePlayer(p); // once per player, even across a crash
         return Localize(session.Locale, pick);
     }
 

@@ -264,5 +264,60 @@ public sealed class CivilizationFrameworkTests
         Assert.True(missingBefore > 0, "every sampled galaxy already had one — the test proves nothing");
     }
 
+    [Fact]
+    public void PinnedGuarantees_AreAppliedAsThey_AreEvenWhenTheCivilizationIsGone()
+    {
+        var civ = Civ("guaranteed", types: new[] { "rainbow_sea" });
+        civ.Guarantee.PlanetTypes.Add("rainbow_sea");
+        var with = ContentWith(civ);
+        var without = ContentWith();
+        var desc = new WorldDescription { TerrainGeneration = WorldDescription.CivilizationsGeneration };
+        for (long seed = 1; seed <= 40; seed++)
+        {
+            var first = new UniverseGenerator(seed, desc, with);
+            var galaxy = first.Generate();
+            if (first.AppliedCivilizationGuarantees.Count == 0)
+            {
+                continue; // this galaxy rolled one anyway
+            }
+
+            var pinned = new Dictionary<string, string>(first.AppliedCivilizationGuarantees);
+            var later = new UniverseGenerator(seed, desc, without) { PinnedCivilizationGuarantees = pinned }.Generate();
+            Assert.Equal(Types(galaxy), Types(later)); // the civilization file left the content: the world's galaxy stays
+            var none = new UniverseGenerator(seed, desc, with) { PinnedCivilizationGuarantees = new Dictionary<string, string>() }.Generate();
+            // a world that pinned "none needed" never gains one, whatever the content says now
+            Assert.Equal(Types(new UniverseGenerator(seed, desc, without).Generate()), Types(none));
+            return;
+        }
+
+        Assert.Fail("no sampled galaxy needed a guarantee");
+    }
+
+    [Fact]
+    public void TheMazesStatues_NeverTakeAChestsCell_OrItsCover()
+    {
+        var civ = Shipped.GetCivilization("labyrinth_builders")!;
+        var entry = Shipped.CivilizationTemplateByKey("lb_maze_s")!;
+        var materials = CivilizationLayouts.MaterialsOf(civ, "stone", Shipped);
+        int chests = 0;
+        for (long seed = 1; seed <= 12; seed++)
+        {
+            var built = BlocksBeyondTheStars.WorldGeneration.Sources.SourceTemplates.Build(entry, Shipped, seed, "stone", "rocky",
+                WorldDescription.CivilizationsGeneration, out string failure);
+            Assert.True(built is not null, failure);
+            var layout = BlocksBeyondTheStars.WorldGeneration.Sources.BuiltConverters.ToLandmarkLayout(built!, entry, seed, Shipped, "stone",
+                LandmarkGenerator.RuinRevision, CivilizationLayouts.RuinOptionsOf(civ, airless: true, underwater: false),
+                new CivilizationPropDress(civ, seed, Shipped, materials));
+            foreach (var m in layout.Structure.Markers.Where(m => m.Type == LandmarkRules.ChestMarker))
+            {
+                chests++;
+                Assert.Equal(0, layout.Structure.Get(m.LocalPos.X, m.LocalPos.Y, m.LocalPos.Z));
+                Assert.Equal(0, layout.Structure.Get(m.LocalPos.X, m.LocalPos.Y + 1, m.LocalPos.Z));
+            }
+        }
+
+        Assert.True(chests > 20, $"only {chests} chests in twelve mazes");
+    }
+
     private static List<string> Types(Galaxy g) => g.AllBodies().Select(b => b.Id + ":" + b.PlanetType).ToList();
 }

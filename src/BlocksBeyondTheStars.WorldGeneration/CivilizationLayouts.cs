@@ -127,16 +127,58 @@ public sealed class CivilizationPropDress : LayoutDress
 
     internal override void Apply(VoxelGrid grid, List<SettlementMarker> markers)
     {
+        // Every other marker's cell and the cell above it stay free: a crate stands there, a hidden chest's cover stone above it.
+        var reserved = new HashSet<Vector3i>();
+        foreach (var m in markers)
+        {
+            if (m.Type != CivilizationRules.PropMarker)
+            {
+                reserved.Add(m.LocalPos);
+                reserved.Add(new Vector3i(m.LocalPos.X, m.LocalPos.Y + 1, m.LocalPos.Z));
+            }
+        }
+
         foreach (var m in markers)
         {
             if (m.Type == CivilizationRules.PropMarker && CivilizationLayouts.PropFor(_civ, _content, m.Data, _seed, m.LocalPos) is { } prop)
             {
-                Place(grid, prop, m.LocalPos);
+                Place(grid, prop, m.LocalPos, reserved);
             }
         }
     }
 
-    private void Place(VoxelGrid grid, StructureTemplate prop, Vector3i at)
+    /// <summary>The columns of a prop's box the marker's room reaches: from the marker's column, every neighbour column whose
+    /// two cells at the marker's height are free — so a prop never reaches through a wall into the next passage.</summary>
+    private static bool[,] RoomColumns(VoxelGrid grid, Vector3i at, int x0, int z0, int w, int l)
+    {
+        var reached = new bool[w, l];
+        bool Open(int x, int z) => !grid.Solid(x0 + x, at.Y, z0 + z) && !grid.Solid(x0 + x, at.Y + 1, z0 + z);
+        var queue = new Queue<(int X, int Z)>();
+        int sx = at.X - x0, sz = at.Z - z0;
+        if (sx < 0 || sz < 0 || sx >= w || sz >= l)
+        {
+            return reached;
+        }
+
+        reached[sx, sz] = true;
+        queue.Enqueue((sx, sz));
+        while (queue.Count > 0)
+        {
+            var (x, z) = queue.Dequeue();
+            foreach (var (nx, nz) in new[] { (x + 1, z), (x - 1, z), (x, z + 1), (x, z - 1) })
+            {
+                if (nx >= 0 && nz >= 0 && nx < w && nz < l && !reached[nx, nz] && Open(nx, nz))
+                {
+                    reached[nx, nz] = true;
+                    queue.Enqueue((nx, nz));
+                }
+            }
+        }
+
+        return reached;
+    }
+
+    private void Place(VoxelGrid grid, StructureTemplate prop, Vector3i at, HashSet<Vector3i> reserved)
     {
         int turns = StableHashing.Index(CivilizationLayouts.CellLane("turn", at), _seed, 4);
         bool swap = (turns & 1) == 1;
@@ -146,6 +188,7 @@ public sealed class CivilizationPropDress : LayoutDress
         var piece = new VoxelGrid(w, h, l);
         LandmarkGenerator.FillBlocks(prop, turns, piece, _content, _materials);
         int x0 = at.X - (w / 2), y0 = at.Y - Math.Clamp(prop.GroundRow, 0, h - 1), z0 = at.Z - (l / 2);
+        var room = RoomColumns(grid, at, x0, z0, w, l);
         for (int x = 0; x < w; x++)
         {
             for (int y = 0; y < h; y++)
@@ -154,7 +197,8 @@ public sealed class CivilizationPropDress : LayoutDress
                 {
                     ushort block = piece.Get(x, y, z);
                     int gx = x0 + x, gy = y0 + y, gz = z0 + z;
-                    if (block == 0 || !grid.In(gx, gy, gz) || grid.Get(gx, gy, gz) != 0 || grid.Cavity[grid.Index(gx, gy, gz)])
+                    if (block == 0 || !room[x, z] || !grid.In(gx, gy, gz) || grid.Get(gx, gy, gz) != 0 || grid.Cavity[grid.Index(gx, gy, gz)]
+                        || reserved.Contains(new Vector3i(gx, gy, gz)))
                     {
                         continue;
                     }
