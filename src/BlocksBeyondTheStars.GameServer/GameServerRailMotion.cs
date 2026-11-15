@@ -98,21 +98,27 @@ public sealed partial class GameServer
 
     /// <summary>The train's new speed for this tick (<see cref="RailMotion.NextSpeed"/> under <see cref="RailMotion.Limit"/>)
     /// and the distance it runs. The last step onto a stop it halts at is cut to land on the stop. A train with no room to
-    /// run (<see cref="NoRoomToRun"/>) stands at 0.</summary>
-    private static float TrainRunDistance(ServerTrain t, RailLine line, float span, double dt)
+    /// run (<see cref="NoRoomToRun"/>) stands at 0. #3658: an animal on the track ahead is a target too — the train brakes
+    /// to hold <see cref="TrainCreatureClearance"/> short of it (<see cref="TrainRoomBeforeCreature"/>), by hand as on
+    /// autopilot, and stands there until the track is clear.</summary>
+    private float TrainRunDistance(ServerTrain t, RailLine line, float span, double dt)
     {
         if (NoRoomToRun(t, line, span))
         {
             t.Velocity = 0f; // longer than its open line: it stands where the line pins it, it does not "run" on the spot
+            ForgetCreatureHold(t);
             return 0f;
         }
 
         var (behind, ahead, stopAhead) = TrainTargets(t, line, span);
         float leg = t.Autopilot ? behind + ahead : float.PositiveInfinity; // by hand: the top speed
         float limit = RailMotion.Limit(RailMotion.TopSpeed(t.Speed), leg, ahead, TrainCurveLimit(t, line));
+        float room = TrainRoomBeforeCreature(t, line, span); // +∞ with no animal on the track ahead
+        limit = Math.Min(limit, RailMotion.ObstacleSpeed(room));
         t.Velocity = RailMotion.NextSpeed(t.Velocity, limit, dt);
         float run = t.Velocity * (float)Math.Max(0.0, dt);
-        return stopAhead ? Math.Min(run, ahead + ArriveOvershoot) : run;
+        run = stopAhead ? Math.Min(run, ahead + ArriveOvershoot) : run;
+        return HoldShortOfCreature(t, room, run);
     }
 
     /// <summary>Whether a train has no room to run on its line (#3444): an open line no longer than the train (the cab's
@@ -244,10 +250,11 @@ public sealed partial class GameServer
     /// signed like its direction — its current speed, at least <see cref="RailMotion.StartSpeed"/> for a running train
     /// (one setting off from rest), so a client never mistakes a running train for an older server's (which sends 0); 0
     /// while it stands — and for a train with no room to run (<see cref="NoRoomToRun"/>; <paramref name="line"/> null:
-    /// its line is unknown), which is sent as halted too (<see cref="WireHalted"/>).</summary>
+    /// its line is unknown), which is sent as halted too (<see cref="WireHalted"/>). #3658: so is a train an animal on the
+    /// track holds (<see cref="ServerTrain.HeldByCreature"/>).</summary>
     internal static float WireVelocity(ServerTrain t, RailLine? line)
     {
-        if (t.Halted || !TrainRuns(t) || (line is not null && NoRoomToRun(t, line, TrainSpan(t))))
+        if (t.Halted || t.HeldByCreature || !TrainRuns(t) || (line is not null && NoRoomToRun(t, line, TrainSpan(t))))
         {
             return 0f;
         }
@@ -259,7 +266,8 @@ public sealed partial class GameServer
     /// <summary>What the clients get as <c>NetTrain.Halted</c>: the train's halt — and, since #3444, a train with no room to
     /// run on its line (<see cref="NoRoomToRun"/>), so the cab reads "Halted" instead of "Running — 3 blocks/s" for a train
     /// that cannot move, and a client never runs its drawing on (a velocity of 0 on a train that is not halted would read
-    /// as an older server's).</summary>
+    /// as an older server's). #3658: and a train standing for an animal on the track (<see cref="ServerTrain.HeldByCreature"/>)
+    /// — halted without a countdown, so the drawing stands still while it waits.</summary>
     internal static bool WireHalted(ServerTrain t, RailLine? line)
-        => t.Halted || (line is not null && NoRoomToRun(t, line, TrainSpan(t)));
+        => t.Halted || t.HeldByCreature || (line is not null && NoRoomToRun(t, line, TrainSpan(t)));
 }

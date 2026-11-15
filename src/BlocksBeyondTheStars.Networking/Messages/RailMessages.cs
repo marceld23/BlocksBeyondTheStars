@@ -72,6 +72,12 @@ public sealed class NetTrain
     /// <summary>#3446: whether villagers may ride this train (the owner's switch on the cab panel; the public train always
     /// takes them). Contractless-additive: an older server sends none and the default — on — stays.</summary>
     public bool TakesPassengers { get; set; } = true;
+
+    /// <summary>#3658: how often the train has honked at an animal on the track — one more for every honk (at most one
+    /// every few seconds while an animal stands in its way), so a client plays the horn once per honk: when the count
+    /// grows. RAM only on the server (a restart starts at 0 again, and a client that sees a train for the first time only
+    /// remembers the count). Contractless-additive: an older server sends none (0) and no client ever honks.</summary>
+    public int Horn { get; set; }
 }
 
 /// <summary>Every train of the current world (server → client, ~5 Hz while one moves).</summary>

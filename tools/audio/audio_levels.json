@@ -2759,6 +2759,12 @@
    "peak": -8.4,
    "sha256": "a51b4ecc93172b38aa232954266c402088281d09aad9dfd2d78cf8f9c2d61b6f"
   },
+  "train_horn": {
+   "class": "oneshot",
+   "level": -13.2,
+   "peak": -6.7,
+   "sha256": "ea31c7950e4007390f45e2c27c5aa58c4846c1f3bd4be94c49b8616a69fb3225"
+  },
   "trapdoor_close": {
    "class": "oneshot",
    "level": -13.3,

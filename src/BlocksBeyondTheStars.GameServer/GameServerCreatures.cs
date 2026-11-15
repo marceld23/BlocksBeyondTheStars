@@ -286,8 +286,9 @@ public sealed partial class GameServer
         {
             _creatureSpawnTimer = 0;
             // #1720: the player who gets the next spawn rotates on the WILD population — companions used to
-            // skew the round robin, so a pet owner's surroundings filled faster than everyone else's.
-            if (TrySpawnCreatureNear(targets[wild % targets.Count].State, cap))
+            // skew the round robin, so a pet owner's surroundings filled faster than everyone else's. #3656: a train rider
+            // anchors no spawn (GameServerRailWildlife).
+            if (CreatureSpawnAnchor(targets, wild) is { } anchor && TrySpawnCreatureNear(anchor.State, cap))
             {
                 BroadcastCreatures();
             }
@@ -426,7 +427,9 @@ public sealed partial class GameServer
     /// foot in the active world (<see cref="_creatureTargets"/>) keeps the population and the pruning going — an observer's
     /// view must not empty the land — but only the players who are really there make an animal react
     /// (<see cref="_creatureReactors"/>, #3502): an observer wakes no sleeper, scares no skittish animal off, draws no Soundrak
-    /// scream and no VEGA announcement, earns no calm gift and is nobody's prey.</summary>
+    /// scream and no VEGA announcement, earns no calm gift and is nobody's prey. #3656: a player riding a train stays a
+    /// target (the land along the line keeps living for the window view, the cap counts them) but is no reactor — a hunter
+    /// never comes for the seated rider of a halted wagon — and anchors no spawn (<see cref="CreatureSpawnAnchor"/>).</summary>
     private void FillCreatureTargets()
     {
         _creatureTargets.Clear();
@@ -436,7 +439,7 @@ public sealed partial class GameServer
             if (!s.State.AboardShip && !InSpace(s.State.PlayerId))
             {
                 _creatureTargets.Add(s);
-                if (!s.Spectating)
+                if (!s.Spectating && !RidesTrain(s))
                 {
                     _creatureReactors.Add(s);
                 }
@@ -684,6 +687,12 @@ public sealed partial class GameServer
 
         // #3453: nor in a town — no ground animal on its roofs or in its lanes, no flier under its roofs (GameServerCreatureTownRules).
         if (TownSpawnBlocked(sp, pos))
+        {
+            return false;
+        }
+
+        // #3658: nor in a train's wagon or (one tall enough to reach the wagons) on a running line (GameServerRailWildlife).
+        if (RailSpawnBlocked(sp, pos))
         {
             return false;
         }
@@ -1085,6 +1094,13 @@ public sealed partial class GameServer
                 continue;
             }
 
+            // #3656: the same for a train's wagon — an animal found inside one is set down beside it (GameServerRailWildlife).
+            if (TryPushOutOfWagon(creature, sp, out var besideWagon))
+            {
+                creature.Position = besideWagon;
+                continue;
+            }
+
             if (creature.FrozenTimer > 0)
             {
                 creature.FrozenTimer = System.Math.Max(0, creature.FrozenTimer - dt);
@@ -1354,6 +1370,12 @@ public sealed partial class GameServer
                 StartleKin(creature);
             }
 
+            // #3658: a train's horn asked it off the track — it steps aside for a few seconds (GameServerRailWildlife).
+            if (!begging)
+            {
+                ApplyTrackAsideIntent(creature, ref intent, ref target);
+            }
+
             // #2668: a hunter or fleer that just found its way round an obstacle keeps to that detour for a moment — aiming
             // the controller along it (it still turns there at its own rate) instead of back into the wall every tick.
             if ((intent == MoveMode.Seek || intent == MoveMode.Flee) && target is not null && creature.SteerUntil > _creatureClock)
@@ -1580,6 +1602,12 @@ public sealed partial class GameServer
 
         // #3453: a wild ground animal does not walk into a town — or deeper into one it is already in (GameServerCreatureTownRules).
         if (TownStepBlocked(c, sp, cur, cand, nextFeet))
+        {
+            return true;
+        }
+
+        // #3656/#3658: nor into a train's wagon — and a tall roamer not onto a running line (GameServerRailWildlife).
+        if (RailStepBlocked(c, sp, motion, cur, cand, nextFeet))
         {
             return true;
         }

@@ -21,6 +21,9 @@ namespace BlocksBeyondTheStars.Shared.Definitions;
 /// dropped the rider through the floor (#3472). The benches are now the built-in bench form (seat + low backrest, the
 /// backrest to the wall), the sleeper's lower berths real two-cell beds under the upper bunks, and each seat sits on its
 /// own furnishing cell.</para>
+/// <para>#3657: the side windows were full glass cubes, so the cell over every bench was a block and a seated head sat in
+/// the glass. Every side window is now a thin glass pane against the wall column's outer face (and the cab's windscreen one
+/// against its front face), so the room above a bench is free up to the roof.</para>
 /// </summary>
 public static class RailWagonLayout
 {
@@ -129,8 +132,21 @@ public static class RailWagonLayout
         return seat.X < 0f ? (float)(Math.PI * 0.5) : (float)(-Math.PI * 0.5);
     }
 
-    /// <summary>The wagon's cells: floor, roof, side walls with the door opening, the cab's closed front, then the kind's
-    /// furnishing (#3464) — which replaces the wall cells it stands in.</summary>
+    /// <summary>The window block of every wagon (#3657): glass, drawn as a thin pane (<see cref="SideWindow"/>,
+    /// <see cref="Windscreen"/>).</summary>
+    public const string WindowBlock = "glass";
+
+    /// <summary>#3657: a side window of wall column <paramref name="x"/> — the panel form stood on its side against the
+    /// column's OUTER face (up-face +X puts the plate on the cell's −X face, the outside of column 0; up-face −X on the +X
+    /// face, the outside of the last column). The full glass cubes the windows were before put a seated passenger's head
+    /// inside the window block: the pane over a bench now leaves the cell above it open.</summary>
+    public static int SideWindow(int x) => ShapeCode.Pack(BlockShape.Panel, 0, x == 0 ? 2 : 3);
+
+    /// <summary>#3657: the cab's windscreen — the panel form against the front row's outer (+Z) face (up-face −Z).</summary>
+    public static readonly int Windscreen = ShapeCode.Pack(BlockShape.Panel, 0, 5);
+
+    /// <summary>The wagon's cells: floor, roof, side walls with the door opening and thin window panes (#3657), the cab's
+    /// closed front, then the kind's furnishing (#3464) — which replaces the wall cells it stands in.</summary>
     public static IReadOnlyList<Cell> Cells(string? wagonItem, bool cab)
     {
         var cells = new Dictionary<(int, int, int), Cell>();
@@ -157,27 +173,36 @@ public static class RailWagonLayout
                 }
 
                 Set(x, 1, z, "metal_panel");
-                Set(x, 2, z, "glass");
-                Set(x, 3, z, "glass");
+                Set(x, 2, z, WindowBlock, SideWindow(x));
+                Set(x, 3, z, WindowBlock, SideWindow(x));
             }
         }
 
         if (cab)
         {
-            for (int x = 0; x < Width; x++)
-            {
-                Set(x, 1, Length - 1, "metal_panel");
-                Set(x, 2, Length - 1, "glass");
-                Set(x, 3, Length - 1, "glass");
-            }
-
-            Set(1, 1, Length - 2, "metal_panel"); // the console
+            DressCabFront(Set);
         }
 
         Dress(wagonItem, Set);
         var list = new List<Cell>(cells.Values);
         list.Sort((a, b) => a.X != b.X ? a.X.CompareTo(b.X) : a.Y != b.Y ? a.Y.CompareTo(b.Y) : a.Z.CompareTo(b.Z));
         return list;
+    }
+
+    /// <summary>The cab's closed front (z = <see cref="Length"/> − 1) and its console. The middle column's windscreen is a
+    /// pane on the front face (#3657); the two corner cells stay full glass cubes — a pane on either face alone would leave
+    /// the corner open on the other one, and nothing sits under them (the corners' lower cells are wall panels).</summary>
+    private static void DressCabFront(Action<int, int, int, string, int> set)
+    {
+        for (int x = 0; x < Width; x++)
+        {
+            bool corner = x == 0 || x == Width - 1;
+            set(x, 1, Length - 1, "metal_panel", 0);
+            set(x, 2, Length - 1, WindowBlock, corner ? 0 : Windscreen);
+            set(x, 3, Length - 1, WindowBlock, corner ? 0 : Windscreen);
+        }
+
+        set(1, 1, Length - 2, "metal_panel", 0); // the console
     }
 
     /// <summary>The bench form with its backrest toward the wall of side column <paramref name="x"/>.</summary>

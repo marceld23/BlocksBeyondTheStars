@@ -53,6 +53,41 @@ public sealed class SpaceTargetingTests
     public void Classify_ReadsTheOneDispositionTable(string kind, bool hostile, TargetDisposition expected)
         => Assert.Equal(expected, SpaceTargeting.Classify(kind, hostile));
 
+    [Theory]
+    [InlineData("derelict:giant-carrier-3")]   // a giant ship wreck (GiantShipRules.IdPrefix)
+    [InlineData("derelict:sys0-2")]            // a generated derelict station
+    [InlineData(SpaceTargeting.StoryDerelictId)] // The Long Quiet
+    public void ADerelict_IsANeutralWreck_NotAFriend(string id)
+    {
+        // #3659: a locked giant wreck used to read "Friendly" inside a screen-sized cyan ring — every derelict is a station
+        // contact, and every station was a friend.
+        Assert.Equal(TargetDisposition.Neutral, SpaceTargeting.Classify(SpaceTargeting.SpaceStation, false, id: id));
+        Assert.Equal(TargetDisposition.Neutral, Entity(id, SpaceTargeting.SpaceStation, 40f).Disposition);
+        Assert.True(SpaceTargeting.IsDerelictTarget(SpaceTargeting.SpaceStation, id));
+        Assert.True(GiantShipRulesIdsAreDerelicts());
+    }
+
+    [Fact]
+    public void ALivingStation_StaysAFriend_AndIsNoWreck()
+    {
+        Assert.Equal(TargetDisposition.Friendly, Entity("station:sys0-1", SpaceTargeting.SpaceStation, 40f).Disposition);
+        Assert.False(SpaceTargeting.IsDerelictTarget(SpaceTargeting.SpaceStation, "station:sys0-1"));
+        Assert.False(SpaceTargeting.IsDerelictTarget(SpaceTargeting.Wreck, "derelict:sys0-2")); // only a station contact
+        Assert.False(SpaceTargeting.IsDerelictTarget(SpaceTargeting.SpaceStation, null));
+    }
+
+    [Theory]
+    [InlineData(0f, SpaceTargeting.LockFrameMinHalf)]
+    [InlineData(float.NaN, SpaceTargeting.LockFrameMinHalf)]
+    [InlineData(40f, 50f)]
+    [InlineData(96f, SpaceTargeting.LockFrameMaxHalf)]
+    [InlineData(600f, SpaceTargeting.LockFrameMaxHalf)] // a giant wreck close by: no frame across half the screen
+    public void TheLockFrame_FramesItsTarget_ButNeverFillsTheScreen(float projectedRadius, float expected)
+        => Near(expected, SpaceTargeting.LockFrameHalf(projectedRadius));
+
+    private static bool GiantShipRulesIdsAreDerelicts()
+        => BlocksBeyondTheStars.Shared.Definitions.GiantShipRules.IdPrefix.StartsWith(SpaceTargeting.DerelictIdPrefix, System.StringComparison.Ordinal);
+
     [Fact]
     public void AttackRange_IsTheServersEngageRange_FromTheOneSharedConstant()
     {

@@ -195,7 +195,7 @@ public sealed partial class GameServer
         }
 
         var present = JoinedInActiveWorld().Where(s => !InSpace(s.State.PlayerId)).ToList();
-        var onFoot = present.Where(s => !s.State.AboardShip).ToList();
+        var onFoot = present.Where(s => !s.State.AboardShip && !RidesTrain(s)).ToList(); // #3656: a train rider is nobody's prey
         if (present.Count == 0 || Rules.CreatureAbundance == Shared.Configuration.AlienActivity.Off)
         {
             if (_creatures.RemoveAll(c => c.IsGiant) > 0)
