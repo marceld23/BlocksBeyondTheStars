@@ -36,13 +36,14 @@ public sealed partial class GameServer
     private const int TeleportListMaxLines = 24;
 
     /// <summary>One resolvable destination on the current body. <paramref name="Number"/> is 1-based within
-    /// its kind, so the wire form is <c>{Kind}{Number}</c>.</summary>
-    private readonly record struct TeleportTarget(string Kind, int Number, string Label, Vector3f Position);
+    /// its kind, so the wire form is <c>{Kind}{Number}</c>. A target with a <paramref name="StationId"/> is a giant wreck in
+    /// space (#3655): the teleport boards it instead of moving the player to <paramref name="Position"/>.</summary>
+    private readonly record struct TeleportTarget(string Kind, int Number, string Label, Vector3f Position, string? StationId = null);
 
     /// <summary>Target words in the order they are offered to the admin, worldgen first, player-built last.</summary>
     private static readonly string[] TeleportKinds =
     {
-        "ship", "pad", "city", "village", "ruin", "railruin", "vault", "ancient", "landmark", "giantwreck", "wreck", "factory", "camp", "lodge",
+        "ship", "pad", "city", "village", "ruin", "railruin", "vault", "ancient", "landmark", "civ", "giantwreck", "wreck", "factory", "camp", "lodge",
         "outpost", "monument", "treasure", "base", "beacon", "beam", "station",
     };
 
@@ -62,6 +63,10 @@ public sealed partial class GameServer
         // #3392: the buried G.D.S. ruins and enclosed structures of #3333/#3334 ("Alte Städte")
         "ancients" or "ancientruin" or "ancient_ruin" or "altstadt" or "altstädte" or "altstaedte" => "ancient",
         "landmarks" or "bauwerk" or "bauwerke" or "wahrzeichen" => "landmark", // #3486: the giant authored buildings
+        // #3654: the sites of the lost civilizations (the Grand Technicians under water, the Labyrinth Builders' mazes)
+        "civs" or "civilization" or "civilizations" or "civilisation" or "civilisations" or "zivilisation" or "zivilisationen"
+            or "volk" or "völker" or "voelker" or "grosstechniker" or "großtechniker" or "labyrinth" or "labyrinthe" or "maze"
+            or "mazes" => "civ",
         // #3610: the giant ship wrecks on planets
         "giantwrecks" or "giant_wreck" or "giantship" or "riesenschiff" or "riesenwrack" or "riesenwracks" => "giantwreck",
         "wrecks" => "wreck",
@@ -144,7 +149,8 @@ public sealed partial class GameServer
                 SurfaceSpot(WorldConstants.WrapX(cx, _world.Circumference), _landmarks[i].Origin.Z - 3)));
         }
 
-        AppendGiantWreckTargets(list); // #3610 (GameServerGiantWrecksAdmin.cs)
+        AppendCivilizationTargets(list, session); // #3654 (GameServerAdminTeleportSites.cs)
+        AppendGiantWreckTargets(list, session); // #3610, #3655: on this body, then in space of this system
         if (_wreckStamped && !_wreckClaimed)
         {
             // No reveal check here, unlike the map POI: an admin looking for the wreck is doing support, not
@@ -262,18 +268,20 @@ public sealed partial class GameServer
         // has already done it; the test seam and any future non-socket caller have not.
         Serve(session);
 
-        // A named target is a place on a planet surface; while flying a space instance there is nothing to
-        // resolve against (and the snap channel would fight the flight scene).
-        if (InSpace(p.PlayerId))
-        {
-            Reject(session, "admin", "@srv.tp.no_surface_targets");
-            return;
-        }
-
-        var targets = TeleportTargets(session);
+        // A named target is a place on a planet surface; while flying a space instance there is nothing to resolve
+        // against (and the snap channel would fight the flight scene) — except the giant wrecks of the system, which a
+        // teleport boards (#3655).
+        bool inSpace = InSpace(p.PlayerId);
+        var targets = inSpace ? SpaceTeleportTargets(session) : TeleportTargets(session);
         string arg = (argument ?? string.Empty).Trim();
         if (arg.Length == 0 || arg.Equals("list", StringComparison.OrdinalIgnoreCase))
         {
+            if (inSpace && targets.Count == 0)
+            {
+                Reject(session, "admin", "@srv.tp.no_surface_targets");
+                return;
+            }
+
             ListTeleportTargets(session, targets);
             return;
         }
@@ -282,6 +290,12 @@ public sealed partial class GameServer
         if (!TeleportKinds.Contains(kind))
         {
             Reject(session, "admin", "@srv.tp.unknown_kind:" + kind);
+            return;
+        }
+
+        if (inSpace && kind != "giantwreck")
+        {
+            Reject(session, "admin", "@srv.tp.no_surface_targets");
             return;
         }
 
@@ -301,7 +315,26 @@ public sealed partial class GameServer
             return;
         }
 
-        var hit = targets.First(t => t.Kind == kind && t.Number == number);
+        TeleportToTarget(session, targets.First(t => t.Kind == kind && t.Number == number));
+    }
+
+    /// <summary>Moves the admin to a resolved target: onto it on this body, or — a giant wreck in space (#3655) — aboard it,
+    /// the way the travel menu boards a station (from a planet and from flight alike; the station path checks the rest).</summary>
+    private void TeleportToTarget(PlayerSession session, TeleportTarget hit)
+    {
+        var p = session.State;
+        if (hit.StationId is { } stationId)
+        {
+            TravelToStation(session, stationId, quickTravel: false);
+            if (_boardedStation.TryGetValue(p.PlayerId, out var aboard) && aboard == stationId)
+            {
+                Send(session, new ServerMessage { Text = "@srv.tp.to:" + hit.Label });
+                CheatLog(p, $"teleported aboard {hit.Label}");
+            }
+
+            return;
+        }
+
         SnapPlayerTo(session, hit.Position, "@srv.tp.to:" + hit.Label);
         UpdateAboard(session); // landing inside the ship must flip the aboard state now, not on the next move
         CheatLog(p, $"teleported to {hit.Label}");
@@ -352,13 +385,15 @@ public sealed partial class GameServer
         });
 
         var here = session.State.Position;
+        string inSpace = Localize(session.Locale, "srv.tp.in_space");
         foreach (var t in targets.Take(TeleportListMaxLines))
         {
+            // A giant wreck in space (#3655) has no distance on this body: it says where it is instead.
             float dx = t.Position.X - here.X, dz = t.Position.Z - here.Z;
-            Send(session, new ServerMessage
-            {
-                Text = $"/tp {t.Kind}{t.Number} · {t.Label} · {MathF.Sqrt((dx * dx) + (dz * dz)):0} m",
-            });
+            string where = t.StationId is null
+                ? FormattableString.Invariant($"{MathF.Sqrt((dx * dx) + (dz * dz)):0} m")
+                : inSpace;
+            Send(session, new ServerMessage { Text = $"/tp {t.Kind}{t.Number} · {t.Label} · {where}" });
         }
 
         if (targets.Count > TeleportListMaxLines)
@@ -432,15 +467,16 @@ public sealed partial class GameServer
     /// <summary>Test seam: the <c>/tp</c> kind a settlement of this tier is listed under.</summary>
     public static string SettlementTeleportKindForTest(bool ruined, string tier) => SettlementTeleportKind(ruined, tier);
 
-    /// <summary>Test seam: the resolvable targets on the player's current body, as <c>/tp</c> would list them.</summary>
-    public IReadOnlyList<(string Kind, int Number, string Label, Vector3f Position)> TeleportTargetsForTest(string playerId)
+    /// <summary>Test seam: the resolvable targets on the player's current body, as <c>/tp</c> would list them (a giant wreck in
+    /// space carries its station id, #3655).</summary>
+    public IReadOnlyList<(string Kind, int Number, string Label, Vector3f Position, string? StationId)> TeleportTargetsForTest(string playerId)
     {
         if (FindSessionByPlayerId(playerId) is not { } s)
         {
-            return new List<(string, int, string, Vector3f)>();
+            return new List<(string, int, string, Vector3f, string?)>();
         }
 
         Serve(s);
-        return TeleportTargets(s).Select(t => (t.Kind, t.Number, t.Label, t.Position)).ToList();
+        return TeleportTargets(s).Select(t => (t.Kind, t.Number, t.Label, t.Position, t.StationId)).ToList();
     }
 }

@@ -217,7 +217,11 @@ writer, overlay storage, chests, emitters, streaming lift and far silhouette. A 
   admin, whatever the roll said, with a fresh seed each time, under the next record index, stored as an overlay on any
   world (refused on a void or gas world and in space; no seat search, ground at the footprint's centre); `/tp giantwreck
   [n]` goes to the ground in front of one (`giantwrecks`, `giant_wreck`, `giantship`, `riesenschiff`, `riesenwrack`,
-  `riesenwracks` also work).
+  `riesenwracks` also work). #3655 (GameServerAdminTeleportSites.cs): the list names each wreck after its ship and goes on
+  with the giant wrecks **in space** of the player's current system (body name · ship, "in space" instead of a distance;
+  a retired one left out, listing builds none); such a target carries its station id and the teleport boards it through
+  `TravelToStation(quickTravel: false)` — the travel menu's path, from a planet and from flight alike. In flight `/tp`
+  offers only those (every other kind is refused with `srv.tp.no_surface_targets`).
 
 Known limit (as for landmarks): on an ungraded or stilts seat a water cell on the ground row is carried down by the plinth.
 

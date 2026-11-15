@@ -111,6 +111,12 @@ breathes (ocean worlds are breathable). Sunken sites cast no far silhouette.
 blocks; discovery, the Codex kind `civilization`, the scanner readout, VEGA's lines and the rumours on other worlds — see
 #3642.
 
+Admin (#3654, GameServerAdminTeleportSites.cs): `/tp civ [n]` lists and reaches every site of the current body in stamp
+order, named like the map entry (`civilization`, `zivilisation`, `volk`, `grosstechniker`, `labyrinth`, `maze` and their
+plurals also work). The spot is three blocks in front of the footprint like a landmark's, but found by `StandSpot`: from the
+generated ground up to the first two cells a body fits in, a liquid counting as passable — so beside a sunken site it is
+the seabed, not the sea surface.
+
 ## 7. The shipped civilizations
 
 | Civilization | Where | Sites |

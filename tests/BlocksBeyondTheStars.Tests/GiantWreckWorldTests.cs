@@ -172,7 +172,7 @@ public sealed class GiantWreckWorldTests : IDisposable
         Run("sample_hulk");
         Assert.Equal(2, server.GiantWrecksForTest.Count);
         Assert.Equal(new[] { 0, 1 }, server.PlacementRecordsForTest.Where(r => r.Kind == GiantShipRules.RecordKind && r.Placed).Select(r => r.Index));
-        Assert.Equal(2, server.TeleportTargetsForTest("Marcel").Count(t => t.Kind == "giantwreck"));
+        Assert.Equal(2, server.TeleportTargetsForTest("Marcel").Count(t => t.Kind == "giantwreck" && t.StationId is null));
         Assert.Equal(("giantwreck", 2), SvGameServer.ParseTeleportTargetForTest("riesenwrack 2"));
         Assert.Empty(server.LandmarksForTest);
     }
