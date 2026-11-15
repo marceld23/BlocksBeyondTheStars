@@ -51,7 +51,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_functionPicker != null)
             {
-                Object.Destroy(_functionPicker);
+                EditorSceneKit.Discard(_functionPicker);
                 _functionPicker = null;
             }
         }

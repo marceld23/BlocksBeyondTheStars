@@ -7,26 +7,29 @@ using UnityEngine;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// The game's logo as a texture (#3706): <see cref="BlockLogo"/> — "BLOCKS BEYOND / THE STARS" built from real blocks —
-    /// rendered once from the SHIPPED block tiles (<see cref="GameTextures.Official"/>: a texture pack never changes the
-    /// brand) and kept for the session. The title splash, the main menu and the loading screen show it
-    /// (<see cref="UiKit.AddGameLogo"/>); the poster capture stamps the same raster on its pictures. About 1.9 MB with mip maps,
-    /// made in a few milliseconds (no texture asset, nothing in the browser download); null when the tiles cannot be read —
-    /// the callers then fall back to the old text title.
+    /// The game's official logo (#3706): the rocket icon and the "Blocks Beyond the Stars" wordmark, white on a transparent
+    /// ground for dark backgrounds — the same mark as the README and the print material (Marcel: "my lettering", not a
+    /// generated one). Shipped as <c>Resources/branding/bbts-logo.bytes</c> (a 1600 px PNG kept as raw bytes, like the block
+    /// tiles in <c>Resources/textures</c>, so no import step can recompress it) and decoded once per session. The title
+    /// splash, the main menu and the loading screen show it (<see cref="UiKit.AddGameLogo"/>); the poster capture stamps the
+    /// same image on its pictures. Null when the asset is missing — the callers then fall back to the text title.
     /// </summary>
     public static class GameLogo
     {
+        /// <summary>The logo's resource path (a TextAsset holding the PNG bytes).</summary>
+        public const string ResourcePath = "branding/bbts-logo";
+
         private static Texture2D _texture;
         private static bool _failed;
 
-        /// <summary>The logo texture (rows bottom-up, straight alpha), or null when it could not be made.</summary>
+        /// <summary>The logo texture (rows bottom-up, straight alpha, readable), or null when it could not be loaded.</summary>
         public static Texture2D Texture
         {
             get
             {
                 if (_texture == null && !_failed)
                 {
-                    _texture = Build();
+                    _texture = Load();
                     _failed = _texture == null;
                 }
 
@@ -34,49 +37,61 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>The logo raster at <paramref name="blockPixels"/> per block, from the shipped tiles (rows bottom-up — the
-        /// game's frame order). The poster capture composes its pictures from it.</summary>
-        public static RgbaImage Raster(int blockPixels = BlockLogo.GameBlockPixels)
-            => BlockLogo.Render(blockPixels, ShippedTile);
+        /// <summary>The share of the image's width that is transparent margin on each side — none: the icon starts at the
+        /// image's left edge, so the mark lines up with a column edge as it is.</summary>
+        public static float MarginFraction => 0f;
 
-        /// <summary>The share of the logo image's width that is transparent margin on each side (the halo's room), so a caller
-        /// can line the letters up with a column edge.</summary>
-        public static float MarginFraction
+        /// <summary>The logo as an image <paramref name="width"/> pixels wide (rows bottom-up — the game's frame order), for
+        /// the poster capture; null without the logo.</summary>
+        public static RgbaImage Raster(int width)
         {
-            get
+            var tex = Texture;
+            if (tex == null)
             {
-                var (w, _) = BlockLogo.ImageSize(BlockLogo.GameBlockPixels);
-                return BlockLogo.GameBlockPixels / (float)w;
-            }
-        }
-
-        private static byte[] ShippedTile(string key)
-        {
-            var frames = GameTextures.Official(key);
-            return frames != null && frames.Frames.Length > 0 ? frames.Frames[0] : null;
-        }
-
-        private static Texture2D Build()
-        {
-            try
-            {
-                var img = Raster();
-                var tex = new Texture2D(img.Width, img.Height, TextureFormat.RGBA32, true)
-                {
-                    name = "GameLogo",
-                    wrapMode = TextureWrapMode.Clamp,
-                    filterMode = FilterMode.Trilinear, // mostly shown smaller than its 16 px blocks: the mips keep it calm
-                    hideFlags = HideFlags.DontUnloadUnusedAsset, // one per session, never swept by the return-to-menu pass
-                };
-                tex.SetPixelData(img.Rgba, 0); // mip 0; Apply builds the rest
-                tex.Apply(true, true);         // upload and drop the CPU copy — the capture re-renders the raster itself
-                return tex;
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogWarning($"[GameLogo] The block logo could not be made ({e.Message}) — the text title stands in.");
                 return null;
             }
+
+            var px = tex.GetPixels32();
+            var rgba = new byte[px.Length * 4];
+            for (int i = 0; i < px.Length; i++)
+            {
+                rgba[i * 4] = px[i].r;
+                rgba[i * 4 + 1] = px[i].g;
+                rgba[i * 4 + 2] = px[i].b;
+                rgba[i * 4 + 3] = px[i].a;
+            }
+
+            var image = new RgbaImage(tex.width, tex.height, rgba);
+            int height = Mathf.Max(1, Mathf.RoundToInt(width * tex.height / (float)tex.width));
+            return width == tex.width ? image : image.Resize(width, height);
+        }
+
+        private static Texture2D Load()
+        {
+            var bytes = Resources.Load<TextAsset>(ResourcePath);
+            if (bytes == null)
+            {
+                Debug.LogWarning($"[GameLogo] Resources/{ResourcePath} is missing — the text title stands in.");
+                return null;
+            }
+
+            var tex = new Texture2D(2, 2, TextureFormat.RGBA32, true)
+            {
+                name = "GameLogo",
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Trilinear, // mostly shown smaller than its 1600 px: the mips keep the edges calm
+                hideFlags = HideFlags.DontUnloadUnusedAsset, // one per session, never swept by the return-to-menu pass
+            };
+            bool ok = tex.LoadImage(bytes.bytes, false); // stays readable: the poster capture reads its pixels
+            Resources.UnloadAsset(bytes);
+            if (!ok)
+            {
+                EditorSceneKit.Discard(tex);
+                Debug.LogWarning("[GameLogo] The logo image could not be decoded — the text title stands in.");
+                return null;
+            }
+
+            return tex;
         }
     }
 }

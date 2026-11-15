@@ -263,7 +263,7 @@ namespace BlocksBeyondTheStars.Client
         {
             for (int i = _layerStrip.childCount - 1; i >= 0; i--)
             {
-                Destroy(_layerStrip.GetChild(i).gameObject);
+                EditorSceneKit.Discard(_layerStrip.GetChild(i).gameObject);
             }
 
             _layerButtons.Clear();

@@ -63,7 +63,7 @@ namespace BlocksBeyondTheStars.Client
             _atlas = null;
             if (_canvas != null)
             {
-                Destroy(_canvas.gameObject);
+                EditorSceneKit.Discard(_canvas.gameObject);
             }
         }
 

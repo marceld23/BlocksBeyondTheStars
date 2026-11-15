@@ -23,13 +23,15 @@ Last updated: 2026-10-04.
   window — on a desktop without X it prints "Loading..." to the terminal — then starts the game) or `./BlocksBeyondTheStars.x86_64` directly.
   **The main menu** (#3663): your **player name** sits in the box at the top right — every way into the game uses it,
   so type it once. On the left, the big **Continue** button starts the world you played last (it names the world, its
-  mode and when you played it); under it **Singleplayer**, **Multiplayer** and **Editors**, and a small row with
+  mode and when you played it, with a small picture of where you left off); under it **Singleplayer**, **Multiplayer** and **Editors**, and a small row with
   **Settings**, **Credits** and **Quit**. On the right, **What's new?** shows the newest update (*Read more* opens the
   full notes) and, when a festival is near, the festival card. Every menu screen works the same way: **Back** is at the
   top left (or press **Esc** / pad **B**), the filled button is the next step.
   **Singleplayer → My worlds:** your saves are listed on the left (newest first, with mode, when you last played and how
-  long; a long list scrolls with the mouse wheel, the scrollbar or the gamepad). Click one to see it on the right, then
-  **Play**; **Delete** (bin icon) removes it after a confirmation. **New world** opens the creation form on the right:
+  long; a long list scrolls with the mouse wheel, the scrollbar or the gamepad). Click one to see it on the right — with a
+  **picture of where you last were** (the game takes one after about half a minute of play, then every three minutes,
+  when you open the pause menu and when you close the game window; never with the HUD, a menu or a cutscene in it; until
+  a world has one, a planet stands in) — then **Play**; **Delete** (bin icon) removes it after a confirmation. **New world** opens the creation form on the right:
   type a name, pick the mode (**Explorer**, **Creative** or **Sandbox** — each card says what it means), optionally open
   **World options…**, then **Create & play** — or press the dice button **Random** for a surprise world, under the name
   you typed, or as `world_<number>` when the name box is empty, still says `new_world` or holds the name of a world you

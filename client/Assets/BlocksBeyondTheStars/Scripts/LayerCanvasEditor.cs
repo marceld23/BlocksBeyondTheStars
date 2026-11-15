@@ -106,16 +106,16 @@ namespace BlocksBeyondTheStars.Client
             Pad?.Release();
             if (Ui != null)
             {
-                Destroy(Ui.gameObject);
+                EditorSceneKit.Discard(Ui.gameObject);
             }
 
             ReleasePreviewTarget(); // the target goes before the stage that renders into it
             if (Stage != null)
             {
-                Destroy(Stage);
+                EditorSceneKit.Discard(Stage);
             }
 
-            Destroy(Tex);
+            EditorSceneKit.Discard(Tex);
         }
 
         protected void ReleasePreviewTarget()

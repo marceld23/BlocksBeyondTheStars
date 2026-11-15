@@ -9,8 +9,9 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// "My worlds" (#3664): ONE master-detail screen for playing and hosting local worlds, on the menu template. The list
     /// of saves sits on the left (<see cref="WorldListView"/>, UiSaveSelect.WorldList.cs: name, mode, last played, playtime,
-    /// read in the background and built in slices, #3259); the right pane shows the selected world with Play as the screen's
-    /// one primary action and Delete set apart — or, after "+ New world", the creation form (UiSaveSelect.Create.cs). Under
+    /// read in the background and built in slices, #3259); the right pane shows the selected world — its "last played"
+    /// picture on top (<see cref="WorldPreviewFrame"/>, taken in the world by <see cref="WorldPreviewCapture"/>), Play as the
+    /// screen's one primary action and Delete set apart — or, after "+ New world", the creation form (UiSaveSelect.Create.cs). Under
     /// both, the switch "Open to friends" with the player cap, the join password and the LAN address replaces the separate
     /// "Host a world" screen that used to repeat this whole picker for one extra panel; the main menu's Multiplayer screen
     /// opens this screen with the switch already on (<see cref="AppShell.HostMode"/>).
@@ -27,6 +28,12 @@ namespace BlocksBeyondTheStars.Client
         // The right pane: the selected world or the creation form above, the hosting row and the footer below.
         private const float PaneX = 820f, PaneW = 1010f;
         private const float LanY = 520f, FooterY = 664f;
+
+        // The selected world: its "last played" picture on top (16:9, WorldPreviewFrame — a placeholder until it has one), the
+        // facts beside it, the name, mode line and Play under it; Play ends 30 px above the hosting row's divider (LanY - 14).
+        private const float ShotX = 32f, ShotY = 24f, ShotW = 480f, ShotH = 270f;
+        private const float FactsX = ShotX + ShotW + 32f, FactsW = PaneW - 32f - FactsX, FactPitch = 88f;
+        private const float NameY = ShotY + ShotH + 14f, PlayY = NameY + 92f;
 
         /// <summary>
         /// The list's scroll offset (content y, px from the top) carried across the rebuild a delete triggers.
@@ -152,7 +159,9 @@ namespace BlocksBeyondTheStars.Client
             private string _selected;
             private GameObject _detail, _empty, _create, _deleteButton;
             private Button _play, _emptyNew; // the pad's first focus once the list is there (with a world / without one)
-            private Text _detailName, _detailMeta, _factsValues;
+            private Text _detailName, _detailMeta;
+            private readonly Text[] _facts = new Text[3]; // mode, last played, playtime
+            private WorldPreviewFrame _preview;
 
             // Delete confirmation (built last so it draws on top).
             private GameObject _confirm;
@@ -247,18 +256,14 @@ namespace BlocksBeyondTheStars.Client
             private void BuildDetail(Transform pane)
             {
                 _detail = UiKit.AddStretchChild(pane, "WorldDetail");
-                _detailName = UiKit.AddText(_detail.transform, 32f, 26f, PaneW - 64f, 50f, "", 36, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-                _detailMeta = UiKit.AddText(_detail.transform, 34f, 80f, PaneW - 64f, 28f, "", 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
-                _play = UiKit.AddTierButton(_detail.transform, 32f, 128f, 460f, 76f, _shell.L("ui.save.play"),
+                var d = _detail.transform;
+                _preview = WorldPreviewFrame.Add(d, ShotX, ShotY, ShotW, ShotH); // read for the selected world only (ShowDetail)
+                BuildFacts(d);
+                _detailName = UiKit.AddText(d, ShotX, NameY, PaneW - 64f, 50f, "", 36, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                _detailMeta = UiKit.AddText(d, ShotX + 2f, NameY + 52f, PaneW - 64f, 28f, "", 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                _play = UiKit.AddTierButton(d, ShotX, PlayY, 460f, 76f, _shell.L("ui.save.play"),
                     () => { if (_selected != null) { Launch(_selected); } }, ButtonTier.Primary, "btn_continue");
                 _play.GetComponentInChildren<Text>().fontSize = 28;
-
-                // A small facts grid: what the list row says, larger and labelled.
-                UiKit.AddText(_detail.transform, 32f, 240f, 220f, 96f,
-                    _shell.L("ui.save.mode") + "\n" + _shell.L("ui.save.last_played") + "\n" + _shell.L("ui.save.playtime"),
-                    17, UiKit.CyanDim, TextAnchor.UpperLeft).lineSpacing = 1.25f;
-                _factsValues = UiKit.AddText(_detail.transform, 260f, 240f, 600f, 96f, "", 17, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
-                _factsValues.lineSpacing = 1.25f;
 
                 _deleteButton = UiKit.AddTierButton(pane, PaneW - 32f - 240f, FooterY, 240f, 50f, _shell.L("ui.save.delete_yes"),
                     () => { if (_selected != null) { AskDelete(_selected); } }, ButtonTier.Danger, "btn_delete").gameObject;
@@ -268,6 +273,18 @@ namespace BlocksBeyondTheStars.Client
                 hint.horizontalOverflow = HorizontalWrapMode.Wrap;
                 _emptyNew = UiKit.AddTierButton(_empty.transform, 32f, 120f, 420f, 70f, _shell.L("ui.save.new_world"), ShowCreate,
                     ButtonTier.Primary, "btn_new");
+            }
+
+            // The facts beside the picture: what the list row says, larger and labelled.
+            private void BuildFacts(Transform d)
+            {
+                string[] labels = { "ui.save.mode", "ui.save.last_played", "ui.save.playtime" };
+                for (int i = 0; i < labels.Length; i++)
+                {
+                    float y = ShotY + 4f + i * FactPitch;
+                    UiKit.AddKicker(d, FactsX, y, FactsW, _shell.L(labels[i]));
+                    _facts[i] = UiKit.AddText(d, FactsX, y + 26f, FactsW, 38f, "", 22, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                }
             }
 
             private void ShowDetail(SavedWorld world)
@@ -288,7 +305,14 @@ namespace BlocksBeyondTheStars.Client
                 _detailName.text = world.Name;
                 UiKit.FitLabelSingleLine(_detailName, PaneW - 64f, 20, 36);
                 _detailMeta.text = mode + "  ·  " + ago;
-                _factsValues.text = mode + "\n" + ago + "\n" + played;
+                string[] facts = { mode, ago, played };
+                for (int i = 0; i < _facts.Length; i++)
+                {
+                    _facts[i].text = facts[i];
+                    UiKit.FitLabelSingleLine(_facts[i], FactsW, 14, 22);
+                }
+
+                _preview.Show(world.Name); // the "last played" picture of this world only — never one per list row
             }
 
             // seed 0 = the server derives it from the name; "Random world" under a typed name passes its own (#2522).

@@ -64,7 +64,7 @@ namespace BlocksBeyondTheStars.Client
 
             for (int i = _toolList.childCount - 1; i >= 0; i--)
             {
-                Destroy(_toolList.GetChild(i).gameObject);
+                EditorSceneKit.Discard(_toolList.GetChild(i).gameObject);
             }
 
             const float rowW = LeftW - (2f * Inset) - 16f;

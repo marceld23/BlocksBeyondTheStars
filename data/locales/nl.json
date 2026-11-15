@@ -2,7 +2,7 @@
   "ui.editor.save": "Opslaan",
   "ui.editor.load": "Laden",
   "ui.editor.new": "Nieuw",
-  "ui.editor.undo": "Ongedaan maken",
+  "ui.editor.undo": "Stap terug",
   "ui.editor.redo": "Opnieuw",
   "ui.editor.delete": "Verwijderen",
   "ui.editor.unsaved": "Nog niet opgeslagen",

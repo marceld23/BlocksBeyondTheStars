@@ -29,7 +29,7 @@ documented folder layout so dropping in real assets needs no code change.
 | Question | Decision (MVP) |
 |---|---|
 | Name | **Blocks Beyond the Stars** (renamed 2026-06-12 from the former working title; solution/namespaces/binaries renamed to `BlocksBeyondTheStars` too). |
-| Logo | Text logo "BLOCKS BEYOND THE STARS" + a simple blocky-ship glyph placeholder. No commissioned art yet. **Superseded (#3706):** one logo built from real blocks everywhere — see "Menu backdrop and first impressions" below. |
+| Logo | Text logo "BLOCKS BEYOND THE STARS" + a simple blocky-ship glyph placeholder. No commissioned art yet. **Superseded (#3706):** the official logo (rocket icon + wordmark, as in the README and the print material) everywhere — see "Menu backdrop and first impressions" below. |
 | Style | **Clean, friendly sci-fi** — it's a father-and-son game; not dark/gritty. |
 | Colours | Primary deep space blue `#0B1E3B`, accent cyan `#39C0ED`, warning amber `#FFB300`. |
 | Build badge | Show **"PROTOTYPE / DEV BUILD"** + version on splash and main menu. **Superseded (#3705):** the badge is gone; the splash and the menu show the version alone. |
@@ -96,11 +96,13 @@ preset calibration measures (`AutoQualityCalibrator`, studio/splash/intro/menu);
 backdrop did (the old one drew a cloud and a haze shell, a moon, seven asteroid cubes and two point lights; the new one has
 no point lights, no moon, no cubes). Re-measure Potato/Low in the browser once (they may step up a little more readily).
 
-**The logo.** `BlockLogo` (Client.Core) draws "BLOCKS BEYOND / THE STARS" in a 5×7 block font where every pixel is a real
-block wearing its shipped tile — crystal, silver, and gold for "STARS" — as little cubes with a navy halo. `GameLogo`
-renders it once per session from the shipped tiles (a texture pack never changes it, ~1.9 MB with mips);
+**The logo.** The official logo — the rocket icon and the "Blocks Beyond the Stars" wordmark, white on a transparent ground
+(`media/print/merch/bbts-logo-dark-bg.png`, the README's mark without its dark pill) — ships as
+`client/Assets/Resources/branding/bbts-logo.bytes`: a 1600 px PNG kept as raw bytes like the block tiles, so no import step
+recompresses it (~50 KB in the browser download). `GameLogo` decodes it once per session (readable, with mips);
 `UiKit.AddGameLogo` puts it where the title was (splash centre, menu and loading screen top left) and falls back to the
-old text title when it cannot be made.
+old text title when it is missing. The browser page shows the same mark from `TemplateData/bbs-logo.png` (1200 px). (A
+logo drawn from block tiles was tried on 2026-11-15 and dropped: Marcel wants his lettering.)
 
 **The poster.** `-capturePoster` (`ScreenshotDirector.Poster.cs`; `scripts/capture-poster.ps1` runs it) frames the backdrop
 as a poster on the High preset (never saved), hides the UI, photographs it and stamps the logo on. Where the pictures go

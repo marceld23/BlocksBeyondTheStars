@@ -215,10 +215,16 @@ one fixed motif, the intro film kept at its length, no AI images.
   the main menu and the loading screen; simpler on Potato/Low (no rim, fewer plume particles); still the auto-quality
   measuring scene. The **intro film** keeps its 28 s and beats with the same scene; the story's `space_vista` uses the
   real planet too. "PROTOTYPE / DEV BUILD" and "your name could be here" removed.
-- ✅ **First impressions** (#3706): one **logo from real block tiles** (`GameLogo`, `BlockLogo`); a **poster** the game
+- ✅ **First impressions** (#3706): the **official logo** (rocket icon + wordmark, `GameLogo`, `Resources/branding/bbts-logo.bytes`) on the splash, menu,
+  loading screen, poster and browser page; a **poster** the game
   renders itself (`-capturePoster`, `scripts/capture-poster.ps1`) for the Windows launcher splash, a new **Linux splash
   window** (X11), the installer image and the **browser loading page** (poster, logo, Rajdhani loaded); the Unity splash
   on the game's navy.
+- ✅ **"Last played" pictures** (Marcel while testing): a 640×360 `preview.jpg` in each local world's save folder
+  (`WorldPreviewCapture`: the game camera without HUD/menus, after 30 s of clear view, every 3 min, before the pause menu,
+  on quitting; never in cutscenes, loading, transitions or with a menu open), shown in the My worlds detail pane
+  (480×270, a planet placeholder before the first one) and small on the Continue card. Not for joined/official worlds or
+  the browser.
 - ⚠ Playtest open: framing of the motif at 16:9 / 21:9, the browser page, the Linux splash on a real desktop; a
   Latin-only WOFF2 of Rajdhani (≈ 20 KB instead of 375 KB) once the font tool may be used.
 

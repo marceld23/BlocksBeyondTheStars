@@ -41,6 +41,10 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            /// <summary>Where the world's "last played" picture would be (<see cref="WorldPreviewFiles"/>); the card shows it only
+            /// when the file is there.</summary>
+            public string PicturePath => WorldPreviewFiles.PathFor(LocalServerLauncher.SavesRoot, Name);
+
             /// <summary>"World · Explorer · 5 min ago" — the mode only when the world list already read it.</summary>
             public string Line(Func<string, string> localize)
             {
@@ -66,6 +70,40 @@ namespace BlocksBeyondTheStars.Client
 
                 return string.Empty;
             }
+        }
+
+        /// <summary>The inset of the Continue card's picture inside the card.</summary>
+        private const float EntryPictureInset = 12f;
+
+        /// <summary>
+        /// The Continue card's picture: the world's "last played" picture (<see cref="WorldPreviewFrame.TryAddPicture"/>,
+        /// 16:9, as tall as the card less <see cref="EntryPictureInset"/> above and below) in the icon's place on the left, the
+        /// icon hidden. Returns where the title and the line start then — or null, with nothing added, when the world has no
+        /// picture (or for any other entry), so the card and the menu's hierarchy stay as they were.
+        /// </summary>
+        private static float? AddEntryPicture(Button button, float h, string picturePath)
+        {
+            if (string.IsNullOrEmpty(picturePath))
+            {
+                return null;
+            }
+
+            float ph = h - 2f * EntryPictureInset, pw = ph * 16f / 9f;
+            var picture = WorldPreviewFrame.TryAddPicture(button.transform, EntryPictureInset, EntryPictureInset, pw, ph, picturePath);
+            if (picture == null)
+            {
+                return null;
+            }
+
+            foreach (var image in button.GetComponentsInChildren<Image>(true))
+            {
+                if (image != button.targetGraphic)
+                {
+                    image.gameObject.SetActive(false); // the picture takes the icon's place
+                }
+            }
+
+            return EntryPictureInset + pw + 18f;
         }
 
         /// <summary>

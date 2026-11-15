@@ -89,7 +89,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_mesh != null)
             {
-                Object.Destroy(_mesh);
+                EditorSceneKit.Discard(_mesh);
                 _mesh = null;
             }
 
@@ -116,19 +116,19 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_mesh != null)
             {
-                Object.Destroy(_mesh);
+                EditorSceneKit.Discard(_mesh);
             }
 
-            Object.Destroy(_opaque);
-            Object.Destroy(_cutout);
+            EditorSceneKit.Discard(_opaque);
+            EditorSceneKit.Discard(_cutout);
             if (_camera != null)
             {
                 _camera.targetTexture = null;
             }
 
             Target.Release();
-            Object.Destroy(Target);
-            Object.Destroy(_root);
+            EditorSceneKit.Discard(Target);
+            EditorSceneKit.Discard(_root);
         }
 
         // ---------------------------------------------------------------- meshes (centred on the origin)

@@ -7429,7 +7429,7 @@
   "ui.tex.tool.pipette": "Seleziona (I)",
   "ui.tex.tool.line": "Linea (L)",
   "ui.tex.tool.rect": "Rettangolo (R)",
-  "ui.tex.brush_size": "Dimensione pennello {0}",
+  "ui.tex.brush_size": "Pennello {0}",
   "ui.tex.mirror_x": "Simmetria ↔",
   "ui.tex.mirror_y": "Simmetria ↕",
   "ui.tex.slots": "Parti",

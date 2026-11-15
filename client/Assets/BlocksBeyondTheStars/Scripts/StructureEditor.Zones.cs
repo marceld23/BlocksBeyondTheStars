@@ -560,13 +560,13 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_root != null)
             {
-                Object.Destroy(_root);
+                EditorSceneKit.Discard(_root);
                 _root = null;
             }
 
             foreach (var mesh in _meshes)
             {
-                Object.Destroy(mesh);
+                EditorSceneKit.Discard(mesh);
             }
 
             _meshes.Clear();
@@ -577,7 +577,7 @@ namespace BlocksBeyondTheStars.Client
             Clear();
             foreach (var m in _materials.Values)
             {
-                Object.Destroy(m);
+                EditorSceneKit.Discard(m);
             }
 
             _materials.Clear();

@@ -6,7 +6,7 @@ using System.Reflection;
 namespace BlocksBeyondTheStars.Launcher;
 
 /// <summary>
-/// The splash background (#3706): the game's own poster — the corvette before the "varied" world with the block logo, taken
+/// The splash background (#3706): the game's own poster — the corvette before the "varied" world with the official logo, taken
 /// by the player with <c>-capturePoster</c> — so the launcher, the installer and the menu look like one game. A
 /// <c>splash.png</c> next to the launcher wins (a quick local swap); otherwise the poster compiled into the exe
 /// (<c>client/Branding/launcher-splash.jpg</c>, see the csproj); otherwise null and the procedural look stands in.

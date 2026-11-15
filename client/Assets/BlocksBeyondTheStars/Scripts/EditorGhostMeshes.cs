@@ -140,7 +140,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (m != null)
                 {
-                    Object.Destroy(m);
+                    EditorSceneKit.Discard(m);
                 }
             }
 

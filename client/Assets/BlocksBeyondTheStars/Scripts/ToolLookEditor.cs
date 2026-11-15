@@ -316,7 +316,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (_previewModel != null)
             {
-                Destroy(_previewModel);
+                EditorSceneKit.Discard(_previewModel);
                 _previewModel = null;
             }
 

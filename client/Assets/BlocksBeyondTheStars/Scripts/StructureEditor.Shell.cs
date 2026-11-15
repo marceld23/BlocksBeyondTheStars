@@ -115,7 +115,7 @@ namespace BlocksBeyondTheStars.Client
                 old.name = "CardContent (old)";
                 if (Application.isPlaying)
                 {
-                    Destroy(old.gameObject);
+                    EditorSceneKit.Discard(old.gameObject);
                 }
                 else
                 {

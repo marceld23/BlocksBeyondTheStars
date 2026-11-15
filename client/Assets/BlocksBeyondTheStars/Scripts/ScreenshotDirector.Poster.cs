@@ -13,7 +13,7 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// The poster (#3706): launched with <c>-capturePoster</c> (plus <c>-shotOut &lt;dir&gt;</c>), the director waits for the
     /// main menu, switches the backdrop to its poster framing (the corvette before the "varied" world, centred, full detail on
-    /// the High preset — never saved), hides every canvas, photographs the frame and stamps the block logo on it. No AI, no
+    /// the High preset — never saved), hides every canvas, photographs the frame and stamps the official logo on it. No AI, no
     /// paint: the poster is the game's own picture of itself. It writes, into <c>&lt;out&gt;/</c>:
     /// <list type="bullet">
     /// <item><c>poster.jpg</c> (1920×1080, with the logo) — key art for the README, stores, devblog; <c>poster.png</c> and
@@ -29,7 +29,8 @@ namespace BlocksBeyondTheStars.Client
     {
         private const int PosterWidth = 1920;
         private const int PosterHeight = 1080;
-        private const int PosterLogoTop = 36;           // px from the top edge to the logo image's top
+        private const int PosterLogoTop = 56;           // px from the top edge to the logo image's top
+        private const int PosterLogoWidth = 1200;       // the official logo's width on the 1920 px poster
         private const int LauncherWidth = 1120;         // the launcher's 560×320 window at 200 %
         private const int LauncherHeight = 640;
         private const int WebWidth = 1600;              // the browser page background (a JPEG behind the loading bar)
@@ -124,7 +125,11 @@ namespace BlocksBeyondTheStars.Client
             Texture2D tex = null;
             try
             {
-                tex = ScreenCapture.CaptureScreenshotAsTexture();
+                // A windowed player rarely gets the full 1920 × 1080 (title bar, taskbar): render the frame supersampled
+                // to at least the poster size instead of scaling a smaller frame up — the first poster came out soft.
+                int super = Mathf.Clamp(Mathf.CeilToInt(Mathf.Max(PosterWidth / (float)Mathf.Max(1, Screen.width),
+                    PosterHeight / (float)Mathf.Max(1, Screen.height))), 1, 4);
+                tex = ScreenCapture.CaptureScreenshotAsTexture(super);
                 var px = tex.GetPixels32();
                 var rgba = new byte[px.Length * 4];
                 for (int i = 0; i < px.Length; i++)
@@ -158,9 +163,12 @@ namespace BlocksBeyondTheStars.Client
         private static void WritePosterSet(RgbaImage frame, string dir)
         {
             Directory.CreateDirectory(dir);
-            var logo = GameLogo.Raster(); // rows bottom-up, like the frame
+            var logo = GameLogo.Raster(PosterLogoWidth); // the official logo, rows bottom-up like the frame
             var poster = frame.Crop(0, 0, frame.Width, frame.Height);
-            poster.DrawOver(logo, (poster.Width - logo.Width) / 2, poster.Height - PosterLogoTop - logo.Height);
+            if (logo != null)
+            {
+                poster.DrawOver(logo, (poster.Width - logo.Width) / 2, poster.Height - PosterLogoTop - logo.Height);
+            }
 
             WriteImage(Path.Combine(dir, "poster.png"), poster, 0);          // lossless masters (archive, not for the repo)
             WriteImage(Path.Combine(dir, "poster-nologo.png"), frame, 0);
@@ -168,7 +176,10 @@ namespace BlocksBeyondTheStars.Client
             WriteImage(Path.Combine(dir, "launcher-splash.jpg"),
                 poster.CropToAspect(LauncherWidth / (double)LauncherHeight).Resize(LauncherWidth, LauncherHeight), PosterJpegQuality);
             WriteImage(Path.Combine(dir, "bbs-poster.jpg"), frame.Resize(WebWidth, WebHeight), WebJpegQuality);
-            WriteImage(Path.Combine(dir, "bbs-logo.png"), logo, 0);
+            if (logo != null)
+            {
+                WriteImage(Path.Combine(dir, "bbs-logo.png"), logo, 0);
+            }
         }
 
         /// <summary>Encodes one picture: a PNG when <paramref name="jpegQuality"/> is 0 (the logo needs its alpha), else a JPEG

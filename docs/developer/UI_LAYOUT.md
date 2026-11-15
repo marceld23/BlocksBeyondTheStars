@@ -39,6 +39,24 @@ host), *Settings* (`UiSettings`, category navigation + description column), *Edi
 in game the pause menu (`AppShell.BuildQuitDialog`), the Codex (`WikiUI`), the admin menu (`AdminPanelUi`) and the
 console (`CraftingTechShipUI`: 8 main tabs with sub-tabs, opaque backdrop).
 
+**My worlds: the "last played" picture.** The selected world's detail pane opens with a 16:9 picture (480 × 270 at the
+pane's top left); the facts (mode, last played, playtime) sit beside it, the name, the mode line and Play under it — Play
+ends 30 px above the hosting row's divider. A world without a picture shows a planet icon on the card fill. The main
+menu's Continue card shows the same picture in its icon's place (149 × 84, the title and line move right of it), and only
+when it exists — without one the card and the menu's hierarchy are unchanged. The picture is `preview.jpg` (640 × 360,
+JPG quality 80) in the world's save folder, so deleting the world deletes it; it is never in the server's database.
+`WorldPreviewFrame` reads it for the selected world only (never one per list row), keeps the last four and frees them
+when the screen closes. `WorldPreviewCapture` takes it while the player is in a world the bundled server runs
+(singleplayer, or a save opened to friends): a clone of the view camera renders into a render texture — never the
+screen, so no HUD, menu, chat or overlay is in it — `GpuReadback` reads it, the JPG is written atomically off the main
+thread. When (`Client.Core/WorldPreviewSchedule`): after 30 s of clear view, then every 3 min of it, right before the
+pause menu opens (`AppShell.OpenPauseMenu` → `WorldPreviewCapture.PauseMenuOpening`, before the menu and its blur — the
+picture of leaving) and when the application quits. Never during a cutscene, the death prompt, the loading veil, a
+landing or docking transition or the 10 s after a hyperjump, nor within 5 s after one of those (the world streams in);
+never while a panel, the console, the pause menu or the chat is open, nor within 1 s after (the menu blur fades)
+(`WorldPreviewRules`). Multiplayer and official worlds get none; nor does the browser's in-tab world (one IndexedDB
+blob, no save folder, and the browser menu has neither My worlds nor Continue).
+
 ### Gamepad and touch rules of the template
 
 - **First focus** is never Back / Leave / Close: those are moved last in the hierarchy (`back.transform.SetAsLastSibling()`,
@@ -224,3 +242,7 @@ Keys: `ui.menu.back`, `ui.editor.save` / `load` / `new` / `undo` / `redo`, `ui.s
   sizes, pad first focus, status colours, the draft question, the Esc order and the confirmations.
 - EditMode: `ChatBigWindowEditModeTests`, `ChatLaneEditModeTests` (the comms zone constants match `VegaPanel` and
   `HudZones`), `HudRightColumnEditModeTests`, `MainMenuHierarchyEditModeTests` (the main menu's hierarchy golden).
+- `WorldPreviewFilesTests`, `WorldPreviewScheduleTests` (Client.Tests) — the picture's path, atomic write and the "good
+  moment" rules and timer; EditMode `WorldPreviewEditModeTests` — My worlds shows the selected world's picture or the
+  placeholder, the Continue card shows it only when it exists (both on a temp saves folder,
+  `LocalServerLauncher.SavesRootOverrideForTest`).

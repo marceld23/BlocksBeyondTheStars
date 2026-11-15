@@ -21,7 +21,7 @@ namespace BlocksBeyondTheStars.Client
             var canvas = UiKit.CreateCanvas("LoadingUI");
             var root = canvas.transform;
 
-            // Chrome echoing the menu: the block logo top left on the menu's left line (#3706), the version top right (#2953). The
+            // Chrome echoing the menu: the official logo top left on the menu's left line (#3706), the version top right (#2953). The
             // decorative SYSTEM CHECK panel (five fixed "OK"s) is gone here as on the main menu (#3663).
             const float sx = UiKit.ShellColumnX;
             UiKit.AddGameLogo(root, sx, 22f, 560f, 140f);

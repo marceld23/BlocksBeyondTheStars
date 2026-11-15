@@ -110,18 +110,18 @@ namespace BlocksBeyondTheStars.Client
             _atlas?.Release();
             if (_ui != null)
             {
-                Destroy(_ui.gameObject);
+                EditorSceneKit.Discard(_ui.gameObject);
             }
 
-            Destroy(_tex);
+            EditorSceneKit.Discard(_tex);
             foreach (var t in _thumbs)
             {
-                Destroy(t);
+                EditorSceneKit.Discard(t);
             }
 
-            Destroy(_svTex);
-            Destroy(_hueTex);
-            Destroy(_checker);
+            EditorSceneKit.Discard(_svTex);
+            EditorSceneKit.Discard(_hueTex);
+            EditorSceneKit.Discard(_checker);
         }
 
         private void OnTexturesChanged(IReadOnlyCollection<string> keys)
@@ -235,7 +235,7 @@ namespace BlocksBeyondTheStars.Client
                         data.CopyTo(raw);
                     }
 
-                    Destroy(copy);
+                    EditorSceneKit.Discard(copy);
                 }
 
                 done(raw);
@@ -703,7 +703,7 @@ namespace BlocksBeyondTheStars.Client
 
             for (int i = _slotLayer.childCount - 1; i >= 0; i--)
             {
-                Destroy(_slotLayer.GetChild(i).gameObject);
+                EditorSceneKit.Discard(_slotLayer.GetChild(i).gameObject);
             }
 
             var faces = _entry?.Block?.Faces;

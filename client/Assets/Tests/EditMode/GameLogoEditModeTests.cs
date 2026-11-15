@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Client;
-using BlocksBeyondTheStars.Client.Showcase;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,9 +9,9 @@ using UnityEngine.UI;
 namespace BlocksBeyondTheStars.Client.Tests.EditMode
 {
     /// <summary>
-    /// The game's one logo in the Unity shell (#3706): <see cref="GameLogo"/> turns the block-built raster into a texture from
-    /// the shipped tiles, and <see cref="UiKit.AddGameLogo"/> fits it into the title box of the splash, the menu and the
-    /// loading screen — aspect kept, the letters (not the halo margin) on the box's left edge, never a click target.
+    /// The game's one logo in the Unity shell (#3706): <see cref="GameLogo"/> loads the official logo (rocket icon + wordmark)
+    /// from Resources, and <see cref="UiKit.AddGameLogo"/> fits it into the title box of the splash, the menu and the
+    /// loading screen — aspect kept, the mark on the box's left edge (or centred), never a click target.
     /// </summary>
     public sealed class GameLogoEditModeTests
     {
@@ -29,16 +28,26 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         }
 
         [Test]
-        public void Texture_IsTheBlockLogoRaster_WithMipMaps()
+        public void Texture_IsTheOfficialLogo_WithMipMaps()
         {
             var tex = GameLogo.Texture;
 
-            Assert.IsNotNull(tex, "the logo must build from the shipped block tiles (Resources/textures)");
-            var (w, h) = BlockLogo.ImageSize(BlockLogo.GameBlockPixels);
-            Assert.AreEqual(w, tex.width);
-            Assert.AreEqual(h, tex.height);
-            Assert.Greater(tex.mipmapCount, 1, "shown smaller than its 16 px blocks: it needs mips to stay calm");
+            Assert.IsNotNull(tex, "the logo must load from Resources/" + GameLogo.ResourcePath);
+            Assert.AreEqual(1600, tex.width, "the shipped 1600 px rendering of the print logo");
+            Assert.Greater(tex.width / (float)tex.height, 6f, "icon + one-line wordmark: a wide mark");
+            Assert.Greater(tex.mipmapCount, 1, "shown smaller than its 1600 px: it needs mips to stay calm");
+            Assert.IsTrue(tex.isReadable, "the poster capture reads its pixels");
             Assert.AreSame(tex, GameLogo.Texture, "one texture per session");
+        }
+
+        [Test]
+        public void Raster_KeepsTheAspect_AtTheAskedWidth()
+        {
+            var img = GameLogo.Raster(1200);
+
+            Assert.IsNotNull(img);
+            Assert.AreEqual(1200, img.Width);
+            Assert.AreEqual(GameLogo.Texture.width / (float)GameLogo.Texture.height, img.Width / (float)img.Height, 0.05f);
         }
 
         [Test]
@@ -55,7 +64,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             Assert.LessOrEqual(rt.sizeDelta.y, 140.01f);
             Assert.AreEqual(GameLogo.Texture.width / (float)GameLogo.Texture.height, rt.sizeDelta.x / rt.sizeDelta.y, 0.01f);
             float margin = rt.sizeDelta.x * GameLogo.MarginFraction;
-            Assert.AreEqual(90f - margin, rt.anchoredPosition.x, 0.01f, "the halo hangs out left, the letters start on the column");
+            Assert.AreEqual(90f - margin, rt.anchoredPosition.x, 0.01f, "the mark starts on the column");
         }
 
         [Test]

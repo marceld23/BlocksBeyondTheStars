@@ -9,7 +9,7 @@ namespace BlocksBeyondTheStars.Launcher;
 /// <summary>
 /// The Linux launcher's splash picture (SkiaSharp): the Windows launcher's look (<c>SplashForm.PaintSplash</c>). With the
 /// game's own poster compiled in (#3706, <c>client/Branding/launcher-splash.jpg</c> — the corvette before the "varied" world
-/// with the block logo) it draws only "Loading…", the bar and the studio line on a dark band at the bottom; without it the
+/// with the official logo) it draws only "Loading…", the bar and the studio line on a dark band at the bottom; without it the
 /// procedural space gradient, stars and title stand in. Drawn into a bitmap for the splash window
 /// (<see cref="X11SplashWindow"/>) or encoded to a PNG (<c>--render-splash</c>, a visual check).
 /// </summary>

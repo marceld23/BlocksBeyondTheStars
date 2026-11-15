@@ -215,7 +215,7 @@ namespace BlocksBeyondTheStars.Client
                 var icon = new Texture2D(Tile, Tile, TextureFormat.RGBA32, false);
                 Upload(icon, _model.Frames[0]);
                 ok = TexturePackFolder.SaveIcon(_entry.IconName, icon);
-                Destroy(icon);
+                EditorSceneKit.Discard(icon);
                 if (ok)
                 {
                     _model.MarkSaved();

@@ -790,6 +790,9 @@ namespace BlocksBeyondTheStars.Client
 
             // Jetpack thrust flames for the local third-person avatar would render via the player's own VFX.
 
+            // The "last played" picture of a local world for My worlds and the Continue card (none for a remote world).
+            WorldPreviewCapture.Attach(root, boot, cam, shell);
+
             return root;
         }
 

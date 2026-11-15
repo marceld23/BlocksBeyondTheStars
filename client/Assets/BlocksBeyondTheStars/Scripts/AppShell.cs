@@ -2063,6 +2063,9 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // A local world's "last played" picture (My worlds) — taken now, before the menu and its blur show.
+            WorldPreviewCapture.PauseMenuOpening();
+
             // Ask before leaving the game (rather than quitting instantly) — and actually hold the
             // world while the menu is up, which is what the dialog has always claimed to do.
             _confirmQuit = true;

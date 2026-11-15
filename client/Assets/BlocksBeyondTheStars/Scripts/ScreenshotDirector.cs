@@ -30,7 +30,7 @@ namespace BlocksBeyondTheStars.Client
     /// <para>
     /// <c>-captureEditors</c> (#3687, <c>ScreenshotDirector.Editors.cs</c>) instead opens every creative editor in turn
     /// from the editors menu, writes <c>editors/NN-&lt;editor&gt;[-&lt;view&gt;].png</c> and quits — no world is started.
-    /// <c>-capturePoster</c> (#3706, <c>ScreenshotDirector.Poster.cs</c>) photographs the menu backdrop with the block logo for
+    /// <c>-capturePoster</c> (#3706, <c>ScreenshotDirector.Poster.cs</c>) photographs the menu backdrop with the official logo for
     /// the launchers, the installer and the browser page, and quits.
     /// </para>
     /// </summary>
@@ -164,7 +164,7 @@ namespace BlocksBeyondTheStars.Client
                 yield break;
             }
 
-            // Poster mode (-capturePoster, #3706): the menu backdrop with the block logo — no text, so no language; quits.
+            // Poster mode (-capturePoster, #3706): the menu backdrop with the official logo — no text, so no language; quits.
             if (_poster)
             {
                 yield return CapturePoster(shell);

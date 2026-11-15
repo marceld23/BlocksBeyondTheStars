@@ -8,11 +8,11 @@ namespace BlocksBeyondTheStars.Client
 {
     public static partial class UiKit
     {
-        /// <summary>The game's name — the fallback title when the block logo cannot be drawn.</summary>
+        /// <summary>The game's name — the fallback title when the logo cannot be loaded.</summary>
         public const string GameTitle = "BLOCKS BEYOND THE STARS";
 
         /// <summary>
-        /// The game's block logo (#3706, <see cref="GameLogo"/>) fitted into the box (<paramref name="x"/>, <paramref name="y"/>,
+        /// The game's official logo (#3706, <see cref="GameLogo"/>: rocket icon + wordmark) fitted into the box (<paramref name="x"/>, <paramref name="y"/>,
         /// <paramref name="w"/>, <paramref name="h"/>) with its aspect kept: vertically centred, its letters flush with the box's
         /// left edge (the menu's one column axis) or centred. Without the logo texture it falls back to the extruded text
         /// title (<see cref="AddLogo"/>) in the same box. Not a raycast target.
@@ -29,7 +29,7 @@ namespace BlocksBeyondTheStars.Client
             float aspect = tex.width / (float)tex.height;
             float lw = Mathf.Min(w, h * aspect);
             float lh = lw / aspect;
-            float margin = lw * GameLogo.MarginFraction; // the halo's transparent room around the letters
+            float margin = lw * GameLogo.MarginFraction; // transparent room left of the mark (none today)
             float lx = centered ? x + (w - lw) * 0.5f : x - margin;
             float ly = y + (h - lh) * 0.5f;
 

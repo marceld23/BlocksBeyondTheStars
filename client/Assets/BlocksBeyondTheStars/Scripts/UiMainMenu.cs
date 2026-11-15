@@ -97,7 +97,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // --- Title (top left, over the button column — one axis for the whole screen, #3663) + the tagline under it. The
-            // title is the game's block logo (#3706), the same everywhere; the 3D motif fills the free middle (#3705). ---
+            // title is the game's official logo (rocket icon + wordmark, #3706), the same everywhere; the 3D motif fills the free middle (#3705). ---
             public void BuildTitle()
             {
                 UiKit.AddGameLogo(_root, ColX, 22f, ColW, 140f);
@@ -528,9 +528,10 @@ namespace BlocksBeyondTheStars.Client
                 var last = LastWorld.Find(_shell.Settings.LastWorld);
                 if (last != null)
                 {
-                    // Continue (#3663): the most common way into the game in one click — the world, its mode, how long ago.
+                    // Continue (#3663): the most common way into the game in one click — the world, its mode, how long ago, and
+                    // the picture of where the player left it when the world has one (WorldPreviewCapture).
                     AddEntry(ColX, y, ColW, ContinueH, _shell.L("ui.menu.continue"), last.Line(_shell.L), "btn_continue",
-                        ButtonTier.Primary, () => { if (CommitName()) { _shell.StartSingleplayerWorld(last.Name); } });
+                        ButtonTier.Primary, () => { if (CommitName()) { _shell.StartSingleplayerWorld(last.Name); } }, last.PicturePath);
                     y += ContinueH + 14f;
                 }
 
@@ -553,8 +554,10 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddTierButton(_root, ColX + 2f * (sw + 12f), y, sw, 56f, _shell.L("ui.menu.quit"), _shell.Quit, ButtonTier.Quiet, "btn_exit");
             }
 
-            // A two-line menu entry: the action in big letters, what it leads to under it; a larger icon on the left.
-            private void AddEntry(float x, float y, float w, float h, string title, string sub, string icon, ButtonTier tier, System.Action onClick)
+            // A two-line menu entry: the action in big letters, what it leads to under it; a larger icon on the left — or, when
+            // picturePath holds a picture (the Continue card's world), that picture in the icon's place.
+            private void AddEntry(float x, float y, float w, float h, string title, string sub, string icon, ButtonTier tier, System.Action onClick,
+                string picturePath = null)
             {
                 var button = UiKit.AddTierButton(_root, x, y, w, h, title, onClick, tier, icon);
                 float iconSize = h >= ContinueH ? 52f : 40f;
@@ -567,7 +570,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 var label = button.GetComponentInChildren<Text>();
-                float textX = iconSize + 40f;
+                float textX = AddEntryPicture(button, h, picturePath) ?? iconSize + 40f;
                 UiKit.Place(label.gameObject, textX, h * 0.12f, w - textX - 16f, h * 0.46f);
                 label.fontSize = h >= ContinueH ? 30 : 24;
                 label.resizeTextForBestFit = false;

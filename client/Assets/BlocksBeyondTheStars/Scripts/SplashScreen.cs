@@ -9,7 +9,7 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// Splash screen: the animated menu space scene (the corvette before the "varied" world, #3705) shows through behind the
-    /// game's block logo (<see cref="GameLogo"/>, #3706) that fades/scales/slides in, with the tagline, the version, the
+    /// game's official logo (<see cref="GameLogo"/>, #3706) that fades/scales/slides in, with the tagline, the version, the
     /// open-source line and the skip hint. Shown every start, skippable, and bridges content-load time. Modern uGUI on its own
     /// DPI-scaled overlay canvas (no bundled art: the logo is rendered from the block tiles); driven from AppShell.Update. The
     /// old "PROTOTYPE / DEV BUILD" badge is gone (#3705) — the version alone says which build this is.
@@ -111,7 +111,7 @@ namespace BlocksBeyondTheStars.Client
             ovImg.color = new Color(0.02f, 0.04f, 0.09f, 0.35f);
             ovImg.raycastTarget = false;
 
-            // The block logo (#3706), animated as a group (scaled/faded/slid).
+            // The official logo (#3706), animated as a group (scaled/faded/slid).
             var titleGo = new GameObject("Title", typeof(RectTransform));
             titleGo.transform.SetParent(root, false);
             _title = titleGo.GetComponent<RectTransform>();

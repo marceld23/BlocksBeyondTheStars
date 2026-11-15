@@ -13,7 +13,7 @@ namespace BlocksBeyondTheStars.Launcher;
 /// before the Unity player creates its window. It polls the game process and hands off — closing itself —
 /// as soon as the player's main window appears (Unity's own splash then takes over). A safety timeout makes
 /// sure the splash never lingers if the window never reports. Since #3706 the picture is the game's own poster (the
-/// corvette before the "varied" world with the block logo, <see cref="SplashArt"/>) with "Loading…", the bar and the studio
+/// corvette before the "varied" world with the official logo, <see cref="SplashArt"/>) with "Loading…", the bar and the studio
 /// line on a dark band at the bottom — the same image the installer and the browser page show; without the poster the old
 /// procedural look (dark space gradient + stars + title) stands in. All layout is derived from the live client size, so it
 /// stays crisp and readable at any DPI.
