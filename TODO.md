@@ -62,8 +62,17 @@ one PR. Details: docs/developer/CIVILIZATIONS.md; lore (incl. the internal part)
   in another system; seven statue props (square-headed bipeds); blocks `maze_stone`, `maze_stone_carved`; loot tables
   `civ_labyrinth_builders_*`.
 - **#3646 authoring**: the template fields (`civilization`, `civPool`, `propPool`, `seat: seabed`), `air` cells, the `prop`
-  marker; `tools/landmarks/civ.py` (diving bells, props), `civ_grosstechniker.py`, `civ_labyrinth_statues.py`, previews.
-- **#3647 texts**: en + de (115 keys); the twelve community languages — see the open items below.
+  marker; `tools/landmarks/civ.py` (diving bells, props), `civ_grosstechniker.py`, `civ_labyrinth_statues.py`, previews; the
+  structure editor opens and saves a civilization template unchanged (target `StampTarget.Civilization`, the air-pocket
+  brush, the prop marker, exports to `civilization_exports/`, `tools/merge_structure.py`), and a marker in a cavity no longer
+  gets lost on save (old mine, carrier).
+- **#3647 texts**: en + de, the twelve community languages by hand (glossary of the issue) plus an independent review per
+  language (9 fixes, e.g. zh glyph stone ≠ rune stone); the editor's 20 keys in all 14.
+- **Independent code review** before the PR (9 findings, all fixed): graded land seats only (a maze on stilts kept its
+  passages full of rock), the sea floor's flora no longer floats over a dug basin, the browser's fallback file list, the
+  galaxy guarantees pinned per world (`WorldMetadata.CivilizationGuarantees`), props stay in their room and off the chests,
+  the kind switched off keeps a home's landmark, every record saved before any stamp, a crafted block discovers nothing,
+  hidden chests under water get their cover stone.
 - **#3648 docs**: CIVILIZATIONS.md (new), STRUCTURE_PIPELINE.md, LANDMARKS.md, WORLD_GENERATION.md §58, LORE_STRUCTURE.md
   §C/§C1, GIANT_SHIPS.md, STATION_SETTLEMENT_EDITOR.md §3g, AGE_RATING_CHECKLIST.md, USER_MANUAL.md (*Lost civilizations*,
   diving air), the docs index.
@@ -72,7 +81,6 @@ one PR. Details: docs/developer/CIVILIZATIONS.md; lore (incl. the internal part)
   the chests; a labyrinth on a toxic and on an airless body (oxygen, getting lost, the plaza statue and chest, mining /
   climbing / jetpacking over a wall); map, Codex, VEGA lines and a settler's rumour on another world.
 - **Open (backlog):**
-  - the twelve community languages of the new texts (#3647), if they are not in the PR yet;
   - a **story lead** to a civilization's home (like the unique sites') — not done: `GameServerStoryLeads.cs` is at 999 lines
     and needs a split first;
   - the editor's *Generate* → bake does not carry a source's kept cells (`BuiltStructure.Keep`) yet;
