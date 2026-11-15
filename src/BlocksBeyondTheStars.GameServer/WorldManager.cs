@@ -405,6 +405,10 @@ internal sealed class LoadedWorld
     public bool CivilizationsStamped { get; set; }
     public List<GameServer.LandmarkInstance> CivilizationSites { get; } = new();
 
+    // #3680 (generation 44): whether this load ran the guardian giants' stamp (GameServerGuardianGiantStamp.cs) — their bodies
+    // are ordinary block edits written once; their state lives in WorldMetadata.GuardianGiants.
+    public bool GuardianGiantsStamped { get; set; }
+
     // Fallen-city ruin stamp state — ruins are mineable, so they are stamped ONCE (guarded by this flag)
     // and then live on as persisted block edits; they are NOT re-stamped on reload (that would resurrect
     // blocks the player has cleared). Ruins are not tracked as structures (just terrain + loot).

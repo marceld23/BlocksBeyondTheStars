@@ -537,6 +537,23 @@ public sealed class ServerConfig
     public double? GiantWreckChance { get; set; }
 
     /// <summary>
+    /// Whether the server may lay <b>fallen guardian giants</b> (#3680) on a body of a new world (terrain generation 44+) — one
+    /// or two huge block-built hunter robots lying on dry, flat ground, about one in four of which can still wake. Never on a
+    /// gas, void or city world, an asteroid or the finale body. Only decides for bodies that have not decided yet; a giant a
+    /// world already has stays. Deterministic from the world seed.
+    /// </summary>
+    public bool PlaceGuardianGiants { get; set; } = true;
+
+    /// <summary>
+    /// The chance (0..1) that a body which could carry one gets a first guardian giant (#3680, terrain generation 44), scaled
+    /// by the world's structures frequency. Unset (null) takes the <c>guardian_giant</c> kind's chance from
+    /// <c>data/structure_types.json</c> (about every third body); a value here overrides it — every stored value is the
+    /// operator's choice. The chance of a second giant stays the file's. Tests pin 1.0 to get a giant wherever one fits, 0.0 to
+    /// keep a world free.
+    /// </summary>
+    public double? GuardianGiantChance { get; set; }
+
+    /// <summary>
     /// Singleplayer/admin convenience: guarantee one data cube right next to the start world's landing pad, so
     /// a solo player can always reach a minigame near spawn. Set only by the bundled singleplayer launcher;
     /// left off on shared/dedicated servers (where the random scatter applies as normal).

@@ -314,6 +314,8 @@ ITEMS = [
     ("obsidian_chest", "an alien armour chest plate of glossy black obsidian plates with rounded shoulder pads and one round empty disc socket ring glowing soft teal in the middle of the chest, thin teal lines, front view, no person"),
     ("obsidian_legs", "a pair of alien armour leg plates of glossy black obsidian with rounded knee guards and thin glowing teal lines down the sides, front view, no person"),
     ("song_spindle", "a small alien music artifact: a round black obsidian pedestal with thin glowing teal spiral grooves and a tall slender glowing pale teal and violet crystal spindle standing upright in its middle, soft glow"),
+    # #3685: the memory core a defeated guardian giant leaves in each fighter's crate — the old builder's last order inside.
+    ("guardian_giant_core", "a heavy fist-sized sci-fi machine memory core, a chunky hexagonal housing of grey riveted metal panels with a few rust spots, one round dim red glass lens glowing softly on its front, thin faint red circuit lines on its sides and two short cut cable stubs at the back, kid-friendly"),
 ]
 
 # Ship MODULES (builder UI). Space-view laser/tractor reuse ship_laser_basic / tractor_beam.

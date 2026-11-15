@@ -77,6 +77,8 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.PlanetEnemyDefeated += OnDefeated;
                 Game.Network.SentryShotReceived += OnSentryShot;
                 Game.Network.WorldFxReceived += OnWorldFx; // #3096: a tank spider's burst
+                Game.Network.BlockChanged += OnGiantBlockChanged; // #3676: a stirring guardian giant's eye flickers
+                Game.Network.WorldFxReceived += OnGiantWorldFx;   // #3676: a guardian giant's shock wave pushes the player
                 _subscribed = true;
             }
 
@@ -91,6 +93,12 @@ namespace BlocksBeyondTheStars.Client
             foreach (var e in Game.PlanetEnemies)
             {
                 seen.Add(e.Id);
+                if (e.Kind == GuardianGiantRules.NetKind)
+                {
+                    FeedGuardianGiant(e); // #3676: drawn by its own view, with the boss bar (WorldEntities.GuardianGiants.cs)
+                    continue;
+                }
+
                 if (_gone.TryGetValue(e.Id, out float goneAt) && Time.time - goneAt < 3f)
                 {
                     continue; // #2154: already breaking apart / beaming out — a late list must not rebuild it
@@ -242,6 +250,8 @@ namespace BlocksBeyondTheStars.Client
                 EnemyHealthBars.Push(Game, cam, e.Id, en.Root.transform.position + Vector3.up * (en.IsBandit ? BanditHeadTop + 0.1f : 2.1f),
                     e.Hull, e.HullMax, friendly: false, fadeStart: 18f, fadeEnd: 28f, occlude: true); // #2531
             }
+
+            TickGuardianGiants(); // #3676
 
             // Remove enemies whose entity is gone (killed / out of range).
             if (_enemies.Count > seen.Count)
@@ -748,7 +758,11 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.PlanetEnemyDefeated -= OnDefeated;
                 Game.Network.SentryShotReceived -= OnSentryShot;
                 Game.Network.WorldFxReceived -= OnWorldFx;
+                Game.Network.BlockChanged -= OnGiantBlockChanged;
+                Game.Network.WorldFxReceived -= OnGiantWorldFx;
             }
+
+            DisposeGuardianGiants();
         }
     }
 }

@@ -9,7 +9,7 @@ namespace BlocksBeyondTheStars.Client
     /// The Codex's discovery groups and, #3642, its lost civilizations (heading <c>ui.wiki.discoveries.civilization</c>): a
     /// civilization is listed once per player (ledger <c>civ:&lt;key&gt;</c>), named after the civilization file's Codex title
     /// with its Codex text under it, found where the player first came near one of its sites — the words come from
-    /// <see cref="CivilizationText"/>.
+    /// <see cref="CivilizationText"/>. #3676: the guardian giants found have their own group.
     /// </summary>
     public sealed partial class WikiUI
     {
@@ -17,8 +17,12 @@ namespace BlocksBeyondTheStars.Client
         private static readonly string[] DiscoveryKinds =
         {
             "place", "creature", "microfauna", "tree", "flora", "block", "monument", "landmark", GiantWreckText.CodexGroup,
-            CivilizationText.CodexGroup, "asteroid",
+            CivilizationText.CodexGroup, GuardianGiantCodexGroup, "asteroid",
         };
+
+        /// <summary>#3676: the guardian giants found (ledger <c>guardian_giant:&lt;siteId&gt;</c>, heading
+        /// <c>ui.wiki.discoveries.guardian_giant</c>) — the kind before the colon, so the plain row serves them.</summary>
+        private const string GuardianGiantCodexGroup = "guardian_giant";
 
         /// <summary>The group of a ledger key: the giant wrecks' and the civilizations' own, else the kind before the first colon
         /// (<paramref name="colon"/>; "asteroid" has none).</summary>

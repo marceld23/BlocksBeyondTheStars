@@ -370,6 +370,10 @@ public sealed class WorldMetadata
     /// cleared site is kept until a new shuttle lands there). Additive: an older build drops it, a missing entry means "no
     /// shuttle landed here".</summary>
     public System.Collections.Generic.Dictionary<string, HunterShuttleSiteRecord> HunterShuttleSites { get; set; } = new();
+
+    /// <summary>#3676: the guardian giants lying in this world — <see cref="GuardianGiantRecord.SiteId"/> → the giant. Written
+    /// by the structure stamp, kept up by the boss logic. Additive: an older build drops it, a missing entry means "no giant".</summary>
+    public System.Collections.Generic.Dictionary<string, GuardianGiantRecord> GuardianGiants { get; set; } = new();
 }
 
 /// <summary>#2716: a base resident who left (<see cref="WorldMetadata.RetiredBaseResidents"/>): where they lived and who they

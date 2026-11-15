@@ -63,11 +63,15 @@ public sealed class PlayerSessionStory
     public double CutsceneJoinAt { get; set; } = double.NegativeInfinity;
 
     /// <summary>#2467: cutscenes committed to this player but not sent yet (waiting for the client to be in the world or for
-    /// the 90 s cooldown). RAM only — the <c>:sent</c> ledger key re-offers them at the next join.</summary>
+    /// the cooldown). RAM only — the <c>:sent</c> ledger key re-offers them at the next join.</summary>
     public List<PendingCutscene> CutsceneQueue { get; } = new();
 
     /// <summary>#2467: server uptime of the last unrequested T2+ cutscene sent (the cooldown clock).</summary>
     public double CutsceneLastSentAt { get; set; } = double.NegativeInfinity;
+
+    /// <summary>#3686: the pack of the last unrequested T2+ cutscene sent — the next scene of the same story follows after the
+    /// short same-pack cooldown. Empty = none yet. RAM only.</summary>
+    public string CutsceneLastSentPack { get; set; } = string.Empty;
 
     /// <summary>#2467: the scenes (<c>&lt;pack&gt;/&lt;id&gt;</c>) that may follow the last sent one at once — its
     /// <c>chainNext</c>.</summary>

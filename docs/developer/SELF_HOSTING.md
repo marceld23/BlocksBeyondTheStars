@@ -171,6 +171,11 @@ come from `data/structure_types.json`. A `server.json` written before that file 
 0.34) explicitly; the server reads exactly those values as "not set", so the data file decides. Any other value stays an
 override, and the server logs once per kind when it differs from the data file.
 
+**Fallen guardian giants** (#3680): `placeGuardianGiants` (default `true`) is the host's switch — off, the server lays no
+giant on a body stamped from then on (one a world already has stays). `guardianGiantChance` (unset by default, then the
+`guardian_giant` chance of `data/structure_types.json`, 0.34 — a first giant on about every third body, terrain generation
+44+) overrides the chance of the first giant; any value you store counts. Both are `server.json` keys only.
+
 **Giant ship wrecks** (#3625): `placeGiantWrecks` (default `true`) is the host's switch. Off, the server lays no giant ship
 wreck on a planet stamped from then on (a planet wreck a world already has stays — it is part of the terrain) and keeps
 every wreck in SPACE out of the world, an existing one too: no body on the star map, no contact; what the save holds of them

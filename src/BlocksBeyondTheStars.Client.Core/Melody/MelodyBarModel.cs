@@ -10,7 +10,8 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// What the melody bar (#3346) shows, Unity-free: open or closed, the puzzle's mode and progress, the tone the prompt
-    /// lights right now, the tone that flashes after a key press or a judged note, and the result line. The server's
+    /// lights right now, the tone that flashes after a key press or a judged note, the key that glows as the next one to
+    /// play (the Bridge Song only, #3677 — <see cref="GlowTone"/>), and the result line. The server's
     /// <see cref="MelodyPuzzleState"/> drives it (<see cref="Apply"/>); the bar itself only reads it and sends the keys.
     /// The bar can also open for free play (<see cref="OpenFreePlay"/> — the Resonance Blaster in hand), with no puzzle id.
     /// Every tone has its own colour AND its own symbol (<see cref="Symbols"/>), so it never relies on colour alone.
@@ -62,6 +63,14 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#3426: the two tones the player plays for each letter of <see cref="Word"/>.</summary>
         public int[] WordTones { get; private set; } = Array.Empty<int>();
 
+        /// <summary>#3677: right tones played so far through the whole <see cref="Word"/> (across rounds — the Bridge Song
+        /// sings one letter per round); from an older server the round's <see cref="Entered"/>.</summary>
+        public int WordEntered { get; private set; }
+
+        /// <summary>#3677: the key the server wants played next (0–7), or -1 — only the Bridge Song sends one. The bar makes
+        /// it glow once the prompt has played (<see cref="GlowTone"/>).</summary>
+        public int NextTone { get; private set; } = -1;
+
         /// <summary>Bumped on every change, so the HUD can rebuild its texts only when needed.</summary>
         public int Version { get; private set; }
 
@@ -86,6 +95,8 @@ namespace BlocksBeyondTheStars.Client
             Result = (MelodyPuzzleResult)m.Result;
             Word = m.Open ? m.Word ?? string.Empty : string.Empty;
             WordTones = m.Open && m.WordTones is { } tones ? tones : Array.Empty<int>();
+            WordEntered = m.WordEntered >= 0 ? m.WordEntered : m.Entered;
+            NextTone = m.Open && m.NextTone >= 0 && m.NextTone < SounderAlphabet.ToneCount ? m.NextTone : -1;
             _resultAt = now;
             if (m.Highlight is { Length: > 0 })
             {
@@ -119,9 +130,10 @@ namespace BlocksBeyondTheStars.Client
             PuzzleId = string.Empty;
             Instrument = Math.Max(0, Math.Min(NoteSequenceScheduler.MaxInstrument, instrument));
             Result = MelodyPuzzleResult.Playing;
-            Round = RoundCount = Entered = Expected = 0;
+            Round = RoundCount = Entered = Expected = WordEntered = 0;
             Word = string.Empty;
             WordTones = Array.Empty<int>();
+            NextTone = -1;
             Version++;
         }
 
@@ -146,6 +158,8 @@ namespace BlocksBeyondTheStars.Client
             Result = MelodyPuzzleResult.Playing;
             Word = string.Empty;
             WordTones = Array.Empty<int>();
+            WordEntered = 0;
+            NextTone = -1;
             Version++;
         }
 
@@ -178,11 +192,16 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Whether <paramref name="tone"/> flashes at <paramref name="now"/> (a key press or a judged note).</summary>
         public bool Flashing(int tone, double now) => tone == _flashTone && now - _flashAt < FlashSeconds;
 
+        /// <summary>#3677: the key that glows at <paramref name="now"/> — the next tone to play (the Bridge Song only), but not
+        /// while the prompt still plays (first listen, then answer); -1 for none.</summary>
+        public int GlowTone(double now) => Open && NextTone >= 0 && !PromptPlaying(now) ? NextTone : -1;
+
         /// <summary>The locale key of the bar's title for the mode (free play: just "Melody").</summary>
         public string TitleKey => FreePlay ? "ui.melody.title" : "ui.melody.mode." + ModeKey(Mode);
 
-        /// <summary>#3426: the letter of <see cref="Word"/> the player is at (two right tones per letter), or -1 without a word.</summary>
-        public int CurrentLetter => MelodySpelling.CurrentLetter(Entered, MelodySpelling.Letters(Word).Length);
+        /// <summary>#3426: the letter of <see cref="Word"/> the player is at (two right tones per letter, counted across the
+        /// rounds — #3677), or -1 without a word.</summary>
+        public int CurrentLetter => MelodySpelling.CurrentLetter(WordEntered, MelodySpelling.Letters(Word).Length);
 
         /// <summary>
         /// #3426: the spelling line of a puzzle whose melody spells a word — every letter with its two notes,

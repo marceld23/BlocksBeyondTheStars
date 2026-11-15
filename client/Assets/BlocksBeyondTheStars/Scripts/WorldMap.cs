@@ -266,12 +266,13 @@ namespace BlocksBeyondTheStars.Client
                     ("map_wreck", "ui.map.wreck", new Color(1f, 0.55f, 0.3f)),
                     ("map_wreck", "ui.map.kind_giant_wreck", GiantWreckCol), // #3611: a giant ship wreck
                     ("map_ruin", "ui.map.kind_civilization", CivilizationCol), // #3642: a lost civilization's site (WorldMap.Civilizations.cs)
+                    ("map_mark_danger", GuardianGiantKindKey, GuardianGiantCol), // #3676: a guardian giant (WorldMap.GuardianGiants.cs)
                     ("map_station", "ui.map.other", new Color(0.8f, 0.8f, 0.9f)),
                     (null, "poi.fragment", new Color(0.45f, 0.95f, 1f)), (null, "poi.guardian_core", GuardianCoreCol), // glyph-only rows (⦿, ◎ #1792)
                 };
                 // Six slots per row of 140 px (the longest label at 15 px, "Netzfragment-Signal", wraps nowhere). #2647: the third
-                // row (y 863–893) put the buttons below at y=904, still inside the panel (it ends at y=1000); since #3642 it holds
-                // five entries — a nineteenth would need a fourth row.
+                // row (y 863–893) put the buttons below at y=904, still inside the panel (it ends at y=1000); since #3676 it is
+                // full (six entries) — a nineteenth would need a fourth row.
                 const int perRow = 6;
                 const float slotW = 140f, rowH = 34f;
                 for (int li = 0; li < entries.Length; li++)
@@ -442,6 +443,7 @@ namespace BlocksBeyondTheStars.Client
                 foreach (var p in Game.PlanetPois)
                 {
                     var (glyph, col, icon) = PoiLook(p.Type);
+                    col = GuardianGiantTint(p, col); // #3676: a giant lying, awake or defeated (WorldMap.GuardianGiants.cs)
                     if (p.Type != TraderShipPoi)
                     {
                         Marker(p.X, p.Z, 36f, col, glyph, icon); // a landed trader's marker is drawn after the pads (#1904)
@@ -798,6 +800,7 @@ namespace BlocksBeyondTheStars.Client
             "landmark" => ("♜", LandmarkCol, "map_ruin"), // #3496: a giant building — the ruin icon in pale gold
             BlocksBeyondTheStars.Shared.Definitions.GiantShipRules.MapType => ("✖", GiantWreckCol, "map_wreck"), // #3611: a giant ship wreck — the wreck icon in hull steel blue
             BlocksBeyondTheStars.Client.Core.CivilizationText.MapType => CivilizationLook, // #3642: a lost civilization's site — the ruin icon in verdigris
+            BlocksBeyondTheStars.Shared.Definitions.GuardianGiantRules.PoiType => GuardianGiantLook, // #3676: a found guardian giant — the danger mark in Guardian red
             "outpost" => ("⌂", OutpostCol, "map_base"), // #2681: a pioneer's outpost ("Mira's outpost") — an NPC's base, in sand
             _ => ("◆", new Color(0.8f, 0.8f, 0.9f), "map_station"),
         };

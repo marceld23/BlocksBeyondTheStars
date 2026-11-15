@@ -102,6 +102,7 @@ namespace BlocksBeyondTheStars.Client
             On<StationBoarded>(map, (c, m) => c.StationBoardedReceived?.Invoke(m));
             On<PlanetEnemyList>(map, (c, m) => c.PlanetEnemiesReceived?.Invoke(m));
             On<PlanetEnemyDefeated>(map, (c, m) => c.PlanetEnemyDefeated?.Invoke(m));
+            On<GuardianGiantStatus>(map, (c, m) => c.GuardianGiantStatusReceived?.Invoke(m)); // #3676
             On<SentryShot>(map, (c, m) => c.SentryShotReceived?.Invoke(m));
             On<CreatureList>(map, (c, m) => c.CreaturesReceived?.Invoke(m));
             On<CreatureMotionFrame>(map, (c, m) => c.CreatureMotionReceived?.Invoke(m));

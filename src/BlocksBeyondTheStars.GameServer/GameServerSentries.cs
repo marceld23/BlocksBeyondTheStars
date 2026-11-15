@@ -397,6 +397,11 @@ public sealed partial class GameServer
     /// only names it in the log).</summary>
     private void KillBySentry(CombatEntity target, Vector3i sentryCell, string ownerId, string shooter = "Sentry")
     {
+        if (OnGuardianGiantDamaged(target, ownerId))
+        {
+            return; // #3676: a guardian giant at zero collapses by its own rules — its body stays, its loot goes to its fighters
+        }
+
         bool isCreature = _creatures.Contains(target);
         _planetEnemies.Remove(target);
         _bandits.Remove(target);

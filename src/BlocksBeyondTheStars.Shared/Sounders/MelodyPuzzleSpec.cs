@@ -5,24 +5,24 @@ using System;
 
 namespace BlocksBeyondTheStars.Shared.Sounders;
 
-/// <summary>The four kinds of melody puzzle (#3346). The numeric values travel on the wire (<c>MelodyPuzzleState.Mode</c>).</summary>
+/// <summary>The four kinds of melody puzzle (#3346). The numeric values travel on the wire (<c>MelodyPuzzleState.Mode</c>).
+/// In every mode a wrong note simply does not count (#3678): the player tries that tone again, nothing restarts.</summary>
 public enum MelodyPuzzleMode
 {
     /// <summary>Simon says: the server plays the start of the melody, the player plays it back; every round the prompt
-    /// grows until the whole melody is played. A wrong note restarts the round (the prompt plays again).</summary>
+    /// grows until the whole melody is played.</summary>
     Repeat = 0,
 
     /// <summary>Play a fixed whole sequence in order from memory (the Song of Return, ORNEMIS in the note alphabet). No
-    /// prompt. A wrong note resets the input — and a wrong note that is the sequence's first tone starts a new try.</summary>
+    /// prompt.</summary>
     Compose = 1,
 
     /// <summary>The server plays a melody, the player plays its counter-voice: every tone moved by
-    /// <see cref="MelodyPuzzleSpec.HarmonyOffset"/> scale steps (<see cref="MelodyPuzzle.Transpose"/>). A wrong note resets
-    /// the input (the melody plays again).</summary>
+    /// <see cref="MelodyPuzzleSpec.HarmonyOffset"/> scale steps (<see cref="MelodyPuzzle.Transpose"/>) — in one round, or
+    /// one round per letter (<see cref="MelodyPuzzleSpec.RoundPerLetter"/>, the Bridge Song).</summary>
     Harmony = 2,
 
-    /// <summary>The server plays a phrase (a call), the player answers with that call's answer phrase; one round per call.
-    /// A wrong note restarts the round (the call plays again).</summary>
+    /// <summary>The server plays a phrase (a call), the player answers with that call's answer phrase; one round per call.</summary>
     CallAndResponse = 3,
 }
 
@@ -38,7 +38,8 @@ public enum MelodyPuzzleResult
     /// <summary>The note finished a round; the next prompt follows.</summary>
     RoundDone = 2,
 
-    /// <summary>The note was not the one asked for — never a punishment: the round (or the input) simply starts again.</summary>
+    /// <summary>The note was not the one asked for — never a punishment (#3678): it simply does not count, the player tries
+    /// that tone again; nothing restarts and no prompt replays.</summary>
     TryAgain = 3,
 
     /// <summary>The whole puzzle is solved; the bar closes.</summary>
@@ -87,6 +88,15 @@ public sealed class MelodyPuzzleSpec
     /// a tone pushed past the top C' wraps down an octave, so the counter-voice always stays on the bar's eight keys.</summary>
     public int HarmonyOffset { get; set; } = 4;
 
+    /// <summary>#3677 — Harmony only: one round per letter of the melody (the tones between two rests, the note alphabet's
+    /// letter breaks). The prompt sings that letter, the player answers with its counter-voice — seven short rounds for
+    /// ORNEMIS instead of fourteen tones in one go. False: one round, the whole melody.</summary>
+    public bool RoundPerLetter { get; set; }
+
+    /// <summary>#3677: the melody bar makes the next key to press glow (<c>MelodyPuzzleState.NextTone</c>) — for the Bridge
+    /// Song, where the child sings along with the choir. Off wherever finding the tones IS the puzzle (the Song of Return).</summary>
+    public bool ShowNextTone { get; set; }
+
     /// <summary>The procedural instrument the prompt (and the bar's own tones) sound with: 0 crystal, 1 bell, 2 bass, 3 blip,
     /// 4 Sounder voice, 5 Sounder choir.</summary>
     public int Instrument { get; set; } = SoundersIds.InstrumentVoice;
@@ -129,6 +139,8 @@ public sealed class MelodyPuzzleSpec
         Calls = CloneRows(Calls),
         Answers = CloneRows(Answers),
         HarmonyOffset = HarmonyOffset,
+        RoundPerLetter = RoundPerLetter,
+        ShowNextTone = ShowNextTone,
         Instrument = Instrument,
         NoteSeconds = NoteSeconds,
         PromptWithFifth = PromptWithFifth,

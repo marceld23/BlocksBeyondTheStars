@@ -51,9 +51,10 @@ sketches by Theo and a classmate; the names by Marcel and Justus, 2026-11-07).
 | s5 The Echoes | questions **Elora**, **Kamo**, **Feya** and **Tini** with melodies | the truth about the Great Song |
 | s6 The Song of Return | plays **ORNEMIS** in the note alphabet at a singing shrine (the Singing Shrine or a ring) | Ornemis on the player's star map |
 | s7 Homecoming | jumps to Ornemis, lands on Soaniri, meets **the Eldest** in Mirun | the Young Voices are at the Choir Tower |
-| s8 The Bridge Song | persuades **Roll**, plays the counter-voice at the **Choir Tower**'s eight pipes, then wins the **sing duel** with a Soundi | the Soundi travels with the player |
+| s8 The Bridge Song | persuades **Roll**, plays the counter-voice at the **Choir Tower**'s eight pipes (one letter per round: the choir sings it, the player answers the glowing keys — #3677), then wins the **sing duel** with a Soundi | the Soundi travels with the player |
 
-Nobody dies, nobody in the story is a villain, wrong notes never punish, every place-bound step has a fallback (no shrine → the
+Nobody dies, nobody in the story is a villain, wrong notes never punish (a wrong note simply does not count — nothing
+restarts, #3678), every place-bound step has a fallback (no shrine → the
 ring; no monuments here → another world; the Echoes come to any group of three or more rune stones, even placed ones). The
 Soundraks are the one danger on Soaniri (#3424) — wild animals, not characters: no story step needs one or waits for one, a
 scream always warns before they attack, the usual flee and respawn rules apply, and from chapter 4 on the calm disc and the
@@ -69,6 +70,15 @@ system, make its world the flight target inside its system and mark the shrine o
 and s6.2a stand in (the ring, any rune stones); they mark the nearest complete rune shrine of the player's world
 (`nearest_rune_shrine`) and say nothing when there is none — no far place. The texts speak of "a singing shrine": the Shrine of the Eight Voices is the
 oldest and biggest, a ring of eight rune stones works the same.
+
+**The chamber and the spindle say what to do (#3679).** A tester carried two Song Spindles in the backpack and did not
+understand "a hiding place at a monument". s4.4 marks the nearest monument (`nearest_monument`) and its texts say exactly
+what opens a chamber: hold the Resonance Blaster, aim at one of the monument's rune stones, press `{key:Place}` — the
+ground opens and stairs lead down into the chamber under it (`GameServerSoundChambers.cs`); the hint adds that the melody
+bar is only music here and that another monument helps when one refuses (open already, no room). s4.5 says the disc lies
+in the chamber's relic cache and — in its own hint — that the spindle works only as a placed block (place it, hold the
+disc, `{key:Interact}`). And while the Resonance Blaster is in hand, the melody bar's free play names the current
+Sounders task (its chip line, `ui.melody.task`) instead of only the key legend — the panel asks for nothing itself.
 
 **Skips never strand the player (#3425).** A skipped step (or chapter) hands over, once, what playing it would have left
 with the player — `GameServerSoundersStory.CatchUp.cs`, a table in story order, run by the 1 Hz story-pack pass
@@ -136,11 +146,20 @@ A melody puzzle whose melody spells a word carries it (`MelodyPuzzleSpec.Word`; 
 ORNEMIS), and the bar's state sends it with the two tones the player plays per letter (`MelodyPuzzleState.Word` /
 `WordTones`, new map keys — an older client skips them, an older server sends none and the bar shows its usual key hint).
 The bar shows `O = F E · R = G D · N = F D · E = D C · M = F C · I = E C · S = G E` in the hint row, named with the
-locale's `ui.note.names` (German H for B), the letter the player is at (right notes ÷ 2) in the chip yellow; a result
-line then flashes in the title's place. The Bridge Song's groups are the counter-voice the player plays (a fifth up: O =
-C' B). `Shared/Sounders/MelodySpelling.cs` builds both the tones (the server) and the line (the client,
+locale's `ui.note.names` (German H for B), the letter the player is at (right notes through the whole word ÷ 2 —
+`MelodyPuzzleState.WordEntered`, counted across rounds) in the chip yellow; a result line then flashes in the title's
+place. The Bridge Song's groups are the counter-voice the player plays (a fifth up: O = C' B).
+`Shared/Sounders/MelodySpelling.cs` builds both the tones (the server) and the line (the client,
 `MelodyBarModel.SpellingLine`), so they always equal the puzzle's expected tones. The s6 texts say every letter is TWO notes
 and the bar shows them.
+
+**The Bridge Song, one letter at a time (#3677).** It used to be one Harmony round of all fourteen tones: while the choir
+sang, the bar lit the MELODY's tones, a child copied exactly those keys (the wrong ones — the answer is the counter-voice),
+and every wrong tone reset the input to 0/14. Now its spec sets `RoundPerLetter` — seven rounds, the choir sings one
+letter's two melody tones, the player answers that letter's two counter-voice tones — and `ShowNextTone`: once the
+choir's letter has played, the key to press next glows on the bar (a pulsing warm ring, not the prompt's look). A wrong
+tone repeats nothing (#3678): the progress in the round simply stays. The s8.2 texts say just that — the choir sings a
+letter, you answer with the glowing keys. The Song of Return keeps no glow: decoding the letters is that puzzle.
 
 ## 5. Per-player milestones
 

@@ -34,6 +34,7 @@ public sealed partial class StructureSourceTests
         "station", "station_kit", "derelict",
         "vault", "singing_shrine", "sealed_observatory", "mirun", "ornasa", "choir_tower", "guardian_core", "hunter_camp",
         "maze_ruin",
+        "guardian_giant",
     };
 
     public static TheoryData<string> SourceKeys()

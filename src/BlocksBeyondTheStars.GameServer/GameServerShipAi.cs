@@ -580,6 +580,7 @@ public sealed partial class GameServer
     /// </summary>
     private void TickStoryPass(PlayerSession session)
     {
+        TickGuardianGiantStory(session); // #3685: a guardian giant found (while a step listens), a carried memory core read
         TickStoryPacksFor(session); // #2466: player packs — start, advance, offers, help escalation (active play time)
         TryStartStoryTrack(session); // #2470: the world story's start rule (also with no player pack installed)
         TickStoryLeads(session); // #2475: leads followed by evidence (research, module, a site, the heal tank) + the marker

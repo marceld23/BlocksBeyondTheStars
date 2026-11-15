@@ -93,7 +93,7 @@ Without a `type` the objective is a game event (`objective.event`, below).
 
 ## Game events (`objective.event`)
 
-114 event keys (`GameEventKeys.All`). The key names the verb, the argument the thing: a step
+116 event keys (`GameEventKeys.All`). The key names the verb, the argument the thing: a step
 names a key (or a `prefix*` pattern) and, optionally, the arguments it accepts (`"arg": "a|b"`); the amount
 adds up towards `required`. Nothing is raised for an observer, before the join is complete, or for a non-positive
 amount.
@@ -145,6 +145,8 @@ amount.
 | `flight:flown` | The player's ship flew in space. Amount: whole flight units (a hyperjump or a warp never counts). |
 | `gadget:used` | A gadget did its work (the terrain scanner pulsed, the medkit healed …; a refused or empty use raises nothing). Arg: the gadget's item key. |
 | `gear:equipped` | The player put on a piece of gear. Arg: the base item key. |
+| `guardian_giant:defeated` | A guardian giant fell — raised once for every player who fought it (hit it or was hit by it within its fight range). Arg: the giant's site id (`<body>#<index>`). |
+| `guardian_giant:found` | The player came within the found range of a guardian giant on their body (lying, awake or fallen) — once per approach, measured only while a step listens. Arg: the giant's site id. |
 | `harvest:any` | A plant was harvested (broken by hand: a fruit, a crop, a flower, a festival pumpkin). Arg: the plant's block key. "Bring in sixty plants" counts every harvest, whatever grows on the world. |
 | `hotbar:select` | The player picked another quick-bar slot. Arg: the slot number, 1-based. |
 | `hyperjump:any` | A jump to another star system. Arg: the destination system id. |
@@ -265,7 +267,7 @@ condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 
 ### World predicates (`world:<predicate>`)
 
-89 predicates (`StoryWorldPredicates.All`, held equal to the server's registry by
+91 predicates (`StoryWorldPredicates.All`, held equal to the server's registry by
 `StoryConditionTests`). A predicate reads the player's own body and system, never another player's.
 
 | Predicate | Holds when |
@@ -309,6 +311,8 @@ condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 | `world:fragment_on_world` | A story net fragment lies on the player's body. |
 | `world:fragments_left` | The world story still has a net fragment nobody has found (a fragment mission can be done). |
 | `world:free_flight` | Free space flight is allowed (launch, dock, land). |
+| `world:guardian_giant_near` | A guardian giant (lying, awake or fallen) is within its found range of the player on their body. |
+| `world:guardian_giants` | This world can hold guardian giants — a giant lies on a body already, or the world is of the giants' terrain generation (`WorldDescription.GuardianGiantsGeneration`) and the structure is not switched off. Without them VEGA's mission "The Fallen Giant" gives way to its stand-in. |
 | `world:hazards` | Environmental hazards are on. |
 | `world:herd_begging` | An animal of a begging herd came to beg the player within the last minute (the moment VEGA explains the Feed action). |
 | `world:hostile_near` | Something hostile — a machine, a hostile animal, a robber — is close to the player on their world. |

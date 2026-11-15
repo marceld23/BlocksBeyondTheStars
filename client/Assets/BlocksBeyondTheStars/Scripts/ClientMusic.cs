@@ -66,6 +66,11 @@ namespace BlocksBeyondTheStars.Client
         private const string FinaleDialogue = "finale_dialogue";
         private const string FinaleResolution = "finale_resolution";
 
+        // #3676: a guardian giant fights near the player on foot — the finale's gauntlet track loops until the fight is
+        // decided (it collapses or lies down again, or the player leaves its range); neither ducked nor muffled.
+        private const string GiantFight = "giant_fight";
+        private const string GiantFightTrack = "music_boss_gauntlet";
+
         private const string SynthPrefix = "synth:";
 
         // A story-pack cutscene's own track (#2468): "cutscene:<track>" loops that one library track while the scene plays.
@@ -338,6 +343,11 @@ namespace BlocksBeyondTheStars.Client
                 return finale;
             }
 
+            if (!inSpace && !game.Aboard && game.GuardianGiantFight.Fighting(game.WorldTime))
+            {
+                return GiantFight; // #3676: a guardian giant fights near the player
+            }
+
             if (inSpace)
             {
                 if (Time.time < _combatUntil)
@@ -536,9 +546,9 @@ namespace BlocksBeyondTheStars.Client
         private float DuckFor(GameBootstrap game)
         {
             _tension = false;
-            if (game == null || game.Aboard || game.SpaceViewActive || game.InSpace)
+            if (game == null || game.Aboard || game.SpaceViewActive || game.InSpace || _context == GiantFight)
             {
-                return 1f;
+                return 1f; // #3676: the boss track is the fight's music — never ducked or muffled under it
             }
 
             float duck = 1f;
@@ -678,15 +688,12 @@ namespace BlocksBeyondTheStars.Client
         /// place (single-track contexts, the finale) or runs out and re-rolls.</summary>
         private (string name, bool loop) Resolve(string want, MusicMode mode, GameBootstrap game, string exclude)
         {
-            // The finale set-piece always plays its dedicated boss track, regardless of music mode (it is a
-            // scripted moment). Falls through to the synth mood only if the track file is missing.
-            if (IsFinale(want))
+            // The finale set-piece — and a guardian giant fight (#3676) — always plays its dedicated boss track, regardless of
+            // music mode (a scripted moment). Falls through to the synth mood only if the track file is missing.
+            string setPiece = want == GiantFight ? GiantFightTrack : FinaleTrack(want);
+            if (setPiece != null && !_missingTracks.Contains(setPiece))
             {
-                string trackName = FinaleTrack(want);
-                if (!_missingTracks.Contains(trackName))
-                {
-                    return (trackName, true); // single looping track for the phase
-                }
+                return (setPiece, true); // single looping track for the phase
             }
 
             // A cutscene's track (#2468) loops in place for as long as the scene plays, in either music mode.
@@ -782,7 +789,7 @@ namespace BlocksBeyondTheStars.Client
         {
             MusicLibrary.Menu or MusicLibrary.Loading or FinaleResolution => SynthMood.Menu,
             MusicLibrary.Space or MusicLibrary.StarChart or FinaleApproach or FinaleDialogue => SynthMood.Space,
-            Combat or FinaleGauntlet or FinaleHack => SynthMood.Combat,
+            Combat or FinaleGauntlet or FinaleHack or GiantFight => SynthMood.Combat,
             _ => SynthMood.Planet,
         };
 

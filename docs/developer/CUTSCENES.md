@@ -89,7 +89,8 @@ singleplayer world or lock input. One scene plays at a time.
 | `options.minDisplay` | `0` | seconds before a skip is accepted (against an accidental double press) |
 | `options.chainNext` | `[]` | scenes that may follow this one **at once** instead of after the cooldown: `<id>` (same pack), `<pack>/<id>`, `__recap`. Chaining only lifts the cooldown — it never plays the follower by itself |
 | `options.cooldownExempt` | `false` | a "now or never" moment (first launch, after-warp card, finale arrival) — never waits for the cooldown |
-| `options.playInPlace` | `false` | #3387: never waits for "prefer at home" — the scene plays where the moment happened as soon as that is safe (the finale's stand-down: the duel is won 24 blocks under the ship) |
+| `options.playInPlace` | `false` | #3387: never waits for "prefer at home" — the scene plays where the moment happened as soon as that is safe (the finale's stand-down: the duel is won 24 blocks under the ship). #3686: every Sounders T3/T4 scene but the "now or never" arrival (the shrine, the first Echo, the Great Song's sky, the Song of Return's chart, the landing, the Eldest, the choir tower, the Bridge Song, the Soundi; the intro too) and the tutorial's `tut.first_landing` and `tut.first_base` set it — a scene bound to a place must not wait minutes for the player to walk back to the ship (the tester's landing scene played on top of the choir tower a chapter later). `tut.ship_commissioned` keeps the preference: it happens at the new ship |
+| `options.staleAfterStep` | `""` | #3686: a step of the pack (validator: it must exist) after which the scene is **overtaken** — once the player has done or skipped that step, the server drops the waiting scene instead of sending it late (see [Pacing](#pacing-per-player-ram)). For a scene no step binds: the Sounders' `snd.first_echo` (`s5.2`), `snd.choir_tower` (`s8.2`) — both played by the server's code — and the intro `snd.stones_sing` (`s2.1`). A scene a step binds (`onStart` / `onComplete`) needs none — the pack's next step overtakes it on its own |
 | `options.waitHint` | `false` | #3387: while the scene waits for danger or movement to end (a hostile near, damage, space combat, low vitals, climbing / falling / piloting / a warp), VEGA says once `ui.cutscene.waiting_safe` ("I have something important to show you — as soon as you are safe"); a menu, the chat or the duel say nothing, a replay never |
 | `options.replayable` | `true` | the Story tab may replay it once seen |
 | `options.returnOnSkip` | `[]` | #2474: keys of `replaceLineKeys` the player must not miss — when the player **skips** the scene before such a line's caption was fully on screen, the client gives the line back to the narrator panel (VEGA's Guardian reveal, the one line that names the jump generator). Every other replaced line stays in the log only after a skip. Each key must be one of the scene's `replaceLineKeys` (validator) |
@@ -371,6 +372,7 @@ palette) plays as the instance of the first chapter that binds it (`CutsceneArgs
 - `chapter` names a chapter of the pack; `chainNext` resolves (an id of the pack, `<pack>/<id>` of an installed pack,
   `__recap`; a pack that is not installed is a warning); `music` exists in `client/Music`, every `sfx` cue in
   `client/Assets/Resources/audio`; every `returnOnSkip` key is one of the scene's `replaceLineKeys` (#2474);
+  `staleAfterStep` names a step of the pack's chapters (#3686);
 - warnings: a `kickerKey` outside a `title_card` or a `reading_frame` (#2478: the reading frame shows it as its heading), a
   `speaker` outside a `speaker` caption, unknown fields (the Python tool; the C# tests read the file strictly).
 
@@ -439,7 +441,10 @@ flush it:
 - **Client in the world first.** After a network join nothing goes out until the client's first position report
   (`LastMoveAt`) or 15 s (`CutsceneJoinSettleSeconds`) — the join burst never carries a scene.
 - **Cooldown.** At most one unrequested T2+ scene per **90 s** of server time (`CutsceneCooldownSeconds`; the clock
-  stands still while the world is held).
+  stands still while the world is held). #3686: when the last sent scene belongs to the **same pack**, the next one waits
+  only **15 s** (`CutsceneSamePackCooldownSeconds`, the pack remembered in `PlayerSessionStory.CutsceneLastSentPack`, RAM
+  only) — one story's moments that come close together (the landing, then the Eldest) follow each other after a breath;
+  two different stories keep the 90 s. The client queue keeps the same two spacings (`CutsceneQueue.SamePackCooldownSeconds`).
 - **Banners** (T1) never wait (the client queues them behind a running scene).
 - **Chains.** A scene named in the last sent scene's `chainNext` goes at once (prologue → `tut.welcome`, graduation →
   `ch1.open` / recap, B12 → reveal) — it may jump the queue. The built-in recap chains to its pack's next **chapter
@@ -449,6 +454,28 @@ flush it:
 - **A chapter opener past its chapter** (#2473): a queued `openCutscene` of a player pack whose chapter the player finished
   or skipped meanwhile (the tutorial's part card behind the cooldown while a quick part went by) is dropped and stamped seen
   instead of announcing a part that is over (`IsStaleChapterOpener`).
+- **Overtaken scenes** (#3686, `GameServerCutscenes.Overtaken.cs`, `IsOvertakenCutscene`): any queued scene whose moment
+  the player's story has moved past is dropped the same way — stamped seen (so the join never re-offers it), its stored
+  anchor forgotten, the lines it held sent:
+  - *a step's scene* (a step's `onStart` / `onComplete` binding; for a template the instance's owner step, else the bound
+    step the player reached last — a step and its stand-in bind the same scene) once the pack's **next step** is through:
+    the next `do` step in story order that is no stand-in (`alternative`) and holds its chapter up (not an `opt` extra of a
+    mandatory chapter; read and react steps never count), searched in the rest of the chapter and then — for a mandatory
+    chapter only — in the following mandatory chapters. "Through" = done, its chapter done or skipped, or skipped (but a
+    step skipped as infeasible is not through while its stand-in still runs);
+  - *a scene with `staleAfterStep`* once that step is through;
+  - *the running world story's chapter opening* (VEGA's `ch2.open` …) once a **later chapter has begun** for the player
+    (the chapter derived from the world's beats, `TrackChapterIndex` — several beats revealed at once, or a re-offer at the
+    join after the world moved on; `IsStaleWorldChapterOpener`). Never the pack's intro (the prologue is the cold open),
+    never a beat card or a finale scene, never the opening of the player's **current** chapter (the track start plays it
+    after the recap on purpose), never a hosted or arcade newcomer's personal chapter 1.
+
+  The step rules skip a scene whose overtaking step was through already when it was **committed** (an open extra finished
+  after the steps behind it: `PendingCutscene.MayBeOvertaken`) — that moment is the player's now, and it plays; a re-offer
+  at the join is always checked (the tester's case: `snd.elder` owed while the Bridge Song ran). A scene the client
+  already **received** cannot be recalled by the server; the client does not know which steps are done (its
+  `StoryPackStates` carries the active steps and the chapter states only), so it plays what it got — `playInPlace` keeps
+  that wait short.
 - **Lines wait with their scene** (#2473): a narrator line that a scene still waiting in this queue shows itself (a key of its
   `replaceLineKeys`) is held with that scene and sent right after its `CutscenePlay` (`HoldLineForQueuedCutscene`, at the one
   line fill point `SendVegaWithObjective`), so the client keeps it out of the VEGA panel — without this, a card held back by
@@ -500,7 +527,7 @@ Step 9 (#2468). The Unity-free rules live in Client.Core (`src/BlocksBeyondTheSt
 | `CutscenePlan` | a definition (+ the play's `Arg`) → `PlannedShot`s with resolved `PlannedCaption`s: text through `LineText.Compose` with the one key-token resolver (`HudUi.KeyTokenGlyph`, passed in a `CutsceneTextSource`), pages (`CaptionPager`: subtitle 140, speaker 220, reading frame 600 characters, cut at sentence ends), timings. `Build`, `Recap` (the built-in card), `LocalBanner` ("Story moment saved"), `AsCard()` (the downgrade: same captions, no camera, no hold/lock/HUD), #2497 `MissedBanner()` (a dropped "now or never" scene's first title as a banner) |
 | `CutscenePlayback` | the clock: shot index and time, which page each caption shows, the hold at a page-gated caption's end, `Continue()` (completes a typing speaker box first; #2494: pages timed captions too), the settle after the reader closed a shot's captions (`ShotLength`, see **Timing** below), the 0.35 s fade-out of a closed caption, `CanSkip`, due sound cues, `TakeShotChanged()` |
 | `SafeMomentGate` | `Evaluate(request, inputs)` → `Play` / `Defer` / `Abort` with a reason; `ShouldInterrupt` (danger while playing); `CameraCapReached` (MP 30 s) |
-| `CutsceneQueue` | one scene at a time; dedupe by `pack/id`; requests (replays, previews, the dev palette) first; the 90 s cooldown after an unrequested T2+ (measured from its **end** — a scene that waited minutes must not be followed by the next one a second later); `chainNext` lifts it for the named follower; "now or never" and banners never wait |
+| `CutsceneQueue` | one scene at a time; dedupe by `pack/id`; requests (replays, previews, the dev palette) first; the 90 s cooldown after an unrequested T2+ (measured from its **end** — a scene that waited minutes must not be followed by the next one a second later), #3686 15 s when the next scene belongs to the same pack (`SamePackCooldownSeconds`); `chainNext` lifts it for the named follower; "now or never" and banners never wait |
 | `CutsceneStaging` | a shot's camera with the fallback chain (requested → raised orbit → crane → sky → player view; [per type](#cameras)) on `CinematicStageScan` (unloaded chunks blocked, the parked hull blocks the camera spot) and `PrologueOrbit.Scale`; #2477: the moves' paths (`TryDolly`/`TryPan`/`TryFlyover`, checked along the whole path) and the synthetic stages (`syntheticAllowed`) |
 | `CutsceneMoves` | #2477: how a move travels over its shot — eased one way (dolly, flyover: they settle) or back and forth (pan), the still framing with "Camera motion" off, the position and the pan's yaw at a progress; no allocation (the rig calls it every frame) |
 | `SyntheticStages` | #2477: what a synthetic stage shows (`SetOf(camera, anchor)` → `SyntheticSet`), its layout in stage coordinates (the vista's planet, sun and ship path; the core diorama's ≤ 200 blocks; the memory chart from the star map via `GalaxyChartLayout`, its rim and the red glow beyond it) and its camera paths; the core's breath (`CorePulse`, 0.4 Hz) |
@@ -541,7 +568,7 @@ credits and banners — captions are **timed**: each page shows for its reading 
 |---|---|---|
 | banner (T1) | loading veil, another cinematic, observer mode, an open menu, the respawn prompt | never |
 | card (T2) | the above + chat input, the duel, the spawn settle; danger: hostile ≤ 20 m, damage in the last 10 s, space combat in the last 14 s, health or oxygen < 30 % | 600 s → text back to the panel, confirmed |
-| scene taking the camera (T3/T4) | the above + falling, climbing, head under water, a speeder or train, EVA, piloting in space, a warp/transit; prefers the player **at home** (aboard, docked, ≤ 24 m from the parked ship) for 300 s | 1200 s → tried once more **as a card** (`AsCard`), then as above |
+| scene taking the camera (T3/T4) | the above + falling, climbing, head under water, a speeder or train, EVA, piloting in space, a warp/transit; prefers the player **at home** (aboard, docked, ≤ 24 m from the parked ship) for 300 s — not a scene with `playInPlace` (#3387; #3686: the place-bound Sounders and tutorial scenes), which plays where it is as soon as nothing above holds it | 1200 s → tried once more **as a card** (`AsCard`), then as above |
 
 A "now or never" scene (`cooldownExempt`) aborts at once when the moment is not safe (its text goes to the panel); #2497:
 its first title card then shows as a client-made banner (`CutscenePlan.MissedBanner`, "Arrival · The Guardian Core") —
@@ -772,6 +799,13 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
   `FinaleSetPiecesClientTests` (`EndingIds`, "Watch again" without the ending, the missed arrival in both languages,
   `ReplayWaitsForLanding`); server `VegaFinaleSetPiecesTests` (the ending button replays the stand-down, then the ending, to
   a `cutscenes1` client and `StoryResolved` to an older one, no ledger change).
+- #3686: `CutscenePacingTests` (a step's scene behind the cooldown dropped — stamped seen, its held line sent — once the
+  next step is done and not before; one committed after its next step still plays; an owed one re-offered at the join
+  after the story moved on dropped; `staleAfterStep` for a server-played scene and its validator rule; 15 s within one
+  story, 90 s between stories; VEGA's `ch2.open` dropped once chapter 3 began while `ch3.open` and the beat cards play;
+  the place-bound Sounders and tutorial scenes `playInPlace`); Client.Tests `CutscenePacingClientTests` (those scenes
+  play away from home at once when safe and wait for danger, `tut.ship_commissioned` still prefers home, the client
+  queue's 15 s / 90 s).
 - #2495: Client.Tests `CutsceneVoiceTests` (VEGA's pack speaks with the panel's clips, the core and an unknown speaker are
   silent, VEGA's default without a pack voice, another narrator without one silent; `ShouldChatter` only for a speaker box
   with a voice while it types — the prologue's narration silent, N completing the typing stops it —, a timed box for its

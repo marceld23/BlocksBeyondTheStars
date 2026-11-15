@@ -20,8 +20,9 @@ namespace BlocksBeyondTheStars.Tests;
 /// #3346 — melody puzzles on the server: a started puzzle opens the melody bar and plays its prompt, the bar's notes
 /// (<see cref="MelodyNoteIntent"/>, also while a scene holds a singleplayer world) and the pillars of its melody site (the
 /// use key) feed the checker, a solution raises <c>melody:solved</c> and calls the registered handlers — for everyone who
-/// played the same puzzle nearby. Wrong notes only restart; walking away, the stop key (-1) and other code end a puzzle
-/// quietly. Also the Sounder instruments of the melody block (#3345), which need the <c>sounder_voice</c> blueprint.
+/// played the same puzzle nearby. A wrong note simply does not count — nothing restarts, nothing replays (#3678); walking
+/// away, the stop key (-1) and other code end a puzzle quietly. The Bridge Song (#3677) runs letter by letter with the next
+/// key on the wire. Also the Sounder instruments of the melody block (#3345), which need the <c>sounder_voice</c> blueprint.
 /// </summary>
 public sealed class MelodyPuzzleServerTests
 {
@@ -90,42 +91,125 @@ public sealed class MelodyPuzzleServerTests
         Assert.Contains(w.Transport.To<NoteSequence>(w.Player), n => n.Instrument == SoundersIds.InstrumentChoir && n.WithFifth); // the chorus
     }
 
-    [Fact]
-    public void AWrongNote_SaysTryAgain_AndThePromptPlaysAgainAfterAShortPause()
+    /// <summary>#3678: in every mode a wrong note says "try again" — and nothing else: the right notes so far stay, the round
+    /// does not restart and no prompt replays (Repeat and CallAndResponse used to restart, Compose and Harmony to reset).</summary>
+    [Theory]
+    [InlineData(MelodyPuzzleMode.Repeat)]
+    [InlineData(MelodyPuzzleMode.Compose)]
+    [InlineData(MelodyPuzzleMode.Harmony)]
+    [InlineData(MelodyPuzzleMode.CallAndResponse)]
+    public void AWrongNote_SaysTryAgain_KeepsTheInput_AndReplaysNothing(MelodyPuzzleMode mode)
     {
-        using var w = World("melody_retry");
-        w.Server.StartMelodyPuzzle(w.Player, Spec(MelodyPuzzleMode.Repeat, 5, 3));
+        using var w = World("melody_wrong_" + (int)mode);
+        var spec = Spec(mode, mode == MelodyPuzzleMode.Harmony ? new[] { 1, 6 } : new[] { 5, 3 }); // all ask for 5, 3
+        spec.Calls = new[] { new[] { 0, 0 } };
+        spec.Answers = new[] { new[] { 5, 3 } };
+        Assert.True(w.Server.StartMelodyPuzzle(w.Player, spec));
+        int prompts = w.Transport.To<NoteSequence>(w.Player).Count(n => n.Source == "test_tune");
 
         Note(w, w.Player, 5);
         Note(w, w.Player, 7);
-        Assert.Equal((int)MelodyPuzzleResult.TryAgain, LastState(w, w.Player).Result);
-        Assert.True(LastState(w, w.Player).Open);
+        var wrong = LastState(w, w.Player);
+        Assert.Equal((int)MelodyPuzzleResult.TryAgain, wrong.Result);
+        Assert.True(wrong.Open);
+        Assert.Equal(1, wrong.Entered); // the 5 still counts
+        Assert.Equal(7, wrong.LastTone);
+        Assert.Empty(wrong.Highlight);
 
-        w.Server.TickMelodyPuzzlesForTest(SvGameServer.MelodyRetryPause + 0.1);
-        var again = LastState(w, w.Player);
-        Assert.Equal(new[] { 5, 3 }, again.Highlight);
-        Assert.Equal(0, again.Entered);
-        Assert.Equal(2, w.Transport.To<NoteSequence>(w.Player).Count(n => n.Source == "test_tune"));
+        int states = w.Transport.To<MelodyPuzzleState>(w.Player).Count;
+        w.Server.TickMelodyPuzzlesForTest(2.0); // long past the old retry pause, short of the reminder
+        Assert.Equal(states, w.Transport.To<MelodyPuzzleState>(w.Player).Count);
+        Assert.Equal(prompts, w.Transport.To<NoteSequence>(w.Player).Count(n => n.Source == "test_tune"));
 
-        Note(w, w.Player, 5);
         Note(w, w.Player, 3);
         Assert.Equal((int)MelodyPuzzleResult.Solved, LastState(w, w.Player).Result);
     }
 
+    /// <summary>#3677: the Bridge Song — the story's own spec — sings ORNEMIS one letter per round; the state carries the
+    /// key to press next (only once the round's prompt is due, never while the next round's prompt waits) and the spelling
+    /// position across the rounds; a wrong tone keeps the letter's progress.</summary>
     [Fact]
-    public void ARightNote_RightAfterAWrongOne_CarriesOn_WithoutTheReplayWipingIt()
+    public void TheBridgeSong_SingsALetterPerRound_AndSendsTheKeyToPressNext()
+    {
+        using var w = World("melody_bridge");
+        var spec = SvGameServer.BridgeSongSpec();
+        Assert.True(w.Server.StartMelodyPuzzle(w.Player, spec));
+
+        var open = LastState(w, w.Player);
+        Assert.Equal((7, 0, 2), (open.RoundCount, open.Round, open.Expected));
+        Assert.Equal(new[] { 3, 2 }, open.Highlight);  // the choir sings O = F E…
+        Assert.Equal(7, open.NextTone);                // …the answer starts on C' (F a fifth up)
+        Assert.Equal(0, open.WordEntered);
+        Assert.Equal(SoundersIds.SongOfReturnWord, open.Word);
+        var sung = Assert.Single(w.Transport.To<NoteSequence>(w.Player), n => n.Source == SoundersIds.PuzzleBridgeSong);
+        Assert.Equal(new[] { 3, 2 }, sung.Notes);
+
+        Note(w, w.Player, 7);
+        Assert.Equal((6, 1), (LastState(w, w.Player).NextTone, LastState(w, w.Player).WordEntered)); // then B (E up a fifth)
+        Note(w, w.Player, 3); // copying the choir: wrong
+        Assert.Equal((int)MelodyPuzzleResult.TryAgain, LastState(w, w.Player).Result);
+        Assert.Equal((1, 6, 1), (LastState(w, w.Player).Entered, LastState(w, w.Player).NextTone, LastState(w, w.Player).WordEntered));
+        Note(w, w.Player, 6);
+        var done = LastState(w, w.Player);
+        Assert.Equal((int)MelodyPuzzleResult.RoundDone, done.Result);
+        Assert.Equal((-1, 2), (done.NextTone, done.WordEntered)); // no glow while R's prompt waits
+
+        w.Server.TickMelodyPuzzlesForTest(SvGameServer.MelodyRoundPause + 0.1);
+        var r = LastState(w, w.Player);
+        Assert.Equal(new[] { 4, 1 }, r.Highlight); // R = G D
+        Assert.Equal((1, 1, 2), (r.Round, r.NextTone, r.WordEntered)); // answered D A
+
+        var puzzle = new MelodyPuzzle(spec.Clone());
+        puzzle.Play(7);
+        puzzle.Play(6);
+        while (!puzzle.Solved)
+        {
+            int tone = puzzle.NextTone;
+            Assert.NotEqual(MelodyStep.Wrong, puzzle.Play(tone));
+            Note(w, w.Player, tone);
+        }
+
+        Assert.Equal((int)MelodyPuzzleResult.Solved, LastState(w, w.Player).Result);
+        Assert.Equal(-1, LastState(w, w.Player).NextTone);
+    }
+
+    /// <summary>#3677: the next-key glow is the Bridge Song's alone — the Song of Return (finding the letters' notes is the
+    /// puzzle) and any spec without <see cref="MelodyPuzzleSpec.ShowNextTone"/> send none.</summary>
+    [Fact]
+    public void OnlyTheBridgeSong_SendsTheNextTone()
+    {
+        using var w = World("melody_no_glow");
+        Assert.False(SvGameServer.SongOfReturnSpec().ShowNextTone);
+        Assert.True(SvGameServer.BridgeSongSpec().ShowNextTone);
+
+        Assert.True(w.Server.StartMelodyPuzzle(w.Player, SvGameServer.SongOfReturnSpec()));
+        Assert.Equal(-1, LastState(w, w.Player).NextTone);
+        Note(w, w.Player, 3); // O = F E: the first right note
+        Assert.Equal((-1, 1), (LastState(w, w.Player).NextTone, LastState(w, w.Player).WordEntered));
+
+        Assert.True(w.Server.StartMelodyPuzzle(w.Player, Spec(MelodyPuzzleMode.Harmony, 0, 1)));
+        Assert.Equal(-1, LastState(w, w.Player).NextTone);
+
+        var back = Assert.IsType<MelodyPuzzleState>(NetCodec.Decode(NetCodec.Encode(new MelodyPuzzleState { NextTone = 5, WordEntered = 9 })));
+        Assert.Equal((5, 9), (back.NextTone, back.WordEntered)); // the new map keys travel
+        Assert.Equal((-1, -1), (new MelodyPuzzleState().NextTone, new MelodyPuzzleState().WordEntered)); // an older server: none
+    }
+
+    [Fact]
+    public void ARightNote_OfTheNextRound_BeforeItsPrompt_CarriesOn_WithoutThePromptWipingIt()
     {
         using var w = World("melody_carry_on");
-        w.Server.StartMelodyPuzzle(w.Player, Spec(MelodyPuzzleMode.Harmony, 0, 1, 2)); // the counter-voice: 4, 5, 6
+        var spec = Spec(MelodyPuzzleMode.CallAndResponse);
+        spec.Calls = new[] { new[] { 0 }, new[] { 2, 4 } };
+        w.Server.StartMelodyPuzzle(w.Player, spec);
 
+        Note(w, w.Player, 0); // round 1 done — the second call waits a moment
+        Note(w, w.Player, 2); // the player already knows it
+        w.Server.TickMelodyPuzzlesForTest(SvGameServer.MelodyRoundPause + 0.1);
+
+        Assert.Single(w.Transport.To<NoteSequence>(w.Player), n => n.Source == "test_tune"); // only the first call played
+        Assert.Equal(1, LastState(w, w.Player).Entered);
         Note(w, w.Player, 4);
-        Note(w, w.Player, 0); // wrong: the melody itself
-        Note(w, w.Player, 4); // the player starts again at once
-        w.Server.TickMelodyPuzzlesForTest(SvGameServer.MelodyRetryPause + 0.1);
-
-        Assert.Single(w.Transport.To<NoteSequence>(w.Player), n => n.Source == "test_tune"); // only the first prompt played
-        Note(w, w.Player, 5);
-        Note(w, w.Player, 6);
         Assert.Equal((int)MelodyPuzzleResult.Solved, LastState(w, w.Player).Result);
     }
 

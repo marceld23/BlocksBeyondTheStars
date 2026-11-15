@@ -22,6 +22,8 @@
   //                   new base core and its zone, "Your home", then what walls and sealed rooms do (synthesis §6.4).
   // tut.ship_commissioned — #2480: the ship builder course's own ship commissioned (c6.7 done): the camera circles the NEW
   //                   ship (the parked ship is the active one now, scaled to its size), "Your own ship".
+  //                   #3686: the first landing and the base play where they happen ("playInPlace": no wait for the player to
+  //                   be back at the ship); the commissioning happens at the new ship, so it needs no such option.
   // tut.first_circuit — #2481: the crystal workshop course's first job handed in (c8.1 done — a switch lit a lamp): a short
   //                   banner "First circuit · It works!" with a chime; the camera and the controls stay the player's.
   // tut.first_tame — #2482: the animal friends course's first companion (c9.3 done — a tame through the real taming): a short
@@ -136,7 +138,7 @@
           "captions": [ { "style": "subtitle", "key": "story.tutorial.cut.landing.sub" } ]
         }
       ],
-      "options": { "chainNext": [ "tut.graduation" ] }
+      "options": { "chainNext": [ "tut.graduation" ], "playInPlace": true }
     },
     {
       "id": "tut.first_jump",
@@ -170,7 +172,8 @@
           "duration": 4.5,
           "captions": [ { "style": "subtitle", "key": "story.tutorial.cut.base.sub" } ]
         }
-      ]
+      ],
+      "options": { "playInPlace": true }
     },
     {
       "id": "tut.ship_commissioned",

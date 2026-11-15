@@ -76,6 +76,7 @@ public sealed partial class GameServer
         }
 
         SyncLeadListener(); // #2475: the chapter leads listen on the bus while the story has any
+        SyncGuardianGiantStoryListener(); // #3685: a defeated guardian giant's story share listens while a story runs
     }
 
     /// <summary>Whether a stored row names something this build can run: an installed world-capable pack (#2465: never a
@@ -692,6 +693,7 @@ public sealed partial class GameServer
         }
 
         SyncLeadListener();       // #2475: the new story's chapter leads (or none)
+        SyncGuardianGiantStoryListener(); // #3685: a defeated guardian giant's story share (while a story runs)
         AdvanceStory();           // persists + broadcasts (and reveals B0 for a fresh pack)
         if (_story is null)
         {

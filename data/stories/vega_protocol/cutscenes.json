@@ -260,6 +260,28 @@
       "options": { "skippable": true }
     },
     {
+      // #3685: VEGA remembers the guardian giants — a beat card like b07 at the end of chapter 4's giant mission (the scan of a
+      // fallen giant, or its stand-in). The caption is the insight's line, which the Journal keeps in VEGA's notes;
+      // replaceLineKeys keeps it out of her panel while the card is owed. Free input, the memory grade.
+      "id": "giant.remembers",
+      "tier": 2,
+      "chapter": "verdict",
+      "replaceLineKeys": [ "story.vega.insight.guardian_giant" ],
+      "shots": [
+        {
+          "camera": { "type": "player_view" },
+          "duration": 10,
+          "grade": "memory",
+          "captions": [
+            { "style": "title_card", "kickerKey": "story.vega.cut.remembers", "key": "story.vega.cut.giant.title", "at": 0.3, "hold": 3.5 },
+            { "style": "speaker", "key": "story.vega.insight.guardian_giant", "at": 1.2 }
+          ],
+          "sfx": [ { "cue": "chapter_sting_memory", "at": 0 } ]
+        }
+      ],
+      "options": { "skippable": true }
+    },
+    {
       // Chapter 5 "What You Are" (B9, the clone reveal) — staged warm and gentle at the player's REAL heal tank: a close
       // framing with a slow push-in and the tank's bubbling while VEGA tells the player what they are. A client that finds
       // no heal tank on this world (no own ship here) plays it as a card instead.

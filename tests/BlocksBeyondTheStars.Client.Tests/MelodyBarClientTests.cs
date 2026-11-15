@@ -165,6 +165,85 @@ public sealed class MelodyBarClientTests
         Assert.Equal(string.Empty, bar.SpellingLine(german));
     }
 
+    /// <summary>#3677: the Bridge Song sings a letter per round — the spelling line follows the server's position across the
+    /// rounds (not the round's own count), and the key to press next glows once the choir's letter has played; nothing
+    /// glows without a next tone (every other puzzle), in free play or after a reset. An older server (no position) falls
+    /// back to the round's count.</summary>
+    [Fact]
+    public void TheBridgeSong_MarksTheLetterAcrossRounds_AndGlowsTheNextKey_OnceThePromptHasPlayed()
+    {
+        var bar = new MelodyBarModel();
+        string[] english = "C D E F G A B C'".Split(' ');
+        int[] tones = MelodySpelling.PlayedTones(SoundersIds.SongOfReturnWord, MelodyPuzzleMode.Harmony, 4);
+        var state = new MelodyPuzzleState
+        {
+            PuzzleId = SoundersIds.PuzzleBridgeSong,
+            Open = true,
+            Mode = (int)MelodyPuzzleMode.Harmony,
+            Round = 1,
+            RoundCount = 7,
+            Entered = 0,
+            Expected = 2,
+            Highlight = new[] { 4, 1 }, // the choir sings R = G D
+            NoteSeconds = 0.5f,
+            Word = SoundersIds.SongOfReturnWord,
+            WordTones = tones,
+            WordEntered = 2,
+            NextTone = 1,
+        };
+        bar.Apply(state, now: 10.0);
+
+        Assert.Equal(1, bar.CurrentLetter); // the R, though the round has no right note yet
+        Assert.Contains("[R = D A]", bar.SpellingLine(english, "[", "]"), System.StringComparison.Ordinal);
+        Assert.Equal(-1, bar.GlowTone(10.4)); // first listen…
+        Assert.Equal(1, bar.GlowTone(11.1));  // …then the D glows
+        Assert.Equal(4, bar.LitTone(10.2));   // the prompt's own lit tone is the melody's, a different look
+
+        state.Highlight = System.Array.Empty<int>();
+        state.Result = (int)MelodyPuzzleResult.RoundDone;
+        state.NextTone = -1; // the next letter's prompt is about to play
+        bar.Apply(state, now: 12.0);
+        Assert.Equal(-1, bar.GlowTone(12.1));
+
+        bar.Apply(new MelodyPuzzleState { PuzzleId = "x", Open = true, Entered = 3, Word = "ORNEMIS", WordTones = tones }, now: 13.0);
+        Assert.Equal(1, bar.CurrentLetter);   // an older server sends no position: the round's count (3 ÷ 2)
+        Assert.Equal(-1, bar.GlowTone(13.0)); // …and no next tone
+
+        state.NextTone = 6;
+        bar.Apply(state, 14.0);
+        Assert.Equal(6, bar.GlowTone(14.0));
+        bar.Reset();
+        Assert.Equal(-1, bar.GlowTone(15.0));
+        bar.OpenFreePlay(0);
+        Assert.Equal(-1, bar.GlowTone(15.0));
+    }
+
+    // ---------------- Free play names the Sounders task (#3679) ----------------
+
+    [Fact]
+    public void TheSoundersTask_IsThePacksChipStep_ElseItsFirstOpenTask_AndNoneWhenThePackIsNotRunning()
+    {
+        static NetStoryStep Step(string id, int index, bool onChip = false, bool extra = false)
+            => new() { Id = id, ChapterId = "s4", ChipKey = "story.sounders." + id + ".chip", Index = index, OnChip = onChip, Extra = extra };
+        static StoryPackStates States(bool enabled, bool started, bool done, params NetStoryStep[] steps) => new()
+        {
+            Packs = new[]
+            {
+                new NetStoryPack { Id = "tutorial", Enabled = true, Started = true, Steps = new[] { Step("tut", 1, onChip: true) } },
+                new NetStoryPack { Id = SoundersIds.PackId, Enabled = enabled, Started = started, Done = done, Steps = steps },
+            },
+        };
+
+        Assert.Equal("story.sounders.b.chip", SoundersPackProgress.CurrentTaskKey(States(true, true, false, Step("a", 1), Step("b", 2, onChip: true))));
+        Assert.Equal("story.sounders.b.chip", SoundersPackProgress.CurrentTaskKey(States(true, true, false, Step("a", 1, extra: true), Step("c", 3), Step("b", 2))));
+        Assert.Null(SoundersPackProgress.CurrentTaskKey(States(true, true, false)));                 // no open task
+        Assert.Null(SoundersPackProgress.CurrentTaskKey(States(false, true, false, Step("a", 1)))); // switched off
+        Assert.Null(SoundersPackProgress.CurrentTaskKey(States(true, false, false, Step("a", 1)))); // not started
+        Assert.Null(SoundersPackProgress.CurrentTaskKey(States(true, true, true, Step("a", 1))));   // through
+        Assert.Null(SoundersPackProgress.CurrentTaskKey(null));
+        Assert.Null(SoundersPackProgress.CurrentTaskKey(new StoryPackStates()));
+    }
+
     // ---------------- Note sequences ----------------
 
     [Fact]

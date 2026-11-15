@@ -516,9 +516,9 @@ internal sealed class JournalSystem
         foreach (var insight in _host.Story.Insights)
         {
             string once = string.IsNullOrEmpty(insight.OnceKey) ? "story:insight:" + insight.Event : insight.OnceKey;
-            if (!string.IsNullOrEmpty(insight.TextKey) && m.Contains(once))
+            if (!string.IsNullOrEmpty(insight.TextKey) && m.Contains(once) && !keys.Contains(insight.TextKey))
             {
-                keys.Add(insight.TextKey);
+                keys.Add(insight.TextKey); // #3685: two insights may share one line and once-key (a scan and a mission's end)
             }
         }
 

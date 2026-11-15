@@ -13,7 +13,8 @@ namespace BlocksBeyondTheStars.Tests;
 /// <summary>
 /// #3346 — the pure rules of the melody puzzles (<see cref="MelodyPuzzle"/>) in all four modes, the counter-voice's
 /// transposition and the melody sites' geometry (the shrine's pillar order, the player-built ring). Wrong notes never
-/// punish: they only restart a round or reset the input.
+/// punish (#3678): in every mode a wrong note simply does not count — the input stays, nothing restarts. The Bridge Song
+/// (#3677) is one round per letter, and only it shows the next tone.
 /// </summary>
 public sealed class MelodyPuzzleTests
 {
@@ -56,7 +57,7 @@ public sealed class MelodyPuzzleTests
     }
 
     [Fact]
-    public void Repeat_AWrongNote_RestartsTheRound_AndTakesNothingAway()
+    public void Repeat_AWrongNote_DoesNotCount_TheRoundGoesOnWhereItWas()
     {
         var p = new MelodyPuzzle(new MelodyPuzzleSpec { Mode = MelodyPuzzleMode.Repeat, Target = new[] { 1, 2, 3, 4 }, Rounds = 2 });
         PlayAll(p, 1, 2); // round 1 done
@@ -64,9 +65,9 @@ public sealed class MelodyPuzzleTests
         Assert.Equal(MelodyStep.Correct, p.Play(1));
         Assert.Equal(MelodyStep.Wrong, p.Play(6));
         Assert.Equal(1, p.Round);    // still the second round — no round is taken back
-        Assert.Equal(0, p.Entered);  // …which simply starts again
+        Assert.Equal(1, p.Entered);  // #3678: …and the right tone stays
         Assert.Equal(1, p.Mistakes);
-        Assert.Equal(MelodyStep.Solved, PlayAll(p, 1, 2, 3, 4).Last());
+        Assert.Equal(MelodyStep.Solved, PlayAll(p, 2, 3, 4).Last());
     }
 
     [Fact]
@@ -93,26 +94,54 @@ public sealed class MelodyPuzzleTests
     }
 
     [Fact]
-    public void Compose_AWrongNote_ResetsTheInput()
+    public void Compose_AWrongNote_DoesNotCount_TheInputStays()
     {
         var p = new MelodyPuzzle(new MelodyPuzzleSpec { Mode = MelodyPuzzleMode.Compose, Target = new[] { 3, 5, 3, 1 } });
 
         PlayAll(p, 3, 5);
         Assert.Equal(MelodyStep.Wrong, p.Play(7));
-        Assert.Equal(0, p.Entered); // reset
+        Assert.Equal(2, p.Entered); // #3678: no reset — the next right tone carries on
         Assert.Equal(1, p.Mistakes);
-        Assert.Equal(MelodyStep.Solved, PlayAll(p, 3, 5, 3, 1).Last());
+        Assert.Equal(new[] { MelodyStep.Correct, MelodyStep.Solved }, PlayAll(p, 3, 1));
     }
 
     [Fact]
-    public void Compose_AWrongNoteThatIsTheFirstTone_CountsAsTheStartOfTheNextTry()
+    public void Compose_StartingOverFromTheFirstTone_IsJustAnotherWrongNote_NothingIsLost()
     {
         var p = new MelodyPuzzle(new MelodyPuzzleSpec { Mode = MelodyPuzzleMode.Compose, Target = new[] { 2, 4, 6 } });
 
         PlayAll(p, 2, 4);
-        Assert.Equal(MelodyStep.Wrong, p.Play(2)); // lost the thread and began again
-        Assert.Equal(1, p.Entered);
-        Assert.Equal(new[] { MelodyStep.Correct, MelodyStep.Solved }, PlayAll(p, 4, 6));
+        Assert.Equal(MelodyStep.Wrong, p.Play(2)); // not the third tone
+        Assert.Equal(2, p.Entered);
+        Assert.Equal(MelodyStep.Solved, p.Play(6));
+    }
+
+    /// <summary>#3678: in every mode a wrong tone only counts as a mistake — the round, the right tones so far and the
+    /// expected tone stay, so the very next right tone carries on.</summary>
+    [Theory]
+    [InlineData(MelodyPuzzleMode.Repeat)]
+    [InlineData(MelodyPuzzleMode.Compose)]
+    [InlineData(MelodyPuzzleMode.Harmony)]
+    [InlineData(MelodyPuzzleMode.CallAndResponse)]
+    public void InEveryMode_AWrongNote_NeverResetsTheInput(MelodyPuzzleMode mode)
+    {
+        // Every spec asks for 5, 3, 7 in one round: the Harmony melody 1, 6, 3 is that a fifth down.
+        var p = new MelodyPuzzle(new MelodyPuzzleSpec
+        {
+            Mode = mode,
+            Target = mode == MelodyPuzzleMode.Harmony ? new[] { 1, 6, 3 } : new[] { 5, 3, 7 },
+            Rounds = 1,
+            Calls = new[] { new[] { 0, 0 } },
+            Answers = new[] { new[] { 5, 3, 7 } },
+        });
+        Assert.Equal(new[] { 5, 3, 7 }, p.Expected);
+
+        Assert.Equal(MelodyStep.Correct, p.Play(5));
+        Assert.Equal(MelodyStep.Wrong, p.Play(0));
+        Assert.Equal(MelodyStep.Wrong, p.Play(5)); // the first tone again is wrong too — and changes nothing either
+        Assert.Equal((0, 1, 2), (p.Round, p.Entered, p.Mistakes));
+        Assert.Equal(3, p.NextTone);
+        Assert.Equal(new[] { MelodyStep.Correct, MelodyStep.Solved }, PlayAll(p, 3, 7));
     }
 
     // ---------------- Harmony ----------------
@@ -128,6 +157,77 @@ public sealed class MelodyPuzzleTests
         Assert.Equal(MelodyStep.Wrong, p.Play(0));      // singing the melody itself is not the counter-voice
         Assert.Equal(0, p.Entered);
         Assert.Equal(MelodyStep.Solved, PlayAll(p, 4, 5, 6, 7).Last());
+    }
+
+    /// <summary>#3677: the Bridge Song is seven rounds, one letter of ORNEMIS each — the choir's prompt is that letter's two
+    /// melody tones, the answer their counter-voice; the spelling position counts across the rounds.</summary>
+    [Fact]
+    public void Harmony_ByLetter_TheBridgeSong_IsSevenRounds_TheLettersMelodyThenItsCounterVoice()
+    {
+        var p = new MelodyPuzzle(new MelodyPuzzleSpec
+        {
+            Mode = MelodyPuzzleMode.Harmony,
+            Target = SounderAlphabet.Encode(SoundersIds.SongOfReturnWord),
+            Word = SoundersIds.SongOfReturnWord,
+            RoundPerLetter = true,
+            ShowNextTone = true,
+        });
+
+        Assert.Equal(7, p.RoundCount);
+        for (int r = 0; r < 7; r++)
+        {
+            int[] melody = SounderAlphabet.Encode(SoundersIds.SongOfReturnWord.Substring(r, 1));
+            int[] answer = MelodyPuzzle.Counter(melody, 4);
+            Assert.Equal(r, p.Round);
+            Assert.Equal(2, melody.Length);
+            Assert.Equal(melody, p.Prompt);   // the choir sings the letter…
+            Assert.Equal(answer, p.Expected); // …the player answers its second voice
+            Assert.Equal(2 * r, p.WordEntered);
+            Assert.Equal(answer[0], p.NextTone);
+            Assert.Equal(MelodyStep.Wrong, p.Play(melody[0] == answer[0] ? (answer[0] + 1) % 8 : melody[0])); // copying the choir
+            Assert.Equal(0, p.Entered);
+            Assert.Equal(MelodyStep.Correct, p.Play(answer[0]));
+            Assert.Equal((2 * r) + 1, p.WordEntered);
+            Assert.Equal(answer[1], p.NextTone);
+            Assert.Equal(r < 6 ? MelodyStep.RoundDone : MelodyStep.Solved, p.Play(answer[1]));
+        }
+
+        Assert.True(p.Solved);
+        Assert.Equal(-1, p.NextTone);
+        Assert.Equal(7, p.Mistakes);
+
+        // Together the rounds ask exactly what the spelling line shows (#3426): O = C' B · R = D A · …
+        var whole = new MelodyPuzzleSpec { Mode = MelodyPuzzleMode.Harmony, Target = p.Spec.Target, Word = p.Spec.Word };
+        Assert.Equal(MelodySpelling.PlayedTones(whole), new MelodyPuzzle(whole).Expected);
+        Assert.Equal(new[] { 7, 6 }, MelodySpelling.PlayedTones(whole).Take(2)); // O = F E, a fifth up: C' B
+    }
+
+    [Fact]
+    public void Harmony_ByLetter_WithAToneOffTheBar_IsNoPuzzle_AndWithoutRestsIsOneRound()
+    {
+        Assert.False(new MelodyPuzzle(new MelodyPuzzleSpec { Mode = MelodyPuzzleMode.Harmony, Target = new[] { 3, 2, R, 9, 1 }, RoundPerLetter = true }).IsValid);
+
+        var one = new MelodyPuzzle(new MelodyPuzzleSpec { Mode = MelodyPuzzleMode.Harmony, Target = new[] { R, 0, 1, 2, R, R }, RoundPerLetter = true });
+        Assert.Equal(1, one.RoundCount);
+        Assert.Equal(new[] { 0, 1, 2 }, one.Prompt);
+        Assert.Equal(new[] { 4, 5, 6 }, one.Expected);
+    }
+
+    [Fact]
+    public void TheNextTone_IsTheExpectedTone_AndTheSpecCopiesTheBridgeSongsFlags()
+    {
+        var p = new MelodyPuzzle(new MelodyPuzzleSpec { Mode = MelodyPuzzleMode.Compose, Target = new[] { 6, 1 } });
+        Assert.Equal(6, p.NextTone);
+        p.Play(6);
+        Assert.Equal(1, p.NextTone);
+        p.Play(1);
+        Assert.Equal(-1, p.NextTone); // solved
+        Assert.Equal(-1, new MelodyPuzzle(new MelodyPuzzleSpec { Mode = MelodyPuzzleMode.Compose }).NextTone);
+
+        var copy = new MelodyPuzzleSpec { RoundPerLetter = true, ShowNextTone = true }.Clone();
+        Assert.True(copy.RoundPerLetter);
+        Assert.True(copy.ShowNextTone);
+        Assert.False(new MelodyPuzzleSpec().ShowNextTone); // off unless a puzzle asks for it
     }
 
     [Theory]

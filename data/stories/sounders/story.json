@@ -110,7 +110,7 @@
                        "hintKey": "story.sounders.s4.chamber.hint", "doneKey": "story.sounders.s4.chamber.done" } },
         { "id": "s4.5", "objective": { "event": "disc:decoded", "arg": "song_disc_great_song" },
           "explain": { "startKey": "story.sounders.s4.great.start", "chipKey": "story.sounders.s4.great.chip",
-                       "doneKey": "story.sounders.s4.great.done" } },
+                       "hintKey": "story.sounders.s4.great.hint", "doneKey": "story.sounders.s4.great.done" } },
         { "id": "s4.6", "objective": { "event": "craft:any", "arg": "obsidian_chest" },
           "explain": { "startKey": "story.sounders.s4.armour.start", "chipKey": "story.sounders.s4.armour.chip",
                        "hintKey": "story.sounders.s4.armour.hint" } },

@@ -113,33 +113,46 @@ public sealed partial class GameServer
 
         if (shrineLike && InSoundersChapter(s, "s6") && !s.State.Milestones.Contains(SoundersIds.MilestoneSongLearned))
         {
-            return new MelodyPuzzleSpec
-            {
-                Id = SoundersIds.PuzzleSongOfReturn,
-                Mode = MelodyPuzzleMode.Compose,
-                Target = SounderAlphabet.Encode(SoundersIds.SongOfReturnWord),
-                Word = SoundersIds.SongOfReturnWord, // #3426: the bar shows every letter's two notes
-                IdleSeconds = 30f,
-            };
+            return SongOfReturnSpec();
         }
 
         if (string.Equals(site.Id, ChoirTowerSiteKey, StringComparison.Ordinal) && InSoundersChapter(s, "s8")
             && s.State.Milestones.Contains(SoundersRollConvincedMilestone)
             && !s.State.Milestones.Contains(SoundersBridgeDoneMilestone))
         {
-            return new MelodyPuzzleSpec
-            {
-                Id = SoundersIds.PuzzleBridgeSong,
-                Mode = MelodyPuzzleMode.Harmony,
-                Target = SounderAlphabet.Encode(SoundersIds.SongOfReturnWord),
-                Word = SoundersIds.SongOfReturnWord, // #3426: the bar shows each letter's counter-voice notes
-                Instrument = SoundersIds.InstrumentChoir,
-                IdleSeconds = 30f,
-            };
+            return BridgeSongSpec();
         }
 
         return null;
     }
+
+    /// <summary>Chapter 6's Song of Return at a singing shrine: ORNEMIS from memory, the spelling line shows every letter's
+    /// two notes (#3426) — but no key glows: finding the letters' notes is the puzzle (#3677).</summary>
+    internal static MelodyPuzzleSpec SongOfReturnSpec() => new()
+    {
+        Id = SoundersIds.PuzzleSongOfReturn,
+        Mode = MelodyPuzzleMode.Compose,
+        Target = SounderAlphabet.Encode(SoundersIds.SongOfReturnWord),
+        Word = SoundersIds.SongOfReturnWord, // #3426: the bar shows every letter's two notes
+        IdleSeconds = 30f,
+    };
+
+    /// <summary>
+    /// Chapter 8's Bridge Song at the Choir Tower: ORNEMIS sung by the choir one letter per round (#3677), the player answers
+    /// each letter with its counter-voice a fifth up, the key to press next glowing on the bar; the spelling line shows every
+    /// letter's two answer notes (#3426). A wrong tone simply does not count (#3678).
+    /// </summary>
+    internal static MelodyPuzzleSpec BridgeSongSpec() => new()
+    {
+        Id = SoundersIds.PuzzleBridgeSong,
+        Mode = MelodyPuzzleMode.Harmony,
+        Target = SounderAlphabet.Encode(SoundersIds.SongOfReturnWord),
+        Word = SoundersIds.SongOfReturnWord, // #3426: the bar shows each letter's counter-voice notes
+        RoundPerLetter = true,               // #3677: the choir sings one letter, the player answers it — seven short rounds
+        ShowNextTone = true,                 // #3677: the key to press next glows (singing along, not decoding)
+        Instrument = SoundersIds.InstrumentChoir,
+        IdleSeconds = 30f,
+    };
 
     /// <summary>Chapter 2's reward: the Song Spindle and the first disc, once per player.</summary>
     private void OnShrineEchoSolved(PlayerSession s)

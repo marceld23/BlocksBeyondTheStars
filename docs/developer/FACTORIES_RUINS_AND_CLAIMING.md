@@ -32,6 +32,7 @@ StampSettlement → StampIntercityRail → StampRuins → StampRailRuins → Sta
 | Abandoned station (#2166) | `StampRailRuins` (`GameServerRailRuins.cs`) | `PlaceRailRuins` + `RailRuinChance` | 0–1, generation 20+, unprotected like the ruins; skipped on airless, gas and restricted worlds — see [MONORAIL.md](MONORAIL.md) |
 | Landmark (#3483) | `StampLandmarks` (`GameServerLandmarks.cs`) | `PlaceLandmarks` + `LandmarkChance` | 0–1, generation 37+: one giant authored building, usually a ruin from the shared ruin pass, unprotected; never on an asteroid, an airless, gas or void world — see [LANDMARKS.md](LANDMARKS.md) |
 | Giant ship wreck (#3608) | `StampGiantWrecks` (`GameServerGiantWrecks.cs`) | `PlaceGiantWrecks` + `GiantWreckChance` + the world option `GiantWrecks` | 0–1, generation 42+: the wreck of a huge authored spaceship (about every 20th planet), unprotected; airless bodies and asteroids allowed when big enough, never a gas or void world or the finale body — see [GIANT_SHIPS.md](GIANT_SHIPS.md) |
+| Fallen guardian giant (#3680) | `StampGuardianGiants` (`GameServerGuardianGiantStamp.cs`) | `PlaceGuardianGiants` + `GuardianGiantChance` | 0–2, generation 44+: a huge block-built robot lying on dry, flat ground (a first one on about every third body, a second on about a third of those), ordinary unprotected blocks, about one in four can wake as a boss; never a gas, void or city world, an asteroid or the finale body — see [WORLD_GENERATION.md](WORLD_GENERATION.md) §59 |
 
 Every count/position is a hash of `seed ^ StableHash("<kind>:" + locationId)`, so adding any one of them
 leaves the rest of the universe unchanged. Placement reuses the settlement allocator
@@ -46,7 +47,8 @@ the defaults (`StructureTypeRulesTests`); a broken entry is reported and dropped
 default) overrides the file's — a stored value equal to the old code default (0.6, 0.35, 0.34, which every older
 `server.json` holds) reads as unset, and an override that differs from the file is logged once. `GiantWreckChance` (#3608,
 next to `LandmarkChance`) overrides the `giant_wreck` chance (0.05) the same way, except that it never had a written-out
-default — every stored value is the operator's. A file can raise a kind's
+default — every stored value is the operator's; `GuardianGiantChance` (#3680) likewise for the first guardian giant's 0.34.
+A file can raise a kind's
 `minGeneration`, never lower it below the C# default. A changed number only reaches bodies stamped afterwards: what stands
 replays from its records.
 

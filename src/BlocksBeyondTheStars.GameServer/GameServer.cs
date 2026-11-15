@@ -904,6 +904,7 @@ public sealed partial class GameServer
 
                     BootDetail("landmarks", () => StampLandmarks(restricted)); // #3486 (generation 37): one giant authored building — after everything that stands on the ground, before what is buried
                     BootDetail("giant wrecks", () => StampGiantWrecks(restricted)); // #3610 (generation 42): a giant ship wreck — right after the landmark, which it keeps clear of
+                    BootDetail("guardian giants", () => StampGuardianGiants(restricted)); // #3680 (generation 44): fallen guardian giants — after every surface structure, which they keep clear of
                     BootDetail("ancient ruins", () => StampAncientRuins(restricted)); // #3334 (generation 35): the buried G.D.S. ruin — before the vaults, which keep clear of it
 
                     if (_config.PlaceVaults && Stamps(StructureTypeRules.Vault))
@@ -5429,6 +5430,7 @@ public sealed partial class GameServer
         RaiseGameEvent(session, GameEventKeys.MineAny, def.Key); // #2465: the story-pack steps
         ShipAiOnBlockBroken(session, def.Key); // VEGA context tips (#1077): digging score, by-hand streak, rare-ore learned
         CreaturesOnBlockBroken(session, pos); // #1760: a flowerling that SEES this turns on the miner
+        GuardianGiantOnBlockBroken(pos); // #3676: digging at a sleeping guardian giant that can wake wakes it
     }
 
     /// <summary>Area mining for powerful drills: breaks the mineable, unprotected blocks around a centre.

@@ -3922,3 +3922,48 @@ discovery, Codex, VEGA, rumours and adding a civilization — is in [CIVILIZATIO
 
 **Tests.** `CivilizationFrameworkTests`, `CivilizationStampTests`, `CivilizationWorldTests`, `LegacyCivilizationTagsTests`,
 `MazeRuinSourceTests`, `SaveCompatibilityTests`; Client.Tests `CivilizationClientTests`.
+
+## 59. Generation 44 — the fallen guardian giants (#3680, epic #3676, 2026-11-15, Justus' idea)
+
+**Why.** Huge block-built hunter robots — the Guardian's, 14 blocks tall — lying in the landscape, fallen long ago. Most of
+them are dead for good; about one in four can still wake when a player comes near, stand up and fight as a boss (the boss
+logic is its own part of #3676; this section is the stamp).
+
+**The gate.** `WorldDescription.GuardianGiantsGeneration` = 44 = `CurrentTerrainGeneration`. A server-side stamp of ordinary
+block edits: every chunk of every older generation stays bit-identical, no chunk golden moves, no block was added (no save
+version bump); a generation-43 world never grows a giant.
+
+**What it adds to the pipeline.** One line in the structures stage, `StampGuardianGiants` (`GameServerGuardianGiantStamp.cs`),
+right after the giant wrecks and before the buried ruins, so every surface structure stands already and the buried and
+scattered kinds after it keep clear of the giants:
+- **The rule** — `guardian_giant` in `data/structure_types.json`: `chance` 0.34 for a first giant (× the structures
+  frequency; `ServerConfig.GuardianGiantChance` overrides it), `thresholds` [0.3] for a second one on a body that has the
+  first, `cap` 2 — about every third body carries one, about one in ten two. Conditions `notVoid`, `notGas`, `notAsteroid`,
+  `notCityWorld` (an airless rocky body may carry one); on a type with a structure whitelist only when it names
+  `guardian_giants`; never the finale body; the host's switch `ServerConfig.PlaceGuardianGiants`.
+- **The decisions** — `GuardianGiantSites` (WorldGeneration): the count, each giant's quarter turn, body seed (its rusted
+  plates), seat-search seed and whether it can wake (`GuardianGiantRules.WakeShare`, a quarter) — each a hash of the world
+  seed, the body and the giant's index on a lane of its own.
+- **The seat** — the guaranteed search with the footprint registry and the kind's `keepClearFrom`: 40 from the pads, 30
+  from the crash site and the wreck, 60 from towns, bandit camps, huts and outposts, 24 from fallen towns, factories,
+  landmarks, giant wrecks and civilization sites, 48 from the other giant. Only a `flat` seat (dry, the ground spread at
+  most 4, never water, ice or lava, no arch above and no hall below); ranked flat-first in the first ring. A giant without a
+  seat records a skip.
+- **The bed** — the seat reserves its ground (grade radius 6, cut and fill 6, §55): the bed is level at the seat's ground
+  row and no tree grows into it.
+- **The body** — `GuardianGiantBuilder` writes `GuardianGiantBody.Lying(seed, lit: false, facing)` around the anchor, which
+  stands two rows over the bed (`AnchorAboveGround` = −`LyingBottom`): the back sinks one row into the ground, the arms, legs
+  and head rest on it. Where the ground under a column dips anyway, it is filled (at most 4 deep) so nothing floats; a short
+  plant left on top is cleared. Ordinary blocks (`metal_panel`, `rusted_panel`, `steel_wall`, `titanium_block`,
+  `light_red_off`), mineable and unprotected.
+- **The records** — a placement record per giant (kind `guardian_giant`, the bed's corner, floor and size, the pin
+  `facing`/`seed`/`wake`/`ax`/`ay`/`az`) and a `GuardianGiantRecord` in `WorldMetadata.GuardianGiants` (`<location>#<index>`:
+  the anchor, the facing, the seed, `CanWake`, state `dormant`, the corpse = the resting place) — what the boss logic reads
+  and keeps. The body is written once (stamped feature `guardian_giant:<index>`); every later load registers the footprint
+  and writes nothing — what players mine stays mined and the record's state is the boss logic's.
+
+The editor shows the body as the source `guardian_giant` (parameter `turns`). Pipeline view:
+[STRUCTURE_PIPELINE.md](STRUCTURE_PIPELINE.md) §4.
+
+**Tests.** `GuardianGiantStampTests` (the rule, the seeded decisions, the stamp on a real server: record, cells, bed, margins,
+determinism, the replay), `StructureSourceTests.GuardianGiant`, `StructureTypeRulesTests`, `StructureSourceTests`.

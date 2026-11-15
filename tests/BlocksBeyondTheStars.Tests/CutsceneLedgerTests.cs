@@ -257,11 +257,13 @@ public sealed class CutsceneLedgerTests : IDisposable
         Assert.True(server.PlayCutsceneForTest(p, C, "now"));
         Assert.Equal("now", transport.Plays(p).Last()); // "now or never" — and it restarts the cooldown
 
-        Wait(server, p, SvGameServer.CutsceneCooldownSeconds - 1);
+        // #3686: every scene here is the fixture pack's — one story's scenes are spaced by the short same-pack cooldown (the
+        // 90 s between two stories: CutscenePacingTests).
+        Wait(server, p, SvGameServer.CutsceneSamePackCooldownSeconds - 1);
         Assert.Equal(2, transport.Plays(p).Count);
         Wait(server, p, 1);
         Assert.Equal(new[] { "done@one", "now", "first_mine", "strip@two" }, transport.Plays(p)); // the chained card follows
-        Wait(server, p, SvGameServer.CutsceneCooldownSeconds - 1);
+        Wait(server, p, SvGameServer.CutsceneSamePackCooldownSeconds - 1);
         Assert.Equal(4, transport.Plays(p).Count);
         Wait(server, p, 1);
         Assert.Equal("big_moment", transport.Plays(p).Last());

@@ -97,9 +97,13 @@ namespace BlocksBeyondTheStars.Client
             return new Vector3f(velocity.X * keep, 0f, velocity.Z * keep);
         }
 
-        /// <summary>Whether a giant of this body plan shakes a rider off (the colossus, the arachnid, the Soundrak).</summary>
+        /// <summary>The body plan a guardian giant registers its colliders under (#3676) — it shakes a rider off too.</summary>
+        public const string GuardianGiantPlan = "GuardianGiant";
+
+        /// <summary>Whether a giant of this body plan shakes a rider off (the colossus, the arachnid, the Soundrak, the
+        /// guardian giant).</summary>
         public static bool ShakesOff(string? bodyPlan)
-            => bodyPlan == "Colossus" || bodyPlan == "Arachnid" || bodyPlan == "Soundrak";
+            => bodyPlan == "Colossus" || bodyPlan == "Arachnid" || bodyPlan == "Soundrak" || bodyPlan == GuardianGiantPlan;
 
         /// <summary>The shake-off's impulse for a rider <paramref name="away"/> from the body's middle (horizontal; any length):
         /// <see cref="ShakeOffPush"/> outward plus the <see cref="ShakeOffHop"/>. Straight above the middle the push goes along +X.</summary>

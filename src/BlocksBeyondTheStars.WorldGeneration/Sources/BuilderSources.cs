@@ -228,3 +228,30 @@ internal sealed class HunterCampSource : StructureSourceBase
         return sink.ToBuilt(Key);
     }
 }
+
+/// <summary>A fallen guardian giant (#3680, <see cref="GuardianGiantBuilder"/>): the lying block body, its back sunk one row into
+/// the flat ground, lights out; <c>turns</c> is its quarter turn, the seed picks the rusted plates (the server's body seed is
+/// the request's seed folded to 32 bits).</summary>
+internal sealed class GuardianGiantSource : StructureSourceBase
+{
+    public GuardianGiantSource()
+        : base(Shared.Definitions.GuardianGiantRules.StructureKind, StructureSourceKind.Surface)
+    {
+    }
+
+    public override IReadOnlyList<StructureParam> GetParams(GameContent content) => new[]
+    {
+        StructureParam.Int("turns", 0, 0, 3),
+    };
+
+    /// <summary>The body seed a request's seed builds with.</summary>
+    internal static int BodySeed(long seed) => unchecked((int)(seed ^ (seed >> 32)));
+
+    protected override BuiltStructure BuildCore(StructureBuildRequest r, SourceParams p)
+    {
+        var sink = FlatGroundSink.For(r);
+        const int anchorY = FlatGroundSink.GroundY + GuardianGiantBuilder.AnchorAboveGround;
+        GuardianGiantBuilder.Build(sink, r.Content, r.Surface, 0, anchorY, 0, BodySeed(r.Seed), p.Int("turns"), lit: false);
+        return sink.ToBuilt(Key);
+    }
+}

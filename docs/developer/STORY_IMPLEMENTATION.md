@@ -448,7 +448,10 @@ basic training (rank 3) and the finale in its system (rank 1) still rank above; 
 
 **Bonus.** A mission finished by playing counts as following a lead of its chapter: `PayLeadBonus(chapter)` — once per save
 and chapter (the same `lead:<chapter>:1..n` keys, so never on top of a lead's), never after the arc's last beat. Nothing
-else is paid (no items, no knowledge, no memory trigger).
+else is paid (no items, no knowledge, no memory trigger) — but since #3685 a mission may **end on a memory of the narrator's**:
+an insight of the pack whose event is `mission:<mission id>` (`GameServer.MissionInsightEvent`) is spoken when the mission
+is finished by playing — once by its once-key, after its `minBeat`, kept in the Journal's VEGA notes like every insight
+(two insights may share one line and once-key; the notes list the line once).
 
 **Journal / wire / actions.** `NetStoryPack.Missions` (additive, the world story's entry): `NetStoryMission{Id, ChapterId,
 TitleKey, SummaryKey, State active|done, Skippable, Steps: NetStoryMissionStep{Id, Key, Arg, State done|active|upcoming,
@@ -469,6 +472,8 @@ Journal badge, and "Skip mission" sends `StoryPackIntent{PackId = <world story>,
 | 3 guardian | *What the Stones Remember* | read a monument's runes (lead `monument`) → help a settlement (lead `settlement_help`, `world:settlements`) |
 | 4 verdict | *The Long Quiet* (`world:derelict_reachable`) | board the derelict (lead `unique_site:derelict`) → find its cargo manifest (`lore:read` derelict; `alreadyDoneIf lore:derelict_manifest`) |
 | 4 verdict | *Ships That Remember* — stands in (`world:free_flight`, `world:space_wrecks`) | scan a wreck drifting in space (`scan:any` wreck) |
+| 4 verdict | *The Fallen Giant* (`world:guardian_giants`; #3685, handed out after the derelict's mission) | find a lying guardian giant (`guardian_giant:found`; `alreadyDoneIf world:guardian_giant_near`) → scan it (`scan:performed` guardian_giant; `onComplete` the beat card `giant.remembers` — the scan speaks the insight `guardian_giant`) |
+| 4 verdict | *Echo of the Builders* — stands in (a world below terrain generation 44 without a giant) | scan an old wreck (`scan:performed` wreck\|giant_wreck; `world:free_flight`, `world:space_wrecks`) — stand-in: stop a Guardian machine (lead `machines`, `world:enemies`); the card `giant.remembers` and the insight `mission:m_giant_echo` (the same line) |
 | 5 what_you_are | *Eyes on Far Stars* | research the radar array → build it into the ship (leads `research:` / `module:radar_array`) |
 | 6 sleeps | *The Jump Generator* | research the jump generator → build it into the ship |
 | 7 core | — | the finale is the chapter's mission (its lead, never muted, and its set pieces) |
@@ -587,6 +592,7 @@ drifts from the code), and the authors' path is [STORY_PACK_AUTHORING.md](STORY_
 | `tame:any` | species id (`au_sreekmakra`) | a creature tamed; the shapeshifter following a tame raises its own | `GameServerTaming.cs`, `GameServerSreekmakra.cs` (`BondSreekmakra`) |
 | `loot:any` | container kind | a world container looted empty (never a player crate) | `ContainerSystem.cs` (`LootContainer`) |
 | `defeat:any` | `creature` \| `giant` \| `machine` \| `bandit` (planet), `space_machine` \| `raider` (space) | a hostile defeated by the player | `GameServerEnemies.cs`, `GameServerSpaceCombat.cs` |
+| `guardian_giant:found` | the giant's site id (`<body>#<index>`) | #3685: the player came within the found range (48) of a guardian giant on their body — once per approach, measured at 1 Hz only while a step listens | `GameServerGuardianGiantStory.cs` (`TickGuardianGiantFound`) |
 | `wormhole:any` | destination system id | a flight through a wormhole | `GameServerWormholes.cs` |
 | `relay:commissioned` | station id | an SPS relay completed by the player's delivery | `GameServerRelays.cs` |
 | `lane:linked` | `<systemA>\|<systemB>` | a jump lane opened by the player's contribution | `GameServerRelays.cs` |
@@ -709,7 +715,8 @@ probes of the loaded blocks around the player, run when a step activates), `shap
 since #2476 the story missions' feasibility checks
 `fragments_left` (the world story still has an unfound fragment), `observatory_reachable` / `derelict_reachable` (the
 unique site exists in this save and the player can reach it — the lead's rule), `settlements`, `vaults`, `space_wrecks`
-(the world options are not off); since #2479 the tutorial's deep dives: `data_cache_near` / `scanner_unknown` (the moment
+(the world options are not off), #3685 `guardian_giants` (a giant lies in this save, or the world is of terrain generation 44+
+with the giant's structure kind on) and `guardian_giant_near` (a giant within its found range of the player); since #2479 the tutorial's deep dives: `data_cache_near` / `scanner_unknown` (the moment
 VEGA's 1 Hz tip pass found that situation for the player — `PlayerSession.Vega.VegaTipLive`, the candidate ids of the last
 pass, kept whatever the hints switch, the gates or the cooldowns say; no probe of its own), `jump_ready`, `arcade_ready`,
 `monument_unread`, `asteroid_mining`, `docked`, `job_active`, `forge_ready`, `wormhole_known`, `debris_fields`; since #2480
@@ -948,15 +955,20 @@ player, checks every note authoritatively and reports a solution as a game event
 instrument, timing, optional melody site, time-outs); `MelodyPuzzle` holds the rules. Tones are 0–7 (C4 … C5, the melody
 block's scale and the bar's eight keys); `-1` is a rest — prompt timing, never something to play.
 
-| Mode | Prompt (what the server plays) | What the player plays | A wrong note |
-|---|---|---|---|
-| `Repeat` (Simon says) | round *i* of *R*: the melody's first ⌈(*i*+1)·*n*/*R*⌉ tones (`Rounds` 0 = one more tone per round) | the same | the round starts again, its prompt plays again |
-| `Compose` | nothing | the whole `Target` in order (e.g. the Song of Return, `SounderAlphabet.Encode("ORNEMIS")`) | the input resets — a wrong note that is the first tone counts as the start of a new try |
-| `Harmony` | the melody (`Target`) | its counter-voice: every tone `Transpose`d by `HarmonyOffset` scale steps (default +4 = a fifth above, C→G) | the input resets, the melody plays again |
-| `CallAndResponse` | `Calls[i]` | `Answers[i]` (empty = sing the call back) | the round starts again, the call plays again |
+| Mode | Prompt (what the server plays) | What the player plays |
+|---|---|---|
+| `Repeat` (Simon says) | round *i* of *R*: the melody's first ⌈(*i*+1)·*n*/*R*⌉ tones (`Rounds` 0 = one more tone per round) | the same |
+| `Compose` | nothing | the whole `Target` in order (e.g. the Song of Return, `SounderAlphabet.Encode("ORNEMIS")`) |
+| `Harmony` | the melody (`Target`) — or, with `RoundPerLetter` (#3677, the Bridge Song), one letter per round (the tones between two rests) | its counter-voice: every tone `Transpose`d by `HarmonyOffset` scale steps (default +4 = a fifth above, C→G) |
+| `CallAndResponse` | `Calls[i]` | `Answers[i]` (empty = sing the call back) |
 
 `Transpose` keeps the counter-voice on the bar: a result above C' falls by an octave (7 steps — G + 4 = D, the fifth in
-the same pitch class), one below C rises by one. Wrong notes never punish: nothing is taken away, `Mistakes` only counts.
+the same pitch class), one below C rises by one. **A wrong note never resets anything, in every mode (#3678):** it simply
+does not count — the right tones played so far stay, nothing restarts, no prompt replays because of it; the step is
+still `Wrong` (the bar says "Nearly! Try that note again."), `Mistakes` only counts. (Until #3678 a wrong note restarted
+the round or reset the input — a child copying the Bridge Song's lit melody fell back to 0/14 again and again.)
+`ShowNextTone` (#3677, only the Bridge Song) makes the bar glow the key to press next (`MelodyPuzzle.NextTone`); the Song
+of Return leaves it off, because finding the letters' notes is that puzzle.
 
 **Runtime (server — `GameServerMelodyPuzzles*.cs`).** The API other server code calls:
 
@@ -978,11 +990,13 @@ bool   TryStrikeMelodyPillar(PlayerSession s, Vector3i cell);               // a
   on a pillar of the puzzle's melody site strikes that pillar's tone (a puzzle without a site takes any site's pillars).
   The server answers with `MelodyPuzzleState` (tag 326): open/close, mode, round/rounds, entered/expected, the prompt to
   light along (`Highlight`), the instrument, the result (`MelodyPuzzleResult`: correct, round done, try again, solved,
-  cancelled, timed out, reminder) and the judged tone. A note without a running puzzle is free play: the players nearby
-  hear it. `MelodyNoteIntent` passes `PausedMayHandle` — the bar may be open while a scene holds a singleplayer world;
+  cancelled, timed out, reminder), the judged tone, and (#3677, new map keys) `WordEntered` — the right tones through the
+  whole spelled word across rounds, where the spelling line stands — and `NextTone`, the key to glow (-1 unless the spec
+  has `ShowNextTone`, and while the next round's prompt is pending). A note without a running puzzle is free play: the
+  players nearby hear it. `MelodyNoteIntent` passes `PausedMayHandle` — the bar may be open while a scene holds a singleplayer world;
   a note only moves the sender's own puzzle, prompts and time-outs wait for the world to run.
-- **Clock** (`TickMelodyPuzzles`, post-world): a finished round's next prompt after 0.9 s, a retry's prompt after 1.1 s,
-  a reminder (the round again with its prompt) after `IdleSeconds` without a note (default 20 s; never for Compose), the
+- **Clock** (`TickMelodyPuzzles`, post-world): a finished round's next prompt after 0.9 s (a right note of the next round
+  played before it cancels it — the prompt would only wipe that progress), a reminder (the round again with its prompt) after `IdleSeconds` without a note (default 20 s; never for Compose), the
   time limit (`TimeLimitSeconds`, default none → `TimedOut`), and the end when the player walks further than
   `LeaveDistance` (default 24 blocks) from the site's centre — or, without a site, from where the puzzle started — changes
   the world, flies off or logs out (`Cancelled`).
@@ -1018,8 +1032,13 @@ VEGA's chip row, whose canvas draws above the HUD (#3430): while `HudUi.MelodyBa
 as one — objective chip, "show all objectives" strips, folded tab, under the `VegaChipRow` container's `CanvasGroup`
 (alpha 0, no raycasts; a fade, not SetActive, so the chip and the tab keep measuring their text) — the hotbar's
 slot-action badge hides, and the keyboard controls line drops its `{key:Hotbar}` segment
-(`MelodyBarInput.WithoutHotbarSegment`, #3431). Tests: `MelodyPuzzleTests`, `MelodyPuzzleServerTests`, `RuneStoneTests`
-(server/shared), `MelodyBarClientTests` (Client.Core).
+(`MelodyBarInput.WithoutHotbarSegment`, #3431). For the Bridge Song the key to press next sits in a pulsing warm ring
+(`MelodyBarModel.GlowTone`: the state's `NextTone`, hidden while the prompt still plays — first listen, then answer;
+steady with `UiKit.ReducedMotion`), a different look from the prompt's lit-and-grown tone (#3677). In free play (the
+Resonance Blaster in hand, no puzzle) the hint row names the current Sounders task — `ui.melody.task` with the pack's
+chip step (`SoundersPackProgress.CurrentTaskKey`, from the Journal's `StoryPackStates`) — and keeps the key legend only
+when no Sounders task runs (#3679: a tester at a rune stone saw a panel that asked for nothing). Tests:
+`MelodyPuzzleTests`, `MelodyPuzzleServerTests`, `RuneStoneTests` (server/shared), `MelodyBarClientTests` (Client.Core).
 
 ## Side packs: lore, dialogs, texts, systems and hidden blueprints (#3347–#3357)
 

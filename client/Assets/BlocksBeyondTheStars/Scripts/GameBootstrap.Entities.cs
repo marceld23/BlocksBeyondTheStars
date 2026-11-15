@@ -41,6 +41,10 @@ namespace BlocksBeyondTheStars.Client
         /// every call, so stamping per enemy would drag its offset).</summary>
         public double PlanetEnemiesLocalTime { get; private set; }
 
+        /// <summary>#3676: the guardian giant fights near the player — every <see cref="GuardianGiantStatus"/>, stamped on
+        /// <see cref="WorldTime"/> as it arrives. The giant's view animates from it, the HUD's boss bar and the music read it.</summary>
+        public GuardianGiantFight GuardianGiantFight { get; } = new GuardianGiantFight();
+
         /// <summary>#2664–#2670: maps the server's snapshot clock onto <see cref="WorldTime"/> for every planet-entity
         /// interpolator (animals, NPCs, machines, bandits) — one offset per connection, re-synced on a world reset.</summary>
         public ServerClockSync EntityClock { get; } = new ServerClockSync();
@@ -188,6 +192,7 @@ namespace BlocksBeyondTheStars.Client
                 PlanetEnemiesServerTime = m.ServerTime;
                 PlanetEnemiesLocalTime = EntityClock.ToLocal(m.ServerTime, WorldTime); // #2670: one stamp per list
             };
+            Network.GuardianGiantStatusReceived += m => GuardianGiantFight.Receive(m, WorldTime); // #3676
             Network.CreaturesReceived += m =>
             {
                 Creatures = m.Creatures;

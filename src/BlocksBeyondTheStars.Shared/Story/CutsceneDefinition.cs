@@ -182,6 +182,12 @@ public sealed class CutsceneOptions
     /// (<c>ui.cutscene.waiting_safe</c>), so a held-back scene does not read as a missing one.</summary>
     public bool WaitHint { get; set; }
 
+    /// <summary>#3686: a step of the pack (its id) after which the scene is overtaken — once the player has done or skipped
+    /// that step, the scene is dropped from the server's queue unsent (stamped seen; lines it held go out). For a scene no
+    /// step binds (one the server's code plays: the Sounders' first Echo, the choir tower; a pack's intro); a scene bound to a
+    /// step is overtaken by the pack's next step on its own. Empty = none.</summary>
+    public string StaleAfterStep { get; set; } = string.Empty;
+
     /// <summary>Whether the Story tab may replay the scene once seen (default true).</summary>
     public bool Replayable { get; set; } = true;
 
@@ -432,6 +438,7 @@ public static class StoryCutsceneIds
     {
         Prologue, "ch1.open", "ch2.open", "ch3.open", "ch4.open", "ch5.open", "ch6.open", "ch7.open",
         "b01", "b03", "b04", "b07", "b08", "b10",
+        "giant.remembers", // #3685: VEGA remembers the guardian giants (the end of chapter 4's giant mission)
         "fin.arrival", "fin.descent", "fin.breach", "fin.duel", "fin.standdown", Resolution,
     };
 

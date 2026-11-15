@@ -303,7 +303,12 @@ public sealed class VegaChapterScenesTests : IDisposable
                 if (caption.Style == CutsceneCaptionStyles.Speaker)
                 {
                     Assert.Contains(caption.Key, scene.ReplaceLineKeys); // the panel does not say it again
-                    Assert.True(beatKeys.Contains(caption.Key) || caption.Key == "story.vega.guardian_revealed", $"{scene.Id}: {caption.Key}");
+                    // #3685: a mission's "VEGA remembers" card (giant.remembers) shows a registered insight — the line the
+                    // Journal keeps among VEGA's notes — never free text.
+                    Assert.True(
+                        beatKeys.Contains(caption.Key) || caption.Key == "story.vega.guardian_revealed"
+                        || Vega.Insights.Any(i => i.TextKey == caption.Key),
+                        $"{scene.Id}: {caption.Key}");
                 }
                 else
                 {

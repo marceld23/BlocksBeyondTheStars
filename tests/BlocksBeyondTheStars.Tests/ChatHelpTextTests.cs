@@ -25,6 +25,8 @@ public sealed class ChatHelpTextTests
         "ui.admin.help_ressaw", // #3421
         "ui.admin.help_landmark", // #3496
         "ui.admin.help_giantwreck", // #3610
+        "ui.admin.help_guardian_giant", // #3676
+        "ui.cmd.usage_giant", // #3676: /giant guardian
         "ui.admin.help_wilderness", // #2646
         "ui.admin.help_rail", // #3447
         "ui.admin.help_inspect",

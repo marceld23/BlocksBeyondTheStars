@@ -160,9 +160,9 @@ public sealed partial class GameServer
     /// whole habitat is the melt.</summary>
     private float BurnRateFor(CombatEntity e, bool creature)
     {
-        if (creature && (e.IsCompanion || e.IsGiant))
+        if ((creature && (e.IsCompanion || e.IsGiant)) || e.Kind == CombatEntityKind.GuardianGiant)
         {
-            return 0f; // #1998: a 60-block giant does not catch fire from a torch
+            return 0f; // #1998: a 60-block giant does not catch fire from a torch; #3676 nor a guardian giant
         }
 
         bool lavaDweller = creature

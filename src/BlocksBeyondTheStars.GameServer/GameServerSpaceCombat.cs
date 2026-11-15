@@ -36,6 +36,7 @@ public enum CombatEntityKind
     SalvageCapsule, // #2353: a sealed salvage capsule — collected like a resource drop, pays once per galaxy (never hostile)
     TankSpider,   // #3096: a walking Guardian spider with a tank — it swells and bursts near a player (damage only, no blocks)
     HunterShuttle, // #3097: a weak Guardian shuttle — it skirmishes, then flees and lands a robot camp on a nearby planet
+    GuardianGiant, // #3676: an awake guardian giant — the boss; moved, aimed and defeated by GameServerGuardianGiants*.cs only
 }
 
 /// <summary>A server-authoritative combat entity (space object or planet enemy).</summary>

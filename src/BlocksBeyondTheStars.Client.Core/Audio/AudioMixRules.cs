@@ -52,7 +52,8 @@ namespace BlocksBeyondTheStars.Client
 
         private static readonly string[] LargePrefixes =
         {
-            "giant_stomp", "sandworm_", "leviathan_", "thumper_", "terrain_blast", "geyser_", "horn_", "tank_spider_burst",
+            "giant_", // the creature giants' stomp and every guardian giant cue (#3676: a 14-block robot is heard from afar)
+            "sandworm_", "leviathan_", "thumper_", "terrain_blast", "geyser_", "horn_", "tank_spider_burst",
             "guardian_bay", "asteroid_break", "tree_fall", "raider_warp_in", "hunter_shuttle_warp",
             "ship_laser", "ship_weapon", "ship_mine", // #3248: other ships' shots carry across the flight scale
         };

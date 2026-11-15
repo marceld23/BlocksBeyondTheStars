@@ -76,14 +76,15 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
     }
 
     /// <summary>
-    /// The client's cutscene queue (#2468). The server already spaces what it sends (90 s per unrequested card, chains and
-    /// "now or never" at once); the client must keep that spacing although it plays scenes later than they arrive — a
-    /// scene waiting minutes for a safe moment must not be followed by the next one a second after it ends.
+    /// The client's cutscene queue (#2468). The server already spaces what it sends (90 s per unrequested card, 15 s within
+    /// one story, chains and "now or never" at once); the client must keep that spacing although it plays scenes later than
+    /// they arrive — a scene waiting minutes for a safe moment must not be followed by the next one a second after it ends.
     /// <list type="bullet">
     /// <item>One scene plays at a time; nothing — not even a banner — starts while one plays.</item>
     /// <item>A scene already queued or playing is not queued again (a rejoin re-offer, a double replay request).</item>
     /// <item>Requested scenes (replays, previews, the dev palette) go to the front and never wait for the cooldown.</item>
-    /// <item>After an unrequested card or scene ends, the next one waits <see cref="CooldownSeconds"/> — unless the
+    /// <item>After an unrequested card or scene ends, the next one waits <see cref="CooldownSeconds"/> — or
+    /// <see cref="SamePackCooldownSeconds"/> when it belongs to the same story (#3686, as on the server) — unless the
     /// finished one chains to it (<c>chainNext</c>; the built-in recap chains to its pack's next scene, #2470), it is "now
     /// or never", or it is a banner.</item>
     /// </list>
@@ -93,10 +94,15 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
         /// <summary>The spacing between two unrequested cards or scenes (synthesis §6.2).</summary>
         public const float CooldownSeconds = 90f;
 
+        /// <summary>#3686: the spacing between two unrequested cards or scenes of the same story pack — the server sends the
+        /// next one after its own 15 s, so the client must not hold it for the full <see cref="CooldownSeconds"/>.</summary>
+        public const float SamePackCooldownSeconds = 15f;
+
         private readonly List<QueuedCutscene> _items = new List<QueuedCutscene>();
         private readonly HashSet<string> _chain = new HashSet<string>(StringComparer.Ordinal);
         private bool _anyEnded;
         private float _lastEndedAt;
+        private string _lastEndedPack = string.Empty;
 
         /// <summary>The waiting scenes, in order.</summary>
         public IReadOnlyList<QueuedCutscene> Items => _items;
@@ -155,6 +161,14 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
         /// <summary>Whether the cooldown after the last unrequested card or scene has run out at <paramref name="now"/>.</summary>
         public bool CooldownOver(float now) => !_anyEnded || now - _lastEndedAt >= CooldownSeconds;
 
+        /// <summary>#3686: whether the cooldown for a scene of <paramref name="packId"/> has run out at <paramref name="now"/> —
+        /// <see cref="SamePackCooldownSeconds"/> after a scene of the same pack, else <see cref="CooldownSeconds"/>.</summary>
+        public bool CooldownOver(float now, string packId)
+        {
+            float cooldown = string.Equals(packId, _lastEndedPack, StringComparison.Ordinal) ? SamePackCooldownSeconds : CooldownSeconds;
+            return !_anyEnded || now - _lastEndedAt >= cooldown;
+        }
+
         /// <summary>Whether the scene that ended last chains to <paramref name="item"/>.</summary>
         public bool IsChained(QueuedCutscene item)
             => item != null && (_chain.Contains(item.PackId + StoryCutsceneIds.PackSeparator + item.DefinitionId)
@@ -164,7 +178,7 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
         /// <summary>Whether <paramref name="item"/> may start now as far as the queue is concerned (the safe-moment gate
         /// still decides).</summary>
         public bool MayGoNow(QueuedCutscene item, float now)
-            => item.Tier <= CutsceneTiers.Banner || item.Requested || item.CooldownExempt || IsChained(item) || CooldownOver(now);
+            => item.Tier <= CutsceneTiers.Banner || item.Requested || item.CooldownExempt || IsChained(item) || CooldownOver(now, item.PackId);
 
         /// <summary>The scenes that may start now, in queue order — none while a scene plays. A card held back by the
         /// cooldown does not block a banner behind it.</summary>
@@ -217,6 +231,7 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
 
             _anyEnded = true;
             _lastEndedAt = now;
+            _lastEndedPack = item.PackId;
             _chain.Clear();
             if (item.DefinitionId == StoryCutsceneIds.Recap)
             {
@@ -242,6 +257,7 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
             _chain.Clear();
             Playing = null;
             _anyEnded = false;
+            _lastEndedPack = string.Empty;
         }
     }
 }

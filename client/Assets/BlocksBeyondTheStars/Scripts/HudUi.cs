@@ -72,6 +72,7 @@ namespace BlocksBeyondTheStars.Client
 
             UpdateTaming(show); // per frame: the cursor ownership + the [1]–[4] / Esc keys must not wait for the throttled Refresh
             UpdateMelodyBar(show); // #3346 per frame: the tone keys, the prompt's lights
+            UpdateBossBar(show); // #3676 per frame: a guardian giant's hull and rage pulse (HudUi.BossBar.cs)
 
             if (!show && _gearCanvas != null && _gearCanvas.enabled)
             {
@@ -222,6 +223,7 @@ namespace BlocksBeyondTheStars.Client
             BuildShipRepair(root);
             BuildTaming(root);
             BuildMelodyBar(root); // #3346
+            BuildBossBar(root); // #3676
 
             // Typography: headline labels glow like the hologram, the rest keep the readable underlay.
             foreach (var glow in new TMP_Text[] { _locTitle, _inSpace, _prompt, _scanSubject, _tameName, _speederTitle, _shipRepairTitle, _observer })

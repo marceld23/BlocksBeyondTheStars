@@ -1481,11 +1481,71 @@
    "peak": -4.7,
    "sha256": "12d5e06189407ef7f808dda97a7bd5f38ae53b6de471e9dab71531e3b383c696"
   },
+  "giant_collapse": {
+   "class": "oneshot",
+   "level": -12.4,
+   "peak": -7.3,
+   "sha256": "02c9c1eb1e0be0fc474f81cd40bc9fe9f015432cefd823b15b256bc0d0baeb28"
+  },
+  "giant_flicker": {
+   "class": "oneshot",
+   "level": -17.6,
+   "peak": 0.9,
+   "sha256": "cd8099d6d0d92ea2681d77e9b00eb038312fcf1ad84e75fad290f7f36aebfab8"
+  },
+  "giant_laser_beam": {
+   "class": "oneshot",
+   "level": -12.0,
+   "peak": -4.7,
+   "sha256": "80209e34d556e768844fb3b709f0c18fc47d960bca775b43a510631414feeb37"
+  },
+  "giant_laser_charge": {
+   "class": "oneshot",
+   "level": -10.7,
+   "peak": -3.2,
+   "sha256": "953cbeddca97f18d494974f69c62eb12c31d0898225382a47133af31dde33f9e"
+  },
+  "giant_rise": {
+   "class": "oneshot",
+   "level": -12.4,
+   "peak": -1.0,
+   "sha256": "d26e8ed341b283e50d85b4088a05927ef61e4ee0deb468b88785cfe16f62e5aa"
+  },
+  "giant_rock_impact": {
+   "class": "oneshot",
+   "level": -10.6,
+   "peak": 0.0,
+   "sha256": "2eb75534f708d0cf323bcfb033ee1b1e0c64421ca52aa8c34cb978c5ad99722e"
+  },
+  "giant_step": {
+   "class": "oneshot",
+   "level": -10.7,
+   "peak": 0.5,
+   "sha256": "299b080ad83a1d8c4e3232a076f1ee8b35160978bd968ea2a22071db14e059bd"
+  },
   "giant_stomp": {
    "class": "oneshot",
    "level": -12.7,
    "peak": -1.4,
    "sha256": "9671541506caed7d958bd8c2bae721685e999cf5249edb477600c18e66cf9c64"
+  },
+  "giant_summon": {
+   "class": "oneshot",
+   "level": -12.5,
+   "peak": -7.6,
+   "sha256": "62659b845e2f054666eaee14d656372e98b1879902643fefa95855694deeeb2d"
+  },
+  "giant_throw": {
+   "class": "oneshot",
+   "level": -12.9,
+   "peak": 0.3,
+   "sha256": "95940822a822c68856a70007ab58045b7c54d7319bfb59745b4e4392ca05e95d"
+  },
+  "giant_wake": {
+   "class": "oneshot",
+   "level": -12.5,
+   "peak": -6.3,
+   "sha256": "8abb55aa12b8c63470de0de195d5f28451a0289133575f8a4cc303a1662a2b7f"
   },
   "glider_open": {
    "class": "foley",
