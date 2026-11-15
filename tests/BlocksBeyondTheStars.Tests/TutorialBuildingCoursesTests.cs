@@ -666,6 +666,12 @@ public sealed class TutorialBuildingCoursesTests : IDisposable
         Assert.True(Has(p, StoryPackKeys.CutsceneSent(T, "tut.first_base")));
         Assert.DoesNotContain("vega.hint.base_walls", transport.LineKeys(p));
         Assert.DoesNotContain("vega.hint.base_airless", transport.LineKeys(p));
+        // #3686: the course card went out a moment ago, so the base card waits out the cooldown — in play the player is still
+        // founding when it goes out. A scene still queued when the NEXT step is through counts as overtaken and is dropped,
+        // so let it go out before the course walks on (in a second, as this test does). The course card queued first.
+        Cooldown(server, p);
+        Cooldown(server, p);
+        Assert.Contains("tut.first_base", transport.Plays(p));
         Assert.True(Has(p, "vega:hint:base_walls"));
         Assert.Contains("story.tutorial.c7.zone.start", transport.LineKeys(p));
 

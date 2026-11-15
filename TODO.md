@@ -43,7 +43,7 @@ one each for the VEGA story, the Sounders and the scenes).
   (rise, walk, hop, stomp, jump attack, laser, throw, summon, search, rage, flinch, collapse, lie down), warning rings,
   camera shake (off with reduced motion) (`GuardianGiantView*.cs`, `Client.Core/GuardianGiants`).
 - **#3683** the boss bar (`HudUi.BossBar.cs`), map marker by state, Codex entry and portrait, the achievement "Guardian
-  Giant Slayer", VEGA lines; **#3684** eleven new ElevenLabs sounds (`giant_*.mp3`), fight music `music_boss_gauntlet`.
+  Giant Slayer", VEGA lines; **#3684** ten new ElevenLabs sounds (`giant_*.mp3`; the stomp reuses the existing `giant_stomp`), fight music `music_boss_gauntlet`.
 - **#3685 the VEGA story** — canon C18 (the giants were the Service's construction and terraforming giants, taken over
   in the cull, fallen at the severing); chapter-4 mission "The Fallen Giant" (find → scan → VEGA remembers; stand-in
   "Echo of the Builders" on worlds without giants); a defeated giant counts five machine kills inside the cap and unlocks
